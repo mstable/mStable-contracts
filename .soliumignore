@@ -1,0 +1,3 @@
+node_modules
+contracts/z_mocks
+contracts/oracles/oraclizeAPI_0.5.sol

@@ -1,0 +1,4 @@
+
+// it should check for the staleness of the prices that it is returning
+// we can fast forward the block time using the web3 object (https://michalzalecki.com/ethereum-test-driven-introduction-to-solidity-part-2/)
+// or probably through some external library.

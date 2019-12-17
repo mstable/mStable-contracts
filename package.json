@@ -1,0 +1,63 @@
+{
+  "name": "mstable-contracts",
+  "version": "1.0.1",
+  "private": true,
+  "license": "None",
+  "description": "mStable Contracts",
+  "author": "Stability Labs Pty. Ltd.",
+  "scripts": {
+    "migrate": "bash scripts/deploy_development.sh",
+    "migrate:rinkeby": "truffle migrate --network rinkeby --reset",
+    "lint": "yarn run lint-ts; yarn run lint-sol",
+    "lint-ts": "tslint migrations/*.ts test/**/*.ts",
+    "lint-sol": "solium -d contracts/ --fix ",
+    "coverage": "truffle run coverage --network coverage --solcoverjs './.solcover.js'",
+    "test": "yarn run test-prep; truffle test;",
+    "test-prep": "yarn run compile; yarn run generate-typings; yarn run transpile;",
+    "test-lite": "yarn run transpile; truffle test",
+    "compile": "truffle compile --all",
+    "generate-typings": "abi-gen --abis './build/*.json' --out './types/generated' --template './types/templates.0x/contract.handlebars' --partials './types/templates.0x/partials/*.handlebars'",
+    "transpile": "rm -rf ./transpiled; copyfiles ./build/* ./transpiled; tsc",
+    "prettify": "prettier --write test/*.ts test/**/*.ts types/generated/*.ts types/*.ts artifacts/*.ts"
+  },
+  "repository": "gitlab:mstable/mstable-contracts",
+  "devDependencies": {
+    "@0x/abi-gen": "^4.2.0",
+    "@0x/assert": "^2.1.5",
+    "@0x/base-contract": "^5.3.3",
+    "@0x/json-schemas": "^4.0.1",
+    "@0x/types": "^2.4.2",
+    "@0x/utils": "^4.5.1",
+    "@0x/web3-wrapper": "^6.0.12",
+    "@truffle/hdwallet-provider": "^1.0.18",
+    "@types/bignumber.js": "^5.0.0",
+    "@types/chai": "^4.2.2",
+    "@types/lodash": "^4.14.138",
+    "@types/mocha": "^5.2.7",
+    "@types/node": "^12.7.5",
+    "bignumber.js": "^9.0.0",
+    "chai": "^4.2.0",
+    "chai-bignumber": "^3.0.0",
+    "copyfiles": "^2.1.1",
+    "ethlint": "^1.2.5",
+    "openzeppelin-test-helpers": "0.3.1",
+    "prettier": "^1.18.2",
+    "solidity-coverage": "^0.7.0-beta.2",
+    "truffle": "5.0.34",
+    "ts-node": "^8.4.1",
+    "tsconfig-paths": "^3.9.0",
+    "tslint": "^5.20.0",
+    "tslint-no-unused-expression-chai": "0.0.3",
+    "types-ethereumjs-util": "^0.0.8",
+    "typescript": "^3.6.3",
+    "web3-utils": "^1.2.1",
+    "web3": "^1.2.2"
+  },
+  "dependencies": {
+    "@aragon/apps-voting": "^2.1.0",
+    "openzeppelin-solidity": "^2.3.0"
+  },
+  "_moduleAliases": {
+    "@utils": "transpiled/test-utils"
+  }
+}

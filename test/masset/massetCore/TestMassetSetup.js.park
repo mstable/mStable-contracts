@@ -1,0 +1,291 @@
+const {balance, BN, constants, ether, expect, expectEvent, makeInterfaceId, send, should, shouldFail, time}
+    = require('openzeppelin-test-helpers');
+
+const MetaToken = artifacts.require("MetaToken");
+const MetaPriceOracle = artifacts.require("MetaPriceOracle");
+const MetaUSDToken = artifacts.require("MetaUSDToken");
+const ERC20MockToken = artifacts.require("ERC20MockToken");
+
+contract('Testing MetaUSDToken Setup', (accounts) => {
+
+    const DECIMALS = 18;
+
+    const accountOne = accounts[0];
+    const accountTwo = accounts[1];
+
+    var musd, meta, metaOracle;
+    var token1, token2, token3, token4, token5;
+    var MAX_WEIGHT = new BN('1000000000000000000');
+
+    before('Initialize all ERC20 tokens before beginning tests', async function () {
+        meta = await MetaToken.new({from: accountOne});
+        metaOracle = await MetaPriceOracle.new({from: accountOne});
+        token1 = await ERC20MockToken.new("token1", "ONE", 1, 1000, {from: accountOne});
+        token2 = await ERC20MockToken.new("token2", "TWO", 2, 100000, {from: accountOne});
+        token3 = await ERC20MockToken.new("token3", "THREE", 4, 1000000, {from: accountOne});
+        token4 = await ERC20MockToken.new("token4", "FOUR", 8, 2500000, {from: accountOne});
+        token5 = await ERC20MockToken.new("token5", "FIVE", 18, 1234567890, {from: accountOne});
+    });
+
+    beforeEach('Reset contract for each test', async function () {
+        musd = await MetaUSDToken.new();
+    });
+
+    describe('Test setMetaTokenContract function', function () {
+        it('should not allow setting meta token contract if it is already set', async function () {
+
+            await musd.setMetaTokenContract(meta.address);
+            await shouldFail.reverting(musd.setMetaTokenContract(meta.address));
+
+        });
+        it('should correctly set the meta token contract', async function () {
+
+            await musd.setMetaTokenContract(meta.address);
+            (await musd.mtaContract()).should.equal(meta.address);
+
+        });
+    });
+
+    describe('Test setMetaPriceOracleContract function', function () {
+        it('should not allow setting meta price oracle contract if it is already set', async function () {
+
+            await musd.setMetaPriceOracleContract(metaOracle.address);
+            await shouldFail.reverting(musd.setMetaPriceOracleContract(metaOracle.address));
+
+        });
+        it('should correctly set the meta price oracle contract', async function () {
+
+            await musd.setMetaPriceOracleContract(metaOracle.address);
+            (await musd.mtaPriceOracleContract()).should.equal(metaOracle.address);
+
+        });
+    });
+
+    describe('Test assetCount function', function () {
+        it('should correctly count the number of assets added to the basket so far', async function () {
+
+            // add 2 assets (10% weight each)
+            await musd.addToBasket(token1.address, MAX_WEIGHT.div(new BN(10)));
+            await musd.addToBasket(token2.address, MAX_WEIGHT.div(new BN(10)));
+
+            // then count
+            (await musd.assetCount()).should.be.bignumber.equal('2');
+
+        });
+    });
+
+    describe('Test sumOfWeights function', function () {
+        it('should correctly return the total weight sum of all assets added to the basket so far', async function () {
+
+            let weight1 = MAX_WEIGHT.div(new BN(10)); //10%
+            let weight2 = MAX_WEIGHT.div(new BN(5)); //20%
+            let weight3 = MAX_WEIGHT.div(new BN(40)); //2.5%
+
+            // add 3 assets
+            await musd.addToBasket(token1.address, weight1);
+            await musd.addToBasket(token2.address, weight2);
+            await musd.addToBasket(token3.address, weight3);
+
+            // then sum
+            (await musd.sumOfWeights()).should.be.bignumber.equal(weight1.add(weight2).add(weight3)); //37.5%
+
+        });
+    });
+
+    describe('Test isAssetInBasket function', function () {
+        it('should correctly assess that a recently added asset is in the basket', async function () {
+
+            await musd.addToBasket(token1.address, MAX_WEIGHT.div(new BN(10)));
+            (await musd.isAssetInBasket(token1.address)).should.be.true;
+
+        });
+    });
+
+    describe('Test getAssetWeight function', function () {
+        it('should retrieve correct asset weight for asset added to basket', async function () {
+
+            let weight = MAX_WEIGHT.div(new BN(1234)); //0.08103728%
+            await musd.addToBasket(token1.address, weight);
+            (await musd.getAssetWeight(token1.address)).should.be.bignumber.equal(weight);
+
+        });
+    });
+
+    describe('Test addToBasket function', function () {
+        it('should not allow adding itself (mUSD) to basket', async function () {
+
+            await shouldFail.reverting(musd.addToBasket(musd.address, MAX_WEIGHT.div(new BN(12))));
+
+        });
+        it('should not allow adding asset already in the basket to basket', async function () {
+
+            await musd.addToBasket(token1.address, MAX_WEIGHT.div(new BN(123)));
+            await shouldFail.reverting(musd.addToBasket(token1.address, MAX_WEIGHT.div(new BN(321))));
+
+        });
+        it('should not allow adding to basket beyond total weight of 1', async function () {
+
+            await musd.addToBasket(token1.address, MAX_WEIGHT.div(new BN(2))); //50%
+            await musd.addToBasket(token2.address, MAX_WEIGHT.div(new BN(4))); //25%
+            await shouldFail.reverting(musd.addToBasket(token3.address, MAX_WEIGHT.div(new BN(2)))); //50%
+
+        });
+        it('should not allow adding negative-weighted assets to basket', async function () {
+
+            await shouldFail.reverting(musd.addToBasket(token3.address, MAX_WEIGHT.div(new BN(-2)))); //-50%
+
+        });
+        it('should not allow adding zero-weighted assets to basket', async function () {
+
+            await shouldFail.reverting(musd.addToBasket(token3.address, new BN(0))); //0%
+
+        });
+        it('should allow adding to basket to total weight of less than 1', async function () {
+
+            await musd.addToBasket(token1.address, MAX_WEIGHT.div(new BN(10)).mul(new BN(9))); //90%
+            await musd.addToBasket(token2.address, MAX_WEIGHT.div(new BN(100)).mul(new BN(9))); //9%
+            await musd.addToBasket(token3.address, MAX_WEIGHT.div(new BN(10000)).mul(new BN(99))); //0.99%
+
+        });
+        it('should allow adding to basket to total weight of exactly 1', async function () {
+
+            await musd.addToBasket(token1.address, MAX_WEIGHT.div(new BN(2)));
+            await musd.addToBasket(token2.address, MAX_WEIGHT.div(new BN(2)));
+
+        });
+        it('should allow adding to basket to with one asset of weight 1', async function () {
+
+            await musd.addToBasket(token1.address, MAX_WEIGHT);
+
+        });
+    });
+
+    describe('Test setMintingFee function', function () {
+        it('should correctly set a zero minting fee', async function () {
+
+            await musd.setMintingFee(new BN(100)); //because the default is 0 already, we want to change first
+            await musd.setMintingFee(new BN(0));
+            (await musd.mintingFee()).should.be.bignumber.equal(new BN(0));
+
+        });
+        it('should correctly set a positive minting fee', async function () {
+
+            await musd.setMintingFee(new BN(1));
+            (await musd.mintingFee()).should.be.bignumber.equal(new BN(1));
+
+        });
+        it('should emit a MintingFeeChanged event with the new minting fee', async function () {
+
+            const {logs} = await musd.setMintingFee(new BN(1).div(new BN(1000)));
+            expectEvent.inLogs(logs, 'MintingFeeChanged', {fee: new BN(1).div(new BN(1000))});
+
+        });
+    });
+
+    describe('Test setRedemptionFee function', function () {
+        it('should allow setting a zero redemption fee', async function () {
+
+            await musd.setRedemptionFee(new BN(100)); //because the default is 0 already, we want to change first
+            await musd.setRedemptionFee(new BN(0));
+            (await musd.redemptionFee()).should.be.bignumber.equal(new BN(0));
+
+        });
+        it('should allow setting a positive redemption fee', async function () {
+
+            await musd.setRedemptionFee(new BN(2));
+            (await musd.redemptionFee()).should.be.bignumber.equal(new BN(2));
+
+        });
+        it('should emit a RedemptionFeeChanged event with the new redemption fee', async function () {
+
+            const {logs} = await musd.setRedemptionFee(new BN(1).div(new BN(1000)));
+            expectEvent.inLogs(logs, 'RedemptionFeeChanged', {fee: new BN(1).div(new BN(1000))});
+
+        });
+    });
+
+    describe('Test endSetupPhase function', function () {
+        it('should end setup phase if basket weight sum is exactly 1 and meta token contract is set', async function () {
+
+            await musd.addToBasket(token1.address, MAX_WEIGHT);
+            await musd.setMetaTokenContract(meta.address);
+            await musd.setMetaPriceOracleContract(metaOracle.address);
+            await musd.endSetupPhase();
+            (await musd.setupPhase()).should.be.false;
+
+        });
+        it('should not allow ending setup phase if setup phase is already complete', async function () {
+
+            await musd.addToBasket(token1.address, MAX_WEIGHT);
+            await musd.setMetaTokenContract(meta.address);
+            await musd.setMetaPriceOracleContract(metaOracle.address);
+            await musd.endSetupPhase();
+            await shouldFail.reverting(musd.endSetupPhase());
+
+        });
+        it('should not allow ending setup phase if meta token contract is not set', async function () {
+
+            await musd.addToBasket(token1.address, MAX_WEIGHT);
+            await musd.setMetaPriceOracleContract(metaOracle.address);
+            await shouldFail.reverting(musd.endSetupPhase());
+
+        });
+        it('should not allow ending setup phase if meta price oracle contract is not set', async function () {
+
+            await musd.addToBasket(token1.address, MAX_WEIGHT);
+            await musd.setMetaTokenContract(meta.address);
+            await shouldFail.reverting(musd.endSetupPhase());
+
+        });
+        it('should not allow ending setup phase if basket weight sum is not exactly 1', async function () {
+
+            await musd.setMetaTokenContract(meta.address);
+            await musd.setMetaPriceOracleContract(metaOracle.address);
+            await musd.addToBasket(token1.address, MAX_WEIGHT.div(new BN(2)));
+            await shouldFail.reverting(musd.endSetupPhase());
+
+        });
+    });
+
+    describe('Test setupPhase', function () {
+        it('should not allow depositing tokens during set-up phase', async function () {
+
+            tokenAddresses = [token1.address, token2.address];
+            quantities = [new BN(1), new BN(1)];
+            await shouldFail.reverting(musd.depositTokens(tokenAddresses, quantities));
+
+        });
+        it('should not allow depositing tokens then minting during set-up phase', async function () {
+
+            tokenAddresses = [token1.address, token2.address];
+            quantities = [new BN(1), new BN(1)];
+            await shouldFail.reverting(musd.depositTokensThenMint(tokenAddresses, quantities, new BN(1)));
+
+        });
+        it('should not allow minting during set-up phase', async function () {
+
+            await shouldFail.reverting(musd.mint(new BN(1)));
+
+        });
+        it('should not allow redeeming during set-up phase', async function () {
+
+            await shouldFail.reverting(musd.redeem(new BN(1)));
+
+        });
+        it('should not allow withdrawing tokens during set-up phase', async function () {
+
+            tokenAddresses = [token1.address, token2.address];
+            quantities = [new BN(1), new BN(1)];
+            await shouldFail.reverting(musd.withdrawTokens(tokenAddresses, quantities));
+
+        });
+        it('should not allow redeeming then withdrawing tokens during set-up phase', async function () {
+
+            tokenAddresses = [token1.address, token2.address];
+            quantities = [new BN(1), new BN(1)];
+            await shouldFail.reverting(musd.redeemThenWithdrawTokens(new BN(1), tokenAddresses, quantities));
+
+        });
+    });
+
+});

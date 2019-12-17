@@ -1,0 +1,81 @@
+pragma solidity ^0.5.12;
+pragma experimental ABIEncoderV2;
+
+
+import { IMassetFactory } from "../interfaces/IMassetFactory.sol";
+
+import { ManagerState, IMasset, IManager } from "./ManagerState.sol";
+
+import { DictionaryBtoA } from "../shared/libs/DictionaryBtoA.sol";
+
+
+/**
+ * @title MassetFactory
+ * @dev This Factory creates and manages mStable Assets under direction of the governor
+ * It also allows governor to add or remove specific MassetFactories from the stack, allowing
+ * the creation of various types of Massets
+ */
+contract MassetFactory is ManagerState {
+
+    /** @dev Custom dictionary for managing data structures */
+    using DictionaryBtoA for DictionaryBtoA.Bytes32ToAddress;
+
+    /** @dev Events to emit */
+    event MassetCreated(bytes32 indexed key, address addr);
+    event MassetEjected(bytes32 indexed key, address addr);
+
+
+    /**
+      * @dev Adds an already and initialised Masset to the stack, storing the relevant data in the ManagerState
+      * @param _massetKey     Key identifier for the Masset
+      * @param _masset        Address of the Masset contract
+      * @param _fees          [0] = Minting fee where 1% == 1e16
+      *                       [1] = Redemption fee where 1% == 1e16
+      * @param _grace         Percentage based grace value for basket adjustments
+      * @return               Address of new Masset
+      */
+    function addMasset(
+        bytes32 _massetKey,
+        address _masset,
+        uint256[2] calldata _fees,
+        uint256 _grace
+    )
+        external
+        onlyGovernance
+        returns (address)
+    {
+        require(_masset != address(0), "Masset must be a referenced implementation");
+
+        IMasset(_masset).setMintingFee(_fees[0]);
+        IMasset(_masset).setRedemptionFee(_fees[1]);
+        IMasset(_masset).setBasketGrace(_grace);
+
+        // TODO - require key not to exist
+        // require(!massets.contains(_massetKey), "Masset key already exists in the system.");
+        massets.add(_masset, _massetKey);
+
+        emit MassetCreated(_massetKey, _masset);
+        return _masset;
+    }
+
+    /**
+      * @dev Removes a Masset from the system and thus releases from protection
+      * @param _masset        Address of the Masset contract
+      */
+    function ejectMasset(
+        address _masset
+    )
+        external
+        onlyGovernance
+    {
+        require(_masset != address(0), "Masset must be a referenced implementation");
+        bytes32 key = massets.get(_masset);
+        require(key != bytes32(0x0), "Masset must be a referenced implementation");
+
+        IMasset(_masset).setManager(IManager(address(0)));
+
+        massets.remove(_masset);
+
+        emit MassetEjected(key, _masset);
+    }
+}

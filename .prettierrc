@@ -1,0 +1,6 @@
+# .prettierrc
+printWidth: 100
+parser: typescript
+tabWidth: 4
+trailingComma: all
+arrowParens: always

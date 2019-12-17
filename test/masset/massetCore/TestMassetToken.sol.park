@@ -1,0 +1,56 @@
+pragma solidity ^0.5.0;
+
+import "truffle/Assert.sol";
+import "truffle/DeployedAddresses.sol";
+import "../contracts/masset/Masset.sol";
+
+// Tests initial state of contract after deployment.
+contract TestMassetToken {
+
+    // The address of the meta-USD token contract to be tested
+    Masset metaUSDToken = Masset(DeployedAddresses.MetaUSDToken());
+    
+    // Test name()
+    function testName() public {
+        Assert.equal(metaUSDToken.name(), "mUSD", "Token name should be 'mUSD'.");
+    }
+
+    // Test symbol()
+    function testSymbol() public {
+        Assert.equal(metaUSDToken.symbol(), "mUSD", "Token symbol should be 'mUSD'.");
+    }
+
+    // Test decimals()
+    function testDecimals() public {
+        Assert.equal(uint256(metaUSDToken.decimals()), uint256(18), "Token should have 18 decimals.");
+    }
+
+    // Test totalSupply()
+    function testTotalSupply() public {
+        Assert.equal(metaUSDToken.totalSupply(), 0, "Initial token supply should be 0.");
+    }
+    
+
+    // Test sumOfWeights()
+    function testSumOfWeights() public {
+        Assert.equal(metaUSDToken.sumOfWeights(), 0, "Token should begin with asset weight total of 0.");
+    }
+
+    // Test isAssetInBasket()
+    function testIsAssetInBasket() public {
+        // Testing some critical addresses.
+        Assert.isFalse(metaUSDToken.isAssetInBasket(msg.sender), "No tokens should be in basket at start.");
+        Assert.isFalse(metaUSDToken.isAssetInBasket(address(0)), "No tokens should be in basket at start.");
+        Assert.isFalse(metaUSDToken.isAssetInBasket(address(this)), "No tokens should be in basket at start.");
+    }
+
+    // Test getAssetWeight()
+    function testGetAssetWeight() public {
+        // Testing some critical addresses.
+        Assert.isZero(metaUSDToken.getAssetWeight(msg.sender), "Asset weight should be 0 for all addresses at start.");
+        Assert.isZero(metaUSDToken.getAssetWeight(address(0)), "Asset weight should be 0 for all addresses at start.");
+        Assert.isZero(metaUSDToken.getAssetWeight(address(this)), "No tokens should be in basket at start.");
+    }
+
+}
+

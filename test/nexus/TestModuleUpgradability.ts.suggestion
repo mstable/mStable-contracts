@@ -1,0 +1,3 @@
+// We should test the Nexus upgrading the various modules to understand the limitations and ensure that we have the
+// capacity to give certain requires permissions to new parts of the system (i.e. minting and burning privs)
+// Also consider what happens to 'exiled' parts of the system with remaining permissions.

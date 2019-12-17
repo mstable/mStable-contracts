@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "outDir": "./transpiled/",
+    "sourceMap": true,
+    "noImplicitAny": false,
+    "lib": ["dom", "es2015", "es2016", "es2017"],
+    "module": "CommonJS",
+    "baseUrl": ".",
+    "rootDir": ".",
+    "paths": {
+      "@utils/*": ["test-utils/*"],
+    },
+    "allowJs": false,
+    "target": "ES5",
+    "skipLibCheck": true,
+    "typeRoots": [
+      "node_modules/@0x/typescript-typings/types",
+      "node_modules/@types"
+    ],
+    "esModuleInterop": true
+  },
+  "include": [
+    "./types/*.ts",
+    "./types/**/*.ts",
+    "./test/*.ts",
+    "./test/**/*.ts",
+    "./test-utils/*.ts",
+    "./test-utils/**/*.ts",
+  ]
+}

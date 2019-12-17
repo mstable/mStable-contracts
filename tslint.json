@@ -1,0 +1,23 @@
+{
+  "extends": [
+    "tslint:latest",
+    "tslint-no-unused-expression-chai"
+  ],
+  "rules": {
+    "object-literal-sort-keys": false,
+    "ordered-imports": [
+      true,
+      {
+        "import-sources-order": "any",
+        "named-imports-order": "lowercase-first"
+      }
+    ],
+    "interface-name": false,
+    "max-classes-per-file": false,
+    "no-string-literal": false,
+    "no-implicit-dependencies": false,
+    "no-submodule-imports": false,
+    "max-line-length": [true, 160],
+    "no-console": false
+  }
+}
