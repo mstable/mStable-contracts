@@ -28,7 +28,7 @@ module.exports = {
     },
     rinkeby: {
       provider() {
-        return new HDWalletProvider(process.env.PHRASE, `https://rinkeby.infura.io/v3/${process.env.INFURA}`, 0, 4)
+        return new HDWalletProvider(process.env.PHRASE, `https://rinkeby.infura.io/v3/${process.env.INFURA}`, 4, 7)
       },
       network_id: 4,
       gasPrice: 10000000000, // 10 GWei,
