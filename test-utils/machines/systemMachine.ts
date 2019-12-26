@@ -1,19 +1,15 @@
-import { RecollateraliserContract } from "./../../types/generated/recollateraliser";
-import { MASSET_FACTORY_BYTES } from "@utils/constants";
+import { MASSET_FACTORY_BYTES } from '@utils/constants';
 import {
-  ERC20MockContract,
-  GovernancePortalMockContract,
-  ManagerMockContract,
-  MassetFactoryV1Contract,
-  NexusMockContract,
-  OracleHubMockContract,
-  SystokMockContract,
-} from "@utils/contracts";
-import { Address } from "../../types/common";
-import { createMultiple, percentToWeight } from "@utils/math";
-import { aToH, BigNumber } from "@utils/tools";
-import { BassetMachine } from "./bassetMachine";
-import { StandardAccounts } from "./standardAccounts";
+    ERC20MockContract, GovernancePortalMockContract, ManagerMockContract, NexusMockContract,
+    OracleHubMockContract, SystokMockContract
+} from '@utils/contracts';
+import { createMultiple, percentToWeight, simpleToExactAmount } from '@utils/math';
+import { aToH, BigNumber } from '@utils/tools';
+
+import { Address } from '../../types/common';
+import { RecollateraliserContract } from '../../types/generated/recollateraliser';
+import { BassetMachine } from './bassetMachine';
+import { StandardAccounts } from './standardAccounts';
 
 const CommonHelpersArtifact = artifacts.require("CommonHelpers");
 const StableMathArtifact = artifacts.require("StableMath");
@@ -22,7 +18,6 @@ const Erc20Artifact = artifacts.require("ERC20Mock");
 const GovernancePortalArtifact = artifacts.require("GovernancePortalMock");
 
 const ManagerArtifact = artifacts.require("ManagerMock");
-const MassetFactoryArtifact = artifacts.require("MassetFactoryV1");
 
 const MassetArtifact = artifacts.require("Masset");
 const ForgeLibArtifact = artifacts.require("ForgeLib");
@@ -49,7 +44,6 @@ export class SystemMachine {
   public sa: StandardAccounts;
 
   public governancePortal: GovernancePortalMockContract;
-  public massetFactory: MassetFactoryV1Contract;
   public manager: ManagerMockContract;
   public nexus: NexusMockContract;
   public oracleHub: OracleHubMockContract;
@@ -102,9 +96,6 @@ export class SystemMachine {
       const manager = await this.deployManager();
       // add module
       await this.addModuleToNexus(await manager.Key_Manager.callAsync(), manager.address);
-
-      /** MassetFactory + add to Manager */
-      await this.deployMassetFactory();
 
       /** Recollateraliser */
       const recollateraliser = await this.deployRecollateraliser();
@@ -251,48 +242,26 @@ export class SystemMachine {
     const b1: ERC20MockContract = await bassetMachine.deployERC20Async();
     const b2: ERC20MockContract = await bassetMachine.deployERC20Async();
 
-    // LOG FACTORY NAMES // BYTES AS CONSTANTS
-    return this.manager.createMasset.sendTransactionAsync(
-      MASSET_FACTORY_BYTES,
-      aToH("TMT"),
+    const masset = await MassetArtifact.new(
       "TestMasset",
       "TMT",
       [b1.address, b2.address],
       [aToH("b1"), aToH("b2")],
       [percentToWeight(50), percentToWeight(50)],
       [createMultiple(1), createMultiple(1)],
+      this.manager.address,
+    );
+
+    // LOG FACTORY NAMES // BYTES AS CONSTANTS
+    return this.manager.addMasset.sendTransactionAsync(
+      aToH("TMT"),
+      masset.address,
       [new BigNumber(0), new BigNumber(0)],
+      simpleToExactAmount(5000000, 18),
       { from: sender },
     );
   }
 
-  /**
-   * @dev Deploy MassetFactory and add it to Manager
-   */
-  public async deployMassetFactory(
-  ): Promise<MassetFactoryV1Contract> {
-    try {
-      const stableMathInstance = await StableMathArtifact.deployed();
-      await MassetArtifact.link(StableMathArtifact, stableMathInstance.address);
-      const commonHelpersInstance = await CommonHelpersArtifact.deployed();
-      await MassetArtifact.link(CommonHelpersArtifact, commonHelpersInstance.address);
-
-      await MassetFactoryArtifact.link(StableMathArtifact, stableMathInstance.address);
-      await MassetFactoryArtifact.link(CommonHelpersArtifact, commonHelpersInstance.address);
-
-      const massetFactoryInstance = await MassetFactoryArtifact.new(this.manager.address);
-      this.massetFactory = new MassetFactoryV1Contract(
-        massetFactoryInstance.address,
-        web3.currentProvider,
-        this.TX_DEFAULTS,
-      );
-      await this.manager.setFactory.sendTransactionAsync(MASSET_FACTORY_BYTES, this.massetFactory.address, { from: this.sa.governor });
-
-      return this.massetFactory;
-    } catch (e) {
-      throw e;
-    }
-  }
 
   /**
    * @dev Deploy Recollateraliser and add it to Manager

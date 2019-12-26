@@ -5,7 +5,6 @@
 export { ERC20MockContract } from "../types/generated/erc20_mock";
 export { ForgeLibContract } from "../types/generated/forge_lib";
 export { GovernancePortalMockContract } from "../types/generated/governance_portal_mock";
-export { MassetFactoryV1Contract } from "../types/generated/masset_factory_v1";
 export { MassetContract } from "../types/generated/masset";
 export { ManagerMockContract } from "../types/generated/manager_mock";
 export { NexusMockContract } from "../types/generated/nexus_mock";
