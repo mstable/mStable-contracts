@@ -15,5 +15,4 @@ contract IMassetFactory {
         uint256[] calldata _bassetMultiples
         ) external returns(address);
 
-
 }

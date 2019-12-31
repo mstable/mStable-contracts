@@ -36,6 +36,7 @@ contract Systok is ISystok, ModuleSub, MetaToken {
         MetaToken(_initialRecipient)
         ModuleSub(address(_nexus))
     {
+      
     }
 
 

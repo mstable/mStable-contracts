@@ -277,20 +277,13 @@ contract MassetBasket is MassetStructs, MassetCore {
     )
         internal
     {
-        // TODO - Calculate minimum grace here. It COULD be (max(ratio)*10).div(1e8).. this will ensure
-        // that no rounding errors prevent us from doing mints once we get close to the target weights
-        // e.g. if grace is 1e12 (== 0.000001% deviation allowed from optimal weights), and a basset is
-        // not divisible this far, it will be impossible for us to entertain this specificity.
-        // If this val is > current grace, then set that too
-        // MinGrace should be considered each time a Basset is added/removed from Basket
-
         uint256 bassetCount = _bassets.length;
 
-        require(bassetCount == _weights.length, "Must be matching basset data arrays.");
-        require(bassetCount == basket.bassets.length, "Must be matching existing basket layout.");
+        require(bassetCount == _weights.length, "Must be matching basset data arrays");
+        require(bassetCount == basket.bassets.length, "Must be matching existing basket layout");
 
         uint256 weightSum = CommonHelpers.sumOfArrayValues(_weights);
-        require(weightSum == StableMath.getScale(), "Basket weight must total 100% == 1.");
+        require(weightSum == StableMath.getScale(), "Basket weight must total 100% == 1");
 
         for (uint256 i = 0; i < bassetCount; i++) {
             address basset = _bassets[i];
@@ -300,8 +293,8 @@ contract MassetBasket is MassetStructs, MassetCore {
             require(basket.bassets[i].status == BassetStatus.Normal, "Basket must not contain broken assets");
 
             uint256 bassetWeight = _weights[i];
-            require(bassetWeight >= 0, "Weight must be positive.");
-            require(bassetWeight <= StableMath.getScale(), "Asset weight must be less than or equal to 1.");
+            require(bassetWeight >= 0, "Weight must be positive");
+            require(bassetWeight <= StableMath.getScale(), "Asset weight must be less than or equal to 1");
 
             basket.bassets[i].targetWeight = bassetWeight;
         }
@@ -321,7 +314,6 @@ contract MassetBasket is MassetStructs, MassetCore {
         basketIsHealthy
     {
         require(_grace >= minGrace, "Grace value must be under a certain max threshold");
-        // Should be over min (min defined as f(ratio//decimals))
         basket.grace = _grace;
     }
 

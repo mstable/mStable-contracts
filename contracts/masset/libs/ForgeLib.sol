@@ -168,12 +168,6 @@ contract ForgeLib is IForgeLib {
     returns (uint256[] memory relativeWeights) {
         uint256[] memory ratioedBassets = _getRatioedBassets(_basket);
 
-        // TODO
-        // In order to turn this into a unit delta as opposed to a weighting one
-        // we need to calc unit deficit of initial basket, then add the new mint/redemption
-        // .. which actually allows us to calc the units a bit easier, as we don't need to do two
-        // percentage calculations
-
         uint256 sumOfRatioedBassets = 0;
         for(uint i = 0; i < ratioedBassets.length; i++) {
             sumOfRatioedBassets = sumOfRatioedBassets.add(ratioedBassets[i]);

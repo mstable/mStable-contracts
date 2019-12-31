@@ -61,7 +61,7 @@ contract Manager is
     ****************************************/
 
     // TODO
-    //
+    // setManager
     // function setMintingFee(uint256 _mintingFee) external;
     // function setRedemptionFee(uint256 _redemptionFee) external;
     // function setBasketGrace(uint256 _grace) external;
