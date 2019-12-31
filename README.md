@@ -60,9 +60,12 @@ Tests are written in Typescript. This means we need to generate types for each o
 
 As we use `@0x/abi-gen` to generate the typings for our contracts, we are locked into some dependencies as this is what is used in their `Base-contract` (which is essentially the backbone for all the test contracts).
 
-NB: Due to the MassetFactoryV1 being over the EIP170 for deployable bytecode size (as it needs to deploy whole Masset contract), we need to run the tests with a custom ganache environment. When we go to deploy the contracts on Rinkeby/Mainnet, we will need to trim the bytecode down.
+NB: You should locally use the latest version of ganache-cli, as the test rely on recent opcodes
 
-`ganache-cli -p 7545 -l 20000000 --allowUnlimitedContractSize`
+NB: The generated contracts consume magnitudes more gas due to some of the helper functions injected. Therefore we need to use a specific ganache environment
+
+
+`ganache-cli -p 7545 -l 50000000 --allowUnlimitedContractSize`
 
 ### In-test terminology
 
