@@ -23,11 +23,18 @@ contract ModulePub is ModuleKeys {
     struct Module {
         address _address;
         bool _isSub;
+        bool _isLocked;
     }
 
     /** @dev Storage architecture for keeping module information */
     Set.Bytes32 moduleKeys;
     mapping(bytes32 => Module) moduleAddresses;
+
+    modifier onlyUnlockedModule(bytes32 _key) {
+        Module memory m = moduleAddresses[_key];
+        require(!m._isLocked, "Module must be unlocked");
+        _;
+    }
 
     /**
       * @dev Internal func to publish a module and broadcast to subscribers
@@ -36,7 +43,8 @@ contract ModulePub is ModuleKeys {
       * @param _isSubscriber Should we publish new updates to the module?
       */
     function _publishModule(bytes32 _key, address _moduleAddress, bool _isSubscriber)
-    internal {
+    internal
+    onlyUnlockedModule(_key) {
         // Broadcast the new module to all other modules
         for(uint256 i = 0; i < moduleKeys.values.length; i++) {
             Module memory m = moduleAddresses[moduleKeys.values[i]];
@@ -49,7 +57,7 @@ contract ModulePub is ModuleKeys {
 
         // Add new module to internal mappings
         moduleKeys.add(_key);
-        moduleAddresses[_key] = Module(_moduleAddress, _isSubscriber);
+        moduleAddresses[_key] = Module(_moduleAddress, _isSubscriber, false);
     }
 
     /**
@@ -57,7 +65,8 @@ contract ModulePub is ModuleKeys {
       * @param _key Key of the module to remove
       */
     function _forgetModule(bytes32 _key)
-    internal {
+    internal
+    onlyUnlockedModule(_key) {
         // Firstly, remove the module from local storage
         moduleKeys.remove(_key);
         delete moduleAddresses[_key];
@@ -71,6 +80,17 @@ contract ModulePub is ModuleKeys {
 
             IModuleSub(m._address).updateModule(_key,  address(0));
         }
+    }
+
+    /**
+      * @dev Permanently lock a module to its current settings
+      * @param _key Bytes32 key of the module
+      */
+    function _lockModule(bytes32 _key)
+    internal
+    moduleIsUnlocked(_key) {
+        Module storage m = moduleAddresses[_key];
+        m._isLocked = true;
     }
 
     /**

@@ -116,8 +116,8 @@ contract MassetBasket is MassetStructs, MassetCore {
         basket.bassets[i].status = BassetStatus.Liquidating;
         basket.bassets[i].vaultBalance = 0;
 
-        // Send the tokens to the recollateraliser to get liquidated
-        IERC20(_basset).transfer(_recollateraliser, vaultBalance);
+        // Approve the recollateraliser to take the Basset
+        IERC20(_basset).approve(_recollateraliser, vaultBalance);
 
     }
 

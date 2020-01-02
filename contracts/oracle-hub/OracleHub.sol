@@ -33,7 +33,7 @@ contract OracleHub is IOracleHub, OracleHubView, OracleHubModule {
     mapping(bytes32 => uint64) public prices;
 
     constructor(
-        address _governor,
+        address _governance,
         address _nexus,
         OracleHubPriceData _data,
         address[] memory _sources
@@ -42,12 +42,12 @@ contract OracleHub is IOracleHub, OracleHubView, OracleHubModule {
         OracleHubModule(_nexus)
         public
     {
-        governor = _governor;
+        governance = _governance;
     }
 
     /** @dev Verifies that the caller is the System Governor as defined in the module mapping */
-    modifier onlyGovernor() {
-        require(governor == msg.sender, "Only the governor may perform this operation");
+    modifier onlyGovernance() {
+        require(governance == msg.sender, "Only the governor may perform this operation");
         _;
     }
 
@@ -88,7 +88,7 @@ contract OracleHub is IOracleHub, OracleHubView, OracleHubModule {
      */
     function addSource(address _newSource)
     external
-    onlyGovernor {
+    onlyGovernance {
         sources.push(_newSource);
     }
 

@@ -104,6 +104,17 @@ contract MassetCore {
     }
 
     /**
+      * @dev Set the recipient address of forge fees
+      * @param _feePool Address of the fee pool
+      */
+    function setFeePool(address _feePool)
+    external
+    onlyGovernance {
+        require(_feePool != address(0), "Must be valid address");
+        feePool = _feePool;
+    }
+
+    /**
       * @dev Set the ecosystem fee for minting a masset
       * @param _mintingFee Fee calculated in (%/100 * 1e18)
       */

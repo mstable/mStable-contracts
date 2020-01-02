@@ -62,6 +62,14 @@ contract ManagerModule is ModuleSub, ManagerState {
             }
         }
 
+        if (_key == Key_Manager) {
+            address[] memory massets = massets.keys;
+            for(uint256 i = 0; i < massets.length; i++) {
+                IMasset tempMasset = IMasset(massets[i]);
+                tempMasset.setManager(_newAddress);
+            }
+        }
+
         if (_key == Key_OracleHub) {
             oracleHub = IOracleHub(_newAddress);
         }

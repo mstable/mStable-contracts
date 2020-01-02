@@ -10,20 +10,19 @@ import { ModulePub } from "../shared/pubsub/ModulePub.sol";
  */
 contract Nexus is INexus, ModulePub {
 
-    address governor;
 
     /** @dev Initialises the Nexus and adds the core data to the Kernel (itself and governor) */
     constructor(address _governor)
     public {
-        require(address(_governor) != address(0), "Can't set governance to zero address");
+        require(address(_governor) != address(0), "Can't set governor to zero address");
         _publishModule(Key_Governor, _governor, false);
-
         _publishModule(Key_Nexus, address(this), false);
     }
 
     /** @dev Verifies that the caller is the System Governor as defined in the module mapping */
-    modifier onlyGovernor() {
-        require(moduleAddresses[Key_Governor]._address == msg.sender, "Only the governor may perform this operation");
+    modifier onlyGovernance() {
+        require(moduleAddresses[Key_Governor]._address == msg.sender ||
+        moduleAddresses[Key_GovernancePortal]._address == msg.sender, "Only the governance may perform this operation");
         _;
     }
 
@@ -31,27 +30,40 @@ contract Nexus is INexus, ModulePub {
       * @dev Adds a new module to the system and publishes to subscribers
       * @param _moduleKey Key of the new module in bytes32 form
       * @param _module Contract address of the new module
-      * @param _isSubscriber Does this new module inherit the ModuleSub contract to subscribe for updates?
       * @return bool Success of publishing new Module
       */
-    function addModule(bytes32 _moduleKey, address _module, bool _isSubscriber)
+    function addModule(bytes32 _moduleKey, address _module)
     public
-    onlyGovernor
+    onlyGovernance
     returns (bool) {
-        _publishModule(_moduleKey, _module, _isSubscriber);
+        _publishModule(_moduleKey, _module, true);
         return true;
     }
+
+    /**
+      * @dev Used for updating deaf module (i.e. governor)
+      * @param _moduleKey Key of the new module in bytes32 form
+      * @param _module Contract address of the new module
+      * @return bool Success of publishing new Module
+      */
+    function addDeafModule(bytes32 _moduleKey, address _module)
+    public
+    onlyGovernance
+    returns (bool) {
+        _publishModule(_moduleKey, _module, false);
+        return true;
+    }
+
 
     /**
       * @dev Adds multiple new modules to the system and publishes them to subscribers
       * @param _moduleKeys Keys of the new modules in bytes32 form
       * @param _modules Contract addresses of the new modules
-      * @param _isSubscriber Do the new modules inherit the ModuleSub contract to subscribe for updates?
       * @return bool Success of publishing new Modules
       */
-    function addModules(bytes32[] memory _moduleKeys, address[] memory _modules, bool[] memory _isSubscriber)
+    function addModules(bytes32[] memory _moduleKeys, address[] memory _modules)
     public
-    onlyGovernor
+    onlyGovernance
     returns (bool) {
         uint count = _moduleKeys.length;
         require(count == _modules.length, "");
@@ -59,9 +71,21 @@ contract Nexus is INexus, ModulePub {
         require(count > 0, "");
 
         for(uint i = 0 ; i < count; i++){
-            _publishModule(_moduleKeys[i], _modules[i], _isSubscriber[i]);
+            _publishModule(_moduleKeys[i], _modules[i], true);
         }
 
+        return true;
+    }
+
+    /**
+      * @dev Permanently lock a module to its current settings
+      * @param _key Bytes32 key of the module
+      */
+    function lockModule(bytes32 _moduleKey)
+    public
+    onlyGovernance
+    returns (bool) {
+        _lockModule(_moduleKey);
         return true;
     }
 
@@ -72,7 +96,7 @@ contract Nexus is INexus, ModulePub {
       */
     function removeModule(bytes32 _moduleKey)
     public
-    onlyGovernor
+    onlyGovernance
     returns (bool) {
         _forgetModule(_moduleKey);
         return true;

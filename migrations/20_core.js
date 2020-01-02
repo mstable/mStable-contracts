@@ -39,17 +39,6 @@ module.exports = async (deployer, network, accounts) => {
   await deployer.deploy(c_Nexus, governor);
   const d_Nexus = await c_Nexus.deployed();
 
-
-  /** OracleHub */
-  await deployer.deploy(c_OracleHubPriceData);
-  const d_OracleHubPriceData = await c_OracleHubPriceData.deployed();
-
-  await deployer.deploy(c_OracleHub, governor, d_Nexus.address, d_OracleHubPriceData.address, [ oracleSource ]);
-  const d_OracleHub = await c_OracleHub.deployed();
-
-  await d_Nexus.addModule(await d_OracleHub.Key_OracleHub(), d_OracleHub.address, true, { from : governor });
-
-
   /** Systok */
   await deployer.deploy(c_Systok, d_Nexus.address, fundManager, { from : _ });
   const d_Systok = await c_Systok.deployed();
@@ -62,6 +51,16 @@ module.exports = async (deployer, network, accounts) => {
   const d_Governance = await c_Governance.deployed();
 
   await d_Nexus.addModule(await d_Governance.Key_GovernancePortal(), d_Governance.address, true, { from : governor });
+
+
+  /** OracleHub */
+  await deployer.deploy(c_OracleHubPriceData);
+  const d_OracleHubPriceData = await c_OracleHubPriceData.deployed();
+
+  await deployer.deploy(c_OracleHub, d_Governance.address, d_Nexus.address, d_OracleHubPriceData.address, [ oracleSource ]);
+  const d_OracleHub = await c_OracleHub.deployed();
+
+  await d_Nexus.addModule(await d_OracleHub.Key_OracleHub(), d_OracleHub.address, true, { from : governor });
 
 
   /** Manager */
@@ -78,9 +77,10 @@ module.exports = async (deployer, network, accounts) => {
   await d_Nexus.addModule(await d_Manager.Key_Manager(), d_Manager.address, true, { from : governor });
 
 
-  /** MassetFactory */
+  /** Masset prep */
   await deployer.link(c_StableMath, c_Masset);
   await deployer.link(c_CommonHelpers, c_Masset);
+
 
   /** Recollateraliser */
   await deployer.link(c_StableMath, c_Recollateraliser);

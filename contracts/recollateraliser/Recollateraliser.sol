@@ -174,7 +174,7 @@ contract Recollateraliser is
         require(_bassetUnits > 0, "Must sell > 0");
         require(_bassetRatio > 0, "Must have ratio");
         require(bassetToAuction[_basset] == 0, "No active auction must exist");
-        require(IERC20(_basset).balanceOf(address(this)) >= _bassetUnits, "Must hold Bassets");
+        require(IERC20(_basset).transferFrom(_masset, address(this), _bassetUnits), "Must hold Bassets");
 
         auctionId = ++auctionCount;
 
