@@ -21,7 +21,7 @@ contract MassetFactory is ManagerState {
     using DictionaryBtoA for DictionaryBtoA.Bytes32ToAddress;
 
     /** @dev Events to emit */
-    event MassetCreated(bytes32 indexed key, address addr);
+    event MassetAdded(bytes32 indexed key, address addr);
     event MassetEjected(bytes32 indexed key, address addr);
 
 

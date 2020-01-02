@@ -4,7 +4,7 @@
 
 const c_Nexus = artifacts.require('Nexus');
 const c_OracleHubPriceData = artifacts.require('OracleHubPriceData');
-const c_OracleHub = artifacts.require('OracleHub');
+const c_OracleHub = artifacts.require('SimpleOracleHub');
 const c_Systok = artifacts.require('Systok');
 const c_Governance = artifacts.require('GovernancePortal');
 const c_Recollateraliser = artifacts.require('Recollateraliser');
@@ -62,7 +62,7 @@ module.exports = async (deployer, network, accounts) => {
   await deployer.deploy(c_OracleHubPriceData);
   const d_OracleHubPriceData = await c_OracleHubPriceData.deployed();
 
-  await deployer.deploy(c_OracleHub, d_Governance.address, d_Nexus.address, d_OracleHubPriceData.address, [ oracleSource ]);
+  await deployer.deploy(c_OracleHub, d_Governance.address, d_Nexus.address, oracleSource );
   const d_OracleHub = await c_OracleHub.deployed();
 
   await publishModuleThroughMultisig(d_Nexus, d_Governance, await d_OracleHub.Key_OracleHub(), d_OracleHub.address, governor);

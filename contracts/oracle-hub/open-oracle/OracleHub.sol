@@ -2,13 +2,13 @@
 pragma solidity ^0.5.12;
 pragma experimental ABIEncoderV2;
 
-import { ModuleSub } from "../shared/pubsub/ModuleSub.sol";
+import { ModuleSub } from "../../shared/pubsub/ModuleSub.sol";
 
-import { IOracleHub } from "../interfaces/IOracleHub.sol";
+import { IOracleHub } from "../../interfaces/IOracleHub.sol";
 
-import { OracleHubModule } from "./OracleHubModule.sol";
-import { OracleHubView } from "./open-oracle/OracleHubView.sol";
-import { OracleHubPriceData } from "./open-oracle/OracleHubPriceData.sol";
+import { OracleHubModule } from "../OracleHubModule.sol";
+import { OracleHubView } from "./OracleHubView.sol";
+import { OracleHubPriceData } from "./data/OracleHubPriceData.sol";
 
 /**
  * @notice mStable OracleHub

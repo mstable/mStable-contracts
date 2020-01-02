@@ -2,7 +2,7 @@
 pragma solidity ^0.5.12;
 pragma experimental ABIEncoderV2;
 
-import { OracleHubPriceData } from "../../oracle-hub/OracleHub.sol";
+import { OracleHubPriceData } from "../../oracle-hub/open-oracle/OracleHub.sol";
 
 /**
  * @title OracleHubPriceDataMock implementing OracleHubPrieData
