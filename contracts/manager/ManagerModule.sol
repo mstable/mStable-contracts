@@ -6,6 +6,7 @@ import {
   IRecollateraliser,
   IGovernancePortal,
   ISystok,
+  IManager,
   IOracleHub,
   IMasset
 } from "./ManagerState.sol";
@@ -38,11 +39,7 @@ contract ManagerModule is ModuleSub, ManagerState {
     internal {
         emit ModuleUpdated(_key, _newAddress);
 
-        if (_key == Key_Governor) {
-            governor = _newAddress;
-        }
-
-        if (_key == Key_GovernancePortal) {
+        if (_key == Key_Governance) {
             governance = IGovernancePortal(_newAddress);
 
             address[] memory massets = massets.keys;
@@ -66,7 +63,7 @@ contract ManagerModule is ModuleSub, ManagerState {
             address[] memory massets = massets.keys;
             for(uint256 i = 0; i < massets.length; i++) {
                 IMasset tempMasset = IMasset(massets[i]);
-                tempMasset.setManager(_newAddress);
+                tempMasset.setManager(IManager(_newAddress));
             }
         }
 

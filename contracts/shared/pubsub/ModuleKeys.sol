@@ -7,8 +7,7 @@ pragma solidity ^0.5.12;
   */
 contract ModuleKeys {
     bytes32 constant public Key_Nexus = "Nexus";
-    bytes32 constant public Key_Governor = "Governor";
-    bytes32 constant public Key_GovernancePortal = "GovernancePortal";
+    bytes32 constant public Key_Governance = "Governance";
     bytes32 constant public Key_Systok = "Systok";
     bytes32 constant public Key_OracleHub = "OracleHub";
     bytes32 constant public Key_Manager = "Manager";

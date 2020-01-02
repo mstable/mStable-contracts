@@ -30,6 +30,10 @@ contract ModulePub is ModuleKeys {
     Set.Bytes32 moduleKeys;
     mapping(bytes32 => Module) moduleAddresses;
 
+    /**
+      * @dev Action can only be taken on an unlocked module
+      * @param _key Bytes key for the module
+     */
     modifier onlyUnlockedModule(bytes32 _key) {
         Module memory m = moduleAddresses[_key];
         require(!m._isLocked, "Module must be unlocked");
@@ -88,7 +92,7 @@ contract ModulePub is ModuleKeys {
       */
     function _lockModule(bytes32 _key)
     internal
-    moduleIsUnlocked(_key) {
+    onlyUnlockedModule(_key) {
         Module storage m = moduleAddresses[_key];
         m._isLocked = true;
     }

@@ -33,7 +33,7 @@ contract MassetFactory is ManagerState {
       */
     function addMasset(
         bytes32 _massetKey,
-        address _masset,
+        address _masset
     )
         external
         onlyGovernance

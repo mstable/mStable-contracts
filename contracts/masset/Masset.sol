@@ -66,7 +66,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
       * @param _bassetQuantity Exact units of Bassets to mint
       */
     function mint(
-        uint256[] memory _bassetQuantity
+        uint256[] calldata _bassetQuantity
     )
         external
         basketIsHealthy

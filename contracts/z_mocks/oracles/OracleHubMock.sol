@@ -13,13 +13,13 @@ contract OracleHubMock is OracleHub {
 
 
     constructor(
-        address _governor,
+        address _governance,
         address _nexus,
         OracleHubPriceData _data,
         address[] memory _sources
     )
         OracleHub(
-            _governor,
+            _governance,
             _nexus,
             _data,
             _sources

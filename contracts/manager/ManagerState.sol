@@ -25,7 +25,6 @@ contract ManagerState  {
     using DictionaryAtoB for DictionaryAtoB.AddressToBytes32;
 
     /** @dev References to current system Module implementations */
-    address public governor;
     IGovernancePortal governance;
     ISystok systok;
     IOracleHub oracleHub;
@@ -61,7 +60,7 @@ contract ManagerState  {
       * @dev Verifies that the caller is the Governor
       */
     modifier onlyGovernance() {
-        require(governor == msg.sender || address(governance) == msg.sender, "Only the governor");
+        require(address(governance) == msg.sender, "Only the governor");
         _;
     }
 

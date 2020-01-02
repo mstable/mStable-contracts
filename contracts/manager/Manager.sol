@@ -34,13 +34,13 @@ contract Manager is
 
     /**
       * @dev Sets up the core state of the Manager
-      * @param _governor          Current system governor address
+      * @param _governance        Current system governance portal
       * @param _nexus             Nexus module
       * @param _systok            Systok module
       * @param _oracleHub         OracleHub module
       */
     constructor(
-        address _governor,
+        IGovernancePortal _governance,
         address _nexus,
         ISystok _systok,
         IOracleHub _oracleHub,
@@ -49,7 +49,7 @@ contract Manager is
         ManagerModule(_nexus)
         public
     {
-        governor = _governor;
+        governance = _governance;
         systok = _systok;
         oracleHub = _oracleHub;
         forgeLib = _forgeLib;

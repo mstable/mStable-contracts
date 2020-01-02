@@ -11,16 +11,18 @@ import { MassetStructs } from "../masset/libs/MassetStructs.sol";
  */
 contract IMasset is MassetStructs {
 
-    /** @dev Setters for the Manager to update module info */
-    function setManager(IManager _manager) external; // TODO - do we need this? Maybe Manager is V1 singleton
+    /** @dev Setters for the Manager or Gov to update module info */
+    function setManager(IManager _manager) external;
     function setSystok(ISystok _systok) external;
+    function setGovernance(address _governance) external;
     function upgradeForgeLib(address _newForgeLib) external;
 
-    /** @dev Setters for the Manager to set system params */
+    /** @dev Setters for Gov to set system params */
     function setMintingFee(uint256 _mintingFee) external;
     function setRedemptionFee(uint256 _redemptionFee) external;
+    function setFeePool(address _feePool) external;
 
-    /** @dev Setters for the Manager to update Basket composition */
+    /** @dev Setters for Gov to update Basket composition */
     function addBasset(address _basset, bytes32 _key, uint256 _measurementMultiple) external;
     function setBasketWeights(address[] calldata _bassets, uint256[] calldata _weights) external;
     function setBasketGrace(uint256 _grace) external;
@@ -33,7 +35,6 @@ contract IMasset is MassetStructs {
 
     /** @dev Public cleanup function to get rid of finished Bassets */
     function removeBasset(address _assetToRemove) external returns (bool);
-
 
     /** @dev Getters to retrieve Basket information */
     function getBasket()

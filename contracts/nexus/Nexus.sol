@@ -14,15 +14,15 @@ contract Nexus is INexus, ModulePub {
     /** @dev Initialises the Nexus and adds the core data to the Kernel (itself and governor) */
     constructor(address _governor)
     public {
-        require(address(_governor) != address(0), "Can't set governor to zero address");
-        _publishModule(Key_Governor, _governor, false);
+        require(_governor != address(0), "Can't set governor to zero address");
+        _publishModule(Key_Governance, _governor, false);
         _publishModule(Key_Nexus, address(this), false);
     }
 
+
     /** @dev Verifies that the caller is the System Governor as defined in the module mapping */
     modifier onlyGovernance() {
-        require(moduleAddresses[Key_Governor]._address == msg.sender ||
-        moduleAddresses[Key_GovernancePortal]._address == msg.sender, "Only the governance may perform this operation");
+        require(moduleAddresses[Key_Governance]._address == msg.sender, "Only the governance may perform this operation");
         _;
     }
 
@@ -67,7 +67,6 @@ contract Nexus is INexus, ModulePub {
     returns (bool) {
         uint count = _moduleKeys.length;
         require(count == _modules.length, "");
-        require(count == _isSubscriber.length, "");
         require(count > 0, "");
 
         for(uint i = 0 ; i < count; i++){
@@ -79,7 +78,7 @@ contract Nexus is INexus, ModulePub {
 
     /**
       * @dev Permanently lock a module to its current settings
-      * @param _key Bytes32 key of the module
+      * @param _moduleKey Bytes32 key of the module
       */
     function lockModule(bytes32 _moduleKey)
     public

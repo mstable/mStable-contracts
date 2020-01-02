@@ -22,7 +22,7 @@ interface IManager {
 
 
     /** ManagerPortal provides getters relevant to Massets */
-    function getModuleAddresses() external view returns(address _systok, address _forgeLib, address _governor);
+    function getModuleAddresses() external view returns(address _systok, address _forgeLib, address _governance);
     function getMassetPrice(address _masset) external view returns(uint256, uint256);
 
 
@@ -31,12 +31,7 @@ interface IManager {
 
 
     /** Masset Factory */
-    function addMasset(
-        bytes32 _massetKey,
-        address _masset,
-        uint256[2] calldata _fees,
-        uint256 _grace) external returns (address);
-    function ejectMasset(
-        address _masset) external;
+    function addMasset(bytes32 _massetKey, address _masset) external returns (address);
+    function ejectMasset(address _masset) external;
 
 }

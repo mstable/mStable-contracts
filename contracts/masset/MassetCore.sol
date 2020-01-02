@@ -54,7 +54,7 @@ contract MassetCore {
     }
 
     /**
-      * @dev Verifies that the caller is the Manager
+      * @dev Verifies that the caller either Manager or Gov
       */
     modifier managerOrGovernance() {
         require(address(manager) == msg.sender || governance == msg.sender, "Must be manager or governance");

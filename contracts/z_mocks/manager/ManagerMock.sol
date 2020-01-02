@@ -1,7 +1,7 @@
 pragma solidity ^0.5.12;
 pragma experimental ABIEncoderV2;
 
-import { Manager, ISystok, IOracleHub } from "../../manager/Manager.sol";
+import { Manager, ISystok, IOracleHub, IGovernancePortal } from "../../manager/Manager.sol";
 
 /**
  * @title ManagerMock so we can manipulate the storage for use in testing
@@ -9,7 +9,7 @@ import { Manager, ISystok, IOracleHub } from "../../manager/Manager.sol";
 contract ManagerMock is Manager {
 
     constructor(
-        address _governor,
+        IGovernancePortal _governor,
         address _nexus,
         ISystok _systok,
         IOracleHub _oracleHub,
