@@ -31,7 +31,10 @@ contract MassetBasket is MassetStructs, MassetCore {
         public
     {
         basket.collateralisationRatio = 1e18;
-        basket.grace = minGrace;
+        basket.grace = 1e26; // 1,000,000 e18 == 1e26
+
+        mintingFee = 0;
+        redemptionFee = 2e16;
 
         for (uint256 i = 0; i < _bassets.length; i++) {
             _addBasset(_bassets[i], _keys[i], _multiples[i]);
@@ -174,7 +177,7 @@ contract MassetBasket is MassetStructs, MassetCore {
       */
     function addBasset(address _basset, bytes32 _key, uint256 _measurementMultiple)
     external
-    onlyManager
+    onlyGovernance
     basketIsHealthy {
         _addBasset(_basset, _key, _measurementMultiple);
     }
@@ -258,7 +261,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         uint256[] calldata _weights
     )
         external
-        onlyManager
+        onlyGovernance
         basketIsHealthy
     {
         _setBasketWeights(_bassets, _weights);
@@ -310,7 +313,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         uint256 _grace
     )
         external
-        onlyManager
+        onlyGovernance
         basketIsHealthy
     {
         require(_grace >= minGrace, "Grace value must be under a certain max threshold");

@@ -1,0 +1,10 @@
+pragma solidity ^0.5.12;
+
+/**
+ * @title ForgeRewards
+ * @dev Forge wrapper that rewards minters for their contribution to liquidity
+ */
+contract ForgeRewards {
+
+
+}

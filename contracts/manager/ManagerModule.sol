@@ -15,12 +15,6 @@ import {
  * @dev Acts as a subscriber to the Nexus, which publishes each new Module that is introduced
  * to the system. If the module is relevant to the Manager, we will listen for it here and
  * update its reference, and those of the Massets too
- *
- *
- *
- * TODO: THOUGHTS: Maybe the Manager could also be the Nexus.. and thus the publisher.
- * If it were a proxy itself, it would be easily upgradable.
- * It's just not going to be replacable in it's current state as it requires state transfer
  */
 contract ManagerModule is ModuleSub, ManagerState {
 
@@ -50,6 +44,12 @@ contract ManagerModule is ModuleSub, ManagerState {
 
         if (_key == Key_GovernancePortal) {
             governance = IGovernancePortal(_newAddress);
+
+            address[] memory massets = massets.keys;
+            for(uint256 i = 0; i < massets.length; i++) {
+                IMasset tempMasset = IMasset(massets[i]);
+                tempMasset.setGovernance(_newAddress);
+            }
         }
 
         if (_key == Key_Systok) {

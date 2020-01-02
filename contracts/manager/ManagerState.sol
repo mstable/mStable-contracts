@@ -24,12 +24,8 @@ contract ManagerState  {
     /** @dev Custom dictionary for managing data structures */
     using DictionaryAtoB for DictionaryAtoB.AddressToBytes32;
 
-
-    /** @dev The governor is permitted to take action throughout the system */
-    address public governor;
-
-
     /** @dev References to current system Module implementations */
+    address public governor;
     IGovernancePortal governance;
     ISystok systok;
     IOracleHub oracleHub;

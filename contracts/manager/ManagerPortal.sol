@@ -14,13 +14,13 @@ contract ManagerPortal is ManagerState {
       * @dev Fetch relevant information used for setting up a Masset
       * @return Systok address
       * @return ForgeLib address
-      * @return Governor address
+      * @return Governance address
       */
     function getModuleAddresses()
     external
     view
     returns(address, address, address) {
-        return (address(systok), address(forgeLib), governor);
+        return (address(systok), address(forgeLib), address(governance));
     }
 
     /**

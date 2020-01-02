@@ -8,8 +8,6 @@ interface IManager {
 
     /** Masset Setters */
     function upgradeForgeLib(address _newForgeLib) external;
-    function addBassetToMasset(address _masset, address _basset, bytes32 _key, uint256 _measurementMultiple) external;
-    function setBasketWeightsOnMasset(address _masset, address[] calldata _bassets, uint256[] calldata _weights) external;
 
     /** Peg detection */
     function detectAllPegDeviations() external;

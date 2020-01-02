@@ -34,6 +34,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         bytes32[] memory _bassetKeys,
         uint256[] memory _bassetWeights,
         uint256[] memory _bassetMultiples,
+        address _feePool,
         address _manager
     )
         MassetToken(
@@ -50,20 +51,38 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         public
     {
         manager = IManager(_manager);
+        feePool = _feePool;
 
-        (address _systok, address _forgeLib,) = manager.getModuleAddresses();
-        require(_systok != address(0) && _forgeLib != address(0), "Must get address from Manager");
+        (address _systok, address _forgeLib, address _governance) = manager.getModuleAddresses();
+        require(_systok != address(0) && _forgeLib != address(0) && _governance != address(0), "Must get address from Manager");
 
         systok = ISystok(_systok);
         forgeLib = IForgeLib(_forgeLib);
+        governance = _governance;
     }
 
     /**
       * @dev Mints a number of Massets based on the sum of the value of the Bassets
       * @param _bassetQuantity Exact units of Bassets to mint
       */
-    function mintMasset(
+    function mint(
         uint256[] memory _bassetQuantity
+    )
+        external
+        basketIsHealthy
+        returns (uint256 massetMinted)
+    {
+        return mintTo(_bassetQuantity, msg.sender);
+    }
+
+    /**
+      * @dev Mints a number of Massets based on the sum of the value of the Bassets
+      * @param _bassetQuantity Exact units of Bassets to mint
+      * @param _recipient Address to which the tokens should be minted
+      */
+    function mintTo(
+        uint256[] memory _bassetQuantity,
+        address _recipient
     )
         public
         basketIsHealthy
@@ -93,8 +112,8 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         _payActionFee(massetQuantity, Action.MINT);
 
         // Mint the Masset
-        _mint(msg.sender, massetQuantity);
-        emit Minted(msg.sender, massetQuantity, _bassetQuantity);
+        _mint(_recipient, massetQuantity);
+        emit Minted(_recipient, massetQuantity, _bassetQuantity);
 
         return massetQuantity;
     }
@@ -173,7 +192,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
             uint256 feeAmountInSystok = feeAmountInDollars.divPrecisely(systokPrice);
 
             // feeAmountInSystok == 0.25e18 == 25e16
-            systok.burnFrom(msg.sender, feeAmountInSystok);
+            systok.transferFrom(msg.sender, feePool, feeAmountInSystok);
         }
     }
 

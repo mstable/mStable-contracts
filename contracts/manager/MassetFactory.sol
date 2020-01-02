@@ -29,26 +29,17 @@ contract MassetFactory is ManagerState {
       * @dev Adds an already and initialised Masset to the stack, storing the relevant data in the ManagerState
       * @param _massetKey     Key identifier for the Masset
       * @param _masset        Address of the Masset contract
-      * @param _fees          [0] = Minting fee where 1% == 1e16
-      *                       [1] = Redemption fee where 1% == 1e16
-      * @param _grace         Percentage based grace value for basket adjustments
       * @return               Address of new Masset
       */
     function addMasset(
         bytes32 _massetKey,
         address _masset,
-        uint256[2] calldata _fees,
-        uint256 _grace
     )
         external
         onlyGovernance
         returns (address)
     {
         require(_masset != address(0), "Masset must be a referenced implementation");
-
-        IMasset(_masset).setMintingFee(_fees[0]);
-        IMasset(_masset).setRedemptionFee(_fees[1]);
-        IMasset(_masset).setBasketGrace(_grace);
 
         // TODO - require key not to exist
         // require(!massets.contains(_massetKey), "Masset key already exists in the system.");
