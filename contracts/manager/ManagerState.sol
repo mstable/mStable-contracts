@@ -14,10 +14,6 @@ import { DictionaryAtoB } from "../shared/libs/DictionaryAtoB.sol";
  * @title ManagerState
  * @dev Holds and provides read access to the core data and state required by
  * the Managment and Masset contracts
- *
- * TODO
- * Optimise data structure as shown in comments
- * The Basket adjustments and oracle interaction will likely dictate requirements here
  */
 contract ManagerState  {
 
@@ -49,10 +45,7 @@ contract ManagerState  {
     uint internal lastPegDetection = block.timestamp;
 
 
-    /** @dev Data structure of the Masset and Bassets
-      * TODO - Can we combine this data structure into some struct to optimise reading data
-      * Maybe a Dictionary of Bytes32 to Masset struct
-      * What purpose do these byte8 identifiers make over addresses? */
+    /** @dev Data structure of the Masset and Bassets */
     DictionaryAtoB.AddressToBytes32 massets;
 
 

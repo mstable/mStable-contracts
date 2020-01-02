@@ -8,8 +8,6 @@ interface BasicToken {
 /**
   * @title CommonHelpers
   * @dev Consolidation of helper methods used throughout the system
-  *
-  * TODO - continue to add generic methods here and then seperate as it becomes aparent
   */
 library CommonHelpers {
 

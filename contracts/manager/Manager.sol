@@ -162,7 +162,7 @@ contract Manager is
         // Generate proposal to GovernancePortal with affected BassetKey/addr
 
         // ***********
-        //    TODO -> Consider the restrictions around creating proposal.. is this air tight?
+        //    TODO (recol) -> Consider the restrictions around creating proposal.. is this air tight?
         //    We don't want to create a proposal if already liquidating/liquidated (alreadyActioned),
         //    Or if vote underway.
         // ***********
@@ -184,7 +184,7 @@ contract Manager is
      * @param _masset   Address of the Masset
      * @param _basset   Address of the Basset
      *
-     * TODO: Validate that the proposal has finished & result is negate?
+     * TODO (recol): Validate that the proposal has finished & result is negate?
      * Otherwise, this can be called via the multisig
      *
      */
@@ -207,6 +207,10 @@ contract Manager is
      * @param _basset               Address of the Basset
      * @param _validatedMassetPrice Latest validated price of Masset from the governors (e18)
      * @param _validatedMetaPrice   Latest validated price of Meta from the governors (e18)
+     *
+     * TODO (recol): Validate that the proposal has finished & result is pos
+     * Otherwise, this can be called via the multisig
+     *
      */
     function recollatoraliseBasset(
         address _masset,

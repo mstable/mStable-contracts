@@ -102,7 +102,6 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
                 basket.bassets[i].vaultBalance = basket.bassets[i].vaultBalance.add(_bassetQuantity[i]);
 
-                // TODO - Move this func to the ForgeLib? As it is already being Ratioed and summed there
                 uint ratioedBasset = _bassetQuantity[i].mulRatioTruncate(basket.bassets[i].ratio);
                 massetQuantity = massetQuantity.add(ratioedBasset);
             }

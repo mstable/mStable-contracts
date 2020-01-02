@@ -41,11 +41,9 @@ contract MassetFactory is ManagerState {
     {
         require(_masset != address(0), "Masset must be a referenced implementation");
 
-        // TODO - require key not to exist
-        // require(!massets.contains(_massetKey), "Masset key already exists in the system.");
         massets.add(_masset, _massetKey);
 
-        emit MassetCreated(_massetKey, _masset);
+        emit MassetAdded(_massetKey, _masset);
         return _masset;
     }
 

@@ -73,8 +73,6 @@ contract MassetBasket is MassetStructs, MassetCore {
             return true;
         }
 
-        // TODO: What is 0 Target and 0 vault? Just ignore?
-
         // If we need to update the status.. then do it
         basket.bassets[i].status = newStatus;
         return false;

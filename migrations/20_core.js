@@ -11,7 +11,7 @@ const c_Recollateraliser = artifacts.require('Recollateraliser');
 // const c_Governance = artifacts.require('AragonGovernancePortal');
 const c_Manager = artifacts.require('Manager');
 const c_CommonHelpers = artifacts.require('CommonHelpers');
-const c_ForgeLib = artifacts.require('ForgeLibV2');
+const c_ForgeLib = artifacts.require('ForgeLib');
 
 const c_StableMath = artifacts.require('StableMath');
 
