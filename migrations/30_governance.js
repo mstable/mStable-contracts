@@ -17,5 +17,5 @@ module.exports = async (deployer, network, accounts) => {
   const txData = d_Governance.contract.methods.changeRequirement(newMinQuorum).encodeABI();
   await d_Governance.submitTransaction(d_Governance.address, 0, txData, { from : governor });
 
-  console.log(await d_Governance.required());
+  // console.log(await d_Governance.required());
 }

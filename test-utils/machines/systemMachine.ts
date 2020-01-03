@@ -80,12 +80,15 @@ export class SystemMachine {
             /** NexusMock */
             await this.deployNexus();
 
-            /** OracleHubMock */
-            const oracleHub = await this.deployOracleHub();
+            /** Governance */
+            const governancePortal = await this.deployGovernancePortal();
             // add module
-            await this.addModuleToNexus(
-                await oracleHub.Key_OracleHub.callAsync(),
-                oracleHub.address,
+            await this.nexus.addModule.sendTransactionAsync(
+                await governancePortal.Key_Governance.callAsync(),
+                governancePortal.address,
+                {
+                    from: sender,
+                },
             );
 
             /** SystokMock */
@@ -93,12 +96,12 @@ export class SystemMachine {
             // add module
             await this.addModuleToNexus(await systok.Key_Systok.callAsync(), systok.address);
 
-            /** Governance */
-            const governancePortal = await this.deployGovernancePortal();
+            /** OracleHubMock */
+            const oracleHub = await this.deployOracleHub();
             // add module
             await this.addModuleToNexus(
-                await governancePortal.Key_Governance.callAsync(),
-                governancePortal.address,
+                await oracleHub.Key_OracleHub.callAsync(),
+                oracleHub.address,
             );
 
             /** ManagerMock */
@@ -191,8 +194,8 @@ export class SystemMachine {
      * @dev Deploy the Governance Portal
      */
     public async deployGovernancePortal(
-        govOwners: Address[] = this.sa.all.slice(4, 10),
-        minQuorum: number = 3,
+        govOwners: Address[] = this.sa.all.slice(0, 5),
+        minQuorum: number = 1,
     ): Promise<GovernancePortalMockContract> {
         try {
             const mockInstance = await GovernancePortalArtifact.new(
@@ -226,7 +229,7 @@ export class SystemMachine {
             await ManagerArtifact.link(StableMathArtifact, stableMathInstance.address);
 
             const mockInstance = await ManagerArtifact.new(
-                this.sa.governor,
+                this.governancePortal.address,
                 this.nexus.address,
                 this.systok.address,
                 this.oracleHub.address,
@@ -296,17 +299,29 @@ export class SystemMachine {
     public async addModuleToNexus(
         moduleKey: string,
         moduleAddress: Address,
-        subscribe: boolean = true,
         sender: Address = this.sa.governor,
     ): Promise<string> {
         if (subscribe) {
-            return this.nexus.addModule.sendTransactionAsync(moduleKey, moduleAddress, {
-                from: sender,
-            });
+            return this.publishModuleThroughMultisig(moduleKey, moduleAddress, { from: sender });
         } else {
-            return this.nexus.addDeafModule.sendTransactionAsync(moduleKey, moduleAddress, {
-                from: sender,
-            });
+            // TODO - allow deaf module updating
+            return this.publishModuleThroughMultisig(moduleKey, moduleAddress, { from: sender });
         }
+    }
+
+    /**
+     * @dev Assuming that the minimum quorum on the Multisig is 1, then we can execute transactions here
+     * @param key
+     * @param address
+     * @param sender
+     */
+    private async publishModuleThroughMultisig(key, address, sender) {
+        const txData = this.nexus.addModule.getABIEncodedTransactionData(key, address);
+        return this.governancePortal.submitTransaction.sendTransactionAsync(
+            this.nexus.address,
+            new BigNumber(0),
+            txData,
+            { from: sender },
+        );
     }
 }
