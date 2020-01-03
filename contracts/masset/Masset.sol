@@ -23,7 +23,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
     /** @dev Forging events */
     event Minted(address indexed account, uint256 massetQuantity, uint256[] bassetQuantities);
-    event Redeemed(address indexed account, uint256 massetQuantity, uint256[] bassetQuantities);
+    event Redeemed(address indexed recipient, address indexed redeemer, uint256 massetQuantity, uint256[] bassetQuantities);
 
 
     /** @dev constructor */
@@ -130,6 +130,23 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         public
         returns (uint256 massetRedeemed)
     {
+        return redeemTo(_bassetQuantity, msg.sender, msg.sender);
+    }
+
+    /**
+      * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
+      * @param _bassetQuantity Exact quantities of Bassets to redeem
+      * @param _redeemer Account from which to burn the Masset
+      * @param _recipient Account to which the redeemed Bassets should be sent
+      */
+    function redeemTo(
+        uint256[] memory _bassetQuantity,
+        address _redeemer,
+        address _recipient
+    )
+        public
+        returns (uint256 massetRedeemed)
+    {
         // Validate the proposed redemption
         forgeLib.validateRedemption(basket, _bassetQuantity);
 
@@ -146,24 +163,24 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         }
 
         // Pay the redemption fee
-        _payActionFee(massetQuantity, Action.REDEEM, msg.sender);
+        _payActionFee(massetQuantity, Action.REDEEM, _redeemer);
 
         // Ensure payout is relevant to collateralisation ratio (if ratio is 90%, we burn more)
         massetQuantity = massetQuantity.divPrecisely(basket.collateralisationRatio);
 
         // Burn the Masset
-        _burn(msg.sender, massetQuantity);
+        _burn(_redeemer, massetQuantity);
 
         // Transfer the Bassets to the user
         for(uint i = 0; i < _bassetQuantity.length; i++){
             if(_bassetQuantity[i] > 0){
                 address basset = basket.bassets[i].addr;
 
-                IERC20(basset).transfer(msg.sender, _bassetQuantity[i]);
+                IERC20(basset).transfer(_recipient, _bassetQuantity[i]);
             }
         }
 
-        emit Redeemed(msg.sender, massetQuantity, _bassetQuantity);
+        emit Redeemed(_recipient, _redeemer, massetQuantity, _bassetQuantity);
         return massetQuantity;
     }
 

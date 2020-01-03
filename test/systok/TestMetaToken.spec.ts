@@ -23,8 +23,6 @@ const { expect, assert } = chai;
  * basset deviates beyond threshold, it is isolated and a governance proposal generated
  */
 contract("MetaToken", async (accounts) => {
-    const [_, governor, fundManager, other, other2, oraclePriceProvider] = accounts;
-
     let systemMachine: SystemMachine;
 
     before("Init contracts", async () => {

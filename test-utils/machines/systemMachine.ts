@@ -87,7 +87,7 @@ export class SystemMachine {
                 await governancePortal.Key_Governance.callAsync(),
                 governancePortal.address,
                 {
-                    from: sender,
+                    from: this.sa.governor,
                 },
             );
 
@@ -263,6 +263,7 @@ export class SystemMachine {
             [aToH("b1"), aToH("b2")],
             [percentToWeight(50), percentToWeight(50)],
             [createMultiple(1), createMultiple(1)],
+            this.sa.feePool,
             this.manager.address,
         );
 
@@ -296,17 +297,13 @@ export class SystemMachine {
         }
     }
 
+    // TODO - allow deaf module updating
     public async addModuleToNexus(
         moduleKey: string,
         moduleAddress: Address,
         sender: Address = this.sa.governor,
     ): Promise<string> {
-        if (subscribe) {
-            return this.publishModuleThroughMultisig(moduleKey, moduleAddress, { from: sender });
-        } else {
-            // TODO - allow deaf module updating
-            return this.publishModuleThroughMultisig(moduleKey, moduleAddress, { from: sender });
-        }
+        return this.publishModuleThroughMultisig(moduleKey, moduleAddress, sender);
     }
 
     /**
