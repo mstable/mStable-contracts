@@ -72,16 +72,18 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         basketIsHealthy
         returns (uint256 massetMinted)
     {
-        return mintTo(_bassetQuantity, msg.sender);
+        return mintTo(_bassetQuantity, msg.sender, msg.sender);
     }
 
     /**
       * @dev Mints a number of Massets based on the sum of the value of the Bassets
       * @param _bassetQuantity Exact units of Bassets to mint
-      * @param _recipient Address to which the tokens should be minted
+      * @param _minter Address from which to transfer the Bassets
+      * @param _recipient Address to which the Masset should be minted
       */
     function mintTo(
         uint256[] memory _bassetQuantity,
+        address _minter,
         address _recipient
     )
         public
@@ -98,7 +100,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
             address basset = basket.bassets[i].addr;
 
             if(_bassetQuantity[i] > 0){
-                IERC20(basset).transferFrom(msg.sender, address(this), _bassetQuantity[i]);
+                IERC20(basset).transferFrom(_minter, address(this), _bassetQuantity[i]);
 
                 basket.bassets[i].vaultBalance = basket.bassets[i].vaultBalance.add(_bassetQuantity[i]);
 
@@ -108,7 +110,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         }
 
         // Pay the minting fee
-        _payActionFee(massetQuantity, Action.MINT);
+        _payActionFee(massetQuantity, Action.MINT, _minter);
 
         // Mint the Masset
         _mint(_recipient, massetQuantity);
@@ -144,7 +146,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         }
 
         // Pay the redemption fee
-        _payActionFee(massetQuantity, Action.REDEEM);
+        _payActionFee(massetQuantity, Action.REDEEM, msg.sender);
 
         // Ensure payout is relevant to collateralisation ratio
         massetQuantity = massetQuantity.divPrecisely(basket.collateralisationRatio);
@@ -169,8 +171,9 @@ contract Masset is IMasset, MassetToken, MassetBasket {
      * @dev Pay the forging fee by burning Systok
      * @param _quantity Exact amount of Masset being forged
      * @param _action Type of Forge action to execute
+     * @param _payer Address who is liable for the fee
      */
-    function _payActionFee(uint256 _quantity, Action _action)
+    function _payActionFee(uint256 _quantity, Action _action, address _payer)
     private {
         (uint256 ownPrice, uint256 systokPrice) = manager.getMassetPrice(address(this));
 
@@ -191,7 +194,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
             uint256 feeAmountInSystok = feeAmountInDollars.divPrecisely(systokPrice);
 
             // feeAmountInSystok == 0.25e18 == 25e16
-            systok.transferFrom(msg.sender, feePool, feeAmountInSystok);
+            systok.transferFrom(_payer, feePool, feeAmountInSystok);
         }
     }
 
