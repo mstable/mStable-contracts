@@ -9,7 +9,7 @@
 pragma solidity ^0.5.12;
 pragma experimental ABIEncoderV2;
 
-import { OracleHubData } from "./OracleHubData.sol";
+import { OracleHubData } from "./data/OracleHubData.sol";
 
 /**
  * @title The Open Hub View Base Contract

@@ -31,7 +31,10 @@ contract MassetBasket is MassetStructs, MassetCore {
         public
     {
         basket.collateralisationRatio = 1e18;
-        basket.grace = minGrace;
+        basket.grace = 1e26; // 1,000,000 e18 == 1e26
+
+        mintingFee = 0;
+        redemptionFee = 2e16;
 
         for (uint256 i = 0; i < _bassets.length; i++) {
             _addBasset(_bassets[i], _keys[i], _multiples[i]);
@@ -69,8 +72,6 @@ contract MassetBasket is MassetStructs, MassetCore {
           _bassetHasRecolled(oldStatus)) {
             return true;
         }
-
-        // TODO: What is 0 Target and 0 vault? Just ignore?
 
         // If we need to update the status.. then do it
         basket.bassets[i].status = newStatus;
@@ -113,8 +114,8 @@ contract MassetBasket is MassetStructs, MassetCore {
         basket.bassets[i].status = BassetStatus.Liquidating;
         basket.bassets[i].vaultBalance = 0;
 
-        // Send the tokens to the recollateraliser to get liquidated
-        IERC20(_basset).transfer(_recollateraliser, vaultBalance);
+        // Approve the recollateraliser to take the Basset
+        IERC20(_basset).approve(_recollateraliser, vaultBalance);
 
     }
 
@@ -133,6 +134,8 @@ contract MassetBasket is MassetStructs, MassetCore {
         require(status == BassetStatus.Liquidating, "Invalid Basset state");
 
         if(_unitsUnderCollateralised > 0){
+            // TODO - ERROR -  what if another Basset is auctioning.. that throws calcs off.
+            // Should be Massets in circulation && units undercol rather than adding up vault
             uint256 unitsOfCollateralisation = 0;
 
             // Calc total Massets collateralised
@@ -174,7 +177,7 @@ contract MassetBasket is MassetStructs, MassetCore {
       */
     function addBasset(address _basset, bytes32 _key, uint256 _measurementMultiple)
     external
-    onlyManager
+    onlyGovernance
     basketIsHealthy {
         _addBasset(_basset, _key, _measurementMultiple);
     }
@@ -258,7 +261,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         uint256[] calldata _weights
     )
         external
-        onlyManager
+        onlyGovernance
         basketIsHealthy
     {
         _setBasketWeights(_bassets, _weights);
@@ -310,7 +313,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         uint256 _grace
     )
         external
-        onlyManager
+        onlyGovernance
         basketIsHealthy
     {
         require(_grace >= minGrace, "Grace value must be under a certain max threshold");

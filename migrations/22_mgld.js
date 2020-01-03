@@ -2,6 +2,7 @@
 /* eslint-disable prefer-const */
 /* eslint-disable one-var */
 const c_Manager = artifacts.require('Manager')
+const c_Governance = artifacts.require('GovernancePortal')
 const c_Masset = artifacts.require('Masset')
 
 const c_DGX = artifacts.require('DGX')
@@ -15,10 +16,11 @@ const { percentToWeight, createMultiple,simpleToExactAmount } = require('@utils/
 
 module.exports = async (deployer, network, accounts) => {
 
-	const [ _, governor, fundManager, oracleSource ] = accounts;
+	const [ _, governor, fundManager, oracleSource, feePool ] = accounts;
 
   /* Get deployed Manager */
   const d_Manager = await c_Manager.deployed();
+  const d_Governance = await c_Governance.deployed()
 
   /* ~~~~~~~~~ mUSD Setup ~~~~~~~~~  */
 
@@ -75,16 +77,15 @@ module.exports = async (deployer, network, accounts) => {
     basketKeys,
     basketWeights,
     basketMultiples,
+    feePool,
     d_Manager.address
   );
 
-  await d_Manager.addMasset(
+  const txData = d_Manager.contract.methods.addMasset(
     aToH("mGLD"),
-    d_mGLD.address,
-    [mintingFee, redemptionFee],
-    grace,
-    { from: governor }
-  );
+    d_mGLD.address).encodeABI();
+
+  await d_Governance.submitTransaction(d_Manager.address, 0, txData, { from : governor });
 
   const massets = await d_Manager.getMassets();
   console.log(`[mGLD]: '${massets[0][1]}'`);

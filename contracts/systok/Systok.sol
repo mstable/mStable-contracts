@@ -14,7 +14,7 @@ import { IRecollateraliser } from "../interfaces/IRecollateraliser.sol";
  *      namely through governance, forging and re-collateralisation
  *
  * BURN/MINT PRIVS
- * Only self & Recollateraliser can mint new Meta
+ * Only Recollateraliser can mint new Meta
  * Anyone can burn and burnFrom Meta, provided they have the allowance
  */
 contract Systok is ISystok, ModuleSub, MetaToken {
@@ -36,10 +36,7 @@ contract Systok is ISystok, ModuleSub, MetaToken {
         MetaToken(_initialRecipient)
         ModuleSub(address(_nexus))
     {
-      
     }
-
-
 
     /**
       * @dev Internally handles updates to the system modules
@@ -57,7 +54,6 @@ contract Systok is ISystok, ModuleSub, MetaToken {
               _removeMinter(old);
             }
             recollateraliser = IRecollateraliser(_newAddress);
-            // Allow new recollateraliser to mint new Meta for utility
             _addMinter(_newAddress);
         }
     }

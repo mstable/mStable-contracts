@@ -13,7 +13,7 @@ import { IManager } from "../interfaces/IManager.sol";
 contract OracleHubModule is ModuleSub {
 
     /** @dev The governor is permitted to take action throughout the system */
-    address governor;
+    address governance;
 
 
     /** @dev Events to emit */
@@ -34,8 +34,8 @@ contract OracleHubModule is ModuleSub {
     internal {
         emit ModuleUpdated(_key, _newAddress);
 
-        if (_key == Key_Governor) {
-            governor = _newAddress;
+        if (_key == Key_Governance) {
+            governance = _newAddress;
         }
     }
 }

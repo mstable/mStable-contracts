@@ -8,8 +8,6 @@ interface IManager {
 
     /** Masset Setters */
     function upgradeForgeLib(address _newForgeLib) external;
-    function addBassetToMasset(address _masset, address _basset, bytes32 _key, uint256 _measurementMultiple) external;
-    function setBasketWeightsOnMasset(address _masset, address[] calldata _bassets, uint256[] calldata _weights) external;
 
     /** Peg detection */
     function detectAllPegDeviations() external;
@@ -24,7 +22,7 @@ interface IManager {
 
 
     /** ManagerPortal provides getters relevant to Massets */
-    function getModuleAddresses() external view returns(address _systok, address _forgeLib, address _governor);
+    function getModuleAddresses() external view returns(address _systok, address _forgeLib, address _governance);
     function getMassetPrice(address _masset) external view returns(uint256, uint256);
 
 
@@ -33,12 +31,7 @@ interface IManager {
 
 
     /** Masset Factory */
-    function addMasset(
-        bytes32 _massetKey,
-        address _masset,
-        uint256[2] calldata _fees,
-        uint256 _grace) external returns (address);
-    function ejectMasset(
-        address _masset) external;
+    function addMasset(bytes32 _massetKey, address _masset) external returns (address);
+    function ejectMasset(address _masset) external;
 
 }

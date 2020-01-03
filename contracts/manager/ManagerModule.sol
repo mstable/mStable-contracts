@@ -6,6 +6,7 @@ import {
   IRecollateraliser,
   IGovernancePortal,
   ISystok,
+  IManager,
   IOracleHub,
   IMasset
 } from "./ManagerState.sol";
@@ -15,12 +16,6 @@ import {
  * @dev Acts as a subscriber to the Nexus, which publishes each new Module that is introduced
  * to the system. If the module is relevant to the Manager, we will listen for it here and
  * update its reference, and those of the Massets too
- *
- *
- *
- * TODO: THOUGHTS: Maybe the Manager could also be the Nexus.. and thus the publisher.
- * If it were a proxy itself, it would be easily upgradable.
- * It's just not going to be replacable in it's current state as it requires state transfer
  */
 contract ManagerModule is ModuleSub, ManagerState {
 
@@ -44,12 +39,14 @@ contract ManagerModule is ModuleSub, ManagerState {
     internal {
         emit ModuleUpdated(_key, _newAddress);
 
-        if (_key == Key_Governor) {
-            governor = _newAddress;
-        }
-
-        if (_key == Key_GovernancePortal) {
+        if (_key == Key_Governance) {
             governance = IGovernancePortal(_newAddress);
+
+            address[] memory massets = massets.keys;
+            for(uint256 i = 0; i < massets.length; i++) {
+                IMasset tempMasset = IMasset(massets[i]);
+                tempMasset.setGovernance(_newAddress);
+            }
         }
 
         if (_key == Key_Systok) {
@@ -59,6 +56,14 @@ contract ManagerModule is ModuleSub, ManagerState {
             for(uint256 i = 0; i < massets.length; i++) {
                 IMasset tempMasset = IMasset(massets[i]);
                 tempMasset.setSystok(systok);
+            }
+        }
+
+        if (_key == Key_Manager) {
+            address[] memory massets = massets.keys;
+            for(uint256 i = 0; i < massets.length; i++) {
+                IMasset tempMasset = IMasset(massets[i]);
+                tempMasset.setManager(IManager(_newAddress));
             }
         }
 

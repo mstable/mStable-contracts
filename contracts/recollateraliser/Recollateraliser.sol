@@ -29,7 +29,7 @@ interface IERC20 {
  *      raised/target Massets is then filled by auctioning off newly minted system token, Meta.
  *
  *
- *  TODO - I suspect we can simplify some of the maths by combining the bassetRatio and the bassetPrice
+ *  TODO (recol) - I suspect we can simplify some of the maths by combining the bassetRatio and the bassetPrice
  *  Which would save a few lines here and there. However, i think it reduces mental complexity as is.
  *  Regardless, these calculations need to be air tight.
  *
@@ -174,7 +174,7 @@ contract Recollateraliser is
         require(_bassetUnits > 0, "Must sell > 0");
         require(_bassetRatio > 0, "Must have ratio");
         require(bassetToAuction[_basset] == 0, "No active auction must exist");
-        require(IERC20(_basset).balanceOf(address(this)) >= _bassetUnits, "Must hold Bassets");
+        require(IERC20(_basset).transferFrom(_masset, address(this), _bassetUnits), "Must hold Bassets");
 
         auctionId = ++auctionCount;
 
@@ -215,8 +215,6 @@ contract Recollateraliser is
      *  @param _requiredStage  Required stage
      *  @param _timeLimit      Time of trade must be before limit, should a user wish to block
      *  @return Amount of Massets committed (may have been clamped)
-     *
-     *  TODO -> Split this in to two (Basset/Meta auction) commitments?
      */
     function commit(
         uint256 _auctionId,

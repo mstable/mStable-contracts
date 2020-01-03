@@ -34,13 +34,13 @@ contract Manager is
 
     /**
       * @dev Sets up the core state of the Manager
-      * @param _governor          Current system governor address
+      * @param _governance        Current system governance portal
       * @param _nexus             Nexus module
       * @param _systok            Systok module
       * @param _oracleHub         OracleHub module
       */
     constructor(
-        address _governor,
+        IGovernancePortal _governance,
         address _nexus,
         ISystok _systok,
         IOracleHub _oracleHub,
@@ -49,7 +49,7 @@ contract Manager is
         ManagerModule(_nexus)
         public
     {
-        governor = _governor;
+        governance = _governance;
         systok = _systok;
         oracleHub = _oracleHub;
         forgeLib = _forgeLib;
@@ -60,38 +60,6 @@ contract Manager is
               BASKET MANAGEMENT
     ****************************************/
 
-    // TODO
-    // setManager
-    // function setMintingFee(uint256 _mintingFee) external;
-    // function setRedemptionFee(uint256 _redemptionFee) external;
-    // function setBasketGrace(uint256 _grace) external;
-
-
-    /**
-      * @dev Adds a Basset to a particular Massets Basket
-      * @param _masset Address of the Masset to modify
-      * @param _basset Address of the ERC20 Basset to add
-      * @param _measurementMultiple MM of the Basset where 1:1 == 1e18
-      */
-    function addBassetToMasset(address _masset, address _basset, bytes32 _key, uint256 _measurementMultiple)
-    external
-    onlyGovernance {
-        IMasset(_masset).addBasset(_basset, _key, _measurementMultiple);
-    }
-
-
-    /**
-      * @dev Updates all the weightings on a Masset
-      * @param _masset Address of the Masset to modify
-      * @param _bassets Addresses of all the Bassets in the Basket for validation purposes
-      * @param _weights Weightings of the corresponding Bassets, where 100% == 1e18
-      */
-    function setBasketWeightsOnMasset(address _masset, address[] calldata _bassets, uint256[] calldata _weights)
-    external
-    onlyGovernance {
-        IMasset(_masset).setBasketWeights(_bassets, _weights);
-    }
-
     /**
       * @dev Upgrades the version of ForgeLib referenced across the Massets
       * @param _newForgeLib Address of the new ForgeLib
@@ -99,7 +67,6 @@ contract Manager is
     function upgradeForgeLib(address _newForgeLib)
     external
     onlyGovernance {
-        // TODO: Consider Enforce valid ForgeLib
         address[] memory _massets = massets.keys;
         for(uint256 i = 0; i < _massets.length; i++) {
             IMasset tempMasset = IMasset(_massets[i]);
@@ -195,7 +162,7 @@ contract Manager is
         // Generate proposal to GovernancePortal with affected BassetKey/addr
 
         // ***********
-        //    TODO -> Consider the restrictions around creating proposal.. is this air tight?
+        //    TODO (recol) -> Consider the restrictions around creating proposal.. is this air tight?
         //    We don't want to create a proposal if already liquidating/liquidated (alreadyActioned),
         //    Or if vote underway.
         // ***********
@@ -217,7 +184,7 @@ contract Manager is
      * @param _masset   Address of the Masset
      * @param _basset   Address of the Basset
      *
-     * TODO: Validate that the proposal has finished & result is negate?
+     * TODO (recol): Validate that the proposal has finished & result is negate?
      * Otherwise, this can be called via the multisig
      *
      */
@@ -240,6 +207,10 @@ contract Manager is
      * @param _basset               Address of the Basset
      * @param _validatedMassetPrice Latest validated price of Masset from the governors (e18)
      * @param _validatedMetaPrice   Latest validated price of Meta from the governors (e18)
+     *
+     * TODO (recol): Validate that the proposal has finished & result is pos
+     * Otherwise, this can be called via the multisig
+     *
      */
     function recollatoraliseBasset(
         address _masset,
