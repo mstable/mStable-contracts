@@ -6,7 +6,7 @@ import {
   GovernancePortalMockContract,
   ManagerMockContract,
   MassetContract,
-  OracleHubMockContract,
+  SimpleOracleHubMockContract,
 } from "@utils/contracts";
 import envSetup from "@utils/env_setup";
 import { BassetMachine, MassetMachine, SystemMachine } from "@utils/machines";

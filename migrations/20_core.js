@@ -94,11 +94,10 @@ module.exports = async (deployer, network, accounts) => {
 
   await publishModuleThroughMultisig(d_Nexus, d_Governance, await d_Recollateraliser.Key_Recollateraliser(), d_Recollateraliser.address, governor);
 
-  console.log(await d_Nexus.getModules());
-  // console.log(`[Nexus]: '${d_Nexus.address}'`)
-  // console.log(`[OracleHub]: '${d_OracleHub.address}'`)
-  // console.log(`[Systok (aka MTA)]: '${d_Systok.address}'`)
-  // console.log(`[GovernancePortal]: '${d_Governance.address}'`)
-  // console.log(`[Manager]: '${d_Manager.address}'`)
-  // console.log(`[Recollateraliser]: '${d_Recollateraliser.address}'`)
+  console.log(`[Nexus]: '${d_Nexus.address}'`)
+  console.log(`[OracleHub]: '${d_OracleHub.address}'`)
+  console.log(`[Systok (aka MTA)]: '${d_Systok.address}'`)
+  console.log(`[GovernancePortal]: '${d_Governance.address}'`)
+  console.log(`[Manager]: '${d_Manager.address}'`)
+  console.log(`[Recollateraliser]: '${d_Recollateraliser.address}'`)
 }

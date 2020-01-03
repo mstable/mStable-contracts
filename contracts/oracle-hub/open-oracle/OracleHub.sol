@@ -74,10 +74,9 @@ contract OracleHub is IOracleHub, OracleHubView, OracleHubModule {
     function readPricePair(bytes32[2] calldata _keys)
     external
     view
-    returns(bool[] memory _isFresh, uint64[] memory _prices) {
-        _isFresh = new bool[](_keys.length);
-        _prices = new uint64[](_keys.length);
-        for(uint i = 0; i < _keys.length; i++){
+    returns(bool[2] memory _isFresh, uint64[2] memory _prices) {
+        require(_keys.length == 2,  "Valid array");
+        for(uint i = 0; i < 2; i++){
           (_isFresh[i], _prices[i]) = (true, prices[_keys[i]]);
         }
     }

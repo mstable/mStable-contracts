@@ -27,16 +27,6 @@ contract ManagerMock is Manager {
 
     }
 
-    /**
-      * @dev Override internal modifier on GetBassets
-      */
-    function getBassets_mock(address _masset)
-    public
-    view
-    returns(address[] memory, bytes32[] memory) {
-        return _getBassets(_masset);
-    }
-
 }
 
 

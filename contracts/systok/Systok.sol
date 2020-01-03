@@ -5,7 +5,6 @@ import { ModuleSub } from "../shared/pubsub/ModuleSub.sol";
 
 import { INexus } from "../interfaces/INexus.sol";
 import { ISystok } from "../interfaces/ISystok.sol";
-import { IRecollateraliser } from "../interfaces/IRecollateraliser.sol";
 
 /**
  * @title Systok (System Token)
@@ -14,17 +13,17 @@ import { IRecollateraliser } from "../interfaces/IRecollateraliser.sol";
  *      namely through governance, forging and re-collateralisation
  *
  * BURN/MINT PRIVS
- * Only Recollateraliser can mint new Meta
+ * Only Recollateraliser can mint new Meta post completed auction
  * Anyone can burn and burnFrom Meta, provided they have the allowance
  */
 contract Systok is ISystok, ModuleSub, MetaToken {
 
     /** @dev References to current system Module implementations */
-    IRecollateraliser recollateraliser;
+    address recollateraliser;
 
 
     /** @dev Events to emit */
-    event ModuleUpdated(bytes32 indexed key, address newAddress);
+    event RecolUpdated(bytes32 indexed key, address newAddress);
 
 
     /** @dev Basic constructor to initialise the Systok */
@@ -45,7 +44,6 @@ contract Systok is ISystok, ModuleSub, MetaToken {
       */
     function _internalUpdateModule(bytes32 _key, address _newAddress)
     internal {
-        emit ModuleUpdated(_key, _newAddress);
 
         if (_key == Key_Recollateraliser) {
             address old = address(recollateraliser);
@@ -53,8 +51,10 @@ contract Systok is ISystok, ModuleSub, MetaToken {
             if(old != address(0)) {
               _removeMinter(old);
             }
-            recollateraliser = IRecollateraliser(_newAddress);
+            recollateraliser = _newAddress;
             _addMinter(_newAddress);
+
+            emit RecolUpdated(_key, _newAddress);
         }
     }
 }

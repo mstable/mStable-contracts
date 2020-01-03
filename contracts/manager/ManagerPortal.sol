@@ -49,13 +49,13 @@ contract ManagerPortal is ManagerState {
         // Get the relevant masset key
         bytes32 key = massets.get(_addr);
 
-        // Fetch the prices
-        (bool[] memory isFresh, uint64[] memory prices) = oracleHub.readPricePair([key, oracle_key_systok]);
+        // Fetch the prices where $1 == 1e6
+        (bool[2] memory isFresh, uint64[2] memory prices) = oracleHub.readPricePair([key, oracle_key_systok]);
 
         // Validate state of the response
         require(prices.length == 2, "Must return valid pair");
         for(uint i = 0; i < prices.length; i++){
-          require(isFresh[i] && prices[i] > 0, "Price must exist and be fresh");
+          require(isFresh[i] && prices[i] > 0, "Prices must exist and be fresh");
         }
 
         // Cast prices into relevant format
