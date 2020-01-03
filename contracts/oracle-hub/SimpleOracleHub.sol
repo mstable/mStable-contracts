@@ -63,6 +63,7 @@ contract SimpleOracleHub is IOracleHub, OracleHubModule {
     view
     returns(bool, uint64) {
         Datum memory m = data[_key];
+        // TODO - should this be something different? i.e. timestamp must be < now && > now - 12 hours (to lock in a time properly)
         bool isFresh = m.timestamp > (now - 24 hours);
         return (isFresh, m.value);
     }

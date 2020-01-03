@@ -134,6 +134,8 @@ contract MassetBasket is MassetStructs, MassetCore {
         require(status == BassetStatus.Liquidating, "Invalid Basset state");
 
         if(_unitsUnderCollateralised > 0){
+            // TODO - ERROR -  what if another Basset is auctioning.. that throws calcs off.
+            // Should be Massets in circulation && units undercol rather than adding up vault
             uint256 unitsOfCollateralisation = 0;
 
             // Calc total Massets collateralised

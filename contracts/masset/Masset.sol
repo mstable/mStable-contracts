@@ -148,7 +148,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         // Pay the redemption fee
         _payActionFee(massetQuantity, Action.REDEEM, msg.sender);
 
-        // Ensure payout is relevant to collateralisation ratio
+        // Ensure payout is relevant to collateralisation ratio (if ratio is 90%, we burn more)
         massetQuantity = massetQuantity.divPrecisely(basket.collateralisationRatio);
 
         // Burn the Masset
