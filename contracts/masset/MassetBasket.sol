@@ -31,7 +31,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         public
     {
         basket.collateralisationRatio = 1e18;
-        basket.grace = 1e26; // 1,000,000 e18 == 1e26
+        basket.grace = 2e24; // 2,000,000 e18 == 2e24
 
         mintingFee = 0;
         redemptionFee = 2e16;
@@ -56,12 +56,13 @@ contract MassetBasket is MassetStructs, MassetCore {
       * @dev Executes the Auto Redistribution event by isolating the Basset from the Basket
       * @param _basset Address of the ERC20 token to isolate
       * @param _belowPeg Bool to describe whether the basset deviated below peg (t) or above (f)
+      * @return alreadyActioned Bool to show whether a Basset had already been actioned
       */
     function handlePegLoss(address _basset, bool _belowPeg)
     external
     onlyManager
     basketIsHealthy
-    returns (bool) {
+    returns (bool alreadyActioned) {
         (bool exists, uint i) = _isAssetInBasket(_basset);
         require(exists, "Basset must exist in Basket");
 

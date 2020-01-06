@@ -14,5 +14,5 @@ interface INexus {
 
     function addModules(bytes32[] calldata _moduleKeys, address[] calldata _modules) external returns (bool);
 
-    function removeModule(bytes32 _moduleKey) external returns (bool);
+    // function removeModule(bytes32 _moduleKey) external returns (bool);
 }

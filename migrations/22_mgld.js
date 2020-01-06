@@ -88,5 +88,5 @@ module.exports = async (deployer, network, accounts) => {
   await d_Governance.submitTransaction(d_Manager.address, 0, txData, { from : governor });
 
   const massets = await d_Manager.getMassets();
-  // console.log(`[mGLD]: '${massets[0][1]}'`);
+  console.log(`[mGLD]: '${massets[0][1]}'`);
 }

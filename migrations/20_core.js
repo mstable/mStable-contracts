@@ -22,6 +22,11 @@ async function publishModuleThroughMultisig(d_Nexus, d_Governance, key, address,
   await d_Governance.submitTransaction(d_Nexus.address, 0, txData, { from : governor });
 }
 
+async function lockModuleThroughMultisig(d_Nexus, d_Governance, key, governor) {
+  const txData = d_Nexus.contract.methods.lockModule(key).encodeABI();
+  await d_Governance.submitTransaction(d_Nexus.address, 0, txData, { from : governor });
+}
+
 module.exports = async (deployer, network, accounts) => {
 
   // Address of the price source to whitelist in the OracleHub
@@ -55,8 +60,8 @@ module.exports = async (deployer, network, accounts) => {
   await deployer.deploy(c_Systok, d_Nexus.address, fundManager, { from : _ });
   const d_Systok = await c_Systok.deployed();
 
-  await publishModuleThroughMultisig(d_Nexus, d_Governance,await d_Systok.Key_Systok(), d_Systok.address, governor);
-
+  await publishModuleThroughMultisig(d_Nexus, d_Governance, await d_Systok.Key_Systok(), d_Systok.address, governor);
+  await lockModuleThroughMultisig(d_Nexus, d_Governance, await d_Systok.Key_Systok(), governor);
 
   /** OracleHub */
   await deployer.deploy(c_OracleHubPriceData);
@@ -94,10 +99,10 @@ module.exports = async (deployer, network, accounts) => {
 
   await publishModuleThroughMultisig(d_Nexus, d_Governance, await d_Recollateraliser.Key_Recollateraliser(), d_Recollateraliser.address, governor);
 
-  // console.log(`[Nexus]: '${d_Nexus.address}'`)
-  // console.log(`[OracleHub]: '${d_OracleHub.address}'`)
-  // console.log(`[Systok (aka MTA)]: '${d_Systok.address}'`)
-  // console.log(`[GovernancePortal]: '${d_Governance.address}'`)
-  // console.log(`[Manager]: '${d_Manager.address}'`)
-  // console.log(`[Recollateraliser]: '${d_Recollateraliser.address}'`)
+  console.log(`[Nexus]: '${d_Nexus.address}'`)
+  console.log(`[OracleHub]: '${d_OracleHub.address}'`)
+  console.log(`[Systok (aka MTA)]: '${d_Systok.address}'`)
+  console.log(`[GovernancePortal]: '${d_Governance.address}'`)
+  console.log(`[Manager]: '${d_Manager.address}'`)
+  console.log(`[Recollateraliser]: '${d_Recollateraliser.address}'`)
 }

@@ -32,11 +32,7 @@ contract RecollateraliserModule is ModuleSub {
     function _internalUpdateModule(bytes32 _key, address _newAddress)
     internal {
         emit ModuleUpdated(_key, _newAddress);
-
-        if (_key == Key_Systok) {
-            systok = ISystok(_newAddress);
-        }
-
+      
         if (_key == Key_Manager) {
             manager = IManager(_newAddress);
         }

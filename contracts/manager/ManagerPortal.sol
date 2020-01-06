@@ -24,18 +24,6 @@ contract ManagerPortal is ManagerState {
     }
 
     /**
-      * @dev Fetch the price of Systok from OracleHub
-      * Reverts if price is not available
-      * @return uint256 Price of Systok where $1 == 1e18
-      */
-    function getSystokPrice()
-    external
-    view
-    returns(uint256) {
-        return _mustGetPriceFromOracle(oracle_key_systok);
-    }
-
-    /**
       * @dev Fetch the price of a Masset from OracleHub
       * Reverts if price is not available
       * @param _addr Address of the Masset
@@ -60,6 +48,18 @@ contract ManagerPortal is ManagerState {
 
         // Cast prices into relevant format
         return (prices[0] * 1e12, prices[1] * 1e12);
+    }
+
+    /**
+      * @dev Fetch the price of Systok from OracleHub
+      * Reverts if price is not available
+      * @return uint256 Price of Systok where $1 == 1e18
+      */
+    function getSystokPrice()
+    external
+    view
+    returns(uint256) {
+        return _mustGetPriceFromOracle(oracle_key_systok);
     }
 
     /**

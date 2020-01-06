@@ -1,9 +1,6 @@
 pragma solidity ^0.5.12;
 pragma experimental ABIEncoderV2;
 
-
-import { IMassetFactory } from "../interfaces/IMassetFactory.sol";
-
 import { ManagerState, IMasset, IManager } from "./ManagerState.sol";
 
 import { DictionaryBtoA } from "../shared/libs/DictionaryBtoA.sol";

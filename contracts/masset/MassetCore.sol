@@ -15,13 +15,14 @@ contract MassetCore {
     using StableMath for uint256;
 
     /** @dev Modules */
-    IManager internal manager;
-    address internal governance;
-    ISystok internal systok;
-    IForgeLib forgeLib;
+    IManager public manager;
+    address public governance;
+    ISystok public systok;
+    IForgeLib public forgeLib;
+    bool internal forgeLibLocked = false;
 
     /** @dev FeePool */
-    address internal feePool;
+    address public feePool;
 
     /** @dev Meta information for ecosystem fees */
     uint256 public mintingFee;
@@ -82,25 +83,24 @@ contract MassetCore {
     }
 
     /**
-      * @dev Set the address of the System Token here
-      * @param _systok Address of the new Systok
-      */
-    function setSystok(ISystok _systok)
-    external
-    managerOrGovernance {
-        require(address(_systok) != address(0), "Must be non null address");
-        systok = _systok;
-    }
-
-    /**
       * @dev Upgrades the version of ForgeLib protocol
       * @param _newForgeLib Address of the new ForgeLib
       */
     function upgradeForgeLib(address _newForgeLib)
     external
     managerOrGovernance {
+        require(!forgeLibLocked, "Must be allowed to upgrade");
         require(_newForgeLib != address(0), "Must be non null address");
         forgeLib = IForgeLib(_newForgeLib);
+    }
+
+    /**
+      * @dev Locks the ForgeLib into it's final form
+      */
+    function lockForgeLib()
+    external
+    managerOrGovernance {
+        forgeLibLocked = true;
     }
 
     /**
