@@ -78,7 +78,8 @@ module.exports = async (deployer, network, accounts) => {
     basketWeights,
     basketMultiples,
     feePool,
-    d_Manager.address
+    d_Manager.address,
+    true
   );
 
   const txData = d_Manager.contract.methods.addMasset(

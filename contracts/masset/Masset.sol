@@ -35,7 +35,8 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         uint256[] memory _bassetWeights,
         uint256[] memory _bassetMultiples,
         address _feePool,
-        address _manager
+        address _manager,
+        bool _mmEnabled
     )
         MassetToken(
             _name,
@@ -46,7 +47,8 @@ contract Masset is IMasset, MassetToken, MassetBasket {
           _bassets,
           _bassetKeys,
           _bassetWeights,
-          _bassetMultiples
+          _bassetMultiples,
+          _mmEnabled
         )
         public
     {
@@ -214,5 +216,37 @@ contract Masset is IMasset, MassetToken, MassetBasket {
             systok.transferFrom(_payer, feePool, feeAmountInSystok);
         }
     }
+
+    /**
+      * @dev Completes the auctioning process for a given Basset
+      * @param _basset Address of the ERC20 token to isolate
+      * @param _unitsUnderCollateralised Masset units that we failed to recollateralise
+      */
+    function completeRecol(address _basset, uint256 _unitsUnderCollateralised)
+    external
+    onlyManager {
+        (bool exists, uint i) = _isAssetInBasket(_basset);
+        require(exists, "Basset must exist in Basket");
+
+        (, , , , , BassetStatus status) = _getBasset(i);
+        require(status == BassetStatus.Liquidating, "Invalid Basset state");
+
+        if(_unitsUnderCollateralised > 0){
+            uint256 massetSupply = this.totalSupply();
+            // e.g. 1. c = 100e24 * 1e18 = 100e24
+            // e.g. 2. c = 100e24 * 9e17 =  90e24
+            uint256 collateralisedMassets = massetSupply.mulTruncate(basket.collateralisationRatio);
+            // e.g. 1. c = (100e24 - 5e24)*1e18 / 100e24 = 95e42/100e24 = 95e16
+            // e.g. 2. c = ( 90e24 - 5e24)*1e18 / 100e24 = 85e16
+            basket.collateralisationRatio = (collateralisedMassets.sub(_unitsUnderCollateralised)).divPrecisely(massetSupply);
+            basket.bassets[i].status = BassetStatus.Failed;
+            basket.failed = true;
+        } else {
+            basket.bassets[i].status = BassetStatus.Liquidated;
+            _removeBasset(_basset);
+        }
+    }
+
+
 
 }
