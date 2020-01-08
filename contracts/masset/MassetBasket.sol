@@ -35,7 +35,7 @@ contract MassetBasket is MassetStructs, MassetCore {
     {
         measurementMultipleEnabled = _mmEnabled;
         basket.collateralisationRatio = 1e18;
-        basket.grace = 2e24; // 2,000,000 e18 == 2e24
+        basket.grace = 4e24; // 2,000,000 e18 == 2e24
 
         mintingFee = 0;
         redemptionFee = 2e16;

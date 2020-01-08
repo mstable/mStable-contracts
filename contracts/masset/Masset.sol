@@ -23,6 +23,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
     /** @dev Forging events */
     event Minted(address indexed account, uint256 massetQuantity, uint256[] bassetQuantities);
+    event PaidFee(address payer, uint256 feeQuantity, uint256 feeRate);
     event Redeemed(address indexed recipient, address indexed redeemer, uint256 massetQuantity, uint256[] bassetQuantities);
 
 
@@ -194,18 +195,19 @@ contract Masset is IMasset, MassetToken, MassetBasket {
      */
     function _payActionFee(uint256 _quantity, Action _action, address _payer)
     private {
-        (uint256 ownPrice, uint256 systokPrice) = manager.getMassetPrice(address(this));
 
         uint256 feeRate = _action == Action.MINT ? mintingFee : redemptionFee;
 
         if(feeRate > 0){
+            (uint256 ownPrice, uint256 systokPrice) = manager.getMassetPrice(address(this));
+
             // e.g. for 500 massets.
             // feeRate == 1% == 1e16. _quantity == 5e20.
             uint256 amountOfMassetSubjectToFee = feeRate.mulTruncate(_quantity);
 
             // amountOfMassetSubjectToFee == 5e18
             // ownPrice == $1 == 1e18.
-            uint256 feeAmountInDollars = amountOfMassetSubjectToFee.mul(ownPrice);
+            uint256 feeAmountInDollars = amountOfMassetSubjectToFee.mulTruncate(ownPrice);
 
             // feeAmountInDollars == $5 == 5e18
             // systokPrice == $20 == 20e18
@@ -214,6 +216,8 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
             // feeAmountInSystok == 0.25e18 == 25e16
             systok.transferFrom(_payer, feePool, feeAmountInSystok);
+
+            emit PaidFee(_payer, feeAmountInSystok, feeRate);
         }
     }
 
@@ -246,7 +250,4 @@ contract Masset is IMasset, MassetToken, MassetBasket {
             _removeBasset(_basset);
         }
     }
-
-
-
 }

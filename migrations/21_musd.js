@@ -8,6 +8,10 @@ const c_Masset = artifacts.require('Masset')
 const c_TUSD = artifacts.require('TUSD')
 const c_USDC = artifacts.require('USDC')
 const c_USDT = artifacts.require('USDT')
+const c_DAI = artifacts.require('DAI')
+const c_SUSD = artifacts.require('SUSD')
+const c_GUSD = artifacts.require('GUSD')
+const c_PAX = artifacts.require('PAX')
 
 const { MASSET_FACTORY_BYTES } = require('@utils/constants')
 const { aToH } = require('@utils/tools')
@@ -31,28 +35,52 @@ module.exports = async (deployer, network, accounts) => {
   let USDC = await c_USDC.deployed();
   await deployer.deploy(c_TUSD);
   let TUSD = await c_TUSD.deployed();
+  await deployer.deploy(c_DAI);
+  let DAI = await c_DAI.deployed();
+  await deployer.deploy(c_SUSD);
+  let SUSD = await c_SUSD.deployed();
+  await deployer.deploy(c_GUSD);
+  let GUSD = await c_GUSD.deployed();
+  await deployer.deploy(c_PAX);
+  let PAX = await c_PAX.deployed();
 
   /* Basset addresses */
   const basketAddresses = [
     USDT.address,
     USDC.address,
-    TUSD.address
+    TUSD.address,
+    DAI.address,
+    SUSD.address,
+    GUSD.address,
+    PAX.address,
   ];
   /* Basses symbols in hex */
   const basketKeys = [
     aToH("USDT<>USD"),
     aToH("USDC<>USD"),
     aToH("TUSD<>USD"),
+    aToH("DAI<>USD"),
+    aToH("SUSD<>USD"),
+    aToH("GUSD<>USD"),
+    aToH("PAX<>USD"),
   ];
   /* Assign basset weightings in percent */
   const basketWeights =  [
-    percentToWeight(50),
-    percentToWeight(25),
-    percentToWeight(25)
+    percentToWeight(18), // max 30
+    percentToWeight(23), // 40
+    percentToWeight(15), // 30
+    percentToWeight(15), // 30
+    percentToWeight(14), // 20
+    percentToWeight(10), // 25
+    percentToWeight(5)  // 20
   ];
 
   /* Assign basset ratios in percent */
   const basketMultiples =  [
+    createMultiple(1),
+    createMultiple(1),
+    createMultiple(1),
+    createMultiple(1),
     createMultiple(1),
     createMultiple(1),
     createMultiple(1)
