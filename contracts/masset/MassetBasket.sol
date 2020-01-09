@@ -123,7 +123,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         IERC20(_basset).approve(_recollateraliser, vaultBalance);
     }
 
-    
+
     /***************************************
                 BASKET ADJUSTMENTS
     ****************************************/
@@ -138,7 +138,8 @@ contract MassetBasket is MassetStructs, MassetCore {
     external
     onlyGovernance
     basketIsHealthy {
-        _addBasset(_basset, _key, _measurementMultiple);
+        uint256 mm = measurementMultipleEnabled ? _measurementMultiple : StableMath.getRatio();
+        _addBasset(_basset, _key, mm);
     }
 
     /**
@@ -161,8 +162,7 @@ contract MassetBasket is MassetStructs, MassetCore {
 
         uint256 delta = uint256(18).sub(basset_decimals);
 
-        uint256 mm = measurementMultipleEnabled ? _measurementMultiple : StableMath.getRatio();
-        uint256 ratio = mm.mul(10 ** delta);
+        uint256 ratio = _measurementMultiple.mul(10 ** delta);
 
         basket.bassets.push(Basset({
             addr: _basset,

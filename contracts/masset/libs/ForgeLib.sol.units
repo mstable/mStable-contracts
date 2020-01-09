@@ -26,9 +26,6 @@ contract ForgeLib is IForgeLib {
         require(_bassetQuantity.length == _basket.bassets.length, "Must provide values for all Bassets in system");
         require(!_basket.failed, "Basket must be alive");
 
-        uint256 isolatedBassets = 0;
-        uint256 totalIsolatedWeightings = 0;
-
         // Reformat basket to exclude affected Bassets and allow for relative calculations
         for(uint i = 0; i < _bassetQuantity.length; i++){
             BassetStatus status = _basket.bassets[i].status;
@@ -36,8 +33,6 @@ contract ForgeLib is IForgeLib {
             if(isIsolated){
                 // If the Basset is supposed to be isolated from mint, ignore it from the basket
                 require(_bassetQuantity[i] == 0, "Cannot mint isolated Bassets");
-                isolatedBassets += 1;
-                totalIsolatedWeightings = totalIsolatedWeightings.add(_basket.bassets[i].targetWeight);
                 _basket.bassets[i].targetWeight = 0;
                 _basket.bassets[i].vaultBalance = 0;
             } else if(_basket.bassets[i].targetWeight == 0) {
@@ -46,17 +41,19 @@ contract ForgeLib is IForgeLib {
             }
         }
 
+        // Get current (ratioed) basset vault balances and total
+        (uint256[] memory preBassets, uint256 preTotal) = _getRatioedBassets(_basket);
+
         // Add the mint quantities to the vault
         for(uint i = 0; i < _bassetQuantity.length; i++){
             _basket.bassets[i].vaultBalance = _basket.bassets[i].vaultBalance.add(_bassetQuantity[i]);
         }
 
         // Calculate the new (ratioed) vault balances and total
-        uint256[] memory postBassets = _getBassetWeightings(_basket);
+        (uint256[] memory postBassets, uint256 postTotal) = _getRatioedBassets(_basket);
 
         // Check that the forge is valid, given the relative target weightings and vault balances
-        uint256 additionalWeightings = isolatedBassets > 0 ? totalIsolatedWeightings.div(isolatedBassets) : 0;
-        _isValidForge(_basket, additionalWeightings, postBassets);
+        _isValidForge(_basket, preBassets, preTotal, postBassets, postTotal);
     }
 
     /**
@@ -69,9 +66,6 @@ contract ForgeLib is IForgeLib {
     pure {
         require(_bassetQuantity.length == _basket.bassets.length, "Must provide values for all Bassets in system");
 
-        uint256 isolatedBassets = 0;
-        uint256 totalIsolatedWeightings = 0;
-
         // Reformat basket to exclude affected Bassets and allow for relative calculations
         for(uint i = 0; i < _bassetQuantity.length; i++){
             BassetStatus status = _basket.bassets[i].status;
@@ -80,8 +74,6 @@ contract ForgeLib is IForgeLib {
             if(isIsolated){
                 // If the Basset is supposed to be isolated from redemtion, ignore it from the basket
                 require(_bassetQuantity[i] == 0, "Cannot redeem isolated Bassets");
-                isolatedBassets += 1;
-                totalIsolatedWeightings = totalIsolatedWeightings.add(_basket.bassets[i].targetWeight);
                 _basket.bassets[i].targetWeight = 0;
                 _basket.bassets[i].vaultBalance = 0;
             } else {
@@ -89,39 +81,58 @@ contract ForgeLib is IForgeLib {
             }
         }
 
+        (uint256[] memory preBassets, uint256 preTotal) = _getRatioedBassets(_basket);
+
         for (uint i = 0; i < _bassetQuantity.length; i++) {
             _basket.bassets[i].vaultBalance = _basket.bassets[i].vaultBalance.sub(_bassetQuantity[i]);
         }
 
-        uint256[] memory postBassets = _getBassetWeightings(_basket);
+        (uint256[] memory postBassets, uint256 postTotal) = _getRatioedBassets(_basket);
 
-        uint256 additionalWeightings = isolatedBassets > 0 ? totalIsolatedWeightings.div(isolatedBassets) : 0;
-        _isValidForge(_basket, additionalWeightings, postBassets);
+        _isValidForge(_basket, preBassets, preTotal, postBassets, postTotal);
     }
 
     /**
       * @dev Internal forge validation function - ensures that the forge pushes weightings in the correct direction
       * @param _basket                  MassetBasket object containing all the relevant data
-      * @param _postForgeBassetWeights  (Ratioed) Basset vault balance post forge
+      * @param _preForgeBassetBalances  (Ratioed) Basset vault balances pre forge
+      * @param _preForgeTotalBalance    Total (Ratioed) vault balance pre forge
+      * @param _postForgeBassetBalances (Ratioed) Basset vault balance post forge
+      * @param _postForgeTotalBalance   Totla (Ratioed) vault balance post forge
       */
     function _isValidForge(
         Basket memory _basket,
-        uint256 _redistributedWeightings,
-        uint256[] memory _postForgeBassetWeights
+        uint256[] memory _preForgeBassetBalances,
+        uint256 _preForgeTotalBalance,
+        uint256[] memory _postForgeBassetBalances,
+        uint256 _postForgeTotalBalance
     )
         private
         pure
     {
-        uint basketLen = _postForgeBassetWeights.length;
-        require(basketLen == _basket.bassets.length, "PostWeight length != TargetWeight length");
+        uint basketLen = _preForgeBassetBalances.length;
+        require(basketLen == _postForgeBassetBalances.length, "PreWeight length != PostWeight length");
+        require(basketLen == _basket.bassets.length, "PreWeight length != TargetWeight length");
 
-        // Redistribute the 'isolated' Basket weights (i.e. Basset A: T 40 should be redistributed)
-        // This pushes the other targets up, as their Collat levels also rise relative to totals
-        // So basket adjustments.. move Max weight down to 0.. any mint or redeem MUST
+        // Total delta between relative target T and collateral level C, pre and post forge
+        uint preNet = 0;
+        uint postNet = 0;
+
+        // Sum of all target weights T (isolated bassets removed)
+        uint totalUnisolatedTargetWeights = 0;
         for (uint i = 0; i < basketLen; i++) {
-            uint maxWeight = _basket.bassets[i].targetWeight.add(_redistributedWeightings);
-            require(_postForgeBassetWeights[i] < maxWeight, "Must be below max weighting");
+            totalUnisolatedTargetWeights += _basket.bassets[i].targetWeight;
         }
+
+        // Calc delta between relative T and relative C for both pre and post mint
+        for (uint i = 0; i < basketLen; i++) {
+            uint relativeTargetWeight = _basket.bassets[i].targetWeight.divPrecisely(totalUnisolatedTargetWeights);
+            preNet = preNet.add(_calcRelativeDistance(relativeTargetWeight, _preForgeTotalBalance, _preForgeBassetBalances[i]));
+            postNet = postNet.add(_calcRelativeDistance(relativeTargetWeight, _postForgeTotalBalance, _postForgeBassetBalances[i]));
+        }
+
+        // It's valid if we move in the right direction or land within the grace threshold
+        require(postNet <= preNet || postNet <= _basket.grace, "Forge must move Basket weightings towards the target");
     }
 
 
@@ -129,40 +140,6 @@ contract ForgeLib is IForgeLib {
                     HELPERS
     ****************************************/
 
-    /**
-      * @dev Gets the proportionate weightings of all the Bassets, relative to Total Collateral levels
-      * @param _basket MassetBasket object containing all the relevant data
-      * @return uint256[] Relative weightings of all Bassets where 100% == 1e18
-      */
-    function _getBassetWeightings(Basket memory _basket)
-    private
-    pure
-    returns (uint256[] memory relativeWeights) {
-        uint256[] memory ratioedBassets = _getRatioedBassets(_basket);
-
-        uint256 sumOfRatioedBassets = 0;
-        for(uint i = 0; i < ratioedBassets.length; i++) {
-            sumOfRatioedBassets = sumOfRatioedBassets.add(ratioedBassets[i]);
-        }
-
-        uint256 len = ratioedBassets.length;
-        relativeWeights = new uint256[](len);
-
-        for(uint256 i = 0; i < len; i++) {
-            if(sumOfRatioedBassets == 0){
-                relativeWeights[i] = _basket.bassets[i].targetWeight;
-                continue;
-            }
-            if(ratioedBassets[i] == 0) {
-                relativeWeights[i] = 0;
-                continue;
-            }
-
-            relativeWeights[i] = ratioedBassets[i].divPrecisely(sumOfRatioedBassets);
-        }
-
-        return relativeWeights;
-    }
 
     /**
       * @dev Gets the value of all Bassets in Masset terms, using the given ratio
@@ -172,13 +149,15 @@ contract ForgeLib is IForgeLib {
     function _getRatioedBassets(Basket memory _basket)
     private
     pure
-    returns (uint256[] memory ratioedAssets) {
+    returns (uint256[] memory ratioedAssets, uint256 totalRatioedBassets) {
         uint256 len = _basket.bassets.length;
 
         ratioedAssets = new uint256[](len);
+        totalRatioedBassets = 0;
         for(uint256 i = 0; i < len; i++) {
             // If the Basset is isolated, it will have already been excluded from this calc
             ratioedAssets[i] = _basket.bassets[i].vaultBalance.mulRatioTruncate(_basket.bassets[i].ratio);
+            totalRatioedBassets = totalRatioedBassets.add(ratioedAssets[i]);
         }
     }
 
