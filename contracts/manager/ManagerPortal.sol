@@ -24,18 +24,6 @@ contract ManagerPortal is ManagerState {
     }
 
     /**
-      * @dev Fetch the price of Systok from OracleHub
-      * Reverts if price is not available
-      * @return uint256 Price of Systok where $1 == 1e18
-      */
-    function getSystokPrice()
-    external
-    view
-    returns(uint256) {
-        return _mustGetPriceFromOracle(oracle_key_systok);
-    }
-
-    /**
       * @dev Fetch the price of a Masset from OracleHub
       * Reverts if price is not available
       * @param _addr Address of the Masset
@@ -49,17 +37,29 @@ contract ManagerPortal is ManagerState {
         // Get the relevant masset key
         bytes32 key = massets.get(_addr);
 
-        // Fetch the prices
-        (bool[] memory isFresh, uint64[] memory prices) = oracleHub.readPricePair([key, oracle_key_systok]);
+        // Fetch the prices where $1 == 1e6
+        (bool[2] memory isFresh, uint64[2] memory prices) = oracleHub.readPricePair([key, oracle_key_systok]);
 
         // Validate state of the response
         require(prices.length == 2, "Must return valid pair");
         for(uint i = 0; i < prices.length; i++){
-          require(isFresh[i] && prices[i] > 0, "Price must exist and be fresh");
+          require(isFresh[i] && prices[i] > 0, "Prices must exist and be fresh");
         }
 
         // Cast prices into relevant format
         return (prices[0] * 1e12, prices[1] * 1e12);
+    }
+
+    /**
+      * @dev Fetch the price of Systok from OracleHub
+      * Reverts if price is not available
+      * @return uint256 Price of Systok where $1 == 1e18
+      */
+    function getSystokPrice()
+    external
+    view
+    returns(uint256) {
+        return _mustGetPriceFromOracle(oracle_key_systok);
     }
 
     /**

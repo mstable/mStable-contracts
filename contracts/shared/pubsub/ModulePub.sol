@@ -64,27 +64,27 @@ contract ModulePub is ModuleKeys {
         moduleAddresses[_key] = Module(_moduleAddress, _isSubscriber, false);
     }
 
-    /**
-      * @dev Internal func to remove a module from the system
-      * @param _key Key of the module to remove
-      */
-    function _forgetModule(bytes32 _key)
-    internal
-    onlyUnlockedModule(_key) {
-        // Firstly, remove the module from local storage
-        moduleKeys.remove(_key);
-        delete moduleAddresses[_key];
+    // /**
+    //   * @dev Internal func to remove a module from the system
+    //   * @param _key Key of the module to remove
+    //   */
+    // function _forgetModule(bytes32 _key)
+    // internal
+    // onlyUnlockedModule(_key) {
+    //     // Firstly, remove the module from local storage
+    //     moduleKeys.remove(_key);
+    //     delete moduleAddresses[_key];
 
-        // Propagate the removal to all other modules
-        for(uint256 i = 0; i < moduleKeys.values.length; i++) {
-            Module memory m = moduleAddresses[moduleKeys.values[i]];
+    //     // Propagate the removal to all other modules
+    //     for(uint256 i = 0; i < moduleKeys.values.length; i++) {
+    //         Module memory m = moduleAddresses[moduleKeys.values[i]];
 
-            // Module must have specifically subscribed for updates
-            if(m._isSub == false) continue;
+    //         // Module must have specifically subscribed for updates
+    //         if(m._isSub == false) continue;
 
-            IModuleSub(m._address).updateModule(_key,  address(0));
-        }
-    }
+    //         IModuleSub(m._address).updateModule(_key,  address(0));
+    //     }
+    // }
 
     /**
       * @dev Permanently lock a module to its current settings

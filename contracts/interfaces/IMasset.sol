@@ -13,7 +13,6 @@ contract IMasset is MassetStructs {
 
     /** @dev Setters for the Manager or Gov to update module info */
     function setManager(IManager _manager) external;
-    function setSystok(ISystok _systok) external;
     function setGovernance(address _governance) external;
     function upgradeForgeLib(address _newForgeLib) external;
 

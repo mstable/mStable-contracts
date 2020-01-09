@@ -15,6 +15,8 @@ contract MassetBasket is MassetStructs, MassetCore {
 
     /** @dev Struct holding Basket details */
     Basket public basket;
+    uint256 private defaultMeasurementMultiple = 1e8;
+    bool public measurementMultipleEnabled;
 
     /** @dev Forging events */
     event BassetAdded(address indexed basset);
@@ -26,12 +28,14 @@ contract MassetBasket is MassetStructs, MassetCore {
         address[] memory _bassets,
         bytes32[] memory _keys,
         uint256[] memory _weights,
-        uint256[] memory _multiples
+        uint256[] memory _multiples,
+        bool _mmEnabled
     )
         public
     {
+        measurementMultipleEnabled = _mmEnabled;
         basket.collateralisationRatio = 1e18;
-        basket.grace = 1e26; // 1,000,000 e18 == 1e26
+        basket.grace = 4e24; // 2,000,000 e18 == 2e24
 
         mintingFee = 0;
         redemptionFee = 2e16;
@@ -56,12 +60,13 @@ contract MassetBasket is MassetStructs, MassetCore {
       * @dev Executes the Auto Redistribution event by isolating the Basset from the Basket
       * @param _basset Address of the ERC20 token to isolate
       * @param _belowPeg Bool to describe whether the basset deviated below peg (t) or above (f)
+      * @return alreadyActioned Bool to show whether a Basset had already been actioned
       */
     function handlePegLoss(address _basset, bool _belowPeg)
     external
     onlyManager
     basketIsHealthy
-    returns (bool) {
+    returns (bool alreadyActioned) {
         (bool exists, uint i) = _isAssetInBasket(_basset);
         require(exists, "Basset must exist in Basket");
 
@@ -116,55 +121,9 @@ contract MassetBasket is MassetStructs, MassetCore {
 
         // Approve the recollateraliser to take the Basset
         IERC20(_basset).approve(_recollateraliser, vaultBalance);
-
     }
 
-    /**
-      * @dev Completes the auctioning process for a given Basset
-      * @param _basset Address of the ERC20 token to isolate
-      * @param _unitsUnderCollateralised Masset units that we failed to recollateralise
-      */
-    function completeRecol(address _basset, uint256 _unitsUnderCollateralised)
-    external
-    onlyManager {
-        (bool exists, uint i) = _isAssetInBasket(_basset);
-        require(exists, "Basset must exist in Basket");
-
-        (, , , , , BassetStatus status) = _getBasset(i);
-        require(status == BassetStatus.Liquidating, "Invalid Basset state");
-
-        if(_unitsUnderCollateralised > 0){
-            // TODO - ERROR -  what if another Basset is auctioning.. that throws calcs off.
-            // Should be Massets in circulation && units undercol rather than adding up vault
-            uint256 unitsOfCollateralisation = 0;
-
-            // Calc total Massets collateralised
-            for(uint j = 0; j < basket.bassets.length; j++){
-                if(basket.bassets[i].vaultBalance > 0){
-                    uint ratioedBasset = basket.bassets[i].vaultBalance.mulRatioTruncate(basket.bassets[i].ratio);
-                    unitsOfCollateralisation = unitsOfCollateralisation.add(ratioedBasset);
-                }
-            }
-
-            // e.g. _unitsUnderCollateralised = 10e18
-            // e.g. 1. if unitsOfCollateralisation = 90e18 && collateralisationRatio = 1e18 (first)
-            // e.g. 2. if unitsOfCollateralisation = 90e18 && collateralisationRatio = 9e17 (concurrent finality)
-            // e.g. 1. e = 90e18/1e18 = 90e18
-            // e.g. 2. e = 90e18/9e17 = 100e18
-            uint256 extrapolatedUnitsOfCollateralisation = unitsOfCollateralisation.divPrecisely(basket.collateralisationRatio);
-            // e.g. 1. e = 90e18/100e18 = 9e17 (90%)
-            // e.g. 2. e = 90e18/110e18 = 8.181..e17 (81.8181%)
-            basket.collateralisationRatio = unitsOfCollateralisation.divPrecisely(extrapolatedUnitsOfCollateralisation.add(_unitsUnderCollateralised));
-
-            basket.bassets[i].status = BassetStatus.Failed;
-            basket.failed = true;
-        } else {
-            basket.bassets[i].status = BassetStatus.Liquidated;
-            _removeBasset(_basset);
-        }
-    }
-
-
+    
     /***************************************
                 BASKET ADJUSTMENTS
     ****************************************/
@@ -202,7 +161,8 @@ contract MassetBasket is MassetStructs, MassetCore {
 
         uint256 delta = uint256(18).sub(basset_decimals);
 
-        uint256 ratio = _measurementMultiple.mul(10 ** delta);
+        uint256 mm = measurementMultipleEnabled ? _measurementMultiple : StableMath.getRatio();
+        uint256 ratio = mm.mul(10 ** delta);
 
         basket.bassets.push(Basset({
             addr: _basset,

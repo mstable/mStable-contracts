@@ -88,16 +88,16 @@ contract Nexus is INexus, ModulePub {
         return true;
     }
 
-    /**
-      * @dev Publishes the de-activating of a module from the system
-      * @param _moduleKey Bytes32 key to remove from the system
-      * @return bool Success of removal
-      */
-    function removeModule(bytes32 _moduleKey)
-    public
-    onlyGovernance
-    returns (bool) {
-        _forgetModule(_moduleKey);
-        return true;
-    }
+    // /**
+    //   * @dev Publishes the de-activating of a module from the system
+    //   * @param _moduleKey Bytes32 key to remove from the system
+    //   * @return bool Success of removal
+    //   */
+    // function removeModule(bytes32 _moduleKey)
+    // public
+    // onlyGovernance
+    // returns (bool) {
+    //     _forgetModule(_moduleKey);
+    //     return true;
+    // }
 }

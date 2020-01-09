@@ -8,7 +8,6 @@ export { GovernancePortalMockContract } from "../types/generated/governance_port
 export { MassetContract } from "../types/generated/masset";
 export { ManagerMockContract } from "../types/generated/manager_mock";
 export { NexusMockContract } from "../types/generated/nexus_mock";
-export { OracleHubPriceDataMockContract } from "../types/generated/oracle_hub_price_data_mock";
-export { OracleHubMockContract } from "../types/generated/oracle_hub_mock";
+export { SimpleOracleHubMockContract } from "../types/generated/simple_oracle_hub_mock";
 export { RecollateraliserContract } from "../types/generated/recollateraliser";
 export { SystokMockContract } from "../types/generated/systok_mock";

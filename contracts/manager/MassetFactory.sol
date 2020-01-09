@@ -1,9 +1,6 @@
 pragma solidity ^0.5.12;
 pragma experimental ABIEncoderV2;
 
-
-import { IMassetFactory } from "../interfaces/IMassetFactory.sol";
-
 import { ManagerState, IMasset, IManager } from "./ManagerState.sol";
 
 import { DictionaryBtoA } from "../shared/libs/DictionaryBtoA.sol";
@@ -48,7 +45,7 @@ contract MassetFactory is ManagerState {
     }
 
     /**
-      * @dev Removes a Masset from the system and thus releases from protection
+      * @dev Removes a Masset from the system and thus releases from recollateraliastion protection
       * @param _masset        Address of the Masset contract
       */
     function ejectMasset(
@@ -60,8 +57,6 @@ contract MassetFactory is ManagerState {
         require(_masset != address(0), "Masset must be a referenced implementation");
         bytes32 key = massets.get(_masset);
         require(key != bytes32(0x0), "Masset must be a referenced implementation");
-
-        IMasset(_masset).setManager(IManager(address(0)));
 
         massets.remove(_masset);
 

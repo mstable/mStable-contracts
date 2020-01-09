@@ -23,7 +23,8 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
     /** @dev Forging events */
     event Minted(address indexed account, uint256 massetQuantity, uint256[] bassetQuantities);
-    event Redeemed(address indexed account, uint256 massetQuantity, uint256[] bassetQuantities);
+    event PaidFee(address payer, uint256 feeQuantity, uint256 feeRate);
+    event Redeemed(address indexed recipient, address indexed redeemer, uint256 massetQuantity, uint256[] bassetQuantities);
 
 
     /** @dev constructor */
@@ -35,7 +36,8 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         uint256[] memory _bassetWeights,
         uint256[] memory _bassetMultiples,
         address _feePool,
-        address _manager
+        address _manager,
+        bool _mmEnabled
     )
         MassetToken(
             _name,
@@ -46,7 +48,8 @@ contract Masset is IMasset, MassetToken, MassetBasket {
           _bassets,
           _bassetKeys,
           _bassetWeights,
-          _bassetMultiples
+          _bassetMultiples,
+          _mmEnabled
         )
         public
     {
@@ -130,6 +133,23 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         public
         returns (uint256 massetRedeemed)
     {
+        return redeemTo(_bassetQuantity, msg.sender, msg.sender);
+    }
+
+    /**
+      * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
+      * @param _bassetQuantity Exact quantities of Bassets to redeem
+      * @param _redeemer Account from which to burn the Masset
+      * @param _recipient Account to which the redeemed Bassets should be sent
+      */
+    function redeemTo(
+        uint256[] memory _bassetQuantity,
+        address _redeemer,
+        address _recipient
+    )
+        public
+        returns (uint256 massetRedeemed)
+    {
         // Validate the proposed redemption
         forgeLib.validateRedemption(basket, _bassetQuantity);
 
@@ -146,24 +166,24 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         }
 
         // Pay the redemption fee
-        _payActionFee(massetQuantity, Action.REDEEM, msg.sender);
+        _payActionFee(massetQuantity, Action.REDEEM, _redeemer);
 
         // Ensure payout is relevant to collateralisation ratio (if ratio is 90%, we burn more)
         massetQuantity = massetQuantity.divPrecisely(basket.collateralisationRatio);
 
         // Burn the Masset
-        _burn(msg.sender, massetQuantity);
+        _burn(_redeemer, massetQuantity);
 
         // Transfer the Bassets to the user
         for(uint i = 0; i < _bassetQuantity.length; i++){
             if(_bassetQuantity[i] > 0){
                 address basset = basket.bassets[i].addr;
 
-                IERC20(basset).transfer(msg.sender, _bassetQuantity[i]);
+                IERC20(basset).transfer(_recipient, _bassetQuantity[i]);
             }
         }
 
-        emit Redeemed(msg.sender, massetQuantity, _bassetQuantity);
+        emit Redeemed(_recipient, _redeemer, massetQuantity, _bassetQuantity);
         return massetQuantity;
     }
 
@@ -175,18 +195,19 @@ contract Masset is IMasset, MassetToken, MassetBasket {
      */
     function _payActionFee(uint256 _quantity, Action _action, address _payer)
     private {
-        (uint256 ownPrice, uint256 systokPrice) = manager.getMassetPrice(address(this));
 
         uint256 feeRate = _action == Action.MINT ? mintingFee : redemptionFee;
 
         if(feeRate > 0){
+            (uint256 ownPrice, uint256 systokPrice) = manager.getMassetPrice(address(this));
+
             // e.g. for 500 massets.
             // feeRate == 1% == 1e16. _quantity == 5e20.
             uint256 amountOfMassetSubjectToFee = feeRate.mulTruncate(_quantity);
 
             // amountOfMassetSubjectToFee == 5e18
             // ownPrice == $1 == 1e18.
-            uint256 feeAmountInDollars = amountOfMassetSubjectToFee.mul(ownPrice);
+            uint256 feeAmountInDollars = amountOfMassetSubjectToFee.mulTruncate(ownPrice);
 
             // feeAmountInDollars == $5 == 5e18
             // systokPrice == $20 == 20e18
@@ -195,7 +216,38 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
             // feeAmountInSystok == 0.25e18 == 25e16
             systok.transferFrom(_payer, feePool, feeAmountInSystok);
+
+            emit PaidFee(_payer, feeAmountInSystok, feeRate);
         }
     }
 
+    /**
+      * @dev Completes the auctioning process for a given Basset
+      * @param _basset Address of the ERC20 token to isolate
+      * @param _unitsUnderCollateralised Masset units that we failed to recollateralise
+      */
+    function completeRecol(address _basset, uint256 _unitsUnderCollateralised)
+    external
+    onlyManager {
+        (bool exists, uint i) = _isAssetInBasket(_basset);
+        require(exists, "Basset must exist in Basket");
+
+        (, , , , , BassetStatus status) = _getBasset(i);
+        require(status == BassetStatus.Liquidating, "Invalid Basset state");
+
+        if(_unitsUnderCollateralised > 0){
+            uint256 massetSupply = this.totalSupply();
+            // e.g. 1. c = 100e24 * 1e18 = 100e24
+            // e.g. 2. c = 100e24 * 9e17 =  90e24
+            uint256 collateralisedMassets = massetSupply.mulTruncate(basket.collateralisationRatio);
+            // e.g. 1. c = (100e24 - 5e24)*1e18 / 100e24 = 95e42/100e24 = 95e16
+            // e.g. 2. c = ( 90e24 - 5e24)*1e18 / 100e24 = 85e16
+            basket.collateralisationRatio = (collateralisedMassets.sub(_unitsUnderCollateralised)).divPrecisely(massetSupply);
+            basket.bassets[i].status = BassetStatus.Failed;
+            basket.failed = true;
+        } else {
+            basket.bassets[i].status = BassetStatus.Liquidated;
+            _removeBasset(_basset);
+        }
+    }
 }
