@@ -4,6 +4,7 @@ import { ModuleSub } from "../shared/pubsub/ModuleSub.sol";
 import {
   ManagerState,
   IGovernancePortal,
+  IRecollateraliser,
   ISystok,
   IManager,
   IOracleHub,
@@ -58,6 +59,10 @@ contract ManagerModule is ModuleSub, ManagerState {
 
         if (_key == Key_OracleHub) {
             oracleHub = IOracleHub(_newAddress);
+        }
+
+        if (_key == Key_Recollateraliser) {
+            recollateraliser = IRecollateraliser(_newAddress);
         }
     }
 }

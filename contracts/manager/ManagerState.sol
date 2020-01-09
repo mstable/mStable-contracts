@@ -3,6 +3,7 @@ pragma solidity ^0.5.12;
 import { IMasset } from "../interfaces/IMasset.sol";
 import { IManager } from "../interfaces/IManager.sol";
 import { IGovernancePortal } from "../interfaces/IGovernancePortal.sol";
+import { IRecollateraliser } from "../interfaces/IRecollateraliser.sol";
 import { ISystok } from "../interfaces/ISystok.sol";
 import { IOracleHub } from "../interfaces/IOracleHub.sol";
 
@@ -23,6 +24,7 @@ contract ManagerState  {
     IGovernancePortal governance;
     ISystok systok;
     IOracleHub oracleHub;
+    IRecollateraliser recollateraliser;
 
     /** @dev Address of latest ForgeLib implementation */
     address public forgeLib;
@@ -31,6 +33,15 @@ contract ManagerState  {
     /** @dev Hard coded Systok key for calling OracleHub */
     bytes32 oracle_key_systok = "MTA";
 
+    /**
+     * @dev Deviation thresholds for detecting peg loss and initiating re-collateralisation
+     * 1e17 == 10% deviation, i.e. if Basset deviates >= 10% from its target peg
+     */
+    uint256 constant base_price = 1e18;
+    uint256 constant neg_deviation_threshold = 1e17;
+    uint256 constant pos_deviation_threshold = 1e17;
+    /* solium-disable-next-line */
+    uint internal lastPegDetection = block.timestamp;
 
     /** @dev Data structure of the Masset and Bassets */
     DictionaryAtoB.AddressToBytes32 massets;
@@ -44,6 +55,12 @@ contract ManagerState  {
         _;
     }
 
+    /** @dev ??? */
+    modifier onlyAuction() {
+        require(msg.sender == address(recollateraliser), "Must be recol module");
+        _;
+    }
+
     /**
       * @dev Get the addresses and oracle keys for all the Massets
       * @return bytes32 Array of Masset identifiers
@@ -53,6 +70,20 @@ contract ManagerState  {
     view
     returns(address[] memory addr, bytes32[] memory keys) {
         return (massets.keys, massets.values());
+    }
+
+    /**
+      * @dev Get the addresses and oracle keys for all the Massets
+      * @return bytes32 Array of Masset identifiers
+      */
+    function _getBassets(address _masset)
+    internal
+    view
+    returns(address[] memory, bytes32[] memory) {
+        require(massets.contains(_masset), "Masset must exist");
+        IMasset masset = IMasset(_masset);
+        (address[] memory addresses, bytes32[] memory keys, , , , ) = masset.getBassets();
+        return (addresses, keys);
     }
 
 }
