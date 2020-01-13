@@ -54,7 +54,7 @@ contract ForgeLib is IForgeLib {
             _basket.bassets[j].vaultBalance = _basket.bassets[j].vaultBalance.add(_bassetQuantity[j]);
         }
 
-        //p
+        //
         uint256[] memory postBassets = _getBassetWeightings(_basket);
 
         // Check that the forge is valid, given the relative target weightings and vault balances
@@ -78,7 +78,8 @@ contract ForgeLib is IForgeLib {
     pure {
         uint256 bassetCount = _basket.bassets.length;
         require(_bassetQuantity.length == bassetCount, "Must provide values for all Bassets in system");
-
+  
+        uint256 bassetsToRedeem = 0;
         uint256 isolatedBassets = 0;
         uint256 totalIsolatedWeightings = 0;
 
@@ -90,54 +91,57 @@ contract ForgeLib is IForgeLib {
             if(isIsolated){
                 // If the Basset is supposed to be isolated from redemtion, ignore it from the basket
                 require(_bassetQuantity[i] == 0, "Cannot redeem isolated Bassets");
+
                 // Total the Isolated weightings and redistribute to non-affected assets
                 isolatedBassets += 1;
                 totalIsolatedWeightings = totalIsolatedWeightings.add(_basket.bassets[i].targetWeight);
+
                 _basket.bassets[i].targetWeight = 0;
                 _basket.bassets[i].vaultBalance = 0;
-            } else {
+            } else if (_bassetQuantity[i] > 0) {
+                bassetsToRedeem += 1;
                 require(_basket.bassets[i].vaultBalance >= _bassetQuantity[i], "Vault must have sufficient balance to redeem");
             }
         }
 
+        require(bassetsToRedeem > 0, "Must choose some Bassets to redeem");
+
+        uint256[] memory preBassets = _getBassetWeightings(_basket);
+
+        bool isInAdjustment = false;
+
+        // If totalIsolatedWeightings = 80e16, and there are 2 bassets un-isolated - given them 40 each
+        uint256 redistributedWeighting = isolatedBassets > 0 ? totalIsolatedWeightings.div(bassetCount.sub(isolatedBassets)) : 0;
+        for (uint k = 0; k < bassetCount; k++) {
+            uint maxWeight = _basket.bassets[k].targetWeight.add(redistributedWeighting);
+            isInAdjustment = isInAdjustment || preBassets[k] > maxWeight;
+        }
+
         // Theoretically redeem the bassets from the vault
-        for (uint i = 0; i < bassetCount; i++) {
-            _basket.bassets[i].vaultBalance = _basket.bassets[i].vaultBalance.sub(_bassetQuantity[i]);
+        for (uint j = 0; j < bassetCount; j++) {
+            _basket.bassets[j].vaultBalance = _basket.bassets[j].vaultBalance.sub(_bassetQuantity[j]);
         }
 
         uint256[] memory postBassets = _getBassetWeightings(_basket);
 
         // Check that the forge is valid, given the relative target weightings and vault balances
-        // If totalIsolatedWeightings = 80e16, and there are 2 bassets un-isolated - given them 40 each
-        uint256 redistributedWeighting = isolatedBassets > 0 ? totalIsolatedWeightings.div(bassetCount.sub(isolatedBassets)) : 0;
-        for (uint k = 0; k < bassetCount; k++) {
-            uint maxWeight = _basket.bassets[k].targetWeight.add(redistributedWeighting);
-            require(postBassets[k] <= maxWeight, "Must be below max weighting");
-        }
-    }
-
-    /**
-      * @dev Internal forge validation function - ensures that the forge pushes weightings in the correct direction
-      * @param _basket                  MassetBasket object containing all the relevant data
-      * @param _postForgeBassetWeights  (Ratioed) Basset vault balance post forge
-      */
-    function _isValidForge(
-        Basket memory _basket,
-        uint256 _redistributedWeightings,
-        uint256[] memory _postForgeBassetWeights
-    )
-        private
-        pure
-    {
-        uint basketLen = _postForgeBassetWeights.length;
-        require(basketLen == _basket.bassets.length, "PostWeight length != TargetWeight length");
-
-        // Redistribute the 'isolated' Basket weights (i.e. Basset A: T 40 should be redistributed)
-        // This pushes the other targets up, as their Collat levels also rise relative to totals
-        // So basket adjustments.. move Max weight down to 0.. any mint or redeem MUST
-        for (uint i = 0; i < basketLen; i++) {
-            uint maxWeight = _basket.bassets[i].targetWeight.add(_redistributedWeightings);
-            require(_postForgeBassetWeights[i] < maxWeight, "Must be below max weighting");
+        // isInAdjustment?
+        //     Bassets redeemed must be overweight
+        //     Note, there is an edge case where redeeming these Bassets may push others above weightings, however
+        //     it is a side effect of simplicity
+        // no
+        //     all unredeemed bassets must remain underweight
+        for (uint m = 0; m < bassetCount; m++){
+            uint maxWeight = _basket.bassets[m].targetWeight.add(redistributedWeighting);
+            if(isInAdjustment){
+                if(_bassetQuantity[m] > 0) {
+                    require(preBassets[m] > maxWeight, "Unredeemed bassets must stay below max weighting");
+                }
+            } else {
+                if(_bassetQuantity[m] == 0) {
+                    require(postBassets[m] <= maxWeight, "Unredeemed bassets must stay below max weighting");
+                }
+            }
         }
     }
 
@@ -197,35 +201,5 @@ contract ForgeLib is IForgeLib {
             // If the Basset is isolated, it will have already been excluded from this calc
             ratioedAssets[i] = _basket.bassets[i].vaultBalance.mulRatioTruncate(_basket.bassets[i].ratio);
         }
-    }
-
-    /**
-      * @dev Calculates the delta between the target units of a basset (relative weighting T * total collateral)
-      *      and the actual units in the vault.
-      * @param _targetWeight        Target weight of a given Basset where 1% == 1e16
-      * @param _totalVaultBalance   Total (ratioed) collateral present in the basket vault where 100 Massets == 1e20
-      * @param _bassetVaultBalance  Vault balance of the given Basset
-      * @return uint256             Distance between the basset vault balance and target
-      */
-    function _calcRelativeDistance(uint256 _targetWeight, uint256 _totalVaultBalance, uint256 _bassetVaultBalance)
-    private
-    pure
-    returns (uint256) {
-      uint256 targetVaultBalance = _targetWeight.mulTruncate(_totalVaultBalance);
-
-      return _calcDifference(targetVaultBalance, _bassetVaultBalance);
-    }
-
-    /**
-      * @dev Calculates the absolute (always non-negative) difference between two values
-      * @param _value1  First value
-      * @param _value2  Second value
-      * @return uint256 Difference
-      */
-    function _calcDifference(uint256 _value1, uint256 _value2)
-    private
-    pure
-    returns (uint256) {
-        return _value1 > _value2 ? _value1.sub(_value2) : _value2.sub(_value1);
     }
 }
