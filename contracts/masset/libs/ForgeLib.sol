@@ -23,21 +23,24 @@ contract ForgeLib is IForgeLib {
     function validateMint(Basket memory _basket, uint256[] memory _bassetQuantity)
     public
     pure {
-        require(_bassetQuantity.length == _basket.bassets.length, "Must provide values for all Bassets in system");
+        uint256 bassetCount = _basket.bassets.length;
+        require(_bassetQuantity.length == bassetCount, "Must provide values for all Bassets in system");
         require(!_basket.failed, "Basket must be alive");
 
         uint256 isolatedBassets = 0;
         uint256 totalIsolatedWeightings = 0;
 
         // Reformat basket to exclude affected Bassets and allow for relative calculations
-        for(uint i = 0; i < _bassetQuantity.length; i++){
+        for(uint i = 0; i < bassetCount; i++){
             BassetStatus status = _basket.bassets[i].status;
             bool isIsolated = status == BassetStatus.BrokenBelowPeg || status == BassetStatus.Liquidating;
             if(isIsolated){
                 // If the Basset is supposed to be isolated from mint, ignore it from the basket
                 require(_bassetQuantity[i] == 0, "Cannot mint isolated Bassets");
+                // Total the Isolated weightings and redistribute to non-affected assets
                 isolatedBassets += 1;
                 totalIsolatedWeightings = totalIsolatedWeightings.add(_basket.bassets[i].targetWeight);
+                // Isolate this Basset by marking it as absent
                 _basket.bassets[i].targetWeight = 0;
                 _basket.bassets[i].vaultBalance = 0;
             } else if(_basket.bassets[i].targetWeight == 0) {
@@ -46,17 +49,23 @@ contract ForgeLib is IForgeLib {
             }
         }
 
-        // Add the mint quantities to the vault
-        for(uint i = 0; i < _bassetQuantity.length; i++){
-            _basket.bassets[i].vaultBalance = _basket.bassets[i].vaultBalance.add(_bassetQuantity[i]);
+        // Theoretically add the mint quantities to the vault
+        for(uint j = 0; j < bassetCount; j++){
+            _basket.bassets[j].vaultBalance = _basket.bassets[j].vaultBalance.add(_bassetQuantity[j]);
         }
 
-        // Calculate the new (ratioed) vault balances and total
+        //p
         uint256[] memory postBassets = _getBassetWeightings(_basket);
 
         // Check that the forge is valid, given the relative target weightings and vault balances
-        uint256 additionalWeightings = isolatedBassets > 0 ? totalIsolatedWeightings.div(isolatedBassets) : 0;
-        _isValidForge(_basket, additionalWeightings, postBassets);
+        // If totalIsolatedWeightings = 80e16, and there are 2 bassets un-isolated - given them 40 each
+        uint256 redistributedWeighting = isolatedBassets > 0 ? totalIsolatedWeightings.div(bassetCount.sub(isolatedBassets)) : 0;
+        for (uint k = 0; k < bassetCount; k++) {
+            uint maxWeight = _basket.bassets[k].targetWeight.add(redistributedWeighting);
+            if(_bassetQuantity[k] > 0) {
+                require(postBassets[k] <= maxWeight, "Must be below max weighting");
+            }
+        }
     }
 
     /**
@@ -67,19 +76,21 @@ contract ForgeLib is IForgeLib {
     function validateRedemption(Basket memory _basket, uint256[] memory _bassetQuantity)
     public
     pure {
-        require(_bassetQuantity.length == _basket.bassets.length, "Must provide values for all Bassets in system");
+        uint256 bassetCount = _basket.bassets.length;
+        require(_bassetQuantity.length == bassetCount, "Must provide values for all Bassets in system");
 
         uint256 isolatedBassets = 0;
         uint256 totalIsolatedWeightings = 0;
 
         // Reformat basket to exclude affected Bassets and allow for relative calculations
-        for(uint i = 0; i < _bassetQuantity.length; i++){
+        for(uint i = 0; i < bassetCount; i++){
             BassetStatus status = _basket.bassets[i].status;
             require(status != BassetStatus.Liquidating, "Basket cannot be undergoing liquidation");
             bool isIsolated = _basket.failed ? false : status == BassetStatus.BrokenAbovePeg;
             if(isIsolated){
                 // If the Basset is supposed to be isolated from redemtion, ignore it from the basket
                 require(_bassetQuantity[i] == 0, "Cannot redeem isolated Bassets");
+                // Total the Isolated weightings and redistribute to non-affected assets
                 isolatedBassets += 1;
                 totalIsolatedWeightings = totalIsolatedWeightings.add(_basket.bassets[i].targetWeight);
                 _basket.bassets[i].targetWeight = 0;
@@ -89,14 +100,20 @@ contract ForgeLib is IForgeLib {
             }
         }
 
-        for (uint i = 0; i < _bassetQuantity.length; i++) {
+        // Theoretically redeem the bassets from the vault
+        for (uint i = 0; i < bassetCount; i++) {
             _basket.bassets[i].vaultBalance = _basket.bassets[i].vaultBalance.sub(_bassetQuantity[i]);
         }
 
         uint256[] memory postBassets = _getBassetWeightings(_basket);
 
-        uint256 additionalWeightings = isolatedBassets > 0 ? totalIsolatedWeightings.div(isolatedBassets) : 0;
-        _isValidForge(_basket, additionalWeightings, postBassets);
+        // Check that the forge is valid, given the relative target weightings and vault balances
+        // If totalIsolatedWeightings = 80e16, and there are 2 bassets un-isolated - given them 40 each
+        uint256 redistributedWeighting = isolatedBassets > 0 ? totalIsolatedWeightings.div(bassetCount.sub(isolatedBassets)) : 0;
+        for (uint k = 0; k < bassetCount; k++) {
+            uint maxWeight = _basket.bassets[k].targetWeight.add(redistributedWeighting);
+            require(postBassets[k] <= maxWeight, "Must be below max weighting");
+        }
     }
 
     /**

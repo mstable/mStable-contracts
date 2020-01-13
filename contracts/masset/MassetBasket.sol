@@ -113,6 +113,7 @@ contract MassetBasket is MassetStructs, MassetCore {
 
         (, , , , uint256 vaultBalance, BassetStatus status) = _getBasset(i);
         require(!_bassetHasRecolled(status), "Invalid Basset state");
+        // TODO - if vaultBalance is 0 and we want to recol, then just remove from Basket?
         require(vaultBalance > 0, "Must have something to recollateralise");
 
         basket.bassets[i].targetWeight = 0;
@@ -246,7 +247,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         require(bassetCount == basket.bassets.length, "Must be matching existing basket layout");
 
         uint256 weightSum = CommonHelpers.sumOfArrayValues(_weights);
-        require(weightSum == StableMath.getScale(), "Basket weight must total 100% == 1");
+        require(weightSum >= StableMath.getScale(), "Basket weight must total > 100% == 1");
 
         for (uint256 i = 0; i < bassetCount; i++) {
             address basset = _bassets[i];
