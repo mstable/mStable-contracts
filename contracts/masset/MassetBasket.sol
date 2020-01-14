@@ -116,7 +116,6 @@ contract MassetBasket is MassetStructs, MassetCore {
         // TODO - if vaultBalance is 0 and we want to recol, then just remove from Basket?
         require(vaultBalance > 0, "Must have something to recollateralise");
 
-        basket.bassets[i].targetWeight = 0;
         basket.bassets[i].status = BassetStatus.Liquidating;
         basket.bassets[i].vaultBalance = 0;
 
@@ -187,6 +186,7 @@ contract MassetBasket is MassetStructs, MassetCore {
     function removeBasset(address _assetToRemove)
     external
     basketIsHealthy
+    onlyGovernance
     returns (bool removed) {
         _removeBasset(_assetToRemove);
         return true;
@@ -200,7 +200,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         uint len = basket.bassets.length;
 
         Basset memory basset = basket.bassets[index];
-        require(basset.targetWeight == 0, "Basset must have a target weight of 0");
+        // require(basset.targetWeight == 0, "Basset must have a target weight of 0");
         require(basset.vaultBalance == 0, "Basset vault must be completely empty");
         require(basset.status != BassetStatus.Liquidating, "Basset must be active");
 
@@ -254,11 +254,14 @@ contract MassetBasket is MassetStructs, MassetCore {
 
             require(basset == basket.bassets[i].addr, "Basset must be represented symmetrically");
 
-            require(basket.bassets[i].status == BassetStatus.Normal, "Basket must not contain broken assets");
-
             uint256 bassetWeight = _weights[i];
-            require(bassetWeight >= 0, "Weight must be positive");
-            require(bassetWeight <= StableMath.getScale(), "Asset weight must be less than or equal to 1");
+            if(basket.bassets[i].status == BassetStatus.Normal) {
+                uint256 bassetWeight = _weights[i];
+                require(bassetWeight >= 0, "Weight must be positive");
+                require(bassetWeight <= StableMath.getScale(), "Asset weight must be less than or equal to 1");
+            } else {
+                require(bassetWeight == basket.bassets[i].targetWeight, "Cannot change weightings for suffering Bassets")
+            }
 
             basket.bassets[i].targetWeight = bassetWeight;
         }

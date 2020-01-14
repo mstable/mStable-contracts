@@ -70,9 +70,9 @@ module.exports = async (deployer, network, accounts) => {
     percentToWeight(40), // 40
     percentToWeight(30), // 30
     percentToWeight(30), // 30
-    percentToWeight(15), // 20
-    percentToWeight(15), // 25
-    percentToWeight(15)  // 20
+    percentToWeight(25), // 20
+    percentToWeight(0), // 25
+    percentToWeight(25)  // 20
   ];
 
   /* Assign basset ratios in percent */

@@ -234,6 +234,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
         (, , , , , BassetStatus status) = _getBasset(i);
         require(status == BassetStatus.Liquidating, "Invalid Basset state");
+        basket.bassets[i].targetWeight = 0;
 
         if(_unitsUnderCollateralised > 0){
             uint256 massetSupply = this.totalSupply();
@@ -245,6 +246,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
             basket.collateralisationRatio = (collateralisedMassets.sub(_unitsUnderCollateralised)).divPrecisely(massetSupply);
             basket.bassets[i].status = BassetStatus.Failed;
             basket.failed = true;
+            _removeBasset(_basset);
         } else {
             basket.bassets[i].status = BassetStatus.Liquidated;
             _removeBasset(_basset);

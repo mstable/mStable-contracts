@@ -44,6 +44,7 @@ contract ForgeLib is IForgeLib {
                 _basket.bassets[i].targetWeight = 0;
                 _basket.bassets[i].vaultBalance = 0;
             } else if(_basket.bassets[i].targetWeight == 0) {
+                isolatedBassets += 1;
                 // if target weight is 0.. we shouldn't be allowed to mint
                 require(_bassetQuantity[i] == 0, "Cannot mint target 0 Bassets");
             }
@@ -135,7 +136,7 @@ contract ForgeLib is IForgeLib {
             uint maxWeight = _basket.bassets[m].targetWeight.add(redistributedWeighting);
             if(isInAdjustment){
                 if(_bassetQuantity[m] > 0) {
-                    require(preBassets[m] > maxWeight, "Unredeemed bassets must stay below max weighting");
+                    require(preBassets[m] > maxWeight, "Redeemed Bassets must be overweight during adjustments");
                 }
             } else {
                 if(_bassetQuantity[m] == 0) {
