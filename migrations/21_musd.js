@@ -3,7 +3,7 @@
 /* eslint-disable one-var */
 const c_Manager = artifacts.require('Manager')
 const c_Governance = artifacts.require('GovernancePortal')
-const c_Masset = artifacts.require('Masset')
+const c_MUSD = artifacts.require('MUSD')
 
 const c_TUSD = artifacts.require('TUSD')
 const c_USDC = artifacts.require('USDC')
@@ -92,16 +92,12 @@ module.exports = async (deployer, network, accounts) => {
   const grace = simpleToExactAmount(5000000, 18)
 
   const x = await deployer.deploy(
-    c_Masset,
-    "mStable USD",
-    "mUSD",
+    c_MUSD,
     basketAddresses,
     basketKeys,
     basketWeights,
-    basketMultiples,
     feePool,
-    d_Manager.address,
-    false
+    d_Manager.address
   );
   
   const txData = d_Manager.contract.methods.addMasset(

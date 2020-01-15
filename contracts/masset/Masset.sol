@@ -36,8 +36,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         uint256[] memory _bassetWeights,
         uint256[] memory _bassetMultiples,
         address _feePool,
-        address _manager,
-        bool _mmEnabled
+        address _manager
     )
         MassetToken(
             _name,
@@ -48,8 +47,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
           _bassets,
           _bassetKeys,
           _bassetWeights,
-          _bassetMultiples,
-          _mmEnabled
+          _bassetMultiples
         )
         public
     {

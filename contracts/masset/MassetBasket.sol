@@ -28,12 +28,11 @@ contract MassetBasket is MassetStructs, MassetCore {
         address[] memory _bassets,
         bytes32[] memory _keys,
         uint256[] memory _weights,
-        uint256[] memory _multiples,
-        bool _mmEnabled
+        uint256[] memory _multiples
     )
         public
     {
-        measurementMultipleEnabled = _mmEnabled;
+        measurementMultipleEnabled = _multiples.length > 0;
         basket.collateralisationRatio = 1e18;
         basket.grace = 4e24; // 2,000,000 e18 == 2e24
 
@@ -41,7 +40,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         redemptionFee = 2e16;
 
         for (uint256 i = 0; i < _bassets.length; i++) {
-            _addBasset(_bassets[i], _keys[i], _multiples[i]);
+            _addBasset(_bassets[i], _keys[i], measurementMultipleEnabled ? _multiples[i] : 0);
         }
         _setBasketWeights(_bassets, _weights);
     }

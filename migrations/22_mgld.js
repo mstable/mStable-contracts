@@ -3,7 +3,7 @@
 /* eslint-disable one-var */
 const c_Manager = artifacts.require('Manager')
 const c_Governance = artifacts.require('GovernancePortal')
-const c_Masset = artifacts.require('Masset')
+const c_mGLD = artifacts.require('MGLD')
 
 const c_DGX = artifacts.require('DGX')
 const c_AWG = artifacts.require('AWG')
@@ -70,16 +70,13 @@ module.exports = async (deployer, network, accounts) => {
   const grace = simpleToExactAmount(3000000, 18)
 
   const d_mGLD = await deployer.deploy(
-    c_Masset,
-    "mStable Gold",
-    "mGLD",
+    c_mGLD,
     basketAddresses,
     basketKeys,
     basketWeights,
     basketMultiples,
     feePool,
-    d_Manager.address,
-    true
+    d_Manager.address
   );
 
   const txData = d_Manager.contract.methods.addMasset(
