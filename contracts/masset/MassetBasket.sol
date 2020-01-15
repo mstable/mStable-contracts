@@ -21,7 +21,7 @@ contract MassetBasket is MassetStructs, MassetCore {
     /** @dev Forging events */
     event BassetAdded(address indexed basset);
     event BassetRemoved(address indexed basset);
-    event BasketWeightsUpdated(address[] indexed bassets, uint256[] targetWeights);
+    event BasketWeightsUpdated(address[] indexed bassets, uint256[] maxWeights);
 
     /** @dev constructor */
     constructor(
@@ -169,7 +169,7 @@ contract MassetBasket is MassetStructs, MassetCore {
             decimals: basset_decimals,
             key: _key,
             ratio: ratio,
-            targetWeight: 0,
+            maxWeight: 0,
             vaultBalance: 0,
             status: BassetStatus.Normal
         }));
@@ -200,7 +200,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         uint len = basket.bassets.length;
 
         Basset memory basset = basket.bassets[index];
-        // require(basset.targetWeight == 0, "Basset must have a target weight of 0");
+        // require(basset.maxWeight == 0, "Basset must have a target weight of 0");
         require(basset.vaultBalance == 0, "Basset vault must be completely empty");
         require(basset.status != BassetStatus.Liquidating, "Basset must be active");
 
@@ -259,11 +259,10 @@ contract MassetBasket is MassetStructs, MassetCore {
                 uint256 bassetWeight = _weights[i];
                 require(bassetWeight >= 0, "Weight must be positive");
                 require(bassetWeight <= StableMath.getScale(), "Asset weight must be less than or equal to 1");
+                basket.bassets[i].maxWeight = bassetWeight;
             } else {
-                require(bassetWeight == basket.bassets[i].targetWeight, "Cannot change weightings for suffering Bassets")
+                require(bassetWeight == basket.bassets[i].maxWeight, "Cannot change weightings for suffering Bassets");
             }
-
-            basket.bassets[i].targetWeight = bassetWeight;
         }
 
         emit BasketWeightsUpdated(_bassets, _weights);
@@ -345,12 +344,12 @@ contract MassetBasket is MassetStructs, MassetCore {
         address addr,
         bytes32 key,
         uint256 ratio,
-        uint256 targetWeight,
+        uint256 maxWeight,
         uint256 vaultBalance,
         BassetStatus status
     ) {
         Basset memory b = basket.bassets[_bassetIndex];
-        return (b.addr, b.key, b.ratio, b.targetWeight, b.vaultBalance, b.status);
+        return (b.addr, b.key, b.ratio, b.maxWeight, b.vaultBalance, b.status);
     }
 
     /**
@@ -364,7 +363,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         address addr,
         bytes32 key,
         uint256 ratio,
-        uint256 targetWeight,
+        uint256 maxWeight,
         uint256 vaultBalance,
         BassetStatus status
     ) {

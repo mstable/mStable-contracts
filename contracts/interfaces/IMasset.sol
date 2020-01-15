@@ -51,7 +51,7 @@ contract IMasset is MassetStructs {
             address[] memory addresses,
             bytes32[] memory keys,
             uint256[] memory ratios,
-            uint256[] memory targets,
+            uint256[] memory weights,
             uint256[] memory vaults,
             BassetStatus[] memory statuses
           );
@@ -62,7 +62,7 @@ contract IMasset is MassetStructs {
             address addr,
             bytes32 key,
             uint256 ratio,
-            uint256 targetWeight,
+            uint256 weight,
             uint256 vaultBalance,
             BassetStatus status
           );

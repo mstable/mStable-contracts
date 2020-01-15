@@ -39,11 +39,11 @@ contract ForgeLib is IForgeLib {
                 require(_bassetQuantity[i] == 0, "Cannot mint isolated Bassets");
                 // Total the Isolated weightings and redistribute to non-affected assets
                 isolatedBassets += 1;
-                totalIsolatedWeightings = totalIsolatedWeightings.add(_basket.bassets[i].targetWeight);
+                totalIsolatedWeightings = totalIsolatedWeightings.add(_basket.bassets[i].maxWeight);
                 // Isolate this Basset by marking it as absent
-                _basket.bassets[i].targetWeight = 0;
+                _basket.bassets[i].maxWeight = 0;
                 _basket.bassets[i].vaultBalance = 0;
-            } else if(_basket.bassets[i].targetWeight == 0) {
+            } else if(_basket.bassets[i].maxWeight == 0) {
                 isolatedBassets += 1;
                 // if target weight is 0.. we shouldn't be allowed to mint
                 require(_bassetQuantity[i] == 0, "Cannot mint target 0 Bassets");
@@ -62,7 +62,7 @@ contract ForgeLib is IForgeLib {
         // If totalIsolatedWeightings = 80e16, and there are 2 bassets un-isolated - given them 40 each
         uint256 redistributedWeighting = isolatedBassets > 0 ? totalIsolatedWeightings.div(bassetCount.sub(isolatedBassets)) : 0;
         for (uint k = 0; k < bassetCount; k++) {
-            uint maxWeight = _basket.bassets[k].targetWeight.add(redistributedWeighting);
+            uint maxWeight = _basket.bassets[k].maxWeight.add(redistributedWeighting);
             if(_bassetQuantity[k] > 0) {
                 require(postBassets[k] <= maxWeight, "Must be below max weighting");
             }
@@ -79,7 +79,7 @@ contract ForgeLib is IForgeLib {
     pure {
         uint256 bassetCount = _basket.bassets.length;
         require(_bassetQuantity.length == bassetCount, "Must provide values for all Bassets in system");
-  
+
         uint256 bassetsToRedeem = 0;
         uint256 isolatedBassets = 0;
         uint256 totalIsolatedWeightings = 0;
@@ -95,9 +95,9 @@ contract ForgeLib is IForgeLib {
 
                 // Total the Isolated weightings and redistribute to non-affected assets
                 isolatedBassets += 1;
-                totalIsolatedWeightings = totalIsolatedWeightings.add(_basket.bassets[i].targetWeight);
+                totalIsolatedWeightings = totalIsolatedWeightings.add(_basket.bassets[i].maxWeight);
 
-                _basket.bassets[i].targetWeight = 0;
+                _basket.bassets[i].maxWeight = 0;
                 _basket.bassets[i].vaultBalance = 0;
             } else if (_bassetQuantity[i] > 0) {
                 bassetsToRedeem += 1;
@@ -114,7 +114,7 @@ contract ForgeLib is IForgeLib {
         // If totalIsolatedWeightings = 80e16, and there are 2 bassets un-isolated - given them 40 each
         uint256 redistributedWeighting = isolatedBassets > 0 ? totalIsolatedWeightings.div(bassetCount.sub(isolatedBassets)) : 0;
         for (uint k = 0; k < bassetCount; k++) {
-            uint maxWeight = _basket.bassets[k].targetWeight.add(redistributedWeighting);
+            uint maxWeight = _basket.bassets[k].maxWeight.add(redistributedWeighting);
             isInAdjustment = isInAdjustment || preBassets[k] > maxWeight;
         }
 
@@ -133,7 +133,7 @@ contract ForgeLib is IForgeLib {
         // no
         //     all unredeemed bassets must remain underweight
         for (uint m = 0; m < bassetCount; m++){
-            uint maxWeight = _basket.bassets[m].targetWeight.add(redistributedWeighting);
+            uint maxWeight = _basket.bassets[m].maxWeight.add(redistributedWeighting);
             if(isInAdjustment){
                 if(_bassetQuantity[m] > 0) {
                     require(preBassets[m] > maxWeight, "Redeemed Bassets must be overweight during adjustments");
@@ -172,7 +172,7 @@ contract ForgeLib is IForgeLib {
 
         for(uint256 i = 0; i < len; i++) {
             if(sumOfRatioedBassets == 0){
-                relativeWeights[i] = _basket.bassets[i].targetWeight;
+                relativeWeights[i] = _basket.bassets[i].maxWeight;
                 continue;
             }
             if(ratioedBassets[i] == 0) {
