@@ -21,7 +21,7 @@ contract MassetBasket is MassetStructs, MassetCore {
     /** @dev Forging events */
     event BassetAdded(address indexed basset);
     event BassetRemoved(address indexed basset);
-    event BasketWeightsUpdated(address[] indexed bassets, uint256[] targetWeights);
+    event BasketWeightsUpdated(address[] indexed bassets, uint256[] maxWeights);
 
     /** @dev constructor */
     constructor(
@@ -112,9 +112,9 @@ contract MassetBasket is MassetStructs, MassetCore {
 
         (, , , , uint256 vaultBalance, BassetStatus status) = _getBasset(i);
         require(!_bassetHasRecolled(status), "Invalid Basset state");
+        // TODO - if vaultBalance is 0 and we want to recol, then just remove from Basket?
         require(vaultBalance > 0, "Must have something to recollateralise");
 
-        basket.bassets[i].targetWeight = 0;
         basket.bassets[i].status = BassetStatus.Liquidating;
         basket.bassets[i].vaultBalance = 0;
 
@@ -122,7 +122,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         IERC20(_basset).approve(_recollateraliser, vaultBalance);
     }
 
-    
+
     /***************************************
                 BASKET ADJUSTMENTS
     ****************************************/
@@ -137,7 +137,8 @@ contract MassetBasket is MassetStructs, MassetCore {
     external
     onlyGovernance
     basketIsHealthy {
-        _addBasset(_basset, _key, _measurementMultiple);
+        uint256 mm = measurementMultipleEnabled ? _measurementMultiple : StableMath.getRatio();
+        _addBasset(_basset, _key, mm);
     }
 
     /**
@@ -160,15 +161,14 @@ contract MassetBasket is MassetStructs, MassetCore {
 
         uint256 delta = uint256(18).sub(basset_decimals);
 
-        uint256 mm = measurementMultipleEnabled ? _measurementMultiple : StableMath.getRatio();
-        uint256 ratio = mm.mul(10 ** delta);
+        uint256 ratio = _measurementMultiple.mul(10 ** delta);
 
         basket.bassets.push(Basset({
             addr: _basset,
             decimals: basset_decimals,
             key: _key,
             ratio: ratio,
-            targetWeight: 0,
+            maxWeight: 0,
             vaultBalance: 0,
             status: BassetStatus.Normal
         }));
@@ -185,6 +185,7 @@ contract MassetBasket is MassetStructs, MassetCore {
     function removeBasset(address _assetToRemove)
     external
     basketIsHealthy
+    onlyGovernance
     returns (bool removed) {
         _removeBasset(_assetToRemove);
         return true;
@@ -198,7 +199,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         uint len = basket.bassets.length;
 
         Basset memory basset = basket.bassets[index];
-        require(basset.targetWeight == 0, "Basset must have a target weight of 0");
+        // require(basset.maxWeight == 0, "Basset must have a target weight of 0");
         require(basset.vaultBalance == 0, "Basset vault must be completely empty");
         require(basset.status != BassetStatus.Liquidating, "Basset must be active");
 
@@ -245,20 +246,22 @@ contract MassetBasket is MassetStructs, MassetCore {
         require(bassetCount == basket.bassets.length, "Must be matching existing basket layout");
 
         uint256 weightSum = CommonHelpers.sumOfArrayValues(_weights);
-        require(weightSum == StableMath.getScale(), "Basket weight must total 100% == 1");
+        require(weightSum >= StableMath.getScale(), "Basket weight must total > 100% == 1");
 
         for (uint256 i = 0; i < bassetCount; i++) {
             address basset = _bassets[i];
 
             require(basset == basket.bassets[i].addr, "Basset must be represented symmetrically");
 
-            require(basket.bassets[i].status == BassetStatus.Normal, "Basket must not contain broken assets");
-
             uint256 bassetWeight = _weights[i];
-            require(bassetWeight >= 0, "Weight must be positive");
-            require(bassetWeight <= StableMath.getScale(), "Asset weight must be less than or equal to 1");
-
-            basket.bassets[i].targetWeight = bassetWeight;
+            if(basket.bassets[i].status == BassetStatus.Normal) {
+                uint256 bassetWeight = _weights[i];
+                require(bassetWeight >= 0, "Weight must be positive");
+                require(bassetWeight <= StableMath.getScale(), "Asset weight must be less than or equal to 1");
+                basket.bassets[i].maxWeight = bassetWeight;
+            } else {
+                require(bassetWeight == basket.bassets[i].maxWeight, "Cannot change weightings for suffering Bassets");
+            }
         }
 
         emit BasketWeightsUpdated(_bassets, _weights);
@@ -340,12 +343,12 @@ contract MassetBasket is MassetStructs, MassetCore {
         address addr,
         bytes32 key,
         uint256 ratio,
-        uint256 targetWeight,
+        uint256 maxWeight,
         uint256 vaultBalance,
         BassetStatus status
     ) {
         Basset memory b = basket.bassets[_bassetIndex];
-        return (b.addr, b.key, b.ratio, b.targetWeight, b.vaultBalance, b.status);
+        return (b.addr, b.key, b.ratio, b.maxWeight, b.vaultBalance, b.status);
     }
 
     /**
@@ -359,7 +362,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         address addr,
         bytes32 key,
         uint256 ratio,
-        uint256 targetWeight,
+        uint256 maxWeight,
         uint256 vaultBalance,
         BassetStatus status
     ) {

@@ -50,10 +50,10 @@ module.exports = async (deployer, network, accounts) => {
   ];
   /* Assign basset weightings in percent */
   const basketWeights =  [
-    percentToWeight(60),
-    percentToWeight(20),
-    percentToWeight(10),
-    percentToWeight(10)
+    percentToWeight(80),
+    percentToWeight(40),
+    percentToWeight(30),
+    percentToWeight(30)
   ];
 
   /* Assign basset ratios in percent */

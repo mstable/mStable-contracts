@@ -70,4 +70,33 @@ contract Manager is
             tempMasset.upgradeForgeLib(_newForgeLib);
         }
     }
+
+    /***************************************
+              BASKET MANAGEMENT
+    ****************************************/
+
+    function handlePegLoss(
+       address _masset,
+        address _basset,
+        bool _isBelowPeg
+    )
+        external
+    {
+        IMasset masset = IMasset(_masset);
+        masset.handlePegLoss(_basset, _isBelowPeg);
+    }
+
+    function initiateRecol(address _masset,address _basset, address _recollateraliser)
+        external
+    {
+        IMasset masset = IMasset(_masset);
+        masset.initiateRecol(_basset, _recollateraliser);
+    }
+
+    function completeRecol(address _masset,address _basset, uint256 _unitsUnderCollateralised)
+        external
+    {
+        IMasset masset = IMasset(_masset);
+        masset.completeRecol(_basset, _unitsUnderCollateralised);
+    }
 }
