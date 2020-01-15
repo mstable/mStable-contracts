@@ -1,5 +1,10 @@
 pragma solidity ^0.5.12;
 
+
+interface Masset {
+    function mintTo(uint256[] calldata _bassetQuantity, address _minter, address _recipient) external returns (uint256 massetMinted);
+}
+
 /**
  * @title ForgeRewards
  * @dev Forge wrapper that rewards minters for their contribution to liquidity
@@ -21,9 +26,40 @@ pragma solidity ^0.5.12;
  * MUST HAVE:
  *  - Getters for quickly tallying or projecting rewards
  *  - No ability for Governance to extract the collateral
- *  - 
+ *  -
  */
 contract ForgeRewards {
 
+    struct Reward {
+        uint256 mintVolume;
+        bool claimed;
+        uint256 rewardAllocation;
+    }
 
+    struct Tranche {
+        // uint256 start // inferred from tranche number;
+        // uint256 end; // inferred from tranche number
+        uint256 totalMintVolume;
+        uint256 totalRewardUnits;
+        uint256 unclaimedRewardUnits;
+        mapping(address => Reward) participantData;
+        address[] participants;
+    }
+
+    mapping(uint256 => Tranche) trancheData;
+
+    Masset public mUSD;
+    address public governor;
+
+    uint256 constant public tranchePeriod = 2 weeks;
+    uint256 constant public claimPeriod = 4 weeks;
+    uint256 constant public lockupPeriod = 52 weeks;
+
+    constructor(Masset _mUSD, address _governor) public {
+        mUSD = _mUSD;
+        governor = _governor;
+    }
+
+    // Step 1: Mint and log the mint volume
+    // function mintTo(uint256[] calldata _bassetQuantity, address _minter, address _recipient) external returns (uint256 massetMinted);
 }
