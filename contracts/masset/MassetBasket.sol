@@ -15,7 +15,6 @@ contract MassetBasket is MassetStructs, MassetCore {
 
     /** @dev Struct holding Basket details */
     Basket public basket;
-    uint256 private defaultMeasurementMultiple = 1e8;
     bool public measurementMultipleEnabled;
 
     /** @dev Forging events */
@@ -40,7 +39,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         redemptionFee = 2e16;
 
         for (uint256 i = 0; i < _bassets.length; i++) {
-            _addBasset(_bassets[i], _keys[i], measurementMultipleEnabled ? _multiples[i] : 0);
+            _addBasset(_bassets[i], _keys[i], measurementMultipleEnabled ? _multiples[i] : StableMath.getRatio());
         }
         _setBasketWeights(_bassets, _weights);
     }

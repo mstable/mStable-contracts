@@ -139,9 +139,7 @@ contract ForgeLib is IForgeLib {
                     require(preBassets[m] > maxWeight, "Redeemed Bassets must be overweight during adjustments");
                 }
             } else {
-                if(_bassetQuantity[m] == 0) {
-                    require(postBassets[m] <= maxWeight, "Unredeemed bassets must stay below max weighting");
-                }
+                require(postBassets[m] <= maxWeight, "Unredeemed bassets must stay below max weighting");
             }
         }
     }
