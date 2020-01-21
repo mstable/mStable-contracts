@@ -27,7 +27,7 @@ contract("MetaToken", async (accounts) => {
 
     before("Init contracts", async () => {
         /** Get fresh SystemMachine */
-        systemMachine = new SystemMachine(accounts, other);
+        systemMachine = new SystemMachine(accounts, accounts[0]);
 
         /** Create a basic mock representation of the deployed system */
         await systemMachine.initialiseMocks();

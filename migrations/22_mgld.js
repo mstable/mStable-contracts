@@ -3,7 +3,7 @@
 /* eslint-disable one-var */
 const c_Manager = artifacts.require('Manager')
 const c_Governance = artifacts.require('GovernancePortal')
-const c_Masset = artifacts.require('Masset')
+const c_mGLD = artifacts.require('MGLD')
 
 const c_DGX = artifacts.require('DGX')
 const c_AWG = artifacts.require('AWG')
@@ -50,10 +50,10 @@ module.exports = async (deployer, network, accounts) => {
   ];
   /* Assign basset weightings in percent */
   const basketWeights =  [
-    percentToWeight(60),
-    percentToWeight(20),
-    percentToWeight(10),
-    percentToWeight(10)
+    percentToWeight(80),
+    percentToWeight(40),
+    percentToWeight(30),
+    percentToWeight(30)
   ];
 
   /* Assign basset ratios in percent */
@@ -65,21 +65,17 @@ module.exports = async (deployer, network, accounts) => {
   ];
 
   /* Assign minting and redemption fees */
-  const mintingFee = percentToWeight(0)
   const redemptionFee = percentToWeight(1)
   const grace = simpleToExactAmount(3000000, 18)
 
   const d_mGLD = await deployer.deploy(
-    c_Masset,
-    "mStable Gold",
-    "mGLD",
+    c_mGLD,
     basketAddresses,
     basketKeys,
     basketWeights,
     basketMultiples,
     feePool,
-    d_Manager.address,
-    true
+    d_Manager.address
   );
 
   const txData = d_Manager.contract.methods.addMasset(

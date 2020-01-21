@@ -3,7 +3,7 @@
 /* eslint-disable one-var */
 const c_Manager = artifacts.require('Manager')
 const c_Governance = artifacts.require('GovernancePortal')
-const c_Masset = artifacts.require('Masset')
+const c_MUSD = artifacts.require('MUSD')
 
 const c_TUSD = artifacts.require('TUSD')
 const c_USDC = artifacts.require('USDC')
@@ -66,13 +66,13 @@ module.exports = async (deployer, network, accounts) => {
   ];
   /* Assign basset weightings in percent */
   const basketWeights =  [
-    percentToWeight(18), // max 30
-    percentToWeight(23), // 40
-    percentToWeight(15), // 30
-    percentToWeight(15), // 30
-    percentToWeight(14), // 20
-    percentToWeight(10), // 25
-    percentToWeight(5)  // 20
+    percentToWeight(30), // max 30
+    percentToWeight(40), // 40
+    percentToWeight(30), // 30
+    percentToWeight(30), // 30
+    percentToWeight(25), // 20
+    percentToWeight(0), // 25
+    percentToWeight(25)  // 20
   ];
 
   /* Assign basset ratios in percent */
@@ -87,21 +87,16 @@ module.exports = async (deployer, network, accounts) => {
   ];
 
   /* Assign minting and redemption fees */
-  const mintingFee = percentToWeight(0)
   const redemptionFee = percentToWeight(1.5)
   const grace = simpleToExactAmount(5000000, 18)
 
   const x = await deployer.deploy(
-    c_Masset,
-    "mStable USD",
-    "mUSD",
+    c_MUSD,
     basketAddresses,
     basketKeys,
     basketWeights,
-    basketMultiples,
     feePool,
-    d_Manager.address,
-    false
+    d_Manager.address
   );
   
   const txData = d_Manager.contract.methods.addMasset(

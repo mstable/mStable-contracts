@@ -6,7 +6,6 @@ import { ManagerPortal } from "./ManagerPortal.sol";
 import { MassetFactory, IManager } from "./MassetFactory.sol";
 
 import { StableMath } from "../shared/math/StableMath.sol";
-import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title Manager

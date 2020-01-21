@@ -13,14 +13,6 @@ import { MassetToken } from "./MassetToken.sol";
   */
 contract Masset is IMasset, MassetToken, MassetBasket {
 
-    /**
-     * @dev Forging actions
-     */
-    enum Action {
-        MINT,
-        REDEEM
-    }
-
     /** @dev Forging events */
     event Minted(address indexed account, uint256 massetQuantity, uint256[] bassetQuantities);
     event PaidFee(address payer, uint256 feeQuantity, uint256 feeRate);
@@ -36,8 +28,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         uint256[] memory _bassetWeights,
         uint256[] memory _bassetMultiples,
         address _feePool,
-        address _manager,
-        bool _mmEnabled
+        address _manager
     )
         MassetToken(
             _name,
@@ -48,8 +39,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
           _bassets,
           _bassetKeys,
           _bassetWeights,
-          _bassetMultiples,
-          _mmEnabled
+          _bassetMultiples
         )
         public
     {
@@ -112,9 +102,6 @@ contract Masset is IMasset, MassetToken, MassetBasket {
             }
         }
 
-        // Pay the minting fee
-        _payActionFee(massetQuantity, Action.MINT, _minter);
-
         // Mint the Masset
         _mint(_recipient, massetQuantity);
         emit Minted(_recipient, massetQuantity, _bassetQuantity);
@@ -166,7 +153,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         }
 
         // Pay the redemption fee
-        _payActionFee(massetQuantity, Action.REDEEM, _redeemer);
+        _payRedemptionFee(massetQuantity, _redeemer);
 
         // Ensure payout is relevant to collateralisation ratio (if ratio is 90%, we burn more)
         massetQuantity = massetQuantity.divPrecisely(basket.collateralisationRatio);
@@ -190,13 +177,12 @@ contract Masset is IMasset, MassetToken, MassetBasket {
     /**
      * @dev Pay the forging fee by burning Systok
      * @param _quantity Exact amount of Masset being forged
-     * @param _action Type of Forge action to execute
      * @param _payer Address who is liable for the fee
      */
-    function _payActionFee(uint256 _quantity, Action _action, address _payer)
+    function _payRedemptionFee(uint256 _quantity, address _payer)
     private {
 
-        uint256 feeRate = _action == Action.MINT ? mintingFee : redemptionFee;
+        uint256 feeRate = redemptionFee;
 
         if(feeRate > 0){
             (uint256 ownPrice, uint256 systokPrice) = manager.getMassetPrice(address(this));
@@ -234,6 +220,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
         (, , , , , BassetStatus status) = _getBasset(i);
         require(status == BassetStatus.Liquidating, "Invalid Basset state");
+        basket.bassets[i].maxWeight = 0;
 
         if(_unitsUnderCollateralised > 0){
             uint256 massetSupply = this.totalSupply();
@@ -245,6 +232,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
             basket.collateralisationRatio = (collateralisedMassets.sub(_unitsUnderCollateralised)).divPrecisely(massetSupply);
             basket.bassets[i].status = BassetStatus.Failed;
             basket.failed = true;
+            _removeBasset(_basset);
         } else {
             basket.bassets[i].status = BassetStatus.Liquidated;
             _removeBasset(_basset);

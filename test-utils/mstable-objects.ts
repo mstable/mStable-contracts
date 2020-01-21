@@ -31,7 +31,7 @@ export interface Basset {
   decimals: BigNumber;
   key: string;
   ratio: BigNumber;
-  targetWeight: BigNumber;
+  maxWeight: BigNumber;
   vaultBalance: BigNumber;
   status: BassetStatus;
 }
@@ -46,13 +46,13 @@ export const createBasket = (bassets: Basset[], grace = 0, failed = false): Bask
   };
 };
 
-export const createBasset = (targetWeight, vaultBalance, decimals = 18, status = BassetStatus.Normal): Basset => {
+export const createBasset = (maxWeight, vaultBalance, decimals = 18, status = BassetStatus.Normal): Basset => {
   return {
     addr: ZERO_ADDRESS,
     decimals: new BigNumber(decimals),
     key: "0x",
     ratio: createMultiple(new BigNumber(10).pow(new BigNumber(18 - decimals)).toNumber()),
-    targetWeight: percentToWeight(targetWeight),
+    maxWeight: percentToWeight(maxWeight),
     vaultBalance: simpleToExactAmount(vaultBalance, decimals),
     status,
   };

@@ -48,7 +48,7 @@ export class MassetMachine {
         decimals: null,
         key: bArrays[1][i],
         ratio: bArrays[2][i],
-        targetWeight: bArrays[3][i],
+        maxWeight: bArrays[3][i],
         vaultBalance: bArrays[4][i],
         status: bArrays[5][i],
       };
