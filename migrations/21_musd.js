@@ -87,7 +87,6 @@ module.exports = async (deployer, network, accounts) => {
   ];
 
   /* Assign minting and redemption fees */
-  const mintingFee = percentToWeight(0)
   const redemptionFee = percentToWeight(1.5)
   const grace = simpleToExactAmount(5000000, 18)
 

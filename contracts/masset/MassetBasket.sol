@@ -35,7 +35,6 @@ contract MassetBasket is MassetStructs, MassetCore {
         basket.collateralisationRatio = 1e18;
         basket.grace = 4e24; // 2,000,000 e18 == 2e24
 
-        mintingFee = 0;
         redemptionFee = 2e16;
 
         for (uint256 i = 0; i < _bassets.length; i++) {
@@ -264,21 +263,6 @@ contract MassetBasket is MassetStructs, MassetCore {
         }
 
         emit BasketWeightsUpdated(_bassets, _weights);
-    }
-
-    /**
-      * @dev Set the basket grace value
-      * @param _grace The distance from net target weight in which post does not need to be closer than pre (where 100% == 1e18)
-      */
-    function setBasketGrace(
-        uint256 _grace
-    )
-        external
-        onlyGovernance
-        basketIsHealthy
-    {
-        require(_grace >= minGrace, "Grace value must be under a certain max threshold");
-        basket.grace = _grace;
     }
 
 

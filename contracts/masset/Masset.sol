@@ -13,14 +13,6 @@ import { MassetToken } from "./MassetToken.sol";
   */
 contract Masset is IMasset, MassetToken, MassetBasket {
 
-    /**
-     * @dev Forging actions
-     */
-    enum Action {
-        MINT,
-        REDEEM
-    }
-
     /** @dev Forging events */
     event Minted(address indexed account, uint256 massetQuantity, uint256[] bassetQuantities);
     event PaidFee(address payer, uint256 feeQuantity, uint256 feeRate);
@@ -110,9 +102,6 @@ contract Masset is IMasset, MassetToken, MassetBasket {
             }
         }
 
-        // Pay the minting fee
-        _payActionFee(massetQuantity, Action.MINT, _minter);
-
         // Mint the Masset
         _mint(_recipient, massetQuantity);
         emit Minted(_recipient, massetQuantity, _bassetQuantity);
@@ -164,7 +153,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         }
 
         // Pay the redemption fee
-        _payActionFee(massetQuantity, Action.REDEEM, _redeemer);
+        _payRedemptionFee(massetQuantity, _redeemer);
 
         // Ensure payout is relevant to collateralisation ratio (if ratio is 90%, we burn more)
         massetQuantity = massetQuantity.divPrecisely(basket.collateralisationRatio);
@@ -188,13 +177,12 @@ contract Masset is IMasset, MassetToken, MassetBasket {
     /**
      * @dev Pay the forging fee by burning Systok
      * @param _quantity Exact amount of Masset being forged
-     * @param _action Type of Forge action to execute
      * @param _payer Address who is liable for the fee
      */
-    function _payActionFee(uint256 _quantity, Action _action, address _payer)
+    function _payRedemptionFee(uint256 _quantity, address _payer)
     private {
 
-        uint256 feeRate = _action == Action.MINT ? mintingFee : redemptionFee;
+        uint256 feeRate = redemptionFee;
 
         if(feeRate > 0){
             (uint256 ownPrice, uint256 systokPrice) = manager.getMassetPrice(address(this));

@@ -17,14 +17,12 @@ contract IMasset is MassetStructs {
     function upgradeForgeLib(address _newForgeLib) external;
 
     /** @dev Setters for Gov to set system params */
-    function setMintingFee(uint256 _mintingFee) external;
     function setRedemptionFee(uint256 _redemptionFee) external;
     function setFeePool(address _feePool) external;
 
     /** @dev Setters for Gov to update Basket composition */
     function addBasset(address _basset, bytes32 _key, uint256 _measurementMultiple) external;
     function setBasketWeights(address[] calldata _bassets, uint256[] calldata _weights) external;
-    function setBasketGrace(uint256 _grace) external;
 
     /** @dev Recollateralisation */
     function handlePegLoss(address _basset, bool _belowPeg) external returns (bool actioned);

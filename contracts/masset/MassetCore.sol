@@ -25,7 +25,6 @@ contract MassetCore {
     address public feePool;
 
     /** @dev Meta information for ecosystem fees */
-    uint256 public mintingFee;
     uint256 public redemptionFee;
 
     /** @dev Maximum minting/redemption fee */
@@ -35,7 +34,6 @@ contract MassetCore {
     uint256 internal constant minGrace = 1e18;
 
     /** @dev Events to emit */
-    event MintingFeeChanged(uint256 fee);
     event RedemptionFeeChanged(uint256 fee);
 
     /**
@@ -114,17 +112,6 @@ contract MassetCore {
         feePool = _feePool;
     }
 
-    /**
-      * @dev Set the ecosystem fee for minting a masset
-      * @param _mintingFee Fee calculated in (%/100 * 1e18)
-      */
-    function setMintingFee(uint256 _mintingFee)
-    external
-    onlyGovernance {
-        require(_mintingFee <= maxFee, "Minting fee > maxFee");
-        mintingFee = _mintingFee;
-        emit MintingFeeChanged(_mintingFee);
-    }
 
     /**
       * @dev Set the ecosystem fee for redeeming a masset
