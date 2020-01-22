@@ -68,6 +68,19 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         return mintTo(_bassetQuantity, msg.sender);
     }
 
+
+    function mintSingle(
+        address _basset,
+        uint256 _bassetQuantity,
+        address _recipient
+    )
+        external
+        basketIsHealthy
+        returns (uint256 massetMinted)
+    {
+        return mintTo(getSingleForgeParams(_basset, _bassetQuantity), _recipient);
+    }
+
     /**
       * @dev Mints a number of Massets based on the sum of the value of the Bassets
       * @param _bassetQuantity Exact units of Bassets to mint
@@ -120,6 +133,20 @@ contract Masset is IMasset, MassetToken, MassetBasket {
     {
         return redeemTo(_bassetQuantity, msg.sender);
     }
+
+
+    function redeemSingle(
+        address _basset,
+        uint256 _bassetQuantity,
+        address _recipient
+    )
+        external
+        basketIsHealthy
+        returns (uint256 massetMinted)
+    {
+        return redeemTo(getSingleForgeParams(_basset, _bassetQuantity), _recipient);
+    }
+
 
     /**
       * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
@@ -201,6 +228,20 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
             emit PaidFee(_payer, feeAmountInSystok, feeRate);
         }
+    }
+
+    function getSingleForgeParams(
+        address _basset,
+        uint256 _bassetQuantity
+    )
+        internal
+        view
+        returns (uint256[] memory quantities)
+    {
+        (bool exists, uint i) = _isAssetInBasket(_basset);
+        require(exists, "Asset must be in the Basket");
+        quantities = new uint256[](basket.bassets.length);
+        quantities[i] = _bassetQuantity;
     }
 
     /**
