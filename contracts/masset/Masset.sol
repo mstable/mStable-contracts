@@ -91,7 +91,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
             address basset = basket.bassets[i].addr;
 
             if(_bassetQuantity[i] > 0){
-                IERC20(basset).transferFrom(msg.sender, address(this), _bassetQuantity[i]);
+                require(IERC20(basset).transferFrom(msg.sender, address(this), _bassetQuantity[i]), "Must be successful basset transfer");
 
                 basket.bassets[i].vaultBalance = basket.bassets[i].vaultBalance.add(_bassetQuantity[i]);
 
@@ -162,7 +162,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
             if(_bassetQuantity[i] > 0){
                 address basset = basket.bassets[i].addr;
 
-                IERC20(basset).transfer(_recipient, _bassetQuantity[i]);
+                require(IERC20(basset).transfer(_recipient, _bassetQuantity[i]), "Must be successful transfer");
             }
         }
 
@@ -197,7 +197,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
             uint256 feeAmountInSystok = feeAmountInDollars.divPrecisely(systokPrice);
 
             // feeAmountInSystok == 0.25e18 == 25e16
-            systok.transferFrom(_payer, feePool, feeAmountInSystok);
+            require(systok.transferFrom(_payer, feePool, feeAmountInSystok), "Must be successful fee payment");
 
             emit PaidFee(_payer, feeAmountInSystok, feeRate);
         }
