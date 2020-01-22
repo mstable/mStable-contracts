@@ -65,18 +65,29 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         basketIsHealthy
         returns (uint256 massetMinted)
     {
-        return mintTo(_bassetQuantity, msg.sender, msg.sender);
+        return mintTo(_bassetQuantity, msg.sender);
+    }
+
+
+    function mintSingle(
+        address _basset,
+        uint256 _bassetQuantity,
+        address _recipient
+    )
+        external
+        basketIsHealthy
+        returns (uint256 massetMinted)
+    {
+        return mintTo(getSingleForgeParams(_basset, _bassetQuantity), _recipient);
     }
 
     /**
       * @dev Mints a number of Massets based on the sum of the value of the Bassets
       * @param _bassetQuantity Exact units of Bassets to mint
-      * @param _minter Address from which to transfer the Bassets
       * @param _recipient Address to which the Masset should be minted
       */
     function mintTo(
         uint256[] memory _bassetQuantity,
-        address _minter,
         address _recipient
     )
         public
@@ -93,7 +104,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
             address basset = basket.bassets[i].addr;
 
             if(_bassetQuantity[i] > 0){
-                IERC20(basset).transferFrom(_minter, address(this), _bassetQuantity[i]);
+                require(IERC20(basset).transferFrom(msg.sender, address(this), _bassetQuantity[i]), "Must be successful basset transfer");
 
                 basket.bassets[i].vaultBalance = basket.bassets[i].vaultBalance.add(_bassetQuantity[i]);
 
@@ -120,18 +131,30 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         public
         returns (uint256 massetRedeemed)
     {
-        return redeemTo(_bassetQuantity, msg.sender, msg.sender);
+        return redeemTo(_bassetQuantity, msg.sender);
     }
+
+
+    function redeemSingle(
+        address _basset,
+        uint256 _bassetQuantity,
+        address _recipient
+    )
+        external
+        basketIsHealthy
+        returns (uint256 massetMinted)
+    {
+        return redeemTo(getSingleForgeParams(_basset, _bassetQuantity), _recipient);
+    }
+
 
     /**
       * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
       * @param _bassetQuantity Exact quantities of Bassets to redeem
-      * @param _redeemer Account from which to burn the Masset
       * @param _recipient Account to which the redeemed Bassets should be sent
       */
     function redeemTo(
         uint256[] memory _bassetQuantity,
-        address _redeemer,
         address _recipient
     )
         public
@@ -153,24 +176,24 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         }
 
         // Pay the redemption fee
-        _payRedemptionFee(massetQuantity, _redeemer);
+        _payRedemptionFee(massetQuantity, msg.sender);
 
         // Ensure payout is relevant to collateralisation ratio (if ratio is 90%, we burn more)
         massetQuantity = massetQuantity.divPrecisely(basket.collateralisationRatio);
 
         // Burn the Masset
-        _burn(_redeemer, massetQuantity);
+        _burn(msg.sender, massetQuantity);
 
         // Transfer the Bassets to the user
         for(uint i = 0; i < _bassetQuantity.length; i++){
             if(_bassetQuantity[i] > 0){
                 address basset = basket.bassets[i].addr;
 
-                IERC20(basset).transfer(_recipient, _bassetQuantity[i]);
+                require(IERC20(basset).transfer(_recipient, _bassetQuantity[i]), "Must be successful transfer");
             }
         }
 
-        emit Redeemed(_recipient, _redeemer, massetQuantity, _bassetQuantity);
+        emit Redeemed(_recipient, msg.sender, massetQuantity, _bassetQuantity);
         return massetQuantity;
     }
 
@@ -201,10 +224,24 @@ contract Masset is IMasset, MassetToken, MassetBasket {
             uint256 feeAmountInSystok = feeAmountInDollars.divPrecisely(systokPrice);
 
             // feeAmountInSystok == 0.25e18 == 25e16
-            systok.transferFrom(_payer, feePool, feeAmountInSystok);
+            require(systok.transferFrom(_payer, feePool, feeAmountInSystok), "Must be successful fee payment");
 
             emit PaidFee(_payer, feeAmountInSystok, feeRate);
         }
+    }
+
+    function getSingleForgeParams(
+        address _basset,
+        uint256 _bassetQuantity
+    )
+        internal
+        view
+        returns (uint256[] memory quantities)
+    {
+        (bool exists, uint i) = _isAssetInBasket(_basset);
+        require(exists, "Asset must be in the Basket");
+        quantities = new uint256[](basket.bassets.length);
+        quantities[i] = _bassetQuantity;
     }
 
     /**
