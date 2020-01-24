@@ -11,6 +11,9 @@ import { MassetStructs } from "../masset/libs/MassetStructs.sol";
  */
 contract IMasset is MassetStructs {
 
+    function mintTo(uint256[] calldata _bassetQuantity, address _recipient) external returns (uint256 massetMinted);
+    function mintSingle(address _basset, uint256 _bassetQuantity, address _recipient) external returns (uint256 massetMinted);
+
     /** @dev Setters for the Manager or Gov to update module info */
     function setManager(IManager _manager) external;
     function setGovernance(address _governance) external;
@@ -34,6 +37,10 @@ contract IMasset is MassetStructs {
     function removeBasset(address _assetToRemove) external returns (bool);
 
     /** @dev Getters to retrieve Basket information */
+    function getForgeParams(
+        address[] calldata _bassets,
+        uint256[] calldata _bassetQuantities
+        ) external view returns(uint256[] memory quantities);
     function getBasket()
     external
     view
@@ -52,7 +59,7 @@ contract IMasset is MassetStructs {
             uint256[] memory weights,
             uint256[] memory vaults,
             BassetStatus[] memory statuses
-          );
+        );
     function getBasset(address _basset)
         external
         view
@@ -63,5 +70,5 @@ contract IMasset is MassetStructs {
             uint256 weight,
             uint256 vaultBalance,
             BassetStatus status
-          );
+        );
 }

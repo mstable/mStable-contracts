@@ -234,7 +234,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         address _basset,
         uint256 _bassetQuantity
     )
-        internal
+        public
         view
         returns (uint256[] memory quantities)
     {
@@ -242,6 +242,24 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         require(exists, "Asset must be in the Basket");
         quantities = new uint256[](basket.bassets.length);
         quantities[i] = _bassetQuantity;
+    }
+
+    function getForgeParams(
+        address[] calldata _bassets,
+        uint256[] calldata _bassetQuantities
+    )
+        external
+        view
+        returns (uint256[] memory quantities)
+    {
+        quantities = new uint256[](basket.bassets.length);
+        require(_bassets.length == _bassetQuantities.length, "Input arrays must be same length");
+
+        for(uint256 i = 0; i < _bassets.length; i++) {
+            (bool exists, uint j) = _isAssetInBasket(_bassets[i]);
+            require(exists, "Asset must be in the Basket");
+            quantities[j] = _bassetQuantities[i];
+        }
     }
 
     /**
