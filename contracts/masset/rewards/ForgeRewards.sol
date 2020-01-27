@@ -2,8 +2,10 @@ pragma solidity ^0.5.12;
 
 import { IMassetForgeRewards } from "./IMassetForgeRewards.sol";
 import { IMasset } from "../../interfaces/IMasset.sol";
+import { ISystok } from "../../interfaces/ISystok.sol";
 import { StableMath } from "../../shared/math/StableMath.sol";
 import { IERC20 } from "node_modules/openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
+import { ReentrancyGuard } from "../../shared/ReentrancyGuard.sol";
 
 
 /**
@@ -29,14 +31,14 @@ import { IERC20 } from "node_modules/openzeppelin-solidity/contracts/token/ERC20
  *  - No ability for Governance to extract the collateral
  *  -
  */
-contract ForgeRewardsMUSD is IMassetForgeRewards {
+contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
 
     using StableMath for uint256;
 
     event RewardeeMintVolumeIncreased(uint256 indexed trancheNumber, address indexed rewardee, uint256 mintVolume);
     event MintVolumeIncreased(uint256 indexed trancheNumber, uint256 mintVolume);
-    event RewardClaimed(address indexed minter, uint256 trancheNumber, uint256 rewardAllocation);
-    event RewardRedeemed(address indexed minter, uint256 trancheNumber, uint256 rewardAllocation);
+    event RewardClaimed(address indexed rewardee, uint256 trancheNumber, uint256 rewardAllocation);
+    event RewardRedeemed(address indexed rewardee, uint256 trancheNumber, uint256 rewardAllocation);
     event TrancheFunded(uint256 indexed trancheNumber, uint256 fundAmount);
     event UnclaimedRewardWithdrawn(uint256 indexed trancheNumber, uint256 amountWithdrawn);
 
@@ -69,6 +71,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards {
 
     /** @dev Core  */
     IMasset public mUSD;
+    ISystok public MTA;
     address public governor;
 
     uint256 public rewardStartTime;
@@ -77,8 +80,9 @@ contract ForgeRewardsMUSD is IMassetForgeRewards {
     uint256 constant public claimPeriod = 8 weeks;
     uint256 constant public lockupPeriod = 52 weeks;
 
-    constructor(IMasset _mUSD, address _governor) public {
+    constructor(IMasset _mUSD, ISystok _MTA, address _governor) public {
         mUSD = _mUSD;
+        MTA = _MTA;
         governor = _governor;
         rewardStartTime = now;
     }
@@ -169,6 +173,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards {
         address _rewardee
     )
         internal
+        nonReentrant
     {
         // Get current tranche based on timestamp
         uint256 trancheNumber = _currentTrancheNumber();
@@ -200,13 +205,17 @@ contract ForgeRewardsMUSD is IMassetForgeRewards {
     returns(bool claimed) {
         return claimReward(_trancheNumber, msg.sender);
     }
+
     function claimReward(uint256 _trancheNumber, address _rewardee)
     public
+    nonReentrant
     returns(bool claimed) {
         Tranche storage tranche = trancheData[_trancheNumber];
+        require(tranche.totalRewardUnits > 0, "Tranche must be funded before claiming can begin");
+
         TrancheDates memory trancheDates = _getTrancheDates(_trancheNumber);
         require(now > trancheDates.endTime && now < trancheDates.claimEndTime, "Reward must be in claim period");
-        require(tranche.totalRewardUnits > 0, "Tranche must be funded before claiming can begin");
+  
         Reward storage reward = tranche.rewardeeData[_rewardee];
         require(reward.mintVolume > 0, "Rewardee must have minted something to be eligable");
         require(!reward.claimed, "Reward has already been claimed");
@@ -219,19 +228,78 @@ contract ForgeRewardsMUSD is IMassetForgeRewards {
         reward.rewardAllocation = rewardeeRelativeMintVolume.mulTruncate(tranche.totalRewardUnits);
         reward.claimed = true;
         tranche.unclaimedRewardUnits = tranche.unclaimedRewardUnits.sub(reward.rewardAllocation);
+
+        emit RewardClaimed(_rewardee, _trancheNumber, reward.rewardAllocation);
         return true;
     }
 
-    // function redeemReward(uint256 _trancheNumber) external;
-    // function redeemRewards(uint256[] calldata _trancheNumbers) external;
+    function redeemReward(uint256 _trancheNumber)
+    external
+    returns(bool redeemed) {
+        return redeemReward(_trancheNumber, msg.sender);
+    }
+
+    function redeemReward(uint256 _trancheNumber, address _rewardee)
+    public
+    nonReentrant
+    returns(bool redeemed) {
+        TrancheDates memory trancheDates = _getTrancheDates(_trancheNumber);
+        require(now > trancheDates.unlockTime, "Reward must be unlocked");
+
+        Reward storage reward = trancheData[_trancheNumber].rewardeeData[_rewardee];
+        require(reward.claimed, "Rewardee must have originally claimed their reward");
+        require(reward.rewardAllocation > 0, "Rewardee must have some allocation to redeem");
+        require(!reward.redeemed, "Reward has already been redeemed");
+
+        reward.redeemed = true;
+        require(MTA.transfer(_rewardee, reward.rewardAllocation), "Rewardee must receive reward");
+
+        emit RewardRedeemed(_rewardee, _trancheNumber, reward.rewardAllocation);
+        return true;
+    }
 
 
     /***************************************
                     FUNDING
     ****************************************/
+
     /** Governor actions to manage tranche rewards */
-    // function fundTranche(uint256 _trancheNumber, uint256 _fundQuantity) external;
-    // function withdrawUnclaimedRewards(uint256 _trancheNumber) external;
+    function fundTranche(uint256 _trancheNumber, uint256 _fundQuantity)
+    external
+    onlyGovernor {
+        Tranche storage tranche = trancheData[_trancheNumber];
+        TrancheDates memory trancheDates = _getTrancheDates(_trancheNumber);
+
+        // If the tranche has already closed, the only circumstances the reward may be added
+        // is if the current funding is 0, and the claim period has not yet elapsed
+        // This is for backup circumstances in the event that the tranche was not funded in time
+        if(now > trancheDates.endTime){
+            require(tranche.totalRewardUnits == 0, "Cannot increase reward units after end time");
+            require(now < trancheDates.claimEndTime, "Cannot fund tranche after the claim period");
+        }
+
+        require(MTA.transferFrom(governor, address(this), _fundQuantity), "Governor must send the funding MTA");
+        tranche.totalRewardUnits = tranche.totalRewardUnits.add(_fundQuantity);
+        tranche.unclaimedRewardUnits = tranche.totalRewardUnits;
+
+        emit TrancheFunded(_trancheNumber, tranche.totalRewardUnits);
+    }
+
+
+    function withdrawUnclaimedRewards(uint256 _trancheNumber)
+    external
+    onlyGovernor {
+        Tranche storage tranche = trancheData[_trancheNumber];
+        TrancheDates memory trancheDates = _getTrancheDates(_trancheNumber);
+
+        require(now > trancheDates.claimEndTime, "Claim period must have elapsed");
+        require(tranche.unclaimedRewardUnits > 0, "Tranche must contain unclaimed reward units");
+
+        tranche.unclaimedRewardUnits = 0;
+        require(MTA.transfer(governor, tranche.unclaimedRewardUnits), "Governor must receive the funding MTA");
+
+        emit UnclaimedRewardWithdrawn(_trancheNumber, tranche.totalRewardUnits);
+    }
 
 
     /***************************************
