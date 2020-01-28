@@ -20,9 +20,10 @@ interface IMassetForgeRewards {
 
     /** Getters for accessing nested tranche data */
     function getTrancheData(uint256 _trancheNumber)
-        external returns(
+        external view returns(
             uint256 startTime,
             uint256 endTime,
+            uint256 claimEndTime,
             uint256 unlockTime,
             uint256 totalMintVolume,
             uint256 totalRewardUnits,
@@ -30,8 +31,8 @@ interface IMassetForgeRewards {
             address[] memory participants);
 
     /** Getters for easily parsing all rewardee data */
-    function getParticipantData(uint256 _trancheNumber, address _participant)
-        external returns(
+    function getRewardeeData(uint256 _trancheNumber, address _rewardee)
+        external view returns(
             bool mintWindowClosed,
             bool claimWindowClosed,
             bool unlocked,
@@ -39,8 +40,8 @@ interface IMassetForgeRewards {
             bool claimed,
             uint256 rewardAllocation,
             bool redeemed);
-    function getParticipantData(uint256[] calldata _trancheNumber, address _participant)
-        external returns(
+    function getRewardeeData(uint256[] calldata _trancheNumbers, address _rewardee)
+        external view returns(
             bool[] memory mintWindowClosed,
             bool[] memory claimWindowClosed,
             bool[] memory unlocked,
@@ -48,8 +49,8 @@ interface IMassetForgeRewards {
             bool[] memory claimed,
             uint256[] memory rewardAllocation,
             bool[] memory redeemed);
-    function getParticipantsData(uint256 _trancheNumber, address[] calldata _participant)
-        external returns(
+    function getRewardeesData(uint256 _trancheNumber, address[] calldata _rewardees)
+        external view returns(
             uint256[] memory mintVolume,
             bool[] memory claimed,
             uint256[] memory rewardAllocation,

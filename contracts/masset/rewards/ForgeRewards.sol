@@ -3,33 +3,16 @@ pragma solidity ^0.5.12;
 import { IMassetForgeRewards } from "./IMassetForgeRewards.sol";
 import { IMasset } from "../../interfaces/IMasset.sol";
 import { ISystok } from "../../interfaces/ISystok.sol";
-import { StableMath } from "../../shared/math/StableMath.sol";
 import { IERC20 } from "node_modules/openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
+
+import { StableMath } from "../../shared/math/StableMath.sol";
+
 import { ReentrancyGuard } from "../../shared/ReentrancyGuard.sol";
 
 
 /**
  * @title ForgeRewards
  * @dev Forge wrapper that rewards minters for their contribution to liquidity
- *
- *
- * > Ulimited tranches @ x week intervals starting from contract launch (tranche# == date-startDate/tranchePeriod)
- *  > Certain authority called the 'RewardsGovernor'
- *  > 'FundTranche' function that funds a given tranche (MUST BE DONE BEFORE (ideally) OR DURING A TRANCHE PERIOD)
- *    > Sends XXX MTA to load into a given tranche
- * > User mints through 'Rewards' contract
- * > Volume of mint logged in tranche (Tranche number based on timestamp)
- * > At end of tranche, users have 4 weeks to CLAIM their reward (not claimable without funding)
- *  > Claiming reward calculates the payout (f(usersMintVolume, totalMintVolume, trancheFunding))
- *  > Unclaimed rewards are able to be withdrawn by the fund authority and re-used
- *  > Reward locked for 12 months
- *  > Redeem reward
- *
- *
- * MUST HAVE:
- *  - Getters for quickly tallying or projecting rewards
- *  - No ability for Governance to extract the collateral
- *  -
  */
 contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
 
@@ -60,22 +43,26 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
     }
 
     struct TrancheDates {
-        uint256 startTime;
-        uint256 endTime;
-        uint256 claimEndTime;
-        uint256 unlockTime;
+        uint256 startTime;      // Timestamp that minting opens for this tranche
+        uint256 endTime;        // Timestamp that minting ends for this tranche
+        uint256 claimEndTime;   // Timestamp that claims finish for the tranche
+        uint256 unlockTime;     // Timestamp that the rewarded tokens become unlocked
     }
 
     /** @dev All data for keeping track of rewards */
     mapping(uint256 => Tranche) trancheData;
 
-    /** @dev Core  */
+    /** @dev Core connections */
     IMasset public mUSD;
     ISystok public MTA;
+
+    /** @dev Governor is responsible for funding the tranches */
     address public governor;
 
+    /** @dev Timestamp of the initialisation of rewards (start of the contract) */
     uint256 public rewardStartTime;
 
+    /** @dev Constant timestamps on the tranche data */
     uint256 constant public tranchePeriod = 4 weeks;
     uint256 constant public claimPeriod = 8 weeks;
     uint256 constant public lockupPeriod = 52 weeks;
@@ -88,7 +75,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
     }
 
     /***************************************
-                    HELPERS
+                  GOVERNANCE
     ****************************************/
 
     /** @dev Verifies that the caller is the Rewards Governor */
@@ -97,6 +84,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         _;
     }
 
+    /** @dev Rewards governor can choose another governor to fund the tranches */
     function changeGovernor(address _newGovernor)
     external
     onlyGovernor {
@@ -104,17 +92,18 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         governor = _newGovernor;
     }
 
-    function _currentTrancheNumber() internal view returns(uint256 trancheNumber) {
-        uint256 totalTimeElapsed = now.sub(rewardStartTime);
-        trancheNumber = totalTimeElapsed.div(tranchePeriod);
-    }
-
 
     /***************************************
                     FORGING
     ****************************************/
 
-    // Step 1: Mint and log the mint volume
+    /**
+     * @dev
+     * @param _bassetQuantities
+     * @param _massetRecipient
+     * @param _rewardRecipient
+     * @return massetMinted
+     */
     function mintTo(
         uint256[] calldata _bassetQuantities,
         address _massetRecipient,
@@ -144,6 +133,14 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         _logMintVolume(massetMinted, _rewardRecipient);
     }
 
+    /**
+     * @dev
+     * @param _basset
+     * @param _bassetQuantity
+     * @param _massetRecipient
+     * @param _rewardRecipient
+     * @return massetMinted
+     */
     function mintSingleTo(
         address _basset,
         uint256 _bassetQuantity,
@@ -168,6 +165,11 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         _logMintVolume(massetMinted, _rewardRecipient);
     }
 
+    /**
+     * @dev
+     * @param _volume
+     * @param _rewardee
+     */
     function _logMintVolume(
         uint256 _volume,
         address _rewardee
@@ -199,13 +201,23 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
                     CLAIMING
     ****************************************/
 
-    /** Participant actions to claim tranche rewards */
+    /**
+     * @dev
+     * @param _trancheNumber
+     * @return claimed
+     */
     function claimReward(uint256 _trancheNumber)
     external
     returns(bool claimed) {
         return claimReward(_trancheNumber, msg.sender);
     }
 
+    /**
+     * @dev
+     * @param _trancheNumber
+     * @param _rewardee
+     * @return claimed
+     */
     function claimReward(uint256 _trancheNumber, address _rewardee)
     public
     nonReentrant
@@ -215,7 +227,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
 
         TrancheDates memory trancheDates = _getTrancheDates(_trancheNumber);
         require(now > trancheDates.endTime && now < trancheDates.claimEndTime, "Reward must be in claim period");
-  
+
         Reward storage reward = tranche.rewardeeData[_rewardee];
         require(reward.mintVolume > 0, "Rewardee must have minted something to be eligable");
         require(!reward.claimed, "Reward has already been claimed");
@@ -233,12 +245,23 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         return true;
     }
 
+    /**
+     * @dev
+     * @param _trancheNumber
+     * @return redeemed
+     */
     function redeemReward(uint256 _trancheNumber)
     external
     returns(bool redeemed) {
         return redeemReward(_trancheNumber, msg.sender);
     }
 
+    /**
+     * @dev
+     * @param _trancheNumber
+     * @param _rewardee
+     * @return redeemed
+     */
     function redeemReward(uint256 _trancheNumber, address _rewardee)
     public
     nonReentrant
@@ -263,7 +286,11 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
                     FUNDING
     ****************************************/
 
-    /** Governor actions to manage tranche rewards */
+    /**
+     * @dev
+     * @param _trancheNumber
+     * @param _fundQuantity
+     */
     function fundTranche(uint256 _trancheNumber, uint256 _fundQuantity)
     external
     onlyGovernor {
@@ -285,7 +312,10 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         emit TrancheFunded(_trancheNumber, tranche.totalRewardUnits);
     }
 
-
+    /**
+     * @dev
+     * @param _trancheNumber
+     */
     function withdrawUnclaimedRewards(uint256 _trancheNumber)
     external
     onlyGovernor {
@@ -303,9 +333,26 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
 
 
     /***************************************
-                    GETTERS
+              GETTERS - INTERNAL
     ****************************************/
 
+    /**
+     * @dev Internal helper to fetch the current tranche number based on the timestamp
+     * @return trancheNumber starting with 0
+     */
+    function _currentTrancheNumber() internal view returns(uint256 trancheNumber) {
+        // e.g. now (1000), startTime (600), tranchePeriod (150)
+        // (1000-600)/150 = 2
+        // e.g. now == 650 => 50/150 = 0
+        uint256 totalTimeElapsed = now.sub(rewardStartTime);
+        trancheNumber = totalTimeElapsed.div(tranchePeriod);
+    }
+
+    /**
+     * @dev
+     * @param _trancheNumber
+     * @return trancheDates
+     */
     function _getTrancheDates(uint256 _trancheNumber)
     internal
     view
@@ -328,40 +375,150 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         trancheDates.unlockTime = trancheDates.endTime.add(lockupPeriod);
     }
 
-    /** Getters for accessing nested tranche data */
-    // function getTrancheData(uint256 _trancheNumber)
-    //     external returns(
-    //         uint256 startTime,
-    //         uint256 endTime,
-    //         uint256 unlockTime,
-    //         uint256 totalMintVolume,
-    //         uint256 totalRewardUnits,
-    //         uint256 unclaimedRewardUnits,
-    //         address[] memory participants);
 
-    // /** Getters for easily parsing all rewardee data */
-    // function getParticipantData(uint256 _trancheNumber, address _participant)
-    //     external returns(
-    //         bool mintWindowClosed,
-    //         bool claimWindowClosed,
-    //         bool unlocked,
-    //         uint256 mintVolume,
-    //         bool claimed,
-    //         uint256 rewardAllocation,
-    //         bool redeemed);
-    // function getParticipantData(uint256[] calldata _trancheNumber, address _participant)
-    //     external returns(
-    //         bool[] memory mintWindowClosed,
-    //         bool[] memory claimWindowClosed,
-    //         bool[] memory unlocked,
-    //         uint256[] memory mintVolume,
-    //         bool[] memory claimed,
-    //         uint256[] memory rewardAllocation,
-    //         bool[] memory redeemed);
-    // function getParticipantsData(uint256 _trancheNumber, address[] calldata _participant)
-    //     external returns(
-    //         uint256[] memory mintVolume,
-    //         bool[] memory claimed,
-    //         uint256[] memory rewardAllocation,
-    //         bool[] memory redeemed);
+    /***************************************
+              GETTERS - EXTERNAL
+    ****************************************/
+
+    /**
+     * @dev
+     * @param _trancheNumber
+     * @return startTime
+     * @return endTime
+     * @return claimEndTime
+     * @return unlockTime
+     * @return totalMintVolume
+     * @return totalRewardUnits
+     * @return unclaimedRewardUnits
+     * @return rewardees
+     */
+    function getTrancheData(uint256 _trancheNumber)
+    external
+    view
+    returns (
+        uint256 startTime,
+        uint256 endTime,
+        uint256 claimEndTime,
+        uint256 unlockTime,
+        uint256 totalMintVolume,
+        uint256 totalRewardUnits,
+        uint256 unclaimedRewardUnits,
+        address[] memory rewardees
+    ) {
+        Tranche memory tranche = trancheData[_trancheNumber];
+        TrancheDates memory trancheDates = _getTrancheDates(_trancheNumber);
+        return (
+          trancheDates.startTime,
+          trancheDates.endTime,
+          trancheDates.claimEndTime,
+          trancheDates.unlockTime,
+          tranche.totalMintVolume,
+          tranche.totalRewardUnits,
+          tranche.unclaimedRewardUnits,
+          tranche.rewardees
+        );
+    }
+
+    /**
+     * @dev
+     * @param _trancheNumber
+     * @param _rewardee
+     * @return mintWindowClosed
+     * @return claimWindowClosed
+     * @return unlocked
+     * @return mintVolume
+     * @return claimed
+     * @return rewardAllocation
+     * @return redeemed
+     */
+    function getRewardeeData(uint256 _trancheNumber, address _rewardee)
+    external
+    view
+    returns (
+        bool mintWindowClosed,
+        bool claimWindowClosed,
+        bool unlocked,
+        uint256 mintVolume,
+        bool claimed,
+        uint256 rewardAllocation,
+        bool redeemed
+    ) {
+        Reward memory reward = trancheData[_trancheNumber].rewardeeData[_rewardee];
+        TrancheDates memory trancheDates = _getTrancheDates(_trancheNumber);
+        return (
+          now > trancheDates.endTime,
+          now > trancheDates.claimEndTime,
+          now > trancheDates.unlockTime,
+          reward.mintVolume,
+          reward.claimed,
+          reward.rewardAllocation,
+          reward.redeemed
+        );
+    }
+
+    /**
+     * @dev
+     * @param _trancheNumbers
+     * @param _rewardee
+     * @return mintWindowClosed
+     * @return claimWindowClosed
+     * @return unlocked
+     * @return mintVolume
+     * @return claimed
+     * @return rewardAllocation
+     * @return redeemed
+     */
+    function getRewardeeData(uint256[] calldata _trancheNumbers, address _rewardee)
+    external
+    view
+    returns(
+        bool[] memory mintWindowClosed,
+        bool[] memory claimWindowClosed,
+        bool[] memory unlocked,
+        uint256[] memory mintVolume,
+        bool[] memory claimed,
+        uint256[] memory rewardAllocation,
+        bool[] memory redeemed
+    ) {
+        uint256 len = _trancheNumbers.length;
+        for(uint256 i = 0; i < len; i++){
+            TrancheDates memory trancheDates = _getTrancheDates(_trancheNumbers[i]);
+            Reward memory reward = trancheData[_trancheNumbers[i]].rewardeeData[_rewardee];
+            mintWindowClosed[i] = now > trancheDates.endTime;
+            claimWindowClosed[i] = now > trancheDates.claimEndTime;
+            unlocked[i] = now > trancheDates.unlockTime;
+            mintVolume[i] = reward.mintVolume;
+            claimed[i] = reward.claimed;
+            rewardAllocation[i] = reward.rewardAllocation;
+            redeemed[i] = reward.redeemed;
+        }
+    }
+
+    /**
+     * @dev
+     * @param _trancheNumber
+     * @param _rewardees
+     * @return mintVolume
+     * @return claimed
+     * @return rewardAllocation
+     * @return redeemed
+     */
+    function getRewardeesData(uint256 _trancheNumber, address[] calldata _rewardees)
+    external
+    view
+    returns(
+        uint256[] memory mintVolume,
+        bool[] memory claimed,
+        uint256[] memory rewardAllocation,
+        bool[] memory redeemed
+    ) {
+        uint256 len = _rewardees.length;
+        for(uint256 i = 0; i < len; i++){
+            Reward memory reward = trancheData[_trancheNumber].rewardeeData[_rewardees[i]];
+            mintVolume[i] = reward.mintVolume;
+            claimed[i] = reward.claimed;
+            rewardAllocation[i] = reward.rewardAllocation;
+            redeemed[i] = reward.redeemed;
+        }
+    }
 }

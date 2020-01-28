@@ -276,6 +276,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         (, , , , , BassetStatus status) = _getBasset(i);
         require(status == BassetStatus.Liquidating, "Invalid Basset state");
         basket.bassets[i].maxWeight = 0;
+        basket.bassets[i].vaultBalance = 0;
 
         if(_unitsUnderCollateralised > 0){
             uint256 massetSupply = this.totalSupply();
