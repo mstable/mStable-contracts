@@ -11,8 +11,16 @@ import { ReentrancyGuard } from "../../shared/ReentrancyGuard.sol";
 
 
 /**
- * @title ForgeRewards
- * @dev Forge wrapper that rewards minters for their contribution to liquidity
+ * @title ForgeRewardsMUSD
+ * @dev Forge wrapper that rewards minters for their contribution to mUSD liquidity.
+ *      Flow is as follows:
+ *        - Tranche is funded in MTA by the 'Governor'
+ *        - Participants use the mint functions to mint mUSD
+ *        - Mint quantity is logged to the specified rewardee in the current tranche
+ *        - Tranche period ends, and participants have X weeks in which to claim their reward
+ *           - Reward allocation is calculated proportionately as f(mintVolume, totalMintVolume, trancheFunding)
+ *           - Unclaimed rewards can be retrieved by 'Governor' for future tranches
+ *        - Reward allocation is unlocked for redemption after Y weeks
  */
 contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
 
@@ -26,30 +34,41 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
     event UnclaimedRewardWithdrawn(uint256 indexed trancheNumber, uint256 amountWithdrawn);
 
     struct Reward {
-        uint256 mintVolume;       // Quantity of mUSD the rewardee has logged this tranche
-        bool claimed;             // Has the rewardee converted her mintVolume into a reward
-        uint256 rewardAllocation; // Quantity of reward the rewardee is allocated
-        bool redeemed;            // Has the rewardee redeemed her reward
+        /** @dev Quantity of mUSD the rewardee has logged this tranche */
+        uint256 mintVolume;
+        /** @dev Has the rewardee converted her mintVolume into a reward */
+        bool claimed;
+        /** @dev Quantity of reward the rewardee is allocated */
+        uint256 rewardAllocation;
+        /** @dev Has the rewardee redeemed her reward */
+        bool redeemed;
     }
 
     struct Tranche {
-        uint256 totalMintVolume;      // Total Massets minted in this tranche from all participants
+        /** @dev Total Massets minted in this tranche from all participants */
+        uint256 totalMintVolume;
 
-        uint256 totalRewardUnits;     // Total funding received from the rewards Governor
-        uint256 unclaimedRewardUnits; // Remaining reward units left unclaimed
+        /** @dev Total funding received from the rewards Governor */
+        uint256 totalRewardUnits;
+        /** @dev Remaining reward units left unclaimed */
+        uint256 unclaimedRewardUnits;
 
         mapping(address => Reward) rewardeeData;
         address[] rewardees;
     }
 
     struct TrancheDates {
-        uint256 startTime;      // Timestamp that minting opens for this tranche
-        uint256 endTime;        // Timestamp that minting ends for this tranche
-        uint256 claimEndTime;   // Timestamp that claims finish for the tranche
-        uint256 unlockTime;     // Timestamp that the rewarded tokens become unlocked
+        /** @dev Timestamp that minting opens for this tranche */
+        uint256 startTime;
+        /** @dev Timestamp that minting ends for this tranche */
+        uint256 endTime;
+        /** @dev Timestamp that claims finish for the tranche */
+        uint256 claimEndTime;
+        /** @dev Timestamp that the rewarded tokens become unlocked */
+        uint256 unlockTime;
     }
 
-    /** @dev All data for keeping track of rewards */
+    /** @dev All data for keeping track of rewards. Tranche ID starts at 0 (see _currentTrancheNumber) */
     mapping(uint256 => Tranche) trancheData;
 
     /** @dev Core connections */
@@ -73,6 +92,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         governor = _governor;
         rewardStartTime = now;
     }
+
 
     /***************************************
                   GOVERNANCE
@@ -98,11 +118,13 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
     ****************************************/
 
     /**
-     * @dev
-     * @param _bassetQuantities
-     * @param _massetRecipient
-     * @param _rewardRecipient
-     * @return massetMinted
+     * @dev Mint mUSD to a specified recipient and then log the minted quantity to rewardee.
+     *      bAssets used in the mint must be first transferred here from msg.sender, before
+     *      being approved for spending by the mUSD contract
+     * @param _bassetQuantities   bAsset quantities that will be used during the mint (ordered as per Basket composition)
+     * @param _massetRecipient    Address to which the newly minted mUSD will be sent
+     * @param _rewardRecipient    Address to which the rewards will be attributed
+     * @return massetMinted       Units of mUSD that were minted
      */
     function mintTo(
         uint256[] calldata _bassetQuantities,
@@ -134,12 +156,14 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
     }
 
     /**
-     * @dev
-     * @param _basset
-     * @param _bassetQuantity
-     * @param _massetRecipient
-     * @param _rewardRecipient
-     * @return massetMinted
+     * @dev Mint mUSD to a specified recipient and then log the minted quantity to rewardee.
+     *      bAsset used in the mint must be first transferred here from msg.sender, before
+     *      being approved for spending by the mUSD contract
+     * @param _basset             bAsset address that will be used as minting collateral
+     * @param _bassetQuantity     Quantity of the above basset
+     * @param _massetRecipient    Address to which the newly minted mUSD will be sent
+     * @param _rewardRecipient    Address to which the rewards will be attributed
+     * @return massetMinted       Units of mUSD that were minted
      */
     function mintSingleTo(
         address _basset,
@@ -166,9 +190,9 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
     }
 
     /**
-     * @dev
-     * @param _volume
-     * @param _rewardee
+     * @dev Internal function to log the minting contribution
+     * @param _volume       Units of mUSD that have been minted, where 1 == 1e18
+     * @param _rewardee     Address to which the volume should be attributed
      */
     function _logMintVolume(
         uint256 _volume,
@@ -202,9 +226,11 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
     ****************************************/
 
     /**
-     * @dev
-     * @param _trancheNumber
-     * @return claimed
+     * @dev Allows a rewardee to claim their reward allocation. Reward allocation is calculated
+     *      proportionately as f(mintVolume, totalMintVolume, trancheFunding). This must be
+     *      called after the tranche period has ended, and before the claim period has elapsed.
+     * @param _trancheNumber    Number of the tranche to attempt to claim
+     * @return claimed          Bool result of claim
      */
     function claimReward(uint256 _trancheNumber)
     external
@@ -213,10 +239,12 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
     }
 
     /**
-     * @dev
-     * @param _trancheNumber
-     * @param _rewardee
-     * @return claimed
+     * @dev Allows a rewardee to claim their reward allocation. Reward allocation is calculated
+     *      proportionately as f(mintVolume, totalMintVolume, trancheFunding). This must be
+     *      called after the tranche period has ended, and before the claim period has elapsed.
+     * @param _trancheNumber    Number of the tranche to attempt to claim
+     * @param _rewardee         Address for which the reward should be claimed
+     * @return claimed          Bool result of claim
      */
     function claimReward(uint256 _trancheNumber, address _rewardee)
     public
@@ -245,10 +273,15 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         return true;
     }
 
+    /***************************************
+                  REDEMPTION
+    ****************************************/
+
     /**
-     * @dev
-     * @param _trancheNumber
-     * @return redeemed
+     * @dev Redemption of the previously claimed reward. Must be called after the lockup
+     *      period has elapsed. Only withdraws if the rewardee has > 0 allocated.
+     * @param _trancheNumber    Number of the tranche to attempt to redeem
+     * @return redeemed         Bool to signal the successful redemption
      */
     function redeemReward(uint256 _trancheNumber)
     external
@@ -257,10 +290,11 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
     }
 
     /**
-     * @dev
-     * @param _trancheNumber
-     * @param _rewardee
-     * @return redeemed
+     * @dev Redemption of the previously claimed reward. Must be called after the lockup
+     *      period has elapsed. Only withdraws if the rewardee has > 0 allocated.
+     * @param _trancheNumber    Number of the tranche to attempt to redeem
+     * @param _rewardee         Rewardee for whom the redemption should be processed
+     * @return redeemed         Bool to signal the successfull redemption
      */
     function redeemReward(uint256 _trancheNumber, address _rewardee)
     public
@@ -287,9 +321,14 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
     ****************************************/
 
     /**
-     * @dev
-     * @param _trancheNumber
-     * @param _fundQuantity
+     * @dev Governor funds the tranche with MTA by sending it to the contract.
+     *      Funding times                 Behaviour
+     *      Before tranche 'endTime'      Able to add or top up rewards
+     *      Between 'endTime' and         Only able to add if current funding == 0
+     *              'claimEndTime'
+     *      After 'claimEndTime'          No funding allowed
+     * @param _trancheNumber    Tranche number to fund (starting at 0)
+     * @param _fundQuantity     Amount of MTA to allocate to the tranche
      */
     function fundTranche(uint256 _trancheNumber, uint256 _fundQuantity)
     external
@@ -313,8 +352,8 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
     }
 
     /**
-     * @dev
-     * @param _trancheNumber
+     * @dev Allows the governor to withdraw any MTA that has not been claimed
+     * @param _trancheNumber  ID of the tranche for which to claim back MTA
      */
     function withdrawUnclaimedRewards(uint256 _trancheNumber)
     external
@@ -349,9 +388,10 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
     }
 
     /**
-     * @dev
-     * @param _trancheNumber
-     * @return trancheDates
+     * @dev Gets the relevant start, end, claimEnd and unlock times for a particular tranche.
+     *      Tranche number 0 begins at contract start time.
+     * @param _trancheNumber    ID of the tranche for which to retrieve dates
+     * @return trancheDates     Struct containing accessors for every date
      */
     function _getTrancheDates(uint256 _trancheNumber)
     internal
@@ -381,16 +421,16 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
     ****************************************/
 
     /**
-     * @dev
-     * @param _trancheNumber
-     * @return startTime
-     * @return endTime
-     * @return claimEndTime
-     * @return unlockTime
-     * @return totalMintVolume
-     * @return totalRewardUnits
-     * @return unclaimedRewardUnits
-     * @return rewardees
+     * @dev Basic getter to retrieve all relevant data from the tranche struct and dates
+     * @param _trancheNumber          Tranche ID for which to retrieve data
+     * @return startTime              Time the Tranche opened for Minting
+     * @return endTime                Time the Tranche minting window closed
+     * @return claimEndTime           Time the Tranche claim window closed
+     * @return unlockTime             Time the rewards for this Tranche unlocked
+     * @return totalMintVolume        Total minting volume occurred during Tranche
+     * @return totalRewardUnits       Total units of funding provided by governance
+     * @return unclaimedRewardUnits   Total units of funding remaining unclaimed
+     * @return rewardees              Array of reward participants
      */
     function getTrancheData(uint256 _trancheNumber)
     external
@@ -420,16 +460,16 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
     }
 
     /**
-     * @dev
-     * @param _trancheNumber
-     * @param _rewardee
-     * @return mintWindowClosed
-     * @return claimWindowClosed
-     * @return unlocked
-     * @return mintVolume
-     * @return claimed
-     * @return rewardAllocation
-     * @return redeemed
+     * @dev Get data for a particular rewardee at a particular tranche
+     * @param _trancheNumber        ID of the tranche
+     * @param _rewardee             Address of the rewardee
+     * @return mintWindowClosed     Time at which window closed
+     * @return claimWindowClosed    Time at which claim window closed
+     * @return unlocked             Time the rewards unlocked
+     * @return mintVolume           Rewardee mint volume in tranche
+     * @return claimed              Bool to signify that the rewardee has claimed
+     * @return rewardAllocation     Units of MTA claimed by the rewardee
+     * @return redeemed             Bool - has the rewardee withdrawn their reward
      */
     function getRewardeeData(uint256 _trancheNumber, address _rewardee)
     external
@@ -457,16 +497,16 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
     }
 
     /**
-     * @dev
-     * @param _trancheNumbers
-     * @param _rewardee
-     * @return mintWindowClosed
-     * @return claimWindowClosed
-     * @return unlocked
-     * @return mintVolume
-     * @return claimed
-     * @return rewardAllocation
-     * @return redeemed
+     * @dev Get rewardee data over an array of tranches
+     * @param _trancheNumbers       ID's for all tranches to retrieve
+     * @param _rewardee             Rewardee address
+     * @return mintWindowClosed     Arr Tranche minting window closed
+     * @return claimWindowClosed    Arr Time the claim window closed
+     * @return unlocked             Arr Unlock time for tranche
+     * @return mintVolume           Arr Rewardees mint volume
+     * @return claimed              Arr Rewardee claim bool
+     * @return rewardAllocation     Arr Rewardee allocated units of MTA
+     * @return redeemed             Arr Redeemed
      */
     function getRewardeeData(uint256[] calldata _trancheNumbers, address _rewardee)
     external
@@ -495,13 +535,13 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
     }
 
     /**
-     * @dev
-     * @param _trancheNumber
-     * @param _rewardees
-     * @return mintVolume
-     * @return claimed
-     * @return rewardAllocation
-     * @return redeemed
+     * @dev Get array of rewardees data in a particular tranche
+     * @param _trancheNumber        ID of the tranche
+     * @param _rewardees            Array of rewardee addresses
+     * @return mintVolume           Arr Rewardee mint volume
+     * @return claimed              Arr Rewardee claimed
+     * @return rewardAllocation     Arr Rewardee allocation
+     * @return redeemed             Arr Rewardee redeemed
      */
     function getRewardeesData(uint256 _trancheNumber, address[] calldata _rewardees)
     external

@@ -117,9 +117,9 @@ contract SimpleOracleHub is IOracleHub, OracleHubModule {
      */
     function put(bytes memory message, bytes memory signature) internal returns (bytes32) {
         // Recover the source address
-        address source = source(message, signature);
+        address _source = source(message, signature);
 
-        require(source == validatedSource, "Only prices signed by the validated source are allowed");
+        require(_source == validatedSource, "Only prices signed by the validated source are allowed");
 
         // Decode the message and check the kind
         (string memory kind, uint64 timestamp, bytes32 key, uint64 value) = abi.decode(message, (string, uint64, bytes32, uint64));
