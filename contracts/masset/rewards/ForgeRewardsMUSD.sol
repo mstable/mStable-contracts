@@ -206,8 +206,9 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         Tranche storage tranche = trancheData[trancheNumber];
 
         // Add to total minting
-        tranche.totalMintVolume = tranche.totalMintVolume.add(_volume);
-        emit MintVolumeIncreased(trancheNumber, tranche.totalMintVolume);
+        uint256 newTotalMintVolume = tranche.totalMintVolume.add(_volume);
+        tranche.totalMintVolume = newTotalMintVolume;
+        emit MintVolumeIncreased(trancheNumber, newTotalMintVolume);
 
         // Set individual user rewards
         Reward storage reward = tranche.rewardeeData[_rewardee];
@@ -217,8 +218,10 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         if(currentMintVolume == 0){
             tranche.rewardees.push(_rewardee);
         }
-        reward.mintVolume = currentMintVolume.add(_volume);
-        emit RewardeeMintVolumeIncreased(trancheNumber, _rewardee, reward.mintVolume);
+
+        uint256 newMintVolume = currentMintVolume.add(_volume);
+        reward.mintVolume = newMintVolume;
+        emit RewardeeMintVolumeIncreased(trancheNumber, _rewardee, newMintVolume);
     }
 
     /***************************************

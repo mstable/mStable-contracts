@@ -2,6 +2,12 @@
 
 This repo contains all contracts and tests relevant to the core mStable protocol.
 
+## Who
+
+ - Code by @alsco77
+ - Architecture guidance and governance preparation by @facuspagnuolo
+ - Testing and auditing by @jitendra
+
 
 ## Dev notes
 
