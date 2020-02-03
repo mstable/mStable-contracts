@@ -11,6 +11,11 @@ This repo contains all contracts and tests relevant to the core mStable protocol
 
 ## Dev notes
 
+### Typechain flow
+
+`Name`Contract > .new() > `Name`Instance
+
+
 ### Setup
 
 ```

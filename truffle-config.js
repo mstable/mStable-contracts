@@ -10,7 +10,7 @@ module.exports = {
   // for more about customizing your Truffle configuration!
   migrations_directory: './migrations',
   contracts_build_directory: './build',
-  test_directory: "transpiled/test",
+  // test_directory: "transpiled/test",
   plugins: ["solidity-coverage"],
   networks: {
     development: {

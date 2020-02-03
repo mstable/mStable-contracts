@@ -10,7 +10,7 @@
     "paths": {
       "@utils/*": ["test-utils/*"],
     },
-    "allowJs": false,
+    "allowJs": true,
     "target": "ES5",
     "skipLibCheck": true,
     "typeRoots": [

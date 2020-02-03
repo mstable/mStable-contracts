@@ -1,3 +1,4 @@
+import { SystokMockInstance } from "./../../types/generated-typechain/index.d";
 import { MASSET_FACTORY_BYTES } from "@utils/constants";
 import {
     ERC20MockContract,
@@ -50,7 +51,7 @@ export class SystemMachine {
     public nexus: NexusMockContract;
     public oracleHub: SimpleOracleHubMockContract;
     public recollateraliser: RecollateraliserContract;
-    public systok: SystokMockContract;
+    public systok: SystokMockInstance;
 
     private TX_DEFAULTS: any;
 
@@ -92,9 +93,9 @@ export class SystemMachine {
             );
 
             /** SystokMock */
-            const systok = await this.deploySystok();
+            this.systok = await this.deploySystok();
             // add module
-            await this.addModuleToNexus(await systok.Key_Systok.callAsync(), systok.address);
+            await this.addModuleToNexus(await this.systok.Key_Systok(), this.systok.address);
 
             /** OracleHubMock */
             const oracleHub = await this.deployOracleHub();
@@ -172,19 +173,19 @@ export class SystemMachine {
     /**
      * @dev Deploy the SystokMock token
      */
-    public async deploySystok(): Promise<SystokMockContract> {
+    public async deploySystok(): Promise<SystokMockInstance> {
         try {
             const mockInstance = await SystokArtifact.new(this.nexus.address, this.sa.fundManager, {
                 from: this.sa.default,
             });
 
-            this.systok = new SystokMockContract(
-                mockInstance.address,
-                web3.currentProvider,
-                this.TX_DEFAULTS,
-            );
+            // this.systok = new SystokMockContract(
+            //     mockInstance.address,
+            //     web3.currentProvider,
+            //     this.TX_DEFAULTS,
+            // );
 
-            return this.systok;
+            return mockInstance;
         } catch (e) {
             throw e;
         }

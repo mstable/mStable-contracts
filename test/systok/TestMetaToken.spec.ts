@@ -34,7 +34,10 @@ contract("MetaToken", async (accounts) => {
     });
 
     describe("Burning", () => {
-        it("Should only allow self & Recollateraliser to mint");
+        it("Should only allow self & Recollateraliser to mint", async () => {
+            const systok = systemMachine.systok;
+            assert((await systok.decimals()) === new BigNumber(18));
+        });
         it("Should allow anyone to burn, with allowance");
     });
 });
