@@ -35,32 +35,4 @@ export class BassetMachine {
 
         return mockInstance;
     }
-
-    // public async deployTokensAsync(
-    //   tokenCount: number,
-    //   initialAccount: Address,
-    // ): Promise<StandardTokenMockContract[]> {
-    //   const mockTokens: StandardTokenMockContract[] = [];
-    //   const mockTokenPromises = _.times(tokenCount, async index => {
-    //     return await StandardTokenMock.new(
-    //       initialAccount,
-    //       DEPLOYED_TOKEN_QUANTITY,
-    //       `Component ${index}`,
-    //       index.toString(),
-    //       _.random(4, 18),
-    //       { from: this._senderAccountAddress, gas: DEFAULT_GAS },
-    //     );
-    //   });
-
-    //   await Promise.all(mockTokenPromises).then(tokenMocks => {
-    //     _.each(tokenMocks, standardToken => {
-    //       mockTokens.push(new StandardTokenMockContract(
-    //         new web3.eth.Contract(standardToken.abi, standardToken.address),
-    //         { from: this._senderAccountAddress }
-    //       ));
-    //     });
-    //   });
-
-    //   return mockTokens;
-    // }
 }

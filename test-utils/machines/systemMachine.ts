@@ -30,8 +30,6 @@ const NexusArtifact = artifacts.require("NexusMock");
 
 const OracleHubArtifact = artifacts.require("SimpleOracleHubMock");
 
-// const RecollateraliserArtifact = artifacts.require("Recollateraliser");
-
 const SystokArtifact = artifacts.require("SystokMock");
 
 /**
@@ -106,14 +104,6 @@ export class SystemMachine {
             // add module
             await this.addModuleToNexus(await this.manager.Key_Manager(), this.manager.address);
 
-            /** Recollateraliser */
-            // this.recollateraliser = await this.deployRecollateraliser();
-            // // add module
-            // await this.addModuleToNexus(
-            //     await this.recollateraliser.Key_Recollateraliser(),
-            //     this.recollateraliser.address,
-            // );
-
             return Promise.resolve(true);
         } catch (e) {
             console.log(e);
@@ -127,12 +117,6 @@ export class SystemMachine {
     public async deployNexus(deployer: Address = this.sa.default): Promise<NexusMockInstance> {
         try {
             const nexus = await NexusArtifact.new(this.sa.governor, { from: deployer });
-
-            // this.nexus = new NexusMockContract(
-            //     mockInstance.address,
-            //     web3.currentProvider,
-            //     this.TX_DEFAULTS,
-            // );
 
             return nexus;
         } catch (e) {
@@ -154,12 +138,6 @@ export class SystemMachine {
                 { from: deployer },
             );
 
-            // this.oracleHub = new SimpleOracleHubMockContract(
-            //     oracleHubInstance.address,
-            //     web3.currentProvider,
-            //     this.TX_DEFAULTS,
-            // );
-
             return oracleHubInstance;
         } catch (e) {
             throw e;
@@ -178,12 +156,6 @@ export class SystemMachine {
                     from: this.sa.default,
                 },
             );
-
-            // this.systok = new SystokMockContract(
-            //     mockInstance.address,
-            //     web3.currentProvider,
-            //     this.TX_DEFAULTS,
-            // );
 
             return systokInstance;
         } catch (e) {
@@ -206,12 +178,6 @@ export class SystemMachine {
                 { from: this.sa.default },
             );
 
-            // this.governancePortal = new GovernancePortalMockContract(
-            //     mockInstance.address,
-            //     web3.currentProvider,
-            //     this.TX_DEFAULTS,
-            // );
-
             return mockInstance;
         } catch (e) {
             throw e;
@@ -223,11 +189,7 @@ export class SystemMachine {
      */
     public async deployManager(): Promise<ManagerMockInstance> {
         try {
-            // const stableMathInstance = await StableMathArtifact.deployed();
-            // await ForgeLibArtifact.link(StableMathArtifact, stableMathInstance.address);
             const forgeLibInstance = await ForgeLibArtifact.new();
-
-            // await ManagerArtifact.link(StableMathArtifact, stableMathInstance.address);
 
             const mockInstance = await ManagerArtifact.new(
                 this.governancePortal.address,
@@ -236,11 +198,6 @@ export class SystemMachine {
                 this.oracleHub.address,
                 forgeLibInstance.address,
             );
-            // this.manager = new ManagerMockContract(
-            //     mockInstance.address,
-            //     web3.currentProvider,
-            //     this.TX_DEFAULTS,
-            // );
 
             return mockInstance;
         } catch (e) {

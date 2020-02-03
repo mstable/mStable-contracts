@@ -4,10 +4,6 @@ import { BigNumber } from "@utils/tools";
 import { DEFAULT_DECIMALS, DEFAULT_SUPPLY } from "@utils/constants";
 import { Basset, BassetStatus } from "@utils/mstable-objects";
 
-// import {
-//   MassetContract,
-// } from "../contracts";
-
 const MassetArtifact = artifacts.require("Masset");
 
 export class MassetMachine {
@@ -46,5 +42,5 @@ export class MassetMachine {
                 status: bArrays[5][i],
             };
         });
-    }
+    };
 }

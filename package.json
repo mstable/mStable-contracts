@@ -43,7 +43,6 @@
     "tslint": "^5.20.0",
     "tslint-no-unused-expression-chai": "0.0.3",
     "typechain": "^1.0.4",
-    "typechain-target-ethers": "^1.0.3",
     "typechain-target-truffle": "^1.0.2",
     "types-ethereumjs-util": "^0.0.8",
     "typescript": "^3.6.3",
