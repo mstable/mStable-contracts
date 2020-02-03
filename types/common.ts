@@ -1,4 +1,4 @@
-import { BigNumber } from "@0x/utils";
+import { BigNumber } from "bignumber.js";
 
 export type Address = string;
 export type UInt = number | BigNumber;

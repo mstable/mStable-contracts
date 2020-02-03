@@ -1,18 +1,17 @@
-import { SystokMockInstance } from "./../../types/generated-typechain/index.d";
-import { MASSET_FACTORY_BYTES } from "@utils/constants";
 import {
-    ERC20MockContract,
-    GovernancePortalMockContract,
-    ManagerMockContract,
-    NexusMockContract,
-    SimpleOracleHubMockContract,
-    SystokMockContract,
-} from "@utils/contracts";
+    ERC20MockInstance,
+    GovernancePortalMockInstance,
+    ManagerMockInstance,
+    NexusMockInstance,
+    RecollateraliserInstance,
+    SimpleOracleHubMockInstance,
+    SystokMockInstance,
+} from "./../../types/generated/index.d";
+import { MASSET_FACTORY_BYTES } from "@utils/constants";
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
 import { aToH, BigNumber } from "@utils/tools";
 
 import { Address } from "../../types/common";
-import { RecollateraliserContract } from "../../types/generated/recollateraliser";
 import { BassetMachine } from "./bassetMachine";
 import { StandardAccounts } from "./standardAccounts";
 
@@ -31,7 +30,7 @@ const NexusArtifact = artifacts.require("NexusMock");
 
 const OracleHubArtifact = artifacts.require("SimpleOracleHubMock");
 
-const RecollateraliserArtifact = artifacts.require("Recollateraliser");
+// const RecollateraliserArtifact = artifacts.require("Recollateraliser");
 
 const SystokArtifact = artifacts.require("SystokMock");
 
@@ -46,11 +45,11 @@ export class SystemMachine {
      */
     public sa: StandardAccounts;
 
-    public governancePortal: GovernancePortalMockContract;
-    public manager: ManagerMockContract;
-    public nexus: NexusMockContract;
-    public oracleHub: SimpleOracleHubMockContract;
-    public recollateraliser: RecollateraliserContract;
+    public governancePortal: GovernancePortalMockInstance;
+    public manager: ManagerMockInstance;
+    public nexus: NexusMockInstance;
+    public oracleHub: SimpleOracleHubMockInstance;
+    public recollateraliser: RecollateraliserInstance;
     public systok: SystokMockInstance;
 
     private TX_DEFAULTS: any;
@@ -71,22 +70,19 @@ export class SystemMachine {
      */
     public async initialiseMocks() {
         try {
-            // TODO: figure out why this isn't propagating from env_setup
-            web3.currentProvider["sendAsync"] = web3.currentProvider["send"];
-
             /** Shared */
             await CommonHelpersArtifact.new();
             await StableMathArtifact.new();
 
             /** NexusMock */
-            await this.deployNexus();
+            this.nexus = await this.deployNexus();
 
             /** Governance */
-            const governancePortal = await this.deployGovernancePortal();
+            this.governancePortal = await this.deployGovernancePortal();
             // add module
-            await this.nexus.addModule.sendTransactionAsync(
-                await governancePortal.Key_Governance.callAsync(),
-                governancePortal.address,
+            await this.nexus.addModule(
+                await this.governancePortal.Key_Governance(),
+                this.governancePortal.address,
                 {
                     from: this.sa.governor,
                 },
@@ -98,25 +94,25 @@ export class SystemMachine {
             await this.addModuleToNexus(await this.systok.Key_Systok(), this.systok.address);
 
             /** OracleHubMock */
-            const oracleHub = await this.deployOracleHub();
+            this.oracleHub = await this.deployOracleHub();
             // add module
             await this.addModuleToNexus(
-                await oracleHub.Key_OracleHub.callAsync(),
-                oracleHub.address,
+                await this.oracleHub.Key_OracleHub(),
+                this.oracleHub.address,
             );
 
             /** ManagerMock */
-            const manager = await this.deployManager();
+            this.manager = await this.deployManager();
             // add module
-            await this.addModuleToNexus(await manager.Key_Manager.callAsync(), manager.address);
+            await this.addModuleToNexus(await this.manager.Key_Manager(), this.manager.address);
 
             /** Recollateraliser */
-            const recollateraliser = await this.deployRecollateraliser();
-            // add module
-            await this.addModuleToNexus(
-                await recollateraliser.Key_Recollateraliser.callAsync(),
-                recollateraliser.address,
-            );
+            // this.recollateraliser = await this.deployRecollateraliser();
+            // // add module
+            // await this.addModuleToNexus(
+            //     await this.recollateraliser.Key_Recollateraliser(),
+            //     this.recollateraliser.address,
+            // );
 
             return Promise.resolve(true);
         } catch (e) {
@@ -128,17 +124,17 @@ export class SystemMachine {
     /**
      * @dev Deploy the NexusMock
      */
-    public async deployNexus(deployer: Address = this.sa.default): Promise<NexusMockContract> {
+    public async deployNexus(deployer: Address = this.sa.default): Promise<NexusMockInstance> {
         try {
-            const mockInstance = await NexusArtifact.new(this.sa.governor, { from: deployer });
+            const nexus = await NexusArtifact.new(this.sa.governor, { from: deployer });
 
-            this.nexus = new NexusMockContract(
-                mockInstance.address,
-                web3.currentProvider,
-                this.TX_DEFAULTS,
-            );
+            // this.nexus = new NexusMockContract(
+            //     mockInstance.address,
+            //     web3.currentProvider,
+            //     this.TX_DEFAULTS,
+            // );
 
-            return this.nexus;
+            return nexus;
         } catch (e) {
             throw e;
         }
@@ -149,7 +145,7 @@ export class SystemMachine {
      */
     public async deployOracleHub(
         deployer: Address = this.sa.default,
-    ): Promise<SimpleOracleHubMockContract> {
+    ): Promise<SimpleOracleHubMockInstance> {
         try {
             const oracleHubInstance = await OracleHubArtifact.new(
                 this.sa.governor,
@@ -158,13 +154,13 @@ export class SystemMachine {
                 { from: deployer },
             );
 
-            this.oracleHub = new SimpleOracleHubMockContract(
-                oracleHubInstance.address,
-                web3.currentProvider,
-                this.TX_DEFAULTS,
-            );
+            // this.oracleHub = new SimpleOracleHubMockContract(
+            //     oracleHubInstance.address,
+            //     web3.currentProvider,
+            //     this.TX_DEFAULTS,
+            // );
 
-            return this.oracleHub;
+            return oracleHubInstance;
         } catch (e) {
             throw e;
         }
@@ -175,11 +171,42 @@ export class SystemMachine {
      */
     public async deploySystok(): Promise<SystokMockInstance> {
         try {
-            const mockInstance = await SystokArtifact.new(this.nexus.address, this.sa.fundManager, {
-                from: this.sa.default,
-            });
+            const systokInstance = await SystokArtifact.new(
+                this.nexus.address,
+                this.sa.fundManager,
+                {
+                    from: this.sa.default,
+                },
+            );
 
             // this.systok = new SystokMockContract(
+            //     mockInstance.address,
+            //     web3.currentProvider,
+            //     this.TX_DEFAULTS,
+            // );
+
+            return systokInstance;
+        } catch (e) {
+            throw e;
+        }
+    }
+
+    /**
+     * @dev Deploy the Governance Portal
+     */
+    public async deployGovernancePortal(
+        govOwners: Address[] = this.sa.all.slice(0, 5),
+        minQuorum: number = 1,
+    ): Promise<GovernancePortalMockInstance> {
+        try {
+            const mockInstance = await GovernancePortalArtifact.new(
+                this.nexus.address,
+                govOwners,
+                minQuorum,
+                { from: this.sa.default },
+            );
+
+            // this.governancePortal = new GovernancePortalMockContract(
             //     mockInstance.address,
             //     web3.currentProvider,
             //     this.TX_DEFAULTS,
@@ -192,42 +219,15 @@ export class SystemMachine {
     }
 
     /**
-     * @dev Deploy the Governance Portal
-     */
-    public async deployGovernancePortal(
-        govOwners: Address[] = this.sa.all.slice(0, 5),
-        minQuorum: number = 1,
-    ): Promise<GovernancePortalMockContract> {
-        try {
-            const mockInstance = await GovernancePortalArtifact.new(
-                this.nexus.address,
-                govOwners,
-                minQuorum,
-                { from: this.sa.default },
-            );
-
-            this.governancePortal = new GovernancePortalMockContract(
-                mockInstance.address,
-                web3.currentProvider,
-                this.TX_DEFAULTS,
-            );
-
-            return this.governancePortal;
-        } catch (e) {
-            throw e;
-        }
-    }
-
-    /**
      * @dev Deploy ManagerMock and relevant init
      */
-    public async deployManager(): Promise<ManagerMockContract> {
+    public async deployManager(): Promise<ManagerMockInstance> {
         try {
-            const stableMathInstance = await StableMathArtifact.deployed();
-            await ForgeLibArtifact.link(StableMathArtifact, stableMathInstance.address);
+            // const stableMathInstance = await StableMathArtifact.deployed();
+            // await ForgeLibArtifact.link(StableMathArtifact, stableMathInstance.address);
             const forgeLibInstance = await ForgeLibArtifact.new();
 
-            await ManagerArtifact.link(StableMathArtifact, stableMathInstance.address);
+            // await ManagerArtifact.link(StableMathArtifact, stableMathInstance.address);
 
             const mockInstance = await ManagerArtifact.new(
                 this.governancePortal.address,
@@ -236,13 +236,13 @@ export class SystemMachine {
                 this.oracleHub.address,
                 forgeLibInstance.address,
             );
-            this.manager = new ManagerMockContract(
-                mockInstance.address,
-                web3.currentProvider,
-                this.TX_DEFAULTS,
-            );
+            // this.manager = new ManagerMockContract(
+            //     mockInstance.address,
+            //     web3.currentProvider,
+            //     this.TX_DEFAULTS,
+            // );
 
-            return this.manager;
+            return mockInstance;
         } catch (e) {
             throw e;
         }
@@ -251,11 +251,13 @@ export class SystemMachine {
     /**
      * @dev Deploy a Masset via the Manager
      */
-    public async createMassetViaManager(sender: Address = this.sa.governor): Promise<Address> {
+    public async createMassetViaManager(
+        sender: Address = this.sa.governor,
+    ): Promise<Truffle.TransactionResponse> {
         const bassetMachine = new BassetMachine(this.sa.default, this.sa.other, 500000);
 
-        const b1: ERC20MockContract = await bassetMachine.deployERC20Async();
-        const b2: ERC20MockContract = await bassetMachine.deployERC20Async();
+        const b1: ERC20MockInstance = await bassetMachine.deployERC20Async();
+        const b2: ERC20MockInstance = await bassetMachine.deployERC20Async();
 
         const masset = await MassetArtifact.new(
             "TestMasset",
@@ -269,7 +271,7 @@ export class SystemMachine {
         );
 
         // LOG FACTORY NAMES // BYTES AS CONSTANTS
-        return this.manager.addMasset.sendTransactionAsync(aToH("TMT"), masset.address, {
+        return this.manager.addMasset(aToH("TMT"), masset.address, {
             from: sender,
         });
     }
@@ -277,33 +279,33 @@ export class SystemMachine {
     /**
      * @dev Deploy Recollateraliser and add it to Manager
      */
-    public async deployRecollateraliser(): Promise<RecollateraliserContract> {
-        try {
-            const stableMathInstance = await StableMathArtifact.deployed();
-            await RecollateraliserArtifact.link(StableMathArtifact, stableMathInstance.address);
+    // public async deployRecollateraliser(): Promise<RecollateraliserContract> {
+    //     try {
+    //         const stableMathInstance = await StableMathArtifact.deployed();
+    //         await RecollateraliserArtifact.link(StableMathArtifact, stableMathInstance.address);
 
-            const recollateraliserInstance = await RecollateraliserArtifact.new(
-                this.nexus.address,
-                this.manager.address,
-                this.systok.address,
-            );
-            this.recollateraliser = new RecollateraliserContract(
-                recollateraliserInstance.address,
-                web3.currentProvider,
-                this.TX_DEFAULTS,
-            );
-            return this.recollateraliser;
-        } catch (e) {
-            throw e;
-        }
-    }
+    //         const recollateraliserInstance = await RecollateraliserArtifact.new(
+    //             this.nexus.address,
+    //             this.manager.address,
+    //             this.systok.address,
+    //         );
+    //         this.recollateraliser = new RecollateraliserContract(
+    //             recollateraliserInstance.address,
+    //             web3.currentProvider,
+    //             this.TX_DEFAULTS,
+    //         );
+    //         return this.recollateraliser;
+    //     } catch (e) {
+    //         throw e;
+    //     }
+    // }
 
     // TODO - allow deaf module updating
     public async addModuleToNexus(
         moduleKey: string,
         moduleAddress: Address,
         sender: Address = this.sa.governor,
-    ): Promise<string> {
+    ): Promise<Truffle.TransactionResponse> {
         return this.publishModuleThroughMultisig(moduleKey, moduleAddress, sender);
     }
 
@@ -314,12 +316,15 @@ export class SystemMachine {
      * @param sender
      */
     private async publishModuleThroughMultisig(key, address, sender) {
-        const txData = this.nexus.addModule.getABIEncodedTransactionData(key, address);
-        return this.governancePortal.submitTransaction.sendTransactionAsync(
+        const txData = this.nexus.contract.methods.addModule(key, address).encodeABI();
+
+        return this.governancePortal.submitTransaction(
             this.nexus.address,
             new BigNumber(0),
             txData,
-            { from: sender },
+            {
+                from: sender,
+            },
         );
     }
 }

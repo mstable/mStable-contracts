@@ -8,25 +8,20 @@ import { percentScale, ratioScale } from "./constants";
  */
 
 const percentToWeight = (percent: number): BigNumber => {
-  return new BigNumber(percent).times(percentScale);
+    return new BigNumber(percent).times(percentScale);
 };
 
 const createMultiple = (ratio: number): BigNumber => {
-  return new BigNumber(ratio).times(ratioScale);
+    return new BigNumber(ratio).times(ratioScale);
 };
 
 const simpleToExactAmount = (amount: number, decimals: number): BigNumber => {
-  return new BigNumber(amount).times(new BigNumber(10).pow(decimals));
+    return new BigNumber(amount).times(new BigNumber(10).pow(new BigNumber(decimals.toString())));
 };
 
 /** @dev Converts a simple ratio (e.g. x1.1) to 1e6 format for OracleData */
 const simpleToExactRelativePrice = (relativePrice: number): BigNumber => {
-  return new BigNumber(relativePrice).times(new BigNumber(10).pow(6));
+    return new BigNumber(relativePrice).times(new BigNumber(10).pow(6));
 };
 
-export {
-  percentToWeight,
-  createMultiple,
-  simpleToExactAmount,
-  simpleToExactRelativePrice,
-};
+export { percentToWeight, createMultiple, simpleToExactAmount, simpleToExactRelativePrice };

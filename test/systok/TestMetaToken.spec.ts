@@ -1,12 +1,5 @@
 import { shouldFail } from "openzeppelin-test-helpers";
 import { ADDRESS_1, MASSET_FACTORY_BYTES } from "@utils/constants";
-import {
-    ERC20MockContract,
-    GovernancePortalMockContract,
-    ManagerMockContract,
-    MassetContract,
-    SimpleOracleHubMockContract,
-} from "@utils/contracts";
 import envSetup from "@utils/env_setup";
 import { BassetMachine, MassetMachine, SystemMachine } from "@utils/machines";
 import { percentToWeight, simpleToExactRelativePrice } from "@utils/math";
