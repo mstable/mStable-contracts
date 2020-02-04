@@ -141,7 +141,6 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         address _recipient
     )
         external
-        basketIsHealthy
         returns (uint256 massetMinted)
     {
         return redeemTo(getSingleForgeParams(_basset, _bassetQuantity), _recipient);
