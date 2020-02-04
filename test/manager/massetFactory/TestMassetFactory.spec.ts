@@ -1,11 +1,6 @@
+import { ERC20MockInstance, ManagerMockInstance } from "./../../../types/generated/index.d";
 import { shouldFail } from "openzeppelin-test-helpers";
 import { MASSET_FACTORY_BYTES } from "@utils/constants";
-import {
-    ERC20MockContract,
-    GovernancePortalMockContract,
-    ManagerMockContract,
-    SimpleOracleHubMockContract,
-} from "@utils/contracts";
 import envSetup from "@utils/env_setup";
 import { BassetMachine, SystemMachine } from "@utils/machines";
 import { percentToWeight } from "@utils/math";
@@ -21,7 +16,7 @@ contract("MassetFactoryManager", async (accounts) => {
     let systemMachine: SystemMachine;
     const bassetMachine = new BassetMachine(sa._, sa.other, 500000);
 
-    let manager: ManagerMockContract;
+    let manager: ManagerMockInstance;
 
     before("Init contract and create Masset", async () => {
         /** Get fresh SystemMachine */
@@ -51,8 +46,8 @@ contract("MassetFactoryManager", async (accounts) => {
 
     describe("Test basic creation of a Masset", () => {
         it("should allow the governor create a basic Masset", async () => {
-            const b1: ERC20MockContract = await bassetMachine.deployERC20Async();
-            const b2: ERC20MockContract = await bassetMachine.deployERC20Async();
+            const b1: ERC20MockInstance = await bassetMachine.deployERC20Async();
+            const b2: ERC20MockInstance = await bassetMachine.deployERC20Async();
 
             // LOG FACTORY NAMES // BYTES AS CONSTANTS
             const ma = await systemMachine.createMassetViaManager(sa.governor);
@@ -62,8 +57,8 @@ contract("MassetFactoryManager", async (accounts) => {
         });
 
         it("should not allow a random address to create Masset", async () => {
-            const b1: ERC20MockContract = await bassetMachine.deployERC20Async();
-            const b2: ERC20MockContract = await bassetMachine.deployERC20Async();
+            const b1: ERC20MockInstance = await bassetMachine.deployERC20Async();
+            const b2: ERC20MockInstance = await bassetMachine.deployERC20Async();
 
             // LOG FACTORY NAMES // BYTES AS CONSTANTS
             await shouldFail.reverting.withMessage(

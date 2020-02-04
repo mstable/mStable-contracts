@@ -49,7 +49,7 @@ contract("Manager", async (accounts) => {
   describe("Detect peg loss for Bassets on a Masset", () => {
     it("should revert if the Masset doesn't exist", async () => {
       await shouldFail.reverting.withMessage(
-        manager.detectPegDeviation.sendTransactionAsync(
+        manager.detectPegDeviation(
           ADDRESS_1,
         ), "Masset must exist",
       );
@@ -84,7 +84,7 @@ contract("Manager", async (accounts) => {
       expect(bassets[0].status).to.equal(BassetStatus.Normal);
 
       // Inject arbitrary prices into mock oracle data
-      await oracleHub.addMockPrices.sendTransactionAsync(
+      await oracleHub.addMockPrices(
         [simpleToExactRelativePrice(1.2), simpleToExactRelativePrice(0.99827)],
         [bassets[0].key, bassets[1].key],
       );

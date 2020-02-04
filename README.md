@@ -23,7 +23,6 @@ Required extensions:
 - `Solidity`
 - `TSLint`
 - `ESLint`
-- `Handlebars`
 
 Suggested extensions:
 - `Auto Import`
@@ -64,21 +63,14 @@ Nexus is the hub of the system and thus should be deployed first. Each subsequen
 
 Tests are written in Typescript. This means we need to generate types for each of the contracts, then deploy a test version of the contract and then wrap it in this type. It is a reasonably sophisticated process but ensures that we remain type safe whilst undergoing tests.
 
-As we use `@0x/abi-gen` to generate the typings for our contracts, we are locked into some dependencies as this is what is used in their `Base-contract` (which is essentially the backbone for all the test contracts).
-
 NB: You should locally use the latest version of ganache-cli, as the test rely on recent opcodes
-
-NB: The generated contracts consume magnitudes more gas due to some of the helper functions injected. Therefore we need to use a specific ganache environment
-
 
 `ganache-cli -p 7545 -l 50000000 --allowUnlimitedContractSize`
 
 ### In-test terminology
 
-`xxxArtifact` = The artifact created/retrieved through a truffle migration. This contains address of deployed contract through migrations.  
+`xxxContract` = The .TS contract type as imported from the `types/generated/xxx` as output by Typechain. Retrieved through require
 `xxxInstance` = Deployed instance of the conrtact that will be used in the specific test file.  
-`xxxContract` = The .TS contract type as imported from the `types/generated/xxx`.  
-`<contract>` = The object we will use to do testing, this is the `INSTANCE` wrapped by the `CONTRACT`
 
 ### Rules
 
@@ -96,13 +88,8 @@ c = committed
 
 Key folders:  
 
-- `/artifacts`            [Stores the most recently, locally deployed versions of the contracts including their deployed address]
-  - `/index.ts`           [(c)]
-  - `/build`                [Contract build output
-- `/scripts`              [(c) Contains build and deploy bash scripts]
 - `/test-utils`           [(c) Core util files used throughout the test framework]
   - `/machines`           [(c) Mock contract machines for creating configurable instances of our contracts to support the simulation of test scenarios]
-- `/transpiled`           [Transpiled (JS) versions of the our TS files and generated types]
 - `/types`                [TS Types we use throughout the]
   - `/contract_templates` [(c) Provided by `@0x/abi-gen` as part of the type generation (These are templates to use for converting ABI into Typescript and injecting functionality)]
   - `/generated`          [Output from abi-gen, used for transpiling build output into executable JS]

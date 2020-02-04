@@ -1,8 +1,7 @@
+import { BigNumber } from "./tools";
 
-import { BigNumber } from '@0x/utils';
-
-import { ZERO_ADDRESS } from './constants';
-import { createMultiple, percentToWeight, simpleToExactAmount } from './math';
+import { ZERO_ADDRESS } from "./constants";
+import { createMultiple, percentToWeight, simpleToExactAmount } from "./math";
 
 /**
  * @notice Relevant object interfaces and helper methods to initialise mock instances of those interfaces
@@ -10,50 +9,57 @@ import { createMultiple, percentToWeight, simpleToExactAmount } from './math';
  */
 
 export interface Basket {
-  bassets: Basset[];
-  expiredBassets: string[];
-  grace: BigNumber;
-  failed: boolean;
-  collateralisationRatio: BigNumber;
+    bassets: Basset[];
+    expiredBassets: string[];
+    grace: string;
+    failed: boolean;
+    collateralisationRatio: string;
 }
 
 export enum BassetStatus {
-  Normal,
-  BrokenBelowPeg,
-  BrokenAbovePeg,
-  Liquidating,
-  Liquidated,
-  Failed,
+    Normal,
+    BrokenBelowPeg,
+    BrokenAbovePeg,
+    Liquidating,
+    Liquidated,
+    Failed,
 }
 
 export interface Basset {
-  addr: string;
-  decimals: BigNumber;
-  key: string;
-  ratio: BigNumber;
-  maxWeight: BigNumber;
-  vaultBalance: BigNumber;
-  status: BassetStatus;
+    addr: string;
+    decimals: number;
+    key: string;
+    ratio: string;
+    maxWeight: string;
+    vaultBalance: string;
+    status: BassetStatus;
 }
 
 export const createBasket = (bassets: Basset[], grace = 0, failed = false): Basket => {
-  return {
-    bassets,
-    expiredBassets: [],
-    grace: percentToWeight(grace),
-    failed,
-    collateralisationRatio: percentToWeight(100),
-  };
+    return {
+        bassets,
+        expiredBassets: [],
+        grace: percentToWeight(grace).toFixed(),
+        failed,
+        collateralisationRatio: percentToWeight(100).toFixed(),
+    };
 };
 
-export const createBasset = (maxWeight, vaultBalance, decimals = 18, status = BassetStatus.Normal): Basset => {
-  return {
-    addr: ZERO_ADDRESS,
-    decimals: new BigNumber(decimals),
-    key: "0x",
-    ratio: createMultiple(new BigNumber(10).pow(new BigNumber(18 - decimals)).toNumber()),
-    maxWeight: percentToWeight(maxWeight),
-    vaultBalance: simpleToExactAmount(vaultBalance, decimals),
-    status,
-  };
+export const createBasset = (
+    maxWeight,
+    vaultBalance,
+    decimals = 18,
+    status = BassetStatus.Normal,
+): Basset => {
+    return {
+        addr: ZERO_ADDRESS,
+        decimals,
+        key: "0x",
+        ratio: createMultiple(
+            new BigNumber(10).pow(new BigNumber(18 - decimals)).toNumber(),
+        ).toFixed(),
+        maxWeight: percentToWeight(maxWeight).toFixed(),
+        vaultBalance: simpleToExactAmount(vaultBalance, decimals).toFixed(),
+        status,
+    };
 };

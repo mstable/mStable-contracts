@@ -7,25 +7,20 @@ import ChaiBigNumber = require("chai-bignumber");
  * @notice This file configures the environment for testing
  */
 class TestEnvironmentSetup {
-  private isConfigured: boolean;
+    private isConfigured: boolean;
 
-  constructor() {
-    this.isConfigured = false;
-  }
-
-  public configure() {
-    if (this.isConfigured) {
-      return;
+    constructor() {
+        this.isConfigured = false;
     }
 
-    // Forces compliance with 0x BaseContract `Provider` type
-    if (web3.currentProvider["send"]) {
-      web3.currentProvider["sendAsync"] = web3.currentProvider["send"];
-    }
+    public configure() {
+        if (this.isConfigured) {
+            return;
+        }
 
-    chai.use(ChaiBigNumber());
-    this.isConfigured = true;
-  }
+        chai.use(ChaiBigNumber());
+        this.isConfigured = true;
+    }
 }
 
 export default new TestEnvironmentSetup();

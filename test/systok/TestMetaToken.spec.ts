@@ -1,12 +1,5 @@
 import { shouldFail } from "openzeppelin-test-helpers";
 import { ADDRESS_1, MASSET_FACTORY_BYTES } from "@utils/constants";
-import {
-    ERC20MockContract,
-    GovernancePortalMockContract,
-    ManagerMockContract,
-    MassetContract,
-    SimpleOracleHubMockContract,
-} from "@utils/contracts";
 import envSetup from "@utils/env_setup";
 import { BassetMachine, MassetMachine, SystemMachine } from "@utils/machines";
 import { percentToWeight, simpleToExactRelativePrice } from "@utils/math";
@@ -34,7 +27,10 @@ contract("MetaToken", async (accounts) => {
     });
 
     describe("Burning", () => {
-        it("Should only allow self & Recollateraliser to mint");
+        it("Should only allow self & Recollateraliser to mint", async () => {
+            const systok = systemMachine.systok;
+            assert((await systok.decimals()) === new BigNumber(18));
+        });
         it("Should allow anyone to burn, with allowance");
     });
 });
