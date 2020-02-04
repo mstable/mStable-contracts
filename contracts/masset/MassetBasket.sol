@@ -33,7 +33,6 @@ contract MassetBasket is MassetStructs, MassetCore {
     {
         measurementMultipleEnabled = _multiples.length > 0;
         basket.collateralisationRatio = 1e18;
-        basket.grace = 4e24; // 2,000,000 e18 == 2e24
 
         redemptionFee = 2e16;
 
@@ -122,7 +121,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         basket.bassets[i].vaultBalance = 0;
 
         // Approve the recollateraliser to take the Basset
-        IERC20(_basset).approve(_recollateraliser, vaultBalance);
+        require(IERC20(_basset).approve(_recollateraliser, vaultBalance), "Basset approve failed");
     }
 
 
@@ -168,13 +167,14 @@ contract MassetBasket is MassetStructs, MassetCore {
 
         basket.bassets.push(Basset({
             addr: _basset,
-            decimals: basset_decimals,
             key: _key,
             ratio: ratio,
             maxWeight: 0,
             vaultBalance: 0,
             status: BassetStatus.Normal
         }));
+
+        basket.bassetsMap[_basset] = basket.bassets.length;
 
         emit BassetAdded(_basset);
     }
@@ -207,7 +207,9 @@ contract MassetBasket is MassetStructs, MassetCore {
         require(basset.status != BassetStatus.Liquidating, "Basset must be active");
 
         basket.bassets[index] = basket.bassets[len-1];
-        basket.bassets.length--;
+        basket.bassets.pop();
+
+        basket.bassetsMap[_assetToRemove] = 0;
 
         basket.expiredBassets.push(_assetToRemove);
 
@@ -284,11 +286,10 @@ contract MassetBasket is MassetStructs, MassetCore {
     view
     returns (
         address[] memory expiredBassets,
-        uint256 grace,
         bool failed,
         uint256 collateralisationRatio
     ) {
-        return (basket.expiredBassets, basket.grace, basket.failed, basket.collateralisationRatio);
+        return (basket.expiredBassets, basket.failed, basket.collateralisationRatio);
     }
 
     /**
@@ -368,14 +369,15 @@ contract MassetBasket is MassetStructs, MassetCore {
     function _isAssetInBasket(address _asset)
     internal
     view
-    returns (bool exists, uint index) {
-        uint256 arrayLength = basket.bassets.length;
-        for (uint256 i = 0; i < arrayLength; i++) {
-            if (_asset == basket.bassets[i].addr) {
-                return (true, i);
+    returns (bool exists, uint256 index) {
+        index = basket.bassetsMap[_asset];
+        if(index == 0) {
+            if(basket.bassets.length == 0){
+                return (false, 0);
             }
+            return (basket.bassets[0].addr == _asset, 0);
         }
-        return (false, 0);
+        return (true, index);
     }
 
     /**

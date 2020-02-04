@@ -11,7 +11,6 @@ import { createMultiple, percentToWeight, simpleToExactAmount } from "./math";
 export interface Basket {
     bassets: Basset[];
     expiredBassets: string[];
-    grace: string;
     failed: boolean;
     collateralisationRatio: string;
 }
@@ -35,11 +34,10 @@ export interface Basset {
     status: BassetStatus;
 }
 
-export const createBasket = (bassets: Basset[], grace = 0, failed = false): Basket => {
+export const createBasket = (bassets: Basset[], failed = false): Basket => {
     return {
         bassets,
         expiredBassets: [],
-        grace: percentToWeight(grace).toFixed(),
         failed,
         collateralisationRatio: percentToWeight(100).toFixed(),
     };

@@ -13,14 +13,27 @@ jobs:
       - restore_cache:
           key: dependency-cache-{{ checksum "package.json" }}
       - run:
-          name: Install npm wee
+          name: Install packages
           command: yarn
       - run:
           name: Migrate Contracts
           command: yarn migrate
       - run:
+          name: Lint Contracts
+          command: yarn lint
+      - run:
           name: Test Contracts
-          command: yarn test
+          command: yarn test 2>&1 | tee test_output
+      - store_artifacts:
+          path: /test_output
+      # NOTE -> This requires a paid CircleCI plan to increase the RAM size up to 6/8GB. Fails at current
+      # - run:
+      #     name: Produce Coverage Report
+      #     command: yarn coverage
+      # - store_artifacts:
+      #     path: /coverage
+      # - store_artifacts:
+      #     path: /.coverage.json
       - save_cache:
           key: dependency-cache-{{ checksum "package.json" }}
           paths:

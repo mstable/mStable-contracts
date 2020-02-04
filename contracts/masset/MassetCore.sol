@@ -30,9 +30,6 @@ contract MassetCore {
     /** @dev Maximum minting/redemption fee */
     uint256 internal constant maxFee = 2e17;
 
-    /** @dev Maximum allowance for flexibility in the basket adjusments (1 unit) */
-    uint256 internal constant minGrace = 1e18;
-
     /** @dev Events to emit */
     event RedemptionFeeChanged(uint256 fee);
 

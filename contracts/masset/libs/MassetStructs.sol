@@ -12,17 +12,12 @@ interface MassetStructs {
          * @dev Array of Bassets currently active
          */
         Basset[] bassets;
+        mapping(address => uint256) bassetsMap;
 
         /**
          * @dev Old Bassets that have been removed from the system
          */
         address[] expiredBassets;
-
-        /**
-         * @dev Grace is the amount of leniancy given to a basket during an adjustment phase
-         * 0.2% Grace (2e15) allows for a 0.2% deviation from the optimal target weightings
-         */
-        uint256 grace;
 
         /**
          * @dev In the event that we do not raise enough funds from the auctioning of a failed Basset,
@@ -38,9 +33,6 @@ interface MassetStructs {
 
         /** @dev Address of the Basset */
         address addr;
-
-        /** @dev Basset decimals */
-        uint256 decimals;
 
         /** @dev Bytes32 key used for Oracle price lookups */
         bytes32 key;

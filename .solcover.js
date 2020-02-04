@@ -1,6 +1,6 @@
 module.exports = {
-  port: 7545,
-  testrpcOptions: '-p 7545 -l 0xfffffffffff --allowUnlimitedContractSize',
+  port: 7546,
+  testrpcOptions: '-p 7546 -l 0xfffffffffff --allowUnlimitedContractSize',
   buildDirPath: '/build',
   dir: '.',
   providerOptions: {

@@ -88,7 +88,6 @@ module.exports = async (deployer, network, accounts) => {
 
   /* Assign minting and redemption fees */
   const redemptionFee = percentToWeight(1.5)
-  const grace = simpleToExactAmount(5000000, 18)
 
   const x = await deployer.deploy(
     c_MUSD,
@@ -99,11 +98,11 @@ module.exports = async (deployer, network, accounts) => {
     d_Manager.address
   );
   
-  const txData = d_Manager.contract.methods.addMasset(
-    aToH("mUSD"),
-    x.address).encodeABI();
+  // const txData = d_Manager.contract.methods.addMasset(
+  //   aToH("mUSD"),
+  //   x.address).encodeABI();
 
-  await d_Governance.submitTransaction(d_Manager.address, 0, txData, { from : governor });
+  // await d_Governance.submitTransaction(d_Manager.address, 0, txData, { from : governor });
 
   const massets = await d_Manager.getMassets();
   console.log(`[mUSD]: '${massets[0][0]}'`);
