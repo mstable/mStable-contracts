@@ -6,7 +6,7 @@
   "description": "mStable Contracts",
   "author": "Stability Labs Pty. Ltd.",
   "scripts": {
-    "migrate": "bash scripts/deploy_development.sh",
+    "migrate": "truffle migrate --network development --reset",
     "migrate:rinkeby": "truffle migrate --network rinkeby --reset",
     "lint": "yarn run lint-ts; yarn run lint-sol",
     "lint-ts": "tslint migrations/*.ts test/**/*.ts",
@@ -31,6 +31,7 @@
     "chai": "^4.2.0",
     "chai-bignumber": "^3.0.0",
     "copyfiles": "^2.1.1",
+    "eth-gas-reporter": "^0.2.14",
     "ethlint": "^1.2.5",
     "openzeppelin-test-helpers": "0.3.1",
     "prettier": "^1.18.2",

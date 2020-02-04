@@ -16,7 +16,7 @@ module.exports = {
       host: '127.0.0.1',
       port: 7545,
       network_id: '*', // Match any network id
-      // gas: 1000000000
+      gas: 8000000
     },
     coverage: {
       host: "127.0.0.1",
@@ -33,7 +33,13 @@ module.exports = {
       gasPrice: 10000000000, // 10 GWei,
       skipDryRun: true
     }
-  },  
+  },
+  mocha: {
+    reporter: 'eth-gas-reporter',
+    reporterOptions : {
+      currency: 'USD'
+    }
+  },
   compilers: {
     solc: {
       version: '^0.5.12',

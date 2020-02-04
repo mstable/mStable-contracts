@@ -1,0 +1,30 @@
+version: 2
+jobs:
+  build:
+    # working_directory: ~/
+    # The primary container is an instance of the first image listed. The job's commands run in this container.
+    docker:
+      - image: circleci/node:8-browsers
+    # The secondary container is an instance of the second listed image which is run in a common network where ports exposed on the primary container are available on localhost.
+      - image: trufflesuite/ganache-cli
+        command: ganache-cli -p 7545 --gasLimit 9000000
+    steps:
+      - checkout
+      - run:
+          name: Update npm
+          command: 'sudo npm install -g npm@latest'
+      - restore_cache:
+          key: dependency-cache-{{ checksum "package.json" }}
+      - run:
+          name: Install npm wee
+          command: npm install
+      - run:
+          name: Migrate Contracts
+          command: ./node_modules/truffle/build/cli.bundled.js migrate --network development
+      - run:
+          name: Test Contracts
+          command: ./node_modules/truffle/build/cli.bundled.js test --network development
+      - save_cache:
+          key: dependency-cache-{{ checksum "package.json" }}
+          paths:
+            - node_modules

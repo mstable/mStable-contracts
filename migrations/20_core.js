@@ -7,7 +7,7 @@ const c_OracleHubPriceData = artifacts.require('OracleHubPriceData');
 const c_OracleHub = artifacts.require('SimpleOracleHub');
 const c_Systok = artifacts.require('Systok');
 const c_Governance = artifacts.require('GovernancePortal');
-const c_Recollateraliser = artifacts.require('Recollateraliser');
+// const c_Recollateraliser = artifacts.require('Recollateraliser');
 // const c_Governance = artifacts.require('AragonGovernancePortal');
 const c_Manager = artifacts.require('Manager');
 const c_CommonHelpers = artifacts.require('CommonHelpers');
@@ -93,16 +93,16 @@ module.exports = async (deployer, network, accounts) => {
 
 
   /** Recollateraliser */
-  await deployer.link(c_StableMath, c_Recollateraliser);
-  await deployer.deploy(c_Recollateraliser, d_Nexus.address, d_Manager.address, d_Systok.address);
-  const d_Recollateraliser = await c_Recollateraliser.deployed();
+  // await deployer.link(c_StableMath, c_Recollateraliser);
+  // await deployer.deploy(c_Recollateraliser, d_Nexus.address, d_Manager.address, d_Systok.address);
+  // const d_Recollateraliser = await c_Recollateraliser.deployed();
 
-  await publishModuleThroughMultisig(d_Nexus, d_Governance, await d_Recollateraliser.Key_Recollateraliser(), d_Recollateraliser.address, governor);
+  // await publishModuleThroughMultisig(d_Nexus, d_Governance, await d_Recollateraliser.Key_Recollateraliser(), d_Recollateraliser.address, governor);
 
   console.log(`[Nexus]: '${d_Nexus.address}'`)
   console.log(`[OracleHub]: '${d_OracleHub.address}'`)
   console.log(`[Systok (aka MTA)]: '${d_Systok.address}'`)
   console.log(`[GovernancePortal]: '${d_Governance.address}'`)
   console.log(`[Manager]: '${d_Manager.address}'`)
-  console.log(`[Recollateraliser]: '${d_Recollateraliser.address}'`)
+  // console.log(`[Recollateraliser]: '${d_Recollateraliser.address}'`)
 }
