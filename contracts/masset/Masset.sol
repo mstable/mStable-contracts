@@ -101,9 +101,10 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
         // Transfer the Bassets to this contract, update storage and calc MassetQ
         for(uint i = 0; i < _bassetQuantity.length; i++){
-            address basset = basket.bassets[i].addr;
 
             if(_bassetQuantity[i] > 0){
+                address basset = basket.bassets[i].addr;
+
                 require(IERC20(basset).transferFrom(msg.sender, address(this), _bassetQuantity[i]), "Must be successful basset transfer");
 
                 basket.bassets[i].vaultBalance = basket.bassets[i].vaultBalance.add(_bassetQuantity[i]);

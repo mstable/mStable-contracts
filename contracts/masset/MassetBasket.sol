@@ -77,6 +77,11 @@ contract MassetBasket is MassetStructs, MassetCore {
 
         // If we need to update the status.. then do it
         basket.bassets[i].status = newStatus;
+
+        if(newStatus == BassetStatus.BrokenBelowPeg) {
+          // REDISTRIBUTE THIS BASSET'S WEIGHT TO THE OTHER BASSETS
+          // Good point
+        }
         return false;
     }
 
