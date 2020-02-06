@@ -8,6 +8,7 @@ import { MassetStructs } from "./MassetStructs.sol";
   * @dev Abstract ForgeLib contract for interacting with the Forge Library
   */
 contract IForgeLib is MassetStructs {
-    function validateMint(MassetStructs.Basket memory _basket, uint256[] memory _bassetQuantity) public pure;
-    function validateRedemption(MassetStructs.Basket memory _basket, uint256[] memory _bassetQuantity) public pure;
+    function validateMint(uint256 _totalVault, Basset memory _basset, uint256 _bassetQuantity) public pure;
+    function validateMint(uint256 _totalVault, Basset[] memory _bassets, uint256[] memory _bassetQuantity) public pure;
+    function validateRedemption(bool isBasketFailed, Basset[] memory _bassets, uint256[] memory _bassetQuantity) public pure;
 }

@@ -15,6 +15,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
     /** @dev Forging events */
     event Minted(address indexed account, uint256 massetQuantity, uint256[] bassetQuantities);
+    event Minted(address indexed account, uint256 massetQuantity, uint256 bassetQuantity);
     event PaidFee(address payer, uint256 feeQuantity, uint256 feeRate);
     event Redeemed(address indexed recipient, address indexed redeemer, uint256 massetQuantity, uint256[] bassetQuantities);
 
@@ -62,7 +63,6 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         uint256[] calldata _bassetQuantity
     )
         external
-        basketIsHealthy
         returns (uint256 massetMinted)
     {
         return mintTo(_bassetQuantity, msg.sender);
@@ -75,10 +75,45 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         address _recipient
     )
         external
+        returns (uint256 massetMinted)
+    {
+        return mintTo(_basset, _bassetQuantity, _recipient);
+    }
+
+    /**
+     * @dev Mints a number of Massets based on a Basset user sends
+     * @param _basset Address of Basset user sends
+     * @param _bassetQuantity Exact units of Basset user wants to send to contract
+     * @param _recipient Address to which the Masset should be minted
+     */
+    function mintTo(
+        address _basset,
+        uint256 _bassetQuantity,
+        address _recipient
+    )
+        public
         basketIsHealthy
         returns (uint256 massetMinted)
     {
-        return mintTo(getSingleForgeParams(_basset, _bassetQuantity), _recipient);
+        require(_bassetQuantity > 0, "Quantity must not be 0");
+        require(_recipient != address(0), "Recipient must not be 0x0");
+        (bool exists, uint256 i) = _isAssetInBasket(_basset);
+        require(exists, "bAsset doesn't exist");
+
+        Basset memory b = basket.bassets[i];
+        // TODO Validate the proposed mint
+        forgeLib.validateMint(totalSupply(), b, _bassetQuantity);
+
+        require(IERC20(_basset).transferFrom(msg.sender, address(this), _bassetQuantity), "Basset transfer failed");
+        b.vaultBalance = b.vaultBalance.add(_bassetQuantity);
+        // ratioedBasset is the number of masset quantity to mint
+        uint256 ratioedBasset = _bassetQuantity.mulRatioTruncate(b.ratio);
+
+        // Mint the Masset
+        _mint(_recipient, ratioedBasset);
+        emit Minted(_recipient, ratioedBasset, _bassetQuantity);
+
+        return ratioedBasset;
     }
 
     /**
@@ -95,7 +130,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         returns (uint256 massetMinted)
     {
         // Validate the proposed mint
-        forgeLib.validateMint(basket, _bassetQuantity);
+        forgeLib.validateMint(totalSupply(), basket.bassets, _bassetQuantity);
 
         uint massetQuantity = 0;
 
@@ -104,8 +139,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
             if(_bassetQuantity[i] > 0){
                 address basset = basket.bassets[i].addr;
-
-                require(IERC20(basset).transferFrom(msg.sender, address(this), _bassetQuantity[i]), "Must be successful basset transfer");
+                require(IERC20(basset).transferFrom(msg.sender, address(this), _bassetQuantity[i]), "Basset transfer failed");
 
                 basket.bassets[i].vaultBalance = basket.bassets[i].vaultBalance.add(_bassetQuantity[i]);
 
@@ -142,7 +176,6 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         address _recipient
     )
         external
-        basketIsHealthy
         returns (uint256 massetMinted)
     {
         return redeemTo(getSingleForgeParams(_basset, _bassetQuantity), _recipient);
@@ -162,7 +195,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         returns (uint256 massetRedeemed)
     {
         // Validate the proposed redemption
-        forgeLib.validateRedemption(basket, _bassetQuantity);
+        forgeLib.validateRedemption(basket.failed, basket.bassets, _bassetQuantity);
 
         uint256 massetQuantity = 0;
 

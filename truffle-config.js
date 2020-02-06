@@ -33,7 +33,13 @@ module.exports = {
       gasPrice: 10000000000, // 10 GWei,
       skipDryRun: true
     }
-  },  
+  },
+  mocha: {
+    reporter: 'eth-gas-reporter',
+    reporterOptions : {
+      currency: 'USD'
+    }
+  },
   compilers: {
     solc: {
       version: '^0.5.12',

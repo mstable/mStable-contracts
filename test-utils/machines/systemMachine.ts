@@ -3,7 +3,6 @@ import {
     GovernancePortalMockInstance,
     ManagerMockInstance,
     NexusMockInstance,
-    RecollateraliserInstance,
     SimpleOracleHubMockInstance,
     SystokMockInstance,
 } from "./../../types/generated/index.d";
@@ -47,7 +46,6 @@ export class SystemMachine {
     public manager: ManagerMockInstance;
     public nexus: NexusMockInstance;
     public oracleHub: SimpleOracleHubMockInstance;
-    public recollateraliser: RecollateraliserInstance;
     public systok: SystokMockInstance;
 
     private TX_DEFAULTS: any;
@@ -216,7 +214,7 @@ export class SystemMachine {
         const b1: ERC20MockInstance = await bassetMachine.deployERC20Async();
         const b2: ERC20MockInstance = await bassetMachine.deployERC20Async();
 
-        const masset = await MassetArtifact.new(
+        return MassetArtifact.new(
             "TestMasset",
             "TMT",
             [b1.address, b2.address],
@@ -227,10 +225,13 @@ export class SystemMachine {
             this.manager.address,
         );
 
+        // TODO - add the Masset to the Factory so that it can look up its price
+        // Requires passing through multisig
+
         // LOG FACTORY NAMES // BYTES AS CONSTANTS
-        return this.manager.addMasset(aToH("TMT"), masset.address, {
-            from: sender,
-        });
+        // return this.manager.addMasset(aToH("TMT"), masset.address, {
+        //     from: sender,
+        // });
     }
 
     /**

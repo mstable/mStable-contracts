@@ -12,6 +12,7 @@ interface MassetStructs {
          * @dev Array of Bassets currently active
          */
         Basset[] bassets;
+        mapping(address => uint256) bassetsMap;
 
         /**
          * @dev Old Bassets that have been removed from the system
@@ -38,9 +39,6 @@ interface MassetStructs {
 
         /** @dev Address of the Basset */
         address addr;
-
-        /** @dev Basset decimals */
-        uint256 decimals;
 
         /** @dev Bytes32 key used for Oracle price lookups */
         bytes32 key;
