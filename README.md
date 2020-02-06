@@ -33,7 +33,7 @@ Suggested extensions:
 - `Typescript Import Sorter`
 
 
-Should enforce some certain conditions through efficient use of `.gitlab-ci` and the `yarn run lint` commands. Possibly will require customisation fo the `.soliumrc.json` and the `.prettierrc` in order to produce builds of certain condition.
+Should enforce some certain conditions through efficient use of `.gitlab-ci` and the `yarn run lint` commands. Possibly will require customisation of the `.soliumrc.json` and the `.prettierrc` in order to produce builds of certain condition.
 
 ### Styling
 
@@ -47,7 +47,7 @@ Should ideally enforce linting, test outcomes and code coverage through CI
 
 ### Deploy the Contracts
 
-Start `ganache` or `ganache-cli` locally at `ganache-cli -p 7545`
+Start `ganache` or `ganache-cli` locally at `ganache-cli -p 7545`. The block gas limit needs to match or exceed the limit set in the truffle config.
 
 ```
 yarn run migrate
@@ -70,7 +70,7 @@ NB: You should locally use the latest version of ganache-cli, as the test rely o
 ### In-test terminology
 
 `xxxContract` = The .TS contract type as imported from the `types/generated/xxx` as output by Typechain. Retrieved through require
-`xxxInstance` = Deployed instance of the conrtact that will be used in the specific test file.  
+`xxxInstance` = Deployed instance of the contract that will be used in the specific test file.
 
 ### Rules
 
@@ -80,19 +80,19 @@ With this in mind, we utilise the unlocked `accounts` in a similar fashion acros
 
 `const [_, governor, fundManager, other, other2, oraclePriceProvider] = accounts;`
 
-### Suite 
+### Suite
 
-Test suite uses Typescript, which adds some complexity to the process due to the transpiling of contract ABIs.
+The test suite uses Typescript, which is compiled and run by Truffle.
 
 c = committed
 
-Key folders:  
+Key folders:
 
 - `/test-utils`           [(c) Core util files used throughout the test framework]
   - `/machines`           [(c) Mock contract machines for creating configurable instances of our contracts to support the simulation of test scenarios]
 - `/types`                [TS Types we use throughout the]
   - `/contract_templates` [(c) Provided by `@0x/abi-gen` as part of the type generation (These are templates to use for converting ABI into Typescript and injecting functionality)]
-  - `/generated`          [Output from abi-gen, used for transpiling build output into executable JS]
+  - `/generated`          [Output from Typechain; strongly-typed, Truffle-flavoured contract interfaces]
 
 
 ### Scripts
@@ -101,16 +101,13 @@ The scripts can be described as follows:
 
 
 `test` > Runs Truffle tests E2E
-`yarn run compile; yarn run generate-typings; yarn run transpile; yarn run migrate; truffle test`
+`yarn run compile; yarn run generate-typings; yarn run migrate; truffle test`
 
-`compile` > Uses truffle to compile our .sol files into json (build/xx.json) 
+`compile` > Uses truffle to compile our .sol files into json (build/xx.json)
 `truffle compile --all`
 
-`generate-typings` > Uses '@0x/abi-gen' to convert the ABIs into useful Typescript Types, using the provided templates (note, these strongly dictate functionality)
-`abi-gen --abis './build/*.json' --out './types/generated' --template './types/templates.0x/contract.handlebars' --partials './types/templates.0x/partials/*.handlebars'`
-
-`transpile` > Runs the typescript transpiler to compile all .TS files into executable Javascript
-`rm -rf ./transpiled; copyfiles ./build/* ./transpiled; tsc`
+`generate-typings` > Uses [Typechain](https://github.com/ethereum-ts/TypeChain) to convert the ABIs into useful Typescript Types
+`rimraf ./types/generated && typechain --target truffle --outDir types/generated './build/*.json'`
 
 ### Coverage
 
