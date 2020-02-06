@@ -33,7 +33,6 @@ contract MassetBasket is MassetStructs, MassetCore {
     {
         measurementMultipleEnabled = _multiples.length > 0;
         basket.collateralisationRatio = 1e18;
-        basket.grace = 4e24; // 2,000,000 e18 == 2e24
 
         redemptionFee = 2e16;
 
@@ -287,11 +286,10 @@ contract MassetBasket is MassetStructs, MassetCore {
     view
     returns (
         address[] memory expiredBassets,
-        uint256 grace,
         bool failed,
         uint256 collateralisationRatio
     ) {
-        return (basket.expiredBassets, basket.grace, basket.failed, basket.collateralisationRatio);
+        return (basket.expiredBassets, basket.failed, basket.collateralisationRatio);
     }
 
     /**

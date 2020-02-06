@@ -20,7 +20,7 @@ module.exports = {
     },
     coverage: {
       host: "127.0.0.1",
-      port: 7545,
+      port: 7546,
       network_id: "*",
       gas: 0xfffffffffff, // <-- Use this high gas value
       gasPrice: 0x01      // <-- Use this low gas price

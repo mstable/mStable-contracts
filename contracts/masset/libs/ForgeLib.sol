@@ -8,8 +8,6 @@ import { StableMath } from "../../shared/math/StableMath.sol";
   * @title ForgeLib
   * @dev Library that validates forge arguments. V2 employs a net difference algorithm, meaning
   * that the forge is valid if it pushes the net weightings of the basket towards its target.
-  * We use a unit based Grace variable, which tells us by how many Masset units we may deviate
-  * from the optimal weightings.
   */
 contract ForgeLib is IForgeLib {
 

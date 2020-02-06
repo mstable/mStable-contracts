@@ -20,12 +20,6 @@ interface MassetStructs {
         address[] expiredBassets;
 
         /**
-         * @dev Grace is the amount of leniancy given to a basket during an adjustment phase
-         * 0.2% Grace (2e15) allows for a 0.2% deviation from the optimal target weightings
-         */
-        uint256 grace;
-
-        /**
          * @dev In the event that we do not raise enough funds from the auctioning of a failed Basset,
          * The Basket is deemed as failed, and is undercollateralised to a certain degree.
          * The collateralisation ratio is used to calc Masset burn rate.

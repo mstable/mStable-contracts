@@ -4,26 +4,36 @@ jobs:
     # working_directory: ~/
     # The primary container is an instance of the first image listed. The job's commands run in this container.
     docker:
-      - image: circleci/node:8-browsers
+      - image: circleci/node:10.15.3
     # The secondary container is an instance of the second listed image which is run in a common network where ports exposed on the primary container are available on localhost.
       - image: trufflesuite/ganache-cli
         command: ganache-cli -p 7545 --gasLimit 9000000
     steps:
       - checkout
-      - run:
-          name: Update npm
-          command: 'sudo npm install -g npm@latest'
       - restore_cache:
           key: dependency-cache-{{ checksum "package.json" }}
       - run:
-          name: Install npm wee
-          command: npm install
+          name: Install packages
+          command: yarn
       - run:
           name: Migrate Contracts
-          command: ./node_modules/truffle/build/cli.bundled.js migrate --network development
+          command: yarn migrate
+      - run:
+          name: Lint Contracts
+          command: yarn lint
       - run:
           name: Test Contracts
-          command: ./node_modules/truffle/build/cli.bundled.js test --network development
+          command: yarn test 2>&1 | tee test_output
+      - store_artifacts:
+          path: /test_output
+      # NOTE -> This requires a paid CircleCI plan to increase the RAM size up to 6/8GB. Fails at current
+      # - run:
+      #     name: Produce Coverage Report
+      #     command: yarn coverage
+      # - store_artifacts:
+      #     path: /coverage
+      # - store_artifacts:
+      #     path: /.coverage.json
       - save_cache:
           key: dependency-cache-{{ checksum "package.json" }}
           paths:

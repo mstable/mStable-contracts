@@ -46,7 +46,6 @@ contract IMasset is MassetStructs {
     view
     returns (
         address[] memory expiredBassets,
-        uint256 grace,
         bool failed,
         uint256 collateralisationRatio);
     function getBassets()
