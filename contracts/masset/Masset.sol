@@ -65,27 +65,28 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         external
         returns (uint256 massetMinted)
     {
-        return mintTo(_bassetQuantity, msg.sender);
+        return mintTo(getBitmapForAllBassets(), _bassetQuantity, msg.sender);
     }
 
     //TODO correct fn name once implementation is complete
     /**
      * @dev Mint with bAsset addresses in bitmap
-     * @param _bassetBitmap bAssets index in bitmap
+     * @param _bassetsBitmap bAssets index in bitmap
      */
     function mintWithBitmap(
-        uint32 _bassetBitmap,
+        uint32 _bassetsBitmap,
         uint256[] calldata _bassetQuantity
     )
         external
         returns(uint256 massetMinted)
     {
         //TODO
-        return mintTo(_bassetQuantity, msg.sender);
+        return mintTo(_bassetsBitmap, _bassetQuantity, msg.sender);
     }
 
     /**
      * @dev Get bitmap for all bAsset addresses
+     * @return bitmap with bits set according to bAsset address position
      */
     function getBitmapForAllBassets() public view returns (uint32 bitmap) {
         //TODO bassets array should not have more than 32 items
@@ -96,6 +97,8 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
     /**
      * @dev Returns the bitmap for given bAssets addresses
+     * @param _bassets bAsset addresses for which bitmap is needed
+     * @return bitmap with bits set according to bAsset address position
      */
     function getBitmapFor(address[] memory _bassets) public view returns (uint32 bitmap) {
         for(uint32 i = 0; i < basket.bassets.length; i++) {
@@ -104,6 +107,19 @@ contract Masset is IMasset, MassetToken, MassetBasket {
                     bitmap |= uint32(2)**i;
             }
         }
+    }
+
+    //TODO making visibility public for testing purpose
+    function convertBitmapToIndexArr(uint32 _bitmap, uint8 _size) public pure returns (uint8[] memory) {
+        uint8[] memory indexes = new uint8[](_size);
+        uint8 idx = 0;
+        for(uint8 i = 0; i < _size; i++) {
+            uint32 mask = uint32(2)**i;
+            uint32 isBitSet = _bitmap & mask;
+            if(isBitSet >= 1) indexes[idx++] = i;
+        }
+        if(_size > 1 && indexes[_size-1] == 0) revert("Wrong size given");
+        return indexes;
     }
 
     function mintSingle(
@@ -138,7 +154,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         require(exists, "bAsset doesn't exist");
 
         Basset memory b = basket.bassets[i];
-        // TODO Validate the proposed mint
+
         forgeLib.validateMint(totalSupply(), b, _bassetQuantity);
 
         require(IERC20(_basset).transferFrom(msg.sender, address(this), _bassetQuantity), "Basset transfer failed");
@@ -153,12 +169,24 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         return ratioedBasset;
     }
 
-    /**
-      * @dev Mints a number of Massets based on the sum of the value of the Bassets
-      * @param _bassetQuantity Exact units of Bassets to mint
-      * @param _recipient Address to which the Masset should be minted
-      */
+    //TODO keeping only to make test dependencies work
+    //TODO Need to remove once impl complete
     function mintTo(
+        uint256[] memory _bassetQuantity,
+        address _recipient
+    )
+    public
+    returns (uint256 massetMinted)
+    {
+        return mintTo(getBitmapForAllBassets(), _bassetQuantity, _recipient);
+    }
+        /**
+          * @dev Mints a number of Massets based on the sum of the value of the Bassets
+          * @param _bassetQuantity Exact units of Bassets to mint
+          * @param _recipient Address to which the Masset should be minted
+          */
+    function mintTo(
+        uint32 _bassetsBitmap,
         uint256[] memory _bassetQuantity,
         address _recipient
     )
@@ -166,6 +194,8 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         basketIsHealthy
         returns (uint256 massetMinted)
     {
+        // It is assumed the number of bits set are equal to the _bassetQuantity[] length
+        uint8[] memory indexes = convertBitmapToIndexArr(_bassetsBitmap, uint8(_bassetQuantity.length));
         // Validate the proposed mint
         forgeLib.validateMint(totalSupply(), basket.bassets, _bassetQuantity);
 

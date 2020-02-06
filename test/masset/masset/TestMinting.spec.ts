@@ -61,11 +61,29 @@ contract("MassetMinting", async (accounts) => {
       await masset.mintSingle(b1.address, 10, sa.default, { from: sa.default });
     });
 
-    it("Should return bitmap", async () => {
-        let bitmap = await masset.getBitmapForAllBassets();
-        expect(bitmap.eq(3));
-        bitmap = await masset.getBitmapFor([b2.address]);
-        expect(bitmap.eq(2));
+    it("Should return bAssets bitmap", async () => {
+      //Returns two bit set, as there are only two bAssets
+      let bitmap = await masset.getBitmapForAllBassets();
+      expect(bitmap.eq(3));
+
+      //Result sets only first bit, as b1 is at first index in bAsset array
+      bitmap = await masset.getBitmapFor([b1.address]);
+      expect(bitmap.eq(1));
+
+      //Result sets only second bit, as b2 is at second index in bAsset array
+      bitmap = await masset.getBitmapFor([b2.address]);
+      expect(bitmap.eq(2));
+
+      //TODO add test for 32 items
+      //TODO add test for more than 32 items
+
+      let indexes = await masset.convertBitmapToIndexArr(3, 2);
+      console.log(indexes);
+
+      //TODO (3,3) will return indexes[0,1,0] which is wrong
+      //TODO need to look for solution
+      //shouldFail(await masset.convertBitmapToIndexArr(3, 3));
+      //console.log(indexes);
     });
   });
 
