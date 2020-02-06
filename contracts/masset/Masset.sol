@@ -139,7 +139,6 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
             if(_bassetQuantity[i] > 0){
                 address basset = basket.bassets[i].addr;
-
                 require(IERC20(basset).transferFrom(msg.sender, address(this), _bassetQuantity[i]), "Basset transfer failed");
 
                 basket.bassets[i].vaultBalance = basket.bassets[i].vaultBalance.add(_bassetQuantity[i]);
