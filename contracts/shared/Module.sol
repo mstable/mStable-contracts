@@ -52,7 +52,7 @@ contract Module is ModuleKeys {
         return nexus.getModule(Key_Systok);
     }
 
-    function _oracle()
+    function _oracleHub()
     internal
     view
     returns (address) {

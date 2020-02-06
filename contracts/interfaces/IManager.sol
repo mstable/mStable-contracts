@@ -10,7 +10,6 @@ interface IManager {
     function upgradeForgeLib(address _newForgeLib) external;
 
     /** ManagerPortal provides getters relevant to Massets */
-    function getModuleAddresses() external view returns(address _systok, address _forgeLib, address _governance);
     function getMassetPrice(address _masset) external view returns(uint256, uint256);
 
     /** Getters for Manager/System state */
