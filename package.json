@@ -6,7 +6,7 @@
   "description": "mStable Contracts",
   "author": "Stability Labs Pty. Ltd.",
   "scripts": {
-    "migrate": "bash scripts/deploy_development.sh",
+    "migrate": "truffle migrate --network development --reset",
     "migrate:rinkeby": "truffle migrate --network rinkeby --reset",
     "lint": "yarn run lint-ts; yarn run lint-sol",
     "lint-ts": "tslint migrations/*.ts test/**/*.ts",
