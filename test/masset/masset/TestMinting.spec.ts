@@ -60,6 +60,13 @@ contract("MassetMinting", async (accounts) => {
       await b1.approve(masset.address, 10, { from: sa.default });
       await masset.mintSingle(b1.address, 10, sa.default, { from: sa.default });
     });
+
+    it("Should return bitmap", async () => {
+        let bitmap = await masset.getBitmapForAllBassets();
+        expect(bitmap.eq(3));
+        bitmap = await masset.getBitmapFor([b2.address]);
+        expect(bitmap.eq(2));
+    });
   });
 
 });

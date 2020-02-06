@@ -68,6 +68,43 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         return mintTo(_bassetQuantity, msg.sender);
     }
 
+    //TODO correct fn name once implementation is complete
+    /**
+     * @dev Mint with bAsset addresses in bitmap
+     * @param _bassetBitmap bAssets index in bitmap
+     */
+    function mintWithBitmap(
+        uint32 _bassetBitmap,
+        uint256[] calldata _bassetQuantity
+    )
+        external
+        returns(uint256 massetMinted)
+    {
+        //TODO
+        return mintTo(_bassetQuantity, msg.sender);
+    }
+
+    /**
+     * @dev Get bitmap for all bAsset addresses
+     */
+    function getBitmapForAllBassets() public view returns (uint32 bitmap) {
+        //TODO bassets array should not have more than 32 items
+        for(uint32 i = 0; i < basket.bassets.length; i++) {
+            bitmap |= uint32(2)**i;
+        }
+    }
+
+    /**
+     * @dev Returns the bitmap for given bAssets addresses
+     */
+    function getBitmapFor(address[] memory _bassets) public view returns (uint32 bitmap) {
+        for(uint32 i = 0; i < basket.bassets.length; i++) {
+            for(uint32 j = 0; j < _bassets.length; j++ ) {
+                if(basket.bassets[i].addr == _bassets[j])
+                    bitmap |= uint32(2)**i;
+            }
+        }
+    }
 
     function mintSingle(
         address _basset,
