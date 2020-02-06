@@ -2,16 +2,14 @@
 pragma solidity ^0.5.12;
 pragma experimental ABIEncoderV2;
 
-import { ModuleSub } from "../shared/pubsub/ModuleSub.sol";
 import { IOracleHub } from "../interfaces/IOracleHub.sol";
-
-import { OracleHubModule } from "./OracleHubModule.sol";
+import { Module } from "../shared/Module.sol";
 
 /**
  * @notice mStable SimpleOracleHub
  * @author Stability Labs, based on compound-finance/open-oracle/DelFiPrice.sol
  */
-contract SimpleOracleHub is IOracleHub, OracleHubModule {
+contract SimpleOracleHub is IOracleHub, Module {
 
     /**
      * @notice The event emitted when a price is written to storage
@@ -35,21 +33,13 @@ contract SimpleOracleHub is IOracleHub, OracleHubModule {
     address validatedSource;
 
     constructor(
-        address _governance,
         address _nexus,
         address _source
     )
-        OracleHubModule(_nexus)
+        Module(_nexus)
         public
     {
-        governance = _governance;
         validatedSource = _source;
-    }
-
-    /** @dev Verifies that the caller is the System Governor as defined in the module mapping */
-    modifier onlyGovernance() {
-        require(governance == msg.sender, "Only the governor may perform this operation");
-        _;
     }
 
     /**
@@ -58,7 +48,7 @@ contract SimpleOracleHub is IOracleHub, OracleHubModule {
      */
     function changeSource(address _newSource)
     external
-    onlyGovernance {
+    onlyGovernor {
         validatedSource = _newSource;
     }
 

@@ -29,7 +29,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         uint256[] memory _bassetWeights,
         uint256[] memory _bassetMultiples,
         address _feePool,
-        address _manager
+        address _forgeLib
     )
         MassetToken(
             _name,
@@ -44,8 +44,9 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         )
         public
     {
-        manager = IManager(_manager);
         feePool = _feePool;
+        // TODO - validate transfer to forgelib
+        forgeLib = IForgeLib(_forgeLib);
 
         (address _systok, address _forgeLib, address _governance) = manager.getModuleAddresses();
         require(_systok != address(0) && _forgeLib != address(0) && _governance != address(0), "Must get address from Manager");

@@ -2,7 +2,7 @@
 /* eslint-disable prefer-const */
 /* eslint-disable one-var */
 const c_Manager = artifacts.require('Manager')
-const c_Governance = artifacts.require('GovernancePortal')
+const c_MultiSig = artifacts.require('MultiSigWallet')
 const c_mGLD = artifacts.require('MGLD')
 
 const c_DGX = artifacts.require('DGX')
@@ -20,7 +20,7 @@ module.exports = async (deployer, network, accounts) => {
 
   /* Get deployed Manager */
   const d_Manager = await c_Manager.deployed();
-  const d_Governance = await c_Governance.deployed()
+  const d_MultiSig = await c_MultiSig.deployed()
 
   /* ~~~~~~~~~ mUSD Setup ~~~~~~~~~  */
 
@@ -81,7 +81,7 @@ module.exports = async (deployer, network, accounts) => {
     aToH("mGLD"),
     d_mGLD.address).encodeABI();
 
-  await d_Governance.submitTransaction(d_Manager.address, 0, txData, { from : governor });
+  await d_MultiSig.submitTransaction(d_Manager.address, 0, txData, { from : governor });
 
   const massets = await d_Manager.getMassets();
   console.log(`[mGLD]: '${massets[0][1]}'`);

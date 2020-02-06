@@ -2,7 +2,7 @@
 /* eslint-disable prefer-const */
 /* eslint-disable one-var */
 
-const c_Governance = artifacts.require('GovernancePortal');
+const c_MultiSig = artifacts.require('MultiSigWallet');
 
 /** @dev Updates the min quorum on the governance multisig after initialisation has completed */
 module.exports = async (deployer, network, accounts) => {
@@ -11,10 +11,10 @@ module.exports = async (deployer, network, accounts) => {
 
   // const newMinQuorum = 1;
 
-  // const d_Governance = await c_Governance.deployed()
+  // const d_MultiSig = await c_MultiSig.deployed()
 
 
-  // const txData = d_Governance.contract.methods.changeRequirement(newMinQuorum).encodeABI();
-  // await d_Governance.submitTransaction(d_Governance.address, 0, txData, { from : governor });
+  // const txData = d_MultiSig.contract.methods.changeRequirement(newMinQuorum).encodeABI();
+  // await d_MultiSig.submitTransaction(d_MultiSig.address, 0, txData, { from : governor });
 
 }
