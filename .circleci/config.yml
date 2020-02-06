@@ -7,6 +7,7 @@ jobs:
       - image: circleci/node:8-browsers
     # The secondary container is an instance of the second listed image which is run in a common network where ports exposed on the primary container are available on localhost.
       - image: trufflesuite/ganache-cli
+        command: ganache-cli -p 7545 --gasLimit 9000000
     steps:
       - checkout
       - run:
