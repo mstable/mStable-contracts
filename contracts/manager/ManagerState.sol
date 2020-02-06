@@ -1,10 +1,10 @@
 pragma solidity ^0.5.12;
 
 import { IMasset } from "../interfaces/IMasset.sol";
-import { IManager } from "../interfaces/IManager.sol";
-import { IGovernancePortal } from "../interfaces/IGovernancePortal.sol";
 import { ISystok } from "../interfaces/ISystok.sol";
 import { IOracleHub } from "../interfaces/IOracleHub.sol";
+
+import { Module } from "../shared/
 
 import { DictionaryAtoB } from "../shared/libs/DictionaryAtoB.sol";
 
@@ -14,7 +14,7 @@ import { DictionaryAtoB } from "../shared/libs/DictionaryAtoB.sol";
  * @dev Holds and provides read access to the core data and state required by
  * the Managment and Masset contracts
  */
-contract ManagerState  {
+contract ManagerState is Module {
 
     /** @dev Custom dictionary for managing data structures */
     using DictionaryAtoB for DictionaryAtoB.AddressToBytes32;
