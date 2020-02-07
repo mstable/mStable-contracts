@@ -82,7 +82,7 @@ contract Masset is  MassetToken, MassetBasket {
      * @param _bassetQuantity bAsset's quantity to send
      * @return massetMinted returns the number of newly minted mAssets
      */
-    function mint(
+    function mintBitmap(
         uint32 _bassetsBitmap,
         uint256[] calldata _bassetQuantity
     )

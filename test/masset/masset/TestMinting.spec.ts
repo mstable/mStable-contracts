@@ -2,7 +2,7 @@ import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/mat
 import { createBasket, createBasset, Basket } from "@utils/mstable-objects";
 import { shouldFail } from "openzeppelin-test-helpers";
 import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
-import { aToH } from "@utils/tools";
+import { aToH, BigNumber } from "@utils/tools";
 
 import envSetup from "@utils/env_setup";
 import * as chai from "chai";
@@ -37,6 +37,7 @@ contract("MassetMinting", async (accounts) => {
         masset = await MassetArtifact.new(
             "TestMasset",
             "TMT",
+            systemMachine.nexus.address,
             [b1.address, b2.address, b3.address, b4.address, b5.address, b6.address, b7.address],
             [aToH("b1"), aToH("b2"), aToH("b3"), aToH("b4"), aToH("b5"), aToH("b6"), aToH("b7")],
             [
@@ -98,7 +99,7 @@ contract("MassetMinting", async (accounts) => {
             // Returns two bit set, as there are only two bAssets
             const bitmap = await masset.getBitmapForAllBassets();
             // console.log(bitmap);
-            assert(bitmap.eq(new BN(127)), "wrong bitmap");
+            assert(bitmap.eq(new BigNumber(127)), "wrong bitmap");
 
             // Result sets only first bit, as b1 is at first index in bAsset array
             // bitmap = await masset.getBitmapFor([b1.address]);
