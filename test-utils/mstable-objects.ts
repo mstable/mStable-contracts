@@ -26,7 +26,6 @@ export enum BassetStatus {
 
 export interface Basset {
     addr: string;
-    decimals: number;
     key: string;
     ratio: string;
     maxWeight: string;
@@ -51,7 +50,6 @@ export const createBasset = (
 ): Basset => {
     return {
         addr: ZERO_ADDRESS,
-        decimals,
         key: "0x",
         ratio: createMultiple(
             new BigNumber(10).pow(new BigNumber(18 - decimals)).toNumber(),

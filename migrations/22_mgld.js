@@ -2,7 +2,9 @@
 /* eslint-disable prefer-const */
 /* eslint-disable one-var */
 const c_Manager = artifacts.require('Manager')
-const c_Governance = artifacts.require('GovernancePortal')
+const c_Nexus = artifacts.require('Nexus')
+const c_ForgeValidator = artifacts.require('ForgeValidator')
+const c_MultiSig = artifacts.require('MultiSigWallet')
 const c_mGLD = artifacts.require('MGLD')
 
 const c_DGX = artifacts.require('DGX')
@@ -19,8 +21,10 @@ module.exports = async (deployer, network, accounts) => {
 	const [ _, governor, fundManager, oracleSource, feePool ] = accounts;
 
   /* Get deployed Manager */
-  const d_Manager = await c_Manager.deployed();
-  const d_Governance = await c_Governance.deployed()
+  const d_Manager = await c_Manager.deployed()
+  const d_Nexus = await c_Nexus.deployed()
+  const d_ForgeValidator = await c_ForgeValidator.deployed()
+  const d_MultiSig = await c_MultiSig.deployed()
 
   /* ~~~~~~~~~ mUSD Setup ~~~~~~~~~  */
 
@@ -69,19 +73,20 @@ module.exports = async (deployer, network, accounts) => {
 
   const d_mGLD = await deployer.deploy(
     c_mGLD,
+    d_Nexus.address,
     basketAddresses,
     basketKeys,
     basketWeights,
     basketMultiples,
     feePool,
-    d_Manager.address
+    d_ForgeValidator.address
   );
 
   const txData = d_Manager.contract.methods.addMasset(
     aToH("mGLD"),
     d_mGLD.address).encodeABI();
 
-  await d_Governance.submitTransaction(d_Manager.address, 0, txData, { from : governor });
+  await d_MultiSig.submitTransaction(d_Manager.address, 0, txData, { from : governor });
 
   const massets = await d_Manager.getMassets();
   console.log(`[mGLD]: '${massets[0][1]}'`);

@@ -34,7 +34,6 @@ export class MassetMachine {
         return bArrays[0].map((_, i) => {
             return {
                 addr: bArrays[0][i],
-                decimals: null,
                 key: bArrays[1][i],
                 ratio: bArrays[2][i],
                 maxWeight: bArrays[3][i],

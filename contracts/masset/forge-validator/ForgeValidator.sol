@@ -1,15 +1,15 @@
 pragma solidity ^0.5.12;
 pragma experimental ABIEncoderV2;
 
-import { IForgeLib, MassetStructs } from "./IForgeLib.sol";
+import { IForgeValidator, MassetStructs } from "./IForgeValidator.sol";
 import { StableMath } from "../../shared/math/StableMath.sol";
 
 /**
-  * @title ForgeLib
+  * @title ForgeValidator
   * @dev Library that validates forge arguments. V2 employs a net difference algorithm, meaning
   * that the forge is valid if it pushes the net weightings of the basket towards its target.
   */
-contract ForgeLib is IForgeLib {
+contract ForgeValidator is IForgeValidator {
 
     using StableMath for uint256;
 
@@ -21,7 +21,6 @@ contract ForgeLib is IForgeLib {
     public
     pure {
         require(_basset.addr != address(0), "");
-
 
         require(_basset.status != BassetStatus.BrokenBelowPeg &&
             _basset.status != BassetStatus.Liquidating, "Basset not allowed in mint");

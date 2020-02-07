@@ -1,13 +1,13 @@
 pragma solidity ^0.5.12;
 
 import { IMassetForgeRewards } from "./IMassetForgeRewards.sol";
-import { IMasset } from "../../interfaces/IMasset.sol";
-import { ISystok } from "../../interfaces/ISystok.sol";
+import { IMasset } from "../interfaces/IMasset.sol";
+import { ISystok } from "../interfaces/ISystok.sol";
 import { IERC20 } from "node_modules/openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 
-import { StableMath } from "../../shared/math/StableMath.sol";
+import { StableMath } from "../shared/math/StableMath.sol";
 
-import { ReentrancyGuard } from "../../shared/ReentrancyGuard.sol";
+import { ReentrancyGuard } from "../shared/ReentrancyGuard.sol";
 
 
 /**

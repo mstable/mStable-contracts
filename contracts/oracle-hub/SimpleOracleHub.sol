@@ -2,16 +2,14 @@
 pragma solidity ^0.5.12;
 pragma experimental ABIEncoderV2;
 
-import { ModuleSub } from "../shared/pubsub/ModuleSub.sol";
 import { IOracleHub } from "../interfaces/IOracleHub.sol";
-
-import { OracleHubModule } from "./OracleHubModule.sol";
+import { Module } from "../shared/Module.sol";
 
 /**
  * @notice mStable SimpleOracleHub
  * @author Stability Labs, based on compound-finance/open-oracle/DelFiPrice.sol
  */
-contract SimpleOracleHub is IOracleHub, OracleHubModule {
+contract SimpleOracleHub is IOracleHub, Module {
 
     /**
      * @notice The event emitted when a price is written to storage
@@ -35,22 +33,30 @@ contract SimpleOracleHub is IOracleHub, OracleHubModule {
     address validatedSource;
 
     constructor(
-        address _governance,
         address _nexus,
         address _source
     )
-        OracleHubModule(_nexus)
+        Module(_nexus)
         public
     {
-        governance = _governance;
         validatedSource = _source;
     }
 
-    /** @dev Verifies that the caller is the System Governor as defined in the module mapping */
-    modifier onlyGovernance() {
-        require(governance == msg.sender, "Only the governor may perform this operation");
-        _;
+    /**
+     * @dev Whitelist a source for use in medianizing
+     * @param _newSource Address of the whitelisted source
+     */
+    function changeSource(address _newSource)
+    external
+    onlyGovernor {
+        validatedSource = _newSource;
     }
+
+
+    /***************************************
+                    READING
+    ****************************************/
+
 
     /**
      * @dev Read a medianized price from our storage
@@ -79,34 +85,33 @@ contract SimpleOracleHub is IOracleHub, OracleHubModule {
     returns(bool[2] memory _isFresh, uint64[2] memory _prices) {
         require(_keys.length == 2,  "Valid array");
         for(uint i = 0; i < 2; i++){
-          Datum memory m = data[_keys[i]];
-          bool isFresh = m.timestamp < now && m.timestamp > (now - 24 hours);
-          (_isFresh[i], _prices[i]) = (isFresh, m.value);
+            Datum memory m = data[_keys[i]];
+            bool isFresh = m.timestamp < now && m.timestamp > (now - 24 hours);
+            (_isFresh[i], _prices[i]) = (isFresh, m.value);
         }
     }
 
-    /**
-     * @dev Whitelist a source for use in medianizing
-     * @param _newSource Address of the whitelisted source
-     */
-    function changeSource(address _newSource)
-    external
-    onlyGovernance {
-        validatedSource = _newSource;
-    }
+
+    /***************************************
+                    WRITING
+    ****************************************/
 
     /**
-     * @notice Recovers the source address which signed a message
-     * @dev Comparing to a claimed address would add nothing,
-     *  as the caller could simply perform the recover and claim that address.
-     * @param message The data that was presumably signed
-     * @param signature The fingerprint of the data + private key
-     * @return The source address which signed the message, presumably
+     * @notice Primary entry point to post and recalculate prices
+     * @dev Message must be signed by the validated source in order to be valid
+     * @param messages The messages to post to the oracle
+     * @param signatures The signatures for the corresponding messages
      */
-    function source(bytes memory message, bytes memory signature) internal pure returns (address) {
-        (bytes32 r, bytes32 s, uint8 v) = abi.decode(signature, (bytes32, bytes32, uint8));
-        bytes32 hash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", keccak256(message)));
-        return ecrecover(hash, v, r, s);
+    function postPrices(
+        bytes[] calldata messages,
+        bytes[] calldata signatures
+    ) external {
+        require(messages.length == signatures.length, "messages and signatures must be 1:1");
+
+        // Post the messages, whatever they are
+        for (uint i = 0; i < messages.length; i++) {
+            put(messages[i], signatures[i]);
+        }
     }
 
     /**
@@ -136,21 +141,16 @@ contract SimpleOracleHub is IOracleHub, OracleHubModule {
     }
 
     /**
-     * @notice Primary entry point to post and recalculate prices
-     * @dev Message must be signed by the validated source in order to be valid
-     * @param messages The messages to post to the oracle
-     * @param signatures The signatures for the corresponding messages
+     * @notice Recovers the source address which signed a message
+     * @dev Comparing to a claimed address would add nothing,
+     *  as the caller could simply perform the recover and claim that address.
+     * @param message The data that was presumably signed
+     * @param signature The fingerprint of the data + private key
+     * @return The source address which signed the message, presumably
      */
-    function postPrices(
-        bytes[] calldata messages,
-        bytes[] calldata signatures,
-        bytes32[] calldata symbols
-    ) external {
-        require(messages.length == signatures.length, "messages and signatures must be 1:1");
-
-        // Post the messages, whatever they are
-        for (uint i = 0; i < messages.length; i++) {
-            put(messages[i], signatures[i]);
-        }
+    function source(bytes memory message, bytes memory signature) internal pure returns (address) {
+        (bytes32 r, bytes32 s, uint8 v) = abi.decode(signature, (bytes32, bytes32, uint8));
+        bytes32 hash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", keccak256(message)));
+        return ecrecover(hash, v, r, s);
     }
 }

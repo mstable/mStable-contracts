@@ -1,17 +1,17 @@
 pragma solidity ^0.5.12;
 pragma experimental ABIEncoderV2;
 
-import { IMasset } from "../interfaces/IMasset.sol";
+// import { IMasset } from "../interfaces/IMasset.sol";
 
-import { MassetBasket, IManager, ISystok, IForgeLib, IERC20 } from "./MassetBasket.sol";
-import { MassetToken } from "./MassetToken.sol";
+import { MassetBasket, IManager, ISystok, IForgeValidator, IERC20 } from "./MassetBasket.sol";
+import { MassetToken } from "./mERC20/MassetToken.sol";
 
 /**
   * @title Masset
   * @author Stability Labs Pty Ltd
   * @dev Base layer functionality for the Masset
   */
-contract Masset is IMasset, MassetToken, MassetBasket {
+contract Masset is  MassetToken, MassetBasket {
 
     /** @dev Forging events */
     event Minted(address indexed account, uint256 massetQuantity, uint256[] bassetQuantities);
@@ -24,12 +24,13 @@ contract Masset is IMasset, MassetToken, MassetBasket {
     constructor (
         string memory _name,
         string memory _symbol,
+        address _nexus,
         address[] memory _bassets,
         bytes32[] memory _bassetKeys,
         uint256[] memory _bassetWeights,
         uint256[] memory _bassetMultiples,
         address _feePool,
-        address _manager
+        address _forgeValidator
     )
         MassetToken(
             _name,
@@ -37,6 +38,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
             18
         )
         MassetBasket(
+          _nexus,
           _bassets,
           _bassetKeys,
           _bassetWeights,
@@ -44,16 +46,10 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         )
         public
     {
-        manager = IManager(_manager);
         feePool = _feePool;
-
-        (address _systok, address _forgeLib, address _governance) = manager.getModuleAddresses();
-        require(_systok != address(0) && _forgeLib != address(0) && _governance != address(0), "Must get address from Manager");
-
-        systok = ISystok(_systok);
-        forgeLib = IForgeLib(_forgeLib);
-        governance = _governance;
+        forgeValidator = IForgeValidator(_forgeValidator);
     }
+
 
     /**
       * @dev Mints a number of Massets based on the sum of the value of the Bassets
@@ -137,7 +133,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
         Basset memory b = basket.bassets[i];
 
-        forgeLib.validateMint(totalSupply(), b, _bassetQuantity);
+        forgeValidator.validateMint(totalSupply(), b, _bassetQuantity);
 
         require(IERC20(_basset).transferFrom(msg.sender, address(this), _bassetQuantity), "Basset transfer failed");
 
@@ -178,7 +174,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         }
 
         // Validate the proposed mint
-        forgeLib.validateMint(totalSupply(), bAssets, _bassetQuantity);
+        forgeValidator.validateMint(totalSupply(), basket.bassets, _bassetQuantity);
 
         uint massetQuantity = 0;
 
@@ -244,7 +240,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         returns (uint256 massetRedeemed)
     {
         // Validate the proposed redemption
-        forgeLib.validateRedemption(basket.failed, basket.bassets, _bassetQuantity);
+        forgeValidator.validateRedemption(basket.failed, basket.bassets, _bassetQuantity);
 
         uint256 massetQuantity = 0;
 
@@ -291,7 +287,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         uint256 feeRate = redemptionFee;
 
         if(feeRate > 0){
-            (uint256 ownPrice, uint256 systokPrice) = manager.getMassetPrice(address(this));
+            (uint256 ownPrice, uint256 systokPrice) = IManager(_manager()).getMassetPrice(address(this));
 
             // e.g. for 500 massets.
             // feeRate == 1% == 1e16. _quantity == 5e20.
@@ -307,12 +303,13 @@ contract Masset is IMasset, MassetToken, MassetBasket {
             uint256 feeAmountInSystok = feeAmountInDollars.divPrecisely(systokPrice);
 
             // feeAmountInSystok == 0.25e18 == 25e16
-            require(systok.transferFrom(_payer, feePool, feeAmountInSystok), "Must be successful fee payment");
+            require(ISystok(_systok()).transferFrom(_payer, feePool, feeAmountInSystok), "Must be successful fee payment");
 
             emit PaidFee(_payer, feeAmountInSystok, feeRate);
         }
     }
 
+    // TODO - remove after bitmap
     function getSingleForgeParams(
         address _basset,
         uint256 _bassetQuantity
@@ -327,6 +324,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         quantities[i] = _bassetQuantity;
     }
 
+    // TODO - remove after bitmap
     function getForgeParams(
         address[] calldata _bassets,
         uint256[] calldata _bassetQuantities

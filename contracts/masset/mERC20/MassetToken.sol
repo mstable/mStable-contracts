@@ -1,6 +1,6 @@
 pragma solidity ^0.5.12;
 
-import { StableMath } from "../shared/math/StableMath.sol";
+import { StableMath } from "../../shared/math/StableMath.sol";
 import { ERC20Detailed, ERC20, IERC20 } from "./MERC20Detailed.sol";
 
 

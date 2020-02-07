@@ -13,12 +13,10 @@ contract SimpleOracleHubMock is SimpleOracleHub {
 
 
     constructor(
-        address _governance,
         address _nexus,
         address _source
     )
         SimpleOracleHub(
-            _governance,
             _nexus,
             _source
         )
