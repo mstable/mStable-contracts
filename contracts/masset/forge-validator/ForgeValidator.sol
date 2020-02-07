@@ -6,13 +6,11 @@ import { StableMath } from "../../shared/math/StableMath.sol";
 
 /**
   * @title ForgeValidator
-  * @dev Library that validates forge arguments. V2 employs a net difference algorithm, meaning
-  * that the forge is valid if it pushes the net weightings of the basket towards its target.
+  * @dev Contract responsible for validating that the Forging of a particular bAsset set is allowed
   */
 contract ForgeValidator is IForgeValidator {
 
     using StableMath for uint256;
-
 
     /**
       * @dev Checks whether a given mint is valid
@@ -20,8 +18,6 @@ contract ForgeValidator is IForgeValidator {
     function validateMint(uint256 _totalVault, Basset memory _basset, uint256 _bassetQuantity)
     public
     pure {
-        require(_basset.addr != address(0), "");
-
         require(_basset.status != BassetStatus.BrokenBelowPeg &&
             _basset.status != BassetStatus.Liquidating, "Basset not allowed in mint");
 
@@ -43,7 +39,6 @@ contract ForgeValidator is IForgeValidator {
     pure {
         uint256 bassetCount = _bassets.length;
         require(bassetCount == _bassetQuantity.length, "indexes & _bAssetQty length should be equal");
-        //require(!_basket.failed, "Basket must be alive");
 
         uint256[] memory newBalances = new uint256[](bassetCount);
         uint256[] memory maxWeights = new uint256[](bassetCount);
