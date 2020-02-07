@@ -39,7 +39,7 @@ contract("MassetMinting", async (accounts) => {
             [percentToWeight(70), percentToWeight(70)],
             [createMultiple(1), createMultiple(1)],
             sa.feePool,
-            systemMachine.forgeLib.address,
+            systemMachine.forgeValidator.address,
         );
     });
 

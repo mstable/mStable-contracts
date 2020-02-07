@@ -22,7 +22,7 @@ contract Module is ModuleKeys {
     }
 
     modifier onlyGovernance() {
-        require(msg.sender == _governor() || msg.sender == _governance(), "Only governor can execute");
+        require(msg.sender == _governor() || msg.sender == _governance(), "Only governance can execute");
         _;
     }
 
@@ -38,11 +38,20 @@ contract Module is ModuleKeys {
         return nexus.getModule(Key_Governor);
     }
 
+    // Phase 2
     function _governance()
     internal
     view
     returns (address) {
         return nexus.getModule(Key_Governance);
+    }
+
+    // Phase 2
+    function _staking()
+    internal
+    view
+    returns (address) {
+        return nexus.getModule(Key_Staking);
     }
 
     function _systok()
@@ -66,7 +75,8 @@ contract Module is ModuleKeys {
         return nexus.getModule(Key_Manager);
     }
 
-    function _recollateralizer()
+    // Phase 2
+    function _recollateraliser()
     internal
     view
     returns (address) {

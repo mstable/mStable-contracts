@@ -3,7 +3,7 @@ pragma experimental ABIEncoderV2;
 
 // import { IMasset } from "../interfaces/IMasset.sol";
 
-import { MassetBasket, IManager, ISystok, IForgeLib, IERC20 } from "./MassetBasket.sol";
+import { MassetBasket, IManager, ISystok, IForgeValidator, IERC20 } from "./MassetBasket.sol";
 import { MassetToken } from "./mERC20/MassetToken.sol";
 
 /**
@@ -30,7 +30,7 @@ contract Masset is  MassetToken, MassetBasket {
         uint256[] memory _bassetWeights,
         uint256[] memory _bassetMultiples,
         address _feePool,
-        address _forgeLib
+        address _forgeValidator
     )
         MassetToken(
             _name,
@@ -47,7 +47,7 @@ contract Masset is  MassetToken, MassetBasket {
         public
     {
         feePool = _feePool;
-        forgeLib = IForgeLib(_forgeLib);
+        forgeValidator = IForgeValidator(_forgeValidator);
     }
 
 
@@ -98,7 +98,7 @@ contract Masset is  MassetToken, MassetBasket {
 
         Basset memory b = basket.bassets[i];
         // TODO Validate the proposed mint
-        forgeLib.validateMint(totalSupply(), b, _bassetQuantity);
+        forgeValidator.validateMint(totalSupply(), b, _bassetQuantity);
 
         require(IERC20(_basset).transferFrom(msg.sender, address(this), _bassetQuantity), "Basset transfer failed");
         b.vaultBalance = b.vaultBalance.add(_bassetQuantity);
@@ -126,7 +126,7 @@ contract Masset is  MassetToken, MassetBasket {
         returns (uint256 massetMinted)
     {
         // Validate the proposed mint
-        forgeLib.validateMint(totalSupply(), basket.bassets, _bassetQuantity);
+        forgeValidator.validateMint(totalSupply(), basket.bassets, _bassetQuantity);
 
         uint massetQuantity = 0;
 
@@ -192,7 +192,7 @@ contract Masset is  MassetToken, MassetBasket {
         returns (uint256 massetRedeemed)
     {
         // Validate the proposed redemption
-        forgeLib.validateRedemption(basket.failed, basket.bassets, _bassetQuantity);
+        forgeValidator.validateRedemption(basket.failed, basket.bassets, _bassetQuantity);
 
         uint256 massetQuantity = 0;
 

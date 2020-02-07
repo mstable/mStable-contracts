@@ -4,8 +4,8 @@ pragma experimental ABIEncoderV2;
 import { CommonHelpers } from "../shared/libs/CommonHelpers.sol";
 
 import { IERC20 } from "./mERC20/MassetToken.sol";
-import { MassetCore, IManager, ISystok, IForgeLib, StableMath } from "./MassetCore.sol";
-import { MassetStructs } from "./libs/MassetStructs.sol";
+import { MassetCore, IManager, ISystok, IForgeValidator, StableMath } from "./MassetCore.sol";
+import { MassetStructs } from "./shared/MassetStructs.sol";
 
 /**
  * @title MassetBasket

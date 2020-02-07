@@ -3,7 +3,7 @@ pragma solidity ^0.5.12;
 import { IManager } from "./IManager.sol";
 import { ISystok } from "./ISystok.sol";
 
-import { MassetStructs } from "../masset/libs/MassetStructs.sol";
+import { MassetStructs } from "../masset/shared/MassetStructs.sol";
 
 /**
  * @title IMasset
@@ -15,7 +15,7 @@ contract IMasset is MassetStructs {
     function mintSingle(address _basset, uint256 _bassetQuantity, address _recipient) external returns (uint256 massetMinted);
 
     /** @dev Setters for the Manager or Gov to update module info */
-    function upgradeForgeLib(address _newForgeLib) external;
+    function upgradeForgeValidator(address _newForgeValidator) external;
 
     /** @dev Setters for Gov to set system params */
     function setRedemptionFee(uint256 _redemptionFee) external;

@@ -1,4 +1,4 @@
-import { ForgeLibInstance } from "./../../../types/generated/index.d";
+import { ForgeValidatorInstance } from "./../../../types/generated/index.d";
 import envSetup from "@utils/env_setup";
 import { percentToWeight, simpleToExactAmount } from "@utils/math";
 import { createBasket, createBasset, Basket } from "@utils/mstable-objects";
@@ -9,12 +9,12 @@ import { StandardAccounts } from "@utils/machines/standardAccounts";
 envSetup.configure();
 const { expect, assert } = chai;
 
-const ForgeLibArtifact = artifacts.require("ForgeLib");
+const ForgeValidatorArtifact = artifacts.require("ForgeValidator");
 
-contract("ForgeLib", async (accounts) => {
+contract("ForgeValidator", async (accounts) => {
     const sa = new StandardAccounts(accounts);
 
-    let forgeLib: ForgeLibInstance;
+    let forgeValidator: ForgeValidatorInstance;
     let emptyBasket: Basket;
     let standardBasket: Basket;
     let adjustingBasket: Basket;
@@ -23,7 +23,7 @@ contract("ForgeLib", async (accounts) => {
     const TX_DEFAULTS = { from: sa._, gas: 5000000 };
 
     before("Init contract", async () => {
-        forgeLib = await ForgeLibArtifact.new();
+        forgeValidator = await ForgeValidatorArtifact.new();
     });
 
     beforeEach("Refresh the Basket objects", async () => {
@@ -58,7 +58,7 @@ contract("ForgeLib", async (accounts) => {
         describe("Basic validation mechanisms", async () => {
             it("should throw if there is a missing basset", async () => {
                 await shouldFail.reverting.withMessage(
-                    forgeLib.validateMint(standardBasket, [
+                    forgeValidator.validateMint(standardBasket, [
                         simpleToExactAmount(200, 18),
                         simpleToExactAmount(200, 14),
                     ]),
@@ -68,7 +68,7 @@ contract("ForgeLib", async (accounts) => {
 
             it("should throw if there is an extra basset", async () => {
                 await shouldFail.reverting.withMessage(
-                    forgeLib.validateMint(standardBasket, [
+                    forgeValidator.validateMint(standardBasket, [
                         simpleToExactAmount(1000, 18),
                         simpleToExactAmount(1000, 18),
                         simpleToExactAmount(500, 6),
@@ -82,7 +82,7 @@ contract("ForgeLib", async (accounts) => {
         describe("With empty basket", async () => {
             it("should not allow a mint that is not on the target weights", async () => {
                 await shouldFail.reverting.withMessage(
-                    forgeLib.validateMint(emptyBasket, [
+                    forgeValidator.validateMint(emptyBasket, [
                         simpleToExactAmount(10000, 18),
                         simpleToExactAmount(200, 18),
                     ]),
@@ -91,7 +91,7 @@ contract("ForgeLib", async (accounts) => {
             });
 
             it("should allow a mint that is on the target weights", async () => {
-                const isValidMint = await forgeLib.validateMint(emptyBasket, [
+                const isValidMint = await forgeValidator.validateMint(emptyBasket, [
                     simpleToExactAmount(500, 18),
                     simpleToExactAmount(500, 18),
                 ]);
@@ -99,7 +99,7 @@ contract("ForgeLib", async (accounts) => {
             });
 
             it("should allow completely empty minting to pass", async () => {
-                const isValidMint = await forgeLib.validateMint(emptyBasket, [
+                const isValidMint = await forgeValidator.validateMint(emptyBasket, [
                     simpleToExactAmount(0, 18),
                     simpleToExactAmount(0, 18),
                 ]);
@@ -109,7 +109,7 @@ contract("ForgeLib", async (accounts) => {
 
         describe("With static basket", () => {
             it("should allow a mint exactly on the target weights", async () => {
-                const isValidMint = await forgeLib.validateMint(standardBasket, [
+                const isValidMint = await forgeValidator.validateMint(standardBasket, [
                     simpleToExactAmount(1000, 18),
                     simpleToExactAmount(1000, 14),
                     simpleToExactAmount(500, 6),
@@ -119,7 +119,7 @@ contract("ForgeLib", async (accounts) => {
 
             it("should not allow a mint that is not on the target weights", async () => {
                 await shouldFail.reverting.withMessage(
-                    forgeLib.validateMint(standardBasket, [
+                    forgeValidator.validateMint(standardBasket, [
                         simpleToExactAmount(1000, 18),
                         simpleToExactAmount(1000, 14),
                         simpleToExactAmount(501, 6),
@@ -132,7 +132,7 @@ contract("ForgeLib", async (accounts) => {
                 standardBasket.grace = percentToWeight(50).toString();
 
                 await shouldFail.reverting.withMessage(
-                    forgeLib.validateMint(standardBasket, [
+                    forgeValidator.validateMint(standardBasket, [
                         simpleToExactAmount(1000, 18),
                         simpleToExactAmount(1000, 14),
                         simpleToExactAmount(501, 6),
@@ -144,7 +144,7 @@ contract("ForgeLib", async (accounts) => {
 
         describe("With adjusting basket", () => {
             it("should allow a mint exactly on the target weights", async () => {
-                const isValidMint = await forgeLib.validateMint(adjustingBasket, [
+                const isValidMint = await forgeValidator.validateMint(adjustingBasket, [
                     simpleToExactAmount(2000, 18),
                     simpleToExactAmount(2000, 14),
                     simpleToExactAmount(1000, 6),
@@ -153,7 +153,7 @@ contract("ForgeLib", async (accounts) => {
             });
 
             it("should allow a mint that pushes us closer to the target", async () => {
-                const isValidMint = await forgeLib.validateMint(adjustingBasket, [
+                const isValidMint = await forgeValidator.validateMint(adjustingBasket, [
                     simpleToExactAmount(500, 18),
                     simpleToExactAmount(0, 14),
                     simpleToExactAmount(0, 6),
@@ -162,7 +162,7 @@ contract("ForgeLib", async (accounts) => {
             });
 
             it("should allow a mint that pushes some bassets over target, so long as we move closer overall", async () => {
-                const isValidMint = await forgeLib.validateMint(adjustingBasket, [
+                const isValidMint = await forgeValidator.validateMint(adjustingBasket, [
                     simpleToExactAmount(3000, 18),
                     simpleToExactAmount(1500, 14),
                     simpleToExactAmount(0, 6),
@@ -172,7 +172,7 @@ contract("ForgeLib", async (accounts) => {
 
             it("should throw if a mint pushes us further away", async () => {
                 await shouldFail.reverting.withMessage(
-                    forgeLib.validateMint(adjustingBasket, [
+                    forgeValidator.validateMint(adjustingBasket, [
                         simpleToExactAmount(32, 18),
                         simpleToExactAmount(36, 14),
                         simpleToExactAmount(33, 6),
@@ -183,7 +183,7 @@ contract("ForgeLib", async (accounts) => {
 
             it("should throw if we go way over the target", async () => {
                 await shouldFail.reverting.withMessage(
-                    forgeLib.validateMint(adjustingBasket, [
+                    forgeValidator.validateMint(adjustingBasket, [
                         simpleToExactAmount(5000, 18),
                         simpleToExactAmount(0, 14),
                         simpleToExactAmount(0, 6),
@@ -195,7 +195,7 @@ contract("ForgeLib", async (accounts) => {
 
         describe("With adjusting basket (w/ Grace)", () => {
             it("should allow a mint with negative difference, within the grace range", async () => {
-                const isValidMint = await forgeLib.validateMint(adjustingBasketWithGrace, [
+                const isValidMint = await forgeValidator.validateMint(adjustingBasketWithGrace, [
                     simpleToExactAmount(410, 18),
                     simpleToExactAmount(400, 14),
                     simpleToExactAmount(190, 6),
@@ -205,7 +205,7 @@ contract("ForgeLib", async (accounts) => {
 
             it("should throw if the mint pushes us outside the grace range", async () => {
                 await shouldFail.reverting.withMessage(
-                    forgeLib.validateMint(adjustingBasketWithGrace, [
+                    forgeValidator.validateMint(adjustingBasketWithGrace, [
                         simpleToExactAmount(480, 18),
                         simpleToExactAmount(400, 14),
                         simpleToExactAmount(200, 6),
@@ -237,7 +237,7 @@ contract("ForgeLib", async (accounts) => {
         describe("With empty basket", () => {
             it("should not allow a redemption if there is insufficient balance", async () => {
                 await shouldFail.reverting.withMessage(
-                    forgeLib.validateRedemption(emptyBasket, [
+                    forgeValidator.validateRedemption(emptyBasket, [
                         simpleToExactAmount(100, 18),
                         simpleToExactAmount(100, 18),
                     ]),
@@ -246,7 +246,7 @@ contract("ForgeLib", async (accounts) => {
             });
 
             it("should allow completely empty redemption to pass", async () => {
-                const isValidRedemption = await forgeLib.validateRedemption(emptyBasket, [
+                const isValidRedemption = await forgeValidator.validateRedemption(emptyBasket, [
                     simpleToExactAmount(0, 18),
                     simpleToExactAmount(0, 18),
                 ]);
@@ -257,7 +257,7 @@ contract("ForgeLib", async (accounts) => {
         describe("With static basket", () => {
             it("should throw if there is a missing basset", async () => {
                 await shouldFail.reverting.withMessage(
-                    forgeLib.validateRedemption(standardBasket, [
+                    forgeValidator.validateRedemption(standardBasket, [
                         simpleToExactAmount(200, 18),
                         simpleToExactAmount(200, 18),
                     ]),

@@ -1,7 +1,7 @@
 import {
     ERC20MockInstance,
     ManagerInstance,
-    ForgeLibInstance,
+    ForgeValidatorInstance,
     MultiSigWalletInstance,
     NexusMockInstance,
     SimpleOracleHubMockInstance,
@@ -25,7 +25,7 @@ const MultiSigArtifact = artifacts.require("MultiSigWallet");
 const ManagerArtifact = artifacts.require("Manager");
 
 const MassetArtifact = artifacts.require("Masset");
-const ForgeLibArtifact = artifacts.require("ForgeLib");
+const ForgeValidatorArtifact = artifacts.require("ForgeValidator");
 
 const NexusMockArtifact = artifacts.require("NexusMock");
 
@@ -51,7 +51,7 @@ export class SystemMachine {
     public oracleHub: SimpleOracleHubMockInstance;
     public systok: SystokInstance;
 
-    public forgeLib: ForgeLibInstance;
+    public forgeValidator: ForgeValidatorInstance;
 
     private TX_DEFAULTS: any;
 
@@ -74,7 +74,7 @@ export class SystemMachine {
             /** Shared */
             await CommonHelpersArtifact.new();
             await StableMathArtifact.new();
-            this.forgeLib = await ForgeLibArtifact.new();
+            this.forgeValidator = await ForgeValidatorArtifact.new();
 
             /** NexusMock */
             this.nexus = await this.deployNexus();
@@ -182,7 +182,7 @@ export class SystemMachine {
      */
     public async deployManager(): Promise<ManagerInstance> {
         try {
-            const instance = await ManagerArtifact.new(this.nexus.address, this.forgeLib.address);
+            const instance = await ManagerArtifact.new(this.nexus.address, this.forgeValidator.address);
 
             return instance;
         } catch (e) {
@@ -210,7 +210,7 @@ export class SystemMachine {
             [percentToWeight(50), percentToWeight(50)],
             [createMultiple(1), createMultiple(1)],
             this.sa.feePool,
-            this.forgeLib.address,
+            this.forgeValidator.address,
         );
 
         // Adds the Masset to Manager so that it can look up its price

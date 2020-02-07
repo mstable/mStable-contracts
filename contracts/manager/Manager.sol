@@ -34,16 +34,16 @@ contract Manager is
     /**
       * @dev Sets up the core state of the Manager
       * @param _nexus             Nexus module
-      * @param _forgeLib          Address of current ForgeLib
+      * @param _forgeValidator          Address of current ForgeValidator
       */
     constructor(
         address _nexus,
-        address _forgeLib
+        address _forgeValidator
     )
         ManagerState(_nexus)
         public
     {
-        forgeLib = _forgeLib;
+        forgeValidator = _forgeValidator;
     }
 
 
@@ -52,16 +52,16 @@ contract Manager is
     ****************************************/
 
     /**
-      * @dev Upgrades the version of ForgeLib referenced across the Massets
-      * @param _newForgeLib Address of the new ForgeLib
+      * @dev Upgrades the version of ForgeValidator referenced across the Massets
+      * @param _newForgeValidator Address of the new ForgeValidator
       */
-    function upgradeForgeLib(address _newForgeLib)
+    function upgradeForgeValidator(address _newForgeValidator)
     external
     onlyGovernor {
         address[] memory _massets = massets.keys;
         for(uint256 i = 0; i < _massets.length; i++) {
             IMasset tempMasset = IMasset(_massets[i]);
-            tempMasset.upgradeForgeLib(_newForgeLib);
+            tempMasset.upgradeForgeValidator(_newForgeValidator);
         }
     }
 

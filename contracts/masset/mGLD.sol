@@ -17,7 +17,7 @@ contract MGLD is Masset {
         uint256[] memory _bassetWeights,
         uint256[] memory _measurementMultiples,
         address _feePool,
-        address _forgeLib
+        address _forgeValidator
     )
         Masset(
             "mStable Gold",
@@ -28,7 +28,7 @@ contract MGLD is Masset {
             _bassetWeights,
             _measurementMultiples,
             _feePool,
-            _forgeLib
+            _forgeValidator
         )
         public
     {

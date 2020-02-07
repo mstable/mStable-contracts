@@ -2,7 +2,7 @@ pragma solidity ^0.5.12;
 
 import { IManager } from "../interfaces/IManager.sol";
 import { ISystok } from "../interfaces/ISystok.sol";
-import { IForgeLib } from "./libs/IForgeLib.sol";
+import { IForgeValidator } from "./forge-validator/IForgeValidator.sol";
 
 import { StableMath } from "../shared/math/StableMath.sol";
 import { Module } from "../shared/Module.sol";
@@ -16,8 +16,8 @@ contract MassetCore is Module {
     using StableMath for uint256;
 
     /** @dev Modules */
-    IForgeLib public forgeLib;
-    bool internal forgeLibLocked = false;
+    IForgeValidator public forgeValidator;
+    bool internal forgeValidatorLocked = false;
 
     /** @dev FeePool */
     address public feePool;
@@ -43,24 +43,24 @@ contract MassetCore is Module {
     }
 
     /**
-      * @dev Upgrades the version of ForgeLib protocol
-      * @param _newForgeLib Address of the new ForgeLib
+      * @dev Upgrades the version of ForgeValidator protocol
+      * @param _newForgeValidator Address of the new ForgeValidator
       */
-    function upgradeForgeLib(address _newForgeLib)
+    function upgradeForgeValidator(address _newForgeValidator)
     external
     managerOrGovernor {
-        require(!forgeLibLocked, "Must be allowed to upgrade");
-        require(_newForgeLib != address(0), "Must be non null address");
-        forgeLib = IForgeLib(_newForgeLib);
+        require(!forgeValidatorLocked, "Must be allowed to upgrade");
+        require(_newForgeValidator != address(0), "Must be non null address");
+        forgeValidator = IForgeValidator(_newForgeValidator);
     }
 
     /**
-      * @dev Locks the ForgeLib into it's final form
+      * @dev Locks the ForgeValidator into it's final form
       */
-    function lockForgeLib()
+    function lockForgeValidator()
     external
     managerOrGovernor {
-        forgeLibLocked = true;
+        forgeValidatorLocked = true;
     }
 
     /**

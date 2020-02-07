@@ -8,7 +8,7 @@ const c_OracleHub = artifacts.require('SimpleOracleHub');
 const c_Systok = artifacts.require('Systok');
 const c_Manager = artifacts.require('Manager');
 const c_CommonHelpers = artifacts.require('CommonHelpers');
-const c_ForgeLib = artifacts.require('ForgeLib');
+const c_ForgeValidator = artifacts.require('ForgeValidator');
 
 const c_StableMath = artifacts.require('StableMath');
 
@@ -68,13 +68,13 @@ module.exports = async (deployer, network, accounts) => {
 
   /** Manager */
 
-  // Deploy ForgeLib
-  await deployer.link(c_StableMath, c_ForgeLib);
-  await deployer.deploy(c_ForgeLib);
-  const d_ForgeLib = await c_ForgeLib.deployed();
+  // Deploy ForgeValidator
+  await deployer.link(c_StableMath, c_ForgeValidator);
+  await deployer.deploy(c_ForgeValidator);
+  const d_ForgeValidator = await c_ForgeValidator.deployed();
 
   await deployer.link(c_StableMath, c_Manager);
-  await deployer.deploy(c_Manager, d_Nexus.address, d_ForgeLib.address);
+  await deployer.deploy(c_Manager, d_Nexus.address, d_ForgeValidator.address);
   const d_Manager = await c_Manager.deployed();
 
   await publishModuleThroughMultisig(d_Nexus, d_MultiSig, await d_Nexus.Key_Manager(), d_Manager.address, governor);

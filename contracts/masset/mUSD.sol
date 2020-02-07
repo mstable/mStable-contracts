@@ -17,7 +17,7 @@ contract MUSD is Masset {
         bytes32[] memory _bassetKeys,
         uint256[] memory _bassetWeights,
         address _feePool,
-        address _forgeLib
+        address _forgeValidator
     )
         Masset(
             "mStable USD",
@@ -28,7 +28,7 @@ contract MUSD is Masset {
             _bassetWeights,
             new uint256[](0),
             _feePool,
-            _forgeLib
+            _forgeValidator
         )
         public
     {
