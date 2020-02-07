@@ -11,6 +11,7 @@ contract MGLD is Masset {
 
     /** @dev constructor */
     constructor (
+        address _nexus,
         address[] memory _bassets,
         bytes32[] memory _bassetKeys,
         uint256[] memory _bassetWeights,
@@ -21,6 +22,7 @@ contract MGLD is Masset {
         Masset(
             "mStable Gold",
             "mGLD",
+            _nexus,
             _bassets,
             _bassetKeys,
             _bassetWeights,
@@ -31,4 +33,7 @@ contract MGLD is Masset {
         public
     {
     }
+
+    // TODO - Override or separate out 'Minting' functions here -
+    // Minting volume for mGLD relies on subtracting the transfer/demourrage fees first
 }

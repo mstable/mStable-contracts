@@ -3,7 +3,7 @@ pragma experimental ABIEncoderV2;
 
 import { CommonHelpers } from "../shared/libs/CommonHelpers.sol";
 
-import { IERC20 } from "./MassetToken.sol";
+import { IERC20 } from "./mERC20/MassetToken.sol";
 import { MassetCore, IManager, ISystok, IForgeLib, StableMath } from "./MassetCore.sol";
 import { MassetStructs } from "./libs/MassetStructs.sol";
 
@@ -24,16 +24,21 @@ contract MassetBasket is MassetStructs, MassetCore {
 
     /** @dev constructor */
     constructor(
+        address _nexus,
         address[] memory _bassets,
         bytes32[] memory _keys,
         uint256[] memory _weights,
         uint256[] memory _multiples
     )
+        MassetCore(_nexus)
         public
     {
-        measurementMultipleEnabled = _multiples.length > 0;
-        basket.collateralisationRatio = 1e18;
+        require(_bassets.length > 0, "Must initialise the basket with some bAssets");
 
+        measurementMultipleEnabled = _multiples.length > 0;
+
+        // Defaults
+        basket.collateralisationRatio = 1e18;
         redemptionFee = 2e16;
 
         for (uint256 i = 0; i < _bassets.length; i++) {
@@ -273,7 +278,6 @@ contract MassetBasket is MassetStructs, MassetCore {
 
             uint256 bassetWeight = _weights[i];
             if(basket.bassets[i].status == BassetStatus.Normal) {
-                uint256 bassetWeight = _weights[i];
                 require(bassetWeight >= 0, "Weight must be positive");
                 require(bassetWeight <= StableMath.getScale(), "Asset weight must be less than or equal to 1");
                 basket.bassets[i].maxWeight = bassetWeight;

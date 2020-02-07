@@ -37,8 +37,8 @@ contract Nexus is INexus, ModuleKeys {
     ****************************************/
 
     /** @dev Verifies that the caller is the System Governor as defined in the module mapping */
-    modifier onlyGovernance() {
-        require(moduleAddresses[Key_Governance]._address == msg.sender, "Only the governance may perform this operation");
+    modifier onlyGovernor() {
+        require(moduleAddresses[Key_Governor]._address == msg.sender, "Only the governance may perform this operation");
         _;
     }
 
@@ -62,7 +62,7 @@ contract Nexus is INexus, ModuleKeys {
     external
     view
     returns (address) {
-        address addr = moduleAddresses[_key];
+        address addr = moduleAddresses[_key]._address;
         require(addr != address(0), "Must have valid module address");
         return addr;
     }
@@ -80,7 +80,7 @@ contract Nexus is INexus, ModuleKeys {
       */
     function addModule(bytes32 _key, address _addr)
     external
-    onlyGovernance
+    onlyGovernor
     returns (bool) {
         _publishModule(_key, _addr);
         return true;
@@ -92,9 +92,9 @@ contract Nexus is INexus, ModuleKeys {
       * @param _addresses Contract addresses of the new modules
       * @return bool Success of publishing new Modules
       */
-    function addModules(bytes32[] memory _keys, address[] memory _addresses)
+    function addModules(bytes32[] calldata _keys, address[] calldata _addresses)
     external
-    onlyGovernance
+    onlyGovernor
     returns (bool) {
         uint count = _keys.length;
         require(count == _addresses.length, "");
@@ -115,7 +115,7 @@ contract Nexus is INexus, ModuleKeys {
     function _publishModule(bytes32 _key, address _addr)
     internal
     onlyUnlockedModule(_key) {
-        moduleAddresses[_key].addr = _addr;
+        moduleAddresses[_key]._address = _addr;
     }
 
 
@@ -125,11 +125,11 @@ contract Nexus is INexus, ModuleKeys {
 
     /**
       * @dev Permanently lock a module to its current settings
-      * @param _moduleKey Bytes32 key of the module
+      * @param _key Bytes32 key of the module
       */
     function lockModule(bytes32 _key)
     external
-    onlyGovernance
+    onlyGovernor
     onlyUnlockedModule(_key)
     returns (bool) {
         moduleAddresses[_key]._isLocked = true;

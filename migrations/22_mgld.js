@@ -2,6 +2,7 @@
 /* eslint-disable prefer-const */
 /* eslint-disable one-var */
 const c_Manager = artifacts.require('Manager')
+const c_Nexus = artifacts.require('Nexus')
 const c_ForgeLib = artifacts.require('ForgeLib')
 const c_MultiSig = artifacts.require('MultiSigWallet')
 const c_mGLD = artifacts.require('MGLD')
@@ -20,7 +21,8 @@ module.exports = async (deployer, network, accounts) => {
 	const [ _, governor, fundManager, oracleSource, feePool ] = accounts;
 
   /* Get deployed Manager */
-  const d_Manager = await c_Manager.deployed();
+  const d_Manager = await c_Manager.deployed()
+  const d_Nexus = await c_Nexus.deployed()
   const d_ForgeLib = await c_ForgeLib.deployed()
   const d_MultiSig = await c_MultiSig.deployed()
 
@@ -71,6 +73,7 @@ module.exports = async (deployer, network, accounts) => {
 
   const d_mGLD = await deployer.deploy(
     c_mGLD,
+    d_Nexus.address,
     basketAddresses,
     basketKeys,
     basketWeights,

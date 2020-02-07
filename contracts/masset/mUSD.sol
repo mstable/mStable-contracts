@@ -1,5 +1,6 @@
 pragma solidity ^0.5.12;
 pragma experimental ABIEncoderV2;
+
 import { Masset } from "./Masset.sol";
 
 /**
@@ -11,6 +12,7 @@ contract MUSD is Masset {
 
     /** @dev constructor */
     constructor (
+        address _nexus,
         address[] memory _bassets,
         bytes32[] memory _bassetKeys,
         uint256[] memory _bassetWeights,
@@ -20,6 +22,7 @@ contract MUSD is Masset {
         Masset(
             "mStable USD",
             "mUSD",
+            _nexus,
             _bassets,
             _bassetKeys,
             _bassetWeights,

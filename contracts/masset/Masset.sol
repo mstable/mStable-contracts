@@ -1,7 +1,7 @@
 pragma solidity ^0.5.12;
 pragma experimental ABIEncoderV2;
 
-import { IMasset } from "../interfaces/IMasset.sol";
+// import { IMasset } from "../interfaces/IMasset.sol";
 
 import { MassetBasket, IManager, ISystok, IForgeLib, IERC20 } from "./MassetBasket.sol";
 import { MassetToken } from "./mERC20/MassetToken.sol";
@@ -11,7 +11,7 @@ import { MassetToken } from "./mERC20/MassetToken.sol";
   * @author Stability Labs Pty Ltd
   * @dev Base layer functionality for the Masset
   */
-contract Masset is IMasset, MassetToken, MassetBasket {
+contract Masset is  MassetToken, MassetBasket {
 
     /** @dev Forging events */
     event Minted(address indexed account, uint256 massetQuantity, uint256[] bassetQuantities);
@@ -24,6 +24,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
     constructor (
         string memory _name,
         string memory _symbol,
+        address _nexus,
         address[] memory _bassets,
         bytes32[] memory _bassetKeys,
         uint256[] memory _bassetWeights,
@@ -37,6 +38,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
             18
         )
         MassetBasket(
+          _nexus,
           _bassets,
           _bassetKeys,
           _bassetWeights,

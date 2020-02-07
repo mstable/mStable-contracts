@@ -10,6 +10,7 @@ contract ModuleKeys {
 
     bytes32 constant public Key_Governor = "Governor";
     bytes32 constant public Key_Governance = "Governance";
+    bytes32 constant public Key_Staking = "Staking";
 
     bytes32 constant public Key_Systok = "Systok";
 
@@ -18,6 +19,4 @@ contract ModuleKeys {
     bytes32 constant public Key_Manager = "Manager";
 
     bytes32 constant public Key_Recollateraliser = "Recollateraliser";
-
-    bytes32 constant public Key_Staking = "StakingPool";
 }

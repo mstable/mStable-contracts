@@ -57,7 +57,7 @@ contract Manager is
       */
     function upgradeForgeLib(address _newForgeLib)
     external
-    onlyGovernance {
+    onlyGovernor {
         address[] memory _massets = massets.keys;
         for(uint256 i = 0; i < _massets.length; i++) {
             IMasset tempMasset = IMasset(_massets[i]);
@@ -112,7 +112,7 @@ contract Manager is
         address _masset
     )
         external
-        onlyGovernance
+        onlyGovernor
         returns (address)
     {
         require(_masset != address(0), "Masset must be a referenced implementation");
@@ -131,7 +131,7 @@ contract Manager is
         address _masset
     )
         external
-        onlyGovernance
+        onlyGovernor
     {
         require(_masset != address(0), "Masset must be a referenced implementation");
         bytes32 key = massets.get(_masset);
