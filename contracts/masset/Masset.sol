@@ -125,7 +125,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         uint256 _bassetQuantity,
         address _recipient
     )
-        external
+        public
         basketIsHealthy
         returns (uint256 massetMinted)
     {
