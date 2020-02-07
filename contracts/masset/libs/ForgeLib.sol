@@ -39,20 +39,25 @@ contract ForgeLib is IForgeLib {
     /**
       * @dev Checks whether a given mint is valid
       */
-    function validateMint(uint256 _totalVault, Basset[] memory _bassets, uint256[] memory _bassetQuantity)
+    function validateMint(uint8[] memory indexes, uint256 _totalVault, Basset[] memory _bassets, uint256[] memory _bassetQuantity)
     public
     pure {
+        //TODO still full list of _bassets received. Improve further.
         uint256 bassetCount = _bassets.length;
-        require(_bassetQuantity.length == bassetCount, "Must provide values for all Bassets in system");
+        //require(_bassetQuantity.length == bassetCount, "Must provide values for all Bassets in system");
+        //require(_bassetQuantity.length <= bassetCount, "bAssets quantity must be less than equal to tatal bAssets");
+        require(indexes.length == _bassetQuantity.length, "indexes & _bAssetQty length should be equal");
         //require(!_basket.failed, "Basket must be alive");
 
-        uint256[] memory newBalances = new uint256[](bassetCount);
-        uint256[] memory maxWeights = new uint256[](bassetCount);
+        uint256 idxCount = indexes.length;
+        uint256[] memory newBalances = new uint256[](idxCount);
+        uint256[] memory maxWeights = new uint256[](idxCount);
         uint256 newTotalVault = _totalVault;
         // Theoretically add the mint quantities to the vault
-        for(uint j = 0; j < bassetCount; j++){
+        for(uint j = 0; j < idxCount; j++){
             // _basket.bassets[j].vaultBalance = _basket.bassets[j].vaultBalance.add(_bassetQuantity[j]);
-            Basset memory b = _bassets[j];
+
+            Basset memory b = _bassets[indexes[j]];
             require(b.status != BassetStatus.BrokenBelowPeg && b.status != BassetStatus.Liquidating, "Basset not allowed in mint");
             maxWeights[j] = b.maxWeight;
             // How much mAsset is this _bassetQuantity worth?
@@ -63,7 +68,7 @@ contract ForgeLib is IForgeLib {
             newTotalVault = newTotalVault.add(mintAmountInMasset);
         }
 
-      for(uint k = 0; k < bassetCount; k++){
+      for(uint k = 0; k < idxCount; k++){
             // What is the percentage of this bAsset in the basket?
             uint256 weighting = newBalances[k].divPrecisely(newTotalVault);
 
