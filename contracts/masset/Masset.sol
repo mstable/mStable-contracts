@@ -50,46 +50,37 @@ contract Masset is  MassetToken, MassetBasket {
         forgeValidator = IForgeValidator(_forgeValidator);
     }
 
-
-    /**
-      * @dev Mints a number of Massets based on the sum of the value of the Bassets
-      * @param _bassetQuantity Exact units of Bassets to mint
-      */
-    function mint(
-        uint256[] calldata _bassetQuantity
-    )
-        external
-        returns (uint256 massetMinted)
-    {
-        return mintTo(getBitmapForAllBassets(), _bassetQuantity, msg.sender);
-    }
-
-    //TODO NEED TO REMOVE.
-    //ONLY USED BY ForgeRewardMUSD.sol
-    function mintTo(
-        uint256[] calldata _bassetQuantity,
-        address _recipient
-    )
-        external
-        returns (uint256 massetMinted)
-    {
-        return mintTo(getBitmapForAllBassets(), _bassetQuantity, _recipient);
-    }
-
     /**
      * @dev Mint with bAsset addresses in bitmap
      * @param _bassetsBitmap bAssets index in bitmap
      * @param _bassetQuantity bAsset's quantity to send
      * @return massetMinted returns the number of newly minted mAssets
      */
-    function mintBitmap(
+    function mintBitmapTo(
         uint32 _bassetsBitmap,
-        uint256[] calldata _bassetQuantity
+        uint256[] calldata _bassetQuantity,
+        address _recipient
     )
         external
         returns(uint256 massetMinted)
     {
-        return mintTo(_bassetsBitmap, _bassetQuantity, msg.sender);
+        return mintTo(_bassetsBitmap, _bassetQuantity, _recipient);
+    }
+
+    /**
+     * @dev Mint a single bAsset
+     * @param _basset bAsset address to mint
+     * @param _bassetQuantity bAsset quantity to mint
+     * @return returns the number of newly minted mAssets
+     */
+    function mintSingle(
+        address _basset,
+        uint256 _bassetQuantity
+    )
+        external
+        returns (uint256 massetMinted)
+    {
+        return mintTo(_basset, _bassetQuantity, msg.sender);
     }
 
     /**
@@ -99,7 +90,7 @@ contract Masset is  MassetToken, MassetBasket {
      * @param _recipient receipient of the newly minted mAsset tokens
      * @return returns the number of newly minted mAssets
      */
-    function mintSingle(
+    function mintSingleTo(
         address _basset,
         uint256 _bassetQuantity,
         address _recipient
@@ -121,7 +112,7 @@ contract Masset is  MassetToken, MassetBasket {
         uint256 _bassetQuantity,
         address _recipient
     )
-        public
+        internal
         basketIsHealthy
         returns (uint256 massetMinted)
     {
@@ -160,7 +151,7 @@ contract Masset is  MassetToken, MassetBasket {
         uint256[] memory _bassetQuantity,
         address _recipient
     )
-        public
+        internal
         basketIsHealthy
         returns (uint256 massetMinted)
     {
@@ -174,7 +165,7 @@ contract Masset is  MassetToken, MassetBasket {
         }
 
         // Validate the proposed mint
-        forgeValidator.validateMint(totalSupply(), basket.bassets, _bassetQuantity);
+        forgeValidator.validateMint(totalSupply(), bAssets, _bassetQuantity);
 
         uint massetQuantity = 0;
 
