@@ -145,6 +145,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
     {
         require(_bassetQuantity > 0, "Quantity must not be 0");
         require(_recipient != address(0), "Recipient must not be 0x0");
+
         (bool exists, uint256 i) = _isAssetInBasket(_basset);
         require(exists, "bAsset doesn't exist");
 
@@ -153,7 +154,8 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         forgeLib.validateMint(totalSupply(), b, _bassetQuantity);
 
         require(IERC20(_basset).transferFrom(msg.sender, address(this), _bassetQuantity), "Basset transfer failed");
-        b.vaultBalance = b.vaultBalance.add(_bassetQuantity);
+
+        basket.bassets[i].vaultBalance = b.vaultBalance.add(_bassetQuantity);
         // ratioedBasset is the number of masset quantity to mint
         uint256 ratioedBasset = _bassetQuantity.mulRatioTruncate(b.ratio);
 
