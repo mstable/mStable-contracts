@@ -1,6 +1,8 @@
 import {
     ERC20MockInstance,
     ManagerInstance,
+    ForgeLibInstance,
+    MultiSigWalletInstance,
     NexusMockInstance,
     SimpleOracleHubMockInstance,
     SystokInstance,
@@ -42,12 +44,14 @@ export class SystemMachine {
      */
     public sa: StandardAccounts;
 
-    public multisig: MultiSigWalletInstance;
+    public multiSig: MultiSigWalletInstance;
 
     public manager: ManagerInstance;
     public nexus: NexusMockInstance;
     public oracleHub: SimpleOracleHubMockInstance;
     public systok: SystokInstance;
+
+    public forgeLib: ForgeLibInstance;
 
     private TX_DEFAULTS: any;
 
@@ -70,14 +74,15 @@ export class SystemMachine {
             /** Shared */
             await CommonHelpersArtifact.new();
             await StableMathArtifact.new();
+            this.forgeLib = await ForgeLibArtifact.new();
 
             /** NexusMock */
             this.nexus = await this.deployNexus();
 
             /** Governance */
-            this.multisig = await this.deployMultiSig();
+            this.multiSig = await this.deployMultiSig();
             // add module
-            await this.nexus.addModule(await this.nexus.Key_Governance(), this.multisig.address, {
+            await this.nexus.addModule(await this.nexus.Key_Governance(), this.multiSig.address, {
                 from: this.sa.governor,
             });
 
@@ -108,7 +113,7 @@ export class SystemMachine {
      */
     public async deployNexus(deployer: Address = this.sa.default): Promise<NexusMockInstance> {
         try {
-            const nexus = await NexusArtifact.new(this.sa.governor, { from: deployer });
+            const nexus = await NexusMockArtifact.new(this.sa.governor, { from: deployer });
 
             return nexus;
         } catch (e) {
@@ -141,8 +146,7 @@ export class SystemMachine {
         deployer: Address = this.sa.default,
     ): Promise<SimpleOracleHubMockInstance> {
         try {
-            const oracleHubInstance = await OracleHubArtifact.new(
-                this.sa.governor,
+            const oracleHubInstance = await OracleHubMockArtifact.new(
                 this.nexus.address,
                 this.sa.oraclePriceProvider,
                 { from: deployer },
@@ -157,7 +161,7 @@ export class SystemMachine {
     /**
      * @dev Deploy the SystokMock token
      */
-    public async deploySystok(): Promise<SystokMockInstance> {
+    public async deploySystok(): Promise<SystokInstance> {
         try {
             const systokInstance = await SystokArtifact.new(
                 this.nexus.address,
@@ -176,19 +180,11 @@ export class SystemMachine {
     /**
      * @dev Deploy ManagerMock and relevant init
      */
-    public async deployManager(): Promise<ManagerMockInstance> {
+    public async deployManager(): Promise<ManagerInstance> {
         try {
-            const forgeLibInstance = await ForgeLibArtifact.new();
+            const instance = await ManagerArtifact.new(this.nexus.address, this.forgeLib.address);
 
-            const mockInstance = await ManagerArtifact.new(
-                this.governancePortal.address,
-                this.nexus.address,
-                this.systok.address,
-                this.oracleHub.address,
-                forgeLibInstance.address,
-            );
-
-            return mockInstance;
+            return instance;
         } catch (e) {
             throw e;
         }
@@ -208,12 +204,13 @@ export class SystemMachine {
         const masset = await MassetArtifact.new(
             "TestMasset",
             "TMT",
+            this.nexus.address,
             [b1.address, b2.address],
             [aToH("b1"), aToH("b2")],
             [percentToWeight(50), percentToWeight(50)],
             [createMultiple(1), createMultiple(1)],
             this.sa.feePool,
-            this.manager.address,
+            this.forgeLib.address,
         );
 
         // Adds the Masset to Manager so that it can look up its price
@@ -221,7 +218,7 @@ export class SystemMachine {
             .addMasset(aToH("TMT"), masset.address)
             .encodeABI();
 
-        return this.multisig.submitTransaction(this.nexus.address, new BigNumber(0), txData, {
+        return this.multiSig.submitTransaction(this.nexus.address, new BigNumber(0), txData, {
             from: sender,
         });
     }
@@ -243,7 +240,7 @@ export class SystemMachine {
     private async publishModuleThroughMultisig(key, address, sender) {
         const txData = this.nexus.contract.methods.addModule(key, address).encodeABI();
 
-        return this.multisig.submitTransaction(this.nexus.address, new BigNumber(0), txData, {
+        return this.multiSig.submitTransaction(this.nexus.address, new BigNumber(0), txData, {
             from: sender,
         });
     }

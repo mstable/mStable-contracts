@@ -36,7 +36,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         require(_bassets.length > 0, "Must initialise the basket with some bAssets");
 
         measurementMultipleEnabled = _multiples.length > 0;
-
+        
         // Defaults
         basket.collateralisationRatio = 1e18;
         redemptionFee = 2e16;
