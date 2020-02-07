@@ -177,7 +177,7 @@ contract Masset is  MassetToken, MassetBasket {
 
                 require(IERC20(bAsset.addr).transferFrom(msg.sender, address(this), _bassetQuantity[j]), "Basset transfer failed");
 
-                basket.bassets[j].vaultBalance = basket.bassets[j].vaultBalance.add(_bassetQuantity[j]);
+                basket.bassets[indexes[j]].vaultBalance = basket.bassets[j].vaultBalance.add(_bassetQuantity[j]);
 
                 uint ratioedBasset = _bassetQuantity[j].mulRatioTruncate(bAsset.ratio);
                 massetQuantity = massetQuantity.add(ratioedBasset);
