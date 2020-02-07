@@ -2,7 +2,9 @@
 /* eslint-disable prefer-const */
 /* eslint-disable one-var */
 const c_Manager = artifacts.require('Manager')
-const c_Governance = artifacts.require('GovernancePortal')
+const c_Nexus = artifacts.require('Nexus')
+const c_ForgeValidator = artifacts.require('ForgeValidator')
+const c_MultiSig = artifacts.require('MultiSigWallet')
 const c_MUSD = artifacts.require('MUSD')
 
 const c_TUSD = artifacts.require('TUSD')
@@ -24,7 +26,9 @@ module.exports = async (deployer, network, accounts) => {
 
   /* Get deployed Manager */
   const d_Manager = await c_Manager.deployed()
-  const d_Governance = await c_Governance.deployed()
+  const d_Nexus = await c_Nexus.deployed()
+  const d_ForgeValidator = await c_ForgeValidator.deployed()
+  const d_MultiSig = await c_MultiSig.deployed()
 
   /* ~~~~~~~~~ mUSD Setup ~~~~~~~~~  */
 
@@ -86,23 +90,21 @@ module.exports = async (deployer, network, accounts) => {
     createMultiple(1)
   ];
 
-  /* Assign minting and redemption fees */
-  const redemptionFee = percentToWeight(1.5)
-
   const x = await deployer.deploy(
     c_MUSD,
+    d_Nexus.address,
     basketAddresses,
     basketKeys,
     basketWeights,
     feePool,
-    d_Manager.address
+    d_ForgeValidator.address
   );
   
-  // const txData = d_Manager.contract.methods.addMasset(
-  //   aToH("mUSD"),
-  //   x.address).encodeABI();
+  const txData = d_Manager.contract.methods.addMasset(
+    aToH("mUSD"),
+    x.address).encodeABI();
 
-  // await d_Governance.submitTransaction(d_Manager.address, 0, txData, { from : governor });
+  await d_MultiSig.submitTransaction(d_Manager.address, 0, txData, { from : governor });
 
   const massets = await d_Manager.getMassets();
   console.log(`[mUSD]: '${massets[0][0]}'`);

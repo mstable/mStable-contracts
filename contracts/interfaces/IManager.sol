@@ -7,10 +7,9 @@ pragma solidity ^0.5.12;
 interface IManager {
 
     /** Masset Setters */
-    function upgradeForgeLib(address _newForgeLib) external;
+    function upgradeForgeValidator(address _newForgeValidator) external;
 
     /** ManagerPortal provides getters relevant to Massets */
-    function getModuleAddresses() external view returns(address _systok, address _forgeLib, address _governance);
     function getMassetPrice(address _masset) external view returns(uint256, uint256);
 
     /** Getters for Manager/System state */

@@ -1,12 +1,14 @@
 pragma solidity ^0.5.12;
 pragma experimental ABIEncoderV2;
 
-import { ManagerModule, ISystok, IGovernancePortal, IOracleHub, IMasset } from "./ManagerModule.sol";
-import { ManagerPortal } from "./ManagerPortal.sol";
-import { MassetFactory, IManager } from "./MassetFactory.sol";
+import { IManager } from "../interfaces/IManager.sol";
+import { IMasset } from "../interfaces/IMasset.sol";
+import { ISystok } from "../interfaces/ISystok.sol";
+import { IOracleHub } from "../interfaces/IOracleHub.sol";
+
+import { ManagerState } from "./ManagerState.sol";
 
 import { StableMath } from "../shared/math/StableMath.sol";
-import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title Manager
@@ -21,35 +23,27 @@ import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
  */
 contract Manager is
     IManager,
-    ManagerModule,
-    ManagerPortal,
-    MassetFactory
+    ManagerState
 {
-
     using StableMath for uint256;
+
+    /** @dev Events to emit */
+    event MassetAdded(bytes32 indexed key, address addr);
+    event MassetEjected(bytes32 indexed key, address addr);
 
     /**
       * @dev Sets up the core state of the Manager
-      * @param _governance        Current system governance portal
       * @param _nexus             Nexus module
-      * @param _systok            Systok module
-      * @param _oracleHub         OracleHub module
-      * @param _forgeLib          Address of current ForgeLib
+      * @param _forgeValidator          Address of current ForgeValidator
       */
     constructor(
-        IGovernancePortal _governance,
         address _nexus,
-        ISystok _systok,
-        IOracleHub _oracleHub,
-        address _forgeLib
+        address _forgeValidator
     )
-        ManagerModule(_nexus)
+        ManagerState(_nexus)
         public
     {
-        governance = _governance;
-        systok = _systok;
-        oracleHub = _oracleHub;
-        forgeLib = _forgeLib;
+        forgeValidator = _forgeValidator;
     }
 
 
@@ -58,45 +52,93 @@ contract Manager is
     ****************************************/
 
     /**
-      * @dev Upgrades the version of ForgeLib referenced across the Massets
-      * @param _newForgeLib Address of the new ForgeLib
+      * @dev Upgrades the version of ForgeValidator referenced across the Massets
+      * @param _newForgeValidator Address of the new ForgeValidator
       */
-    function upgradeForgeLib(address _newForgeLib)
+    function upgradeForgeValidator(address _newForgeValidator)
     external
-    onlyGovernance {
+    onlyGovernor {
         address[] memory _massets = massets.keys;
         for(uint256 i = 0; i < _massets.length; i++) {
             IMasset tempMasset = IMasset(_massets[i]);
-            tempMasset.upgradeForgeLib(_newForgeLib);
+            tempMasset.upgradeForgeValidator(_newForgeValidator);
         }
     }
 
     /***************************************
-          BASKET MANAGEMENT @@ Testing
+                      ETC
     ****************************************/
 
-    // function handlePegLoss(
-    //    address _masset,
-    //     address _basset,
-    //     bool _isBelowPeg
-    // )
-    //     external
-    // {
-    //     IMasset masset = IMasset(_masset);
-    //     masset.handlePegLoss(_basset, _isBelowPeg);
-    // }
+    /**
+      * @dev Fetch the price of a Masset from OracleHub
+      * Reverts if price is not available
+      * @param _addr Address of the Masset
+      * @return uint256 Price of Masset where $1 == 1e18
+      * @return uint256 Price of Systok where $1 == 1e18
+      */
+    function getMassetPrice(address _addr)
+    external
+    view
+    returns(uint256 massetPrice, uint256 systokPrice) {
+        // Get the relevant masset key
+        bytes32 key = massets.get(_addr);
 
-    // function initiateRecol(address _masset,address _basset, address _recollateraliser)
-    //     external
-    // {
-    //     IMasset masset = IMasset(_masset);
-    //     masset.initiateRecol(_basset, _recollateraliser);
-    // }
+        // Fetch the prices where $1 == 1e6
+        (bool[2] memory isFresh, uint64[2] memory prices) = IOracleHub(_oracleHub()).readPricePair([key, oracle_key_systok]);
 
-    // function completeRecol(address _masset,address _basset, uint256 _unitsUnderCollateralised)
-    //     external
-    // {
-    //     IMasset masset = IMasset(_masset);
-    //     masset.completeRecol(_basset, _unitsUnderCollateralised);
-    // }
+        // Validate state of the response
+        require(prices.length == 2, "Must return valid pair");
+        for(uint i = 0; i < prices.length; i++){
+          require(isFresh[i] && prices[i] > 0, "Prices must exist and be fresh");
+        }
+
+        // Cast prices into relevant format
+        return (prices[0] * 1e12, prices[1] * 1e12);
+    }
+
+
+    /***************************************
+                  FACTORY
+    ****************************************/
+
+    /**
+      * @dev Adds an already and initialised Masset to the stack, storing the relevant data in the ManagerState
+      * @param _massetKey     Key identifier for the Masset
+      * @param _masset        Address of the Masset contract
+      * @return               Address of new Masset
+      */
+    function addMasset(
+        bytes32 _massetKey,
+        address _masset
+    )
+        external
+        onlyGovernor
+        returns (address)
+    {
+        require(_masset != address(0), "Masset must be a referenced implementation");
+
+        massets.add(_masset, _massetKey);
+
+        emit MassetAdded(_massetKey, _masset);
+        return _masset;
+    }
+
+    /**
+      * @dev Removes a Masset from the system and thus releases from recollateraliastion protection
+      * @param _masset        Address of the Masset contract
+      */
+    function ejectMasset(
+        address _masset
+    )
+        external
+        onlyGovernor
+    {
+        require(_masset != address(0), "Masset must be a referenced implementation");
+        bytes32 key = massets.get(_masset);
+        require(key != bytes32(0x0), "Masset must be a referenced implementation");
+
+        massets.remove(_masset);
+
+        emit MassetEjected(key, _masset);
+    }
 }

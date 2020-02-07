@@ -1,6 +1,6 @@
 pragma solidity ^0.5.12;
 
-import { StableMath } from "../shared/math/StableMath.sol";
+import { StableMath } from "../../shared/math/StableMath.sol";
 
 /**
  * @dev Interface of the ERC20 standard as defined in the EIP. Does not include

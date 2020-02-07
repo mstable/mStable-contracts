@@ -2,24 +2,22 @@ pragma solidity ^0.5.12;
 
 import { IManager } from "../interfaces/IManager.sol";
 import { ISystok } from "../interfaces/ISystok.sol";
-import { IForgeLib } from "./libs/IForgeLib.sol";
+import { IForgeValidator } from "./forge-validator/IForgeValidator.sol";
 
 import { StableMath } from "../shared/math/StableMath.sol";
+import { Module } from "../shared/Module.sol";
 
 /**
  * @title MassetCore
  * @dev Core fields and accessors for Masset to conduct Admin
  */
-contract MassetCore {
+contract MassetCore is Module {
 
     using StableMath for uint256;
 
     /** @dev Modules */
-    IManager public manager;
-    address public governance;
-    ISystok public systok;
-    IForgeLib public forgeLib;
-    bool internal forgeLibLocked = false;
+    IForgeValidator public forgeValidator;
+    bool internal forgeValidatorLocked = false;
 
     /** @dev FeePool */
     address public feePool;
@@ -32,70 +30,37 @@ contract MassetCore {
 
     /** @dev Events to emit */
     event RedemptionFeeChanged(uint256 fee);
+    event FeeRecipientChanged(address feePool);
 
-    /**
-      * @dev Verifies that the caller is the Manager
-      */
-    modifier onlyManager() {
-        require(address(manager) == msg.sender, "Must be manager");
-        _;
-    }
-
-    /**
-      * @dev Verifies that the caller is the Manager
-      */
-    modifier onlyGovernance() {
-        require(governance == msg.sender, "Must be governance");
-        _;
-    }
+    constructor(address _nexus) Module(_nexus) public {}
 
     /**
       * @dev Verifies that the caller either Manager or Gov
       */
-    modifier managerOrGovernance() {
-        require(address(manager) == msg.sender || governance == msg.sender, "Must be manager or governance");
+    modifier managerOrGovernor() {
+        require(_manager() == msg.sender || _governor() == msg.sender, "Must be manager or governance");
         _;
     }
 
     /**
-      * @dev Set the address of the new Manager here
-      * @param _manager Address of the new Manager
+      * @dev Upgrades the version of ForgeValidator protocol
+      * @param _newForgeValidator Address of the new ForgeValidator
       */
-    function setManager(IManager _manager)
+    function upgradeForgeValidator(address _newForgeValidator)
     external
-    managerOrGovernance {
-        manager = _manager;
+    managerOrGovernor {
+        require(!forgeValidatorLocked, "Must be allowed to upgrade");
+        require(_newForgeValidator != address(0), "Must be non null address");
+        forgeValidator = IForgeValidator(_newForgeValidator);
     }
 
     /**
-      * @dev Set the address of the new Governance Module here
-      * @param _governance Address of the new Governance Module
+      * @dev Locks the ForgeValidator into it's final form
       */
-    function setGovernance(address _governance)
+    function lockForgeValidator()
     external
-    managerOrGovernance {
-        governance = _governance;
-    }
-
-    /**
-      * @dev Upgrades the version of ForgeLib protocol
-      * @param _newForgeLib Address of the new ForgeLib
-      */
-    function upgradeForgeLib(address _newForgeLib)
-    external
-    managerOrGovernance {
-        require(!forgeLibLocked, "Must be allowed to upgrade");
-        require(_newForgeLib != address(0), "Must be non null address");
-        forgeLib = IForgeLib(_newForgeLib);
-    }
-
-    /**
-      * @dev Locks the ForgeLib into it's final form
-      */
-    function lockForgeLib()
-    external
-    managerOrGovernance {
-        forgeLibLocked = true;
+    managerOrGovernor {
+        forgeValidatorLocked = true;
     }
 
     /**
@@ -104,9 +69,10 @@ contract MassetCore {
       */
     function setFeePool(address _feePool)
     external
-    onlyGovernance {
+    managerOrGovernor {
         require(_feePool != address(0), "Must be valid address");
         feePool = _feePool;
+        emit FeeRecipientChanged(_feePool);
     }
 
 
@@ -116,10 +82,9 @@ contract MassetCore {
       */
     function setRedemptionFee(uint256 _redemptionFee)
     external
-    onlyGovernance {
+    managerOrGovernor {
         require(_redemptionFee <= maxFee, "Redemption fee > maxFee");
         redemptionFee = _redemptionFee;
         emit RedemptionFeeChanged(_redemptionFee);
     }
-
 }

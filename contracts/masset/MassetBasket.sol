@@ -3,9 +3,9 @@ pragma experimental ABIEncoderV2;
 
 import { CommonHelpers } from "../shared/libs/CommonHelpers.sol";
 
-import { IERC20 } from "./MassetToken.sol";
-import { MassetCore, IManager, ISystok, IForgeLib, StableMath } from "./MassetCore.sol";
-import { MassetStructs } from "./libs/MassetStructs.sol";
+import { IERC20 } from "./mERC20/MassetToken.sol";
+import { MassetCore, IManager, ISystok, IForgeValidator, StableMath } from "./MassetCore.sol";
+import { MassetStructs } from "./shared/MassetStructs.sol";
 
 /**
  * @title MassetBasket
@@ -24,16 +24,21 @@ contract MassetBasket is MassetStructs, MassetCore {
 
     /** @dev constructor */
     constructor(
+        address _nexus,
         address[] memory _bassets,
         bytes32[] memory _keys,
         uint256[] memory _weights,
         uint256[] memory _multiples
     )
+        MassetCore(_nexus)
         public
     {
-        measurementMultipleEnabled = _multiples.length > 0;
-        basket.collateralisationRatio = 1e18;
+        require(_bassets.length > 0, "Must initialise the basket with some bAssets");
 
+        measurementMultipleEnabled = _multiples.length > 0;
+        
+        // Defaults
+        basket.collateralisationRatio = 1e18;
         redemptionFee = 2e16;
 
         for (uint256 i = 0; i < _bassets.length; i++) {
@@ -78,7 +83,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         basket.bassets[i].status = newStatus;
 
         if(newStatus == BassetStatus.BrokenBelowPeg) {
-          // REDISTRIBUTE THIS BASSET'S WEIGHT TO THE OTHER BASSETS
+          // REDISTRIBUTE THIS BASSET'S WEIGHT TO THE OTHER BASSETS?
           // Good point
         }
         return false;
@@ -133,14 +138,27 @@ contract MassetBasket is MassetStructs, MassetCore {
       * @dev External func to allow the Manager to conduct add operations on the Basket
       * @param _basset Address of the ERC20 token to add to the Basket
       * @param _key Bytes32 key that will be used to lookup price in Oracle
+      */
+    function addBasset(address _basset, bytes32 _key)
+    external
+    onlyGovernor
+    basketIsHealthy {
+        require(!measurementMultipleEnabled, "Specifying _measurementMultiple disabled");
+        _addBasset(_basset, _key, StableMath.getRatio());
+    }
+
+    /**
+      * @dev External func to allow the Manager to conduct add operations on the Basket
+      * @param _basset Address of the ERC20 token to add to the Basket
+      * @param _key Bytes32 key that will be used to lookup price in Oracle
       * @param _measurementMultiple MeasurementMultiple of the Basset where 1:1 == 1e8
       */
     function addBasset(address _basset, bytes32 _key, uint256 _measurementMultiple)
     external
-    onlyGovernance
+    onlyGovernor
     basketIsHealthy {
-        uint256 mm = measurementMultipleEnabled ? _measurementMultiple : StableMath.getRatio();
-        _addBasset(_basset, _key, mm);
+        require(measurementMultipleEnabled, "Specifying _measurementMultiple disabled");
+        _addBasset(_basset, _key, _measurementMultiple);
     }
 
     /**
@@ -188,7 +206,7 @@ contract MassetBasket is MassetStructs, MassetCore {
     function removeBasset(address _assetToRemove)
     external
     basketIsHealthy
-    onlyGovernance
+    onlyGovernor
     returns (bool removed) {
         _removeBasset(_assetToRemove);
         return true;
@@ -226,7 +244,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         uint256[] calldata _weights
     )
         external
-        onlyGovernance
+        onlyGovernor
         basketIsHealthy
     {
         _setBasketWeights(_bassets, _weights);
@@ -260,7 +278,6 @@ contract MassetBasket is MassetStructs, MassetCore {
 
             uint256 bassetWeight = _weights[i];
             if(basket.bassets[i].status == BassetStatus.Normal) {
-                uint256 bassetWeight = _weights[i];
                 require(bassetWeight >= 0, "Weight must be positive");
                 require(bassetWeight <= StableMath.getScale(), "Asset weight must be less than or equal to 1");
                 basket.bassets[i].maxWeight = bassetWeight;
@@ -322,25 +339,6 @@ contract MassetBasket is MassetStructs, MassetCore {
     }
 
     /**
-      * @dev Get all basket assets
-      * @return Struct array of all basket assets
-      */
-    function _getBasset(uint256 _bassetIndex)
-    internal
-    view
-    returns (
-        address addr,
-        bytes32 key,
-        uint256 ratio,
-        uint256 maxWeight,
-        uint256 vaultBalance,
-        BassetStatus status
-    ) {
-        Basset memory b = basket.bassets[_bassetIndex];
-        return (b.addr, b.key, b.ratio, b.maxWeight, b.vaultBalance, b.status);
-    }
-
-    /**
       * @dev Get all basket assets, failing if the Basset does not exist
       * @return Struct array of all basket assets
       */
@@ -359,6 +357,26 @@ contract MassetBasket is MassetStructs, MassetCore {
         require(exists, "Basset must exist");
         return _getBasset(index);
     }
+
+    /**
+      * @dev Get all basket assets
+      * @return Struct array of all basket assets
+      */
+    function _getBasset(uint256 _bassetIndex)
+    internal
+    view
+    returns (
+        address addr,
+        bytes32 key,
+        uint256 ratio,
+        uint256 maxWeight,
+        uint256 vaultBalance,
+        BassetStatus status
+    ) {
+        Basset memory b = basket.bassets[_bassetIndex];
+        return (b.addr, b.key, b.ratio, b.maxWeight, b.vaultBalance, b.status);
+    }
+
 
     /**
       * @dev Checks if a particular asset is in the basket
@@ -387,11 +405,11 @@ contract MassetBasket is MassetStructs, MassetCore {
     internal
     pure
     returns (bool) {
-      if(_status == BassetStatus.Liquidating ||
-          _status == BassetStatus.Liquidated ||
-          _status == BassetStatus.Failed) {
-          return true;
-      }
-      return false;
+        if(_status == BassetStatus.Liquidating ||
+            _status == BassetStatus.Liquidated ||
+            _status == BassetStatus.Failed) {
+            return true;
+        }
+        return false;
     }
 }

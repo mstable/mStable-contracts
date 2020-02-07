@@ -1,4 +1,4 @@
-import { ERC20MockInstance, ManagerMockInstance } from "./../../../types/generated/index.d";
+import { ERC20MockInstance, ManagerInstance } from "../../types/generated";
 import { shouldFail } from "openzeppelin-test-helpers";
 import { MASSET_FACTORY_BYTES } from "@utils/constants";
 import envSetup from "@utils/env_setup";
@@ -16,7 +16,7 @@ contract("MassetFactoryManager", async (accounts) => {
     let systemMachine: SystemMachine;
     const bassetMachine = new BassetMachine(sa._, sa.other, 500000);
 
-    let manager: ManagerMockInstance;
+    let manager: ManagerInstance;
 
     before("Init contract and create Masset", async () => {
         /** Get fresh SystemMachine */
