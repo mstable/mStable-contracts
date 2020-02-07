@@ -124,20 +124,8 @@ contract Masset is IMasset, MassetToken, MassetBasket {
             uint32 isBitSet = _bitmap & mask;
             if(isBitSet >= 1) indexes[idx++] = i;
         }
-        //if(_size > 1 && indexes[_size - 1] == 0) revert("Wrong size given");
         require(idx == _size, "Found incorrect elements");
         return indexes;
-    }
-
-    function mintSingle(
-        address _basset,
-        uint256 _bassetQuantity,
-        address _recipient
-    )
-        external
-        returns (uint256 massetMinted)
-    {
-        return mintTo(_basset, _bassetQuantity, _recipient);
     }
 
     /**
@@ -151,7 +139,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         uint256 _bassetQuantity,
         address _recipient
     )
-        public
+        external
         basketIsHealthy
         returns (uint256 massetMinted)
     {
@@ -206,8 +194,8 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         uint8[] memory indexes = convertBitmapToIndexArr(_bassetsBitmap, uint8(_bassetQuantity.length));
 
         Basset[] memory bAssets = new Basset[](indexes.length);
-        for(uint k = 0; k < indexes.length; k++) {
-            bAssets[k] = basket.bassets[indexes[k]];
+        for(uint i = 0; i < indexes.length; i++) {
+            bAssets[i] = basket.bassets[indexes[i]];
         }
 
         // Validate the proposed mint
@@ -216,16 +204,16 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         uint massetQuantity = 0;
 
         // Transfer the Bassets to this contract, update storage and calc MassetQ
-        for(uint i = 0; i < indexes.length; i++){
+        for(uint j = 0; j < bAssets.length; j++){
 
-            if(_bassetQuantity[i] > 0){
-                Basset memory bAsset = bAssets[i];
+            if(_bassetQuantity[j] > 0){
+                Basset memory bAsset = bAssets[j];
 
-                require(IERC20(bAsset.addr).transferFrom(msg.sender, address(this), _bassetQuantity[i]), "Basset transfer failed");
+                require(IERC20(bAsset.addr).transferFrom(msg.sender, address(this), _bassetQuantity[j]), "Basset transfer failed");
 
-                bAsset.vaultBalance = bAsset.vaultBalance.add(_bassetQuantity[i]);
+                bAsset.vaultBalance = bAsset.vaultBalance.add(_bassetQuantity[j]);
 
-                uint ratioedBasset = _bassetQuantity[i].mulRatioTruncate(bAsset.ratio);
+                uint ratioedBasset = _bassetQuantity[j].mulRatioTruncate(bAsset.ratio);
                 massetQuantity = massetQuantity.add(ratioedBasset);
             }
         }
