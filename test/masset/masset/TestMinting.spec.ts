@@ -18,7 +18,7 @@ contract("MassetMinting", async (accounts) => {
   const sa = new StandardAccounts(accounts);
   let systemMachine;
   let masset;
-  let b1, b2, b3, b4;
+  let b1, b2, b3, b4, b5, b6, b7;
 
   before("Init contract", async () => {
 
@@ -31,15 +31,21 @@ contract("MassetMinting", async (accounts) => {
     b2 = await bassetMachine.deployERC20Async();
     b3 = await bassetMachine.deployERC20Async();
     b4 = await bassetMachine.deployERC20Async();
+    b5 = await bassetMachine.deployERC20Async();
+    b6 = await bassetMachine.deployERC20Async();
+    b7 = await bassetMachine.deployERC20Async();
 
     //2. Masset contract deploy
     masset = await MassetArtifact.new(
       "TestMasset",
       "TMT",
-      [b1.address, b2.address, b3.address, b4.address],
-      [aToH("b1"), aToH("b2"), aToH("b3"), aToH("b4")],
-      [percentToWeight(30), percentToWeight(30), percentToWeight(30), percentToWeight(30)],
-      [createMultiple(1), createMultiple(1), createMultiple(1), createMultiple(1)],
+      [b1.address, b2.address, b3.address, b4.address, b5.address, b6.address, b7.address],
+      [aToH("b1"), aToH("b2"), aToH("b3"), aToH("b4"), aToH("b5"), aToH("b6"), aToH("b7")],
+      [percentToWeight(20), percentToWeight(20),
+      percentToWeight(20), percentToWeight(20),
+      percentToWeight(20), percentToWeight(20), percentToWeight(20)],
+      [createMultiple(1), createMultiple(1), createMultiple(1), createMultiple(1),
+      createMultiple(1), createMultiple(1), createMultiple(1)],
       sa.feePool,
       systemMachine.manager.address,
     );
@@ -52,9 +58,12 @@ contract("MassetMinting", async (accounts) => {
       await b2.approve(masset.address, 10, { from: sa.default });
       await b3.approve(masset.address, 10, { from: sa.default });
       await b4.approve(masset.address, 10, { from: sa.default });
+      await b5.approve(masset.address, 10, { from: sa.default });
+      await b6.approve(masset.address, 10, { from: sa.default });
+      await b7.approve(masset.address, 10, { from: sa.default });
 
       let mUSD_balBefore = await masset.balanceOf(sa.default);
-      await masset.mint([10, 10, 10, 10]);
+      await masset.mint([10, 10, 10, 10, 10, 10, 10]);
       let mUSD_balAfter = await masset.balanceOf(sa.default);
       //assert(mUSD_balBefore.eq(new BN(0)));
       //assert(mUSD_balAfter.eq(new BN(10)));
@@ -66,7 +75,7 @@ contract("MassetMinting", async (accounts) => {
       await b3.approve(masset.address, 10, { from: sa.default });
       //await b4.approve(masset.address, 10, { from: sa.default });
 
-      let bitmap = 5; // 0101
+      let bitmap = 5; // 0101 = 5
       await masset.mintTo(bitmap, [10, 10], sa.default, { from: sa.default });
 
     });
@@ -80,7 +89,7 @@ contract("MassetMinting", async (accounts) => {
       //Returns two bit set, as there are only two bAssets
       let bitmap = await masset.getBitmapForAllBassets();
       //console.log(bitmap);
-      assert(bitmap.eq(new BN(15)), "wrong bitmap");
+      assert(bitmap.eq(new BN(127)), "wrong bitmap");
 
       //Result sets only first bit, as b1 is at first index in bAsset array
       //bitmap = await masset.getBitmapFor([b1.address]);
@@ -96,8 +105,8 @@ contract("MassetMinting", async (accounts) => {
     });
 
     it("Should convert bitmap to index array", async () => {
-      let indexes = await masset.convertBitmapToIndexArr(3, 2);
-      console.log(indexes);
+      //let indexes = await masset.convertBitmapToIndexArr(3, 2);
+      //console.log(indexes);
 
       //TODO (3,3) will return indexes[0,1,0] which is wrong
       //TODO need to look for solution

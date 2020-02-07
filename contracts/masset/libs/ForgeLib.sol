@@ -41,11 +41,8 @@ contract ForgeLib is IForgeLib {
       */
     function validateMint(uint256 _totalVault, Basset[] memory _bassets, uint256[] memory _bassetQuantity)
     public
-    pure {
-        //TODO still full list of _bassets received. Improve further.
-        uint256 bassetCount = _bassets.length;
-        //require(_bassetQuantity.length == bassetCount, "Must provide values for all Bassets in system");
-        //require(_bassetQuantity.length <= bassetCount, "bAssets quantity must be less than equal to tatal bAssets");
+    pure {        
+        uint256 bassetCount = _bassets.length;        
         require(bassetCount == _bassetQuantity.length, "indexes & _bAssetQty length should be equal");
         //require(!_basket.failed, "Basket must be alive");
 
