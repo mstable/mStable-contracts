@@ -13,7 +13,9 @@ const MassetArtifact = artifacts.require("Masset");
 envSetup.configure();
 const { expect, assert } = chai;
 
+
 contract("MassetMinting", async (accounts) => {
+  let BN = web3.utils.BN;
   const sa = new StandardAccounts(accounts);
   let systemMachine: SystemMachine;
   let masset: MassetInstance;
@@ -99,7 +101,7 @@ contract("MassetMinting", async (accounts) => {
       // Returns two bit set, as there are only two bAssets
       const bitmap = await masset.getBitmapForAllBassets();
       // console.log(bitmap);
-      assert(bitmap.eq(new BigNumber(127)), "wrong bitmap");
+      assert(bitmap.eq(new BN(127)), "wrong bitmap");
 
       // Result sets only first bit, as b1 is at first index in bAsset array
       // bitmap = await masset.getBitmapFor([b1.address]);
