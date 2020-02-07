@@ -183,7 +183,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         require(IERC20(_basset).approve(address(mUSD), _bassetQuantity), "Approval of mUSD failed");
 
         // Mint the mAsset
-        massetMinted = mUSD.mintSingle(_basset, _bassetQuantity, _massetRecipient);
+        massetMinted = mUSD.mintTo(_basset, _bassetQuantity, _massetRecipient);
 
         // Log minting volume
         _logMintVolume(massetMinted, _rewardRecipient);

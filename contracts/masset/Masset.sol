@@ -125,12 +125,13 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         uint256 _bassetQuantity,
         address _recipient
     )
-        public
+        external
         basketIsHealthy
         returns (uint256 massetMinted)
     {
         require(_bassetQuantity > 0, "Quantity must not be 0");
         require(_recipient != address(0), "Recipient must not be 0x0");
+
         (bool exists, uint256 i) = _isAssetInBasket(_basset);
         require(exists, "bAsset doesn't exist");
 
@@ -139,7 +140,8 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         forgeLib.validateMint(totalSupply(), b, _bassetQuantity);
 
         require(IERC20(_basset).transferFrom(msg.sender, address(this), _bassetQuantity), "Basset transfer failed");
-        b.vaultBalance = b.vaultBalance.add(_bassetQuantity);
+
+        basket.bassets[i].vaultBalance = b.vaultBalance.add(_bassetQuantity);
         // ratioedBasset is the number of masset quantity to mint
         uint256 ratioedBasset = _bassetQuantity.mulRatioTruncate(b.ratio);
 
@@ -171,8 +173,8 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
         //load only needed bAssets in array
         Basset[] memory bAssets = new Basset[](indexes.length);
-        for(uint k = 0; k < indexes.length; k++) {
-            bAssets[k] = basket.bassets[indexes[k]];
+        for(uint i = 0; i < indexes.length; i++) {
+            bAssets[i] = basket.bassets[indexes[i]];
         }
 
         // Validate the proposed mint
@@ -181,16 +183,16 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         uint massetQuantity = 0;
 
         // Transfer the Bassets to this contract, update storage and calc MassetQ
-        for(uint i = 0; i < indexes.length; i++){
+        for(uint j = 0; j < bAssets.length; j++){
 
-            if(_bassetQuantity[i] > 0){
-                Basset memory bAsset = bAssets[i];
+            if(_bassetQuantity[j] > 0){
+                Basset memory bAsset = bAssets[j];
 
-                require(IERC20(bAsset.addr).transferFrom(msg.sender, address(this), _bassetQuantity[i]), "Basset transfer failed");
+                require(IERC20(bAsset.addr).transferFrom(msg.sender, address(this), _bassetQuantity[j]), "Basset transfer failed");
 
-                bAsset.vaultBalance = bAsset.vaultBalance.add(_bassetQuantity[i]);
+                bAsset.vaultBalance = bAsset.vaultBalance.add(_bassetQuantity[j]);
 
-                uint ratioedBasset = _bassetQuantity[i].mulRatioTruncate(bAsset.ratio);
+                uint ratioedBasset = _bassetQuantity[j].mulRatioTruncate(bAsset.ratio);
                 massetQuantity = massetQuantity.add(ratioedBasset);
             }
         }

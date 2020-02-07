@@ -41,21 +41,23 @@ contract ForgeLib is IForgeLib {
       */
     function validateMint(uint256 _totalVault, Basset[] memory _bassets, uint256[] memory _bassetQuantity)
     public
-    pure {        
-        uint256 bassetCount = _bassets.length;        
+    pure {
+        uint256 bassetCount = _bassets.length;
         require(bassetCount == _bassetQuantity.length, "indexes & _bAssetQty length should be equal");
         //require(!_basket.failed, "Basket must be alive");
 
         uint256[] memory newBalances = new uint256[](bassetCount);
         uint256[] memory maxWeights = new uint256[](bassetCount);
         uint256 newTotalVault = _totalVault;
+
         // Theoretically add the mint quantities to the vault
         for(uint j = 0; j < bassetCount; j++){
-            // _basket.bassets[j].vaultBalance = _basket.bassets[j].vaultBalance.add(_bassetQuantity[j]);
-
             Basset memory b = _bassets[j];
-            require(b.status != BassetStatus.BrokenBelowPeg && b.status != BassetStatus.Liquidating, "Basset not allowed in mint");
+            BassetStatus bAssetStatus = b.status;
             maxWeights[j] = b.maxWeight;
+
+            require(bAssetStatus != BassetStatus.BrokenBelowPeg && bAssetStatus != BassetStatus.Liquidating, "Basset not allowed in mint");
+
             // How much mAsset is this _bassetQuantity worth?
             uint256 mintAmountInMasset = _bassetQuantity[j].mulRatioTruncate(b.ratio);
             // How much of this bAsset do we have in the vault, in terms of mAsset?
@@ -64,12 +66,12 @@ contract ForgeLib is IForgeLib {
             newTotalVault = newTotalVault.add(mintAmountInMasset);
         }
 
-      for(uint k = 0; k < bassetCount; k++){
+        for(uint k = 0; k < bassetCount; k++){
             // What is the percentage of this bAsset in the basket?
             uint256 weighting = newBalances[k].divPrecisely(newTotalVault);
 
             require(weighting <= maxWeights[k], "Must be below max weighting");
-      }
+        }
     }
 
     /**
