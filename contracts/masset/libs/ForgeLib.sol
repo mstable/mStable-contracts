@@ -22,7 +22,6 @@ contract ForgeLib is IForgeLib {
     pure {
         require(_basset.addr != address(0), "");
 
-
         require(_basset.status != BassetStatus.BrokenBelowPeg &&
             _basset.status != BassetStatus.Liquidating, "Basset not allowed in mint");
 

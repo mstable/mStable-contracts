@@ -4,7 +4,7 @@ pragma experimental ABIEncoderV2;
 import { IMasset } from "../interfaces/IMasset.sol";
 
 import { MassetBasket, IManager, ISystok, IForgeLib, IERC20 } from "./MassetBasket.sol";
-import { MassetToken } from "./MassetToken.sol";
+import { MassetToken } from "./mERC20/MassetToken.sol";
 
 /**
   * @title Masset
@@ -45,16 +45,9 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         public
     {
         feePool = _feePool;
-        // TODO - validate transfer to forgelib
         forgeLib = IForgeLib(_forgeLib);
-
-        (address _systok, address _forgeLib, address _governance) = manager.getModuleAddresses();
-        require(_systok != address(0) && _forgeLib != address(0) && _governance != address(0), "Must get address from Manager");
-
-        systok = ISystok(_systok);
-        forgeLib = IForgeLib(_forgeLib);
-        governance = _governance;
     }
+
 
     /**
       * @dev Mints a number of Massets based on the sum of the value of the Bassets
@@ -244,7 +237,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         uint256 feeRate = redemptionFee;
 
         if(feeRate > 0){
-            (uint256 ownPrice, uint256 systokPrice) = manager.getMassetPrice(address(this));
+            (uint256 ownPrice, uint256 systokPrice) = IManager(_manager()).getMassetPrice(address(this));
 
             // e.g. for 500 massets.
             // feeRate == 1% == 1e16. _quantity == 5e20.
@@ -260,12 +253,13 @@ contract Masset is IMasset, MassetToken, MassetBasket {
             uint256 feeAmountInSystok = feeAmountInDollars.divPrecisely(systokPrice);
 
             // feeAmountInSystok == 0.25e18 == 25e16
-            require(systok.transferFrom(_payer, feePool, feeAmountInSystok), "Must be successful fee payment");
+            require(ISystok(_systok()).transferFrom(_payer, feePool, feeAmountInSystok), "Must be successful fee payment");
 
             emit PaidFee(_payer, feeAmountInSystok, feeRate);
         }
     }
 
+    // TODO - remove after bitmap
     function getSingleForgeParams(
         address _basset,
         uint256 _bassetQuantity
@@ -280,6 +274,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         quantities[i] = _bassetQuantity;
     }
 
+    // TODO - remove after bitmap
     function getForgeParams(
         address[] calldata _bassets,
         uint256[] calldata _bassetQuantities

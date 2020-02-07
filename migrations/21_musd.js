@@ -2,6 +2,7 @@
 /* eslint-disable prefer-const */
 /* eslint-disable one-var */
 const c_Manager = artifacts.require('Manager')
+const c_ForgeLib = artifacts.require('ForgeLib')
 const c_MultiSig = artifacts.require('MultiSigWallet')
 const c_MUSD = artifacts.require('MUSD')
 
@@ -24,6 +25,7 @@ module.exports = async (deployer, network, accounts) => {
 
   /* Get deployed Manager */
   const d_Manager = await c_Manager.deployed()
+  const d_ForgeLib = await c_ForgeLib.deployed()
   const d_MultiSig = await c_MultiSig.deployed()
 
   /* ~~~~~~~~~ mUSD Setup ~~~~~~~~~  */
@@ -92,7 +94,7 @@ module.exports = async (deployer, network, accounts) => {
     basketKeys,
     basketWeights,
     feePool,
-    d_Manager.address
+    d_ForgeLib.address
   );
   
   const txData = d_Manager.contract.methods.addMasset(
