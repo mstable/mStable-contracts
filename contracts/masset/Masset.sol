@@ -204,16 +204,22 @@ contract Masset is IMasset, MassetToken, MassetBasket {
     {
         // It is assumed the number of bits set are equal to the _bassetQuantity[] length
         uint8[] memory indexes = convertBitmapToIndexArr(_bassetsBitmap, uint8(_bassetQuantity.length));
+
+        Basset[] memory bAssets = new Basset[](indexes.length);
+        for(uint k = 0; k < indexes.length; k++) {
+            bAssets[k] = basket.bassets[indexes[k]];
+        }
+
         // Validate the proposed mint
-        forgeLib.validateMint(indexes, totalSupply(), basket.bassets, _bassetQuantity);
+        forgeLib.validateMint(totalSupply(), bAssets, _bassetQuantity);
 
         uint massetQuantity = 0;
 
         // Transfer the Bassets to this contract, update storage and calc MassetQ
-        for(uint i = 0; i < _bassetQuantity.length; i++){
+        for(uint i = 0; i < indexes.length; i++){
 
             if(_bassetQuantity[i] > 0){
-                Basset memory bAsset = basket.bassets[indexes[i]];
+                Basset memory bAsset = bAssets[i];
 
                 require(IERC20(bAsset.addr).transferFrom(msg.sender, address(this), _bassetQuantity[i]), "Basset transfer failed");
 
