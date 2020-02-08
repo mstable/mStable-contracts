@@ -41,14 +41,12 @@ contract ForgeValidator is IForgeValidator {
         require(bassetCount == _bassetQuantity.length, "indexes & _bAssetQty length should be equal");
 
         uint256[] memory newBalances = new uint256[](bassetCount);
-        uint256[] memory maxWeights = new uint256[](bassetCount);
         uint256 newTotalVault = _totalVault;
 
         // Theoretically add the mint quantities to the vault
         for(uint j = 0; j < bassetCount; j++){
             Basset memory b = _bassets[j];
             BassetStatus bAssetStatus = b.status;
-            maxWeights[j] = b.maxWeight;
 
             require(bAssetStatus != BassetStatus.BrokenBelowPeg && bAssetStatus != BassetStatus.Liquidating, "Basset not allowed in mint");
 
@@ -64,7 +62,7 @@ contract ForgeValidator is IForgeValidator {
             // What is the percentage of this bAsset in the basket?
             uint256 weighting = newBalances[k].divPrecisely(newTotalVault);
 
-            require(weighting <= maxWeights[k], "Must be below max weighting");
+            require(weighting <= _bassets[k].maxWeight, "Must be below max weighting");
         }
     }
 

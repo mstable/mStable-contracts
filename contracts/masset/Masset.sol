@@ -64,7 +64,7 @@ contract Masset is  MassetToken, MassetBasket {
         external
         returns(uint256 massetMinted)
     {
-        return mintTo(_bassetsBitmap, _bassetQuantity, _recipient);
+        return _mintTo(_bassetsBitmap, _bassetQuantity, _recipient);
     }
 
     /**
@@ -80,7 +80,7 @@ contract Masset is  MassetToken, MassetBasket {
         external
         returns (uint256 massetMinted)
     {
-        return mintTo(_basset, _bassetQuantity, msg.sender);
+        return _mintTo(_basset, _bassetQuantity, msg.sender);
     }
 
     /**
@@ -98,7 +98,7 @@ contract Masset is  MassetToken, MassetBasket {
         external
         returns (uint256 massetMinted)
     {
-        return mintTo(_basset, _bassetQuantity, _recipient);
+        return _mintTo(_basset, _bassetQuantity, _recipient);
     }
 
     /**
@@ -107,7 +107,7 @@ contract Masset is  MassetToken, MassetBasket {
      * @param _bassetQuantity Exact units of Basset user wants to send to contract
      * @param _recipient Address to which the Masset should be minted
      */
-    function mintTo(
+    function _mintTo(
         address _basset,
         uint256 _bassetQuantity,
         address _recipient
@@ -146,7 +146,7 @@ contract Masset is  MassetToken, MassetBasket {
       * @param _recipient Address to which the Masset should be minted
       * @return number of newly minted mAssets
       */
-    function mintTo(
+    function _mintTo(
         uint32 _bassetsBitmap,
         uint256[] memory _bassetQuantity,
         address _recipient
@@ -155,29 +155,32 @@ contract Masset is  MassetToken, MassetBasket {
         basketIsHealthy
         returns (uint256 massetMinted)
     {
-        // It is assumed the number of bits set are equal to the _bassetQuantity[] length
-        uint8[] memory indexes = convertBitmapToIndexArr(_bassetsBitmap, uint8(_bassetQuantity.length));
+        uint256 len = _bassetQuantity.length;
 
-        //load only needed bAssets in array
-        Basset[] memory bAssets = new Basset[](indexes.length);
-        for(uint i = 0; i < indexes.length; i++) {
+        // It is assumed the number of bits set are equal to the _bassetQuantity[] length
+        uint8[] memory indexes = convertBitmapToIndexArr(_bassetsBitmap, uint8(len));
+
+        // Load only needed bAssets in array
+        Basset[] memory bAssets = new Basset[](len);
+        for(uint256 i = 0; i < len; i++) {
             bAssets[i] = basket.bassets[indexes[i]];
         }
 
         // Validate the proposed mint
         forgeValidator.validateMint(totalSupply(), bAssets, _bassetQuantity);
 
-        uint massetQuantity = 0;
+        uint256 massetQuantity = 0;
 
         // Transfer the Bassets to this contract, update storage and calc MassetQ
-        for(uint j = 0; j < bAssets.length; j++){
+        for(uint256 j = 0; j < len; j++){
 
             if(_bassetQuantity[j] > 0){
+                // bAsset == bAssets[j] == basket.bassets[indexes[j]]
                 Basset memory bAsset = bAssets[j];
 
                 require(IERC20(bAsset.addr).transferFrom(msg.sender, address(this), _bassetQuantity[j]), "Basset transfer failed");
 
-                basket.bassets[indexes[j]].vaultBalance = basket.bassets[j].vaultBalance.add(_bassetQuantity[j]);
+                basket.bassets[indexes[j]].vaultBalance = bAsset.vaultBalance.add(_bassetQuantity[j]);
 
                 uint ratioedBasset = _bassetQuantity[j].mulRatioTruncate(bAsset.ratio);
                 massetQuantity = massetQuantity.add(ratioedBasset);
@@ -313,25 +316,6 @@ contract Masset is  MassetToken, MassetBasket {
         require(exists, "Asset must be in the Basket");
         quantities = new uint256[](basket.bassets.length);
         quantities[i] = _bassetQuantity;
-    }
-
-    // TODO - remove after bitmap
-    function getForgeParams(
-        address[] calldata _bassets,
-        uint256[] calldata _bassetQuantities
-    )
-        external
-        view
-        returns (uint256[] memory quantities)
-    {
-        quantities = new uint256[](basket.bassets.length);
-        require(_bassets.length == _bassetQuantities.length, "Input arrays must be same length");
-
-        for(uint256 i = 0; i < _bassets.length; i++) {
-            (bool exists, uint j) = _isAssetInBasket(_bassets[i]);
-            require(exists, "Asset must be in the Basket");
-            quantities[j] = _bassetQuantities[i];
-        }
     }
 
     /**
