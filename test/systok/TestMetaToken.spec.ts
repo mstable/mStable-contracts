@@ -3,7 +3,7 @@ import { ADDRESS_1, MASSET_FACTORY_BYTES } from "@utils/constants";
 import envSetup from "@utils/env_setup";
 import { BassetMachine, MassetMachine, SystemMachine } from "@utils/machines";
 import { percentToWeight, simpleToExactRelativePrice } from "@utils/math";
-import { aToH, chai, BigNumber } from "@utils/tools";
+import { aToH, chai, BN } from "@utils/tools";
 import { Basset, BassetStatus } from "@utils/mstable-objects";
 import { expectEvent, expectNoEvent } from "@utils/helpers";
 
@@ -29,7 +29,7 @@ contract("MetaToken", async (accounts) => {
     describe("Burning", () => {
         it("Should only allow self & Recollateraliser to mint", async () => {
             const systok = systemMachine.systok;
-            assert((await systok.decimals()).toNumber() === new BigNumber(18).toNumber());
+            assert((await systok.decimals()).eq(new BN(18)));
         });
         it("Should allow anyone to burn, with allowance");
     });

@@ -4,7 +4,7 @@ import { MASSET_FACTORY_BYTES } from "@utils/constants";
 import envSetup from "@utils/env_setup";
 import { BassetMachine, SystemMachine } from "@utils/machines";
 import { percentToWeight } from "@utils/math";
-import { aToH, chai, BigNumber } from "@utils/tools";
+import { aToH, chai, BN } from "@utils/tools";
 import { StandardAccounts } from "@utils/machines/standardAccounts";
 
 envSetup.configure();

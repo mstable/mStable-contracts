@@ -1,7 +1,8 @@
 /// <reference path="../types/interfaces.d.ts" />
 
 import * as chai from "chai";
-import ChaiBigNumber = require("chai-bignumber");
+import ChaiBN from "chai-bn";
+import { BN } from "./tools";
 
 /**
  * @notice This file configures the environment for testing
@@ -18,7 +19,7 @@ class TestEnvironmentSetup {
             return;
         }
 
-        chai.use(ChaiBigNumber());
+        chai.use(ChaiBN(BN));
         this.isConfigured = true;
     }
 }

@@ -1,6 +1,11 @@
-import { DecodedLogArgs, LogEntry, LogWithDecodedArgs, TransactionReceiptWithDecodedLogs } from "ethereum-types";
+import {
+    DecodedLogArgs,
+    LogEntry,
+    LogWithDecodedArgs,
+    TransactionReceiptWithDecodedLogs,
+} from "ethereum-types";
 
-import { chai, BigNumber } from "@utils/tools";
+import { chai, BN } from "@utils/tools";
 const { expect } = chai;
 
 /**
@@ -11,48 +16,58 @@ const { expect } = chai;
 /**
  * @dev Assert that a specific event is emitted during a transaction execution
  */
-const inTransactionReceipt = async (receipt: TransactionReceiptWithDecodedLogs, eventName: string, eventArgs = {}) => {
-  return inLogs(receipt.logs, eventName, eventArgs);
+const inTransactionReceipt = async (
+    receipt: TransactionReceiptWithDecodedLogs,
+    eventName: string,
+    eventArgs = {},
+) => {
+    return inLogs(receipt.logs, eventName, eventArgs);
 };
 
-const inBlockByContract = async (contract: any, blockNumber: number, eventName: string, eventArgs = {}) => {
-  const contractEvents = await contract.getLogsAsync(
-    eventName,
-    {
-      fromBlock: blockNumber,
-      toBlock: blockNumber,
-    },
-    eventArgs);
+const inBlockByContract = async (
+    contract: any,
+    blockNumber: number,
+    eventName: string,
+    eventArgs = {},
+) => {
+    const contractEvents = await contract.getLogsAsync(
+        eventName,
+        {
+            fromBlock: blockNumber,
+            toBlock: blockNumber,
+        },
+        eventArgs,
+    );
 
-  expect(contractEvents.length > 0).to.equal(true, `There is no '${eventName}'`);
+    expect(contractEvents.length > 0).to.equal(true, `There is no '${eventName}'`);
 };
 
 function inLogs(logs: any[], eventName: string, eventArgs = {}, shouldExist = true) {
-  const events = logs.filter((e) => e["event"] === eventName);
-  expect(events.length > 0).to.equal(shouldExist, `There is no '${eventName}'`);
+    const events = logs.filter((e) => e["event"] === eventName);
+    expect(events.length > 0).to.equal(shouldExist, `There is no '${eventName}'`);
 
-  const exception = [];
-  const event = events.find((e) => {
-    for (const [k, v] of Object.entries(eventArgs)) {
-      try {
-        contains(e["args"], k, v);
-      } catch (error) {
-        exception.push(error);
-        return false;
-      }
+    const exception = [];
+    const event = events.find((e) => {
+        for (const [k, v] of Object.entries(eventArgs)) {
+            try {
+                contains(e["args"], k, v);
+            } catch (error) {
+                exception.push(error);
+                return false;
+            }
+        }
+        return true;
+    });
+
+    if (event === undefined && shouldExist) {
+        throw exception[0];
     }
-    return true;
-  });
 
-  if (event === undefined && shouldExist) {
-    throw exception[0];
-  }
+    if (event !== undefined && !shouldExist) {
+        throw exception[0];
+    }
 
-  if (event !== undefined && !shouldExist) {
-    throw exception[0];
-  }
-
-  return event;
+    return event;
 }
 
 // async function inConstruction(contract, eventName, eventArgs = {}) {
@@ -60,23 +75,19 @@ function inLogs(logs: any[], eventName: string, eventArgs = {}, shouldExist = tr
 // }
 
 function contains(args, key, value) {
-  expect(key in args).to.equal(true, `Unknown event argument '${key}'`);
+    expect(key in args).to.equal(true, `Unknown event argument '${key}'`);
 
-  if (value === null) {
-    expect(args[key]).to.equal(null);
-  } else if (isBigNumber(args[key])) {
-    expect(args[key]).to.be.bignumber.equal(value);
-  } else {
-    expect(args[key]).to.be.equal(value);
-  }
+    if (value === null) {
+        expect(args[key]).to.equal(null);
+    } else if (isBigNumber(args[key])) {
+        expect(args[key]).to.be.bignumber.equal(value);
+    } else {
+        expect(args[key]).to.be.equal(value);
+    }
 }
 
 function isBigNumber(object) {
-  return BigNumber.isBigNumber(object) || object instanceof BigNumber;
+    return BN.isBN(object) || object instanceof BN;
 }
 
-export {
-  inLogs,
-  inBlockByContract,
-  inTransactionReceipt,
-};
+export { inLogs, inBlockByContract, inTransactionReceipt };
