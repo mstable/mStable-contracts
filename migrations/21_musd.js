@@ -7,6 +7,9 @@ const c_ForgeValidator = artifacts.require('ForgeValidator')
 const c_MultiSig = artifacts.require('MultiSigWallet')
 const c_MUSD = artifacts.require('MUSD')
 
+const c_ForgeRewardsMUSD = artifacts.require('ForgeRewardsMUSD')
+const c_Systok = artifacts.require('Systok');
+
 const c_TUSD = artifacts.require('TUSD')
 const c_USDC = artifacts.require('USDC')
 const c_USDT = artifacts.require('USDT')
@@ -108,4 +111,13 @@ module.exports = async (deployer, network, accounts) => {
 
   const massets = await d_Manager.getMassets();
   console.log(`[mUSD]: '${massets[0][0]}'`);
+
+  //Deploy ForgeRewardsMUSD contract
+  const d_Systok = await c_Systok.deployed();
+  await deployer.deploy(
+    c_ForgeRewardsMUSD,
+    c_MUSD.address,
+    d_Systok.address,
+    governor
+  );
 }

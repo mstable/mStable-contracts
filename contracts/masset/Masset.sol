@@ -181,6 +181,8 @@ contract Masset is IMasset, MassetToken, MassetBasket {
             }
         }
 
+        require(massetQuantity > 0, "No masset quantity to mint");
+
         // Mint the Masset
         _mint(_recipient, massetQuantity);
         emit Minted(_recipient, massetQuantity, _bassetQuantity);
@@ -394,6 +396,15 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         Basset[] memory bAssets = new Basset[](_size);
         for(uint8 i = 0; i < indexes.length; i++) {
             bAssets[i] = basket.bassets[indexes[i]];
+        }
+        return bAssets;
+    }
+
+    function getAllBassetsAddress() public view returns (address[] memory) {
+        uint256 len = basket.bassets.length;
+        address[] memory bAssets = new address[](len);
+        for(uint256 i = 0; i < len; i++) {
+            bAssets[i] = basket.bassets[i].addr;
         }
         return bAssets;
     }

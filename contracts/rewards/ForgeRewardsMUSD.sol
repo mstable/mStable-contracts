@@ -89,6 +89,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         MTA = _MTA;
         governor = _governor;
         rewardStartTime = now;
+        approveAllBassets();
     }
 
 
@@ -114,6 +115,25 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
     /***************************************
                     FORGING
     ****************************************/
+
+    /**
+     * @dev Approve max tokens for mUSD contract for each bAsset
+     */
+    function approveAllBassets() public {
+        address[] memory bAssets = mUSD.getAllBassetsAddress();
+        for(uint256 i = 0; i < bAssets.length; i++) {
+            approveFor(bAssets[i]);
+        }
+    }
+
+    /**
+     * @dev Approve max tokens for mUSD contact of a given bAsset token contract
+     * @param _bAsset bAsset token address
+     */
+    function approveFor(address _bAsset) public {
+        require(IERC20(_bAsset).approve(address(mUSD), uint256(-1)), "Approval of bAsset failed");
+    }
+
     /**
      * @dev Mint mUSD to a specified recipient and then log the minted quantity to rewardee.
      *      bAssets used in the mint must be first transferred here from msg.sender, before
@@ -138,8 +158,6 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
                 // Transfer the bAssets from sender to rewards contract
                 require(IERC20(bAssetAddresses[i]).transferFrom(msg.sender, address(this), _bassetQuantities[i]),
                     "Minter must approve the spending of bAsset");
-                // Approve spending of bAssets to mUSD
-                require(IERC20(bAssetAddresses[i]).approve(address(mUSD), _bassetQuantities[i]), "Approval of mUSD failed");
             }
         }
         // Do the mUSD mint
@@ -174,8 +192,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         //           subject to robbery
         // Tradeoff == ~20-40k extra gas vs optionality
         require(IERC20(_basset).transferFrom(msg.sender, address(this), _bassetQuantity), "Minter must approve the spending of bAsset");
-        require(IERC20(_basset).approve(address(mUSD), _bassetQuantity), "Approval of mUSD failed");
-
+        
         // Mint the mAsset
         massetMinted = mUSD.mintSingleTo(_basset, _bassetQuantity, _massetRecipient);
 
