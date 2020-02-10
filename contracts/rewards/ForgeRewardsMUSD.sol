@@ -111,9 +111,8 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         governor = _newGovernor;
     }
 
-
     /***************************************
-                    FORGING
+                    APPROVAL
     ****************************************/
 
     /**
@@ -133,6 +132,11 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
     function approveFor(address _bAsset) public {
         require(IERC20(_bAsset).approve(address(mUSD), uint256(-1)), "Approval of bAsset failed");
     }
+
+
+    /***************************************
+                    FORGING
+    ****************************************/
 
     /**
      * @dev Mint mUSD to a specified recipient and then log the minted quantity to rewardee.
@@ -166,7 +170,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         // Log volume of minting
         _logMintVolume(massetMinted, _rewardRecipient);
     }
-    
+
     /**
      * @dev Mint mUSD to a specified recipient and then log the minted quantity to rewardee.
      *      bAsset used in the mint must be first transferred here from msg.sender, before
