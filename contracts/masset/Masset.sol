@@ -164,7 +164,6 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         returns (uint256 massetMinted)
     {
         require(_recipient != address(0), "Recipient must not be 0x0");
-
         uint256 len = _bassetQuantity.length;
 
         // It is assumed the number of bits set are equal to the _bassetQuantity[] length
@@ -183,7 +182,6 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
         // Transfer the Bassets to this contract, update storage and calc MassetQ
         for(uint256 j = 0; j < len; j++){
-
             if(_bassetQuantity[j] > 0){
                 // bAsset == bAssets[j] == basket.bassets[indexes[j]]
                 Basset memory bAsset = bAssets[j];
@@ -213,9 +211,9 @@ contract Masset is IMasset, MassetToken, MassetBasket {
       * @param _bassetQuantity Exact quantities of Bassets to redeem
       */
     function redeem(
-        uint256[] memory _bassetQuantity
+        uint256[] calldata _bassetQuantity
     )
-        public
+        external
         returns (uint256 massetRedeemed)
     {
         return redeemTo(_bassetQuantity, msg.sender);
@@ -247,7 +245,9 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         returns (uint256 massetRedeemed)
     {
         // Validate the proposed redemption
-        forgeValidator.validateRedemption(basket.failed, basket.bassets, _bassetQuantity);
+        uint[] memory x = new uint[](1);
+        x[0] = 0;
+        forgeValidator.validateRedemption(basket.bassets, basket.failed, totalSupply(), x, _bassetQuantity);
 
         uint256 massetQuantity = 0;
 

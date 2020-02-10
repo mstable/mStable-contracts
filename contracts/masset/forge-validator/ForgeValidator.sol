@@ -15,7 +15,7 @@ contract ForgeValidator is IForgeValidator {
     /**
       * @dev Checks whether a given mint is valid
       */
-    function validateMint(uint256 _totalVault, Basset memory _basset, uint256 _bassetQuantity)
+    function validateMint(uint256 _totalVault, Basset calldata _basset, uint256 _bassetQuantity)
     external
     pure {
         require(_basset.status != BassetStatus.BrokenBelowPeg &&
@@ -34,7 +34,7 @@ contract ForgeValidator is IForgeValidator {
     /**
       * @dev Checks whether a given mint is valid
       */
-    function validateMint(uint256 _totalVault, Basset[] memory _bassets, uint256[] memory _bassetQuantity)
+    function validateMint(uint256 _totalVault, Basset[] calldata _bassets, uint256[] calldata _bassetQuantity)
     external
     pure {
         uint256 bassetCount = _bassets.length;
@@ -77,7 +77,7 @@ contract ForgeValidator is IForgeValidator {
         uint256 _indexToRedeem,
         uint256 _bassetQuantity
     )
-        external
+        public
         pure
     {
         Basset memory bAsset = _allBassets[_indexToRedeem];
@@ -99,8 +99,6 @@ contract ForgeValidator is IForgeValidator {
 
     /**
       * @dev Checks whether a given redemption is valid
-      * @param _bassets          Array of bassets
-      * @param _bassetQuantity  Array of basset quantities to use in the redemption
       */
     function validateRedemption(
         Basset[] memory _allBassets,
@@ -109,7 +107,7 @@ contract ForgeValidator is IForgeValidator {
         uint256[] memory _idxs,
         uint256[] memory _bassetQuantity
     )
-        external
+        public
         pure
     {
         uint idxCount = _idxs.length;
@@ -120,6 +118,8 @@ contract ForgeValidator is IForgeValidator {
         for(uint i = 0; i < idxCount; i++){
             require(_allBassets[_idxs[i]].status != BassetStatus.BrokenAbovePeg || basketIsFailed,
                 "Cannot redeem depegged bAsset unless Basket is failed");
+
+            // TODO - make func external and set this locally
             _allBassets[_idxs[i]].vaultBalance = _allBassets[_idxs[i]].vaultBalance.sub(_bassetQuantity[i]);
         }
 
