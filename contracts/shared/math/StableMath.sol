@@ -16,18 +16,19 @@ library StableMath {
 
     /** @dev Getters */
     function getScale() internal pure returns (uint256) {
-      return fullScale;
+        return fullScale;
     }
     function getPercent() internal pure returns (uint256) {
-      return percentScale;
+        return percentScale;
     }
     function getRatio() internal pure returns (uint256) {
-      return ratioScale;
+        return ratioScale;
     }
 
     /********************************
-    Math library functions for uin64
+              UINT64 FUNCS
     ********************************/
+
     /** @dev Returns the addition of two unsigned integers, reverting on overflow. */
     function add(uint64 a, uint64 b) internal pure returns (uint256 c) {
         c = a + b;
@@ -57,7 +58,7 @@ library StableMath {
     }
 
     /********************************
-    Math library functions for uin256
+              UINT256 FUNCS
     ********************************/
 
     /** @dev Scaled a given integer to the power of the full scale. */

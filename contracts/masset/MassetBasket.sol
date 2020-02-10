@@ -183,6 +183,8 @@ contract MassetBasket is MassetStructs, MassetCore {
 
         uint256 ratio = _measurementMultiple.mul(10 ** delta);
 
+        basket.bassetsMap[_basset] = basket.bassets.length;
+
         basket.bassets.push(Basset({
             addr: _basset,
             key: _key,
@@ -192,7 +194,6 @@ contract MassetBasket is MassetStructs, MassetCore {
             status: BassetStatus.Normal
         }));
 
-        basket.bassetsMap[_basset] = basket.bassets.length;
 
         emit BassetAdded(_basset);
     }
