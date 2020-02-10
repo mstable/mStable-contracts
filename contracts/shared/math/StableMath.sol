@@ -25,6 +25,41 @@ library StableMath {
       return ratioScale;
     }
 
+    /********************************
+    Math library functions for uin64
+    ********************************/
+    /** @dev Returns the addition of two unsigned integers, reverting on overflow. */
+    function add(uint64 a, uint64 b) internal pure returns (uint256 c) {
+        c = a + b;
+        require(c >= a, "StableMath: addition overflow");
+    }
+
+    /** @dev Returns the subtraction of two unsigned integers, reverting on overflow */
+    function sub(uint64 a, uint64 b) internal pure returns (uint64 c) {
+        require(b <= a, "StableMath: subtraction overflow");
+        c = a - b;
+    }
+
+    /** @dev Returns the multiplication of two unsigned integers, reverting on overflow. */
+    function mul(uint64 a, uint64 b) internal pure returns (uint256 c) {
+        if (a == 0) {
+            return 0;
+        }
+        c = a * b;
+        require(c / a == b, "StableMath: multiplication overflow");
+    }
+
+    /** @dev Returns the integer division of two unsigned integers. Reverts on
+     * division by zero. The result is rounded towards zero. */
+    function div(uint64 a, uint64 b) internal pure returns (uint256 c) {
+        require(b > 0, "StableMath: division by zero");
+        c = a / b;
+    }
+
+    /********************************
+    Math library functions for uin256
+    ********************************/
+
     /** @dev Scaled a given integer to the power of the full scale. */
     function scale(uint256 a) internal pure returns (uint256 b) {
         return mul(a, fullScale);
@@ -42,11 +77,6 @@ library StableMath {
         c = a - b;
     }
 
-    /** @dev Returns the subtraction of two unsigned integers, reverting on overflow */
-    function sub64(uint64 a, uint64 b) internal pure returns (uint64 c) {
-        require(b <= a, "StableMath: subtraction overflow");
-        c = a - b;
-    }
     /** @dev Returns the multiplication of two unsigned integers, reverting on overflow. */
     function mul(uint256 a, uint256 b) internal pure returns (uint256 c) {
         if (a == 0) {
