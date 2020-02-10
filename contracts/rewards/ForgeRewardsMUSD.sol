@@ -118,7 +118,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
     /**
      * @dev Approve max tokens for mUSD contract for each bAsset
      */
-    function approveAllBassets() public {
+    function approveAllBassets() public onlyGovernor {
         address[] memory bAssets = mUSD.getAllBassetsAddress();
         for(uint256 i = 0; i < bAssets.length; i++) {
             approveFor(bAssets[i]);
@@ -129,7 +129,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
      * @dev Approve max tokens for mUSD contact of a given bAsset token contract
      * @param _bAsset bAsset token address
      */
-    function approveFor(address _bAsset) public {
+    function approveFor(address _bAsset) public onlyGovernor {
         require(IERC20(_bAsset).approve(address(mUSD), uint256(-1)), "Approval of bAsset failed");
     }
 
