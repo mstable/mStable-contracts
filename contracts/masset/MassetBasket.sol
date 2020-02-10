@@ -133,6 +133,7 @@ contract MassetBasket is MassetStructs, MassetCore {
     /***************************************
                 BASKET ADJUSTMENTS
     ****************************************/
+    
 
     /**
       * @dev External func to allow the Manager to conduct add operations on the Basket
@@ -290,9 +291,9 @@ contract MassetBasket is MassetStructs, MassetCore {
     }
 
 
-    /*************************************
-    ************   GETTERS   *************
-    *************************************/
+    /***************************************
+                    GETTERS
+    ****************************************/
 
     /**
       * @dev Get basket details

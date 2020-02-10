@@ -1,16 +1,16 @@
-import { aToH, BigNumber } from "./tools";
+import { aToH, BN } from "./tools";
 
 /**
  * @notice This file contains constants relevant across the mStable test suite
  * Wherever possible, it should confirm to fixed on chain vars
  */
 
-export const percentScale = new BigNumber("1e16");
-export const ratioScale = new BigNumber("1e8");
-export const expScale = new BigNumber("1e18");
+export const percentScale = new BN(10).pow(new BN(16));
+export const ratioScale = new BN(10).pow(new BN(8));
+export const expScale = new BN(10).pow(new BN(18));
 
-export const DEFAULT_DECIMALS = new BigNumber("18");
-export const DEFAULT_SUPPLY = new BigNumber("1e23");
+export const DEFAULT_DECIMALS = new BN("18");
+export const DEFAULT_SUPPLY = new BN(10).pow(new BN(23));
 
 export const MASSET_FACTORY_BYTES = aToH("MassetFactoryV1");
 

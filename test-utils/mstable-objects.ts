@@ -1,4 +1,4 @@
-import { BigNumber } from "./tools";
+import { BN } from "./tools";
 
 import { ZERO_ADDRESS } from "./constants";
 import { createMultiple, percentToWeight, simpleToExactAmount } from "./math";
@@ -51,9 +51,7 @@ export const createBasset = (
     return {
         addr: ZERO_ADDRESS,
         key: "0x",
-        ratio: createMultiple(
-            new BigNumber(10).pow(new BigNumber(18 - decimals)).toNumber(),
-        ).toFixed(),
+        ratio: createMultiple(new BN(10).pow(new BN(18 - decimals)).toNumber()).toFixed(),
         maxWeight: percentToWeight(maxWeight).toFixed(),
         vaultBalance: simpleToExactAmount(vaultBalance, decimals).toFixed(),
         status,

@@ -50,6 +50,10 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         forgeValidator = IForgeValidator(_forgeValidator);
     }
 
+    /***************************************
+                MINTING (PUBLIC)
+    ****************************************/
+
     /**
      * @dev Mint with bAsset addresses in bitmap
      * @param _bassetsBitmap bAssets index in bitmap
@@ -101,6 +105,10 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         return _mintTo(_basset, _bassetQuantity, _recipient);
     }
 
+    /***************************************
+              MINTING (INTERNAL)
+    ****************************************/
+
     /**
      * @dev Mints a number of Massets based on a Basset user sends
      * @param _basset Address of Basset user sends
@@ -116,8 +124,8 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         basketIsHealthy
         returns (uint256 massetMinted)
     {
-        require(_bassetQuantity > 0, "Quantity must not be 0");
         require(_recipient != address(0), "Recipient must not be 0x0");
+        require(_bassetQuantity > 0, "Quantity must not be 0");
 
         (bool exists, uint256 i) = _isAssetInBasket(_basset);
         require(exists, "bAsset doesn't exist");
@@ -155,10 +163,12 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         basketIsHealthy
         returns (uint256 massetMinted)
     {
+        require(_recipient != address(0), "Recipient must not be 0x0");
+
         uint256 len = _bassetQuantity.length;
 
         // It is assumed the number of bits set are equal to the _bassetQuantity[] length
-        uint8[] memory indexes = convertBitmapToIndexArr(_bassetsBitmap, uint8(len));
+        uint8[] memory indexes = _convertBitmapToIndexArr(_bassetsBitmap, uint8(len));
 
         // Load only needed bAssets in array
         Basset[] memory bAssets = new Basset[](len);
@@ -194,6 +204,9 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         return massetQuantity;
     }
 
+    /***************************************
+              REDEMPTION (PUBLIC)
+    ****************************************/
 
     /**
       * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
@@ -318,6 +331,63 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         quantities[i] = _bassetQuantity;
     }
 
+    /***************************************
+                    HELPERS
+    ****************************************/
+
+    /**
+     * @dev Get bitmap for all bAsset addresses
+     * @return bitmap with bits set according to bAsset address position
+     */
+    function getBitmapForAllBassets() external view returns (uint32 bitmap) {
+        //TODO bassets array should not have more than 32 items
+        for(uint32 i = 0; i < basket.bassets.length; i++) {
+            bitmap |= uint32(2)**i;
+        }
+    }
+
+    /**
+     * @dev Returns the bitmap for given bAssets addresses
+     * @param _bassets bAsset addresses for which bitmap is needed
+     * @return bitmap with bits set according to bAsset address position
+     */
+    function getBitmapFor(address[] calldata _bassets) external view returns (uint32 bitmap) {
+        for(uint32 i = 0; i < _bassets.length; i++) {
+            (bool exist, uint256 idx) = _isAssetInBasket(_bassets[i]);
+            if(exist) bitmap |= uint32(2)**uint8(idx);
+        }
+    }
+
+    /**
+     * @dev Convert the given bitmap into an array representing bAssets index location in the array
+     * @param _bitmap bits set in bitmap represents which bAssets to use
+     * @param _size size of the bassetsQuantity array
+     * @return array having indexes of each bAssets
+     */
+    function _convertBitmapToIndexArr(uint32 _bitmap, uint8 _size) internal view returns (uint8[] memory) {
+        uint8[] memory indexes = new uint8[](_size);
+        uint8 idx = 0;
+        // Assume there are 4 bAssets in array
+        // size = 2
+        // bitmap  = 00000000 00000000 00000000 00001010
+        // mask    = 00000000 00000000 00000000 00001000 //mask for 4th pos
+        //isBitSet = 00000000 00000000 00000000 00001000 //checking 4th pos
+        // indexes = [1, 3]
+        uint256 len = basket.bassets.length;
+        for(uint8 i = 0; i < len; i++) {
+            uint32 mask = uint32(2)**i;
+            uint32 isBitSet = _bitmap & mask;
+            if(isBitSet >= 1) indexes[idx++] = i;
+        }
+        require(idx == _size, "Found incorrect elements");
+        return indexes;
+    }
+
+
+    /***************************************
+                  MANAGEMENT
+    ****************************************/
+
     /**
       * @dev Completes the auctioning process for a given Basset
       * @param _basset Address of the ERC20 token to isolate
@@ -351,51 +421,4 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         }
     }
 
-    /**
-     * @dev Get bitmap for all bAsset addresses
-     * @return bitmap with bits set according to bAsset address position
-     */
-    function getBitmapForAllBassets() public view returns (uint32 bitmap) {
-        //TODO bassets array should not have more than 32 items
-        for(uint32 i = 0; i < basket.bassets.length; i++) {
-            bitmap |= uint32(2)**i;
-        }
-    }
-
-    /**
-     * @dev Returns the bitmap for given bAssets addresses
-     * @param _bassets bAsset addresses for which bitmap is needed
-     * @return bitmap with bits set according to bAsset address position
-     */
-    function getBitmapFor(address[] calldata _bassets) external view returns (uint32 bitmap) {
-        for(uint32 i = 0; i < _bassets.length; i++) {
-            (bool exist, uint256 idx) = _isAssetInBasket(_bassets[i]);
-            if(exist) bitmap |= uint32(2)**uint8(idx);
-        }
-    }
-
-    /**
-     * @dev Convert the given bitmap into an array representing bAssets index location in the array
-     * @param _bitmap bits set in bitmap represents which bAssets to use
-     * @param _size size of the bassetsQuantity array
-     * @return array having indexes of each bAssets
-     */
-    function convertBitmapToIndexArr(uint32 _bitmap, uint8 _size) internal view returns (uint8[] memory) {
-        uint8[] memory indexes = new uint8[](_size);
-        uint8 idx = 0;
-        // Assume there are 4 bAssets in array
-        // size = 2
-        // bitmap  = 00000000 00000000 00000000 00001010
-        // mask    = 00000000 00000000 00000000 00001000 //mask for 4th pos
-        //isBitSet = 00000000 00000000 00000000 00001000 //checking 4th pos
-        // indexes = [1, 3]
-        uint256 len = basket.bassets.length;
-        for(uint8 i = 0; i < len; i++) {
-            uint32 mask = uint32(2)**i;
-            uint32 isBitSet = _bitmap & mask;
-            if(isBitSet >= 1) indexes[idx++] = i;
-        }
-        require(idx == _size, "Found incorrect elements");
-        return indexes;
-    }
 }
