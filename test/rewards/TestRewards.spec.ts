@@ -1,3 +1,5 @@
+
+
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
 import { createBasket, createBasset, Basket } from "@utils/mstable-objects";
 import { shouldFail } from "openzeppelin-test-helpers";
@@ -6,7 +8,7 @@ import { aToH, BigNumber } from "@utils/tools";
 
 import envSetup from "@utils/env_setup";
 import * as chai from "chai";
-import { ERC20MockInstance, MassetInstance, ForgeRewardsMUSDContract } from "types/generated";
+import { ERC20MockInstance, MassetInstance, ForgeRewardsMUSDContract, ForgeRewardsMUSDInstance } from "types/generated";
 
 const MassetArtifact = artifacts.require("Masset");
 const ForgeRewardsMUSD = artifacts.require("ForgeRewardsMUSD");
@@ -20,7 +22,7 @@ contract("Rewards", async (accounts) => {
     let systemMachine: SystemMachine;
     let masset: MassetInstance;
     let b1, b2, b3, b4, b5, b6, b7;
-    let rewardsContract;
+    let rewardsContract: ForgeRewardsMUSDInstance;
 
     beforeEach("Init contract", async () => {
         //rewardContract = await deployer.deployed(c_ForgeRewardsMUSD);
@@ -153,7 +155,7 @@ contract("Rewards", async (accounts) => {
                 sa.default,
                 { from: sa.default }
             );
-            //console.log(qtyMinted.receipt);
+            //console.log(qtyMinted.receipt.log[0]);
             //assert(qtyMinted.eq(new BN(40)));
             assert((await masset.balanceOf(sa.default)).eq(new BN(40)));
             assert((await masset.totalSupply()).eq(new BN(40)));
@@ -164,7 +166,7 @@ contract("Rewards", async (accounts) => {
             assert((await b4.balanceOf(masset.address)).eq(new BN(10)));
 
             //Rewards updated
-            let data = await rewardsContract.getTrancheData(0);
+            let data: any = await rewardsContract.getTrancheData(0);
 
             assert(data.totalMintVolume.eq(new BN(40)));
             assert(data.totalRewardUnits.eq(new BN(0)));

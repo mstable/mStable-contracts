@@ -539,6 +539,15 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         bool[] memory redeemed
     ) {
         uint256 len = _trancheNumbers.length;
+
+        mintWindowClosed = new bool[](len);
+        claimWindowClosed = new bool[](len);
+        unlocked = new bool[](len);
+        mintVolume = new uint256[](len);
+        claimed = new bool[](len);
+        rewardAllocation = new uint256[](len);
+        redeemed = new bool[](len);
+
         for(uint256 i = 0; i < len; i++){
             TrancheDates memory trancheDates = _getTrancheDates(_trancheNumbers[i]);
             Reward memory reward = trancheData[_trancheNumbers[i]].rewardeeData[_rewardee];
@@ -571,6 +580,11 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         bool[] memory redeemed
     ) {
         uint256 len = _rewardees.length;
+        mintVolume = new uint256[](len);
+        claimed = new bool[](len);
+        rewardAllocation = new uint256[](len);
+        redeemed = new bool[](len);
+
         for(uint256 i = 0; i < len; i++){
             Reward memory reward = trancheData[_trancheNumber].rewardeeData[_rewardees[i]];
             mintVolume[i] = reward.mintVolume;
