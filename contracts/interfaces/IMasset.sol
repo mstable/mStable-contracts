@@ -45,6 +45,7 @@ contract IMasset is MassetStructs {
     function removeBasset(address _assetToRemove) external returns (bool);
 
     /** @dev Getters to retrieve Basket information */
+    function getAllBassetsAddress() public view returns (address[] memory);
     function getBasket()
     external
     view
@@ -74,4 +75,7 @@ contract IMasset is MassetStructs {
             uint256 vaultBalance,
             BassetStatus status
         );
+
+    /** @dev Conversion functions */
+    function convertBitmapToBassetsAddress(uint32 _bitmap, uint8 _size) external view returns (address[] memory);
 }

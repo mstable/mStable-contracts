@@ -184,6 +184,8 @@ contract MassetBasket is MassetStructs, MassetCore {
 
         uint256 ratio = _measurementMultiple.mul(10 ** delta);
 
+        basket.bassetsMap[_basset] = basket.bassets.length;
+
         basket.bassets.push(Basset({
             addr: _basset,
             key: _key,
@@ -193,7 +195,6 @@ contract MassetBasket is MassetStructs, MassetCore {
             status: BassetStatus.Normal
         }));
 
-        basket.bassetsMap[_basset] = basket.bassets.length;
 
         emit BassetAdded(_basset);
     }
@@ -357,6 +358,19 @@ contract MassetBasket is MassetStructs, MassetCore {
         (bool exists, uint index) = _isAssetInBasket(_basset);
         require(exists, "Basset must exist");
         return _getBasset(index);
+    }
+
+    /**
+     * @dev Get all bAssets addresses
+     * @return return an array of bAssets addresses
+     */
+    function getAllBassetsAddress() public view returns (address[] memory) {
+        uint256 len = basket.bassets.length;
+        address[] memory bAssets = new address[](len);
+        for(uint256 i = 0; i < len; i++) {
+            bAssets[i] = basket.bassets[i].addr;
+        }
+        return bAssets;
     }
 
     /**

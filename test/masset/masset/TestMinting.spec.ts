@@ -123,6 +123,6 @@ contract("MassetMinting", async (accounts) => {
             // console.log(indexes);
         });
 
-        it("Should mint selected bAssets only", async () => {});
+        it("Should mint selected bAssets only", async () => { });
     });
 });

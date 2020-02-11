@@ -3,10 +3,8 @@ pragma solidity ^0.5.12;
 import { IMassetForgeRewards } from "./IMassetForgeRewards.sol";
 import { IMasset } from "../interfaces/IMasset.sol";
 import { ISystok } from "../interfaces/ISystok.sol";
-import { IERC20 } from "node_modules/openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
-
+import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import { StableMath } from "../shared/math/StableMath.sol";
-
 import { ReentrancyGuard } from "../shared/ReentrancyGuard.sol";
 
 
@@ -36,10 +34,10 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
     struct Reward {
         /** @dev Quantity of mUSD the rewardee has logged this tranche */
         uint256 mintVolume;
-        /** @dev Has the rewardee converted her mintVolume into a reward */
-        bool claimed;
         /** @dev Quantity of reward the rewardee is allocated */
         uint256 rewardAllocation;
+        /** @dev Has the rewardee converted her mintVolume into a reward */
+        bool claimed;
         /** @dev Has the rewardee redeemed her reward */
         bool redeemed;
     }
@@ -69,7 +67,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
     }
 
     /** @dev All data for keeping track of rewards. Tranche ID starts at 0 (see _currentTrancheNumber) */
-    mapping(uint256 => Tranche) trancheData;
+    mapping(uint256 => Tranche) private trancheData;
 
     /** @dev Core connections */
     IMasset public mUSD;
@@ -91,6 +89,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         MTA = _MTA;
         governor = _governor;
         rewardStartTime = now;
+        approveAllBassets();
     }
 
 
@@ -112,6 +111,28 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         governor = _newGovernor;
     }
 
+    /***************************************
+                    APPROVAL
+    ****************************************/
+
+    /**
+     * @dev Approve max tokens for mUSD contract for each bAsset
+     */
+    function approveAllBassets() public onlyGovernor {
+        address[] memory bAssets = mUSD.getAllBassetsAddress();
+        for(uint256 i = 0; i < bAssets.length; i++) {
+            approveFor(bAssets[i]);
+        }
+    }
+
+    /**
+     * @dev Approve max tokens for mUSD contact of a given bAsset token contract
+     * @param _bAsset bAsset token address
+     */
+    function approveFor(address _bAsset) public onlyGovernor {
+        require(IERC20(_bAsset).approve(address(mUSD), uint256(-1)), "Approval of bAsset failed");
+    }
+
 
     /***************************************
                     FORGING
@@ -127,6 +148,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
      * @return massetMinted       Units of mUSD that were minted
      */
     function mintTo(
+        uint32 _bAssetBitmap,
         uint256[] calldata _bassetQuantities,
         address _massetRecipient,
         address _rewardRecipient
@@ -134,22 +156,16 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         external
         returns (uint256 massetMinted)
     {
-        // Fetch bAssets from mUSD, compare vs _bassetQuantity
-        (address[] memory bAssetAddresses, , , , , ) = mUSD.getBassets();
-        require(_bassetQuantities.length == bAssetAddresses.length, "Input array of bAssets must match the system");
-        // Loop through _bassetQuantity
-        for(uint256 i = 0; i < _bassetQuantities.length; i++) {
+        address[] memory bAssetAddresses = mUSD.convertBitmapToBassetsAddress(_bAssetBitmap, uint8(_bassetQuantities.length));
+        for(uint256 i = 0; i < bAssetAddresses.length; i++) {
             if(_bassetQuantities[i] > 0){
                 // Transfer the bAssets from sender to rewards contract
                 require(IERC20(bAssetAddresses[i]).transferFrom(msg.sender, address(this), _bassetQuantities[i]),
                     "Minter must approve the spending of bAsset");
-                // Approve spending of bAssets to mUSD
-                require(IERC20(bAssetAddresses[i]).approve(address(mUSD), _bassetQuantities[i]), "Approval of mUSD failed");
             }
         }
-
         // Do the mUSD mint
-        massetMinted = mUSD.mintTo(_bassetQuantities, _massetRecipient);
+        massetMinted = mUSD.mintBitmapTo(_bAssetBitmap, _bassetQuantities, _massetRecipient);
 
         // Log volume of minting
         _logMintVolume(massetMinted, _rewardRecipient);
@@ -180,10 +196,9 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         //           subject to robbery
         // Tradeoff == ~20-40k extra gas vs optionality
         require(IERC20(_basset).transferFrom(msg.sender, address(this), _bassetQuantity), "Minter must approve the spending of bAsset");
-        require(IERC20(_basset).approve(address(mUSD), _bassetQuantity), "Approval of mUSD failed");
-
+        
         // Mint the mAsset
-        massetMinted = mUSD.mintTo(_basset, _bassetQuantity, _massetRecipient);
+        massetMinted = mUSD.mintSingleTo(_basset, _bassetQuantity, _massetRecipient);
 
         // Log minting volume
         _logMintVolume(massetMinted, _rewardRecipient);
