@@ -210,25 +210,28 @@ contract Masset is IMasset, MassetToken, MassetBasket {
       * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
       * @param _bassetQuantity Exact quantities of Bassets to redeem
       */
-    function redeem(
-        uint256[] calldata _bassetQuantity
+    function redeemSingle(
+        address _basset,
+        uint256 _bassetQuantity
     )
         external
         returns (uint256 massetRedeemed)
     {
-        return redeemTo(_bassetQuantity, msg.sender);
+        // return redeemTo(_bassetQuantity, msg.sender);
+        return 1;
     }
 
 
-    function redeemSingle(
+    function redeemSingleTo(
         address _basset,
         uint256 _bassetQuantity,
         address _recipient
     )
         external
-        returns (uint256 massetMinted)
+        returns (uint256 massetRedeemed)
     {
-        return redeemTo(getSingleForgeParams(_basset, _bassetQuantity), _recipient);
+        // return redeemTo();
+        return 1;
     }
 
 
@@ -238,10 +241,11 @@ contract Masset is IMasset, MassetToken, MassetBasket {
       * @param _recipient Account to which the redeemed Bassets should be sent
       */
     function redeemTo(
-        uint256[] memory _bassetQuantity,
+        uint32 _bassetsBitmap,
+        uint256[] calldata _bassetQuantity,
         address _recipient
     )
-        public
+        external
         returns (uint256 massetRedeemed)
     {
         // Validate the proposed redemption
@@ -314,21 +318,6 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
             emit PaidFee(_payer, feeAmountInSystok, feeRate);
         }
-    }
-
-    // TODO - remove after bitmap
-    function getSingleForgeParams(
-        address _basset,
-        uint256 _bassetQuantity
-    )
-        public
-        view
-        returns (uint256[] memory quantities)
-    {
-        (bool exists, uint i) = _isAssetInBasket(_basset);
-        require(exists, "Asset must be in the Basket");
-        quantities = new uint256[](basket.bassets.length);
-        quantities[i] = _bassetQuantity;
     }
 
     /***************************************

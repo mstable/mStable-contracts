@@ -1,9 +1,9 @@
 import {
     ERC20MockInstance,
-    ManagerInstance,
     ForgeValidatorInstance,
+    ManagerInstance,
     MultiSigWalletInstance,
-    NexusMockInstance,
+    NexusInstance,
     SimpleOracleHubMockInstance,
     SystokInstance,
 } from "./../../types/generated/index.d";
@@ -27,7 +27,7 @@ const ManagerArtifact = artifacts.require("Manager");
 const MassetArtifact = artifacts.require("Masset");
 const ForgeValidatorArtifact = artifacts.require("ForgeValidator");
 
-const NexusMockArtifact = artifacts.require("NexusMock");
+const NexusArtifact = artifacts.require("Nexus");
 
 const OracleHubMockArtifact = artifacts.require("SimpleOracleHubMock");
 
@@ -47,7 +47,7 @@ export class SystemMachine {
     public multiSig: MultiSigWalletInstance;
 
     public manager: ManagerInstance;
-    public nexus: NexusMockInstance;
+    public nexus: NexusInstance;
     public oracleHub: SimpleOracleHubMockInstance;
     public systok: SystokInstance;
 
@@ -76,7 +76,7 @@ export class SystemMachine {
             await StableMathArtifact.new();
             this.forgeValidator = await ForgeValidatorArtifact.new();
 
-            /** NexusMock */
+            /** Nexus */
             this.nexus = await this.deployNexus();
 
             /** Governance */
@@ -109,11 +109,11 @@ export class SystemMachine {
     }
 
     /**
-     * @dev Deploy the NexusMock
+     * @dev Deploy the Nexus
      */
-    public async deployNexus(deployer: Address = this.sa.default): Promise<NexusMockInstance> {
+    public async deployNexus(deployer: Address = this.sa.default): Promise<NexusInstance> {
         try {
-            const nexus = await NexusMockArtifact.new(this.sa.governor, { from: deployer });
+            const nexus = await NexusArtifact.new(this.sa.governor, { from: deployer });
 
             return nexus;
         } catch (e) {

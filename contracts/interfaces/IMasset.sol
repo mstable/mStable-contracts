@@ -11,9 +11,17 @@ import { MassetStructs } from "../masset/shared/MassetStructs.sol";
  */
 contract IMasset is MassetStructs {
 
+    /** @dev Minting */
     function mintSingle(address _basset,uint256 _bassetQuantity) external returns (uint256 massetMinted);
     function mintSingleTo(address _basset, uint256 _bassetQuantity, address _recipient) external returns (uint256 massetMinted);
     function mintBitmapTo(uint32 _bassetsBitmap, uint256[] calldata _bassetQuantity, address _recipient) external returns (uint256 massetMinted);
+
+    /** @dev Redeeming */
+    function redeemSingle(address _basset,uint256 _bassetQuantity) external returns (uint256 massetRedeemed);
+    function redeemSingleTo(address _basset, uint256 _bassetQuantity, address _recipient) external returns (uint256 massetRedeemed);
+    function redeemBitmapTo(uint32 _bassetsBitmap, uint256[] calldata _bassetQuantity, address _recipient)
+        external returns (uint256 massetRedeemed);
+
 
     /** @dev Setters for the Manager or Gov to update module info */
     function upgradeForgeValidator(address _newForgeValidator) external;
