@@ -71,28 +71,39 @@ contract ForgeValidator is IForgeValidator {
       * @dev Checks whether a given mint is valid
       */
     function validateRedemption(
-        Basset[] memory _allBassets,
+        Basset[] calldata _allBassets,
         bool basketIsFailed,
         uint256 _totalVault,
         uint256 _indexToRedeem,
         uint256 _bassetQuantity
     )
-        public
+        external
         pure
     {
         Basset memory bAsset = _allBassets[_indexToRedeem];
         require(bAsset.status != BassetStatus.BrokenAbovePeg || basketIsFailed, "Cannot redeem this bAsset unless Basket is failed");
-        // require(bAsset.vaultBalance >= _bassetQuantity, "Insufficient vault balance"); // This gets checked implicity through sub
+        // require(bAsset.vaultBalance >= _bassetQuantity, "Insufficient vault balance"); // This gets checked implicity through sub, xfer
 
-        (bool[] memory overweightBassetsBefore, bool atLeastOneOverweightBefore) = _getOverweightBassets(_totalVault, _allBassets);
+        // Get current weightings, and cache some outputs from the loop to avoid unecessary recursion
+        (
+            bool[] memory overweightBassetsBefore,
+            bool atLeastOneOverweightBefore,
+            uint256[] memory ratioedBassetVaults
+        ) = _getOverweightBassets(_totalVault, _allBassets);
 
-        _allBassets[_indexToRedeem].vaultBalance = bAsset.vaultBalance.sub(_bassetQuantity);
+        // Calculate ratioed redemption amount in mAsset terms
+        uint256 ratioedRedemptionAmount = _bassetQuantity.mulRatioTruncate(bAsset.ratio);
+        // Subtract ratioed redemption amount from both vault and total supply
+        ratioedBassetVaults[_indexToRedeem] = ratioedBassetVaults[_indexToRedeem].sub(ratioedRedemptionAmount);
+        uint256 newTotalVault = _totalVault.sub(ratioedRedemptionAmount);
 
+        // If there is at least one overweight bAsset before, we must redeem it
         if(atLeastOneOverweightBefore){
-            // If the bAsset is broken above peg.. it doesn't count
             require(overweightBassetsBefore[_indexToRedeem], "Must redeem overweight bAssets");
-        } else {
-            (, bool atLeastOneOverweightAfter) = _getOverweightBassets(_totalVault, _allBassets);
+        }
+        // Else, redemption is valid so long as no bAssets end up overweight
+        else {
+            (bool atLeastOneOverweightAfter) = _getOverweightBassetsAfter(newTotalVault, _allBassets, ratioedBassetVaults);
             require(!atLeastOneOverweightAfter, "Redemption cannot push bAssets overweight");
         }
     }
@@ -101,36 +112,46 @@ contract ForgeValidator is IForgeValidator {
       * @dev Checks whether a given redemption is valid
       */
     function validateRedemption(
-        Basset[] memory _allBassets,
+        Basset[] calldata _allBassets,
         bool basketIsFailed,
         uint256 _totalVault,
-        uint256[] memory _idxs,
-        uint256[] memory _bassetQuantity
+        uint8[] calldata _idxs,
+        uint256[] calldata _bassetQuantities
     )
-        public
+        external
         pure
     {
         uint idxCount = _idxs.length;
-        require(idxCount == _bassetQuantity.length, "Must provide values for all Bassets in system");
+        require(idxCount == _bassetQuantities.length, "Must provide values for all Bassets in system");
 
-        (bool[] memory overweightBassetsBefore, bool atLeastOneOverweightBefore) = _getOverweightBassets(_totalVault, _allBassets);
+        (
+            bool[] memory overweightBassetsBefore,
+            bool atLeastOneOverweightBefore,
+            uint256[] memory ratioedBassetVaults
+        ) = _getOverweightBassets(_totalVault, _allBassets);
+
+        uint256 newTotalVault = _totalVault;
 
         for(uint i = 0; i < idxCount; i++){
             require(_allBassets[_idxs[i]].status != BassetStatus.BrokenAbovePeg || basketIsFailed,
                 "Cannot redeem depegged bAsset unless Basket is failed");
 
-            // TODO - make func external and set this locally
-            _allBassets[_idxs[i]].vaultBalance = _allBassets[_idxs[i]].vaultBalance.sub(_bassetQuantity[i]);
+            uint256 ratioedRedemptionAmount = _bassetQuantities[i].mulRatioTruncate(_allBassets[_idxs[i]].ratio);
+            ratioedBassetVaults[_idxs[i]] = ratioedBassetVaults[_idxs[i]].sub(ratioedRedemptionAmount);
+            newTotalVault = newTotalVault.sub(ratioedRedemptionAmount);
         }
 
+        // If any bAssets are overweight before, all bAssets we redeem must be overweight
         if(atLeastOneOverweightBefore){
             //  Note, there is an edge case where redeeming these Bassets may push others above weightings, however
             //  it is a side effect of simplicity
             for(uint j = 0; j < idxCount; j++){
                 require(overweightBassetsBefore[_idxs[j]], "Must redeem overweight bAssets");
             }
-        } else {
-            (, bool atLeastOneOverweightAfter) = _getOverweightBassets(_totalVault, _allBassets);
+        }
+        // Else, redemption is valid so long as no bAssets end up overweight
+        else {
+            (bool atLeastOneOverweightAfter) = _getOverweightBassetsAfter(newTotalVault, _allBassets, ratioedBassetVaults);
             require(!atLeastOneOverweightAfter, "Redemption cannot push bAssets overweight");
         }
     }
@@ -140,28 +161,55 @@ contract ForgeValidator is IForgeValidator {
     ****************************************/
 
     /**
-      * @dev Gets the proportionate weightings of all the Bassets, relative to Total Collateral levels
-      * @param _bassets Array of bassets
-      * @return uint256[] Relative weightings of all Bassets where 100% == 1e18
+      * @dev Something
       */
     function _getOverweightBassets(uint256 _total, Basset[] memory _bassets)
     private
     pure
-    returns (bool[] memory isOverWeight, bool atLeastOneOverweight) {
+    returns (
+        bool[] memory isOverWeight,
+        bool atLeastOneOverweight,
+        uint256[] memory ratioedBassets
+    ) {
         uint256 len = _bassets.length;
         isOverWeight = new bool[](len);
+        ratioedBassets = new uint256[](len);
         atLeastOneOverweight = false;
 
         for(uint256 i = 0; i < len; i++) {
             BassetStatus status = _bassets[i].status;
             require(status != BassetStatus.Liquidating, "bAssets undergoing liquidation");
 
-            uint256 ratioedBasset = _bassets[i].vaultBalance.mulRatioTruncate(_bassets[i].ratio);
+            ratioedBassets[i] = _bassets[i].vaultBalance.mulRatioTruncate(_bassets[i].ratio);
             uint256 maxWeightInUnits = _bassets[i].maxWeight.mulTruncate(_total);
 
             // If the bAsset is de-pegged on the up-side, it doesn't matter if it goes above max
-            bool bassetOverWeight = ratioedBasset > maxWeightInUnits && status != BassetStatus.BrokenAbovePeg;
+            bool bassetOverWeight = ratioedBassets[i] > maxWeightInUnits && status != BassetStatus.BrokenAbovePeg;
             isOverWeight[i] = bassetOverWeight;
+
+            atLeastOneOverweight = atLeastOneOverweight || bassetOverWeight;
+        }
+    }
+
+    /**
+      * @dev Something
+      */
+    function _getOverweightBassetsAfter(
+        uint256 _newTotal,
+        Basset[] memory _bAssets,
+        uint256[] memory _ratioedBassetVaultsAfter
+    )
+        private
+        pure
+        returns (bool atLeastOneOverweight)
+    {
+        uint256 len = _ratioedBassetVaultsAfter.length;
+        atLeastOneOverweight = false;
+
+        for(uint256 i = 0; i < len; i++) {
+            uint256 maxWeightInUnits = _bAssets[i].maxWeight.mulTruncate(_newTotal);
+            // If the bAsset is de-pegged on the up-side, it doesn't matter if it goes above max
+            bool bassetOverWeight = _ratioedBassetVaultsAfter[i] > maxWeightInUnits&& _bAssets[i].status != BassetStatus.BrokenAbovePeg;
 
             atLeastOneOverweight = atLeastOneOverweight || bassetOverWeight;
         }
