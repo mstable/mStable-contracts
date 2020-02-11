@@ -79,16 +79,6 @@ module.exports = async (deployer, network, accounts) => {
     percentToWeight(25)  // 20
   ];
 
-  /* Assign basset ratios in percent */
-  const basketMultiples =  [
-    createMultiple(1),
-    createMultiple(1),
-    createMultiple(1),
-    createMultiple(1),
-    createMultiple(1),
-    createMultiple(1),
-    createMultiple(1)
-  ];
 
   const x = await deployer.deploy(
     c_MUSD,

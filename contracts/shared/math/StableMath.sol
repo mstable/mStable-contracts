@@ -11,18 +11,21 @@ library StableMath {
 
     /** @dev Scaling units for use in specific calculations */
     uint256 private constant fullScale = 1e18;
-    uint256 private constant percentScale = 1e16;
+    uint256 private constant percentScale = 1e16; // 1% max weight == 1e16... 100% == 1e18... 50% == 5e17
+
+    // (1 bAsset unit * bAsset.ratio) / ratioScale == 1 mAsset unit
+    // Reasoning: Takes into account token decimals, and difference in base unit (i.e. grams to Troy oz for gold)
     uint256 private constant ratioScale = 1e8;
 
     /** @dev Getters */
     function getScale() internal pure returns (uint256) {
-      return fullScale;
+        return fullScale;
     }
     function getPercent() internal pure returns (uint256) {
-      return percentScale;
+        return percentScale;
     }
     function getRatio() internal pure returns (uint256) {
-      return ratioScale;
+        return ratioScale;
     }
 
     /** @dev Scaled a given integer to the power of the full scale. */
