@@ -6,9 +6,10 @@ import { aToH, BigNumber } from "@utils/tools";
 
 import envSetup from "@utils/env_setup";
 import * as chai from "chai";
-import { ERC20MockInstance, MassetInstance } from "types/generated";
+import { ERC20MockInstance, MassetInstance, ForgeRewardsMUSDContract } from "types/generated";
 
 const MassetArtifact = artifacts.require("Masset");
+const ForgeRewardsMUSD = artifacts.require("ForgeRewardsMUSD");
 
 envSetup.configure();
 const { expect, assert } = chai;
@@ -19,8 +20,10 @@ contract("Rewards", async (accounts) => {
     let systemMachine: SystemMachine;
     let masset: MassetInstance;
     let b1, b2, b3, b4, b5, b6, b7;
+    let rewardsContract;
 
-    before("Init contract", async () => {
+    beforeEach("Init contract", async () => {
+        //rewardContract = await deployer.deployed(c_ForgeRewardsMUSD);
         systemMachine = new SystemMachine(accounts, sa.other);
         await systemMachine.initialiseMocks();
         const bassetMachine = new BassetMachine(sa.default, sa.other, 500000);
@@ -62,29 +65,152 @@ contract("Rewards", async (accounts) => {
             sa.feePool,
             systemMachine.forgeValidator.address,
         );
+
+        //3. Deploy ForgeRewardsMUSD
+        rewardsContract = await ForgeRewardsMUSD.new(
+            masset.address,
+            systemMachine.systok.address,
+            sa.governor,
+            { from: sa.governor }
+        );
     });
 
-    describe("Minting via Rewards contract", () => {
-        it("Governer should add rewards token to contract", async () => {
-
+    describe("Contract deployed", async () => {
+        it("Should have valid parameters", async () => {
+            assert((await rewardsContract.mUSD()) == masset.address);
+            assert((await rewardsContract.MTA()) == systemMachine.systok.address);
+            assert((await rewardsContract.governor()) == sa.governor);
         });
+        it("Should approved all bAsset tokens to max", async () => {
+            let MAX: BN = ((new BN(2)).pow(new BN(256))).sub(new BN(1));
+            assert((await b1.allowance(rewardsContract.address, masset.address)).eq(MAX));
+            assert((await b2.allowance(rewardsContract.address, masset.address)).eq(MAX));
+            assert((await b3.allowance(rewardsContract.address, masset.address)).eq(MAX));
+            assert((await b4.allowance(rewardsContract.address, masset.address)).eq(MAX));
+            assert((await b5.allowance(rewardsContract.address, masset.address)).eq(MAX));
+            assert((await b6.allowance(rewardsContract.address, masset.address)).eq(MAX));
+            assert((await b7.allowance(rewardsContract.address, masset.address)).eq(MAX));
 
-        it("Should approve single bAsset", async () => {
-        });
-
-        it("Should approve multiple bAssets", async () => {
-        });
-
-        it("Should mint single bAsset", async () => {
-        });
-
-        it("Should mint multiple bAsset", async () => {
-        });
-
-        it("User should claim reward", async () => {
-        });
-
-        it("User should redeem reward", async () => {
         });
     });
+
+    describe("getTrancheData()", () => {
+        it("Should have initial Tranche data", async () => {
+            let data = await rewardsContract.getTrancheData(0);
+            console.log(data);
+        });
+    });
+
+    // describe("approveAllBassets()", () => {
+    //     it("Should fail when called by non Governer", async () => {
+
+    //     });
+    //     it("Should allowed when called by Governer", async () => {
+
+    //     });
+    //     it("Should approve to MAX when allowances are utilized", async () => {
+
+    //     })
+    // });
+
+    // describe("approveFor()", () => {
+    //     it("Should fail when called by non Governer", async () => {
+
+    //     });
+    //     it("Should allowed when called by Governer", async () => {
+
+    //     });
+    //     it("Should approve to MAX when allowances are utilized", async () => {
+
+    //     });
+    // });
+
+    describe("mintTo()", () => {
+        // it("Should mint single bAsset", async () => {
+        //     await b1.approve(rewardsContract.address, 10, { from: sa.default });
+        //     assert((await b1.allowance(sa.default, rewardsContract.address)).eq(new BN(10)));
+        //     const bitmap = 1;
+        //     const qtyMinted = await rewardsContract.mintTo(bitmap, [10], sa.default, sa.default, { from: sa.default });
+        //     assert(qtyMinted.eq(new BN(10)));
+        // });
+
+        it("Should mint multiple bAssets", async () => {
+            await b1.approve(rewardsContract.address, 10, { from: sa.default });
+            await b2.approve(rewardsContract.address, 10, { from: sa.default });
+            await b3.approve(rewardsContract.address, 10, { from: sa.default });
+            await b4.approve(rewardsContract.address, 10, { from: sa.default });
+
+            assert((await b1.allowance(sa.default, rewardsContract.address)).eq(new BN(10)));
+            assert((await b2.allowance(sa.default, rewardsContract.address)).eq(new BN(10)));
+            assert((await b3.allowance(sa.default, rewardsContract.address)).eq(new BN(10)));
+            assert((await b4.allowance(sa.default, rewardsContract.address)).eq(new BN(10)));
+
+            const bitmap = 15; // 1111
+            const qtyMinted = await rewardsContract.mintTo(
+                bitmap,
+                [10, 10, 10, 10],
+                sa.default,
+                sa.default,
+                { from: sa.default }
+            );
+            //console.log(qtyMinted.receipt);
+            //assert(qtyMinted.eq(new BN(40)));
+            assert((await masset.balanceOf(sa.default)).eq(new BN(40)));
+            assert((await masset.totalSupply()).eq(new BN(40)));
+
+            assert((await b1.balanceOf(masset.address)).eq(new BN(10)));
+            assert((await b2.balanceOf(masset.address)).eq(new BN(10)));
+            assert((await b3.balanceOf(masset.address)).eq(new BN(10)));
+            assert((await b4.balanceOf(masset.address)).eq(new BN(10)));
+
+            //Rewards updated
+            let data = await rewardsContract.getTrancheData(0);
+
+            assert(data.totalMintVolume.eq(new BN(40)));
+            assert(data.totalRewardUnits.eq(new BN(0)));
+            assert(data.unclaimedRewardUnits.eq(new BN(0)));
+
+            //Reward for the user
+            data = await rewardsContract.getRewardeesData(0, [sa.default]);
+            console.log(data);
+        });
+    });
+
+    // describe("claimReward()", () => {
+
+    //     it("User should claim reward", async () => {
+    //     });
+    // });
+
+    // describe("claimReward() with rewardee", () => {
+
+    //     it("User should claim reward", async () => {
+    //     });
+    // });
+
+    // describe("redeemReward()", () => {
+    //     it("Should redeem reward", () => {
+
+    //     })
+    // });
+
+    // describe("fundTranche()", () => {
+    //     context("when the Rewards contract deployed", () => {
+    //         context("Should fail", async () => {
+    //             it("when fundTranche() is called by non governer", async () => {
+    //                 //rewardsContract.
+    //                 //rewardsContract.fundTranche();
+    //             });
+    //         });
+    //     });
+    //     context("getTrancheData()", () => {
+    //         it("Should have Tranche data after funding", async () => {
+
+    //         });
+    //     });
+    // });
 });
+
+// async function mintBassets(numberOfBassets, qtyPerBassetToMint) {
+//     //await b1.approve(rewardsContract.address, 10, { from: sa.default });
+// }
