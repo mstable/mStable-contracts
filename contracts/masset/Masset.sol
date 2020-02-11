@@ -235,7 +235,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
       * @param _bassetQuantities Exact quantities of Bassets to redeem
       * @param _recipient Account to which the redeemed Bassets should be sent
       */
-    function redeemTo(
+    function redeemBitmapTo(
         uint32 _bassetsBitmap,
         uint256[] calldata _bassetQuantities,
         address _recipient
@@ -331,7 +331,6 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         emit RedeemedSingle(_recipient, msg.sender, massetQuantity, i, _bassetQuantity);
         return massetQuantity;
     }
-
     /**
      * @dev Pay the forging fee by burning Systok
      * @param _quantity Exact amount of Masset being forged

@@ -2,7 +2,7 @@ import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/mat
 import { createBasket, createBasset, Basket } from "@utils/mstable-objects";
 import { shouldFail } from "openzeppelin-test-helpers";
 import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
-import { aToH, BigNumber } from "@utils/tools";
+import { aToH, BN } from "@utils/tools";
 
 import envSetup from "@utils/env_setup";
 import * as chai from "chai";
@@ -14,7 +14,6 @@ envSetup.configure();
 const { expect, assert } = chai;
 
 contract("Rewards", async (accounts) => {
-    const BN = web3.utils.BN;
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
     let masset: MassetInstance;
@@ -65,26 +64,18 @@ contract("Rewards", async (accounts) => {
     });
 
     describe("Minting via Rewards contract", () => {
-        it("Governer should add rewards token to contract", async () => {
+        it("Governer should add rewards token to contract", async () => {});
 
-        });
+        it("Should approve single bAsset", async () => {});
 
-        it("Should approve single bAsset", async () => {
-        });
+        it("Should approve multiple bAssets", async () => {});
 
-        it("Should approve multiple bAssets", async () => {
-        });
+        it("Should mint single bAsset", async () => {});
 
-        it("Should mint single bAsset", async () => {
-        });
+        it("Should mint multiple bAsset", async () => {});
 
-        it("Should mint multiple bAsset", async () => {
-        });
+        it("User should claim reward", async () => {});
 
-        it("User should claim reward", async () => {
-        });
-
-        it("User should redeem reward", async () => {
-        });
+        it("User should redeem reward", async () => {});
     });
 });
