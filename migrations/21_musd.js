@@ -118,6 +118,7 @@ module.exports = async (deployer, network, accounts) => {
     c_ForgeRewardsMUSD,
     c_MUSD.address,
     d_Systok.address,
-    governor
+    governor,
+    {from: governor}
   );
 }

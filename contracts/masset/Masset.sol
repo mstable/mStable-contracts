@@ -158,7 +158,8 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         uint256 len = _bassetQuantity.length;
 
         // Load only needed bAssets in array
-        Basset[] memory bAssets = convertBitmapToBassets(_bassetsBitmap, uint8(len));
+        (Basset[] memory bAssets, uint8[] memory indexes)
+            = convertBitmapToBassets(_bassetsBitmap, uint8(len));
 
         // Validate the proposed mint
         forgeValidator.validateMint(totalSupply(), bAssets, _bassetQuantity);
@@ -173,8 +174,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
                 Basset memory bAsset = bAssets[j];
 
                 require(IERC20(bAsset.addr).transferFrom(msg.sender, address(this), _bassetQuantity[j]), "Basset transfer failed");
-                uint256 idx = basket.bassetsMap[bAsset.addr];
-                basket.bassets[idx].vaultBalance = bAsset.vaultBalance.add(_bassetQuantity[j]);
+                basket.bassets[indexes[j]].vaultBalance = bAsset.vaultBalance.add(_bassetQuantity[j]);
 
                 uint ratioedBasset = _bassetQuantity[j].mulRatioTruncate(bAsset.ratio);
                 massetQuantity = massetQuantity.add(ratioedBasset);
@@ -391,23 +391,22 @@ contract Masset is IMasset, MassetToken, MassetBasket {
      * @param _size size of bAssets array
      * @return array of Basset array
      */
-    function convertBitmapToBassets(uint32 _bitmap, uint8 _size) public view returns (Basset[] memory) {
+    function convertBitmapToBassets(
+        uint32 _bitmap,
+        uint8 _size
+    )
+        public
+        view
+        returns (Basset[] memory, uint8[] memory)
+    {
         uint8[] memory indexes = convertBitmapToIndexArr(_bitmap, _size);
         Basset[] memory bAssets = new Basset[](_size);
         for(uint8 i = 0; i < indexes.length; i++) {
             bAssets[i] = basket.bassets[indexes[i]];
         }
-        return bAssets;
+        return (bAssets, indexes);
     }
 
-    function getAllBassetsAddress() public view returns (address[] memory) {
-        uint256 len = basket.bassets.length;
-        address[] memory bAssets = new address[](len);
-        for(uint256 i = 0; i < len; i++) {
-            bAssets[i] = basket.bassets[i].addr;
-        }
-        return bAssets;
-    }
 
     /**
      * @dev Convert the given bitmap into an array representing bAssets index location in the array

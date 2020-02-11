@@ -360,6 +360,19 @@ contract MassetBasket is MassetStructs, MassetCore {
     }
 
     /**
+     * @dev Get all bAssets addresses
+     * @return return an array of bAssets addresses
+     */
+    function getAllBassetsAddress() public view returns (address[] memory) {
+        uint256 len = basket.bassets.length;
+        address[] memory bAssets = new address[](len);
+        for(uint256 i = 0; i < len; i++) {
+            bAssets[i] = basket.bassets[i].addr;
+        }
+        return bAssets;
+    }
+
+    /**
       * @dev Get all basket assets
       * @return Struct array of all basket assets
       */

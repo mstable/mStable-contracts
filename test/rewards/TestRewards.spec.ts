@@ -87,4 +87,4 @@ contract("Rewards", async (accounts) => {
         it("User should redeem reward", async () => {
         });
     });
-}
+});
