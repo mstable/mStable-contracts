@@ -14,10 +14,11 @@ import { MassetToken } from "./mERC20/MassetToken.sol";
 contract Masset is IMasset, MassetToken, MassetBasket {
 
     /** @dev Forging events */
-    event Minted(address indexed account, uint256 massetQuantity, uint256[] bassetQuantities);
-    event Minted(address indexed account, uint256 massetQuantity, uint256 bassetQuantity);
+    event Minted(address indexed account, uint256 massetQuantity, uint256[] bAssetQuantities);
+    event Minted(address indexed account, uint256 massetQuantity, uint256 bAssetQuantity);
     event PaidFee(address payer, uint256 feeQuantity, uint256 feeRate);
-    event Redeemed(address indexed recipient, address indexed redeemer, uint256 massetQuantity, uint256[] bassetQuantities);
+    event Redeemed(address indexed recipient, address redeemer, uint256 massetQuantity, uint256[] bAssetQuantities);
+    event RedeemedSingle(address indexed recipient, address redeemer, uint256 massetQuantity, uint256 index, uint256 bAssetQuantity);
 
 
     /** @dev constructor */
@@ -55,23 +56,6 @@ contract Masset is IMasset, MassetToken, MassetBasket {
     ****************************************/
 
     /**
-     * @dev Mint with bAsset addresses in bitmap
-     * @param _bassetsBitmap bAssets index in bitmap
-     * @param _bassetQuantity bAsset's quantity to send
-     * @return massetMinted returns the number of newly minted mAssets
-     */
-    function mintBitmapTo(
-        uint32 _bassetsBitmap,
-        uint256[] calldata _bassetQuantity,
-        address _recipient
-    )
-        external
-        returns(uint256 massetMinted)
-    {
-        return _mintTo(_bassetsBitmap, _bassetQuantity, _recipient);
-    }
-
-    /**
      * @dev Mint a single bAsset
      * @param _basset bAsset address to mint
      * @param _bassetQuantity bAsset quantity to mint
@@ -103,6 +87,23 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         returns (uint256 massetMinted)
     {
         return _mintTo(_basset, _bassetQuantity, _recipient);
+    }
+
+    /**
+     * @dev Mint with bAsset addresses in bitmap
+     * @param _bassetsBitmap bAssets index in bitmap
+     * @param _bassetQuantity bAsset's quantity to send
+     * @return massetMinted returns the number of newly minted mAssets
+     */
+    function mintBitmapTo(
+        uint32 _bassetsBitmap,
+        uint256[] calldata _bassetQuantity,
+        address _recipient
+    )
+        external
+        returns(uint256 massetMinted)
+    {
+        return _mintTo(_bassetsBitmap, _bassetQuantity, _recipient);
     }
 
     /***************************************
@@ -164,17 +165,11 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         returns (uint256 massetMinted)
     {
         require(_recipient != address(0), "Recipient must not be 0x0");
-
         uint256 len = _bassetQuantity.length;
 
-        // It is assumed the number of bits set are equal to the _bassetQuantity[] length
-        uint8[] memory indexes = _convertBitmapToIndexArr(_bassetsBitmap, uint8(len));
-
         // Load only needed bAssets in array
-        Basset[] memory bAssets = new Basset[](len);
-        for(uint256 i = 0; i < len; i++) {
-            bAssets[i] = basket.bassets[indexes[i]];
-        }
+        (Basset[] memory bAssets, uint8[] memory indexes)
+            = convertBitmapToBassets(_bassetsBitmap, uint8(len));
 
         // Validate the proposed mint
         forgeValidator.validateMint(totalSupply(), bAssets, _bassetQuantity);
@@ -183,19 +178,19 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
         // Transfer the Bassets to this contract, update storage and calc MassetQ
         for(uint256 j = 0; j < len; j++){
-
             if(_bassetQuantity[j] > 0){
                 // bAsset == bAssets[j] == basket.bassets[indexes[j]]
                 Basset memory bAsset = bAssets[j];
 
                 require(IERC20(bAsset.addr).transferFrom(msg.sender, address(this), _bassetQuantity[j]), "Basset transfer failed");
-
                 basket.bassets[indexes[j]].vaultBalance = bAsset.vaultBalance.add(_bassetQuantity[j]);
 
                 uint ratioedBasset = _bassetQuantity[j].mulRatioTruncate(bAsset.ratio);
                 massetQuantity = massetQuantity.add(ratioedBasset);
             }
         }
+
+        require(massetQuantity > 0, "No masset quantity to mint");
 
         // Mint the Masset
         _mint(_recipient, massetQuantity);
@@ -212,52 +207,61 @@ contract Masset is IMasset, MassetToken, MassetBasket {
       * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
       * @param _bassetQuantity Exact quantities of Bassets to redeem
       */
-    function redeem(
-        uint256[] memory _bassetQuantity
+    function redeemSingle(
+        address _basset,
+        uint256 _bassetQuantity
     )
-        public
+        external
         returns (uint256 massetRedeemed)
     {
-        return redeemTo(_bassetQuantity, msg.sender);
+        return _redeem(_basset, _bassetQuantity, msg.sender);
     }
 
 
-    function redeemSingle(
+    function redeemSingleTo(
         address _basset,
         uint256 _bassetQuantity,
         address _recipient
     )
         external
-        returns (uint256 massetMinted)
+        returns (uint256 massetRedeemed)
     {
-        return redeemTo(getSingleForgeParams(_basset, _bassetQuantity), _recipient);
+        return _redeem(_basset, _bassetQuantity, _recipient);
     }
 
 
     /**
       * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
-      * @param _bassetQuantity Exact quantities of Bassets to redeem
+      * @param _bassetQuantities Exact quantities of Bassets to redeem
       * @param _recipient Account to which the redeemed Bassets should be sent
       */
-    function redeemTo(
-        uint256[] memory _bassetQuantity,
+    function redeemBitmapTo(
+        uint32 _bassetsBitmap,
+        uint256[] calldata _bassetQuantities,
         address _recipient
     )
-        public
+        external
         returns (uint256 massetRedeemed)
     {
-        // Validate the proposed redemption
-        forgeValidator.validateRedemption(basket.failed, basket.bassets, _bassetQuantity);
+        require(_recipient != address(0), "Recipient must not be 0x0");
+        uint256 redemptionAssetCount = _bassetQuantities.length;
+
+        // Load only needed bAssets in array
+        (Basset[] memory bAssets, uint8[] memory indexes)
+            = convertBitmapToBassets(_bassetsBitmap, uint8(redemptionAssetCount));
+
+        forgeValidator.validateRedemption(basket.bassets, basket.failed, totalSupply(), indexes, _bassetQuantities);
 
         uint256 massetQuantity = 0;
 
         // Calc MassetQ and update the Vault
-        for(uint i = 0; i < _bassetQuantity.length; i++){
-            if(_bassetQuantity[i] > 0){
-                uint ratioedBasset = _bassetQuantity[i].mulRatioTruncateCeil(basket.bassets[i].ratio);
+        for(uint i = 0; i < redemptionAssetCount; i++){
+            if(_bassetQuantities[i] > 0){
+                uint ratioedBasset = _bassetQuantities[i].mulRatioTruncateCeil(bAssets[i].ratio);
                 massetQuantity = massetQuantity.add(ratioedBasset);
 
-                basket.bassets[i].vaultBalance = basket.bassets[i].vaultBalance.sub(_bassetQuantity[i]);
+                // bAsset == bAssets[i] == basket.bassets[indexes[i]]
+                basket.bassets[indexes[i]].vaultBalance = bAssets[i].vaultBalance.sub(_bassetQuantities[i]);
             }
         }
 
@@ -271,18 +275,62 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         _burn(msg.sender, massetQuantity);
 
         // Transfer the Bassets to the user
-        for(uint i = 0; i < _bassetQuantity.length; i++){
-            if(_bassetQuantity[i] > 0){
-                address basset = basket.bassets[i].addr;
-
-                require(IERC20(basset).transfer(_recipient, _bassetQuantity[i]), "Must be successful transfer");
+        for(uint i = 0; i < redemptionAssetCount; i++){
+            if(_bassetQuantities[i] > 0){
+                require(IERC20(bAssets[i].addr).transfer(_recipient, _bassetQuantities[i]), "Must be successful transfer");
             }
         }
 
-        emit Redeemed(_recipient, msg.sender, massetQuantity, _bassetQuantity);
+        emit Redeemed(_recipient, msg.sender, massetQuantity, _bassetQuantities);
         return massetQuantity;
     }
 
+    /***************************************
+              REDEMPTION (INTERNAL)
+    ****************************************/
+
+    /**
+      * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
+      * @param _bassetQuantity Exact quantities of Bassets to redeem
+      * @param _recipient Account to which the redeemed Bassets should be sent
+      */
+    function _redeem(
+        address _basset,
+        uint256 _bassetQuantity,
+        address _recipient
+    )
+        internal
+        returns (uint256 massetRedeemed)
+    {
+        require(_recipient != address(0), "Recipient must not be 0x0");
+        require(_bassetQuantity > 0, "Quantity must not be 0");
+
+        (bool exists, uint256 i) = _isAssetInBasket(_basset);
+        require(exists, "bAsset doesn't exist");
+
+        Basset memory b = basket.bassets[i];
+
+        forgeValidator.validateRedemption(basket.bassets, basket.failed, totalSupply(), i, _bassetQuantity);
+
+        uint256 massetQuantity = _bassetQuantity.mulRatioTruncateCeil(b.ratio);
+
+        basket.bassets[i].vaultBalance = b.vaultBalance.sub(_bassetQuantity);
+
+        // Pay the redemption fee
+        _payRedemptionFee(massetQuantity, msg.sender);
+
+        // Ensure payout is relevant to collateralisation ratio (if ratio is 90%, we burn more)
+        massetQuantity = massetQuantity.divPrecisely(basket.collateralisationRatio);
+
+        // Burn the Masset
+        _burn(msg.sender, massetQuantity);
+
+        // Transfer the Bassets to the user
+        require(IERC20(b.addr).transfer(_recipient, _bassetQuantity), "Must be successful transfer");
+
+        emit RedeemedSingle(_recipient, msg.sender, massetQuantity, i, _bassetQuantity);
+        return massetQuantity;
+    }
     /**
      * @dev Pay the forging fee by burning Systok
      * @param _quantity Exact amount of Masset being forged
@@ -316,21 +364,6 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         }
     }
 
-    // TODO - remove after bitmap
-    function getSingleForgeParams(
-        address _basset,
-        uint256 _bassetQuantity
-    )
-        public
-        view
-        returns (uint256[] memory quantities)
-    {
-        (bool exists, uint i) = _isAssetInBasket(_basset);
-        require(exists, "Asset must be in the Basket");
-        quantities = new uint256[](basket.bassets.length);
-        quantities[i] = _bassetQuantity;
-    }
-
     /***************************************
                     HELPERS
     ****************************************/
@@ -357,6 +390,44 @@ contract Masset is IMasset, MassetToken, MassetBasket {
             if(exist) bitmap |= uint32(2)**uint8(idx);
         }
     }
+
+    /**
+     * @dev Convert bitmap representing bAssets location to bAssets addresses
+     * @param _bitmap bits set in bitmap represents which bAssets to use
+     * @param _size size of bAssets array
+     * @return array of bAssets array
+     */
+    function convertBitmapToBassetsAddress(uint32 _bitmap, uint8 _size) public view returns (address[] memory) {
+        uint8[] memory indexes = _convertBitmapToIndexArr(_bitmap, _size);
+        address[] memory bAssets = new address[](_size);
+        for(uint8 i = 0; i < indexes.length; i++) {
+            bAssets[i] = basket.bassets[indexes[i]].addr;
+        }
+        return bAssets;
+    }
+
+    /**
+     * @dev Convert bitmap representing bAssets location to Bassets array
+     * @param _bitmap bits set in bitmap represents which bAssets to use
+     * @param _size size of bAssets array
+     * @return array of Basset array
+     */
+    function convertBitmapToBassets(
+        uint32 _bitmap,
+        uint8 _size
+    )
+        public
+        view
+        returns (Basset[] memory, uint8[] memory)
+    {
+        uint8[] memory indexes = _convertBitmapToIndexArr(_bitmap, _size);
+        Basset[] memory bAssets = new Basset[](_size);
+        for(uint8 i = 0; i < indexes.length; i++) {
+            bAssets[i] = basket.bassets[indexes[i]];
+        }
+        return (bAssets, indexes);
+    }
+
 
     /**
      * @dev Convert the given bitmap into an array representing bAssets index location in the array

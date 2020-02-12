@@ -18,6 +18,7 @@
     "no-implicit-dependencies": false,
     "no-submodule-imports": false,
     "max-line-length": [true, 160],
-    "no-console": false
+    "no-console": false,
+    "variable-name": false
   }
 }

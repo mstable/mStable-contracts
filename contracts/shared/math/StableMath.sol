@@ -11,19 +11,58 @@ library StableMath {
 
     /** @dev Scaling units for use in specific calculations */
     uint256 private constant fullScale = 1e18;
-    uint256 private constant percentScale = 1e16;
+    uint256 private constant percentScale = 1e16; // 1% max weight == 1e16... 100% == 1e18... 50% == 5e17
+
+    // (1 bAsset unit * bAsset.ratio) / ratioScale == 1 mAsset unit
+    // Reasoning: Takes into account token decimals, and difference in base unit (i.e. grams to Troy oz for gold)
     uint256 private constant ratioScale = 1e8;
 
     /** @dev Getters */
     function getScale() internal pure returns (uint256) {
-      return fullScale;
+        return fullScale;
     }
     function getPercent() internal pure returns (uint256) {
-      return percentScale;
+        return percentScale;
     }
     function getRatio() internal pure returns (uint256) {
-      return ratioScale;
+        return ratioScale;
     }
+
+    /********************************
+              UINT64 FUNCS
+    ********************************/
+
+    /** @dev Returns the addition of two unsigned integers, reverting on overflow. */
+    function add(uint64 a, uint64 b) internal pure returns (uint256 c) {
+        c = a + b;
+        require(c >= a, "StableMath: addition overflow");
+    }
+
+    /** @dev Returns the subtraction of two unsigned integers, reverting on overflow */
+    function sub(uint64 a, uint64 b) internal pure returns (uint64 c) {
+        require(b <= a, "StableMath: subtraction overflow");
+        c = a - b;
+    }
+
+    /** @dev Returns the multiplication of two unsigned integers, reverting on overflow. */
+    function mul(uint64 a, uint64 b) internal pure returns (uint256 c) {
+        if (a == 0) {
+            return 0;
+        }
+        c = a * b;
+        require(c / a == b, "StableMath: multiplication overflow");
+    }
+
+    /** @dev Returns the integer division of two unsigned integers. Reverts on
+     * division by zero. The result is rounded towards zero. */
+    function div(uint64 a, uint64 b) internal pure returns (uint256 c) {
+        require(b > 0, "StableMath: division by zero");
+        c = a / b;
+    }
+
+    /********************************
+              UINT256 FUNCS
+    ********************************/
 
     /** @dev Scaled a given integer to the power of the full scale. */
     function scale(uint256 a) internal pure returns (uint256 b) {
@@ -42,11 +81,6 @@ library StableMath {
         c = a - b;
     }
 
-    /** @dev Returns the subtraction of two unsigned integers, reverting on overflow */
-    function sub64(uint64 a, uint64 b) internal pure returns (uint64 c) {
-        require(b <= a, "StableMath: subtraction overflow");
-        c = a - b;
-    }
     /** @dev Returns the multiplication of two unsigned integers, reverting on overflow. */
     function mul(uint256 a, uint256 b) internal pure returns (uint256 c) {
         if (a == 0) {

@@ -32,6 +32,7 @@ contract MGLD is Masset {
         )
         public
     {
+        // basket.hasFeesEnabled = true;
     }
 
     // TODO - Override or separate out 'Minting' functions here -

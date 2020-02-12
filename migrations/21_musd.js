@@ -7,6 +7,9 @@ const c_ForgeValidator = artifacts.require('ForgeValidator')
 const c_MultiSig = artifacts.require('MultiSigWallet')
 const c_MUSD = artifacts.require('MUSD')
 
+const c_ForgeRewardsMUSD = artifacts.require('ForgeRewardsMUSD')
+const c_Systok = artifacts.require('Systok');
+
 const c_TUSD = artifacts.require('TUSD')
 const c_USDC = artifacts.require('USDC')
 const c_USDT = artifacts.require('USDT')
@@ -29,6 +32,7 @@ module.exports = async (deployer, network, accounts) => {
   const d_Nexus = await c_Nexus.deployed()
   const d_ForgeValidator = await c_ForgeValidator.deployed()
   const d_MultiSig = await c_MultiSig.deployed()
+  const d_Systok = await c_Systok.deployed();
 
   /* ~~~~~~~~~ mUSD Setup ~~~~~~~~~  */
 
@@ -79,18 +83,7 @@ module.exports = async (deployer, network, accounts) => {
     percentToWeight(25)  // 20
   ];
 
-  /* Assign basset ratios in percent */
-  const basketMultiples =  [
-    createMultiple(1),
-    createMultiple(1),
-    createMultiple(1),
-    createMultiple(1),
-    createMultiple(1),
-    createMultiple(1),
-    createMultiple(1)
-  ];
-
-  const x = await deployer.deploy(
+  const d_MUSD = await deployer.deploy(
     c_MUSD,
     d_Nexus.address,
     basketAddresses,
@@ -102,10 +95,19 @@ module.exports = async (deployer, network, accounts) => {
   
   const txData = d_Manager.contract.methods.addMasset(
     aToH("mUSD"),
-    x.address).encodeABI();
+    d_MUSD.address).encodeABI();
 
   await d_MultiSig.submitTransaction(d_Manager.address, 0, txData, { from : governor });
 
   const massets = await d_Manager.getMassets();
   console.log(`[mUSD]: '${massets[0][0]}'`);
+
+  // Deploy ForgeRewardsMUSD contract
+  await deployer.deploy(
+    c_ForgeRewardsMUSD,
+    d_MUSD.address,
+    d_Systok.address,
+    governor,
+    {from: governor}
+  );
 }
