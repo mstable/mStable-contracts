@@ -1,4 +1,3 @@
-import { TransactionReceiptWithDecodedLogs } from "ethereum-types";
 import { inLogs } from "./expectEvent";
 
 /**
@@ -9,10 +8,8 @@ import { inLogs } from "./expectEvent";
 /**
  * @dev Assert that a specific event is emitted during a transaction execution
  */
-const inTransactionReceipt = async (receipt: TransactionReceiptWithDecodedLogs, eventName: string, eventArgs = {}) => {
-  return inLogs(receipt.logs, eventName, eventArgs, false);
+const inTransactionReceipt = async (receipt: any, eventName: string, eventArgs = {}) => {
+    return inLogs(receipt.logs, eventName, eventArgs, false);
 };
 
-export {
-  inTransactionReceipt,
-};
+export { inTransactionReceipt };

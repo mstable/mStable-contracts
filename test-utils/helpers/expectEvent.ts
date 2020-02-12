@@ -1,10 +1,3 @@
-import {
-    DecodedLogArgs,
-    LogEntry,
-    LogWithDecodedArgs,
-    TransactionReceiptWithDecodedLogs,
-} from "ethereum-types";
-
 import { chai, BN } from "@utils/tools";
 const { expect } = chai;
 
@@ -16,11 +9,7 @@ const { expect } = chai;
 /**
  * @dev Assert that a specific event is emitted during a transaction execution
  */
-const inTransactionReceipt = async (
-    receipt: TransactionReceiptWithDecodedLogs,
-    eventName: string,
-    eventArgs = {},
-) => {
+const inTransactionReceipt = async (receipt: any, eventName: string, eventArgs = {}) => {
     return inLogs(receipt.logs, eventName, eventArgs);
 };
 
