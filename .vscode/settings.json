@@ -9,7 +9,6 @@
   "eslint.autoFixOnSave": true,
   "eslint.alwaysShowStatus": true,
   "files.autoSave": "onFocusChange",
-  "editor.tabSize": 2,
   "editor.detectIndentation": false,
   "solidity.compileUsingRemoteVersion": "^0.5.12",
   "solidity.packageDefaultDependenciesContractsDirectory": "",
