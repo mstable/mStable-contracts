@@ -115,19 +115,57 @@ contract("Rewards", async (accounts) => {
 
     describe("mintTo()", () => {
         it("Should mint single bAsset", async () => {
-            //const newMasset: MassetInstance = await createMassetWithBassets(1);
-            // const bAsset = (await newMasset.getAllBassetsAddress())[0];
-            // // Deploy ForgeRewardsMUSD
-            // rewardsContract = await ForgeRewardsMUSD.new(
-            //     newMasset.address,
-            //     systemMachine.systok.address,
-            //     sa.governor,
-            //     { from: sa.governor });
-            // await b1.approve(rewardsContract.address, 10, { from: sa.default });
-            // assert((await b1.allowance(sa.default, rewardsContract.address)).eq(new BN(10)));
+            const newSystemMachine = new SystemMachine(accounts, sa.other);
+            await newSystemMachine.initialiseMocks();
+            const newBassetMachine = new BassetMachine(sa.default, sa.other, 500000);
 
-            // const qtyMinted = await rewardsContract.mintSingleTo(b1.address, 10, sa.default, sa.default, { from: sa.default });
-            // assert(qtyMinted.eq(new BN(10)));
+            const bAsset = await newBassetMachine.deployERC20Async();
+            const newMasset = await Masset.new(
+                "TestMasset",
+                "TMT",
+                newSystemMachine.nexus.address,
+                [bAsset.address],
+                [aToH("b1")],
+                [percentToWeight(100)],
+                [createMultiple(1)],
+                sa.feePool,
+                newSystemMachine.forgeValidator.address,
+            );
+
+            // 3. Deploy ForgeRewardsMUSD
+            const newRewardsContract = await ForgeRewardsMUSD.new(
+                newMasset.address,
+                newSystemMachine.systok.address,
+                sa.governor,
+                { from: sa.governor }
+            );
+
+            await bAsset.approve(newRewardsContract.address, 10, { from: sa.default });
+            assert((await bAsset.allowance(sa.default, newRewardsContract.address)).eq(new BN(10)));
+
+            const txReceipt = await newRewardsContract.mintSingleTo(bAsset.address, 10, sa.default, sa.default, { from: sa.default });
+            expectEvent.inLogs(txReceipt.logs, "MintVolumeIncreased", { trancheNumber: new BN(0), mintVolume: new BN(10) });
+            expectEvent.inLogs(txReceipt.logs, "RewardeeMintVolumeIncreased", { trancheNumber: new BN(0), rewardee: sa.default, mintVolume: new BN(10) });
+
+            assert((await newMasset.balanceOf(sa.default)).eq(new BN(10)));
+            assert((await newMasset.totalSupply()).eq(new BN(10)));
+
+            assert((await bAsset.balanceOf(newMasset.address)).eq(new BN(10)));
+            // Rewards updated
+            let data: any = await newRewardsContract.getTrancheData(0);
+            let rewardStartTime = await newRewardsContract.rewardStartTime();
+            validateTrancheDates(data, rewardStartTime, 0);
+
+            assert(data.totalMintVolume.eq(new BN(10)));
+            assert(data.totalRewardUnits.eq(new BN(0)));
+            assert(data.unclaimedRewardUnits.eq(new BN(0)));
+
+            // Reward for the user
+            data = await newRewardsContract.getRewardeesData(0, [sa.default]);
+            assert(data.mintVolume[0].eq(new BN(10)));
+            assert(data.claimed[0] === false);
+            assert(data.rewardAllocation[0].eq(new BN(0)));
+            assert(data.redeemed[0] === false);
 
         });
 
