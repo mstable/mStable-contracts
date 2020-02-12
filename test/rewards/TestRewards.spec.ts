@@ -2,9 +2,12 @@
 
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
 import { createBasket, createBasset, Basket } from "@utils/mstable-objects";
-import { shouldFail } from "openzeppelin-test-helpers";
+import { BN, constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
 import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import { aToH, BigNumber } from "@utils/tools";
+
+
+
 
 import envSetup from "@utils/env_setup";
 import * as chai from "chai";
@@ -17,7 +20,7 @@ envSetup.configure();
 const { expect, assert } = chai;
 
 contract("Rewards", async (accounts) => {
-    const BN = web3.utils.BN;
+
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
     let masset: MassetInstance;
@@ -81,7 +84,7 @@ contract("Rewards", async (accounts) => {
         it("Should have valid parameters", async () => {
             assert((await rewardsContract.mUSD()) == masset.address);
             assert((await rewardsContract.MTA()) == systemMachine.systok.address);
-            assert((await rewardsContract.governor()) == sa.governor);
+            assert((await rewardsContract.owner()) == sa.governor);
         });
         it("Should approved all bAsset tokens to max", async () => {
             let MAX: BN = ((new BN(2)).pow(new BN(256))).sub(new BN(1));
@@ -98,8 +101,8 @@ contract("Rewards", async (accounts) => {
 
     describe("getTrancheData()", () => {
         it("Should have initial Tranche data", async () => {
-            let data = await rewardsContract.getTrancheData(0);
-            console.log(data);
+            //let data = await rewardsContract.getTrancheData(0);
+            //console.log(data);
         });
     });
 
@@ -148,15 +151,20 @@ contract("Rewards", async (accounts) => {
             assert((await b4.allowance(sa.default, rewardsContract.address)).eq(new BN(10)));
 
             const bitmap = 15; // 1111
-            const qtyMinted = await rewardsContract.mintTo(
+            const txReceipt = await rewardsContract.mintTo(
                 bitmap,
                 [10, 10, 10, 10],
                 sa.default,
                 sa.default,
                 { from: sa.default }
             );
-            //console.log(qtyMinted.receipt.log[0]);
-            //assert(qtyMinted.eq(new BN(40)));
+
+            //Expect event
+            console.log(txReceipt.logs);
+            expectEvent.inLogs(txReceipt.logs, "MintVolumeIncreased", { trancheNumber: new BN(0), mintVolume: new BN(40) });
+            //expectEvent.inLogs(txReceipt.logs, "RewardeeMintVolumeIncreased", { trancheNumber: new BN(0), rewardee: sa.default, mintVolume: new BN(40) });
+
+
             assert((await masset.balanceOf(sa.default)).eq(new BN(40)));
             assert((await masset.totalSupply()).eq(new BN(40)));
 
@@ -167,6 +175,8 @@ contract("Rewards", async (accounts) => {
 
             //Rewards updated
             let data: any = await rewardsContract.getTrancheData(0);
+            let rewardStartTime = await rewardsContract.rewardStartTime();
+            //validateTrancheDates(data, rewardStartTime, 0);
 
             assert(data.totalMintVolume.eq(new BN(40)));
             assert(data.totalRewardUnits.eq(new BN(0)));
@@ -174,7 +184,15 @@ contract("Rewards", async (accounts) => {
 
             //Reward for the user
             data = await rewardsContract.getRewardeesData(0, [sa.default]);
-            console.log(data);
+            assert(data.mintVolume[0].eq(new BN(40)));
+            assert(data.claimed[0] == false);
+            assert(data.rewardAllocation[0].eq(new BN(0)));
+            assert(data.redeemed[0] == false);
+
+
+            //console.log(genTrancheDate(rewardStartTime, 0));
+            //genTrancheDate(rewardsContract.rewardStartTime(), 0)
+
         });
     });
 
@@ -213,6 +231,32 @@ contract("Rewards", async (accounts) => {
     // });
 });
 
-// async function mintBassets(numberOfBassets, qtyPerBassetToMint) {
-//     //await b1.approve(rewardsContract.address, 10, { from: sa.default });
-// }
+async function validateTrancheDates(trancheData, rewardStartTime, trancheNumber) {
+    let calcDatesData = await genTrancheDate(rewardStartTime, trancheNumber);
+    assert(trancheData[0].eq(calcDatesData[0]));
+    assert(trancheData[1].eq(calcDatesData[1]));
+    assert(trancheData[2].eq(calcDatesData[2]));
+    assert(trancheData[3].eq(calcDatesData[3]));
+}
+
+async function genTrancheDate(rewardStartTime, trancheNumber) {
+    const TRANCHE_PERIOD = 60 * 60 * 24 * 7 * 4; // 4 week
+    const CLAIM_PERIOD = 60 * 60 * 24 * 7 * 8;   // 8 weeks
+    const LOCKUP_PERIOD = 60 * 60 * 24 * 7 * 52; // 52 weeks
+    let trancheData = new Array();
+    // startTime
+    trancheData[0] = rewardStartTime.add(new BN(trancheNumber)).mul(new BN(TRANCHE_PERIOD));
+    // endTime
+    trancheData[1] = trancheData[0].add(new BN(TRANCHE_PERIOD));
+    // claimEndTime
+    trancheData[2] = trancheData[1].add(new BN(CLAIM_PERIOD));
+    // unlockTime
+    trancheData[3] = trancheData[1].add(new BN());
+    return trancheData;
+}
+
+async function createMassetWithBassets() {
+    //this.systemMachine = new SystemMachine(this.accounts, sa.other);
+    //await this.systemMachine.initialiseMocks();
+    //const bassetMachine = new BassetMachine(sa.default, sa.other, 500000);
+}
