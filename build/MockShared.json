@@ -1,0 +1,364 @@
+{
+  "contractName": "MockShared",
+  "abi": [],
+  "metadata": "{\"compiler\":{\"version\":\"0.5.16+commit.9c3226ce\"},\"language\":\"Solidity\",\"output\":{\"abi\":[],\"devdoc\":{\"methods\":{}},\"userdoc\":{\"methods\":{}}},\"settings\":{\"compilationTarget\":{\"/Users/james/mstable/mStable-contracts/contracts/z_mocks/shared/MockShared.sol\":\"MockShared\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"/Users/james/mstable/mStable-contracts/contracts/z_mocks/shared/MockShared.sol\":{\"keccak256\":\"0x894b5da60a4f0a2acf8ec034ddf45672a352b3c3aebd7bdcb6b8c9dcc209eee4\",\"urls\":[\"bzz-raw://7ccc9a8ed1756ab6478ef42a2f61f99a0317a87fb34944e90a107f1d9cf5680a\",\"dweb:/ipfs/QmcqoRDG61tZDQiqxpmthtHf891fBmvEaVzWChPZQgGV3y\"]}},\"version\":1}",
+  "bytecode": "0x6080604052348015600f57600080fd5b50603e80601d6000396000f3fe6080604052600080fdfea265627a7a72315820f3a8f860a03d546c9d3912fdb9a5aaf459146920aa76bea63dcbfd2fcfa5e34a64736f6c63430005100032",
+  "deployedBytecode": "0x6080604052600080fdfea265627a7a72315820f3a8f860a03d546c9d3912fdb9a5aaf459146920aa76bea63dcbfd2fcfa5e34a64736f6c63430005100032",
+  "sourceMap": "25:185:67:-;;;;8:9:-1;5:2;;;30:1;27;20:12;5:2;25:185:67;;;;;;;",
+  "deployedSourceMap": "25:185:67:-;;;;;",
+  "source": "pragma solidity ^0.5.0;\n\ncontract MockShared {\n    bytes32 constant internal ModuleKeyA = \"ModuleA\";\n    bytes32 constant internal ModuleKeyB = \"ModuleB\";\n    bytes32 constant internal ModuleKeyC = \"ModuleC\";\n}",
+  "sourcePath": "/Users/james/mstable/mStable-contracts/contracts/z_mocks/shared/MockShared.sol",
+  "ast": {
+    "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/z_mocks/shared/MockShared.sol",
+    "exportedSymbols": {
+      "MockShared": [
+        10836
+      ]
+    },
+    "id": 10837,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 10826,
+        "literals": [
+          "solidity",
+          "^",
+          "0.5",
+          ".0"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:23:67"
+      },
+      {
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "contract",
+        "documentation": null,
+        "fullyImplemented": true,
+        "id": 10836,
+        "linearizedBaseContracts": [
+          10836
+        ],
+        "name": "MockShared",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "constant": true,
+            "id": 10829,
+            "name": "ModuleKeyA",
+            "nodeType": "VariableDeclaration",
+            "scope": 10836,
+            "src": "51:48:67",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            },
+            "typeName": {
+              "id": 10827,
+              "name": "bytes32",
+              "nodeType": "ElementaryTypeName",
+              "src": "51:7:67",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes32",
+                "typeString": "bytes32"
+              }
+            },
+            "value": {
+              "argumentTypes": null,
+              "hexValue": "4d6f64756c6541",
+              "id": 10828,
+              "isConstant": false,
+              "isLValue": false,
+              "isPure": true,
+              "kind": "string",
+              "lValueRequested": false,
+              "nodeType": "Literal",
+              "src": "90:9:67",
+              "subdenomination": null,
+              "typeDescriptions": {
+                "typeIdentifier": "t_stringliteral_bab9bf1e47784b055d2ebc9de694d59c0ddaf6373059af1e5ad0a08c1ed561b7",
+                "typeString": "literal_string \"ModuleA\""
+              },
+              "value": "ModuleA"
+            },
+            "visibility": "internal"
+          },
+          {
+            "constant": true,
+            "id": 10832,
+            "name": "ModuleKeyB",
+            "nodeType": "VariableDeclaration",
+            "scope": 10836,
+            "src": "105:48:67",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            },
+            "typeName": {
+              "id": 10830,
+              "name": "bytes32",
+              "nodeType": "ElementaryTypeName",
+              "src": "105:7:67",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes32",
+                "typeString": "bytes32"
+              }
+            },
+            "value": {
+              "argumentTypes": null,
+              "hexValue": "4d6f64756c6542",
+              "id": 10831,
+              "isConstant": false,
+              "isLValue": false,
+              "isPure": true,
+              "kind": "string",
+              "lValueRequested": false,
+              "nodeType": "Literal",
+              "src": "144:9:67",
+              "subdenomination": null,
+              "typeDescriptions": {
+                "typeIdentifier": "t_stringliteral_742c784107c7340b56a65c1c9af873c9930eabaa608bfaf70260acc6b4e9dce0",
+                "typeString": "literal_string \"ModuleB\""
+              },
+              "value": "ModuleB"
+            },
+            "visibility": "internal"
+          },
+          {
+            "constant": true,
+            "id": 10835,
+            "name": "ModuleKeyC",
+            "nodeType": "VariableDeclaration",
+            "scope": 10836,
+            "src": "159:48:67",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            },
+            "typeName": {
+              "id": 10833,
+              "name": "bytes32",
+              "nodeType": "ElementaryTypeName",
+              "src": "159:7:67",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes32",
+                "typeString": "bytes32"
+              }
+            },
+            "value": {
+              "argumentTypes": null,
+              "hexValue": "4d6f64756c6543",
+              "id": 10834,
+              "isConstant": false,
+              "isLValue": false,
+              "isPure": true,
+              "kind": "string",
+              "lValueRequested": false,
+              "nodeType": "Literal",
+              "src": "198:9:67",
+              "subdenomination": null,
+              "typeDescriptions": {
+                "typeIdentifier": "t_stringliteral_969cab6a520c67b69b6e22d8ec026089aca771c398f3829a3dfa81db0835f134",
+                "typeString": "literal_string \"ModuleC\""
+              },
+              "value": "ModuleC"
+            },
+            "visibility": "internal"
+          }
+        ],
+        "scope": 10837,
+        "src": "25:185:67"
+      }
+    ],
+    "src": "0:210:67"
+  },
+  "legacyAST": {
+    "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/z_mocks/shared/MockShared.sol",
+    "exportedSymbols": {
+      "MockShared": [
+        10836
+      ]
+    },
+    "id": 10837,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 10826,
+        "literals": [
+          "solidity",
+          "^",
+          "0.5",
+          ".0"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:23:67"
+      },
+      {
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "contract",
+        "documentation": null,
+        "fullyImplemented": true,
+        "id": 10836,
+        "linearizedBaseContracts": [
+          10836
+        ],
+        "name": "MockShared",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "constant": true,
+            "id": 10829,
+            "name": "ModuleKeyA",
+            "nodeType": "VariableDeclaration",
+            "scope": 10836,
+            "src": "51:48:67",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            },
+            "typeName": {
+              "id": 10827,
+              "name": "bytes32",
+              "nodeType": "ElementaryTypeName",
+              "src": "51:7:67",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes32",
+                "typeString": "bytes32"
+              }
+            },
+            "value": {
+              "argumentTypes": null,
+              "hexValue": "4d6f64756c6541",
+              "id": 10828,
+              "isConstant": false,
+              "isLValue": false,
+              "isPure": true,
+              "kind": "string",
+              "lValueRequested": false,
+              "nodeType": "Literal",
+              "src": "90:9:67",
+              "subdenomination": null,
+              "typeDescriptions": {
+                "typeIdentifier": "t_stringliteral_bab9bf1e47784b055d2ebc9de694d59c0ddaf6373059af1e5ad0a08c1ed561b7",
+                "typeString": "literal_string \"ModuleA\""
+              },
+              "value": "ModuleA"
+            },
+            "visibility": "internal"
+          },
+          {
+            "constant": true,
+            "id": 10832,
+            "name": "ModuleKeyB",
+            "nodeType": "VariableDeclaration",
+            "scope": 10836,
+            "src": "105:48:67",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            },
+            "typeName": {
+              "id": 10830,
+              "name": "bytes32",
+              "nodeType": "ElementaryTypeName",
+              "src": "105:7:67",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes32",
+                "typeString": "bytes32"
+              }
+            },
+            "value": {
+              "argumentTypes": null,
+              "hexValue": "4d6f64756c6542",
+              "id": 10831,
+              "isConstant": false,
+              "isLValue": false,
+              "isPure": true,
+              "kind": "string",
+              "lValueRequested": false,
+              "nodeType": "Literal",
+              "src": "144:9:67",
+              "subdenomination": null,
+              "typeDescriptions": {
+                "typeIdentifier": "t_stringliteral_742c784107c7340b56a65c1c9af873c9930eabaa608bfaf70260acc6b4e9dce0",
+                "typeString": "literal_string \"ModuleB\""
+              },
+              "value": "ModuleB"
+            },
+            "visibility": "internal"
+          },
+          {
+            "constant": true,
+            "id": 10835,
+            "name": "ModuleKeyC",
+            "nodeType": "VariableDeclaration",
+            "scope": 10836,
+            "src": "159:48:67",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            },
+            "typeName": {
+              "id": 10833,
+              "name": "bytes32",
+              "nodeType": "ElementaryTypeName",
+              "src": "159:7:67",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes32",
+                "typeString": "bytes32"
+              }
+            },
+            "value": {
+              "argumentTypes": null,
+              "hexValue": "4d6f64756c6543",
+              "id": 10834,
+              "isConstant": false,
+              "isLValue": false,
+              "isPure": true,
+              "kind": "string",
+              "lValueRequested": false,
+              "nodeType": "Literal",
+              "src": "198:9:67",
+              "subdenomination": null,
+              "typeDescriptions": {
+                "typeIdentifier": "t_stringliteral_969cab6a520c67b69b6e22d8ec026089aca771c398f3829a3dfa81db0835f134",
+                "typeString": "literal_string \"ModuleC\""
+              },
+              "value": "ModuleC"
+            },
+            "visibility": "internal"
+          }
+        ],
+        "scope": 10837,
+        "src": "25:185:67"
+      }
+    ],
+    "src": "0:210:67"
+  },
+  "compiler": {
+    "name": "solc",
+    "version": "0.5.16+commit.9c3226ce.Emscripten.clang"
+  },
+  "networks": {},
+  "schemaVersion": "3.0.23",
+  "updatedAt": "2020-02-05T09:31:38.655Z",
+  "devdoc": {
+    "methods": {}
+  },
+  "userdoc": {
+    "methods": {}
+  }
+}

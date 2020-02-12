@@ -1,0 +1,966 @@
+{
+  "contractName": "IGovernancePortal",
+  "abi": [
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_masset",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_basset",
+          "type": "address"
+        }
+      ],
+      "name": "initiateFailedBassetVote",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_voteId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "enum IGovernancePortal.VoteOption",
+          "name": "_option",
+          "type": "uint8"
+        },
+        {
+          "internalType": "address",
+          "name": "_voter",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_massetPrice",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_metaPrice",
+          "type": "uint256"
+        }
+      ],
+      "name": "castVote",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_voteId",
+          "type": "uint256"
+        }
+      ],
+      "name": "settleVote",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "metadata": "{\"compiler\":{\"version\":\"0.5.16+commit.9c3226ce\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"constant\":false,\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_voteId\",\"type\":\"uint256\"},{\"internalType\":\"enum IGovernancePortal.VoteOption\",\"name\":\"_option\",\"type\":\"uint8\"},{\"internalType\":\"address\",\"name\":\"_voter\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_massetPrice\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_metaPrice\",\"type\":\"uint256\"}],\"name\":\"castVote\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"_masset\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_basset\",\"type\":\"address\"}],\"name\":\"initiateFailedBassetVote\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_voteId\",\"type\":\"uint256\"}],\"name\":\"settleVote\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"details\":\"Lite interface for the system to interact with the governance portal\",\"methods\":{\"castVote(uint256,uint8,address,uint256,uint256)\":{\"details\":\"Vote and resolve polls \"},\"initiateFailedBassetVote(address,address)\":{\"details\":\"System proposals used by Manager \"}},\"title\":\"IGovernancePortal\"},\"userdoc\":{\"methods\":{}}},\"settings\":{\"compilationTarget\":{\"/Users/james/mstable/mStable-contracts/contracts/interfaces/IGovernancePortal.sol\":\"IGovernancePortal\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"/Users/james/mstable/mStable-contracts/contracts/interfaces/IGovernancePortal.sol\":{\"keccak256\":\"0x89ec4962d3ea89bde591a3f6a4a4be3fac773b55f12a2d01c5a1f10e58186960\",\"urls\":[\"bzz-raw://904a12361d412ca186fbd4b06fd5f48d877928727a88757fd0e25bec815d28cd\",\"dweb:/ipfs/Qma8CDCByJL1xZUecivpRR2ZK3uk5w31GeWMRCMu1AsM8S\"]}},\"version\":1}",
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "sourceMap": "",
+  "deployedSourceMap": "",
+  "source": "pragma solidity ^0.5.12;\n\n/**\n  * @title IGovernancePortal\n  * @dev Lite interface for the system to interact with the governance portal\n  */\ninterface IGovernancePortal {\n\n    /** @dev What stance does this voter have on the recollateralisation Vote */\n    enum VoteOption {\n      Absent,\n      Enact,\n      Negate,\n      Delay\n    }\n\n    /** @dev System proposals used by Manager */\n    function initiateFailedBassetVote(address _masset, address _basset) external returns(uint256);\n\n    /** @dev Vote and resolve polls */\n    function castVote(uint256 _voteId, VoteOption _option, address _voter, uint256 _massetPrice, uint256 _metaPrice) external;\n    function settleVote(uint256 _voteId) external returns (bool);\n}",
+  "sourcePath": "/Users/james/mstable/mStable-contracts/contracts/interfaces/IGovernancePortal.sol",
+  "ast": {
+    "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/interfaces/IGovernancePortal.sol",
+    "exportedSymbols": {
+      "IGovernancePortal": [
+        1323
+      ]
+    },
+    "id": 1324,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 1288,
+        "literals": [
+          "solidity",
+          "^",
+          "0.5",
+          ".12"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:24:5"
+      },
+      {
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "interface",
+        "documentation": "@title IGovernancePortal\n@dev Lite interface for the system to interact with the governance portal",
+        "fullyImplemented": false,
+        "id": 1323,
+        "linearizedBaseContracts": [
+          1323
+        ],
+        "name": "IGovernancePortal",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "canonicalName": "IGovernancePortal.VoteOption",
+            "id": 1293,
+            "members": [
+              {
+                "id": 1289,
+                "name": "Absent",
+                "nodeType": "EnumValue",
+                "src": "282:6:5"
+              },
+              {
+                "id": 1290,
+                "name": "Enact",
+                "nodeType": "EnumValue",
+                "src": "296:5:5"
+              },
+              {
+                "id": 1291,
+                "name": "Negate",
+                "nodeType": "EnumValue",
+                "src": "309:6:5"
+              },
+              {
+                "id": 1292,
+                "name": "Delay",
+                "nodeType": "EnumValue",
+                "src": "323:5:5"
+              }
+            ],
+            "name": "VoteOption",
+            "nodeType": "EnumDefinition",
+            "src": "258:76:5"
+          },
+          {
+            "body": null,
+            "documentation": "@dev System proposals used by Manager ",
+            "id": 1302,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "initiateFailedBassetVote",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 1298,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 1295,
+                  "name": "_masset",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 1302,
+                  "src": "423:15:5",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 1294,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "423:7:5",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 1297,
+                  "name": "_basset",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 1302,
+                  "src": "440:15:5",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 1296,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "440:7:5",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "422:34:5"
+            },
+            "returnParameters": {
+              "id": 1301,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 1300,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 1302,
+                  "src": "474:7:5",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 1299,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "474:7:5",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "473:9:5"
+            },
+            "scope": 1323,
+            "src": "389:94:5",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": "@dev Vote and resolve polls ",
+            "id": 1315,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "castVote",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 1313,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 1304,
+                  "name": "_voteId",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 1315,
+                  "src": "546:15:5",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 1303,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "546:7:5",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 1306,
+                  "name": "_option",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 1315,
+                  "src": "563:18:5",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_enum$_VoteOption_$1293",
+                    "typeString": "enum IGovernancePortal.VoteOption"
+                  },
+                  "typeName": {
+                    "contractScope": null,
+                    "id": 1305,
+                    "name": "VoteOption",
+                    "nodeType": "UserDefinedTypeName",
+                    "referencedDeclaration": 1293,
+                    "src": "563:10:5",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_enum$_VoteOption_$1293",
+                      "typeString": "enum IGovernancePortal.VoteOption"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 1308,
+                  "name": "_voter",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 1315,
+                  "src": "583:14:5",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 1307,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "583:7:5",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 1310,
+                  "name": "_massetPrice",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 1315,
+                  "src": "599:20:5",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 1309,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "599:7:5",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 1312,
+                  "name": "_metaPrice",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 1315,
+                  "src": "621:18:5",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 1311,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "621:7:5",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "545:95:5"
+            },
+            "returnParameters": {
+              "id": 1314,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "649:0:5"
+            },
+            "scope": 1323,
+            "src": "528:122:5",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 1322,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "settleVote",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 1318,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 1317,
+                  "name": "_voteId",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 1322,
+                  "src": "675:15:5",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 1316,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "675:7:5",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "674:17:5"
+            },
+            "returnParameters": {
+              "id": 1321,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 1320,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 1322,
+                  "src": "710:4:5",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 1319,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "710:4:5",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "709:6:5"
+            },
+            "scope": 1323,
+            "src": "655:61:5",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          }
+        ],
+        "scope": 1324,
+        "src": "142:576:5"
+      }
+    ],
+    "src": "0:718:5"
+  },
+  "legacyAST": {
+    "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/interfaces/IGovernancePortal.sol",
+    "exportedSymbols": {
+      "IGovernancePortal": [
+        1323
+      ]
+    },
+    "id": 1324,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 1288,
+        "literals": [
+          "solidity",
+          "^",
+          "0.5",
+          ".12"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:24:5"
+      },
+      {
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "interface",
+        "documentation": "@title IGovernancePortal\n@dev Lite interface for the system to interact with the governance portal",
+        "fullyImplemented": false,
+        "id": 1323,
+        "linearizedBaseContracts": [
+          1323
+        ],
+        "name": "IGovernancePortal",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "canonicalName": "IGovernancePortal.VoteOption",
+            "id": 1293,
+            "members": [
+              {
+                "id": 1289,
+                "name": "Absent",
+                "nodeType": "EnumValue",
+                "src": "282:6:5"
+              },
+              {
+                "id": 1290,
+                "name": "Enact",
+                "nodeType": "EnumValue",
+                "src": "296:5:5"
+              },
+              {
+                "id": 1291,
+                "name": "Negate",
+                "nodeType": "EnumValue",
+                "src": "309:6:5"
+              },
+              {
+                "id": 1292,
+                "name": "Delay",
+                "nodeType": "EnumValue",
+                "src": "323:5:5"
+              }
+            ],
+            "name": "VoteOption",
+            "nodeType": "EnumDefinition",
+            "src": "258:76:5"
+          },
+          {
+            "body": null,
+            "documentation": "@dev System proposals used by Manager ",
+            "id": 1302,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "initiateFailedBassetVote",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 1298,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 1295,
+                  "name": "_masset",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 1302,
+                  "src": "423:15:5",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 1294,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "423:7:5",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 1297,
+                  "name": "_basset",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 1302,
+                  "src": "440:15:5",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 1296,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "440:7:5",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "422:34:5"
+            },
+            "returnParameters": {
+              "id": 1301,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 1300,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 1302,
+                  "src": "474:7:5",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 1299,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "474:7:5",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "473:9:5"
+            },
+            "scope": 1323,
+            "src": "389:94:5",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": "@dev Vote and resolve polls ",
+            "id": 1315,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "castVote",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 1313,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 1304,
+                  "name": "_voteId",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 1315,
+                  "src": "546:15:5",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 1303,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "546:7:5",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 1306,
+                  "name": "_option",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 1315,
+                  "src": "563:18:5",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_enum$_VoteOption_$1293",
+                    "typeString": "enum IGovernancePortal.VoteOption"
+                  },
+                  "typeName": {
+                    "contractScope": null,
+                    "id": 1305,
+                    "name": "VoteOption",
+                    "nodeType": "UserDefinedTypeName",
+                    "referencedDeclaration": 1293,
+                    "src": "563:10:5",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_enum$_VoteOption_$1293",
+                      "typeString": "enum IGovernancePortal.VoteOption"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 1308,
+                  "name": "_voter",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 1315,
+                  "src": "583:14:5",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 1307,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "583:7:5",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 1310,
+                  "name": "_massetPrice",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 1315,
+                  "src": "599:20:5",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 1309,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "599:7:5",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 1312,
+                  "name": "_metaPrice",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 1315,
+                  "src": "621:18:5",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 1311,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "621:7:5",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "545:95:5"
+            },
+            "returnParameters": {
+              "id": 1314,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "649:0:5"
+            },
+            "scope": 1323,
+            "src": "528:122:5",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 1322,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "settleVote",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 1318,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 1317,
+                  "name": "_voteId",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 1322,
+                  "src": "675:15:5",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 1316,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "675:7:5",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "674:17:5"
+            },
+            "returnParameters": {
+              "id": 1321,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 1320,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 1322,
+                  "src": "710:4:5",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 1319,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "710:4:5",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "709:6:5"
+            },
+            "scope": 1323,
+            "src": "655:61:5",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          }
+        ],
+        "scope": 1324,
+        "src": "142:576:5"
+      }
+    ],
+    "src": "0:718:5"
+  },
+  "compiler": {
+    "name": "solc",
+    "version": "0.5.16+commit.9c3226ce.Emscripten.clang"
+  },
+  "networks": {},
+  "schemaVersion": "3.0.23",
+  "updatedAt": "2020-02-05T09:31:38.247Z",
+  "devdoc": {
+    "details": "Lite interface for the system to interact with the governance portal",
+    "methods": {
+      "castVote(uint256,uint8,address,uint256,uint256)": {
+        "details": "Vote and resolve polls "
+      },
+      "initiateFailedBassetVote(address,address)": {
+        "details": "System proposals used by Manager "
+      }
+    },
+    "title": "IGovernancePortal"
+  },
+  "userdoc": {
+    "methods": {}
+  }
+}

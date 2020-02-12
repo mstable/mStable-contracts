@@ -1,0 +1,2916 @@
+{
+  "contractName": "MassetFactory",
+  "abi": [
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "key",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "addr",
+          "type": "address"
+        }
+      ],
+      "name": "MassetAdded",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "key",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "addr",
+          "type": "address"
+        }
+      ],
+      "name": "MassetEjected",
+      "type": "event"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "forgeLib",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "getMassets",
+      "outputs": [
+        {
+          "internalType": "address[]",
+          "name": "addr",
+          "type": "address[]"
+        },
+        {
+          "internalType": "bytes32[]",
+          "name": "keys",
+          "type": "bytes32[]"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "_massetKey",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "address",
+          "name": "_masset",
+          "type": "address"
+        }
+      ],
+      "name": "addMasset",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_masset",
+          "type": "address"
+        }
+      ],
+      "name": "ejectMasset",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "metadata": "{\"compiler\":{\"version\":\"0.5.16+commit.9c3226ce\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"key\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"addr\",\"type\":\"address\"}],\"name\":\"MassetAdded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"key\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"addr\",\"type\":\"address\"}],\"name\":\"MassetEjected\",\"type\":\"event\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"_massetKey\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"_masset\",\"type\":\"address\"}],\"name\":\"addMasset\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"_masset\",\"type\":\"address\"}],\"name\":\"ejectMasset\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"forgeLib\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getMassets\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"addr\",\"type\":\"address[]\"},{\"internalType\":\"bytes32[]\",\"name\":\"keys\",\"type\":\"bytes32[]\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"details\":\"This Factory creates and manages mStable Assets under direction of the governor It also allows governor to add or remove specific MassetFactories from the stack, allowing the creation of various types of Massets\",\"methods\":{\"addMasset(bytes32,address)\":{\"details\":\"Adds an already and initialised Masset to the stack, storing the relevant data in the ManagerState\",\"params\":{\"_masset\":\"Address of the Masset contract\",\"_massetKey\":\"Key identifier for the Masset\"},\"return\":\"Address of new Masset\"},\"ejectMasset(address)\":{\"details\":\"Removes a Masset from the system and thus releases from recollateraliastion protection\",\"params\":{\"_masset\":\"Address of the Masset contract\"}},\"getMassets()\":{\"details\":\"Get the addresses and oracle keys for all the Massets\",\"return\":\"bytes32 Array of Masset identifiers\"}},\"title\":\"MassetFactory\"},\"userdoc\":{\"methods\":{}}},\"settings\":{\"compilationTarget\":{\"/Users/james/mstable/mStable-contracts/contracts/manager/MassetFactory.sol\":\"MassetFactory\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"/Users/james/mstable/mStable-contracts/contracts/interfaces/IGovernancePortal.sol\":{\"keccak256\":\"0x89ec4962d3ea89bde591a3f6a4a4be3fac773b55f12a2d01c5a1f10e58186960\",\"urls\":[\"bzz-raw://904a12361d412ca186fbd4b06fd5f48d877928727a88757fd0e25bec815d28cd\",\"dweb:/ipfs/Qma8CDCByJL1xZUecivpRR2ZK3uk5w31GeWMRCMu1AsM8S\"]},\"/Users/james/mstable/mStable-contracts/contracts/interfaces/IManager.sol\":{\"keccak256\":\"0x2433af16af735a80bbccc766e07c7b7a88cdcb807d4ab58bfced0e53daab602a\",\"urls\":[\"bzz-raw://3a2c22f53b3a38601f4322a52786ed2f5515520af67af8a2efb0f2c3342aa4bb\",\"dweb:/ipfs/QmYRaW3ReyLXiQffqERXkqVzHayvXRJ1xaddEcLPb7nLeF\"]},\"/Users/james/mstable/mStable-contracts/contracts/interfaces/IMasset.sol\":{\"keccak256\":\"0x6e90887229ed7fd646c93c9bda6dddaa54f767768daa687a637a77cf6914aa51\",\"urls\":[\"bzz-raw://43c43a5333c734b7db5ba77eec98e310ae5805d250f1c8eb388c9c648724bc3e\",\"dweb:/ipfs/QmfVB3nQTR7PrVa2ahS5Hf81667VuamScZSUdNJCcqUuFr\"]},\"/Users/james/mstable/mStable-contracts/contracts/interfaces/IOracleHub.sol\":{\"keccak256\":\"0x10f34be4e2ffd2fffd0a056a0999efd11476c2b5396a6cbedd2e2448e5f398d9\",\"urls\":[\"bzz-raw://09a4bb42b6058db2d55f0e92f2a1e7c2c013aca49f7a969b3c1ea7d3bfc3f9aa\",\"dweb:/ipfs/QmQPntXkxiQZVHdgGVS15LPT2uiYksEuPmGDwkcNATeN1K\"]},\"/Users/james/mstable/mStable-contracts/contracts/interfaces/ISystok.sol\":{\"keccak256\":\"0x0aa7033328d5cfdf5e05f347f784d21e94ab79aaaf7d041c1933705c4bb4427e\",\"urls\":[\"bzz-raw://8ce3f4703e4a7717fc8ce6beb0606400ddbee355309f987918f635d0150487b9\",\"dweb:/ipfs/QmcewASTNkbS6exUSgUMFgBHEFt6XpGbsdquj9JCJt8mTj\"]},\"/Users/james/mstable/mStable-contracts/contracts/manager/ManagerState.sol\":{\"keccak256\":\"0x87278a9a1210ea5072fab08135e38a9ba3da9b4eff4758d1e43fa60965c6b650\",\"urls\":[\"bzz-raw://9225d39305cec296423ad1f40491fc5df4f5b18d6405154c2ad05b0ad6045940\",\"dweb:/ipfs/QmeYuT3PBL8A41zWsHXNxdVurJN9fRTdwX8Rh4zJAa3ibK\"]},\"/Users/james/mstable/mStable-contracts/contracts/manager/MassetFactory.sol\":{\"keccak256\":\"0xc098e9c786b3663df0b7feee383794d20037202a8825d0a63d37aceaeba7b1cb\",\"urls\":[\"bzz-raw://913f2c53abb1619dbcbdb9e410a9e2629d4ef35d14685f1d877746cf14a549a6\",\"dweb:/ipfs/QmYKeMfeMGzM86GQmAxY5MU8BeySaWpBQCAYt1H6o5xESQ\"]},\"/Users/james/mstable/mStable-contracts/contracts/masset/libs/MassetStructs.sol\":{\"keccak256\":\"0x667cf20f8ceb1d109b3f0ecb0277228f7ec2617591aa71e5ca970a0a31b45a6e\",\"urls\":[\"bzz-raw://dc44f8981d7d068779fb32543ca95bb52469b122f45c68de99a91119abaaa7b9\",\"dweb:/ipfs/QmUe7f48vr6HNUmFPA4i19ybodN7ii56LHDBG74zuJs4Yw\"]},\"/Users/james/mstable/mStable-contracts/contracts/shared/libs/ArrayHelpers.sol\":{\"keccak256\":\"0x4d20a2d7166877621f4c9177a3781671a01e69dcea1fdbffe8a2866987bdb132\",\"urls\":[\"bzz-raw://de6db337b2c1c5171084a45b34503ddd17fcba8d957cac7447ae99f11dc9b213\",\"dweb:/ipfs/QmRZBeng4eFnm4GMfGfHqZDDxoAPLxBBgfHL5tshr1nKmQ\"]},\"/Users/james/mstable/mStable-contracts/contracts/shared/libs/DictionaryAtoB.sol\":{\"keccak256\":\"0x58bbda160cd5420d920b813128884b54326cc2771381c1d652ac9064e9bb81b3\",\"urls\":[\"bzz-raw://829a48197e974f117efe51a49112a2ca83144f65cc2f16c2e6ffaf40e229b144\",\"dweb:/ipfs/QmavpCvgJA7qJhvYtx7CKsGeU8jRaCN8nASGXEpFzFMWXK\"]},\"/Users/james/mstable/mStable-contracts/contracts/shared/libs/DictionaryBtoA.sol\":{\"keccak256\":\"0x32449c92cf2d0707565551b8b3742f16b4be9df8c0d9719f65f66abbf64ab19f\",\"urls\":[\"bzz-raw://ff1f54acf612c5dbb39055bece2ec254cd6eb89472c2559e1c851abf77ad480c\",\"dweb:/ipfs/QmXgoz2GnMNuFBzWfLyzgaVrd6xW7sGtS8ohnwr6nkyP8s\"]}},\"version\":1}",
+  "bytecode": "0x6080604052624d544160e81b60045534801561001a57600080fd5b506107dd8061002a6000396000f3fe608060405234801561001057600080fd5b506004361061004c5760003560e01c80634c7e06a5146100515780636e1b1b80146100665780638908a41a14610084578063b8fc19571461009a575b600080fd5b61006461005f36600461054b565b6100ad565b005b61006e610185565b60405161007b9190610703565b60405180910390f35b61008c610194565b60405161007b929190610711565b61006e6100a8366004610571565b610202565b6000546001600160a01b031633146100e05760405162461bcd60e51b81526004016100d790610746565b60405180910390fd5b6001600160a01b0381166101065760405162461bcd60e51b81526004016100d790610736565b600061011960058363ffffffff6102a616565b9050806101385760405162461bcd60e51b81526004016100d790610736565b61014960058363ffffffff6102c516565b807f53833a8e3695b7a7ed65575d04bcbbd45546c0992abda788723b6a2bc5ec0178836040516101799190610703565b60405180910390a25050565b6003546001600160a01b031681565b60608060056101a281610315565b8154604080516020808402820181019092528281529184918301828280156101f357602002820191906000526020600020905b81546001600160a01b031681526001909101906020018083116101d5575b50505050509150915091509091565b600080546001600160a01b0316331461022d5760405162461bcd60e51b81526004016100d790610746565b6001600160a01b0382166102535760405162461bcd60e51b81526004016100d790610736565b6102656005838563ffffffff6103b216565b827fec3e610db6ddb8c3fd224816464f695ab8977b6780a5aba102505ad544c3433e836040516102959190610703565b60405180910390a250805b92915050565b6001600160a01b03166000908152600191909101602052604090205490565b6001600160a01b038116600090815260018301602052604090205415610311576102f5828263ffffffff61043416565b6001600160a01b03811660009081526001830160205260408120555b5050565b80546040805182815260208084028201019091526060918015610342578160200160208202803883390190505b50905060005b81518110156103ac5782600101600084600001838154811061036657fe5b60009182526020808320909101546001600160a01b03168352820192909252604001902054825183908390811061039957fe5b6020908102919091010152600101610348565b50919050565b806103c6576103c183836102c5565b61042f565b6001600160a01b03821660009081526001840160205260409020546104115782546001810184556000848152602090200180546001600160a01b0319166001600160a01b0384161790555b6001600160a01b038216600090815260018401602052604090208190555b505050565b60005b825481101561042f57816001600160a01b031683828154811061045657fe5b6000918252602090912001546001600160a01b031614156104ed5782548390600019810190811061048357fe5b9060005260206000200160009054906101000a90046001600160a01b03168382815481106104ad57fe5b600091825260209091200180546001600160a01b0319166001600160a01b039290921691909117905582546104e68460001983016104f5565b5050610311565b600101610437565b81548183558181111561042f5760008381526020902061042f91810190830161053291905b8082111561052e576000815560010161051a565b5090565b90565b80356102a08161077a565b80356102a081610791565b60006020828403121561055d57600080fd5b60006105698484610535565b949350505050565b6000806040838503121561058457600080fd5b60006105908585610540565b92505060206105a185828601610535565b9150509250929050565b60006105b783836105cb565b505060200190565b60006105b78383610681565b6105d481610769565b82525050565b60006105e58261075c565b6105ef8185610760565b93506105fa83610756565b8060005b8381101561062857815161061288826105ab565b975061061d83610756565b9250506001016105fe565b509495945050505050565b600061063e8261075c565b6106488185610760565b935061065383610756565b8060005b8381101561062857815161066b88826105bf565b975061067683610756565b925050600101610657565b6105d481610532565b6000610697602a83610760565b7f4d6173736574206d7573742062652061207265666572656e63656420696d706c81526932b6b2b73a30ba34b7b760b11b602082015260400192915050565b60006106e3601183610760565b7027b7363c903a34329033b7bb32b93737b960791b815260200192915050565b602081016102a082846105cb565b6040808252810161072281856105da565b905081810360208301526105698184610633565b602080825281016102a08161068a565b602080825281016102a0816106d6565b60200190565b5190565b90815260200190565b60006001600160a01b0382166102a0565b61078381610769565b811461078e57600080fd5b50565b6107838161053256fea365627a7a72315820a902d0452f2fe291c6473e5699563249066dc62fba2298f25f8eb26107daa9da6c6578706572696d656e74616cf564736f6c63430005100040",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b506004361061004c5760003560e01c80634c7e06a5146100515780636e1b1b80146100665780638908a41a14610084578063b8fc19571461009a575b600080fd5b61006461005f36600461054b565b6100ad565b005b61006e610185565b60405161007b9190610703565b60405180910390f35b61008c610194565b60405161007b929190610711565b61006e6100a8366004610571565b610202565b6000546001600160a01b031633146100e05760405162461bcd60e51b81526004016100d790610746565b60405180910390fd5b6001600160a01b0381166101065760405162461bcd60e51b81526004016100d790610736565b600061011960058363ffffffff6102a616565b9050806101385760405162461bcd60e51b81526004016100d790610736565b61014960058363ffffffff6102c516565b807f53833a8e3695b7a7ed65575d04bcbbd45546c0992abda788723b6a2bc5ec0178836040516101799190610703565b60405180910390a25050565b6003546001600160a01b031681565b60608060056101a281610315565b8154604080516020808402820181019092528281529184918301828280156101f357602002820191906000526020600020905b81546001600160a01b031681526001909101906020018083116101d5575b50505050509150915091509091565b600080546001600160a01b0316331461022d5760405162461bcd60e51b81526004016100d790610746565b6001600160a01b0382166102535760405162461bcd60e51b81526004016100d790610736565b6102656005838563ffffffff6103b216565b827fec3e610db6ddb8c3fd224816464f695ab8977b6780a5aba102505ad544c3433e836040516102959190610703565b60405180910390a250805b92915050565b6001600160a01b03166000908152600191909101602052604090205490565b6001600160a01b038116600090815260018301602052604090205415610311576102f5828263ffffffff61043416565b6001600160a01b03811660009081526001830160205260408120555b5050565b80546040805182815260208084028201019091526060918015610342578160200160208202803883390190505b50905060005b81518110156103ac5782600101600084600001838154811061036657fe5b60009182526020808320909101546001600160a01b03168352820192909252604001902054825183908390811061039957fe5b6020908102919091010152600101610348565b50919050565b806103c6576103c183836102c5565b61042f565b6001600160a01b03821660009081526001840160205260409020546104115782546001810184556000848152602090200180546001600160a01b0319166001600160a01b0384161790555b6001600160a01b038216600090815260018401602052604090208190555b505050565b60005b825481101561042f57816001600160a01b031683828154811061045657fe5b6000918252602090912001546001600160a01b031614156104ed5782548390600019810190811061048357fe5b9060005260206000200160009054906101000a90046001600160a01b03168382815481106104ad57fe5b600091825260209091200180546001600160a01b0319166001600160a01b039290921691909117905582546104e68460001983016104f5565b5050610311565b600101610437565b81548183558181111561042f5760008381526020902061042f91810190830161053291905b8082111561052e576000815560010161051a565b5090565b90565b80356102a08161077a565b80356102a081610791565b60006020828403121561055d57600080fd5b60006105698484610535565b949350505050565b6000806040838503121561058457600080fd5b60006105908585610540565b92505060206105a185828601610535565b9150509250929050565b60006105b783836105cb565b505060200190565b60006105b78383610681565b6105d481610769565b82525050565b60006105e58261075c565b6105ef8185610760565b93506105fa83610756565b8060005b8381101561062857815161061288826105ab565b975061061d83610756565b9250506001016105fe565b509495945050505050565b600061063e8261075c565b6106488185610760565b935061065383610756565b8060005b8381101561062857815161066b88826105bf565b975061067683610756565b925050600101610657565b6105d481610532565b6000610697602a83610760565b7f4d6173736574206d7573742062652061207265666572656e63656420696d706c81526932b6b2b73a30ba34b7b760b11b602082015260400192915050565b60006106e3601183610760565b7027b7363c903a34329033b7bb32b93737b960791b815260200192915050565b602081016102a082846105cb565b6040808252810161072281856105da565b905081810360208301526105698184610633565b602080825281016102a08161068a565b602080825281016102a0816106d6565b60200190565b5190565b90815260200190565b60006001600160a01b0382166102a0565b61078381610769565b811461078e57600080fd5b50565b6107838161053256fea365627a7a72315820a902d0452f2fe291c6473e5699563249066dc62fba2298f25f8eb26107daa9da6c6578706572696d656e74616cf564736f6c63430005100040",
+  "sourceMap": "459:1561:15:-;;;-1:-1:-1;;;991:33:14;;459:1561:15;8:9:-1;5:2;;;30:1;27;20:12;5:2;459:1561:15;;;;;;;",
+  "deployedSourceMap": "459:1561:15:-;;;;8:9:-1;5:2;;;30:1;27;20:12;5:2;459:1561:15;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1624:394;;;;;;;;;:::i;:::-;;900:23:14;;;:::i;:::-;;;;;;;;;;;;;;;;1466:158;;;:::i;:::-;;;;;;;;;1084:356:15;;;;;;;;;:::i;1624:394::-;1259:10:14;;-1:-1:-1;;;;;1259:10:14;1274;1251:33;1243:63;;;;-1:-1:-1;;;1243:63:14;;;;;;;;;;;;;;;;;-1:-1:-1;;;;;1738:21:15;;1730:76;;;;-1:-1:-1;;;1730:76:15;;;;;;;;;1816:11;1830:20;:7;1842;1830:20;:11;:20;:::i;:::-;1816:34;-1:-1:-1;1868:19:15;1860:74;;;;-1:-1:-1;;;1860:74:15;;;;;;;;;1945:23;:7;1960;1945:23;:14;:23;:::i;:::-;1998:3;1984:27;2003:7;1984:27;;;;;;;;;;;;;;;1316:1:14;1624:394:15;:::o;900:23:14:-;;;-1:-1:-1;;;;;900:23:14;;:::o;1466:158::-;1522:21;;1586:7;1600:16;1586:7;1600:14;:16::i;:::-;1578:39;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;-1:-1:-1;;;;;1578:39:14;;;;;;;;;;;;;;;;;;;;;;;;;;;1466:158;;:::o;1084:356:15:-;1219:7;1259:10:14;;-1:-1:-1;;;;;1259:10:14;1274;1251:33;1243:63;;;;-1:-1:-1;;;1243:63:14;;;;;;;;;-1:-1:-1;;;;;1250:21:15;;1242:76;;;;-1:-1:-1;;;1242:76:15;;;;;;;;;1329:32;:7;1341;1350:10;1329:32;:11;:32;:::i;:::-;1389:10;1377:32;1401:7;1377:32;;;;;;;;;;;;;;;-1:-1:-1;1426:7:15;1316:1:14;1084:356:15;;;;:::o;2012:149:38:-;-1:-1:-1;;;;;2131:23:38;2105:7;2131:23;;;:17;;;;;:23;;;;;;;2012:149::o;3321:228::-;-1:-1:-1;;;;;3408:23:38;;3443:3;3408:23;;;:17;;;:23;;;;;;:39;3405:138;;3463:25;:4;3483;3463:25;:19;:25;:::i;:::-;-1:-1:-1;;;;;3509:23:38;;;;;;:17;;;:23;;;;;3502:30;3405:138;3321:228;;:::o;2382:306::-;2522:16;;2508:31;;;;;;;;;;;;;;;;2464:23;;2508:31;;;;;;;29:2:-1;21:6;17:15;117:4;105:10;97:6;88:34;136:17;;-1:-1;2508:31:38;-1:-1:-1;2499:40:38;-1:-1:-1;2554:6:38;2550:108;2570:6;:13;2566:1;:17;2550:108;;;2616:4;:17;;:31;2634:4;:9;;2644:1;2634:12;;;;;;;;;;;;;;;;;;;;-1:-1:-1;;;;;2634:12:38;2616:31;;;;;;;;;;;;;2604:9;;:6;;2611:1;;2604:9;;;;;;;;;;;;;;;:43;2585:3;;2550:108;;;-1:-1:-1;2382:306:38;;;:::o;750:337::-;851:22;847:91;;889:18;896:4;902;889:6;:18::i;:::-;921:7;;847:91;-1:-1:-1;;;;;952:23:38;;987:3;952:23;;;:17;;;:23;;;;;;948:90;;27:10:-1;;39:1;23:18;;45:23;;-1:-1;1007:20:38;;;;;;;;;-1:-1:-1;;;;;;1007:20:38;-1:-1:-1;;;;;1007:20:38;;;;;948:90;-1:-1:-1;;;;;1048:23:38;;;;;;:17;;;:23;;;;;:32;;;750:337;;;;:::o;383:295:36:-;466:6;462:210;482:12;;478:16;;462:210;;;531:6;-1:-1:-1;;;;;519:18:36;:5;525:1;519:8;;;;;;;;;;;;;;;;;;-1:-1:-1;;;;;519:8:36;:18;515:147;;;574:12;;568:5;;-1:-1:-1;;574:16:36;;;568:23;;;;;;;;;;;;;;;;;;;;;-1:-1:-1;;;;;568:23:36;557:5;563:1;557:8;;;;;;;;;;;;;;;;;:34;;-1:-1:-1;;;;;;557:34:36;-1:-1:-1;;;;;557:34:36;;;;;;;;;;609:14;;;;-1:-1:-1;;609:14:36;;;:::i;:::-;;641:7;;;515:147;496:3;;462:210;;459:1561:15;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;:::o;5:130:-1:-;72:20;;97:33;72:20;97:33;;142:130;209:20;;234:33;209:20;234:33;;279:241;;383:2;371:9;362:7;358:23;354:32;351:2;;;399:1;396;389:12;351:2;434:1;451:53;496:7;476:9;451:53;;;441:63;345:175;-1:-1;;;;345:175;527:366;;;648:2;636:9;627:7;623:23;619:32;616:2;;;664:1;661;654:12;616:2;699:1;716:53;761:7;741:9;716:53;;;706:63;;678:97;806:2;824:53;869:7;860:6;849:9;845:22;824:53;;;814:63;;785:98;610:283;;;;;;901:173;;988:46;1030:3;1022:6;988:46;;;-1:-1;;1063:4;1054:14;;981:93;1083:173;;1170:46;1212:3;1204:6;1170:46;;1264:103;1337:24;1355:5;1337:24;;;1332:3;1325:37;1319:48;;;1525:690;;1670:54;1718:5;1670:54;;;1737:86;1816:6;1811:3;1737:86;;;1730:93;;1844:56;1894:5;1844:56;;;1920:7;1948:1;1933:260;1958:6;1955:1;1952:13;1933:260;;;2025:6;2019:13;2046:63;2105:3;2090:13;2046:63;;;2039:70;;2126:60;2179:6;2126:60;;;2116:70;-1:-1;;1980:1;1973:9;1933:260;;;-1:-1;2206:3;;1649:566;-1:-1;;;;;1649:566;2254:690;;2399:54;2447:5;2399:54;;;2466:86;2545:6;2540:3;2466:86;;;2459:93;;2573:56;2623:5;2573:56;;;2649:7;2677:1;2662:260;2687:6;2684:1;2681:13;2662:260;;;2754:6;2748:13;2775:63;2834:3;2819:13;2775:63;;;2768:70;;2855:60;2908:6;2855:60;;;2845:70;-1:-1;;2709:1;2702:9;2662:260;;2952:103;3025:24;3043:5;3025:24;;3063:379;;3223:67;3287:2;3282:3;3223:67;;;3323:34;3303:55;;-1:-1;;;3387:2;3378:12;;3371:34;3433:2;3424:12;;3209:233;-1:-1;;3209:233;3451:317;;3611:67;3675:2;3670:3;3611:67;;;-1:-1;;;3691:40;;3759:2;3750:12;;3597:171;-1:-1;;3597:171;3776:213;3894:2;3879:18;;3908:71;3883:9;3952:6;3908:71;;3996:620;4242:2;4256:47;;;4227:18;;4317:108;4227:18;4411:6;4317:108;;;4309:116;;4473:9;4467:4;4463:20;4458:2;4447:9;4443:18;4436:48;4498:108;4601:4;4592:6;4498:108;;4623:407;4814:2;4828:47;;;4799:18;;4889:131;4799:18;4889:131;;5037:407;5228:2;5242:47;;;5213:18;;5303:131;5213:18;5303:131;;5451:151;5575:4;5566:14;;5523:79;5767:137;5870:12;;5841:63;6286:178;6404:19;;;6453:4;6444:14;;6397:67;6831:91;;-1:-1;;;;;7070:54;;6893:24;7053:76;7136:117;7205:24;7223:5;7205:24;;;7198:5;7195:35;7185:2;;7244:1;7241;7234:12;7185:2;7179:74;;7260:117;7329:24;7347:5;7329:24;",
+  "source": "pragma solidity ^0.5.12;\npragma experimental ABIEncoderV2;\n\nimport { ManagerState, IMasset, IManager } from \"./ManagerState.sol\";\n\nimport { DictionaryBtoA } from \"../shared/libs/DictionaryBtoA.sol\";\n\n\n/**\n * @title MassetFactory\n * @dev This Factory creates and manages mStable Assets under direction of the governor\n * It also allows governor to add or remove specific MassetFactories from the stack, allowing\n * the creation of various types of Massets\n */\ncontract MassetFactory is ManagerState {\n\n    /** @dev Custom dictionary for managing data structures */\n    using DictionaryBtoA for DictionaryBtoA.Bytes32ToAddress;\n\n    /** @dev Events to emit */\n    event MassetAdded(bytes32 indexed key, address addr);\n    event MassetEjected(bytes32 indexed key, address addr);\n\n\n    /**\n      * @dev Adds an already and initialised Masset to the stack, storing the relevant data in the ManagerState\n      * @param _massetKey     Key identifier for the Masset\n      * @param _masset        Address of the Masset contract\n      * @return               Address of new Masset\n      */\n    function addMasset(\n        bytes32 _massetKey,\n        address _masset\n    )\n        external\n        onlyGovernance\n        returns (address)\n    {\n        require(_masset != address(0), \"Masset must be a referenced implementation\");\n\n        massets.add(_masset, _massetKey);\n\n        emit MassetAdded(_massetKey, _masset);\n        return _masset;\n    }\n\n    /**\n      * @dev Removes a Masset from the system and thus releases from recollateraliastion protection\n      * @param _masset        Address of the Masset contract\n      */\n    function ejectMasset(\n        address _masset\n    )\n        external\n        onlyGovernance\n    {\n        require(_masset != address(0), \"Masset must be a referenced implementation\");\n        bytes32 key = massets.get(_masset);\n        require(key != bytes32(0x0), \"Masset must be a referenced implementation\");\n\n        massets.remove(_masset);\n\n        emit MassetEjected(key, _masset);\n    }\n}",
+  "sourcePath": "/Users/james/mstable/mStable-contracts/contracts/manager/MassetFactory.sol",
+  "ast": {
+    "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/manager/MassetFactory.sol",
+    "exportedSymbols": {
+      "MassetFactory": [
+        2318
+      ]
+    },
+    "id": 2319,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 2214,
+        "literals": [
+          "solidity",
+          "^",
+          "0.5",
+          ".12"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:24:15"
+      },
+      {
+        "id": 2215,
+        "literals": [
+          "experimental",
+          "ABIEncoderV2"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "25:33:15"
+      },
+      {
+        "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/manager/ManagerState.sol",
+        "file": "./ManagerState.sol",
+        "id": 2219,
+        "nodeType": "ImportDirective",
+        "scope": 2319,
+        "sourceUnit": 2213,
+        "src": "60:69:15",
+        "symbolAliases": [
+          {
+            "foreign": 2216,
+            "local": null
+          },
+          {
+            "foreign": 2217,
+            "local": null
+          },
+          {
+            "foreign": 2218,
+            "local": null
+          }
+        ],
+        "unitAlias": ""
+      },
+      {
+        "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/shared/libs/DictionaryBtoA.sol",
+        "file": "../shared/libs/DictionaryBtoA.sol",
+        "id": 2221,
+        "nodeType": "ImportDirective",
+        "scope": 2319,
+        "sourceUnit": 9043,
+        "src": "131:67:15",
+        "symbolAliases": [
+          {
+            "foreign": 2220,
+            "local": null
+          }
+        ],
+        "unitAlias": ""
+      },
+      {
+        "baseContracts": [
+          {
+            "arguments": null,
+            "baseName": {
+              "contractScope": null,
+              "id": 2222,
+              "name": "ManagerState",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 2212,
+              "src": "485:12:15",
+              "typeDescriptions": {
+                "typeIdentifier": "t_contract$_ManagerState_$2212",
+                "typeString": "contract ManagerState"
+              }
+            },
+            "id": 2223,
+            "nodeType": "InheritanceSpecifier",
+            "src": "485:12:15"
+          }
+        ],
+        "contractDependencies": [
+          2212
+        ],
+        "contractKind": "contract",
+        "documentation": "@title MassetFactory\n@dev This Factory creates and manages mStable Assets under direction of the governor\nIt also allows governor to add or remove specific MassetFactories from the stack, allowing\nthe creation of various types of Massets",
+        "fullyImplemented": true,
+        "id": 2318,
+        "linearizedBaseContracts": [
+          2318,
+          2212
+        ],
+        "name": "MassetFactory",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "id": 2226,
+            "libraryName": {
+              "contractScope": null,
+              "id": 2224,
+              "name": "DictionaryBtoA",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 9042,
+              "src": "574:14:15",
+              "typeDescriptions": {
+                "typeIdentifier": "t_contract$_DictionaryBtoA_$9042",
+                "typeString": "library DictionaryBtoA"
+              }
+            },
+            "nodeType": "UsingForDirective",
+            "src": "568:57:15",
+            "typeName": {
+              "contractScope": null,
+              "id": 2225,
+              "name": "DictionaryBtoA.Bytes32ToAddress",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 8821,
+              "src": "593:31:15",
+              "typeDescriptions": {
+                "typeIdentifier": "t_struct$_Bytes32ToAddress_$8821_storage_ptr",
+                "typeString": "struct DictionaryBtoA.Bytes32ToAddress"
+              }
+            }
+          },
+          {
+            "anonymous": false,
+            "documentation": "@dev Events to emit ",
+            "id": 2232,
+            "name": "MassetAdded",
+            "nodeType": "EventDefinition",
+            "parameters": {
+              "id": 2231,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 2228,
+                  "indexed": true,
+                  "name": "key",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 2232,
+                  "src": "680:19:15",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  },
+                  "typeName": {
+                    "id": 2227,
+                    "name": "bytes32",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "680:7:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bytes32",
+                      "typeString": "bytes32"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 2230,
+                  "indexed": false,
+                  "name": "addr",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 2232,
+                  "src": "701:12:15",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 2229,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "701:7:15",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "679:35:15"
+            },
+            "src": "662:53:15"
+          },
+          {
+            "anonymous": false,
+            "documentation": null,
+            "id": 2238,
+            "name": "MassetEjected",
+            "nodeType": "EventDefinition",
+            "parameters": {
+              "id": 2237,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 2234,
+                  "indexed": true,
+                  "name": "key",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 2238,
+                  "src": "740:19:15",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  },
+                  "typeName": {
+                    "id": 2233,
+                    "name": "bytes32",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "740:7:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bytes32",
+                      "typeString": "bytes32"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 2236,
+                  "indexed": false,
+                  "name": "addr",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 2238,
+                  "src": "761:12:15",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 2235,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "761:7:15",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "739:35:15"
+            },
+            "src": "720:55:15"
+          },
+          {
+            "body": {
+              "id": 2272,
+              "nodeType": "Block",
+              "src": "1232:208:15",
+              "statements": [
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "commonType": {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        },
+                        "id": 2254,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": false,
+                        "lValueRequested": false,
+                        "leftExpression": {
+                          "argumentTypes": null,
+                          "id": 2250,
+                          "name": "_masset",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 2242,
+                          "src": "1250:7:15",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_address",
+                            "typeString": "address"
+                          }
+                        },
+                        "nodeType": "BinaryOperation",
+                        "operator": "!=",
+                        "rightExpression": {
+                          "argumentTypes": null,
+                          "arguments": [
+                            {
+                              "argumentTypes": null,
+                              "hexValue": "30",
+                              "id": 2252,
+                              "isConstant": false,
+                              "isLValue": false,
+                              "isPure": true,
+                              "kind": "number",
+                              "lValueRequested": false,
+                              "nodeType": "Literal",
+                              "src": "1269:1:15",
+                              "subdenomination": null,
+                              "typeDescriptions": {
+                                "typeIdentifier": "t_rational_0_by_1",
+                                "typeString": "int_const 0"
+                              },
+                              "value": "0"
+                            }
+                          ],
+                          "expression": {
+                            "argumentTypes": [
+                              {
+                                "typeIdentifier": "t_rational_0_by_1",
+                                "typeString": "int_const 0"
+                              }
+                            ],
+                            "id": 2251,
+                            "isConstant": false,
+                            "isLValue": false,
+                            "isPure": true,
+                            "lValueRequested": false,
+                            "nodeType": "ElementaryTypeNameExpression",
+                            "src": "1261:7:15",
+                            "typeDescriptions": {
+                              "typeIdentifier": "t_type$_t_address_$",
+                              "typeString": "type(address)"
+                            },
+                            "typeName": "address"
+                          },
+                          "id": 2253,
+                          "isConstant": false,
+                          "isLValue": false,
+                          "isPure": true,
+                          "kind": "typeConversion",
+                          "lValueRequested": false,
+                          "names": [],
+                          "nodeType": "FunctionCall",
+                          "src": "1261:10:15",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_address_payable",
+                            "typeString": "address payable"
+                          }
+                        },
+                        "src": "1250:21:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_bool",
+                          "typeString": "bool"
+                        }
+                      },
+                      {
+                        "argumentTypes": null,
+                        "hexValue": "4d6173736574206d7573742062652061207265666572656e63656420696d706c656d656e746174696f6e",
+                        "id": 2255,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": true,
+                        "kind": "string",
+                        "lValueRequested": false,
+                        "nodeType": "Literal",
+                        "src": "1273:44:15",
+                        "subdenomination": null,
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_stringliteral_1bfde1f4c2f6403de654e37f8bbdcbdcec45480ca1d1956698b23186b034caad",
+                          "typeString": "literal_string \"Masset must be a referenced implementation\""
+                        },
+                        "value": "Masset must be a referenced implementation"
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_bool",
+                          "typeString": "bool"
+                        },
+                        {
+                          "typeIdentifier": "t_stringliteral_1bfde1f4c2f6403de654e37f8bbdcbdcec45480ca1d1956698b23186b034caad",
+                          "typeString": "literal_string \"Masset must be a referenced implementation\""
+                        }
+                      ],
+                      "id": 2249,
+                      "name": "require",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [
+                        11865,
+                        11866
+                      ],
+                      "referencedDeclaration": 11866,
+                      "src": "1242:7:15",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_require_pure$_t_bool_$_t_string_memory_ptr_$returns$__$",
+                        "typeString": "function (bool,string memory) pure"
+                      }
+                    },
+                    "id": 2256,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1242:76:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 2257,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1242:76:15"
+                },
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "id": 2261,
+                        "name": "_masset",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 2242,
+                        "src": "1341:7:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      },
+                      {
+                        "argumentTypes": null,
+                        "id": 2262,
+                        "name": "_massetKey",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 2240,
+                        "src": "1350:10:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_bytes32",
+                          "typeString": "bytes32"
+                        }
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        },
+                        {
+                          "typeIdentifier": "t_bytes32",
+                          "typeString": "bytes32"
+                        }
+                      ],
+                      "expression": {
+                        "argumentTypes": null,
+                        "id": 2258,
+                        "name": "massets",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 2180,
+                        "src": "1329:7:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_struct$_AddressToBytes32_$8581_storage",
+                          "typeString": "struct DictionaryAtoB.AddressToBytes32 storage ref"
+                        }
+                      },
+                      "id": 2260,
+                      "isConstant": false,
+                      "isLValue": true,
+                      "isPure": false,
+                      "lValueRequested": false,
+                      "memberName": "add",
+                      "nodeType": "MemberAccess",
+                      "referencedDeclaration": 8630,
+                      "src": "1329:11:15",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_internal_nonpayable$_t_struct$_AddressToBytes32_$8581_storage_ptr_$_t_address_$_t_bytes32_$returns$__$bound_to$_t_struct$_AddressToBytes32_$8581_storage_ptr_$",
+                        "typeString": "function (struct DictionaryAtoB.AddressToBytes32 storage pointer,address,bytes32)"
+                      }
+                    },
+                    "id": 2263,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1329:32:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 2264,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1329:32:15"
+                },
+                {
+                  "eventCall": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "id": 2266,
+                        "name": "_massetKey",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 2240,
+                        "src": "1389:10:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_bytes32",
+                          "typeString": "bytes32"
+                        }
+                      },
+                      {
+                        "argumentTypes": null,
+                        "id": 2267,
+                        "name": "_masset",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 2242,
+                        "src": "1401:7:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_bytes32",
+                          "typeString": "bytes32"
+                        },
+                        {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      ],
+                      "id": 2265,
+                      "name": "MassetAdded",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 2232,
+                      "src": "1377:11:15",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_event_nonpayable$_t_bytes32_$_t_address_$returns$__$",
+                        "typeString": "function (bytes32,address)"
+                      }
+                    },
+                    "id": 2268,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1377:32:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 2269,
+                  "nodeType": "EmitStatement",
+                  "src": "1372:37:15"
+                },
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "id": 2270,
+                    "name": "_masset",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 2242,
+                    "src": "1426:7:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "functionReturnParameters": 2248,
+                  "id": 2271,
+                  "nodeType": "Return",
+                  "src": "1419:14:15"
+                }
+              ]
+            },
+            "documentation": "@dev Adds an already and initialised Masset to the stack, storing the relevant data in the ManagerState\n@param _massetKey     Key identifier for the Masset\n@param _masset        Address of the Masset contract\n@return               Address of new Masset",
+            "id": 2273,
+            "implemented": true,
+            "kind": "function",
+            "modifiers": [
+              {
+                "arguments": null,
+                "id": 2245,
+                "modifierName": {
+                  "argumentTypes": null,
+                  "id": 2244,
+                  "name": "onlyGovernance",
+                  "nodeType": "Identifier",
+                  "overloadedDeclarations": [],
+                  "referencedDeclaration": 2194,
+                  "src": "1187:14:15",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_modifier$__$",
+                    "typeString": "modifier ()"
+                  }
+                },
+                "nodeType": "ModifierInvocation",
+                "src": "1187:14:15"
+              }
+            ],
+            "name": "addMasset",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 2243,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 2240,
+                  "name": "_massetKey",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 2273,
+                  "src": "1112:18:15",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  },
+                  "typeName": {
+                    "id": 2239,
+                    "name": "bytes32",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1112:7:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bytes32",
+                      "typeString": "bytes32"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 2242,
+                  "name": "_masset",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 2273,
+                  "src": "1140:15:15",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 2241,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1140:7:15",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "1102:59:15"
+            },
+            "returnParameters": {
+              "id": 2248,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 2247,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 2273,
+                  "src": "1219:7:15",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 2246,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1219:7:15",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "1218:9:15"
+            },
+            "scope": 2318,
+            "src": "1084:356:15",
+            "stateMutability": "nonpayable",
+            "superFunction": 1366,
+            "visibility": "external"
+          },
+          {
+            "body": {
+              "id": 2316,
+              "nodeType": "Block",
+              "src": "1720:298:15",
+              "statements": [
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "commonType": {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        },
+                        "id": 2285,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": false,
+                        "lValueRequested": false,
+                        "leftExpression": {
+                          "argumentTypes": null,
+                          "id": 2281,
+                          "name": "_masset",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 2275,
+                          "src": "1738:7:15",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_address",
+                            "typeString": "address"
+                          }
+                        },
+                        "nodeType": "BinaryOperation",
+                        "operator": "!=",
+                        "rightExpression": {
+                          "argumentTypes": null,
+                          "arguments": [
+                            {
+                              "argumentTypes": null,
+                              "hexValue": "30",
+                              "id": 2283,
+                              "isConstant": false,
+                              "isLValue": false,
+                              "isPure": true,
+                              "kind": "number",
+                              "lValueRequested": false,
+                              "nodeType": "Literal",
+                              "src": "1757:1:15",
+                              "subdenomination": null,
+                              "typeDescriptions": {
+                                "typeIdentifier": "t_rational_0_by_1",
+                                "typeString": "int_const 0"
+                              },
+                              "value": "0"
+                            }
+                          ],
+                          "expression": {
+                            "argumentTypes": [
+                              {
+                                "typeIdentifier": "t_rational_0_by_1",
+                                "typeString": "int_const 0"
+                              }
+                            ],
+                            "id": 2282,
+                            "isConstant": false,
+                            "isLValue": false,
+                            "isPure": true,
+                            "lValueRequested": false,
+                            "nodeType": "ElementaryTypeNameExpression",
+                            "src": "1749:7:15",
+                            "typeDescriptions": {
+                              "typeIdentifier": "t_type$_t_address_$",
+                              "typeString": "type(address)"
+                            },
+                            "typeName": "address"
+                          },
+                          "id": 2284,
+                          "isConstant": false,
+                          "isLValue": false,
+                          "isPure": true,
+                          "kind": "typeConversion",
+                          "lValueRequested": false,
+                          "names": [],
+                          "nodeType": "FunctionCall",
+                          "src": "1749:10:15",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_address_payable",
+                            "typeString": "address payable"
+                          }
+                        },
+                        "src": "1738:21:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_bool",
+                          "typeString": "bool"
+                        }
+                      },
+                      {
+                        "argumentTypes": null,
+                        "hexValue": "4d6173736574206d7573742062652061207265666572656e63656420696d706c656d656e746174696f6e",
+                        "id": 2286,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": true,
+                        "kind": "string",
+                        "lValueRequested": false,
+                        "nodeType": "Literal",
+                        "src": "1761:44:15",
+                        "subdenomination": null,
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_stringliteral_1bfde1f4c2f6403de654e37f8bbdcbdcec45480ca1d1956698b23186b034caad",
+                          "typeString": "literal_string \"Masset must be a referenced implementation\""
+                        },
+                        "value": "Masset must be a referenced implementation"
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_bool",
+                          "typeString": "bool"
+                        },
+                        {
+                          "typeIdentifier": "t_stringliteral_1bfde1f4c2f6403de654e37f8bbdcbdcec45480ca1d1956698b23186b034caad",
+                          "typeString": "literal_string \"Masset must be a referenced implementation\""
+                        }
+                      ],
+                      "id": 2280,
+                      "name": "require",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [
+                        11865,
+                        11866
+                      ],
+                      "referencedDeclaration": 11866,
+                      "src": "1730:7:15",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_require_pure$_t_bool_$_t_string_memory_ptr_$returns$__$",
+                        "typeString": "function (bool,string memory) pure"
+                      }
+                    },
+                    "id": 2287,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1730:76:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 2288,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1730:76:15"
+                },
+                {
+                  "assignments": [
+                    2290
+                  ],
+                  "declarations": [
+                    {
+                      "constant": false,
+                      "id": 2290,
+                      "name": "key",
+                      "nodeType": "VariableDeclaration",
+                      "scope": 2316,
+                      "src": "1816:11:15",
+                      "stateVariable": false,
+                      "storageLocation": "default",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bytes32",
+                        "typeString": "bytes32"
+                      },
+                      "typeName": {
+                        "id": 2289,
+                        "name": "bytes32",
+                        "nodeType": "ElementaryTypeName",
+                        "src": "1816:7:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_bytes32",
+                          "typeString": "bytes32"
+                        }
+                      },
+                      "value": null,
+                      "visibility": "internal"
+                    }
+                  ],
+                  "id": 2295,
+                  "initialValue": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "id": 2293,
+                        "name": "_masset",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 2275,
+                        "src": "1842:7:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      ],
+                      "expression": {
+                        "argumentTypes": null,
+                        "id": 2291,
+                        "name": "massets",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 2180,
+                        "src": "1830:7:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_struct$_AddressToBytes32_$8581_storage",
+                          "typeString": "struct DictionaryAtoB.AddressToBytes32 storage ref"
+                        }
+                      },
+                      "id": 2292,
+                      "isConstant": false,
+                      "isLValue": true,
+                      "isPure": false,
+                      "lValueRequested": false,
+                      "memberName": "get",
+                      "nodeType": "MemberAccess",
+                      "referencedDeclaration": 8704,
+                      "src": "1830:11:15",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_internal_view$_t_struct$_AddressToBytes32_$8581_storage_ptr_$_t_address_$returns$_t_bytes32_$bound_to$_t_struct$_AddressToBytes32_$8581_storage_ptr_$",
+                        "typeString": "function (struct DictionaryAtoB.AddressToBytes32 storage pointer,address) view returns (bytes32)"
+                      }
+                    },
+                    "id": 2294,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1830:20:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bytes32",
+                      "typeString": "bytes32"
+                    }
+                  },
+                  "nodeType": "VariableDeclarationStatement",
+                  "src": "1816:34:15"
+                },
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "commonType": {
+                          "typeIdentifier": "t_bytes32",
+                          "typeString": "bytes32"
+                        },
+                        "id": 2301,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": false,
+                        "lValueRequested": false,
+                        "leftExpression": {
+                          "argumentTypes": null,
+                          "id": 2297,
+                          "name": "key",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 2290,
+                          "src": "1868:3:15",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_bytes32",
+                            "typeString": "bytes32"
+                          }
+                        },
+                        "nodeType": "BinaryOperation",
+                        "operator": "!=",
+                        "rightExpression": {
+                          "argumentTypes": null,
+                          "arguments": [
+                            {
+                              "argumentTypes": null,
+                              "hexValue": "307830",
+                              "id": 2299,
+                              "isConstant": false,
+                              "isLValue": false,
+                              "isPure": true,
+                              "kind": "number",
+                              "lValueRequested": false,
+                              "nodeType": "Literal",
+                              "src": "1883:3:15",
+                              "subdenomination": null,
+                              "typeDescriptions": {
+                                "typeIdentifier": "t_rational_0_by_1",
+                                "typeString": "int_const 0"
+                              },
+                              "value": "0x0"
+                            }
+                          ],
+                          "expression": {
+                            "argumentTypes": [
+                              {
+                                "typeIdentifier": "t_rational_0_by_1",
+                                "typeString": "int_const 0"
+                              }
+                            ],
+                            "id": 2298,
+                            "isConstant": false,
+                            "isLValue": false,
+                            "isPure": true,
+                            "lValueRequested": false,
+                            "nodeType": "ElementaryTypeNameExpression",
+                            "src": "1875:7:15",
+                            "typeDescriptions": {
+                              "typeIdentifier": "t_type$_t_bytes32_$",
+                              "typeString": "type(bytes32)"
+                            },
+                            "typeName": "bytes32"
+                          },
+                          "id": 2300,
+                          "isConstant": false,
+                          "isLValue": false,
+                          "isPure": true,
+                          "kind": "typeConversion",
+                          "lValueRequested": false,
+                          "names": [],
+                          "nodeType": "FunctionCall",
+                          "src": "1875:12:15",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_bytes32",
+                            "typeString": "bytes32"
+                          }
+                        },
+                        "src": "1868:19:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_bool",
+                          "typeString": "bool"
+                        }
+                      },
+                      {
+                        "argumentTypes": null,
+                        "hexValue": "4d6173736574206d7573742062652061207265666572656e63656420696d706c656d656e746174696f6e",
+                        "id": 2302,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": true,
+                        "kind": "string",
+                        "lValueRequested": false,
+                        "nodeType": "Literal",
+                        "src": "1889:44:15",
+                        "subdenomination": null,
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_stringliteral_1bfde1f4c2f6403de654e37f8bbdcbdcec45480ca1d1956698b23186b034caad",
+                          "typeString": "literal_string \"Masset must be a referenced implementation\""
+                        },
+                        "value": "Masset must be a referenced implementation"
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_bool",
+                          "typeString": "bool"
+                        },
+                        {
+                          "typeIdentifier": "t_stringliteral_1bfde1f4c2f6403de654e37f8bbdcbdcec45480ca1d1956698b23186b034caad",
+                          "typeString": "literal_string \"Masset must be a referenced implementation\""
+                        }
+                      ],
+                      "id": 2296,
+                      "name": "require",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [
+                        11865,
+                        11866
+                      ],
+                      "referencedDeclaration": 11866,
+                      "src": "1860:7:15",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_require_pure$_t_bool_$_t_string_memory_ptr_$returns$__$",
+                        "typeString": "function (bool,string memory) pure"
+                      }
+                    },
+                    "id": 2303,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1860:74:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 2304,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1860:74:15"
+                },
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "id": 2308,
+                        "name": "_masset",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 2275,
+                        "src": "1960:7:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      ],
+                      "expression": {
+                        "argumentTypes": null,
+                        "id": 2305,
+                        "name": "massets",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 2180,
+                        "src": "1945:7:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_struct$_AddressToBytes32_$8581_storage",
+                          "typeString": "struct DictionaryAtoB.AddressToBytes32 storage ref"
+                        }
+                      },
+                      "id": 2307,
+                      "isConstant": false,
+                      "isLValue": true,
+                      "isPure": false,
+                      "lValueRequested": false,
+                      "memberName": "remove",
+                      "nodeType": "MemberAccess",
+                      "referencedDeclaration": 8801,
+                      "src": "1945:14:15",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_internal_nonpayable$_t_struct$_AddressToBytes32_$8581_storage_ptr_$_t_address_$returns$__$bound_to$_t_struct$_AddressToBytes32_$8581_storage_ptr_$",
+                        "typeString": "function (struct DictionaryAtoB.AddressToBytes32 storage pointer,address)"
+                      }
+                    },
+                    "id": 2309,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1945:23:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 2310,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1945:23:15"
+                },
+                {
+                  "eventCall": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "id": 2312,
+                        "name": "key",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 2290,
+                        "src": "1998:3:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_bytes32",
+                          "typeString": "bytes32"
+                        }
+                      },
+                      {
+                        "argumentTypes": null,
+                        "id": 2313,
+                        "name": "_masset",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 2275,
+                        "src": "2003:7:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_bytes32",
+                          "typeString": "bytes32"
+                        },
+                        {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      ],
+                      "id": 2311,
+                      "name": "MassetEjected",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 2238,
+                      "src": "1984:13:15",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_event_nonpayable$_t_bytes32_$_t_address_$returns$__$",
+                        "typeString": "function (bytes32,address)"
+                      }
+                    },
+                    "id": 2314,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1984:27:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 2315,
+                  "nodeType": "EmitStatement",
+                  "src": "1979:32:15"
+                }
+              ]
+            },
+            "documentation": "@dev Removes a Masset from the system and thus releases from recollateraliastion protection\n@param _masset        Address of the Masset contract",
+            "id": 2317,
+            "implemented": true,
+            "kind": "function",
+            "modifiers": [
+              {
+                "arguments": null,
+                "id": 2278,
+                "modifierName": {
+                  "argumentTypes": null,
+                  "id": 2277,
+                  "name": "onlyGovernance",
+                  "nodeType": "Identifier",
+                  "overloadedDeclarations": [],
+                  "referencedDeclaration": 2194,
+                  "src": "1701:14:15",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_modifier$__$",
+                    "typeString": "modifier ()"
+                  }
+                },
+                "nodeType": "ModifierInvocation",
+                "src": "1701:14:15"
+              }
+            ],
+            "name": "ejectMasset",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 2276,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 2275,
+                  "name": "_masset",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 2317,
+                  "src": "1654:15:15",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 2274,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1654:7:15",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "1644:31:15"
+            },
+            "returnParameters": {
+              "id": 2279,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "1720:0:15"
+            },
+            "scope": 2318,
+            "src": "1624:394:15",
+            "stateMutability": "nonpayable",
+            "superFunction": 1371,
+            "visibility": "external"
+          }
+        ],
+        "scope": 2319,
+        "src": "459:1561:15"
+      }
+    ],
+    "src": "0:2020:15"
+  },
+  "legacyAST": {
+    "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/manager/MassetFactory.sol",
+    "exportedSymbols": {
+      "MassetFactory": [
+        2318
+      ]
+    },
+    "id": 2319,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 2214,
+        "literals": [
+          "solidity",
+          "^",
+          "0.5",
+          ".12"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:24:15"
+      },
+      {
+        "id": 2215,
+        "literals": [
+          "experimental",
+          "ABIEncoderV2"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "25:33:15"
+      },
+      {
+        "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/manager/ManagerState.sol",
+        "file": "./ManagerState.sol",
+        "id": 2219,
+        "nodeType": "ImportDirective",
+        "scope": 2319,
+        "sourceUnit": 2213,
+        "src": "60:69:15",
+        "symbolAliases": [
+          {
+            "foreign": 2216,
+            "local": null
+          },
+          {
+            "foreign": 2217,
+            "local": null
+          },
+          {
+            "foreign": 2218,
+            "local": null
+          }
+        ],
+        "unitAlias": ""
+      },
+      {
+        "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/shared/libs/DictionaryBtoA.sol",
+        "file": "../shared/libs/DictionaryBtoA.sol",
+        "id": 2221,
+        "nodeType": "ImportDirective",
+        "scope": 2319,
+        "sourceUnit": 9043,
+        "src": "131:67:15",
+        "symbolAliases": [
+          {
+            "foreign": 2220,
+            "local": null
+          }
+        ],
+        "unitAlias": ""
+      },
+      {
+        "baseContracts": [
+          {
+            "arguments": null,
+            "baseName": {
+              "contractScope": null,
+              "id": 2222,
+              "name": "ManagerState",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 2212,
+              "src": "485:12:15",
+              "typeDescriptions": {
+                "typeIdentifier": "t_contract$_ManagerState_$2212",
+                "typeString": "contract ManagerState"
+              }
+            },
+            "id": 2223,
+            "nodeType": "InheritanceSpecifier",
+            "src": "485:12:15"
+          }
+        ],
+        "contractDependencies": [
+          2212
+        ],
+        "contractKind": "contract",
+        "documentation": "@title MassetFactory\n@dev This Factory creates and manages mStable Assets under direction of the governor\nIt also allows governor to add or remove specific MassetFactories from the stack, allowing\nthe creation of various types of Massets",
+        "fullyImplemented": true,
+        "id": 2318,
+        "linearizedBaseContracts": [
+          2318,
+          2212
+        ],
+        "name": "MassetFactory",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "id": 2226,
+            "libraryName": {
+              "contractScope": null,
+              "id": 2224,
+              "name": "DictionaryBtoA",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 9042,
+              "src": "574:14:15",
+              "typeDescriptions": {
+                "typeIdentifier": "t_contract$_DictionaryBtoA_$9042",
+                "typeString": "library DictionaryBtoA"
+              }
+            },
+            "nodeType": "UsingForDirective",
+            "src": "568:57:15",
+            "typeName": {
+              "contractScope": null,
+              "id": 2225,
+              "name": "DictionaryBtoA.Bytes32ToAddress",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 8821,
+              "src": "593:31:15",
+              "typeDescriptions": {
+                "typeIdentifier": "t_struct$_Bytes32ToAddress_$8821_storage_ptr",
+                "typeString": "struct DictionaryBtoA.Bytes32ToAddress"
+              }
+            }
+          },
+          {
+            "anonymous": false,
+            "documentation": "@dev Events to emit ",
+            "id": 2232,
+            "name": "MassetAdded",
+            "nodeType": "EventDefinition",
+            "parameters": {
+              "id": 2231,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 2228,
+                  "indexed": true,
+                  "name": "key",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 2232,
+                  "src": "680:19:15",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  },
+                  "typeName": {
+                    "id": 2227,
+                    "name": "bytes32",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "680:7:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bytes32",
+                      "typeString": "bytes32"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 2230,
+                  "indexed": false,
+                  "name": "addr",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 2232,
+                  "src": "701:12:15",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 2229,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "701:7:15",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "679:35:15"
+            },
+            "src": "662:53:15"
+          },
+          {
+            "anonymous": false,
+            "documentation": null,
+            "id": 2238,
+            "name": "MassetEjected",
+            "nodeType": "EventDefinition",
+            "parameters": {
+              "id": 2237,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 2234,
+                  "indexed": true,
+                  "name": "key",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 2238,
+                  "src": "740:19:15",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  },
+                  "typeName": {
+                    "id": 2233,
+                    "name": "bytes32",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "740:7:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bytes32",
+                      "typeString": "bytes32"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 2236,
+                  "indexed": false,
+                  "name": "addr",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 2238,
+                  "src": "761:12:15",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 2235,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "761:7:15",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "739:35:15"
+            },
+            "src": "720:55:15"
+          },
+          {
+            "body": {
+              "id": 2272,
+              "nodeType": "Block",
+              "src": "1232:208:15",
+              "statements": [
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "commonType": {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        },
+                        "id": 2254,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": false,
+                        "lValueRequested": false,
+                        "leftExpression": {
+                          "argumentTypes": null,
+                          "id": 2250,
+                          "name": "_masset",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 2242,
+                          "src": "1250:7:15",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_address",
+                            "typeString": "address"
+                          }
+                        },
+                        "nodeType": "BinaryOperation",
+                        "operator": "!=",
+                        "rightExpression": {
+                          "argumentTypes": null,
+                          "arguments": [
+                            {
+                              "argumentTypes": null,
+                              "hexValue": "30",
+                              "id": 2252,
+                              "isConstant": false,
+                              "isLValue": false,
+                              "isPure": true,
+                              "kind": "number",
+                              "lValueRequested": false,
+                              "nodeType": "Literal",
+                              "src": "1269:1:15",
+                              "subdenomination": null,
+                              "typeDescriptions": {
+                                "typeIdentifier": "t_rational_0_by_1",
+                                "typeString": "int_const 0"
+                              },
+                              "value": "0"
+                            }
+                          ],
+                          "expression": {
+                            "argumentTypes": [
+                              {
+                                "typeIdentifier": "t_rational_0_by_1",
+                                "typeString": "int_const 0"
+                              }
+                            ],
+                            "id": 2251,
+                            "isConstant": false,
+                            "isLValue": false,
+                            "isPure": true,
+                            "lValueRequested": false,
+                            "nodeType": "ElementaryTypeNameExpression",
+                            "src": "1261:7:15",
+                            "typeDescriptions": {
+                              "typeIdentifier": "t_type$_t_address_$",
+                              "typeString": "type(address)"
+                            },
+                            "typeName": "address"
+                          },
+                          "id": 2253,
+                          "isConstant": false,
+                          "isLValue": false,
+                          "isPure": true,
+                          "kind": "typeConversion",
+                          "lValueRequested": false,
+                          "names": [],
+                          "nodeType": "FunctionCall",
+                          "src": "1261:10:15",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_address_payable",
+                            "typeString": "address payable"
+                          }
+                        },
+                        "src": "1250:21:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_bool",
+                          "typeString": "bool"
+                        }
+                      },
+                      {
+                        "argumentTypes": null,
+                        "hexValue": "4d6173736574206d7573742062652061207265666572656e63656420696d706c656d656e746174696f6e",
+                        "id": 2255,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": true,
+                        "kind": "string",
+                        "lValueRequested": false,
+                        "nodeType": "Literal",
+                        "src": "1273:44:15",
+                        "subdenomination": null,
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_stringliteral_1bfde1f4c2f6403de654e37f8bbdcbdcec45480ca1d1956698b23186b034caad",
+                          "typeString": "literal_string \"Masset must be a referenced implementation\""
+                        },
+                        "value": "Masset must be a referenced implementation"
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_bool",
+                          "typeString": "bool"
+                        },
+                        {
+                          "typeIdentifier": "t_stringliteral_1bfde1f4c2f6403de654e37f8bbdcbdcec45480ca1d1956698b23186b034caad",
+                          "typeString": "literal_string \"Masset must be a referenced implementation\""
+                        }
+                      ],
+                      "id": 2249,
+                      "name": "require",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [
+                        11865,
+                        11866
+                      ],
+                      "referencedDeclaration": 11866,
+                      "src": "1242:7:15",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_require_pure$_t_bool_$_t_string_memory_ptr_$returns$__$",
+                        "typeString": "function (bool,string memory) pure"
+                      }
+                    },
+                    "id": 2256,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1242:76:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 2257,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1242:76:15"
+                },
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "id": 2261,
+                        "name": "_masset",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 2242,
+                        "src": "1341:7:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      },
+                      {
+                        "argumentTypes": null,
+                        "id": 2262,
+                        "name": "_massetKey",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 2240,
+                        "src": "1350:10:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_bytes32",
+                          "typeString": "bytes32"
+                        }
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        },
+                        {
+                          "typeIdentifier": "t_bytes32",
+                          "typeString": "bytes32"
+                        }
+                      ],
+                      "expression": {
+                        "argumentTypes": null,
+                        "id": 2258,
+                        "name": "massets",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 2180,
+                        "src": "1329:7:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_struct$_AddressToBytes32_$8581_storage",
+                          "typeString": "struct DictionaryAtoB.AddressToBytes32 storage ref"
+                        }
+                      },
+                      "id": 2260,
+                      "isConstant": false,
+                      "isLValue": true,
+                      "isPure": false,
+                      "lValueRequested": false,
+                      "memberName": "add",
+                      "nodeType": "MemberAccess",
+                      "referencedDeclaration": 8630,
+                      "src": "1329:11:15",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_internal_nonpayable$_t_struct$_AddressToBytes32_$8581_storage_ptr_$_t_address_$_t_bytes32_$returns$__$bound_to$_t_struct$_AddressToBytes32_$8581_storage_ptr_$",
+                        "typeString": "function (struct DictionaryAtoB.AddressToBytes32 storage pointer,address,bytes32)"
+                      }
+                    },
+                    "id": 2263,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1329:32:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 2264,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1329:32:15"
+                },
+                {
+                  "eventCall": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "id": 2266,
+                        "name": "_massetKey",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 2240,
+                        "src": "1389:10:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_bytes32",
+                          "typeString": "bytes32"
+                        }
+                      },
+                      {
+                        "argumentTypes": null,
+                        "id": 2267,
+                        "name": "_masset",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 2242,
+                        "src": "1401:7:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_bytes32",
+                          "typeString": "bytes32"
+                        },
+                        {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      ],
+                      "id": 2265,
+                      "name": "MassetAdded",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 2232,
+                      "src": "1377:11:15",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_event_nonpayable$_t_bytes32_$_t_address_$returns$__$",
+                        "typeString": "function (bytes32,address)"
+                      }
+                    },
+                    "id": 2268,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1377:32:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 2269,
+                  "nodeType": "EmitStatement",
+                  "src": "1372:37:15"
+                },
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "id": 2270,
+                    "name": "_masset",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 2242,
+                    "src": "1426:7:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "functionReturnParameters": 2248,
+                  "id": 2271,
+                  "nodeType": "Return",
+                  "src": "1419:14:15"
+                }
+              ]
+            },
+            "documentation": "@dev Adds an already and initialised Masset to the stack, storing the relevant data in the ManagerState\n@param _massetKey     Key identifier for the Masset\n@param _masset        Address of the Masset contract\n@return               Address of new Masset",
+            "id": 2273,
+            "implemented": true,
+            "kind": "function",
+            "modifiers": [
+              {
+                "arguments": null,
+                "id": 2245,
+                "modifierName": {
+                  "argumentTypes": null,
+                  "id": 2244,
+                  "name": "onlyGovernance",
+                  "nodeType": "Identifier",
+                  "overloadedDeclarations": [],
+                  "referencedDeclaration": 2194,
+                  "src": "1187:14:15",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_modifier$__$",
+                    "typeString": "modifier ()"
+                  }
+                },
+                "nodeType": "ModifierInvocation",
+                "src": "1187:14:15"
+              }
+            ],
+            "name": "addMasset",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 2243,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 2240,
+                  "name": "_massetKey",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 2273,
+                  "src": "1112:18:15",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  },
+                  "typeName": {
+                    "id": 2239,
+                    "name": "bytes32",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1112:7:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bytes32",
+                      "typeString": "bytes32"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 2242,
+                  "name": "_masset",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 2273,
+                  "src": "1140:15:15",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 2241,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1140:7:15",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "1102:59:15"
+            },
+            "returnParameters": {
+              "id": 2248,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 2247,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 2273,
+                  "src": "1219:7:15",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 2246,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1219:7:15",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "1218:9:15"
+            },
+            "scope": 2318,
+            "src": "1084:356:15",
+            "stateMutability": "nonpayable",
+            "superFunction": 1366,
+            "visibility": "external"
+          },
+          {
+            "body": {
+              "id": 2316,
+              "nodeType": "Block",
+              "src": "1720:298:15",
+              "statements": [
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "commonType": {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        },
+                        "id": 2285,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": false,
+                        "lValueRequested": false,
+                        "leftExpression": {
+                          "argumentTypes": null,
+                          "id": 2281,
+                          "name": "_masset",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 2275,
+                          "src": "1738:7:15",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_address",
+                            "typeString": "address"
+                          }
+                        },
+                        "nodeType": "BinaryOperation",
+                        "operator": "!=",
+                        "rightExpression": {
+                          "argumentTypes": null,
+                          "arguments": [
+                            {
+                              "argumentTypes": null,
+                              "hexValue": "30",
+                              "id": 2283,
+                              "isConstant": false,
+                              "isLValue": false,
+                              "isPure": true,
+                              "kind": "number",
+                              "lValueRequested": false,
+                              "nodeType": "Literal",
+                              "src": "1757:1:15",
+                              "subdenomination": null,
+                              "typeDescriptions": {
+                                "typeIdentifier": "t_rational_0_by_1",
+                                "typeString": "int_const 0"
+                              },
+                              "value": "0"
+                            }
+                          ],
+                          "expression": {
+                            "argumentTypes": [
+                              {
+                                "typeIdentifier": "t_rational_0_by_1",
+                                "typeString": "int_const 0"
+                              }
+                            ],
+                            "id": 2282,
+                            "isConstant": false,
+                            "isLValue": false,
+                            "isPure": true,
+                            "lValueRequested": false,
+                            "nodeType": "ElementaryTypeNameExpression",
+                            "src": "1749:7:15",
+                            "typeDescriptions": {
+                              "typeIdentifier": "t_type$_t_address_$",
+                              "typeString": "type(address)"
+                            },
+                            "typeName": "address"
+                          },
+                          "id": 2284,
+                          "isConstant": false,
+                          "isLValue": false,
+                          "isPure": true,
+                          "kind": "typeConversion",
+                          "lValueRequested": false,
+                          "names": [],
+                          "nodeType": "FunctionCall",
+                          "src": "1749:10:15",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_address_payable",
+                            "typeString": "address payable"
+                          }
+                        },
+                        "src": "1738:21:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_bool",
+                          "typeString": "bool"
+                        }
+                      },
+                      {
+                        "argumentTypes": null,
+                        "hexValue": "4d6173736574206d7573742062652061207265666572656e63656420696d706c656d656e746174696f6e",
+                        "id": 2286,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": true,
+                        "kind": "string",
+                        "lValueRequested": false,
+                        "nodeType": "Literal",
+                        "src": "1761:44:15",
+                        "subdenomination": null,
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_stringliteral_1bfde1f4c2f6403de654e37f8bbdcbdcec45480ca1d1956698b23186b034caad",
+                          "typeString": "literal_string \"Masset must be a referenced implementation\""
+                        },
+                        "value": "Masset must be a referenced implementation"
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_bool",
+                          "typeString": "bool"
+                        },
+                        {
+                          "typeIdentifier": "t_stringliteral_1bfde1f4c2f6403de654e37f8bbdcbdcec45480ca1d1956698b23186b034caad",
+                          "typeString": "literal_string \"Masset must be a referenced implementation\""
+                        }
+                      ],
+                      "id": 2280,
+                      "name": "require",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [
+                        11865,
+                        11866
+                      ],
+                      "referencedDeclaration": 11866,
+                      "src": "1730:7:15",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_require_pure$_t_bool_$_t_string_memory_ptr_$returns$__$",
+                        "typeString": "function (bool,string memory) pure"
+                      }
+                    },
+                    "id": 2287,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1730:76:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 2288,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1730:76:15"
+                },
+                {
+                  "assignments": [
+                    2290
+                  ],
+                  "declarations": [
+                    {
+                      "constant": false,
+                      "id": 2290,
+                      "name": "key",
+                      "nodeType": "VariableDeclaration",
+                      "scope": 2316,
+                      "src": "1816:11:15",
+                      "stateVariable": false,
+                      "storageLocation": "default",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bytes32",
+                        "typeString": "bytes32"
+                      },
+                      "typeName": {
+                        "id": 2289,
+                        "name": "bytes32",
+                        "nodeType": "ElementaryTypeName",
+                        "src": "1816:7:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_bytes32",
+                          "typeString": "bytes32"
+                        }
+                      },
+                      "value": null,
+                      "visibility": "internal"
+                    }
+                  ],
+                  "id": 2295,
+                  "initialValue": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "id": 2293,
+                        "name": "_masset",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 2275,
+                        "src": "1842:7:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      ],
+                      "expression": {
+                        "argumentTypes": null,
+                        "id": 2291,
+                        "name": "massets",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 2180,
+                        "src": "1830:7:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_struct$_AddressToBytes32_$8581_storage",
+                          "typeString": "struct DictionaryAtoB.AddressToBytes32 storage ref"
+                        }
+                      },
+                      "id": 2292,
+                      "isConstant": false,
+                      "isLValue": true,
+                      "isPure": false,
+                      "lValueRequested": false,
+                      "memberName": "get",
+                      "nodeType": "MemberAccess",
+                      "referencedDeclaration": 8704,
+                      "src": "1830:11:15",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_internal_view$_t_struct$_AddressToBytes32_$8581_storage_ptr_$_t_address_$returns$_t_bytes32_$bound_to$_t_struct$_AddressToBytes32_$8581_storage_ptr_$",
+                        "typeString": "function (struct DictionaryAtoB.AddressToBytes32 storage pointer,address) view returns (bytes32)"
+                      }
+                    },
+                    "id": 2294,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1830:20:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bytes32",
+                      "typeString": "bytes32"
+                    }
+                  },
+                  "nodeType": "VariableDeclarationStatement",
+                  "src": "1816:34:15"
+                },
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "commonType": {
+                          "typeIdentifier": "t_bytes32",
+                          "typeString": "bytes32"
+                        },
+                        "id": 2301,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": false,
+                        "lValueRequested": false,
+                        "leftExpression": {
+                          "argumentTypes": null,
+                          "id": 2297,
+                          "name": "key",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 2290,
+                          "src": "1868:3:15",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_bytes32",
+                            "typeString": "bytes32"
+                          }
+                        },
+                        "nodeType": "BinaryOperation",
+                        "operator": "!=",
+                        "rightExpression": {
+                          "argumentTypes": null,
+                          "arguments": [
+                            {
+                              "argumentTypes": null,
+                              "hexValue": "307830",
+                              "id": 2299,
+                              "isConstant": false,
+                              "isLValue": false,
+                              "isPure": true,
+                              "kind": "number",
+                              "lValueRequested": false,
+                              "nodeType": "Literal",
+                              "src": "1883:3:15",
+                              "subdenomination": null,
+                              "typeDescriptions": {
+                                "typeIdentifier": "t_rational_0_by_1",
+                                "typeString": "int_const 0"
+                              },
+                              "value": "0x0"
+                            }
+                          ],
+                          "expression": {
+                            "argumentTypes": [
+                              {
+                                "typeIdentifier": "t_rational_0_by_1",
+                                "typeString": "int_const 0"
+                              }
+                            ],
+                            "id": 2298,
+                            "isConstant": false,
+                            "isLValue": false,
+                            "isPure": true,
+                            "lValueRequested": false,
+                            "nodeType": "ElementaryTypeNameExpression",
+                            "src": "1875:7:15",
+                            "typeDescriptions": {
+                              "typeIdentifier": "t_type$_t_bytes32_$",
+                              "typeString": "type(bytes32)"
+                            },
+                            "typeName": "bytes32"
+                          },
+                          "id": 2300,
+                          "isConstant": false,
+                          "isLValue": false,
+                          "isPure": true,
+                          "kind": "typeConversion",
+                          "lValueRequested": false,
+                          "names": [],
+                          "nodeType": "FunctionCall",
+                          "src": "1875:12:15",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_bytes32",
+                            "typeString": "bytes32"
+                          }
+                        },
+                        "src": "1868:19:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_bool",
+                          "typeString": "bool"
+                        }
+                      },
+                      {
+                        "argumentTypes": null,
+                        "hexValue": "4d6173736574206d7573742062652061207265666572656e63656420696d706c656d656e746174696f6e",
+                        "id": 2302,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": true,
+                        "kind": "string",
+                        "lValueRequested": false,
+                        "nodeType": "Literal",
+                        "src": "1889:44:15",
+                        "subdenomination": null,
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_stringliteral_1bfde1f4c2f6403de654e37f8bbdcbdcec45480ca1d1956698b23186b034caad",
+                          "typeString": "literal_string \"Masset must be a referenced implementation\""
+                        },
+                        "value": "Masset must be a referenced implementation"
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_bool",
+                          "typeString": "bool"
+                        },
+                        {
+                          "typeIdentifier": "t_stringliteral_1bfde1f4c2f6403de654e37f8bbdcbdcec45480ca1d1956698b23186b034caad",
+                          "typeString": "literal_string \"Masset must be a referenced implementation\""
+                        }
+                      ],
+                      "id": 2296,
+                      "name": "require",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [
+                        11865,
+                        11866
+                      ],
+                      "referencedDeclaration": 11866,
+                      "src": "1860:7:15",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_require_pure$_t_bool_$_t_string_memory_ptr_$returns$__$",
+                        "typeString": "function (bool,string memory) pure"
+                      }
+                    },
+                    "id": 2303,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1860:74:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 2304,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1860:74:15"
+                },
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "id": 2308,
+                        "name": "_masset",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 2275,
+                        "src": "1960:7:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      ],
+                      "expression": {
+                        "argumentTypes": null,
+                        "id": 2305,
+                        "name": "massets",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 2180,
+                        "src": "1945:7:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_struct$_AddressToBytes32_$8581_storage",
+                          "typeString": "struct DictionaryAtoB.AddressToBytes32 storage ref"
+                        }
+                      },
+                      "id": 2307,
+                      "isConstant": false,
+                      "isLValue": true,
+                      "isPure": false,
+                      "lValueRequested": false,
+                      "memberName": "remove",
+                      "nodeType": "MemberAccess",
+                      "referencedDeclaration": 8801,
+                      "src": "1945:14:15",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_internal_nonpayable$_t_struct$_AddressToBytes32_$8581_storage_ptr_$_t_address_$returns$__$bound_to$_t_struct$_AddressToBytes32_$8581_storage_ptr_$",
+                        "typeString": "function (struct DictionaryAtoB.AddressToBytes32 storage pointer,address)"
+                      }
+                    },
+                    "id": 2309,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1945:23:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 2310,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1945:23:15"
+                },
+                {
+                  "eventCall": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "id": 2312,
+                        "name": "key",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 2290,
+                        "src": "1998:3:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_bytes32",
+                          "typeString": "bytes32"
+                        }
+                      },
+                      {
+                        "argumentTypes": null,
+                        "id": 2313,
+                        "name": "_masset",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 2275,
+                        "src": "2003:7:15",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_bytes32",
+                          "typeString": "bytes32"
+                        },
+                        {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      ],
+                      "id": 2311,
+                      "name": "MassetEjected",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 2238,
+                      "src": "1984:13:15",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_event_nonpayable$_t_bytes32_$_t_address_$returns$__$",
+                        "typeString": "function (bytes32,address)"
+                      }
+                    },
+                    "id": 2314,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1984:27:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 2315,
+                  "nodeType": "EmitStatement",
+                  "src": "1979:32:15"
+                }
+              ]
+            },
+            "documentation": "@dev Removes a Masset from the system and thus releases from recollateraliastion protection\n@param _masset        Address of the Masset contract",
+            "id": 2317,
+            "implemented": true,
+            "kind": "function",
+            "modifiers": [
+              {
+                "arguments": null,
+                "id": 2278,
+                "modifierName": {
+                  "argumentTypes": null,
+                  "id": 2277,
+                  "name": "onlyGovernance",
+                  "nodeType": "Identifier",
+                  "overloadedDeclarations": [],
+                  "referencedDeclaration": 2194,
+                  "src": "1701:14:15",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_modifier$__$",
+                    "typeString": "modifier ()"
+                  }
+                },
+                "nodeType": "ModifierInvocation",
+                "src": "1701:14:15"
+              }
+            ],
+            "name": "ejectMasset",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 2276,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 2275,
+                  "name": "_masset",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 2317,
+                  "src": "1654:15:15",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 2274,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1654:7:15",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "1644:31:15"
+            },
+            "returnParameters": {
+              "id": 2279,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "1720:0:15"
+            },
+            "scope": 2318,
+            "src": "1624:394:15",
+            "stateMutability": "nonpayable",
+            "superFunction": 1371,
+            "visibility": "external"
+          }
+        ],
+        "scope": 2319,
+        "src": "459:1561:15"
+      }
+    ],
+    "src": "0:2020:15"
+  },
+  "compiler": {
+    "name": "solc",
+    "version": "0.5.16+commit.9c3226ce.Emscripten.clang"
+  },
+  "networks": {},
+  "schemaVersion": "3.0.23",
+  "updatedAt": "2020-02-06T13:06:09.516Z",
+  "devdoc": {
+    "details": "This Factory creates and manages mStable Assets under direction of the governor It also allows governor to add or remove specific MassetFactories from the stack, allowing the creation of various types of Massets",
+    "methods": {
+      "addMasset(bytes32,address)": {
+        "details": "Adds an already and initialised Masset to the stack, storing the relevant data in the ManagerState",
+        "params": {
+          "_masset": "Address of the Masset contract",
+          "_massetKey": "Key identifier for the Masset"
+        },
+        "return": "Address of new Masset"
+      },
+      "ejectMasset(address)": {
+        "details": "Removes a Masset from the system and thus releases from recollateraliastion protection",
+        "params": {
+          "_masset": "Address of the Masset contract"
+        }
+      },
+      "getMassets()": {
+        "details": "Get the addresses and oracle keys for all the Massets",
+        "return": "bytes32 Array of Masset identifiers"
+      }
+    },
+    "title": "MassetFactory"
+  },
+  "userdoc": {
+    "methods": {}
+  }
+}

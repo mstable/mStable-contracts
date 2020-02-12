@@ -1,0 +1,387 @@
+{
+  "contractName": "OracleHubPriceDataMock",
+  "abi": [
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "source",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "key",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint64",
+          "name": "timestamp",
+          "type": "uint64"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint64",
+          "name": "value",
+          "type": "uint64"
+        }
+      ],
+      "name": "Write",
+      "type": "event"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "source",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "key",
+          "type": "bytes32"
+        }
+      ],
+      "name": "get",
+      "outputs": [
+        {
+          "internalType": "uint64",
+          "name": "",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "",
+          "type": "uint64"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "source",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "key",
+          "type": "bytes32"
+        }
+      ],
+      "name": "getPrice",
+      "outputs": [
+        {
+          "internalType": "uint64",
+          "name": "",
+          "type": "uint64"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "internalType": "bytes",
+          "name": "message",
+          "type": "bytes"
+        },
+        {
+          "internalType": "bytes",
+          "name": "signature",
+          "type": "bytes"
+        }
+      ],
+      "name": "put",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "internalType": "bytes",
+          "name": "message",
+          "type": "bytes"
+        },
+        {
+          "internalType": "bytes",
+          "name": "signature",
+          "type": "bytes"
+        }
+      ],
+      "name": "source",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "pure",
+      "type": "function"
+    }
+  ],
+  "metadata": "{\"compiler\":{\"version\":\"0.5.16+commit.9c3226ce\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"source\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"key\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint64\",\"name\":\"timestamp\",\"type\":\"uint64\"},{\"indexed\":false,\"internalType\":\"uint64\",\"name\":\"value\",\"type\":\"uint64\"}],\"name\":\"Write\",\"type\":\"event\"},{\"constant\":true,\"inputs\":[{\"internalType\":\"address\",\"name\":\"source\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"key\",\"type\":\"bytes32\"}],\"name\":\"get\",\"outputs\":[{\"internalType\":\"uint64\",\"name\":\"\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"\",\"type\":\"uint64\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"internalType\":\"address\",\"name\":\"source\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"key\",\"type\":\"bytes32\"}],\"name\":\"getPrice\",\"outputs\":[{\"internalType\":\"uint64\",\"name\":\"\",\"type\":\"uint64\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"message\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"signature\",\"type\":\"bytes\"}],\"name\":\"put\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"message\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"signature\",\"type\":\"bytes\"}],\"name\":\"source\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"pure\",\"type\":\"function\"}],\"devdoc\":{\"methods\":{\"get(address,bytes32)\":{\"params\":{\"key\":\"The selector for the value to return\",\"source\":\"The verifiable author of the data\"},\"return\":\"The claimed Unix timestamp for the data and the price value (defaults to (0, 0))\"},\"getPrice(address,bytes32)\":{\"params\":{\"key\":\"The selector for the value to return\",\"source\":\"The verifiable author of the data\"},\"return\":\"The price value (defaults to 0)\"},\"put(bytes,bytes)\":{\"params\":{\"message\":\"The payload containing the timestamp, and (key, value) pairs\",\"signature\":\"The cryptographic signature of the message payload, authorizing the source to write\"},\"return\":\"The keys that were written\"},\"source(bytes,bytes)\":{\"details\":\"Comparing to a claimed address would add nothing, as the caller could simply perform the recover and claim that address.\",\"params\":{\"message\":\"The data that was presumably signed\",\"signature\":\"The fingerprint of the data + private key\"},\"return\":\"The source address which signed the message, presumably\"}},\"title\":\"OracleHubPriceDataMock implementing OracleHubPrieData\"},\"userdoc\":{\"methods\":{\"get(address,bytes32)\":{\"notice\":\"Read a single key from an authenticated source\"},\"getPrice(address,bytes32)\":{\"notice\":\"Read only the value for a single key from an authenticated source\"},\"put(bytes,bytes)\":{\"notice\":\"Write a bunch of signed datum to the authenticated storage mapping\"},\"source(bytes,bytes)\":{\"notice\":\"Recovers the source address which signed a message\"}}}},\"settings\":{\"compilationTarget\":{\"/Users/james/mstable/mStable-contracts/contracts/z_mocks/oracles/OracleHubPriceDataMock.sol\":\"OracleHubPriceDataMock\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"/Users/james/mstable/mStable-contracts/contracts/interfaces/IManager.sol\":{\"keccak256\":\"0x2433af16af735a80bbccc766e07c7b7a88cdcb807d4ab58bfced0e53daab602a\",\"urls\":[\"bzz-raw://3a2c22f53b3a38601f4322a52786ed2f5515520af67af8a2efb0f2c3342aa4bb\",\"dweb:/ipfs/QmYRaW3ReyLXiQffqERXkqVzHayvXRJ1xaddEcLPb7nLeF\"]},\"/Users/james/mstable/mStable-contracts/contracts/interfaces/IOracleHub.sol\":{\"keccak256\":\"0x10f34be4e2ffd2fffd0a056a0999efd11476c2b5396a6cbedd2e2448e5f398d9\",\"urls\":[\"bzz-raw://09a4bb42b6058db2d55f0e92f2a1e7c2c013aca49f7a969b3c1ea7d3bfc3f9aa\",\"dweb:/ipfs/QmQPntXkxiQZVHdgGVS15LPT2uiYksEuPmGDwkcNATeN1K\"]},\"/Users/james/mstable/mStable-contracts/contracts/oracle-hub/OracleHubModule.sol\":{\"keccak256\":\"0xc9c5b73387e141ef1f5ff215879422494cc122409bc49ee192e43b970af043e3\",\"urls\":[\"bzz-raw://c29f69f84280d28f35bb491527e392cbc52642a2a521ae36ca6ebccbe4787bc1\",\"dweb:/ipfs/QmTseVVRUJzJrVnMmCofCneDKau7v7ZKHb1xPrmn1hPcBj\"]},\"/Users/james/mstable/mStable-contracts/contracts/oracle-hub/open-oracle/OracleHub.sol\":{\"keccak256\":\"0xa5284df65bae0796dbfdfd97edde169703605530748b33278943e656d56e1717\",\"urls\":[\"bzz-raw://17c8ffa7f1b75c37941983c8fc86f2a1633606bfc3652a901576d8b15c6a0414\",\"dweb:/ipfs/QmdC1GLowYzC44aGExkbNTQBmquyUW5htJUWm1Tsp7E7wR\"]},\"/Users/james/mstable/mStable-contracts/contracts/oracle-hub/open-oracle/OracleHubView.sol\":{\"keccak256\":\"0x8868f627264a77c18e6ba584ee23a7518c07315eb392bf0d97d139f6b9d35f60\",\"urls\":[\"bzz-raw://5af942fdbc03af4a8860acbcaabc66411118563dddb67fee877ab84310ba2ba7\",\"dweb:/ipfs/QmWQ7NEkqt1dh2GeeDPYKNdqkub9QYhPLHdhhJYBdQxj3c\"]},\"/Users/james/mstable/mStable-contracts/contracts/oracle-hub/open-oracle/data/OracleHubData.sol\":{\"keccak256\":\"0xa69ff2b79822f71442510cca9161bac400a0e4de6aa3835b19c6ca31837a082d\",\"urls\":[\"bzz-raw://0409bfd42688f36271a83e5e9bd4cadadbc08783c919e1a13f09f1477a42ee2c\",\"dweb:/ipfs/QmUFwvfmeEQisvgFnhEzJnm9ZeqkBnMKkBNd1fhaG3n1FD\"]},\"/Users/james/mstable/mStable-contracts/contracts/oracle-hub/open-oracle/data/OracleHubPriceData.sol\":{\"keccak256\":\"0xe6bc9cc5cc9316bf24cb78a5b2179a2860931d7158f78b502508fc8ad202b429\",\"urls\":[\"bzz-raw://182de31d5ffdd1b5ced14c9bc7e94f4d05e3f9901016971000de68648fef82d7\",\"dweb:/ipfs/QmfFbfsDbFqXB6jQL6vCjog4GiHY5hc24sXSQC32HECvTd\"]},\"/Users/james/mstable/mStable-contracts/contracts/shared/pubsub/ModuleKeys.sol\":{\"keccak256\":\"0x7390003ecacc7c9c25ce3adfb64af104477dcced24f62db00aea506766cb6c20\",\"urls\":[\"bzz-raw://2c4054221062f59e480d00d3780255c5aa2b67f1f08e80d94788d9b341795f98\",\"dweb:/ipfs/Qmf3RVA28zYmoiWycZhMxFXSheNLgbv1L7PABBohCVH3jH\"]},\"/Users/james/mstable/mStable-contracts/contracts/shared/pubsub/ModuleSub.sol\":{\"keccak256\":\"0xf2b3b0f4bf02b15b8af9e1016d5c92994227c7db2618cf2a66aeba16a0a34d34\",\"urls\":[\"bzz-raw://3ac1a22e45864ee6335301a1e08a41b6c31e25110f2da288e0ece2d9628b6c4a\",\"dweb:/ipfs/QmUh9g54BWeEELpmLBMQuj7yyevLHKTXuBbBZKv1PijxxS\"]},\"/Users/james/mstable/mStable-contracts/contracts/z_mocks/oracles/OracleHubPriceDataMock.sol\":{\"keccak256\":\"0xe1dfbf92fd1e96864fd8c74d291a375b5c333ac3aed1b04da43be4f53814ffef\",\"urls\":[\"bzz-raw://abc3b227fdc26bb64424bd918c20428206b366a476a1dcc9188aeccfa68e54df\",\"dweb:/ipfs/QmQyNnexMAJjwDP4161o1yA15tdJdNYxut4bBL8AtwELUi\"]}},\"version\":1}",
+  "bytecode": "0x608060405234801561001057600080fd5b506109ca806100206000396000f3fe608060405234801561001057600080fd5b506004361061004c5760003560e01c806338636e9a14610051578063482a61931461007a5780637b82d74e1461009a578063a1aaf6c7146100bb575b600080fd5b61006461005f366004610555565b6100db565b60405161007191906107e1565b60405180910390f35b61008d6100883660046105c3565b6102e0565b60405161007191906107d3565b6100ad6100a83660046104ce565b61038e565b604051610071929190610873565b6100ce6100c93660046104ce565b6103cc565b6040516100719190610865565b60008061015186868080601f01602080910402602001604051908101604052809392919081815260200183838082843760009201919091525050604080516020601f8a0181900481028201810190925288815292508891508790819084018382808284376000920191909152506102e092505050565b9050606060008080610165898b018b610620565b935093509350935060405160200161017c906107c8565b60405160208183030381529060405280519060200120846040516020016101a39190610795565b60405160208183030381529060405280519060200120146101df5760405162461bcd60e51b81526004016101d690610855565b60405180910390fd5b6001600160a01b038516600090815260208181526040808320858452909152902080546001600160401b03808616911610156102cf576040805180820182526001600160401b03868116825284811660208084019182526001600160a01b038b1660008181528083528681208a82529092529085902093518454925167ffffffffffffffff19909316908416176fffffffffffffffff00000000000000001916600160401b92909316919091029190911790915590517fca4cce07f4eb88e631c216f94e3b08f1862a3facc1d328ad814750e7b56033c1906102c6908690889087906107ef565b60405180910390a25b50909450505050505b949350505050565b600080600080848060200190516102fa9190810190610508565b9250925092506000868051906020012060405160200161031a91906107a8565b604051602081830303815290604052805190602001209050600181838686604051600081526020016040526040516103559493929190610817565b6020604051602081039080840390855afa158015610377573d6000803e3d6000fd5b505050602060405103519450505050505b92915050565b6001600160a01b0382166000908152602081815260408083208484529091529020546001600160401b0380821691600160401b9004165b9250929050565b6001600160a01b03919091166000908152602081815260408083209383529290522054600160401b90046001600160401b031690565b803561038881610955565b80356103888161096c565b80516103888161096c565b60008083601f84011261043557600080fd5b5081356001600160401b0381111561044c57600080fd5b6020830191508360018202830111156103c557600080fd5b600082601f83011261047557600080fd5b8135610488610483826108b4565b61088e565b915080825260208301602083018583830111156104a457600080fd5b6104af838284610919565b50505092915050565b803561038881610975565b80516103888161097e565b600080604083850312156104e157600080fd5b60006104ed8585610402565b92505060206104fe8582860161040d565b9150509250929050565b60008060006060848603121561051d57600080fd5b60006105298686610418565b935050602061053a86828701610418565b925050604061054b868287016104c3565b9150509250925092565b6000806000806040858703121561056b57600080fd5b84356001600160401b0381111561058157600080fd5b61058d87828801610423565b945094505060208501356001600160401b038111156105ab57600080fd5b6105b787828801610423565b95989497509550505050565b600080604083850312156105d657600080fd5b82356001600160401b038111156105ec57600080fd5b6105f885828601610464565b92505060208301356001600160401b0381111561061457600080fd5b6104fe85828601610464565b6000806000806080858703121561063657600080fd5b84356001600160401b0381111561064c57600080fd5b61065887828801610464565b9450506020610669878288016104b8565b935050604061067a8782880161040d565b925050606061068b878288016104b8565b91505092959194509250565b6106a0816108ed565b82525050565b6106a0816108f8565b6106a06106bb826108f8565b6108f8565b60006106cb826108db565b6106d581856108e8565b93506106e5818560208601610925565b9290920192915050565b60006106fc601c836108e8565b7f19457468657265756d205369676e6564204d6573736167653a0a3332000000008152601c0192915050565b6000610735601d836108df565b7f4b696e64206f662064617461206d757374206265202770726963657327000000815260200192915050565b600061076e6006836108e8565b6570726963657360d01b815260060192915050565b6106a081610907565b6106a081610913565b60006107a182846106c0565b9392505050565b60006107b3826106ef565b91506107bf82846106af565b50602001919050565b600061038882610761565b602081016103888284610697565b6020810161038882846106a6565b606081016107fd82866106a6565b61080a6020830185610783565b6102d86040830184610783565b6080810161082582876106a6565b610832602083018661078c565b61083f60408301856106a6565b61084c60608301846106a6565b95945050505050565b6020808252810161038881610728565b602081016103888284610783565b604081016108818285610783565b6107a16020830184610783565b6040518181016001600160401b03811182821017156108ac57600080fd5b604052919050565b60006001600160401b038211156108ca57600080fd5b506020601f91909101601f19160190565b5190565b90815260200190565b919050565b6000610388826108fb565b90565b6001600160a01b031690565b6001600160401b031690565b60ff1690565b82818337506000910152565b60005b83811015610940578181015183820152602001610928565b8381111561094f576000848401525b50505050565b61095e816108ed565b811461096957600080fd5b50565b61095e816108f8565b61095e81610907565b61095e8161091356fea365627a7a72315820614fc61bca719b8c086ab5ad68822ba977948e3a9a94eadad03ca956782e1e496c6578706572696d656e74616cf564736f6c63430005100040",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b506004361061004c5760003560e01c806338636e9a14610051578063482a61931461007a5780637b82d74e1461009a578063a1aaf6c7146100bb575b600080fd5b61006461005f366004610555565b6100db565b60405161007191906107e1565b60405180910390f35b61008d6100883660046105c3565b6102e0565b60405161007191906107d3565b6100ad6100a83660046104ce565b61038e565b604051610071929190610873565b6100ce6100c93660046104ce565b6103cc565b6040516100719190610865565b60008061015186868080601f01602080910402602001604051908101604052809392919081815260200183838082843760009201919091525050604080516020601f8a0181900481028201810190925288815292508891508790819084018382808284376000920191909152506102e092505050565b9050606060008080610165898b018b610620565b935093509350935060405160200161017c906107c8565b60405160208183030381529060405280519060200120846040516020016101a39190610795565b60405160208183030381529060405280519060200120146101df5760405162461bcd60e51b81526004016101d690610855565b60405180910390fd5b6001600160a01b038516600090815260208181526040808320858452909152902080546001600160401b03808616911610156102cf576040805180820182526001600160401b03868116825284811660208084019182526001600160a01b038b1660008181528083528681208a82529092529085902093518454925167ffffffffffffffff19909316908416176fffffffffffffffff00000000000000001916600160401b92909316919091029190911790915590517fca4cce07f4eb88e631c216f94e3b08f1862a3facc1d328ad814750e7b56033c1906102c6908690889087906107ef565b60405180910390a25b50909450505050505b949350505050565b600080600080848060200190516102fa9190810190610508565b9250925092506000868051906020012060405160200161031a91906107a8565b604051602081830303815290604052805190602001209050600181838686604051600081526020016040526040516103559493929190610817565b6020604051602081039080840390855afa158015610377573d6000803e3d6000fd5b505050602060405103519450505050505b92915050565b6001600160a01b0382166000908152602081815260408083208484529091529020546001600160401b0380821691600160401b9004165b9250929050565b6001600160a01b03919091166000908152602081815260408083209383529290522054600160401b90046001600160401b031690565b803561038881610955565b80356103888161096c565b80516103888161096c565b60008083601f84011261043557600080fd5b5081356001600160401b0381111561044c57600080fd5b6020830191508360018202830111156103c557600080fd5b600082601f83011261047557600080fd5b8135610488610483826108b4565b61088e565b915080825260208301602083018583830111156104a457600080fd5b6104af838284610919565b50505092915050565b803561038881610975565b80516103888161097e565b600080604083850312156104e157600080fd5b60006104ed8585610402565b92505060206104fe8582860161040d565b9150509250929050565b60008060006060848603121561051d57600080fd5b60006105298686610418565b935050602061053a86828701610418565b925050604061054b868287016104c3565b9150509250925092565b6000806000806040858703121561056b57600080fd5b84356001600160401b0381111561058157600080fd5b61058d87828801610423565b945094505060208501356001600160401b038111156105ab57600080fd5b6105b787828801610423565b95989497509550505050565b600080604083850312156105d657600080fd5b82356001600160401b038111156105ec57600080fd5b6105f885828601610464565b92505060208301356001600160401b0381111561061457600080fd5b6104fe85828601610464565b6000806000806080858703121561063657600080fd5b84356001600160401b0381111561064c57600080fd5b61065887828801610464565b9450506020610669878288016104b8565b935050604061067a8782880161040d565b925050606061068b878288016104b8565b91505092959194509250565b6106a0816108ed565b82525050565b6106a0816108f8565b6106a06106bb826108f8565b6108f8565b60006106cb826108db565b6106d581856108e8565b93506106e5818560208601610925565b9290920192915050565b60006106fc601c836108e8565b7f19457468657265756d205369676e6564204d6573736167653a0a3332000000008152601c0192915050565b6000610735601d836108df565b7f4b696e64206f662064617461206d757374206265202770726963657327000000815260200192915050565b600061076e6006836108e8565b6570726963657360d01b815260060192915050565b6106a081610907565b6106a081610913565b60006107a182846106c0565b9392505050565b60006107b3826106ef565b91506107bf82846106af565b50602001919050565b600061038882610761565b602081016103888284610697565b6020810161038882846106a6565b606081016107fd82866106a6565b61080a6020830185610783565b6102d86040830184610783565b6080810161082582876106a6565b610832602083018661078c565b61083f60408301856106a6565b61084c60608301846106a6565b95945050505050565b6020808252810161038881610728565b602081016103888284610783565b604081016108818285610783565b6107a16020830184610783565b6040518181016001600160401b03811182821017156108ac57600080fd5b604052919050565b60006001600160401b038211156108ca57600080fd5b506020601f91909101601f19160190565b5190565b90815260200190565b919050565b6000610388826108fb565b90565b6001600160a01b031690565b6001600160401b031690565b60ff1690565b82818337506000910152565b60005b83811015610940578181015183820152602001610928565b8381111561094f576000848401525b50505050565b61095e816108ed565b811461096957600080fd5b50565b61095e816108f8565b61095e81610907565b61095e8161091356fea365627a7a72315820614fc61bca719b8c086ab5ad68822ba977948e3a9a94eadad03ca956782e1e496c6578706572696d656e74616cf564736f6c63430005100040",
+  "sourceMap": "215:525:64:-;;;;8:9:-1;5:2;;;30:1;27;20:12;5:2;215:525:64;;;;;;;",
+  "deployedSourceMap": "215:525:64:-;;;;8:9:-1;5:2;;;30:1;27;20:12;5:2;215:525:64;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1386:797:34;;;;;;;;;:::i;:::-;;;;;;;;;;;;;;;;1782:340:33;;;;;;;;;:::i;:::-;;;;;;;;2473:184:34;;;;;;;;;:::i;:::-;;;;;;;;;2917:125;;;;;;;;;:::i;:::-;;;;;;;;1386:797;1467:7;1524:14;1541:26;1548:7;;1541:26;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;30:3:-1;22:6;14;1:33;99:1;81:16;;74:27;;;;-1:-1;;1541:26:34;;;;137:4:-1;1541:26:34;;;;;;;;;;;;;;;;;;-1:-1:-1;1557:9:34;;-1:-1:-1;1557:9:34;;;;1541:26;;1557:9;;;;1541:26;1:33:-1;99:1;81:16;;74:27;;;;-1:-1;1541:6:34;;-1:-1:-1;;;1541:26:34:i;:::-;1524:43;-1:-1:-1;1628:18:34;1648:16;;;1695:54;;;;1706:7;1695:54;;;1627:122;;;;;;;;1814:26;;;;;;;;;;;49:4:-1;39:7;30;26:21;22:32;13:7;6:49;1814:26:34;;;1804:37;;;;;;1794:4;1777:22;;;;;;;;;;;;49:4:-1;39:7;30;26:21;22:32;13:7;6:49;1777:22:34;;;1767:33;;;;;;:74;1759:116;;;;-1:-1:-1;;;1759:116:34;;;;;;;;;;;;;;;;;-1:-1:-1;;;;;1973:12:34;;1951:19;1973:12;;;;;;;;;;;:17;;;;;;;;2004:15;;-1:-1:-1;;;;;2004:27:34;;;:15;;:27;2000:156;;;2067:23;;;;;;;;-1:-1:-1;;;;;2067:23:34;;;;;;;;;;;;;;;-1:-1:-1;;;;;2047:12:34;;-1:-1:-1;2047:12:34;;;;;;;;;:17;;;;;;;;;;:43;;;;;;-1:-1:-1;;2047:43:34;;;;;;;-1:-1:-1;;2047:43:34;-1:-1:-1;;;2047:43:34;;;;;;;;;;;;;;;2109:36;;;;;;2047:17;;2067:23;;;;2109:36;;;;;;;;;;2000:156;-1:-1:-1;2173:3:34;;-1:-1:-1;;;;;1386:797:34;;;;;;;:::o;1782:340:33:-;1865:7;1885:9;1896;1907:7;1929:9;1918:48;;;;;;;;;;;;;;1884:82;;;;;;1976:12;2064:7;2054:18;;;;;;2001:72;;;;;;;;;;;;49:4:-1;39:7;30;26:21;22:32;13:7;6:49;2001:72:33;;;1991:83;;;;;;1976:98;;2091:24;2101:4;2107:1;2110;2113;2091:24;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;8:9:-1;5:2;;;45:16;42:1;39;24:38;77:16;74:1;67:27;5:2;2091:24:33;;;;;;;;2084:31;;;;;;1782:340;;;;;:::o;2473:184:34:-;-1:-1:-1;;;;;2586:12:34;;2538:6;2586:12;;;;;;;;;;;:17;;;;;;;;2621:15;-1:-1:-1;;;;;2621:15:34;;;;-1:-1:-1;;;2638:11:34;;;2473:184;;;;;;:::o;2917:125::-;-1:-1:-1;;;;;3012:12:34;;;;2987:6;3012:12;;;;;;;;;;;:17;;;;;;;:23;-1:-1:-1;;;3012:23:34;;-1:-1:-1;;;;;3012:23:34;;2917:125::o;5:130:-1:-;72:20;;97:33;72:20;97:33;;142:130;209:20;;234:33;209:20;234:33;;279:134;357:13;;375:33;357:13;375:33;;434:336;;;548:3;541:4;533:6;529:17;525:27;515:2;;566:1;563;556:12;515:2;-1:-1;586:20;;-1:-1;;;;;615:30;;612:2;;;658:1;655;648:12;612:2;692:4;684:6;680:17;668:29;;743:3;735:4;727:6;723:17;713:8;709:32;706:41;703:2;;;760:1;757;750:12;779:440;;880:3;873:4;865:6;861:17;857:27;847:2;;898:1;895;888:12;847:2;935:6;922:20;957:64;972:48;1013:6;972:48;;;957:64;;;948:73;;1041:6;1034:5;1027:21;1077:4;1069:6;1065:17;1110:4;1103:5;1099:16;1145:3;1136:6;1131:3;1127:16;1124:25;1121:2;;;1162:1;1159;1152:12;1121:2;1172:41;1206:6;1201:3;1196;1172:41;;;840:379;;;;;;;;1670:128;1736:20;;1761:32;1736:20;1761:32;;1805:130;1881:13;;1899:31;1881:13;1899:31;;1942:366;;;2063:2;2051:9;2042:7;2038:23;2034:32;2031:2;;;2079:1;2076;2069:12;2031:2;2114:1;2131:53;2176:7;2156:9;2131:53;;;2121:63;;2093:97;2221:2;2239:53;2284:7;2275:6;2264:9;2260:22;2239:53;;;2229:63;;2200:98;2025:283;;;;;;2315:531;;;;2462:2;2450:9;2441:7;2437:23;2433:32;2430:2;;;2478:1;2475;2468:12;2430:2;2513:1;2530:64;2586:7;2566:9;2530:64;;;2520:74;;2492:108;2631:2;2649:64;2705:7;2696:6;2685:9;2681:22;2649:64;;;2639:74;;2610:109;2750:2;2768:62;2822:7;2813:6;2802:9;2798:22;2768:62;;;2758:72;;2729:107;2424:422;;;;;;2853:614;;;;;3012:2;3000:9;2991:7;2987:23;2983:32;2980:2;;;3028:1;3025;3018:12;2980:2;3063:31;;-1:-1;;;;;3103:30;;3100:2;;;3146:1;3143;3136:12;3100:2;3174:64;3230:7;3221:6;3210:9;3206:22;3174:64;;;3164:74;;;;3042:202;3303:2;3292:9;3288:18;3275:32;-1:-1;;;;;3319:6;3316:30;3313:2;;;3359:1;3356;3349:12;3313:2;3387:64;3443:7;3434:6;3423:9;3419:22;3387:64;;;2974:493;;;;-1:-1;3377:74;-1:-1;;;;2974:493;3474:574;;;3613:2;3601:9;3592:7;3588:23;3584:32;3581:2;;;3629:1;3626;3619:12;3581:2;3664:31;;-1:-1;;;;;3704:30;;3701:2;;;3747:1;3744;3737:12;3701:2;3767:62;3821:7;3812:6;3801:9;3797:22;3767:62;;;3757:72;;3643:192;3894:2;3883:9;3879:18;3866:32;-1:-1;;;;;3910:6;3907:30;3904:2;;;3950:1;3947;3940:12;3904:2;3970:62;4024:7;4015:6;4004:9;4000:22;3970:62;;4055:711;;;;;4214:3;4202:9;4193:7;4189:23;4185:33;4182:2;;;4231:1;4228;4221:12;4182:2;4266:31;;-1:-1;;;;;4306:30;;4303:2;;;4349:1;4346;4339:12;4303:2;4369:59;4420:7;4411:6;4400:9;4396:22;4369:59;;;4359:69;;4245:189;4465:2;4483:52;4527:7;4518:6;4507:9;4503:22;4483:52;;;4473:62;;4444:97;4572:2;4590:53;4635:7;4626:6;4615:9;4611:22;4590:53;;;4580:63;;4551:98;4680:2;4698:52;4742:7;4733:6;4722:9;4718:22;4698:52;;;4688:62;;4659:97;4176:590;;;;;;;;4773:113;4856:24;4874:5;4856:24;;;4851:3;4844:37;4838:48;;;4893:113;4976:24;4994:5;4976:24;;5013:152;5114:45;5134:24;5152:5;5134:24;;;5114:45;;5172:360;;5302:39;5335:5;5302:39;;;5353:89;5435:6;5430:3;5353:89;;;5346:96;;5447:52;5492:6;5487:3;5480:4;5473:5;5469:16;5447:52;;;5511:16;;;;;5282:250;-1:-1;;5282:250;5540:400;;5718:85;5800:2;5795:3;5718:85;;;5836:66;5816:87;;5931:2;5922:12;;5704:236;-1:-1;;5704:236;5949:329;;6109:67;6173:2;6168:3;6109:67;;;6209:31;6189:52;;6269:2;6260:12;;6095:183;-1:-1;;6095:183;6287:340;;6465:84;6547:1;6542:3;6465:84;;;-1:-1;;;6562:29;;6619:1;6610:11;;6451:176;-1:-1;;6451:176;6635:110;6716:23;6733:5;6716:23;;6752:107;6831:22;6847:5;6831:22;;6866:266;;7012:95;7103:3;7094:6;7012:95;;;7005:102;6993:139;-1:-1;;;6993:139;7139:511;;7366:148;7510:3;7366:148;;;7359:155;;7525:75;7596:3;7587:6;7525:75;;;-1:-1;7622:2;7613:12;;7347:303;-1:-1;7347:303;7657:372;;7856:148;8000:3;7856:148;;8036:213;8154:2;8139:18;;8168:71;8143:9;8212:6;8168:71;;8256:213;8374:2;8359:18;;8388:71;8363:9;8432:6;8388:71;;8476:427;8646:2;8631:18;;8660:71;8635:9;8704:6;8660:71;;;8742:70;8808:2;8797:9;8793:18;8784:6;8742:70;;;8823;8889:2;8878:9;8874:18;8865:6;8823:70;;8910:539;9108:3;9093:19;;9123:71;9097:9;9167:6;9123:71;;;9205:68;9269:2;9258:9;9254:18;9245:6;9205:68;;;9284:72;9352:2;9341:9;9337:18;9328:6;9284:72;;;9367;9435:2;9424:9;9420:18;9411:6;9367:72;;;9079:370;;;;;;;;9456:407;9647:2;9661:47;;;9632:18;;9722:131;9632:18;9722:131;;9870:209;9986:2;9971:18;;10000:69;9975:9;10042:6;10000:69;;10086:316;10228:2;10213:18;;10242:69;10217:9;10284:6;10242:69;;;10322:70;10388:2;10377:9;10373:18;10364:6;10322:70;;10409:256;10471:2;10465:9;10497:17;;;-1:-1;;;;;10557:34;;10593:22;;;10554:62;10551:2;;;10629:1;10626;10619:12;10551:2;10645;10638:22;10449:216;;-1:-1;10449:216;10672:321;;-1:-1;;;;;10807:6;10804:30;10801:2;;;10847:1;10844;10837:12;10801:2;-1:-1;10978:4;10914;10891:17;;;;-1:-1;;10887:33;10968:15;;10738:255;11325:122;11413:12;;11384:63;11455:163;11558:19;;;11607:4;11598:14;;11551:67;11627:145;11763:3;11741:31;-1:-1;11741:31;11780:91;;11842:24;11860:5;11842:24;;11878:72;11940:5;11923:27;11957:121;-1:-1;;;;;12019:54;;12002:76;12085:96;-1:-1;;;;;12146:30;;12129:52;12188:81;12259:4;12248:16;;12231:38;12277:145;12358:6;12353:3;12348;12335:30;-1:-1;12414:1;12396:16;;12389:27;12328:94;12431:268;12496:1;12503:101;12517:6;12514:1;12511:13;12503:101;;;12584:11;;;12578:18;12565:11;;;12558:39;12539:2;12532:10;12503:101;;;12619:6;12616:1;12613:13;12610:2;;;12684:1;12675:6;12670:3;12666:16;12659:27;12610:2;12480:219;;;;;12788:117;12857:24;12875:5;12857:24;;;12850:5;12847:35;12837:2;;12896:1;12893;12886:12;12837:2;12831:74;;12912:117;12981:24;12999:5;12981:24;;13036:115;13104:23;13121:5;13104:23;;13158:113;13225:22;13241:5;13225:22;",
+  "source": "\npragma solidity ^0.5.12;\npragma experimental ABIEncoderV2;\n\nimport { OracleHubPriceData } from \"../../oracle-hub/open-oracle/OracleHub.sol\";\n\n/**\n * @title OracleHubPriceDataMock implementing OracleHubPrieData\n */\ncontract OracleHubPriceDataMock is OracleHubPriceData {\n\n\n    // struct Datum {\n    //     uint64 timestamp;\n    //     uint64 value;\n    // }\n\n    // mapping(address => mapping(bytes32 => Datum)) private data;\n\n    // function getPrice(address source, bytes32 key) external view returns (uint64) {\n    //     return data[source][key].value;\n    // }\n\n    // function addMockPrice(uint64 value, uint64 timestamp, bytes32 symbol, address source) external {\n    //     data[source][symbol] = Datum(timestamp, value);\n    // }\n}\n",
+  "sourcePath": "/Users/james/mstable/mStable-contracts/contracts/z_mocks/oracles/OracleHubPriceDataMock.sol",
+  "ast": {
+    "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/z_mocks/oracles/OracleHubPriceDataMock.sol",
+    "exportedSymbols": {
+      "OracleHubPriceDataMock": [
+        10664
+      ]
+    },
+    "id": 10665,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 10658,
+        "literals": [
+          "solidity",
+          "^",
+          "0.5",
+          ".12"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "1:24:64"
+      },
+      {
+        "id": 10659,
+        "literals": [
+          "experimental",
+          "ABIEncoderV2"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "26:33:64"
+      },
+      {
+        "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/oracle-hub/open-oracle/OracleHub.sol",
+        "file": "../../oracle-hub/open-oracle/OracleHub.sol",
+        "id": 10661,
+        "nodeType": "ImportDirective",
+        "scope": 10665,
+        "sourceUnit": 7961,
+        "src": "61:80:64",
+        "symbolAliases": [
+          {
+            "foreign": 10660,
+            "local": null
+          }
+        ],
+        "unitAlias": ""
+      },
+      {
+        "baseContracts": [
+          {
+            "arguments": null,
+            "baseName": {
+              "contractScope": null,
+              "id": 10662,
+              "name": "OracleHubPriceData",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 8193,
+              "src": "250:18:64",
+              "typeDescriptions": {
+                "typeIdentifier": "t_contract$_OracleHubPriceData_$8193",
+                "typeString": "contract OracleHubPriceData"
+              }
+            },
+            "id": 10663,
+            "nodeType": "InheritanceSpecifier",
+            "src": "250:18:64"
+          }
+        ],
+        "contractDependencies": [
+          8036,
+          8193
+        ],
+        "contractKind": "contract",
+        "documentation": "@title OracleHubPriceDataMock implementing OracleHubPrieData",
+        "fullyImplemented": true,
+        "id": 10664,
+        "linearizedBaseContracts": [
+          10664,
+          8193,
+          8036
+        ],
+        "name": "OracleHubPriceDataMock",
+        "nodeType": "ContractDefinition",
+        "nodes": [],
+        "scope": 10665,
+        "src": "215:525:64"
+      }
+    ],
+    "src": "1:740:64"
+  },
+  "legacyAST": {
+    "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/z_mocks/oracles/OracleHubPriceDataMock.sol",
+    "exportedSymbols": {
+      "OracleHubPriceDataMock": [
+        10664
+      ]
+    },
+    "id": 10665,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 10658,
+        "literals": [
+          "solidity",
+          "^",
+          "0.5",
+          ".12"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "1:24:64"
+      },
+      {
+        "id": 10659,
+        "literals": [
+          "experimental",
+          "ABIEncoderV2"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "26:33:64"
+      },
+      {
+        "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/oracle-hub/open-oracle/OracleHub.sol",
+        "file": "../../oracle-hub/open-oracle/OracleHub.sol",
+        "id": 10661,
+        "nodeType": "ImportDirective",
+        "scope": 10665,
+        "sourceUnit": 7961,
+        "src": "61:80:64",
+        "symbolAliases": [
+          {
+            "foreign": 10660,
+            "local": null
+          }
+        ],
+        "unitAlias": ""
+      },
+      {
+        "baseContracts": [
+          {
+            "arguments": null,
+            "baseName": {
+              "contractScope": null,
+              "id": 10662,
+              "name": "OracleHubPriceData",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 8193,
+              "src": "250:18:64",
+              "typeDescriptions": {
+                "typeIdentifier": "t_contract$_OracleHubPriceData_$8193",
+                "typeString": "contract OracleHubPriceData"
+              }
+            },
+            "id": 10663,
+            "nodeType": "InheritanceSpecifier",
+            "src": "250:18:64"
+          }
+        ],
+        "contractDependencies": [
+          8036,
+          8193
+        ],
+        "contractKind": "contract",
+        "documentation": "@title OracleHubPriceDataMock implementing OracleHubPrieData",
+        "fullyImplemented": true,
+        "id": 10664,
+        "linearizedBaseContracts": [
+          10664,
+          8193,
+          8036
+        ],
+        "name": "OracleHubPriceDataMock",
+        "nodeType": "ContractDefinition",
+        "nodes": [],
+        "scope": 10665,
+        "src": "215:525:64"
+      }
+    ],
+    "src": "1:740:64"
+  },
+  "compiler": {
+    "name": "solc",
+    "version": "0.5.16+commit.9c3226ce.Emscripten.clang"
+  },
+  "networks": {},
+  "schemaVersion": "3.0.23",
+  "updatedAt": "2020-02-05T09:31:38.647Z",
+  "devdoc": {
+    "methods": {
+      "get(address,bytes32)": {
+        "params": {
+          "key": "The selector for the value to return",
+          "source": "The verifiable author of the data"
+        },
+        "return": "The claimed Unix timestamp for the data and the price value (defaults to (0, 0))"
+      },
+      "getPrice(address,bytes32)": {
+        "params": {
+          "key": "The selector for the value to return",
+          "source": "The verifiable author of the data"
+        },
+        "return": "The price value (defaults to 0)"
+      },
+      "put(bytes,bytes)": {
+        "params": {
+          "message": "The payload containing the timestamp, and (key, value) pairs",
+          "signature": "The cryptographic signature of the message payload, authorizing the source to write"
+        },
+        "return": "The keys that were written"
+      },
+      "source(bytes,bytes)": {
+        "details": "Comparing to a claimed address would add nothing, as the caller could simply perform the recover and claim that address.",
+        "params": {
+          "message": "The data that was presumably signed",
+          "signature": "The fingerprint of the data + private key"
+        },
+        "return": "The source address which signed the message, presumably"
+      }
+    },
+    "title": "OracleHubPriceDataMock implementing OracleHubPrieData"
+  },
+  "userdoc": {
+    "methods": {
+      "get(address,bytes32)": {
+        "notice": "Read a single key from an authenticated source"
+      },
+      "getPrice(address,bytes32)": {
+        "notice": "Read only the value for a single key from an authenticated source"
+      },
+      "put(bytes,bytes)": {
+        "notice": "Write a bunch of signed datum to the authenticated storage mapping"
+      },
+      "source(bytes,bytes)": {
+        "notice": "Recovers the source address which signed a message"
+      }
+    }
+  }
+}

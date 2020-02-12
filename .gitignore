@@ -31,17 +31,6 @@ typings/
 # next.js build output
 .next
 
-# truffle
-build/
-contracts-output/
-
-# TSC
-/artifacts/json
-/artifacts/ts
-/dist
-/transpiled
-/types/generated/*
-
 package-lock.json
 
 # .vscode

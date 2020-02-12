@@ -1,0 +1,1282 @@
+{
+  "contractName": "OracleHubModule",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_pub",
+          "type": "address"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "key",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "newAddress",
+          "type": "address"
+        }
+      ],
+      "name": "ModuleUpdated",
+      "type": "event"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "Key_Governance",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "Key_Manager",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "Key_Nexus",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "Key_OracleHub",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "Key_Recollateraliser",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "Key_Systok",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "_key",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "address",
+          "name": "_newAddress",
+          "type": "address"
+        }
+      ],
+      "name": "updateModule",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "metadata": "{\"compiler\":{\"version\":\"0.5.16+commit.9c3226ce\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_pub\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"key\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"newAddress\",\"type\":\"address\"}],\"name\":\"ModuleUpdated\",\"type\":\"event\"},{\"constant\":true,\"inputs\":[],\"name\":\"Key_Governance\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"Key_Manager\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"Key_Nexus\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"Key_OracleHub\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"Key_Recollateraliser\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"Key_Systok\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"_key\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"_newAddress\",\"type\":\"address\"}],\"name\":\"updateModule\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"details\":\"Acts as a subscriber to the Nexus, which publishes each new Module that is introduced to the system.\",\"methods\":{\"constructor\":{\"details\":\"Initialises this Module by setting the publisher on ModuleSub\",\"params\":{\"_pub\":\"Address of the Publisher (Nexus) module\"}},\"updateModule(bytes32,address)\":{\"details\":\"Higher order function to allow for module updates only via publisher\",\"params\":{\"_key\":\"Key of the new module\",\"_newAddress\":\"Address of the new module\"}}},\"title\":\"OracleHubModule\"},\"userdoc\":{\"methods\":{}}},\"settings\":{\"compilationTarget\":{\"/Users/james/mstable/mStable-contracts/contracts/oracle-hub/OracleHubModule.sol\":\"OracleHubModule\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"/Users/james/mstable/mStable-contracts/contracts/interfaces/IManager.sol\":{\"keccak256\":\"0x2433af16af735a80bbccc766e07c7b7a88cdcb807d4ab58bfced0e53daab602a\",\"urls\":[\"bzz-raw://3a2c22f53b3a38601f4322a52786ed2f5515520af67af8a2efb0f2c3342aa4bb\",\"dweb:/ipfs/QmYRaW3ReyLXiQffqERXkqVzHayvXRJ1xaddEcLPb7nLeF\"]},\"/Users/james/mstable/mStable-contracts/contracts/oracle-hub/OracleHubModule.sol\":{\"keccak256\":\"0xc9c5b73387e141ef1f5ff215879422494cc122409bc49ee192e43b970af043e3\",\"urls\":[\"bzz-raw://c29f69f84280d28f35bb491527e392cbc52642a2a521ae36ca6ebccbe4787bc1\",\"dweb:/ipfs/QmTseVVRUJzJrVnMmCofCneDKau7v7ZKHb1xPrmn1hPcBj\"]},\"/Users/james/mstable/mStable-contracts/contracts/shared/pubsub/ModuleKeys.sol\":{\"keccak256\":\"0x7390003ecacc7c9c25ce3adfb64af104477dcced24f62db00aea506766cb6c20\",\"urls\":[\"bzz-raw://2c4054221062f59e480d00d3780255c5aa2b67f1f08e80d94788d9b341795f98\",\"dweb:/ipfs/Qmf3RVA28zYmoiWycZhMxFXSheNLgbv1L7PABBohCVH3jH\"]},\"/Users/james/mstable/mStable-contracts/contracts/shared/pubsub/ModuleSub.sol\":{\"keccak256\":\"0xf2b3b0f4bf02b15b8af9e1016d5c92994227c7db2618cf2a66aeba16a0a34d34\",\"urls\":[\"bzz-raw://3ac1a22e45864ee6335301a1e08a41b6c31e25110f2da288e0ece2d9628b6c4a\",\"dweb:/ipfs/QmUh9g54BWeEELpmLBMQuj7yyevLHKTXuBbBZKv1PijxxS\"]}},\"version\":1}",
+  "bytecode": "0x608060405234801561001057600080fd5b506040516105693803806105698339818101604052602081101561003357600080fd5b5051600080546001600160a01b0319166001600160a01b03831690811782556040805163b2494df360e01b81529051849392606092839263b2494df391600480820192889290919082900301818387803b15801561009057600080fd5b505af11580156100a4573d6000803e3d6000fd5b505050506040513d6000823e601f3d908101601f1916820160405260608110156100cd57600080fd5b8151602083018051604051929492938301929190846401000000008211156100f457600080fd5b90830190602082018581111561010957600080fd5b825186602082028301116401000000008211171561012657600080fd5b82525081516020918201928201910280838360005b8381101561015357818101518382015260200161013b565b505050509050016040526020018051604051939291908464010000000082111561017c57600080fd5b90830190602082018581111561019157600080fd5b82518660208202830111640100000000821117156101ae57600080fd5b82525081516020918201928201910280838360005b838110156101db5781810151838201526020016101c3565b5050505090500160405250505092509250925060008090505b8381101561023a5761023283828151811061020b57fe5b602002602001015183838151811061021f57fe5b602002602001015161024560201b60201c565b6001016101f4565b5050505050506102b9565b604080516001600160a01b0383168152905183917ff0d0fe9ecd941ad0096a6b95e0998ddcd76ba6a240a106fef284fc2d4f0caa41919081900360200190a269476f7665726e616e636560b01b8214156102b557600180546001600160a01b0319166001600160a01b0383161790555b5050565b6102a1806102c86000396000f3fe608060405234801561001057600080fd5b506004361061007d5760003560e01c8063b97e0ac61161005b578063b97e0ac6146100ac578063c097b1fb146100b4578063e5517841146100e2578063f3bdedd2146100ea5761007d565b80635eae58b9146100825780637b4aec791461009c578063ae2efd91146100a4575b600080fd5b61008a6100f2565b60408051918252519081900360200190f35b61008a6100ff565b61008a61010d565b61008a610124565b6100e0600480360360408110156100ca57600080fd5b50803590602001356001600160a01b0316610134565b005b61008a6101b7565b61008a6101c3565b65537973746f6b60d01b81565b6626b0b730b3b2b960c91b81565b6f2932b1b7b63630ba32b930b634b9b2b960811b81565b6827b930b1b632a43ab160b91b81565b6000546001600160a01b0316331461017d5760405162461bcd60e51b815260040180806020018281038252602381526020018061024a6023913960400191505060405180910390fd5b644e6578757360d81b8214156101a957600080546001600160a01b0319166001600160a01b0383161790555b6101b382826101d4565b5050565b644e6578757360d81b81565b69476f7665726e616e636560b01b81565b604080516001600160a01b0383168152905183917ff0d0fe9ecd941ad0096a6b95e0998ddcd76ba6a240a106fef284fc2d4f0caa41919081900360200190a269476f7665726e616e636560b01b8214156101b357600180546001600160a01b0383166001600160a01b0319909116179055505056fe4f6e6c79207075626c6973686572206d61792063616c6c2074686973206d6574686f64a265627a7a72315820782d05a872463fd890c41a2c80dd7a50245890c284b60a5503ea94367928069e64736f6c63430005100032",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b506004361061007d5760003560e01c8063b97e0ac61161005b578063b97e0ac6146100ac578063c097b1fb146100b4578063e5517841146100e2578063f3bdedd2146100ea5761007d565b80635eae58b9146100825780637b4aec791461009c578063ae2efd91146100a4575b600080fd5b61008a6100f2565b60408051918252519081900360200190f35b61008a6100ff565b61008a61010d565b61008a610124565b6100e0600480360360408110156100ca57600080fd5b50803590602001356001600160a01b0316610134565b005b61008a6101b7565b61008a6101c3565b65537973746f6b60d01b81565b6626b0b730b3b2b960c91b81565b6f2932b1b7b63630ba32b930b634b9b2b960811b81565b6827b930b1b632a43ab160b91b81565b6000546001600160a01b0316331461017d5760405162461bcd60e51b815260040180806020018281038252602381526020018061024a6023913960400191505060405180910390fd5b644e6578757360d81b8214156101a957600080546001600160a01b0319166001600160a01b0383161790555b6101b382826101d4565b5050565b644e6578757360d81b81565b69476f7665726e616e636560b01b81565b604080516001600160a01b0383168152905183917ff0d0fe9ecd941ad0096a6b95e0998ddcd76ba6a240a106fef284fc2d4f0caa41919081900360200190a269476f7665726e616e636560b01b8214156101b357600180546001600160a01b0383166001600160a01b0319909116179055505056fe4f6e6c79207075626c6973686572206d61792063616c6c2074686973206d6574686f64a265627a7a72315820782d05a872463fd890c41a2c80dd7a50245890c284b60a5503ea94367928069e64736f6c63430005100032",
+  "sourceMap": "290:855:29:-;;;690:51;8:9:-1;5:2;;;30:1;27;20:12;5:2;690:51:29;;;;;;;;;;;;;;;13:2:-1;8:3;5:11;2:2;;;29:1;26;19:12;2:2;-1:-1;690:51:29;745:9:44;:16;;-1:-1:-1;;;;;;745:16:44;-1:-1:-1;;;;;745:16:44;;;;;;;914:29;;;-1:-1:-1;;;914:29:44;;;;690:51:29;;745:9:44;859:22;;;;914:27;;:29;;;;;745:9;;914:29;;;;;;;;745:9;:16;914:29;;;5:2:-1;;;;30:1;27;20:12;5:2;914:29:44;;;;8:9:-1;5:2;;;45:16;42:1;39;24:38;77:16;74:1;67:27;5:2;914:29:44;;;;;;39:16:-1;36:1;17:17;2:54;101:4;914:29:44;80:15:-1;;;-1:-1;;76:31;65:43;;120:4;113:20;13:2;5:11;;2:2;;;29:1;26;19:12;2:2;914:29:44;;;;;;;;;;;;;;;;;;;19:11:-1;11:20;;8:2;;;44:1;41;34:12;8:2;62:21;;;;123:4;114:14;;138:31;;;135:2;;;182:1;179;172:12;135:2;219:3;213:10;331:9;325:2;311:12;307:21;289:16;285:44;282:59;261:11;247:12;244:29;233:116;230:2;;;362:1;359;352:12;230:2;373:25;;-1:-1;914:29:44;;421:4:-1;412:14;;;;914:29:44;;;;;412:14:-1;914:29:44;23:1:-1;8:100;33:3;30:1;27:10;8:100;;;90:11;;;84:18;71:11;;;64:39;52:2;45:10;8:100;;;12:14;914:29:44;;;;;;;;;;;;;;;;;;;19:11:-1;14:3;11:20;8:2;;;44:1;41;34:12;8:2;62:21;;;;123:4;114:14;;138:31;;;135:2;;;182:1;179;172:12;135:2;219:3;213:10;331:9;325:2;311:12;307:21;289:16;285:44;282:59;261:11;247:12;244:29;233:116;230:2;;;362:1;359;352:12;230:2;373:25;;-1:-1;914:29:44;;421:4:-1;412:14;;;;914:29:44;;;;;412:14:-1;914:29:44;23:1:-1;8:100;33:3;30:1;27:10;8:100;;;90:11;;;84:18;71:11;;;64:39;52:2;45:10;8:100;;;12:14;914:29:44;;;;;;;;;;;846:97;;;;;;957:6;966:1;957:10;;953:102;973:5;969:1;:9;953:102;;;998:46;1020:5;1026:1;1020:8;;;;;;;;;;;;;;1030:10;1041:1;1030:13;;;;;;;;;;;;;;998:21;;;:46;;:::i;:::-;980:3;;953:102;;;;700:361;;;;690:51:29;290:855;;923:220;1017:32;;;-1:-1:-1;;;;;1017:32:29;;;;;;1031:4;;1017:32;;;;;;;;;;-1:-1:-1;;;1064:4:29;:22;1060:77;;;1102:10;:24;;-1:-1:-1;;;;;;1102:24:29;-1:-1:-1;;;;;1102:24:29;;;;;1060:77;923:220;;:::o;290:855::-;;;;;;;",
+  "deployedSourceMap": "290:855:29:-;;;;8:9:-1;5:2;;;30:1;27;20:12;5:2;290:855:29;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;375:45:42;;;:::i;:::-;;;;;;;;;;;;;;;;483:47;;;:::i;536:65::-;;;:::i;426:51::-;;;:::i;1723:230:44:-;;;;;;13:2:-1;8:3;5:11;2:2;;;29:1;26;19:12;2:2;-1:-1;1723:230:44;;;;;;-1:-1:-1;;;;;1723:230:44;;:::i;:::-;;267:43:42;;;:::i;316:53::-;;;:::i;375:45::-;-1:-1:-1;;;375:45:42;:::o;483:47::-;-1:-1:-1;;;483:47:42;:::o;536:65::-;-1:-1:-1;;;536:65:42;:::o;426:51::-;-1:-1:-1;;;426:51:42;:::o;1723:230:44:-;1177:9;;-1:-1:-1;;;;;1177:9:44;1190:10;1177:23;1169:71;;;;-1:-1:-1;;;1169:71:44;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;-1:-1:-1;;;1819:4:44;:28;1815:82;;;1863:9;:23;;-1:-1:-1;;;;;;1863:23:44;-1:-1:-1;;;;;1863:23:44;;;;;1815:82;1906:40;1928:4;1934:11;1906:21;:40::i;:::-;1723:230;;:::o;267:43:42:-;-1:-1:-1;;;267:43:42;:::o;316:53::-;-1:-1:-1;;;316:53:42;:::o;923:220:29:-;1017:32;;;-1:-1:-1;;;;;1017:32:29;;;;;;1031:4;;1017:32;;;;;;;;;;-1:-1:-1;;;1064:4:29;:22;1060:77;;;1102:10;:24;;-1:-1:-1;;;;;1102:24:29;;-1:-1:-1;;;;;;1102:24:29;;;;;;923:220;;:::o",
+  "source": "pragma solidity ^0.5.12;\n\nimport { ModuleSub } from \"../shared/pubsub/ModuleSub.sol\";\n\nimport { IManager } from \"../interfaces/IManager.sol\";\n\n\n/**\n * @title OracleHubModule\n * @dev Acts as a subscriber to the Nexus, which publishes each new Module that is introduced\n * to the system.\n */\ncontract OracleHubModule is ModuleSub {\n\n    /** @dev The governor is permitted to take action throughout the system */\n    address governance;\n\n\n    /** @dev Events to emit */\n    event ModuleUpdated(bytes32 indexed key, address newAddress);\n\n    /**\n      * @dev Initialises this Module by setting the publisher on ModuleSub\n      * @param _pub Address of the Publisher (Nexus) module\n      */\n    constructor(address _pub) ModuleSub(_pub) public {}\n\n    /**\n      * @dev Internally handles updates to the system modules\n      * @param _key         Module key\n      * @param _newAddress  Address of the updated Module\n      */\n    function _internalUpdateModule(bytes32 _key, address _newAddress)\n    internal {\n        emit ModuleUpdated(_key, _newAddress);\n\n        if (_key == Key_Governance) {\n            governance = _newAddress;\n        }\n    }\n}",
+  "sourcePath": "/Users/james/mstable/mStable-contracts/contracts/oracle-hub/OracleHubModule.sol",
+  "ast": {
+    "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/oracle-hub/OracleHubModule.sol",
+    "exportedSymbols": {
+      "OracleHubModule": [
+        7216
+      ]
+    },
+    "id": 7217,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 7170,
+        "literals": [
+          "solidity",
+          "^",
+          "0.5",
+          ".12"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:24:29"
+      },
+      {
+        "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/shared/pubsub/ModuleSub.sol",
+        "file": "../shared/pubsub/ModuleSub.sol",
+        "id": 7172,
+        "nodeType": "ImportDirective",
+        "scope": 7217,
+        "sourceUnit": 9937,
+        "src": "26:59:29",
+        "symbolAliases": [
+          {
+            "foreign": 7171,
+            "local": null
+          }
+        ],
+        "unitAlias": ""
+      },
+      {
+        "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/interfaces/IManager.sol",
+        "file": "../interfaces/IManager.sol",
+        "id": 7174,
+        "nodeType": "ImportDirective",
+        "scope": 7217,
+        "sourceUnit": 1373,
+        "src": "87:54:29",
+        "symbolAliases": [
+          {
+            "foreign": 7173,
+            "local": null
+          }
+        ],
+        "unitAlias": ""
+      },
+      {
+        "baseContracts": [
+          {
+            "arguments": null,
+            "baseName": {
+              "contractScope": null,
+              "id": 7175,
+              "name": "ModuleSub",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 9936,
+              "src": "318:9:29",
+              "typeDescriptions": {
+                "typeIdentifier": "t_contract$_ModuleSub_$9936",
+                "typeString": "contract ModuleSub"
+              }
+            },
+            "id": 7176,
+            "nodeType": "InheritanceSpecifier",
+            "src": "318:9:29"
+          }
+        ],
+        "contractDependencies": [
+          9581,
+          9936
+        ],
+        "contractKind": "contract",
+        "documentation": "@title OracleHubModule\n@dev Acts as a subscriber to the Nexus, which publishes each new Module that is introduced\nto the system.",
+        "fullyImplemented": true,
+        "id": 7216,
+        "linearizedBaseContracts": [
+          7216,
+          9936,
+          9581
+        ],
+        "name": "OracleHubModule",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "constant": false,
+            "id": 7178,
+            "name": "governance",
+            "nodeType": "VariableDeclaration",
+            "scope": 7216,
+            "src": "414:18:29",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            },
+            "typeName": {
+              "id": 7177,
+              "name": "address",
+              "nodeType": "ElementaryTypeName",
+              "src": "414:7:29",
+              "stateMutability": "nonpayable",
+              "typeDescriptions": {
+                "typeIdentifier": "t_address",
+                "typeString": "address"
+              }
+            },
+            "value": null,
+            "visibility": "internal"
+          },
+          {
+            "anonymous": false,
+            "documentation": "@dev Events to emit ",
+            "id": 7184,
+            "name": "ModuleUpdated",
+            "nodeType": "EventDefinition",
+            "parameters": {
+              "id": 7183,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7180,
+                  "indexed": true,
+                  "name": "key",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7184,
+                  "src": "491:19:29",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  },
+                  "typeName": {
+                    "id": 7179,
+                    "name": "bytes32",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "491:7:29",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bytes32",
+                      "typeString": "bytes32"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7182,
+                  "indexed": false,
+                  "name": "newAddress",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7184,
+                  "src": "512:18:29",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7181,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "512:7:29",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "490:41:29"
+            },
+            "src": "471:61:29"
+          },
+          {
+            "body": {
+              "id": 7192,
+              "nodeType": "Block",
+              "src": "739:2:29",
+              "statements": []
+            },
+            "documentation": "@dev Initialises this Module by setting the publisher on ModuleSub\n@param _pub Address of the Publisher (Nexus) module",
+            "id": 7193,
+            "implemented": true,
+            "kind": "constructor",
+            "modifiers": [
+              {
+                "arguments": [
+                  {
+                    "argumentTypes": null,
+                    "id": 7189,
+                    "name": "_pub",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 7186,
+                    "src": "726:4:29",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  }
+                ],
+                "id": 7190,
+                "modifierName": {
+                  "argumentTypes": null,
+                  "id": 7188,
+                  "name": "ModuleSub",
+                  "nodeType": "Identifier",
+                  "overloadedDeclarations": [],
+                  "referencedDeclaration": 9936,
+                  "src": "716:9:29",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_type$_t_contract$_ModuleSub_$9936_$",
+                    "typeString": "type(contract ModuleSub)"
+                  }
+                },
+                "nodeType": "ModifierInvocation",
+                "src": "716:15:29"
+              }
+            ],
+            "name": "",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7187,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7186,
+                  "name": "_pub",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7193,
+                  "src": "702:12:29",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7185,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "702:7:29",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "701:14:29"
+            },
+            "returnParameters": {
+              "id": 7191,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "739:0:29"
+            },
+            "scope": 7216,
+            "src": "690:51:29",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "public"
+          },
+          {
+            "body": {
+              "id": 7214,
+              "nodeType": "Block",
+              "src": "1002:141:29",
+              "statements": [
+                {
+                  "eventCall": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "id": 7201,
+                        "name": "_key",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 7195,
+                        "src": "1031:4:29",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_bytes32",
+                          "typeString": "bytes32"
+                        }
+                      },
+                      {
+                        "argumentTypes": null,
+                        "id": 7202,
+                        "name": "_newAddress",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 7197,
+                        "src": "1037:11:29",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_bytes32",
+                          "typeString": "bytes32"
+                        },
+                        {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      ],
+                      "id": 7200,
+                      "name": "ModuleUpdated",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 7184,
+                      "src": "1017:13:29",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_event_nonpayable$_t_bytes32_$_t_address_$returns$__$",
+                        "typeString": "function (bytes32,address)"
+                      }
+                    },
+                    "id": 7203,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1017:32:29",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 7204,
+                  "nodeType": "EmitStatement",
+                  "src": "1012:37:29"
+                },
+                {
+                  "condition": {
+                    "argumentTypes": null,
+                    "commonType": {
+                      "typeIdentifier": "t_bytes32",
+                      "typeString": "bytes32"
+                    },
+                    "id": 7207,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "leftExpression": {
+                      "argumentTypes": null,
+                      "id": 7205,
+                      "name": "_key",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 7195,
+                      "src": "1064:4:29",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bytes32",
+                        "typeString": "bytes32"
+                      }
+                    },
+                    "nodeType": "BinaryOperation",
+                    "operator": "==",
+                    "rightExpression": {
+                      "argumentTypes": null,
+                      "id": 7206,
+                      "name": "Key_Governance",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 9568,
+                      "src": "1072:14:29",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bytes32",
+                        "typeString": "bytes32"
+                      }
+                    },
+                    "src": "1064:22:29",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "falseBody": null,
+                  "id": 7213,
+                  "nodeType": "IfStatement",
+                  "src": "1060:77:29",
+                  "trueBody": {
+                    "id": 7212,
+                    "nodeType": "Block",
+                    "src": "1088:49:29",
+                    "statements": [
+                      {
+                        "expression": {
+                          "argumentTypes": null,
+                          "id": 7210,
+                          "isConstant": false,
+                          "isLValue": false,
+                          "isPure": false,
+                          "lValueRequested": false,
+                          "leftHandSide": {
+                            "argumentTypes": null,
+                            "id": 7208,
+                            "name": "governance",
+                            "nodeType": "Identifier",
+                            "overloadedDeclarations": [],
+                            "referencedDeclaration": 7178,
+                            "src": "1102:10:29",
+                            "typeDescriptions": {
+                              "typeIdentifier": "t_address",
+                              "typeString": "address"
+                            }
+                          },
+                          "nodeType": "Assignment",
+                          "operator": "=",
+                          "rightHandSide": {
+                            "argumentTypes": null,
+                            "id": 7209,
+                            "name": "_newAddress",
+                            "nodeType": "Identifier",
+                            "overloadedDeclarations": [],
+                            "referencedDeclaration": 7197,
+                            "src": "1115:11:29",
+                            "typeDescriptions": {
+                              "typeIdentifier": "t_address",
+                              "typeString": "address"
+                            }
+                          },
+                          "src": "1102:24:29",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_address",
+                            "typeString": "address"
+                          }
+                        },
+                        "id": 7211,
+                        "nodeType": "ExpressionStatement",
+                        "src": "1102:24:29"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "documentation": "@dev Internally handles updates to the system modules\n@param _key         Module key\n@param _newAddress  Address of the updated Module",
+            "id": 7215,
+            "implemented": true,
+            "kind": "function",
+            "modifiers": [],
+            "name": "_internalUpdateModule",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7198,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7195,
+                  "name": "_key",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7215,
+                  "src": "954:12:29",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  },
+                  "typeName": {
+                    "id": 7194,
+                    "name": "bytes32",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "954:7:29",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bytes32",
+                      "typeString": "bytes32"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7197,
+                  "name": "_newAddress",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7215,
+                  "src": "968:19:29",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7196,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "968:7:29",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "953:35:29"
+            },
+            "returnParameters": {
+              "id": 7199,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "1002:0:29"
+            },
+            "scope": 7216,
+            "src": "923:220:29",
+            "stateMutability": "nonpayable",
+            "superFunction": 9935,
+            "visibility": "internal"
+          }
+        ],
+        "scope": 7217,
+        "src": "290:855:29"
+      }
+    ],
+    "src": "0:1145:29"
+  },
+  "legacyAST": {
+    "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/oracle-hub/OracleHubModule.sol",
+    "exportedSymbols": {
+      "OracleHubModule": [
+        7216
+      ]
+    },
+    "id": 7217,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 7170,
+        "literals": [
+          "solidity",
+          "^",
+          "0.5",
+          ".12"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:24:29"
+      },
+      {
+        "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/shared/pubsub/ModuleSub.sol",
+        "file": "../shared/pubsub/ModuleSub.sol",
+        "id": 7172,
+        "nodeType": "ImportDirective",
+        "scope": 7217,
+        "sourceUnit": 9937,
+        "src": "26:59:29",
+        "symbolAliases": [
+          {
+            "foreign": 7171,
+            "local": null
+          }
+        ],
+        "unitAlias": ""
+      },
+      {
+        "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/interfaces/IManager.sol",
+        "file": "../interfaces/IManager.sol",
+        "id": 7174,
+        "nodeType": "ImportDirective",
+        "scope": 7217,
+        "sourceUnit": 1373,
+        "src": "87:54:29",
+        "symbolAliases": [
+          {
+            "foreign": 7173,
+            "local": null
+          }
+        ],
+        "unitAlias": ""
+      },
+      {
+        "baseContracts": [
+          {
+            "arguments": null,
+            "baseName": {
+              "contractScope": null,
+              "id": 7175,
+              "name": "ModuleSub",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 9936,
+              "src": "318:9:29",
+              "typeDescriptions": {
+                "typeIdentifier": "t_contract$_ModuleSub_$9936",
+                "typeString": "contract ModuleSub"
+              }
+            },
+            "id": 7176,
+            "nodeType": "InheritanceSpecifier",
+            "src": "318:9:29"
+          }
+        ],
+        "contractDependencies": [
+          9581,
+          9936
+        ],
+        "contractKind": "contract",
+        "documentation": "@title OracleHubModule\n@dev Acts as a subscriber to the Nexus, which publishes each new Module that is introduced\nto the system.",
+        "fullyImplemented": true,
+        "id": 7216,
+        "linearizedBaseContracts": [
+          7216,
+          9936,
+          9581
+        ],
+        "name": "OracleHubModule",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "constant": false,
+            "id": 7178,
+            "name": "governance",
+            "nodeType": "VariableDeclaration",
+            "scope": 7216,
+            "src": "414:18:29",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            },
+            "typeName": {
+              "id": 7177,
+              "name": "address",
+              "nodeType": "ElementaryTypeName",
+              "src": "414:7:29",
+              "stateMutability": "nonpayable",
+              "typeDescriptions": {
+                "typeIdentifier": "t_address",
+                "typeString": "address"
+              }
+            },
+            "value": null,
+            "visibility": "internal"
+          },
+          {
+            "anonymous": false,
+            "documentation": "@dev Events to emit ",
+            "id": 7184,
+            "name": "ModuleUpdated",
+            "nodeType": "EventDefinition",
+            "parameters": {
+              "id": 7183,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7180,
+                  "indexed": true,
+                  "name": "key",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7184,
+                  "src": "491:19:29",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  },
+                  "typeName": {
+                    "id": 7179,
+                    "name": "bytes32",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "491:7:29",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bytes32",
+                      "typeString": "bytes32"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7182,
+                  "indexed": false,
+                  "name": "newAddress",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7184,
+                  "src": "512:18:29",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7181,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "512:7:29",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "490:41:29"
+            },
+            "src": "471:61:29"
+          },
+          {
+            "body": {
+              "id": 7192,
+              "nodeType": "Block",
+              "src": "739:2:29",
+              "statements": []
+            },
+            "documentation": "@dev Initialises this Module by setting the publisher on ModuleSub\n@param _pub Address of the Publisher (Nexus) module",
+            "id": 7193,
+            "implemented": true,
+            "kind": "constructor",
+            "modifiers": [
+              {
+                "arguments": [
+                  {
+                    "argumentTypes": null,
+                    "id": 7189,
+                    "name": "_pub",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 7186,
+                    "src": "726:4:29",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  }
+                ],
+                "id": 7190,
+                "modifierName": {
+                  "argumentTypes": null,
+                  "id": 7188,
+                  "name": "ModuleSub",
+                  "nodeType": "Identifier",
+                  "overloadedDeclarations": [],
+                  "referencedDeclaration": 9936,
+                  "src": "716:9:29",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_type$_t_contract$_ModuleSub_$9936_$",
+                    "typeString": "type(contract ModuleSub)"
+                  }
+                },
+                "nodeType": "ModifierInvocation",
+                "src": "716:15:29"
+              }
+            ],
+            "name": "",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7187,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7186,
+                  "name": "_pub",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7193,
+                  "src": "702:12:29",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7185,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "702:7:29",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "701:14:29"
+            },
+            "returnParameters": {
+              "id": 7191,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "739:0:29"
+            },
+            "scope": 7216,
+            "src": "690:51:29",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "public"
+          },
+          {
+            "body": {
+              "id": 7214,
+              "nodeType": "Block",
+              "src": "1002:141:29",
+              "statements": [
+                {
+                  "eventCall": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "id": 7201,
+                        "name": "_key",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 7195,
+                        "src": "1031:4:29",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_bytes32",
+                          "typeString": "bytes32"
+                        }
+                      },
+                      {
+                        "argumentTypes": null,
+                        "id": 7202,
+                        "name": "_newAddress",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 7197,
+                        "src": "1037:11:29",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_bytes32",
+                          "typeString": "bytes32"
+                        },
+                        {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      ],
+                      "id": 7200,
+                      "name": "ModuleUpdated",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 7184,
+                      "src": "1017:13:29",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_event_nonpayable$_t_bytes32_$_t_address_$returns$__$",
+                        "typeString": "function (bytes32,address)"
+                      }
+                    },
+                    "id": 7203,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1017:32:29",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 7204,
+                  "nodeType": "EmitStatement",
+                  "src": "1012:37:29"
+                },
+                {
+                  "condition": {
+                    "argumentTypes": null,
+                    "commonType": {
+                      "typeIdentifier": "t_bytes32",
+                      "typeString": "bytes32"
+                    },
+                    "id": 7207,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "leftExpression": {
+                      "argumentTypes": null,
+                      "id": 7205,
+                      "name": "_key",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 7195,
+                      "src": "1064:4:29",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bytes32",
+                        "typeString": "bytes32"
+                      }
+                    },
+                    "nodeType": "BinaryOperation",
+                    "operator": "==",
+                    "rightExpression": {
+                      "argumentTypes": null,
+                      "id": 7206,
+                      "name": "Key_Governance",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 9568,
+                      "src": "1072:14:29",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bytes32",
+                        "typeString": "bytes32"
+                      }
+                    },
+                    "src": "1064:22:29",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "falseBody": null,
+                  "id": 7213,
+                  "nodeType": "IfStatement",
+                  "src": "1060:77:29",
+                  "trueBody": {
+                    "id": 7212,
+                    "nodeType": "Block",
+                    "src": "1088:49:29",
+                    "statements": [
+                      {
+                        "expression": {
+                          "argumentTypes": null,
+                          "id": 7210,
+                          "isConstant": false,
+                          "isLValue": false,
+                          "isPure": false,
+                          "lValueRequested": false,
+                          "leftHandSide": {
+                            "argumentTypes": null,
+                            "id": 7208,
+                            "name": "governance",
+                            "nodeType": "Identifier",
+                            "overloadedDeclarations": [],
+                            "referencedDeclaration": 7178,
+                            "src": "1102:10:29",
+                            "typeDescriptions": {
+                              "typeIdentifier": "t_address",
+                              "typeString": "address"
+                            }
+                          },
+                          "nodeType": "Assignment",
+                          "operator": "=",
+                          "rightHandSide": {
+                            "argumentTypes": null,
+                            "id": 7209,
+                            "name": "_newAddress",
+                            "nodeType": "Identifier",
+                            "overloadedDeclarations": [],
+                            "referencedDeclaration": 7197,
+                            "src": "1115:11:29",
+                            "typeDescriptions": {
+                              "typeIdentifier": "t_address",
+                              "typeString": "address"
+                            }
+                          },
+                          "src": "1102:24:29",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_address",
+                            "typeString": "address"
+                          }
+                        },
+                        "id": 7211,
+                        "nodeType": "ExpressionStatement",
+                        "src": "1102:24:29"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "documentation": "@dev Internally handles updates to the system modules\n@param _key         Module key\n@param _newAddress  Address of the updated Module",
+            "id": 7215,
+            "implemented": true,
+            "kind": "function",
+            "modifiers": [],
+            "name": "_internalUpdateModule",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7198,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7195,
+                  "name": "_key",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7215,
+                  "src": "954:12:29",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  },
+                  "typeName": {
+                    "id": 7194,
+                    "name": "bytes32",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "954:7:29",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bytes32",
+                      "typeString": "bytes32"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7197,
+                  "name": "_newAddress",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7215,
+                  "src": "968:19:29",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7196,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "968:7:29",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "953:35:29"
+            },
+            "returnParameters": {
+              "id": 7199,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "1002:0:29"
+            },
+            "scope": 7216,
+            "src": "923:220:29",
+            "stateMutability": "nonpayable",
+            "superFunction": 9935,
+            "visibility": "internal"
+          }
+        ],
+        "scope": 7217,
+        "src": "290:855:29"
+      }
+    ],
+    "src": "0:1145:29"
+  },
+  "compiler": {
+    "name": "solc",
+    "version": "0.5.16+commit.9c3226ce.Emscripten.clang"
+  },
+  "networks": {},
+  "schemaVersion": "3.0.23",
+  "updatedAt": "2020-02-05T09:31:38.508Z",
+  "devdoc": {
+    "details": "Acts as a subscriber to the Nexus, which publishes each new Module that is introduced to the system.",
+    "methods": {
+      "constructor": {
+        "details": "Initialises this Module by setting the publisher on ModuleSub",
+        "params": {
+          "_pub": "Address of the Publisher (Nexus) module"
+        }
+      },
+      "updateModule(bytes32,address)": {
+        "details": "Higher order function to allow for module updates only via publisher",
+        "params": {
+          "_key": "Key of the new module",
+          "_newAddress": "Address of the new module"
+        }
+      }
+    },
+    "title": "OracleHubModule"
+  },
+  "userdoc": {
+    "methods": {}
+  }
+}

@@ -1,0 +1,4459 @@
+{
+  "contractName": "IMassetForgeRewards",
+  "abi": [
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "internalType": "uint32",
+          "name": "_bAssetBitmap",
+          "type": "uint32"
+        },
+        {
+          "internalType": "uint256[]",
+          "name": "_bassetQuantities",
+          "type": "uint256[]"
+        },
+        {
+          "internalType": "address",
+          "name": "_massetRecipient",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_rewardRecipient",
+          "type": "address"
+        }
+      ],
+      "name": "mintTo",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "massetMinted",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_basset",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_bassetQuantity",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "_massetRecipient",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_rewardRecipient",
+          "type": "address"
+        }
+      ],
+      "name": "mintSingleTo",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "massetMinted",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_trancheNumber",
+          "type": "uint256"
+        }
+      ],
+      "name": "claimReward",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_trancheNumber",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "_rewardee",
+          "type": "address"
+        }
+      ],
+      "name": "claimReward",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_trancheNumber",
+          "type": "uint256"
+        }
+      ],
+      "name": "redeemReward",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_trancheNumber",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "_rewardee",
+          "type": "address"
+        }
+      ],
+      "name": "redeemReward",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_trancheNumber",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_fundQuantity",
+          "type": "uint256"
+        }
+      ],
+      "name": "fundTranche",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_trancheNumber",
+          "type": "uint256"
+        }
+      ],
+      "name": "withdrawUnclaimedRewards",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_trancheNumber",
+          "type": "uint256"
+        }
+      ],
+      "name": "getTrancheData",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "startTime",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "endTime",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "claimEndTime",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "unlockTime",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "totalMintVolume",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "totalRewardUnits",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "unclaimedRewardUnits",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address[]",
+          "name": "participants",
+          "type": "address[]"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_trancheNumber",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "_rewardee",
+          "type": "address"
+        }
+      ],
+      "name": "getRewardeeData",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "mintWindowClosed",
+          "type": "bool"
+        },
+        {
+          "internalType": "bool",
+          "name": "claimWindowClosed",
+          "type": "bool"
+        },
+        {
+          "internalType": "bool",
+          "name": "unlocked",
+          "type": "bool"
+        },
+        {
+          "internalType": "uint256",
+          "name": "mintVolume",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "claimed",
+          "type": "bool"
+        },
+        {
+          "internalType": "uint256",
+          "name": "rewardAllocation",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "redeemed",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "internalType": "uint256[]",
+          "name": "_trancheNumbers",
+          "type": "uint256[]"
+        },
+        {
+          "internalType": "address",
+          "name": "_rewardee",
+          "type": "address"
+        }
+      ],
+      "name": "getRewardeeData",
+      "outputs": [
+        {
+          "internalType": "bool[]",
+          "name": "mintWindowClosed",
+          "type": "bool[]"
+        },
+        {
+          "internalType": "bool[]",
+          "name": "claimWindowClosed",
+          "type": "bool[]"
+        },
+        {
+          "internalType": "bool[]",
+          "name": "unlocked",
+          "type": "bool[]"
+        },
+        {
+          "internalType": "uint256[]",
+          "name": "mintVolume",
+          "type": "uint256[]"
+        },
+        {
+          "internalType": "bool[]",
+          "name": "claimed",
+          "type": "bool[]"
+        },
+        {
+          "internalType": "uint256[]",
+          "name": "rewardAllocation",
+          "type": "uint256[]"
+        },
+        {
+          "internalType": "bool[]",
+          "name": "redeemed",
+          "type": "bool[]"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_trancheNumber",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address[]",
+          "name": "_rewardees",
+          "type": "address[]"
+        }
+      ],
+      "name": "getRewardeesData",
+      "outputs": [
+        {
+          "internalType": "uint256[]",
+          "name": "mintVolume",
+          "type": "uint256[]"
+        },
+        {
+          "internalType": "bool[]",
+          "name": "claimed",
+          "type": "bool[]"
+        },
+        {
+          "internalType": "uint256[]",
+          "name": "rewardAllocation",
+          "type": "uint256[]"
+        },
+        {
+          "internalType": "bool[]",
+          "name": "redeemed",
+          "type": "bool[]"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "metadata": "{\"compiler\":{\"version\":\"0.5.16+commit.9c3226ce\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"constant\":false,\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_trancheNumber\",\"type\":\"uint256\"}],\"name\":\"claimReward\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_trancheNumber\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"_rewardee\",\"type\":\"address\"}],\"name\":\"claimReward\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_trancheNumber\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_fundQuantity\",\"type\":\"uint256\"}],\"name\":\"fundTranche\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_trancheNumber\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"_rewardee\",\"type\":\"address\"}],\"name\":\"getRewardeeData\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"mintWindowClosed\",\"type\":\"bool\"},{\"internalType\":\"bool\",\"name\":\"claimWindowClosed\",\"type\":\"bool\"},{\"internalType\":\"bool\",\"name\":\"unlocked\",\"type\":\"bool\"},{\"internalType\":\"uint256\",\"name\":\"mintVolume\",\"type\":\"uint256\"},{\"internalType\":\"bool\",\"name\":\"claimed\",\"type\":\"bool\"},{\"internalType\":\"uint256\",\"name\":\"rewardAllocation\",\"type\":\"uint256\"},{\"internalType\":\"bool\",\"name\":\"redeemed\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"internalType\":\"uint256[]\",\"name\":\"_trancheNumbers\",\"type\":\"uint256[]\"},{\"internalType\":\"address\",\"name\":\"_rewardee\",\"type\":\"address\"}],\"name\":\"getRewardeeData\",\"outputs\":[{\"internalType\":\"bool[]\",\"name\":\"mintWindowClosed\",\"type\":\"bool[]\"},{\"internalType\":\"bool[]\",\"name\":\"claimWindowClosed\",\"type\":\"bool[]\"},{\"internalType\":\"bool[]\",\"name\":\"unlocked\",\"type\":\"bool[]\"},{\"internalType\":\"uint256[]\",\"name\":\"mintVolume\",\"type\":\"uint256[]\"},{\"internalType\":\"bool[]\",\"name\":\"claimed\",\"type\":\"bool[]\"},{\"internalType\":\"uint256[]\",\"name\":\"rewardAllocation\",\"type\":\"uint256[]\"},{\"internalType\":\"bool[]\",\"name\":\"redeemed\",\"type\":\"bool[]\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_trancheNumber\",\"type\":\"uint256\"},{\"internalType\":\"address[]\",\"name\":\"_rewardees\",\"type\":\"address[]\"}],\"name\":\"getRewardeesData\",\"outputs\":[{\"internalType\":\"uint256[]\",\"name\":\"mintVolume\",\"type\":\"uint256[]\"},{\"internalType\":\"bool[]\",\"name\":\"claimed\",\"type\":\"bool[]\"},{\"internalType\":\"uint256[]\",\"name\":\"rewardAllocation\",\"type\":\"uint256[]\"},{\"internalType\":\"bool[]\",\"name\":\"redeemed\",\"type\":\"bool[]\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_trancheNumber\",\"type\":\"uint256\"}],\"name\":\"getTrancheData\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"startTime\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"endTime\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"claimEndTime\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"unlockTime\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"totalMintVolume\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"totalRewardUnits\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"unclaimedRewardUnits\",\"type\":\"uint256\"},{\"internalType\":\"address[]\",\"name\":\"participants\",\"type\":\"address[]\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"_basset\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_bassetQuantity\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"_massetRecipient\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_rewardRecipient\",\"type\":\"address\"}],\"name\":\"mintSingleTo\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"massetMinted\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"_bAssetBitmap\",\"type\":\"uint32\"},{\"internalType\":\"uint256[]\",\"name\":\"_bassetQuantities\",\"type\":\"uint256[]\"},{\"internalType\":\"address\",\"name\":\"_massetRecipient\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_rewardRecipient\",\"type\":\"address\"}],\"name\":\"mintTo\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"massetMinted\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_trancheNumber\",\"type\":\"uint256\"}],\"name\":\"redeemReward\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_trancheNumber\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"_rewardee\",\"type\":\"address\"}],\"name\":\"redeemReward\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_trancheNumber\",\"type\":\"uint256\"}],\"name\":\"withdrawUnclaimedRewards\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"methods\":{}},\"userdoc\":{\"methods\":{\"claimReward(uint256)\":{\"notice\":\"Participant actions to claim tranche rewards \"},\"fundTranche(uint256,uint256)\":{\"notice\":\"Governor actions to manage tranche rewards \"},\"getRewardeeData(uint256,address)\":{\"notice\":\"Getters for easily parsing all rewardee data \"},\"getTrancheData(uint256)\":{\"notice\":\"Getters for accessing nested tranche data \"},\"mintTo(uint32,uint256[],address,address)\":{\"notice\":\"Participant actions to earn rewards through minting \"}}}},\"settings\":{\"compilationTarget\":{\"/Users/james/mstable/mStable-contracts/contracts/rewards/IMassetForgeRewards.sol\":\"IMassetForgeRewards\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"/Users/james/mstable/mStable-contracts/contracts/rewards/IMassetForgeRewards.sol\":{\"keccak256\":\"0xec4cf8552abcfaa4596ea6b58b74cb399a453cdba2e22a2c897f9022fed1bf84\",\"urls\":[\"bzz-raw://4cd54422d444cd60f5b72a64d690204a2e590fd6c9fedbb3bc6d1036290b2699\",\"dweb:/ipfs/QmWxDshr2zTxmpqN5Yux5fj7EG7hGBh8hEiLrtFnHaW5te\"]}},\"version\":1}",
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "sourceMap": "",
+  "deployedSourceMap": "",
+  "source": "pragma solidity ^0.5.12;\n\ninterface IMassetForgeRewards {\n\n    /** Participant actions to earn rewards through minting */\n    function mintTo(uint32 _bAssetBitmap, uint256[] calldata _bassetQuantities, address _massetRecipient, address _rewardRecipient)\n        external returns (uint256 massetMinted);\n    function mintSingleTo(address _basset, uint256 _bassetQuantity, address _massetRecipient, address _rewardRecipient)\n        external returns (uint256 massetMinted);\n\n    /** Participant actions to claim tranche rewards */\n    function claimReward(uint256 _trancheNumber) external returns(bool);\n    function claimReward(uint256 _trancheNumber, address _rewardee) external returns(bool);\n    function redeemReward(uint256 _trancheNumber) external returns(bool);\n    function redeemReward(uint256 _trancheNumber, address _rewardee) external returns(bool);\n\n    /** Governor actions to manage tranche rewards */\n    function fundTranche(uint256 _trancheNumber, uint256 _fundQuantity) external;\n    function withdrawUnclaimedRewards(uint256 _trancheNumber) external;\n\n    /** Getters for accessing nested tranche data */\n    function getTrancheData(uint256 _trancheNumber)\n        external view returns(\n            uint256 startTime,\n            uint256 endTime,\n            uint256 claimEndTime,\n            uint256 unlockTime,\n            uint256 totalMintVolume,\n            uint256 totalRewardUnits,\n            uint256 unclaimedRewardUnits,\n            address[] memory participants);\n\n    /** Getters for easily parsing all rewardee data */\n    function getRewardeeData(uint256 _trancheNumber, address _rewardee)\n        external view returns(\n            bool mintWindowClosed,\n            bool claimWindowClosed,\n            bool unlocked,\n            uint256 mintVolume,\n            bool claimed,\n            uint256 rewardAllocation,\n            bool redeemed);\n    function getRewardeeData(uint256[] calldata _trancheNumbers, address _rewardee)\n        external view returns(\n            bool[] memory mintWindowClosed,\n            bool[] memory claimWindowClosed,\n            bool[] memory unlocked,\n            uint256[] memory mintVolume,\n            bool[] memory claimed,\n            uint256[] memory rewardAllocation,\n            bool[] memory redeemed);\n    function getRewardeesData(uint256 _trancheNumber, address[] calldata _rewardees)\n        external view returns(\n            uint256[] memory mintVolume,\n            bool[] memory claimed,\n            uint256[] memory rewardAllocation,\n            bool[] memory redeemed);\n}",
+  "sourcePath": "/Users/james/mstable/mStable-contracts/contracts/rewards/IMassetForgeRewards.sol",
+  "ast": {
+    "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/rewards/IMassetForgeRewards.sol",
+    "exportedSymbols": {
+      "IMassetForgeRewards": [
+        7544
+      ]
+    },
+    "id": 7545,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 7380,
+        "literals": [
+          "solidity",
+          "^",
+          "0.5",
+          ".12"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:24:22"
+      },
+      {
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "interface",
+        "documentation": null,
+        "fullyImplemented": false,
+        "id": 7544,
+        "linearizedBaseContracts": [
+          7544
+        ],
+        "name": "IMassetForgeRewards",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "body": null,
+            "documentation": "Participant actions to earn rewards through minting ",
+            "id": 7394,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "mintTo",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7390,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7382,
+                  "name": "_bAssetBitmap",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7394,
+                  "src": "142:20:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint32",
+                    "typeString": "uint32"
+                  },
+                  "typeName": {
+                    "id": 7381,
+                    "name": "uint32",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "142:6:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint32",
+                      "typeString": "uint32"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7385,
+                  "name": "_bassetQuantities",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7394,
+                  "src": "164:36:22",
+                  "stateVariable": false,
+                  "storageLocation": "calldata",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_uint256_$dyn_calldata_ptr",
+                    "typeString": "uint256[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7383,
+                      "name": "uint256",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "164:7:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "id": 7384,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "164:9:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_uint256_$dyn_storage_ptr",
+                      "typeString": "uint256[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7387,
+                  "name": "_massetRecipient",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7394,
+                  "src": "202:24:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7386,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "202:7:22",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7389,
+                  "name": "_rewardRecipient",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7394,
+                  "src": "228:24:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7388,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "228:7:22",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "141:112:22"
+            },
+            "returnParameters": {
+              "id": 7393,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7392,
+                  "name": "massetMinted",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7394,
+                  "src": "280:20:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7391,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "280:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "279:22:22"
+            },
+            "scope": 7544,
+            "src": "126:176:22",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 7407,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "mintSingleTo",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7403,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7396,
+                  "name": "_basset",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7407,
+                  "src": "329:15:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7395,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "329:7:22",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7398,
+                  "name": "_bassetQuantity",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7407,
+                  "src": "346:23:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7397,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "346:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7400,
+                  "name": "_massetRecipient",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7407,
+                  "src": "371:24:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7399,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "371:7:22",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7402,
+                  "name": "_rewardRecipient",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7407,
+                  "src": "397:24:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7401,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "397:7:22",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "328:94:22"
+            },
+            "returnParameters": {
+              "id": 7406,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7405,
+                  "name": "massetMinted",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7407,
+                  "src": "449:20:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7404,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "449:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "448:22:22"
+            },
+            "scope": 7544,
+            "src": "307:164:22",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": "Participant actions to claim tranche rewards ",
+            "id": 7414,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "claimReward",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7410,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7409,
+                  "name": "_trancheNumber",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7414,
+                  "src": "554:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7408,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "554:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "553:24:22"
+            },
+            "returnParameters": {
+              "id": 7413,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7412,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7414,
+                  "src": "595:4:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 7411,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "595:4:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "594:6:22"
+            },
+            "scope": 7544,
+            "src": "533:68:22",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 7423,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "claimReward",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7419,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7416,
+                  "name": "_trancheNumber",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7423,
+                  "src": "627:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7415,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "627:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7418,
+                  "name": "_rewardee",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7423,
+                  "src": "651:17:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7417,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "651:7:22",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "626:43:22"
+            },
+            "returnParameters": {
+              "id": 7422,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7421,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7423,
+                  "src": "687:4:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 7420,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "687:4:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "686:6:22"
+            },
+            "scope": 7544,
+            "src": "606:87:22",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 7430,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "redeemReward",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7426,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7425,
+                  "name": "_trancheNumber",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7430,
+                  "src": "720:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7424,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "720:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "719:24:22"
+            },
+            "returnParameters": {
+              "id": 7429,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7428,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7430,
+                  "src": "761:4:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 7427,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "761:4:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "760:6:22"
+            },
+            "scope": 7544,
+            "src": "698:69:22",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 7439,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "redeemReward",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7435,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7432,
+                  "name": "_trancheNumber",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7439,
+                  "src": "794:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7431,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "794:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7434,
+                  "name": "_rewardee",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7439,
+                  "src": "818:17:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7433,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "818:7:22",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "793:43:22"
+            },
+            "returnParameters": {
+              "id": 7438,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7437,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7439,
+                  "src": "854:4:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 7436,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "854:4:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "853:6:22"
+            },
+            "scope": 7544,
+            "src": "772:88:22",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": "Governor actions to manage tranche rewards ",
+            "id": 7446,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "fundTranche",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7444,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7441,
+                  "name": "_trancheNumber",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7446,
+                  "src": "941:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7440,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "941:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7443,
+                  "name": "_fundQuantity",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7446,
+                  "src": "965:21:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7442,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "965:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "940:47:22"
+            },
+            "returnParameters": {
+              "id": 7445,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "996:0:22"
+            },
+            "scope": 7544,
+            "src": "920:77:22",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 7451,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "withdrawUnclaimedRewards",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7449,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7448,
+                  "name": "_trancheNumber",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7451,
+                  "src": "1036:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7447,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1036:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "1035:24:22"
+            },
+            "returnParameters": {
+              "id": 7450,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "1068:0:22"
+            },
+            "scope": 7544,
+            "src": "1002:67:22",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": "Getters for accessing nested tranche data ",
+            "id": 7473,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "getTrancheData",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7454,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7453,
+                  "name": "_trancheNumber",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7473,
+                  "src": "1152:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7452,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1152:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "1151:24:22"
+            },
+            "returnParameters": {
+              "id": 7472,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7456,
+                  "name": "startTime",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7473,
+                  "src": "1219:17:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7455,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1219:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7458,
+                  "name": "endTime",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7473,
+                  "src": "1250:15:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7457,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1250:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7460,
+                  "name": "claimEndTime",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7473,
+                  "src": "1279:20:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7459,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1279:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7462,
+                  "name": "unlockTime",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7473,
+                  "src": "1313:18:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7461,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1313:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7464,
+                  "name": "totalMintVolume",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7473,
+                  "src": "1345:23:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7463,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1345:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7466,
+                  "name": "totalRewardUnits",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7473,
+                  "src": "1382:24:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7465,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1382:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7468,
+                  "name": "unclaimedRewardUnits",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7473,
+                  "src": "1420:28:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7467,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1420:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7471,
+                  "name": "participants",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7473,
+                  "src": "1462:29:22",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_address_$dyn_memory_ptr",
+                    "typeString": "address[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7469,
+                      "name": "address",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "1462:7:22",
+                      "stateMutability": "nonpayable",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_address",
+                        "typeString": "address"
+                      }
+                    },
+                    "id": 7470,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "1462:9:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_address_$dyn_storage_ptr",
+                      "typeString": "address[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "1205:287:22"
+            },
+            "scope": 7544,
+            "src": "1128:365:22",
+            "stateMutability": "view",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": "Getters for easily parsing all rewardee data ",
+            "id": 7494,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "getRewardeeData",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7478,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7475,
+                  "name": "_trancheNumber",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7494,
+                  "src": "1580:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7474,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1580:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7477,
+                  "name": "_rewardee",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7494,
+                  "src": "1604:17:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7476,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1604:7:22",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "1579:43:22"
+            },
+            "returnParameters": {
+              "id": 7493,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7480,
+                  "name": "mintWindowClosed",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7494,
+                  "src": "1666:21:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 7479,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1666:4:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7482,
+                  "name": "claimWindowClosed",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7494,
+                  "src": "1701:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 7481,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1701:4:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7484,
+                  "name": "unlocked",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7494,
+                  "src": "1737:13:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 7483,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1737:4:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7486,
+                  "name": "mintVolume",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7494,
+                  "src": "1764:18:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7485,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1764:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7488,
+                  "name": "claimed",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7494,
+                  "src": "1796:12:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 7487,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1796:4:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7490,
+                  "name": "rewardAllocation",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7494,
+                  "src": "1822:24:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7489,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1822:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7492,
+                  "name": "redeemed",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7494,
+                  "src": "1860:13:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 7491,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1860:4:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "1652:222:22"
+            },
+            "scope": 7544,
+            "src": "1555:320:22",
+            "stateMutability": "view",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 7523,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "getRewardeeData",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7500,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7497,
+                  "name": "_trancheNumbers",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7523,
+                  "src": "1905:34:22",
+                  "stateVariable": false,
+                  "storageLocation": "calldata",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_uint256_$dyn_calldata_ptr",
+                    "typeString": "uint256[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7495,
+                      "name": "uint256",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "1905:7:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "id": 7496,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "1905:9:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_uint256_$dyn_storage_ptr",
+                      "typeString": "uint256[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7499,
+                  "name": "_rewardee",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7523,
+                  "src": "1941:17:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7498,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1941:7:22",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "1904:55:22"
+            },
+            "returnParameters": {
+              "id": 7522,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7503,
+                  "name": "mintWindowClosed",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7523,
+                  "src": "2003:30:22",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_bool_$dyn_memory_ptr",
+                    "typeString": "bool[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7501,
+                      "name": "bool",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "2003:4:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bool",
+                        "typeString": "bool"
+                      }
+                    },
+                    "id": 7502,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "2003:6:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_bool_$dyn_storage_ptr",
+                      "typeString": "bool[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7506,
+                  "name": "claimWindowClosed",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7523,
+                  "src": "2047:31:22",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_bool_$dyn_memory_ptr",
+                    "typeString": "bool[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7504,
+                      "name": "bool",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "2047:4:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bool",
+                        "typeString": "bool"
+                      }
+                    },
+                    "id": 7505,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "2047:6:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_bool_$dyn_storage_ptr",
+                      "typeString": "bool[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7509,
+                  "name": "unlocked",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7523,
+                  "src": "2092:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_bool_$dyn_memory_ptr",
+                    "typeString": "bool[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7507,
+                      "name": "bool",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "2092:4:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bool",
+                        "typeString": "bool"
+                      }
+                    },
+                    "id": 7508,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "2092:6:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_bool_$dyn_storage_ptr",
+                      "typeString": "bool[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7512,
+                  "name": "mintVolume",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7523,
+                  "src": "2128:27:22",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_uint256_$dyn_memory_ptr",
+                    "typeString": "uint256[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7510,
+                      "name": "uint256",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "2128:7:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "id": 7511,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "2128:9:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_uint256_$dyn_storage_ptr",
+                      "typeString": "uint256[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7515,
+                  "name": "claimed",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7523,
+                  "src": "2169:21:22",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_bool_$dyn_memory_ptr",
+                    "typeString": "bool[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7513,
+                      "name": "bool",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "2169:4:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bool",
+                        "typeString": "bool"
+                      }
+                    },
+                    "id": 7514,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "2169:6:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_bool_$dyn_storage_ptr",
+                      "typeString": "bool[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7518,
+                  "name": "rewardAllocation",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7523,
+                  "src": "2204:33:22",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_uint256_$dyn_memory_ptr",
+                    "typeString": "uint256[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7516,
+                      "name": "uint256",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "2204:7:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "id": 7517,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "2204:9:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_uint256_$dyn_storage_ptr",
+                      "typeString": "uint256[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7521,
+                  "name": "redeemed",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7523,
+                  "src": "2251:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_bool_$dyn_memory_ptr",
+                    "typeString": "bool[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7519,
+                      "name": "bool",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "2251:4:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bool",
+                        "typeString": "bool"
+                      }
+                    },
+                    "id": 7520,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "2251:6:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_bool_$dyn_storage_ptr",
+                      "typeString": "bool[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "1989:285:22"
+            },
+            "scope": 7544,
+            "src": "1880:395:22",
+            "stateMutability": "view",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 7543,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "getRewardeesData",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7529,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7525,
+                  "name": "_trancheNumber",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7543,
+                  "src": "2306:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7524,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "2306:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7528,
+                  "name": "_rewardees",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7543,
+                  "src": "2330:29:22",
+                  "stateVariable": false,
+                  "storageLocation": "calldata",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_address_$dyn_calldata_ptr",
+                    "typeString": "address[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7526,
+                      "name": "address",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "2330:7:22",
+                      "stateMutability": "nonpayable",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_address",
+                        "typeString": "address"
+                      }
+                    },
+                    "id": 7527,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "2330:9:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_address_$dyn_storage_ptr",
+                      "typeString": "address[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "2305:55:22"
+            },
+            "returnParameters": {
+              "id": 7542,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7532,
+                  "name": "mintVolume",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7543,
+                  "src": "2404:27:22",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_uint256_$dyn_memory_ptr",
+                    "typeString": "uint256[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7530,
+                      "name": "uint256",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "2404:7:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "id": 7531,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "2404:9:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_uint256_$dyn_storage_ptr",
+                      "typeString": "uint256[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7535,
+                  "name": "claimed",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7543,
+                  "src": "2445:21:22",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_bool_$dyn_memory_ptr",
+                    "typeString": "bool[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7533,
+                      "name": "bool",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "2445:4:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bool",
+                        "typeString": "bool"
+                      }
+                    },
+                    "id": 7534,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "2445:6:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_bool_$dyn_storage_ptr",
+                      "typeString": "bool[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7538,
+                  "name": "rewardAllocation",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7543,
+                  "src": "2480:33:22",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_uint256_$dyn_memory_ptr",
+                    "typeString": "uint256[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7536,
+                      "name": "uint256",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "2480:7:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "id": 7537,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "2480:9:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_uint256_$dyn_storage_ptr",
+                      "typeString": "uint256[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7541,
+                  "name": "redeemed",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7543,
+                  "src": "2527:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_bool_$dyn_memory_ptr",
+                    "typeString": "bool[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7539,
+                      "name": "bool",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "2527:4:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bool",
+                        "typeString": "bool"
+                      }
+                    },
+                    "id": 7540,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "2527:6:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_bool_$dyn_storage_ptr",
+                      "typeString": "bool[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "2390:160:22"
+            },
+            "scope": 7544,
+            "src": "2280:271:22",
+            "stateMutability": "view",
+            "superFunction": null,
+            "visibility": "external"
+          }
+        ],
+        "scope": 7545,
+        "src": "26:2527:22"
+      }
+    ],
+    "src": "0:2553:22"
+  },
+  "legacyAST": {
+    "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/rewards/IMassetForgeRewards.sol",
+    "exportedSymbols": {
+      "IMassetForgeRewards": [
+        7544
+      ]
+    },
+    "id": 7545,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 7380,
+        "literals": [
+          "solidity",
+          "^",
+          "0.5",
+          ".12"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:24:22"
+      },
+      {
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "interface",
+        "documentation": null,
+        "fullyImplemented": false,
+        "id": 7544,
+        "linearizedBaseContracts": [
+          7544
+        ],
+        "name": "IMassetForgeRewards",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "body": null,
+            "documentation": "Participant actions to earn rewards through minting ",
+            "id": 7394,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "mintTo",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7390,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7382,
+                  "name": "_bAssetBitmap",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7394,
+                  "src": "142:20:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint32",
+                    "typeString": "uint32"
+                  },
+                  "typeName": {
+                    "id": 7381,
+                    "name": "uint32",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "142:6:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint32",
+                      "typeString": "uint32"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7385,
+                  "name": "_bassetQuantities",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7394,
+                  "src": "164:36:22",
+                  "stateVariable": false,
+                  "storageLocation": "calldata",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_uint256_$dyn_calldata_ptr",
+                    "typeString": "uint256[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7383,
+                      "name": "uint256",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "164:7:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "id": 7384,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "164:9:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_uint256_$dyn_storage_ptr",
+                      "typeString": "uint256[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7387,
+                  "name": "_massetRecipient",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7394,
+                  "src": "202:24:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7386,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "202:7:22",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7389,
+                  "name": "_rewardRecipient",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7394,
+                  "src": "228:24:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7388,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "228:7:22",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "141:112:22"
+            },
+            "returnParameters": {
+              "id": 7393,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7392,
+                  "name": "massetMinted",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7394,
+                  "src": "280:20:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7391,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "280:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "279:22:22"
+            },
+            "scope": 7544,
+            "src": "126:176:22",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 7407,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "mintSingleTo",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7403,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7396,
+                  "name": "_basset",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7407,
+                  "src": "329:15:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7395,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "329:7:22",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7398,
+                  "name": "_bassetQuantity",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7407,
+                  "src": "346:23:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7397,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "346:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7400,
+                  "name": "_massetRecipient",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7407,
+                  "src": "371:24:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7399,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "371:7:22",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7402,
+                  "name": "_rewardRecipient",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7407,
+                  "src": "397:24:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7401,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "397:7:22",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "328:94:22"
+            },
+            "returnParameters": {
+              "id": 7406,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7405,
+                  "name": "massetMinted",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7407,
+                  "src": "449:20:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7404,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "449:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "448:22:22"
+            },
+            "scope": 7544,
+            "src": "307:164:22",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": "Participant actions to claim tranche rewards ",
+            "id": 7414,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "claimReward",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7410,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7409,
+                  "name": "_trancheNumber",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7414,
+                  "src": "554:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7408,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "554:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "553:24:22"
+            },
+            "returnParameters": {
+              "id": 7413,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7412,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7414,
+                  "src": "595:4:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 7411,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "595:4:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "594:6:22"
+            },
+            "scope": 7544,
+            "src": "533:68:22",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 7423,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "claimReward",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7419,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7416,
+                  "name": "_trancheNumber",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7423,
+                  "src": "627:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7415,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "627:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7418,
+                  "name": "_rewardee",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7423,
+                  "src": "651:17:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7417,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "651:7:22",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "626:43:22"
+            },
+            "returnParameters": {
+              "id": 7422,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7421,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7423,
+                  "src": "687:4:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 7420,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "687:4:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "686:6:22"
+            },
+            "scope": 7544,
+            "src": "606:87:22",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 7430,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "redeemReward",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7426,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7425,
+                  "name": "_trancheNumber",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7430,
+                  "src": "720:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7424,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "720:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "719:24:22"
+            },
+            "returnParameters": {
+              "id": 7429,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7428,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7430,
+                  "src": "761:4:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 7427,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "761:4:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "760:6:22"
+            },
+            "scope": 7544,
+            "src": "698:69:22",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 7439,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "redeemReward",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7435,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7432,
+                  "name": "_trancheNumber",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7439,
+                  "src": "794:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7431,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "794:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7434,
+                  "name": "_rewardee",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7439,
+                  "src": "818:17:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7433,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "818:7:22",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "793:43:22"
+            },
+            "returnParameters": {
+              "id": 7438,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7437,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7439,
+                  "src": "854:4:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 7436,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "854:4:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "853:6:22"
+            },
+            "scope": 7544,
+            "src": "772:88:22",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": "Governor actions to manage tranche rewards ",
+            "id": 7446,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "fundTranche",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7444,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7441,
+                  "name": "_trancheNumber",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7446,
+                  "src": "941:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7440,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "941:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7443,
+                  "name": "_fundQuantity",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7446,
+                  "src": "965:21:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7442,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "965:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "940:47:22"
+            },
+            "returnParameters": {
+              "id": 7445,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "996:0:22"
+            },
+            "scope": 7544,
+            "src": "920:77:22",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 7451,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "withdrawUnclaimedRewards",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7449,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7448,
+                  "name": "_trancheNumber",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7451,
+                  "src": "1036:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7447,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1036:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "1035:24:22"
+            },
+            "returnParameters": {
+              "id": 7450,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "1068:0:22"
+            },
+            "scope": 7544,
+            "src": "1002:67:22",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": "Getters for accessing nested tranche data ",
+            "id": 7473,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "getTrancheData",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7454,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7453,
+                  "name": "_trancheNumber",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7473,
+                  "src": "1152:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7452,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1152:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "1151:24:22"
+            },
+            "returnParameters": {
+              "id": 7472,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7456,
+                  "name": "startTime",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7473,
+                  "src": "1219:17:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7455,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1219:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7458,
+                  "name": "endTime",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7473,
+                  "src": "1250:15:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7457,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1250:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7460,
+                  "name": "claimEndTime",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7473,
+                  "src": "1279:20:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7459,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1279:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7462,
+                  "name": "unlockTime",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7473,
+                  "src": "1313:18:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7461,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1313:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7464,
+                  "name": "totalMintVolume",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7473,
+                  "src": "1345:23:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7463,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1345:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7466,
+                  "name": "totalRewardUnits",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7473,
+                  "src": "1382:24:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7465,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1382:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7468,
+                  "name": "unclaimedRewardUnits",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7473,
+                  "src": "1420:28:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7467,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1420:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7471,
+                  "name": "participants",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7473,
+                  "src": "1462:29:22",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_address_$dyn_memory_ptr",
+                    "typeString": "address[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7469,
+                      "name": "address",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "1462:7:22",
+                      "stateMutability": "nonpayable",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_address",
+                        "typeString": "address"
+                      }
+                    },
+                    "id": 7470,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "1462:9:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_address_$dyn_storage_ptr",
+                      "typeString": "address[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "1205:287:22"
+            },
+            "scope": 7544,
+            "src": "1128:365:22",
+            "stateMutability": "view",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": "Getters for easily parsing all rewardee data ",
+            "id": 7494,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "getRewardeeData",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7478,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7475,
+                  "name": "_trancheNumber",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7494,
+                  "src": "1580:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7474,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1580:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7477,
+                  "name": "_rewardee",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7494,
+                  "src": "1604:17:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7476,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1604:7:22",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "1579:43:22"
+            },
+            "returnParameters": {
+              "id": 7493,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7480,
+                  "name": "mintWindowClosed",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7494,
+                  "src": "1666:21:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 7479,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1666:4:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7482,
+                  "name": "claimWindowClosed",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7494,
+                  "src": "1701:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 7481,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1701:4:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7484,
+                  "name": "unlocked",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7494,
+                  "src": "1737:13:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 7483,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1737:4:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7486,
+                  "name": "mintVolume",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7494,
+                  "src": "1764:18:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7485,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1764:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7488,
+                  "name": "claimed",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7494,
+                  "src": "1796:12:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 7487,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1796:4:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7490,
+                  "name": "rewardAllocation",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7494,
+                  "src": "1822:24:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7489,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1822:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7492,
+                  "name": "redeemed",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7494,
+                  "src": "1860:13:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 7491,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1860:4:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "1652:222:22"
+            },
+            "scope": 7544,
+            "src": "1555:320:22",
+            "stateMutability": "view",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 7523,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "getRewardeeData",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7500,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7497,
+                  "name": "_trancheNumbers",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7523,
+                  "src": "1905:34:22",
+                  "stateVariable": false,
+                  "storageLocation": "calldata",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_uint256_$dyn_calldata_ptr",
+                    "typeString": "uint256[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7495,
+                      "name": "uint256",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "1905:7:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "id": 7496,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "1905:9:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_uint256_$dyn_storage_ptr",
+                      "typeString": "uint256[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7499,
+                  "name": "_rewardee",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7523,
+                  "src": "1941:17:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7498,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1941:7:22",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "1904:55:22"
+            },
+            "returnParameters": {
+              "id": 7522,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7503,
+                  "name": "mintWindowClosed",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7523,
+                  "src": "2003:30:22",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_bool_$dyn_memory_ptr",
+                    "typeString": "bool[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7501,
+                      "name": "bool",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "2003:4:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bool",
+                        "typeString": "bool"
+                      }
+                    },
+                    "id": 7502,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "2003:6:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_bool_$dyn_storage_ptr",
+                      "typeString": "bool[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7506,
+                  "name": "claimWindowClosed",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7523,
+                  "src": "2047:31:22",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_bool_$dyn_memory_ptr",
+                    "typeString": "bool[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7504,
+                      "name": "bool",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "2047:4:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bool",
+                        "typeString": "bool"
+                      }
+                    },
+                    "id": 7505,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "2047:6:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_bool_$dyn_storage_ptr",
+                      "typeString": "bool[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7509,
+                  "name": "unlocked",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7523,
+                  "src": "2092:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_bool_$dyn_memory_ptr",
+                    "typeString": "bool[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7507,
+                      "name": "bool",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "2092:4:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bool",
+                        "typeString": "bool"
+                      }
+                    },
+                    "id": 7508,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "2092:6:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_bool_$dyn_storage_ptr",
+                      "typeString": "bool[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7512,
+                  "name": "mintVolume",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7523,
+                  "src": "2128:27:22",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_uint256_$dyn_memory_ptr",
+                    "typeString": "uint256[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7510,
+                      "name": "uint256",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "2128:7:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "id": 7511,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "2128:9:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_uint256_$dyn_storage_ptr",
+                      "typeString": "uint256[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7515,
+                  "name": "claimed",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7523,
+                  "src": "2169:21:22",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_bool_$dyn_memory_ptr",
+                    "typeString": "bool[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7513,
+                      "name": "bool",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "2169:4:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bool",
+                        "typeString": "bool"
+                      }
+                    },
+                    "id": 7514,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "2169:6:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_bool_$dyn_storage_ptr",
+                      "typeString": "bool[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7518,
+                  "name": "rewardAllocation",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7523,
+                  "src": "2204:33:22",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_uint256_$dyn_memory_ptr",
+                    "typeString": "uint256[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7516,
+                      "name": "uint256",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "2204:7:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "id": 7517,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "2204:9:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_uint256_$dyn_storage_ptr",
+                      "typeString": "uint256[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7521,
+                  "name": "redeemed",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7523,
+                  "src": "2251:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_bool_$dyn_memory_ptr",
+                    "typeString": "bool[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7519,
+                      "name": "bool",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "2251:4:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bool",
+                        "typeString": "bool"
+                      }
+                    },
+                    "id": 7520,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "2251:6:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_bool_$dyn_storage_ptr",
+                      "typeString": "bool[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "1989:285:22"
+            },
+            "scope": 7544,
+            "src": "1880:395:22",
+            "stateMutability": "view",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 7543,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "getRewardeesData",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7529,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7525,
+                  "name": "_trancheNumber",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7543,
+                  "src": "2306:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 7524,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "2306:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7528,
+                  "name": "_rewardees",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7543,
+                  "src": "2330:29:22",
+                  "stateVariable": false,
+                  "storageLocation": "calldata",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_address_$dyn_calldata_ptr",
+                    "typeString": "address[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7526,
+                      "name": "address",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "2330:7:22",
+                      "stateMutability": "nonpayable",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_address",
+                        "typeString": "address"
+                      }
+                    },
+                    "id": 7527,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "2330:9:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_address_$dyn_storage_ptr",
+                      "typeString": "address[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "2305:55:22"
+            },
+            "returnParameters": {
+              "id": 7542,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7532,
+                  "name": "mintVolume",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7543,
+                  "src": "2404:27:22",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_uint256_$dyn_memory_ptr",
+                    "typeString": "uint256[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7530,
+                      "name": "uint256",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "2404:7:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "id": 7531,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "2404:9:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_uint256_$dyn_storage_ptr",
+                      "typeString": "uint256[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7535,
+                  "name": "claimed",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7543,
+                  "src": "2445:21:22",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_bool_$dyn_memory_ptr",
+                    "typeString": "bool[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7533,
+                      "name": "bool",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "2445:4:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bool",
+                        "typeString": "bool"
+                      }
+                    },
+                    "id": 7534,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "2445:6:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_bool_$dyn_storage_ptr",
+                      "typeString": "bool[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7538,
+                  "name": "rewardAllocation",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7543,
+                  "src": "2480:33:22",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_uint256_$dyn_memory_ptr",
+                    "typeString": "uint256[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7536,
+                      "name": "uint256",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "2480:7:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "id": 7537,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "2480:9:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_uint256_$dyn_storage_ptr",
+                      "typeString": "uint256[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7541,
+                  "name": "redeemed",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7543,
+                  "src": "2527:22:22",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_bool_$dyn_memory_ptr",
+                    "typeString": "bool[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7539,
+                      "name": "bool",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "2527:4:22",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bool",
+                        "typeString": "bool"
+                      }
+                    },
+                    "id": 7540,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "2527:6:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_bool_$dyn_storage_ptr",
+                      "typeString": "bool[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "2390:160:22"
+            },
+            "scope": 7544,
+            "src": "2280:271:22",
+            "stateMutability": "view",
+            "superFunction": null,
+            "visibility": "external"
+          }
+        ],
+        "scope": 7545,
+        "src": "26:2527:22"
+      }
+    ],
+    "src": "0:2553:22"
+  },
+  "compiler": {
+    "name": "solc",
+    "version": "0.5.16+commit.9c3226ce.Emscripten.clang"
+  },
+  "networks": {},
+  "schemaVersion": "3.0.23",
+  "updatedAt": "2020-02-12T09:10:20.924Z",
+  "devdoc": {
+    "methods": {}
+  },
+  "userdoc": {
+    "methods": {
+      "claimReward(uint256)": {
+        "notice": "Participant actions to claim tranche rewards "
+      },
+      "fundTranche(uint256,uint256)": {
+        "notice": "Governor actions to manage tranche rewards "
+      },
+      "getRewardeeData(uint256,address)": {
+        "notice": "Getters for easily parsing all rewardee data "
+      },
+      "getTrancheData(uint256)": {
+        "notice": "Getters for accessing nested tranche data "
+      },
+      "mintTo(uint32,uint256[],address,address)": {
+        "notice": "Participant actions to earn rewards through minting "
+      }
+    }
+  }
+}

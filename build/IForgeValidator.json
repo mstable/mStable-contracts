@@ -1,0 +1,1643 @@
+{
+  "contractName": "IForgeValidator",
+  "abi": [
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_totalVault",
+          "type": "uint256"
+        },
+        {
+          "components": [
+            {
+              "internalType": "address",
+              "name": "addr",
+              "type": "address"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "key",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "uint256",
+              "name": "ratio",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "maxWeight",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "vaultBalance",
+              "type": "uint256"
+            },
+            {
+              "internalType": "enum MassetStructs.BassetStatus",
+              "name": "status",
+              "type": "uint8"
+            }
+          ],
+          "internalType": "struct MassetStructs.Basset[]",
+          "name": "_bassets",
+          "type": "tuple[]"
+        },
+        {
+          "internalType": "uint256[]",
+          "name": "_bassetQuantity",
+          "type": "uint256[]"
+        }
+      ],
+      "name": "validateMint",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_totalVault",
+          "type": "uint256"
+        },
+        {
+          "components": [
+            {
+              "internalType": "address",
+              "name": "addr",
+              "type": "address"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "key",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "uint256",
+              "name": "ratio",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "maxWeight",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "vaultBalance",
+              "type": "uint256"
+            },
+            {
+              "internalType": "enum MassetStructs.BassetStatus",
+              "name": "status",
+              "type": "uint8"
+            }
+          ],
+          "internalType": "struct MassetStructs.Basset",
+          "name": "_basset",
+          "type": "tuple"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_bassetQuantity",
+          "type": "uint256"
+        }
+      ],
+      "name": "validateMint",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "components": [
+            {
+              "internalType": "address",
+              "name": "addr",
+              "type": "address"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "key",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "uint256",
+              "name": "ratio",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "maxWeight",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "vaultBalance",
+              "type": "uint256"
+            },
+            {
+              "internalType": "enum MassetStructs.BassetStatus",
+              "name": "status",
+              "type": "uint8"
+            }
+          ],
+          "internalType": "struct MassetStructs.Basset[]",
+          "name": "_allBassets",
+          "type": "tuple[]"
+        },
+        {
+          "internalType": "bool",
+          "name": "basketIsFailed",
+          "type": "bool"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_totalVault",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint8[]",
+          "name": "_idxs",
+          "type": "uint8[]"
+        },
+        {
+          "internalType": "uint256[]",
+          "name": "_bassetQuantity",
+          "type": "uint256[]"
+        }
+      ],
+      "name": "validateRedemption",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "components": [
+            {
+              "internalType": "address",
+              "name": "addr",
+              "type": "address"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "key",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "uint256",
+              "name": "ratio",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "maxWeight",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "vaultBalance",
+              "type": "uint256"
+            },
+            {
+              "internalType": "enum MassetStructs.BassetStatus",
+              "name": "status",
+              "type": "uint8"
+            }
+          ],
+          "internalType": "struct MassetStructs.Basset[]",
+          "name": "_allBassets",
+          "type": "tuple[]"
+        },
+        {
+          "internalType": "bool",
+          "name": "basketIsFailed",
+          "type": "bool"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_totalVault",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_indexToRedeem",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_bassetQuantity",
+          "type": "uint256"
+        }
+      ],
+      "name": "validateRedemption",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "pure",
+      "type": "function"
+    }
+  ],
+  "metadata": "{\"compiler\":{\"version\":\"0.5.16+commit.9c3226ce\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"constant\":true,\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_totalVault\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"address\",\"name\":\"addr\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"key\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"ratio\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"maxWeight\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"vaultBalance\",\"type\":\"uint256\"},{\"internalType\":\"enum MassetStructs.BassetStatus\",\"name\":\"status\",\"type\":\"uint8\"}],\"internalType\":\"struct MassetStructs.Basset[]\",\"name\":\"_bassets\",\"type\":\"tuple[]\"},{\"internalType\":\"uint256[]\",\"name\":\"_bassetQuantity\",\"type\":\"uint256[]\"}],\"name\":\"validateMint\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"pure\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_totalVault\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"address\",\"name\":\"addr\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"key\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"ratio\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"maxWeight\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"vaultBalance\",\"type\":\"uint256\"},{\"internalType\":\"enum MassetStructs.BassetStatus\",\"name\":\"status\",\"type\":\"uint8\"}],\"internalType\":\"struct MassetStructs.Basset\",\"name\":\"_basset\",\"type\":\"tuple\"},{\"internalType\":\"uint256\",\"name\":\"_bassetQuantity\",\"type\":\"uint256\"}],\"name\":\"validateMint\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"pure\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"components\":[{\"internalType\":\"address\",\"name\":\"addr\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"key\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"ratio\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"maxWeight\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"vaultBalance\",\"type\":\"uint256\"},{\"internalType\":\"enum MassetStructs.BassetStatus\",\"name\":\"status\",\"type\":\"uint8\"}],\"internalType\":\"struct MassetStructs.Basset[]\",\"name\":\"_allBassets\",\"type\":\"tuple[]\"},{\"internalType\":\"bool\",\"name\":\"basketIsFailed\",\"type\":\"bool\"},{\"internalType\":\"uint256\",\"name\":\"_totalVault\",\"type\":\"uint256\"},{\"internalType\":\"uint8[]\",\"name\":\"_idxs\",\"type\":\"uint8[]\"},{\"internalType\":\"uint256[]\",\"name\":\"_bassetQuantity\",\"type\":\"uint256[]\"}],\"name\":\"validateRedemption\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"pure\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"components\":[{\"internalType\":\"address\",\"name\":\"addr\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"key\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"ratio\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"maxWeight\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"vaultBalance\",\"type\":\"uint256\"},{\"internalType\":\"enum MassetStructs.BassetStatus\",\"name\":\"status\",\"type\":\"uint8\"}],\"internalType\":\"struct MassetStructs.Basset[]\",\"name\":\"_allBassets\",\"type\":\"tuple[]\"},{\"internalType\":\"bool\",\"name\":\"basketIsFailed\",\"type\":\"bool\"},{\"internalType\":\"uint256\",\"name\":\"_totalVault\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_indexToRedeem\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_bassetQuantity\",\"type\":\"uint256\"}],\"name\":\"validateRedemption\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"pure\",\"type\":\"function\"}],\"devdoc\":{\"details\":\"Abstract ForgeValidator contract for interacting with the Forge Library\",\"methods\":{},\"title\":\"IForgeValidator\"},\"userdoc\":{\"methods\":{}}},\"settings\":{\"compilationTarget\":{\"/Users/james/mstable/mStable-contracts/contracts/masset/forge-validator/IForgeValidator.sol\":\"IForgeValidator\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"/Users/james/mstable/mStable-contracts/contracts/masset/forge-validator/IForgeValidator.sol\":{\"keccak256\":\"0x07b63f528b98f8c07e2b19d5f6549e8a1640c6a736114040e04c4351fb2bf4f1\",\"urls\":[\"bzz-raw://ca830ccec3d467b99d177c78eaff25ed787ad2d29e120a5e561f0046487af58f\",\"dweb:/ipfs/QmUmSKa1q5HndejD9vPXmB9WkgHGrw6esVDyQaqieqgVS4\"]},\"/Users/james/mstable/mStable-contracts/contracts/masset/shared/MassetStructs.sol\":{\"keccak256\":\"0x2a0c260431380a2df0885efa1c2a6de7473e00cbe2796cca2f8d8366a7598853\",\"urls\":[\"bzz-raw://ce7074f781e6f57c377cf8fc45274859137707a66f15d171ac73bb898545cb62\",\"dweb:/ipfs/Qmcg52TUin9EgcUiirvAp4Fm2gaWJqgZPqY6hxwQaFhwXT\"]}},\"version\":1}",
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "sourceMap": "",
+  "deployedSourceMap": "",
+  "source": "pragma solidity ^0.5.12;\npragma experimental ABIEncoderV2;\n\nimport { MassetStructs } from \"../shared/MassetStructs.sol\";\n\n/**\n  * @title IForgeValidator\n  * @dev Abstract ForgeValidator contract for interacting with the Forge Library\n  */\ncontract IForgeValidator is MassetStructs {\n    function validateMint(uint256 _totalVault, Basset calldata _basset, uint256 _bassetQuantity) external pure;\n    function validateMint(uint256 _totalVault, Basset[] calldata _bassets, uint256[] calldata _bassetQuantity) external pure;\n    function validateRedemption(\n        Basset[] calldata _allBassets,\n        bool basketIsFailed,\n        uint256 _totalVault,\n        uint256 _indexToRedeem,\n        uint256 _bassetQuantity) external pure;\n    function validateRedemption(\n        Basset[] calldata _allBassets,\n        bool basketIsFailed,\n        uint256 _totalVault,\n        uint8[] calldata _idxs,\n        uint256[] calldata _bassetQuantity) external pure;\n}\n",
+  "sourcePath": "/Users/james/mstable/mStable-contracts/contracts/masset/forge-validator/IForgeValidator.sol",
+  "ast": {
+    "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/masset/forge-validator/IForgeValidator.sol",
+    "exportedSymbols": {
+      "IForgeValidator": [
+        4930
+      ]
+    },
+    "id": 4931,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 4874,
+        "literals": [
+          "solidity",
+          "^",
+          "0.5",
+          ".12"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:24:13"
+      },
+      {
+        "id": 4875,
+        "literals": [
+          "experimental",
+          "ABIEncoderV2"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "25:33:13"
+      },
+      {
+        "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/masset/shared/MassetStructs.sol",
+        "file": "../shared/MassetStructs.sol",
+        "id": 4877,
+        "nodeType": "ImportDirective",
+        "scope": 4931,
+        "sourceUnit": 5627,
+        "src": "60:60:13",
+        "symbolAliases": [
+          {
+            "foreign": 4876,
+            "local": null
+          }
+        ],
+        "unitAlias": ""
+      },
+      {
+        "baseContracts": [
+          {
+            "arguments": null,
+            "baseName": {
+              "contractScope": null,
+              "id": 4878,
+              "name": "MassetStructs",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 5626,
+              "src": "267:13:13",
+              "typeDescriptions": {
+                "typeIdentifier": "t_contract$_MassetStructs_$5626",
+                "typeString": "contract MassetStructs"
+              }
+            },
+            "id": 4879,
+            "nodeType": "InheritanceSpecifier",
+            "src": "267:13:13"
+          }
+        ],
+        "contractDependencies": [
+          5626
+        ],
+        "contractKind": "contract",
+        "documentation": "@title IForgeValidator\n@dev Abstract ForgeValidator contract for interacting with the Forge Library",
+        "fullyImplemented": false,
+        "id": 4930,
+        "linearizedBaseContracts": [
+          4930,
+          5626
+        ],
+        "name": "IForgeValidator",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "body": null,
+            "documentation": null,
+            "id": 4888,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "validateMint",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 4886,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 4881,
+                  "name": "_totalVault",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4888,
+                  "src": "309:19:13",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 4880,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "309:7:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4883,
+                  "name": "_basset",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4888,
+                  "src": "330:23:13",
+                  "stateVariable": false,
+                  "storageLocation": "calldata",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_struct$_Basset_$5618_calldata_ptr",
+                    "typeString": "struct MassetStructs.Basset"
+                  },
+                  "typeName": {
+                    "contractScope": null,
+                    "id": 4882,
+                    "name": "Basset",
+                    "nodeType": "UserDefinedTypeName",
+                    "referencedDeclaration": 5618,
+                    "src": "330:6:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_struct$_Basset_$5618_storage_ptr",
+                      "typeString": "struct MassetStructs.Basset"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4885,
+                  "name": "_bassetQuantity",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4888,
+                  "src": "355:23:13",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 4884,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "355:7:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "308:71:13"
+            },
+            "returnParameters": {
+              "id": 4887,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "393:0:13"
+            },
+            "scope": 4930,
+            "src": "287:107:13",
+            "stateMutability": "pure",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 4899,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "validateMint",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 4897,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 4890,
+                  "name": "_totalVault",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4899,
+                  "src": "421:19:13",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 4889,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "421:7:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4893,
+                  "name": "_bassets",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4899,
+                  "src": "442:26:13",
+                  "stateVariable": false,
+                  "storageLocation": "calldata",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_struct$_Basset_$5618_calldata_$dyn_calldata_ptr",
+                    "typeString": "struct MassetStructs.Basset[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "contractScope": null,
+                      "id": 4891,
+                      "name": "Basset",
+                      "nodeType": "UserDefinedTypeName",
+                      "referencedDeclaration": 5618,
+                      "src": "442:6:13",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_struct$_Basset_$5618_storage_ptr",
+                        "typeString": "struct MassetStructs.Basset"
+                      }
+                    },
+                    "id": 4892,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "442:8:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_struct$_Basset_$5618_storage_$dyn_storage_ptr",
+                      "typeString": "struct MassetStructs.Basset[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4896,
+                  "name": "_bassetQuantity",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4899,
+                  "src": "470:34:13",
+                  "stateVariable": false,
+                  "storageLocation": "calldata",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_uint256_$dyn_calldata_ptr",
+                    "typeString": "uint256[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 4894,
+                      "name": "uint256",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "470:7:13",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "id": 4895,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "470:9:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_uint256_$dyn_storage_ptr",
+                      "typeString": "uint256[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "420:85:13"
+            },
+            "returnParameters": {
+              "id": 4898,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "519:0:13"
+            },
+            "scope": 4930,
+            "src": "399:121:13",
+            "stateMutability": "pure",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 4913,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "validateRedemption",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 4911,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 4902,
+                  "name": "_allBassets",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4913,
+                  "src": "562:29:13",
+                  "stateVariable": false,
+                  "storageLocation": "calldata",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_struct$_Basset_$5618_calldata_$dyn_calldata_ptr",
+                    "typeString": "struct MassetStructs.Basset[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "contractScope": null,
+                      "id": 4900,
+                      "name": "Basset",
+                      "nodeType": "UserDefinedTypeName",
+                      "referencedDeclaration": 5618,
+                      "src": "562:6:13",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_struct$_Basset_$5618_storage_ptr",
+                        "typeString": "struct MassetStructs.Basset"
+                      }
+                    },
+                    "id": 4901,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "562:8:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_struct$_Basset_$5618_storage_$dyn_storage_ptr",
+                      "typeString": "struct MassetStructs.Basset[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4904,
+                  "name": "basketIsFailed",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4913,
+                  "src": "601:19:13",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 4903,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "601:4:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4906,
+                  "name": "_totalVault",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4913,
+                  "src": "630:19:13",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 4905,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "630:7:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4908,
+                  "name": "_indexToRedeem",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4913,
+                  "src": "659:22:13",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 4907,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "659:7:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4910,
+                  "name": "_bassetQuantity",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4913,
+                  "src": "691:23:13",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 4909,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "691:7:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "552:163:13"
+            },
+            "returnParameters": {
+              "id": 4912,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "729:0:13"
+            },
+            "scope": 4930,
+            "src": "525:205:13",
+            "stateMutability": "pure",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 4929,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "validateRedemption",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 4927,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 4916,
+                  "name": "_allBassets",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4929,
+                  "src": "772:29:13",
+                  "stateVariable": false,
+                  "storageLocation": "calldata",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_struct$_Basset_$5618_calldata_$dyn_calldata_ptr",
+                    "typeString": "struct MassetStructs.Basset[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "contractScope": null,
+                      "id": 4914,
+                      "name": "Basset",
+                      "nodeType": "UserDefinedTypeName",
+                      "referencedDeclaration": 5618,
+                      "src": "772:6:13",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_struct$_Basset_$5618_storage_ptr",
+                        "typeString": "struct MassetStructs.Basset"
+                      }
+                    },
+                    "id": 4915,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "772:8:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_struct$_Basset_$5618_storage_$dyn_storage_ptr",
+                      "typeString": "struct MassetStructs.Basset[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4918,
+                  "name": "basketIsFailed",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4929,
+                  "src": "811:19:13",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 4917,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "811:4:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4920,
+                  "name": "_totalVault",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4929,
+                  "src": "840:19:13",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 4919,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "840:7:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4923,
+                  "name": "_idxs",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4929,
+                  "src": "869:22:13",
+                  "stateVariable": false,
+                  "storageLocation": "calldata",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_uint8_$dyn_calldata_ptr",
+                    "typeString": "uint8[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 4921,
+                      "name": "uint8",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "869:5:13",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint8",
+                        "typeString": "uint8"
+                      }
+                    },
+                    "id": 4922,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "869:7:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_uint8_$dyn_storage_ptr",
+                      "typeString": "uint8[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4926,
+                  "name": "_bassetQuantity",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4929,
+                  "src": "901:34:13",
+                  "stateVariable": false,
+                  "storageLocation": "calldata",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_uint256_$dyn_calldata_ptr",
+                    "typeString": "uint256[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 4924,
+                      "name": "uint256",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "901:7:13",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "id": 4925,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "901:9:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_uint256_$dyn_storage_ptr",
+                      "typeString": "uint256[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "762:174:13"
+            },
+            "returnParameters": {
+              "id": 4928,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "950:0:13"
+            },
+            "scope": 4930,
+            "src": "735:216:13",
+            "stateMutability": "pure",
+            "superFunction": null,
+            "visibility": "external"
+          }
+        ],
+        "scope": 4931,
+        "src": "239:714:13"
+      }
+    ],
+    "src": "0:954:13"
+  },
+  "legacyAST": {
+    "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/masset/forge-validator/IForgeValidator.sol",
+    "exportedSymbols": {
+      "IForgeValidator": [
+        4930
+      ]
+    },
+    "id": 4931,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 4874,
+        "literals": [
+          "solidity",
+          "^",
+          "0.5",
+          ".12"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:24:13"
+      },
+      {
+        "id": 4875,
+        "literals": [
+          "experimental",
+          "ABIEncoderV2"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "25:33:13"
+      },
+      {
+        "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/masset/shared/MassetStructs.sol",
+        "file": "../shared/MassetStructs.sol",
+        "id": 4877,
+        "nodeType": "ImportDirective",
+        "scope": 4931,
+        "sourceUnit": 5627,
+        "src": "60:60:13",
+        "symbolAliases": [
+          {
+            "foreign": 4876,
+            "local": null
+          }
+        ],
+        "unitAlias": ""
+      },
+      {
+        "baseContracts": [
+          {
+            "arguments": null,
+            "baseName": {
+              "contractScope": null,
+              "id": 4878,
+              "name": "MassetStructs",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 5626,
+              "src": "267:13:13",
+              "typeDescriptions": {
+                "typeIdentifier": "t_contract$_MassetStructs_$5626",
+                "typeString": "contract MassetStructs"
+              }
+            },
+            "id": 4879,
+            "nodeType": "InheritanceSpecifier",
+            "src": "267:13:13"
+          }
+        ],
+        "contractDependencies": [
+          5626
+        ],
+        "contractKind": "contract",
+        "documentation": "@title IForgeValidator\n@dev Abstract ForgeValidator contract for interacting with the Forge Library",
+        "fullyImplemented": false,
+        "id": 4930,
+        "linearizedBaseContracts": [
+          4930,
+          5626
+        ],
+        "name": "IForgeValidator",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "body": null,
+            "documentation": null,
+            "id": 4888,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "validateMint",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 4886,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 4881,
+                  "name": "_totalVault",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4888,
+                  "src": "309:19:13",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 4880,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "309:7:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4883,
+                  "name": "_basset",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4888,
+                  "src": "330:23:13",
+                  "stateVariable": false,
+                  "storageLocation": "calldata",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_struct$_Basset_$5618_calldata_ptr",
+                    "typeString": "struct MassetStructs.Basset"
+                  },
+                  "typeName": {
+                    "contractScope": null,
+                    "id": 4882,
+                    "name": "Basset",
+                    "nodeType": "UserDefinedTypeName",
+                    "referencedDeclaration": 5618,
+                    "src": "330:6:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_struct$_Basset_$5618_storage_ptr",
+                      "typeString": "struct MassetStructs.Basset"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4885,
+                  "name": "_bassetQuantity",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4888,
+                  "src": "355:23:13",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 4884,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "355:7:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "308:71:13"
+            },
+            "returnParameters": {
+              "id": 4887,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "393:0:13"
+            },
+            "scope": 4930,
+            "src": "287:107:13",
+            "stateMutability": "pure",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 4899,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "validateMint",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 4897,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 4890,
+                  "name": "_totalVault",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4899,
+                  "src": "421:19:13",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 4889,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "421:7:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4893,
+                  "name": "_bassets",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4899,
+                  "src": "442:26:13",
+                  "stateVariable": false,
+                  "storageLocation": "calldata",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_struct$_Basset_$5618_calldata_$dyn_calldata_ptr",
+                    "typeString": "struct MassetStructs.Basset[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "contractScope": null,
+                      "id": 4891,
+                      "name": "Basset",
+                      "nodeType": "UserDefinedTypeName",
+                      "referencedDeclaration": 5618,
+                      "src": "442:6:13",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_struct$_Basset_$5618_storage_ptr",
+                        "typeString": "struct MassetStructs.Basset"
+                      }
+                    },
+                    "id": 4892,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "442:8:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_struct$_Basset_$5618_storage_$dyn_storage_ptr",
+                      "typeString": "struct MassetStructs.Basset[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4896,
+                  "name": "_bassetQuantity",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4899,
+                  "src": "470:34:13",
+                  "stateVariable": false,
+                  "storageLocation": "calldata",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_uint256_$dyn_calldata_ptr",
+                    "typeString": "uint256[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 4894,
+                      "name": "uint256",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "470:7:13",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "id": 4895,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "470:9:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_uint256_$dyn_storage_ptr",
+                      "typeString": "uint256[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "420:85:13"
+            },
+            "returnParameters": {
+              "id": 4898,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "519:0:13"
+            },
+            "scope": 4930,
+            "src": "399:121:13",
+            "stateMutability": "pure",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 4913,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "validateRedemption",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 4911,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 4902,
+                  "name": "_allBassets",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4913,
+                  "src": "562:29:13",
+                  "stateVariable": false,
+                  "storageLocation": "calldata",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_struct$_Basset_$5618_calldata_$dyn_calldata_ptr",
+                    "typeString": "struct MassetStructs.Basset[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "contractScope": null,
+                      "id": 4900,
+                      "name": "Basset",
+                      "nodeType": "UserDefinedTypeName",
+                      "referencedDeclaration": 5618,
+                      "src": "562:6:13",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_struct$_Basset_$5618_storage_ptr",
+                        "typeString": "struct MassetStructs.Basset"
+                      }
+                    },
+                    "id": 4901,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "562:8:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_struct$_Basset_$5618_storage_$dyn_storage_ptr",
+                      "typeString": "struct MassetStructs.Basset[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4904,
+                  "name": "basketIsFailed",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4913,
+                  "src": "601:19:13",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 4903,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "601:4:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4906,
+                  "name": "_totalVault",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4913,
+                  "src": "630:19:13",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 4905,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "630:7:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4908,
+                  "name": "_indexToRedeem",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4913,
+                  "src": "659:22:13",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 4907,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "659:7:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4910,
+                  "name": "_bassetQuantity",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4913,
+                  "src": "691:23:13",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 4909,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "691:7:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "552:163:13"
+            },
+            "returnParameters": {
+              "id": 4912,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "729:0:13"
+            },
+            "scope": 4930,
+            "src": "525:205:13",
+            "stateMutability": "pure",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 4929,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "validateRedemption",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 4927,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 4916,
+                  "name": "_allBassets",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4929,
+                  "src": "772:29:13",
+                  "stateVariable": false,
+                  "storageLocation": "calldata",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_struct$_Basset_$5618_calldata_$dyn_calldata_ptr",
+                    "typeString": "struct MassetStructs.Basset[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "contractScope": null,
+                      "id": 4914,
+                      "name": "Basset",
+                      "nodeType": "UserDefinedTypeName",
+                      "referencedDeclaration": 5618,
+                      "src": "772:6:13",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_struct$_Basset_$5618_storage_ptr",
+                        "typeString": "struct MassetStructs.Basset"
+                      }
+                    },
+                    "id": 4915,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "772:8:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_struct$_Basset_$5618_storage_$dyn_storage_ptr",
+                      "typeString": "struct MassetStructs.Basset[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4918,
+                  "name": "basketIsFailed",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4929,
+                  "src": "811:19:13",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 4917,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "811:4:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4920,
+                  "name": "_totalVault",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4929,
+                  "src": "840:19:13",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 4919,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "840:7:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4923,
+                  "name": "_idxs",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4929,
+                  "src": "869:22:13",
+                  "stateVariable": false,
+                  "storageLocation": "calldata",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_uint8_$dyn_calldata_ptr",
+                    "typeString": "uint8[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 4921,
+                      "name": "uint8",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "869:5:13",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint8",
+                        "typeString": "uint8"
+                      }
+                    },
+                    "id": 4922,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "869:7:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_uint8_$dyn_storage_ptr",
+                      "typeString": "uint8[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4926,
+                  "name": "_bassetQuantity",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4929,
+                  "src": "901:34:13",
+                  "stateVariable": false,
+                  "storageLocation": "calldata",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_uint256_$dyn_calldata_ptr",
+                    "typeString": "uint256[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 4924,
+                      "name": "uint256",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "901:7:13",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "id": 4925,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "901:9:13",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_uint256_$dyn_storage_ptr",
+                      "typeString": "uint256[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "762:174:13"
+            },
+            "returnParameters": {
+              "id": 4928,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "950:0:13"
+            },
+            "scope": 4930,
+            "src": "735:216:13",
+            "stateMutability": "pure",
+            "superFunction": null,
+            "visibility": "external"
+          }
+        ],
+        "scope": 4931,
+        "src": "239:714:13"
+      }
+    ],
+    "src": "0:954:13"
+  },
+  "compiler": {
+    "name": "solc",
+    "version": "0.5.16+commit.9c3226ce.Emscripten.clang"
+  },
+  "networks": {},
+  "schemaVersion": "3.0.23",
+  "updatedAt": "2020-02-12T09:10:20.844Z",
+  "devdoc": {
+    "details": "Abstract ForgeValidator contract for interacting with the Forge Library",
+    "methods": {},
+    "title": "IForgeValidator"
+  },
+  "userdoc": {
+    "methods": {}
+  }
+}

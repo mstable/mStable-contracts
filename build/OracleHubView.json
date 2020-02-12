@@ -1,0 +1,734 @@
+{
+  "contractName": "OracleHubView",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "contract OracleHubData",
+          "name": "data_",
+          "type": "address"
+        },
+        {
+          "internalType": "address[]",
+          "name": "sources_",
+          "type": "address[]"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "data",
+      "outputs": [
+        {
+          "internalType": "contract OracleHubData",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "sources",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "metadata": "{\"compiler\":{\"version\":\"0.5.16+commit.9c3226ce\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"contract OracleHubData\",\"name\":\"data_\",\"type\":\"address\"},{\"internalType\":\"address[]\",\"name\":\"sources_\",\"type\":\"address[]\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"constant\":true,\"inputs\":[],\"name\":\"data\",\"outputs\":[{\"internalType\":\"contract OracleHubData\",\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"sources\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"author\":\"Stability Labs. based on compound-finance/open-oracle/OpenOracleView.sol\",\"methods\":{\"constructor\":{\"details\":\"According to the protocol, Views must be immutable to be considered conforming.\",\"params\":{\"data_\":\"The address of the oracle data contract which is backing the view\",\"sources_\":\"The list of source addresses to include in the aggregate value\"}}},\"title\":\"The Open Hub View Base Contract\"},\"userdoc\":{\"methods\":{\"constructor\":\"Construct a view given the oracle backing address and the list of sources\"}}},\"settings\":{\"compilationTarget\":{\"/Users/james/mstable/mStable-contracts/contracts/oracle-hub/open-oracle/OracleHubView.sol\":\"OracleHubView\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"/Users/james/mstable/mStable-contracts/contracts/oracle-hub/open-oracle/OracleHubView.sol\":{\"keccak256\":\"0x8868f627264a77c18e6ba584ee23a7518c07315eb392bf0d97d139f6b9d35f60\",\"urls\":[\"bzz-raw://5af942fdbc03af4a8860acbcaabc66411118563dddb67fee877ab84310ba2ba7\",\"dweb:/ipfs/QmWQ7NEkqt1dh2GeeDPYKNdqkub9QYhPLHdhhJYBdQxj3c\"]},\"/Users/james/mstable/mStable-contracts/contracts/oracle-hub/open-oracle/data/OracleHubData.sol\":{\"keccak256\":\"0xa69ff2b79822f71442510cca9161bac400a0e4de6aa3835b19c6ca31837a082d\",\"urls\":[\"bzz-raw://0409bfd42688f36271a83e5e9bd4cadadbc08783c919e1a13f09f1477a42ee2c\",\"dweb:/ipfs/QmUFwvfmeEQisvgFnhEzJnm9ZeqkBnMKkBNd1fhaG3n1FD\"]}},\"version\":1}",
+  "bytecode": "0x608060405234801561001057600080fd5b5060405161040738038061040783398101604081905261002f9161018c565b600080546001600160a01b0319166001600160a01b038416179055805161005d906001906020840190610065565b505050610265565b8280548282559060005260206000209081019282156100ba579160200282015b828111156100ba57825182546001600160a01b0319166001600160a01b03909116178255602090920191600190910190610085565b506100c69291506100ca565b5090565b6100ee91905b808211156100c65780546001600160a01b03191681556001016100d0565b90565b80516100fc81610245565b92915050565b600082601f83011261011357600080fd5b815161012661012182610203565b6101dd565b9150818183526020840193506020810190508385602084028201111561014b57600080fd5b60005b83811015610177578161016188826100f1565b845250602092830192919091019060010161014e565b5050505092915050565b80516100fc8161025c565b6000806040838503121561019f57600080fd5b60006101ab8585610181565b92505060208301516001600160401b038111156101c757600080fd5b6101d385828601610102565b9150509250929050565b6040518181016001600160401b03811182821017156101fb57600080fd5b604052919050565b60006001600160401b0382111561021957600080fd5b5060209081020190565b60006100fc82610239565b60006100fc82610223565b6001600160a01b031690565b61024e81610223565b811461025957600080fd5b50565b61024e8161022e565b610193806102746000396000f3fe608060405234801561001057600080fd5b50600436106100365760003560e01c806373d4a13a1461003b578063a3663d3714610059575b600080fd5b610043610079565b604051610050919061010c565b60405180910390f35b61006c6100673660046100c0565b610088565b60405161005091906100fe565b6000546001600160a01b031681565b6001818154811061009557fe5b6000918252602090912001546001600160a01b0316905081565b80356100ba81610139565b92915050565b6000602082840312156100d257600080fd5b60006100de84846100af565b949350505050565b6100ef8161011a565b82525050565b6100ef8161012e565b602081016100ba82846100e6565b602081016100ba82846100f5565b60006001600160a01b0382166100ba565b90565b60006100ba8261011a565b6101428161012b565b811461014d57600080fd5b5056fea365627a7a723158202ec9a7f9a5816b136c21e19bfc77c734f22d25606a13403d869c84d14c6aa6366c6578706572696d656e74616cf564736f6c63430005100040",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b50600436106100365760003560e01c806373d4a13a1461003b578063a3663d3714610059575b600080fd5b610043610079565b604051610050919061010c565b60405180910390f35b61006c6100673660046100c0565b610088565b60405161005091906100fe565b6000546001600160a01b031681565b6001818154811061009557fe5b6000918252602090912001546001600160a01b0316905081565b80356100ba81610139565b92915050565b6000602082840312156100d257600080fd5b60006100de84846100af565b949350505050565b6100ef8161011a565b82525050565b6100ef8161012e565b602081016100ba82846100e6565b602081016100ba82846100f5565b60006001600160a01b0382166100ba565b90565b60006100ba8261011a565b6101428161012b565b811461014d57600080fd5b5056fea365627a7a723158202ec9a7f9a5816b136c21e19bfc77c734f22d25606a13403d869c84d14c6aa6366c6578706572696d656e74616cf564736f6c63430005100040",
+  "sourceMap": "358:893:32:-;;;1125:124;8:9:-1;5:2;;;30:1;27;20:12;5:2;1125:124:32;;;;;;;;;;;;;;;;;;;;;1202:4;:12;;-1:-1:-1;;;;;;1202:12:32;-1:-1:-1;;;;;1202:12:32;;;;;1224:18;;;;-1:-1:-1;;1224:18:32;;;;;:::i;:::-;;1125:124;;358:893;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;-1:-1:-1;;;;;;358:893:32;-1:-1:-1;;;;;358:893:32;;;;;;;;;;;-1:-1:-1;358:893:32;;;;;;;-1:-1:-1;358:893:32;;;-1:-1:-1;358:893:32;:::i;:::-;;;:::o;:::-;;;;;;;;;;;;;-1:-1:-1;;;;;;358:893:32;;;;;;;;;:::o;5:134:-1:-;83:13;;101:33;83:13;101:33;;;68:71;;;;;164:722;;292:3;285:4;277:6;273:17;269:27;259:2;;310:1;307;300:12;259:2;340:6;334:13;362:80;377:64;434:6;377:64;;;362:80;;;353:89;;459:5;484:6;477:5;470:21;514:4;506:6;502:17;492:27;;536:4;531:3;527:14;520:21;;589:6;636:3;628:4;620:6;616:17;611:3;607:27;604:36;601:2;;;653:1;650;643:12;601:2;678:1;663:217;688:6;685:1;682:13;663:217;;;746:3;768:48;812:3;800:10;768:48;;;756:61;;-1:-1;840:4;831:14;;;;859;;;;;710:1;703:9;663:217;;;667:14;252:634;;;;;;;;894:178;994:13;;1012:55;994:13;1012:55;;1079:572;;;1258:2;1246:9;1237:7;1233:23;1229:32;1226:2;;;1274:1;1271;1264:12;1226:2;1309:1;1326:86;1404:7;1384:9;1326:86;;;1316:96;;1288:130;1470:2;1459:9;1455:18;1449:25;-1:-1;;;;;1486:6;1483:30;1480:2;;;1526:1;1523;1516:12;1480:2;1546:89;1627:7;1618:6;1607:9;1603:22;1546:89;;;1536:99;;1428:213;1220:431;;;;;;1658:256;1720:2;1714:9;1746:17;;;-1:-1;;;;;1806:34;;1842:22;;;1803:62;1800:2;;;1878:1;1875;1868:12;1800:2;1894;1887:22;1698:216;;-1:-1;1698:216;1921:304;;-1:-1;;;;;2072:6;2069:30;2066:2;;;2112:1;2109;2102:12;2066:2;-1:-1;2147:4;2135:17;;;2200:15;;2003:222;2232:91;;2294:24;2312:5;2294:24;;2330:113;;2414:24;2432:5;2414:24;;2450:121;-1:-1;;;;;2512:54;;2495:76;2578:117;2647:24;2665:5;2647:24;;;2640:5;2637:35;2627:2;;2686:1;2683;2676:12;2627:2;2621:74;;2702:161;2793:46;2833:5;2793:46;;2767:96;358:893:32;;;;;;",
+  "deployedSourceMap": "358:893:32:-;;;;8:9:-1;5:2;;;30:1;27;20:12;5:2;358:893:32;;;;;;;;;;;;;;;;;;;;;;;;461:25;;;:::i;:::-;;;;;;;;;;;;;;;;725:24;;;;;;;;;:::i;:::-;;;;;;;;461:25;;;-1:-1:-1;;;;;461:25:32;;:::o;725:24::-;;;;;;;;;;;;;;;;;;;;;-1:-1:-1;;;;;725:24:32;;-1:-1:-1;725:24:32;:::o;5:130:-1:-;72:20;;97:33;72:20;97:33;;;57:78;;;;;142:241;;246:2;234:9;225:7;221:23;217:32;214:2;;;262:1;259;252:12;214:2;297:1;314:53;359:7;339:9;314:53;;;304:63;208:175;-1:-1;;;;208:175;390:113;473:24;491:5;473:24;;;468:3;461:37;455:48;;;510:170;615:59;668:5;615:59;;687:213;805:2;790:18;;819:71;794:9;863:6;819:71;;907:257;1047:2;1032:18;;1061:93;1036:9;1127:6;1061:93;;1171:91;;-1:-1;;;;;1331:54;;1233:24;1314:76;1397:72;1459:5;1442:27;1476:165;;1577:59;1630:5;1577:59;;1785:117;1854:24;1872:5;1854:24;;;1847:5;1844:35;1834:2;;1893:1;1890;1883:12;1834:2;1828:74;",
+  "source": "\n/*\n * Based on compound-finance/open-oracle\n *\n * https://github.com/compound-finance/open-oracle\n */\n\n\npragma solidity ^0.5.12;\npragma experimental ABIEncoderV2;\n\nimport { OracleHubData } from \"./data/OracleHubData.sol\";\n\n/**\n * @title The Open Hub View Base Contract\n * @author Stability Labs. based on compound-finance/open-oracle/OpenOracleView.sol\n */\ncontract OracleHubView {\n    /**\n     * @notice The Oracle Data Contract backing this View\n     */\n    OracleHubData public data;\n\n    /**\n     * @notice The static list of sources used by this View\n     * @dev Note that while it is possible to create a view with dynamic sources,\n     *  that would not conform to the Open Oracle Standard specification.\n     */\n    address[] public sources;\n\n    /**\n     * @notice Construct a view given the oracle backing address and the list of sources\n     * @dev According to the protocol, Views must be immutable to be considered conforming.\n     * @param data_ The address of the oracle data contract which is backing the view\n     * @param sources_ The list of source addresses to include in the aggregate value\n     */\n    constructor(OracleHubData data_, address[] memory sources_) public {\n        data = data_;\n        sources = sources_;\n    }\n}\n",
+  "sourcePath": "/Users/james/mstable/mStable-contracts/contracts/oracle-hub/open-oracle/OracleHubView.sol",
+  "ast": {
+    "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/oracle-hub/open-oracle/OracleHubView.sol",
+    "exportedSymbols": {
+      "OracleHubView": [
+        7988
+      ]
+    },
+    "id": 7989,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 7962,
+        "literals": [
+          "solidity",
+          "^",
+          "0.5",
+          ".12"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "105:24:32"
+      },
+      {
+        "id": 7963,
+        "literals": [
+          "experimental",
+          "ABIEncoderV2"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "130:33:32"
+      },
+      {
+        "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/oracle-hub/open-oracle/data/OracleHubData.sol",
+        "file": "./data/OracleHubData.sol",
+        "id": 7965,
+        "nodeType": "ImportDirective",
+        "scope": 7989,
+        "sourceUnit": 8037,
+        "src": "165:57:32",
+        "symbolAliases": [
+          {
+            "foreign": 7964,
+            "local": null
+          }
+        ],
+        "unitAlias": ""
+      },
+      {
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "contract",
+        "documentation": "@title The Open Hub View Base Contract\n@author Stability Labs. based on compound-finance/open-oracle/OpenOracleView.sol",
+        "fullyImplemented": true,
+        "id": 7988,
+        "linearizedBaseContracts": [
+          7988
+        ],
+        "name": "OracleHubView",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "constant": false,
+            "id": 7967,
+            "name": "data",
+            "nodeType": "VariableDeclaration",
+            "scope": 7988,
+            "src": "461:25:32",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_contract$_OracleHubData_$8036",
+              "typeString": "contract OracleHubData"
+            },
+            "typeName": {
+              "contractScope": null,
+              "id": 7966,
+              "name": "OracleHubData",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 8036,
+              "src": "461:13:32",
+              "typeDescriptions": {
+                "typeIdentifier": "t_contract$_OracleHubData_$8036",
+                "typeString": "contract OracleHubData"
+              }
+            },
+            "value": null,
+            "visibility": "public"
+          },
+          {
+            "constant": false,
+            "id": 7970,
+            "name": "sources",
+            "nodeType": "VariableDeclaration",
+            "scope": 7988,
+            "src": "725:24:32",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_array$_t_address_$dyn_storage",
+              "typeString": "address[]"
+            },
+            "typeName": {
+              "baseType": {
+                "id": 7968,
+                "name": "address",
+                "nodeType": "ElementaryTypeName",
+                "src": "725:7:32",
+                "stateMutability": "nonpayable",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_address",
+                  "typeString": "address"
+                }
+              },
+              "id": 7969,
+              "length": null,
+              "nodeType": "ArrayTypeName",
+              "src": "725:9:32",
+              "typeDescriptions": {
+                "typeIdentifier": "t_array$_t_address_$dyn_storage_ptr",
+                "typeString": "address[]"
+              }
+            },
+            "value": null,
+            "visibility": "public"
+          },
+          {
+            "body": {
+              "id": 7986,
+              "nodeType": "Block",
+              "src": "1192:57:32",
+              "statements": [
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "id": 7980,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "leftHandSide": {
+                      "argumentTypes": null,
+                      "id": 7978,
+                      "name": "data",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 7967,
+                      "src": "1202:4:32",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_contract$_OracleHubData_$8036",
+                        "typeString": "contract OracleHubData"
+                      }
+                    },
+                    "nodeType": "Assignment",
+                    "operator": "=",
+                    "rightHandSide": {
+                      "argumentTypes": null,
+                      "id": 7979,
+                      "name": "data_",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 7972,
+                      "src": "1209:5:32",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_contract$_OracleHubData_$8036",
+                        "typeString": "contract OracleHubData"
+                      }
+                    },
+                    "src": "1202:12:32",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_contract$_OracleHubData_$8036",
+                      "typeString": "contract OracleHubData"
+                    }
+                  },
+                  "id": 7981,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1202:12:32"
+                },
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "id": 7984,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "leftHandSide": {
+                      "argumentTypes": null,
+                      "id": 7982,
+                      "name": "sources",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 7970,
+                      "src": "1224:7:32",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_array$_t_address_$dyn_storage",
+                        "typeString": "address[] storage ref"
+                      }
+                    },
+                    "nodeType": "Assignment",
+                    "operator": "=",
+                    "rightHandSide": {
+                      "argumentTypes": null,
+                      "id": 7983,
+                      "name": "sources_",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 7975,
+                      "src": "1234:8:32",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_array$_t_address_$dyn_memory_ptr",
+                        "typeString": "address[] memory"
+                      }
+                    },
+                    "src": "1224:18:32",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_address_$dyn_storage",
+                      "typeString": "address[] storage ref"
+                    }
+                  },
+                  "id": 7985,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1224:18:32"
+                }
+              ]
+            },
+            "documentation": "@notice Construct a view given the oracle backing address and the list of sources\n@dev According to the protocol, Views must be immutable to be considered conforming.\n@param data_ The address of the oracle data contract which is backing the view\n@param sources_ The list of source addresses to include in the aggregate value",
+            "id": 7987,
+            "implemented": true,
+            "kind": "constructor",
+            "modifiers": [],
+            "name": "",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7976,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7972,
+                  "name": "data_",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7987,
+                  "src": "1137:19:32",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_contract$_OracleHubData_$8036",
+                    "typeString": "contract OracleHubData"
+                  },
+                  "typeName": {
+                    "contractScope": null,
+                    "id": 7971,
+                    "name": "OracleHubData",
+                    "nodeType": "UserDefinedTypeName",
+                    "referencedDeclaration": 8036,
+                    "src": "1137:13:32",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_contract$_OracleHubData_$8036",
+                      "typeString": "contract OracleHubData"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7975,
+                  "name": "sources_",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7987,
+                  "src": "1158:25:32",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_address_$dyn_memory_ptr",
+                    "typeString": "address[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7973,
+                      "name": "address",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "1158:7:32",
+                      "stateMutability": "nonpayable",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_address",
+                        "typeString": "address"
+                      }
+                    },
+                    "id": 7974,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "1158:9:32",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_address_$dyn_storage_ptr",
+                      "typeString": "address[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "1136:48:32"
+            },
+            "returnParameters": {
+              "id": 7977,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "1192:0:32"
+            },
+            "scope": 7988,
+            "src": "1125:124:32",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "public"
+          }
+        ],
+        "scope": 7989,
+        "src": "358:893:32"
+      }
+    ],
+    "src": "105:1147:32"
+  },
+  "legacyAST": {
+    "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/oracle-hub/open-oracle/OracleHubView.sol",
+    "exportedSymbols": {
+      "OracleHubView": [
+        7988
+      ]
+    },
+    "id": 7989,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 7962,
+        "literals": [
+          "solidity",
+          "^",
+          "0.5",
+          ".12"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "105:24:32"
+      },
+      {
+        "id": 7963,
+        "literals": [
+          "experimental",
+          "ABIEncoderV2"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "130:33:32"
+      },
+      {
+        "absolutePath": "/Users/james/mstable/mStable-contracts/contracts/oracle-hub/open-oracle/data/OracleHubData.sol",
+        "file": "./data/OracleHubData.sol",
+        "id": 7965,
+        "nodeType": "ImportDirective",
+        "scope": 7989,
+        "sourceUnit": 8037,
+        "src": "165:57:32",
+        "symbolAliases": [
+          {
+            "foreign": 7964,
+            "local": null
+          }
+        ],
+        "unitAlias": ""
+      },
+      {
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "contract",
+        "documentation": "@title The Open Hub View Base Contract\n@author Stability Labs. based on compound-finance/open-oracle/OpenOracleView.sol",
+        "fullyImplemented": true,
+        "id": 7988,
+        "linearizedBaseContracts": [
+          7988
+        ],
+        "name": "OracleHubView",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "constant": false,
+            "id": 7967,
+            "name": "data",
+            "nodeType": "VariableDeclaration",
+            "scope": 7988,
+            "src": "461:25:32",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_contract$_OracleHubData_$8036",
+              "typeString": "contract OracleHubData"
+            },
+            "typeName": {
+              "contractScope": null,
+              "id": 7966,
+              "name": "OracleHubData",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 8036,
+              "src": "461:13:32",
+              "typeDescriptions": {
+                "typeIdentifier": "t_contract$_OracleHubData_$8036",
+                "typeString": "contract OracleHubData"
+              }
+            },
+            "value": null,
+            "visibility": "public"
+          },
+          {
+            "constant": false,
+            "id": 7970,
+            "name": "sources",
+            "nodeType": "VariableDeclaration",
+            "scope": 7988,
+            "src": "725:24:32",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_array$_t_address_$dyn_storage",
+              "typeString": "address[]"
+            },
+            "typeName": {
+              "baseType": {
+                "id": 7968,
+                "name": "address",
+                "nodeType": "ElementaryTypeName",
+                "src": "725:7:32",
+                "stateMutability": "nonpayable",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_address",
+                  "typeString": "address"
+                }
+              },
+              "id": 7969,
+              "length": null,
+              "nodeType": "ArrayTypeName",
+              "src": "725:9:32",
+              "typeDescriptions": {
+                "typeIdentifier": "t_array$_t_address_$dyn_storage_ptr",
+                "typeString": "address[]"
+              }
+            },
+            "value": null,
+            "visibility": "public"
+          },
+          {
+            "body": {
+              "id": 7986,
+              "nodeType": "Block",
+              "src": "1192:57:32",
+              "statements": [
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "id": 7980,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "leftHandSide": {
+                      "argumentTypes": null,
+                      "id": 7978,
+                      "name": "data",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 7967,
+                      "src": "1202:4:32",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_contract$_OracleHubData_$8036",
+                        "typeString": "contract OracleHubData"
+                      }
+                    },
+                    "nodeType": "Assignment",
+                    "operator": "=",
+                    "rightHandSide": {
+                      "argumentTypes": null,
+                      "id": 7979,
+                      "name": "data_",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 7972,
+                      "src": "1209:5:32",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_contract$_OracleHubData_$8036",
+                        "typeString": "contract OracleHubData"
+                      }
+                    },
+                    "src": "1202:12:32",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_contract$_OracleHubData_$8036",
+                      "typeString": "contract OracleHubData"
+                    }
+                  },
+                  "id": 7981,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1202:12:32"
+                },
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "id": 7984,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "leftHandSide": {
+                      "argumentTypes": null,
+                      "id": 7982,
+                      "name": "sources",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 7970,
+                      "src": "1224:7:32",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_array$_t_address_$dyn_storage",
+                        "typeString": "address[] storage ref"
+                      }
+                    },
+                    "nodeType": "Assignment",
+                    "operator": "=",
+                    "rightHandSide": {
+                      "argumentTypes": null,
+                      "id": 7983,
+                      "name": "sources_",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 7975,
+                      "src": "1234:8:32",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_array$_t_address_$dyn_memory_ptr",
+                        "typeString": "address[] memory"
+                      }
+                    },
+                    "src": "1224:18:32",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_address_$dyn_storage",
+                      "typeString": "address[] storage ref"
+                    }
+                  },
+                  "id": 7985,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1224:18:32"
+                }
+              ]
+            },
+            "documentation": "@notice Construct a view given the oracle backing address and the list of sources\n@dev According to the protocol, Views must be immutable to be considered conforming.\n@param data_ The address of the oracle data contract which is backing the view\n@param sources_ The list of source addresses to include in the aggregate value",
+            "id": 7987,
+            "implemented": true,
+            "kind": "constructor",
+            "modifiers": [],
+            "name": "",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7976,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7972,
+                  "name": "data_",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7987,
+                  "src": "1137:19:32",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_contract$_OracleHubData_$8036",
+                    "typeString": "contract OracleHubData"
+                  },
+                  "typeName": {
+                    "contractScope": null,
+                    "id": 7971,
+                    "name": "OracleHubData",
+                    "nodeType": "UserDefinedTypeName",
+                    "referencedDeclaration": 8036,
+                    "src": "1137:13:32",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_contract$_OracleHubData_$8036",
+                      "typeString": "contract OracleHubData"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 7975,
+                  "name": "sources_",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7987,
+                  "src": "1158:25:32",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_address_$dyn_memory_ptr",
+                    "typeString": "address[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7973,
+                      "name": "address",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "1158:7:32",
+                      "stateMutability": "nonpayable",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_address",
+                        "typeString": "address"
+                      }
+                    },
+                    "id": 7974,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "1158:9:32",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_address_$dyn_storage_ptr",
+                      "typeString": "address[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "1136:48:32"
+            },
+            "returnParameters": {
+              "id": 7977,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "1192:0:32"
+            },
+            "scope": 7988,
+            "src": "1125:124:32",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "public"
+          }
+        ],
+        "scope": 7989,
+        "src": "358:893:32"
+      }
+    ],
+    "src": "105:1147:32"
+  },
+  "compiler": {
+    "name": "solc",
+    "version": "0.5.16+commit.9c3226ce.Emscripten.clang"
+  },
+  "networks": {},
+  "schemaVersion": "3.0.23",
+  "updatedAt": "2020-02-05T09:31:38.531Z",
+  "devdoc": {
+    "author": "Stability Labs. based on compound-finance/open-oracle/OpenOracleView.sol",
+    "methods": {
+      "constructor": {
+        "details": "According to the protocol, Views must be immutable to be considered conforming.",
+        "params": {
+          "data_": "The address of the oracle data contract which is backing the view",
+          "sources_": "The list of source addresses to include in the aggregate value"
+        }
+      }
+    },
+    "title": "The Open Hub View Base Contract"
+  },
+  "userdoc": {
+    "methods": {
+      "constructor": "Construct a view given the oracle backing address and the list of sources"
+    }
+  }
+}
