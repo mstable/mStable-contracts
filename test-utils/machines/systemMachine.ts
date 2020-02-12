@@ -1,15 +1,15 @@
 import {
     ERC20MockInstance,
-    ManagerInstance,
     ForgeValidatorInstance,
+    ManagerInstance,
     MultiSigWalletInstance,
-    NexusMockInstance,
+    NexusInstance,
     SimpleOracleHubMockInstance,
     SystokInstance,
 } from "./../../types/generated/index.d";
 import { MASSET_FACTORY_BYTES } from "@utils/constants";
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
-import { aToH, BigNumber } from "@utils/tools";
+import { aToH, BN } from "@utils/tools";
 
 import { Address } from "../../types/common";
 import { BassetMachine } from "./bassetMachine";
@@ -27,7 +27,7 @@ const ManagerArtifact = artifacts.require("Manager");
 const MassetArtifact = artifacts.require("Masset");
 const ForgeValidatorArtifact = artifacts.require("ForgeValidator");
 
-const NexusMockArtifact = artifacts.require("NexusMock");
+const NexusArtifact = artifacts.require("Nexus");
 
 const OracleHubMockArtifact = artifacts.require("SimpleOracleHubMock");
 
@@ -47,7 +47,7 @@ export class SystemMachine {
     public multiSig: MultiSigWalletInstance;
 
     public manager: ManagerInstance;
-    public nexus: NexusMockInstance;
+    public nexus: NexusInstance;
     public oracleHub: SimpleOracleHubMockInstance;
     public systok: SystokInstance;
 
@@ -76,7 +76,7 @@ export class SystemMachine {
             await StableMathArtifact.new();
             this.forgeValidator = await ForgeValidatorArtifact.new();
 
-            /** NexusMock */
+            /** Nexus */
             this.nexus = await this.deployNexus();
 
             /** Governance */
@@ -109,11 +109,11 @@ export class SystemMachine {
     }
 
     /**
-     * @dev Deploy the NexusMock
+     * @dev Deploy the Nexus
      */
-    public async deployNexus(deployer: Address = this.sa.default): Promise<NexusMockInstance> {
+    public async deployNexus(deployer: Address = this.sa.default): Promise<NexusInstance> {
         try {
-            const nexus = await NexusMockArtifact.new(this.sa.governor, { from: deployer });
+            const nexus = await NexusArtifact.new(this.sa.governor, { from: deployer });
 
             return nexus;
         } catch (e) {
@@ -182,7 +182,10 @@ export class SystemMachine {
      */
     public async deployManager(): Promise<ManagerInstance> {
         try {
-            const instance = await ManagerArtifact.new(this.nexus.address, this.forgeValidator.address);
+            const instance = await ManagerArtifact.new(
+                this.nexus.address,
+                this.forgeValidator.address,
+            );
 
             return instance;
         } catch (e) {
@@ -218,7 +221,7 @@ export class SystemMachine {
             .addMasset(aToH("TMT"), masset.address)
             .encodeABI();
 
-        return this.multiSig.submitTransaction(this.nexus.address, new BigNumber(0), txData, {
+        return this.multiSig.submitTransaction(this.nexus.address, new BN(0), txData, {
             from: sender,
         });
     }
@@ -240,7 +243,7 @@ export class SystemMachine {
     private async publishModuleThroughMultisig(key, address, sender) {
         const txData = this.nexus.contract.methods.addModule(key, address).encodeABI();
 
-        return this.multiSig.submitTransaction(this.nexus.address, new BigNumber(0), txData, {
+        return this.multiSig.submitTransaction(this.nexus.address, new BN(0), txData, {
             from: sender,
         });
     }

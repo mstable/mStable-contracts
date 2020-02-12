@@ -14,10 +14,10 @@ import { Ownable } from "openzeppelin-solidity/contracts/ownership/Ownable.sol";
  *        - Tranche is funded in MTA by the 'Governor'
  *        - Participants use the mint functions to mint mUSD
  *        - Mint quantity is logged to the specified rewardee in the current tranche
- *        - Tranche period ends, and participants have X weeks in which to claim their reward
+ *        - Tranche period ends, and participants have 8 weeks in which to claim their reward
  *           - Reward allocation is calculated proportionately as f(mintVolume, totalMintVolume, trancheFunding)
  *           - Unclaimed rewards can be retrieved by 'Governor' for future tranches
- *        - Reward allocation is unlocked for redemption after Y weeks
+ *        - Reward allocation is unlocked for redemption after 52 weeks
  */
 contract ForgeRewardsMUSD is IMassetForgeRewards, Ownable {
 
@@ -109,7 +109,6 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, Ownable {
     function approveFor(address _bAsset) public onlyOwner {
         require(IERC20(_bAsset).approve(address(mUSD), uint256(-1)), "Approval of bAsset failed");
     }
-
 
     /***************************************
                     FORGING

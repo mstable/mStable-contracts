@@ -19,6 +19,8 @@ interface MassetStructs {
          */
         address[] expiredBassets;
 
+        // TODO -> bool hasFeeEnabled
+
         /**
          * @dev In the event that we do not raise enough funds from the auctioning of a failed Basset,
          * The Basket is deemed as failed, and is undercollateralised to a certain degree.
@@ -34,6 +36,7 @@ interface MassetStructs {
         /** @dev Address of the Basset */
         address addr;
 
+        // TODO -> Consider removing
         /** @dev Bytes32 key used for Oracle price lookups */
         bytes32 key;
 
@@ -53,9 +56,11 @@ interface MassetStructs {
 
     /** @dev Status of the Basset - has it broken its peg? */
     enum BassetStatus {
+        // Default,
         Normal,
         BrokenBelowPeg,
         BrokenAbovePeg,
+        // Blacklisted,
         Liquidating,
         Liquidated,
         Failed

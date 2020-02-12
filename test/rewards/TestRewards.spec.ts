@@ -1,16 +1,15 @@
 
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
 import { createBasket, createBasset, Basket } from "@utils/mstable-objects";
-import { BN, constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
+import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
 import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
-import { aToH, BigNumber } from "@utils/tools";
+import { aToH, BN } from "@utils/tools";
 
 
 import envSetup from "@utils/env_setup";
 import * as chai from "chai";
-import { ERC20MockInstance, MassetInstance, ForgeRewardsMUSDContract, ForgeRewardsMUSDInstance } from "types/generated";
+import { ERC20MockInstance, MassetInstance, ForgeRewardsMUSDInstance } from "types/generated";
 
-//import { BN } from "bn.js";
 const Masset = artifacts.require("Masset");
 const ForgeRewardsMUSD = artifacts.require("ForgeRewardsMUSD");
 
@@ -87,7 +86,6 @@ contract("Rewards", async (accounts) => {
 
         it("Should approved all bAsset tokens to max", async () => {
             let MAX: BN = ((new BN(2)).pow(new BN(256))).sub(new BN(1)); // 2^256-1
-            //expect((await b1.allowance(rewardsContract.address, masset.address))).BN.eq(MAX);
             assert((await b1.allowance(rewardsContract.address, masset.address)).eq(MAX));
             assert((await b2.allowance(rewardsContract.address, masset.address)).eq(MAX));
             assert((await b3.allowance(rewardsContract.address, masset.address)).eq(MAX));
@@ -100,35 +98,20 @@ contract("Rewards", async (accounts) => {
     });
 
     describe("getTrancheData()", () => {
-        it("Should have initial Tranche data", async () => {
-            //let data = await rewardsContract.getTrancheData(0);
-            //console.log(data);
-        });
+        it("Should have initial Tranche data");
     });
 
-    // describe("approveAllBassets()", () => {
-    //     it("Should fail when called by non Governer", async () => {
+    describe("approveAllBassets()", () => {
+        it("Should fail when called by non Governer");
+        it("Should allowed when called by Governer");
+        it("Should approve to MAX when allowances are utilized")
+    });
 
-    //     });
-    //     it("Should allowed when called by Governer", async () => {
-
-    //     });
-    //     it("Should approve to MAX when allowances are utilized", async () => {
-
-    //     })
-    // });
-
-    // describe("approveFor()", () => {
-    //     it("Should fail when called by non Governer", async () => {
-
-    //     });
-    //     it("Should allowed when called by Governer", async () => {
-
-    //     });
-    //     it("Should approve to MAX when allowances are utilized", async () => {
-
-    //     });
-    // });
+    describe("approveFor()", () => {
+        it("Should fail when called by non Governer");
+        it("Should allowed when called by Governer");
+        it("Should approve to MAX when allowances are utilized");
+    });
 
     describe("mintTo()", () => {
         it("Should mint single bAsset", async () => {
@@ -168,11 +151,9 @@ contract("Rewards", async (accounts) => {
                 { from: sa.default }
             );
 
-            //Expect event
-            //console.log(txReceipt.logs);
-            //expectEvent.inLogs(txReceipt.logs, "MintVolumeIncreased", { trancheNumber: new BN(0), mintVolume: new BN(40) });
-            //expectEvent.inLogs(txReceipt.logs, "RewardeeMintVolumeIncreased", { trancheNumber: new BN(0), rewardee: sa.default, mintVolume: new BN(40) });
-
+            // Expect event
+            expectEvent.inLogs(txReceipt.logs, "MintVolumeIncreased", { trancheNumber: new BN(0), mintVolume: new BN(40) });
+            expectEvent.inLogs(txReceipt.logs, "RewardeeMintVolumeIncreased", { trancheNumber: new BN(0), rewardee: sa.default, mintVolume: new BN(40) });
 
             assert((await masset.balanceOf(sa.default)).eq(new BN(40)));
             assert((await masset.totalSupply()).eq(new BN(40)));
@@ -182,7 +163,7 @@ contract("Rewards", async (accounts) => {
             assert((await b3.balanceOf(masset.address)).eq(new BN(10)));
             assert((await b4.balanceOf(masset.address)).eq(new BN(10)));
 
-            //Rewards updated
+            // Rewards updated
             let data: any = await rewardsContract.getTrancheData(0);
             //let totalMintVol,  = data[0];
             //let [totalMintVolume, totalRewardUnits] = data
@@ -193,53 +174,40 @@ contract("Rewards", async (accounts) => {
             assert(data.totalRewardUnits.eq(new BN(0)));
             assert(data.unclaimedRewardUnits.eq(new BN(0)));
 
-            //Reward for the user
+            // Reward for the user
             data = await rewardsContract.getRewardeesData(0, [sa.default]);
             assert(data.mintVolume[0].eq(new BN(40)));
-            assert(data.claimed[0] == false);
+            assert(data.claimed[0] === false);
             assert(data.rewardAllocation[0].eq(new BN(0)));
-            assert(data.redeemed[0] == false);
-
-
-            //console.log(genTrancheDate(rewardStartTime, 0));
-            //genTrancheDate(rewardsContract.rewardStartTime(), 0)
+            assert(data.redeemed[0] === false);
 
         });
     });
 
-    // describe("claimReward()", () => {
+    describe("claimReward()", () => {
 
-    //     it("User should claim reward", async () => {
-    //     });
-    // });
+        it("User should claim reward");
+    });
 
-    // describe("claimReward() with rewardee", () => {
+    describe("claimReward() with rewardee", () => {
 
-    //     it("User should claim reward", async () => {
-    //     });
-    // });
+        it("User should claim reward");
+    });
 
-    // describe("redeemReward()", () => {
-    //     it("Should redeem reward", () => {
+    describe("redeemReward()", () => {
+        it("Should redeem reward");
+    });
 
-    //     })
-    // });
-
-    // describe("fundTranche()", () => {
-    //     context("when the Rewards contract deployed", () => {
-    //         context("Should fail", async () => {
-    //             it("when fundTranche() is called by non governer", async () => {
-    //                 //rewardsContract.
-    //                 //rewardsContract.fundTranche();
-    //             });
-    //         });
-    //     });
-    //     context("getTrancheData()", () => {
-    //         it("Should have Tranche data after funding", async () => {
-
-    //         });
-    //     });
-    // });
+    describe("fundTranche()", () => {
+        context("when the Rewards contract deployed", () => {
+            context("Should fail", async () => {
+                it("when fundTranche() is called by non governer");
+            });
+        });
+        context("getTrancheData()", () => {
+            it("Should have Tranche data after funding");
+        });
+    });
 });
 
 function validateTrancheDates(trancheData, rewardStartTime, trancheNumber) {
@@ -266,6 +234,7 @@ function genTrancheDate(rewardStartTime, trancheNumber) {
     return trancheData;
 }
 
+//TODO: Still not working
 async function createMassetWithBassets(
     sysMachine: SystemMachine,
     numOfBassets) {

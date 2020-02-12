@@ -14,10 +14,11 @@ import { MassetToken } from "./mERC20/MassetToken.sol";
 contract Masset is IMasset, MassetToken, MassetBasket {
 
     /** @dev Forging events */
-    event Minted(address indexed account, uint256 massetQuantity, uint256[] bassetQuantities);
-    event Minted(address indexed account, uint256 massetQuantity, uint256 bassetQuantity);
+    event Minted(address indexed account, uint256 massetQuantity, uint256[] bAssetQuantities);
+    event Minted(address indexed account, uint256 massetQuantity, uint256 bAssetQuantity);
     event PaidFee(address payer, uint256 feeQuantity, uint256 feeRate);
-    event Redeemed(address indexed recipient, address indexed redeemer, uint256 massetQuantity, uint256[] bassetQuantities);
+    event Redeemed(address indexed recipient, address redeemer, uint256 massetQuantity, uint256[] bAssetQuantities);
+    event RedeemedSingle(address indexed recipient, address redeemer, uint256 massetQuantity, uint256 index, uint256 bAssetQuantity);
 
 
     /** @dev constructor */
@@ -50,22 +51,9 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         forgeValidator = IForgeValidator(_forgeValidator);
     }
 
-    /**
-     * @dev Mint with bAsset addresses in bitmap
-     * @param _bassetsBitmap bAssets index in bitmap
-     * @param _bassetQuantity bAsset's quantity to send
-     * @return massetMinted returns the number of newly minted mAssets
-     */
-    function mintBitmapTo(
-        uint32 _bassetsBitmap,
-        uint256[] calldata _bassetQuantity,
-        address _recipient
-    )
-        external
-        returns(uint256 massetMinted)
-    {
-        return _mintTo(_bassetsBitmap, _bassetQuantity, _recipient);
-    }
+    /***************************************
+                MINTING (PUBLIC)
+    ****************************************/
 
     /**
      * @dev Mint a single bAsset
@@ -102,6 +90,27 @@ contract Masset is IMasset, MassetToken, MassetBasket {
     }
 
     /**
+     * @dev Mint with bAsset addresses in bitmap
+     * @param _bassetsBitmap bAssets index in bitmap
+     * @param _bassetQuantity bAsset's quantity to send
+     * @return massetMinted returns the number of newly minted mAssets
+     */
+    function mintBitmapTo(
+        uint32 _bassetsBitmap,
+        uint256[] calldata _bassetQuantity,
+        address _recipient
+    )
+        external
+        returns(uint256 massetMinted)
+    {
+        return _mintTo(_bassetsBitmap, _bassetQuantity, _recipient);
+    }
+
+    /***************************************
+              MINTING (INTERNAL)
+    ****************************************/
+
+    /**
      * @dev Mints a number of Massets based on a Basset user sends
      * @param _basset Address of Basset user sends
      * @param _bassetQuantity Exact units of Basset user wants to send to contract
@@ -116,8 +125,8 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         basketIsHealthy
         returns (uint256 massetMinted)
     {
-        require(_bassetQuantity > 0, "Quantity must not be 0");
         require(_recipient != address(0), "Recipient must not be 0x0");
+        require(_bassetQuantity > 0, "Quantity must not be 0");
 
         (bool exists, uint256 i) = _isAssetInBasket(_basset);
         require(exists, "bAsset doesn't exist");
@@ -155,6 +164,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         basketIsHealthy
         returns (uint256 massetMinted)
     {
+        require(_recipient != address(0), "Recipient must not be 0x0");
         uint256 len = _bassetQuantity.length;
 
         // Load only needed bAssets in array
@@ -168,7 +178,6 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
         // Transfer the Bassets to this contract, update storage and calc MassetQ
         for(uint256 j = 0; j < len; j++){
-
             if(_bassetQuantity[j] > 0){
                 // bAsset == bAssets[j] == basket.bassets[indexes[j]]
                 Basset memory bAsset = bAssets[j];
@@ -190,57 +199,69 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         return massetQuantity;
     }
 
+    /***************************************
+              REDEMPTION (PUBLIC)
+    ****************************************/
 
     /**
       * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
       * @param _bassetQuantity Exact quantities of Bassets to redeem
       */
-    function redeem(
-        uint256[] memory _bassetQuantity
+    function redeemSingle(
+        address _basset,
+        uint256 _bassetQuantity
     )
-        public
+        external
         returns (uint256 massetRedeemed)
     {
-        return redeemTo(_bassetQuantity, msg.sender);
+        return _redeem(_basset, _bassetQuantity, msg.sender);
     }
 
 
-    function redeemSingle(
+    function redeemSingleTo(
         address _basset,
         uint256 _bassetQuantity,
         address _recipient
     )
         external
-        returns (uint256 massetMinted)
+        returns (uint256 massetRedeemed)
     {
-        return redeemTo(getSingleForgeParams(_basset, _bassetQuantity), _recipient);
+        return _redeem(_basset, _bassetQuantity, _recipient);
     }
 
 
     /**
       * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
-      * @param _bassetQuantity Exact quantities of Bassets to redeem
+      * @param _bassetQuantities Exact quantities of Bassets to redeem
       * @param _recipient Account to which the redeemed Bassets should be sent
       */
-    function redeemTo(
-        uint256[] memory _bassetQuantity,
+    function redeemBitmapTo(
+        uint32 _bassetsBitmap,
+        uint256[] calldata _bassetQuantities,
         address _recipient
     )
-        public
+        external
         returns (uint256 massetRedeemed)
     {
-        // Validate the proposed redemption
-        forgeValidator.validateRedemption(basket.failed, basket.bassets, _bassetQuantity);
+        require(_recipient != address(0), "Recipient must not be 0x0");
+        uint256 redemptionAssetCount = _bassetQuantities.length;
+
+        // Load only needed bAssets in array
+        (Basset[] memory bAssets, uint8[] memory indexes)
+            = convertBitmapToBassets(_bassetsBitmap, uint8(redemptionAssetCount));
+
+        forgeValidator.validateRedemption(basket.bassets, basket.failed, totalSupply(), indexes, _bassetQuantities);
 
         uint256 massetQuantity = 0;
 
         // Calc MassetQ and update the Vault
-        for(uint i = 0; i < _bassetQuantity.length; i++){
-            if(_bassetQuantity[i] > 0){
-                uint ratioedBasset = _bassetQuantity[i].mulRatioTruncateCeil(basket.bassets[i].ratio);
+        for(uint i = 0; i < redemptionAssetCount; i++){
+            if(_bassetQuantities[i] > 0){
+                uint ratioedBasset = _bassetQuantities[i].mulRatioTruncateCeil(bAssets[i].ratio);
                 massetQuantity = massetQuantity.add(ratioedBasset);
 
-                basket.bassets[i].vaultBalance = basket.bassets[i].vaultBalance.sub(_bassetQuantity[i]);
+                // bAsset == bAssets[i] == basket.bassets[indexes[i]]
+                basket.bassets[indexes[i]].vaultBalance = bAssets[i].vaultBalance.sub(_bassetQuantities[i]);
             }
         }
 
@@ -254,18 +275,62 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         _burn(msg.sender, massetQuantity);
 
         // Transfer the Bassets to the user
-        for(uint i = 0; i < _bassetQuantity.length; i++){
-            if(_bassetQuantity[i] > 0){
-                address basset = basket.bassets[i].addr;
-
-                require(IERC20(basset).transfer(_recipient, _bassetQuantity[i]), "Must be successful transfer");
+        for(uint i = 0; i < redemptionAssetCount; i++){
+            if(_bassetQuantities[i] > 0){
+                require(IERC20(bAssets[i].addr).transfer(_recipient, _bassetQuantities[i]), "Must be successful transfer");
             }
         }
 
-        emit Redeemed(_recipient, msg.sender, massetQuantity, _bassetQuantity);
+        emit Redeemed(_recipient, msg.sender, massetQuantity, _bassetQuantities);
         return massetQuantity;
     }
 
+    /***************************************
+              REDEMPTION (INTERNAL)
+    ****************************************/
+
+    /**
+      * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
+      * @param _bassetQuantity Exact quantities of Bassets to redeem
+      * @param _recipient Account to which the redeemed Bassets should be sent
+      */
+    function _redeem(
+        address _basset,
+        uint256 _bassetQuantity,
+        address _recipient
+    )
+        internal
+        returns (uint256 massetRedeemed)
+    {
+        require(_recipient != address(0), "Recipient must not be 0x0");
+        require(_bassetQuantity > 0, "Quantity must not be 0");
+
+        (bool exists, uint256 i) = _isAssetInBasket(_basset);
+        require(exists, "bAsset doesn't exist");
+
+        Basset memory b = basket.bassets[i];
+
+        forgeValidator.validateRedemption(basket.bassets, basket.failed, totalSupply(), i, _bassetQuantity);
+
+        uint256 massetQuantity = _bassetQuantity.mulRatioTruncateCeil(b.ratio);
+
+        basket.bassets[i].vaultBalance = b.vaultBalance.sub(_bassetQuantity);
+
+        // Pay the redemption fee
+        _payRedemptionFee(massetQuantity, msg.sender);
+
+        // Ensure payout is relevant to collateralisation ratio (if ratio is 90%, we burn more)
+        massetQuantity = massetQuantity.divPrecisely(basket.collateralisationRatio);
+
+        // Burn the Masset
+        _burn(msg.sender, massetQuantity);
+
+        // Transfer the Bassets to the user
+        require(IERC20(b.addr).transfer(_recipient, _bassetQuantity), "Must be successful transfer");
+
+        emit RedeemedSingle(_recipient, msg.sender, massetQuantity, i, _bassetQuantity);
+        return massetQuantity;
+    }
     /**
      * @dev Pay the forging fee by burning Systok
      * @param _quantity Exact amount of Masset being forged
@@ -299,20 +364,100 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         }
     }
 
-    // TODO - remove after bitmap
-    function getSingleForgeParams(
-        address _basset,
-        uint256 _bassetQuantity
+    /***************************************
+                    HELPERS
+    ****************************************/
+
+    /**
+     * @dev Get bitmap for all bAsset addresses
+     * @return bitmap with bits set according to bAsset address position
+     */
+    function getBitmapForAllBassets() external view returns (uint32 bitmap) {
+        //TODO bassets array should not have more than 32 items
+        for(uint32 i = 0; i < basket.bassets.length; i++) {
+            bitmap |= uint32(2)**i;
+        }
+    }
+
+    /**
+     * @dev Returns the bitmap for given bAssets addresses
+     * @param _bassets bAsset addresses for which bitmap is needed
+     * @return bitmap with bits set according to bAsset address position
+     */
+    function getBitmapFor(address[] calldata _bassets) external view returns (uint32 bitmap) {
+        for(uint32 i = 0; i < _bassets.length; i++) {
+            (bool exist, uint256 idx) = _isAssetInBasket(_bassets[i]);
+            if(exist) bitmap |= uint32(2)**uint8(idx);
+        }
+    }
+
+    /**
+     * @dev Convert bitmap representing bAssets location to bAssets addresses
+     * @param _bitmap bits set in bitmap represents which bAssets to use
+     * @param _size size of bAssets array
+     * @return array of bAssets array
+     */
+    function convertBitmapToBassetsAddress(uint32 _bitmap, uint8 _size) public view returns (address[] memory) {
+        uint8[] memory indexes = _convertBitmapToIndexArr(_bitmap, _size);
+        address[] memory bAssets = new address[](_size);
+        for(uint8 i = 0; i < indexes.length; i++) {
+            bAssets[i] = basket.bassets[indexes[i]].addr;
+        }
+        return bAssets;
+    }
+
+    /**
+     * @dev Convert bitmap representing bAssets location to Bassets array
+     * @param _bitmap bits set in bitmap represents which bAssets to use
+     * @param _size size of bAssets array
+     * @return array of Basset array
+     */
+    function convertBitmapToBassets(
+        uint32 _bitmap,
+        uint8 _size
     )
         public
         view
-        returns (uint256[] memory quantities)
+        returns (Basset[] memory, uint8[] memory)
     {
-        (bool exists, uint i) = _isAssetInBasket(_basset);
-        require(exists, "Asset must be in the Basket");
-        quantities = new uint256[](basket.bassets.length);
-        quantities[i] = _bassetQuantity;
+        uint8[] memory indexes = _convertBitmapToIndexArr(_bitmap, _size);
+        Basset[] memory bAssets = new Basset[](_size);
+        for(uint8 i = 0; i < indexes.length; i++) {
+            bAssets[i] = basket.bassets[indexes[i]];
+        }
+        return (bAssets, indexes);
     }
+
+
+    /**
+     * @dev Convert the given bitmap into an array representing bAssets index location in the array
+     * @param _bitmap bits set in bitmap represents which bAssets to use
+     * @param _size size of the bassetsQuantity array
+     * @return array having indexes of each bAssets
+     */
+    function _convertBitmapToIndexArr(uint32 _bitmap, uint8 _size) internal view returns (uint8[] memory) {
+        uint8[] memory indexes = new uint8[](_size);
+        uint8 idx = 0;
+        // Assume there are 4 bAssets in array
+        // size = 2
+        // bitmap  = 00000000 00000000 00000000 00001010
+        // mask    = 00000000 00000000 00000000 00001000 //mask for 4th pos
+        //isBitSet = 00000000 00000000 00000000 00001000 //checking 4th pos
+        // indexes = [1, 3]
+        uint256 len = basket.bassets.length;
+        for(uint8 i = 0; i < len; i++) {
+            uint32 mask = uint32(2)**i;
+            uint32 isBitSet = _bitmap & mask;
+            if(isBitSet >= 1) indexes[idx++] = i;
+        }
+        require(idx == _size, "Found incorrect elements");
+        return indexes;
+    }
+
+
+    /***************************************
+                  MANAGEMENT
+    ****************************************/
 
     /**
       * @dev Completes the auctioning process for a given Basset
@@ -347,89 +492,4 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         }
     }
 
-    /**
-     * @dev Get bitmap for all bAsset addresses
-     * @return bitmap with bits set according to bAsset address position
-     */
-    function getBitmapForAllBassets() public view returns (uint32 bitmap) {
-        //TODO bassets array should not have more than 32 items
-        for(uint32 i = 0; i < basket.bassets.length; i++) {
-            bitmap |= uint32(2)**i;
-        }
-    }
-
-    /**
-     * @dev Returns the bitmap for given bAssets addresses
-     * @param _bassets bAsset addresses for which bitmap is needed
-     * @return bitmap with bits set according to bAsset address position
-     */
-    function getBitmapFor(address[] calldata _bassets) external view returns (uint32 bitmap) {
-        for(uint32 i = 0; i < _bassets.length; i++) {
-            (bool exist, uint256 idx) = _isAssetInBasket(_bassets[i]);
-            if(exist) bitmap |= uint32(2)**uint8(idx);
-        }
-    }
-
-    /**
-     * @dev Convert bitmap representing bAssets location to bAssets addresses
-     * @param _bitmap bits set in bitmap represents which bAssets to use
-     * @param _size size of bAssets array
-     * @return array of bAssets array
-     */
-    function convertBitmapToBassetsAddress(uint32 _bitmap, uint8 _size) public view returns (address[] memory) {
-        uint8[] memory indexes = convertBitmapToIndexArr(_bitmap, _size);
-        address[] memory bAssets = new address[](_size);
-        for(uint8 i = 0; i < indexes.length; i++) {
-            bAssets[i] = basket.bassets[indexes[i]].addr;
-        }
-        return bAssets;
-    }
-
-    /**
-     * @dev Convert bitmap representing bAssets location to Bassets array
-     * @param _bitmap bits set in bitmap represents which bAssets to use
-     * @param _size size of bAssets array
-     * @return array of Basset array
-     */
-    function convertBitmapToBassets(
-        uint32 _bitmap,
-        uint8 _size
-    )
-        public
-        view
-        returns (Basset[] memory, uint8[] memory)
-    {
-        uint8[] memory indexes = convertBitmapToIndexArr(_bitmap, _size);
-        Basset[] memory bAssets = new Basset[](_size);
-        for(uint8 i = 0; i < indexes.length; i++) {
-            bAssets[i] = basket.bassets[indexes[i]];
-        }
-        return (bAssets, indexes);
-    }
-
-
-    /**
-     * @dev Convert the given bitmap into an array representing bAssets index location in the array
-     * @param _bitmap bits set in bitmap represents which bAssets to use
-     * @param _size size of the bassetsQuantity array
-     * @return array having indexes of each bAssets
-     */
-    function convertBitmapToIndexArr(uint32 _bitmap, uint8 _size) internal view returns (uint8[] memory) {
-        uint8[] memory indexes = new uint8[](_size);
-        uint8 idx = 0;
-        // Assume there are 4 bAssets in array
-        // size = 2
-        // bitmap  = 00000000 00000000 00000000 00001010
-        // mask    = 00000000 00000000 00000000 00001000 //mask for 4th pos
-        //isBitSet = 00000000 00000000 00000000 00001000 //checking 4th pos
-        // indexes = [1, 3]
-        uint256 len = basket.bassets.length;
-        for(uint8 i = 0; i < len; i++) {
-            uint32 mask = uint32(2)**i;
-            uint32 isBitSet = _bitmap & mask;
-            if(isBitSet >= 1) indexes[idx++] = i;
-        }
-        require(idx == _size, "Found incorrect elements");
-        return indexes;
-    }
 }

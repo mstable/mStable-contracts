@@ -2,7 +2,7 @@ import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/mat
 import { createBasket, createBasset, Basket } from "@utils/mstable-objects";
 import { shouldFail } from "openzeppelin-test-helpers";
 import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
-import { aToH, BigNumber } from "@utils/tools";
+import { aToH, BN } from "@utils/tools";
 
 import envSetup from "@utils/env_setup";
 import * as chai from "chai";
@@ -14,7 +14,6 @@ envSetup.configure();
 const { expect, assert } = chai;
 
 contract("MassetMinting", async (accounts) => {
-    const BN = web3.utils.BN;
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
     let masset: MassetInstance;
