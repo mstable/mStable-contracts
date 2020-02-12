@@ -8,7 +8,7 @@ import envSetup from "@utils/env_setup";
 import * as chai from "chai";
 import { ERC20MockInstance, MassetInstance } from "types/generated";
 
-const MassetArtifact = artifacts.require("Masset");
+const Masset = artifacts.require("Masset");
 
 envSetup.configure();
 const { expect, assert } = chai;
@@ -17,6 +17,7 @@ contract("Rewards", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
     let masset: MassetInstance;
+    // tslint:disable-next-line:one-variable-per-declaration
     let b1, b2, b3, b4, b5, b6, b7;
 
     before("Init contract", async () => {
@@ -34,7 +35,7 @@ contract("Rewards", async (accounts) => {
         b7 = await bassetMachine.deployERC20Async();
 
         // 2. Masset contract deploy
-        masset = await MassetArtifact.new(
+        masset = await Masset.new(
             "TestMasset",
             "TMT",
             systemMachine.nexus.address,
