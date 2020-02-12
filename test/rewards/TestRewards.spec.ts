@@ -1,5 +1,4 @@
 
-
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
 import { createBasket, createBasset, Basket } from "@utils/mstable-objects";
 import { BN, constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
@@ -7,13 +6,12 @@ import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@
 import { aToH, BigNumber } from "@utils/tools";
 
 
-
-
 import envSetup from "@utils/env_setup";
 import * as chai from "chai";
 import { ERC20MockInstance, MassetInstance, ForgeRewardsMUSDContract, ForgeRewardsMUSDInstance } from "types/generated";
 
-const MassetArtifact = artifacts.require("Masset");
+//import { BN } from "bn.js";
+const Masset = artifacts.require("Masset");
 const ForgeRewardsMUSD = artifacts.require("ForgeRewardsMUSD");
 
 envSetup.configure();
@@ -21,7 +19,7 @@ const { expect, assert } = chai;
 
 contract("Rewards", async (accounts) => {
 
-    const sa = new StandardAccounts(accounts);
+    let sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
     let masset: MassetInstance;
     let b1, b2, b3, b4, b5, b6, b7;
@@ -43,7 +41,7 @@ contract("Rewards", async (accounts) => {
         b7 = await bassetMachine.deployERC20Async();
 
         // 2. Masset contract deploy
-        masset = await MassetArtifact.new(
+        masset = await Masset.new(
             "TestMasset",
             "TMT",
             systemMachine.nexus.address,
@@ -71,7 +69,7 @@ contract("Rewards", async (accounts) => {
             systemMachine.forgeValidator.address,
         );
 
-        //3. Deploy ForgeRewardsMUSD
+        // 3. Deploy ForgeRewardsMUSD
         rewardsContract = await ForgeRewardsMUSD.new(
             masset.address,
             systemMachine.systok.address,
@@ -82,12 +80,14 @@ contract("Rewards", async (accounts) => {
 
     describe("Contract deployed", async () => {
         it("Should have valid parameters", async () => {
-            assert((await rewardsContract.mUSD()) == masset.address);
-            assert((await rewardsContract.MTA()) == systemMachine.systok.address);
-            assert((await rewardsContract.owner()) == sa.governor);
+            assert((await rewardsContract.mUSD()) === masset.address);
+            assert((await rewardsContract.MTA()) === systemMachine.systok.address);
+            assert((await rewardsContract.owner()) === sa.governor);
         });
+
         it("Should approved all bAsset tokens to max", async () => {
-            let MAX: BN = ((new BN(2)).pow(new BN(256))).sub(new BN(1));
+            let MAX: BN = ((new BN(2)).pow(new BN(256))).sub(new BN(1)); // 2^256-1
+            //expect((await b1.allowance(rewardsContract.address, masset.address))).BN.eq(MAX);
             assert((await b1.allowance(rewardsContract.address, masset.address)).eq(MAX));
             assert((await b2.allowance(rewardsContract.address, masset.address)).eq(MAX));
             assert((await b3.allowance(rewardsContract.address, masset.address)).eq(MAX));
@@ -255,8 +255,39 @@ async function genTrancheDate(rewardStartTime, trancheNumber) {
     return trancheData;
 }
 
-async function createMassetWithBassets() {
-    //this.systemMachine = new SystemMachine(this.accounts, sa.other);
-    //await this.systemMachine.initialiseMocks();
-    //const bassetMachine = new BassetMachine(sa.default, sa.other, 500000);
+async function createMassetWithBassets(numOfBassets) {
+    this.systemMachine = new SystemMachine(this.accounts, this.sa.other);
+    await this.systemMachine.initialiseMocks();
+    const bassetMachine = new BassetMachine(this.sa.default, this.sa.other, 500000);
+
+    // 1. Deploy bAssets
+    let bAssets = new Array();
+    let bAssetsAddr = new Array();
+    let symbols = new Array();
+    let weights = new Array();
+    let multiplier = new Array();
+
+    const percent = 200 / numOfBassets;// Lets take 200% and divide by total bAssets to create
+    var i;
+    for (i = 0; i < numOfBassets; i++) {
+        bAssets[i] = await bassetMachine.deployERC20Async();
+        bAssetsAddr[i] = bAssets[i].address;
+        symbols[i] = aToH("bAsset-" + (i + 1));
+        weights[i] = percentToWeight(percent);
+        multiplier[i] = createMultiple(1); // By Default all ratio 1
+    }
+
+    // 2. Masset contract deploy
+    this.masset = await Masset.new(
+        "TestMasset",
+        "TMT",
+        this.systemMachine.nexus.address,
+        bAssetsAddr,
+        symbols,
+        weights,
+        multiplier,
+        this.sa.feePool,
+        this.systemMachine.forgeValidator.address,
+    );
+
 }
