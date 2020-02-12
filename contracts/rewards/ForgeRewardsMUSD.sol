@@ -5,7 +5,6 @@ import { IMasset } from "../interfaces/IMasset.sol";
 import { ISystok } from "../interfaces/ISystok.sol";
 import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import { StableMath } from "../shared/math/StableMath.sol";
-import { ReentrancyGuard } from "../shared/ReentrancyGuard.sol";
 
 
 /**
@@ -20,7 +19,7 @@ import { ReentrancyGuard } from "../shared/ReentrancyGuard.sol";
  *           - Unclaimed rewards can be retrieved by 'Governor' for future tranches
  *        - Reward allocation is unlocked for redemption after Y weeks
  */
-contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
+contract ForgeRewardsMUSD is IMassetForgeRewards {
 
     using StableMath for uint256;
 
@@ -214,7 +213,6 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         address _rewardee
     )
         internal
-        nonReentrant
     {
         // Get current tranche based on timestamp
         uint256 trancheNumber = _currentTrancheNumber();
@@ -266,7 +264,6 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
      */
     function claimReward(uint256 _trancheNumber, address _rewardee)
     public
-    nonReentrant
     returns(bool claimed) {
         Tranche storage tranche = trancheData[_trancheNumber];
         require(tranche.totalRewardUnits > 0, "Tranche must be funded before claiming can begin");
@@ -316,7 +313,6 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
      */
     function redeemReward(uint256 _trancheNumber, address _rewardee)
     public
-    nonReentrant
     returns(bool redeemed) {
         TrancheDates memory trancheDates = _getTrancheDates(_trancheNumber);
         require(now > trancheDates.unlockTime, "Reward must be unlocked");
