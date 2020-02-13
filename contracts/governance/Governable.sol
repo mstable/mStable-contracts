@@ -42,17 +42,19 @@ contract Governable {
     /**
      * @dev Transfers Governance of the contract to a new account (`newGovernor`).
      * Can only be called by the current Governor.
+     * @param _newGovernor Address of the new Governor
      */
-    function changeGovernor(address newGovernor) public onlyGovernor {
-        _changeGovernor(newGovernor);
+    function changeGovernor(address _newGovernor) public onlyGovernor {
+        _changeGovernor(_newGovernor);
     }
 
     /**
      * @dev Change Governance of the contract to a new account (`newGovernor`).
+     * @param _newGovernor Address of the new Governor
      */
-    function _changeGovernor(address newGovernor) internal {
-        require(newGovernor != address(0), "Governable: new Governor is the zero address");
-        emit GovernorChanged(_governor, newGovernor);
-        _governor = newGovernor;
+    function _changeGovernor(address _newGovernor) internal {
+        require(_newGovernor != address(0), "Governable: new Governor is the zero address");
+        emit GovernorChanged(_governor, _newGovernor);
+        _governor = _newGovernor;
     }
 }
