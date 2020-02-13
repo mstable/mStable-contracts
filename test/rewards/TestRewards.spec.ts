@@ -64,18 +64,18 @@ contract("Rewards", async (accounts) => {
     });
 
     describe("Minting via Rewards contract", () => {
-        it("Governer should add rewards token to contract", async () => {});
+        it("Governer should add rewards token to contract", async () => { });
 
-        it("Should approve single bAsset", async () => {});
+        it("Should approve single bAsset", async () => { });
 
-        it("Should approve multiple bAssets", async () => {});
+        it("Should approve multiple bAssets", async () => { });
 
-        it("Should mint single bAsset", async () => {});
+        it("Should mint single bAsset", async () => { });
 
-        it("Should mint multiple bAsset", async () => {});
+        it("Should mint multiple bAsset", async () => { });
 
-        it("User should claim reward", async () => {});
+        it("User should claim reward", async () => { });
 
-        it("User should redeem reward", async () => {});
+        it("User should redeem reward", async () => { });
     });
 });
