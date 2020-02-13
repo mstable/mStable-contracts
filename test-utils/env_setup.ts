@@ -1,4 +1,7 @@
+// tslint:disable:no-reference
+
 /// <reference path="../types/interfaces.d.ts" />
+/// <reference path="../types/chai.d.ts" />
 
 import * as chai from "chai";
 import ChaiBN from "chai-bn";

@@ -13,6 +13,7 @@ import { ERC20MockInstance, MassetInstance, ForgeRewardsMUSDInstance } from "typ
 const Masset = artifacts.require("Masset");
 const ForgeRewardsMUSD = artifacts.require("ForgeRewardsMUSD");
 
+
 envSetup.configure();
 const { expect, assert } = chai;
 
@@ -21,6 +22,7 @@ contract("Rewards", async (accounts) => {
     let sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
     let masset: MassetInstance;
+    // tslint:disable-next-line:one-variable-per-declaration
     let b1, b2, b3, b4, b5, b6, b7;
     let rewardsContract: ForgeRewardsMUSDInstance;
 

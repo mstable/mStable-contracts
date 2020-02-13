@@ -1,14 +1,13 @@
-import { shouldFail } from "openzeppelin-test-helpers";
+import { expectEvent, expectNoEvent, shouldFail } from "openzeppelin-test-helpers";
 import { ADDRESS_1, MASSET_FACTORY_BYTES } from "@utils/constants";
 import envSetup from "@utils/env_setup";
 import { BassetMachine, MassetMachine, SystemMachine } from "@utils/machines";
 import { percentToWeight, simpleToExactRelativePrice } from "@utils/math";
 import { aToH, chai, BN } from "@utils/tools";
 import { Basset, BassetStatus } from "@utils/mstable-objects";
-import { expectEvent, expectNoEvent } from "@utils/helpers";
 
 envSetup.configure();
-const { expect, assert } = chai;
+const { expect } = chai;
 
 /**
  * @notice Unit and integration tests to detect consequences of Basset deviating from peg
@@ -28,8 +27,8 @@ contract("MetaToken", async (accounts) => {
 
     describe("Burning", () => {
         it("Should only allow self & Recollateraliser to mint", async () => {
-            const systok = systemMachine.systok;
-            assert((await systok.decimals()).eq(new BN(18)));
+            const { systok } = systemMachine;
+            expect(await systok.decimals()).bignumber.eq(new BN(18));
         });
         it("Should allow anyone to burn, with allowance");
     });

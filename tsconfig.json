@@ -21,6 +21,8 @@
   },
   "include": [
     "./types/*.ts",
+    "./types/chai.d.ts",
+    "./types/interfaces.d.ts",
     "./types/**/*.ts",
     "./test/*.ts",
     "./test/**/*.ts",

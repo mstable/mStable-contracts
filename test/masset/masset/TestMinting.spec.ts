@@ -8,7 +8,7 @@ import envSetup from "@utils/env_setup";
 import * as chai from "chai";
 import { ERC20MockInstance, MassetInstance } from "types/generated";
 
-const MassetArtifact = artifacts.require("Masset");
+const Masset = artifacts.require("Masset");
 
 envSetup.configure();
 const { expect, assert } = chai;
@@ -17,6 +17,7 @@ contract("MassetMinting", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
     let masset: MassetInstance;
+    // tslint:disable-next-line:one-variable-per-declaration
     let b1, b2, b3, b4, b5, b6, b7;
 
     before("Init contract", async () => {
@@ -34,7 +35,7 @@ contract("MassetMinting", async (accounts) => {
         b7 = await bassetMachine.deployERC20Async();
 
         // 2. Masset contract deploy
-        masset = await MassetArtifact.new(
+        masset = await Masset.new(
             "TestMasset",
             "TMT",
             systemMachine.nexus.address,
@@ -76,8 +77,8 @@ contract("MassetMinting", async (accounts) => {
             const mUSD_balBefore = await masset.balanceOf(sa.default);
             await masset.mintBitmapTo(127, [10, 10, 10, 10, 10, 10, 10], sa.default);
             const mUSD_balAfter = await masset.balanceOf(sa.default);
-            assert(mUSD_balBefore.eq(new BN(0)));
-            assert(mUSD_balAfter.eq(new BN(70)), "Must mint 70 base units of mUSD");
+            expect(mUSD_balBefore).bignumber.eq(new BN(0));
+            expect(mUSD_balAfter, "Must mint 70 base units of mUSD").bignumber.eq(new BN(70));
         });
 
         it("Should mint 2 bAssets", async () => {
@@ -98,16 +99,15 @@ contract("MassetMinting", async (accounts) => {
         it("Should return bAssets bitmap", async () => {
             // Returns two bit set, as there are only two bAssets
             const bitmap = await masset.getBitmapForAllBassets();
-            // console.log(bitmap);
-            assert(bitmap.eq(new BN(127)), "wrong bitmap");
+            expect(bitmap, "wrong bitmap").bignumber.eq(new BN(127));
 
             // Result sets only first bit, as b1 is at first index in bAsset array
             // bitmap = await masset.getBitmapFor([b1.address]);
-            // assert(bitmap.eq(new BN(1)));
+            // expect(bitmap).bignumber.eq(new BN(1));
 
             // Result sets only second bit, as b2 is at second index in bAsset array
             // bitmap = await masset.getBitmapFor([b2.address]);
-            // assert(bitmap.eq(new BN(2)));
+            // expect(bitmap).bignumber.eq(new BN(2));
 
             // TODO add test for 0 items
             // TODO add test for 32 items
@@ -123,6 +123,6 @@ contract("MassetMinting", async (accounts) => {
             // console.log(indexes);
         });
 
-        it("Should mint selected bAssets only", async () => { });
+        it("Should mint selected bAssets only", async () => {});
     });
 });
