@@ -16,7 +16,9 @@ contract DelayedClaimableGovernance is ClaimableGovernor {
      * @dev Initializes the contract with given delay
      * @param _delay Delay in seconds for 2 way handshake
      */
-    constructor(uint64 _delay) public {
+    constructor(address _governor, uint64 _delay)
+    public
+    ClaimableGovernor(_governor) {
         require(_delay > 0, "Delay must be greater then zero");
         delay = _delay;
     }

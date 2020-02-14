@@ -3,13 +3,14 @@ pragma solidity ^0.5.12;
 import { INexus } from "../interfaces/INexus.sol";
 import { ModuleKeys } from "../shared/ModuleKeys.sol";
 import { Set } from "../shared/libs/Set.sol";
+import { ClaimableGovernor } from "../governance/ClaimableGovernor.sol";
 
 /**
  * @title Nexus
  * @dev The Nexus is mStable's Kernel, and allows the publishing and propagating
  * of new system Modules. Other Modules will subscribe to Nexus for reads and updates
  */
-contract Nexus is INexus, ModuleKeys {
+contract Nexus is INexus, ModuleKeys, ClaimableGovernor {
 
     event ModuleAdded(bytes32 key, address addr);
 
@@ -25,9 +26,8 @@ contract Nexus is INexus, ModuleKeys {
 
     /** @dev Initialises the Nexus and adds the core data to the Kernel (itself and governor) */
     constructor(address _governor)
-    public {
-        require(_governor != address(0), "Can't set governor to zero address");
-        _publishModule(Key_Governor, _governor);
+    public
+    ClaimableGovernor(_governor) {
         _publishModule(Key_Nexus, address(this));
     }
 
@@ -35,12 +35,6 @@ contract Nexus is INexus, ModuleKeys {
     /***************************************
                   MODIFIERS
     ****************************************/
-
-    /** @dev Verifies that the caller is the System Governor as defined in the module mapping */
-    modifier onlyGovernor() {
-        require(moduleAddresses[Key_Governor]._address == msg.sender, "Only the governance may perform this operation");
-        _;
-    }
 
     /**
       * @dev Action can only be taken on an unlocked module
