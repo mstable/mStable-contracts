@@ -103,6 +103,7 @@ contract Nexus is INexus, ModuleKeys, ClaimableGovernor {
      */
     function initalize() external onlyGovernor whenNotInitialized {
         initialized = true;
+        //TODO emit event
     }
 
     /**
@@ -129,6 +130,7 @@ contract Nexus is INexus, ModuleKeys, ClaimableGovernor {
     whenInitialized {
         require(proposedModules[_key].addr != address(0), "Proposed module not found");
         delete proposedModules[_key];
+        //TODO emit event
     }
 
     // TODO There could be two different modules with different keys having the
@@ -206,6 +208,7 @@ contract Nexus is INexus, ModuleKeys, ClaimableGovernor {
     internal
     onlyUnlockedModule(_key) {
         modules[_key].addr = _addr;
+        emit ModuleAdded(_key, _addr);
     }
 
 
@@ -224,6 +227,7 @@ contract Nexus is INexus, ModuleKeys, ClaimableGovernor {
     onlyUnlockedModule(_key)
     returns (bool) {
         modules[_key].isLocked = true;
+        //TODO emit event
         return true;
     }
 }
