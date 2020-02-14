@@ -119,14 +119,12 @@ contract("Rewards", async (accounts) => {
         it("Should mint single bAsset", async () => {
             const newSystemMachine = new SystemMachine(accounts, sa.other);
             await newSystemMachine.initialiseMocks();
-            const newBassetMachine = new BassetMachine(sa.default, sa.other, 500000);
 
-            const bAsset = await newBassetMachine.deployERC20Async();
             const newMasset = await Masset.new(
                 "TestMasset",
                 "TMT",
                 newSystemMachine.nexus.address,
-                [bAsset.address],
+                [b1.address],
                 [aToH("b1")],
                 [percentToWeight(100)],
                 [createMultiple(1)],
@@ -142,20 +140,20 @@ contract("Rewards", async (accounts) => {
                 { from: sa.governor }
             );
 
-            await bAsset.approve(newRewardsContract.address, 10, { from: sa.default });
-            assert((await bAsset.allowance(sa.default, newRewardsContract.address)).eq(new BN(10)));
+            await b1.approve(newRewardsContract.address, 10, { from: sa.default });
+            assert((await b1.allowance(sa.default, newRewardsContract.address)).eq(new BN(10)));
 
-            const txReceipt = await newRewardsContract.mintSingleTo(bAsset.address, 10, sa.default, sa.default, { from: sa.default });
+            const txReceipt = await newRewardsContract.mintSingleTo(b1.address, 10, sa.default, sa.default, { from: sa.default });
             expectEvent.inLogs(txReceipt.logs, "MintVolumeIncreased", { trancheNumber: new BN(0), mintVolume: new BN(10) });
             expectEvent.inLogs(txReceipt.logs, "RewardeeMintVolumeIncreased", { trancheNumber: new BN(0), rewardee: sa.default, mintVolume: new BN(10) });
 
             assert((await newMasset.balanceOf(sa.default)).eq(new BN(10)));
             assert((await newMasset.totalSupply()).eq(new BN(10)));
 
-            assert((await bAsset.balanceOf(newMasset.address)).eq(new BN(10)));
+            assert((await b1.balanceOf(newMasset.address)).eq(new BN(10)));
             // Rewards updated
             let data: any = await newRewardsContract.getTrancheData(0);
-            let rewardStartTime = await newRewardsContract.rewardStartTime();
+            const rewardStartTime: BN = await newRewardsContract.rewardStartTime();
             validateTrancheDates(data, rewardStartTime, 0);
 
             assert(data.totalMintVolume.eq(new BN(10)));
@@ -259,9 +257,10 @@ function validateTrancheDates(trancheData, rewardStartTime, trancheNumber) {
 }
 
 function genTrancheDate(rewardStartTime, trancheNumber) {
-    const TRANCHE_PERIOD = new BN(60 * 60 * 24 * 7 * 4); // 4 week
-    const CLAIM_PERIOD = new BN(60 * 60 * 24 * 7 * 8);   // 8 weeks
-    const LOCKUP_PERIOD = new BN(60 * 60 * 24 * 7 * 52); // 52 weeks
+    const WEEK = new BN(60 * 60 * 24 * 7); // 1 week
+    const TRANCHE_PERIOD = (new BN(4)).mul(WEEK); // 4 week
+    const CLAIM_PERIOD = (new BN(8)).mul(WEEK);   // 8 weeks
+    const LOCKUP_PERIOD = (new BN(52)).mul(WEEK); // 52 weeks
     let trancheData = new Array();
     // startTime
     trancheData[0] = rewardStartTime.add((new BN(trancheNumber)).mul(TRANCHE_PERIOD));
@@ -274,42 +273,3 @@ function genTrancheDate(rewardStartTime, trancheNumber) {
     return trancheData;
 }
 
-//TODO: Still not working
-async function createMassetWithBassets(
-    sysMachine: SystemMachine,
-    numOfBassets) {
-
-    await sysMachine.initialiseMocks();
-    const bassetMachine = new BassetMachine(this.sa.default, this.sa.other, 500000);
-
-    // 1. Deploy bAssets
-    let bAssets = new Array();
-    let bAssetsAddr = new Array();
-    let symbols = new Array();
-    let weights = new Array();
-    let multiplier = new Array();
-
-    const percent = 200 / numOfBassets;// Lets take 200% and divide by total bAssets to create
-    let i;
-    for (i = 0; i < numOfBassets; i++) {
-        bAssets[i] = await bassetMachine.deployERC20Async();
-        bAssetsAddr[i] = bAssets[i].address;
-        symbols[i] = aToH("bAsset-" + (i + 1));
-        weights[i] = percentToWeight(percent);
-        multiplier[i] = createMultiple(1); // By Default all ratio 1
-    }
-
-    // 2. Masset contract deploy
-    const masset = await Masset.new(
-        "TestMasset",
-        "TMT",
-        this.systemMachine.nexus.address,
-        bAssetsAddr,
-        symbols,
-        weights,
-        multiplier,
-        this.sa.feePool,
-        this.systemMachine.forgeValidator.address,
-    );
-    return masset;
-}
