@@ -2,23 +2,18 @@ import { shouldBehaveLikeGovernable } from "./Governable.behaviour";
 import { shouldBehaveLikeClaimable } from "./Claimable.behaviour";
 import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import envSetup from "@utils/env_setup";
-import { SuiteWithContext } from "../../types/mocha";
 import { GovernableInstance } from "../../types/generated";
 
 const DelayedClaimableGovernance = artifacts.require("DelayedClaimableGovernance");
 envSetup.configure();
 
-contract("DelayedClaimableGovernance", async function(
-    this: SuiteWithContext<{
-        governance: GovernableInstance;
-    }>,
-    accounts,
-) {
+contract("DelayedClaimableGovernance", async (accounts) => {
+    const ctx: { governance?: GovernableInstance } = {};
     const sa = new StandardAccounts(accounts);
     const GOVERNANCE_DELAY = 60 * 60 * 24 * 7; // 1 week
 
     beforeEach("Create Contract", async () => {
-        this.governance = await DelayedClaimableGovernance.new(GOVERNANCE_DELAY);
+        ctx.governance = await DelayedClaimableGovernance.new(GOVERNANCE_DELAY);
     });
 
     // describe("Test1", () => {});
@@ -31,5 +26,5 @@ contract("DelayedClaimableGovernance", async function(
     //     });
     // });
 
-    shouldBehaveLikeGovernable.bind(this, sa.governor, accounts);
+    shouldBehaveLikeGovernable(ctx as Required<typeof ctx>, sa.governor, accounts);
 });
