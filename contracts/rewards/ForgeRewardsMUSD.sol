@@ -5,8 +5,7 @@ import { IMasset } from "../interfaces/IMasset.sol";
 import { ISystok } from "../interfaces/ISystok.sol";
 import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import { StableMath } from "../shared/math/StableMath.sol";
-import { ReentrancyGuard } from "../shared/ReentrancyGuard.sol";
-
+import { Ownable } from "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 
 /**
  * @title ForgeRewardsMUSD
@@ -20,7 +19,7 @@ import { ReentrancyGuard } from "../shared/ReentrancyGuard.sol";
  *           - Unclaimed rewards can be retrieved by 'Governor' for future tranches
  *        - Reward allocation is unlocked for redemption after 52 weeks
  */
-contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
+contract ForgeRewardsMUSD is IMassetForgeRewards, Ownable {
 
     using StableMath for uint256;
 
@@ -73,9 +72,6 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
     IMasset public mUSD;
     ISystok public MTA;
 
-    /** @dev Governor is responsible for funding the tranches */
-    address public governor;
-
     /** @dev Timestamp of the initialisation of rewards (start of the contract) */
     uint256 public rewardStartTime;
 
@@ -87,28 +83,9 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
     constructor(IMasset _mUSD, ISystok _MTA, address _governor) public {
         mUSD = _mUSD;
         MTA = _MTA;
-        governor = _governor;
         rewardStartTime = now;
+        _transferOwnership(_governor);
         approveAllBassets();
-    }
-
-
-    /***************************************
-                  GOVERNANCE
-    ****************************************/
-
-    /** @dev Verifies that the caller is the Rewards Governor */
-    modifier onlyGovernor() {
-        require(governor == msg.sender, "Must be called by the governor");
-        _;
-    }
-
-    /** @dev Rewards governor can choose another governor to fund the tranches */
-    function changeGovernor(address _newGovernor)
-    external
-    onlyGovernor {
-        require(_newGovernor != address(0), "Must be valid address");
-        governor = _newGovernor;
     }
 
     /***************************************
@@ -118,7 +95,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
     /**
      * @dev Approve max tokens for mUSD contract for each bAsset
      */
-    function approveAllBassets() public onlyGovernor {
+    function approveAllBassets() public onlyOwner {
         address[] memory bAssets = mUSD.getAllBassetsAddress();
         for(uint256 i = 0; i < bAssets.length; i++) {
             approveFor(bAssets[i]);
@@ -129,10 +106,9 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
      * @dev Approve max tokens for mUSD contact of a given bAsset token contract
      * @param _bAsset bAsset token address
      */
-    function approveFor(address _bAsset) public onlyGovernor {
+    function approveFor(address _bAsset) public onlyOwner {
         require(IERC20(_bAsset).approve(address(mUSD), uint256(-1)), "Approval of bAsset failed");
     }
-
 
     /***************************************
                     FORGING
@@ -214,7 +190,6 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         address _rewardee
     )
         internal
-        nonReentrant
     {
         // Get current tranche based on timestamp
         uint256 trancheNumber = _currentTrancheNumber();
@@ -266,7 +241,6 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
      */
     function claimReward(uint256 _trancheNumber, address _rewardee)
     public
-    nonReentrant
     returns(bool claimed) {
         Tranche storage tranche = trancheData[_trancheNumber];
         require(tranche.totalRewardUnits > 0, "Tranche must be funded before claiming can begin");
@@ -316,7 +290,6 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
      */
     function redeemReward(uint256 _trancheNumber, address _rewardee)
     public
-    nonReentrant
     returns(bool redeemed) {
         TrancheDates memory trancheDates = _getTrancheDates(_trancheNumber);
         require(now > trancheDates.unlockTime, "Reward must be unlocked");
@@ -350,7 +323,8 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
      */
     function fundTranche(uint256 _trancheNumber, uint256 _fundQuantity)
     external
-    onlyGovernor {
+    onlyOwner
+    {
         Tranche storage tranche = trancheData[_trancheNumber];
         TrancheDates memory trancheDates = _getTrancheDates(_trancheNumber);
 
@@ -362,7 +336,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
             require(now < trancheDates.claimEndTime, "Cannot fund tranche after the claim period");
         }
 
-        require(MTA.transferFrom(governor, address(this), _fundQuantity), "Governor must send the funding MTA");
+        require(MTA.transferFrom(owner(), address(this), _fundQuantity), "Governor must send the funding MTA");
         tranche.totalRewardUnits = tranche.totalRewardUnits.add(_fundQuantity);
         tranche.unclaimedRewardUnits = tranche.totalRewardUnits;
 
@@ -375,7 +349,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
      */
     function withdrawUnclaimedRewards(uint256 _trancheNumber)
     external
-    onlyGovernor {
+    onlyOwner {
         Tranche storage tranche = trancheData[_trancheNumber];
         TrancheDates memory trancheDates = _getTrancheDates(_trancheNumber);
 
@@ -383,7 +357,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         require(tranche.unclaimedRewardUnits > 0, "Tranche must contain unclaimed reward units");
 
         tranche.unclaimedRewardUnits = 0;
-        require(MTA.transfer(governor, tranche.unclaimedRewardUnits), "Governor must receive the funding MTA");
+        require(MTA.transfer(owner(), tranche.unclaimedRewardUnits), "Governor must receive the funding MTA");
 
         emit UnclaimedRewardWithdrawn(_trancheNumber, tranche.totalRewardUnits);
     }
@@ -539,6 +513,15 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         bool[] memory redeemed
     ) {
         uint256 len = _trancheNumbers.length;
+
+        mintWindowClosed = new bool[](len);
+        claimWindowClosed = new bool[](len);
+        unlocked = new bool[](len);
+        mintVolume = new uint256[](len);
+        claimed = new bool[](len);
+        rewardAllocation = new uint256[](len);
+        redeemed = new bool[](len);
+
         for(uint256 i = 0; i < len; i++){
             TrancheDates memory trancheDates = _getTrancheDates(_trancheNumbers[i]);
             Reward memory reward = trancheData[_trancheNumbers[i]].rewardeeData[_rewardee];
@@ -571,6 +554,11 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, ReentrancyGuard {
         bool[] memory redeemed
     ) {
         uint256 len = _rewardees.length;
+        mintVolume = new uint256[](len);
+        claimed = new bool[](len);
+        rewardAllocation = new uint256[](len);
+        redeemed = new bool[](len);
+
         for(uint256 i = 0; i < len; i++){
             Reward memory reward = trancheData[_trancheNumber].rewardeeData[_rewardees[i]];
             mintVolume[i] = reward.mintVolume;
