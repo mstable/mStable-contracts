@@ -83,7 +83,7 @@ contract("Rewards", async (accounts) => {
         it("Should have valid parameters", async () => {
             assert((await rewardsContract.mUSD()) === masset.address);
             assert((await rewardsContract.MTA()) === systemMachine.systok.address);
-            assert((await rewardsContract.owner()) === sa.governor);
+            assert((await rewardsContract.governor()) === sa.governor);
         });
 
         it("Should approved all bAsset tokens to max", async () => {

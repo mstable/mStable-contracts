@@ -5,7 +5,7 @@ import { IMasset } from "../interfaces/IMasset.sol";
 import { ISystok } from "../interfaces/ISystok.sol";
 import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import { StableMath } from "../shared/math/StableMath.sol";
-import { Ownable } from "openzeppelin-solidity/contracts/ownership/Ownable.sol";
+import { Governable } from "../governance/Governable.sol";
 
 /**
  * @title ForgeRewardsMUSD
@@ -19,7 +19,7 @@ import { Ownable } from "openzeppelin-solidity/contracts/ownership/Ownable.sol";
  *           - Unclaimed rewards can be retrieved by 'Governor' for future tranches
  *        - Reward allocation is unlocked for redemption after 52 weeks
  */
-contract ForgeRewardsMUSD is IMassetForgeRewards, Ownable {
+contract ForgeRewardsMUSD is IMassetForgeRewards, Governable {
 
     using StableMath for uint256;
 
@@ -84,7 +84,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, Ownable {
         mUSD = _mUSD;
         MTA = _MTA;
         rewardStartTime = now;
-        _transferOwnership(_governor);
+        _changeGovernor(_governor);
         approveAllBassets();
     }
 
@@ -95,7 +95,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, Ownable {
     /**
      * @dev Approve max tokens for mUSD contract for each bAsset
      */
-    function approveAllBassets() public onlyOwner {
+    function approveAllBassets() public onlyGovernor {
         address[] memory bAssets = mUSD.getAllBassetsAddress();
         for(uint256 i = 0; i < bAssets.length; i++) {
             approveFor(bAssets[i]);
@@ -106,7 +106,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, Ownable {
      * @dev Approve max tokens for mUSD contact of a given bAsset token contract
      * @param _bAsset bAsset token address
      */
-    function approveFor(address _bAsset) public onlyOwner {
+    function approveFor(address _bAsset) public onlyGovernor {
         require(IERC20(_bAsset).approve(address(mUSD), uint256(-1)), "Approval of bAsset failed");
     }
 
@@ -323,7 +323,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, Ownable {
      */
     function fundTranche(uint256 _trancheNumber, uint256 _fundQuantity)
     external
-    onlyOwner
+    onlyGovernor
     {
         Tranche storage tranche = trancheData[_trancheNumber];
         TrancheDates memory trancheDates = _getTrancheDates(_trancheNumber);
@@ -336,7 +336,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, Ownable {
             require(now < trancheDates.claimEndTime, "Cannot fund tranche after the claim period");
         }
 
-        require(MTA.transferFrom(owner(), address(this), _fundQuantity), "Governor must send the funding MTA");
+        require(MTA.transferFrom(governor(), address(this), _fundQuantity), "Governor must send the funding MTA");
         tranche.totalRewardUnits = tranche.totalRewardUnits.add(_fundQuantity);
         tranche.unclaimedRewardUnits = tranche.totalRewardUnits;
 
@@ -349,7 +349,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, Ownable {
      */
     function withdrawUnclaimedRewards(uint256 _trancheNumber)
     external
-    onlyOwner {
+    onlyGovernor {
         Tranche storage tranche = trancheData[_trancheNumber];
         TrancheDates memory trancheDates = _getTrancheDates(_trancheNumber);
 
@@ -357,7 +357,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, Ownable {
         require(tranche.unclaimedRewardUnits > 0, "Tranche must contain unclaimed reward units");
 
         tranche.unclaimedRewardUnits = 0;
-        require(MTA.transfer(owner(), tranche.unclaimedRewardUnits), "Governor must receive the funding MTA");
+        require(MTA.transfer(governor(), tranche.unclaimedRewardUnits), "Governor must receive the funding MTA");
 
         emit UnclaimedRewardWithdrawn(_trancheNumber, tranche.totalRewardUnits);
     }
