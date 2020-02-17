@@ -29,14 +29,9 @@ module.exports = async (deployer, network, accounts) => {
   // const oracleSource = [];
   const [ _, governor, fundManager, oracleSource, feePool ] = accounts;
 
-  // CRITICAL - Owners of the Governance Portal Multisig!!!
-  const govOwners = accounts.slice(0, 5);
-  const minQuorum = 1;
-
 
   /** Common Libs */
   await deployer.deploy(c_StableMath, { from: _ });
-
   await deployer.deploy(c_CommonHelpers, { from: _ });
 
 
@@ -49,27 +44,10 @@ module.exports = async (deployer, network, accounts) => {
   await deployer.deploy(c_Systok, d_Nexus.address, fundManager, { from : _ });
   const d_Systok = await c_Systok.deployed();
 
-  let keys = new Array(3);
-  let addresses = new Array(3);
-  let isLocked = new Array(3);
-
-  keys[0] = await d_Nexus.Key_Systok();
-  addresses[0] = d_Systok.address;
-  isLocked[0] = true;
-
-  //await publishModuleThroughMultisig(d_Nexus, d_MultiSig, await d_Nexus.Key_Systok(), d_Systok.address, governor);
-  //await lockModuleThroughMultisig(d_Nexus, d_MultiSig, await d_Nexus.Key_Systok(), governor);
-
   /** OracleHub */
 
   await deployer.deploy(c_OracleHub, d_Nexus.address, oracleSource );
   const d_OracleHub = await c_OracleHub.deployed();
-
-  keys[1] = await d_Nexus.Key_OracleHub();
-  addresses[1] = d_OracleHub.address;
-  isLocked[1] = false;
-
-  //await publishModuleThroughMultisig(d_Nexus, d_MultiSig, await d_Nexus.Key_OracleHub(), d_OracleHub.address, governor);
 
 
   /** Manager */
@@ -82,15 +60,6 @@ module.exports = async (deployer, network, accounts) => {
   await deployer.link(c_StableMath, c_Manager);
   await deployer.deploy(c_Manager, d_Nexus.address, d_ForgeValidator.address);
   const d_Manager = await c_Manager.deployed();
-
-  keys[2] = await d_Nexus.Key_Manager();
-  addresses[2] = d_Manager.address;
-  isLocked[2] = false;
-
-  //await publishModuleThroughMultisig(d_Nexus, d_MultiSig, await d_Nexus.Key_Manager(), d_Manager.address, governor);
-
-  await d_Nexus.initialize(keys, addresses, isLocked, {from: governor});
-  
 
   /** Masset prep */
   await deployer.link(c_StableMath, c_Masset);

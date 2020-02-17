@@ -68,7 +68,8 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernance {
     function initialize(
         bytes32[] calldata _keys,
         address[] calldata _addresses,
-        bool[] calldata _isLocked
+        bool[] calldata _isLocked,
+        address _governor
     )
         external
         onlyGovernor
@@ -85,6 +86,7 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernance {
         }
 
         initialized = true;
+        if(_governor != governor()) _changeGovernor(_governor);
         return true;
     }
 

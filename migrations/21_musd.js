@@ -91,7 +91,7 @@ module.exports = async (deployer, network, accounts) => {
     d_ForgeValidator.address
   );
   
-  const txData = d_Manager.addMasset(
+  const txData = await d_Manager.addMasset(
     aToH("mUSD"),
     d_MUSD.address,
     {from: governor});
