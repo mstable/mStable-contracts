@@ -1,6 +1,7 @@
 pragma solidity ^0.5.12;
 
 import { ClaimableGovernor } from "./ClaimableGovernor.sol";
+import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 /**
  * @title Current Goverenor can initiate governance change request.
@@ -9,14 +10,15 @@ import { ClaimableGovernor } from "./ClaimableGovernor.sol";
  */
 contract DelayedClaimableGovernance is ClaimableGovernor {
 
-    uint64 public delay;
+    using SafeMath for uint256;
+    uint256 public delay;
     uint256 public requestTime;
 
     /**
      * @dev Initializes the contract with given delay
      * @param _delay Delay in seconds for 2 way handshake
      */
-    constructor(address _governor, uint64 _delay)
+    constructor(address _governor, uint256 _delay)
     public
     ClaimableGovernor(_governor) {
         require(_delay > 0, "Delay must be greater then zero");
@@ -37,7 +39,7 @@ contract DelayedClaimableGovernance is ClaimableGovernor {
 
     //override
     function claimGovernorChange() public onlyProposedGovernor {
-        require(now >= (requestTime + delay), "Governor cannot claim ownership");
+        require(now >= (requestTime.add(delay)), "Governor cannot claim ownership");
         super.claimGovernorChange();
         requestTime = 0;
     }

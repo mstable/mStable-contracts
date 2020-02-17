@@ -3,18 +3,16 @@ pragma solidity ^0.5.12;
 import { INexus } from "../interfaces/INexus.sol";
 import { ModuleKeys } from "../shared/ModuleKeys.sol";
 import { Set } from "../shared/libs/Set.sol";
-import { ClaimableGovernor } from "../governance/ClaimableGovernor.sol";
-import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
+import { DelayedClaimableGovernance } from "../governance/DelayedClaimableGovernance.sol";
 
 /**
  * @title Nexus
  * @dev The Nexus is mStable's Kernel, and allows the publishing and propagating
  * of new system Modules. Other Modules will subscribe to Nexus for reads and updates
  */
-contract Nexus is INexus, ModuleKeys, ClaimableGovernor {
-    using SafeMath for uint256;
+contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernance {
 
-    event ModuleAdded(bytes32 indexed key, address addr);
+    event ModuleAdded(bytes32 indexed key, address addr, bool isLocked);
     event ModuleRequested(bytes32 indexed key, address addr, uint256 timestamp);
 
     /** @dev Struct to store Module props */
@@ -25,7 +23,7 @@ contract Nexus is INexus, ModuleKeys, ClaimableGovernor {
     }
 
     /** @dev Storage architecture for keeping module information */
-    mapping(bytes32 => Module) modules;
+    mapping(bytes32 => Module) public modules;
 
     /** @dev Proposed modules */
     mapping (bytes32 => Module) public proposedModules;
@@ -40,8 +38,9 @@ contract Nexus is INexus, ModuleKeys, ClaimableGovernor {
     /** @dev Initialises the Nexus and adds the core data to the Kernel (itself and governor) */
     constructor(address _governor)
     public
-    ClaimableGovernor(_governor) {
-        _publishModule(Key_Nexus, address(this));
+    DelayedClaimableGovernance(_governor, UPGRADE_DELAY) {
+        //TODO: Is Nexus Locked when init???
+        _publishModule(Key_Nexus, address(this), false);
     }
 
 
@@ -72,39 +71,41 @@ contract Nexus is INexus, ModuleKeys, ClaimableGovernor {
         _;
     }
 
-
-    /***************************************
-                    READING
-    ****************************************/
-
-
-    function getModule(bytes32 _key)
+    /**
+      * @dev Adds multiple new modules to the system to initialize the
+      * Nexus contract with default modules.
+      * @param _keys Keys of the new modules in bytes32 form
+      * @param _addresses Contract addresses of the new modules
+      * @param _isLocked IsLocked flag for the new modules
+      * @return bool Success of publishing new Modules
+      */
+    function initialize(
+        bytes32[] calldata _keys,
+        address[] calldata _addresses,
+        bool[] calldata _isLocked
+    )
     external
-    view
-    returns (address) {
-        address addr = modules[_key].addr;
-        require(addr != address(0), "Must have valid module address");
-        return addr;
-    }
+    onlyGovernor
+    whenNotInitialized
+    returns (bool) {
+        uint256 len = _keys.length;
+        require(len > 0, "No keys provided");
+        require(len == _addresses.length, "Insuffecient address data provided");
+        require(len == _isLocked.length, "Insuffecient locked status provided");
 
-    function isUpgradeDelayOver(bytes32 _key) public view returns (bool) {
-        uint256 timestamp = proposedModules[_key].timestamp;
-        require(timestamp > 0, "Timestamp was not set");
-        require(now > timestamp.add(UPGRADE_DELAY), "Delay not over");
+        for(uint i = 0 ; i < len; i++) {
+            _publishModule(_keys[i], _addresses[i], _isLocked[i]);
+        }
+        initialized = true;
+        //TODO add event
         return true;
     }
+
+
 
     /***************************************
                     ADDING
     ****************************************/
-    /**
-     * @dev Once all initialize modules are added just after deployment.
-     * Call this function to enabled delayed upgrade for modules
-     */
-    function initalize() external onlyGovernor whenNotInitialized {
-        initialized = true;
-        //TODO emit event
-    }
 
     /**
      * @dev Request Nexus to add a module
@@ -142,7 +143,7 @@ contract Nexus is INexus, ModuleKeys, ClaimableGovernor {
     onlyGovernor
     whenInitialized
     whenUpgradeDelayOver(_key) {
-        _publishModule(_key, proposedModules[_key].addr);
+        _publishModule(_key, proposedModules[_key].addr, false);
         delete proposedModules[_key];
     }
 
@@ -155,48 +156,11 @@ contract Nexus is INexus, ModuleKeys, ClaimableGovernor {
         for(uint i = 0 ; i < len; i++) {
             bytes32 key = _keys[i];
             require(isUpgradeDelayOver(key), "Upgrade delay not over");
-            _publishModule(key, proposedModules[key].addr);
+            _publishModule(key, proposedModules[key].addr, false);
             delete proposedModules[key];
         }
     }
 
-
-    /**
-      * @dev Adds a new module to the system or updates existing
-      * @param _key Key of the new module in bytes32 form
-      * @param _addr Contract address of the new module
-      * @return bool Success of publishing new Module
-      */
-    function addModule(bytes32 _key, address _addr)
-    external
-    onlyGovernor
-    whenNotInitialized
-    returns (bool) {
-        _publishModule(_key, _addr);
-        return true;
-    }
-
-    /**
-      * @dev Adds multiple new modules to the system
-      * @param _keys Keys of the new modules in bytes32 form
-      * @param _addresses Contract addresses of the new modules
-      * @return bool Success of publishing new Modules
-      */
-    function addModules(bytes32[] calldata _keys, address[] calldata _addresses)
-    external
-    onlyGovernor
-    whenNotInitialized
-    returns (bool) {
-        uint count = _keys.length;
-        require(count == _addresses.length, "");
-        require(count > 0, "");
-
-        for(uint i = 0 ; i < count; i++){
-            _publishModule(_keys[i], _addresses[i]);
-        }
-
-        return true;
-    }
 
 
     /**
@@ -204,11 +168,11 @@ contract Nexus is INexus, ModuleKeys, ClaimableGovernor {
       * @param _key Key of the new module in bytes32 form
       * @param _addr Contract address of the new module
       */
-    function _publishModule(bytes32 _key, address _addr)
+    function _publishModule(bytes32 _key, address _addr, bool _isLocked)
     internal
     onlyUnlockedModule(_key) {
         modules[_key].addr = _addr;
-        emit ModuleAdded(_key, _addr);
+        emit ModuleAdded(_key, _addr, _isLocked);
     }
 
 
@@ -230,4 +194,25 @@ contract Nexus is INexus, ModuleKeys, ClaimableGovernor {
         //TODO emit event
         return true;
     }
+
+    /***************************************
+                    READING
+    ****************************************/
+
+    function getModule(bytes32 _key)
+    external
+    view
+    returns (address) {
+        address addr = modules[_key].addr;
+        require(addr != address(0), "Must have valid module address");
+        return addr;
+    }
+
+    function isUpgradeDelayOver(bytes32 _key) public view returns (bool) {
+        uint256 timestamp = proposedModules[_key].timestamp;
+        require(timestamp > 0, "Timestamp was not set");
+        require(now >= timestamp.add(UPGRADE_DELAY), "Delay not over");
+        return true;
+    }
+
 }
