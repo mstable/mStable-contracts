@@ -1,0 +1,1245 @@
+{
+  "contractName": "ManagerState",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_nexus",
+          "type": "address"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "Key_Governance",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "Key_Manager",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "Key_Nexus",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "Key_OracleHub",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "Key_Recollateraliser",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "Key_Staking",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "Key_Systok",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "forgeValidator",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "nexus",
+      "outputs": [
+        {
+          "internalType": "contract INexus",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "getMassets",
+      "outputs": [
+        {
+          "internalType": "address[]",
+          "name": "addr",
+          "type": "address[]"
+        },
+        {
+          "internalType": "bytes32[]",
+          "name": "keys",
+          "type": "bytes32[]"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "metadata": "{\"compiler\":{\"version\":\"0.5.16+commit.9c3226ce\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_nexus\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"constant\":true,\"inputs\":[],\"name\":\"Key_Governance\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"Key_Manager\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"Key_Nexus\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"Key_OracleHub\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"Key_Recollateraliser\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"Key_Staking\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"Key_Systok\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"forgeValidator\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getMassets\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"addr\",\"type\":\"address[]\"},{\"internalType\":\"bytes32[]\",\"name\":\"keys\",\"type\":\"bytes32[]\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"nexus\",\"outputs\":[{\"internalType\":\"contract INexus\",\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"details\":\"Holds and provides read access to the core data and state required by the Managment and Masset contracts\",\"methods\":{\"getMassets()\":{\"details\":\"Get the addresses and oracle keys for all the Massets\",\"return\":\"bytes32 Array of Masset identifiers\"}},\"title\":\"ManagerState\"},\"userdoc\":{\"methods\":{}}},\"settings\":{\"compilationTarget\":{\"/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/manager/ManagerState.sol\":\"ManagerState\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/interfaces/INexus.sol\":{\"keccak256\":\"0x563ab9ff02a2d4bd21fa7b00ff49e656ae915eb7c81de373931f5cfccf4d99e0\",\"urls\":[\"bzz-raw://fba2bba7c24d720e3fd2e970747fab28a3d8af00a3a5b851f09021c7da1cb3d7\",\"dweb:/ipfs/QmdP2iDyposKGTt8JX6sfGfhMWkRb4JHkTCM5LjAri9X32\"]},\"/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/manager/ManagerState.sol\":{\"keccak256\":\"0x0c151631ad36d33418ebda6cec28e05e1197fda64146df11c9ead408fcffe0e3\",\"urls\":[\"bzz-raw://99929a3798f0202f6e61c0a6ea583f7cfdc7938c93694c61900adcd794f93360\",\"dweb:/ipfs/QmTc43gxHdLRpKdDqobpEwPPnGvG36UmedBPQiWXZLpK3i\"]},\"/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/shared/Module.sol\":{\"keccak256\":\"0x462ce32f7350e444e1b912e646f7aee825e58fa378494ab9903a4cd2aa39dea7\",\"urls\":[\"bzz-raw://bd5cc2d545616d9ad73f90e9a1e38b986db97b9d61c289ef5af514defaecf091\",\"dweb:/ipfs/QmNvv8bzckxA3g5nEoai9mwyXAt7Qi2qFjPELtkp3CFMFT\"]},\"/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/shared/ModuleKeys.sol\":{\"keccak256\":\"0xe35afc02d95adfa840a01b0914e93a988aad85940a9581f35c59ee2377d86f4c\",\"urls\":[\"bzz-raw://31f9d5955e32b5ae851ba77a316d25e965a214594e6d2eefe22f40f0bab91df2\",\"dweb:/ipfs/QmbuvtrMuZb2gy7wmFUNuAoJLwaGcDnc1fZNpJtf1eP1oK\"]},\"/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/shared/libs/ArrayHelpers.sol\":{\"keccak256\":\"0x4d20a2d7166877621f4c9177a3781671a01e69dcea1fdbffe8a2866987bdb132\",\"urls\":[\"bzz-raw://de6db337b2c1c5171084a45b34503ddd17fcba8d957cac7447ae99f11dc9b213\",\"dweb:/ipfs/QmRZBeng4eFnm4GMfGfHqZDDxoAPLxBBgfHL5tshr1nKmQ\"]},\"/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/shared/libs/DictionaryAtoB.sol\":{\"keccak256\":\"0x58bbda160cd5420d920b813128884b54326cc2771381c1d652ac9064e9bb81b3\",\"urls\":[\"bzz-raw://829a48197e974f117efe51a49112a2ca83144f65cc2f16c2e6ffaf40e229b144\",\"dweb:/ipfs/QmavpCvgJA7qJhvYtx7CKsGeU8jRaCN8nASGXEpFzFMWXK\"]}},\"version\":1}",
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "sourceMap": "",
+  "deployedSourceMap": "",
+  "source": "pragma solidity ^0.5.12;\n\nimport { Module } from \"../shared/Module.sol\";\n\nimport { DictionaryAtoB } from \"../shared/libs/DictionaryAtoB.sol\";\n\n\n/**\n * @title ManagerState\n * @dev Holds and provides read access to the core data and state required by\n * the Managment and Masset contracts\n */\ncontract ManagerState is Module {\n\n    /** @dev Custom dictionary for managing data structures */\n    using DictionaryAtoB for DictionaryAtoB.AddressToBytes32;\n\n    /** @dev Address of latest ForgeValidator implementation */\n    address public forgeValidator;\n\n    /** @dev Hard coded Systok key for calling OracleHub */\n    bytes32 oracle_key_systok = \"MTA\";\n\n    /** @dev Data structure of the Masset and Bassets */\n    DictionaryAtoB.AddressToBytes32 massets;\n\n\n    constructor(address _nexus) Module(_nexus) internal {\n    }\n\n    /**\n      * @dev Get the addresses and oracle keys for all the Massets\n      * @return bytes32 Array of Masset identifiers\n      */\n    function getMassets()\n    external\n    view\n    returns(address[] memory addr, bytes32[] memory keys) {\n        return (massets.keys, massets.values());\n    }\n\n}",
+  "sourcePath": "/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/manager/ManagerState.sol",
+  "ast": {
+    "absolutePath": "/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/manager/ManagerState.sol",
+    "exportedSymbols": {
+      "ManagerState": [
+        2144
+      ]
+    },
+    "id": 2145,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 2101,
+        "literals": [
+          "solidity",
+          "^",
+          "0.5",
+          ".12"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:24:11"
+      },
+      {
+        "absolutePath": "/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/shared/Module.sol",
+        "file": "../shared/Module.sol",
+        "id": 2103,
+        "nodeType": "ImportDirective",
+        "scope": 2145,
+        "sourceUnit": 8542,
+        "src": "26:46:11",
+        "symbolAliases": [
+          {
+            "foreign": 2102,
+            "local": null
+          }
+        ],
+        "unitAlias": ""
+      },
+      {
+        "absolutePath": "/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/shared/libs/DictionaryAtoB.sol",
+        "file": "../shared/libs/DictionaryAtoB.sol",
+        "id": 2105,
+        "nodeType": "ImportDirective",
+        "scope": 2145,
+        "sourceUnit": 9029,
+        "src": "74:67:11",
+        "symbolAliases": [
+          {
+            "foreign": 2104,
+            "local": null
+          }
+        ],
+        "unitAlias": ""
+      },
+      {
+        "baseContracts": [
+          {
+            "arguments": null,
+            "baseName": {
+              "contractScope": null,
+              "id": 2106,
+              "name": "Module",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 8541,
+              "src": "316:6:11",
+              "typeDescriptions": {
+                "typeIdentifier": "t_contract$_Module_$8541",
+                "typeString": "contract Module"
+              }
+            },
+            "id": 2107,
+            "nodeType": "InheritanceSpecifier",
+            "src": "316:6:11"
+          }
+        ],
+        "contractDependencies": [
+          8541,
+          8565
+        ],
+        "contractKind": "contract",
+        "documentation": "@title ManagerState\n@dev Holds and provides read access to the core data and state required by\nthe Managment and Masset contracts",
+        "fullyImplemented": true,
+        "id": 2144,
+        "linearizedBaseContracts": [
+          2144,
+          8541,
+          8565
+        ],
+        "name": "ManagerState",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "id": 2110,
+            "libraryName": {
+              "contractScope": null,
+              "id": 2108,
+              "name": "DictionaryAtoB",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 9028,
+              "src": "399:14:11",
+              "typeDescriptions": {
+                "typeIdentifier": "t_contract$_DictionaryAtoB_$9028",
+                "typeString": "library DictionaryAtoB"
+              }
+            },
+            "nodeType": "UsingForDirective",
+            "src": "393:57:11",
+            "typeName": {
+              "contractScope": null,
+              "id": 2109,
+              "name": "DictionaryAtoB.AddressToBytes32",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 8807,
+              "src": "418:31:11",
+              "typeDescriptions": {
+                "typeIdentifier": "t_struct$_AddressToBytes32_$8807_storage_ptr",
+                "typeString": "struct DictionaryAtoB.AddressToBytes32"
+              }
+            }
+          },
+          {
+            "constant": false,
+            "id": 2112,
+            "name": "forgeValidator",
+            "nodeType": "VariableDeclaration",
+            "scope": 2144,
+            "src": "520:29:11",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            },
+            "typeName": {
+              "id": 2111,
+              "name": "address",
+              "nodeType": "ElementaryTypeName",
+              "src": "520:7:11",
+              "stateMutability": "nonpayable",
+              "typeDescriptions": {
+                "typeIdentifier": "t_address",
+                "typeString": "address"
+              }
+            },
+            "value": null,
+            "visibility": "public"
+          },
+          {
+            "constant": false,
+            "id": 2115,
+            "name": "oracle_key_systok",
+            "nodeType": "VariableDeclaration",
+            "scope": 2144,
+            "src": "616:33:11",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            },
+            "typeName": {
+              "id": 2113,
+              "name": "bytes32",
+              "nodeType": "ElementaryTypeName",
+              "src": "616:7:11",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes32",
+                "typeString": "bytes32"
+              }
+            },
+            "value": {
+              "argumentTypes": null,
+              "hexValue": "4d5441",
+              "id": 2114,
+              "isConstant": false,
+              "isLValue": false,
+              "isPure": true,
+              "kind": "string",
+              "lValueRequested": false,
+              "nodeType": "Literal",
+              "src": "644:5:11",
+              "subdenomination": null,
+              "typeDescriptions": {
+                "typeIdentifier": "t_stringliteral_f143e763a1f83bcfd5679c5389178541f17373d97dde3f5adc24956127e9bdeb",
+                "typeString": "literal_string \"MTA\""
+              },
+              "value": "MTA"
+            },
+            "visibility": "internal"
+          },
+          {
+            "constant": false,
+            "id": 2117,
+            "name": "massets",
+            "nodeType": "VariableDeclaration",
+            "scope": 2144,
+            "src": "713:39:11",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_struct$_AddressToBytes32_$8807_storage",
+              "typeString": "struct DictionaryAtoB.AddressToBytes32"
+            },
+            "typeName": {
+              "contractScope": null,
+              "id": 2116,
+              "name": "DictionaryAtoB.AddressToBytes32",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 8807,
+              "src": "713:31:11",
+              "typeDescriptions": {
+                "typeIdentifier": "t_struct$_AddressToBytes32_$8807_storage_ptr",
+                "typeString": "struct DictionaryAtoB.AddressToBytes32"
+              }
+            },
+            "value": null,
+            "visibility": "internal"
+          },
+          {
+            "body": {
+              "id": 2125,
+              "nodeType": "Block",
+              "src": "812:7:11",
+              "statements": []
+            },
+            "documentation": null,
+            "id": 2126,
+            "implemented": true,
+            "kind": "constructor",
+            "modifiers": [
+              {
+                "arguments": [
+                  {
+                    "argumentTypes": null,
+                    "id": 2122,
+                    "name": "_nexus",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 2119,
+                    "src": "795:6:11",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  }
+                ],
+                "id": 2123,
+                "modifierName": {
+                  "argumentTypes": null,
+                  "id": 2121,
+                  "name": "Module",
+                  "nodeType": "Identifier",
+                  "overloadedDeclarations": [],
+                  "referencedDeclaration": 8541,
+                  "src": "788:6:11",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_type$_t_contract$_Module_$8541_$",
+                    "typeString": "type(contract Module)"
+                  }
+                },
+                "nodeType": "ModifierInvocation",
+                "src": "788:14:11"
+              }
+            ],
+            "name": "",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 2120,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 2119,
+                  "name": "_nexus",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 2126,
+                  "src": "772:14:11",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 2118,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "772:7:11",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "771:16:11"
+            },
+            "returnParameters": {
+              "id": 2124,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "812:0:11"
+            },
+            "scope": 2144,
+            "src": "760:59:11",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "internal"
+          },
+          {
+            "body": {
+              "id": 2142,
+              "nodeType": "Block",
+              "src": "1063:56:11",
+              "statements": [
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "components": [
+                      {
+                        "argumentTypes": null,
+                        "expression": {
+                          "argumentTypes": null,
+                          "id": 2135,
+                          "name": "massets",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 2117,
+                          "src": "1081:7:11",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_struct$_AddressToBytes32_$8807_storage",
+                            "typeString": "struct DictionaryAtoB.AddressToBytes32 storage ref"
+                          }
+                        },
+                        "id": 2136,
+                        "isConstant": false,
+                        "isLValue": true,
+                        "isPure": false,
+                        "lValueRequested": false,
+                        "memberName": "keys",
+                        "nodeType": "MemberAccess",
+                        "referencedDeclaration": 8802,
+                        "src": "1081:12:11",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_array$_t_address_$dyn_storage",
+                          "typeString": "address[] storage ref"
+                        }
+                      },
+                      {
+                        "argumentTypes": null,
+                        "arguments": [],
+                        "expression": {
+                          "argumentTypes": [],
+                          "expression": {
+                            "argumentTypes": null,
+                            "id": 2137,
+                            "name": "massets",
+                            "nodeType": "Identifier",
+                            "overloadedDeclarations": [],
+                            "referencedDeclaration": 2117,
+                            "src": "1095:7:11",
+                            "typeDescriptions": {
+                              "typeIdentifier": "t_struct$_AddressToBytes32_$8807_storage",
+                              "typeString": "struct DictionaryAtoB.AddressToBytes32 storage ref"
+                            }
+                          },
+                          "id": 2138,
+                          "isConstant": false,
+                          "isLValue": true,
+                          "isPure": false,
+                          "lValueRequested": false,
+                          "memberName": "values",
+                          "nodeType": "MemberAccess",
+                          "referencedDeclaration": 8976,
+                          "src": "1095:14:11",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_function_internal_view$_t_struct$_AddressToBytes32_$8807_storage_ptr_$returns$_t_array$_t_bytes32_$dyn_memory_ptr_$bound_to$_t_struct$_AddressToBytes32_$8807_storage_ptr_$",
+                            "typeString": "function (struct DictionaryAtoB.AddressToBytes32 storage pointer) view returns (bytes32[] memory)"
+                          }
+                        },
+                        "id": 2139,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": false,
+                        "kind": "functionCall",
+                        "lValueRequested": false,
+                        "names": [],
+                        "nodeType": "FunctionCall",
+                        "src": "1095:16:11",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_array$_t_bytes32_$dyn_memory_ptr",
+                          "typeString": "bytes32[] memory"
+                        }
+                      }
+                    ],
+                    "id": 2140,
+                    "isConstant": false,
+                    "isInlineArray": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "nodeType": "TupleExpression",
+                    "src": "1080:32:11",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$_t_array$_t_address_$dyn_storage_$_t_array$_t_bytes32_$dyn_memory_ptr_$",
+                      "typeString": "tuple(address[] storage ref,bytes32[] memory)"
+                    }
+                  },
+                  "functionReturnParameters": 2134,
+                  "id": 2141,
+                  "nodeType": "Return",
+                  "src": "1073:39:11"
+                }
+              ]
+            },
+            "documentation": "@dev Get the addresses and oracle keys for all the Massets\n@return bytes32 Array of Masset identifiers",
+            "id": 2143,
+            "implemented": true,
+            "kind": "function",
+            "modifiers": [],
+            "name": "getMassets",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 2127,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "980:2:11"
+            },
+            "returnParameters": {
+              "id": 2134,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 2130,
+                  "name": "addr",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 2143,
+                  "src": "1017:21:11",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_address_$dyn_memory_ptr",
+                    "typeString": "address[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 2128,
+                      "name": "address",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "1017:7:11",
+                      "stateMutability": "nonpayable",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_address",
+                        "typeString": "address"
+                      }
+                    },
+                    "id": 2129,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "1017:9:11",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_address_$dyn_storage_ptr",
+                      "typeString": "address[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 2133,
+                  "name": "keys",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 2143,
+                  "src": "1040:21:11",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_bytes32_$dyn_memory_ptr",
+                    "typeString": "bytes32[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 2131,
+                      "name": "bytes32",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "1040:7:11",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bytes32",
+                        "typeString": "bytes32"
+                      }
+                    },
+                    "id": 2132,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "1040:9:11",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_bytes32_$dyn_storage_ptr",
+                      "typeString": "bytes32[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "1016:46:11"
+            },
+            "scope": 2144,
+            "src": "961:158:11",
+            "stateMutability": "view",
+            "superFunction": 1437,
+            "visibility": "external"
+          }
+        ],
+        "scope": 2145,
+        "src": "291:831:11"
+      }
+    ],
+    "src": "0:1122:11"
+  },
+  "legacyAST": {
+    "absolutePath": "/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/manager/ManagerState.sol",
+    "exportedSymbols": {
+      "ManagerState": [
+        2144
+      ]
+    },
+    "id": 2145,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 2101,
+        "literals": [
+          "solidity",
+          "^",
+          "0.5",
+          ".12"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:24:11"
+      },
+      {
+        "absolutePath": "/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/shared/Module.sol",
+        "file": "../shared/Module.sol",
+        "id": 2103,
+        "nodeType": "ImportDirective",
+        "scope": 2145,
+        "sourceUnit": 8542,
+        "src": "26:46:11",
+        "symbolAliases": [
+          {
+            "foreign": 2102,
+            "local": null
+          }
+        ],
+        "unitAlias": ""
+      },
+      {
+        "absolutePath": "/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/shared/libs/DictionaryAtoB.sol",
+        "file": "../shared/libs/DictionaryAtoB.sol",
+        "id": 2105,
+        "nodeType": "ImportDirective",
+        "scope": 2145,
+        "sourceUnit": 9029,
+        "src": "74:67:11",
+        "symbolAliases": [
+          {
+            "foreign": 2104,
+            "local": null
+          }
+        ],
+        "unitAlias": ""
+      },
+      {
+        "baseContracts": [
+          {
+            "arguments": null,
+            "baseName": {
+              "contractScope": null,
+              "id": 2106,
+              "name": "Module",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 8541,
+              "src": "316:6:11",
+              "typeDescriptions": {
+                "typeIdentifier": "t_contract$_Module_$8541",
+                "typeString": "contract Module"
+              }
+            },
+            "id": 2107,
+            "nodeType": "InheritanceSpecifier",
+            "src": "316:6:11"
+          }
+        ],
+        "contractDependencies": [
+          8541,
+          8565
+        ],
+        "contractKind": "contract",
+        "documentation": "@title ManagerState\n@dev Holds and provides read access to the core data and state required by\nthe Managment and Masset contracts",
+        "fullyImplemented": true,
+        "id": 2144,
+        "linearizedBaseContracts": [
+          2144,
+          8541,
+          8565
+        ],
+        "name": "ManagerState",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "id": 2110,
+            "libraryName": {
+              "contractScope": null,
+              "id": 2108,
+              "name": "DictionaryAtoB",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 9028,
+              "src": "399:14:11",
+              "typeDescriptions": {
+                "typeIdentifier": "t_contract$_DictionaryAtoB_$9028",
+                "typeString": "library DictionaryAtoB"
+              }
+            },
+            "nodeType": "UsingForDirective",
+            "src": "393:57:11",
+            "typeName": {
+              "contractScope": null,
+              "id": 2109,
+              "name": "DictionaryAtoB.AddressToBytes32",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 8807,
+              "src": "418:31:11",
+              "typeDescriptions": {
+                "typeIdentifier": "t_struct$_AddressToBytes32_$8807_storage_ptr",
+                "typeString": "struct DictionaryAtoB.AddressToBytes32"
+              }
+            }
+          },
+          {
+            "constant": false,
+            "id": 2112,
+            "name": "forgeValidator",
+            "nodeType": "VariableDeclaration",
+            "scope": 2144,
+            "src": "520:29:11",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            },
+            "typeName": {
+              "id": 2111,
+              "name": "address",
+              "nodeType": "ElementaryTypeName",
+              "src": "520:7:11",
+              "stateMutability": "nonpayable",
+              "typeDescriptions": {
+                "typeIdentifier": "t_address",
+                "typeString": "address"
+              }
+            },
+            "value": null,
+            "visibility": "public"
+          },
+          {
+            "constant": false,
+            "id": 2115,
+            "name": "oracle_key_systok",
+            "nodeType": "VariableDeclaration",
+            "scope": 2144,
+            "src": "616:33:11",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            },
+            "typeName": {
+              "id": 2113,
+              "name": "bytes32",
+              "nodeType": "ElementaryTypeName",
+              "src": "616:7:11",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes32",
+                "typeString": "bytes32"
+              }
+            },
+            "value": {
+              "argumentTypes": null,
+              "hexValue": "4d5441",
+              "id": 2114,
+              "isConstant": false,
+              "isLValue": false,
+              "isPure": true,
+              "kind": "string",
+              "lValueRequested": false,
+              "nodeType": "Literal",
+              "src": "644:5:11",
+              "subdenomination": null,
+              "typeDescriptions": {
+                "typeIdentifier": "t_stringliteral_f143e763a1f83bcfd5679c5389178541f17373d97dde3f5adc24956127e9bdeb",
+                "typeString": "literal_string \"MTA\""
+              },
+              "value": "MTA"
+            },
+            "visibility": "internal"
+          },
+          {
+            "constant": false,
+            "id": 2117,
+            "name": "massets",
+            "nodeType": "VariableDeclaration",
+            "scope": 2144,
+            "src": "713:39:11",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_struct$_AddressToBytes32_$8807_storage",
+              "typeString": "struct DictionaryAtoB.AddressToBytes32"
+            },
+            "typeName": {
+              "contractScope": null,
+              "id": 2116,
+              "name": "DictionaryAtoB.AddressToBytes32",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 8807,
+              "src": "713:31:11",
+              "typeDescriptions": {
+                "typeIdentifier": "t_struct$_AddressToBytes32_$8807_storage_ptr",
+                "typeString": "struct DictionaryAtoB.AddressToBytes32"
+              }
+            },
+            "value": null,
+            "visibility": "internal"
+          },
+          {
+            "body": {
+              "id": 2125,
+              "nodeType": "Block",
+              "src": "812:7:11",
+              "statements": []
+            },
+            "documentation": null,
+            "id": 2126,
+            "implemented": true,
+            "kind": "constructor",
+            "modifiers": [
+              {
+                "arguments": [
+                  {
+                    "argumentTypes": null,
+                    "id": 2122,
+                    "name": "_nexus",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 2119,
+                    "src": "795:6:11",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  }
+                ],
+                "id": 2123,
+                "modifierName": {
+                  "argumentTypes": null,
+                  "id": 2121,
+                  "name": "Module",
+                  "nodeType": "Identifier",
+                  "overloadedDeclarations": [],
+                  "referencedDeclaration": 8541,
+                  "src": "788:6:11",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_type$_t_contract$_Module_$8541_$",
+                    "typeString": "type(contract Module)"
+                  }
+                },
+                "nodeType": "ModifierInvocation",
+                "src": "788:14:11"
+              }
+            ],
+            "name": "",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 2120,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 2119,
+                  "name": "_nexus",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 2126,
+                  "src": "772:14:11",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 2118,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "772:7:11",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "771:16:11"
+            },
+            "returnParameters": {
+              "id": 2124,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "812:0:11"
+            },
+            "scope": 2144,
+            "src": "760:59:11",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "internal"
+          },
+          {
+            "body": {
+              "id": 2142,
+              "nodeType": "Block",
+              "src": "1063:56:11",
+              "statements": [
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "components": [
+                      {
+                        "argumentTypes": null,
+                        "expression": {
+                          "argumentTypes": null,
+                          "id": 2135,
+                          "name": "massets",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 2117,
+                          "src": "1081:7:11",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_struct$_AddressToBytes32_$8807_storage",
+                            "typeString": "struct DictionaryAtoB.AddressToBytes32 storage ref"
+                          }
+                        },
+                        "id": 2136,
+                        "isConstant": false,
+                        "isLValue": true,
+                        "isPure": false,
+                        "lValueRequested": false,
+                        "memberName": "keys",
+                        "nodeType": "MemberAccess",
+                        "referencedDeclaration": 8802,
+                        "src": "1081:12:11",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_array$_t_address_$dyn_storage",
+                          "typeString": "address[] storage ref"
+                        }
+                      },
+                      {
+                        "argumentTypes": null,
+                        "arguments": [],
+                        "expression": {
+                          "argumentTypes": [],
+                          "expression": {
+                            "argumentTypes": null,
+                            "id": 2137,
+                            "name": "massets",
+                            "nodeType": "Identifier",
+                            "overloadedDeclarations": [],
+                            "referencedDeclaration": 2117,
+                            "src": "1095:7:11",
+                            "typeDescriptions": {
+                              "typeIdentifier": "t_struct$_AddressToBytes32_$8807_storage",
+                              "typeString": "struct DictionaryAtoB.AddressToBytes32 storage ref"
+                            }
+                          },
+                          "id": 2138,
+                          "isConstant": false,
+                          "isLValue": true,
+                          "isPure": false,
+                          "lValueRequested": false,
+                          "memberName": "values",
+                          "nodeType": "MemberAccess",
+                          "referencedDeclaration": 8976,
+                          "src": "1095:14:11",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_function_internal_view$_t_struct$_AddressToBytes32_$8807_storage_ptr_$returns$_t_array$_t_bytes32_$dyn_memory_ptr_$bound_to$_t_struct$_AddressToBytes32_$8807_storage_ptr_$",
+                            "typeString": "function (struct DictionaryAtoB.AddressToBytes32 storage pointer) view returns (bytes32[] memory)"
+                          }
+                        },
+                        "id": 2139,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": false,
+                        "kind": "functionCall",
+                        "lValueRequested": false,
+                        "names": [],
+                        "nodeType": "FunctionCall",
+                        "src": "1095:16:11",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_array$_t_bytes32_$dyn_memory_ptr",
+                          "typeString": "bytes32[] memory"
+                        }
+                      }
+                    ],
+                    "id": 2140,
+                    "isConstant": false,
+                    "isInlineArray": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "nodeType": "TupleExpression",
+                    "src": "1080:32:11",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$_t_array$_t_address_$dyn_storage_$_t_array$_t_bytes32_$dyn_memory_ptr_$",
+                      "typeString": "tuple(address[] storage ref,bytes32[] memory)"
+                    }
+                  },
+                  "functionReturnParameters": 2134,
+                  "id": 2141,
+                  "nodeType": "Return",
+                  "src": "1073:39:11"
+                }
+              ]
+            },
+            "documentation": "@dev Get the addresses and oracle keys for all the Massets\n@return bytes32 Array of Masset identifiers",
+            "id": 2143,
+            "implemented": true,
+            "kind": "function",
+            "modifiers": [],
+            "name": "getMassets",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 2127,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "980:2:11"
+            },
+            "returnParameters": {
+              "id": 2134,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 2130,
+                  "name": "addr",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 2143,
+                  "src": "1017:21:11",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_address_$dyn_memory_ptr",
+                    "typeString": "address[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 2128,
+                      "name": "address",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "1017:7:11",
+                      "stateMutability": "nonpayable",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_address",
+                        "typeString": "address"
+                      }
+                    },
+                    "id": 2129,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "1017:9:11",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_address_$dyn_storage_ptr",
+                      "typeString": "address[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 2133,
+                  "name": "keys",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 2143,
+                  "src": "1040:21:11",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_bytes32_$dyn_memory_ptr",
+                    "typeString": "bytes32[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 2131,
+                      "name": "bytes32",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "1040:7:11",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bytes32",
+                        "typeString": "bytes32"
+                      }
+                    },
+                    "id": 2132,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "1040:9:11",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_bytes32_$dyn_storage_ptr",
+                      "typeString": "bytes32[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "1016:46:11"
+            },
+            "scope": 2144,
+            "src": "961:158:11",
+            "stateMutability": "view",
+            "superFunction": 1437,
+            "visibility": "external"
+          }
+        ],
+        "scope": 2145,
+        "src": "291:831:11"
+      }
+    ],
+    "src": "0:1122:11"
+  },
+  "compiler": {
+    "name": "solc",
+    "version": "0.5.16+commit.9c3226ce.Emscripten.clang"
+  },
+  "networks": {},
+  "schemaVersion": "3.0.23",
+  "updatedAt": "2020-02-17T19:56:32.805Z",
+  "devdoc": {
+    "details": "Holds and provides read access to the core data and state required by the Managment and Masset contracts",
+    "methods": {
+      "getMassets()": {
+        "details": "Get the addresses and oracle keys for all the Massets",
+        "return": "bytes32 Array of Masset identifiers"
+      }
+    },
+    "title": "ManagerState"
+  },
+  "userdoc": {
+    "methods": {}
+  }
+}

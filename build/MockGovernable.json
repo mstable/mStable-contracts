@@ -1,0 +1,258 @@
+{
+  "contractName": "MockGovernable",
+  "abi": [
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "previousGovernor",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "newGovernor",
+          "type": "address"
+        }
+      ],
+      "name": "GovernorChanged",
+      "type": "event"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_newGovernor",
+          "type": "address"
+        }
+      ],
+      "name": "changeGovernor",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "governor",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "isGovernor",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "metadata": "{\"compiler\":{\"version\":\"0.5.16+commit.9c3226ce\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"previousGovernor\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"newGovernor\",\"type\":\"address\"}],\"name\":\"GovernorChanged\",\"type\":\"event\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"_newGovernor\",\"type\":\"address\"}],\"name\":\"changeGovernor\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"governor\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"isGovernor\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"methods\":{\"changeGovernor(address)\":{\"details\":\"Transfers Governance of the contract to a new account (`newGovernor`). Can only be called by the current Governor.\",\"params\":{\"_newGovernor\":\"Address of the new Governor\"}},\"governor()\":{\"details\":\"Returns the address of the current Governor.\"},\"isGovernor()\":{\"details\":\"Returns true if the caller is the current Governor.\"}}},\"userdoc\":{\"methods\":{}}},\"settings\":{\"compilationTarget\":{\"/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/z_mocks/governance/MockGovernable.sol\":\"MockGovernable\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/governance/Governable.sol\":{\"keccak256\":\"0x2c6f907259a462bd7cc48c18af5758273412193399d874ba0518e7660b44cf54\",\"urls\":[\"bzz-raw://4e7712a07e3f0dc96d30bb5dfde23b03724340cc2cca2aaadcaaa681b7de65a2\",\"dweb:/ipfs/QmQciyYWKSh91nSYhHMCR74AZjYpnP7chFHbiXu21kT3Sh\"]},\"/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/z_mocks/governance/MockGovernable.sol\":{\"keccak256\":\"0x689a2b0524702961a5ed92f9ef02822974c7fd292fd75d7a8f53d2c9799bea99\",\"urls\":[\"bzz-raw://89b5790f728c35927a999b61b42e497580f41565e97f9779e4c9da75b42465a3\",\"dweb:/ipfs/QmfDfWFe5Vx5po3Gv79kBsA5VitQy73iPKb78YV4maT4FH\"]}},\"version\":1}",
+  "bytecode": "0x60806040819052600080546001600160a01b03191633178082556001600160a01b0316917fde4b3f61490b74c0ed6237523974fe299126bbbf8a8a7482fd220104c59b0c84908290a3610244806100576000396000f3fe608060405234801561001057600080fd5b50600436106100415760003560e01c80630c340a2414610046578063c7af33521461006a578063e4c0aaf414610086575b600080fd5b61004e6100ae565b604080516001600160a01b039092168252519081900360200190f35b6100726100bd565b604080519115158252519081900360200190f35b6100ac6004803603602081101561009c57600080fd5b50356001600160a01b03166100ce565b005b6000546001600160a01b031690565b6000546001600160a01b0316331490565b6100d66100bd565b6101115760405162461bcd60e51b81526004018080602001828103825260268152602001806101be6026913960400191505060405180910390fd5b61011a8161011d565b50565b6001600160a01b0381166101625760405162461bcd60e51b815260040180806020018281038252602c8152602001806101e4602c913960400191505060405180910390fd5b600080546040516001600160a01b03808516939216917fde4b3f61490b74c0ed6237523974fe299126bbbf8a8a7482fd220104c59b0c8491a3600080546001600160a01b0319166001600160a01b039290921691909117905556fe476f7665726e61626c653a2063616c6c6572206973206e6f742074686520476f7665726e6f72476f7665726e61626c653a206e657720476f7665726e6f7220697320746865207a65726f2061646472657373a265627a7a72315820f8da90d530b4d13d0ff683c59306c1ed24d91e37cd00e4a1ec3a2bd1351c1d0f64736f6c63430005100032",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b50600436106100415760003560e01c80630c340a2414610046578063c7af33521461006a578063e4c0aaf414610086575b600080fd5b61004e6100ae565b604080516001600160a01b039092168252519081900360200190f35b6100726100bd565b604080519115158252519081900360200190f35b6100ac6004803603602081101561009c57600080fd5b50356001600160a01b03166100ce565b005b6000546001600160a01b031690565b6000546001600160a01b0316331490565b6100d66100bd565b6101115760405162461bcd60e51b81526004018080602001828103825260268152602001806101be6026913960400191505060405180910390fd5b61011a8161011d565b50565b6001600160a01b0381166101625760405162461bcd60e51b815260040180806020018281038252602c8152602001806101e4602c913960400191505060405180910390fd5b600080546040516001600160a01b03808516939216917fde4b3f61490b74c0ed6237523974fe299126bbbf8a8a7482fd220104c59b0c8491a3600080546001600160a01b0319166001600160a01b039290921691909117905556fe476f7665726e61626c653a2063616c6c6572206973206e6f742074686520476f7665726e6f72476f7665726e61626c653a206e657720476f7665726e6f7220697320746865207a65726f2061646472657373a265627a7a72315820f8da90d530b4d13d0ff683c59306c1ed24d91e37cd00e4a1ec3a2bd1351c1d0f64736f6c63430005100032",
+  "sourceMap": "89:42:48:-;;;;;413:9:3;:22;;-1:-1:-1;;;;;;413:22:3;425:10;413:22;;;;-1:-1:-1;;;;;478:9:3;;450:38;;413:9;;450:38;89:42:48;;;;;;",
+  "deployedSourceMap": "89:42:48:-;;;;8:9:-1;5:2;;;30:1;27;20:12;5:2;89:42:48;;;;;;;;;;;;;;;;;;;;;;;;;;;;;574:83:3;;;:::i;:::-;;;;-1:-1:-1;;;;;574:83:3;;;;;;;;;;;;;;949:96;;;:::i;:::-;;;;;;;;;;;;;;;;;;1256:112;;;;;;13:2:-1;8:3;5:11;2:2;;;29:1;26;19:12;2:2;-1:-1;1256:112:3;-1:-1:-1;;;;;1256:112:3;;:::i;:::-;;574:83;615:7;641:9;-1:-1:-1;;;;;641:9:3;574:83;:::o;949:96::-;992:4;1029:9;-1:-1:-1;;;;;1029:9:3;1015:10;:23;;949:96::o;1256:112::-;790:12;:10;:12::i;:::-;782:63;;;;-1:-1:-1;;;782:63:3;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1332:29;1348:12;1332:15;:29::i;:::-;1256:112;:::o;1525:245::-;-1:-1:-1;;;;;1599:26:3;;1591:83;;;;-1:-1:-1;;;1591:83:3;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1705:9;;;1689:40;;-1:-1:-1;;;;;1689:40:3;;;;1705:9;;;1689:40;;;1739:9;:24;;-1:-1:-1;;;;;;1739:24:3;-1:-1:-1;;;;;1739:24:3;;;;;;;;;;1525:245::o",
+  "source": "pragma solidity ^0.5.12;\n\nimport { Governable } from \"../../governance/Governable.sol\";\n\ncontract MockGovernable is Governable {\n\n}",
+  "sourcePath": "/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/z_mocks/governance/MockGovernable.sol",
+  "ast": {
+    "absolutePath": "/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/z_mocks/governance/MockGovernable.sol",
+    "exportedSymbols": {
+      "MockGovernable": [
+        10477
+      ]
+    },
+    "id": 10478,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 10472,
+        "literals": [
+          "solidity",
+          "^",
+          "0.5",
+          ".12"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:24:48"
+      },
+      {
+        "absolutePath": "/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/governance/Governable.sol",
+        "file": "../../governance/Governable.sol",
+        "id": 10474,
+        "nodeType": "ImportDirective",
+        "scope": 10478,
+        "sourceUnit": 392,
+        "src": "26:61:48",
+        "symbolAliases": [
+          {
+            "foreign": 10473,
+            "local": null
+          }
+        ],
+        "unitAlias": ""
+      },
+      {
+        "baseContracts": [
+          {
+            "arguments": null,
+            "baseName": {
+              "contractScope": null,
+              "id": 10475,
+              "name": "Governable",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 391,
+              "src": "116:10:48",
+              "typeDescriptions": {
+                "typeIdentifier": "t_contract$_Governable_$391",
+                "typeString": "contract Governable"
+              }
+            },
+            "id": 10476,
+            "nodeType": "InheritanceSpecifier",
+            "src": "116:10:48"
+          }
+        ],
+        "contractDependencies": [
+          391
+        ],
+        "contractKind": "contract",
+        "documentation": null,
+        "fullyImplemented": true,
+        "id": 10477,
+        "linearizedBaseContracts": [
+          10477,
+          391
+        ],
+        "name": "MockGovernable",
+        "nodeType": "ContractDefinition",
+        "nodes": [],
+        "scope": 10478,
+        "src": "89:42:48"
+      }
+    ],
+    "src": "0:131:48"
+  },
+  "legacyAST": {
+    "absolutePath": "/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/z_mocks/governance/MockGovernable.sol",
+    "exportedSymbols": {
+      "MockGovernable": [
+        10477
+      ]
+    },
+    "id": 10478,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 10472,
+        "literals": [
+          "solidity",
+          "^",
+          "0.5",
+          ".12"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:24:48"
+      },
+      {
+        "absolutePath": "/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/governance/Governable.sol",
+        "file": "../../governance/Governable.sol",
+        "id": 10474,
+        "nodeType": "ImportDirective",
+        "scope": 10478,
+        "sourceUnit": 392,
+        "src": "26:61:48",
+        "symbolAliases": [
+          {
+            "foreign": 10473,
+            "local": null
+          }
+        ],
+        "unitAlias": ""
+      },
+      {
+        "baseContracts": [
+          {
+            "arguments": null,
+            "baseName": {
+              "contractScope": null,
+              "id": 10475,
+              "name": "Governable",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 391,
+              "src": "116:10:48",
+              "typeDescriptions": {
+                "typeIdentifier": "t_contract$_Governable_$391",
+                "typeString": "contract Governable"
+              }
+            },
+            "id": 10476,
+            "nodeType": "InheritanceSpecifier",
+            "src": "116:10:48"
+          }
+        ],
+        "contractDependencies": [
+          391
+        ],
+        "contractKind": "contract",
+        "documentation": null,
+        "fullyImplemented": true,
+        "id": 10477,
+        "linearizedBaseContracts": [
+          10477,
+          391
+        ],
+        "name": "MockGovernable",
+        "nodeType": "ContractDefinition",
+        "nodes": [],
+        "scope": 10478,
+        "src": "89:42:48"
+      }
+    ],
+    "src": "0:131:48"
+  },
+  "compiler": {
+    "name": "solc",
+    "version": "0.5.16+commit.9c3226ce.Emscripten.clang"
+  },
+  "networks": {},
+  "schemaVersion": "3.0.23",
+  "updatedAt": "2020-02-17T19:56:32.957Z",
+  "devdoc": {
+    "methods": {
+      "changeGovernor(address)": {
+        "details": "Transfers Governance of the contract to a new account (`newGovernor`). Can only be called by the current Governor.",
+        "params": {
+          "_newGovernor": "Address of the new Governor"
+        }
+      },
+      "governor()": {
+        "details": "Returns the address of the current Governor."
+      },
+      "isGovernor()": {
+        "details": "Returns true if the caller is the current Governor."
+      }
+    }
+  },
+  "userdoc": {
+    "methods": {}
+  }
+}

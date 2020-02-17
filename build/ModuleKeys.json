@@ -1,0 +1,816 @@
+{
+  "contractName": "ModuleKeys",
+  "abi": [
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "Key_Governance",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "Key_Manager",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "Key_Nexus",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "Key_OracleHub",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "Key_Recollateraliser",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "Key_Staking",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "Key_Systok",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "metadata": "{\"compiler\":{\"version\":\"0.5.16+commit.9c3226ce\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"constant\":true,\"inputs\":[],\"name\":\"Key_Governance\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"Key_Manager\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"Key_Nexus\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"Key_OracleHub\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"Key_Recollateraliser\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"Key_Staking\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"Key_Systok\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"details\":\"Provides system wide access to the byte32 represntations of system modules This allows each system module to be able to reference and update one another in a friendly way\",\"methods\":{},\"title\":\"ModuleKeys\"},\"userdoc\":{\"methods\":{}}},\"settings\":{\"compilationTarget\":{\"/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/shared/ModuleKeys.sol\":\"ModuleKeys\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/shared/ModuleKeys.sol\":{\"keccak256\":\"0xe35afc02d95adfa840a01b0914e93a988aad85940a9581f35c59ee2377d86f4c\",\"urls\":[\"bzz-raw://31f9d5955e32b5ae851ba77a316d25e965a214594e6d2eefe22f40f0bab91df2\",\"dweb:/ipfs/QmbuvtrMuZb2gy7wmFUNuAoJLwaGcDnc1fZNpJtf1eP1oK\"]}},\"version\":1}",
+  "bytecode": "0x608060405234801561001057600080fd5b5061016e806100206000396000f3fe608060405234801561001057600080fd5b506004361061007d5760003560e01c8063ae2efd911161005b578063ae2efd91146100ac578063b97e0ac6146100b4578063e5517841146100bc578063f3bdedd2146100c45761007d565b80630aa8d59a146100825780635eae58b91461009c5780637b4aec79146100a4575b600080fd5b61008a6100cc565b60408051918252519081900360200190f35b61008a6100da565b61008a6100e7565b61008a6100f5565b61008a61010c565b61008a61011c565b61008a610128565b665374616b696e6760c81b81565b65537973746f6b60d01b81565b6626b0b730b3b2b960c91b81565b6f2932b1b7b63630ba32b930b634b9b2b960811b81565b6827b930b1b632a43ab160b91b81565b644e6578757360d81b81565b69476f7665726e616e636560b01b8156fea265627a7a7231582080242e7420b054c0c1dea4fcd61221a037d42b8cd4e94ff3c7158d942889105f64736f6c63430005100032",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b506004361061007d5760003560e01c8063ae2efd911161005b578063ae2efd91146100ac578063b97e0ac6146100b4578063e5517841146100bc578063f3bdedd2146100c45761007d565b80630aa8d59a146100825780635eae58b91461009c5780637b4aec79146100a4575b600080fd5b61008a6100cc565b60408051918252519081900360200190f35b61008a6100da565b61008a6100e7565b61008a6100f5565b61008a61010c565b61008a61011c565b61008a610128565b665374616b696e6760c81b81565b65537973746f6b60d01b81565b6626b0b730b3b2b960c91b81565b6f2932b1b7b63630ba32b930b634b9b2b960811b81565b6827b930b1b632a43ab160b91b81565b644e6578757360d81b81565b69476f7665726e616e636560b01b8156fea265627a7a7231582080242e7420b054c0c1dea4fcd61221a037d42b8cd4e94ff3c7158d942889105f64736f6c63430005100032",
+  "sourceMap": "241:426:27:-;;;;8:9:-1;5:2;;;30:1;27;20:12;5:2;241:426:27;;;;;;;",
+  "deployedSourceMap": "241:426:27:-;;;;8:9:-1;5:2;;;30:1;27;20:12;5:2;241:426:27;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;381:47;;;:::i;:::-;;;;;;;;;;;;;;;;435:45;;;:::i;545:47::-;;;:::i;599:65::-;;;:::i;487:51::-;;;:::i;267:43::-;;;:::i;317:53::-;;;:::i;381:47::-;-1:-1:-1;;;381:47:27;:::o;435:45::-;-1:-1:-1;;;435:45:27;:::o;545:47::-;-1:-1:-1;;;545:47:27;:::o;599:65::-;-1:-1:-1;;;599:65:27;:::o;487:51::-;-1:-1:-1;;;487:51:27;:::o;267:43::-;-1:-1:-1;;;267:43:27;:::o;317:53::-;-1:-1:-1;;;317:53:27;:::o",
+  "source": "pragma solidity ^0.5.12;\n\n/**\n  * @title ModuleKeys\n  * @dev Provides system wide access to the byte32 represntations of system modules\n  * This allows each system module to be able to reference and update one another in a friendly way\n  */\ncontract ModuleKeys {\n    bytes32 constant public Key_Nexus = \"Nexus\";\n\n    bytes32 constant public Key_Governance = \"Governance\";\n    \n    bytes32 constant public Key_Staking = \"Staking\";\n\n    bytes32 constant public Key_Systok = \"Systok\";\n\n    bytes32 constant public Key_OracleHub = \"OracleHub\";\n\n    bytes32 constant public Key_Manager = \"Manager\";\n\n    bytes32 constant public Key_Recollateraliser = \"Recollateraliser\";\n}",
+  "sourcePath": "/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/shared/ModuleKeys.sol",
+  "ast": {
+    "absolutePath": "/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/shared/ModuleKeys.sol",
+    "exportedSymbols": {
+      "ModuleKeys": [
+        8565
+      ]
+    },
+    "id": 8566,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 8543,
+        "literals": [
+          "solidity",
+          "^",
+          "0.5",
+          ".12"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:24:27"
+      },
+      {
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "contract",
+        "documentation": "@title ModuleKeys\n@dev Provides system wide access to the byte32 represntations of system modules\nThis allows each system module to be able to reference and update one another in a friendly way",
+        "fullyImplemented": true,
+        "id": 8565,
+        "linearizedBaseContracts": [
+          8565
+        ],
+        "name": "ModuleKeys",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "constant": true,
+            "id": 8546,
+            "name": "Key_Nexus",
+            "nodeType": "VariableDeclaration",
+            "scope": 8565,
+            "src": "267:43:27",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            },
+            "typeName": {
+              "id": 8544,
+              "name": "bytes32",
+              "nodeType": "ElementaryTypeName",
+              "src": "267:7:27",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes32",
+                "typeString": "bytes32"
+              }
+            },
+            "value": {
+              "argumentTypes": null,
+              "hexValue": "4e65787573",
+              "id": 8545,
+              "isConstant": false,
+              "isLValue": false,
+              "isPure": true,
+              "kind": "string",
+              "lValueRequested": false,
+              "nodeType": "Literal",
+              "src": "303:7:27",
+              "subdenomination": null,
+              "typeDescriptions": {
+                "typeIdentifier": "t_stringliteral_f3fbaf4e62ef217b8151b366cdaba8fa578e78940637d6c1ec320d10a7188772",
+                "typeString": "literal_string \"Nexus\""
+              },
+              "value": "Nexus"
+            },
+            "visibility": "public"
+          },
+          {
+            "constant": true,
+            "id": 8549,
+            "name": "Key_Governance",
+            "nodeType": "VariableDeclaration",
+            "scope": 8565,
+            "src": "317:53:27",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            },
+            "typeName": {
+              "id": 8547,
+              "name": "bytes32",
+              "nodeType": "ElementaryTypeName",
+              "src": "317:7:27",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes32",
+                "typeString": "bytes32"
+              }
+            },
+            "value": {
+              "argumentTypes": null,
+              "hexValue": "476f7665726e616e6365",
+              "id": 8548,
+              "isConstant": false,
+              "isLValue": false,
+              "isPure": true,
+              "kind": "string",
+              "lValueRequested": false,
+              "nodeType": "Literal",
+              "src": "358:12:27",
+              "subdenomination": null,
+              "typeDescriptions": {
+                "typeIdentifier": "t_stringliteral_9409903de1e6fd852dfc61c9dacb48196c48535b60e25abf92acc92dd689078d",
+                "typeString": "literal_string \"Governance\""
+              },
+              "value": "Governance"
+            },
+            "visibility": "public"
+          },
+          {
+            "constant": true,
+            "id": 8552,
+            "name": "Key_Staking",
+            "nodeType": "VariableDeclaration",
+            "scope": 8565,
+            "src": "381:47:27",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            },
+            "typeName": {
+              "id": 8550,
+              "name": "bytes32",
+              "nodeType": "ElementaryTypeName",
+              "src": "381:7:27",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes32",
+                "typeString": "bytes32"
+              }
+            },
+            "value": {
+              "argumentTypes": null,
+              "hexValue": "5374616b696e67",
+              "id": 8551,
+              "isConstant": false,
+              "isLValue": false,
+              "isPure": true,
+              "kind": "string",
+              "lValueRequested": false,
+              "nodeType": "Literal",
+              "src": "419:9:27",
+              "subdenomination": null,
+              "typeDescriptions": {
+                "typeIdentifier": "t_stringliteral_1df41cd916959d1163dc8f0671a666ea8a3e434c13e40faef527133b5d167034",
+                "typeString": "literal_string \"Staking\""
+              },
+              "value": "Staking"
+            },
+            "visibility": "public"
+          },
+          {
+            "constant": true,
+            "id": 8555,
+            "name": "Key_Systok",
+            "nodeType": "VariableDeclaration",
+            "scope": 8565,
+            "src": "435:45:27",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            },
+            "typeName": {
+              "id": 8553,
+              "name": "bytes32",
+              "nodeType": "ElementaryTypeName",
+              "src": "435:7:27",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes32",
+                "typeString": "bytes32"
+              }
+            },
+            "value": {
+              "argumentTypes": null,
+              "hexValue": "537973746f6b",
+              "id": 8554,
+              "isConstant": false,
+              "isLValue": false,
+              "isPure": true,
+              "kind": "string",
+              "lValueRequested": false,
+              "nodeType": "Literal",
+              "src": "472:8:27",
+              "subdenomination": null,
+              "typeDescriptions": {
+                "typeIdentifier": "t_stringliteral_8b7cdb72829588a2c2cef6fdd7579f5a01b02addfed3a2110df8b276466ec18f",
+                "typeString": "literal_string \"Systok\""
+              },
+              "value": "Systok"
+            },
+            "visibility": "public"
+          },
+          {
+            "constant": true,
+            "id": 8558,
+            "name": "Key_OracleHub",
+            "nodeType": "VariableDeclaration",
+            "scope": 8565,
+            "src": "487:51:27",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            },
+            "typeName": {
+              "id": 8556,
+              "name": "bytes32",
+              "nodeType": "ElementaryTypeName",
+              "src": "487:7:27",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes32",
+                "typeString": "bytes32"
+              }
+            },
+            "value": {
+              "argumentTypes": null,
+              "hexValue": "4f7261636c65487562",
+              "id": 8557,
+              "isConstant": false,
+              "isLValue": false,
+              "isPure": true,
+              "kind": "string",
+              "lValueRequested": false,
+              "nodeType": "Literal",
+              "src": "527:11:27",
+              "subdenomination": null,
+              "typeDescriptions": {
+                "typeIdentifier": "t_stringliteral_8ae3a082c61a7379e2280f3356a5131507d9829d222d853bfa7c9fe1200dd040",
+                "typeString": "literal_string \"OracleHub\""
+              },
+              "value": "OracleHub"
+            },
+            "visibility": "public"
+          },
+          {
+            "constant": true,
+            "id": 8561,
+            "name": "Key_Manager",
+            "nodeType": "VariableDeclaration",
+            "scope": 8565,
+            "src": "545:47:27",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            },
+            "typeName": {
+              "id": 8559,
+              "name": "bytes32",
+              "nodeType": "ElementaryTypeName",
+              "src": "545:7:27",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes32",
+                "typeString": "bytes32"
+              }
+            },
+            "value": {
+              "argumentTypes": null,
+              "hexValue": "4d616e61676572",
+              "id": 8560,
+              "isConstant": false,
+              "isLValue": false,
+              "isPure": true,
+              "kind": "string",
+              "lValueRequested": false,
+              "nodeType": "Literal",
+              "src": "583:9:27",
+              "subdenomination": null,
+              "typeDescriptions": {
+                "typeIdentifier": "t_stringliteral_6d439300980e333f0256d64be2c9f67e86f4493ce25f82498d6db7f4be3d9e6f",
+                "typeString": "literal_string \"Manager\""
+              },
+              "value": "Manager"
+            },
+            "visibility": "public"
+          },
+          {
+            "constant": true,
+            "id": 8564,
+            "name": "Key_Recollateraliser",
+            "nodeType": "VariableDeclaration",
+            "scope": 8565,
+            "src": "599:65:27",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            },
+            "typeName": {
+              "id": 8562,
+              "name": "bytes32",
+              "nodeType": "ElementaryTypeName",
+              "src": "599:7:27",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes32",
+                "typeString": "bytes32"
+              }
+            },
+            "value": {
+              "argumentTypes": null,
+              "hexValue": "5265636f6c6c61746572616c69736572",
+              "id": 8563,
+              "isConstant": false,
+              "isLValue": false,
+              "isPure": true,
+              "kind": "string",
+              "lValueRequested": false,
+              "nodeType": "Literal",
+              "src": "646:18:27",
+              "subdenomination": null,
+              "typeDescriptions": {
+                "typeIdentifier": "t_stringliteral_39e3ed1fc335ce346a8cbe3e64dd525cf22b37f1e2104a755e761c3c1eb4734f",
+                "typeString": "literal_string \"Recollateraliser\""
+              },
+              "value": "Recollateraliser"
+            },
+            "visibility": "public"
+          }
+        ],
+        "scope": 8566,
+        "src": "241:426:27"
+      }
+    ],
+    "src": "0:667:27"
+  },
+  "legacyAST": {
+    "absolutePath": "/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/shared/ModuleKeys.sol",
+    "exportedSymbols": {
+      "ModuleKeys": [
+        8565
+      ]
+    },
+    "id": 8566,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 8543,
+        "literals": [
+          "solidity",
+          "^",
+          "0.5",
+          ".12"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:24:27"
+      },
+      {
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "contract",
+        "documentation": "@title ModuleKeys\n@dev Provides system wide access to the byte32 represntations of system modules\nThis allows each system module to be able to reference and update one another in a friendly way",
+        "fullyImplemented": true,
+        "id": 8565,
+        "linearizedBaseContracts": [
+          8565
+        ],
+        "name": "ModuleKeys",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "constant": true,
+            "id": 8546,
+            "name": "Key_Nexus",
+            "nodeType": "VariableDeclaration",
+            "scope": 8565,
+            "src": "267:43:27",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            },
+            "typeName": {
+              "id": 8544,
+              "name": "bytes32",
+              "nodeType": "ElementaryTypeName",
+              "src": "267:7:27",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes32",
+                "typeString": "bytes32"
+              }
+            },
+            "value": {
+              "argumentTypes": null,
+              "hexValue": "4e65787573",
+              "id": 8545,
+              "isConstant": false,
+              "isLValue": false,
+              "isPure": true,
+              "kind": "string",
+              "lValueRequested": false,
+              "nodeType": "Literal",
+              "src": "303:7:27",
+              "subdenomination": null,
+              "typeDescriptions": {
+                "typeIdentifier": "t_stringliteral_f3fbaf4e62ef217b8151b366cdaba8fa578e78940637d6c1ec320d10a7188772",
+                "typeString": "literal_string \"Nexus\""
+              },
+              "value": "Nexus"
+            },
+            "visibility": "public"
+          },
+          {
+            "constant": true,
+            "id": 8549,
+            "name": "Key_Governance",
+            "nodeType": "VariableDeclaration",
+            "scope": 8565,
+            "src": "317:53:27",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            },
+            "typeName": {
+              "id": 8547,
+              "name": "bytes32",
+              "nodeType": "ElementaryTypeName",
+              "src": "317:7:27",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes32",
+                "typeString": "bytes32"
+              }
+            },
+            "value": {
+              "argumentTypes": null,
+              "hexValue": "476f7665726e616e6365",
+              "id": 8548,
+              "isConstant": false,
+              "isLValue": false,
+              "isPure": true,
+              "kind": "string",
+              "lValueRequested": false,
+              "nodeType": "Literal",
+              "src": "358:12:27",
+              "subdenomination": null,
+              "typeDescriptions": {
+                "typeIdentifier": "t_stringliteral_9409903de1e6fd852dfc61c9dacb48196c48535b60e25abf92acc92dd689078d",
+                "typeString": "literal_string \"Governance\""
+              },
+              "value": "Governance"
+            },
+            "visibility": "public"
+          },
+          {
+            "constant": true,
+            "id": 8552,
+            "name": "Key_Staking",
+            "nodeType": "VariableDeclaration",
+            "scope": 8565,
+            "src": "381:47:27",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            },
+            "typeName": {
+              "id": 8550,
+              "name": "bytes32",
+              "nodeType": "ElementaryTypeName",
+              "src": "381:7:27",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes32",
+                "typeString": "bytes32"
+              }
+            },
+            "value": {
+              "argumentTypes": null,
+              "hexValue": "5374616b696e67",
+              "id": 8551,
+              "isConstant": false,
+              "isLValue": false,
+              "isPure": true,
+              "kind": "string",
+              "lValueRequested": false,
+              "nodeType": "Literal",
+              "src": "419:9:27",
+              "subdenomination": null,
+              "typeDescriptions": {
+                "typeIdentifier": "t_stringliteral_1df41cd916959d1163dc8f0671a666ea8a3e434c13e40faef527133b5d167034",
+                "typeString": "literal_string \"Staking\""
+              },
+              "value": "Staking"
+            },
+            "visibility": "public"
+          },
+          {
+            "constant": true,
+            "id": 8555,
+            "name": "Key_Systok",
+            "nodeType": "VariableDeclaration",
+            "scope": 8565,
+            "src": "435:45:27",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            },
+            "typeName": {
+              "id": 8553,
+              "name": "bytes32",
+              "nodeType": "ElementaryTypeName",
+              "src": "435:7:27",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes32",
+                "typeString": "bytes32"
+              }
+            },
+            "value": {
+              "argumentTypes": null,
+              "hexValue": "537973746f6b",
+              "id": 8554,
+              "isConstant": false,
+              "isLValue": false,
+              "isPure": true,
+              "kind": "string",
+              "lValueRequested": false,
+              "nodeType": "Literal",
+              "src": "472:8:27",
+              "subdenomination": null,
+              "typeDescriptions": {
+                "typeIdentifier": "t_stringliteral_8b7cdb72829588a2c2cef6fdd7579f5a01b02addfed3a2110df8b276466ec18f",
+                "typeString": "literal_string \"Systok\""
+              },
+              "value": "Systok"
+            },
+            "visibility": "public"
+          },
+          {
+            "constant": true,
+            "id": 8558,
+            "name": "Key_OracleHub",
+            "nodeType": "VariableDeclaration",
+            "scope": 8565,
+            "src": "487:51:27",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            },
+            "typeName": {
+              "id": 8556,
+              "name": "bytes32",
+              "nodeType": "ElementaryTypeName",
+              "src": "487:7:27",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes32",
+                "typeString": "bytes32"
+              }
+            },
+            "value": {
+              "argumentTypes": null,
+              "hexValue": "4f7261636c65487562",
+              "id": 8557,
+              "isConstant": false,
+              "isLValue": false,
+              "isPure": true,
+              "kind": "string",
+              "lValueRequested": false,
+              "nodeType": "Literal",
+              "src": "527:11:27",
+              "subdenomination": null,
+              "typeDescriptions": {
+                "typeIdentifier": "t_stringliteral_8ae3a082c61a7379e2280f3356a5131507d9829d222d853bfa7c9fe1200dd040",
+                "typeString": "literal_string \"OracleHub\""
+              },
+              "value": "OracleHub"
+            },
+            "visibility": "public"
+          },
+          {
+            "constant": true,
+            "id": 8561,
+            "name": "Key_Manager",
+            "nodeType": "VariableDeclaration",
+            "scope": 8565,
+            "src": "545:47:27",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            },
+            "typeName": {
+              "id": 8559,
+              "name": "bytes32",
+              "nodeType": "ElementaryTypeName",
+              "src": "545:7:27",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes32",
+                "typeString": "bytes32"
+              }
+            },
+            "value": {
+              "argumentTypes": null,
+              "hexValue": "4d616e61676572",
+              "id": 8560,
+              "isConstant": false,
+              "isLValue": false,
+              "isPure": true,
+              "kind": "string",
+              "lValueRequested": false,
+              "nodeType": "Literal",
+              "src": "583:9:27",
+              "subdenomination": null,
+              "typeDescriptions": {
+                "typeIdentifier": "t_stringliteral_6d439300980e333f0256d64be2c9f67e86f4493ce25f82498d6db7f4be3d9e6f",
+                "typeString": "literal_string \"Manager\""
+              },
+              "value": "Manager"
+            },
+            "visibility": "public"
+          },
+          {
+            "constant": true,
+            "id": 8564,
+            "name": "Key_Recollateraliser",
+            "nodeType": "VariableDeclaration",
+            "scope": 8565,
+            "src": "599:65:27",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            },
+            "typeName": {
+              "id": 8562,
+              "name": "bytes32",
+              "nodeType": "ElementaryTypeName",
+              "src": "599:7:27",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes32",
+                "typeString": "bytes32"
+              }
+            },
+            "value": {
+              "argumentTypes": null,
+              "hexValue": "5265636f6c6c61746572616c69736572",
+              "id": 8563,
+              "isConstant": false,
+              "isLValue": false,
+              "isPure": true,
+              "kind": "string",
+              "lValueRequested": false,
+              "nodeType": "Literal",
+              "src": "646:18:27",
+              "subdenomination": null,
+              "typeDescriptions": {
+                "typeIdentifier": "t_stringliteral_39e3ed1fc335ce346a8cbe3e64dd525cf22b37f1e2104a755e761c3c1eb4734f",
+                "typeString": "literal_string \"Recollateraliser\""
+              },
+              "value": "Recollateraliser"
+            },
+            "visibility": "public"
+          }
+        ],
+        "scope": 8566,
+        "src": "241:426:27"
+      }
+    ],
+    "src": "0:667:27"
+  },
+  "compiler": {
+    "name": "solc",
+    "version": "0.5.16+commit.9c3226ce.Emscripten.clang"
+  },
+  "networks": {},
+  "schemaVersion": "3.0.23",
+  "updatedAt": "2020-02-17T19:56:32.913Z",
+  "devdoc": {
+    "details": "Provides system wide access to the byte32 represntations of system modules This allows each system module to be able to reference and update one another in a friendly way",
+    "methods": {},
+    "title": "ModuleKeys"
+  },
+  "userdoc": {
+    "methods": {}
+  }
+}
