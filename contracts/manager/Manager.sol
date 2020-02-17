@@ -3,7 +3,6 @@ pragma experimental ABIEncoderV2;
 
 import { IManager } from "../interfaces/IManager.sol";
 import { IMasset } from "../interfaces/IMasset.sol";
-import { ISystok } from "../interfaces/ISystok.sol";
 import { IOracleHub } from "../interfaces/IOracleHub.sol";
 
 import { ManagerState } from "./ManagerState.sol";

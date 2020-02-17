@@ -1,7 +1,6 @@
 pragma solidity ^0.5.12;
 
 import { IManager } from "../interfaces/IManager.sol";
-import { ISystok } from "../interfaces/ISystok.sol";
 import { IForgeValidator } from "./forge-validator/IForgeValidator.sol";
 
 import { StableMath } from "../shared/math/StableMath.sol";
