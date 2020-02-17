@@ -12,8 +12,14 @@ import { DelayedClaimableGovernance } from "../governance/DelayedClaimableGovern
  */
 contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernance {
 
-    event ModuleAdded(bytes32 indexed key, address addr, bool isLocked);
     event ModuleRequested(bytes32 indexed key, address addr, uint256 timestamp);
+    event ModuleCancelled(bytes32 indexed key, address addr, uint256 timestamp);
+    event ModuleAdded(bytes32 indexed key, address addr, bool isLocked);
+
+    event ModuleLockRequested(bytes32 indexed key, address addr, uint256 timestamp);
+    event ModuleLockCancelled(bytes32 indexed key, address addr, uint256 timestamp);
+    event ModuleLockEnabled(bytes32 indexed key, address addr, bool isLocked);
+
 
     /** @dev Struct to store Module props */
     struct Module {
@@ -58,26 +64,6 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernance {
         _;
     }
 
-    modifier whenModuleUpgradeDelayOver(bytes32 _key, address _addr) {
-        require(isModuleUpgradeDelayOver(_key, _addr), "Module upgrade delay not over");
-        _;
-    }
-
-    modifier whenModuleLockUpgradeDelayOver(bytes32 _key) {
-        require(isModuleLockUpgradeDelayOver(_key, modules[_key].addr), "Module lock upgrade delay not over");
-        _;
-    }
-
-    /**
-      * @dev Action can only be taken on an unlocked module
-      * @param _key Bytes key for the module
-     */
-    modifier onlyUnlockedModule(bytes32 _key) {
-        require(modules[_key].addr != address(0), "Module not exist");
-        require(!modules[_key].isLocked, "Module must be unlocked");
-        _;
-    }
-
     /**
       * @dev Adds multiple new modules to the system to initialize the
       * Nexus contract with default modules.
@@ -103,8 +89,8 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernance {
         for(uint i = 0 ; i < len; i++) {
             _publishModule(_keys[i], _addresses[i], _isLocked[i]);
         }
+
         initialized = true;
-        //TODO add event
         return true;
     }
 
@@ -121,10 +107,10 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernance {
     external
     onlyGovernor
     whenInitialized {
-        require(modules[_key].addr == address(0), "Module with key already present");
-        require(proposedModules[_key][_addr] > 0, "Module already proposed");
         require(_key != 0, "Key must not be zero");
         require(_addr != address(0), "Module address must not be zero address");
+        require(isModuleExist(_key) == false, "Module already exist");
+        require(proposedModules[_key][_addr] > 0, "Module already proposed");
 
         proposedModules[_key][_addr] = now;
         emit ModuleRequested(_key, _addr, now);
@@ -134,9 +120,10 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernance {
     external
     onlyGovernor
     whenInitialized {
-        require(proposedModules[_key][_addr] > 0, "Proposed module not found");
+        uint256 timestamp = proposedModules[_key][_addr];
+        require(timestamp > 0, "Proposed module not found");
         delete proposedModules[_key][_addr];
-        //TODO emit event
+        emit ModuleCancelled(_key, _addr, timestamp);
     }
 
     // TODO There could be two different modules with different keys having the
@@ -146,8 +133,8 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernance {
     function addProposedModule(bytes32 _key, address _addr)
     external
     onlyGovernor
-    whenInitialized
-    whenModuleUpgradeDelayOver(_key, _addr) {
+    whenInitialized {
+        require(isDelayOver(proposedModules[_key][_addr]), "Module upgrade delay not over");
         _publishModule(_key, _addr, false);
         delete proposedModules[_key][_addr];
     }
@@ -163,7 +150,8 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernance {
         for(uint i = 0 ; i < len; i++) {
             bytes32 key = _keys[i];
             address addr = _addrs[i];
-            require(isModuleUpgradeDelayOver(key, addr), "Upgrade delay not over");
+            uint256 timestamp = proposedModules[key][addr];
+            require(isDelayOver(timestamp), "Upgrade delay not over");
             _publishModule(key, addr, false);
             delete proposedModules[key][addr];
         }
@@ -176,9 +164,7 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernance {
       * @param _key Key of the new module in bytes32 form
       * @param _addr Contract address of the new module
       */
-    function _publishModule(bytes32 _key, address _addr, bool _isLocked)
-    internal
-    {
+    function _publishModule(bytes32 _key, address _addr, bool _isLocked) internal {
         modules[_key].addr = _addr;
         emit ModuleAdded(_key, _addr, _isLocked);
     }
@@ -191,14 +177,22 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernance {
     function requestLockModule(bytes32 _key)
     external
     onlyGovernor
-    whenInitialized
-    onlyUnlockedModule(_key) {
-        require(_key != 0, "Key must not be zero");
-        address addr = getModule(_key); // tx revert if not a valid Module
+    whenInitialized {
+        require(isModuleExist(_key), "Module not exist");
+        require(!modules[_key].isLocked, "Module must be unlocked");
+        address addr = modules[_key].addr;
         require(proposedLockModules[_key][addr] > 0, "Module already proposed");
 
         proposedLockModules[_key][addr] = now;
-        //TODO emit event
+        emit ModuleLockRequested(_key, addr, now);
+    }
+
+    function cancelLockModule(bytes32 _key) external onlyGovernor whenInitialized {
+        address addr = modules[_key].addr;
+        uint256 timestamp = proposedLockModules[_key][addr];
+        require(timestamp > 0, "Module lock request not found");
+        delete proposedLockModules[_key][addr];
+        emit ModuleLockCancelled(_key, addr, timestamp);
     }
 
     /**
@@ -209,37 +203,26 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernance {
     external
     onlyGovernor
     whenInitialized
-    onlyUnlockedModule(_key)
-    whenModuleLockUpgradeDelayOver(_key)
     returns (bool) {
+        address addr = modules[_key].addr;
+        uint256 timestamp = proposedLockModules[_key][addr];
+        require(isDelayOver(timestamp), "Delay not over");
         modules[_key].isLocked = true;
-        delete proposedLockModules[_key][modules[_key].addr];
-        //TODO emit event
+
+        delete proposedLockModules[_key][addr];
+        emit ModuleLockEnabled(_key, addr, true);
         //TODO Do we need boolean return???
         return true;
     }
 
-    /***************************************
-                    READING
-    ****************************************/
-
-    function getModule(bytes32 _key)
-    public
-    view
-    returns (address) {
-        address addr = modules[_key].addr;
-        require(addr != address(0), "Must have valid module address");
-        return addr;
+    function isModuleExist(bytes32 _key) public returns (bool) {
+        if(_key != 0 && modules[_key].addr != address(0))
+            return true;
+        return false;
     }
 
-    function isModuleUpgradeDelayOver(bytes32 _key, address _addr) public view returns (bool) {
-        uint256 timestamp = proposedModules[_key][_addr];
-        return isDelayOver(timestamp);
-    }
-
-    function isModuleLockUpgradeDelayOver(bytes32 _key, address _addr) public view returns (bool) {
-        uint256 timestamp = proposedLockModules[_key][_addr];
-        return isDelayOver(timestamp);
+    function getModule(bytes32 _key) public view returns (address addr) {
+        addr = modules[_key].addr;
     }
 
     function isDelayOver(uint256 _timestamp) private view returns (bool) {
