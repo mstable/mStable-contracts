@@ -2,7 +2,6 @@
 /* eslint-disable prefer-const */
 /* eslint-disable one-var */
 
-const c_MultiSig = artifacts.require('MultiSigWallet');
 const c_Nexus = artifacts.require('Nexus');
 const c_OracleHub = artifacts.require('SimpleOracleHub');
 const c_Systok = artifacts.require('Systok');
@@ -41,13 +40,8 @@ module.exports = async (deployer, network, accounts) => {
   await deployer.deploy(c_CommonHelpers, { from: _ });
 
 
-  /** Governor - multisig */
-  await deployer.deploy(c_MultiSig, govOwners, minQuorum);
-  const d_MultiSig = await c_MultiSig.deployed();
-
-
   /** Nexus */
-  await deployer.deploy(c_Nexus, d_MultiSig.address);
+  await deployer.deploy(c_Nexus, governor, {from: governor});
   const d_Nexus = await c_Nexus.deployed();
 
 
@@ -55,15 +49,27 @@ module.exports = async (deployer, network, accounts) => {
   await deployer.deploy(c_Systok, d_Nexus.address, fundManager, { from : _ });
   const d_Systok = await c_Systok.deployed();
 
-  await publishModuleThroughMultisig(d_Nexus, d_MultiSig, await d_Nexus.Key_Systok(), d_Systok.address, governor);
-  await lockModuleThroughMultisig(d_Nexus, d_MultiSig, await d_Nexus.Key_Systok(), governor);
+  let keys = new Array(3);
+  let addresses = new Array(3);
+  let isLocked = new Array(3);
+
+  keys[0] = await d_Nexus.Key_Systok();
+  addresses[0] = d_Systok.address;
+  isLocked[0] = true;
+
+  //await publishModuleThroughMultisig(d_Nexus, d_MultiSig, await d_Nexus.Key_Systok(), d_Systok.address, governor);
+  //await lockModuleThroughMultisig(d_Nexus, d_MultiSig, await d_Nexus.Key_Systok(), governor);
 
   /** OracleHub */
 
   await deployer.deploy(c_OracleHub, d_Nexus.address, oracleSource );
   const d_OracleHub = await c_OracleHub.deployed();
 
-  await publishModuleThroughMultisig(d_Nexus, d_MultiSig, await d_Nexus.Key_OracleHub(), d_OracleHub.address, governor);
+  keys[1] = await d_Nexus.Key_OracleHub();
+  addresses[1] = d_OracleHub.address;
+  isLocked[1] = false;
+
+  //await publishModuleThroughMultisig(d_Nexus, d_MultiSig, await d_Nexus.Key_OracleHub(), d_OracleHub.address, governor);
 
 
   /** Manager */
@@ -77,8 +83,14 @@ module.exports = async (deployer, network, accounts) => {
   await deployer.deploy(c_Manager, d_Nexus.address, d_ForgeValidator.address);
   const d_Manager = await c_Manager.deployed();
 
-  await publishModuleThroughMultisig(d_Nexus, d_MultiSig, await d_Nexus.Key_Manager(), d_Manager.address, governor);
+  keys[2] = await d_Nexus.Key_Manager();
+  addresses[2] = d_Manager.address;
+  isLocked[2] = false;
 
+  //await publishModuleThroughMultisig(d_Nexus, d_MultiSig, await d_Nexus.Key_Manager(), d_Manager.address, governor);
+
+  await d_Nexus.initialize(keys, addresses, isLocked, {from: governor});
+  
 
   /** Masset prep */
   await deployer.link(c_StableMath, c_Masset);
@@ -88,6 +100,5 @@ module.exports = async (deployer, network, accounts) => {
   console.log(`[Nexus]: '${d_Nexus.address}'`)
   console.log(`[OracleHub]: '${d_OracleHub.address}'`)
   console.log(`[Systok (aka MTA)]: '${d_Systok.address}'`)
-  console.log(`[Governor (Multisig)]: '${d_MultiSig.address}'`)
   console.log(`[Manager]: '${d_Manager.address}'`)
 }

@@ -79,27 +79,31 @@ export class SystemMachine {
             /** Nexus */
             this.nexus = await this.deployNexus();
 
-            /** Governance */
-            this.multiSig = await this.deployMultiSig();
-            // add module
-            await this.nexus.addModule(await this.nexus.Key_Governance(), this.multiSig.address, {
-                from: this.sa.governor,
-            });
+            let moduleKeys: string[] = new Array(3);
+            let moduleAddresses: Address[] = new Array(3);
+            let isLocked: boolean[] = new Array(3);
+
 
             /** Systok */
             this.systok = await this.deploySystok();
-            // add module
-            await this.addModuleToNexus(await this.nexus.Key_Systok(), this.systok.address);
+            moduleKeys[0] = await this.nexus.Key_Systok();
+            moduleAddresses[0] = this.systok.address;
+            isLocked[0] = true; //TODO Ensure that its locked at deploy time?
 
             /** OracleHubMock */
             this.oracleHub = await this.deployOracleHub();
-            // add module
-            await this.addModuleToNexus(await this.nexus.Key_OracleHub(), this.oracleHub.address);
+            moduleKeys[1] = await this.nexus.Key_OracleHub();
+            moduleAddresses[1] = this.oracleHub.address;
+            isLocked[1] = false;
+
 
             /** ManagerMock */
             this.manager = await this.deployManager();
-            // add module
-            await this.addModuleToNexus(await this.nexus.Key_Manager(), this.manager.address);
+            moduleKeys[2] = await this.nexus.Key_Manager();
+            moduleAddresses[2] = this.manager.address;
+            isLocked[2] = false;
+
+            await this.initializeNexusWithModules(moduleKeys, moduleAddresses, isLocked);
 
             return Promise.resolve(true);
         } catch (e) {
@@ -217,34 +221,21 @@ export class SystemMachine {
         );
 
         // Adds the Masset to Manager so that it can look up its price
-        const txData = this.manager.contract.methods
-            .addMasset(aToH("TMT"), masset.address)
-            .encodeABI();
+        return this.manager
+            .addMasset(aToH("TMT"), masset.address, { from: this.sa.governor });
 
-        return this.multiSig.submitTransaction(this.nexus.address, new BN(0), txData, {
-            from: sender,
-        });
     }
 
-    public async addModuleToNexus(
-        moduleKey: string,
-        moduleAddress: Address,
+    public async initializeNexusWithModules(
+        moduleKeys: string[],
+        moduleAddresses: Address[],
+        isLocked: boolean[],
         sender: Address = this.sa.governor,
     ): Promise<Truffle.TransactionResponse> {
-        return this.publishModuleThroughMultisig(moduleKey, moduleAddress, sender);
-    }
-
-    /**
-     * @dev Assuming that the minimum quorum on the Multisig is 1, then we can execute transactions here
-     * @param key
-     * @param address
-     * @param sender
-     */
-    private async publishModuleThroughMultisig(key, address, sender) {
-        const txData = this.nexus.contract.methods.addModule(key, address).encodeABI();
-
-        return this.multiSig.submitTransaction(this.nexus.address, new BN(0), txData, {
-            from: sender,
-        });
+        return this.nexus.initialize(
+            moduleKeys,
+            moduleAddresses,
+            isLocked,
+            { from: sender });
     }
 }
