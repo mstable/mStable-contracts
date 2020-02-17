@@ -15,5 +15,5 @@ interface INexus {
 
     function requestLockModule(bytes32 _key) external;
     function cancelLockModule(bytes32 _key) external;
-    function lockModule(bytes32 _key) external returns (bool);
+    function lockModule(bytes32 _key) external;
 }
