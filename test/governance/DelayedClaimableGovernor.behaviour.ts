@@ -15,6 +15,7 @@ export function shouldBehaveLikeDelayedClaimable(
     ctx: { claimable: DelayedClaimableGovernorInstance },
     sa: StandardAccounts,
 ) {
+
     it("should have delay set", async () => {
         const delay = await ctx.claimable.delay();
         expect(delay, "wrong delay").bignumber.gt(new BN(0));
@@ -59,13 +60,34 @@ export function shouldBehaveLikeDelayedClaimable(
         const timestamp = await latest();
         const delay = await ctx.claimable.delay();
         await increase(delay);
+        const previousGov = await ctx.claimable.governor();
+        const newGovernor = sa.other;
+        const tx = await ctx.claimable.claimGovernorChange({ from: newGovernor });
+        expectEvent.inLogs(
+            tx.logs,
+            "GovernorChangeClaimed",
+            { proposedGovernor: newGovernor }
+        );
+        expectEvent.inLogs(
+            tx.logs,
+            "GovernorChanged",
+            { previousGovernor: previousGov, newGovernor: newGovernor }
+        );
 
-        const newOwner = sa.other;
-        await ctx.claimable.claimGovernorChange({ from: newOwner });
         const owner = await ctx.claimable.governor();
         const requestTime = await ctx.claimable.requestTime();
-
-        expect(owner, "owner not equal").to.equal(newOwner);
+        expect(owner, "owner not equal").to.equal(newGovernor);
         expect(requestTime, "wrong requestTime").bignumber.eq(new BN(0));
     });
+
+    it("should allow cancel change request", async () => {
+        const requestTime = await ctx.claimable.requestTime();
+        expect(requestTime, "wrong requestTime").bignumber.gt(new BN(0));
+
+        const tx = await ctx.claimable.cancelGovernorChange({ from: sa.governor });
+
+        const newRequestTime = await ctx.claimable.requestTime();
+        expect(newRequestTime).bignumber.eq(new BN(0));
+    });
+
 }

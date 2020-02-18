@@ -9,7 +9,7 @@ contract ClaimableGovernor is Governable {
 
     address public proposedGovernor;
 
-    event GovernorChangeClaimed(address indexed previous, address indexed newGovernor);
+    event GovernorChangeClaimed(address indexed proposedGovernor);
     event GovernorChangeCancelled(address indexed governor, address indexed proposed);
     event GovernorChangeRequested(address indexed governor, address indexed proposed);
 
@@ -57,7 +57,7 @@ contract ClaimableGovernor is Governable {
      */
     function claimGovernorChange() public onlyProposedGovernor {
         _changeGovernor(proposedGovernor);
-        emit GovernorChangeClaimed(proposedGovernor, governor());
+        emit GovernorChangeClaimed(proposedGovernor);
         proposedGovernor = address(0);
     }
 }

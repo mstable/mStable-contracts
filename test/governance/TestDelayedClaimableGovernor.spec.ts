@@ -3,6 +3,7 @@ import { shouldBehaveLikeDelayedClaimable } from "./DelayedClaimableGovernor.beh
 import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import envSetup from "@utils/env_setup";
 import { DelayedClaimableGovernorInstance } from "../../types/generated";
+import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
 
 const DelayedClaimableGovernor = artifacts.require("DelayedClaimableGovernor");
 envSetup.configure();
@@ -34,6 +35,17 @@ contract("DelayedClaimableGovernance", async (accounts) => {
         });
 
         shouldBehaveLikeDelayedClaimable(ctx as Required<typeof ctx>, sa);
+
+        it("should not allow zero delay", async () => {
+            await shouldFail.reverting.withMessage(
+                DelayedClaimableGovernor.new(
+                    sa.governor,
+                    0,
+                    { from: sa.governor }),
+                "Delay must be greater then zero"
+            );
+        });
+
     });
 
 });

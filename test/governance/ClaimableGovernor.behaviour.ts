@@ -92,4 +92,31 @@ export function shouldBehaveLikeClaimable(
             "Governable: caller is not the Governor");
     });
 
+    it("should prevent direct change governor", async () => {
+        const other = sa.other;
+        await shouldFail.reverting.withMessage(
+            ctx.claimable.changeGovernor(other, { from: sa.governor }),
+            "Direct change of Governor not allowed");
+    });
+
+    it("requestGovernorChange(): should prevent zero address", async () => {
+        await shouldFail.reverting.withMessage(
+            ctx.claimable.requestGovernorChange(ZERO_ADDRESS, { from: sa.governor }),
+            "Proposed governor is the zero zero address");
+    });
+
+    it("should prevent when already proposed", async () => {
+        const other = sa.other;
+        await ctx.claimable.requestGovernorChange(other, { from: sa.governor });
+        await shouldFail.reverting.withMessage(
+            ctx.claimable.requestGovernorChange(other, { from: sa.governor }),
+            "Proposed governor already set");
+    });
+
+    it("cancelGovernorChange(): should prevent when not proposed", async () => {
+        await shouldFail.reverting.withMessage(
+            ctx.claimable.cancelGovernorChange({ from: sa.governor }),
+            "Proposed Governor not set");
+    });
+
 }
