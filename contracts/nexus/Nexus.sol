@@ -52,7 +52,7 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
     /** @dev Initialises the Nexus and adds the core data to the Kernel (itself and governor) */
     constructor(address _governor)
     public
-    DelayedClaimableGovernance(_governor, UPGRADE_DELAY) {
+    DelayedClaimableGovernor(_governor, UPGRADE_DELAY) {
         // _publishModule(Key_Nexus, address(this), true);
         // Technically we don't need the above anymore.. Nexus is immutable kernel
     }
