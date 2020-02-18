@@ -103,7 +103,10 @@ export class SystemMachine {
             moduleAddresses[2] = this.manager.address;
             isLocked[2] = false;
 
-            await this.initializeNexusWithModules(moduleKeys, moduleAddresses, isLocked);
+            await this.initializeNexusWithModules(
+                moduleKeys,
+                moduleAddresses,
+                isLocked);
 
             return Promise.resolve(true);
         } catch (e) {
