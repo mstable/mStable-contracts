@@ -2,7 +2,7 @@ pragma solidity ^0.5.12;
 
 import { INexus } from "../interfaces/INexus.sol";
 import { ModuleKeys } from "../shared/ModuleKeys.sol";
-import { DelayedClaimableGovernance } from "../governance/DelayedClaimableGovernance.sol";
+import { DelayedClaimableGovernor } from "../governance/DelayedClaimableGovernor.sol";
 
 import { Set } from "../shared/libs/Set.sol";
 
@@ -11,7 +11,7 @@ import { Set } from "../shared/libs/Set.sol";
  * @dev The Nexus is mStable's Kernel, and allows the publishing and propagating
  * of new system Modules. Other Modules will read from the Nexus
  */
-contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernance {
+contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
 
     event ModuleRequested(bytes32 indexed key, address addr, uint256 timestamp);
     event ModuleCancelled(bytes32 indexed key);
@@ -59,7 +59,11 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernance {
 
     /**
       * @dev Adds multiple new modules to the system to initialize the
-      * Nexus contract with default modules.
+      * Nexus contract with default modules. This should be called first
+      * after deploying Nexus contract.
+      * WARRNING: The function can be called by anyone. Hence, the
+      * contract deployer must verify that its initialized
+      * correctly with expected Modules.
       * @param _keys Keys of the new modules in bytes32 form
       * @param _addresses Contract addresses of the new modules
       * @param _isLocked IsLocked flag for the new modules
@@ -107,7 +111,7 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernance {
 
 
     /***************************************
-                    ADDING
+                MODULE ADDING
     ****************************************/
 
     /**
@@ -185,7 +189,7 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernance {
 
 
     /***************************************
-                    LOCKING
+                MODULE LOCKING
     ****************************************/
 
     function requestLockModule(bytes32 _key)

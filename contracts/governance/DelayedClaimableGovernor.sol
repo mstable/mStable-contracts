@@ -8,7 +8,7 @@ import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
  * After a defined delay, proposed Governor can claim governance
  * ownership.
  */
-contract DelayedClaimableGovernance is ClaimableGovernor {
+contract DelayedClaimableGovernor is ClaimableGovernor {
 
     using SafeMath for uint256;
 
@@ -50,7 +50,7 @@ contract DelayedClaimableGovernance is ClaimableGovernor {
      * @notice Proposed governor claims new position, callable after time elapsed
      */
     function claimGovernorChange() public onlyProposedGovernor {
-        require(now >= (requestTime.add(delay)), "Governor cannot claim ownership");
+        require(now >= (requestTime.add(delay)), "Delay not over");
         super.claimGovernorChange();
         requestTime = 0;
     }

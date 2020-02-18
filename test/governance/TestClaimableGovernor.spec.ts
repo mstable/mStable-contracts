@@ -11,8 +11,26 @@ contract("Governable", async (accounts) => {
     const sa = new StandardAccounts(accounts);
 
     beforeEach("Create Contract", async () => {
-        ctx.claimable = await ClaimableGovernor.new(accounts[0]);
+        ctx.claimable = await ClaimableGovernor.new(sa.governor);
     });
 
-    shouldBehaveLikeClaimable(ctx as Required<typeof ctx>, accounts);
+    shouldBehaveLikeClaimable(ctx as Required<typeof ctx>, sa);
+
+    describe("after initiating a transfer", () => {
+        let newOwner;
+
+        beforeEach(async () => {
+            newOwner = sa.other;
+            await ctx.claimable.requestGovernorChange(newOwner, { from: sa.governor });
+        });
+
+        it("changes allow pending owner to claim ownership", async () => {
+            await ctx.claimable.claimGovernorChange({ from: newOwner });
+            const owner = await ctx.claimable.governor();
+
+            assert.isTrue(owner === newOwner);
+        });
+    });
+
+
 });
