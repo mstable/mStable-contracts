@@ -14,11 +14,11 @@ import { Set } from "../shared/libs/Set.sol";
 contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernance {
 
     event ModuleRequested(bytes32 indexed key, address addr, uint256 timestamp);
-    event ModuleCancelled(bytes32 indexed key, address addr, uint256 timestamp);
+    event ModuleCancelled(bytes32 indexed key);
     event ModuleAdded(bytes32 indexed key, address addr, bool isLocked);
 
     event ModuleLockRequested(bytes32 indexed key, uint256 timestamp);
-    event ModuleLockCancelled(bytes32 indexed key, uint256 timestamp);
+    event ModuleLockCancelled(bytes32 indexed key);
     event ModuleLockEnabled(bytes32 indexed key, bool isLocked);
 
 
@@ -30,7 +30,7 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernance {
 
     /** @dev Storage architecture for keeping module information */
     mapping(bytes32 => Module) public modules;
-    mapping(address => bytes32) private addresses;
+    mapping(address => bytes32) private addressToModule;
 
     /** @dev Struct to store Proposal props */
     struct Proposal {
@@ -136,7 +136,7 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernance {
         uint256 timestamp = proposedModules[_key].timestamp;
         require(timestamp > 0, "Proposed module not found");
         delete proposedModules[_key];
-        emit ModuleCancelled(_key, _addr, timestamp);
+        emit ModuleCancelled(_key);
     }
 
     function acceptProposedModule(bytes32 _key)
@@ -154,7 +154,7 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernance {
         require(len > 0, "Keys array empty");
 
         for(uint i = 0 ; i < len; i++) {
-            _acceptProposedModule(keys[i]);
+            _acceptProposedModule(_keys[i]);
         }
     }
 
@@ -171,15 +171,15 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernance {
       * @param _addr Contract address of the new module
       */
     function _publishModule(bytes32 _key, address _addr, bool _isLocked) internal {
-        require(addresses[_addr] == bytes32(0x0), "Modules must have unique addr");
+        require(addressToModule[_addr] == bytes32(0x0), "Modules must have unique addr");
         // Old no longer points to a moduleAddress
         address oldModuleAddr = modules[_key].addr;
-        if(oldAddr != address(0x0)){
-            addresses[oldModuleAddr] = address(0x0);
+        if(oldModuleAddr != address(0x0)){
+            addressToModule[oldModuleAddr] = bytes32(0x0);
         }
         modules[_key].addr = _addr;
         modules[_key].isLocked = _isLocked;
-        addresses[_addr] = _key;
+        addressToModule[_addr] = _key;
         emit ModuleAdded(_key, _addr, _isLocked);
     }
 
@@ -197,7 +197,7 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernance {
 
         require(proposedLockModules[_key] == 0, "Lock already proposed");
 
-        proposedLockModules[_key].timestamp = now;
+        proposedLockModules[_key] = now;
         emit ModuleLockRequested(_key, now);
     }
 
@@ -207,7 +207,7 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernance {
     whenInitialized {
         require(proposedLockModules[_key] > 0, "Module lock request not found");
         delete proposedLockModules[_key];
-        emit ModuleLockCancelled(_key, timestamp);
+        emit ModuleLockCancelled(_key);
     }
 
     /**
