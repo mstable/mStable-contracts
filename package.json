@@ -32,6 +32,7 @@
     "copyfiles": "^2.1.1",
     "eth-gas-reporter": "^0.2.14",
     "ethlint": "^1.2.5",
+    "minimetoken": "git+ssh://git@github.com/mstable/minime.git#mStable-meta-token",
     "openzeppelin-solidity": "^2.3.0",
     "openzeppelin-test-helpers": "0.3.1",
     "prettier": "^1.18.2",

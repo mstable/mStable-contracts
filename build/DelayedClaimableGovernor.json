@@ -1,0 +1,2556 @@
+{
+  "contractName": "DelayedClaimableGovernor",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_governor",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_delay",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "governor",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "proposed",
+          "type": "address"
+        }
+      ],
+      "name": "GovernorChangeCancelled",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "proposedGovernor",
+          "type": "address"
+        }
+      ],
+      "name": "GovernorChangeClaimed",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "governor",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "proposed",
+          "type": "address"
+        }
+      ],
+      "name": "GovernorChangeRequested",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "previousGovernor",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "newGovernor",
+          "type": "address"
+        }
+      ],
+      "name": "GovernorChanged",
+      "type": "event"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "changeGovernor",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "delay",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "governor",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "isGovernor",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "proposedGovernor",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "requestTime",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_proposedGovernor",
+          "type": "address"
+        }
+      ],
+      "name": "requestGovernorChange",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [],
+      "name": "cancelGovernorChange",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [],
+      "name": "claimGovernorChange",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "metadata": "{\"compiler\":{\"version\":\"0.5.16+commit.9c3226ce\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_governor\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_delay\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"governor\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"proposed\",\"type\":\"address\"}],\"name\":\"GovernorChangeCancelled\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"proposedGovernor\",\"type\":\"address\"}],\"name\":\"GovernorChangeClaimed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"governor\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"proposed\",\"type\":\"address\"}],\"name\":\"GovernorChangeRequested\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"previousGovernor\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"newGovernor\",\"type\":\"address\"}],\"name\":\"GovernorChanged\",\"type\":\"event\"},{\"constant\":false,\"inputs\":[],\"name\":\"cancelGovernorChange\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"changeGovernor\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"claimGovernorChange\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"delay\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"governor\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"isGovernor\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"proposedGovernor\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"_proposedGovernor\",\"type\":\"address\"}],\"name\":\"requestGovernorChange\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"requestTime\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"methods\":{\"constructor\":{\"details\":\"Initializes the contract with given delay\",\"params\":{\"_delay\":\"Delay in seconds for 2 way handshake\"}},\"governor()\":{\"details\":\"Returns the address of the current Governor.\"},\"isGovernor()\":{\"details\":\"Returns true if the caller is the current Governor.\"},\"requestGovernorChange(address)\":{\"params\":{\"_proposedGovernor\":\"Address of the new governor\"}}},\"title\":\"Current Goverenor can initiate governance change request. After a defined delay, proposed Governor can claim governance ownership.\"},\"userdoc\":{\"methods\":{\"cancelGovernorChange()\":{\"notice\":\"Cancels an outstanding governor change request by resetting request time\"},\"claimGovernorChange()\":{\"notice\":\"Proposed governor claims new position, callable after time elapsed\"},\"requestGovernorChange(address)\":{\"notice\":\"Requests change of governor and logs request time\"}}}},\"settings\":{\"compilationTarget\":{\"/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/governance/DelayedClaimableGovernor.sol\":\"DelayedClaimableGovernor\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/governance/ClaimableGovernor.sol\":{\"keccak256\":\"0x7d36d4e8aa0e37a839ff97998f947af9d29b48cb1d4446a8dcf15204085e24e5\",\"urls\":[\"bzz-raw://d825120ca9e59d71f185d329d20bc9f12091f4835fa6d0c3244eb1f0b438266d\",\"dweb:/ipfs/QmXkmmtLw8TySnWx7GdKZQ94NpJHfTWaav79zmfd5sArqq\"]},\"/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/governance/DelayedClaimableGovernor.sol\":{\"keccak256\":\"0xfa90b174128d5e35ba63cb818190d20bfa9acafc7f721edcab7c89cb65871a20\",\"urls\":[\"bzz-raw://6bc78755a401e4c867341506978860cfb3617b3cbdb7cc7b727e2148239e5383\",\"dweb:/ipfs/QmR7jyFxie9dGFTQQKjMcC9c6bzYxtwGNjbS2qhMnL6BNq\"]},\"/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/governance/Governable.sol\":{\"keccak256\":\"0x2c6f907259a462bd7cc48c18af5758273412193399d874ba0518e7660b44cf54\",\"urls\":[\"bzz-raw://4e7712a07e3f0dc96d30bb5dfde23b03724340cc2cca2aaadcaaa681b7de65a2\",\"dweb:/ipfs/QmQciyYWKSh91nSYhHMCR74AZjYpnP7chFHbiXu21kT3Sh\"]},\"openzeppelin-solidity/contracts/math/SafeMath.sol\":{\"keccak256\":\"0x4ccf2d7b51873db1ccfd54ca2adae5eac3b184f9699911ed4490438419f1c690\",\"urls\":[\"bzz-raw://d62d769b2219d5de39013093412623e624fa887f871826ea3bae6052ee893610\",\"dweb:/ipfs/QmV3yVktya1s617QmuzQR2CfuJgUi3dR2xEZY9ecmqZ2G1\"]}},\"version\":1}",
+  "bytecode": "0x608060405234801561001057600080fd5b50604051610a1a380380610a1a8339818101604052604081101561003357600080fd5b508051602090910151600080546001600160a01b031916331780825560405184926001600160a01b039290921691906000805160206109ce833981519152908290a3610087816001600160e01b036100e616565b50600081116100dd576040805162461bcd60e51b815260206004820152601f60248201527f44656c6179206d7573742062652067726561746572207468656e207a65726f00604482015290519081900360640190fd5b60025550610174565b6001600160a01b03811661012b5760405162461bcd60e51b815260040180806020018281038252602c8152602001806109ee602c913960400191505060405180910390fd5b600080546040516001600160a01b03808516939216916000805160206109ce83398151915291a3600080546001600160a01b0319166001600160a01b0392909216919091179055565b61084b806101836000396000f3fe608060405234801561001057600080fd5b50600436106100935760003560e01c80638c33c19c116100665780638c33c19c14610106578063ad339d7a1461010e578063c7af335214610116578063d7fd0e7714610132578063e4c0aaf41461013a57610093565b8063099c47bc146100985780630c340a24146100c05780636a42b8f8146100e45780638a11a370146100fe575b600080fd5b6100be600480360360208110156100ae57600080fd5b50356001600160a01b0316610160565b005b6100c86101b3565b604080516001600160a01b039092168252519081900360200190f35b6100ec6101c2565b60408051918252519081900360200190f35b6100c86101c8565b6100be6101d7565b6100be610229565b61011e6102db565b604080519115158252519081900360200190f35b6100ec6102ec565b6100be6004803603602081101561015057600080fd5b50356001600160a01b03166102f2565b6101686102db565b6101a35760405162461bcd60e51b815260040180806020018281038252602681526020018061077a6026913960400191505060405180910390fd5b426003556101b08161036c565b50565b6000546001600160a01b031690565b60025481565b6001546001600160a01b031681565b6101df6102db565b61021a5760405162461bcd60e51b815260040180806020018281038252602681526020018061077a6026913960400191505060405180910390fd5b60006003556102276104b0565b565b6001546001600160a01b031633146102725760405162461bcd60e51b81526004018080602001828103825260218152602001806107f66021913960400191505060405180910390fd5b6002546003546102879163ffffffff6105ab16565b4210156102cc576040805162461bcd60e51b815260206004820152600e60248201526d2232b630bc903737ba1037bb32b960911b604482015290519081900360640190fd5b6102d461060c565b6000600355565b6000546001600160a01b0316331490565b60035481565b6102fa6102db565b6103355760405162461bcd60e51b815260040180806020018281038252602681526020018061077a6026913960400191505060405180910390fd5b60405162461bcd60e51b81526004018080602001828103825260258152602001806107556025913960400191505060405180910390fd5b6103746102db565b6103af5760405162461bcd60e51b815260040180806020018281038252602681526020018061077a6026913960400191505060405180910390fd5b6001600160a01b0381166103f45760405162461bcd60e51b815260040180806020018281038252602a8152602001806107a0602a913960400191505060405180910390fd5b6001546001600160a01b031615610452576040805162461bcd60e51b815260206004820152601d60248201527f50726f706f73656420676f7665726e6f7220616c726561647920736574000000604482015290519081900360640190fd5b600180546001600160a01b0319166001600160a01b0383169081179091556104786101b3565b6001600160a01b03167fa48c163cc46eb28aba8bdb525da18f15a83020cc18f439c933d79ea3ad9b50bb60405160405180910390a350565b6104b86102db565b6104f35760405162461bcd60e51b815260040180806020018281038252602681526020018061077a6026913960400191505060405180910390fd5b6001546001600160a01b0316610550576040805162461bcd60e51b815260206004820152601960248201527f50726f706f73656420476f7665726e6f72206e6f742073657400000000000000604482015290519081900360640190fd5b6001546001600160a01b03166105646101b3565b6001600160a01b03167f2f7bb10f75b8694ea78291d7ca4c9f2a75bc45f0f97046164ad3ee984bdf4bba60405160405180910390a3600180546001600160a01b0319169055565b600082820183811015610605576040805162461bcd60e51b815260206004820152601b60248201527f536166654d6174683a206164646974696f6e206f766572666c6f770000000000604482015290519081900360640190fd5b9392505050565b6001546001600160a01b031633146106555760405162461bcd60e51b81526004018080602001828103825260218152602001806107f66021913960400191505060405180910390fd5b60015461066a906001600160a01b03166106b4565b6001546040516001600160a01b03909116907f0ad714cb5607f3b529b5d3292190925ae992a77b291e39ec09c390d4787896ba90600090a2600180546001600160a01b0319169055565b6001600160a01b0381166106f95760405162461bcd60e51b815260040180806020018281038252602c8152602001806107ca602c913960400191505060405180910390fd5b600080546040516001600160a01b03808516939216917fde4b3f61490b74c0ed6237523974fe299126bbbf8a8a7482fd220104c59b0c8491a3600080546001600160a01b0319166001600160a01b039290921691909117905556fe446972656374206368616e6765206f6620476f7665726e6f72206e6f7420616c6c6f776564476f7665726e61626c653a2063616c6c6572206973206e6f742074686520476f7665726e6f7250726f706f73656420676f7665726e6f7220697320746865207a65726f207a65726f2061646472657373476f7665726e61626c653a206e657720476f7665726e6f7220697320746865207a65726f206164647265737353656e646572206973206e6f7420612070726f706f73656420676f7665726e6f72a265627a7a72315820c36ab4b1b41502a0677c79c090b2f7c5a0fe43873aa239a5ac384787906cad3564736f6c63430005100032de4b3f61490b74c0ed6237523974fe299126bbbf8a8a7482fd220104c59b0c84476f7665726e61626c653a206e657720476f7665726e6f7220697320746865207a65726f2061646472657373",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b50600436106100935760003560e01c80638c33c19c116100665780638c33c19c14610106578063ad339d7a1461010e578063c7af335214610116578063d7fd0e7714610132578063e4c0aaf41461013a57610093565b8063099c47bc146100985780630c340a24146100c05780636a42b8f8146100e45780638a11a370146100fe575b600080fd5b6100be600480360360208110156100ae57600080fd5b50356001600160a01b0316610160565b005b6100c86101b3565b604080516001600160a01b039092168252519081900360200190f35b6100ec6101c2565b60408051918252519081900360200190f35b6100c86101c8565b6100be6101d7565b6100be610229565b61011e6102db565b604080519115158252519081900360200190f35b6100ec6102ec565b6100be6004803603602081101561015057600080fd5b50356001600160a01b03166102f2565b6101686102db565b6101a35760405162461bcd60e51b815260040180806020018281038252602681526020018061077a6026913960400191505060405180910390fd5b426003556101b08161036c565b50565b6000546001600160a01b031690565b60025481565b6001546001600160a01b031681565b6101df6102db565b61021a5760405162461bcd60e51b815260040180806020018281038252602681526020018061077a6026913960400191505060405180910390fd5b60006003556102276104b0565b565b6001546001600160a01b031633146102725760405162461bcd60e51b81526004018080602001828103825260218152602001806107f66021913960400191505060405180910390fd5b6002546003546102879163ffffffff6105ab16565b4210156102cc576040805162461bcd60e51b815260206004820152600e60248201526d2232b630bc903737ba1037bb32b960911b604482015290519081900360640190fd5b6102d461060c565b6000600355565b6000546001600160a01b0316331490565b60035481565b6102fa6102db565b6103355760405162461bcd60e51b815260040180806020018281038252602681526020018061077a6026913960400191505060405180910390fd5b60405162461bcd60e51b81526004018080602001828103825260258152602001806107556025913960400191505060405180910390fd5b6103746102db565b6103af5760405162461bcd60e51b815260040180806020018281038252602681526020018061077a6026913960400191505060405180910390fd5b6001600160a01b0381166103f45760405162461bcd60e51b815260040180806020018281038252602a8152602001806107a0602a913960400191505060405180910390fd5b6001546001600160a01b031615610452576040805162461bcd60e51b815260206004820152601d60248201527f50726f706f73656420676f7665726e6f7220616c726561647920736574000000604482015290519081900360640190fd5b600180546001600160a01b0319166001600160a01b0383169081179091556104786101b3565b6001600160a01b03167fa48c163cc46eb28aba8bdb525da18f15a83020cc18f439c933d79ea3ad9b50bb60405160405180910390a350565b6104b86102db565b6104f35760405162461bcd60e51b815260040180806020018281038252602681526020018061077a6026913960400191505060405180910390fd5b6001546001600160a01b0316610550576040805162461bcd60e51b815260206004820152601960248201527f50726f706f73656420476f7665726e6f72206e6f742073657400000000000000604482015290519081900360640190fd5b6001546001600160a01b03166105646101b3565b6001600160a01b03167f2f7bb10f75b8694ea78291d7ca4c9f2a75bc45f0f97046164ad3ee984bdf4bba60405160405180910390a3600180546001600160a01b0319169055565b600082820183811015610605576040805162461bcd60e51b815260206004820152601b60248201527f536166654d6174683a206164646974696f6e206f766572666c6f770000000000604482015290519081900360640190fd5b9392505050565b6001546001600160a01b031633146106555760405162461bcd60e51b81526004018080602001828103825260218152602001806107f66021913960400191505060405180910390fd5b60015461066a906001600160a01b03166106b4565b6001546040516001600160a01b03909116907f0ad714cb5607f3b529b5d3292190925ae992a77b291e39ec09c390d4787896ba90600090a2600180546001600160a01b0319169055565b6001600160a01b0381166106f95760405162461bcd60e51b815260040180806020018281038252602c8152602001806107ca602c913960400191505060405180910390fd5b600080546040516001600160a01b03808516939216917fde4b3f61490b74c0ed6237523974fe299126bbbf8a8a7482fd220104c59b0c8491a3600080546001600160a01b0319166001600160a01b039290921691909117905556fe446972656374206368616e6765206f6620476f7665726e6f72206e6f7420616c6c6f776564476f7665726e61626c653a2063616c6c6572206973206e6f742074686520476f7665726e6f7250726f706f73656420676f7665726e6f7220697320746865207a65726f207a65726f2061646472657373476f7665726e61626c653a206e657720476f7665726e6f7220697320746865207a65726f206164647265737353656e646572206973206e6f7420612070726f706f73656420676f7665726e6f72a265627a7a72315820c36ab4b1b41502a0677c79c090b2f7c5a0fe43873aa239a5ac384787906cad3564736f6c63430005100032",
+  "sourceMap": "321:1363:2:-;;;603:186;8:9:-1;5:2;;;30:1;27;20:12;5:2;603:186:2;;;;;;;;;;;;;;;13:2:-1;8:3;5:11;2:2;;;29:1;26;19:12;2:2;-1:-1;603:186:2;;;;;;;413:9:3;:22;;-1:-1:-1;;;;;;413:22:3;425:10;413:22;;;;603:186:2;450:38:3;603:186:2;;-1:-1:-1;;;;;478:9:3;;;;;413;-1:-1:-1;;;;;;;;;;;450:38:3;413:9;;450:38;744:26:1;760:9;-1:-1:-1;;;;;744:15:1;:26;:::i;:::-;696:81;721:1:2;712:6;:10;704:54;;;;;-1:-1:-1;;;704:54:2;;;;;;;;;;;;;;;;;;;;;;;;;;;;768:5;:14;-1:-1:-1;321:1363:2;;1525:245:3;-1:-1:-1;;;;;1599:26:3;;1591:83;;;;-1:-1:-1;;;1591:83:3;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1705:9;;;1689:40;;-1:-1:-1;;;;;1689:40:3;;;;1705:9;;;-1:-1:-1;;;;;;;;;;;1689:40:3;;1739:9;:24;;-1:-1:-1;;;;;;1739:24:3;-1:-1:-1;;;;;1739:24:3;;;;;;;;;;1525:245::o;321:1363:2:-;;;;;;;",
+  "deployedSourceMap": "321:1363:2:-;;;;8:9:-1;5:2;;;30:1;27;20:12;5:2;321:1363:2;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;952:168;;;;;;13:2:-1;8:3;5:11;2:2;;;29:1;26;19:12;2:2;-1:-1;952:168:2;-1:-1:-1;;;;;952:168:2;;:::i;:::-;;574:83:3;;;:::i;:::-;;;;-1:-1:-1;;;;;574:83:3;;;;;;;;;;;;;;416:20:2;;;:::i;:::-;;;;;;;;;;;;;;;;180:31:1;;;:::i;1245:122:2:-;;;:::i;1486:196::-;;;:::i;949:96:3:-;;;:::i;:::-;;;;;;;;;;;;;;;;;;442:26:2;;;:::i;799:117:1:-;;;;;;13:2:-1;8:3;5:11;2:2;;;29:1;26;19:12;2:2;-1:-1;799:117:1;-1:-1:-1;;;;;799:117:1;;:::i;952:168:2:-;790:12:3;:10;:12::i;:::-;782:63;;;;-1:-1:-1;;;782:63:3;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1054:3:2;1040:11;:17;1067:46;1095:17;1067:27;:46::i;:::-;952:168;:::o;574:83:3:-;615:7;641:9;-1:-1:-1;;;;;641:9:3;574:83;:::o;416:20:2:-;;;;:::o;180:31:1:-;;;-1:-1:-1;;;;;180:31:1;;:::o;1245:122:2:-;790:12:3;:10;:12::i;:::-;782:63;;;;-1:-1:-1;;;782:63:3;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1321:1:2;1307:11;:15;1332:28;:26;:28::i;:::-;1245:122::o;1486:196::-;618:16:1;;-1:-1:-1;;;;;618:16:1;604:10;:30;596:76;;;;-1:-1:-1;;;596:76:1;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1587:5:2;;1571:11;;:22;;;:15;:22;:::i;:::-;1563:3;:31;;1555:58;;;;;-1:-1:-1;;;1555:58:2;;;;;;;;;;;;-1:-1:-1;;;1555:58:2;;;;;;;;;;;;;;;1623:27;:25;:27::i;:::-;1674:1;1660:11;:15;1486:196::o;949:96:3:-;992:4;1029:9;-1:-1:-1;;;;;1029:9:3;1015:10;:23;;949:96::o;442:26:2:-;;;;:::o;799:117:1:-;790:12:3;:10;:12::i;:::-;782:63;;;;-1:-1:-1;;;782:63:3;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;862:47:1;;-1:-1:-1;;;862:47:1;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1067:379;790:12:3;:10;:12::i;:::-;782:63;;;;-1:-1:-1;;;782:63:3;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;-1:-1:-1;;;;;1163:31:1;;1155:86;;;;-1:-1:-1;;;1155:86:1;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1259:16;;-1:-1:-1;;;;;1259:16:1;:30;1251:72;;;;;-1:-1:-1;;;1251:72:1;;;;;;;;;;;;;;;;;;;;;;;;;;;;1334:16;:36;;-1:-1:-1;;;;;;1334:36:1;-1:-1:-1;;;;;1334:36:1;;;;;;;;1409:10;:8;:10::i;:::-;-1:-1:-1;;;;;1385:54:1;;;;;;;;;;;1067:379;:::o;1528:245::-;790:12:3;:10;:12::i;:::-;782:63;;;;-1:-1:-1;;;782:63:3;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1598:16:1;;-1:-1:-1;;;;;1598:16:1;1590:68;;;;;-1:-1:-1;;;1590:68:1;;;;;;;;;;;;;;;;;;;;;;;;;;;;1710:16;;-1:-1:-1;;;;;1710:16:1;1698:10;:8;:10::i;:::-;-1:-1:-1;;;;;1674:53:1;;;;;;;;;;;1737:16;:29;;-1:-1:-1;;;;;;1737:29:1;;;1528:245::o;834:176:50:-;892:7;923:5;;;946:6;;;;938:46;;;;;-1:-1:-1;;;938:46:50;;;;;;;;;;;;;;;;;;;;;;;;;;;;1002:1;834:176;-1:-1:-1;;;834:176:50:o;1856:202:1:-;618:16;;-1:-1:-1;;;;;618:16:1;604:10;:30;596:76;;;;-1:-1:-1;;;596:76:1;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1941:16;;1925:33;;-1:-1:-1;;;;;1941:16:1;1925:15;:33::i;:::-;1995:16;;1973:39;;-1:-1:-1;;;;;1995:16:1;;;;1973:39;;1995:16;;1973:39;2022:16;:29;;-1:-1:-1;;;;;;2022:29:1;;;1856:202::o;1525:245:3:-;-1:-1:-1;;;;;1599:26:3;;1591:83;;;;-1:-1:-1;;;1591:83:3;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1705:9;;;1689:40;;-1:-1:-1;;;;;1689:40:3;;;;1705:9;;;1689:40;;;1739:9;:24;;-1:-1:-1;;;;;;1739:24:3;-1:-1:-1;;;;;1739:24:3;;;;;;;;;;1525:245::o",
+  "source": "pragma solidity ^0.5.12;\n\nimport { ClaimableGovernor } from \"./ClaimableGovernor.sol\";\nimport { SafeMath } from \"openzeppelin-solidity/contracts/math/SafeMath.sol\";\n\n/**\n * @title Current Goverenor can initiate governance change request.\n * After a defined delay, proposed Governor can claim governance\n * ownership.\n */\ncontract DelayedClaimableGovernor is ClaimableGovernor {\n\n    using SafeMath for uint256;\n\n    uint256 public delay;\n    uint256 public requestTime;\n\n    /**\n     * @dev Initializes the contract with given delay\n     * @param _delay Delay in seconds for 2 way handshake\n     */\n    constructor(address _governor, uint256 _delay)\n    public\n    ClaimableGovernor(_governor) {\n        require(_delay > 0, \"Delay must be greater then zero\");\n        delay = _delay;\n    }\n\n    //@override\n    /**\n     * @notice Requests change of governor and logs request time\n     * @param _proposedGovernor Address of the new governor\n     */\n    function requestGovernorChange(address _proposedGovernor) public onlyGovernor {\n        requestTime = now;\n        super.requestGovernorChange(_proposedGovernor);\n    }\n\n    //override\n    /**\n     * @notice Cancels an outstanding governor change request by resetting request time\n     */\n    function cancelGovernorChange() public onlyGovernor {\n        requestTime = 0;\n        super.cancelGovernorChange();\n    }\n\n    //override\n    /**\n     * @notice Proposed governor claims new position, callable after time elapsed\n     */\n    function claimGovernorChange() public onlyProposedGovernor {\n        require(now >= (requestTime.add(delay)), \"Delay not over\");\n        super.claimGovernorChange();\n        requestTime = 0;\n    }\n}",
+  "sourcePath": "/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/governance/DelayedClaimableGovernor.sol",
+  "ast": {
+    "absolutePath": "/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/governance/DelayedClaimableGovernor.sol",
+    "exportedSymbols": {
+      "DelayedClaimableGovernor": [
+        295
+      ]
+    },
+    "id": 296,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 200,
+        "literals": [
+          "solidity",
+          "^",
+          "0.5",
+          ".12"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:24:2"
+      },
+      {
+        "absolutePath": "/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/governance/ClaimableGovernor.sol",
+        "file": "./ClaimableGovernor.sol",
+        "id": 202,
+        "nodeType": "ImportDirective",
+        "scope": 296,
+        "sourceUnit": 199,
+        "src": "26:60:2",
+        "symbolAliases": [
+          {
+            "foreign": 201,
+            "local": null
+          }
+        ],
+        "unitAlias": ""
+      },
+      {
+        "absolutePath": "openzeppelin-solidity/contracts/math/SafeMath.sol",
+        "file": "openzeppelin-solidity/contracts/math/SafeMath.sol",
+        "id": 204,
+        "nodeType": "ImportDirective",
+        "scope": 296,
+        "sourceUnit": 10615,
+        "src": "87:77:2",
+        "symbolAliases": [
+          {
+            "foreign": 203,
+            "local": null
+          }
+        ],
+        "unitAlias": ""
+      },
+      {
+        "baseContracts": [
+          {
+            "arguments": null,
+            "baseName": {
+              "contractScope": null,
+              "id": 205,
+              "name": "ClaimableGovernor",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 198,
+              "src": "358:17:2",
+              "typeDescriptions": {
+                "typeIdentifier": "t_contract$_ClaimableGovernor_$198",
+                "typeString": "contract ClaimableGovernor"
+              }
+            },
+            "id": 206,
+            "nodeType": "InheritanceSpecifier",
+            "src": "358:17:2"
+          }
+        ],
+        "contractDependencies": [
+          198,
+          387
+        ],
+        "contractKind": "contract",
+        "documentation": "@title Current Goverenor can initiate governance change request.\nAfter a defined delay, proposed Governor can claim governance\nownership.",
+        "fullyImplemented": true,
+        "id": 295,
+        "linearizedBaseContracts": [
+          295,
+          198,
+          387
+        ],
+        "name": "DelayedClaimableGovernor",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "id": 209,
+            "libraryName": {
+              "contractScope": null,
+              "id": 207,
+              "name": "SafeMath",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 10614,
+              "src": "389:8:2",
+              "typeDescriptions": {
+                "typeIdentifier": "t_contract$_SafeMath_$10614",
+                "typeString": "library SafeMath"
+              }
+            },
+            "nodeType": "UsingForDirective",
+            "src": "383:27:2",
+            "typeName": {
+              "id": 208,
+              "name": "uint256",
+              "nodeType": "ElementaryTypeName",
+              "src": "402:7:2",
+              "typeDescriptions": {
+                "typeIdentifier": "t_uint256",
+                "typeString": "uint256"
+              }
+            }
+          },
+          {
+            "constant": false,
+            "id": 211,
+            "name": "delay",
+            "nodeType": "VariableDeclaration",
+            "scope": 295,
+            "src": "416:20:2",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_uint256",
+              "typeString": "uint256"
+            },
+            "typeName": {
+              "id": 210,
+              "name": "uint256",
+              "nodeType": "ElementaryTypeName",
+              "src": "416:7:2",
+              "typeDescriptions": {
+                "typeIdentifier": "t_uint256",
+                "typeString": "uint256"
+              }
+            },
+            "value": null,
+            "visibility": "public"
+          },
+          {
+            "constant": false,
+            "id": 213,
+            "name": "requestTime",
+            "nodeType": "VariableDeclaration",
+            "scope": 295,
+            "src": "442:26:2",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_uint256",
+              "typeString": "uint256"
+            },
+            "typeName": {
+              "id": 212,
+              "name": "uint256",
+              "nodeType": "ElementaryTypeName",
+              "src": "442:7:2",
+              "typeDescriptions": {
+                "typeIdentifier": "t_uint256",
+                "typeString": "uint256"
+              }
+            },
+            "value": null,
+            "visibility": "public"
+          },
+          {
+            "body": {
+              "id": 234,
+              "nodeType": "Block",
+              "src": "694:95:2",
+              "statements": [
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "commonType": {
+                          "typeIdentifier": "t_uint256",
+                          "typeString": "uint256"
+                        },
+                        "id": 226,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": false,
+                        "lValueRequested": false,
+                        "leftExpression": {
+                          "argumentTypes": null,
+                          "id": 224,
+                          "name": "_delay",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 217,
+                          "src": "712:6:2",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_uint256",
+                            "typeString": "uint256"
+                          }
+                        },
+                        "nodeType": "BinaryOperation",
+                        "operator": ">",
+                        "rightExpression": {
+                          "argumentTypes": null,
+                          "hexValue": "30",
+                          "id": 225,
+                          "isConstant": false,
+                          "isLValue": false,
+                          "isPure": true,
+                          "kind": "number",
+                          "lValueRequested": false,
+                          "nodeType": "Literal",
+                          "src": "721:1:2",
+                          "subdenomination": null,
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_rational_0_by_1",
+                            "typeString": "int_const 0"
+                          },
+                          "value": "0"
+                        },
+                        "src": "712:10:2",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_bool",
+                          "typeString": "bool"
+                        }
+                      },
+                      {
+                        "argumentTypes": null,
+                        "hexValue": "44656c6179206d7573742062652067726561746572207468656e207a65726f",
+                        "id": 227,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": true,
+                        "kind": "string",
+                        "lValueRequested": false,
+                        "nodeType": "Literal",
+                        "src": "724:33:2",
+                        "subdenomination": null,
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_stringliteral_9d51a1b5838c0c62d39acb7a12c684d41d7e2c0a6d454cfc332611ee881bdc8f",
+                          "typeString": "literal_string \"Delay must be greater then zero\""
+                        },
+                        "value": "Delay must be greater then zero"
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_bool",
+                          "typeString": "bool"
+                        },
+                        {
+                          "typeIdentifier": "t_stringliteral_9d51a1b5838c0c62d39acb7a12c684d41d7e2c0a6d454cfc332611ee881bdc8f",
+                          "typeString": "literal_string \"Delay must be greater then zero\""
+                        }
+                      ],
+                      "id": 223,
+                      "name": "require",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [
+                        11187,
+                        11188
+                      ],
+                      "referencedDeclaration": 11188,
+                      "src": "704:7:2",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_require_pure$_t_bool_$_t_string_memory_ptr_$returns$__$",
+                        "typeString": "function (bool,string memory) pure"
+                      }
+                    },
+                    "id": 228,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "704:54:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 229,
+                  "nodeType": "ExpressionStatement",
+                  "src": "704:54:2"
+                },
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "id": 232,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "leftHandSide": {
+                      "argumentTypes": null,
+                      "id": 230,
+                      "name": "delay",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 211,
+                      "src": "768:5:2",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "nodeType": "Assignment",
+                    "operator": "=",
+                    "rightHandSide": {
+                      "argumentTypes": null,
+                      "id": 231,
+                      "name": "_delay",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 217,
+                      "src": "776:6:2",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "src": "768:14:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "id": 233,
+                  "nodeType": "ExpressionStatement",
+                  "src": "768:14:2"
+                }
+              ]
+            },
+            "documentation": "@dev Initializes the contract with given delay\n@param _delay Delay in seconds for 2 way handshake",
+            "id": 235,
+            "implemented": true,
+            "kind": "constructor",
+            "modifiers": [
+              {
+                "arguments": [
+                  {
+                    "argumentTypes": null,
+                    "id": 220,
+                    "name": "_governor",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 215,
+                    "src": "683:9:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  }
+                ],
+                "id": 221,
+                "modifierName": {
+                  "argumentTypes": null,
+                  "id": 219,
+                  "name": "ClaimableGovernor",
+                  "nodeType": "Identifier",
+                  "overloadedDeclarations": [],
+                  "referencedDeclaration": 198,
+                  "src": "665:17:2",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_type$_t_contract$_ClaimableGovernor_$198_$",
+                    "typeString": "type(contract ClaimableGovernor)"
+                  }
+                },
+                "nodeType": "ModifierInvocation",
+                "src": "665:28:2"
+              }
+            ],
+            "name": "",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 218,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 215,
+                  "name": "_governor",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 235,
+                  "src": "615:17:2",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 214,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "615:7:2",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 217,
+                  "name": "_delay",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 235,
+                  "src": "634:14:2",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 216,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "634:7:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "614:35:2"
+            },
+            "returnParameters": {
+              "id": 222,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "694:0:2"
+            },
+            "scope": 295,
+            "src": "603:186:2",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "public"
+          },
+          {
+            "body": {
+              "id": 252,
+              "nodeType": "Block",
+              "src": "1030:90:2",
+              "statements": [
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "id": 244,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "leftHandSide": {
+                      "argumentTypes": null,
+                      "id": 242,
+                      "name": "requestTime",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 213,
+                      "src": "1040:11:2",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "nodeType": "Assignment",
+                    "operator": "=",
+                    "rightHandSide": {
+                      "argumentTypes": null,
+                      "id": 243,
+                      "name": "now",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 11186,
+                      "src": "1054:3:2",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "src": "1040:17:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "id": 245,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1040:17:2"
+                },
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "id": 249,
+                        "name": "_proposedGovernor",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 237,
+                        "src": "1095:17:2",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      ],
+                      "expression": {
+                        "argumentTypes": null,
+                        "id": 246,
+                        "name": "super",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 11207,
+                        "src": "1067:5:2",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_super$_DelayedClaimableGovernor_$295",
+                          "typeString": "contract super DelayedClaimableGovernor"
+                        }
+                      },
+                      "id": 248,
+                      "isConstant": false,
+                      "isLValue": false,
+                      "isPure": false,
+                      "lValueRequested": false,
+                      "memberName": "requestGovernorChange",
+                      "nodeType": "MemberAccess",
+                      "referencedDeclaration": 150,
+                      "src": "1067:27:2",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_internal_nonpayable$_t_address_$returns$__$",
+                        "typeString": "function (address)"
+                      }
+                    },
+                    "id": 250,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1067:46:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 251,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1067:46:2"
+                }
+              ]
+            },
+            "documentation": "@notice Requests change of governor and logs request time\n@param _proposedGovernor Address of the new governor",
+            "id": 253,
+            "implemented": true,
+            "kind": "function",
+            "modifiers": [
+              {
+                "arguments": null,
+                "id": 240,
+                "modifierName": {
+                  "argumentTypes": null,
+                  "id": 239,
+                  "name": "onlyGovernor",
+                  "nodeType": "Identifier",
+                  "overloadedDeclarations": [],
+                  "referencedDeclaration": 339,
+                  "src": "1017:12:2",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_modifier$__$",
+                    "typeString": "modifier ()"
+                  }
+                },
+                "nodeType": "ModifierInvocation",
+                "src": "1017:12:2"
+              }
+            ],
+            "name": "requestGovernorChange",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 238,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 237,
+                  "name": "_proposedGovernor",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 253,
+                  "src": "983:25:2",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 236,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "983:7:2",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "982:27:2"
+            },
+            "returnParameters": {
+              "id": 241,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "1030:0:2"
+            },
+            "scope": 295,
+            "src": "952:168:2",
+            "stateMutability": "nonpayable",
+            "superFunction": 150,
+            "visibility": "public"
+          },
+          {
+            "body": {
+              "id": 267,
+              "nodeType": "Block",
+              "src": "1297:70:2",
+              "statements": [
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "id": 260,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "leftHandSide": {
+                      "argumentTypes": null,
+                      "id": 258,
+                      "name": "requestTime",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 213,
+                      "src": "1307:11:2",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "nodeType": "Assignment",
+                    "operator": "=",
+                    "rightHandSide": {
+                      "argumentTypes": null,
+                      "hexValue": "30",
+                      "id": 259,
+                      "isConstant": false,
+                      "isLValue": false,
+                      "isPure": true,
+                      "kind": "number",
+                      "lValueRequested": false,
+                      "nodeType": "Literal",
+                      "src": "1321:1:2",
+                      "subdenomination": null,
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_rational_0_by_1",
+                        "typeString": "int_const 0"
+                      },
+                      "value": "0"
+                    },
+                    "src": "1307:15:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "id": 261,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1307:15:2"
+                },
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "arguments": [],
+                    "expression": {
+                      "argumentTypes": [],
+                      "expression": {
+                        "argumentTypes": null,
+                        "id": 262,
+                        "name": "super",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 11207,
+                        "src": "1332:5:2",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_super$_DelayedClaimableGovernor_$295",
+                          "typeString": "contract super DelayedClaimableGovernor"
+                        }
+                      },
+                      "id": 264,
+                      "isConstant": false,
+                      "isLValue": false,
+                      "isPure": false,
+                      "lValueRequested": false,
+                      "memberName": "cancelGovernorChange",
+                      "nodeType": "MemberAccess",
+                      "referencedDeclaration": 177,
+                      "src": "1332:26:2",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_internal_nonpayable$__$returns$__$",
+                        "typeString": "function ()"
+                      }
+                    },
+                    "id": 265,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1332:28:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 266,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1332:28:2"
+                }
+              ]
+            },
+            "documentation": "@notice Cancels an outstanding governor change request by resetting request time",
+            "id": 268,
+            "implemented": true,
+            "kind": "function",
+            "modifiers": [
+              {
+                "arguments": null,
+                "id": 256,
+                "modifierName": {
+                  "argumentTypes": null,
+                  "id": 255,
+                  "name": "onlyGovernor",
+                  "nodeType": "Identifier",
+                  "overloadedDeclarations": [],
+                  "referencedDeclaration": 339,
+                  "src": "1284:12:2",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_modifier$__$",
+                    "typeString": "modifier ()"
+                  }
+                },
+                "nodeType": "ModifierInvocation",
+                "src": "1284:12:2"
+              }
+            ],
+            "name": "cancelGovernorChange",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 254,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "1274:2:2"
+            },
+            "returnParameters": {
+              "id": 257,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "1297:0:2"
+            },
+            "scope": 295,
+            "src": "1245:122:2",
+            "stateMutability": "nonpayable",
+            "superFunction": 177,
+            "visibility": "public"
+          },
+          {
+            "body": {
+              "id": 293,
+              "nodeType": "Block",
+              "src": "1545:137:2",
+              "statements": [
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "commonType": {
+                          "typeIdentifier": "t_uint256",
+                          "typeString": "uint256"
+                        },
+                        "id": 280,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": false,
+                        "lValueRequested": false,
+                        "leftExpression": {
+                          "argumentTypes": null,
+                          "id": 274,
+                          "name": "now",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 11186,
+                          "src": "1563:3:2",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_uint256",
+                            "typeString": "uint256"
+                          }
+                        },
+                        "nodeType": "BinaryOperation",
+                        "operator": ">=",
+                        "rightExpression": {
+                          "argumentTypes": null,
+                          "components": [
+                            {
+                              "argumentTypes": null,
+                              "arguments": [
+                                {
+                                  "argumentTypes": null,
+                                  "id": 277,
+                                  "name": "delay",
+                                  "nodeType": "Identifier",
+                                  "overloadedDeclarations": [],
+                                  "referencedDeclaration": 211,
+                                  "src": "1587:5:2",
+                                  "typeDescriptions": {
+                                    "typeIdentifier": "t_uint256",
+                                    "typeString": "uint256"
+                                  }
+                                }
+                              ],
+                              "expression": {
+                                "argumentTypes": [
+                                  {
+                                    "typeIdentifier": "t_uint256",
+                                    "typeString": "uint256"
+                                  }
+                                ],
+                                "expression": {
+                                  "argumentTypes": null,
+                                  "id": 275,
+                                  "name": "requestTime",
+                                  "nodeType": "Identifier",
+                                  "overloadedDeclarations": [],
+                                  "referencedDeclaration": 213,
+                                  "src": "1571:11:2",
+                                  "typeDescriptions": {
+                                    "typeIdentifier": "t_uint256",
+                                    "typeString": "uint256"
+                                  }
+                                },
+                                "id": 276,
+                                "isConstant": false,
+                                "isLValue": false,
+                                "isPure": false,
+                                "lValueRequested": false,
+                                "memberName": "add",
+                                "nodeType": "MemberAccess",
+                                "referencedDeclaration": 10508,
+                                "src": "1571:15:2",
+                                "typeDescriptions": {
+                                  "typeIdentifier": "t_function_internal_pure$_t_uint256_$_t_uint256_$returns$_t_uint256_$bound_to$_t_uint256_$",
+                                  "typeString": "function (uint256,uint256) pure returns (uint256)"
+                                }
+                              },
+                              "id": 278,
+                              "isConstant": false,
+                              "isLValue": false,
+                              "isPure": false,
+                              "kind": "functionCall",
+                              "lValueRequested": false,
+                              "names": [],
+                              "nodeType": "FunctionCall",
+                              "src": "1571:22:2",
+                              "typeDescriptions": {
+                                "typeIdentifier": "t_uint256",
+                                "typeString": "uint256"
+                              }
+                            }
+                          ],
+                          "id": 279,
+                          "isConstant": false,
+                          "isInlineArray": false,
+                          "isLValue": false,
+                          "isPure": false,
+                          "lValueRequested": false,
+                          "nodeType": "TupleExpression",
+                          "src": "1570:24:2",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_uint256",
+                            "typeString": "uint256"
+                          }
+                        },
+                        "src": "1563:31:2",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_bool",
+                          "typeString": "bool"
+                        }
+                      },
+                      {
+                        "argumentTypes": null,
+                        "hexValue": "44656c6179206e6f74206f766572",
+                        "id": 281,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": true,
+                        "kind": "string",
+                        "lValueRequested": false,
+                        "nodeType": "Literal",
+                        "src": "1596:16:2",
+                        "subdenomination": null,
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_stringliteral_bcc6f209335a0e59ad619460aea23317b30b04188227d08d9f9464a65c7a9e89",
+                          "typeString": "literal_string \"Delay not over\""
+                        },
+                        "value": "Delay not over"
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_bool",
+                          "typeString": "bool"
+                        },
+                        {
+                          "typeIdentifier": "t_stringliteral_bcc6f209335a0e59ad619460aea23317b30b04188227d08d9f9464a65c7a9e89",
+                          "typeString": "literal_string \"Delay not over\""
+                        }
+                      ],
+                      "id": 273,
+                      "name": "require",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [
+                        11187,
+                        11188
+                      ],
+                      "referencedDeclaration": 11188,
+                      "src": "1555:7:2",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_require_pure$_t_bool_$_t_string_memory_ptr_$returns$__$",
+                        "typeString": "function (bool,string memory) pure"
+                      }
+                    },
+                    "id": 282,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1555:58:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 283,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1555:58:2"
+                },
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "arguments": [],
+                    "expression": {
+                      "argumentTypes": [],
+                      "expression": {
+                        "argumentTypes": null,
+                        "id": 284,
+                        "name": "super",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 11207,
+                        "src": "1623:5:2",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_super$_DelayedClaimableGovernor_$295",
+                          "typeString": "contract super DelayedClaimableGovernor"
+                        }
+                      },
+                      "id": 286,
+                      "isConstant": false,
+                      "isLValue": false,
+                      "isPure": false,
+                      "lValueRequested": false,
+                      "memberName": "claimGovernorChange",
+                      "nodeType": "MemberAccess",
+                      "referencedDeclaration": 197,
+                      "src": "1623:25:2",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_internal_nonpayable$__$returns$__$",
+                        "typeString": "function ()"
+                      }
+                    },
+                    "id": 287,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1623:27:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 288,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1623:27:2"
+                },
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "id": 291,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "leftHandSide": {
+                      "argumentTypes": null,
+                      "id": 289,
+                      "name": "requestTime",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 213,
+                      "src": "1660:11:2",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "nodeType": "Assignment",
+                    "operator": "=",
+                    "rightHandSide": {
+                      "argumentTypes": null,
+                      "hexValue": "30",
+                      "id": 290,
+                      "isConstant": false,
+                      "isLValue": false,
+                      "isPure": true,
+                      "kind": "number",
+                      "lValueRequested": false,
+                      "nodeType": "Literal",
+                      "src": "1674:1:2",
+                      "subdenomination": null,
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_rational_0_by_1",
+                        "typeString": "int_const 0"
+                      },
+                      "value": "0"
+                    },
+                    "src": "1660:15:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "id": 292,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1660:15:2"
+                }
+              ]
+            },
+            "documentation": "@notice Proposed governor claims new position, callable after time elapsed",
+            "id": 294,
+            "implemented": true,
+            "kind": "function",
+            "modifiers": [
+              {
+                "arguments": null,
+                "id": 271,
+                "modifierName": {
+                  "argumentTypes": null,
+                  "id": 270,
+                  "name": "onlyProposedGovernor",
+                  "nodeType": "Identifier",
+                  "overloadedDeclarations": [],
+                  "referencedDeclaration": 92,
+                  "src": "1524:20:2",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_modifier$__$",
+                    "typeString": "modifier ()"
+                  }
+                },
+                "nodeType": "ModifierInvocation",
+                "src": "1524:20:2"
+              }
+            ],
+            "name": "claimGovernorChange",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 269,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "1514:2:2"
+            },
+            "returnParameters": {
+              "id": 272,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "1545:0:2"
+            },
+            "scope": 295,
+            "src": "1486:196:2",
+            "stateMutability": "nonpayable",
+            "superFunction": 197,
+            "visibility": "public"
+          }
+        ],
+        "scope": 296,
+        "src": "321:1363:2"
+      }
+    ],
+    "src": "0:1684:2"
+  },
+  "legacyAST": {
+    "absolutePath": "/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/governance/DelayedClaimableGovernor.sol",
+    "exportedSymbols": {
+      "DelayedClaimableGovernor": [
+        295
+      ]
+    },
+    "id": 296,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 200,
+        "literals": [
+          "solidity",
+          "^",
+          "0.5",
+          ".12"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:24:2"
+      },
+      {
+        "absolutePath": "/home/alex/projects/stability-labs/mstable/mstable-contracts/contracts/governance/ClaimableGovernor.sol",
+        "file": "./ClaimableGovernor.sol",
+        "id": 202,
+        "nodeType": "ImportDirective",
+        "scope": 296,
+        "sourceUnit": 199,
+        "src": "26:60:2",
+        "symbolAliases": [
+          {
+            "foreign": 201,
+            "local": null
+          }
+        ],
+        "unitAlias": ""
+      },
+      {
+        "absolutePath": "openzeppelin-solidity/contracts/math/SafeMath.sol",
+        "file": "openzeppelin-solidity/contracts/math/SafeMath.sol",
+        "id": 204,
+        "nodeType": "ImportDirective",
+        "scope": 296,
+        "sourceUnit": 10615,
+        "src": "87:77:2",
+        "symbolAliases": [
+          {
+            "foreign": 203,
+            "local": null
+          }
+        ],
+        "unitAlias": ""
+      },
+      {
+        "baseContracts": [
+          {
+            "arguments": null,
+            "baseName": {
+              "contractScope": null,
+              "id": 205,
+              "name": "ClaimableGovernor",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 198,
+              "src": "358:17:2",
+              "typeDescriptions": {
+                "typeIdentifier": "t_contract$_ClaimableGovernor_$198",
+                "typeString": "contract ClaimableGovernor"
+              }
+            },
+            "id": 206,
+            "nodeType": "InheritanceSpecifier",
+            "src": "358:17:2"
+          }
+        ],
+        "contractDependencies": [
+          198,
+          387
+        ],
+        "contractKind": "contract",
+        "documentation": "@title Current Goverenor can initiate governance change request.\nAfter a defined delay, proposed Governor can claim governance\nownership.",
+        "fullyImplemented": true,
+        "id": 295,
+        "linearizedBaseContracts": [
+          295,
+          198,
+          387
+        ],
+        "name": "DelayedClaimableGovernor",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "id": 209,
+            "libraryName": {
+              "contractScope": null,
+              "id": 207,
+              "name": "SafeMath",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 10614,
+              "src": "389:8:2",
+              "typeDescriptions": {
+                "typeIdentifier": "t_contract$_SafeMath_$10614",
+                "typeString": "library SafeMath"
+              }
+            },
+            "nodeType": "UsingForDirective",
+            "src": "383:27:2",
+            "typeName": {
+              "id": 208,
+              "name": "uint256",
+              "nodeType": "ElementaryTypeName",
+              "src": "402:7:2",
+              "typeDescriptions": {
+                "typeIdentifier": "t_uint256",
+                "typeString": "uint256"
+              }
+            }
+          },
+          {
+            "constant": false,
+            "id": 211,
+            "name": "delay",
+            "nodeType": "VariableDeclaration",
+            "scope": 295,
+            "src": "416:20:2",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_uint256",
+              "typeString": "uint256"
+            },
+            "typeName": {
+              "id": 210,
+              "name": "uint256",
+              "nodeType": "ElementaryTypeName",
+              "src": "416:7:2",
+              "typeDescriptions": {
+                "typeIdentifier": "t_uint256",
+                "typeString": "uint256"
+              }
+            },
+            "value": null,
+            "visibility": "public"
+          },
+          {
+            "constant": false,
+            "id": 213,
+            "name": "requestTime",
+            "nodeType": "VariableDeclaration",
+            "scope": 295,
+            "src": "442:26:2",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_uint256",
+              "typeString": "uint256"
+            },
+            "typeName": {
+              "id": 212,
+              "name": "uint256",
+              "nodeType": "ElementaryTypeName",
+              "src": "442:7:2",
+              "typeDescriptions": {
+                "typeIdentifier": "t_uint256",
+                "typeString": "uint256"
+              }
+            },
+            "value": null,
+            "visibility": "public"
+          },
+          {
+            "body": {
+              "id": 234,
+              "nodeType": "Block",
+              "src": "694:95:2",
+              "statements": [
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "commonType": {
+                          "typeIdentifier": "t_uint256",
+                          "typeString": "uint256"
+                        },
+                        "id": 226,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": false,
+                        "lValueRequested": false,
+                        "leftExpression": {
+                          "argumentTypes": null,
+                          "id": 224,
+                          "name": "_delay",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 217,
+                          "src": "712:6:2",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_uint256",
+                            "typeString": "uint256"
+                          }
+                        },
+                        "nodeType": "BinaryOperation",
+                        "operator": ">",
+                        "rightExpression": {
+                          "argumentTypes": null,
+                          "hexValue": "30",
+                          "id": 225,
+                          "isConstant": false,
+                          "isLValue": false,
+                          "isPure": true,
+                          "kind": "number",
+                          "lValueRequested": false,
+                          "nodeType": "Literal",
+                          "src": "721:1:2",
+                          "subdenomination": null,
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_rational_0_by_1",
+                            "typeString": "int_const 0"
+                          },
+                          "value": "0"
+                        },
+                        "src": "712:10:2",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_bool",
+                          "typeString": "bool"
+                        }
+                      },
+                      {
+                        "argumentTypes": null,
+                        "hexValue": "44656c6179206d7573742062652067726561746572207468656e207a65726f",
+                        "id": 227,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": true,
+                        "kind": "string",
+                        "lValueRequested": false,
+                        "nodeType": "Literal",
+                        "src": "724:33:2",
+                        "subdenomination": null,
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_stringliteral_9d51a1b5838c0c62d39acb7a12c684d41d7e2c0a6d454cfc332611ee881bdc8f",
+                          "typeString": "literal_string \"Delay must be greater then zero\""
+                        },
+                        "value": "Delay must be greater then zero"
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_bool",
+                          "typeString": "bool"
+                        },
+                        {
+                          "typeIdentifier": "t_stringliteral_9d51a1b5838c0c62d39acb7a12c684d41d7e2c0a6d454cfc332611ee881bdc8f",
+                          "typeString": "literal_string \"Delay must be greater then zero\""
+                        }
+                      ],
+                      "id": 223,
+                      "name": "require",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [
+                        11187,
+                        11188
+                      ],
+                      "referencedDeclaration": 11188,
+                      "src": "704:7:2",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_require_pure$_t_bool_$_t_string_memory_ptr_$returns$__$",
+                        "typeString": "function (bool,string memory) pure"
+                      }
+                    },
+                    "id": 228,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "704:54:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 229,
+                  "nodeType": "ExpressionStatement",
+                  "src": "704:54:2"
+                },
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "id": 232,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "leftHandSide": {
+                      "argumentTypes": null,
+                      "id": 230,
+                      "name": "delay",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 211,
+                      "src": "768:5:2",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "nodeType": "Assignment",
+                    "operator": "=",
+                    "rightHandSide": {
+                      "argumentTypes": null,
+                      "id": 231,
+                      "name": "_delay",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 217,
+                      "src": "776:6:2",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "src": "768:14:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "id": 233,
+                  "nodeType": "ExpressionStatement",
+                  "src": "768:14:2"
+                }
+              ]
+            },
+            "documentation": "@dev Initializes the contract with given delay\n@param _delay Delay in seconds for 2 way handshake",
+            "id": 235,
+            "implemented": true,
+            "kind": "constructor",
+            "modifiers": [
+              {
+                "arguments": [
+                  {
+                    "argumentTypes": null,
+                    "id": 220,
+                    "name": "_governor",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 215,
+                    "src": "683:9:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  }
+                ],
+                "id": 221,
+                "modifierName": {
+                  "argumentTypes": null,
+                  "id": 219,
+                  "name": "ClaimableGovernor",
+                  "nodeType": "Identifier",
+                  "overloadedDeclarations": [],
+                  "referencedDeclaration": 198,
+                  "src": "665:17:2",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_type$_t_contract$_ClaimableGovernor_$198_$",
+                    "typeString": "type(contract ClaimableGovernor)"
+                  }
+                },
+                "nodeType": "ModifierInvocation",
+                "src": "665:28:2"
+              }
+            ],
+            "name": "",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 218,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 215,
+                  "name": "_governor",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 235,
+                  "src": "615:17:2",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 214,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "615:7:2",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 217,
+                  "name": "_delay",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 235,
+                  "src": "634:14:2",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 216,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "634:7:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "614:35:2"
+            },
+            "returnParameters": {
+              "id": 222,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "694:0:2"
+            },
+            "scope": 295,
+            "src": "603:186:2",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "public"
+          },
+          {
+            "body": {
+              "id": 252,
+              "nodeType": "Block",
+              "src": "1030:90:2",
+              "statements": [
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "id": 244,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "leftHandSide": {
+                      "argumentTypes": null,
+                      "id": 242,
+                      "name": "requestTime",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 213,
+                      "src": "1040:11:2",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "nodeType": "Assignment",
+                    "operator": "=",
+                    "rightHandSide": {
+                      "argumentTypes": null,
+                      "id": 243,
+                      "name": "now",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 11186,
+                      "src": "1054:3:2",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "src": "1040:17:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "id": 245,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1040:17:2"
+                },
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "id": 249,
+                        "name": "_proposedGovernor",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 237,
+                        "src": "1095:17:2",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      ],
+                      "expression": {
+                        "argumentTypes": null,
+                        "id": 246,
+                        "name": "super",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 11207,
+                        "src": "1067:5:2",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_super$_DelayedClaimableGovernor_$295",
+                          "typeString": "contract super DelayedClaimableGovernor"
+                        }
+                      },
+                      "id": 248,
+                      "isConstant": false,
+                      "isLValue": false,
+                      "isPure": false,
+                      "lValueRequested": false,
+                      "memberName": "requestGovernorChange",
+                      "nodeType": "MemberAccess",
+                      "referencedDeclaration": 150,
+                      "src": "1067:27:2",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_internal_nonpayable$_t_address_$returns$__$",
+                        "typeString": "function (address)"
+                      }
+                    },
+                    "id": 250,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1067:46:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 251,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1067:46:2"
+                }
+              ]
+            },
+            "documentation": "@notice Requests change of governor and logs request time\n@param _proposedGovernor Address of the new governor",
+            "id": 253,
+            "implemented": true,
+            "kind": "function",
+            "modifiers": [
+              {
+                "arguments": null,
+                "id": 240,
+                "modifierName": {
+                  "argumentTypes": null,
+                  "id": 239,
+                  "name": "onlyGovernor",
+                  "nodeType": "Identifier",
+                  "overloadedDeclarations": [],
+                  "referencedDeclaration": 339,
+                  "src": "1017:12:2",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_modifier$__$",
+                    "typeString": "modifier ()"
+                  }
+                },
+                "nodeType": "ModifierInvocation",
+                "src": "1017:12:2"
+              }
+            ],
+            "name": "requestGovernorChange",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 238,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 237,
+                  "name": "_proposedGovernor",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 253,
+                  "src": "983:25:2",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 236,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "983:7:2",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "982:27:2"
+            },
+            "returnParameters": {
+              "id": 241,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "1030:0:2"
+            },
+            "scope": 295,
+            "src": "952:168:2",
+            "stateMutability": "nonpayable",
+            "superFunction": 150,
+            "visibility": "public"
+          },
+          {
+            "body": {
+              "id": 267,
+              "nodeType": "Block",
+              "src": "1297:70:2",
+              "statements": [
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "id": 260,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "leftHandSide": {
+                      "argumentTypes": null,
+                      "id": 258,
+                      "name": "requestTime",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 213,
+                      "src": "1307:11:2",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "nodeType": "Assignment",
+                    "operator": "=",
+                    "rightHandSide": {
+                      "argumentTypes": null,
+                      "hexValue": "30",
+                      "id": 259,
+                      "isConstant": false,
+                      "isLValue": false,
+                      "isPure": true,
+                      "kind": "number",
+                      "lValueRequested": false,
+                      "nodeType": "Literal",
+                      "src": "1321:1:2",
+                      "subdenomination": null,
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_rational_0_by_1",
+                        "typeString": "int_const 0"
+                      },
+                      "value": "0"
+                    },
+                    "src": "1307:15:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "id": 261,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1307:15:2"
+                },
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "arguments": [],
+                    "expression": {
+                      "argumentTypes": [],
+                      "expression": {
+                        "argumentTypes": null,
+                        "id": 262,
+                        "name": "super",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 11207,
+                        "src": "1332:5:2",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_super$_DelayedClaimableGovernor_$295",
+                          "typeString": "contract super DelayedClaimableGovernor"
+                        }
+                      },
+                      "id": 264,
+                      "isConstant": false,
+                      "isLValue": false,
+                      "isPure": false,
+                      "lValueRequested": false,
+                      "memberName": "cancelGovernorChange",
+                      "nodeType": "MemberAccess",
+                      "referencedDeclaration": 177,
+                      "src": "1332:26:2",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_internal_nonpayable$__$returns$__$",
+                        "typeString": "function ()"
+                      }
+                    },
+                    "id": 265,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1332:28:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 266,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1332:28:2"
+                }
+              ]
+            },
+            "documentation": "@notice Cancels an outstanding governor change request by resetting request time",
+            "id": 268,
+            "implemented": true,
+            "kind": "function",
+            "modifiers": [
+              {
+                "arguments": null,
+                "id": 256,
+                "modifierName": {
+                  "argumentTypes": null,
+                  "id": 255,
+                  "name": "onlyGovernor",
+                  "nodeType": "Identifier",
+                  "overloadedDeclarations": [],
+                  "referencedDeclaration": 339,
+                  "src": "1284:12:2",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_modifier$__$",
+                    "typeString": "modifier ()"
+                  }
+                },
+                "nodeType": "ModifierInvocation",
+                "src": "1284:12:2"
+              }
+            ],
+            "name": "cancelGovernorChange",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 254,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "1274:2:2"
+            },
+            "returnParameters": {
+              "id": 257,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "1297:0:2"
+            },
+            "scope": 295,
+            "src": "1245:122:2",
+            "stateMutability": "nonpayable",
+            "superFunction": 177,
+            "visibility": "public"
+          },
+          {
+            "body": {
+              "id": 293,
+              "nodeType": "Block",
+              "src": "1545:137:2",
+              "statements": [
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "commonType": {
+                          "typeIdentifier": "t_uint256",
+                          "typeString": "uint256"
+                        },
+                        "id": 280,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": false,
+                        "lValueRequested": false,
+                        "leftExpression": {
+                          "argumentTypes": null,
+                          "id": 274,
+                          "name": "now",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 11186,
+                          "src": "1563:3:2",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_uint256",
+                            "typeString": "uint256"
+                          }
+                        },
+                        "nodeType": "BinaryOperation",
+                        "operator": ">=",
+                        "rightExpression": {
+                          "argumentTypes": null,
+                          "components": [
+                            {
+                              "argumentTypes": null,
+                              "arguments": [
+                                {
+                                  "argumentTypes": null,
+                                  "id": 277,
+                                  "name": "delay",
+                                  "nodeType": "Identifier",
+                                  "overloadedDeclarations": [],
+                                  "referencedDeclaration": 211,
+                                  "src": "1587:5:2",
+                                  "typeDescriptions": {
+                                    "typeIdentifier": "t_uint256",
+                                    "typeString": "uint256"
+                                  }
+                                }
+                              ],
+                              "expression": {
+                                "argumentTypes": [
+                                  {
+                                    "typeIdentifier": "t_uint256",
+                                    "typeString": "uint256"
+                                  }
+                                ],
+                                "expression": {
+                                  "argumentTypes": null,
+                                  "id": 275,
+                                  "name": "requestTime",
+                                  "nodeType": "Identifier",
+                                  "overloadedDeclarations": [],
+                                  "referencedDeclaration": 213,
+                                  "src": "1571:11:2",
+                                  "typeDescriptions": {
+                                    "typeIdentifier": "t_uint256",
+                                    "typeString": "uint256"
+                                  }
+                                },
+                                "id": 276,
+                                "isConstant": false,
+                                "isLValue": false,
+                                "isPure": false,
+                                "lValueRequested": false,
+                                "memberName": "add",
+                                "nodeType": "MemberAccess",
+                                "referencedDeclaration": 10508,
+                                "src": "1571:15:2",
+                                "typeDescriptions": {
+                                  "typeIdentifier": "t_function_internal_pure$_t_uint256_$_t_uint256_$returns$_t_uint256_$bound_to$_t_uint256_$",
+                                  "typeString": "function (uint256,uint256) pure returns (uint256)"
+                                }
+                              },
+                              "id": 278,
+                              "isConstant": false,
+                              "isLValue": false,
+                              "isPure": false,
+                              "kind": "functionCall",
+                              "lValueRequested": false,
+                              "names": [],
+                              "nodeType": "FunctionCall",
+                              "src": "1571:22:2",
+                              "typeDescriptions": {
+                                "typeIdentifier": "t_uint256",
+                                "typeString": "uint256"
+                              }
+                            }
+                          ],
+                          "id": 279,
+                          "isConstant": false,
+                          "isInlineArray": false,
+                          "isLValue": false,
+                          "isPure": false,
+                          "lValueRequested": false,
+                          "nodeType": "TupleExpression",
+                          "src": "1570:24:2",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_uint256",
+                            "typeString": "uint256"
+                          }
+                        },
+                        "src": "1563:31:2",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_bool",
+                          "typeString": "bool"
+                        }
+                      },
+                      {
+                        "argumentTypes": null,
+                        "hexValue": "44656c6179206e6f74206f766572",
+                        "id": 281,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": true,
+                        "kind": "string",
+                        "lValueRequested": false,
+                        "nodeType": "Literal",
+                        "src": "1596:16:2",
+                        "subdenomination": null,
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_stringliteral_bcc6f209335a0e59ad619460aea23317b30b04188227d08d9f9464a65c7a9e89",
+                          "typeString": "literal_string \"Delay not over\""
+                        },
+                        "value": "Delay not over"
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_bool",
+                          "typeString": "bool"
+                        },
+                        {
+                          "typeIdentifier": "t_stringliteral_bcc6f209335a0e59ad619460aea23317b30b04188227d08d9f9464a65c7a9e89",
+                          "typeString": "literal_string \"Delay not over\""
+                        }
+                      ],
+                      "id": 273,
+                      "name": "require",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [
+                        11187,
+                        11188
+                      ],
+                      "referencedDeclaration": 11188,
+                      "src": "1555:7:2",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_require_pure$_t_bool_$_t_string_memory_ptr_$returns$__$",
+                        "typeString": "function (bool,string memory) pure"
+                      }
+                    },
+                    "id": 282,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1555:58:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 283,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1555:58:2"
+                },
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "arguments": [],
+                    "expression": {
+                      "argumentTypes": [],
+                      "expression": {
+                        "argumentTypes": null,
+                        "id": 284,
+                        "name": "super",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 11207,
+                        "src": "1623:5:2",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_super$_DelayedClaimableGovernor_$295",
+                          "typeString": "contract super DelayedClaimableGovernor"
+                        }
+                      },
+                      "id": 286,
+                      "isConstant": false,
+                      "isLValue": false,
+                      "isPure": false,
+                      "lValueRequested": false,
+                      "memberName": "claimGovernorChange",
+                      "nodeType": "MemberAccess",
+                      "referencedDeclaration": 197,
+                      "src": "1623:25:2",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_internal_nonpayable$__$returns$__$",
+                        "typeString": "function ()"
+                      }
+                    },
+                    "id": 287,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1623:27:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 288,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1623:27:2"
+                },
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "id": 291,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "leftHandSide": {
+                      "argumentTypes": null,
+                      "id": 289,
+                      "name": "requestTime",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 213,
+                      "src": "1660:11:2",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "nodeType": "Assignment",
+                    "operator": "=",
+                    "rightHandSide": {
+                      "argumentTypes": null,
+                      "hexValue": "30",
+                      "id": 290,
+                      "isConstant": false,
+                      "isLValue": false,
+                      "isPure": true,
+                      "kind": "number",
+                      "lValueRequested": false,
+                      "nodeType": "Literal",
+                      "src": "1674:1:2",
+                      "subdenomination": null,
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_rational_0_by_1",
+                        "typeString": "int_const 0"
+                      },
+                      "value": "0"
+                    },
+                    "src": "1660:15:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "id": 292,
+                  "nodeType": "ExpressionStatement",
+                  "src": "1660:15:2"
+                }
+              ]
+            },
+            "documentation": "@notice Proposed governor claims new position, callable after time elapsed",
+            "id": 294,
+            "implemented": true,
+            "kind": "function",
+            "modifiers": [
+              {
+                "arguments": null,
+                "id": 271,
+                "modifierName": {
+                  "argumentTypes": null,
+                  "id": 270,
+                  "name": "onlyProposedGovernor",
+                  "nodeType": "Identifier",
+                  "overloadedDeclarations": [],
+                  "referencedDeclaration": 92,
+                  "src": "1524:20:2",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_modifier$__$",
+                    "typeString": "modifier ()"
+                  }
+                },
+                "nodeType": "ModifierInvocation",
+                "src": "1524:20:2"
+              }
+            ],
+            "name": "claimGovernorChange",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 269,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "1514:2:2"
+            },
+            "returnParameters": {
+              "id": 272,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "1545:0:2"
+            },
+            "scope": 295,
+            "src": "1486:196:2",
+            "stateMutability": "nonpayable",
+            "superFunction": 197,
+            "visibility": "public"
+          }
+        ],
+        "scope": 296,
+        "src": "321:1363:2"
+      }
+    ],
+    "src": "0:1684:2"
+  },
+  "compiler": {
+    "name": "solc",
+    "version": "0.5.16+commit.9c3226ce.Emscripten.clang"
+  },
+  "networks": {},
+  "schemaVersion": "3.0.23",
+  "updatedAt": "2020-02-19T11:32:10.575Z",
+  "devdoc": {
+    "methods": {
+      "constructor": {
+        "details": "Initializes the contract with given delay",
+        "params": {
+          "_delay": "Delay in seconds for 2 way handshake"
+        }
+      },
+      "governor()": {
+        "details": "Returns the address of the current Governor."
+      },
+      "isGovernor()": {
+        "details": "Returns true if the caller is the current Governor."
+      },
+      "requestGovernorChange(address)": {
+        "params": {
+          "_proposedGovernor": "Address of the new governor"
+        }
+      }
+    },
+    "title": "Current Goverenor can initiate governance change request. After a defined delay, proposed Governor can claim governance ownership."
+  },
+  "userdoc": {
+    "methods": {
+      "cancelGovernorChange()": {
+        "notice": "Cancels an outstanding governor change request by resetting request time"
+      },
+      "claimGovernorChange()": {
+        "notice": "Proposed governor claims new position, callable after time elapsed"
+      },
+      "requestGovernorChange(address)": {
+        "notice": "Requests change of governor and logs request time"
+      }
+    }
+  }
+}
