@@ -172,7 +172,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, Governable {
         //           subject to robbery
         // Tradeoff == ~20-40k extra gas vs optionality
         require(IERC20(_basset).transferFrom(msg.sender, address(this), _bassetQuantity), "Minter must approve the spending of bAsset");
-        
+
         // Mint the mAsset
         massetMinted = mUSD.mintSingleTo(_basset, _bassetQuantity, _massetRecipient);
 
@@ -193,16 +193,14 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, Governable {
     {
         // Get current tranche based on timestamp
         uint256 trancheNumber = _currentTrancheNumber();
-        Tranche storage tranche = trancheData[trancheNumber];
 
         // Add to total minting
-        uint256 newTotalMintVolume = tranche.totalMintVolume.add(_volume);
-        tranche.totalMintVolume = newTotalMintVolume;
+        uint256 newTotalMintVolume = trancheData[trancheNumber].totalMintVolume.add(_volume);
+        trancheData[trancheNumber].totalMintVolume = newTotalMintVolume;
         emit MintVolumeIncreased(trancheNumber, newTotalMintVolume);
 
         // Set individual user rewards
-        Reward storage reward = tranche.rewardeeData[_rewardee];
-        uint256 currentMintVolume = reward.mintVolume;
+        uint256 currentMintVolume = trancheData[trancheNumber].rewardeeData[_rewardee].mintVolume;
 
         // If this is a new rewardee, add it to array
         if(currentMintVolume == 0){
@@ -210,7 +208,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, Governable {
         }
 
         uint256 newMintVolume = currentMintVolume.add(_volume);
-        reward.mintVolume = newMintVolume;
+        tranche.rewardeeData[_rewardee].mintVolume = newMintVolume;
         emit RewardeeMintVolumeIncreased(trancheNumber, _rewardee, newMintVolume);
     }
 
@@ -249,19 +247,21 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, Governable {
         require(now > trancheDates.endTime && now < trancheDates.claimEndTime, "Reward must be in claim period");
 
         Reward storage reward = tranche.rewardeeData[_rewardee];
-        require(reward.mintVolume > 0, "Rewardee must have minted something to be eligable");
+        uint256 rewardeeMintVolume = reward.mintVolume;
+        require(rewardeeMintVolume > 0, "Rewardee must have minted something to be eligable");
         require(!reward.claimed, "Reward has already been claimed");
 
         // Relative reward is calculated a percentage of total mint
         // e.g. (1,000e18 * 1e18)/1,000,000e18 == 0.1% or 1e15
-        uint256 rewardeeRelativeMintVolume = reward.mintVolume.divPrecisely(tranche.totalMintVolume);
+        uint256 rewardeeRelativeMintVolume = rewardeeMintVolume.divPrecisely(tranche.totalMintVolume);
         // Allocation is calculated as relative volume * total reward units
         // e.g. (1e15 * 100,000e18)/1e18 = 100e18
-        reward.rewardAllocation = rewardeeRelativeMintVolume.mulTruncate(tranche.totalRewardUnits);
+        uint256 allocation = rewardeeRelativeMintVolume.mulTruncate(tranche.totalRewardUnits);
+        reward.rewardAllocation = allocation;
         reward.claimed = true;
-        tranche.unclaimedRewardUnits = tranche.unclaimedRewardUnits.sub(reward.rewardAllocation);
+        tranche.unclaimedRewardUnits = tranche.unclaimedRewardUnits.sub(allocation);
 
-        emit RewardClaimed(_rewardee, _trancheNumber, reward.rewardAllocation);
+        emit RewardClaimed(_rewardee, _trancheNumber, allocation);
         return true;
     }
 
@@ -295,14 +295,15 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, Governable {
         require(now > trancheDates.unlockTime, "Reward must be unlocked");
 
         Reward storage reward = trancheData[_trancheNumber].rewardeeData[_rewardee];
+        uint256 allocation = reward.rewardAllocation;
         require(reward.claimed, "Rewardee must have originally claimed their reward");
-        require(reward.rewardAllocation > 0, "Rewardee must have some allocation to redeem");
+        require(allocation > 0, "Rewardee must have some allocation to redeem");
         require(!reward.redeemed, "Reward has already been redeemed");
 
         reward.redeemed = true;
-        require(MTA.transfer(_rewardee, reward.rewardAllocation), "Rewardee must receive reward");
+        require(MTA.transfer(_rewardee, allocation), "Rewardee must receive reward");
 
-        emit RewardRedeemed(_rewardee, _trancheNumber, reward.rewardAllocation);
+        emit RewardRedeemed(_rewardee, _trancheNumber, allocation);
         return true;
     }
 
@@ -350,16 +351,17 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, Governable {
     function withdrawUnclaimedRewards(uint256 _trancheNumber)
     external
     onlyGovernor {
-        Tranche storage tranche = trancheData[_trancheNumber];
         TrancheDates memory trancheDates = _getTrancheDates(_trancheNumber);
-
         require(now > trancheDates.claimEndTime, "Claim period must have elapsed");
-        require(tranche.unclaimedRewardUnits > 0, "Tranche must contain unclaimed reward units");
 
-        tranche.unclaimedRewardUnits = 0;
-        require(MTA.transfer(governor(), tranche.unclaimedRewardUnits), "Governor must receive the funding MTA");
+        uint256 unclaimedRewardUnits = trancheData[_trancheNumber].unclaimedRewardUnits;
 
-        emit UnclaimedRewardWithdrawn(_trancheNumber, tranche.totalRewardUnits);
+        require(unclaimedRewardUnits > 0, "Tranche must contain unclaimed reward units");
+
+        trancheData[_trancheNumber].unclaimedRewardUnits = 0;
+        require(MTA.transfer(governor(), unclaimedRewardUnits), "Governor must receive the funding MTA");
+
+        emit UnclaimedRewardWithdrawn(_trancheNumber, unclaimedRewardUnits);
     }
 
 

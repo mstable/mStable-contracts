@@ -133,7 +133,7 @@ contract MassetBasket is MassetStructs, MassetCore {
     /***************************************
                 BASKET ADJUSTMENTS
     ****************************************/
-    
+
 
     /**
       * @dev External func to allow the Manager to conduct add operations on the Basket
@@ -142,7 +142,7 @@ contract MassetBasket is MassetStructs, MassetCore {
       */
     function addBasset(address _basset, bytes32 _key)
     external
-    onlyGovernor
+    managerOrGovernor
     basketIsHealthy {
         require(!measurementMultipleEnabled, "Specifying _measurementMultiple disabled");
         _addBasset(_basset, _key, StableMath.getRatio());
@@ -156,7 +156,7 @@ contract MassetBasket is MassetStructs, MassetCore {
       */
     function addBasset(address _basset, bytes32 _key, uint256 _measurementMultiple)
     external
-    onlyGovernor
+    managerOrGovernor
     basketIsHealthy {
         require(measurementMultipleEnabled, "Specifying _measurementMultiple disabled");
         _addBasset(_basset, _key, _measurementMultiple);
@@ -208,7 +208,7 @@ contract MassetBasket is MassetStructs, MassetCore {
     function removeBasset(address _assetToRemove)
     external
     basketIsHealthy
-    onlyGovernor
+    managerOrGovernor
     returns (bool removed) {
         _removeBasset(_assetToRemove);
         return true;
