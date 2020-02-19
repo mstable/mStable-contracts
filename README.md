@@ -1,6 +1,8 @@
-# mStable-Contracts [![CircleCI](https://circleci.com/gh/mstable/mStable-contracts.svg?style=svg&circle-token=a8bb29a97a0a0949a15cc28bd9b2245960287bc2)](https://circleci.com/gh/mstable/mStable-contracts)
+## mStable-Contracts [![CircleCI](https://circleci.com/gh/mstable/mStable-contracts.svg?style=svg&circle-token=a8bb29a97a0a0949a15cc28bd9b2245960287bc2)](https://circleci.com/gh/mstable/mStable-contracts)
 
-![](assets/logo.png)
+<img src="assets/logo.png" width="700" >
+
+## What
 
 This repo contains all contracts and tests relevant to the core mStable protocol.
 
