@@ -51,7 +51,7 @@ contract("Nexus", async (accounts) => {
     });
 
     describe("initialize()", () => {
-        context("Should Success", () => {
+        context("Should Succeed", () => {
             it("with default module");
             it("with all modules");
             it("default with locked Systok module");
@@ -61,6 +61,7 @@ contract("Nexus", async (accounts) => {
         });
         context("Should Fail", () => {
             it("not initialize with same module address");
+            it("not initialize with same address for different modules");
             it("not initialize when empty array");
             it("not initialize when wrong array length");
             it("not initialize other than governor");
@@ -96,6 +97,7 @@ contract("Nexus", async (accounts) => {
             it("when cancelling existing proposed module"); // validate deleted entry + event
             it("during opt out period");
             it("after opt out period");
+            it("should remove the proposed module from mapping");
         });
     });
 
@@ -106,6 +108,8 @@ contract("Nexus", async (accounts) => {
             it("when empty key");
             it("when empty array");
             it("when module not proposed");
+            it("when module is locked");
+            it("when address is already used by another module");
             it("when delay is not over");
             it("when new proposed address is zero");
             it("when delay is less then 1 second of opt out period");
@@ -115,6 +119,9 @@ contract("Nexus", async (accounts) => {
             it("when called by Governor");
             it("when accepted already proposed Module"); // validate event
             it("when delay is more then 1 second of opt out period");
+            it("should remove the proposed module from mapping");
+            it("should remove the old address from the system");
+            it("should set new module info");
         });
     });
 
