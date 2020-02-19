@@ -74,12 +74,13 @@ contract("Nexus", async (accounts) => {
             it("when not called by Governor");
             it("when empty key");
             it("when zero address");
-            it("when module already exist");
+            it("when module key & address pair already exist");
             it("when module already proposed");
         });
         context("should pass", () => {
             it("when called by Governor");
-            it("when a valid module is proposed");
+            it("when a new module is proposed");
+            it("when an existing module address is updated");
         });
     });
 
