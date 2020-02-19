@@ -2,8 +2,9 @@ pragma solidity ^0.5.12;
 pragma experimental ABIEncoderV2;
 
 import { IMasset } from "../interfaces/IMasset.sol";
+import { ISystok } from "../interfaces/ISystok.sol";
 
-import { MassetBasket, IManager, ISystok, IForgeValidator, IERC20 } from "./MassetBasket.sol";
+import { MassetBasket, IManager, IForgeValidator, IERC20 } from "./MassetBasket.sol";
 import { MassetToken } from "./mERC20/MassetToken.sol";
 
 /**
