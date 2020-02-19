@@ -39,10 +39,10 @@ export function shouldBehaveLikeDelayedClaimable(
         expect(owner, "wrong owner").to.not.equal(newOwner);
     });
 
-    it("prevent newOwner to claim ownership before 1 second of delay over time", async () => {
+    it("prevent newOwner to claim ownership before 10 second of delay over time", async () => {
         const timestamp = await latest();
         const delay = await ctx.claimable.delay();
-        await increase(delay.sub(new BN(1)));
+        await increase(delay.sub(new BN(10)));
 
         const newOwner = sa.other;
         await shouldFail.reverting.withMessage(
