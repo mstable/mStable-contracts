@@ -23,6 +23,7 @@ class TestEnvironmentSetup {
         }
 
         chai.use(ChaiBN(BN));
+        chai.should();
         this.isConfigured = true;
     }
 }

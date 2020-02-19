@@ -2,7 +2,6 @@ import {
     ERC20MockInstance,
     ForgeValidatorInstance,
     ManagerInstance,
-    MultiSigWalletInstance,
     NexusInstance,
     SimpleOracleHubMockInstance,
     SystokInstance,
@@ -19,8 +18,6 @@ const CommonHelpersArtifact = artifacts.require("CommonHelpers");
 const StableMathArtifact = artifacts.require("StableMath");
 
 const Erc20Artifact = artifacts.require("ERC20Mock");
-
-const MultiSigArtifact = artifacts.require("MultiSigWallet");
 
 const ManagerArtifact = artifacts.require("Manager");
 
@@ -43,8 +40,6 @@ export class SystemMachine {
      * @dev Default accounts as per system Migrations
      */
     public sa: StandardAccounts;
-
-    public multiSig: MultiSigWalletInstance;
 
     public manager: ManagerInstance;
     public nexus: NexusInstance;
@@ -79,27 +74,32 @@ export class SystemMachine {
             /** Nexus */
             this.nexus = await this.deployNexus();
 
-            /** Governance */
-            this.multiSig = await this.deployMultiSig();
-            // add module
-            await this.nexus.addModule(await this.nexus.Key_Governance(), this.multiSig.address, {
-                from: this.sa.governor,
-            });
+            const moduleKeys: string[] = new Array(3);
+            const moduleAddresses: Address[] = new Array(3);
+            const isLocked: boolean[] = new Array(3);
 
             /** Systok */
             this.systok = await this.deploySystok();
-            // add module
-            await this.addModuleToNexus(await this.nexus.Key_Systok(), this.systok.address);
+            moduleKeys[0] = await this.nexus.Key_Systok();
+            moduleAddresses[0] = this.systok.address;
+            isLocked[0] = true; // TODO Ensure that its locked at deploy time?
 
             /** OracleHubMock */
             this.oracleHub = await this.deployOracleHub();
-            // add module
-            await this.addModuleToNexus(await this.nexus.Key_OracleHub(), this.oracleHub.address);
+            moduleKeys[1] = await this.nexus.Key_OracleHub();
+            moduleAddresses[1] = this.oracleHub.address;
+            isLocked[1] = false;
 
             /** ManagerMock */
             this.manager = await this.deployManager();
-            // add module
-            await this.addModuleToNexus(await this.nexus.Key_Manager(), this.manager.address);
+            moduleKeys[2] = await this.nexus.Key_Manager();
+            moduleAddresses[2] = this.manager.address;
+            isLocked[2] = false;
+
+            await this.initializeNexusWithModules(
+                moduleKeys,
+                moduleAddresses,
+                isLocked);
 
             return Promise.resolve(true);
         } catch (e) {
@@ -116,24 +116,6 @@ export class SystemMachine {
             const nexus = await NexusArtifact.new(this.sa.governor, { from: deployer });
 
             return nexus;
-        } catch (e) {
-            throw e;
-        }
-    }
-
-    /**
-     * @dev Deploy the Governance Portal
-     */
-    public async deployMultiSig(
-        govOwners: Address[] = this.sa.all.slice(0, 5),
-        minQuorum: number = 1,
-    ): Promise<MultiSigWalletInstance> {
-        try {
-            const mockInstance = await MultiSigArtifact.new(govOwners, minQuorum, {
-                from: this.sa.default,
-            });
-
-            return mockInstance;
         } catch (e) {
             throw e;
         }
@@ -217,33 +199,16 @@ export class SystemMachine {
         );
 
         // Adds the Masset to Manager so that it can look up its price
-        const txData = this.manager.contract.methods
-            .addMasset(aToH("TMT"), masset.address)
-            .encodeABI();
-
-        return this.multiSig.submitTransaction(this.nexus.address, new BN(0), txData, {
-            from: sender,
-        });
+        return this.manager.addMasset(aToH("TMT"), masset.address, { from: this.sa.governor });
     }
 
-    public async addModuleToNexus(
-        moduleKey: string,
-        moduleAddress: Address,
+    public async initializeNexusWithModules(
+        moduleKeys: string[],
+        moduleAddresses: Address[],
+        isLocked: boolean[],
         sender: Address = this.sa.governor,
     ): Promise<Truffle.TransactionResponse> {
-        return this.publishModuleThroughMultisig(moduleKey, moduleAddress, sender);
-    }
-
-    /**
-     * @dev Assuming that the minimum quorum on the Multisig is 1, then we can execute transactions here
-     * @param key
-     * @param address
-     * @param sender
-     */
-    private async publishModuleThroughMultisig(key, address, sender) {
-        const txData = this.nexus.contract.methods.addModule(key, address).encodeABI();
-
-        return this.multiSig.submitTransaction(this.nexus.address, new BN(0), txData, {
+        return this.nexus.initialize(moduleKeys, moduleAddresses, isLocked, this.sa.governor, {
             from: sender,
         });
     }

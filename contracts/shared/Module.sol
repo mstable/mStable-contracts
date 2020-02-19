@@ -35,7 +35,7 @@ contract Module is ModuleKeys {
     internal
     view
     returns (address) {
-        return nexus.getModule(Key_Governor);
+        return nexus.governor();
     }
 
     // Phase 2
