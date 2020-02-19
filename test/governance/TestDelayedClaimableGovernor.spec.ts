@@ -15,10 +15,9 @@ contract("DelayedClaimableGovernance", async (accounts) => {
 
     describe("Should behave like Claimable", () => {
         beforeEach("Create Contract", async () => {
-            ctx.claimable = await DelayedClaimableGovernor.new(
-                sa.governor,
-                GOVERNANCE_DELAY,
-                { from: sa.governor });
+            ctx.claimable = await DelayedClaimableGovernor.new(sa.governor, GOVERNANCE_DELAY, {
+                from: sa.governor,
+            });
         });
 
         shouldBehaveLikeClaimable(ctx as Required<typeof ctx>, sa);
@@ -26,26 +25,20 @@ contract("DelayedClaimableGovernance", async (accounts) => {
 
     describe("Should behave like DelayedClaimable", () => {
         beforeEach("Initiate change Governor", async () => {
-            ctx.claimable = await DelayedClaimableGovernor.new(
-                sa.governor,
-                GOVERNANCE_DELAY,
-                { from: sa.governor });
+            ctx.claimable = await DelayedClaimableGovernor.new(sa.governor, GOVERNANCE_DELAY, {
+                from: sa.governor,
+            });
             const other = sa.other;
-            ctx.claimable.requestGovernorChange(other, { from: sa.governor });
+            await ctx.claimable.requestGovernorChange(other, { from: sa.governor });
         });
 
         shouldBehaveLikeDelayedClaimable(ctx as Required<typeof ctx>, sa);
 
         it("should not allow zero delay", async () => {
             await shouldFail.reverting.withMessage(
-                DelayedClaimableGovernor.new(
-                    sa.governor,
-                    0,
-                    { from: sa.governor }),
-                "Delay must be greater then zero"
+                DelayedClaimableGovernor.new(sa.governor, 0, { from: sa.governor }),
+                "Delay must be greater then zero",
             );
         });
-
     });
-
 });

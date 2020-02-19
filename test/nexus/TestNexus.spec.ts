@@ -13,13 +13,11 @@ import { NexusInstance } from "types/generated";
 
 const Nexus = artifacts.require("Nexus");
 
-
 envSetup.configure();
 const { expect, assert } = chai;
 
 contract("Nexus", async (accounts) => {
-
-    let sa = new StandardAccounts(accounts);
+    const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
     let nexus: NexusInstance;
 
@@ -41,7 +39,7 @@ contract("Nexus", async (accounts) => {
         context("should behave like DelayedClaimableGovernor", () => {
             beforeEach("", async () => {
                 const other = sa.other;
-                ctx.claimable.requestGovernorChange(other, { from: sa.governor });
+                await ctx.claimable.requestGovernorChange(other, { from: sa.governor });
             });
 
             shouldBehaveLikeDelayedClaimable(ctx as Required<typeof ctx>, sa);
@@ -83,7 +81,6 @@ contract("Nexus", async (accounts) => {
             it("when called by Governor");
             it("when a valid module is proposed");
         });
-
     });
 
     describe("cancelProposedModule()", () => {
