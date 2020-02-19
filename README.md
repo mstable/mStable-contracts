@@ -1,4 +1,4 @@
-# mStable-Contracts [![CircleCI](https://circleci.com/gh/mstable/mStable-contracts/tree/master.svg?style=svg)](https://circleci.com/gh/mstable/mStable-contracts/tree/master)
+# mStable-Contracts [![CircleCI](https://circleci.com/gh/mstable/mStable-contracts.svg?style=svg&circle-token=a8bb29a97a0a0949a15cc28bd9b2245960287bc2)](https://circleci.com/gh/mstable/mStable-contracts)
 
 ![](assets/logo.png)
 
