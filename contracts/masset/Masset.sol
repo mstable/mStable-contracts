@@ -397,7 +397,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
      * @param _size size of bAssets array
      * @return array of bAssets array
      */
-    function convertBitmapToBassetsAddress(uint32 _bitmap, uint8 _size) public view returns (address[] memory) {
+    function convertBitmapToBassetsAddress(uint32 _bitmap, uint8 _size) external view returns (address[] memory) {
         uint8[] memory indexes = _convertBitmapToIndexArr(_bitmap, _size);
         address[] memory bAssets = new address[](_size);
         for(uint8 i = 0; i < indexes.length; i++) {

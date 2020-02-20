@@ -3,6 +3,7 @@ pragma experimental ABIEncoderV2;
 
 import { IForgeValidator, MassetStructs } from "./IForgeValidator.sol";
 import { StableMath } from "../../shared/math/StableMath.sol";
+import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 /**
   * @title ForgeValidator
@@ -10,6 +11,7 @@ import { StableMath } from "../../shared/math/StableMath.sol";
   */
 contract ForgeValidator is IForgeValidator {
 
+    using SafeMath for uint256;
     using StableMath for uint256;
 
     /**
