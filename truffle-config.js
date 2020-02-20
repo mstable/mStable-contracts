@@ -8,6 +8,7 @@ const HDWalletProvider = require('@truffle/hdwallet-provider')
 module.exports = {
   // See <http://truffleframework.com/docs/advanced/configuration>
   // for more about customizing your Truffle configuration!
+
   migrations_directory: './migrations',
   contracts_build_directory: './build',
   plugins: ["solidity-coverage"],
