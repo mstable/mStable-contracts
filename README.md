@@ -1,4 +1,4 @@
-## mStable-Contracts [![CircleCI](https://circleci.com/gh/mstable/mStable-contracts.svg?style=svg&circle-token=a8bb29a97a0a0949a15cc28bd9b2245960287bc2)](https://circleci.com/gh/mstable/mStable-contracts)
+## mStable-Contracts [![CircleCI](https://circleci.com/gh/mstable/mStable-contracts.svg?style=svg&circle-token=a8bb29a97a0a0949a15cc28bd9b2245960287bc2)](https://circleci.com/gh/mstable/mStable-contracts) [![Coverage Status](https://coveralls.io/repos/github/mstable/mStable-contracts/badge.svg?t=7A5XxE)](https://coveralls.io/github/mstable/mStable-contracts)
 
 <img src="assets/logo.png" width="700" >
 
