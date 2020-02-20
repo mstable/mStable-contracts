@@ -4,6 +4,7 @@ import { IMassetForgeRewards } from "./IMassetForgeRewards.sol";
 import { IMasset } from "../interfaces/IMasset.sol";
 import { ISystok } from "../interfaces/ISystok.sol";
 import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
+import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import { StableMath } from "../shared/math/StableMath.sol";
 import { Governable } from "../governance/Governable.sol";
 
@@ -21,6 +22,7 @@ import { Governable } from "../governance/Governable.sol";
  */
 contract ForgeRewardsMUSD is IMassetForgeRewards, Governable {
 
+    using SafeMath for uint256;
     using StableMath for uint256;
 
     event RewardeeMintVolumeIncreased(uint256 indexed trancheNumber, address indexed rewardee, uint256 mintVolume);
