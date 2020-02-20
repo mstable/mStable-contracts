@@ -19,8 +19,6 @@ interface MassetStructs {
          */
         address[] expiredBassets;
 
-        // TODO -> bool hasFeeEnabled
-
         /**
          * @dev In the event that we do not raise enough funds from the auctioning of a failed Basset,
          * The Basket is deemed as failed, and is undercollateralised to a certain degree.
@@ -31,10 +29,17 @@ interface MassetStructs {
 
     }
 
+    /** @dev Stores bAsset info. The struct takes 5 storage slots per Basset */
     struct Basset {
 
         /** @dev Address of the Basset */
         address addr;
+
+        /** @dev Status of the basset,  */
+        BassetStatus status; // takes uint8 datatype (1 byte) in storage
+
+        /** @dev An ERC20 can charge transfer fee, for example USDT, DGX tokens. */
+        bool isTransferFeeCharged; // takes a byte in storage
 
         // TODO -> Consider removing
         /** @dev Bytes32 key used for Oracle price lookups */
@@ -49,8 +54,6 @@ interface MassetStructs {
         /** @dev Amount of the Basset that is held in Collateral */
         uint256 vaultBalance;
 
-        /** @dev Status of the basset,  */
-        BassetStatus status;
     }
 
 

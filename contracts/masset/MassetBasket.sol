@@ -32,7 +32,8 @@ contract MassetBasket is MassetStructs, MassetCore {
         address[] memory _bassets,
         bytes32[] memory _keys,
         uint256[] memory _weights,
-        uint256[] memory _multiples
+        uint256[] memory _multiples,
+        bool[] memory _isFeeCharged
     )
         MassetCore(_nexus)
         public
@@ -46,7 +47,12 @@ contract MassetBasket is MassetStructs, MassetCore {
         redemptionFee = 2e16;
 
         for (uint256 i = 0; i < _bassets.length; i++) {
-            _addBasset(_bassets[i], _keys[i], measurementMultipleEnabled ? _multiples[i] : StableMath.getRatio());
+            _addBasset(
+                _bassets[i],
+                _keys[i],
+                measurementMultipleEnabled ? _multiples[i] : StableMath.getRatio(),
+                _isFeeCharged[i]
+                );
         }
         _setBasketWeights(_bassets, _weights);
     }
@@ -151,12 +157,13 @@ contract MassetBasket is MassetStructs, MassetCore {
       * @param _basset Address of the ERC20 token to add to the Basket
       * @param _key Bytes32 key that will be used to lookup price in Oracle
       */
-    function addBasset(address _basset, bytes32 _key)
-    external
-    managerOrGovernor
-    basketIsHealthy {
+    function addBasset(address _basset, bytes32 _key, bool _isTransferFeeCharged)
+        external
+        managerOrGovernor
+        basketIsHealthy
+    {
         require(!measurementMultipleEnabled, "Specifying _measurementMultiple disabled");
-        _addBasset(_basset, _key, StableMath.getRatio());
+        _addBasset(_basset, _key, StableMath.getRatio(), _isTransferFeeCharged);
     }
 
     /**
@@ -165,12 +172,18 @@ contract MassetBasket is MassetStructs, MassetCore {
       * @param _key Bytes32 key that will be used to lookup price in Oracle
       * @param _measurementMultiple MeasurementMultiple of the Basset where 1:1 == 1e8
       */
-    function addBasset(address _basset, bytes32 _key, uint256 _measurementMultiple)
-    external
-    managerOrGovernor
-    basketIsHealthy {
+    function addBasset(
+        address _basset,
+        bytes32 _key,
+        uint256 _measurementMultiple,
+        bool _isTransferFeeCharged
+    )
+        external
+        managerOrGovernor
+        basketIsHealthy
+    {
         require(measurementMultipleEnabled, "Specifying _measurementMultiple disabled");
-        _addBasset(_basset, _key, _measurementMultiple);
+        _addBasset(_basset, _key, _measurementMultiple, _isTransferFeeCharged);
     }
 
     /**
@@ -181,8 +194,14 @@ contract MassetBasket is MassetStructs, MassetCore {
       * e.g. a Gold backed basset pegged to 1g where Masset is base 10g would be 1e7 (0.1:1)
       * e.g. a USD backed basset pegged to 1 USD where Masset is pegged to 1 USD would be 1e8 (1:1)
       */
-    function _addBasset(address _basset, bytes32 _key, uint256 _measurementMultiple)
-    internal {
+    function _addBasset(
+        address _basset,
+        bytes32 _key,
+        uint256 _measurementMultiple,
+        bool _isTransferFeeCharged
+    )
+        internal
+    {
         require(_basset != address(0), "Asset address must be valid.");
         (bool alreadyInBasket, ) = _isAssetInBasket(_basset);
         require(!alreadyInBasket, "Asset cannot already be in the basket.");
@@ -203,7 +222,8 @@ contract MassetBasket is MassetStructs, MassetCore {
             ratio: ratio,
             maxWeight: 0,
             vaultBalance: 0,
-            status: BassetStatus.Normal
+            status: BassetStatus.Normal,
+            isTransferFeeCharged: _isTransferFeeCharged
         }));
 
 

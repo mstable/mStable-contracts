@@ -16,6 +16,7 @@ contract MUSD is Masset {
         address[] memory _bassets,
         bytes32[] memory _bassetKeys,
         uint256[] memory _bassetWeights,
+        bool[] memory _isTransferFees,
         address _feePool,
         address _forgeValidator
     )
@@ -27,6 +28,7 @@ contract MUSD is Masset {
             _bassetKeys,
             _bassetWeights,
             new uint256[](0),
+            _isTransferFees,
             _feePool,
             _forgeValidator
         )

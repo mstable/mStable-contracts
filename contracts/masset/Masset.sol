@@ -6,6 +6,7 @@ import { ISystok } from "../interfaces/ISystok.sol";
 
 import { MassetBasket, IManager, IForgeValidator, IERC20 } from "./MassetBasket.sol";
 import { MassetToken } from "./mERC20/MassetToken.sol";
+import { StableMath } from "../shared/math/StableMath.sol";
 
 /**
   * @title Masset
@@ -13,6 +14,8 @@ import { MassetToken } from "./mERC20/MassetToken.sol";
   * @dev Base layer functionality for the Masset
   */
 contract Masset is IMasset, MassetToken, MassetBasket {
+
+    using StableMath for uint256;
 
     /** @dev Forging events */
     event Minted(address indexed account, uint256 massetQuantity, uint256[] bAssetQuantities);
@@ -31,6 +34,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         bytes32[] memory _bassetKeys,
         uint256[] memory _bassetWeights,
         uint256[] memory _bassetMultiples,
+        bool[] memory _isTransferFees,
         address _feePool,
         address _forgeValidator
     )
@@ -44,7 +48,8 @@ contract Masset is IMasset, MassetToken, MassetBasket {
           _bassets,
           _bassetKeys,
           _bassetWeights,
-          _bassetMultiples
+          _bassetMultiples,
+          _isTransferFees
         )
         public
     {
@@ -134,19 +139,39 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
         Basset memory b = basket.bassets[i];
 
-        forgeValidator.validateMint(totalSupply(), b, _bassetQuantity);
+        uint256 bAssetQty = _transferTokens(_basset, b.isTransferFeeCharged, _bassetQuantity);
 
-        require(IERC20(_basset).transferFrom(msg.sender, address(this), _bassetQuantity), "Basset transfer failed");
+        //Validation should be after token transfer, as bAssetQty is unknown before
+        forgeValidator.validateMint(totalSupply(), b, bAssetQty);
 
-        basket.bassets[i].vaultBalance = b.vaultBalance.add(_bassetQuantity);
+        basket.bassets[i].vaultBalance = b.vaultBalance.add(bAssetQty);
         // ratioedBasset is the number of masset quantity to mint
-        uint256 ratioedBasset = _bassetQuantity.mulRatioTruncate(b.ratio);
+        uint256 ratioedBasset = bAssetQty.mulRatioTruncate(b.ratio);
 
         // Mint the Masset
         _mint(_recipient, ratioedBasset);
-        emit Minted(_recipient, ratioedBasset, _bassetQuantity);
+        emit Minted(_recipient, ratioedBasset, bAssetQty);
 
         return ratioedBasset;
+    }
+
+    function _transferTokens(
+        address _basset,
+        bool isFeeCharged,
+        uint256 _qty
+    )
+        private
+        returns (uint256 originalQty)
+    {
+        originalQty = _qty;
+        if(isFeeCharged) {
+            uint256 balBefore = IERC20(_basset).balanceOf(address(this));
+            require(IERC20(_basset).transferFrom(msg.sender, address(this), _qty), "Basset transfer failed");
+            uint256 balAfter = IERC20(_basset).balanceOf(address(this));
+            originalQty = StableMath.min(_qty, balAfter.sub(balBefore));
+        } else {
+            require(IERC20(_basset).transferFrom(msg.sender, address(this), _qty), "Basset transfer failed");
+        }
     }
 
     /**
@@ -172,24 +197,28 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         (Basset[] memory bAssets, uint8[] memory indexes)
             = convertBitmapToBassets(_bassetsBitmap, uint8(len));
 
-        // Validate the proposed mint
-        forgeValidator.validateMint(totalSupply(), bAssets, _bassetQuantity);
-
         uint256 massetQuantity = 0;
 
+        uint256[] memory originalQty = new uint256[](len);
         // Transfer the Bassets to this contract, update storage and calc MassetQ
         for(uint256 j = 0; j < len; j++){
             if(_bassetQuantity[j] > 0){
                 // bAsset == bAssets[j] == basket.bassets[indexes[j]]
                 Basset memory bAsset = bAssets[j];
 
-                require(IERC20(bAsset.addr).transferFrom(msg.sender, address(this), _bassetQuantity[j]), "Basset transfer failed");
+                uint256 bAssetQty = _transferTokens(bAsset.addr, bAsset.isTransferFeeCharged, _bassetQuantity[j]);
+                originalQty[j] = bAssetQty;
                 basket.bassets[indexes[j]].vaultBalance = bAsset.vaultBalance.add(_bassetQuantity[j]);
 
-                uint ratioedBasset = _bassetQuantity[j].mulRatioTruncate(bAsset.ratio);
+                uint ratioedBasset = bAssetQty.mulRatioTruncate(bAsset.ratio);
                 massetQuantity = massetQuantity.add(ratioedBasset);
             }
         }
+
+        // validate after token transfer, as bAssert quantity is unknown until transferred
+        // Validate the proposed mint
+        forgeValidator.validateMint(totalSupply(), bAssets, originalQty);
+
 
         require(massetQuantity > 0, "No masset quantity to mint");
 

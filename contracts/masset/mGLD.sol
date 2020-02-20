@@ -17,6 +17,7 @@ contract MGLD is Masset {
         bytes32[] memory _bassetKeys,
         uint256[] memory _bassetWeights,
         uint256[] memory _measurementMultiples,
+        bool[] memory _isTransferFees,
         address _feePool,
         address _forgeValidator
     )
@@ -28,6 +29,7 @@ contract MGLD is Masset {
             _bassetKeys,
             _bassetWeights,
             _measurementMultiples,
+            _isTransferFees,
             _feePool,
             _forgeValidator
         )

@@ -81,12 +81,23 @@ module.exports = async (deployer, network, accounts) => {
     percentToWeight(25)  // 20
   ];
 
+  const basketIsTransferFeeCharged = [
+    true, // USDT changes transfer fees
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+  ];
+
   const d_MUSD = await deployer.deploy(
     c_MUSD,
     d_Nexus.address,
     basketAddresses,
     basketKeys,
     basketWeights,
+    basketIsTransferFeeCharged,
     feePool,
     d_ForgeValidator.address
   );
