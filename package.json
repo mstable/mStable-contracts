@@ -32,6 +32,7 @@
     "chai-bn": "^0.2.0",
     "chalk": "^3.0.0",
     "copyfiles": "^2.1.1",
+    "dayjs": "^1.8.20",
     "eth-gas-reporter": "^0.2.14",
     "ethlint": "^1.2.5",
     "minimetoken": "ssh://git@github.com/mstable/minime.git#mStable-meta-token",

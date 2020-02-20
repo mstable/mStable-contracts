@@ -25,6 +25,7 @@ export default async (scope: any, trancheNumber: string, account?: string) => {
     if (!(now > trancheData.endTime && now < trancheData.claimEndTime)) {
         const seconds = trancheData.endTime.sub(now);
         await timeTravel(scope.web3, seconds);
+        return
     }
 
     await logTx(
