@@ -36,7 +36,7 @@
     "openzeppelin-solidity": "^2.3.0",
     "openzeppelin-test-helpers": "0.3.1",
     "prettier": "^1.18.2",
-    "solc": "0.5.12",
+    "solc": "0.5.16",
     "solidity-coverage": "^0.7.1",
     "truffle": "^5.1.11",
     "truffle-typings": "^1.0.8",

@@ -1,4 +1,4 @@
-pragma solidity ^0.5.12;
+pragma solidity ^0.5.16;
 
 import { MetaToken } from "./MetaToken.sol";
 import { Module } from "../shared/Module.sol";

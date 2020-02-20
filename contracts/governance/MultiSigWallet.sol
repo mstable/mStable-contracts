@@ -1,8 +1,8 @@
-pragma solidity ^0.5.12;
+pragma solidity ^0.5.16;
 
 
 // TODO (ALEX) -> Ported from https://github.com/gnosis/MultiSigWallet/blob/develop/contracts/MultiSigWallet.sol
-// Upgraded from 0.4.15 > 0.5.12 -- Must verify valid upgrade
+// Upgraded from 0.4.15 > 0.5.16 -- Must verify valid upgrade
 
 /// @title Multisignature wallet - Allows multiple parties to agree on transactions before execution.
 /// @author Stefan George - <stefan.george@consensys.net>

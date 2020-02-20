@@ -1,4 +1,4 @@
-pragma solidity ^0.5.12;
+pragma solidity ^0.5.16;
 
 import { IMassetForgeRewards } from "./IMassetForgeRewards.sol";
 import { IMasset } from "../interfaces/IMasset.sol";
