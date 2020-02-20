@@ -204,11 +204,11 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, Governable {
 
         // If this is a new rewardee, add it to array
         if(currentMintVolume == 0){
-            tranche.rewardees.push(_rewardee);
+            trancheData[trancheNumber].rewardees.push(_rewardee);
         }
 
         uint256 newMintVolume = currentMintVolume.add(_volume);
-        tranche.rewardeeData[_rewardee].mintVolume = newMintVolume;
+        trancheData[trancheNumber].rewardeeData[_rewardee].mintVolume = newMintVolume;
         emit RewardeeMintVolumeIncreased(trancheNumber, _rewardee, newMintVolume);
     }
 

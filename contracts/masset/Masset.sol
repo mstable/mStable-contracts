@@ -374,7 +374,6 @@ contract Masset is IMasset, MassetToken, MassetBasket {
      * @return bitmap with bits set according to bAsset address position
      */
     function getBitmapForAllBassets() external view returns (uint32 bitmap) {
-        //TODO bassets array should not have more than 32 items
         for(uint32 i = 0; i < basket.bassets.length; i++) {
             bitmap |= uint32(2)**i;
         }
