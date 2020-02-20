@@ -1,4 +1,12 @@
-# mStable - Contracts
+<p align="center">
+ <a href="https://circleci.com/gh/mstable/mStable-contracts"><img src="https://circleci.com/gh/mstable/mStable-contracts.svg?style=svg&circle-token=a8bb29a97a0a0949a15cc28bd9b2245960287bc2" alt="CircleCI" title="CircleCI" /></a>
+ <a href="https://coveralls.io/github/mstable/mStable-contracts"><img src="https://coveralls.io/repos/github/mstable/mStable-contracts/badge.svg?t=7A5XxE" alt="Coverage Status" title="Coverage Status" /></a>
+ <br/><br/>
+  <img src="assets/logo.png" width="700" >
+</p>
+
+
+## What
 
 This repo contains all contracts and tests relevant to the core mStable protocol.
 

@@ -31,10 +31,6 @@ contract ERC20Burnable is ERC20 {
 /**
  * @title MassetToken
  * @dev Basic Token functionality for Masset
- *
- * BURN/MINT PRIVS
- * Only Masset can mint new Masset (no need for roles)
- * Anyone can burn or burnFrom (provided they have allowance)
  */
 contract MassetToken is ERC20Detailed, ERC20Burnable {
 
