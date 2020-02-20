@@ -4,7 +4,6 @@ import { INexus } from "../interfaces/INexus.sol";
 import { ModuleKeys } from "../shared/ModuleKeys.sol";
 import { DelayedClaimableGovernor } from "../governance/DelayedClaimableGovernor.sol";
 
-import { Set } from "../shared/libs/Set.sol";
 
 /**
  * @title Nexus

@@ -2,8 +2,9 @@ pragma solidity ^0.5.12;
 pragma experimental ABIEncoderV2;
 
 import { IMasset } from "../interfaces/IMasset.sol";
+import { ISystok } from "../interfaces/ISystok.sol";
 
-import { MassetBasket, IManager, ISystok, IForgeValidator, IERC20 } from "./MassetBasket.sol";
+import { MassetBasket, IManager, IForgeValidator, IERC20 } from "./MassetBasket.sol";
 import { MassetToken } from "./mERC20/MassetToken.sol";
 
 /**
@@ -373,7 +374,6 @@ contract Masset is IMasset, MassetToken, MassetBasket {
      * @return bitmap with bits set according to bAsset address position
      */
     function getBitmapForAllBassets() external view returns (uint32 bitmap) {
-        //TODO bassets array should not have more than 32 items
         for(uint32 i = 0; i < basket.bassets.length; i++) {
             bitmap |= uint32(2)**i;
         }

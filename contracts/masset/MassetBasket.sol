@@ -4,7 +4,7 @@ pragma experimental ABIEncoderV2;
 import { CommonHelpers } from "../shared/libs/CommonHelpers.sol";
 
 import { IERC20 } from "./mERC20/MassetToken.sol";
-import { MassetCore, IManager, ISystok, IForgeValidator, StableMath } from "./MassetCore.sol";
+import { MassetCore, IManager, IForgeValidator, StableMath } from "./MassetCore.sol";
 import { MassetStructs } from "./shared/MassetStructs.sol";
 
 /**
@@ -113,13 +113,19 @@ contract MassetBasket is MassetStructs, MassetCore {
     function initiateRecol(address _basset, address _recollateraliser)
     external
     onlyManager
-    basketIsHealthy {
+    basketIsHealthy
+    returns (bool requiresAuction) {
         (bool exists, uint i) = _isAssetInBasket(_basset);
         require(exists, "Basset must exist in Basket");
 
         (, , , , uint256 vaultBalance, BassetStatus status) = _getBasset(i);
         require(!_bassetHasRecolled(status), "Invalid Basset state");
-        // TODO - if vaultBalance is 0 and we want to recol, then just remove from Basket?
+
+        // If vaultBalance is 0 and we want to recol, then just remove from Basket?
+        if(vaultBalance == 0){
+            _removeBasset(_basset);
+            return false;
+        }
         require(vaultBalance > 0, "Must have something to recollateralise");
 
         basket.bassets[i].status = BassetStatus.Liquidating;
@@ -127,13 +133,14 @@ contract MassetBasket is MassetStructs, MassetCore {
 
         // Approve the recollateraliser to take the Basset
         require(IERC20(_basset).approve(_recollateraliser, vaultBalance), "Basset approve failed");
+        return true;
     }
 
 
     /***************************************
                 BASKET ADJUSTMENTS
     ****************************************/
-    
+
 
     /**
       * @dev External func to allow the Manager to conduct add operations on the Basket
@@ -142,7 +149,7 @@ contract MassetBasket is MassetStructs, MassetCore {
       */
     function addBasset(address _basset, bytes32 _key)
     external
-    onlyGovernor
+    managerOrGovernor
     basketIsHealthy {
         require(!measurementMultipleEnabled, "Specifying _measurementMultiple disabled");
         _addBasset(_basset, _key, StableMath.getRatio());
@@ -156,7 +163,7 @@ contract MassetBasket is MassetStructs, MassetCore {
       */
     function addBasset(address _basset, bytes32 _key, uint256 _measurementMultiple)
     external
-    onlyGovernor
+    managerOrGovernor
     basketIsHealthy {
         require(measurementMultipleEnabled, "Specifying _measurementMultiple disabled");
         _addBasset(_basset, _key, _measurementMultiple);
@@ -208,7 +215,7 @@ contract MassetBasket is MassetStructs, MassetCore {
     function removeBasset(address _assetToRemove)
     external
     basketIsHealthy
-    onlyGovernor
+    managerOrGovernor
     returns (bool removed) {
         _removeBasset(_assetToRemove);
         return true;
