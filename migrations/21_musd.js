@@ -77,7 +77,7 @@ module.exports = async (deployer, network, accounts) => {
     percentToWeight(30), // 30
     percentToWeight(30), // 30
     percentToWeight(25), // 20
-    percentToWeight(0), // 25
+    percentToWeight(0), // 0
     percentToWeight(25)  // 20
   ];
 
@@ -90,7 +90,7 @@ module.exports = async (deployer, network, accounts) => {
     feePool,
     d_ForgeValidator.address
   );
-  
+
   const txData = await d_Manager.addMasset(
     aToH("mUSD"),
     d_MUSD.address,

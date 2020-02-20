@@ -1,0 +1,33 @@
+import { StandardAccounts } from "@utils/machines/standardAccounts";
+import { getForgeContractInstances } from "./utils/getForgeContractInstances";
+import { logTrancheData, logTx } from "./utils/logging";
+import { simpleToExactAmount } from "@utils/math";
+
+export default async (scope: any, trancheNumber: string, amount: string) => {
+    const { forge, MTA } = await getForgeContractInstances(scope);
+    const sa = new StandardAccounts(await scope.web3.eth.getAccounts());
+
+    const decimals = await MTA.decimals();
+    const fundingUnits = simpleToExactAmount(parseInt(amount, 10), decimals.toNumber());
+
+    console.log("MTA balance for fund manager", (await MTA.balanceOf(sa.fundManager)).toString());
+
+    await logTrancheData(forge, trancheNumber);
+
+    await logTx(
+        MTA.transfer(sa.governor, fundingUnits, { from: sa.fundManager }),
+        `Transferring ${amount} MTA from fund manager to governor`,
+    );
+
+    await logTx(
+        MTA.approve(forge.address, fundingUnits, { from: sa.governor }),
+        `Approving forge rewards contract to spend ${amount} of governor's MTA`,
+    );
+
+    await logTx(
+        forge.fundTranche(trancheNumber, amount, { from: sa.governor }),
+        `Funding tranche ${trancheNumber} with ${amount} from governor`,
+    );
+
+    await logTrancheData(forge, trancheNumber);
+};
