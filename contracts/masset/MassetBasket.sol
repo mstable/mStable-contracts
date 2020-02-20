@@ -3,11 +3,12 @@ pragma experimental ABIEncoderV2;
 
 import { CommonHelpers } from "../shared/libs/CommonHelpers.sol";
 
-import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
-import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import { MassetCore, IManager, IForgeValidator, StableMath } from "./MassetCore.sol";
 
 import { MassetStructs } from "./shared/MassetStructs.sol";
+
+import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
+import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 /**
  * @title MassetBasket

@@ -3,10 +3,11 @@ pragma solidity ^0.5.12;
 import { IMassetForgeRewards } from "./IMassetForgeRewards.sol";
 import { IMasset } from "../interfaces/IMasset.sol";
 import { ISystok } from "../interfaces/ISystok.sol";
-import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
-import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import { StableMath } from "../shared/math/StableMath.sol";
 import { Governable } from "../governance/Governable.sol";
+
+import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
+import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 /**
  * @title ForgeRewardsMUSD

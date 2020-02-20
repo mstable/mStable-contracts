@@ -10,7 +10,7 @@
   "eslint.alwaysShowStatus": true,
   "files.autoSave": "onFocusChange",
   "editor.detectIndentation": false,
-  "solidity.compileUsingRemoteVersion": "^0.5.12",
+  "solidity.compileUsingRemoteVersion": "^0.5.16",
   "solidity.packageDefaultDependenciesContractsDirectory": "",
-  "solidity.packageDefaultDependenciesDirectory": "mstable-contracts/node_modules",
+  "solidity.packageDefaultDependenciesDirectory": "node_modules",
 }

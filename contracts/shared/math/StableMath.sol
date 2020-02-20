@@ -112,6 +112,9 @@ library StableMath {
         return a > upperBound ? upperBound : a;
     }
 
+    /********************************
+              RATIO FUNCS
+    ********************************/
 
     /** @notice Token Ratios are used when converting between units of Basset, Masset and Meta
      * It consists of 10^(18-tokenDecimals) * measurementMultiple(where 1:1 == 1e8) */
