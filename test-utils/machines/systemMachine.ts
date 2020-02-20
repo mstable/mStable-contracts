@@ -28,6 +28,7 @@ const NexusArtifact = artifacts.require("Nexus");
 
 const OracleHubMockArtifact = artifacts.require("SimpleOracleHubMock");
 
+const MiniMeTokenFactoryArtifact = artifacts.require("MiniMeTokenFactory");
 const SystokArtifact = artifacts.require("Systok");
 
 /**
@@ -96,10 +97,7 @@ export class SystemMachine {
             moduleAddresses[2] = this.manager.address;
             isLocked[2] = false;
 
-            await this.initializeNexusWithModules(
-                moduleKeys,
-                moduleAddresses,
-                isLocked);
+            await this.initializeNexusWithModules(moduleKeys, moduleAddresses, isLocked);
 
             return Promise.resolve(true);
         } catch (e) {
@@ -145,11 +143,15 @@ export class SystemMachine {
      */
     public async deploySystok(): Promise<SystokInstance> {
         try {
-            const systokInstance = await SystokArtifact.new(
+            const miniTokenFactory = await MiniMeTokenFactoryArtifact.new({
+                from: this.sa.default,
+            });
+            const systokInstance = await MiniMetaTokenArtifact.new(
+                miniTokenFactory.address,
                 this.nexus.address,
                 this.sa.fundManager,
                 {
-                    from: this.sa.default,
+                    from: this.sa.governor,
                 },
             );
 

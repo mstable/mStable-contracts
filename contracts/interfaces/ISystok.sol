@@ -6,7 +6,7 @@ pragma solidity ^0.5.16;
  */
 interface ISystok {
     /** @dev Burnable */
-    function burnFrom(address account, uint256 amount) external;
+    // function burnFrom(address account, uint256 amount) external;
 
     /** @dev Basic ERC20 funcs */
     function name() external view returns (string memory);
