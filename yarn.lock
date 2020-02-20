@@ -4029,9 +4029,9 @@ minimalistic-crypto-utils@^1.0.0, minimalistic-crypto-utils@^1.0.1:
   dependencies:
     brace-expansion "^1.1.7"
 
-"minimetoken@git+ssh://git@github.com/mstable/minime.git#mStable-meta-token":
+"minimetoken@ssh://git@github.com/mstable/minime.git#mStable-meta-token":
   version "0.2.0"
-  resolved "git+ssh://git@github.com/mstable/minime.git#f7be3b8ce6a9071765874adc14aece096b4a0a9b"
+  resolved "ssh://git@github.com/mstable/minime.git#f7be3b8ce6a9071765874adc14aece096b4a0a9b"
   dependencies:
     eth-contract-class "0.0.6"
 

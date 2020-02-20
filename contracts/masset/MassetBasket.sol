@@ -113,13 +113,19 @@ contract MassetBasket is MassetStructs, MassetCore {
     function initiateRecol(address _basset, address _recollateraliser)
     external
     onlyManager
-    basketIsHealthy {
+    basketIsHealthy
+    returns (bool requiresAuction) {
         (bool exists, uint i) = _isAssetInBasket(_basset);
         require(exists, "Basset must exist in Basket");
 
         (, , , , uint256 vaultBalance, BassetStatus status) = _getBasset(i);
         require(!_bassetHasRecolled(status), "Invalid Basset state");
-        // TODO - if vaultBalance is 0 and we want to recol, then just remove from Basket?
+
+        // If vaultBalance is 0 and we want to recol, then just remove from Basket?
+        if(vaultBalance == 0){
+            _removeBasset(_basset);
+            return false;
+        }
         require(vaultBalance > 0, "Must have something to recollateralise");
 
         basket.bassets[i].status = BassetStatus.Liquidating;
@@ -127,6 +133,7 @@ contract MassetBasket is MassetStructs, MassetCore {
 
         // Approve the recollateraliser to take the Basset
         require(IERC20(_basset).approve(_recollateraliser, vaultBalance), "Basset approve failed");
+        return true;
     }
 
 
