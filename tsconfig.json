@@ -25,6 +25,7 @@
     "./types/interfaces.d.ts",
     "./types/**/*.ts",
     "./test/*.ts",
+    "./scripts/**/*.ts",
     "./test/**/*.ts",
     "./test-utils/*.ts",
     "./test-utils/**/*.ts",
