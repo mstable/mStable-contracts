@@ -146,7 +146,7 @@ export class SystemMachine {
             const miniTokenFactory = await MiniMeTokenFactoryArtifact.new({
                 from: this.sa.default,
             });
-            const systokInstance = await MiniMetaTokenArtifact.new(
+            const systokInstance = await SystokArtifact.new(
                 miniTokenFactory.address,
                 this.nexus.address,
                 this.sa.fundManager,
