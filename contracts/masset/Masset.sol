@@ -6,10 +6,10 @@ import { ISystok } from "../interfaces/ISystok.sol";
 
 import { MassetBasket, IManager, IForgeValidator } from "./MassetBasket.sol";
 import { MassetToken } from "./mERC20/MassetToken.sol";
-import { IERC20 }     from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 
 import { StableMath } from "../shared/math/StableMath.sol";
 import { SafeERC20 }  from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
+import { IERC20 }     from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title Masset
@@ -37,7 +37,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         address[] memory _bassets,
         uint256[] memory _bassetWeights,
         uint256[] memory _bassetMultiples,
-        bool[] memory _isTransferFees,
+        bool[] memory _hasTransferFees,
         address _feePool,
         address _forgeValidator
     )
@@ -51,7 +51,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
           _bassets,
           _bassetWeights,
           _bassetMultiples,
-          _isTransferFees
+          _hasTransferFees
         )
         public
     {
@@ -500,7 +500,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         (bool exists, uint i) = _isAssetInBasket(_basset);
         require(exists, "Basset must exist in Basket");
 
-        (, , , , BassetStatus status) = _getBasset(i);
+        (, , , , , BassetStatus status) = _getBasset(i);
         require(status == BassetStatus.Liquidating, "Invalid Basset state");
         basket.bassets[i].maxWeight = 0;
         basket.bassets[i].vaultBalance = 0;

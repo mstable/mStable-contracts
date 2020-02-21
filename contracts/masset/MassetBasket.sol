@@ -34,7 +34,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         address[] memory _bassets,
         uint256[] memory _weights,
         uint256[] memory _multiples,
-        bool[] memory _isFeeCharged
+        bool[] memory _hasTransferFees
     )
         MassetCore(_nexus)
         public
@@ -42,7 +42,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         require(_bassets.length > 0, "Must initialise the basket with some bAssets");
 
         measurementMultipleEnabled = _multiples.length > 0;
-        
+
         // Defaults
         basket.collateralisationRatio = 1e18;
         redemptionFee = 2e16;
@@ -51,7 +51,7 @@ contract MassetBasket is MassetStructs, MassetCore {
             _addBasset(
                 _bassets[i],
                 measurementMultipleEnabled ? _multiples[i] : StableMath.getRatio(),
-                _isFeeCharged[i]
+                _hasTransferFees[i]
                 );
         }
         _setBasketWeights(_bassets, _weights);
@@ -128,7 +128,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         (bool exists, uint i) = _isAssetInBasket(_basset);
         require(exists, "Basset must exist in Basket");
 
-        (, , , uint256 vaultBalance, BassetStatus status) = _getBasset(i);
+        (, , , uint256 vaultBalance, , BassetStatus status) = _getBasset(i);
         require(!_bassetHasRecolled(status), "Invalid Basset state");
 
         // If vaultBalance is 0 and we want to recol, then just remove from Basket?
@@ -364,6 +364,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         uint256[] memory ratios,
         uint256[] memory targets,
         uint256[] memory vaults,
+        bool[] memory isTransferFeeCharged,
         BassetStatus[] memory statuses
     ) {
         uint256 len = basket.bassets.length;
@@ -372,10 +373,11 @@ contract MassetBasket is MassetStructs, MassetCore {
         ratios = new uint256[](len);
         targets = new uint256[](len);
         vaults = new uint256[](len);
+        isTransferFeeCharged = new bool[](len);
         statuses = new BassetStatus[](len);
 
         for(uint i = 0; i < len; i++){
-            (addresses[i], ratios[i], targets[i], vaults[i], statuses[i]) = _getBasset(i);
+            (addresses[i], ratios[i], targets[i], vaults[i], isTransferFeeCharged[i], statuses[i]) = _getBasset(i);
         }
     }
 
@@ -391,6 +393,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         uint256 ratio,
         uint256 maxWeight,
         uint256 vaultBalance,
+        bool isTransferFeeCharged,
         BassetStatus status
     ) {
         (bool exists, uint index) = _isAssetInBasket(_basset);
@@ -423,10 +426,11 @@ contract MassetBasket is MassetStructs, MassetCore {
         uint256 ratio,
         uint256 maxWeight,
         uint256 vaultBalance,
+        bool isTransferFeeCharged,
         BassetStatus status
     ) {
         Basset memory b = basket.bassets[_bassetIndex];
-        return (b.addr, b.ratio, b.maxWeight, b.vaultBalance, b.status);
+        return (b.addr, b.ratio, b.maxWeight, b.vaultBalance, b.isTransferFeeCharged, b.status);
     }
 
 

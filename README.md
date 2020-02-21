@@ -117,6 +117,16 @@ The scripts can be described as follows:
 `generate-typings` > Uses [Typechain](https://github.com/ethereum-ts/TypeChain) to convert the ABIs into useful Typescript Types
 `rimraf ./types/generated && typechain --target truffle --outDir types/generated './build/*.json'`
 
+`script [scriptName] [args]` > Runs custom Truffle scripts
+
+Example usage:
+
+* Mint 100 MUSD: `yarn script mint 100`
+* Fund tranche 0 with 100 MTA: `yarn script fund 0 100`
+* Claim the reward for tranche 0: `yarn script claim 0`
+* Redeem 100 of the MUSD basset at index 0 (USDT): `yarn redeem-basset 0 100`
+* Redeem the reward for tranche 0: `yarn script redeem-reward 0`
+
 ### Coverage
 
 We make use of `solidity-coverage@beta` (https://github.com/sc-forks/solidity-coverage/tree/beta) to run coverage analysis on our test framework.

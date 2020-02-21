@@ -16,7 +16,7 @@ contract MGLD is Masset {
         address[] memory _bassets,
         uint256[] memory _bassetWeights,
         uint256[] memory _measurementMultiples,
-        bool[] memory _isTransferFees,
+        bool[] memory _hasTransferFees,
         address _feePool,
         address _forgeValidator
     )
@@ -27,15 +27,11 @@ contract MGLD is Masset {
             _bassets,
             _bassetWeights,
             _measurementMultiples,
-            _isTransferFees,
+            _hasTransferFees,
             _feePool,
             _forgeValidator
         )
         public
     {
-        // basket.hasFeesEnabled = true;
     }
-
-    // TODO - Override or separate out 'Minting' functions here -
-    // Minting volume for mGLD relies on subtracting the transfer/demourrage fees first
 }

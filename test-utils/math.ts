@@ -16,7 +16,18 @@ const createMultiple = (ratio: number): BN => {
 };
 
 const simpleToExactAmount = (amount: number, decimals: number): BN => {
-    return new BN(amount).mul(new BN(10).pow(new BN(decimals.toString())));
+    return new BN(amount).mul(new BN(10).pow(new BN(decimals)));
+};
+
+export const exactAmountToSimple = (value, decimals): BN => {
+    return new BN(value).div(new BN(10).pow(new BN(decimals)));
+};
+
+export const applyRatioMassetToBasset = (input: BN, ratio: BN): BN => {
+    return input
+        .mul(ratioScale)
+        .div(ratio)
+        .toString();
 };
 
 /** @dev Converts a simple ratio (e.g. x1.1) to 1e6 format for OracleData */
