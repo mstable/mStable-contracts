@@ -33,7 +33,6 @@
     "eth-gas-reporter": "^0.2.14",
     "ethlint": "^1.2.5",
     "minimetoken": "ssh://git@github.com/mstable/minime.git#mStable-meta-token",
-    "mstable-contracts": "ssh://git@github.com/mstable/mStable-contracts.git",
     "openzeppelin-solidity": "^2.3.0",
     "openzeppelin-test-helpers": "0.3.1",
     "prettier": "^1.18.2",

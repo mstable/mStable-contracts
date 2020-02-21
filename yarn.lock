@@ -4031,7 +4031,7 @@ minimalistic-crypto-utils@^1.0.0, minimalistic-crypto-utils@^1.0.1:
 
 "minimetoken@ssh://git@github.com/mstable/minime.git#mStable-meta-token":
   version "0.2.0"
-  resolved "ssh://git@github.com/mstable/minime.git#d4119847f8f93509282e3f534b1ad66b4d950bc9"
+  resolved "ssh://git@github.com/mstable/minime.git#33eca0c84b06446cb88c4c80c8f2517ab1a3eacd"
   dependencies:
     eth-contract-class "0.0.6"
 
@@ -4175,10 +4175,6 @@ ms@^2.0.0, ms@^2.1.1:
   version "2.1.2"
   resolved "https://registry.yarnpkg.com/ms/-/ms-2.1.2.tgz#d09d1f357b443f493382a8eb3ccd183872ae6009"
   integrity sha512-sGkPx+VjMtmA6MX27oA4FBFELFCZZ4S4XqeGOXCv68tT+jb3vk/RyaKWP0PTKyWtmLSM0b+adUTEvbs1PEaH2w==
-
-"mstable-contracts@ssh://git@github.com/mstable/mStable-contracts.git":
-  version "1.0.1"
-  resolved "ssh://git@github.com/mstable/mStable-contracts.git#94c17346a3ec52d973aaefe1fe2615e7501dc521"
 
 nan@2.13.2:
   version "2.13.2"
