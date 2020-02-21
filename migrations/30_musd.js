@@ -92,15 +92,20 @@ module.exports = async (deployer, network, accounts) => {
     d_ForgeValidator.address
   );
 
-  const txData = await d_Manager.addMasset(
-    aToH("mUSD"),
-    d_MUSD.address,
-    {from: governor});
+  if(network == 'development' || network == 'coverage') {
+    const txData = await d_Manager.addMasset(
+      aToH("mUSD"),
+      d_MUSD.address,
+      {from: governor});
+  } else {
+    // We need to send the transaction from the multisig
+  }
 
   //await d_MultiSig.submitTransaction(d_Manager.address, 0, txData, { from : governor });
 
   const massets = await d_Manager.getMassets();
   console.log(`[mUSD]: '${massets[0][0]}'`);
+  
 
   // Deploy ForgeRewardsMUSD contract
   await deployer.deploy(

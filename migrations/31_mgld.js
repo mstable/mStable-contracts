@@ -88,10 +88,14 @@ module.exports = async (deployer, network, accounts) => {
     d_ForgeValidator.address
   );
 
-  const txData = await d_Manager.addMasset(
-    aToH("mGLD"),
-    d_mGLD.address, 
-    {from: governor});
+  if(network == 'development' || network == 'coverage') {
+    const txData = await d_Manager.addMasset(
+      aToH("mGLD"),
+      d_mGLD.address, 
+      {from: governor});
+  } else {
+    // We need to send the transaction from the multisig
+  }
 
   //await d_MultiSig.submitTransaction(d_Manager.address, 0, txData, { from : governor });
 
