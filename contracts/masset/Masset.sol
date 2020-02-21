@@ -155,18 +155,18 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
     function _transferTokens(
         address _basset,
-        bool isFeeCharged,
+        bool _isFeeCharged,
         uint256 _qty
     )
         private
-        returns (uint256 originalQty)
+        returns (uint256 receivedQty)
     {
-        originalQty = _qty;
-        if(isFeeCharged) {
+        receivedQty = _qty;
+        if(_isFeeCharged) {
             uint256 balBefore = IERC20(_basset).balanceOf(address(this));
             require(IERC20(_basset).transferFrom(msg.sender, address(this), _qty), "Basset transfer failed");
             uint256 balAfter = IERC20(_basset).balanceOf(address(this));
-            originalQty = StableMath.min(_qty, balAfter.sub(balBefore));
+            receivedQty = StableMath.min(_qty, balAfter.sub(balBefore));
         } else {
             require(IERC20(_basset).transferFrom(msg.sender, address(this), _qty), "Basset transfer failed");
         }
@@ -197,26 +197,24 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
         uint256 massetQuantity = 0;
 
-        uint256[] memory originalQty = new uint256[](len);
+        uint256[] memory receivedQty = new uint256[](len);
         // Transfer the Bassets to this contract, update storage and calc MassetQ
         for(uint256 j = 0; j < len; j++){
             if(_bassetQuantity[j] > 0){
                 // bAsset == bAssets[j] == basket.bassets[indexes[j]]
                 Basset memory bAsset = bAssets[j];
 
-                uint256 bAssetQty = _transferTokens(bAsset.addr, bAsset.isTransferFeeCharged, _bassetQuantity[j]);
-                originalQty[j] = bAssetQty;
-                basket.bassets[indexes[j]].vaultBalance = bAsset.vaultBalance.add(_bassetQuantity[j]);
+                uint256 receivedBassetQty = _transferTokens(bAsset.addr, bAsset.isTransferFeeCharged, _bassetQuantity[j]);
+                receivedQty[j] = receivedBassetQty;
+                basket.bassets[indexes[j]].vaultBalance = bAsset.vaultBalance.add(receivedBassetQty);
 
-                uint ratioedBasset = bAssetQty.mulRatioTruncate(bAsset.ratio);
+                uint ratioedBasset = receivedBassetQty.mulRatioTruncate(bAsset.ratio);
                 massetQuantity = massetQuantity.add(ratioedBasset);
             }
         }
 
-        // validate after token transfer, as bAssert quantity is unknown until transferred
-        // Validate the proposed mint
-        forgeValidator.validateMint(totalSupply(), bAssets, originalQty);
-
+        // Validate the proposed mint, after token transfer, as bAssert quantity is unknown until transferred
+        forgeValidator.validateMint(totalSupply(), bAssets, receivedQty);
 
         require(massetQuantity > 0, "No masset quantity to mint");
 

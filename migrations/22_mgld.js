@@ -66,6 +66,14 @@ module.exports = async (deployer, network, accounts) => {
     createMultiple(0.0321507)
   ];
 
+  const bAssetHasTransferFee = [
+    true,
+    true,
+    true,
+    true
+  ];
+
+
   /* Assign minting and redemption fees */
   const redemptionFee = percentToWeight(1)
 
@@ -73,9 +81,9 @@ module.exports = async (deployer, network, accounts) => {
     c_mGLD,
     d_Nexus.address,
     basketAddresses,
-    basketKeys,
     basketWeights,
     basketMultiples,
+    bAssetHasTransferFee,
     feePool,
     d_ForgeValidator.address
   );
