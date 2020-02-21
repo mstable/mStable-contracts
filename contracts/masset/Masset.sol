@@ -6,9 +6,10 @@ import { ISystok } from "../interfaces/ISystok.sol";
 
 import { MassetBasket, IManager, IForgeValidator } from "./MassetBasket.sol";
 import { MassetToken } from "./mERC20/MassetToken.sol";
+import { IERC20 }     from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
+
 import { StableMath } from "../shared/math/StableMath.sol";
-import { SafeERC20 } from "openzeppelin-solidity/contracts/token/erc20/SafeERC20.sol";
-import { IERC20 } from "openzeppelin-solidity/contracts/token/erc20/IERC20.sol";
+import { SafeERC20 }  from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
 
 /**
  * @title Masset
