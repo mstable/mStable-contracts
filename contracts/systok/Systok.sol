@@ -50,11 +50,17 @@ contract Systok is ISystok, Module, MiniMeToken {
         // Do nothing, we should never disable transfers
     }
 
+    // changeController
+    // This would allow us to override the permissions for updating the controller
+    // We could call it straight from the `claimGovernorChange` function in the Nexus
+
     /***************************************
                     FUNCS
     ****************************************/
 
     // function destroyTokens || burn
+    // This would allow burns of a users own balance, or their approved balance,
+    // and require access to the destroy tokens func
 
     // Copied from https://github.com/OpenZeppelin/openzeppelin-contracts-ethereum-package/blob/master/contracts/token/ERC20/ERC20.sol#118
     function increaseAllowance(address spender, uint256 addedValue) public returns (bool) {
