@@ -7,6 +7,7 @@ import { StableMath } from "../shared/math/StableMath.sol";
 import { Governable } from "../governance/Governable.sol";
 
 import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
 import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 /**
@@ -25,6 +26,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, Governable {
 
     using SafeMath for uint256;
     using StableMath for uint256;
+    using SafeERC20 for IERC20;
 
     event RewardeeMintVolumeIncreased(uint256 indexed trancheNumber, address indexed rewardee, uint256 mintVolume);
     event MintVolumeIncreased(uint256 indexed trancheNumber, uint256 mintVolume);
@@ -98,10 +100,10 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, Governable {
     /**
      * @dev Approve max tokens for mUSD contract for each bAsset
      */
-    function approveAllBassets() public onlyGovernor {
+    function approveAllBassets() public {
         address[] memory bAssets = mUSD.getAllBassetsAddress();
         for(uint256 i = 0; i < bAssets.length; i++) {
-            approveFor(bAssets[i]);
+            approveFor(bAssets[i], uint256(-1));
         }
     }
 
@@ -109,8 +111,8 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, Governable {
      * @dev Approve max tokens for mUSD contact of a given bAsset token contract
      * @param _bAsset bAsset token address
      */
-    function approveFor(address _bAsset) public onlyGovernor {
-        require(IERC20(_bAsset).approve(address(mUSD), uint256(-1)), "Approval of bAsset failed");
+    function approveFor(address _bAsset, uint256 _amount) public onlyGovernor {
+        IERC20(_bAsset).safeIncreaseAllowance(address(mUSD), _amount);
     }
 
     /***************************************
@@ -139,8 +141,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, Governable {
         for(uint256 i = 0; i < bAssetAddresses.length; i++) {
             if(_bassetQuantities[i] > 0){
                 // Transfer the bAssets from sender to rewards contract
-                require(IERC20(bAssetAddresses[i]).transferFrom(msg.sender, address(this), _bassetQuantities[i]),
-                    "Minter must approve the spending of bAsset");
+                IERC20(bAssetAddresses[i]).safeTransferFrom(msg.sender, address(this), _bassetQuantities[i]);
             }
         }
         // Do the mUSD mint
@@ -174,7 +175,7 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, Governable {
         //           have rewards contract whitelisted. If anyone could call, then anyone with an approved balance would be
         //           subject to robbery
         // Tradeoff == ~20-40k extra gas vs optionality
-        require(IERC20(_basset).transferFrom(msg.sender, address(this), _bassetQuantity), "Minter must approve the spending of bAsset");
+        IERC20(_basset).safeTransferFrom(msg.sender, address(this), _bassetQuantity);
 
         // Mint the mAsset
         massetMinted = mUSD.mintSingleTo(_basset, _bassetQuantity, _massetRecipient);

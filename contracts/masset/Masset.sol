@@ -4,18 +4,22 @@ pragma experimental ABIEncoderV2;
 import { IMasset } from "../interfaces/IMasset.sol";
 import { ISystok } from "../interfaces/ISystok.sol";
 
-import { MassetBasket, IManager, IForgeValidator, IERC20 } from "./MassetBasket.sol";
+import { MassetBasket, IManager, IForgeValidator } from "./MassetBasket.sol";
 import { MassetToken } from "./mERC20/MassetToken.sol";
+
 import { StableMath } from "../shared/math/StableMath.sol";
+import { SafeERC20 }  from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
+import { IERC20 }     from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 
 /**
-  * @title Masset
-  * @author Stability Labs Pty Ltd
-  * @dev Base layer functionality for the Masset
-  */
+ * @title Masset
+ * @author Stability Labs Pty Ltd
+ * @dev Base layer functionality for the Masset
+ */
 contract Masset is IMasset, MassetToken, MassetBasket {
 
     using StableMath for uint256;
+    using SafeERC20 for IERC20;
 
     /** @dev Forging events */
     event Minted(address indexed account, uint256 massetQuantity, uint256[] bAssetQuantities);
@@ -164,21 +168,21 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         receivedQty = _qty;
         if(_isFeeCharged) {
             uint256 balBefore = IERC20(_basset).balanceOf(address(this));
-            require(IERC20(_basset).transferFrom(msg.sender, address(this), _qty), "Basset transfer failed");
+            IERC20(_basset).safeTransferFrom(msg.sender, address(this), _qty);
             uint256 balAfter = IERC20(_basset).balanceOf(address(this));
             receivedQty = StableMath.min(_qty, balAfter.sub(balBefore));
         } else {
-            require(IERC20(_basset).transferFrom(msg.sender, address(this), _qty), "Basset transfer failed");
+            IERC20(_basset).safeTransferFrom(msg.sender, address(this), _qty);
         }
     }
 
     /**
-      * @dev Mints a number of Massets based on the sum of the value of the Bassets
-      * @param _bassetsBitmap bits set in bitmap represent position of bAssets to use
-      * @param _bassetQuantity Exact units of Bassets to mint
-      * @param _recipient Address to which the Masset should be minted
-      * @return number of newly minted mAssets
-      */
+     * @dev Mints a number of Massets based on the sum of the value of the Bassets
+     * @param _bassetsBitmap bits set in bitmap represent position of bAssets to use
+     * @param _bassetQuantity Exact units of Bassets to mint
+     * @param _recipient Address to which the Masset should be minted
+     * @return number of newly minted mAssets
+     */
     function _mintTo(
         uint32 _bassetsBitmap,
         uint256[] memory _bassetQuantity,
@@ -230,9 +234,9 @@ contract Masset is IMasset, MassetToken, MassetBasket {
     ****************************************/
 
     /**
-      * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
-      * @param _bassetQuantity Exact quantities of Bassets to redeem
-      */
+     * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
+     * @param _bassetQuantity Exact quantities of Bassets to redeem
+     */
     function redeemSingle(
         address _basset,
         uint256 _bassetQuantity
@@ -257,10 +261,10 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
 
     /**
-      * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
-      * @param _bassetQuantities Exact quantities of Bassets to redeem
-      * @param _recipient Account to which the redeemed Bassets should be sent
-      */
+     * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
+     * @param _bassetQuantities Exact quantities of Bassets to redeem
+     * @param _recipient Account to which the redeemed Bassets should be sent
+     */
     function redeemBitmapTo(
         uint32 _bassetsBitmap,
         uint256[] calldata _bassetQuantities,
@@ -303,7 +307,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         // Transfer the Bassets to the user
         for(uint i = 0; i < redemptionAssetCount; i++){
             if(_bassetQuantities[i] > 0){
-                require(IERC20(bAssets[i].addr).transfer(_recipient, _bassetQuantities[i]), "Must be successful transfer");
+                IERC20(bAssets[i].addr).safeTransfer(_recipient, _bassetQuantities[i]);
             }
         }
 
@@ -316,10 +320,10 @@ contract Masset is IMasset, MassetToken, MassetBasket {
     ****************************************/
 
     /**
-      * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
-      * @param _bassetQuantity Exact quantities of Bassets to redeem
-      * @param _recipient Account to which the redeemed Bassets should be sent
-      */
+     * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
+     * @param _bassetQuantity Exact quantities of Bassets to redeem
+     * @param _recipient Account to which the redeemed Bassets should be sent
+     */
     function _redeem(
         address _basset,
         uint256 _bassetQuantity,
@@ -352,7 +356,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         _burn(msg.sender, massetQuantity);
 
         // Transfer the Bassets to the user
-        require(IERC20(b.addr).transfer(_recipient, _bassetQuantity), "Must be successful transfer");
+        IERC20(b.addr).safeTransfer(_recipient, _bassetQuantity);
 
         emit RedeemedSingle(_recipient, msg.sender, massetQuantity, i, _bassetQuantity);
         return massetQuantity;
@@ -485,13 +489,14 @@ contract Masset is IMasset, MassetToken, MassetBasket {
     ****************************************/
 
     /**
-      * @dev Completes the auctioning process for a given Basset
-      * @param _basset Address of the ERC20 token to isolate
-      * @param _unitsUnderCollateralised Masset units that we failed to recollateralise
-      */
+     * @dev Completes the auctioning process for a given Basset
+     * @param _basset Address of the ERC20 token to isolate
+     * @param _unitsUnderCollateralised Masset units that we failed to recollateralise
+     */
     function completeRecol(address _basset, uint256 _unitsUnderCollateralised)
-    external
-    onlyManager {
+        external
+        onlyManager
+    {
         (bool exists, uint i) = _isAssetInBasket(_basset);
         require(exists, "Basset must exist in Basket");
 

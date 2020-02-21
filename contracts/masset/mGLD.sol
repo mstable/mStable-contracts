@@ -33,9 +33,5 @@ contract MGLD is Masset {
         )
         public
     {
-        // basket.hasFeesEnabled = true;
     }
-
-    // TODO - Override or separate out 'Minting' functions here -
-    // Minting volume for mGLD relies on subtracting the transfer/demourrage fees first
 }

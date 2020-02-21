@@ -1,7 +1,6 @@
 pragma solidity ^0.5.12;
 
 import { Module } from "../shared/Module.sol";
-
 import { DictionaryAtoB } from "../shared/libs/DictionaryAtoB.sol";
 
 
@@ -19,7 +18,7 @@ contract ManagerState is Module {
     address public forgeValidator;
 
     /** @dev Hard coded Systok key for calling OracleHub */
-    bytes32 oracle_key_systok = "MTA";
+    bytes32 internal oracle_key_systok = "MTA";
 
     /** @dev Data structure of the Masset and Bassets */
     DictionaryAtoB.AddressToBytes32 massets;
@@ -33,9 +32,10 @@ contract ManagerState is Module {
       * @return bytes32 Array of Masset identifiers
       */
     function getMassets()
-    external
-    view
-    returns(address[] memory addr, bytes32[] memory keys) {
+        external
+        view
+        returns(address[] memory addr, bytes32[] memory keys)
+    {
         return (massets.keys, massets.values());
     }
 
