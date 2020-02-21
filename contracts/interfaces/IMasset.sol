@@ -61,6 +61,7 @@ contract IMasset is MassetStructs {
             uint256[] memory ratios,
             uint256[] memory weights,
             uint256[] memory vaults,
+            bool[] memory isTransferFeeCharged,
             BassetStatus[] memory statuses
         );
     function getBasset(address _basset)
@@ -71,6 +72,7 @@ contract IMasset is MassetStructs {
             uint256 ratio,
             uint256 weight,
             uint256 vaultBalance,
+            bool isTransferFeeCharged,
             BassetStatus status
         );
 
