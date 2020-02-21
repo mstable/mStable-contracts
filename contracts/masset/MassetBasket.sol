@@ -8,6 +8,7 @@ import { MassetCore, IManager, IForgeValidator, StableMath } from "./MassetCore.
 import { MassetStructs } from "./shared/MassetStructs.sol";
 
 import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
 import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 /**
@@ -17,6 +18,7 @@ import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 contract MassetBasket is MassetStructs, MassetCore {
 
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
     /** @dev Struct holding Basket details */
     Basket public basket;
     bool public measurementMultipleEnabled;
@@ -140,7 +142,9 @@ contract MassetBasket is MassetStructs, MassetCore {
         basket.bassets[i].vaultBalance = 0;
 
         // Approve the recollateraliser to take the Basset
-        require(IERC20(_basset).approve(_recollateraliser, vaultBalance), "Basset approve failed");
+        // TODO / FIXME Ensure that this function is not called again for
+        // the same bAsset address. Otherwise safeApprove() call would stuck forever.
+        IERC20(_basset).safeApprove(_recollateraliser, vaultBalance);
         return true;
     }
 

@@ -4,9 +4,11 @@ pragma experimental ABIEncoderV2;
 import { IMasset } from "../interfaces/IMasset.sol";
 import { ISystok } from "../interfaces/ISystok.sol";
 
-import { MassetBasket, IManager, IForgeValidator, IERC20 } from "./MassetBasket.sol";
+import { MassetBasket, IManager, IForgeValidator } from "./MassetBasket.sol";
 import { MassetToken } from "./mERC20/MassetToken.sol";
 import { StableMath } from "../shared/math/StableMath.sol";
+import { SafeERC20 } from "openzeppelin-solidity/contracts/token/erc20/SafeERC20.sol";
+import { IERC20 } from "openzeppelin-solidity/contracts/token/erc20/IERC20.sol";
 
 /**
  * @title Masset
@@ -16,6 +18,7 @@ import { StableMath } from "../shared/math/StableMath.sol";
 contract Masset is IMasset, MassetToken, MassetBasket {
 
     using StableMath for uint256;
+    using SafeERC20 for IERC20;
 
     /** @dev Forging events */
     event Minted(address indexed account, uint256 massetQuantity, uint256[] bAssetQuantities);
@@ -164,11 +167,11 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         receivedQty = _qty;
         if(_isFeeCharged) {
             uint256 balBefore = IERC20(_basset).balanceOf(address(this));
-            require(IERC20(_basset).transferFrom(msg.sender, address(this), _qty), "Basset transfer failed");
+            IERC20(_basset).safeTransferFrom(msg.sender, address(this), _qty);
             uint256 balAfter = IERC20(_basset).balanceOf(address(this));
             receivedQty = StableMath.min(_qty, balAfter.sub(balBefore));
         } else {
-            require(IERC20(_basset).transferFrom(msg.sender, address(this), _qty), "Basset transfer failed");
+            IERC20(_basset).safeTransferFrom(msg.sender, address(this), _qty);
         }
     }
 
@@ -303,7 +306,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         // Transfer the Bassets to the user
         for(uint i = 0; i < redemptionAssetCount; i++){
             if(_bassetQuantities[i] > 0){
-                require(IERC20(bAssets[i].addr).transfer(_recipient, _bassetQuantities[i]), "Must be successful transfer");
+                IERC20(bAssets[i].addr).safeTransfer(_recipient, _bassetQuantities[i]);
             }
         }
 
@@ -352,7 +355,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         _burn(msg.sender, massetQuantity);
 
         // Transfer the Bassets to the user
-        require(IERC20(b.addr).transfer(_recipient, _bassetQuantity), "Must be successful transfer");
+        IERC20(b.addr).safeTransfer(_recipient, _bassetQuantity);
 
         emit RedeemedSingle(_recipient, msg.sender, massetQuantity, i, _bassetQuantity);
         return massetQuantity;
