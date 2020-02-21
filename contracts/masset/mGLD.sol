@@ -14,9 +14,9 @@ contract MGLD is Masset {
     constructor (
         address _nexus,
         address[] memory _bassets,
-        bytes32[] memory _bassetKeys,
         uint256[] memory _bassetWeights,
         uint256[] memory _measurementMultiples,
+        bool[] memory _hasTransferFees,
         address _feePool,
         address _forgeValidator
     )
@@ -25,9 +25,9 @@ contract MGLD is Masset {
             "mGLD",
             _nexus,
             _bassets,
-            _bassetKeys,
             _bassetWeights,
             _measurementMultiples,
+            _hasTransferFees,
             _feePool,
             _forgeValidator
         )
