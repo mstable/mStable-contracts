@@ -314,6 +314,20 @@ contract MassetBasket is MassetStructs, MassetCore {
         emit BasketWeightsUpdated(_bassets, _weights);
     }
 
+    /**
+     * @dev Update transfer fee flag
+     * @param _bAsset bAsset address
+     * @param _flag Charge transfer fee when its set to 'true', otherwise 'false'
+     */
+    function upgradeTransferFees(address _bAsset, bool _flag)
+        external
+        onlyGovernor
+    {
+        (bool exist, uint256 index) = _isAssetInBasket(_bAsset);
+        require(exist, "bAsset not exist");
+        basket.bassets[index].isTransferFeeCharged = _flag;
+    }
+
 
     /***************************************
                     GETTERS
