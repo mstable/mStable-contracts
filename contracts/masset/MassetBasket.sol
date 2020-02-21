@@ -204,6 +204,9 @@ contract MassetBasket is MassetStructs, MassetCore {
         (bool alreadyInBasket, ) = _isAssetInBasket(_basset);
         require(!alreadyInBasket, "Asset cannot already be in the basket.");
 
+        require(IManager(_manager()).validateBasset(address(this), _basset, _measurementMultiple, _isTransferFeeCharged),
+            "New bAsset must be valid");
+
         // Check for ERC20 compatibility by forcing decimal retrieval
         // Ultimate enforcement of Basset validity should service through governance
         uint256 basset_decimals = CommonHelpers.mustGetDecimals(_basset);
@@ -225,7 +228,6 @@ contract MassetBasket is MassetStructs, MassetCore {
             status: BassetStatus.Normal,
             isTransferFeeCharged: _isTransferFeeCharged
         }));
-
 
         emit BassetAdded(_basset);
     }

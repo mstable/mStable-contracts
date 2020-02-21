@@ -58,7 +58,7 @@ module.exports = async (deployer, network, accounts) => {
   const d_ForgeValidator = await c_ForgeValidator.deployed();
 
   await deployer.link(c_StableMath, c_Manager);
-  await deployer.deploy(c_Manager, d_Nexus.address, d_ForgeValidator.address);
+  await deployer.deploy(c_Manager, d_Nexus.address);
   const d_Manager = await c_Manager.deployed();
 
   /** Masset prep */

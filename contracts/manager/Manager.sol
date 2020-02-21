@@ -33,16 +33,13 @@ contract Manager is
     /**
       * @dev Sets up the core state of the Manager
       * @param _nexus             Nexus module
-      * @param _forgeValidator          Address of current ForgeValidator
       */
     constructor(
-        address _nexus,
-        address _forgeValidator
+        address _nexus
     )
         ManagerState(_nexus)
         public
     {
-        forgeValidator = _forgeValidator;
     }
 
 
@@ -51,18 +48,23 @@ contract Manager is
     ****************************************/
 
     /**
-      * @dev Upgrades the version of ForgeValidator referenced across the Massets
-      * @param _newForgeValidator Address of the new ForgeValidator
+      * @dev Validates the addition of a new bAsset to a given mAsset
+      * @param _masset                 Address of the new Masset to which the bAsset is added
+      * @param _newBasset              Address of the new bAsset
+      * @param _measurementMultiple    MM relative to the mAsset
+      * @param _isTransferFeeCharged   Does this bAsset have transfer fee
       */
-    function upgradeForgeValidator(address _newForgeValidator)
+    function validateBasset(
+        address _masset,
+        address _newBasset,
+        uint256 _measurementMultiple,
+        bool _isTransferFeeCharged
+    )
         external
-        onlyGovernor
+        view
+        returns (bool isValid)
     {
-        address[] memory _massets = massets.keys;
-        for(uint256 i = 0; i < _massets.length; i++) {
-            IMasset tempMasset = IMasset(_massets[i]);
-            tempMasset.upgradeForgeValidator(_newForgeValidator);
-        }
+        return true;
     }
 
     /***************************************

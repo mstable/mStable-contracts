@@ -37,5 +37,5 @@ module.exports = async (deployer, network, accounts) => {
     addresses[2] = d_Manager.address;
     isLocked[2] = false;
 
-    await d_Nexus.initialize(keys, addresses, isLocked, multisigAddress, {from: governor});
+    await d_Nexus.initialize(keys, addresses, isLocked, governor, {from: governor});
 }

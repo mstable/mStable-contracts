@@ -60,9 +60,6 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
       * @dev Adds multiple new modules to the system to initialize the
       * Nexus contract with default modules. This should be called first
       * after deploying Nexus contract.
-      * WARRNING: The function can be called by anyone. Hence, the
-      * contract deployer must verify that its initialized
-      * correctly with expected Modules.
       * @param _keys Keys of the new modules in bytes32 form
       * @param _addresses Contract addresses of the new modules
       * @param _isLocked IsLocked flag for the new modules
@@ -88,8 +85,9 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
             _publishModule(_keys[i], _addresses[i], _isLocked[i]);
         }
 
-        initialized = true;
         if(_governor != governor()) _changeGovernor(_governor);
+
+        initialized = true;
         return true;
     }
 
