@@ -31,7 +31,6 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         string memory _symbol,
         address _nexus,
         address[] memory _bassets,
-        bytes32[] memory _bassetKeys,
         uint256[] memory _bassetWeights,
         uint256[] memory _bassetMultiples,
         bool[] memory _isTransferFees,
@@ -46,7 +45,6 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         MassetBasket(
           _nexus,
           _bassets,
-          _bassetKeys,
           _bassetWeights,
           _bassetMultiples,
           _isTransferFees
@@ -499,7 +497,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         (bool exists, uint i) = _isAssetInBasket(_basset);
         require(exists, "Basset must exist in Basket");
 
-        (, , , , , BassetStatus status) = _getBasset(i);
+        (, , , , BassetStatus status) = _getBasset(i);
         require(status == BassetStatus.Liquidating, "Invalid Basset state");
         basket.bassets[i].maxWeight = 0;
         basket.bassets[i].vaultBalance = 0;

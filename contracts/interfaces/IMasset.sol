@@ -31,8 +31,8 @@ contract IMasset is MassetStructs {
     function setFeePool(address _feePool) external;
 
     /** @dev Setters for Gov to update Basket composition */
-    function addBasset(address _basset, bytes32 _key) external;
-    function addBasset(address _basset, bytes32 _key, uint256 _measurementMultiple) external;
+    function addBasset(address _basset, bool _isTransferFeeCharged) external;
+    function addBasset(address _basset, uint256 _measurementMultiple, bool _isTransferFeeCharged) external;
     function setBasketWeights(address[] calldata _bassets, uint256[] calldata _weights) external;
 
     /** @dev Recollateralisation */
@@ -58,7 +58,6 @@ contract IMasset is MassetStructs {
         view
         returns (
             address[] memory addresses,
-            bytes32[] memory keys,
             uint256[] memory ratios,
             uint256[] memory weights,
             uint256[] memory vaults,
@@ -69,7 +68,6 @@ contract IMasset is MassetStructs {
         view
         returns (
             address addr,
-            bytes32 key,
             uint256 ratio,
             uint256 weight,
             uint256 vaultBalance,

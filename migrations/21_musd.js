@@ -60,16 +60,7 @@ module.exports = async (deployer, network, accounts) => {
     GUSD.address,
     PAX.address,
   ];
-  /* Basses symbols in hex */
-  const basketKeys = [
-    aToH("USDT<>USD"),
-    aToH("USDC<>USD"),
-    aToH("TUSD<>USD"),
-    aToH("DAI<>USD"),
-    aToH("SUSD<>USD"),
-    aToH("GUSD<>USD"),
-    aToH("PAX<>USD"),
-  ];
+
   /* Assign basset weightings in percent */
   const basketWeights =  [
     percentToWeight(30), // max 30
@@ -95,7 +86,6 @@ module.exports = async (deployer, network, accounts) => {
     c_MUSD,
     d_Nexus.address,
     basketAddresses,
-    basketKeys,
     basketWeights,
     basketIsTransferFeeCharged,
     feePool,

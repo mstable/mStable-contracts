@@ -29,7 +29,7 @@ interface MassetStructs {
 
     }
 
-    /** @dev Stores bAsset info. The struct takes 5 storage slots per Basset */
+    /** @dev Stores bAsset info. The struct takes 4 storage slots per Basset */
     struct Basset {
 
         /** @dev Address of the Basset */
@@ -40,10 +40,6 @@ interface MassetStructs {
 
         /** @dev An ERC20 can charge transfer fee, for example USDT, DGX tokens. */
         bool isTransferFeeCharged; // takes a byte in storage
-
-        // TODO -> Consider removing
-        /** @dev Bytes32 key used for Oracle price lookups */
-        bytes32 key;
 
         /** @dev 1 Basset * ratio / ratioScale == 1 Masset (relative value) */
         uint256 ratio;

@@ -30,7 +30,6 @@ contract MassetBasket is MassetStructs, MassetCore {
     constructor(
         address _nexus,
         address[] memory _bassets,
-        bytes32[] memory _keys,
         uint256[] memory _weights,
         uint256[] memory _multiples,
         bool[] memory _isFeeCharged
@@ -49,7 +48,6 @@ contract MassetBasket is MassetStructs, MassetCore {
         for (uint256 i = 0; i < _bassets.length; i++) {
             _addBasset(
                 _bassets[i],
-                _keys[i],
                 measurementMultipleEnabled ? _multiples[i] : StableMath.getRatio(),
                 _isFeeCharged[i]
                 );
@@ -128,7 +126,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         (bool exists, uint i) = _isAssetInBasket(_basset);
         require(exists, "Basset must exist in Basket");
 
-        (, , , , uint256 vaultBalance, BassetStatus status) = _getBasset(i);
+        (, , , uint256 vaultBalance, BassetStatus status) = _getBasset(i);
         require(!_bassetHasRecolled(status), "Invalid Basset state");
 
         // If vaultBalance is 0 and we want to recol, then just remove from Basket?
@@ -155,26 +153,23 @@ contract MassetBasket is MassetStructs, MassetCore {
     /**
       * @dev External func to allow the Manager to conduct add operations on the Basket
       * @param _basset Address of the ERC20 token to add to the Basket
-      * @param _key Bytes32 key that will be used to lookup price in Oracle
       */
-    function addBasset(address _basset, bytes32 _key, bool _isTransferFeeCharged)
+    function addBasset(address _basset, bool _isTransferFeeCharged)
         external
         managerOrGovernor
         basketIsHealthy
     {
         require(!measurementMultipleEnabled, "Specifying _measurementMultiple disabled");
-        _addBasset(_basset, _key, StableMath.getRatio(), _isTransferFeeCharged);
+        _addBasset(_basset, StableMath.getRatio(), _isTransferFeeCharged);
     }
 
     /**
       * @dev External func to allow the Manager to conduct add operations on the Basket
       * @param _basset Address of the ERC20 token to add to the Basket
-      * @param _key Bytes32 key that will be used to lookup price in Oracle
       * @param _measurementMultiple MeasurementMultiple of the Basset where 1:1 == 1e8
       */
     function addBasset(
         address _basset,
-        bytes32 _key,
         uint256 _measurementMultiple,
         bool _isTransferFeeCharged
     )
@@ -183,20 +178,18 @@ contract MassetBasket is MassetStructs, MassetCore {
         basketIsHealthy
     {
         require(measurementMultipleEnabled, "Specifying _measurementMultiple disabled");
-        _addBasset(_basset, _key, _measurementMultiple, _isTransferFeeCharged);
+        _addBasset(_basset, _measurementMultiple, _isTransferFeeCharged);
     }
 
     /**
       * @dev Adds a basset to the Basket, fetching its decimals and calculating the Ratios
       * @param _basset Address of the ERC20 token to add to the Basket
-      * @param _key Bytes32 key that will be used to lookup price in Oracle
       * @param _measurementMultiple base 1e8 var to determine measurement ratio between basset:masset
       * e.g. a Gold backed basset pegged to 1g where Masset is base 10g would be 1e7 (0.1:1)
       * e.g. a USD backed basset pegged to 1 USD where Masset is pegged to 1 USD would be 1e8 (1:1)
       */
     function _addBasset(
         address _basset,
-        bytes32 _key,
         uint256 _measurementMultiple,
         bool _isTransferFeeCharged
     )
@@ -218,7 +211,6 @@ contract MassetBasket is MassetStructs, MassetCore {
 
         basket.bassets.push(Basset({
             addr: _basset,
-            key: _key,
             ratio: ratio,
             maxWeight: 0,
             vaultBalance: 0,
@@ -351,7 +343,6 @@ contract MassetBasket is MassetStructs, MassetCore {
     view
     returns (
         address[] memory addresses,
-        bytes32[] memory keys,
         uint256[] memory ratios,
         uint256[] memory targets,
         uint256[] memory vaults,
@@ -360,14 +351,13 @@ contract MassetBasket is MassetStructs, MassetCore {
         uint256 len = basket.bassets.length;
 
         addresses = new address[](len);
-        keys = new bytes32[](len);
         ratios = new uint256[](len);
         targets = new uint256[](len);
         vaults = new uint256[](len);
         statuses = new BassetStatus[](len);
 
         for(uint i = 0; i < len; i++){
-            (addresses[i], keys[i], ratios[i], targets[i], vaults[i], statuses[i]) = _getBasset(i);
+            (addresses[i], ratios[i], targets[i], vaults[i], statuses[i]) = _getBasset(i);
         }
     }
 
@@ -380,7 +370,6 @@ contract MassetBasket is MassetStructs, MassetCore {
     view
     returns (
         address addr,
-        bytes32 key,
         uint256 ratio,
         uint256 maxWeight,
         uint256 vaultBalance,
@@ -413,14 +402,13 @@ contract MassetBasket is MassetStructs, MassetCore {
     view
     returns (
         address addr,
-        bytes32 key,
         uint256 ratio,
         uint256 maxWeight,
         uint256 vaultBalance,
         BassetStatus status
     ) {
         Basset memory b = basket.bassets[_bassetIndex];
-        return (b.addr, b.key, b.ratio, b.maxWeight, b.vaultBalance, b.status);
+        return (b.addr, b.ratio, b.maxWeight, b.vaultBalance, b.status);
     }
 
 
