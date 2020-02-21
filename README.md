@@ -126,6 +126,7 @@ Example usage:
 * Claim the reward for tranche 0: `yarn script claim 0`
 * Redeem 100 of the MUSD basset at index 0 (USDT): `yarn redeem-basset 0 100`
 * Redeem the reward for tranche 0: `yarn script redeem-reward 0`
+* Travel through time (forwards only, sorry): `yarn script time-travel 1 year`
 
 ### Coverage
 

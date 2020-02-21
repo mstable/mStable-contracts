@@ -1,31 +1,32 @@
 import chalk from "chalk";
-import dayjs from "dayjs";
-import relativeTime from "dayjs/plugin/relativeTime";
+import humanizeDuration from "humanize-duration";
 import { BN } from "../../../test-utils/tools";
-
-dayjs.extend(relativeTime);
 
 export const nowSimple = (): number => Math.ceil(Date.now() / 1000);
 
 export const nowExact = (): BN => new BN(nowSimple());
 
-export const timeTravel = async (web3: Web3, seconds: BN) => {
-    const block = await web3.eth.getBlock("latest");
-    const forwardTime = block.timestamp + seconds.toNumber() * 1000;
-    const diff = dayjs(block.timestamp).to(forwardTime, true);
+export const blockTimestampExact = async (web3: any, block = "latest"): Promise<BN> => {
+    const timestamp = await blockTimestampSimple(web3, block);
+    return new BN(timestamp);
+};
 
-    console.log(chalk.magenta("------------------------------------------------"));
-    console.log(
-        chalk.magentaBright(`🛸 We gotta travel exactly ${diff} into the future, Morty 🛸`),
-    );
-    console.log(chalk.gray("🚶‍ aww jeez...‍"));
+export const blockTimestampSimple = async (web3: any, block = "latest"): Promise<number> => {
+    const { timestamp } = await web3.eth.getBlock(block);
+    return timestamp;
+};
+
+export const timeTravel = async (web3: any, seconds: number) => {
+    const timestamp = await blockTimestampSimple(web3);
+    const newTimestamp = timestamp + seconds;
+    console.log(`Advancing block time ${seconds} seconds...`);
 
     return new Promise((resolve, reject) => {
         web3.currentProvider.send(
             {
                 jsonrpc: "2.0",
                 method: "evm_mine",
-                params: [forwardTime],
+                params: [newTimestamp],
                 id: new Date().getTime(),
             },
             (err, result) => {

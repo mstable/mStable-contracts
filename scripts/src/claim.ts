@@ -1,7 +1,8 @@
+import humanizeDuration from "humanize-duration";
 import { StandardAccounts } from "@utils/machines/standardAccounts";
 import { getForgeContractInstances } from "./utils/getForgeContractInstances";
 import { logRewardeeData, logTrancheData, logTx } from "./utils/logging";
-import { nowExact, timeTravel } from "./utils/time";
+import { blockTimestampExact } from "./utils/time";
 
 export default async (scope: any, trancheNumber: string, account?: string) => {
     const { forge } = await getForgeContractInstances(scope);
@@ -21,11 +22,15 @@ export default async (scope: any, trancheNumber: string, account?: string) => {
         return;
     }
 
-    const now = nowExact();
-    if (!(now > trancheData.endTime && now < trancheData.claimEndTime)) {
+    const now = await blockTimestampExact(scope.web3);
+    if (!(now.gt(trancheData.endTime) && now.lt(trancheData.claimEndTime))) {
         const seconds = trancheData.endTime.sub(now);
-        await timeTravel(scope.web3, seconds);
-        return
+        console.log(
+            `Exiting: claim window not open yet. Try time-travelling ${humanizeDuration(
+                seconds.toNumber() * 1000,
+            )} seconds.`,
+        );
+        return;
     }
 
     await logTx(
