@@ -4031,7 +4031,7 @@ minimalistic-crypto-utils@^1.0.0, minimalistic-crypto-utils@^1.0.1:
 
 "minimetoken@ssh://git@github.com/mstable/minime.git#mStable-meta-token":
   version "0.2.0"
-  resolved "ssh://git@github.com/mstable/minime.git#33eca0c84b06446cb88c4c80c8f2517ab1a3eacd"
+  resolved "ssh://git@github.com/mstable/minime.git#1371422b0215af7a07098b1b6220a883826267b7"
   dependencies:
     eth-contract-class "0.0.6"
 
