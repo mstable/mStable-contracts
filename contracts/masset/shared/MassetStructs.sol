@@ -14,6 +14,9 @@ interface MassetStructs {
         Basset[] bassets;
         mapping(address => uint256) bassetsMap;
 
+        /** @dev Max number of bAssets that can be present in any Basket */
+        uint8 maxBassets;
+
         /**
          * @dev Old Bassets that have been removed from the system
          */

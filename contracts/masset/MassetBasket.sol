@@ -44,8 +44,9 @@ contract MassetBasket is MassetStructs, MassetCore {
         measurementMultipleEnabled = _multiples.length > 0;
 
         // Defaults
-        basket.collateralisationRatio = 1e18;
-        redemptionFee = 2e16;
+        basket.maxBassets = 16; // 16
+        basket.collateralisationRatio = 1e18; // 100%
+        redemptionFee = 2e16; // 2%
 
         for (uint256 i = 0; i < _bassets.length; i++) {
             _addBasset(
@@ -211,7 +212,10 @@ contract MassetBasket is MassetStructs, MassetCore {
 
         uint256 ratio = _measurementMultiple.mul(10 ** delta);
 
-        basket.bassetsMap[_basset] = basket.bassets.length;
+        uint256 numberOfBassetsInBasket = basket.bassets.length;
+        require(numberOfBassetsInBasket < basket.maxBassets, "Max bAssets in Basket");
+
+        basket.bassetsMap[_basset] = numberOfBassetsInBasket;
 
         basket.bassets.push(Basset({
             addr: _basset,

@@ -157,25 +157,6 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         return ratioedBasset;
     }
 
-    function _transferTokens(
-        address _basset,
-        bool _isFeeCharged,
-        uint256 _qty
-    )
-        private
-        returns (uint256 receivedQty)
-    {
-        receivedQty = _qty;
-        if(_isFeeCharged) {
-            uint256 balBefore = IERC20(_basset).balanceOf(address(this));
-            IERC20(_basset).safeTransferFrom(msg.sender, address(this), _qty);
-            uint256 balAfter = IERC20(_basset).balanceOf(address(this));
-            receivedQty = StableMath.min(_qty, balAfter.sub(balBefore));
-        } else {
-            IERC20(_basset).safeTransferFrom(msg.sender, address(this), _qty);
-        }
-    }
-
     /**
      * @dev Mints a number of Massets based on the sum of the value of the Bassets
      * @param _bassetsBitmap bits set in bitmap represent position of bAssets to use
@@ -227,6 +208,25 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         emit Minted(_recipient, massetQuantity, _bassetQuantity);
 
         return massetQuantity;
+    }
+
+    function _transferTokens(
+        address _basset,
+        bool _isFeeCharged,
+        uint256 _qty
+    )
+        private
+        returns (uint256 receivedQty)
+    {
+        receivedQty = _qty;
+        if(_isFeeCharged) {
+            uint256 balBefore = IERC20(_basset).balanceOf(address(this));
+            IERC20(_basset).safeTransferFrom(msg.sender, address(this), _qty);
+            uint256 balAfter = IERC20(_basset).balanceOf(address(this));
+            receivedQty = StableMath.min(_qty, balAfter.sub(balBefore));
+        } else {
+            IERC20(_basset).safeTransferFrom(msg.sender, address(this), _qty);
+        }
     }
 
     /***************************************
