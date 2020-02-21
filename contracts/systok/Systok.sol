@@ -4,12 +4,15 @@ import { MiniMeToken } from "minimetoken/contracts/MiniMeToken.sol";
 import { ISystok } from "../interfaces/ISystok.sol";
 import { Module } from "../shared/Module.sol";
 
+import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 contract Systok is ISystok, Module, MiniMeToken {
 
-  /**
-   * @dev Systok just parameterises the MiniMeToken
-   */
+    using SafeMath for uint256;
+
+    /**
+     * @dev Systok just parameterises the MiniMeToken
+     */
     constructor(
         address _tokenFactory,
         address _nexus,
@@ -52,6 +55,16 @@ contract Systok is ISystok, Module, MiniMeToken {
     ****************************************/
 
     // function destroyTokens || burn
-    // function increaseApproval
-    // function decreaseApproval
+
+    // Copied from https://github.com/OpenZeppelin/openzeppelin-contracts-ethereum-package/blob/master/contracts/token/ERC20/ERC20.sol#118
+    function increaseAllowance(address spender, uint256 addedValue) public returns (bool) {
+        _approve(spender, allowed[msg.sender][spender].add(addedValue));
+        return true;
+    }
+
+    // Copied from https://github.com/OpenZeppelin/openzeppelin-contracts-ethereum-package/blob/master/contracts/token/ERC20/ERC20.sol#137
+    function decreaseAllowance(address spender, uint256 subtractedValue) public returns (bool) {
+        _approve(spender, allowed[msg.sender][spender].sub(subtractedValue));
+        return true;
+    }
 }
