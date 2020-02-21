@@ -458,6 +458,23 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, Governable {
     }
 
     /**
+     * @dev Understand if a rewardee has participated in a tranche
+     * @param _trancheNumber        ID of the tranche
+     * @param _rewardee             Address of the rewardee
+     * @return hasParticipated      Bool to indicate that a rewardee has participated
+     */
+    function getRewardeeParticipation(uint256 _trancheNumber, address _rewardee)
+    external
+    view
+    returns (
+        bool hasParticipated
+    ) {
+        Reward memory reward = trancheData[_trancheNumber].rewardeeData[_rewardee];
+        return reward.mintVolume > 0 || reward.rewardAllocation > 0;
+    }
+
+
+    /**
      * @dev Get data for a particular rewardee at a particular tranche
      * @param _trancheNumber        ID of the tranche
      * @param _rewardee             Address of the rewardee
