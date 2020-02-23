@@ -3,6 +3,7 @@ pragma experimental ABIEncoderV2;
 
 import { IManager } from "../interfaces/IManager.sol";
 import { IMasset } from "../interfaces/IMasset.sol";
+import { IERC20 }     from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import { IOracleHub } from "../interfaces/IOracleHub.sol";
 
 import { ManagerState } from "./ManagerState.sol";
@@ -16,7 +17,6 @@ import { StableMath } from "../shared/math/StableMath.sol";
  * - Manages the basket
  * - Coordinates recollateralisation
  * - Maintains State
- * Module: Handles new module updates published by the Nexus
  * Portal: Provides Massets with prices and general interface into system
  * FactoryHub: Creates more Massets
  */
@@ -139,6 +139,7 @@ contract Manager is
         require(_masset != address(0), "Masset must be a referenced implementation");
         bytes32 key = massets.get(_masset);
         require(key != bytes32(0x0), "Masset must be a referenced implementation");
+        require(IERC20(_masset).totalSupply() == 0, "Masset must be unused");
 
         massets.remove(_masset);
 
