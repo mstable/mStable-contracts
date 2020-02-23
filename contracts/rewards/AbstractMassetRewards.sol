@@ -3,7 +3,7 @@ pragma solidity ^0.5.12;
 import { IMassetRewards } from "./IMassetRewards.sol";
 import { IMasset } from "../interfaces/IMasset.sol";
 import { ISystok } from "../interfaces/ISystok.sol";
-import { StableMath } from "../shared/math/StableMath.sol";
+import { StableMath } from "../shared/StableMath.sol";
 import { Governable } from "../governance/Governable.sol";
 
 import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
@@ -302,7 +302,7 @@ contract AbstractMassetRewards is IMassetRewards, Governable {
      * @return totalPoints            Total points accrued during Tranche
      * @return totalRewardUnits       Total units of funding provided by governance
      * @return unclaimedRewardUnits   Total units of funding remaining unclaimed
-     * @return rewardees              Array of reward participants
+     * @return participants           Array of reward participants
      */
     function getTrancheData(uint256 _trancheNumber)
     external
@@ -315,7 +315,7 @@ contract AbstractMassetRewards is IMassetRewards, Governable {
         uint256 totalPoints,
         uint256 totalRewardUnits,
         uint256 unclaimedRewardUnits,
-        address[] memory rewardees
+        address[] memory participants
     ) {
         Tranche memory tranche = trancheData[_trancheNumber];
         TrancheDates memory trancheDates = _getTrancheDates(_trancheNumber);
@@ -329,6 +329,22 @@ contract AbstractMassetRewards is IMassetRewards, Governable {
           tranche.unclaimedRewardUnits,
           tranche.rewardees
         );
+    }
+
+    /**
+     * @dev Understand if a rewardee has participated in a tranche
+     * @param _trancheNumber        ID of the tranche
+     * @param _rewardee             Address of the rewardee
+     * @return hasParticipated      Bool to indicate that a rewardee has participated
+     */
+    function getRewardeeParticipation(uint256 _trancheNumber, address _rewardee)
+    external
+    view
+    returns (
+        bool hasParticipated
+    ) {
+        Reward memory reward = trancheData[_trancheNumber].rewardeeData[_rewardee];
+        return reward.userPoints > 0 || reward.rewardAllocation > 0;
     }
 
     /**

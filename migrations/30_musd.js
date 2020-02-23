@@ -105,7 +105,7 @@ module.exports = async (deployer, network, accounts) => {
   const massets = await d_Manager.getMassets();
   console.log(`[mUSD]: '${massets[0][0]}'`);
   
-
+  console.log('here')
   // Deploy ForgeRewardsMUSD contract
   await deployer.deploy(
     c_ForgeRewardsMUSD,

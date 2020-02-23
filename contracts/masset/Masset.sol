@@ -6,6 +6,7 @@ import { ISystok } from "../interfaces/ISystok.sol";
 
 import { MassetBasket, IManager, IForgeValidator } from "./MassetBasket.sol";
 import { MassetToken } from "./MassetToken.sol";
+import { MassetHelpers } from "./shared/MassetHelpers.sol";
 
 import { StableMath } from "../shared/StableMath.sol";
 import { SafeERC20 }  from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
@@ -141,7 +142,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
         Basset memory b = basket.bassets[i];
 
-        uint256 bAssetQty = _transferTokens(_basset, b.isTransferFeeCharged, _bassetQuantity);
+        uint256 bAssetQty = MassetHelpers.transferTokens(msg.sender, address(this), _basset, b.isTransferFeeCharged, _bassetQuantity);
 
         //Validation should be after token transfer, as bAssetQty is unknown before
         forgeValidator.validateMint(totalSupply(), b, bAssetQty);
@@ -189,7 +190,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
                 // bAsset == bAssets[j] == basket.bassets[indexes[j]]
                 Basset memory bAsset = bAssets[j];
 
-                uint256 receivedBassetQty = _transferTokens(bAsset.addr, bAsset.isTransferFeeCharged, _bassetQuantity[j]);
+                uint256 receivedBassetQty = MassetHelpers.transferTokens(msg.sender, address(this), bAsset.addr, bAsset.isTransferFeeCharged, _bassetQuantity[j]);
                 receivedQty[j] = receivedBassetQty;
                 basket.bassets[indexes[j]].vaultBalance = bAsset.vaultBalance.add(receivedBassetQty);
 
@@ -463,25 +464,6 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         }
         require(idx == _size, "Found incorrect elements");
         return indexes;
-    }
-
-    function _transferTokens(
-        address _basset,
-        bool _isFeeCharged,
-        uint256 _qty
-    )
-        private
-        returns (uint256 receivedQty)
-    {
-        receivedQty = _qty;
-        if(_isFeeCharged) {
-            uint256 balBefore = IERC20(_basset).balanceOf(address(this));
-            IERC20(_basset).safeTransferFrom(msg.sender, address(this), _qty);
-            uint256 balAfter = IERC20(_basset).balanceOf(address(this));
-            receivedQty = StableMath.min(_qty, balAfter.sub(balBefore));
-        } else {
-            IERC20(_basset).safeTransferFrom(msg.sender, address(this), _qty);
-        }
     }
 
     /***************************************

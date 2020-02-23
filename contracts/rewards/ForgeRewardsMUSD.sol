@@ -5,9 +5,8 @@ import { AbstractMassetRewards } from "./AbstractMassetRewards.sol";
 
 import { IMasset } from "../interfaces/IMasset.sol";
 import { ISystok } from "../interfaces/ISystok.sol";
-import { StableMath } from "../shared/StableMath.sol";
-import { Governable } from "../governance/Governable.sol";
 
+import { StableMath } from "../shared/StableMath.sol";
 import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
 import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
@@ -33,7 +32,7 @@ contract ForgeRewardsMUSD is AbstractMassetRewards, IForgeRewards {
     constructor(IMasset _mUSD, ISystok _MTA, address _governor)
       public
       AbstractMassetRewards(_mUSD, _MTA, _governor) {
-        approveAllBassets();
+        // approveAllBassets();
     }
 
     /***************************************

@@ -17,6 +17,7 @@ const { percentToWeight, createMultiple,simpleToExactAmount } = require('@utils/
 
 module.exports = async (deployer, network, accounts) => {
 
+  console.log('there')
 	const [ _, governor, fundManager, oracleSource, feePool ] = accounts;
 
   /* Get deployed Manager */
