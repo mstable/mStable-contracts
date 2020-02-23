@@ -3,7 +3,7 @@ pragma solidity ^0.5.12;
 import { IManager } from "../interfaces/IManager.sol";
 import { IForgeValidator } from "./forge-validator/IForgeValidator.sol";
 
-import { StableMath } from "../shared/math/StableMath.sol";
+import { StableMath } from "../shared/StableMath.sol";
 import { Module } from "../shared/Module.sol";
 
 /**

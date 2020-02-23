@@ -62,6 +62,21 @@ library StableMath {
     ****************************************/
 
     /**
+     * @dev Multiplies two precise units, and then truncates by the full scale
+     * @param x     Left hand input to multiplication
+     * @param y     Right hand input to multiplication
+     * @return      Result after multiplying the two inputs and then dividing by the shared
+     *              scale unit
+     */
+    function mulTruncate(uint256 x, uint256 y)
+        internal
+        pure
+        returns (uint256)
+    {
+        return mulTruncate(x, y, fullScale);
+    }
+
+    /**
      * @dev Multiplies two precise units, and then truncates by the given scale. For example,
      * when calculating 90% of 10e18, (10e18 * 9e17) / 1e18 = (9e36) / 1e18 = 9e18
      * @param x     Left hand input to multiplication
@@ -80,21 +95,6 @@ library StableMath {
         uint256 z = x.mul(y);
         // return 9e38 / 1e18 = 9e18
         return z.div(scale);
-    }
-
-    /**
-     * @dev Multiplies two precise units, and then truncates by the full scale
-     * @param x     Left hand input to multiplication
-     * @param y     Right hand input to multiplication
-     * @return      Result after multiplying the two inputs and then dividing by the shared
-     *              scale unit
-     */
-    function mulTruncate(uint256 x, uint256 y)
-        internal
-        pure
-        returns (uint256)
-    {
-        return mulTruncate(x, y, fullScale);
     }
 
     /**
@@ -137,9 +137,9 @@ library StableMath {
     }
 
 
-    /********************************
-              RATIO FUNCS
-    ********************************/
+    /***************************************
+                  RATIO FUNCS
+    ****************************************/
 
     /**
      * @dev Multiplies and truncates a token ratio, essentially flooring the result
@@ -157,6 +157,7 @@ library StableMath {
 
     /**
      * @dev Multiplies and truncates a token ratio, rounding up the result
+     *      i.e. How much mAsset is this bAsset worth?
      * @param x     Left hand input to multiplication (i.e Exact quantity)
      * @param ratio bAsset ratio
      * @return      Result after multiplying the two inputs and then dividing by the shared
@@ -179,6 +180,7 @@ library StableMath {
 
     /**
      * @dev Precisely divides two ratioed units, by first scaling the left hand operand
+     *      i.e. How much bAsset is this mAsset worth?
      * @param x     Left hand operand in division
      * @param ratio bAsset ratio
      * @return      Result after multiplying the left operand by the scale, and
@@ -189,7 +191,9 @@ library StableMath {
         pure
         returns (uint256 c)
     {
+        // e.g. 1e14 * 1e8 = 1e22
         uint256 y = x.mul(ratioScale);
+        // return 1e22 / 1e12 = 1e10
         return y.div(ratio);
     }
 
@@ -231,10 +235,10 @@ library StableMath {
      * @param upperBound  Maximum possible value to return
      * @return            Input x clamped to a maximum value, upperBound
      */
-    function clamp(uint x, uint upperBound)
+    function clamp(uint256 x, uint256 upperBound)
         internal
         pure
-        returns (uint b)
+        returns (uint256)
     {
         return x > upperBound ? upperBound : x;
     }

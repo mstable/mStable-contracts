@@ -10,6 +10,7 @@ const c_CommonHelpers = artifacts.require('CommonHelpers');
 const c_ForgeValidator = artifacts.require('ForgeValidator');
 
 const c_StableMath = artifacts.require('StableMath');
+const c_PublicStableMath = artifacts.require('PublicStableMath');
 
 const c_Masset = artifacts.require('Masset')
 
@@ -29,11 +30,14 @@ module.exports = async (deployer, network, accounts) => {
   // const oracleSource = [];
   const [ _, governor, fundManager, oracleSource, feePool ] = accounts;
 
-
   /** Common Libs */
   await deployer.deploy(c_StableMath, { from: _ });
+  await deployer.link(c_StableMath, c_Masset);
+	await deployer.link(c_StableMath, c_PublicStableMath);
+  await deployer.link(c_StableMath, c_ForgeValidator);
+	await deployer.deploy(c_PublicStableMath, { from: _ });
   await deployer.deploy(c_CommonHelpers, { from: _ });
-
+  await deployer.link(c_CommonHelpers, c_Masset);
 
   /** Nexus */
   await deployer.deploy(c_Nexus, governor, {from: governor});
@@ -45,25 +49,15 @@ module.exports = async (deployer, network, accounts) => {
   const d_Systok = await c_Systok.deployed();
 
   /** OracleHub */
-
   await deployer.deploy(c_OracleHub, d_Nexus.address, oracleSource );
   const d_OracleHub = await c_OracleHub.deployed();
 
 
   /** Manager */
-
-  // Deploy ForgeValidator
-  await deployer.link(c_StableMath, c_ForgeValidator);
   await deployer.deploy(c_ForgeValidator);
-  const d_ForgeValidator = await c_ForgeValidator.deployed();
 
-  await deployer.link(c_StableMath, c_Manager);
   await deployer.deploy(c_Manager, d_Nexus.address);
   const d_Manager = await c_Manager.deployed();
-
-  /** Masset prep */
-  await deployer.link(c_StableMath, c_Masset);
-  await deployer.link(c_CommonHelpers, c_Masset);
 
 
   console.log(`[Nexus]: '${d_Nexus.address}'`)

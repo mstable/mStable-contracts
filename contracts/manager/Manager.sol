@@ -8,8 +8,6 @@ import { IOracleHub } from "../interfaces/IOracleHub.sol";
 
 import { ManagerState } from "./ManagerState.sol";
 
-import { StableMath } from "../shared/math/StableMath.sol";
-
 /**
  * @title Manager
  * @dev Base class for managing mStable Assets (Massets)
@@ -24,8 +22,6 @@ contract Manager is
     IManager,
     ManagerState
 {
-    using StableMath for uint256;
-
     /** @dev Events to emit */
     event MassetAdded(bytes32 indexed key, address addr);
     event MassetEjected(bytes32 indexed key, address addr);
