@@ -218,7 +218,7 @@ contract ForgeValidator is IForgeValidator {
         for(uint256 i = 0; i < len; i++) {
             uint256 maxWeightInUnits = _bAssets[i].maxWeight.mulTruncate(_newTotal);
             // If the bAsset is de-pegged on the up-side, it doesn't matter if it goes above max
-            bool bassetOverWeight = _ratioedBassetVaultsAfter[i] > maxWeightInUnits&& _bAssets[i].status != BassetStatus.BrokenAbovePeg;
+            bool bassetOverWeight = _ratioedBassetVaultsAfter[i] > maxWeightInUnits && _bAssets[i].status != BassetStatus.BrokenAbovePeg;
 
             atLeastOneOverweight = atLeastOneOverweight || bassetOverWeight;
         }
