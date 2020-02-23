@@ -44,7 +44,11 @@ interface MassetStructs {
         /** @dev An ERC20 can charge transfer fee, for example USDT, DGX tokens. */
         bool isTransferFeeCharged; // takes a byte in storage
 
-        /** @dev 1 Basset * ratio / ratioScale == 1 Masset (relative value) */
+        /**
+         * @dev 1 Basset * ratio / ratioScale == x Masset (relative value)
+         *      If ratio == 10e8 then 1 bAsset = 10 mAssets
+         *      A ratio is divised as 10^(18-tokenDecimals) * measurementMultiple(relative value of 1 base unit)
+         */
         uint256 ratio;
 
         /** @dev Target weights of the Basset (100% == 1e18) */

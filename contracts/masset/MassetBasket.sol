@@ -51,7 +51,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         for (uint256 i = 0; i < _bassets.length; i++) {
             _addBasset(
                 _bassets[i],
-                measurementMultipleEnabled ? _multiples[i] : StableMath.getRatio(),
+                measurementMultipleEnabled ? _multiples[i] : StableMath.getRatioScale(),
                 _hasTransferFees[i]
                 );
         }
@@ -165,7 +165,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         basketIsHealthy
     {
         require(!measurementMultipleEnabled, "Specifying _measurementMultiple disabled");
-        _addBasset(_basset, StableMath.getRatio(), _isTransferFeeCharged);
+        _addBasset(_basset, StableMath.getRatioScale(), _isTransferFeeCharged);
     }
 
     /**
@@ -304,7 +304,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         require(bassetCount == basket.bassets.length, "Must be matching existing basket layout");
 
         uint256 weightSum = CommonHelpers.sumOfArrayValues(_weights);
-        require(weightSum >= StableMath.getScale(), "Basket weight must total > 100% == 1");
+        require(weightSum >= StableMath.getFullScale(), "Basket weight must total > 100% == 1");
 
         for (uint256 i = 0; i < bassetCount; i++) {
             address basset = _bassets[i];
@@ -314,7 +314,7 @@ contract MassetBasket is MassetStructs, MassetCore {
             uint256 bassetWeight = _weights[i];
             if(basket.bassets[i].status == BassetStatus.Normal) {
                 require(bassetWeight >= 0, "Weight must be positive");
-                require(bassetWeight <= StableMath.getScale(), "Asset weight must be less than or equal to 1");
+                require(bassetWeight <= StableMath.getFullScale(), "Asset weight must be less than or equal to 1");
                 basket.bassets[i].maxWeight = bassetWeight;
             } else {
                 require(bassetWeight == basket.bassets[i].maxWeight, "Cannot change weightings for suffering Bassets");

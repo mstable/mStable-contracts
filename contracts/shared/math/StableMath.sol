@@ -3,106 +3,239 @@ pragma solidity ^0.5.12;
 import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 /**
- * @title StableMath
- * @author Stability Labs Pty. Ltd.
- * @dev Accesses the Stable Math library using generic system wide variables for managing precision
- * Derives from OpenZeppelin's SafeMath lib
+ * @title   StableMath
+ * @author  Stability Labs Pty. Ltd.
+ * @notice  A library providing safe mathematical operations to multiply and
+ *          divide with standardised precision.
+ * @dev     Derives from OpenZeppelin's SafeMath lib and uses generic system
+ *          wide variables for managing precision.
  */
 library StableMath {
 
     using SafeMath for uint256;
 
-    /** @dev Scaling units for use in specific calculations */
+    /**
+     * @dev Scaling unit for use in specific calculations,
+     * where 1 * 10**18, or 1e18 represents a unit '1'
+     */
     uint256 private constant fullScale = 1e18;
-    uint256 private constant percentScale = 1e16; // 1% max weight == 1e16... 100% == 1e18... 50% == 5e17
 
-    // (1 bAsset unit * bAsset.ratio) / ratioScale == 1 mAsset unit
-    // Reasoning: Takes into account token decimals, and difference in base unit (i.e. grams to Troy oz for gold)
+    /**
+     * @notice Token Ratios are used when converting between units of bAsset, mAsset and MTA
+     * Reasoning: Takes into account token decimals, and difference in base unit (i.e. grams to Troy oz for gold)
+     * @dev bAsset ratio unit for use in exact calculations,
+     * where (1 bAsset unit * bAsset.ratio) / ratioScale == x mAsset unit
+     */
     uint256 private constant ratioScale = 1e8;
 
-    /** @dev Getters */
-    function getScale() internal pure returns (uint256) {
+    /**
+     * @dev Provides an interface to the scaling unit
+     * @return Scaling unit (1e18 or 1 * 10**18)
+     */
+    function getFullScale() internal pure returns (uint256) {
         return fullScale;
     }
-    function getPercent() internal pure returns (uint256) {
-        return percentScale;
-    }
-    function getRatio() internal pure returns (uint256) {
+
+    /**
+     * @dev Provides an interface to the ratio unit
+     * @return Ratio scale unit (1e8 or 1 * 10**8)
+     */
+    function getRatioScale() internal pure returns (uint256) {
         return ratioScale;
     }
 
-    /********************************
-              UINT256 FUNCS
-    ********************************/
-
-    /** @dev Scaled a given integer to the power of the full scale. */
-    function scale(uint256 a) internal pure returns (uint256 b) {
-        return a.mul(fullScale);
+    /**
+     * @dev Scales a given integer to the power of the full scale.
+     * @param x   Simple uint to scale
+     * @return    Scaled value a to an exact number
+     */
+    function scaleInteger(uint256 x)
+        internal
+        pure
+        returns (uint256)
+    {
+        return x.mul(fullScale);
     }
 
-    /** @dev Multiplies two numbers and truncates */
-    function mulTruncate(uint256 a, uint256 b, uint256 _scale) internal pure returns (uint256 c) {
-        uint256 d = a.mul(b);
-        c = d.div(_scale);
+    /***************************************
+              PRECISE ARITHMETIC
+    ****************************************/
+
+    /**
+     * @dev Multiplies two precise units, and then truncates by the given scale. For example,
+     * when calculating 90% of 10e18, (10e18 * 9e17) / 1e18 = (9e36) / 1e18 = 9e18
+     * @param x     Left hand input to multiplication
+     * @param y     Right hand input to multiplication
+     * @param scale Scale unit
+     * @return      Result after multiplying the two inputs and then dividing by the shared
+     *              scale unit
+     */
+    function mulTruncate(uint256 x, uint256 y, uint256 scale)
+        internal
+        pure
+        returns (uint256)
+    {
+        // e.g. assume scale = fullScale
+        // z = 10e18 * 9e17 = 9e36
+        uint256 z = x.mul(y);
+        // return 9e38 / 1e18 = 9e18
+        return z.div(scale);
     }
 
-    /** @dev Multiplies two numbers and truncates using standard full scale */
-    function mulTruncate(uint256 a, uint256 b) internal pure returns (uint256 c){
-        return mulTruncate(a, b, fullScale);
+    /**
+     * @dev Multiplies two precise units, and then truncates by the full scale
+     * @param x     Left hand input to multiplication
+     * @param y     Right hand input to multiplication
+     * @return      Result after multiplying the two inputs and then dividing by the shared
+     *              scale unit
+     */
+    function mulTruncate(uint256 x, uint256 y)
+        internal
+        pure
+        returns (uint256)
+    {
+        return mulTruncate(x, y, fullScale);
     }
 
-    /** @dev Multiplies two numbers and truncates to ceil */
-    function mulTruncateCeil(uint256 a, uint256 b) internal pure returns (uint256 c){
-        uint256 scaled = a.mul(b);
+    /**
+     * @dev Multiplies two precise units, and then truncates by the full scale, rounding up the result
+     * @param x     Left hand input to multiplication
+     * @param y     Right hand input to multiplication
+     * @return      Result after multiplying the two inputs and then dividing by the shared
+     *              scale unit, rounded up to the closest base unit.
+     */
+    function mulTruncateCeil(uint256 x, uint256 y)
+        internal
+        pure
+        returns (uint256)
+    {
+        // e.g. 8e17 * 17268172638 = 138145381104e17
+        uint256 scaled = x.mul(y);
+        // e.g. 138145381104e17 + 9.99...e17 = 138145381113.99...e17
         uint256 ceil = scaled.add(fullScale.sub(1));
-        c = ceil.div(fullScale);
+        // e.g. 13814538111.399...e18 / 1e18 = 13814538111
+        return ceil.div(fullScale);
     }
 
-
-    /** @dev Precisely divides two numbers, first by expanding */
-    function divPrecisely(uint256 a, uint256 b) internal pure returns (uint256 c) {
-        uint256 d = a.mul(fullScale);
-        c = d.div(b);
+    /**
+     * @dev Precisely divides two units, by first scaling the left hand operand. Useful
+     *      for finding percentage weightings, i.e. 8e18/10e18 = 80% (or 8e17)
+     * @param x     Left hand input to division
+     * @param y     Right hand input to division
+     * @return      Result after multiplying the left operand by the scale, and
+     *              executing the division on the right hand input.
+     */
+    function divPrecisely(uint256 x, uint256 y)
+        internal
+        pure
+        returns (uint256)
+    {
+        // e.g. 8e18 * 1e18 = 8e36
+        uint256 z = x.mul(fullScale);
+        // e.g. 8e36 / 10e18 = 8e17
+        return z.div(y);
     }
 
-    /** @dev Returns minimum of two numbers */
-    function min(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a > b ? b : a;
-    }
-
-    /** @dev Returns maximum of two numbers */
-    function max(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a > b ? a : b;
-    }
-
-    /** @dev Clamps a value to an upper bound */
-    function clamp(uint a, uint upperBound) internal pure returns (uint b) {
-        return a > upperBound ? upperBound : a;
-    }
 
     /********************************
               RATIO FUNCS
     ********************************/
 
-    /** @notice Token Ratios are used when converting between units of Basset, Masset and Meta
-     * It consists of 10^(18-tokenDecimals) * measurementMultiple(where 1:1 == 1e8) */
-
-    /** @dev Multiplies and truncates a token ratio, essentially flooring */
-    function mulRatioTruncate(uint256 a, uint256 ratio) internal pure returns (uint256 c){
-        return mulTruncate(a, ratio, ratioScale);
+    /**
+     * @dev Multiplies and truncates a token ratio, essentially flooring the result
+     * @param x     Left hand operand to multiplication (i.e Exact quantity)
+     * @param ratio bAsset ratio
+     * @return      Result after multiplying the two inputs and then dividing by the ratio scale
+     */
+    function mulRatioTruncate(uint256 x, uint256 ratio)
+        internal
+        pure
+        returns (uint256 c)
+    {
+        return mulTruncate(x, ratio, ratioScale);
     }
 
-    /** @dev Multiplies and truncates a token ratio, rounding up */
-    function mulRatioTruncateCeil(uint256 a, uint256 ratio) internal pure returns (uint256 c){
-        uint256 scaled = a.mul(ratio);
+    /**
+     * @dev Multiplies and truncates a token ratio, rounding up the result
+     * @param x     Left hand input to multiplication (i.e Exact quantity)
+     * @param ratio bAsset ratio
+     * @return      Result after multiplying the two inputs and then dividing by the shared
+     *              ratio scale, rounded up to the closest base unit.
+     */
+    function mulRatioTruncateCeil(uint256 x, uint256 ratio)
+        internal
+        pure
+        returns (uint256)
+    {
+        // e.g. How much mAsset should I burn for this bAsset (x)?
+        // 1e18 * 1e8 = 1e26
+        uint256 scaled = x.mul(ratio);
+        // 1e26 + 9.99e7 = 100..00.999e8
         uint256 ceil = scaled.add(ratioScale.sub(1));
-        c = ceil.div(ratioScale);
+        // return 100..00.999e8 / 1e8 = 1e18
+        return ceil.div(ratioScale);
     }
 
-    /** @dev Divides a value by a given ratio, by first extrapolating */
-    function divRatioPrecisely(uint256 a, uint256 ratio) internal pure returns (uint256 c){
-        uint256 d = a.mul(ratioScale);
-        c = d.div(ratio);
+
+    /**
+     * @dev Precisely divides two ratioed units, by first scaling the left hand operand
+     * @param x     Left hand operand in division
+     * @param ratio bAsset ratio
+     * @return      Result after multiplying the left operand by the scale, and
+     *              executing the division on the right hand input.
+     */
+    function divRatioPrecisely(uint256 x, uint256 ratio)
+        internal
+        pure
+        returns (uint256 c)
+    {
+        uint256 y = x.mul(ratioScale);
+        return y.div(ratio);
     }
 
+    /***************************************
+                    HELPERS
+    ****************************************/
+
+    /**
+     * @dev Calculates minimum of two numbers
+     * @param x     Left hand input
+     * @param y     Right hand input
+     * @return      Minimum of the two inputs
+     */
+    function min(uint256 x, uint256 y)
+        internal
+        pure
+        returns (uint256)
+    {
+        return x > y ? y : x;
+    }
+
+    /**
+     * @dev Calculated maximum of two numbers
+     * @param x     Left hand input
+     * @param y     Right hand input
+     * @return      Maximum of the two inputs
+     */
+    function max(uint256 x, uint256 y)
+        internal
+        pure
+        returns (uint256)
+    {
+        return x > y ? x : y;
+    }
+
+    /**
+     * @dev Clamps a value to an upper bound
+     * @param x           Left hand input
+     * @param upperBound  Maximum possible value to return
+     * @return            Input x clamped to a maximum value, upperBound
+     */
+    function clamp(uint x, uint upperBound)
+        internal
+        pure
+        returns (uint b)
+    {
+        return x > upperBound ? upperBound : x;
+    }
 }
