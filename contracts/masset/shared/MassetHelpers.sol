@@ -4,9 +4,8 @@ import { IMasset } from "../../interfaces/IMasset.sol";
 
 /**
   * @title MassetHelpers
-  * @dev Helper functions to facilitate minting and redemption from external contracts
+  * @dev Helper functions to facilitate minting and redemption from off chain
   */
 library MassetHelpers {
-
 
 }

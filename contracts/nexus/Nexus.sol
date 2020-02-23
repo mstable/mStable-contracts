@@ -78,8 +78,8 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
     {
         uint256 len = _keys.length;
         require(len > 0, "No keys provided");
-        require(len == _addresses.length, "Insuffecient address data provided");
-        require(len == _isLocked.length, "Insuffecient locked status provided");
+        require(len == _addresses.length, "Insuffecient address data");
+        require(len == _isLocked.length, "Insuffecient locked statuses");
 
         for(uint i = 0 ; i < len; i++) {
             _publishModule(_keys[i], _addresses[i], _isLocked[i]);
@@ -114,7 +114,7 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
     external
     onlyGovernor {
         require(_key != bytes32(0x0), "Key must not be zero");
-        require(_addr != address(0), "Module address must not be zero address");
+        require(_addr != address(0), "Module address must not be 0");
         require(!modules[_key].isLocked, "Module must be unlocked");
         require(modules[_key].addr != _addr, "Module already has same address");
         Proposal storage p = proposedModules[_key];

@@ -39,7 +39,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         MassetCore(_nexus)
         public
     {
-        require(_bassets.length > 0, "Must initialise the basket with some bAssets");
+        require(_bassets.length > 0, "Must initialise with some bAssets");
 
         measurementMultipleEnabled = _multiples.length > 0;
 
@@ -80,7 +80,7 @@ contract MassetBasket is MassetStructs, MassetCore {
     basketIsHealthy
     returns (bool alreadyActioned) {
         (bool exists, uint i) = _isAssetInBasket(_basset);
-        require(exists, "Basset must exist in Basket");
+        require(exists, "bASset must exist in Basket");
 
         BassetStatus oldStatus = basket.bassets[i].status;
         BassetStatus newStatus = _belowPeg ? BassetStatus.BrokenBelowPeg : BassetStatus.BrokenAbovePeg;
@@ -108,7 +108,7 @@ contract MassetBasket is MassetStructs, MassetCore {
     external
     onlyManager {
         (bool exists, uint i) = _isAssetInBasket(_basset);
-        require(exists, "Basset must exist in Basket");
+        require(exists, "bASset must exist in Basket");
 
         if(basket.bassets[i].status == BassetStatus.BrokenBelowPeg ||
           basket.bassets[i].status == BassetStatus.BrokenAbovePeg) {
@@ -127,7 +127,7 @@ contract MassetBasket is MassetStructs, MassetCore {
     basketIsHealthy
     returns (bool requiresAuction) {
         (bool exists, uint i) = _isAssetInBasket(_basset);
-        require(exists, "Basset must exist in Basket");
+        require(exists, "bASset must exist in Basket");
 
         (, , , uint256 vaultBalance, , BassetStatus status) = _getBasset(i);
         require(!_bassetHasRecolled(status), "Invalid Basset state");
@@ -137,7 +137,7 @@ contract MassetBasket is MassetStructs, MassetCore {
             _removeBasset(_basset);
             return false;
         }
-        require(vaultBalance > 0, "Must have something to recollateralise");
+        // require(vaultBalance > 0, "Must have something to recollateralise");
 
         basket.bassets[i].status = BassetStatus.Liquidating;
         basket.bassets[i].vaultBalance = 0;
@@ -164,7 +164,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         managerOrGovernor
         basketIsHealthy
     {
-        require(!measurementMultipleEnabled, "Specifying _measurementMultiple disabled");
+        require(!measurementMultipleEnabled, "Specifying _mm enabled");
         _addBasset(_basset, StableMath.getRatioScale(), _isTransferFeeCharged);
     }
 
@@ -182,7 +182,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         managerOrGovernor
         basketIsHealthy
     {
-        require(measurementMultipleEnabled, "Specifying _measurementMultiple disabled");
+        require(measurementMultipleEnabled, "Specifying _mm disabled");
         _addBasset(_basset, _measurementMultiple, _isTransferFeeCharged);
     }
 
@@ -200,9 +200,9 @@ contract MassetBasket is MassetStructs, MassetCore {
     )
         internal
     {
-        require(_basset != address(0), "Asset address must be valid.");
+        require(_basset != address(0), "Asset address must be valid");
         (bool alreadyInBasket, ) = _isAssetInBasket(_basset);
-        require(!alreadyInBasket, "Asset cannot already be in the basket.");
+        require(!alreadyInBasket, "Asset already exists in Basket");
 
         require(IManager(_manager()).validateBasset(address(this), _basset, _measurementMultiple, _isTransferFeeCharged),
             "New bAsset must be valid");
@@ -255,9 +255,9 @@ contract MassetBasket is MassetStructs, MassetCore {
         uint len = basket.bassets.length;
 
         Basset memory basset = basket.bassets[index];
-        // require(basset.maxWeight == 0, "Basset must have a target weight of 0");
-        require(basset.vaultBalance == 0, "Basset vault must be completely empty");
-        require(basset.status != BassetStatus.Liquidating, "Basset must be active");
+        // require(basset.maxWeight == 0, "bASset must have a target weight of 0");
+        require(basset.vaultBalance == 0, "bASset vault must be empty");
+        require(basset.status != BassetStatus.Liquidating, "bASset must be active");
 
         basket.bassets[index] = basket.bassets[len-1];
         basket.bassets.pop();
@@ -300,24 +300,24 @@ contract MassetBasket is MassetStructs, MassetCore {
     {
         uint256 bassetCount = _bassets.length;
 
-        require(bassetCount == _weights.length, "Must be matching basset data arrays");
-        require(bassetCount == basket.bassets.length, "Must be matching existing basket layout");
+        require(bassetCount == _weights.length, "Must be matching basset arrays");
+        require(bassetCount == basket.bassets.length, "Must match existing basket");
 
         uint256 weightSum = CommonHelpers.sumOfArrayValues(_weights);
-        require(weightSum >= StableMath.getFullScale(), "Basket weight must total > 100% == 1");
+        require(weightSum >= StableMath.getFullScale(), "Basket weight must be >= 1e18");
 
         for (uint256 i = 0; i < bassetCount; i++) {
             address basset = _bassets[i];
 
-            require(basset == basket.bassets[i].addr, "Basset must be represented symmetrically");
+            require(basset == basket.bassets[i].addr, "Input must be symmetrical");
 
             uint256 bassetWeight = _weights[i];
             if(basket.bassets[i].status == BassetStatus.Normal) {
                 require(bassetWeight >= 0, "Weight must be positive");
-                require(bassetWeight <= StableMath.getFullScale(), "Asset weight must be less than or equal to 1");
+                require(bassetWeight <= StableMath.getFullScale(), "Asset weight must be <= 1e18");
                 basket.bassets[i].maxWeight = bassetWeight;
             } else {
-                require(bassetWeight == basket.bassets[i].maxWeight, "Cannot change weightings for suffering Bassets");
+                require(bassetWeight == basket.bassets[i].maxWeight, "Affected bAssets must be static");
             }
         }
 
@@ -334,7 +334,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         onlyGovernor
     {
         (bool exist, uint256 index) = _isAssetInBasket(_bAsset);
-        require(exist, "bAsset not exist");
+        require(exist, "bAsset does not exist");
         basket.bassets[index].isTransferFeeCharged = _flag;
     }
 
@@ -371,9 +371,10 @@ contract MassetBasket is MassetStructs, MassetCore {
         uint256[] memory targets,
         uint256[] memory vaults,
         bool[] memory isTransferFeeCharged,
-        BassetStatus[] memory statuses
+        BassetStatus[] memory statuses,
+        uint256 len
     ) {
-        uint256 len = basket.bassets.length;
+        len = basket.bassets.length;
 
         addresses = new address[](len);
         ratios = new uint256[](len);
@@ -403,7 +404,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         BassetStatus status
     ) {
         (bool exists, uint index) = _isAssetInBasket(_basset);
-        require(exists, "Basset must exist");
+        require(exists, "bASset must exist");
         return _getBasset(index);
     }
 

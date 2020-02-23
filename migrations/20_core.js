@@ -13,6 +13,8 @@ const c_StableMath = artifacts.require('StableMath');
 const c_PublicStableMath = artifacts.require('PublicStableMath');
 
 const c_Masset = artifacts.require('Masset')
+const c_ForgeRewardsMUSD = artifacts.require('ForgeRewardsMUSD')
+const c_MassetHelpersLib = artifacts.require('MassetHelpersLib')
 
 async function publishModuleThroughMultisig(d_Nexus, d_MultiSig, key, address, governor) {
   const txData = d_Nexus.contract.methods.addModule(key, address).encodeABI();
@@ -31,6 +33,8 @@ module.exports = async (deployer, network, accounts) => {
   const [ _, governor, fundManager, oracleSource, feePool ] = accounts;
 
   /** Common Libs */
+  await deployer.deploy(c_MassetHelpersLib, { from: _ });
+  await deployer.link(c_MassetHelpersLib, ForgeRewardsMUSD);
   await deployer.deploy(c_StableMath, { from: _ });
   await deployer.link(c_StableMath, c_Masset);
 	await deployer.link(c_StableMath, c_PublicStableMath);

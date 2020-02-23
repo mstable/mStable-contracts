@@ -245,14 +245,14 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, Governable {
     public
     returns(bool claimed) {
         Tranche storage tranche = trancheData[_trancheNumber];
-        require(tranche.totalRewardUnits > 0, "Tranche must be funded before claiming can begin");
+        require(tranche.totalRewardUnits > 0, "Tranche must be funded");
 
         TrancheDates memory trancheDates = _getTrancheDates(_trancheNumber);
-        require(now > trancheDates.endTime && now < trancheDates.claimEndTime, "Reward must be in claim period");
+        require(now > trancheDates.endTime && now < trancheDates.claimEndTime, "Tranche must be in claim period");
 
         Reward storage reward = tranche.rewardeeData[_rewardee];
         uint256 rewardeeMintVolume = reward.mintVolume;
-        require(rewardeeMintVolume > 0, "Rewardee must have minted something to be eligable");
+        require(rewardeeMintVolume > 0, "Rewardee must have minted something");
         require(!reward.claimed, "Reward has already been claimed");
 
         // Relative reward is calculated a percentage of total mint
@@ -300,8 +300,8 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, Governable {
 
         Reward storage reward = trancheData[_trancheNumber].rewardeeData[_rewardee];
         uint256 allocation = reward.rewardAllocation;
-        require(reward.claimed, "Rewardee must have originally claimed their reward");
-        require(allocation > 0, "Rewardee must have some allocation to redeem");
+        require(reward.claimed, "Rewardee must have claimed reward");
+        require(allocation > 0, "Rewardee must have allocation");
         require(!reward.redeemed, "Reward has already been redeemed");
 
         reward.redeemed = true;
@@ -337,11 +337,11 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, Governable {
         // is if the current funding is 0, and the claim period has not yet elapsed
         // This is for backup circumstances in the event that the tranche was not funded in time
         if(now > trancheDates.endTime){
-            require(tranche.totalRewardUnits == 0, "Cannot increase reward units after end time");
-            require(now < trancheDates.claimEndTime, "Cannot fund tranche after the claim period");
+            require(tranche.totalRewardUnits == 0, "Cannot increase reward units now");
+            require(now < trancheDates.claimEndTime, "Funding too late");
         }
 
-        require(MTA.transferFrom(governor(), address(this), _fundQuantity), "Governor must send the funding MTA");
+        require(MTA.transferFrom(governor(), address(this), _fundQuantity), "Governor must provide MTA");
         tranche.totalRewardUnits = tranche.totalRewardUnits.add(_fundQuantity);
         tranche.unclaimedRewardUnits = tranche.totalRewardUnits;
 
@@ -360,10 +360,10 @@ contract ForgeRewardsMUSD is IMassetForgeRewards, Governable {
 
         uint256 unclaimedRewardUnits = trancheData[_trancheNumber].unclaimedRewardUnits;
 
-        require(unclaimedRewardUnits > 0, "Tranche must contain unclaimed reward units");
+        require(unclaimedRewardUnits > 0, "Must contain unclaimed rewards");
 
         trancheData[_trancheNumber].unclaimedRewardUnits = 0;
-        require(MTA.transfer(governor(), unclaimedRewardUnits), "Governor must receive the funding MTA");
+        require(MTA.transfer(governor(), unclaimedRewardUnits), "Must payout the funding MTA");
 
         emit UnclaimedRewardWithdrawn(_trancheNumber, unclaimedRewardUnits);
     }

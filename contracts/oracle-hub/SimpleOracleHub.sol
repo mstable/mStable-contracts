@@ -106,7 +106,7 @@ contract SimpleOracleHub is IOracleHub, Module {
         bytes[] calldata messages,
         bytes[] calldata signatures
     ) external {
-        require(messages.length == signatures.length, "messages and signatures must be 1:1");
+        require(messages.length == signatures.length, "Msgs and sigs must be 1:1");
 
         // Post the messages, whatever they are
         for (uint i = 0; i < messages.length; i++) {
@@ -124,7 +124,7 @@ contract SimpleOracleHub is IOracleHub, Module {
         // Recover the source address
         address _source = source(message, signature);
 
-        require(_source == validatedSource, "Only prices signed by the validated source are allowed");
+        require(_source == validatedSource, "Data must be signed by validator");
 
         // Decode the message and check the kind
         (string memory kind, uint64 timestamp, bytes32 key, uint64 value) = abi.decode(message, (string, uint64, bytes32, uint64));

@@ -114,7 +114,7 @@ contract Manager is
         onlyGovernor
         returns (address)
     {
-        require(_masset != address(0), "Masset must be a referenced implementation");
+        require(_masset != address(0), "Masset addr is address(0)");
 
         massets.add(_masset, _massetKey);
 
@@ -132,9 +132,9 @@ contract Manager is
         external
         onlyGovernor
     {
-        require(_masset != address(0), "Masset must be a referenced implementation");
+        require(_masset != address(0), "Masset addr is address(0)");
         bytes32 key = massets.get(_masset);
-        require(key != bytes32(0x0), "Masset must be a referenced implementation");
+        require(key != bytes32(0x0), "Masset key is bytes(0x0)");
         require(IERC20(_masset).totalSupply() == 0, "Masset must be unused");
 
         massets.remove(_masset);
