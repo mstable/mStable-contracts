@@ -145,11 +145,11 @@ contract("Rewards", async (accounts) => {
                 sa.default,
                 { from: sa.default },
             );
-            expectEvent.inLogs(txReceipt.logs, "MintVolumeIncreased", {
+            expectEvent.inLogs(txReceipt.logs, "TotalPointsIncreased", {
                 trancheNumber: new BN(0),
                 mintVolume: new BN(10),
             });
-            expectEvent.inLogs(txReceipt.logs, "RewardeeMintVolumeIncreased", {
+            expectEvent.inLogs(txReceipt.logs, "UserPointsIncreased", {
                 trancheNumber: new BN(0),
                 rewardee: sa.default,
                 mintVolume: new BN(10),
@@ -197,11 +197,11 @@ contract("Rewards", async (accounts) => {
             );
 
             // Expect event
-            expectEvent.inLogs(txReceipt.logs, "MintVolumeIncreased", {
+            expectEvent.inLogs(txReceipt.logs, "TotalPointsIncreased", {
                 trancheNumber: new BN(0),
                 mintVolume: new BN(40),
             });
-            expectEvent.inLogs(txReceipt.logs, "RewardeeMintVolumeIncreased", {
+            expectEvent.inLogs(txReceipt.logs, "UserPointsIncreased", {
                 trancheNumber: new BN(0),
                 rewardee: sa.default,
                 mintVolume: new BN(40),
