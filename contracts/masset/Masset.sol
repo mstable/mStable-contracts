@@ -5,9 +5,9 @@ import { IMasset } from "../interfaces/IMasset.sol";
 import { ISystok } from "../interfaces/ISystok.sol";
 
 import { MassetBasket, IManager, IForgeValidator } from "./MassetBasket.sol";
-import { MassetToken } from "./mERC20/MassetToken.sol";
+import { MassetToken } from "./MassetToken.sol";
 
-import { StableMath } from "../shared/math/StableMath.sol";
+import { StableMath } from "../shared/StableMath.sol";
 import { SafeERC20 }  from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
 import { IERC20 }     from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 
@@ -155,25 +155,6 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         emit Minted(_recipient, ratioedBasset, bAssetQty);
 
         return ratioedBasset;
-    }
-
-    function _transferTokens(
-        address _basset,
-        bool _isFeeCharged,
-        uint256 _qty
-    )
-        private
-        returns (uint256 receivedQty)
-    {
-        receivedQty = _qty;
-        if(_isFeeCharged) {
-            uint256 balBefore = IERC20(_basset).balanceOf(address(this));
-            IERC20(_basset).safeTransferFrom(msg.sender, address(this), _qty);
-            uint256 balAfter = IERC20(_basset).balanceOf(address(this));
-            receivedQty = StableMath.min(_qty, balAfter.sub(balBefore));
-        } else {
-            IERC20(_basset).safeTransferFrom(msg.sender, address(this), _qty);
-        }
     }
 
     /**
@@ -435,6 +416,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         return bAssets;
     }
 
+
     /**
      * @dev Convert bitmap representing bAssets location to Bassets array
      * @param _bitmap bits set in bitmap represents which bAssets to use
@@ -469,10 +451,10 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         uint8 idx = 0;
         // Assume there are 4 bAssets in array
         // size = 2
-        // bitmap  = 00000000 00000000 00000000 00001010
-        // mask    = 00000000 00000000 00000000 00001000 //mask for 4th pos
-        //isBitSet = 00000000 00000000 00000000 00001000 //checking 4th pos
-        // indexes = [1, 3]
+        // bitmap   = 00000000 00000000 00000000 00001010
+        // mask     = 00000000 00000000 00000000 00001000 //mask for 4th pos
+        // isBitSet = 00000000 00000000 00000000 00001000 //checking 4th pos
+        // indexes  = [1, 3]
         uint256 len = basket.bassets.length;
         for(uint8 i = 0; i < len; i++) {
             uint32 mask = uint32(2)**i;
@@ -483,6 +465,24 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         return indexes;
     }
 
+    function _transferTokens(
+        address _basset,
+        bool _isFeeCharged,
+        uint256 _qty
+    )
+        private
+        returns (uint256 receivedQty)
+    {
+        receivedQty = _qty;
+        if(_isFeeCharged) {
+            uint256 balBefore = IERC20(_basset).balanceOf(address(this));
+            IERC20(_basset).safeTransferFrom(msg.sender, address(this), _qty);
+            uint256 balAfter = IERC20(_basset).balanceOf(address(this));
+            receivedQty = StableMath.min(_qty, balAfter.sub(balBefore));
+        } else {
+            IERC20(_basset).safeTransferFrom(msg.sender, address(this), _qty);
+        }
+    }
 
     /***************************************
                   MANAGEMENT
@@ -498,7 +498,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         onlyManager
     {
         (bool exists, uint i) = _isAssetInBasket(_basset);
-        require(exists, "Basset must exist in Basket");
+        require(exists, "bASset must exist in Basket");
 
         (, , , , , BassetStatus status) = _getBasset(i);
         require(status == BassetStatus.Liquidating, "Invalid Basset state");

@@ -13,7 +13,10 @@ const c_Manager = artifacts.require('Manager');
 module.exports = async (deployer, network, accounts) => {
 
     const [ _, governor, fundManager, oracleSource ] = accounts;
-    const multisigAddress = accounts[1];
+    let newGovernorAddress = governor;
+    if(network != 'development' && network != 'coverage'){
+        // do something
+    }
 
     /* Get deployed contracts */
     const d_Manager = await c_Manager.deployed()
@@ -37,5 +40,5 @@ module.exports = async (deployer, network, accounts) => {
     addresses[2] = d_Manager.address;
     isLocked[2] = false;
 
-    await d_Nexus.initialize(keys, addresses, isLocked, multisigAddress, {from: governor});
+    await d_Nexus.initialize(keys, addresses, isLocked, newGovernorAddress, {from: governor});
 }

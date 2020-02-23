@@ -63,7 +63,7 @@ module.exports = async (deployer, network, accounts) => {
     createMultiple(1),
     createMultiple(1),
     createMultiple(1),
-    createMultiple(0.0321507)
+    createMultiple(0.0321507) // tr oz
   ];
 
   const bAssetHasTransferFee = [
@@ -72,10 +72,6 @@ module.exports = async (deployer, network, accounts) => {
     true,
     true
   ];
-
-
-  /* Assign minting and redemption fees */
-  const redemptionFee = percentToWeight(1)
 
   const d_mGLD = await deployer.deploy(
     c_mGLD,
@@ -88,12 +84,15 @@ module.exports = async (deployer, network, accounts) => {
     d_ForgeValidator.address
   );
 
-  const txData = await d_Manager.addMasset(
-    aToH("mGLD"),
-    d_mGLD.address, 
-    {from: governor});
-
-  //await d_MultiSig.submitTransaction(d_Manager.address, 0, txData, { from : governor });
+  if(network == 'development' || network == 'coverage') {
+    const txData = await d_Manager.addMasset(
+      aToH("mGLD"),
+      d_mGLD.address, 
+      {from: governor});
+  } else {
+    // We need to send the transaction from the multisig
+    // await d_MultiSig.submitTransaction(d_Manager.address, 0, txData, { from : governor });
+  }
 
   const massets = await d_Manager.getMassets();
   console.log(`[mGLD]: '${massets[0][1]}'`);
