@@ -37,7 +37,7 @@ contract("DelayedClaimableGovernance", async (accounts) => {
         it("should not allow zero delay", async () => {
             await shouldFail.reverting.withMessage(
                 DelayedClaimableGovernor.new(sa.governor, 0, { from: sa.governor }),
-                "Delay must be greater then zero",
+                "Delay must be greater than zero",
             );
         });
     });

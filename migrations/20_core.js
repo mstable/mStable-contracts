@@ -34,7 +34,7 @@ module.exports = async (deployer, network, accounts) => {
 
   /** Common Libs */
   await deployer.deploy(c_MassetHelpers, { from: _ });
-  await deployer.link(c_MassetHelpers, ForgeRewardsMUSD);
+  await deployer.link(c_MassetHelpers, c_ForgeRewardsMUSD);
   await deployer.deploy(c_StableMath, { from: _ });
   await deployer.link(c_StableMath, c_Masset);
 	await deployer.link(c_StableMath, c_PublicStableMath);

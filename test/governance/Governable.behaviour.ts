@@ -25,14 +25,14 @@ export function shouldBehaveLikeGovernable(
         it("should prevent non-governor from changing governor", async () => {
             await shouldFail.reverting.withMessage(
                 ctx.governable.changeGovernor(other, { from: other }),
-                "Governable: caller is not the Governor",
+                "GOV: caller is not the Governor",
             );
         });
 
         it("should guard ownership against stuck state", async () => {
             await shouldFail.reverting.withMessage(
                 ctx.governable.changeGovernor(ZERO_ADDRESS, { from: owner }),
-                "Governable: new Governor is the zero address",
+                "GOV: new Governor is address(0)",
             );
         });
     });
