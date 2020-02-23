@@ -147,12 +147,12 @@ contract("Rewards", async (accounts) => {
             );
             expectEvent.inLogs(txReceipt.logs, "TotalPointsIncreased", {
                 trancheNumber: new BN(0),
-                mintVolume: new BN(10),
+                totalPoints: new BN(10),
             });
             expectEvent.inLogs(txReceipt.logs, "UserPointsIncreased", {
                 trancheNumber: new BN(0),
                 rewardee: sa.default,
-                mintVolume: new BN(10),
+                rewardeePoints: new BN(10),
             });
 
             assert((await newMasset.balanceOf(sa.default)).eq(new BN(10)));
@@ -199,12 +199,12 @@ contract("Rewards", async (accounts) => {
             // Expect event
             expectEvent.inLogs(txReceipt.logs, "TotalPointsIncreased", {
                 trancheNumber: new BN(0),
-                mintVolume: new BN(40),
+                totalPoints: new BN(40),
             });
             expectEvent.inLogs(txReceipt.logs, "UserPointsIncreased", {
                 trancheNumber: new BN(0),
                 rewardee: sa.default,
-                mintVolume: new BN(40),
+                rewardeePoints: new BN(40),
             });
 
             assert((await masset.balanceOf(sa.default)).eq(new BN(40)));

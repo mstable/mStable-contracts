@@ -1,7 +1,7 @@
 pragma solidity ^0.5.12;
 
 import { IForgeRewards } from "./IForgeRewards.sol";
-import { AbstractMassetRewards } from "./AbstractMassetRewards.sol";
+import { MassetRewards } from "./MassetRewards.sol";
 
 import { IMasset } from "../interfaces/IMasset.sol";
 import { ISystok } from "../interfaces/ISystok.sol";
@@ -23,7 +23,7 @@ import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
  *           - Unclaimed rewards can be retrieved by 'Governor' for future tranches
  *        - Reward allocation is unlocked for redemption after 52 weeks
  */
-contract ForgeRewardsMUSD is AbstractMassetRewards, IForgeRewards {
+contract ForgeRewardsMUSD is MassetRewards, IForgeRewards {
 
     using SafeMath for uint256;
     using StableMath for uint256;
@@ -31,8 +31,8 @@ contract ForgeRewardsMUSD is AbstractMassetRewards, IForgeRewards {
 
     constructor(IMasset _mUSD, ISystok _MTA, address _governor)
       public
-      AbstractMassetRewards(_mUSD, _MTA, _governor) {
-        // approveAllBassets();
+      MassetRewards(_mUSD, _MTA, _governor) {
+        approveAllBassets();
     }
 
     /***************************************

@@ -11,7 +11,7 @@ import { SafeERC20 } from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20
 import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 /**
- * @title AbstractMassetRewards
+ * @title MassetRewards
  * @notice Generic rewards contract. Flow is as follows:
  *        - Tranche is funded in MTA by the 'Governor'
  *        - Participants do something to earn rewards (This is specific to each implementation)
@@ -20,7 +20,7 @@ import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
  *           - Unclaimed rewards can be retrieved by 'Governor' for future tranches
  *        - Reward allocation is unlocked for redemption after 52 weeks
  */
-contract AbstractMassetRewards is IMassetRewards, Governable {
+contract MassetRewards is IMassetRewards, Governable {
 
     using SafeMath for uint256;
     using StableMath for uint256;
