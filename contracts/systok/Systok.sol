@@ -42,7 +42,7 @@ contract Systok is ISystok, Module, MiniMeToken {
                   OVERRIDES
     ****************************************/
 
-    function generateTokens(address _owner, uint _amount) public onlyMinter returns (bool) {
+    function generateTokens(address _owner, uint256 _amount) public onlyMinter returns (bool) {
         return _generateTokens(_owner, _amount);
     }
 
