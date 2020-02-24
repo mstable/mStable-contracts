@@ -58,23 +58,12 @@ contract EcosystemRewardsMUSD is MassetRewards, IEcosystemRewards {
             // Add to total points
             totalPointsAdded = totalPointsAdded.add(points);
 
-            // Fetch individual user rewards
-            uint256 currentPointsForUser = trancheData[_trancheNumber].rewardeeData[rewardee].userPoints;
-
-            // If this is a new rewardee, add her to array
-            if(currentPointsForUser == 0){
-                trancheData[_trancheNumber].rewardees.push(rewardee);
-            }
-
-            // Assign updated points on the rewardee data
-            uint256 newPointsForUser = currentPointsForUser.add(points);
-            trancheData[_trancheNumber].rewardeeData[rewardee].userPoints = newPointsForUser;
-            emit RewardeePointsIncreased(_trancheNumber, rewardee, newPointsForUser);
+            // Log the individuals rewards
+            _logIndividualPoints(_trancheNumber, rewardee, points);
         }
 
-        uint256 newTotalPoints = trancheData[_trancheNumber].totalPoints.add(totalPointsAdded);
-        trancheData[_trancheNumber].totalPoints = newTotalPoints;
-        emit TotalPointsIncreased(_trancheNumber, newTotalPoints);
+        // Add to total points count
+        _logNewTotalPoints(_trancheNumber, totalPointsAdded);
     }
 
     /**

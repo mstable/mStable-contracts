@@ -140,21 +140,11 @@ contract ForgeRewardsMUSD is MassetRewards, IForgeRewards {
         // Get current tranche based on timestamp
         uint256 trancheNumber = _currentTrancheNumber();
 
-        // Add to total minting
-        uint256 newTotalMintVolume = trancheData[trancheNumber].totalPoints.add(_volume);
-        trancheData[trancheNumber].totalPoints = newTotalMintVolume;
-        emit TotalPointsIncreased(trancheNumber, newTotalMintVolume);
+        // Add to total points count
+        _logNewTotalPoints(trancheNumber, _volume);
 
-        // Set individual user rewards
-        uint256 currentMintVolume = trancheData[trancheNumber].rewardeeData[_rewardee].userPoints;
-
-        // If this is a new rewardee, add it to array
-        if(currentMintVolume == 0){
-            trancheData[trancheNumber].rewardees.push(_rewardee);
-        }
-
-        uint256 newMintVolume = currentMintVolume.add(_volume);
-        trancheData[trancheNumber].rewardeeData[_rewardee].userPoints = newMintVolume;
-        emit RewardeePointsIncreased(trancheNumber, _rewardee, newMintVolume);
+        // Log individual reward
+        _logIndividualPoints(trancheNumber, _rewardee, _volume);
     }
+
 }

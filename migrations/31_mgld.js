@@ -11,13 +11,11 @@ const c_AWG = artifacts.require('AWG')
 const c_EGD = artifacts.require('EGD')
 const c_OGC = artifacts.require('OGC')
 
-const { MASSET_FACTORY_BYTES } = require('@utils/constants')
 const { aToH } = require('@utils/tools')
 const { percentToWeight, createMultiple,simpleToExactAmount } = require('@utils/math')
 
 module.exports = async (deployer, network, accounts) => {
 
-  console.log('there')
 	const [ _, governor, fundManager, oracleSource, feePool ] = accounts;
 
   /* Get deployed Manager */

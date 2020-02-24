@@ -83,11 +83,54 @@ contract MassetRewards is IMassetRewards, Governable {
     uint256 constant public claimPeriod = 8 weeks;
     uint256 constant public lockupPeriod = 52 weeks;
 
-    constructor(IMasset _mUSD, ISystok _MTA, address _governor) public {
+    constructor(IMasset _mUSD, ISystok _MTA, address _governor) internal {
         mUSD = _mUSD;
         MTA = _MTA;
         rewardStartTime = now;
         _changeGovernor(_governor);
+    }
+
+    /**
+     * @dev Internal function to log new total points. Adds to existing amount
+     * @param _trancheNumber      ID of the tranche
+     * @param _additionalPoints   Units of points to add to total
+     */
+    function _logNewTotalPoints(
+        uint256 _trancheNumber,
+        uint256 _additionalPoints
+    )
+        internal
+    {
+        uint256 newTotalPoints = trancheData[_trancheNumber].totalPoints.add(_additionalPoints);
+        trancheData[_trancheNumber].totalPoints = newTotalPoints;
+        emit TotalPointsIncreased(_trancheNumber, newTotalPoints);
+    }
+
+    /**
+     * @dev Internal function to log rewardee point data. If they are a new rewardee,
+     *      it adds them to the array, if not, it adds on to their running total.
+     * @param _trancheNumber  ID of the tranche
+     * @param _rewardee       Address of the rewardee to which the points should be assigned
+     * @param _points         Units of points to assign
+     */
+    function _logIndividualPoints(
+        uint256 _trancheNumber,
+        address _rewardee,
+        uint256 _points
+    )
+        internal
+    {
+        // Set individual user rewards
+        uint256 currentPoints = trancheData[_trancheNumber].rewardeeData[_rewardee].userPoints;
+
+        // If this is a new rewardee, add it to array
+        if(currentPoints == 0){
+            trancheData[_trancheNumber].rewardees.push(_rewardee);
+        }
+
+        uint256 newPoints = currentPoints.add(_points);
+        trancheData[_trancheNumber].rewardeeData[_rewardee].userPoints = newPoints;
+        emit RewardeePointsIncreased(_trancheNumber, _rewardee, newPoints);
     }
 
     /***************************************
