@@ -164,13 +164,13 @@ contract("ForgeRewardsMUSD", async (accounts) => {
             const rewardStartTime: BN = await newRewardsContract.rewardStartTime();
             validateTrancheDates(data, rewardStartTime, 0);
 
-            assert(data.totalMintVolume.eq(new BN(10)));
+            assert(data.totalPoints.eq(new BN(10)));
             assert(data.totalRewardUnits.eq(new BN(0)));
             assert(data.unclaimedRewardUnits.eq(new BN(0)));
 
             // Reward for the user
             data = await newRewardsContract.getRewardeesData(0, [sa.default]);
-            assert(data.mintVolume[0].eq(new BN(10)));
+            assert(data.userPoints[0].eq(new BN(10)));
             assert(data.claimed[0] === false);
             assert(data.rewardAllocation[0].eq(new BN(0)));
             assert(data.redeemed[0] === false);
@@ -222,13 +222,13 @@ contract("ForgeRewardsMUSD", async (accounts) => {
             const rewardStartTime = await rewardsContract.rewardStartTime();
             validateTrancheDates(data, rewardStartTime, 0);
 
-            assert(data.totalMintVolume.eq(new BN(40)));
+            assert(data.totalPoints.eq(new BN(40)));
             assert(data.totalRewardUnits.eq(new BN(0)));
             assert(data.unclaimedRewardUnits.eq(new BN(0)));
 
             // Reward for the user
             data = await rewardsContract.getRewardeesData(0, [sa.default]);
-            assert(data.mintVolume[0].eq(new BN(40)));
+            assert(data.userPoints[0].eq(new BN(40)));
             assert(data.claimed[0] === false);
             assert(data.rewardAllocation[0].eq(new BN(0)));
             assert(data.redeemed[0] === false);
