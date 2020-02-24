@@ -9,7 +9,7 @@ const { expect, assert } = chai;
 
 const PublicStableMath = artifacts.require("PublicStableMath");
 
-contract("Governable", async (accounts) => {
+contract("StableMath", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     let math: PublicStableMathInstance;
 
