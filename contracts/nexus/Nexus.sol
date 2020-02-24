@@ -248,7 +248,7 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
      * @param _key Key of the module
      * @return Returns 'true' when a module exists, otherwise 'false'
      */
-    function moduleExists(bytes32 _key) public returns (bool) {
+    function moduleExists(bytes32 _key) public view returns (bool) {
         if(_key != 0 && modules[_key].addr != address(0))
             return true;
         return false;

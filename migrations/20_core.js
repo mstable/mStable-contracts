@@ -34,15 +34,16 @@ module.exports = async (deployer, network, accounts) => {
   const [ _, governor, fundManager, oracleSource, feePool ] = accounts;
 
   /** Common Libs */
-  await deployer.deploy(c_MassetHelpers, { from: _ });
-  await deployer.link(c_MassetHelpers, c_ForgeRewardsMUSD);
   await deployer.deploy(c_StableMath, { from: _ });
   await deployer.link(c_StableMath, c_Masset);
 	await deployer.link(c_StableMath, c_PublicStableMath);
   await deployer.link(c_StableMath, c_ForgeValidator);
+  await deployer.link(c_StableMath, c_MassetHelpers);
 	await deployer.deploy(c_PublicStableMath, { from: _ });
   await deployer.deploy(c_CommonHelpers, { from: _ });
   await deployer.link(c_CommonHelpers, c_Masset);
+  // await deployer.deploy(c_MassetHelpers, { from: _ });
+  // await deployer.link(c_MassetHelpers, c_Masset);
 
   /** Nexus */
   await deployer.deploy(c_Nexus, governor, {from: governor});
