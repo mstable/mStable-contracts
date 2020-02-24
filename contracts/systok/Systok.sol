@@ -1,57 +1,76 @@
-pragma solidity ^0.5.12;
+pragma solidity ^0.5.16;
 
-import { MetaToken } from "./MetaToken.sol";
+import { MiniMeToken } from "minimetoken/contracts/MiniMeToken.sol";
+import { ISystok } from "../interfaces/ISystok.sol";
 import { Module } from "../shared/Module.sol";
 
-import { INexus } from "../interfaces/INexus.sol";
-import { ISystok } from "../interfaces/ISystok.sol";
+import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
-/**
- * @title Systok (System Token)
- * @author Stability Labs Pty Ltd.
- * @dev Implementation of Systok - the token used hroughout the mStable Standard;
- *      namely through governance, forging and re-collateralisation
- *
- * BURN/MINT PRIVS
- * Only Recollateraliser can mint new Meta post completed auction
- * Anyone can burn and burnFrom Meta, provided they have the allowance
- */
-contract Systok is ISystok, Module, MetaToken {
+contract Systok is ISystok, Module, MiniMeToken {
 
+    using SafeMath for uint256;
 
-    /** @dev Events to emit */
-    // event RecolUpdated(bytes32 indexed key, address newAddress);
-
-
-    /** @dev Basic constructor to initialise the Systok */
+    /**
+     * @dev Systok just parameterises the MiniMeToken
+     */
     constructor(
+        address _tokenFactory,
         address _nexus,
         address _initialRecipient
     )
         public
-        MetaToken(_initialRecipient)
         Module(_nexus)
+        MiniMeToken(
+            _tokenFactory,
+            address(0x0),
+            0,
+            "mStable Meta",
+            18,
+            "MTA",
+            true
+        )
     {
+        _generateTokens(_initialRecipient, 100000000 * (10 ** 18));
     }
 
-    // /**
-    //   * @dev Internally handles updates to the system modules
-    //   * @param _key         Module key
-    //   * @param _newAddress  Address of the updated Module
-    //   */
-    // function _internalUpdateModule(bytes32 _key, address _newAddress)
-    // internal {
+    modifier onlyMinter() {
+        require(msg.sender == controller || msg.sender == _recollateraliser(), "Only minter can execute");
+        _;
+    }
 
-    //     if (_key == Key_Recollateraliser) {
-    //         address old = address(recollateraliser);
-    //         // Remove privs from old recollateraliser
-    //         if(old != address(0)) {
-    //           _removeMinter(old);
-    //         }
-    //         recollateraliser = _newAddress;
-    //         _addMinter(_newAddress);
+    /***************************************
+                  OVERRIDES
+    ****************************************/
 
-    //         emit RecolUpdated(_key, _newAddress);
-    //     }
-    // }
+    function generateTokens(address _owner, uint _amount) public onlyMinter returns (bool) {
+        return _generateTokens(_owner, _amount);
+    }
+
+    function enableTransfers(bool _transfersEnabled) public onlyController {
+        // Do nothing, we should never disable transfers
+    }
+
+    // changeController
+    // This would allow us to override the permissions for updating the controller
+    // We could call it straight from the `claimGovernorChange` function in the Nexus
+
+    /***************************************
+                    FUNCS
+    ****************************************/
+
+    // function destroyTokens || burn
+    // This would allow burns of a users own balance, or their approved balance,
+    // and require access to the destroy tokens func
+
+    // Copied from https://github.com/OpenZeppelin/openzeppelin-contracts-ethereum-package/blob/master/contracts/token/ERC20/ERC20.sol#118
+    function increaseAllowance(address spender, uint256 addedValue) public returns (bool) {
+        _approve(spender, allowed[msg.sender][spender].add(addedValue));
+        return true;
+    }
+
+    // Copied from https://github.com/OpenZeppelin/openzeppelin-contracts-ethereum-package/blob/master/contracts/token/ERC20/ERC20.sol#137
+    function decreaseAllowance(address spender, uint256 subtractedValue) public returns (bool) {
+        _approve(spender, allowed[msg.sender][spender].sub(subtractedValue));
+        return true;
+    }
 }

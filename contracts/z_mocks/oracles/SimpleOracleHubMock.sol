@@ -1,5 +1,5 @@
 
-pragma solidity ^0.5.12;
+pragma solidity ^0.5.16;
 pragma experimental ABIEncoderV2;
 
 import { SimpleOracleHub } from "../../oracle-hub/SimpleOracleHub.sol";
