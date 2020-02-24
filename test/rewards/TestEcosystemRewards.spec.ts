@@ -35,7 +35,7 @@ contract("EcosystemRewardsMUSD", async (accounts) => {
             sa.governor,
             { from: sa.governor },
         );
-        console.log("rewards", rewardsContract);
+        // console.log("rewards", rewardsContract);
         ctx.governable = (rewardsContract as unknown) as GovernableInstance;
         ctx.massetRewards = (rewardsContract as unknown) as MassetRewardsInstance;
     });
