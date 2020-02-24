@@ -108,7 +108,7 @@ library StableMath {
     }
 
     /** @dev Clamps a value to an upper bound */
-    function clamp(uint a, uint upperBound) internal pure returns (uint b) {
+    function clamp(uint256 a, uint256 upperBound) internal pure returns (uint256 b) {
         return a > upperBound ? upperBound : a;
     }
 

@@ -46,7 +46,7 @@ contract ForgeValidator is IForgeValidator {
         uint256 newTotalVault = _totalVault;
 
         // Theoretically add the mint quantities to the vault
-        for(uint j = 0; j < bassetCount; j++){
+        for(uint256 j = 0; j < bassetCount; j++){
             Basset memory b = _bassets[j];
             BassetStatus bAssetStatus = b.status;
 
@@ -60,7 +60,7 @@ contract ForgeValidator is IForgeValidator {
             newTotalVault = newTotalVault.add(mintAmountInMasset);
         }
 
-        for(uint k = 0; k < bassetCount; k++){
+        for(uint256 k = 0; k < bassetCount; k++){
             // What is the percentage of this bAsset in the basket?
             uint256 weighting = newBalances[k].divPrecisely(newTotalVault);
 
@@ -123,7 +123,7 @@ contract ForgeValidator is IForgeValidator {
         external
         pure
     {
-        uint idxCount = _idxs.length;
+        uint256 idxCount = _idxs.length;
         require(idxCount == _bassetQuantities.length, "Must provide values for all Bassets in system");
 
         (
@@ -134,7 +134,7 @@ contract ForgeValidator is IForgeValidator {
 
         uint256 newTotalVault = _totalVault;
 
-        for(uint i = 0; i < idxCount; i++){
+        for(uint256 i = 0; i < idxCount; i++){
             require(_allBassets[_idxs[i]].status != BassetStatus.BrokenAbovePeg || basketIsFailed,
                 "Cannot redeem depegged bAsset unless Basket is failed");
 
@@ -147,7 +147,7 @@ contract ForgeValidator is IForgeValidator {
         if(atLeastOneOverweightBefore){
             //  Note, there is an edge case where redeeming these Bassets may push others above weightings, however
             //  it is a side effect of simplicity
-            for(uint j = 0; j < idxCount; j++){
+            for(uint256 j = 0; j < idxCount; j++){
                 require(overweightBassetsBefore[_idxs[j]], "Must redeem overweight bAssets");
             }
         }

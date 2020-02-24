@@ -87,7 +87,7 @@ contract Manager is
 
         // Validate state of the response
         require(prices.length == 2, "Must return valid pair");
-        for(uint i = 0; i < prices.length; i++){
+        for(uint256 i = 0; i < prices.length; i++){
           require(isFresh[i] && prices[i] > 0, "Prices must exist and be fresh");
         }
 

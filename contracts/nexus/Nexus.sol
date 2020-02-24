@@ -84,7 +84,7 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
         require(len == _addresses.length, "Insuffecient address data provided");
         require(len == _isLocked.length, "Insuffecient locked status provided");
 
-        for(uint i = 0 ; i < len; i++) {
+        for(uint256 i = 0 ; i < len; i++) {
             _publishModule(_keys[i], _addresses[i], _isLocked[i]);
         }
 
@@ -160,7 +160,7 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
         uint256 len = _keys.length;
         require(len > 0, "Keys array empty");
 
-        for(uint i = 0 ; i < len; i++) {
+        for(uint256 i = 0 ; i < len; i++) {
             _acceptProposedModule(_keys[i]);
         }
     }

@@ -73,7 +73,7 @@ contract MetaToken is ERC20Burnable, ERC20Detailed, ERC20Mintable {
             18
         )
     {
-        uint initialSupply = 100000000 * (10 ** 18);
+        uint256 initialSupply = 100000000 * (10 ** 18);
         _mint(_initialRecipient, initialSupply);
     }
 }

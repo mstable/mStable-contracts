@@ -80,7 +80,7 @@ library DictionaryBtoA {
     returns (address[] memory result) {
         result = new address[](self.keys.length);
 
-        for(uint i = 0; i < result.length; i++) {
+        for(uint256 i = 0; i < result.length; i++) {
             result[i] = self.keysToValues[self.keys[i]];
         }
 
