@@ -17,14 +17,15 @@ class TestEnvironmentSetup {
         this.isConfigured = false;
     }
 
-    public configure() {
+    public configure(): Chai.ChaiStatic {
         if (this.isConfigured) {
-            return;
+            return chai;
         }
 
         chai.use(ChaiBN(BN));
         chai.should();
         this.isConfigured = true;
+        return chai;
     }
 }
 

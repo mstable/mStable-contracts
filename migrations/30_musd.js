@@ -7,6 +7,7 @@ const c_ForgeValidator = artifacts.require('ForgeValidator')
 const c_MUSD = artifacts.require('MUSD')
 
 const c_ForgeRewardsMUSD = artifacts.require('ForgeRewardsMUSD')
+const c_EcosystemRewardsMUSD = artifacts.require('EcosystemRewardsMUSD')
 const c_Systok = artifacts.require('Systok');
 
 const c_TUSD = artifacts.require('TUSD')
@@ -82,6 +83,7 @@ module.exports = async (deployer, network, accounts) => {
     false,
   ];
 
+  console.log('1')
   const d_MUSD = await deployer.deploy(
     c_MUSD,
     d_Nexus.address,
@@ -109,6 +111,15 @@ module.exports = async (deployer, network, accounts) => {
   // Deploy ForgeRewardsMUSD contract
   await deployer.deploy(
     c_ForgeRewardsMUSD,
+    d_MUSD.address,
+    d_Systok.address,
+    governor,
+    {from: governor}
+  );
+
+  // Deploy EcosystemRewardsMUSD contract
+  await deployer.deploy(
+    c_EcosystemRewardsMUSD,
     d_MUSD.address,
     d_Systok.address,
     governor,

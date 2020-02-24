@@ -5,6 +5,7 @@ import {
     NexusInstance,
     SimpleOracleHubMockInstance,
     SystokInstance,
+    MassetInstance,
 } from "./../../types/generated/index.d";
 import { MASSET_FACTORY_BYTES } from "@utils/constants";
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
@@ -174,7 +175,7 @@ export class SystemMachine {
      */
     public async createMassetViaManager(
         sender: Address = this.sa.governor,
-    ): Promise<Truffle.TransactionResponse> {
+    ): Promise<MassetInstance> {
         const bassetMachine = new BassetMachine(this.sa.default, this.sa.other, 500000);
 
         const b1: ERC20MockInstance = await bassetMachine.deployERC20Async();
@@ -193,7 +194,8 @@ export class SystemMachine {
         );
 
         // Adds the Masset to Manager so that it can look up its price
-        return this.manager.addMasset(aToH("TMT"), masset.address, { from: this.sa.governor });
+        await this.manager.addMasset(aToH("TMT"), masset.address, { from: this.sa.governor });
+        return masset;
     }
 
     public async initializeNexusWithModules(

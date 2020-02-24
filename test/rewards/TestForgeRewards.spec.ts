@@ -14,7 +14,7 @@ const ForgeRewardsMUSD = artifacts.require("ForgeRewardsMUSD");
 envSetup.configure();
 const { expect, assert } = chai;
 
-contract("Rewards", async (accounts) => {
+contract("ForgeRewardsMUSD", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
     let masset: MassetInstance;

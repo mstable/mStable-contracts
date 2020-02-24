@@ -3,6 +3,7 @@ pragma solidity ^0.5.12;
 import { IForgeRewards } from "./IForgeRewards.sol";
 import { MassetRewards } from "./MassetRewards.sol";
 
+import { MassetHelpers } from "../masset/shared/MassetHelpers.sol";
 import { IMasset } from "../interfaces/IMasset.sol";
 import { ISystok } from "../interfaces/ISystok.sol";
 
@@ -79,15 +80,18 @@ contract ForgeRewardsMUSD is MassetRewards, IForgeRewards {
         external
         returns (uint256 massetMinted)
     {
-        address[] memory bAssetAddresses = mUSD.convertBitmapToBassetsAddress(_bAssetBitmap, uint8(_bassetQuantities.length));
-        for(uint256 i = 0; i < bAssetAddresses.length; i++) {
+        uint256 inputLength = _bassetQuantities.length;
+        address[] memory bAssetAddresses = mUSD.convertBitmapToBassetsAddress(_bAssetBitmap, uint8(inputLength));
+        uint256[] memory receivedQty = new uint256[](inputLength);
+
+        for(uint256 i = 0; i < inputLength; i++) {
             if(_bassetQuantities[i] > 0){
                 // Transfer the bAssets from sender to rewards contract
-                IERC20(bAssetAddresses[i]).safeTransferFrom(msg.sender, address(this), _bassetQuantities[i]);
+                receivedQty[i] = MassetHelpers.transferTokens(msg.sender, address(this), bAssetAddresses[i], true, _bassetQuantities[i]);
             }
         }
         // Do the mUSD mint
-        massetMinted = mUSD.mintBitmapTo(_bAssetBitmap, _bassetQuantities, _massetRecipient);
+        massetMinted = mUSD.mintBitmapTo(_bAssetBitmap, receivedQty, _massetRecipient);
 
         // Log volume of minting
         _logMintVolume(massetMinted, _rewardRecipient);
@@ -112,15 +116,11 @@ contract ForgeRewardsMUSD is MassetRewards, IForgeRewards {
         external
         returns (uint256 massetMinted)
     {
-        // Option 1: Sender approved this, transfer Bassets here as intermediary, approve mAsset, call mint
-        // Option 2: Sender approves mAsset, call mint, mint calls xfer straight from sender. Caveat is that mAsset must
-        //           have rewards contract whitelisted. If anyone could call, then anyone with an approved balance would be
-        //           subject to robbery
-        // Tradeoff == ~20-40k extra gas vs optionality
-        IERC20(_basset).safeTransferFrom(msg.sender, address(this), _bassetQuantity);
+        // Receive the bAsset
+        uint256 receivedQty = MassetHelpers.transferTokens(msg.sender, address(this), _basset, true, _bassetQuantity);
 
         // Mint the mAsset
-        massetMinted = mUSD.mintSingleTo(_basset, _bassetQuantity, _massetRecipient);
+        massetMinted = mUSD.mintSingleTo(_basset, receivedQty, _massetRecipient);
 
         // Log minting volume
         _logMintVolume(massetMinted, _rewardRecipient);
