@@ -1,4 +1,4 @@
-pragma solidity ^0.5.12;
+pragma solidity ^0.5.16;
 
 import { IManager } from "../interfaces/IManager.sol";
 import { IForgeValidator } from "./forge-validator/IForgeValidator.sol";

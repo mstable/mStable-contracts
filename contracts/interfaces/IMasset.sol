@@ -1,4 +1,4 @@
-pragma solidity ^0.5.12;
+pragma solidity ^0.5.16;
 
 import { IManager } from "./IManager.sol";
 import { ISystok } from "./ISystok.sol";

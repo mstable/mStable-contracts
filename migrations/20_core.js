@@ -5,6 +5,7 @@
 const c_Nexus = artifacts.require('Nexus');
 const c_OracleHub = artifacts.require('SimpleOracleHub');
 const c_Systok = artifacts.require('Systok');
+const c_MiniMeTokenFactory = artifacts.require("MiniMeTokenFactory");
 const c_Manager = artifacts.require('Manager');
 const c_CommonHelpers = artifacts.require('CommonHelpers');
 const c_ForgeValidator = artifacts.require('ForgeValidator');
@@ -49,7 +50,12 @@ module.exports = async (deployer, network, accounts) => {
 
 
   /** Systok */
-  await deployer.deploy(c_Systok, d_Nexus.address, fundManager, { from : _ });
+  // await deployer.deploy(c_Systok, d_Nexus.address, fundManager, { from : _ });
+  // const d_Systok = await c_Systok.deployed();
+  await deployer.deploy(c_MiniMeTokenFactory, { from : _ });
+  const d_MiniMeTokenFactory = await c_MiniMeTokenFactory.deployed();
+
+  await deployer.deploy(c_Systok, d_MiniMeTokenFactory.address, d_Nexus.address, fundManager, { from : governor });
   const d_Systok = await c_Systok.deployed();
 
   /** OracleHub */
