@@ -32,7 +32,7 @@ contract SimpleOracleHubMock is SimpleOracleHub {
         require(values.length == symbols.length, "Values and symbols must be 1:1");
 
         // Recalculate the asset prices for the symbols to update
-        for (uint i = 0; i < values.length; i++) {
+        for (uint256 i = 0; i < values.length; i++) {
             data[symbols[i]] = Datum(timestamps[i], values[i]);
         }
     }

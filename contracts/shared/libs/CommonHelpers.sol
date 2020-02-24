@@ -11,7 +11,7 @@ interface BasicToken {
   */
 library CommonHelpers {
 
-    function addU(uint x, uint y) internal pure returns (uint z) {
+    function addU(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x + y) >= x, "Must not overflow");
     }
 

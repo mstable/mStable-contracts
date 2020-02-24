@@ -84,7 +84,7 @@ contract SimpleOracleHub is IOracleHub, Module {
     view
     returns(bool[2] memory _isFresh, uint64[2] memory _prices) {
         require(_keys.length == 2,  "Valid array");
-        for(uint i = 0; i < 2; i++){
+        for(uint256 i = 0; i < 2; i++){
             Datum memory m = data[_keys[i]];
             bool isFresh = m.timestamp < now && m.timestamp > (now - 24 hours);
             (_isFresh[i], _prices[i]) = (isFresh, m.value);
@@ -109,7 +109,7 @@ contract SimpleOracleHub is IOracleHub, Module {
         require(messages.length == signatures.length, "Msgs and sigs must be 1:1");
 
         // Post the messages, whatever they are
-        for (uint i = 0; i < messages.length; i++) {
+        for (uint256 i = 0; i < messages.length; i++) {
             put(messages[i], signatures[i]);
         }
     }

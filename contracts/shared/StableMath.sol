@@ -46,7 +46,7 @@ library StableMath {
 
     /**
      * @dev Scales a given integer to the power of the full scale.
-     * @param x   Simple uint to scale
+     * @param x   Simple uint256 to scale
      * @return    Scaled value a to an exact number
      */
     function scaleInteger(uint256 x)

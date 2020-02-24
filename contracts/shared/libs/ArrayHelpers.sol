@@ -12,7 +12,7 @@ library ArrayHelpers {
       * @param _value Value to remove from the array
       */
     function removeOne(address[] storage _data, address _value) internal {
-        for(uint i = 0; i < _data.length; i++) {
+        for(uint256 i = 0; i < _data.length; i++) {
             if (_data[i] == _value) {
                 _data[i] = _data[_data.length - 1];
                 _data.length--;
@@ -27,7 +27,7 @@ library ArrayHelpers {
       * @param _value Value to remove from the array
       */
     function removeOne(bytes32[] storage _data, bytes32 _value) internal {
-        for(uint i = 0; i < _data.length; i++) {
+        for(uint256 i = 0; i < _data.length; i++) {
             if (_data[i] == _value) {
                 _data[i] = _data[_data.length - 1];
                 _data.length--;

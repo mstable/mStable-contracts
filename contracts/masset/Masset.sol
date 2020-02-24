@@ -193,7 +193,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
                 receivedQty[j] = receivedBassetQty;
                 basket.bassets[indexes[j]].vaultBalance = bAsset.vaultBalance.add(receivedBassetQty);
 
-                uint ratioedBasset = receivedBassetQty.mulRatioTruncate(bAsset.ratio);
+                uint256 ratioedBasset = receivedBassetQty.mulRatioTruncate(bAsset.ratio);
                 massetQuantity = massetQuantity.add(ratioedBasset);
             }
         }
@@ -266,9 +266,9 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         uint256 massetQuantity = 0;
 
         // Calc MassetQ and update the Vault
-        for(uint i = 0; i < redemptionAssetCount; i++){
+        for(uint256 i = 0; i < redemptionAssetCount; i++){
             if(_bassetQuantities[i] > 0){
-                uint ratioedBasset = _bassetQuantities[i].mulRatioTruncateCeil(bAssets[i].ratio);
+                uint256 ratioedBasset = _bassetQuantities[i].mulRatioTruncateCeil(bAssets[i].ratio);
                 massetQuantity = massetQuantity.add(ratioedBasset);
 
                 // bAsset == bAssets[i] == basket.bassets[indexes[i]]
@@ -286,7 +286,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         _burn(msg.sender, massetQuantity);
 
         // Transfer the Bassets to the user
-        for(uint i = 0; i < redemptionAssetCount; i++){
+        for(uint256 i = 0; i < redemptionAssetCount; i++){
             if(_bassetQuantities[i] > 0){
                 IERC20(bAssets[i].addr).safeTransfer(_recipient, _bassetQuantities[i]);
             }
@@ -497,7 +497,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         external
         onlyManager
     {
-        (bool exists, uint i) = _isAssetInBasket(_basset);
+        (bool exists, uint256 i) = _isAssetInBasket(_basset);
         require(exists, "bASset must exist in Basket");
 
         (, , , , , BassetStatus status) = _getBasset(i);

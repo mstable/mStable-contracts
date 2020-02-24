@@ -79,7 +79,7 @@ contract MassetBasket is MassetStructs, MassetCore {
     onlyManager
     basketIsHealthy
     returns (bool alreadyActioned) {
-        (bool exists, uint i) = _isAssetInBasket(_basset);
+        (bool exists, uint256 i) = _isAssetInBasket(_basset);
         require(exists, "bASset must exist in Basket");
 
         BassetStatus oldStatus = basket.bassets[i].status;
@@ -107,7 +107,7 @@ contract MassetBasket is MassetStructs, MassetCore {
     function negatePegLoss(address _basset)
     external
     onlyManager {
-        (bool exists, uint i) = _isAssetInBasket(_basset);
+        (bool exists, uint256 i) = _isAssetInBasket(_basset);
         require(exists, "bASset must exist in Basket");
 
         if(basket.bassets[i].status == BassetStatus.BrokenBelowPeg ||
@@ -126,7 +126,7 @@ contract MassetBasket is MassetStructs, MassetCore {
     onlyManager
     basketIsHealthy
     returns (bool requiresAuction) {
-        (bool exists, uint i) = _isAssetInBasket(_basset);
+        (bool exists, uint256 i) = _isAssetInBasket(_basset);
         require(exists, "bASset must exist in Basket");
 
         (, , , uint256 vaultBalance, , BassetStatus status) = _getBasset(i);
@@ -249,10 +249,10 @@ contract MassetBasket is MassetStructs, MassetCore {
 
     function _removeBasset(address _assetToRemove)
     internal {
-        (bool existsInBasket, uint index) = _isAssetInBasket(_assetToRemove);
+        (bool existsInBasket, uint256 index) = _isAssetInBasket(_assetToRemove);
         require(existsInBasket, "Asset must appear in Basket");
 
-        uint len = basket.bassets.length;
+        uint256 len = basket.bassets.length;
 
         Basset memory basset = basket.bassets[index];
         // require(basset.maxWeight == 0, "bASset must have a target weight of 0");
@@ -383,7 +383,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         isTransferFeeCharged = new bool[](len);
         statuses = new BassetStatus[](len);
 
-        for(uint i = 0; i < len; i++){
+        for(uint256 i = 0; i < len; i++){
             (addresses[i], ratios[i], targets[i], vaults[i], isTransferFeeCharged[i], statuses[i]) = _getBasset(i);
         }
     }
@@ -403,7 +403,7 @@ contract MassetBasket is MassetStructs, MassetCore {
         bool isTransferFeeCharged,
         BassetStatus status
     ) {
-        (bool exists, uint index) = _isAssetInBasket(_basset);
+        (bool exists, uint256 index) = _isAssetInBasket(_basset);
         require(exists, "bASset must exist");
         return _getBasset(index);
     }
@@ -445,7 +445,7 @@ contract MassetBasket is MassetStructs, MassetCore {
       * @dev Checks if a particular asset is in the basket
       * @param _asset Address of Basset to look for
       * @return bool to signal that the asset is in basket
-      * @return uint Index of the Basset
+      * @return uint256 Index of the Basset
       */
     function _isAssetInBasket(address _asset)
     internal
