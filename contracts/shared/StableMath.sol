@@ -143,6 +143,7 @@ library StableMath {
 
     /**
      * @dev Multiplies and truncates a token ratio, essentially flooring the result
+     *      i.e. How much mAsset is this bAsset worth?
      * @param x     Left hand operand to multiplication (i.e Exact quantity)
      * @param ratio bAsset ratio
      * @return      Result after multiplying the two inputs and then dividing by the ratio scale

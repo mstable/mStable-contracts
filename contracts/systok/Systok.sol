@@ -42,17 +42,14 @@ contract Systok is ISystok, Module, MiniMeToken {
                   OVERRIDES
     ****************************************/
 
-    function generateTokens(address _owner, uint256 _amount) public onlyMinter returns (bool) {
+    function generateTokens(address _owner, uint256 _amount)
+        public
+        onlyMinter
+        returns (bool)
+    {
         return _generateTokens(_owner, _amount);
     }
 
-    function enableTransfers(bool _transfersEnabled) public onlyController {
-        // Do nothing, we should never disable transfers
-    }
-
-    // changeController
-    // This would allow us to override the permissions for updating the controller
-    // We could call it straight from the `claimGovernorChange` function in the Nexus
 
     /***************************************
                     FUNCS
@@ -61,6 +58,12 @@ contract Systok is ISystok, Module, MiniMeToken {
     // function destroyTokens || burn
     // This would allow burns of a users own balance, or their approved balance,
     // and require access to the destroy tokens func
+    // e.g.
+    // function burn(uint256 amount) public {
+    //     _balances[account] = _balances[msg.sender].sub(amount, "ERC20: burn amount exceeds balance");
+    //     _totalSupply = _totalSupply.sub(amount);
+    //     emit Transfer(account, address(0), amount);
+    // }
 
     // Copied from https://github.com/OpenZeppelin/openzeppelin-contracts-ethereum-package/blob/master/contracts/token/ERC20/ERC20.sol#118
     function increaseAllowance(address spender, uint256 addedValue) public returns (bool) {

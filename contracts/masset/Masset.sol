@@ -144,7 +144,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
         uint256 bAssetQty = MassetHelpers.transferTokens(msg.sender, address(this), _basset, b.isTransferFeeCharged, _bassetQuantity);
 
-        //Validation should be after token transfer, as bAssetQty is unknown before
+        // Validation should be after token transfer, as bAssetQty is unknown before
         forgeValidator.validateMint(totalSupply(), b, bAssetQty);
 
         basket.bassets[i].vaultBalance = b.vaultBalance.add(bAssetQty);

@@ -83,7 +83,6 @@ module.exports = async (deployer, network, accounts) => {
     false,
   ];
 
-  console.log('1')
   const d_MUSD = await deployer.deploy(
     c_MUSD,
     d_Nexus.address,
