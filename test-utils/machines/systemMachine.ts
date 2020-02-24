@@ -29,6 +29,7 @@ const NexusArtifact = artifacts.require("Nexus");
 
 const OracleHubMockArtifact = artifacts.require("SimpleOracleHubMock");
 
+const MiniMeTokenFactoryArtifact = artifacts.require("MiniMeTokenFactory");
 const SystokArtifact = artifacts.require("Systok");
 
 /**
@@ -143,11 +144,15 @@ export class SystemMachine {
      */
     public async deploySystok(): Promise<SystokInstance> {
         try {
+            const miniTokenFactory = await MiniMeTokenFactoryArtifact.new({
+                from: this.sa.default,
+            });
             const systokInstance = await SystokArtifact.new(
+                miniTokenFactory.address,
                 this.nexus.address,
                 this.sa.fundManager,
                 {
-                    from: this.sa.default,
+                    from: this.sa.governor,
                 },
             );
 
