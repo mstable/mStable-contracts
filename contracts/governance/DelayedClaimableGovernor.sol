@@ -22,7 +22,7 @@ contract DelayedClaimableGovernor is ClaimableGovernor {
     constructor(address _governor, uint256 _delay)
     public
     ClaimableGovernor(_governor) {
-        require(_delay > 0, "Delay must be greater then zero");
+        require(_delay > 0, "Delay must be greater than zero");
         delay = _delay;
     }
 

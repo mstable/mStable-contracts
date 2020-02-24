@@ -3,11 +3,10 @@ pragma experimental ABIEncoderV2;
 
 import { IManager } from "../interfaces/IManager.sol";
 import { IMasset } from "../interfaces/IMasset.sol";
+import { IERC20 }     from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import { IOracleHub } from "../interfaces/IOracleHub.sol";
 
 import { ManagerState } from "./ManagerState.sol";
-
-import { StableMath } from "../shared/math/StableMath.sol";
 
 /**
  * @title Manager
@@ -16,7 +15,6 @@ import { StableMath } from "../shared/math/StableMath.sol";
  * - Manages the basket
  * - Coordinates recollateralisation
  * - Maintains State
- * Module: Handles new module updates published by the Nexus
  * Portal: Provides Massets with prices and general interface into system
  * FactoryHub: Creates more Massets
  */
@@ -24,8 +22,6 @@ contract Manager is
     IManager,
     ManagerState
 {
-    using StableMath for uint256;
-
     /** @dev Events to emit */
     event MassetAdded(bytes32 indexed key, address addr);
     event MassetEjected(bytes32 indexed key, address addr);
@@ -33,16 +29,13 @@ contract Manager is
     /**
       * @dev Sets up the core state of the Manager
       * @param _nexus             Nexus module
-      * @param _forgeValidator          Address of current ForgeValidator
       */
     constructor(
-        address _nexus,
-        address _forgeValidator
+        address _nexus
     )
         ManagerState(_nexus)
         public
     {
-        forgeValidator = _forgeValidator;
     }
 
 
@@ -51,18 +44,23 @@ contract Manager is
     ****************************************/
 
     /**
-      * @dev Upgrades the version of ForgeValidator referenced across the Massets
-      * @param _newForgeValidator Address of the new ForgeValidator
+      * @dev Validates the addition of a new bAsset to a given mAsset
+      * @param _masset                 Address of the new Masset to which the bAsset is added
+      * @param _newBasset              Address of the new bAsset
+      * @param _measurementMultiple    MM relative to the mAsset
+      * @param _isTransferFeeCharged   Does this bAsset have transfer fee
       */
-    function upgradeForgeValidator(address _newForgeValidator)
+    function validateBasset(
+        address _masset,
+        address _newBasset,
+        uint256 _measurementMultiple,
+        bool _isTransferFeeCharged
+    )
         external
-        onlyGovernor
+        view
+        returns (bool isValid)
     {
-        address[] memory _massets = massets.keys;
-        for(uint256 i = 0; i < _massets.length; i++) {
-            IMasset tempMasset = IMasset(_massets[i]);
-            tempMasset.upgradeForgeValidator(_newForgeValidator);
-        }
+        return true;
     }
 
     /***************************************
@@ -116,7 +114,7 @@ contract Manager is
         onlyGovernor
         returns (address)
     {
-        require(_masset != address(0), "Masset must be a referenced implementation");
+        require(_masset != address(0), "Masset addr is address(0)");
 
         massets.add(_masset, _massetKey);
 
@@ -134,9 +132,10 @@ contract Manager is
         external
         onlyGovernor
     {
-        require(_masset != address(0), "Masset must be a referenced implementation");
+        require(_masset != address(0), "Masset addr is address(0)");
         bytes32 key = massets.get(_masset);
-        require(key != bytes32(0x0), "Masset must be a referenced implementation");
+        require(key != bytes32(0x0), "Masset key is bytes(0x0)");
+        require(IERC20(_masset).totalSupply() == 0, "Masset must be unused");
 
         massets.remove(_masset);
 

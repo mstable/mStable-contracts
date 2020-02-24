@@ -166,10 +166,7 @@ export class SystemMachine {
      */
     public async deployManager(): Promise<ManagerInstance> {
         try {
-            const instance = await ManagerArtifact.new(
-                this.nexus.address,
-                this.forgeValidator.address,
-            );
+            const instance = await ManagerArtifact.new(this.nexus.address);
 
             return instance;
         } catch (e) {

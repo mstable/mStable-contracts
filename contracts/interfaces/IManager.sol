@@ -6,10 +6,9 @@ pragma solidity ^0.5.16;
  */
 interface IManager {
 
-    /** Masset Setters */
-    function upgradeForgeValidator(address _newForgeValidator) external;
-
     /** ManagerPortal provides getters relevant to Massets */
+    function validateBasset(address _masset, address _newBasset, uint256 _measurementMultiple, bool _isTransferFeeCharged)
+        external view returns(bool isValid);
     function getMassetPrice(address _masset) external view returns(uint256, uint256);
 
     /** Getters for Manager/System state */

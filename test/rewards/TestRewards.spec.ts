@@ -232,6 +232,9 @@ contract("Rewards", async (accounts) => {
             assert(data.claimed[0] === false);
             assert(data.rewardAllocation[0].eq(new BN(0)));
             assert(data.redeemed[0] === false);
+
+            const hasParicipated = await rewardsContract.getRewardeeParticipation(0, sa.default);
+            assert(hasParicipated === true);
         });
     });
 

@@ -7,15 +7,15 @@ import { percentScale, ratioScale } from "./constants";
  * it likely share code with the front end
  */
 
-const percentToWeight = (percent: number): BN => {
+export const percentToWeight = (percent: number): BN => {
     return new BN(percent).mul(percentScale);
 };
 
-const createMultiple = (ratio: number): BN => {
+export const createMultiple = (ratio: number): BN => {
     return new BN(ratio).mul(ratioScale);
 };
 
-const simpleToExactAmount = (amount: number, decimals: number): BN => {
+export const simpleToExactAmount = (amount: number, decimals: number): BN => {
     return new BN(amount).mul(new BN(10).pow(new BN(decimals)));
 };
 
@@ -31,8 +31,6 @@ export const applyRatioMassetToBasset = (input: BN, ratio: BN): BN => {
 };
 
 /** @dev Converts a simple ratio (e.g. x1.1) to 1e6 format for OracleData */
-const simpleToExactRelativePrice = (relativePrice: number): BN => {
+export const simpleToExactRelativePrice = (relativePrice: number): BN => {
     return new BN(relativePrice).mul(new BN(10).pow(6));
 };
-
-export { percentToWeight, createMultiple, simpleToExactAmount, simpleToExactRelativePrice };

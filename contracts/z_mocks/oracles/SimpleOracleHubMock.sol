@@ -29,7 +29,7 @@ contract SimpleOracleHubMock is SimpleOracleHub {
         uint64[] calldata timestamps,
         bytes32[] calldata symbols
     ) external {
-        require(values.length == symbols.length, "values and symbols must be 1:1");
+        require(values.length == symbols.length, "Values and symbols must be 1:1");
 
         // Recalculate the asset prices for the symbols to update
         for (uint i = 0; i < values.length; i++) {

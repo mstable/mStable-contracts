@@ -28,7 +28,7 @@ contract Governable {
      * @dev Throws if called by any account other than the Governor.
      */
     modifier onlyGovernor() {
-        require(isGovernor(), "Governable: caller is not the Governor");
+        require(isGovernor(), "GOV: caller is not the Governor");
         _;
     }
 
@@ -53,7 +53,7 @@ contract Governable {
      * @param _newGovernor Address of the new Governor
      */
     function _changeGovernor(address _newGovernor) internal {
-        require(_newGovernor != address(0), "Governable: new Governor is the zero address");
+        require(_newGovernor != address(0), "GOV: new Governor is address(0)");
         emit GovernorChanged(_governor, _newGovernor);
         _governor = _newGovernor;
     }

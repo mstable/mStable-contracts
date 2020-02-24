@@ -2,7 +2,7 @@ pragma solidity ^0.5.16;
 pragma experimental ABIEncoderV2;
 
 import { IForgeValidator, MassetStructs } from "./IForgeValidator.sol";
-import { StableMath } from "../../shared/math/StableMath.sol";
+import { StableMath } from "../../shared/StableMath.sol";
 import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 /**
@@ -22,7 +22,7 @@ contract ForgeValidator is IForgeValidator {
         pure
     {
         require(_basset.status != BassetStatus.BrokenBelowPeg &&
-            _basset.status != BassetStatus.Liquidating, "Basset not allowed in mint");
+            _basset.status != BassetStatus.Liquidating, "bASset not allowed in mint");
 
         // How much mAsset is this _bassetQuantity worth?
         uint256 mintAmountInMasset = _bassetQuantity.mulRatioTruncate(_basset.ratio);
@@ -46,7 +46,7 @@ contract ForgeValidator is IForgeValidator {
         pure
     {
         uint256 bassetCount = _bassets.length;
-        require(bassetCount == _bassetQuantity.length, "indexes & _bAssetQty length should be equal");
+        require(bassetCount == _bassetQuantity.length, "Input length should be equal");
 
         uint256[] memory newBalances = new uint256[](bassetCount);
         uint256 newTotalVault = _totalVault;
@@ -56,7 +56,7 @@ contract ForgeValidator is IForgeValidator {
             Basset memory b = _bassets[j];
             BassetStatus bAssetStatus = b.status;
 
-            require(bAssetStatus != BassetStatus.BrokenBelowPeg && bAssetStatus != BassetStatus.Liquidating, "Basset not allowed in mint");
+            require(bAssetStatus != BassetStatus.BrokenBelowPeg && bAssetStatus != BassetStatus.Liquidating, "bASset not allowed in mint");
 
             // How much mAsset is this _bassetQuantity worth?
             uint256 mintAmountInMasset = _bassetQuantity[j].mulRatioTruncate(b.ratio);
@@ -89,7 +89,7 @@ contract ForgeValidator is IForgeValidator {
         pure
     {
         Basset memory bAsset = _allBassets[_indexToRedeem];
-        require(bAsset.status != BassetStatus.BrokenAbovePeg || basketIsFailed, "Cannot redeem this bAsset unless Basket is failed");
+        require(bAsset.status != BassetStatus.BrokenAbovePeg || basketIsFailed, "Cannot redeem selected bAsset");
         // require(bAsset.vaultBalance >= _bassetQuantity, "Insufficient vault balance"); // This gets checked implicity through sub, xfer
 
         // Get current weightings, and cache some outputs from the loop to avoid unecessary recursion
@@ -112,7 +112,7 @@ contract ForgeValidator is IForgeValidator {
         // Else, redemption is valid so long as no bAssets end up overweight
         else {
             (bool atLeastOneOverweightAfter) = _getOverweightBassetsAfter(newTotalVault, _allBassets, ratioedBassetVaults);
-            require(!atLeastOneOverweightAfter, "Redemption cannot push bAssets overweight");
+            require(!atLeastOneOverweightAfter, "bAssets must remain underweight");
         }
     }
 
@@ -130,7 +130,7 @@ contract ForgeValidator is IForgeValidator {
         pure
     {
         uint idxCount = _idxs.length;
-        require(idxCount == _bassetQuantities.length, "Must provide values for all Bassets in system");
+        require(idxCount == _bassetQuantities.length, "Input arrays should be equal");
 
         (
             bool[] memory overweightBassetsBefore,
@@ -142,7 +142,7 @@ contract ForgeValidator is IForgeValidator {
 
         for(uint i = 0; i < idxCount; i++){
             require(_allBassets[_idxs[i]].status != BassetStatus.BrokenAbovePeg || basketIsFailed,
-                "Cannot redeem depegged bAsset unless Basket is failed");
+                "Cannot redeem depegged bAsset");
 
             uint256 ratioedRedemptionAmount = _bassetQuantities[i].mulRatioTruncate(_allBassets[_idxs[i]].ratio);
             ratioedBassetVaults[_idxs[i]] = ratioedBassetVaults[_idxs[i]].sub(ratioedRedemptionAmount);
@@ -160,7 +160,7 @@ contract ForgeValidator is IForgeValidator {
         // Else, redemption is valid so long as no bAssets end up overweight
         else {
             (bool atLeastOneOverweightAfter) = _getOverweightBassetsAfter(newTotalVault, _allBassets, ratioedBassetVaults);
-            require(!atLeastOneOverweightAfter, "Redemption cannot push bAssets overweight");
+            require(!atLeastOneOverweightAfter, "bAssets must remain underweight");
         }
     }
 
@@ -218,7 +218,7 @@ contract ForgeValidator is IForgeValidator {
         for(uint256 i = 0; i < len; i++) {
             uint256 maxWeightInUnits = _bAssets[i].maxWeight.mulTruncate(_newTotal);
             // If the bAsset is de-pegged on the up-side, it doesn't matter if it goes above max
-            bool bassetOverWeight = _ratioedBassetVaultsAfter[i] > maxWeightInUnits&& _bAssets[i].status != BassetStatus.BrokenAbovePeg;
+            bool bassetOverWeight = _ratioedBassetVaultsAfter[i] > maxWeightInUnits && _bAssets[i].status != BassetStatus.BrokenAbovePeg;
 
             atLeastOneOverweight = atLeastOneOverweight || bassetOverWeight;
         }

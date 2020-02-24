@@ -26,7 +26,7 @@ library CommonHelpers {
     returns (uint256) {
         /* solium-disable-next-line security/no-low-level-calls */
         (bool success, ) = _token.call(abi.encodeWithSignature("decimals()"));
-        require(success, "Token contract must support decimals");
+        require(success, "Contract must support decimals");
 
         return getDecimals(_token);
     }
@@ -37,7 +37,7 @@ library CommonHelpers {
     view
     returns (uint256) {
         uint256 decimals = BasicToken(_token).decimals();
-        require(decimals > 0, "Token must have 1 or more decimal places.");
+        require(decimals > 0, "Token must decimal places");
 
         return decimals;
     }

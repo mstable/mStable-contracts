@@ -14,9 +14,6 @@ contract ManagerState is Module {
     /** @dev Custom dictionary for managing data structures */
     using DictionaryAtoB for DictionaryAtoB.AddressToBytes32;
 
-    /** @dev Address of latest ForgeValidator implementation */
-    address public forgeValidator;
-
     /** @dev Hard coded Systok key for calling OracleHub */
     bytes32 internal oracle_key_systok = "MTA";
 

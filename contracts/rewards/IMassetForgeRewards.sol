@@ -31,6 +31,8 @@ interface IMassetForgeRewards {
             address[] memory participants);
 
     /** Getters for easily parsing all rewardee data */
+    function getRewardeeParticipation(uint256 _trancheNumber, address _rewardee)
+        external view returns(bool hasParticipated);
     function getRewardeeData(uint256 _trancheNumber, address _rewardee)
         external view returns(
             bool mintWindowClosed,

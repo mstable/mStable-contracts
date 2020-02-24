@@ -17,7 +17,7 @@ contract ClaimableGovernor is Governable {
      * @dev Throws if called by any account other than the Proposed Governor.
      */
     modifier onlyProposedGovernor() {
-        require(msg.sender == proposedGovernor, "Sender is not a proposed governor");
+        require(msg.sender == proposedGovernor, "Sender is not proposed governor");
         _;
     }
 
@@ -27,7 +27,7 @@ contract ClaimableGovernor is Governable {
 
     //@override
     function changeGovernor(address) public onlyGovernor {
-        revert("Direct change of Governor not allowed");
+        revert("Direct change not allowed");
     }
 
     /**
@@ -35,7 +35,7 @@ contract ClaimableGovernor is Governable {
      * @param _proposedGovernor Address of the proposed Governor
      */
     function requestGovernorChange(address _proposedGovernor) public onlyGovernor {
-        require(_proposedGovernor != address(0), "Proposed governor is the zero zero address");
+        require(_proposedGovernor != address(0), "Proposed governor is address(0)");
         require(proposedGovernor == address(0), "Proposed governor already set");
 
         proposedGovernor = _proposedGovernor;
