@@ -60,16 +60,7 @@ module.exports = async (deployer, network, accounts) => {
     GUSD.address,
     PAX.address,
   ];
-  /* Basses symbols in hex */
-  const basketKeys = [
-    aToH("USDT<>USD"),
-    aToH("USDC<>USD"),
-    aToH("TUSD<>USD"),
-    aToH("DAI<>USD"),
-    aToH("SUSD<>USD"),
-    aToH("GUSD<>USD"),
-    aToH("PAX<>USD"),
-  ];
+
   /* Assign basset weightings in percent */
   const basketWeights =  [
     percentToWeight(30), // max 30
@@ -81,25 +72,39 @@ module.exports = async (deployer, network, accounts) => {
     percentToWeight(25)  // 20
   ];
 
+  const basketIsTransferFeeCharged = [
+    true, // USDT changes transfer fees
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+  ];
+
   const d_MUSD = await deployer.deploy(
     c_MUSD,
     d_Nexus.address,
     basketAddresses,
-    basketKeys,
     basketWeights,
+    basketIsTransferFeeCharged,
     feePool,
     d_ForgeValidator.address
   );
 
-  const txData = await d_Manager.addMasset(
-    aToH("mUSD"),
-    d_MUSD.address,
-    {from: governor});
-
-  //await d_MultiSig.submitTransaction(d_Manager.address, 0, txData, { from : governor });
+  if(network == 'development' || network == 'coverage') {
+    const txData = await d_Manager.addMasset(
+      aToH("mUSD"),
+      d_MUSD.address,
+      {from: governor});
+  } else {
+    // We need to send the transaction from the multisig
+    //await d_MultiSig.submitTransaction(d_Manager.address, 0, txData, { from : governor });
+  }
 
   const massets = await d_Manager.getMassets();
   console.log(`[mUSD]: '${massets[0][0]}'`);
+  
 
   // Deploy ForgeRewardsMUSD contract
   await deployer.deploy(

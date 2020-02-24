@@ -32,7 +32,8 @@ export function shouldBehaveLikeClaimable(
         // Try to Cancel governor
         await shouldFail.reverting.withMessage(
             ctx.claimable.cancelGovernorChange({ from: sa._ }),
-            "Governable: caller is not the Governor");
+            "GOV: caller is not the Governor",
+        );
         const newProposedGovernor = await ctx.claimable.proposedGovernor();
         assert.isTrue(proposedGovernor === newProposedGovernor);
     });
@@ -47,7 +48,8 @@ export function shouldBehaveLikeClaimable(
         // Try to Cancel governor
         await shouldFail.reverting.withMessage(
             ctx.claimable.cancelGovernorChange({ from: sa.other }),
-            "Governable: caller is not the Governor");
+            "GOV: caller is not the Governor",
+        );
         const newProposedGovernor = await ctx.claimable.proposedGovernor();
         assert.isTrue(proposedGovernor === newProposedGovernor);
     });
@@ -73,13 +75,15 @@ export function shouldBehaveLikeClaimable(
     it("should prevent Others to call claimOwnership when there is no pendingGovernor", async () => {
         await shouldFail.reverting.withMessage(
             ctx.claimable.claimGovernorChange({ from: sa.other }),
-            "Sender is not a proposed governor");
+            "Sender is not proposed governor",
+        );
     });
 
     it("should prevent Governor to call claimOwnership when there is no pendingGovernor", async () => {
         await shouldFail.reverting.withMessage(
             ctx.claimable.claimGovernorChange({ from: sa.governor }),
-            "Sender is not a proposed governor");
+            "Sender is not proposed governor",
+        );
     });
 
     it("should prevent non-governors from transfering", async () => {
@@ -89,20 +93,23 @@ export function shouldBehaveLikeClaimable(
         assert.isTrue(governor !== other);
         await shouldFail.reverting.withMessage(
             ctx.claimable.requestGovernorChange(other, { from: other }),
-            "Governable: caller is not the Governor");
+            "GOV: caller is not the Governor",
+        );
     });
 
     it("should prevent direct change governor", async () => {
         const other = sa.other;
         await shouldFail.reverting.withMessage(
             ctx.claimable.changeGovernor(other, { from: sa.governor }),
-            "Direct change of Governor not allowed");
+            "Direct change not allowed",
+        );
     });
 
     it("requestGovernorChange(): should prevent zero address", async () => {
         await shouldFail.reverting.withMessage(
             ctx.claimable.requestGovernorChange(ZERO_ADDRESS, { from: sa.governor }),
-            "Proposed governor is the zero zero address");
+            "Proposed governor is address(0)",
+        );
     });
 
     it("should prevent when already proposed", async () => {
@@ -110,13 +117,14 @@ export function shouldBehaveLikeClaimable(
         await ctx.claimable.requestGovernorChange(other, { from: sa.governor });
         await shouldFail.reverting.withMessage(
             ctx.claimable.requestGovernorChange(other, { from: sa.governor }),
-            "Proposed governor already set");
+            "Proposed governor already set",
+        );
     });
 
     it("cancelGovernorChange(): should prevent when not proposed", async () => {
         await shouldFail.reverting.withMessage(
             ctx.claimable.cancelGovernorChange({ from: sa.governor }),
-            "Proposed Governor not set");
+            "Proposed Governor not set",
+        );
     });
-
 }

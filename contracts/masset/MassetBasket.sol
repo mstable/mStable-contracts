@@ -8,6 +8,7 @@ import { MassetCore, IManager, IForgeValidator, StableMath } from "./MassetCore.
 import { MassetStructs } from "./shared/MassetStructs.sol";
 
 import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
 import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 /**
@@ -17,6 +18,7 @@ import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 contract MassetBasket is MassetStructs, MassetCore {
 
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
     /** @dev Struct holding Basket details */
     Basket public basket;
     bool public measurementMultipleEnabled;
@@ -30,23 +32,28 @@ contract MassetBasket is MassetStructs, MassetCore {
     constructor(
         address _nexus,
         address[] memory _bassets,
-        bytes32[] memory _keys,
         uint256[] memory _weights,
-        uint256[] memory _multiples
+        uint256[] memory _multiples,
+        bool[] memory _hasTransferFees
     )
         MassetCore(_nexus)
         public
     {
-        require(_bassets.length > 0, "Must initialise the basket with some bAssets");
+        require(_bassets.length > 0, "Must initialise with some bAssets");
 
         measurementMultipleEnabled = _multiples.length > 0;
-        
+
         // Defaults
-        basket.collateralisationRatio = 1e18;
-        redemptionFee = 2e16;
+        basket.maxBassets = 16; // 16
+        basket.collateralisationRatio = 1e18; // 100%
+        redemptionFee = 2e16; // 2%
 
         for (uint256 i = 0; i < _bassets.length; i++) {
-            _addBasset(_bassets[i], _keys[i], measurementMultipleEnabled ? _multiples[i] : StableMath.getRatio());
+            _addBasset(
+                _bassets[i],
+                measurementMultipleEnabled ? _multiples[i] : StableMath.getRatioScale(),
+                _hasTransferFees[i]
+                );
         }
         _setBasketWeights(_bassets, _weights);
     }
@@ -73,7 +80,7 @@ contract MassetBasket is MassetStructs, MassetCore {
     basketIsHealthy
     returns (bool alreadyActioned) {
         (bool exists, uint256 i) = _isAssetInBasket(_basset);
-        require(exists, "Basset must exist in Basket");
+        require(exists, "bASset must exist in Basket");
 
         BassetStatus oldStatus = basket.bassets[i].status;
         BassetStatus newStatus = _belowPeg ? BassetStatus.BrokenBelowPeg : BassetStatus.BrokenAbovePeg;
@@ -101,7 +108,7 @@ contract MassetBasket is MassetStructs, MassetCore {
     external
     onlyManager {
         (bool exists, uint256 i) = _isAssetInBasket(_basset);
-        require(exists, "Basset must exist in Basket");
+        require(exists, "bASset must exist in Basket");
 
         if(basket.bassets[i].status == BassetStatus.BrokenBelowPeg ||
           basket.bassets[i].status == BassetStatus.BrokenAbovePeg) {
@@ -120,9 +127,9 @@ contract MassetBasket is MassetStructs, MassetCore {
     basketIsHealthy
     returns (bool requiresAuction) {
         (bool exists, uint256 i) = _isAssetInBasket(_basset);
-        require(exists, "Basset must exist in Basket");
+        require(exists, "bASset must exist in Basket");
 
-        (, , , , uint256 vaultBalance, BassetStatus status) = _getBasset(i);
+        (, , , uint256 vaultBalance, , BassetStatus status) = _getBasset(i);
         require(!_bassetHasRecolled(status), "Invalid Basset state");
 
         // If vaultBalance is 0 and we want to recol, then just remove from Basket?
@@ -130,13 +137,15 @@ contract MassetBasket is MassetStructs, MassetCore {
             _removeBasset(_basset);
             return false;
         }
-        require(vaultBalance > 0, "Must have something to recollateralise");
+        // require(vaultBalance > 0, "Must have something to recollateralise");
 
         basket.bassets[i].status = BassetStatus.Liquidating;
         basket.bassets[i].vaultBalance = 0;
 
         // Approve the recollateraliser to take the Basset
-        require(IERC20(_basset).approve(_recollateraliser, vaultBalance), "Basset approve failed");
+        // TODO / FIXME Ensure that this function is not called again for
+        // the same bAsset address. Otherwise safeApprove() call would stuck forever.
+        IERC20(_basset).safeApprove(_recollateraliser, vaultBalance);
         return true;
     }
 
@@ -149,43 +158,54 @@ contract MassetBasket is MassetStructs, MassetCore {
     /**
       * @dev External func to allow the Manager to conduct add operations on the Basket
       * @param _basset Address of the ERC20 token to add to the Basket
-      * @param _key Bytes32 key that will be used to lookup price in Oracle
       */
-    function addBasset(address _basset, bytes32 _key)
-    external
-    managerOrGovernor
-    basketIsHealthy {
-        require(!measurementMultipleEnabled, "Specifying _measurementMultiple disabled");
-        _addBasset(_basset, _key, StableMath.getRatio());
+    function addBasset(address _basset, bool _isTransferFeeCharged)
+        external
+        managerOrGovernor
+        basketIsHealthy
+    {
+        require(!measurementMultipleEnabled, "Specifying _mm enabled");
+        _addBasset(_basset, StableMath.getRatioScale(), _isTransferFeeCharged);
     }
 
     /**
       * @dev External func to allow the Manager to conduct add operations on the Basket
       * @param _basset Address of the ERC20 token to add to the Basket
-      * @param _key Bytes32 key that will be used to lookup price in Oracle
       * @param _measurementMultiple MeasurementMultiple of the Basset where 1:1 == 1e8
       */
-    function addBasset(address _basset, bytes32 _key, uint256 _measurementMultiple)
-    external
-    managerOrGovernor
-    basketIsHealthy {
-        require(measurementMultipleEnabled, "Specifying _measurementMultiple disabled");
-        _addBasset(_basset, _key, _measurementMultiple);
+    function addBasset(
+        address _basset,
+        uint256 _measurementMultiple,
+        bool _isTransferFeeCharged
+    )
+        external
+        managerOrGovernor
+        basketIsHealthy
+    {
+        require(measurementMultipleEnabled, "Specifying _mm disabled");
+        _addBasset(_basset, _measurementMultiple, _isTransferFeeCharged);
     }
 
     /**
       * @dev Adds a basset to the Basket, fetching its decimals and calculating the Ratios
       * @param _basset Address of the ERC20 token to add to the Basket
-      * @param _key Bytes32 key that will be used to lookup price in Oracle
       * @param _measurementMultiple base 1e8 var to determine measurement ratio between basset:masset
       * e.g. a Gold backed basset pegged to 1g where Masset is base 10g would be 1e7 (0.1:1)
       * e.g. a USD backed basset pegged to 1 USD where Masset is pegged to 1 USD would be 1e8 (1:1)
       */
-    function _addBasset(address _basset, bytes32 _key, uint256 _measurementMultiple)
-    internal {
-        require(_basset != address(0), "Asset address must be valid.");
+    function _addBasset(
+        address _basset,
+        uint256 _measurementMultiple,
+        bool _isTransferFeeCharged
+    )
+        internal
+    {
+        require(_basset != address(0), "Asset address must be valid");
         (bool alreadyInBasket, ) = _isAssetInBasket(_basset);
-        require(!alreadyInBasket, "Asset cannot already be in the basket.");
+        require(!alreadyInBasket, "Asset already exists in Basket");
+
+        require(IManager(_manager()).validateBasset(address(this), _basset, _measurementMultiple, _isTransferFeeCharged),
+            "New bAsset must be valid");
 
         // Check for ERC20 compatibility by forcing decimal retrieval
         // Ultimate enforcement of Basset validity should service through governance
@@ -195,17 +215,19 @@ contract MassetBasket is MassetStructs, MassetCore {
 
         uint256 ratio = _measurementMultiple.mul(10 ** delta);
 
-        basket.bassetsMap[_basset] = basket.bassets.length;
+        uint256 numberOfBassetsInBasket = basket.bassets.length;
+        require(numberOfBassetsInBasket < basket.maxBassets, "Max bAssets in Basket");
+
+        basket.bassetsMap[_basset] = numberOfBassetsInBasket;
 
         basket.bassets.push(Basset({
             addr: _basset,
-            key: _key,
             ratio: ratio,
             maxWeight: 0,
             vaultBalance: 0,
-            status: BassetStatus.Normal
+            status: BassetStatus.Normal,
+            isTransferFeeCharged: _isTransferFeeCharged
         }));
-
 
         emit BassetAdded(_basset);
     }
@@ -233,9 +255,9 @@ contract MassetBasket is MassetStructs, MassetCore {
         uint256 len = basket.bassets.length;
 
         Basset memory basset = basket.bassets[index];
-        // require(basset.maxWeight == 0, "Basset must have a target weight of 0");
-        require(basset.vaultBalance == 0, "Basset vault must be completely empty");
-        require(basset.status != BassetStatus.Liquidating, "Basset must be active");
+        // require(basset.maxWeight == 0, "bASset must have a target weight of 0");
+        require(basset.vaultBalance == 0, "bASset vault must be empty");
+        require(basset.status != BassetStatus.Liquidating, "bASset must be active");
 
         basket.bassets[index] = basket.bassets[len-1];
         basket.bassets.pop();
@@ -278,28 +300,42 @@ contract MassetBasket is MassetStructs, MassetCore {
     {
         uint256 bassetCount = _bassets.length;
 
-        require(bassetCount == _weights.length, "Must be matching basset data arrays");
-        require(bassetCount == basket.bassets.length, "Must be matching existing basket layout");
+        require(bassetCount == _weights.length, "Must be matching basset arrays");
+        require(bassetCount == basket.bassets.length, "Must match existing basket");
 
         uint256 weightSum = CommonHelpers.sumOfArrayValues(_weights);
-        require(weightSum >= StableMath.getScale(), "Basket weight must total > 100% == 1");
+        require(weightSum >= StableMath.getFullScale(), "Basket weight must be >= 1e18");
 
         for (uint256 i = 0; i < bassetCount; i++) {
             address basset = _bassets[i];
 
-            require(basset == basket.bassets[i].addr, "Basset must be represented symmetrically");
+            require(basset == basket.bassets[i].addr, "Input must be symmetrical");
 
             uint256 bassetWeight = _weights[i];
             if(basket.bassets[i].status == BassetStatus.Normal) {
                 require(bassetWeight >= 0, "Weight must be positive");
-                require(bassetWeight <= StableMath.getScale(), "Asset weight must be less than or equal to 1");
+                require(bassetWeight <= StableMath.getFullScale(), "Asset weight must be <= 1e18");
                 basket.bassets[i].maxWeight = bassetWeight;
             } else {
-                require(bassetWeight == basket.bassets[i].maxWeight, "Cannot change weightings for suffering Bassets");
+                require(bassetWeight == basket.bassets[i].maxWeight, "Affected bAssets must be static");
             }
         }
 
         emit BasketWeightsUpdated(_bassets, _weights);
+    }
+
+    /**
+     * @dev Update transfer fee flag
+     * @param _bAsset bAsset address
+     * @param _flag Charge transfer fee when its set to 'true', otherwise 'false'
+     */
+    function upgradeTransferFees(address _bAsset, bool _flag)
+        external
+        onlyGovernor
+    {
+        (bool exist, uint256 index) = _isAssetInBasket(_bAsset);
+        require(exist, "bAsset does not exist");
+        basket.bassets[index].isTransferFeeCharged = _flag;
     }
 
 
@@ -331,23 +367,24 @@ contract MassetBasket is MassetStructs, MassetCore {
     view
     returns (
         address[] memory addresses,
-        bytes32[] memory keys,
         uint256[] memory ratios,
         uint256[] memory targets,
         uint256[] memory vaults,
-        BassetStatus[] memory statuses
+        bool[] memory isTransferFeeCharged,
+        BassetStatus[] memory statuses,
+        uint256 len
     ) {
-        uint256 len = basket.bassets.length;
+        len = basket.bassets.length;
 
         addresses = new address[](len);
-        keys = new bytes32[](len);
         ratios = new uint256[](len);
         targets = new uint256[](len);
         vaults = new uint256[](len);
+        isTransferFeeCharged = new bool[](len);
         statuses = new BassetStatus[](len);
 
         for(uint256 i = 0; i < len; i++){
-            (addresses[i], keys[i], ratios[i], targets[i], vaults[i], statuses[i]) = _getBasset(i);
+            (addresses[i], ratios[i], targets[i], vaults[i], isTransferFeeCharged[i], statuses[i]) = _getBasset(i);
         }
     }
 
@@ -360,14 +397,14 @@ contract MassetBasket is MassetStructs, MassetCore {
     view
     returns (
         address addr,
-        bytes32 key,
         uint256 ratio,
         uint256 maxWeight,
         uint256 vaultBalance,
+        bool isTransferFeeCharged,
         BassetStatus status
     ) {
         (bool exists, uint256 index) = _isAssetInBasket(_basset);
-        require(exists, "Basset must exist");
+        require(exists, "bASset must exist");
         return _getBasset(index);
     }
 
@@ -393,14 +430,14 @@ contract MassetBasket is MassetStructs, MassetCore {
     view
     returns (
         address addr,
-        bytes32 key,
         uint256 ratio,
         uint256 maxWeight,
         uint256 vaultBalance,
+        bool isTransferFeeCharged,
         BassetStatus status
     ) {
         Basset memory b = basket.bassets[_bassetIndex];
-        return (b.addr, b.key, b.ratio, b.maxWeight, b.vaultBalance, b.status);
+        return (b.addr, b.ratio, b.maxWeight, b.vaultBalance, b.isTransferFeeCharged, b.status);
     }
 
 

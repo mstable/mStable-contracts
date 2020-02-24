@@ -14,8 +14,8 @@ contract MUSD is Masset {
     constructor (
         address _nexus,
         address[] memory _bassets,
-        bytes32[] memory _bassetKeys,
         uint256[] memory _bassetWeights,
+        bool[] memory _hasTransferFees,
         address _feePool,
         address _forgeValidator
     )
@@ -24,9 +24,9 @@ contract MUSD is Masset {
             "mUSD",
             _nexus,
             _bassets,
-            _bassetKeys,
             _bassetWeights,
             new uint256[](0),
+            _hasTransferFees,
             _feePool,
             _forgeValidator
         )

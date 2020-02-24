@@ -14,7 +14,7 @@ contract MinterRole {
     mapping (address => bool) private _minters;
 
     modifier onlyMinter() {
-        require(isMinter(msg.sender), "MinterRole: caller does not have the Minter role");
+        require(isMinter(msg.sender), "Caller does not have Minter role");
         _;
     }
 

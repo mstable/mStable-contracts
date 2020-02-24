@@ -96,10 +96,7 @@ export class SystemMachine {
             moduleAddresses[2] = this.manager.address;
             isLocked[2] = false;
 
-            await this.initializeNexusWithModules(
-                moduleKeys,
-                moduleAddresses,
-                isLocked);
+            await this.initializeNexusWithModules(moduleKeys, moduleAddresses, isLocked);
 
             return Promise.resolve(true);
         } catch (e) {
@@ -164,10 +161,7 @@ export class SystemMachine {
      */
     public async deployManager(): Promise<ManagerInstance> {
         try {
-            const instance = await ManagerArtifact.new(
-                this.nexus.address,
-                this.forgeValidator.address,
-            );
+            const instance = await ManagerArtifact.new(this.nexus.address);
 
             return instance;
         } catch (e) {
@@ -191,9 +185,9 @@ export class SystemMachine {
             "TMT",
             this.nexus.address,
             [b1.address, b2.address],
-            [aToH("b1"), aToH("b2")],
             [percentToWeight(50), percentToWeight(50)],
             [createMultiple(1), createMultiple(1)],
+            [false, false],
             this.sa.feePool,
             this.forgeValidator.address,
         );

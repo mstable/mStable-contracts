@@ -14,12 +14,13 @@ interface MassetStructs {
         Basset[] bassets;
         mapping(address => uint256) bassetsMap;
 
+        /** @dev Max number of bAssets that can be present in any Basket */
+        uint8 maxBassets;
+
         /**
          * @dev Old Bassets that have been removed from the system
          */
         address[] expiredBassets;
-
-        // TODO -> bool hasFeeEnabled
 
         /**
          * @dev In the event that we do not raise enough funds from the auctioning of a failed Basset,
@@ -31,16 +32,23 @@ interface MassetStructs {
 
     }
 
+    /** @dev Stores bAsset info. The struct takes 4 storage slots per Basset */
     struct Basset {
 
         /** @dev Address of the Basset */
         address addr;
 
-        // TODO -> Consider removing
-        /** @dev Bytes32 key used for Oracle price lookups */
-        bytes32 key;
+        /** @dev Status of the basset,  */
+        BassetStatus status; // takes uint8 datatype (1 byte) in storage
 
-        /** @dev 1 Basset * ratio / ratioScale == 1 Masset (relative value) */
+        /** @dev An ERC20 can charge transfer fee, for example USDT, DGX tokens. */
+        bool isTransferFeeCharged; // takes a byte in storage
+
+        /**
+         * @dev 1 Basset * ratio / ratioScale == x Masset (relative value)
+         *      If ratio == 10e8 then 1 bAsset = 10 mAssets
+         *      A ratio is divised as 10^(18-tokenDecimals) * measurementMultiple(relative value of 1 base unit)
+         */
         uint256 ratio;
 
         /** @dev Target weights of the Basset (100% == 1e18) */
@@ -49,8 +57,6 @@ interface MassetStructs {
         /** @dev Amount of the Basset that is held in Collateral */
         uint256 vaultBalance;
 
-        /** @dev Status of the basset,  */
-        BassetStatus status;
     }
 
 

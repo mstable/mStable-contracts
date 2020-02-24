@@ -40,7 +40,6 @@ contract("MassetMinting", async (accounts) => {
             "TMT",
             systemMachine.nexus.address,
             [b1.address, b2.address, b3.address, b4.address, b5.address, b6.address, b7.address],
-            [aToH("b1"), aToH("b2"), aToH("b3"), aToH("b4"), aToH("b5"), aToH("b6"), aToH("b7")],
             [
                 percentToWeight(30),
                 percentToWeight(30),
@@ -59,6 +58,7 @@ contract("MassetMinting", async (accounts) => {
                 createMultiple(1),
                 createMultiple(1),
             ],
+            [true, false, false, false, false, false, false],
             sa.feePool,
             systemMachine.forgeValidator.address,
         );
