@@ -30,7 +30,7 @@ contract Systok is ISystok, Module, MiniMeToken {
             true
         )
     {
-        generateTokens(_initialRecipient, 100000000 * (10 ** 18));
+        _generateTokens(_initialRecipient, 100000000 * (10 ** 18));
     }
 
     modifier onlyMinter() {
