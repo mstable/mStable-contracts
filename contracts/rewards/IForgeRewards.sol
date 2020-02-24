@@ -1,4 +1,4 @@
-pragma solidity ^0.5.12;
+pragma solidity ^0.5.16;
 
 interface IForgeRewards {
     /** Participant actions to earn rewards through minting */
