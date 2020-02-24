@@ -55,8 +55,9 @@ contract Manager is
       * @param _newForgeValidator Address of the new ForgeValidator
       */
     function upgradeForgeValidator(address _newForgeValidator)
-    external
-    onlyGovernor {
+        external
+        onlyGovernor
+    {
         address[] memory _massets = massets.keys;
         for(uint256 i = 0; i < _massets.length; i++) {
             IMasset tempMasset = IMasset(_massets[i]);
@@ -76,9 +77,10 @@ contract Manager is
       * @return uint256 Price of Systok where $1 == 1e18
       */
     function getMassetPrice(address _addr)
-    external
-    view
-    returns(uint256 massetPrice, uint256 systokPrice) {
+        external
+        view
+        returns(uint256 massetPrice, uint256 systokPrice)
+    {
         // Get the relevant masset key
         bytes32 key = massets.get(_addr);
 

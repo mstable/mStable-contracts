@@ -6,20 +6,21 @@ import { StableMath } from "../../shared/math/StableMath.sol";
 import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 /**
-  * @title ForgeValidator
-  * @dev Contract responsible for validating that the Forging of a particular bAsset set is allowed
-  */
+ * @title ForgeValidator
+ * @dev Contract responsible for validating that the Forging of a particular bAsset set is allowed
+ */
 contract ForgeValidator is IForgeValidator {
 
     using SafeMath for uint256;
     using StableMath for uint256;
 
     /**
-      * @dev Checks whether a given mint is valid
-      */
+     * @dev Checks whether a given mint is valid
+     */
     function validateMint(uint256 _totalVault, Basset calldata _basset, uint256 _bassetQuantity)
-    external
-    pure {
+        external
+        pure
+    {
         require(_basset.status != BassetStatus.BrokenBelowPeg &&
             _basset.status != BassetStatus.Liquidating, "Basset not allowed in mint");
 
@@ -34,11 +35,16 @@ contract ForgeValidator is IForgeValidator {
     }
 
     /**
-      * @dev Checks whether a given mint is valid
-      */
-    function validateMint(uint256 _totalVault, Basset[] calldata _bassets, uint256[] calldata _bassetQuantity)
-    external
-    pure {
+     * @dev Checks whether a given mint is valid
+     */
+    function validateMint(
+        uint256 _totalVault,
+        Basset[] calldata _bassets,
+        uint256[] calldata _bassetQuantity
+    )
+        external
+        pure
+    {
         uint256 bassetCount = _bassets.length;
         require(bassetCount == _bassetQuantity.length, "indexes & _bAssetQty length should be equal");
 
@@ -70,8 +76,8 @@ contract ForgeValidator is IForgeValidator {
 
 
     /**
-      * @dev Checks whether a given mint is valid
-      */
+     * @dev Checks whether a given mint is valid
+     */
     function validateRedemption(
         Basset[] calldata _allBassets,
         bool basketIsFailed,
@@ -111,8 +117,8 @@ contract ForgeValidator is IForgeValidator {
     }
 
     /**
-      * @dev Checks whether a given redemption is valid
-      */
+     * @dev Checks whether a given redemption is valid
+     */
     function validateRedemption(
         Basset[] calldata _allBassets,
         bool basketIsFailed,
@@ -163,16 +169,17 @@ contract ForgeValidator is IForgeValidator {
     ****************************************/
 
     /**
-      * @dev Something
-      */
+     * @dev Something
+     */
     function _getOverweightBassets(uint256 _total, Basset[] memory _bassets)
-    private
-    pure
-    returns (
-        bool[] memory isOverWeight,
-        bool atLeastOneOverweight,
-        uint256[] memory ratioedBassets
-    ) {
+        private
+        pure
+        returns (
+            bool[] memory isOverWeight,
+            bool atLeastOneOverweight,
+            uint256[] memory ratioedBassets
+        )
+    {
         uint256 len = _bassets.length;
         isOverWeight = new bool[](len);
         ratioedBassets = new uint256[](len);
@@ -194,8 +201,8 @@ contract ForgeValidator is IForgeValidator {
     }
 
     /**
-      * @dev Something
-      */
+     * @dev Something
+     */
     function _getOverweightBassetsAfter(
         uint256 _newTotal,
         Basset[] memory _bAssets,

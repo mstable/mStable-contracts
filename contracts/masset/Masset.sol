@@ -4,15 +4,22 @@ pragma experimental ABIEncoderV2;
 import { IMasset } from "../interfaces/IMasset.sol";
 import { ISystok } from "../interfaces/ISystok.sol";
 
-import { MassetBasket, IManager, IForgeValidator, IERC20 } from "./MassetBasket.sol";
+import { MassetBasket, IManager, IForgeValidator } from "./MassetBasket.sol";
 import { MassetToken } from "./mERC20/MassetToken.sol";
 
+import { StableMath } from "../shared/math/StableMath.sol";
+import { SafeERC20 }  from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
+import { IERC20 }     from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
+
 /**
-  * @title Masset
-  * @author Stability Labs Pty Ltd
-  * @dev Base layer functionality for the Masset
-  */
+ * @title Masset
+ * @author Stability Labs Pty Ltd
+ * @dev Base layer functionality for the Masset
+ */
 contract Masset is IMasset, MassetToken, MassetBasket {
+
+    using StableMath for uint256;
+    using SafeERC20 for IERC20;
 
     /** @dev Forging events */
     event Minted(address indexed account, uint256 massetQuantity, uint256[] bAssetQuantities);
@@ -28,9 +35,9 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         string memory _symbol,
         address _nexus,
         address[] memory _bassets,
-        bytes32[] memory _bassetKeys,
         uint256[] memory _bassetWeights,
         uint256[] memory _bassetMultiples,
+        bool[] memory _hasTransferFees,
         address _feePool,
         address _forgeValidator
     )
@@ -42,9 +49,9 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         MassetBasket(
           _nexus,
           _bassets,
-          _bassetKeys,
           _bassetWeights,
-          _bassetMultiples
+          _bassetMultiples,
+          _hasTransferFees
         )
         public
     {
@@ -134,28 +141,48 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
         Basset memory b = basket.bassets[i];
 
-        forgeValidator.validateMint(totalSupply(), b, _bassetQuantity);
+        uint256 bAssetQty = _transferTokens(_basset, b.isTransferFeeCharged, _bassetQuantity);
 
-        require(IERC20(_basset).transferFrom(msg.sender, address(this), _bassetQuantity), "Basset transfer failed");
+        //Validation should be after token transfer, as bAssetQty is unknown before
+        forgeValidator.validateMint(totalSupply(), b, bAssetQty);
 
-        basket.bassets[i].vaultBalance = b.vaultBalance.add(_bassetQuantity);
+        basket.bassets[i].vaultBalance = b.vaultBalance.add(bAssetQty);
         // ratioedBasset is the number of masset quantity to mint
-        uint256 ratioedBasset = _bassetQuantity.mulRatioTruncate(b.ratio);
+        uint256 ratioedBasset = bAssetQty.mulRatioTruncate(b.ratio);
 
         // Mint the Masset
         _mint(_recipient, ratioedBasset);
-        emit Minted(_recipient, ratioedBasset, _bassetQuantity);
+        emit Minted(_recipient, ratioedBasset, bAssetQty);
 
         return ratioedBasset;
     }
 
+    function _transferTokens(
+        address _basset,
+        bool _isFeeCharged,
+        uint256 _qty
+    )
+        private
+        returns (uint256 receivedQty)
+    {
+        receivedQty = _qty;
+        if(_isFeeCharged) {
+            uint256 balBefore = IERC20(_basset).balanceOf(address(this));
+            IERC20(_basset).safeTransferFrom(msg.sender, address(this), _qty);
+            uint256 balAfter = IERC20(_basset).balanceOf(address(this));
+            receivedQty = StableMath.min(_qty, balAfter.sub(balBefore));
+        } else {
+            IERC20(_basset).safeTransferFrom(msg.sender, address(this), _qty);
+        }
+    }
+
     /**
-      * @dev Mints a number of Massets based on the sum of the value of the Bassets
-      * @param _bassetsBitmap bits set in bitmap represent position of bAssets to use
-      * @param _bassetQuantity Exact units of Bassets to mint
-      * @param _recipient Address to which the Masset should be minted
-      * @return number of newly minted mAssets
-      */
+     * @dev Mints a number of Massets based on the sum of the value of the Bassets
+     * @param _bassetsBitmap bits set in bitmap represent position of bAssets to use
+     * @param _bassetQuantity Exact units of Bassets to mint
+     * @param _recipient Address to which the Masset should be minted
+     * @return number of newly minted mAssets
+     */
     function _mintTo(
         uint32 _bassetsBitmap,
         uint256[] memory _bassetQuantity,
@@ -172,24 +199,26 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         (Basset[] memory bAssets, uint8[] memory indexes)
             = convertBitmapToBassets(_bassetsBitmap, uint8(len));
 
-        // Validate the proposed mint
-        forgeValidator.validateMint(totalSupply(), bAssets, _bassetQuantity);
-
         uint256 massetQuantity = 0;
 
+        uint256[] memory receivedQty = new uint256[](len);
         // Transfer the Bassets to this contract, update storage and calc MassetQ
         for(uint256 j = 0; j < len; j++){
             if(_bassetQuantity[j] > 0){
                 // bAsset == bAssets[j] == basket.bassets[indexes[j]]
                 Basset memory bAsset = bAssets[j];
 
-                require(IERC20(bAsset.addr).transferFrom(msg.sender, address(this), _bassetQuantity[j]), "Basset transfer failed");
-                basket.bassets[indexes[j]].vaultBalance = bAsset.vaultBalance.add(_bassetQuantity[j]);
+                uint256 receivedBassetQty = _transferTokens(bAsset.addr, bAsset.isTransferFeeCharged, _bassetQuantity[j]);
+                receivedQty[j] = receivedBassetQty;
+                basket.bassets[indexes[j]].vaultBalance = bAsset.vaultBalance.add(receivedBassetQty);
 
-                uint ratioedBasset = _bassetQuantity[j].mulRatioTruncate(bAsset.ratio);
+                uint ratioedBasset = receivedBassetQty.mulRatioTruncate(bAsset.ratio);
                 massetQuantity = massetQuantity.add(ratioedBasset);
             }
         }
+
+        // Validate the proposed mint, after token transfer, as bAssert quantity is unknown until transferred
+        forgeValidator.validateMint(totalSupply(), bAssets, receivedQty);
 
         require(massetQuantity > 0, "No masset quantity to mint");
 
@@ -205,9 +234,9 @@ contract Masset is IMasset, MassetToken, MassetBasket {
     ****************************************/
 
     /**
-      * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
-      * @param _bassetQuantity Exact quantities of Bassets to redeem
-      */
+     * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
+     * @param _bassetQuantity Exact quantities of Bassets to redeem
+     */
     function redeemSingle(
         address _basset,
         uint256 _bassetQuantity
@@ -232,10 +261,10 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
 
     /**
-      * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
-      * @param _bassetQuantities Exact quantities of Bassets to redeem
-      * @param _recipient Account to which the redeemed Bassets should be sent
-      */
+     * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
+     * @param _bassetQuantities Exact quantities of Bassets to redeem
+     * @param _recipient Account to which the redeemed Bassets should be sent
+     */
     function redeemBitmapTo(
         uint32 _bassetsBitmap,
         uint256[] calldata _bassetQuantities,
@@ -278,7 +307,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         // Transfer the Bassets to the user
         for(uint i = 0; i < redemptionAssetCount; i++){
             if(_bassetQuantities[i] > 0){
-                require(IERC20(bAssets[i].addr).transfer(_recipient, _bassetQuantities[i]), "Must be successful transfer");
+                IERC20(bAssets[i].addr).safeTransfer(_recipient, _bassetQuantities[i]);
             }
         }
 
@@ -291,10 +320,10 @@ contract Masset is IMasset, MassetToken, MassetBasket {
     ****************************************/
 
     /**
-      * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
-      * @param _bassetQuantity Exact quantities of Bassets to redeem
-      * @param _recipient Account to which the redeemed Bassets should be sent
-      */
+     * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
+     * @param _bassetQuantity Exact quantities of Bassets to redeem
+     * @param _recipient Account to which the redeemed Bassets should be sent
+     */
     function _redeem(
         address _basset,
         uint256 _bassetQuantity,
@@ -327,7 +356,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         _burn(msg.sender, massetQuantity);
 
         // Transfer the Bassets to the user
-        require(IERC20(b.addr).transfer(_recipient, _bassetQuantity), "Must be successful transfer");
+        IERC20(b.addr).safeTransfer(_recipient, _bassetQuantity);
 
         emit RedeemedSingle(_recipient, msg.sender, massetQuantity, i, _bassetQuantity);
         return massetQuantity;
@@ -460,13 +489,14 @@ contract Masset is IMasset, MassetToken, MassetBasket {
     ****************************************/
 
     /**
-      * @dev Completes the auctioning process for a given Basset
-      * @param _basset Address of the ERC20 token to isolate
-      * @param _unitsUnderCollateralised Masset units that we failed to recollateralise
-      */
+     * @dev Completes the auctioning process for a given Basset
+     * @param _basset Address of the ERC20 token to isolate
+     * @param _unitsUnderCollateralised Masset units that we failed to recollateralise
+     */
     function completeRecol(address _basset, uint256 _unitsUnderCollateralised)
-    external
-    onlyManager {
+        external
+        onlyManager
+    {
         (bool exists, uint i) = _isAssetInBasket(_basset);
         require(exists, "Basset must exist in Basket");
 

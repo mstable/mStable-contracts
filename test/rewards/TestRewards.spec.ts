@@ -1,25 +1,21 @@
-
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
 import { createBasket, createBasset, Basket } from "@utils/mstable-objects";
 import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
 import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import { aToH, BN } from "@utils/tools";
 
-
 import envSetup from "@utils/env_setup";
 import * as chai from "chai";
-import { ERC20MockInstance, MassetInstance, ForgeRewardsMUSDInstance } from "types/generated";
+import { ERC20MockInstance, ForgeRewardsMUSDInstance, MassetInstance } from "types/generated";
 
 const Masset = artifacts.require("Masset");
 const ForgeRewardsMUSD = artifacts.require("ForgeRewardsMUSD");
-
 
 envSetup.configure();
 const { expect, assert } = chai;
 
 contract("Rewards", async (accounts) => {
-
-    let sa = new StandardAccounts(accounts);
+    const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
     let masset: MassetInstance;
     // tslint:disable-next-line:one-variable-per-declaration
@@ -27,7 +23,7 @@ contract("Rewards", async (accounts) => {
     let rewardsContract: ForgeRewardsMUSDInstance;
 
     beforeEach("Init contract", async () => {
-        //rewardContract = await deployer.deployed(c_ForgeRewardsMUSD);
+        // rewardContract = await deployer.deployed(c_ForgeRewardsMUSD);
         systemMachine = new SystemMachine(accounts, sa.other);
         await systemMachine.initialiseMocks();
         const bassetMachine = new BassetMachine(sa.default, sa.other, 500000);
@@ -47,7 +43,6 @@ contract("Rewards", async (accounts) => {
             "TMT",
             systemMachine.nexus.address,
             [b1.address, b2.address, b3.address, b4.address, b5.address, b6.address, b7.address],
-            [aToH("b1"), aToH("b2"), aToH("b3"), aToH("b4"), aToH("b5"), aToH("b6"), aToH("b7")],
             [
                 percentToWeight(30),
                 percentToWeight(30),
@@ -66,6 +61,7 @@ contract("Rewards", async (accounts) => {
                 createMultiple(1),
                 createMultiple(1),
             ],
+            [true, false, false, false, false, false, false],
             sa.feePool,
             systemMachine.forgeValidator.address,
         );
@@ -75,7 +71,7 @@ contract("Rewards", async (accounts) => {
             masset.address,
             systemMachine.systok.address,
             sa.governor,
-            { from: sa.governor }
+            { from: sa.governor },
         );
     });
 
@@ -87,7 +83,7 @@ contract("Rewards", async (accounts) => {
         });
 
         it("Should approved all bAsset tokens to max", async () => {
-            let MAX: BN = ((new BN(2)).pow(new BN(256))).sub(new BN(1)); // 2^256-1
+            const MAX: BN = new BN(2).pow(new BN(256)).sub(new BN(1)); // 2^256-1
             assert((await b1.allowance(rewardsContract.address, masset.address)).eq(MAX));
             assert((await b2.allowance(rewardsContract.address, masset.address)).eq(MAX));
             assert((await b3.allowance(rewardsContract.address, masset.address)).eq(MAX));
@@ -95,7 +91,6 @@ contract("Rewards", async (accounts) => {
             assert((await b5.allowance(rewardsContract.address, masset.address)).eq(MAX));
             assert((await b6.allowance(rewardsContract.address, masset.address)).eq(MAX));
             assert((await b7.allowance(rewardsContract.address, masset.address)).eq(MAX));
-
         });
     });
 
@@ -106,7 +101,7 @@ contract("Rewards", async (accounts) => {
     describe("approveAllBassets()", () => {
         it("Should fail when called by non Governer");
         it("Should allowed when called by Governer");
-        it("Should approve to MAX when allowances are utilized")
+        it("Should approve to MAX when allowances are utilized");
     });
 
     describe("approveFor()", () => {
@@ -125,9 +120,9 @@ contract("Rewards", async (accounts) => {
                 "TMT",
                 newSystemMachine.nexus.address,
                 [b1.address],
-                [aToH("b1")],
                 [percentToWeight(100)],
                 [createMultiple(1)],
+                [false],
                 sa.feePool,
                 newSystemMachine.forgeValidator.address,
             );
@@ -137,15 +132,28 @@ contract("Rewards", async (accounts) => {
                 newMasset.address,
                 newSystemMachine.systok.address,
                 sa.governor,
-                { from: sa.governor }
+                { from: sa.governor },
             );
 
             await b1.approve(newRewardsContract.address, 10, { from: sa.default });
             assert((await b1.allowance(sa.default, newRewardsContract.address)).eq(new BN(10)));
 
-            const txReceipt = await newRewardsContract.mintSingleTo(b1.address, 10, sa.default, sa.default, { from: sa.default });
-            expectEvent.inLogs(txReceipt.logs, "MintVolumeIncreased", { trancheNumber: new BN(0), mintVolume: new BN(10) });
-            expectEvent.inLogs(txReceipt.logs, "RewardeeMintVolumeIncreased", { trancheNumber: new BN(0), rewardee: sa.default, mintVolume: new BN(10) });
+            const txReceipt = await newRewardsContract.mintSingleTo(
+                b1.address,
+                10,
+                sa.default,
+                sa.default,
+                { from: sa.default },
+            );
+            expectEvent.inLogs(txReceipt.logs, "MintVolumeIncreased", {
+                trancheNumber: new BN(0),
+                mintVolume: new BN(10),
+            });
+            expectEvent.inLogs(txReceipt.logs, "RewardeeMintVolumeIncreased", {
+                trancheNumber: new BN(0),
+                rewardee: sa.default,
+                mintVolume: new BN(10),
+            });
 
             assert((await newMasset.balanceOf(sa.default)).eq(new BN(10)));
             assert((await newMasset.totalSupply()).eq(new BN(10)));
@@ -166,7 +174,6 @@ contract("Rewards", async (accounts) => {
             assert(data.claimed[0] === false);
             assert(data.rewardAllocation[0].eq(new BN(0)));
             assert(data.redeemed[0] === false);
-
         });
 
         it("Should mint multiple bAssets", async () => {
@@ -186,12 +193,19 @@ contract("Rewards", async (accounts) => {
                 [10, 10, 10, 10],
                 sa.default,
                 sa.default,
-                { from: sa.default }
+                { from: sa.default },
             );
 
             // Expect event
-            expectEvent.inLogs(txReceipt.logs, "MintVolumeIncreased", { trancheNumber: new BN(0), mintVolume: new BN(40) });
-            expectEvent.inLogs(txReceipt.logs, "RewardeeMintVolumeIncreased", { trancheNumber: new BN(0), rewardee: sa.default, mintVolume: new BN(40) });
+            expectEvent.inLogs(txReceipt.logs, "MintVolumeIncreased", {
+                trancheNumber: new BN(0),
+                mintVolume: new BN(40),
+            });
+            expectEvent.inLogs(txReceipt.logs, "RewardeeMintVolumeIncreased", {
+                trancheNumber: new BN(0),
+                rewardee: sa.default,
+                mintVolume: new BN(40),
+            });
 
             assert((await masset.balanceOf(sa.default)).eq(new BN(40)));
             assert((await masset.totalSupply()).eq(new BN(40)));
@@ -203,9 +217,9 @@ contract("Rewards", async (accounts) => {
 
             // Rewards updated
             let data: any = await rewardsContract.getTrancheData(0);
-            //let totalMintVol,  = data[0];
-            //let [totalMintVolume, totalRewardUnits] = data
-            let rewardStartTime = await rewardsContract.rewardStartTime();
+            // let totalMintVol,  = data[0];
+            // let [totalMintVolume, totalRewardUnits] = data
+            const rewardStartTime = await rewardsContract.rewardStartTime();
             validateTrancheDates(data, rewardStartTime, 0);
 
             assert(data.totalMintVolume.eq(new BN(40)));
@@ -218,17 +232,14 @@ contract("Rewards", async (accounts) => {
             assert(data.claimed[0] === false);
             assert(data.rewardAllocation[0].eq(new BN(0)));
             assert(data.redeemed[0] === false);
-
         });
     });
 
     describe("claimReward()", () => {
-
         it("User should claim reward");
     });
 
     describe("claimReward() with rewardee", () => {
-
         it("User should claim reward");
     });
 
@@ -249,7 +260,7 @@ contract("Rewards", async (accounts) => {
 });
 
 function validateTrancheDates(trancheData, rewardStartTime, trancheNumber) {
-    let calcDatesData = genTrancheDate(rewardStartTime, trancheNumber);
+    const calcDatesData = genTrancheDate(rewardStartTime, trancheNumber);
     assert(trancheData[0].eq(calcDatesData[0]));
     assert(trancheData[1].eq(calcDatesData[1]));
     assert(trancheData[2].eq(calcDatesData[2]));
@@ -258,12 +269,12 @@ function validateTrancheDates(trancheData, rewardStartTime, trancheNumber) {
 
 function genTrancheDate(rewardStartTime, trancheNumber) {
     const WEEK = new BN(60 * 60 * 24 * 7); // 1 week
-    const TRANCHE_PERIOD = (new BN(4)).mul(WEEK); // 4 week
-    const CLAIM_PERIOD = (new BN(8)).mul(WEEK);   // 8 weeks
-    const LOCKUP_PERIOD = (new BN(52)).mul(WEEK); // 52 weeks
-    let trancheData = new Array();
+    const TRANCHE_PERIOD = new BN(4).mul(WEEK); // 4 week
+    const CLAIM_PERIOD = new BN(8).mul(WEEK); // 8 weeks
+    const LOCKUP_PERIOD = new BN(52).mul(WEEK); // 52 weeks
+    const trancheData = new Array();
     // startTime
-    trancheData[0] = rewardStartTime.add((new BN(trancheNumber)).mul(TRANCHE_PERIOD));
+    trancheData[0] = rewardStartTime.add(new BN(trancheNumber).mul(TRANCHE_PERIOD));
     // endTime
     trancheData[1] = trancheData[0].add(TRANCHE_PERIOD);
     // claimEndTime
@@ -272,4 +283,3 @@ function genTrancheDate(rewardStartTime, trancheNumber) {
     trancheData[3] = trancheData[1].add(LOCKUP_PERIOD);
     return trancheData;
 }
-
