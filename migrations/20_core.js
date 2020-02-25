@@ -59,7 +59,7 @@ module.exports = async (deployer, network, accounts) => {
   const d_MiniMeTokenFactory = await c_MiniMeTokenFactory.deployed();
 
   // Step 2. Deploy Systok itself (MiniMe)
-  await deployer.deploy(c_Systok, d_MiniMeTokenFactory.address, d_Nexus.address, fundManager, { from : _ });
+  await deployer.deploy(c_Systok, d_MiniMeTokenFactory.address, fundManager, { from : _ });
   const d_Systok = await c_Systok.deployed();
 
   // Step 3. Deploy the TokenController
