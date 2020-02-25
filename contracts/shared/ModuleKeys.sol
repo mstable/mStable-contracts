@@ -9,7 +9,7 @@ contract ModuleKeys {
     bytes32 constant public Key_Nexus = "Nexus";
 
     bytes32 constant public Key_Governance = "Governance";
-    
+
     bytes32 constant public Key_Staking = "Staking";
 
     bytes32 constant public Key_Systok = "Systok";

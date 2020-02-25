@@ -4,7 +4,6 @@ import { INexus } from "../interfaces/INexus.sol";
 import { ModuleKeys } from "../shared/ModuleKeys.sol";
 import { DelayedClaimableGovernor } from "../governance/DelayedClaimableGovernor.sol";
 
-
 /**
  * @title Nexus
  * @dev The Nexus is mStable's Kernel, and allows the publishing and propagating
@@ -13,58 +12,73 @@ import { DelayedClaimableGovernor } from "../governance/DelayedClaimableGovernor
 contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
 
     event ModuleProposed(bytes32 indexed key, address addr, uint256 timestamp);
-    event ModuleCancelled(bytes32 indexed key);
     event ModuleAdded(bytes32 indexed key, address addr, bool isLocked);
-
+    event ModuleCancelled(bytes32 indexed key);
     event ModuleLockRequested(bytes32 indexed key, uint256 timestamp);
-    event ModuleLockCancelled(bytes32 indexed key);
     event ModuleLockEnabled(bytes32 indexed key, bool isLocked);
-
+    event ModuleLockCancelled(bytes32 indexed key);
 
     /** @dev Struct to store Module props */
     struct Module {
-        address addr;   // Module address
-        bool isLocked;  // Module lock status
+        address addr;       // Module address
+        bool isLocked;      // Module lock status
     }
-
-    /** @dev Storage architecture for keeping module information */
-    mapping(bytes32 => Module) public modules;
-    mapping(address => bytes32) private addressToModule;
 
     /** @dev Struct to store Proposal props */
     struct Proposal {
-        address newAddress;
-        uint256 timestamp;
+        address newAddress; // Proposed Module address
+        uint256 timestamp;  // Timestamp when module proposed
     }
-
-    /** @dev Proposed modules */
-    mapping (bytes32 => Proposal) public proposedModules;
-    mapping (bytes32 => uint256) public proposedLockModules;
 
     /** @dev 1 week delayed upgrade period  */
     uint256 public constant UPGRADE_DELAY = 1 weeks;
 
-    /** Init flag to allow add modules at the time of deplyment without delay */
+    /** @dev Storage architecture for keeping module information */
+    // Module-key => Module
+    mapping(bytes32 => Module) public modules;
+    // Module-address => Module-key
+    mapping(address => bytes32) private addressToModule;
+
+    /** @dev Proposed modules */
+    // Module-key => Proposal
+    mapping (bytes32 => Proposal) public proposedModules;
+    // Module-key => Timestamp when lock proposed
+    mapping (bytes32 => uint256) public proposedLockModules;
+
+
+    /** @dev Init flag to allow add modules at the time of deplyment without delay */
     bool public initialized = false;
 
+    /**
+     * @dev Modifier allows functions calls only when contract is not initialized.
+     */
+    modifier whenNotInitialized() {
+        require(!initialized, "Nexus is already initialized");
+        _;
+    }
 
-    /** @dev Initialises the Nexus and adds the core data to the Kernel (itself and governor) */
+    /**
+     * @dev Initialises the Nexus and adds the core data to the Kernel (itself and governor)
+     * @param _governor Governor address
+     */
     constructor(address _governor)
-    public
-    DelayedClaimableGovernor(_governor, UPGRADE_DELAY) {
+        public
+        DelayedClaimableGovernor(_governor, UPGRADE_DELAY)
+    {
         // _publishModule(Key_Nexus, address(this), true);
         // Technically we don't need the above anymore.. Nexus is immutable kernel
     }
 
     /**
-      * @dev Adds multiple new modules to the system to initialize the
-      * Nexus contract with default modules. This should be called first
-      * after deploying Nexus contract.
-      * @param _keys Keys of the new modules in bytes32 form
-      * @param _addresses Contract addresses of the new modules
-      * @param _isLocked IsLocked flag for the new modules
-      * @return bool Success of publishing new Modules
-      */
+     * @dev Adds multiple new modules to the system to initialize the
+     * Nexus contract with default modules. This should be called first
+     * after deploying Nexus contract.
+     * @param _keys Keys of the new modules in bytes32 form
+     * @param _addresses Contract addresses of the new modules
+     * @param _isLocked IsLocked flag for the new modules
+     * @param _governor New Governor address
+     * @return bool Success of publishing new Modules
+     */
     function initialize(
         bytes32[] calldata _keys,
         address[] calldata _addresses,
@@ -91,16 +105,6 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
         return true;
     }
 
-
-    /***************************************
-                  MODIFIERS
-    ****************************************/
-
-    modifier whenNotInitialized() {
-        require(!initialized, "Nexus is already initialized");
-        _;
-    }
-
     /***************************************
                 MODULE ADDING
     ****************************************/
@@ -111,8 +115,9 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
      * @param _addr Address of the module
      */
     function proposeModule(bytes32 _key, address _addr)
-    external
-    onlyGovernor {
+        external
+        onlyGovernor
+    {
         require(_key != bytes32(0x0), "Key must not be zero");
         require(_addr != address(0), "Module address must not be 0");
         require(!modules[_key].isLocked, "Module must be unlocked");
@@ -130,8 +135,9 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
      * @param _key Key of the module
      */
     function cancelProposedModule(bytes32 _key)
-    external
-    onlyGovernor {
+        external
+        onlyGovernor
+    {
         uint256 timestamp = proposedModules[_key].timestamp;
         require(timestamp > 0, "Proposed module not found");
         delete proposedModules[_key];
@@ -143,8 +149,9 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
      * @param _key Key of the module
      */
     function acceptProposedModule(bytes32 _key)
-    external
-    onlyGovernor {
+        external
+        onlyGovernor
+    {
         _acceptProposedModule(_key);
     }
 
@@ -153,8 +160,9 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
      * @param _keys Keys array of the modules
      */
     function acceptProposedModules(bytes32[] calldata _keys)
-    external
-    onlyGovernor {
+        external
+        onlyGovernor
+    {
         uint256 len = _keys.length;
         require(len > 0, "Keys array empty");
 
@@ -175,11 +183,11 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
     }
 
     /**
-      * @dev Internal func to publish a module to kernel
-      * @param _key Key of the new module in bytes32 form
-      * @param _addr Contract address of the new module
-      * @param _isLocked Flag to lock a module
-      */
+     * @dev Internal func to publish a module to kernel
+     * @param _key Key of the new module in bytes32 form
+     * @param _addr Contract address of the new module
+     * @param _isLocked Flag to lock a module
+     */
     function _publishModule(bytes32 _key, address _addr, bool _isLocked) internal {
         require(addressToModule[_addr] == bytes32(0x0), "Modules must have unique addr");
         // Old no longer points to a moduleAddress
@@ -193,7 +201,6 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
         emit ModuleAdded(_key, _addr, _isLocked);
     }
 
-
     /***************************************
                 MODULE LOCKING
     ****************************************/
@@ -203,8 +210,9 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
      * @param _key Key of the module
      */
     function requestLockModule(bytes32 _key)
-    external
-    onlyGovernor {
+        external
+        onlyGovernor
+    {
         require(moduleExists(_key), "Module must exist");
         require(!modules[_key].isLocked, "Module must be unlocked");
 
@@ -219,8 +227,9 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
      * @param _key Key of the module
      */
     function cancelLockModule(bytes32 _key)
-    external
-    onlyGovernor {
+        external
+        onlyGovernor
+    {
         require(proposedLockModules[_key] > 0, "Module lock request not found");
         delete proposedLockModules[_key];
         emit ModuleLockCancelled(_key);
@@ -231,8 +240,9 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
      * @param _key Bytes32 key of the module
      */
     function lockModule(bytes32 _key)
-    external
-    onlyGovernor {
+        external
+        onlyGovernor
+    {
         require(_isDelayOver(proposedLockModules[_key]), "Delay not over");
         modules[_key].isLocked = true;
         delete proposedLockModules[_key];
