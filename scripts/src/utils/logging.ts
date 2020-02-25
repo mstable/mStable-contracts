@@ -1,8 +1,13 @@
 import { BN } from "@utils/tools";
 import chalk from "chalk";
 import { ForgeRewardsMUSDInstance } from "types/generated";
-
+import { blockTimestampSimple } from "./time";
 import TransactionResponse = Truffle.TransactionResponse;
+
+export const logBlockTimestamp = async (web3: any, block = "latest") => {
+    const timestamp = await blockTimestampSimple(web3, block);
+    console.log(`Current block timestamp: ${timestamp}`);
+};
 
 export const logSeparator = () => {
     console.log(chalk.gray("------------------------------------------------"));

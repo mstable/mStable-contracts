@@ -78,14 +78,23 @@ export class ForgeRewardsMUSDMinter {
     }
 
     private async getBassetsData(bassets = this.bassetAddresses) {
-        const [addresses, keys, ratios, targets, vaults, statuses] = await this.mUSD.getBassets();
+        const {
+            addresses,
+            ratios,
+            targets,
+            vaults,
+            isTransferFeeCharged,
+            statuses,
+        } = (await this.mUSD.getBassets()) as any;
+        // ^ Apparently the Typechain Truffle target isn't typed well anymore :-(
+
         const decimals = await this.getDecimals(bassets);
         return bassets.reduce(
             (data, _, index) => [
                 ...data,
                 {
                     addr: addresses[index],
-                    key: keys[index],
+                    isTransferFeeCharged: isTransferFeeCharged[index],
                     ratio: ratios[index],
                     decimals: decimals[index],
                     maxWeight: targets[index],
@@ -101,7 +110,7 @@ export class ForgeRewardsMUSDMinter {
         const massetDecimals = await this.mUSD.decimals();
         const mintInputExact = simpleToExactAmount(mintInput, massetDecimals.toNumber());
         const data = await this.getBassetsData(this.bassetAddresses);
-        return data.map(({ decimals, maxWeight, ratio }, i) => {
+        return data.map(({ maxWeight, ratio }) => {
             // 1e18 Massets
             // 1e18 * ratioScale = 1e26
             // if Ratio == 1e8 then its straight up
