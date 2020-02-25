@@ -10,7 +10,6 @@ import {
     SimpleOracleHubMockInstance,
     SystokControllerInstance,
     SystokInstance,
-    MassetInstance,
 } from "types/generated";
 
 import { Address } from "../../types/common";
