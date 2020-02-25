@@ -1,9 +1,10 @@
-import { ForgeRewardsMUSDInstance, MUSDInstance } from "../../../types/generated";
 import { applyRatioMassetToBasset, exactAmountToSimple, simpleToExactAmount } from "@utils/math";
 import { BN } from "@utils/tools";
-import TransactionDetails = Truffle.TransactionDetails;
 import { BassetStatus } from "@utils/mstable-objects";
+import { ForgeRewardsMUSDInstance, MUSDInstance } from "types/generated";
 import { BassetInstance, BassetWithDecimals, OrderedBassets } from "./types";
+
+import TransactionDetails = Truffle.TransactionDetails;
 
 export class ForgeRewardsMUSDMinter {
     constructor(

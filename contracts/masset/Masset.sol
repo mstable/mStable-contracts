@@ -480,7 +480,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         onlyManager
     {
         (bool exists, uint256 i) = _isAssetInBasket(_basset);
-        require(exists, "bASset must exist in Basket");
+        require(exists, "bAsset must exist in Basket");
 
         (, , , , , BassetStatus status) = _getBasset(i);
         require(status == BassetStatus.Liquidating, "Invalid Basset state");

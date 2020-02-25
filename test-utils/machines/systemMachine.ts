@@ -1,3 +1,6 @@
+import { MASSET_FACTORY_BYTES } from "@utils/constants";
+import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
+import { aToH, BN } from "@utils/tools";
 import {
     ERC20MockInstance,
     ForgeValidatorInstance,
@@ -7,10 +10,7 @@ import {
     SimpleOracleHubMockInstance,
     SystokControllerInstance,
     SystokInstance,
-} from "./../../types/generated/index.d";
-import { MASSET_FACTORY_BYTES } from "@utils/constants";
-import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
-import { aToH, BN } from "@utils/tools";
+} from "types/generated";
 
 import { Address } from "../../types/common";
 import { BassetMachine } from "./bassetMachine";
@@ -46,8 +46,11 @@ export class SystemMachine {
     public sa: StandardAccounts;
 
     public manager: ManagerInstance;
+
     public nexus: NexusInstance;
+
     public oracleHub: SimpleOracleHubMockInstance;
+
     public systok: SystokInstance;
     public systokController: SystokControllerInstance;
 
@@ -55,7 +58,7 @@ export class SystemMachine {
 
     private TX_DEFAULTS: any;
 
-    constructor(accounts: Address[], defaultSender: Address, defaultGas: number = 50000000) {
+    constructor(accounts: Address[], defaultSender: Address, defaultGas = 50000000) {
         this.sa = new StandardAccounts(accounts);
 
         this.TX_DEFAULTS = {

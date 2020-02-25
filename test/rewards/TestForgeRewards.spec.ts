@@ -19,7 +19,13 @@ contract("ForgeRewardsMUSD", async (accounts) => {
     let systemMachine: SystemMachine;
     let masset: MassetInstance;
     // tslint:disable-next-line:one-variable-per-declaration
-    let b1, b2, b3, b4, b5, b6, b7;
+    let b1;
+    let b2;
+    let b3;
+    let b4;
+    let b5;
+    let b6;
+    let b7;
     let rewardsContract: ForgeRewardsMUSDInstance;
 
     beforeEach("Init contract", async () => {
@@ -275,7 +281,7 @@ function genTrancheDate(rewardStartTime, trancheNumber) {
     const TRANCHE_PERIOD = new BN(4).mul(WEEK); // 4 week
     const CLAIM_PERIOD = new BN(8).mul(WEEK); // 8 weeks
     const LOCKUP_PERIOD = new BN(52).mul(WEEK); // 52 weeks
-    const trancheData = new Array();
+    const trancheData = [];
     // startTime
     trancheData[0] = rewardStartTime.add(new BN(trancheNumber).mul(TRANCHE_PERIOD));
     // endTime

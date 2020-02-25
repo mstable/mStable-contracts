@@ -1,16 +1,17 @@
-import { MassetContract, MassetInstance } from "./../../types/generated/index.d";
-import { Address } from "../../types/common";
 import { BN } from "@utils/tools";
 import { DEFAULT_DECIMALS, DEFAULT_SUPPLY } from "@utils/constants";
 import { Basset, BassetStatus } from "@utils/mstable-objects";
+import { MassetContract, MassetInstance } from "types/generated/index.d";
+import { Address } from "../../types/common";
 
 const MassetArtifact = artifacts.require("Masset");
 
 export class MassetMachine {
     private deployer: Address;
+
     private TX_DEFAULTS: any;
 
-    constructor(accounts: Address[], defaultSender: Address, defaultGas: number = 500000) {
+    constructor(accounts: Address[], defaultSender: Address, defaultGas = 500000) {
         this.deployer = accounts[0];
         this.TX_DEFAULTS = {
             from: defaultSender,

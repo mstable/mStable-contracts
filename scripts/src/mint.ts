@@ -1,8 +1,8 @@
 import { BN } from "@utils/tools";
+import { StandardAccounts } from "@utils/machines/standardAccounts";
 import { ForgeRewardsMUSDMinter } from "./utils/forgeRewardsMUSDMinter";
 import { getForgeContractInstances } from "./utils/getForgeContractInstances";
 import { logTx } from "./utils/logging";
-import { StandardAccounts } from "@utils/machines/standardAccounts";
 
 export default async (scope: any, amount: string, account?: string) => {
     const { mUSD, forge, bassets } = await getForgeContractInstances(scope);

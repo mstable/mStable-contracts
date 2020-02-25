@@ -9,7 +9,7 @@ import {
     TUSDContract,
     USDCContract,
     USDTContract,
-} from "../../../types/generated";
+} from "types/generated";
 import { OrderedBassets } from "./types";
 
 export const getForgeContractInstances = async ({ artifacts }: any) => {
