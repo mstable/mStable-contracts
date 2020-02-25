@@ -3,8 +3,11 @@ pragma solidity ^0.5.16;
 import { TokenController } from "minimetoken/contracts/TokenController.sol";
 import { MiniMeToken } from "minimetoken/contracts/MiniMeToken.sol";
 import { Module } from "../shared/Module.sol";
+import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 contract SystokController is Module, TokenController {
+
+    using SafeMath for uint256;
 
     MiniMeToken public systok;
 
@@ -63,6 +66,7 @@ contract SystokController is Module, TokenController {
         external
         onlyGovernor
     {
+        require(now >= (requestTime.add(delay)), "Delay not over");
         systok.changeController(proposedController);
         proposedController = address(0);
         requestTime = 0;
