@@ -21,11 +21,6 @@ contract("Nexus", async (accounts) => {
     let systemMachine: SystemMachine;
     let nexus: NexusInstance;
 
-    beforeEach("Init contract", async () => {
-        systemMachine = new SystemMachine(accounts, sa.other);
-        nexus = await systemMachine.deployNexus();
-    });
-
     describe("Behavior like...", () => {
         const ctx: { claimable?: DelayedClaimableGovernorInstance } = {};
         beforeEach("Init contract", async () => {
@@ -46,31 +41,123 @@ contract("Nexus", async (accounts) => {
         });
     });
 
+    beforeEach("Init contract", async () => {
+        systemMachine = new SystemMachine(accounts, sa.other);
+        nexus = await systemMachine.deployNexus();
+    });
+
     describe("Setup", () => {
-        it("should have correct default parameters");
+        it("should have correct default parameters", async () => {
+            const governor = await nexus.governor();
+            const initialized = await nexus.initialized();
+            const upgradeDelay = await nexus.UPGRADE_DELAY();
+            expect(governor).to.equal(sa.governor);
+            expect(initialized).to.equal(false);
+            const A_WEEK = new BN(60 * 60 * 24 * 7);
+            expect(upgradeDelay).to.bignumber.equals(A_WEEK);
+        });
     });
 
     describe("initialize()", () => {
         context("Should Succeed", () => {
-            it("with default module");
+            it("with default module", async () => {
+                //await systemMachine.initialiseMocks();
+                //const newNexus = systemMachine.nexus;
+
+            });
             it("with all modules");
             it("default with locked Systok module");
             it("default with unlocked module");
-            it("only allowed with governor");
+            it("only allowed with governor", async () => {
+                await nexus.initialize(
+                    [aToH("dummy")],
+                    [sa._],
+                    [true],
+                    sa.governor,
+                    { from: sa.governor },
+                );
+            });
+            it("allowed to set new governor address", async () => {
+                const govBefore = await nexus.governor();
+                await nexus.initialize(
+                    [aToH("dummy")],
+                    [sa._],
+                    [true],
+                    sa.other,
+                    { from: sa.governor },
+                );
+                const govAfter = await nexus.governor();
+                expect(govBefore).to.not.equal(govAfter);
+                expect(govBefore).to.equal(sa.governor);
+                expect(govAfter).to.equal(sa.other);
+            });
             it("should be initialized");
         });
         context("Should Fail", () => {
+            it("not initialize other than governor", async () => {
+                await shouldFail.reverting.withMessage(
+                    nexus.initialize([], [], [], sa.governor),
+                    "GOV: caller is not the Governor",
+                );
+            });
             it("not initialize with same module address");
             it("not initialize with same address for different modules");
-            it("not initialize when empty array");
-            it("not initialize when wrong array length");
-            it("not initialize other than governor");
-            it("should not be initialized");
+            it("not initialize when empty array", async () => {
+                await shouldFail.reverting.withMessage(
+                    nexus.initialize([], [], [], sa.governor, { from: sa.governor }),
+                    "No keys provided",
+                );
+            });
+            it("not initialize when wrong array length for addresses array", async () => {
+                await shouldFail.reverting.withMessage(
+                    nexus.initialize(
+                        [aToH("dummy")],
+                        [sa._, sa.other],
+                        [true],
+                        sa.governor,
+                        { from: sa.governor },
+                    ),
+                    "Insuffecient address data",
+                );
+            });
+            it("not initialize when wrong array length for isLocked array", async () => {
+                await shouldFail.reverting.withMessage(
+                    nexus.initialize(
+                        [aToH("dummy")],
+                        [sa._],
+                        [true, false],
+                        sa.governor,
+                        { from: sa.governor },
+                    ),
+                    "Insuffecient locked statuses",
+                );
+            });
+
+            it("when already initialized", async () => {
+                await nexus.initialize(
+                    [aToH("dummy")],
+                    [sa._],
+                    [true],
+                    sa.governor,
+                    { from: sa.governor },
+                );
+                // must fail
+                await shouldFail.reverting.withMessage(
+                    nexus.initialize(
+                        [aToH("dummy")],
+                        [sa._],
+                        [true],
+                        sa.governor,
+                        { from: sa.governor },
+                    ),
+                    "Nexus is already initialized",
+                );
+            });
         });
     });
 
     describe("proposeModule()", () => {
-        context("should fail", () => {
+        context("should Fail", () => {
             it("when not initialized");
             it("when not called by Governor");
             it("when empty key");
@@ -78,7 +165,7 @@ contract("Nexus", async (accounts) => {
             it("when module key & address pair already exist");
             it("when module already proposed");
         });
-        context("should pass", () => {
+        context("Should Succeed", () => {
             it("when called by Governor");
             it("when a new module is proposed");
             it("when an existing module address is updated");
@@ -86,13 +173,13 @@ contract("Nexus", async (accounts) => {
     });
 
     describe("cancelProposedModule()", () => {
-        context("should fail", () => {
+        context("Should Fail", () => {
             it("when not initialized");
             it("when not called by Governor");
             it("when empty key");
             it("when proposed module not found");
         });
-        context("should pass", () => {
+        context("Should Succeed", () => {
             it("when called by Governor");
             it("when cancelling existing proposed module"); // validate deleted entry + event
             it("during opt out period");
@@ -102,7 +189,7 @@ contract("Nexus", async (accounts) => {
     });
 
     describe("acceptProposedModules()", () => {
-        context("should fail", () => {
+        context("Should Fail", () => {
             it("when not initialized");
             it("when not called by Governor");
             it("when empty key");
@@ -115,7 +202,7 @@ contract("Nexus", async (accounts) => {
             it("when delay is less then 1 second of opt out period");
             it("when delay is equal to opt out period");
         });
-        context("should pass", () => {
+        context("Should Succeed", () => {
             it("when called by Governor");
             it("when accepted already proposed Module"); // validate event
             it("when delay is more then 1 second of opt out period");
@@ -126,28 +213,37 @@ contract("Nexus", async (accounts) => {
     });
 
     describe("requestLockModule()", () => {
-        context("should fail", () => {
+        context("Should Fail", () => {
             it("when not initialized");
-            it("when not called by Governor");
+            it("when not called by Governor", async () => {
+                await shouldFail.reverting.withMessage(
+                    nexus.requestLockModule(aToH("dummy"), { from: sa.other }),
+                    "GOV: caller is not the Governor",
+                );
+            });
             it("when empty key");
             it("when module not exist");
             it("when module already locked");
             it("when locked already proposed");
         });
-        context("should pass", () => {
+        context("Should Succeed", () => {
             it("when called by Governor");
             it("when a valid lock request"); // validate event
         });
     });
 
     describe("cancelLockModule()", () => {
-        context("should fail", () => {
-            it("when not initialized");
-            it("when not called by Governor");
+        context("Should Fail", () => {
+            it("when not called by Governor", async () => {
+                await shouldFail.reverting.withMessage(
+                    nexus.cancelLockModule(aToH("dummy"), { from: sa.other }),
+                    "GOV: caller is not the Governor",
+                );
+            });
             it("when empty key");
             it("when not proposed lock before");
         });
-        context("should pass", () => {
+        context("Should Succeed", () => {
             it("when called by Governor");
             it("when a valid cancel lock request"); // validate event
             it("during opt out period");
@@ -156,16 +252,25 @@ contract("Nexus", async (accounts) => {
     });
 
     describe("lockModule()", () => {
-        context("should fail", () => {
-            it("when not initialized");
-            it("when not called by Governor");
-            it("when empty key");
+        context("Should Fail", () => {
+            it("when not called by Governor", async () => {
+                await shouldFail.reverting.withMessage(
+                    nexus.lockModule(aToH("dummy"), { from: sa.other }),
+                    "GOV: caller is not the Governor",
+                );
+            });
+            it("when not existing key passed", async () => {
+                await shouldFail.reverting.withMessage(
+                    nexus.lockModule(aToH("dummy"), { from: sa.governor }),
+                    "Delay not over",
+                );
+            });
             it("when lock not proposed before");
             it("when delay not over");
             it("when delay is less then 1 second of opt out period");
             it("when delay is equal to opt out period");
         });
-        context("should pass", () => {
+        context("Should Succeed", () => {
             it("when called by Governor");
             it("when a valid lock Module"); // validate event
             it("when delay is more then 1 second of opt out period");
@@ -174,11 +279,24 @@ contract("Nexus", async (accounts) => {
 
     describe("moduleExists()", () => {
         context("should return false", () => {
-            it("when empty key");
-            it("when zero address");
+            it("when key not exist", async () => {
+                const result = await nexus.moduleExists(aToH("dummy"));
+                expect(result).to.equal(false);
+            });
+            it("when key is zero");
         });
         context("should return true", () => {
-            it("when a valid module key");
+            it("when a valid module key", async () => {
+                await nexus.initialize(
+                    [aToH("dummy")],
+                    [sa._],
+                    [true],
+                    sa.governor,
+                    { from: sa.governor },
+                );
+                const result = await nexus.moduleExists(aToH("dummy"));
+                expect(result).to.equal(true);
+            });
         });
     });
 
