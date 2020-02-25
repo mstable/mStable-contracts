@@ -93,10 +93,6 @@ contract MassetBasket is MassetStructs, MassetCore {
         // If we need to update the status.. then do it
         basket.bassets[i].status = newStatus;
 
-        if(newStatus == BassetStatus.BrokenBelowPeg) {
-          // REDISTRIBUTE THIS BASSET'S WEIGHT TO THE OTHER BASSETS?
-          // Good point
-        }
         return false;
     }
 
@@ -336,6 +332,13 @@ contract MassetBasket is MassetStructs, MassetCore {
         (bool exist, uint256 index) = _isAssetInBasket(_bAsset);
         require(exist, "bAsset does not exist");
         basket.bassets[index].isTransferFeeCharged = _flag;
+    }
+
+    function _isStateTransitionAllowed(address _bAsset, BassetStatus _proposedStatus)
+        internal
+        returns (bool allowed)
+    {
+        // if(_proposedStatus)
     }
 
 

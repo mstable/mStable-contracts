@@ -16,6 +16,7 @@ export interface Basket {
 }
 
 export enum BassetStatus {
+    Default,
     Normal,
     BrokenBelowPeg,
     BrokenAbovePeg,
