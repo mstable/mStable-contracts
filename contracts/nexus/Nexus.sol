@@ -41,9 +41,9 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
 
     /** @dev Proposed modules */
     // Module-key => Proposal
-    mapping (bytes32 => Proposal) public proposedModules;
+    mapping(bytes32 => Proposal) public proposedModules;
     // Module-key => Timestamp when lock proposed
-    mapping (bytes32 => uint256) public proposedLockModules;
+    mapping(bytes32 => uint256) public proposedLockModules;
 
 
     /** @dev Init flag to allow add modules at the time of deplyment without delay */
@@ -140,6 +140,7 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
     {
         uint256 timestamp = proposedModules[_key].timestamp;
         require(timestamp > 0, "Proposed module not found");
+
         delete proposedModules[_key];
         emit ModuleCancelled(_key);
     }
@@ -178,6 +179,7 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
     function _acceptProposedModule(bytes32 _key) internal {
         Proposal memory p = proposedModules[_key];
         require(_isDelayOver(p.timestamp), "Module upgrade delay not over");
+
         _publishModule(_key, p.newAddress, false);
         delete proposedModules[_key];
     }
@@ -192,7 +194,7 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
         require(addressToModule[_addr] == bytes32(0x0), "Modules must have unique addr");
         // Old no longer points to a moduleAddress
         address oldModuleAddr = modules[_key].addr;
-        if(oldModuleAddr != address(0x0)){
+        if(oldModuleAddr != address(0x0)) {
             addressToModule[oldModuleAddr] = bytes32(0x0);
         }
         modules[_key].addr = _addr;
@@ -215,7 +217,6 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
     {
         require(moduleExists(_key), "Module must exist");
         require(!modules[_key].isLocked, "Module must be unlocked");
-
         require(proposedLockModules[_key] == 0, "Lock already proposed");
 
         proposedLockModules[_key] = now;
@@ -231,6 +232,7 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
         onlyGovernor
     {
         require(proposedLockModules[_key] > 0, "Module lock request not found");
+
         delete proposedLockModules[_key];
         emit ModuleLockCancelled(_key);
     }
@@ -244,6 +246,7 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
         onlyGovernor
     {
         require(_isDelayOver(proposedLockModules[_key]), "Delay not over");
+
         modules[_key].isLocked = true;
         delete proposedLockModules[_key];
         emit ModuleLockEnabled(_key, true);

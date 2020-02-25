@@ -1,3 +1,4 @@
+import { latest } from 'openzeppelin-test-helpers/src/time';
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
 import { createBasket, createBasset, Basket } from "@utils/mstable-objects";
 import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
@@ -219,7 +220,15 @@ contract("Nexus", async (accounts) => {
             });
         });
         context("Should Succeed", () => {
-            it("when called by Governor");
+            it("when called by Governor", async () => {
+                await nexus.proposeModule(aToH("dummy1"), sa.dummy1, { from: sa.governor });
+                const lastTimestamp = await latest();
+                let newAddress: string;
+                let timestamp: BN;
+                [newAddress, timestamp] = await nexus.proposedModules(aToH("dummy1"));
+                expect(newAddress).to.equal(sa.dummy1);
+                expect(timestamp).to.bignumber.equal(lastTimestamp);
+            });
             it("when a new module is proposed");
             it("when an existing module address is updated");
         });
