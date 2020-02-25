@@ -1,10 +1,11 @@
-import { GovernableInstance, MassetRewardsInstance } from "../../types/generated";
-import { shouldBehaveLikeGovernable } from "../governance/Governable.behaviour";
 import { StandardAccounts } from "@utils/machines";
 import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
+import { GovernableInstance, MassetRewardsInstance } from "types/generated";
+import shouldBehaveLikeGovernable from "../governance/Governable.behaviour";
+
 const { ZERO_ADDRESS } = constants;
 
-export function shouldBehaveLikeMassetRewards(
+export default function shouldBehaveLikeMassetRewards(
     ctx: { massetRewards: MassetRewardsInstance; governable: GovernableInstance },
     sa: StandardAccounts,
 ) {

@@ -1,9 +1,9 @@
 import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
-import { GovernableInstance } from "../../types/generated";
+import { GovernableInstance } from "types/generated";
 
 const { ZERO_ADDRESS } = constants;
 
-export function shouldBehaveLikeGovernable(
+export default function shouldBehaveLikeGovernable(
     ctx: { governable: GovernableInstance },
     owner: string,
     [other]: string[],

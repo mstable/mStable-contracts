@@ -31,7 +31,7 @@ contract MassetCore is Module {
     event RedemptionFeeChanged(uint256 fee);
     event FeeRecipientChanged(address feePool);
 
-    constructor(address _nexus) Module(_nexus) public {}
+    constructor(address _nexus) Module(_nexus) internal {}
 
     /**
       * @dev Verifies that the caller either Manager or Gov

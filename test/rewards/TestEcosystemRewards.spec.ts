@@ -4,7 +4,6 @@ import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
 import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import { aToH, BN } from "@utils/tools";
 
-import { shouldBehaveLikeMassetRewards } from "./MassetRewards.behaviour";
 import envSetup from "@utils/env_setup";
 import {
     EcosystemRewardsMUSDInstance,
@@ -13,6 +12,7 @@ import {
     MassetInstance,
     MassetRewardsInstance,
 } from "types/generated";
+import shouldBehaveLikeMassetRewards from "./MassetRewards.behaviour";
 
 const Masset = artifacts.require("Masset");
 const EcosystemRewardsMUSD = artifacts.require("EcosystemRewardsMUSD");

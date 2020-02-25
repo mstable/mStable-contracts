@@ -1,7 +1,7 @@
 import { StandardAccounts } from "@utils/machines/standardAccounts";
+import { simpleToExactAmount } from "@utils/math";
 import { getForgeContractInstances } from "./utils/getForgeContractInstances";
 import { logTrancheData, logTx } from "./utils/logging";
-import { simpleToExactAmount } from "@utils/math";
 
 export default async (scope: any, trancheNumber: string, amount: string) => {
     const { forge, MTA } = await getForgeContractInstances(scope);

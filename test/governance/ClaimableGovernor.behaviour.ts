@@ -1,11 +1,12 @@
-import { ClaimableGovernorInstance } from "../../types/generated";
 import { StandardAccounts } from "@utils/machines";
 import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
+import { ClaimableGovernorInstance } from "types/generated";
+
 const { ZERO_ADDRESS } = constants;
 
 const ClaimableGovernor = artifacts.require("ClaimableGovernor");
 
-export function shouldBehaveLikeClaimable(
+export default function shouldBehaveLikeClaimable(
     ctx: { claimable: ClaimableGovernorInstance },
     sa: StandardAccounts,
 ) {
@@ -87,7 +88,7 @@ export function shouldBehaveLikeClaimable(
     });
 
     it("should prevent non-governors from transfering", async () => {
-        const other = sa.other;
+        const { other } = sa;
         const governor = await ctx.claimable.governor();
 
         assert.isTrue(governor !== other);
@@ -98,7 +99,7 @@ export function shouldBehaveLikeClaimable(
     });
 
     it("should prevent direct change governor", async () => {
-        const other = sa.other;
+        const { other } = sa;
         await shouldFail.reverting.withMessage(
             ctx.claimable.changeGovernor(other, { from: sa.governor }),
             "Direct change not allowed",
@@ -113,7 +114,7 @@ export function shouldBehaveLikeClaimable(
     });
 
     it("should prevent when already proposed", async () => {
-        const other = sa.other;
+        const { other } = sa;
         await ctx.claimable.requestGovernorChange(other, { from: sa.governor });
         await shouldFail.reverting.withMessage(
             ctx.claimable.requestGovernorChange(other, { from: sa.governor }),

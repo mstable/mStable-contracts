@@ -7,7 +7,7 @@ import {
     TUSDInstance,
     USDCInstance,
     USDTInstance,
-} from "../../../types/generated";
+} from "types/generated";
 
 export type BassetInstance =
     | DAIInstance

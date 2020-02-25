@@ -1,6 +1,7 @@
-import { ForgeRewardsMUSDInstance } from "../../../types/generated";
 import { BN } from "@utils/tools";
 import chalk from "chalk";
+import { ForgeRewardsMUSDInstance } from "types/generated";
+
 import TransactionResponse = Truffle.TransactionResponse;
 
 export const logSeparator = () => {

@@ -1,16 +1,1 @@
-{
-  "editor.formatOnSave": true,
-  "[javascript]": {
-    "editor.formatOnSave": false
-  },
-  "[handlebars]": {
-    "editor.formatOnSave": false
-  },
-  "eslint.autoFixOnSave": true,
-  "eslint.alwaysShowStatus": true,
-  "files.autoSave": "onFocusChange",
-  "editor.detectIndentation": false,
-  "solidity.compileUsingRemoteVersion": "^0.5.16",
-  "solidity.packageDefaultDependenciesContractsDirectory": "",
-  "solidity.packageDefaultDependenciesDirectory": "node_modules",
-}
+{}
