@@ -11,6 +11,7 @@ import envSetup from "@utils/env_setup";
 import * as chai from "chai";
 import { NexusInstance } from "types/generated";
 
+const { ZERO_ADDRESS } = constants;
 const Nexus = artifacts.require("Nexus");
 
 envSetup.configure();
@@ -158,12 +159,64 @@ contract("Nexus", async (accounts) => {
 
     describe("proposeModule()", () => {
         context("should Fail", () => {
-            it("when not initialized");
-            it("when not called by Governor");
-            it("when empty key");
-            it("when zero address");
-            it("when module key & address pair already exist");
-            it("when module already proposed");
+            it("when not called by Governor", async () => {
+                await shouldFail.reverting.withMessage(
+                    nexus.proposeModule(aToH("dummy"), sa._, { from: sa.other }),
+                    "GOV: caller is not the Governor",
+                );
+            });
+            it("when empty key", async () => {
+                await shouldFail.reverting.withMessage(
+                    nexus.proposeModule("0x00", sa._, { from: sa.governor }),
+                    "Key must not be zero",
+                );
+            });
+            it("when zero address", async () => {
+                await shouldFail.reverting.withMessage(
+                    nexus.proposeModule(aToH("dummy"), ZERO_ADDRESS, { from: sa.governor }),
+                    "Module address must not be 0",
+                );
+            });
+            it("when module key & address are same", async () => {
+                await nexus.initialize(
+                    [aToH("dummy")],
+                    [sa.other],
+                    [false], // not locked
+                    sa.governor,
+                    { from: sa.governor },
+                );
+                await shouldFail.reverting.withMessage(
+                    nexus.proposeModule(aToH("dummy"), sa.other, { from: sa.governor }),
+                    "Module already has same address",
+                );
+            });
+            it("when module is locked (update for existing module)", async () => {
+                await nexus.initialize(
+                    [aToH("dummy")],
+                    [sa._],
+                    [true], // locked
+                    sa.governor,
+                    { from: sa.governor },
+                );
+                await shouldFail.reverting.withMessage(
+                    nexus.proposeModule(aToH("dummy"), sa.other, { from: sa.governor }),
+                    "Module must be unlocked",
+                );
+            });
+            it("when module already proposed", async () => {
+                await nexus.initialize(
+                    [aToH("dummy")],
+                    [sa.dummy1],
+                    [false], // not locked
+                    sa.governor,
+                    { from: sa.governor },
+                );
+                await nexus.proposeModule(aToH("dummy"), sa.dummy2, { from: sa.governor });
+                await shouldFail.reverting.withMessage(
+                    nexus.proposeModule(aToH("dummy"), sa.dummy3, { from: sa.governor }),
+                    "Module already proposed",
+                );
+            });
         });
         context("Should Succeed", () => {
             it("when called by Governor");
@@ -174,10 +227,18 @@ contract("Nexus", async (accounts) => {
 
     describe("cancelProposedModule()", () => {
         context("Should Fail", () => {
-            it("when not initialized");
-            it("when not called by Governor");
-            it("when empty key");
-            it("when proposed module not found");
+            it("when not called by Governor", async () => {
+                await shouldFail.reverting.withMessage(
+                    nexus.cancelProposedModule(aToH("dummy"), { from: sa.other }),
+                    "GOV: caller is not the Governor",
+                );
+            });
+            it("when proposed module not found", async () => {
+                await shouldFail.reverting.withMessage(
+                    nexus.cancelProposedModule(aToH("dummy"), { from: sa.governor }),
+                    "Proposed module not found",
+                );
+            });
         });
         context("Should Succeed", () => {
             it("when called by Governor");
@@ -188,12 +249,40 @@ contract("Nexus", async (accounts) => {
         });
     });
 
+    describe("acceptProposedModule()", () => {
+        context("Should Fail", () => {
+            it("when not called by Governor", async () => {
+                await shouldFail.reverting.withMessage(
+                    nexus.acceptProposedModule(aToH("dummy"), { from: sa.other }),
+                    "GOV: caller is not the Governor",
+                );
+            });
+        });
+        context("Should Succeed", () => {
+            it("when called by Governor");
+        });
+    });
+
     describe("acceptProposedModules()", () => {
         context("Should Fail", () => {
-            it("when not initialized");
-            it("when not called by Governor");
-            it("when empty key");
-            it("when empty array");
+            it("when not called by Governor", async () => {
+                await shouldFail.reverting.withMessage(
+                    nexus.acceptProposedModules([aToH("dummy")], { from: sa.other }),
+                    "GOV: caller is not the Governor",
+                );
+            });
+            it("when empty array", async () => {
+                await shouldFail.reverting.withMessage(
+                    nexus.acceptProposedModules([], { from: sa.governor }),
+                    "Keys array empty",
+                );
+            });
+            it("when non existing key passed", async () => {
+                await shouldFail.reverting.withMessage(
+                    nexus.acceptProposedModules([aToH("dummy")], { from: sa.governor }),
+                    "Module upgrade delay not over",
+                );
+            });
             it("when module not proposed");
             it("when module is locked");
             it("when address is already used by another module");
@@ -222,7 +311,12 @@ contract("Nexus", async (accounts) => {
                 );
             });
             it("when empty key");
-            it("when module not exist");
+            it("when module not exist", async () => {
+                await shouldFail.reverting.withMessage(
+                    nexus.requestLockModule(aToH("dummy"), { from: sa.governor }),
+                    "Module must exist",
+                );
+            });
             it("when module already locked");
             it("when locked already proposed");
         });
@@ -240,8 +334,18 @@ contract("Nexus", async (accounts) => {
                     "GOV: caller is not the Governor",
                 );
             });
-            it("when empty key");
-            it("when not proposed lock before");
+            it("when not proposed lock before", async () => {
+                await shouldFail.reverting.withMessage(
+                    nexus.cancelLockModule(aToH("dummy"), { from: sa.governor }),
+                    "Module lock request not found",
+                );
+            });
+            it("when zero key", async () => {
+                await shouldFail.reverting.withMessage(
+                    nexus.cancelLockModule("0x00", { from: sa.governor }),
+                    "Module lock request not found",
+                );
+            });
         });
         context("Should Succeed", () => {
             it("when called by Governor");

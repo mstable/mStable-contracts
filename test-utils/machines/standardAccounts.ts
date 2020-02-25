@@ -15,6 +15,9 @@ export class StandardAccounts {
     public other: Address;
     public feePool: Address;
     public oraclePriceProvider: Address;
+    public dummy1: Address;
+    public dummy2: Address;
+    public dummy3: Address;
 
     constructor(accounts: Address[]) {
         this.all = accounts;
@@ -26,6 +29,9 @@ export class StandardAccounts {
             this.other,
             this.feePool,
             this.oraclePriceProvider,
+            this.dummy1,
+            this.dummy2,
+            this.dummy3,
         ] = accounts;
 
         this._ = this.default;
