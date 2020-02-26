@@ -17,7 +17,7 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
     event ModuleAdded(bytes32 indexed key, address addr, bool isLocked);
     event ModuleCancelled(bytes32 indexed key);
     event ModuleLockRequested(bytes32 indexed key, uint256 timestamp);
-    event ModuleLockEnabled(bytes32 indexed key, bool isLocked);
+    event ModuleLockEnabled(bytes32 indexed key);
     event ModuleLockCancelled(bytes32 indexed key);
 
     /** @dev Struct to store information about current modules */
@@ -32,21 +32,19 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
         uint256 timestamp;  // Timestamp when module upgrade was proposed
     }
 
-    /** @dev 1 week delayed upgrade period  */
+    // 1 week delayed upgrade period
     uint256 public constant UPGRADE_DELAY = 1 weeks;
 
     // Module-key => Module
     mapping(bytes32 => Module) public modules;
     // Module-address => Module-key
     mapping(address => bytes32) private addressToModule;
-
     // Module-key => Proposal
     mapping(bytes32 => Proposal) public proposedModules;
     // Module-key => Timestamp when lock was proposed
     mapping(bytes32 => uint256) public proposedLockModules;
 
-
-    /** @dev Init flag to allow add modules at the time of deplyment without delay */
+    // Init flag to allow add modules at the time of deplyment without delay
     bool public initialized = false;
 
     /**
@@ -64,10 +62,7 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
     constructor(address _governor)
         public
         DelayedClaimableGovernor(_governor, UPGRADE_DELAY)
-    {
-        // _publishModule(Key_Nexus, address(this), true);
-        // Technically we don't need the above anymore.. Nexus is immutable kernel
-    }
+    {}
 
     /**
      * @dev Adds multiple new modules to the system to initialize the
@@ -250,7 +245,7 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
 
         modules[_key].isLocked = true;
         delete proposedLockModules[_key];
-        emit ModuleLockEnabled(_key, true);
+        emit ModuleLockEnabled(_key);
     }
 
     /***************************************
@@ -259,8 +254,8 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
 
     /**
      * @dev Checks if a module exists
-     * @param _key Key of the module
-     * @return Returns 'true' when a module exists, otherwise 'false'
+     * @param _key  Key of the module
+     * @return      Returns 'true' when a module exists, otherwise 'false'
      */
     function moduleExists(bytes32 _key) public view returns (bool) {
         if(_key != 0 && modules[_key].addr != address(0))
@@ -270,8 +265,8 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
 
     /**
      * @dev Get the module address
-     * @param _key Key of the module
-     * @return Return the address of the module
+     * @param _key  Key of the module
+     * @return      Return the address of the module
      */
     function getModule(bytes32 _key) public view returns (address addr) {
         addr = modules[_key].addr;
@@ -279,8 +274,8 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
 
     /**
      * @dev Checks if upgrade delay over
-     * @param _timestamp Timestamp to check
-     * @return Return 'true' when delay is over, otherwise 'false'
+     * @param _timestamp    Timestamp to check
+     * @return              Return 'true' when delay is over, otherwise 'false'
      */
     function _isDelayOver(uint256 _timestamp) private view returns (bool) {
         if(_timestamp > 0 && now >= _timestamp.add(UPGRADE_DELAY))
