@@ -28,6 +28,7 @@ contract Manager is
 
     /** @dev Events to emit */
     event MassetAdded(bytes32 indexed key, address addr);
+    event BassetBrokenPeg(address indexed bAsset, bool underPeg);
     event MassetEjected(bytes32 indexed key, address addr);
 
     /**
@@ -147,6 +148,7 @@ contract Manager is
                 if(hasBrokenPeg){
                     IMasset masset = IMasset(_masset);
                     masset.handlePegLoss(addresses[i], isBelowPeg);
+                    emit BassetBrokenPeg(addresses[i], isBelowPeg);
                 }
                 // else skip
             }

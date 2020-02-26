@@ -7,9 +7,7 @@ import { aToH, chai, BN } from "@utils/tools";
 import { StandardAccounts } from "@utils/machines/standardAccounts";
 import { ERC20MockInstance, ManagerInstance } from "types/generated";
 
-envSetup.configure();
-const { expect, assert } = chai;
-
+const { expect, assert } = envSetup.configure();
 contract("MassetFactoryManager", async (accounts) => {
     const sa = new StandardAccounts(accounts);
 

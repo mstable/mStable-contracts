@@ -31,6 +31,12 @@ export const applyRatioMassetToBasset = (input: BN, ratio: BN): BN => {
 };
 
 /** @dev Converts a simple ratio (e.g. x1.1) to 1e6 format for OracleData */
-export const simpleToExactRelativePrice = (relativePrice: number): BN => {
-    return new BN(relativePrice).mul(new BN(10).pow(6));
+export const simpleToExactRelativePrice = (relativePrice: string): BN => {
+    const tenx = new BN(10).pow(new BN(6));
+    console.log("t", tenx.toString());
+    const input = new BN("1.2");
+    console.log("i", input.toString());
+    const price = input.mul(tenx);
+    console.log("p", price.toString());
+    return price;
 };

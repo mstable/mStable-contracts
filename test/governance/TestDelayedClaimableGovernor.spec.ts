@@ -6,7 +6,7 @@ import shouldBehaveLikeClaimable from "./ClaimableGovernor.behaviour";
 import shouldBehaveLikeDelayedClaimable from "./DelayedClaimableGovernor.behaviour";
 
 const DelayedClaimableGovernor = artifacts.require("DelayedClaimableGovernor");
-envSetup.configure();
+const { expect, assert } = envSetup.configure();
 
 contract("DelayedClaimableGovernance", async (accounts) => {
     const ctx: { claimable?: DelayedClaimableGovernorInstance } = {};

@@ -1,6 +1,6 @@
 import envSetup from "@utils/env_setup";
 
-envSetup.configure();
+const { expect, assert } = envSetup.configure();
 
 /**
  * @notice Todo

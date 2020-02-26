@@ -12,9 +12,7 @@ import { ERC20MockInstance, MassetInstance } from "types/generated";
 
 const Masset = artifacts.require("Masset");
 
-envSetup.configure();
-const { expect, assert } = chai;
-
+const { expect, assert } = envSetup.configure();
 contract("MassetMinting", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;

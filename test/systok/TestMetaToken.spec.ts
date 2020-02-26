@@ -2,7 +2,7 @@ import { expectEvent, expectNoEvent, shouldFail } from "openzeppelin-test-helper
 import { ADDRESS_1, MASSET_FACTORY_BYTES } from "@utils/constants";
 import envSetup from "@utils/env_setup";
 import { BassetMachine, MassetMachine, SystemMachine } from "@utils/machines";
-import { percentToWeight, simpleToExactRelativePrice } from "@utils/math";
+import { percentToWeight } from "@utils/math";
 import { aToH, chai, BN } from "@utils/tools";
 import { Basset, BassetStatus } from "@utils/mstable-objects";
 

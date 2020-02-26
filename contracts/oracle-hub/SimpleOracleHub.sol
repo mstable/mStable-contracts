@@ -69,7 +69,7 @@ contract SimpleOracleHub is IOracleHub, Module {
     view
     returns(bool, uint64) {
         Datum memory m = data[_asset];
-        bool isFresh = m.timestamp < now && m.timestamp > (now - 24 hours);
+        bool isFresh = m.timestamp <= now && m.timestamp > (now - 24 hours);
         return (isFresh, m.value);
     }
 
@@ -86,7 +86,7 @@ contract SimpleOracleHub is IOracleHub, Module {
         require(_keys.length == 2,  "Valid array");
         for(uint256 i = 0; i < 2; i++){
             Datum memory m = data[_keys[i]];
-            bool isFresh = m.timestamp < now && m.timestamp > (now - 24 hours);
+            bool isFresh = m.timestamp <= now && m.timestamp > (now - 24 hours);
             (_isFresh[i], _prices[i]) = (isFresh, m.value);
         }
     }
