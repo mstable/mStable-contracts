@@ -5,9 +5,11 @@ import { ModuleKeys } from "../shared/ModuleKeys.sol";
 import { DelayedClaimableGovernor } from "../governance/DelayedClaimableGovernor.sol";
 
 /**
- * @title Nexus
- * @dev The Nexus is mStable's Kernel, and allows the publishing and propagating
- * of new system Modules. Other Modules will read from the Nexus
+ * @title   Nexus
+ * @author  Stability Labs Pty. Lte.
+ * @notice  Something something kernel
+ * @dev     The Nexus is mStable's Kernel, and allows the publishing and propagating
+ *          of new system Modules. Other Modules will read from the Nexus
  */
 contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
 
@@ -18,31 +20,29 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
     event ModuleLockEnabled(bytes32 indexed key, bool isLocked);
     event ModuleLockCancelled(bytes32 indexed key);
 
-    /** @dev Struct to store Module props */
+    /** @dev Struct to store information about current modules */
     struct Module {
         address addr;       // Module address
         bool isLocked;      // Module lock status
     }
 
-    /** @dev Struct to store Proposal props */
+    /** @dev Struct to store information about proposed modules */
     struct Proposal {
         address newAddress; // Proposed Module address
-        uint256 timestamp;  // Timestamp when module proposed
+        uint256 timestamp;  // Timestamp when module upgrade was proposed
     }
 
     /** @dev 1 week delayed upgrade period  */
     uint256 public constant UPGRADE_DELAY = 1 weeks;
 
-    /** @dev Storage architecture for keeping module information */
     // Module-key => Module
     mapping(bytes32 => Module) public modules;
     // Module-address => Module-key
     mapping(address => bytes32) private addressToModule;
 
-    /** @dev Proposed modules */
     // Module-key => Proposal
     mapping(bytes32 => Proposal) public proposedModules;
-    // Module-key => Timestamp when lock proposed
+    // Module-key => Timestamp when lock was proposed
     mapping(bytes32 => uint256) public proposedLockModules;
 
 
@@ -71,13 +71,13 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
 
     /**
      * @dev Adds multiple new modules to the system to initialize the
-     * Nexus contract with default modules. This should be called first
-     * after deploying Nexus contract.
-     * @param _keys Keys of the new modules in bytes32 form
-     * @param _addresses Contract addresses of the new modules
-     * @param _isLocked IsLocked flag for the new modules
-     * @param _governor New Governor address
-     * @return bool Success of publishing new Modules
+     *      Nexus contract with default modules. This should be called first
+     *      after deploying Nexus contract.
+     * @param _keys       Keys of the new modules in bytes32 form
+     * @param _addresses  Contract addresses of the new modules
+     * @param _isLocked   IsLocked flag for the new modules
+     * @param _governor   New Governor address
+     * @return bool       Success of publishing new Modules
      */
     function initialize(
         bytes32[] calldata _keys,
@@ -110,8 +110,8 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
     ****************************************/
 
     /**
-     * @dev Propose a new or update module request
-     * @param _key Key of the module
+     * @dev Propose a new or update existing module
+     * @param _key  Key of the module
      * @param _addr Address of the module
      */
     function proposeModule(bytes32 _key, address _addr)
@@ -186,12 +186,13 @@ contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
 
     /**
      * @dev Internal func to publish a module to kernel
-     * @param _key Key of the new module in bytes32 form
-     * @param _addr Contract address of the new module
+     * @param _key      Key of the new module in bytes32 form
+     * @param _addr     Contract address of the new module
      * @param _isLocked Flag to lock a module
      */
     function _publishModule(bytes32 _key, address _addr, bool _isLocked) internal {
         require(addressToModule[_addr] == bytes32(0x0), "Modules must have unique addr");
+        require(!modules[_key].isLocked, "Module must be unlocked");
         // Old no longer points to a moduleAddress
         address oldModuleAddr = modules[_key].addr;
         if(oldModuleAddr != address(0x0)) {

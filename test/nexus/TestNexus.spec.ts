@@ -1,4 +1,4 @@
-import { latest } from 'openzeppelin-test-helpers/src/time';
+import { latest } from "openzeppelin-test-helpers/src/time";
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
 import { createBasket, createBasset, Basket } from "@utils/mstable-objects";
 import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
@@ -65,29 +65,20 @@ contract("Nexus", async (accounts) => {
             it("with default module", async () => {
                 //await systemMachine.initialiseMocks();
                 //const newNexus = systemMachine.nexus;
-
             });
             it("with all modules");
             it("default with locked Systok module");
             it("default with unlocked module");
             it("only allowed with governor", async () => {
-                await nexus.initialize(
-                    [aToH("dummy")],
-                    [sa._],
-                    [true],
-                    sa.governor,
-                    { from: sa.governor },
-                );
+                await nexus.initialize([aToH("dummy")], [sa._], [true], sa.governor, {
+                    from: sa.governor,
+                });
             });
             it("allowed to set new governor address", async () => {
                 const govBefore = await nexus.governor();
-                await nexus.initialize(
-                    [aToH("dummy")],
-                    [sa._],
-                    [true],
-                    sa.other,
-                    { from: sa.governor },
-                );
+                await nexus.initialize([aToH("dummy")], [sa._], [true], sa.other, {
+                    from: sa.governor,
+                });
                 const govAfter = await nexus.governor();
                 expect(govBefore).to.not.equal(govAfter);
                 expect(govBefore).to.equal(sa.governor);
@@ -112,46 +103,30 @@ contract("Nexus", async (accounts) => {
             });
             it("not initialize when wrong array length for addresses array", async () => {
                 await shouldFail.reverting.withMessage(
-                    nexus.initialize(
-                        [aToH("dummy")],
-                        [sa._, sa.other],
-                        [true],
-                        sa.governor,
-                        { from: sa.governor },
-                    ),
+                    nexus.initialize([aToH("dummy")], [sa._, sa.other], [true], sa.governor, {
+                        from: sa.governor,
+                    }),
                     "Insuffecient address data",
                 );
             });
             it("not initialize when wrong array length for isLocked array", async () => {
                 await shouldFail.reverting.withMessage(
-                    nexus.initialize(
-                        [aToH("dummy")],
-                        [sa._],
-                        [true, false],
-                        sa.governor,
-                        { from: sa.governor },
-                    ),
+                    nexus.initialize([aToH("dummy")], [sa._], [true, false], sa.governor, {
+                        from: sa.governor,
+                    }),
                     "Insuffecient locked statuses",
                 );
             });
 
             it("when already initialized", async () => {
-                await nexus.initialize(
-                    [aToH("dummy")],
-                    [sa._],
-                    [true],
-                    sa.governor,
-                    { from: sa.governor },
-                );
+                await nexus.initialize([aToH("dummy")], [sa._], [true], sa.governor, {
+                    from: sa.governor,
+                });
                 // must fail
                 await shouldFail.reverting.withMessage(
-                    nexus.initialize(
-                        [aToH("dummy")],
-                        [sa._],
-                        [true],
-                        sa.governor,
-                        { from: sa.governor },
-                    ),
+                    nexus.initialize([aToH("dummy")], [sa._], [true], sa.governor, {
+                        from: sa.governor,
+                    }),
                     "Nexus is already initialized",
                 );
             });
@@ -400,13 +375,9 @@ contract("Nexus", async (accounts) => {
         });
         context("should return true", () => {
             it("when a valid module key", async () => {
-                await nexus.initialize(
-                    [aToH("dummy")],
-                    [sa._],
-                    [true],
-                    sa.governor,
-                    { from: sa.governor },
-                );
+                await nexus.initialize([aToH("dummy")], [sa._], [true], sa.governor, {
+                    from: sa.governor,
+                });
                 const result = await nexus.moduleExists(aToH("dummy"));
                 expect(result).to.equal(true);
             });
@@ -418,5 +389,9 @@ contract("Nexus", async (accounts) => {
             it("having same address with different module keys");
             it("proposeModule + requestLockModule for a same key");
         });
+        // can propose a module, cancel it and then propose the same module it again
+        // can propose multiple modules and cancel one, and accept one, and leave one
+        // should fail when we propose a module, and then lock it, and then try to accept the proposal
+        //
     });
 });
