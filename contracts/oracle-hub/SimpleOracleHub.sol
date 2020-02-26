@@ -14,7 +14,7 @@ contract SimpleOracleHub is IOracleHub, Module {
     /**
      * @notice The event emitted when a price is written to storage
      */
-    event Price(bytes32 symbol, uint64 timestamp, uint64 price);
+    event Price(address symbol, uint64 timestamp, uint64 price);
 
     /**
      * @notice The fundamental unit of storage for a reporter source
@@ -28,7 +28,7 @@ contract SimpleOracleHub is IOracleHub, Module {
      * @notice The most recent authenticated data from all sources
      * @dev This is private because dynamic mapping keys preclude auto-generated getters.
      */
-    mapping(bytes32 => Datum) internal data;
+    mapping(address => Datum) internal data;
 
     address validatedSource;
 
@@ -60,15 +60,15 @@ contract SimpleOracleHub is IOracleHub, Module {
 
     /**
      * @dev Read a medianized price from our storage
-     * @param _key Key of the asset to read price
+     * @param _asset Key of the asset to read price
      * @return bool price is fresh
      * @return uint64 Price as $1 == 1e6
      */
-    function readPrice(bytes32 _key)
+    function readPrice(address _asset)
     external
     view
     returns(bool, uint64) {
-        Datum memory m = data[_key];
+        Datum memory m = data[_asset];
         bool isFresh = m.timestamp < now && m.timestamp > (now - 24 hours);
         return (isFresh, m.value);
     }
@@ -79,7 +79,7 @@ contract SimpleOracleHub is IOracleHub, Module {
      * @return bool price is fresh
      * @return uint64 Price as $1 == 1e6
      */
-    function readPricePair(bytes32[2] calldata _keys)
+    function readPricePair(address[2] calldata _keys)
     external
     view
     returns(bool[2] memory _isFresh, uint64[2] memory _prices) {
@@ -120,24 +120,24 @@ contract SimpleOracleHub is IOracleHub, Module {
      * @param signature The cryptographic signature of the message payload, authorizing the source to write
      * @return The keys that were written
      */
-    function put(bytes memory message, bytes memory signature) internal returns (bytes32) {
+    function put(bytes memory message, bytes memory signature) internal returns (address) {
         // Recover the source address
         address _source = source(message, signature);
 
         require(_source == validatedSource, "Data must be signed by validator");
 
         // Decode the message and check the kind
-        (string memory kind, uint64 timestamp, bytes32 key, uint64 value) = abi.decode(message, (string, uint64, bytes32, uint64));
+        (string memory kind, uint64 timestamp, address assetAddress, uint64 value) = abi.decode(message, (string, uint64, address, uint64));
         require(keccak256(abi.encodePacked(kind)) == keccak256(abi.encodePacked("prices")), "Kind of data must be 'prices'");
 
         // Only update if newer than stored, according to source
-        Datum storage prior = data[key];
+        Datum storage prior = data[assetAddress];
         if (prior.timestamp < timestamp) {
-            data[key] = Datum(timestamp, value);
-            emit Price(key, timestamp, value);
+            data[assetAddress] = Datum(timestamp, value);
+            emit Price(assetAddress, timestamp, value);
         }
 
-        return key;
+        return assetAddress;
     }
 
     /**

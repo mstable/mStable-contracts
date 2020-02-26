@@ -4,6 +4,6 @@ pragma solidity ^0.5.16;
  * @dev Interface for tracking oracles
  */
 interface IOracleHub {
-    function readPrice(bytes32 _key) external view returns(bool, uint64);
-    function readPricePair(bytes32[2] calldata _keys) external view returns(bool[2] memory, uint64[2] memory);
+    function readPrice(address _asset) external view returns(bool, uint64);
+    function readPricePair(address[2] calldata _assets) external view returns(bool[2] memory, uint64[2] memory);
 }
