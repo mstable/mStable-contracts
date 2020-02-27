@@ -1,7 +1,8 @@
+import humanizeDuration from "humanize-duration";
 import { StandardAccounts } from "@utils/machines/standardAccounts";
 import { getForgeContractInstances } from "./utils/getForgeContractInstances";
 import { logTrancheData, logTx } from "./utils/logging";
-import { nowExact, timeTravel } from "./utils/time";
+import { blockTimestampExact } from "./utils/time";
 
 export default async (scope: any, trancheNumber: string, account?: string) => {
     const { MTA, forge } = await getForgeContractInstances(scope);
@@ -11,9 +12,15 @@ export default async (scope: any, trancheNumber: string, account?: string) => {
 
     const trancheData = await logTrancheData(forge, trancheNumber);
 
-    const now = nowExact();
+    const now = await blockTimestampExact(scope.web3);
     if (now.lt(trancheData.unlockTime)) {
-        await timeTravel(scope.web3, trancheData.unlockTime.sub(now));
+        const seconds = trancheData.unlockTime.sub(now);
+        console.log(
+            `Exiting: tranche not unlocked yet. Try time-travelling ${humanizeDuration(
+                seconds.toNumber() * 1000,
+            )}.`,
+        );
+        return;
     }
 
     console.log("MTA balance before", (await MTA.balanceOf(account, txDetails)).toString());

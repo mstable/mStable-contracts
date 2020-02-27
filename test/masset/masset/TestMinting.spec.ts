@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/camelcase */
+
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
 import { createBasket, createBasset, Basket } from "@utils/mstable-objects";
 import { shouldFail } from "openzeppelin-test-helpers";
@@ -18,7 +20,13 @@ contract("MassetMinting", async (accounts) => {
     let systemMachine: SystemMachine;
     let masset: MassetInstance;
     // tslint:disable-next-line:one-variable-per-declaration
-    let b1, b2, b3, b4, b5, b6, b7;
+    let b1;
+    let b2;
+    let b3;
+    let b4;
+    let b5;
+    let b6;
+    let b7;
 
     before("Init contract", async () => {
         systemMachine = new SystemMachine(accounts, sa.other);

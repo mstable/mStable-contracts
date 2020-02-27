@@ -1,7 +1,7 @@
-import { shouldBehaveLikeGovernable } from "./Governable.behaviour";
 import { StandardAccounts } from "@utils/machines";
 import envSetup from "@utils/env_setup";
-import { GovernableInstance } from "../../types/generated";
+import { GovernableInstance } from "types/generated";
+import shouldBehaveLikeGovernable from "./Governable.behaviour";
 
 const MockGovernable = artifacts.require("MockGovernable");
 envSetup.configure();

@@ -62,7 +62,7 @@ interface MassetStructs {
 
     /** @dev Status of the Basset - has it broken its peg? */
     enum BassetStatus {
-        // Default,
+        Default,
         Normal,
         BrokenBelowPeg,
         BrokenAbovePeg,

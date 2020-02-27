@@ -16,6 +16,7 @@ export interface Basket {
 }
 
 export enum BassetStatus {
+    Default,
     Normal,
     BrokenBelowPeg,
     BrokenAbovePeg,
@@ -26,7 +27,7 @@ export enum BassetStatus {
 
 export interface Basset {
     addr: string;
-    key: string;
+    isTransferFeeCharged: boolean;
     ratio: string;
     maxWeight: string;
     vaultBalance: string;
@@ -50,7 +51,7 @@ export const createBasset = (
 ): Basset => {
     return {
         addr: ZERO_ADDRESS,
-        key: "0x",
+        isTransferFeeCharged: false,
         ratio: createMultiple(new BN(10).pow(new BN(18 - decimals)).toNumber()).toFixed(),
         maxWeight: percentToWeight(maxWeight).toFixed(),
         vaultBalance: simpleToExactAmount(vaultBalance, decimals).toFixed(),

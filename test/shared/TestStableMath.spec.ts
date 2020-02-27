@@ -1,9 +1,10 @@
-import { PublicStableMathInstance } from "../../types/generated";
 import { StandardAccounts } from "@utils/machines";
 import { exactAmountToSimple, simpleToExactAmount } from "@utils/math";
 import { chai, BN } from "@utils/tools";
 
 import envSetup from "@utils/env_setup";
+import { PublicStableMathInstance } from "types/generated";
+
 envSetup.configure();
 const { expect, assert } = chai;
 
@@ -17,9 +18,9 @@ contract("StableMath", async (accounts) => {
         math = await PublicStableMath.deployed(sa._);
     });
 
-    /***************************************
+    /** *************************************
                     GETTERS
-    ****************************************/
+    *************************************** */
 
     it("should have the correct scale", async () => {
         expect(await math.getFullScale()).bignumber.eq(simpleToExactAmount(1, 18));
@@ -40,9 +41,9 @@ contract("StableMath", async (accounts) => {
         );
     });
 
-    /***************************************
+    /** *************************************
               PRECISE ARITHMETIC
-    ****************************************/
+    *************************************** */
 
     it("should return correct results from mulTruncate(x, y)", async () => {});
 
@@ -52,9 +53,9 @@ contract("StableMath", async (accounts) => {
 
     it("should return correct results from divPrecisely(x, y)", async () => {});
 
-    /***************************************
+    /** *************************************
                   RATIO FUNCS
-    ****************************************/
+    *************************************** */
 
     it("should calculate correct mAsset value from bAsset in mulRatioTruncate(x, ratio)", async () => {});
 
@@ -62,9 +63,9 @@ contract("StableMath", async (accounts) => {
 
     it("should calculate correct bAsset value from mAsset in divRatioPrecisely(x, ratio)", async () => {});
 
-    /***************************************
+    /** *************************************
                     HELPERS
-    ****************************************/
+    *************************************** */
 
     it("should find the minimum number in min(x, y)", async () => {});
 

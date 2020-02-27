@@ -1,21 +1,19 @@
-import { DelayedClaimableGovernorInstance } from "../../types/generated";
 import { StandardAccounts } from "@utils/machines";
 import { BN } from "@utils/tools";
 import envSetup from "@utils/env_setup";
 import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
 import { increase, increaseTo, latest } from "openzeppelin-test-helpers/src/time";
-import * as chai from "chai";
-const { ZERO_ADDRESS } = constants;
-envSetup.configure();
+import { DelayedClaimableGovernorInstance } from "types/generated";
 
-const { expect, assert } = chai;
+const { ZERO_ADDRESS } = constants;
+const { expect, assert } = envSetup.configure();
+
 const DelayedClaimableGovernor = artifacts.require("DelayedClaimableGovernor");
 
-export function shouldBehaveLikeDelayedClaimable(
+export default function shouldBehaveLikeDelayedClaimable(
     ctx: { claimable: DelayedClaimableGovernorInstance },
     sa: StandardAccounts,
 ) {
-
     it("should have delay set", async () => {
         const delay = await ctx.claimable.delay();
         expect(delay, "wrong delay").bignumber.gt(new BN(0));
@@ -63,16 +61,11 @@ export function shouldBehaveLikeDelayedClaimable(
         const previousGov = await ctx.claimable.governor();
         const newGovernor = sa.other;
         const tx = await ctx.claimable.claimGovernorChange({ from: newGovernor });
-        expectEvent.inLogs(
-            tx.logs,
-            "GovernorChangeClaimed",
-            { proposedGovernor: newGovernor }
-        );
-        expectEvent.inLogs(
-            tx.logs,
-            "GovernorChanged",
-            { previousGovernor: previousGov, newGovernor: newGovernor }
-        );
+        expectEvent.inLogs(tx.logs, "GovernorChangeClaimed", { proposedGovernor: newGovernor });
+        expectEvent.inLogs(tx.logs, "GovernorChanged", {
+            previousGovernor: previousGov,
+            newGovernor,
+        });
 
         const owner = await ctx.claimable.governor();
         const requestTime = await ctx.claimable.requestTime();
@@ -89,5 +82,4 @@ export function shouldBehaveLikeDelayedClaimable(
         const newRequestTime = await ctx.claimable.requestTime();
         expect(newRequestTime).bignumber.eq(new BN(0));
     });
-
 }

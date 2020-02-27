@@ -4,13 +4,17 @@ import { createBasket, createBasset, Basket } from "@utils/mstable-objects";
 import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
 import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import { aToH, padRight, BN } from "@utils/tools";
-import { shouldBehaveLikeClaimable } from "../governance/ClaimableGovernor.behaviour";
-import { shouldBehaveLikeDelayedClaimable } from "../governance/DelayedClaimableGovernor.behaviour";
-import { ClaimableGovernorInstance, DelayedClaimableGovernorInstance } from "../../types/generated";
+import {
+    NexusInstance,
+    ClaimableGovernorInstance,
+    DelayedClaimableGovernorInstance,
+} from "types/generated";
+
+import shouldBehaveLikeClaimable from "../governance/ClaimableGovernor.behaviour";
+import shouldBehaveLikeDelayedClaimable from "../governance/DelayedClaimableGovernor.behaviour";
 
 import envSetup from "@utils/env_setup";
 import * as chai from "chai";
-import { NexusInstance } from "types/generated";
 
 const { ZERO_ADDRESS } = constants;
 const Nexus = artifacts.require("Nexus");
@@ -43,7 +47,7 @@ contract("Nexus", async (accounts) => {
 
         context("should behave like DelayedClaimableGovernor", () => {
             beforeEach("", async () => {
-                const other = sa.other;
+                const { other } = sa;
                 await ctx.claimable.requestGovernorChange(other, { from: sa.governor });
             });
 

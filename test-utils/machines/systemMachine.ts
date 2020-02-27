@@ -1,15 +1,16 @@
+import { MASSET_FACTORY_BYTES } from "@utils/constants";
+import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
+import { aToH, BN } from "@utils/tools";
 import {
     ERC20MockInstance,
     ForgeValidatorInstance,
     ManagerInstance,
+    MassetInstance,
     NexusInstance,
     SimpleOracleHubMockInstance,
+    SystokControllerInstance,
     SystokInstance,
-    MassetInstance,
-} from "./../../types/generated/index.d";
-import { MASSET_FACTORY_BYTES } from "@utils/constants";
-import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
-import { aToH, BN } from "@utils/tools";
+} from "types/generated";
 
 import { Address } from "../../types/common";
 import { BassetMachine } from "./bassetMachine";
@@ -31,6 +32,7 @@ const OracleHubMockArtifact = artifacts.require("SimpleOracleHubMock");
 
 const MiniMeTokenFactoryArtifact = artifacts.require("MiniMeTokenFactory");
 const SystokArtifact = artifacts.require("Systok");
+const SystokControllerArtifact = artifacts.require("SystokController");
 
 /**
  * @dev The SystemMachine is responsible for creating mock versions of our contracts
@@ -44,15 +46,19 @@ export class SystemMachine {
     public sa: StandardAccounts;
 
     public manager: ManagerInstance;
+
     public nexus: NexusInstance;
+
     public oracleHub: SimpleOracleHubMockInstance;
+
     public systok: SystokInstance;
+    public systokController: SystokControllerInstance;
 
     public forgeValidator: ForgeValidatorInstance;
 
     private TX_DEFAULTS: any;
 
-    constructor(accounts: Address[], defaultSender: Address, defaultGas: number = 50000000) {
+    constructor(accounts: Address[], defaultSender: Address, defaultGas = 50000000) {
         this.sa = new StandardAccounts(accounts);
 
         this.TX_DEFAULTS = {
@@ -82,6 +88,7 @@ export class SystemMachine {
 
             /** Systok */
             this.systok = await this.deploySystok();
+            this.systokController = await this.deploySystokController();
             moduleKeys[0] = await this.nexus.Key_Systok();
             moduleAddresses[0] = this.systok.address;
             isLocked[0] = true; // TODO Ensure that its locked at deploy time?
@@ -149,14 +156,33 @@ export class SystemMachine {
             });
             const systokInstance = await SystokArtifact.new(
                 miniTokenFactory.address,
-                this.nexus.address,
                 this.sa.fundManager,
                 {
-                    from: this.sa.governor,
+                    from: this.sa.default,
                 },
             );
 
             return systokInstance;
+        } catch (e) {
+            throw e;
+        }
+    }
+
+    /**
+     * @dev Deploy the SystokController token
+     */
+    public async deploySystokController(): Promise<SystokControllerInstance> {
+        try {
+            const systokController = await SystokControllerArtifact.new(
+                this.nexus.address,
+                this.systok.address,
+                {
+                    from: this.sa.default,
+                },
+            );
+            await this.systok.changeController(systokController.address, { from: this.sa.default });
+
+            return systokController;
         } catch (e) {
             throw e;
         }

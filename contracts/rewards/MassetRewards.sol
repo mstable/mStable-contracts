@@ -348,18 +348,19 @@ contract MassetRewards is IMassetRewards, Governable {
      * @return participants           Array of reward participants
      */
     function getTrancheData(uint256 _trancheNumber)
-    external
-    view
-    returns (
-        uint256 startTime,
-        uint256 endTime,
-        uint256 claimEndTime,
-        uint256 unlockTime,
-        uint256 totalPoints,
-        uint256 totalRewardUnits,
-        uint256 unclaimedRewardUnits,
-        address[] memory participants
-    ) {
+        external
+        view
+        returns (
+            uint256 startTime,
+            uint256 endTime,
+            uint256 claimEndTime,
+            uint256 unlockTime,
+            uint256 totalPoints,
+            uint256 totalRewardUnits,
+            uint256 unclaimedRewardUnits,
+            address[] memory participants
+        )
+    {
         Tranche memory tranche = trancheData[_trancheNumber];
         TrancheDates memory trancheDates = _getTrancheDates(_trancheNumber);
         return (

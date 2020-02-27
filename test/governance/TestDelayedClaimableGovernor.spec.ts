@@ -1,9 +1,9 @@
-import { shouldBehaveLikeClaimable } from "./ClaimableGovernor.behaviour";
-import { shouldBehaveLikeDelayedClaimable } from "./DelayedClaimableGovernor.behaviour";
 import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import envSetup from "@utils/env_setup";
-import { DelayedClaimableGovernorInstance } from "../../types/generated";
 import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
+import { DelayedClaimableGovernorInstance } from "types/generated";
+import shouldBehaveLikeClaimable from "./ClaimableGovernor.behaviour";
+import shouldBehaveLikeDelayedClaimable from "./DelayedClaimableGovernor.behaviour";
 
 const DelayedClaimableGovernor = artifacts.require("DelayedClaimableGovernor");
 envSetup.configure();
@@ -28,7 +28,7 @@ contract("DelayedClaimableGovernance", async (accounts) => {
             ctx.claimable = await DelayedClaimableGovernor.new(sa.governor, GOVERNANCE_DELAY, {
                 from: sa.governor,
             });
-            const other = sa.other;
+            const { other } = sa;
             await ctx.claimable.requestGovernorChange(other, { from: sa.governor });
         });
 

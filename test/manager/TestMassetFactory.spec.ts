@@ -1,4 +1,3 @@
-import { ERC20MockInstance, ManagerInstance } from "../../types/generated";
 import { shouldFail } from "openzeppelin-test-helpers";
 import { MASSET_FACTORY_BYTES } from "@utils/constants";
 import envSetup from "@utils/env_setup";
@@ -6,6 +5,7 @@ import { BassetMachine, SystemMachine } from "@utils/machines";
 import { percentToWeight } from "@utils/math";
 import { aToH, chai, BN } from "@utils/tools";
 import { StandardAccounts } from "@utils/machines/standardAccounts";
+import { ERC20MockInstance, ManagerInstance } from "types/generated";
 
 envSetup.configure();
 const { expect, assert } = chai;
