@@ -5,9 +5,9 @@ import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
 import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import { aToH, padRight, BN } from "@utils/tools";
 import {
-    NexusInstance,
     ClaimableGovernorInstance,
     DelayedClaimableGovernorInstance,
+    NexusInstance,
 } from "types/generated";
 
 import shouldBehaveLikeClaimable from "../governance/ClaimableGovernor.behaviour";
@@ -26,14 +26,10 @@ contract("Nexus", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
     let nexus: NexusInstance;
+    const ZERO = new BN(0);
     const ONE_DAY = new BN(60 * 60 * 24);
     const TEN_DAYS = new BN(60 * 60 * 24 * 10);
     const WEEK = new BN(60 * 60 * 24 * 7);
-
-    let newAddress: string;
-    let timestamp: BN;
-    let addr: string;
-    let isLocked: boolean;
 
     describe("Behavior like...", () => {
         const ctx: { claimable?: DelayedClaimableGovernorInstance } = {};
@@ -65,6 +61,8 @@ contract("Nexus", async (accounts) => {
             sa.governor,
             { from: sa.governor },
         );
+        await expectInModules(nexus, "dummy3", sa.dummy3, true);
+        await expectInModules(nexus, "dummy4", sa.dummy4, false);
     });
 
     describe("Before initialize", () => {
@@ -94,27 +92,36 @@ contract("Nexus", async (accounts) => {
                 expect(initialized).to.equal(true);
 
                 // validate modules
-                [addr, isLocked] = await nexus.modules(await nexus.Key_Systok());
-                expect(addr).to.equal(systemMachine.systok.address);
-                expect(isLocked).to.equal(true);
+                await expectInModules(
+                    nexus,
+                    "Systok",
+                    systemMachine.systok.address,
+                    true,
+                );
 
-                [addr, isLocked] = await nexus.modules(await nexus.Key_OracleHub());
-                expect(addr).to.equal(systemMachine.oracleHub.address);
-                expect(isLocked).to.equal(false);
+                await expectInModules(
+                    nexus,
+                    "OracleHub",
+                    systemMachine.oracleHub.address,
+                    false,
+                );
 
-                [addr, isLocked] = await nexus.modules(await nexus.Key_Manager());
-                expect(addr).to.equal(systemMachine.manager.address);
-                expect(isLocked).to.equal(false);
-
+                await expectInModules(
+                    nexus,
+                    "Manager",
+                    systemMachine.manager.address,
+                    false,
+                );
             });
             it("when current governor called the function", async () => {
                 await nexus.initialize(
-                    [aToH("dummy")],
-                    [sa._],
+                    [aToH("dummy1")],
+                    [sa.dummy1],
                     [true],
                     sa.governor,
                     { from: sa.governor },
                 );
+                await expectInModules(nexus, "dummy1", sa.dummy1, true);
             });
             it("when different governor address passed", async () => {
                 const govBefore = await nexus.governor();
@@ -125,6 +132,7 @@ contract("Nexus", async (accounts) => {
                     sa.other,
                     { from: sa.governor },
                 );
+                await expectInModules(nexus, "dummy", sa._, true);
                 const govAfter = await nexus.governor();
                 expect(govBefore).to.not.equal(govAfter);
                 expect(govBefore).to.equal(sa.governor);
@@ -149,6 +157,8 @@ contract("Nexus", async (accounts) => {
                     ),
                     "Modules must have unique addr",
                 );
+                await expectInModules(nexus, "dummy1", ZERO_ADDRESS, false);
+                await expectInModules(nexus, "dummy2", ZERO_ADDRESS, false);
             });
             it("when initialized with an empty array", async () => {
                 await shouldFail.reverting.withMessage(
@@ -167,6 +177,7 @@ contract("Nexus", async (accounts) => {
                     ),
                     "Insuffecient address data",
                 );
+                await expectInModules(nexus, "dummy", ZERO_ADDRESS, false);
             });
             it("when initialized with wrong array length for isLocked array", async () => {
                 await shouldFail.reverting.withMessage(
@@ -179,16 +190,18 @@ contract("Nexus", async (accounts) => {
                     ),
                     "Insuffecient locked statuses",
                 );
+                await expectInModules(nexus, "dummy", ZERO_ADDRESS, false);
             });
 
             it("when already initialized", async () => {
                 await nexus.initialize(
-                    [aToH("dummy")],
-                    [sa._],
+                    [aToH("dummy1")],
+                    [sa.dummy1],
                     [true],
                     sa.governor,
                     { from: sa.governor },
                 );
+                await expectInModules(nexus, "dummy1", sa.dummy1, true);
                 // must fail
                 await shouldFail.reverting.withMessage(
                     nexus.initialize(
@@ -200,6 +213,7 @@ contract("Nexus", async (accounts) => {
                     ),
                     "Nexus is already initialized",
                 );
+                await expectInModules(nexus, "dummy1", sa.dummy1, true);
             });
         });
     });
@@ -215,67 +229,73 @@ contract("Nexus", async (accounts) => {
                     nexus.proposeModule(aToH("dummy"), sa._, { from: sa.other }),
                     "GOV: caller is not the Governor",
                 );
+                await expectInProposedModules(nexus, "dummy", ZERO_ADDRESS, ZERO);
             });
             it("when empty key", async () => {
                 await shouldFail.reverting.withMessage(
                     nexus.proposeModule("0x00", sa._, { from: sa.governor }),
                     "Key must not be zero",
                 );
+                await expectInProposedModules(nexus, "0x00", ZERO_ADDRESS, ZERO);
             });
             it("when zero address", async () => {
                 await shouldFail.reverting.withMessage(
                     nexus.proposeModule(aToH("dummy"), ZERO_ADDRESS, { from: sa.governor }),
                     "Module address must not be 0",
                 );
+                await expectInProposedModules(nexus, "dummy", ZERO_ADDRESS, ZERO);
             });
             it("when module key & address are same", async () => {
+                await expectInModules(nexus, "dummy4", sa.dummy4, false);
                 await shouldFail.reverting.withMessage(
                     nexus.proposeModule(aToH("dummy4"), sa.dummy4, { from: sa.governor }),
                     "Module already has same address",
                 );
+                await expectInProposedModules(nexus, "dummy4", ZERO_ADDRESS, ZERO);
             });
             it("when module is locked (update for existing module)", async () => {
+                await expectInModules(nexus, "dummy3", sa.dummy3, true);
                 await shouldFail.reverting.withMessage(
                     nexus.proposeModule(aToH("dummy3"), sa.other, { from: sa.governor }),
                     "Module must be unlocked",
                 );
+                await expectInProposedModules(nexus, "dummy3", ZERO_ADDRESS, ZERO);
             });
             it("when module already proposed", async () => {
                 await nexus.proposeModule(aToH("dummy2"), sa.dummy2, { from: sa.governor });
+                const timestamp = await latest();
+                await expectInProposedModules(nexus, "dummy2", sa.dummy2, timestamp);
+
                 await shouldFail.reverting.withMessage(
                     nexus.proposeModule(aToH("dummy2"), sa.dummy3, { from: sa.governor }),
                     "Module already proposed",
                 );
+                await expectInProposedModules(nexus, "dummy2", sa.dummy2, timestamp);
             });
         });
         context("should succeed", () => {
             it("when a new module is proposed", async () => {
                 await nexus.proposeModule(aToH("dummy1"), sa.dummy1, { from: sa.governor });
                 const lastTimestamp = await latest();
-                [newAddress, timestamp] = await nexus.proposedModules(aToH("dummy1"));
-                expect(newAddress).to.equal(sa.dummy1);
-                expect(timestamp).to.bignumber.equal(lastTimestamp);
+
+                await expectInProposedModules(nexus, "dummy1", sa.dummy1, lastTimestamp);
             });
             it("when an existing module address is updated", async () => {
                 let prevAddr: string;
                 let prevIsLocked: boolean;
-                [prevAddr, prevIsLocked] = await nexus.modules(aToH("dummy4"));
-                expect(prevAddr).to.equal(sa.dummy4);
-                expect(prevIsLocked).to.equal(false);
-
+                await expectInModules(nexus, "dummy4", sa.dummy4, false);
+                
                 // propose new address
                 await nexus.proposeModule(aToH("dummy4"), sa.other, { from: sa.governor });
                 const lastTimestamp = await latest();
-                [newAddress, timestamp] = await nexus.proposedModules(aToH("dummy4"));
-                expect(newAddress).to.equal(sa.other);
-                expect(timestamp).to.bignumber.equal(lastTimestamp);
+
+                await expectInProposedModules(nexus, "dummy4", sa.other, lastTimestamp);
 
                 // address is not updated in modules mapping
                 let currentAddr: string;
                 let currentIsLocked: boolean;
-                [currentAddr, currentIsLocked] = await nexus.modules(aToH("dummy4"));
-                expect(currentAddr).to.equal(sa.dummy4);
-                expect(currentIsLocked).to.equal(false);
+
+                await expectInModules(nexus, "dummy4", sa.dummy4, false);
             });
         });
     });
@@ -306,24 +326,18 @@ contract("Nexus", async (accounts) => {
                 await nexus.proposeModule(aToH("dummy1"), sa.dummy1, { from: sa.governor });
                 // validate proposed module
 
-                [newAddress, timestamp] = await nexus.proposedModules(aToH("dummy1"));
                 // validate dummy1 added
                 const latestTimestamp = await latest();
-                expect(newAddress).to.equal(sa.dummy1);
-                expect(timestamp).to.bignumber.equal(latestTimestamp);
-
+                await expectInProposedModules(nexus, "dummy1", sa.dummy1, latestTimestamp);
+                
                 // validate dummy3 still exist
-                [addr, isLocked] = await nexus.modules(aToH("dummy3"));
-                expect(addr).to.equal(sa.dummy3);
-                expect(isLocked).to.equal(true);
+                await expectInModules(nexus, "dummy3", sa.dummy3, true);
 
                 // cancel the module
                 // ==================
                 const tx = await nexus.cancelProposedModule(aToH("dummy1"), { from: sa.governor });
                 // validate cancelled
-                [newAddress, timestamp] = await nexus.proposedModules(aToH("dummy1"));
-                expect(newAddress).to.equal(ZERO_ADDRESS);
-                expect(timestamp).to.bignumber.equal(new BN(0));
+                await expectInProposedModules(nexus, "dummy1", ZERO_ADDRESS, ZERO);
 
                 // expect event
                 expectEvent.inLogs(
@@ -333,9 +347,7 @@ contract("Nexus", async (accounts) => {
                 );
 
                 // validate dummy3 still exist
-                [addr, isLocked] = await nexus.modules(aToH("dummy3"));
-                expect(addr).to.equal(sa.dummy3);
-                expect(isLocked).to.equal(true);
+                await expectInModules(nexus, "dummy3", sa.dummy3, true);
             });
         });
     });
@@ -368,14 +380,10 @@ contract("Nexus", async (accounts) => {
                 );
 
                 // validate
-                [newAddress, timestamp] = await nexus.proposedModules(aToH("dummy1"));
-                expect(newAddress).to.equal(sa.dummy1);
-                expect(timestamp).to.bignumber.equal(timeWhenModuleProposed);
+                await expectInProposedModules(nexus, "dummy1", sa.dummy1, timeWhenModuleProposed);
 
                 // validate module still not accepted
-                [addr, isLocked] = await nexus.modules(aToH("dummy1"));
-                expect(addr).to.equal(ZERO_ADDRESS);
-                expect(isLocked).to.equal(false);
+                await expectInModules(nexus, "dummy1", ZERO_ADDRESS, false);
             });
         });
         context("should succeed", () => {
@@ -384,22 +392,16 @@ contract("Nexus", async (accounts) => {
                 const timeWhenModuleProposed = await latest();
 
                 // validate
-                [newAddress, timestamp] = await nexus.proposedModules(aToH("dummy1"));
-                expect(newAddress).to.equal(sa.dummy1);
-                expect(timestamp).to.bignumber.equal(timeWhenModuleProposed);
+                await expectInProposedModules(nexus, "dummy1", sa.dummy1, timeWhenModuleProposed);
 
                 await increase(WEEK);
                 await nexus.acceptProposedModule(aToH("dummy1"), { from: sa.governor });
 
                 // validate module accepted
-                [addr, isLocked] = await nexus.modules(aToH("dummy1"));
-                expect(addr).to.equal(sa.dummy1);
-                expect(isLocked).to.equal(false);
+                await expectInModules(nexus, "dummy1", sa.dummy1, false);
 
                 // validate data deleted from proposedModules map
-                [newAddress, timestamp] = await nexus.proposedModules(aToH("dummy1"));
-                expect(newAddress).to.equal(ZERO_ADDRESS);
-                expect(timestamp).to.bignumber.equal(new BN(0));
+                await expectInProposedModules(nexus, "dummy1", ZERO_ADDRESS, ZERO);
             });
         });
     });
@@ -434,20 +436,139 @@ contract("Nexus", async (accounts) => {
                     "Module upgrade delay not over",
                 );
             });
-            it("when module is locked");
-            it("when address is already used by another module");
-            it("when delay is not over");
-            it("when new proposed address is zero");
-            it("when delay is less then 1 second of opt out period");
-            it("when delay is equal to opt out period");
+            it("when module is locked", async () =>{
+                // update address request
+                await expectInModules(nexus, "dummy4", sa.dummy4, false);
+                await nexus.proposeModule(aToH("dummy4"), sa.other, {from: sa.governor});
+                const timestampWhenProposed = await latest();
+                await expectInProposedModules(nexus, "dummy4", sa.other, timestampWhenProposed);
+                await increase(ONE_DAY);
+                // lock request
+                await nexus.requestLockModule(aToH("dummy4"), {from: sa.governor});
+                await expectInProposedLockModules(nexus, "dummy4", (await latest()));
+
+                await increase(WEEK);
+                // module locked
+                await nexus.lockModule(aToH("dummy4"), {from: sa.governor});
+                await expectInModules(nexus, "dummy4", sa.dummy4, true);
+
+                // now accpet update request - must fail
+                await shouldFail.reverting.withMessage(
+                    nexus.acceptProposedModules([aToH("dummy4")], {from: sa.governor}),
+                    "Module must be unlocked",
+                );
+                await expectInProposedModules(nexus, "dummy4", sa.other, timestampWhenProposed);
+            });
+            it("when address is already used by another module", async () => {
+                // proposed new module - dummy1
+                await nexus.proposeModule(aToH("dummy1"), sa.dummy1, {from: sa.governor});
+                await expectInProposedModules(nexus, "dummy1", sa.dummy1, (await latest()));
+
+                // propose new module - dummy2 with dummy1 as address
+                await nexus.proposeModule(aToH("dummy2"), sa.dummy1, {from: sa.governor});
+                await expectInProposedModules(nexus, "dummy2", sa.dummy1, (await latest()));
+
+                await increase(WEEK);
+
+                // dummy1 accepted
+                await nexus.acceptProposedModules([aToH("dummy1")], {from: sa.governor});
+                await expectInModules(nexus, "dummy1", sa.dummy1, false);
+
+                // dummy2 must be rejected
+                await shouldFail.reverting.withMessage(
+                    nexus.acceptProposedModules([aToH("dummy2")], {from: sa.governor}),
+                    "Modules must have unique addr",
+                );
+            });
+            it("when delay is not over", async () => {
+                await nexus.proposeModule(aToH("dummy1"), sa.dummy1, {from: sa.governor});
+                await increase(ONE_DAY);
+                await shouldFail.reverting.withMessage(
+                    nexus.acceptProposedModules([aToH("dummy1")], {from: sa.governor}),
+                    "Module upgrade delay not over",
+                );
+
+                // not present in modules
+                await expectInModules(nexus, "dummy1", ZERO_ADDRESS, false);
+            });
+            it("when delay is less then 10 second of opt out period", async () => {
+                await nexus.proposeModule(aToH("dummy1"), sa.dummy1, {from: sa.governor});
+                await increase(WEEK.sub(new BN(10)));
+                await shouldFail.reverting.withMessage(
+                    nexus.acceptProposedModules([aToH("dummy1")], {from: sa.governor}),
+                    "Module upgrade delay not over",
+                );
+
+                // not present in modules
+                await expectInModules(nexus, "dummy1", ZERO_ADDRESS, false);
+            } );
         });
         context("should succeed", () => {
-            it("when called by Governor");
-            it("when accepted already proposed Module"); // validate event
-            it("when delay is more then 1 second of opt out period");
-            it("should remove the proposed module from mapping");
-            it("should remove the old address from the system");
-            it("should set new module info");
+            it("when accepted a proposed Module", async ()=>{
+                await nexus.proposeModule(aToH("dummy1"), sa.dummy1, {from: sa.governor});
+                await increase(WEEK);
+                const tx = await nexus.acceptProposedModules([aToH("dummy1")], {from: sa.governor});
+
+                // validate event
+                await expectEvent.inLogs(
+                    tx.logs,
+                    "ModuleAdded",
+                    {
+                        key: padRight(aToH("dummy1"), 64),
+                        addr: sa.dummy1,
+                        isLocked: false,
+                    },
+                );
+
+                // validate - added in "modules" mapping
+                await expectInModules(nexus, "dummy1", sa.dummy1, false);
+                
+                // validate - removed from "proposedModules" mapping
+                await expectInProposedModules(nexus, "dummy1", ZERO_ADDRESS, ZERO);
+            });
+            it("when delay is more then 10 second of opt out period", async () =>{
+                await nexus.proposeModule(aToH("dummy1"), sa.dummy1, {from: sa.governor});
+                await increase(WEEK.add(new BN(10)));
+                const tx = await nexus.acceptProposedModules([aToH("dummy1")], {from: sa.governor});
+
+                // validate event
+                await expectEvent.inLogs(
+                    tx.logs,
+                    "ModuleAdded",
+                    {
+                        key: padRight(aToH("dummy1"), 64),
+                        addr: sa.dummy1,
+                        isLocked: false,
+                    },
+                );
+            });
+            it("when module address update request accepted", async () =>{
+                // validate - existing module present in "modules" mapping
+                await expectInModules(nexus, "dummy4", sa.dummy4, false);
+
+                await nexus.proposeModule(aToH("dummy4"), sa.other, {from: sa.governor});
+
+                await increase(WEEK);
+
+                const tx = await nexus.acceptProposedModules([aToH("dummy4")], {from: sa.governor});
+
+                // validate event
+                await expectEvent.inLogs(
+                    tx.logs,
+                    "ModuleAdded",
+                    {
+                        key: padRight(aToH("dummy4"), 64),
+                        addr: sa.other,
+                        isLocked: false,
+                    },
+                );
+
+                // validate - added in "modules" mapping
+                await expectInModules(nexus, "dummy4", sa.other, false);
+
+                // validate - removed from "proposedModules" mapping
+                await expectInProposedModules(nexus, "dummy4", ZERO_ADDRESS, ZERO);
+            });
         });
     });
 
@@ -539,14 +660,12 @@ contract("Nexus", async (accounts) => {
         });
         context("should succeed", () => {
             it("when a valid cancel lock request", async () => {
-                timestamp = await nexus.proposedLockModules(aToH("dummy4"));
-                expect(timestamp).to.bignumber.equal(new BN(0));
-
+                await expectInProposedLockModules(nexus, "dummy4", ZERO);
+                
                 await nexus.requestLockModule(aToH("dummy4"), { from: sa.governor });
 
                 const latestTimestamp = await latest();
-                timestamp = await nexus.proposedLockModules(aToH("dummy4"));
-                expect(timestamp).to.bignumber.equal(latestTimestamp);
+                await expectInProposedLockModules(nexus, "dummy4", latestTimestamp);
 
                 const tx = await nexus.cancelLockModule(aToH("dummy4"), { from: sa.governor });
 
@@ -557,12 +676,9 @@ contract("Nexus", async (accounts) => {
                     { key: padRight(aToH("dummy4"), 64) },
                 );
 
-                timestamp = await nexus.proposedLockModules(aToH("dummy4"));
-                expect(timestamp).to.bignumber.equal(new BN(0));
+                await expectInProposedLockModules(nexus, "dummy4", ZERO);
 
-                [addr, isLocked] = await nexus.modules(aToH("dummy4"));
-                expect(addr).to.equal(sa.dummy4);
-                expect(isLocked).to.equal(false);
+                await expectInModules(nexus, "dummy4", sa.dummy4, false);
             });
         });
     });
@@ -593,16 +709,21 @@ contract("Nexus", async (accounts) => {
                     "Delay not over",
                 );
             });
-            it("when delay is less then 1 second of opt out period");
-            it("when delay is equal to opt out period");
+            it("when delay is less then 10 second of opt out period", async ()=>{
+                await nexus.requestLockModule(aToH("dummy4"), { from: sa.governor });
+                await increase(WEEK.sub(new BN(10)));
+                await shouldFail.reverting.withMessage(
+                    nexus.lockModule(aToH("dummy4"), { from: sa.governor }),
+                    "Delay not over",
+                );
+            });
         });
         context("should succeed", () => {
             it("when a valid lock Module", async () => {
-                [addr, isLocked] = await nexus.modules(aToH("dummy4"));
-                expect(addr).to.equal(sa.dummy4);
-                expect(isLocked).to.equal(false);
+                await expectInModules(nexus, "dummy4", sa.dummy4, false);
 
                 await nexus.requestLockModule(aToH("dummy4"), { from: sa.governor });
+                await expectInProposedLockModules(nexus, "dummy4", (await latest()));
 
                 await increase(WEEK);
 
@@ -614,11 +735,28 @@ contract("Nexus", async (accounts) => {
                     { key: padRight(aToH("dummy4"), 64) },
                 );
 
-                [addr, isLocked] = await nexus.modules(aToH("dummy4"));
-                expect(addr).to.equal(sa.dummy4);
-                expect(isLocked).to.equal(true);
+                await expectInModules(nexus, "dummy4", sa.dummy4, true);
+
             });
-            it("when delay is more then 10 second of opt out period");
+            it("when delay is more then 10 second of opt out period", async () => {
+                await expectInModules(nexus, "dummy4", sa.dummy4, false);
+
+                await nexus.requestLockModule(aToH("dummy4"), { from: sa.governor });
+                await expectInProposedLockModules(nexus, "dummy4", (await latest()));
+
+                await increase(WEEK.add(new BN(10)));
+
+                const tx = await nexus.lockModule(aToH("dummy4"), { from: sa.governor });
+                await expectInProposedLockModules(nexus, "dummy4", ZERO);
+                // validate event
+                expectEvent.inLogs(
+                    tx.logs,
+                    "ModuleLockEnabled",
+                    { key: padRight(aToH("dummy4"), 64) },
+                );
+
+                await expectInModules(nexus, "dummy4", sa.dummy4, true);
+            });
         });
     });
 
@@ -628,7 +766,10 @@ contract("Nexus", async (accounts) => {
                 const result = await nexus.moduleExists(aToH("dummy"));
                 expect(result).to.equal(false);
             });
-            it("when key is zero");
+            it("when key is zero", async () => {
+                const result = await nexus.moduleExists("0x00");
+                expect(result).to.equal(false);
+            });
         });
         context("should return true", () => {
             it("when a valid module key", async () => {
@@ -640,13 +781,114 @@ contract("Nexus", async (accounts) => {
 
     describe("Extra tests", () => {
         context("should not allow", () => {
-            it("having same address with different module keys");
-            it("proposeModule + requestLockModule for a same key");
+            it("proposeModule + requestLockModule for a same key", async () => {
+                await nexus.proposeModule(aToH("dummy1"), sa.dummy1, {from: sa.governor});
+                await expectInProposedModules(nexus, "dummy1", sa.dummy1, (await latest()));
+                await expectInModules(nexus, "dummy1", ZERO_ADDRESS, false);
+
+                await increase(WEEK);
+
+                await nexus.acceptProposedModule(aToH("dummy1"), {from: sa.governor});
+                await expectInModules(nexus, "dummy1", sa.dummy1, false);
+
+                await nexus.requestLockModule(aToH("dummy1"), {from: sa.governor});
+                await expectInProposedLockModules(nexus, "dummy1", (await latest()));
+
+                await increase(WEEK);
+
+                await nexus.lockModule(aToH("dummy1"), {from: sa.governor});
+                await expectInProposedLockModules(nexus, "dummy1", ZERO);
+                await expectInModules(nexus, "dummy1", sa.dummy1, true);
+            });
         });
-        context("", () => {
-            it("can propose a module, cancel it and then propose the same module it again");
-            it("can propose multiple modules and cancel one, and accept one, and leave one");
-            it("should fail when we propose a module, and then lock it, and then try to accept the proposal");
+        context("should succeed", () => {
+            it("when propose a module, cancel it and then propose the same module it again", async ()=>{
+                await nexus.proposeModule(aToH("dummy1"), sa.dummy1, {from: sa.governor});
+                await expectInProposedModules(nexus, "dummy1", sa.dummy1, (await latest()));
+                await expectInModules(nexus, "dummy1", ZERO_ADDRESS, false);
+
+                await nexus.cancelProposedModule(aToH("dummy1"), {from: sa.governor});
+                await expectInProposedModules(nexus, "dummy1", ZERO_ADDRESS, ZERO);
+                await expectInModules(nexus, "dummy1", ZERO_ADDRESS, false);
+
+                await nexus.proposeModule(aToH("dummy1"), sa.dummy1, {from: sa.governor});
+                await expectInProposedModules(nexus, "dummy1", sa.dummy1, (await latest()));
+                await expectInModules(nexus, "dummy1", ZERO_ADDRESS, false);
+            });
+            it("can propose multiple modules and cancel one, and accept one, and leave one", async () => {
+                await nexus.proposeModule(aToH("dummy1"), sa.dummy1, {from: sa.governor});
+                await expectInProposedModules(nexus, "dummy1", sa.dummy1, (await latest()));
+                await expectInModules(nexus, "dummy1", ZERO_ADDRESS, false);
+
+                await nexus.proposeModule(aToH("dummy2"), sa.dummy2, {from: sa.governor});
+                await expectInProposedModules(nexus, "dummy2", sa.dummy2, (await latest()));
+                await expectInModules(nexus, "dummy2", ZERO_ADDRESS, false);
+
+                await nexus.proposeModule(aToH("other"), sa.other, {from: sa.governor});
+                const timestampOther = await latest();
+                await expectInProposedModules(nexus, "other", sa.other, timestampOther);
+                await expectInModules(nexus, "other", ZERO_ADDRESS, false);
+
+                await increase(WEEK);
+
+                // accept
+                await nexus.acceptProposedModule(aToH("dummy1"), {from: sa.governor});
+                await expectInProposedModules(nexus, "dummy1", ZERO_ADDRESS, ZERO);
+                await expectInModules(nexus, "dummy1", sa.dummy1, false);
+
+                // cancel
+                await nexus.cancelProposedModule(aToH("dummy2"), {from: sa.governor});
+                await expectInProposedModules(nexus, "dummy2", ZERO_ADDRESS, ZERO);
+                await expectInModules(nexus, "dummy2", ZERO_ADDRESS, false);
+
+                // "other" is un-affected
+                await expectInProposedModules(nexus, "other", sa.other, timestampOther);
+                await expectInModules(nexus, "other", ZERO_ADDRESS, false);
+            });
         });
     });
 });
+
+async function expectInModules(
+    nexus: NexusInstance,
+    _key: string,
+    _addr: string,
+    _isLocked: boolean,
+) {
+    let addr: string;
+    let isLocked: boolean;
+    [addr, isLocked] = await nexus.modules(aToH(_key));
+    expect(addr, "Module address not matched").to.equal(_addr);
+    expect(isLocked, "Module isLocked not matched").to.equal(_isLocked);
+    const exists = await nexus.moduleExists(aToH(_key));
+    if (addr !== ZERO_ADDRESS) {
+        expect(exists).to.equal(true);
+    } else {
+        expect(exists).to.equal(false);
+    }
+}
+
+async function expectInProposedModules(
+    nexus: NexusInstance,
+    _key: string,
+    _newAddress: string,
+    _timestamp: BN,
+) {
+    let newAddress: string;
+    let timestamp: BN;
+    [newAddress, timestamp] = await nexus.proposedModules(aToH(_key));
+    expect(newAddress, "New address not matched in proposed modules").to.equal(_newAddress);
+    expect(timestamp, "The timestamp not matched in proposed modules").to.bignumber.equal(_timestamp);
+}
+
+async function expectInProposedLockModules(
+    nexus: NexusInstance,
+    _key: string,
+    _timestamp: BN,
+) {
+    const timestamp: BN = await nexus.proposedLockModules(aToH(_key));
+    expect(
+        timestamp,
+        "The timestamp not matched in proposed lock modules",
+    ).to.bignumber.equal(_timestamp);
+}
