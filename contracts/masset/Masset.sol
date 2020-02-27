@@ -70,7 +70,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
      * @param _bassetQuantity bAsset quantity to mint
      * @return returns the number of newly minted mAssets
      */
-    function mintSingle(
+    function mint(
         address _basset,
         uint256 _bassetQuantity
     )
@@ -87,7 +87,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
      * @param _recipient receipient of the newly minted mAsset tokens
      * @return returns the number of newly minted mAssets
      */
-    function mintSingleTo(
+    function mintTo(
         address _basset,
         uint256 _bassetQuantity,
         address _recipient
@@ -104,7 +104,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
      * @param _bassetQuantity bAsset's quantity to send
      * @return massetMinted returns the number of newly minted mAssets
      */
-    function mintBitmapTo(
+    function mintMulti(
         uint32 _bassetsBitmap,
         uint256[] calldata _bassetQuantity,
         address _recipient
@@ -219,7 +219,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
      * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
      * @param _bassetQuantity Exact quantities of Bassets to redeem
      */
-    function redeemSingle(
+    function redeem(
         address _basset,
         uint256 _bassetQuantity
     )
@@ -230,7 +230,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
     }
 
 
-    function redeemSingleTo(
+    function redeemTo(
         address _basset,
         uint256 _bassetQuantity,
         address _recipient
@@ -247,7 +247,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
      * @param _bassetQuantities Exact quantities of Bassets to redeem
      * @param _recipient Account to which the redeemed Bassets should be sent
      */
-    function redeemBitmapTo(
+    function redeemMulti(
         uint32 _bassetsBitmap,
         uint256[] calldata _bassetQuantities,
         address _recipient

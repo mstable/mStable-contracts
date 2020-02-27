@@ -62,6 +62,37 @@ contract ForgeRewardsMUSD is MassetRewards, IForgeRewards {
                     FORGING
     ****************************************/
 
+
+    /**
+     * @dev Mint mUSD to a specified recipient and then log the minted quantity to rewardee.
+     *      bAsset used in the mint must be first transferred here from msg.sender, before
+     *      being approved for spending by the mUSD contract
+     * @param _basset             bAsset address that will be used as minting collateral
+     * @param _bassetQuantity     Quantity of the above basset
+     * @param _massetRecipient    Address to which the newly minted mUSD will be sent
+     * @param _rewardRecipient    Address to which the rewards will be attributed
+     * @return massetMinted       Units of mUSD that were minted
+     */
+    function mintTo(
+        address _basset,
+        uint256 _bassetQuantity,
+        address _massetRecipient,
+        address _rewardRecipient
+    )
+        external
+        returns (uint256 massetMinted)
+    {
+        // Receive the bAsset
+        uint256 receivedQty = MassetHelpers.transferTokens(msg.sender, address(this), _basset, true, _bassetQuantity);
+
+        // Mint the mAsset
+        massetMinted = mUSD.mintTo(_basset, receivedQty, _massetRecipient);
+
+        // Log minting volume
+        _logMintVolume(massetMinted, _rewardRecipient);
+    }
+
+
     /**
      * @dev Mint mUSD to a specified recipient and then log the minted quantity to rewardee.
      *      bAssets used in the mint must be first transferred here from msg.sender, before
@@ -71,7 +102,7 @@ contract ForgeRewardsMUSD is MassetRewards, IForgeRewards {
      * @param _rewardRecipient    Address to which the rewards will be attributed
      * @return massetMinted       Units of mUSD that were minted
      */
-    function mintTo(
+    function mintMulti(
         uint32 _bAssetBitmap,
         uint256[] calldata _bassetQuantities,
         address _massetRecipient,
@@ -91,38 +122,9 @@ contract ForgeRewardsMUSD is MassetRewards, IForgeRewards {
             }
         }
         // Do the mUSD mint
-        massetMinted = mUSD.mintBitmapTo(_bAssetBitmap, receivedQty, _massetRecipient);
+        massetMinted = mUSD.mintMulti(_bAssetBitmap, receivedQty, _massetRecipient);
 
         // Log volume of minting
-        _logMintVolume(massetMinted, _rewardRecipient);
-    }
-
-    /**
-     * @dev Mint mUSD to a specified recipient and then log the minted quantity to rewardee.
-     *      bAsset used in the mint must be first transferred here from msg.sender, before
-     *      being approved for spending by the mUSD contract
-     * @param _basset             bAsset address that will be used as minting collateral
-     * @param _bassetQuantity     Quantity of the above basset
-     * @param _massetRecipient    Address to which the newly minted mUSD will be sent
-     * @param _rewardRecipient    Address to which the rewards will be attributed
-     * @return massetMinted       Units of mUSD that were minted
-     */
-    function mintSingleTo(
-        address _basset,
-        uint256 _bassetQuantity,
-        address _massetRecipient,
-        address _rewardRecipient
-    )
-        external
-        returns (uint256 massetMinted)
-    {
-        // Receive the bAsset
-        uint256 receivedQty = MassetHelpers.transferTokens(msg.sender, address(this), _basset, true, _bassetQuantity);
-
-        // Mint the mAsset
-        massetMinted = mUSD.mintSingleTo(_basset, receivedQty, _massetRecipient);
-
-        // Log minting volume
         _logMintVolume(massetMinted, _rewardRecipient);
     }
 

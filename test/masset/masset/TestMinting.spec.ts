@@ -83,7 +83,7 @@ contract("MassetMinting", async (accounts) => {
             await b7.approve(masset.address, 10, { from: sa.default });
 
             const mUSD_balBefore = await masset.balanceOf(sa.default);
-            await masset.mintBitmapTo(127, [10, 10, 10, 10, 10, 10, 10], sa.default);
+            await masset.mintMulti(127, [10, 10, 10, 10, 10, 10, 10], sa.default);
             const mUSD_balAfter = await masset.balanceOf(sa.default);
             expect(mUSD_balBefore).bignumber.eq(new BN(0));
             expect(mUSD_balAfter, "Must mint 70 base units of mUSD").bignumber.eq(new BN(70));
@@ -96,12 +96,12 @@ contract("MassetMinting", async (accounts) => {
             // await b4.approve(masset.address, 10, { from: sa.default });
 
             const bitmap = 5; // 0101 = 5
-            await masset.mintBitmapTo(bitmap, [10, 10], sa.default, { from: sa.default });
+            await masset.mintMulti(bitmap, [10, 10], sa.default, { from: sa.default });
         });
 
         it("Should mint single bAsset", async () => {
             await b1.approve(masset.address, 10, { from: sa.default });
-            await masset.mintSingle(b1.address, 10, { from: sa.default });
+            await masset.mint(b1.address, 10, { from: sa.default });
         });
 
         it("Should return bAssets bitmap", async () => {

@@ -144,7 +144,7 @@ contract("ForgeRewardsMUSD", async (accounts) => {
             await b1.approve(newRewardsContract.address, 10, { from: sa.default });
             assert((await b1.allowance(sa.default, newRewardsContract.address)).eq(new BN(10)));
 
-            const txReceipt = await newRewardsContract.mintSingleTo(
+            const txReceipt = await newRewardsContract.mintTo(
                 b1.address,
                 10,
                 sa.default,
@@ -194,7 +194,7 @@ contract("ForgeRewardsMUSD", async (accounts) => {
             assert((await b4.allowance(sa.default, rewardsContract.address)).eq(new BN(10)));
 
             const bitmap = 15; // 1111
-            const txReceipt = await rewardsContract.mintTo(
+            const txReceipt = await rewardsContract.mintMulti(
                 bitmap,
                 [10, 10, 10, 10],
                 sa.default,
