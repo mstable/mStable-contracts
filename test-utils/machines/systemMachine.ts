@@ -93,6 +93,10 @@ export class SystemMachine {
             moduleAddresses[0] = this.systok.address;
             isLocked[0] = true; // TODO Ensure that its locked at deploy time?
 
+            await this.systok.transfer(this.sa._, simpleToExactAmount(1000, 18), {
+                from: this.sa.fundManager,
+            });
+
             /** OracleHubMock */
             this.oracleHub = await this.deployOracleHub();
             moduleKeys[1] = await this.nexus.Key_OracleHub();
@@ -114,13 +118,22 @@ export class SystemMachine {
         }
     }
 
-    // public async addMockPrices() {
-    //     await this.oracleHub.addMockPrices(
-    //         [new BN("1000000"), new BN("12000000")],
-    //         [Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000)],
-    //         [],
-    //     );
-    // }
+    /**
+     * @dev Adds prices for the mAsset and Systok into the Oracle
+     * @param mAssetPrice Where $1 == 1e6 ("1000000")
+     * @return txHash
+     */
+    public async addMockPrices(
+        mAssetPrice: string,
+        mAssetAddress: string,
+    ): Promise<Truffle.TransactionResponse> {
+        return this.oracleHub.addMockPrices(
+            [new BN(mAssetPrice), new BN("12000000")],
+            [Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000)],
+            [mAssetAddress, this.systok.address],
+            { from: this.sa.oraclePriceProvider },
+        );
+    }
 
     /**
      * @dev Deploy the Nexus
@@ -207,34 +220,6 @@ export class SystemMachine {
         } catch (e) {
             throw e;
         }
-    }
-
-    /**
-     * @dev Deploy a Masset via the Manager
-     */
-    public async createMassetViaManager(
-        sender: Address = this.sa.governor,
-    ): Promise<MassetInstance> {
-        const bassetMachine = new BassetMachine(this.sa.default, this.sa.other, 500000);
-
-        const b1: ERC20MockInstance = await bassetMachine.deployERC20Async();
-        const b2: ERC20MockInstance = await bassetMachine.deployERC20Async();
-
-        const masset = await MassetArtifact.new(
-            "TestMasset",
-            "TMT",
-            this.nexus.address,
-            [b1.address, b2.address],
-            [percentToWeight(50), percentToWeight(50)],
-            [createMultiple(1), createMultiple(1)],
-            [false, false],
-            this.sa.feePool,
-            this.forgeValidator.address,
-        );
-
-        // Adds the Masset to Manager so that it can look up its price
-        await this.manager.addMasset(aToH("TMT"), masset.address, { from: this.sa.governor });
-        return masset;
     }
 
     public async initializeNexusWithModules(

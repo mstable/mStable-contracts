@@ -1,5 +1,6 @@
 pragma solidity ^0.5.16;
 
+import { IMasset } from "../../interfaces/IMasset.sol";
 import { StableMath } from "../../shared/StableMath.sol";
 import { SafeMath }  from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import { SafeERC20 }  from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
@@ -34,5 +35,20 @@ library MassetHelpers {
         } else {
             IERC20(_basset).safeTransferFrom(_sender, _recipient, _qty);
         }
+    }
+
+    function approveAllBassets(IMasset _mUSD, address _spender)
+        internal
+    {
+        address[] memory bAssets = _mUSD.getAllBassetsAddress();
+        for(uint256 i = 0; i < bAssets.length; i++) {
+            IERC20(bAssets[i]).safeIncreaseAllowance(_spender, uint256(-1));
+        }
+    }
+
+    function approveMTA(IERC20 _mta, address _spender)
+        internal
+    {
+        _mta.safeIncreaseAllowance(_spender, uint256(-1));
     }
 }

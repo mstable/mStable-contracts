@@ -7,18 +7,22 @@ import { percentScale, ratioScale } from "./constants";
  * it likely share code with the front end
  */
 
+// TODO - new BN does not handle fractions.. ensure only passing integers
 export const percentToWeight = (percent: number): BN => {
     return new BN(percent).mul(percentScale);
 };
 
+// TODO - new BN does not handle fractions.. ensure only passing integers
 export const createMultiple = (ratio: number): BN => {
     return new BN(ratio).mul(ratioScale);
 };
 
+// TODO - new BN does not handle fractions.. ensure only passing integers
 export const simpleToExactAmount = (amount: number, decimals: number): BN => {
     return new BN(amount).mul(new BN(10).pow(new BN(decimals)));
 };
 
+// TODO - new BN does not handle fractions.. ensure only passing integers
 export const exactAmountToSimple = (value, decimals): BN => {
     return new BN(value).div(new BN(10).pow(new BN(decimals)));
 };
@@ -34,7 +38,7 @@ export const applyRatioMassetToBasset = (input: BN, ratio: BN): BN => {
 export const simpleToExactRelativePrice = (relativePrice: string): BN => {
     const tenx = new BN(10).pow(new BN(6));
     console.log("t", tenx.toString());
-    const input = new BN("1.2");
+    const input = new BN(relativePrice);
     console.log("i", input.toString());
     const price = input.mul(tenx);
     console.log("p", price.toString());

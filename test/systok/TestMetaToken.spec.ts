@@ -4,7 +4,7 @@ import envSetup from "@utils/env_setup";
 import { BassetMachine, MassetMachine, SystemMachine } from "@utils/machines";
 import { percentToWeight } from "@utils/math";
 import { aToH, chai, BN } from "@utils/tools";
-import { Basset, BassetStatus } from "@utils/mstable-objects";
+import { BassetStatus } from "@utils/mstable-objects";
 
 envSetup.configure();
 const { expect } = chai;

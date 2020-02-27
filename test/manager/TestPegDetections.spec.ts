@@ -10,7 +10,7 @@ import envSetup from "@utils/env_setup";
 import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import { percentToWeight, simpleToExactRelativePrice } from "@utils/math";
 import { aToH, BN } from "@utils/tools";
-import { Basset, BassetStatus } from "@utils/mstable-objects";
+import { BassetStatus } from "@utils/mstable-objects";
 
 const { expect, assert } = envSetup.configure();
 
@@ -23,7 +23,7 @@ contract("Manager", async (accounts) => {
     const sa = new StandardAccounts(accounts);
 
     let systemMachine: SystemMachine;
-    const massetMachine = new MassetMachine(sa.all, sa.other);
+    let massetMachine: MassetMachine;
     const bassetMachine = new BassetMachine(sa._, sa.other);
 
     let manager: ManagerInstance;
@@ -31,10 +31,11 @@ contract("Manager", async (accounts) => {
 
     before("Init contracts", async () => {
         /** Get fresh SystemMachine */
-        systemMachine = new SystemMachine(accounts, sa.other);
+        systemMachine = new SystemMachine(sa.all, sa.other);
 
         /** Create a basic mock representation of the deployed system */
         await systemMachine.initialiseMocks();
+        massetMachine = new MassetMachine(systemMachine);
 
         manager = systemMachine.manager;
         oracleHub = systemMachine.oracleHub;
@@ -46,7 +47,7 @@ contract("Manager", async (accounts) => {
         });
 
         it("should do nothing if we have no pricing information", async () => {
-            await systemMachine.createMassetViaManager();
+            await massetMachine.createBasicMasset();
 
             const massets = await manager.getMassets();
             const masset = massets[0][0];

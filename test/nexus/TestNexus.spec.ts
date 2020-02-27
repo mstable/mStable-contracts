@@ -1,5 +1,5 @@
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
-import { createBasket, createBasset, Basket } from "@utils/mstable-objects";
+import { createBasket, Basket } from "@utils/mstable-objects";
 import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
 import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import { aToH, BN } from "@utils/tools";
@@ -22,14 +22,14 @@ contract("Nexus", async (accounts) => {
     let nexus: NexusInstance;
 
     beforeEach("Init contract", async () => {
-        systemMachine = new SystemMachine(accounts, sa.other);
+        systemMachine = new SystemMachine(sa.all, sa.other);
         nexus = await systemMachine.deployNexus();
     });
 
     describe("Behavior like...", () => {
         const ctx: { claimable?: DelayedClaimableGovernorInstance } = {};
         beforeEach("Init contract", async () => {
-            systemMachine = new SystemMachine(accounts, sa.other);
+            systemMachine = new SystemMachine(sa.all, sa.other);
             ctx.claimable = await systemMachine.deployNexus();
         });
         context("should behave like ClaimableGovernor", () => {

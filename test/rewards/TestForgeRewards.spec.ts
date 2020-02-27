@@ -1,5 +1,5 @@
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
-import { createBasket, createBasset, Basket } from "@utils/mstable-objects";
+import { createBasket, Basket } from "@utils/mstable-objects";
 import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
 import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import { aToH, BN } from "@utils/tools";
@@ -28,7 +28,7 @@ contract("ForgeRewardsMUSD", async (accounts) => {
 
     beforeEach("Init contract", async () => {
         // rewardContract = await deployer.deployed(c_ForgeRewardsMUSD);
-        systemMachine = new SystemMachine(accounts, sa.other);
+        systemMachine = new SystemMachine(sa.all, sa.other);
         await systemMachine.initialiseMocks();
         const bassetMachine = new BassetMachine(sa.default, sa.other, 500000);
 
@@ -116,7 +116,7 @@ contract("ForgeRewardsMUSD", async (accounts) => {
 
     describe("mintTo()", () => {
         it("Should mint single bAsset", async () => {
-            const newSystemMachine = new SystemMachine(accounts, sa.other);
+            const newSystemMachine = new SystemMachine(sa.all, sa.other);
             await newSystemMachine.initialiseMocks();
 
             const newMasset = await Masset.new(

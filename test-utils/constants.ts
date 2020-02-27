@@ -7,10 +7,10 @@ import { aToH, BN } from "./tools";
 
 export const percentScale = new BN(10).pow(new BN(16));
 export const ratioScale = new BN(10).pow(new BN(8));
-export const expScale = new BN(10).pow(new BN(18));
+export const expScale: BN = new BN(10).pow(new BN(18));
 
 export const DEFAULT_DECIMALS = new BN("18");
-export const DEFAULT_SUPPLY = new BN(10).pow(new BN(23));
+export const DEFAULT_SUPPLY = new BN(10).pow(new BN(29));
 
 export const MASSET_FACTORY_BYTES = aToH("MassetFactoryV1");
 

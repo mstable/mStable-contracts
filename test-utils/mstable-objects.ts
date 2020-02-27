@@ -2,6 +2,7 @@ import { BN } from "./tools";
 
 import { ZERO_ADDRESS } from "./constants";
 import { createMultiple, percentToWeight, simpleToExactAmount } from "./math";
+import { ERC20MockInstance } from "types/generated";
 
 /**
  * @notice Relevant object interfaces and helper methods to initialise mock instances of those interfaces
@@ -12,7 +13,7 @@ export interface Basket {
     bassets: Basset[];
     expiredBassets: string[];
     failed: boolean;
-    collateralisationRatio: string;
+    collateralisationRatio: BN;
 }
 
 export enum BassetStatus {
@@ -28,10 +29,11 @@ export enum BassetStatus {
 export interface Basset {
     addr: string;
     isTransferFeeCharged: boolean;
-    ratio: string;
-    maxWeight: string;
-    vaultBalance: string;
+    ratio: BN;
+    maxWeight: BN;
+    vaultBalance: BN;
     status: BassetStatus;
+    contract?: ERC20MockInstance;
 }
 
 export const createBasket = (bassets: Basset[], failed = false): Basket => {
@@ -44,17 +46,17 @@ export const createBasket = (bassets: Basset[], failed = false): Basket => {
 };
 
 export const createBasset = (
-    maxWeight,
-    vaultBalance,
+    maxWeight: number,
+    vaultBalance: number,
     decimals = 18,
     status = BassetStatus.Normal,
 ): Basset => {
     return {
         addr: ZERO_ADDRESS,
         isTransferFeeCharged: false,
-        ratio: createMultiple(new BN(10).pow(new BN(18 - decimals)).toNumber()).toFixed(),
-        maxWeight: percentToWeight(maxWeight).toFixed(),
-        vaultBalance: simpleToExactAmount(vaultBalance, decimals).toFixed(),
+        ratio: createMultiple(new BN(10).pow(new BN(18 - decimals)).toNumber()),
+        maxWeight: percentToWeight(maxWeight),
+        vaultBalance: simpleToExactAmount(vaultBalance, decimals),
         status,
     };
 };

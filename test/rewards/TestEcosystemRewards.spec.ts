@@ -1,5 +1,6 @@
+import { MassetDetails } from "@utils/machines/massetMachine";
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
-import { createBasket, createBasset, Basket } from "@utils/mstable-objects";
+import { createBasket, Basket } from "@utils/mstable-objects";
 import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
 import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import { aToH, BN } from "@utils/tools";
@@ -23,14 +24,16 @@ contract("EcosystemRewardsMUSD", async (accounts) => {
     const ctx: { governable?: GovernableInstance; massetRewards?: MassetRewardsInstance } = {};
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
+    let massetMachine: MassetMachine;
     let rewardsContract: EcosystemRewardsMUSDInstance;
 
     beforeEach("Init contract", async () => {
-        systemMachine = new SystemMachine(accounts, sa.other);
+        systemMachine = new SystemMachine(sa.all, sa.other);
         await systemMachine.initialiseMocks();
-        const masset: MassetInstance = await systemMachine.createMassetViaManager();
+        massetMachine = new MassetMachine(systemMachine);
+        const masset: MassetDetails = await massetMachine.createBasicMasset();
         rewardsContract = await EcosystemRewardsMUSD.new(
-            masset.address,
+            masset.mAsset.address,
             systemMachine.systok.address,
             sa.governor,
             { from: sa.governor },
