@@ -5,22 +5,26 @@ const c_Manager = artifacts.require('Manager')
 const c_Nexus = artifacts.require('Nexus')
 const c_ForgeValidator = artifacts.require('ForgeValidator')
 const c_mGLD = artifacts.require('MGLD')
+const c_Systok = artifacts.require('Systok')
+
+const c_OracleHubMock = artifacts.require('SimpleOracleHubMock')
 
 const c_DGX = artifacts.require('DGX')
 const c_AWG = artifacts.require('AWG')
 const c_EGD = artifacts.require('EGD')
 const c_OGC = artifacts.require('OGC')
 
-const { aToH } = require('@utils/tools')
-const { percentToWeight, createMultiple,simpleToExactAmount } = require('@utils/math')
+const { aToH, BN } = require('@utils/tools')
+const { percentToWeight, createMultiple, simpleToExactAmount } = require('@utils/math')
 
 module.exports = async (deployer, network, accounts) => {
 
-	const [ _, governor, fundManager, oracleSource, feePool ] = accounts;
+  const [_, governor, fundManager, oracleSource, feePool] = accounts;
 
   /* Get deployed Manager */
   const d_Manager = await c_Manager.deployed()
   const d_Nexus = await c_Nexus.deployed()
+  const d_Systok = await c_Systok.deployed()
   const d_ForgeValidator = await c_ForgeValidator.deployed()
 
   /* ~~~~~~~~~ mUSD Setup ~~~~~~~~~  */
@@ -50,7 +54,7 @@ module.exports = async (deployer, network, accounts) => {
     aToH("OGC<>Gold"),
   ];
   /* Assign basset weightings in percent */
-  const basketWeights =  [
+  const basketWeights = [
     percentToWeight(80),
     percentToWeight(40),
     percentToWeight(30),
@@ -58,7 +62,7 @@ module.exports = async (deployer, network, accounts) => {
   ];
 
   /* Assign basset ratios in percent */
-  const basketMultiples =  [
+  const basketMultiples = [
     createMultiple(1),
     createMultiple(1),
     createMultiple(1),
@@ -83,11 +87,11 @@ module.exports = async (deployer, network, accounts) => {
     d_ForgeValidator.address
   );
 
-  if(network == 'development' || network == 'coverage') {
+  if (network == 'development' || network == 'coverage') {
     const txData = await d_Manager.addMasset(
       aToH("mGLD"),
-      d_mGLD.address, 
-      {from: governor});
+      d_mGLD.address,
+      { from: governor });
   } else {
     // We need to send the transaction from the multisig
     // await d_MultiSig.submitTransaction(d_Manager.address, 0, txData, { from : governor });
@@ -95,4 +99,13 @@ module.exports = async (deployer, network, accounts) => {
 
   const massets = await d_Manager.getMassets();
   console.log(`[mGLD]: '${massets[0][1]}'`);
+
+  if (network == 'development' || network == 'coverage') {
+    const d_OracleHubMock = await c_OracleHubMock.deployed()
+    await d_OracleHubMock.addMockPrices(
+      [new BN("1000000"), new BN("50000000"), new BN("12000000")],
+      [Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000)],
+      [massets[0][0], massets[0][1], d_Systok.address],
+    );
+  }
 }

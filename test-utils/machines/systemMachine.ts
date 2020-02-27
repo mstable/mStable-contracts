@@ -98,11 +98,6 @@ export class SystemMachine {
             moduleKeys[1] = await this.nexus.Key_OracleHub();
             moduleAddresses[1] = this.oracleHub.address;
             isLocked[1] = false;
-            // await this.oracleHub.addMockPrices(
-            //     [new BN("1000000"), new BN("12000000")],
-            //     [Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000)],
-            //     [],
-            // );
 
             /** ManagerMock */
             this.manager = await this.deployManager();
@@ -118,6 +113,14 @@ export class SystemMachine {
             return Promise.reject(e);
         }
     }
+
+    // public async addMockPrices() {
+    //     await this.oracleHub.addMockPrices(
+    //         [new BN("1000000"), new BN("12000000")],
+    //         [Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000)],
+    //         [],
+    //     );
+    // }
 
     /**
      * @dev Deploy the Nexus

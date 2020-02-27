@@ -4,6 +4,7 @@
 
 const c_Nexus = artifacts.require('Nexus');
 const c_OracleHub = artifacts.require('SimpleOracleHub');
+const c_OracleHubMock = artifacts.require('SimpleOracleHubMock');
 
 const c_Systok = artifacts.require('Systok');
 const c_SystokController = artifacts.require("SystokController");
@@ -21,45 +22,45 @@ const c_Masset = artifacts.require('Masset')
 
 async function publishModuleThroughMultisig(d_Nexus, d_MultiSig, key, address, governor) {
   const txData = d_Nexus.contract.methods.addModule(key, address).encodeABI();
-  await d_MultiSig.submitTransaction(d_Nexus.address, 0, txData, { from : governor });
+  await d_MultiSig.submitTransaction(d_Nexus.address, 0, txData, { from: governor });
 }
 
 async function lockModuleThroughMultisig(d_Nexus, d_MultiSig, key, governor) {
   const txData = d_Nexus.contract.methods.lockModule(key).encodeABI();
-  await d_MultiSig.submitTransaction(d_Nexus.address, 0, txData, { from : governor });
+  await d_MultiSig.submitTransaction(d_Nexus.address, 0, txData, { from: governor });
 }
 
 module.exports = async (deployer, network, accounts) => {
 
   // Address of the price source to whitelist in the OracleHub
   // const oracleSource = [];
-  const [ _, governor, fundManager, oracleSource, feePool ] = accounts;
+  const [_, governor, fundManager, oracleSource, feePool] = accounts;
 
   /** Common Libs */
   await deployer.deploy(c_StableMath, { from: _ });
   await deployer.link(c_StableMath, c_Masset);
-	await deployer.link(c_StableMath, c_PublicStableMath);
+  await deployer.link(c_StableMath, c_PublicStableMath);
   await deployer.link(c_StableMath, c_ForgeValidator);
   await deployer.link(c_StableMath, c_MassetHelpers);
   await deployer.deploy(c_ForgeValidator);
-	await deployer.deploy(c_PublicStableMath, { from: _ });
+  await deployer.deploy(c_PublicStableMath, { from: _ });
   await deployer.deploy(c_CommonHelpers, { from: _ });
   await deployer.link(c_CommonHelpers, c_Masset);
   // await deployer.deploy(c_MassetHelpers, { from: _ });
   // await deployer.link(c_MassetHelpers, c_Masset);
 
   /** Nexus */
-  await deployer.deploy(c_Nexus, governor, {from: governor});
+  await deployer.deploy(c_Nexus, governor, { from: governor });
   const d_Nexus = await c_Nexus.deployed();
 
 
   /** Systok */
   // Step 1. Deploy the MiniMe Token Factory
-  await deployer.deploy(c_MiniMeTokenFactory, { from : _ });
+  await deployer.deploy(c_MiniMeTokenFactory, { from: _ });
   const d_MiniMeTokenFactory = await c_MiniMeTokenFactory.deployed();
 
   // Step 2. Deploy Systok itself (MiniMe)
-  await deployer.deploy(c_Systok, d_MiniMeTokenFactory.address, fundManager, { from : _ });
+  await deployer.deploy(c_Systok, d_MiniMeTokenFactory.address, fundManager, { from: _ });
   const d_Systok = await c_Systok.deployed();
 
   // Step 3. Deploy the TokenController
@@ -75,9 +76,14 @@ module.exports = async (deployer, network, accounts) => {
 
 
   /** OracleHub */
-  await deployer.deploy(c_OracleHub, d_Nexus.address, oracleSource );
-  const d_OracleHub = await c_OracleHub.deployed();
-
+  let d_OracleHub;
+  if (network == 'development' || network == 'coverage') {
+    await deployer.deploy(c_OracleHubMock, d_Nexus.address, oracleSource);
+    d_OracleHub = await c_OracleHubMock.deployed();
+  } else {
+    await deployer.deploy(c_OracleHub, d_Nexus.address, oracleSource);
+    d_OracleHub = await c_OracleHub.deployed();
+  }
 
   /** Manager */
   await deployer.deploy(c_Manager, d_Nexus.address);
