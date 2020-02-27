@@ -11,9 +11,7 @@ import { ERC20MockInstance, ForgeRewardsMUSDInstance, MassetInstance } from "typ
 const Masset = artifacts.require("Masset");
 const ForgeRewardsMUSD = artifacts.require("ForgeRewardsMUSD");
 
-envSetup.configure();
-const { expect, assert } = chai;
-
+const { expect, assert } = envSetup.configure();
 contract("ForgeRewardsMUSD", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;

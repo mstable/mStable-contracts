@@ -1,7 +1,7 @@
 pragma solidity ^0.5.16;
 
-import { ModuleKeys } from "contracts/shared/ModuleKeys.sol";
-import { INexus } from "contracts/interfaces/INexus.sol";
+import { ModuleKeys } from "../shared/ModuleKeys.sol";
+import { INexus } from "../interfaces/INexus.sol";
 
 /**
   * @title Module

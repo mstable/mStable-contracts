@@ -1,13 +1,11 @@
 import { StandardAccounts } from "@utils/machines";
 import { exactAmountToSimple, simpleToExactAmount } from "@utils/math";
-import { chai, BN } from "@utils/tools";
+import { BN } from "@utils/tools";
 
 import envSetup from "@utils/env_setup";
 import { PublicStableMathInstance } from "types/generated";
 
-envSetup.configure();
-const { expect, assert } = chai;
-
+const { expect, assert } = envSetup.configure();
 const PublicStableMath = artifacts.require("PublicStableMath");
 
 contract("StableMath", async (accounts) => {

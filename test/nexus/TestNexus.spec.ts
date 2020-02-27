@@ -15,9 +15,7 @@ import shouldBehaveLikeDelayedClaimable from "../governance/DelayedClaimableGove
 
 const Nexus = artifacts.require("Nexus");
 
-envSetup.configure();
-const { expect, assert } = chai;
-
+const { expect, assert } = envSetup.configure();
 contract("Nexus", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;

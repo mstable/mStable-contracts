@@ -4,7 +4,7 @@ import { GovernableInstance } from "types/generated";
 import shouldBehaveLikeGovernable from "./Governable.behaviour";
 
 const MockGovernable = artifacts.require("MockGovernable");
-envSetup.configure();
+const { expect, assert } = envSetup.configure();
 
 contract("Governable", async (accounts) => {
     const ctx: { governable?: GovernableInstance } = {};

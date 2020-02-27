@@ -20,6 +20,14 @@ contract ManagerState is Module {
     /** @dev Data structure of the Masset and Bassets */
     DictionaryAtoB.AddressToBytes32 massets;
 
+    /**
+     * @dev Deviation thresholds for detecting peg loss and initiating re-collateralisation
+     * 1e17 == 10% deviation, i.e. if Basset deviates >= 10% from its target peg
+     */
+    uint256 constant base_price = 1e18;
+    uint256 constant neg_deviation_threshold = 1e17;
+    uint256 constant pos_deviation_threshold = 1e17;
+
 
     constructor(address _nexus) Module(_nexus) internal {
     }

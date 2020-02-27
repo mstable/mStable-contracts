@@ -27,13 +27,13 @@ contract SimpleOracleHubMock is SimpleOracleHub {
     function addMockPrices(
         uint64[] calldata values,
         uint64[] calldata timestamps,
-        bytes32[] calldata symbols
+        address[] calldata assets
     ) external {
-        require(values.length == symbols.length, "Values and symbols must be 1:1");
+        require(values.length == assets.length, "Values and symbols must be 1:1");
 
         // Recalculate the asset prices for the symbols to update
         for (uint256 i = 0; i < values.length; i++) {
-            data[symbols[i]] = Datum(timestamps[i], values[i]);
+            data[assets[i]] = Datum(timestamps[i], values[i]);
         }
     }
 

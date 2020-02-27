@@ -354,7 +354,9 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         uint256 feeRate = redemptionFee;
 
         if(feeRate > 0){
-            (uint256 ownPrice, uint256 systokPrice) = IManager(_manager()).getMassetPrice(address(this));
+            address systokAddress = _systok();
+
+            (uint256 ownPrice, uint256 systokPrice) = IManager(_manager()).getAssetPrices(address(this), systokAddress);
 
             // e.g. for 500 massets.
             // feeRate == 1% == 1e16. _quantity == 5e20.
