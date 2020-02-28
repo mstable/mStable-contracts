@@ -4,7 +4,7 @@ import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 /**
  * @title   StableMath
- * @author  Stability Labs Pty. Ltd.
+ * @author  Stability Labs Pty. Lte.
  * @notice  A library providing safe mathematical operations to multiply and
  *          divide with standardised precision.
  * @dev     Derives from OpenZeppelin's SafeMath lib and uses generic system
