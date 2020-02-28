@@ -66,7 +66,7 @@ interface MassetStructs {
         Normal,
         BrokenBelowPeg,
         BrokenAbovePeg,
-        // Blacklisted,
+        Blacklisted,
         Liquidating,
         Liquidated,
         Failed

@@ -22,7 +22,8 @@ contract ForgeValidator is IForgeValidator {
         pure
         returns (bool isValid, string memory reason)
     {
-        if(_basset.status == BassetStatus.BrokenBelowPeg || _basset.status == BassetStatus.Liquidating)
+        if(_basset.status == BassetStatus.BrokenBelowPeg || _basset.status == BassetStatus.Liquidating
+            || _basset.status == BassetStatus.Blacklisted)
             return (false, "bASset not allowed in mint");
 
         // How much mAsset is this _bassetQuantity worth?
@@ -60,7 +61,8 @@ contract ForgeValidator is IForgeValidator {
             Basset memory b = _bassets[j];
             BassetStatus bAssetStatus = b.status;
 
-            if(bAssetStatus == BassetStatus.BrokenBelowPeg || bAssetStatus == BassetStatus.Liquidating)
+            if(bAssetStatus == BassetStatus.BrokenBelowPeg || bAssetStatus == BassetStatus.Liquidating
+                || bAssetStatus == BassetStatus.Blacklisted)
                 return (false, "bASset not allowed in mint");
 
             // How much mAsset is this _bassetQuantity worth?
@@ -204,7 +206,7 @@ contract ForgeValidator is IForgeValidator {
 
         for(uint256 i = 0; i < len; i++) {
             BassetStatus status = _bassets[i].status;
-            if(status == BassetStatus.Liquidating) {
+            if(status == BassetStatus.Liquidating || status == BassetStatus.Blacklisted || status == BassetStatus.BrokenBelowPeg) {
                 response.isValid = false;
                 response.reason = "bAssets undergoing liquidation";
                 return response;

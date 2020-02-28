@@ -101,14 +101,16 @@ contract MassetBasket is MassetStructs, MassetCore {
       * @dev Negates the isolation of a given Basset
       * @param _basset Address of the Basset
       */
-    function negatePegLoss(address _basset)
+    function negateIsolation(address _basset)
     external
-    onlyManager {
+    managerOrGovernor {
         (bool exists, uint256 i) = _isAssetInBasket(_basset);
         require(exists, "bASset must exist in Basket");
 
-        if(basket.bassets[i].status == BassetStatus.BrokenBelowPeg ||
-          basket.bassets[i].status == BassetStatus.BrokenAbovePeg) {
+        BassetStatus currentStatus = basket.bassets[i].status;
+        if(currentStatus == BassetStatus.BrokenBelowPeg ||
+          currentStatus == BassetStatus.BrokenAbovePeg ||
+          currentStatus == BassetStatus.Blacklisted) {
             basket.bassets[i].status = BassetStatus.Normal;
         }
     }
@@ -119,7 +121,7 @@ contract MassetBasket is MassetStructs, MassetCore {
       */
     function initiateRecol(address _basset)
         external
-        onlyManager
+        managerOrGovernor
         basketIsHealthy
         returns (bool requiresAuction, bool isTransferable)
     {
