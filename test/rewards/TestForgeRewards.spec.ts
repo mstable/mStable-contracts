@@ -16,7 +16,6 @@ contract("ForgeRewardsMUSD", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
     let masset: MassetInstance;
-    // tslint:disable-next-line:one-variable-per-declaration
     let b1;
     let b2;
     let b3;

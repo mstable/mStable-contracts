@@ -25,7 +25,7 @@ contract("MassetRedemption", async (accounts) => {
         // 1. Create the system Mock machines
         systemMachine = new SystemMachine(sa.all, sa.other);
         await systemMachine.initialiseMocks();
-        const massetMachine = new MassetMachine(systemMachine);
+        massetMachine = new MassetMachine(systemMachine);
 
         // 2. Create the mAsset & add it to the manager
         // 3. Do a mint with all the bAssets

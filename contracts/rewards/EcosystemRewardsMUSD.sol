@@ -81,7 +81,8 @@ contract EcosystemRewardsMUSD is MassetRewards, IEcosystemRewards {
         TrancheDates memory trancheDates = _getTrancheDates(_trancheNumber);
         if(now > trancheDates.endTime){
             require(now < trancheDates.claimEndTime, "Cannot clear after claim period");
-            require(trancheData[_trancheNumber].totalRewardUnits == trancheData[_trancheNumber].unclaimedRewardUnits,
+            require(
+                trancheData[_trancheNumber].totalRewardUnits == trancheData[_trancheNumber].unclaimedRewardUnits,
                 "Cannot clear after rewards claimed");
         }
 

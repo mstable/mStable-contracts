@@ -24,7 +24,6 @@ library CommonHelpers {
     function mustGetDecimals(address _token)
     internal
     returns (uint256) {
-        /* solium-disable-next-line security/no-low-level-calls */
         (bool success, ) = _token.call(abi.encodeWithSignature("decimals()"));
         require(success, "Contract must support decimals");
 

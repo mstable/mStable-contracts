@@ -19,7 +19,7 @@ contract MassetBasket is MassetStructs, MassetCore {
 
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
-  
+
     /** @dev Struct holding Basket details */
     Basket public basket;
     bool public measurementMultipleEnabled;
@@ -202,8 +202,10 @@ contract MassetBasket is MassetStructs, MassetCore {
         (bool alreadyInBasket, ) = _isAssetInBasket(_basset);
         require(!alreadyInBasket, "Asset already exists in Basket");
 
-        require(IManager(_manager()).validateBasset(address(this), _basset, _measurementMultiple, _isTransferFeeCharged),
-            "New bAsset must be valid");
+        require(
+            IManager(_manager()).validateBasset(address(this), _basset, _measurementMultiple, _isTransferFeeCharged),
+            "New bAsset must be valid"
+        );
 
         // Check for ERC20 compatibility by forcing decimal retrieval
         // Ultimate enforcement of Basset validity should service through governance

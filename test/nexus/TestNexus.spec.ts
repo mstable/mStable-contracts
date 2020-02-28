@@ -11,10 +11,9 @@ import {
     NexusInstance,
 } from "types/generated";
 
+import envSetup from "@utils/env_setup";
 import shouldBehaveLikeClaimable from "../governance/ClaimableGovernor.behaviour";
 import shouldBehaveLikeDelayedClaimable from "../governance/DelayedClaimableGovernor.behaviour";
-
-import envSetup from "@utils/env_setup";
 
 const { ZERO_ADDRESS } = constants;
 const Nexus = artifacts.require("Nexus");
@@ -805,6 +804,7 @@ async function expectInModules(
     _addr: string,
     _isLocked: boolean,
 ) {
+    /* eslint-disable prefer-const */
     let addr: string;
     let isLocked: boolean;
     [addr, isLocked] = await nexus.modules(keccak256(_key));
@@ -827,6 +827,7 @@ async function expectInProposedModules(
     let newAddress: string;
     let timestamp: BN;
     [newAddress, timestamp] = await nexus.proposedModules(keccak256(_key));
+    /* eslint-enable prefer-const */
     expect(newAddress, "New address not matched in proposed modules").to.equal(_newAddress);
     expect(timestamp, "The timestamp not matched in proposed modules").to.bignumber.equal(
         _timestamp,
