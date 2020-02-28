@@ -10,7 +10,7 @@ import envSetup from "@utils/env_setup";
 import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import { percentToWeight, simpleToExactRelativePrice } from "@utils/math";
 import { aToH, BN } from "@utils/tools";
-import { BassetStatus } from "@utils/mstable-objects";
+import { Basset, BassetStatus } from "@utils/mstable-objects";
 
 const { expect, assert } = envSetup.configure();
 
