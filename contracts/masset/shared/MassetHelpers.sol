@@ -112,7 +112,7 @@ library MassetHelpers {
         MassetStructs.BassetStatus status
     )
         internal
-        view
+        pure
         returns (MassetStructs.Basset memory)
     {
         return MassetStructs.Basset({
