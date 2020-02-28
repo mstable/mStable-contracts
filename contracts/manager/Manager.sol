@@ -118,13 +118,13 @@ contract Manager is
 
     /**
       * @dev Detects Basset peg deviation for a particular Masset
-      * @param _masset    Address of the Masset for which to check peg loss
+      * @param _mAsset    Address of the Masset for which to check peg loss
       */
-    function detectPegDeviation(address _masset)
+    function detectPegDeviation(address _mAsset)
         external
     {
         // get all bAsset keys
-        (address[] memory addresses) = IMasset(_masset).getAllBassetsAddress();
+        (address[] memory addresses) = IMasset(_mAsset).getAllBassetsAddress();
         uint count = addresses.length;
         require(count > 0, "Incorrect basset details");
 
@@ -132,26 +132,49 @@ contract Manager is
 
         // foreach bAsset
         for (uint i = 0; i < count; i++) {
-            // collect relative prices from the OracleHub
-            (bool isFresh, uint price) = _getPriceFromOracle(oracleAddress, addresses[i]);
+            _detectPegDeviation(oracleAddress, _mAsset, addresses[i]);
+        }
+    }
 
-            // If price (exists && fresh)
-            if (price > 0 && isFresh){
-                // then getDelta(price <> peg)
-                (bool isBelowPeg, uint delta) = _calcRelativePriceDelta(price);
+    /**
+      * @dev Detects Basset peg deviation for a particular Masset
+      * @param _mAsset    Address of the mAsset for which to check peg loss
+      * @param _bAsset    Specific bAsset to check
+      */
+    function detectBassetPegDeviation(address _mAsset, address _bAsset)
+        external
+    {
+        // get all bAsset keys
+        require(_mAsset != address(0) && _bAsset != address(0), "Invalid addresses");
+        (address addr, , , , , ) = IMasset(_mAsset).getBasset(_bAsset);
+        require(addr != address(0), "bAsset doesn't exist in mAsset");
 
-                bool hasBrokenPeg = isBelowPeg
-                    ? delta >= neg_deviation_threshold
-                    : delta >= pos_deviation_threshold;
+        address oracleAddress = _oracleHub();
+        _detectPegDeviation(oracleAddress, _mAsset, _bAsset);
+    }
 
-                // If delta >= threshold, then trigger recol
-                if(hasBrokenPeg){
-                    IMasset masset = IMasset(_masset);
-                    masset.handlePegLoss(addresses[i], isBelowPeg);
-                    emit BassetBrokenPeg(addresses[i], isBelowPeg);
-                }
-                // else skip
+    function _detectPegDeviation(address _oracleHub, address _mAsset, address _bAsset)
+        internal
+    {
+        // collect relative prices from the OracleHub
+        (bool isFresh, uint price) = _getPriceFromOracle(_oracleHub, _bAsset);
+
+        // If price (exists && fresh)
+        if (price > 0 && isFresh){
+            // then getDelta(price <> peg)
+            (bool isBelowPeg, uint delta) = _calcRelativePriceDelta(price);
+
+            bool hasBrokenPeg = isBelowPeg
+                ? delta >= neg_deviation_threshold
+                : delta >= pos_deviation_threshold;
+
+            // If delta >= threshold, then trigger recol
+            if(hasBrokenPeg) {
+                IMasset masset = IMasset(_mAsset);
+                masset.handlePegLoss(_bAsset, isBelowPeg);
+                emit BassetBrokenPeg(_bAsset, isBelowPeg);
             }
+            // else skip
         }
     }
 
