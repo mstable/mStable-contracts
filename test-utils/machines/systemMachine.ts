@@ -92,7 +92,7 @@ export class SystemMachine {
             this.metaTokenController = await this.deployMetaTokenController();
             moduleKeys[0] = await this.nexus.Key_MetaToken();
             moduleAddresses[0] = this.metaToken.address;
-            isLocked[0] = true; // TODO Ensure that its locked at deploy time?
+            isLocked[0] = true;
 
             await this.metaToken.transfer(this.sa._, simpleToExactAmount(1000, 18), {
                 from: this.sa.fundManager,

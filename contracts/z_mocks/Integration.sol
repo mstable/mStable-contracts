@@ -13,7 +13,7 @@ import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
  * @title Integration example
  *
  *
- * TODO -> Make this into an implementable contract with a ruleset
+ * TODO -> Make this into an implementable contract or library with a ruleset
  *         for integration partners to follow. Expose generic methods
  */
 contract Integration {
@@ -27,7 +27,7 @@ contract Integration {
     IERC20 public mta; // Fee token
 
     constructor(IMasset _mUSD, IForgeRewards _rewards, IERC20 _MTA)
-      public {
+        public {
         musd = _mUSD;
         rewards = _rewards;
         mta = _MTA;

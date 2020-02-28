@@ -116,13 +116,12 @@ contract MassetBasket is MassetStructs, MassetCore {
     /**
       * @dev Sends the affected Basset off to the Recollateraliser to be auctioned
       * @param _basset Address of the Basset to isolate
-      * @param _recollateraliser Address of the recollateraliser, to which the tokens should be sent
       */
-    function initiateRecol(address _basset, address _recollateraliser)
+    function initiateRecol(address _basset)
         external
         onlyManager
         basketIsHealthy
-        returns (bool requiresAuction)
+        returns (bool requiresAuction, bool isTransferable)
     {
         (bool exists, uint256 i) = _isAssetInBasket(_basset);
         require(exists, "bASset must exist in Basket");
@@ -130,21 +129,27 @@ contract MassetBasket is MassetStructs, MassetCore {
         (, , , uint256 vaultBalance, , BassetStatus status) = _getBasset(i);
         require(!_bassetHasRecolled(status), "Invalid Basset state");
 
+        // Blist -> require status to == BList || BrokenPeg
+
         // If vaultBalance is 0 and we want to recol, then just remove from Basket?
         if(vaultBalance == 0){
             _removeBasset(_basset);
-            return false;
+            return (false, false);
         }
         // require(vaultBalance > 0, "Must have something to recollateralise");
 
         basket.bassets[i].status = BassetStatus.Liquidating;
         basket.bassets[i].vaultBalance = 0;
 
+
+        // BLIST -> If status == Blist then return true, else
+        // If status == brokenPeg then call Approve
+        // req re-collateraliser != address(0)
+
+
         // Approve the recollateraliser to take the Basset
-        // TODO / FIXME Ensure that this function is not called again for
-        // the same bAsset address. Otherwise safeApprove() call would stuck forever.
-        IERC20(_basset).safeApprove(_recollateraliser, vaultBalance);
-        return true;
+        IERC20(_basset).approve(_recollateraliser(), vaultBalance);
+        return (true, true);
     }
 
 
