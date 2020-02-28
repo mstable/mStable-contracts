@@ -145,7 +145,8 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         uint256 bAssetQty = MassetHelpers.transferTokens(msg.sender, address(this), _basset, b.isTransferFeeCharged, _bassetQuantity);
 
         // Validation should be after token transfer, as bAssetQty is unknown before
-        forgeValidator.validateMint(totalSupply(), b, bAssetQty);
+        (bool isValid, string memory reason) = forgeValidator.validateMint(totalSupply(), b, bAssetQty);
+        require(isValid, reason);
 
         basket.bassets[i].vaultBalance = b.vaultBalance.add(bAssetQty);
         // ratioedBasset is the number of masset quantity to mint
@@ -200,7 +201,8 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         }
 
         // Validate the proposed mint, after token transfer, as bAssert quantity is unknown until transferred
-        forgeValidator.validateMint(totalSupply(), bAssets, receivedQty);
+        (bool isValid, string memory reason) = forgeValidator.validateMint(totalSupply(), bAssets, receivedQty);
+        require(isValid, reason);
 
         require(massetQuantity > 0, "No masset quantity to mint");
 
@@ -262,7 +264,9 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         (Basset[] memory bAssets, uint8[] memory indexes)
             = convertBitmapToBassets(_bassetsBitmap, uint8(redemptionAssetCount));
 
-        forgeValidator.validateRedemption(basket.bassets, basket.failed, totalSupply(), indexes, _bassetQuantities);
+        (bool isValid, string memory reason) =
+            forgeValidator.validateRedemption(basket.bassets, basket.failed, totalSupply(), indexes, _bassetQuantities);
+        require(isValid, reason);
 
         uint256 massetQuantity = 0;
 
@@ -322,7 +326,9 @@ contract Masset is IMasset, MassetToken, MassetBasket {
 
         Basset memory b = basket.bassets[i];
 
-        forgeValidator.validateRedemption(basket.bassets, basket.failed, totalSupply(), i, _bassetQuantity);
+        (bool isValid, string memory reason) =
+            forgeValidator.validateRedemption(basket.bassets, basket.failed, totalSupply(), i, _bassetQuantity);
+        require(isValid, reason);
 
         uint256 massetQuantity = _bassetQuantity.mulRatioTruncateCeil(b.ratio);
 
