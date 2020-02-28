@@ -5,7 +5,7 @@ const c_Manager = artifacts.require('Manager')
 const c_Nexus = artifacts.require('Nexus')
 const c_ForgeValidator = artifacts.require('ForgeValidator')
 const c_mGLD = artifacts.require('MGLD')
-const c_Systok = artifacts.require('Systok')
+const c_MetaToken = artifacts.require('MetaToken')
 
 const c_OracleHubMock = artifacts.require('SimpleOracleHubMock')
 
@@ -24,7 +24,7 @@ module.exports = async (deployer, network, accounts) => {
   /* Get deployed Manager */
   const d_Manager = await c_Manager.deployed()
   const d_Nexus = await c_Nexus.deployed()
-  const d_Systok = await c_Systok.deployed()
+  const d_MetaToken = await c_MetaToken.deployed()
   const d_ForgeValidator = await c_ForgeValidator.deployed()
 
   /* ~~~~~~~~~ mUSD Setup ~~~~~~~~~  */
@@ -105,7 +105,7 @@ module.exports = async (deployer, network, accounts) => {
     await d_OracleHubMock.addMockPrices(
       [new BN("1000000"), new BN("50000000"), new BN("12000000")],
       [Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000)],
-      [massets[0][0], massets[0][1], d_Systok.address],
+      [massets[0][0], massets[0][1], d_MetaToken.address],
     );
   }
 }

@@ -9,8 +9,8 @@ import {
     MassetInstance,
     NexusInstance,
     SimpleOracleHubMockInstance,
-    SystokControllerInstance,
-    SystokInstance,
+    MetaTokenControllerInstance,
+    MetaTokenInstance,
 } from "types/generated";
 
 import { Address } from "../../types/common";
@@ -32,8 +32,8 @@ const NexusArtifact = artifacts.require("Nexus");
 const OracleHubMockArtifact = artifacts.require("SimpleOracleHubMock");
 
 const MiniMeTokenFactoryArtifact = artifacts.require("MiniMeTokenFactory");
-const SystokArtifact = artifacts.require("Systok");
-const SystokControllerArtifact = artifacts.require("SystokController");
+const MetaTokenArtifact = artifacts.require("MetaToken");
+const MetaTokenControllerArtifact = artifacts.require("MetaTokenController");
 
 /**
  * @dev The SystemMachine is responsible for creating mock versions of our contracts
@@ -52,8 +52,8 @@ export class SystemMachine {
 
     public oracleHub: SimpleOracleHubMockInstance;
 
-    public systok: SystokInstance;
-    public systokController: SystokControllerInstance;
+    public metaToken: MetaTokenInstance;
+    public metaTokenController: MetaTokenControllerInstance;
 
     public forgeValidator: ForgeValidatorInstance;
 
@@ -87,14 +87,14 @@ export class SystemMachine {
             const moduleAddresses: Address[] = new Array(3);
             const isLocked: boolean[] = new Array(3);
 
-            /** Systok */
-            this.systok = await this.deploySystok();
-            this.systokController = await this.deploySystokController();
-            moduleKeys[0] = await this.nexus.Key_Systok();
-            moduleAddresses[0] = this.systok.address;
+            /** MetaToken */
+            this.metaToken = await this.deployMetaToken();
+            this.metaTokenController = await this.deployMetaTokenController();
+            moduleKeys[0] = await this.nexus.Key_MetaToken();
+            moduleAddresses[0] = this.metaToken.address;
             isLocked[0] = true; // TODO Ensure that its locked at deploy time?
 
-            await this.systok.transfer(this.sa._, simpleToExactAmount(1000, 18), {
+            await this.metaToken.transfer(this.sa._, simpleToExactAmount(1000, 18), {
                 from: this.sa.fundManager,
             });
 
@@ -120,7 +120,7 @@ export class SystemMachine {
     }
 
     /**
-     * @dev Adds prices for the mAsset and Systok into the Oracle
+     * @dev Adds prices for the mAsset and MetaToken into the Oracle
      * @param mAssetPrice Where $1 == 1e6 ("1000000")
      * @return txHash
      */
@@ -132,7 +132,7 @@ export class SystemMachine {
         return this.oracleHub.addMockPrices(
             [new BN(mAssetPrice), new BN("12000000")],
             [time, time],
-            [mAssetAddress, this.systok.address],
+            [mAssetAddress, this.metaToken.address],
             { from: this.sa.oraclePriceProvider },
         );
     }
@@ -169,14 +169,14 @@ export class SystemMachine {
     }
 
     /**
-     * @dev Deploy the SystokMock token
+     * @dev Deploy the MetaTokenMock token
      */
-    public async deploySystok(): Promise<SystokInstance> {
+    public async deployMetaToken(): Promise<MetaTokenInstance> {
         try {
             const miniTokenFactory = await MiniMeTokenFactoryArtifact.new({
                 from: this.sa.default,
             });
-            const systokInstance = await SystokArtifact.new(
+            const metaTokenInstance = await MetaTokenArtifact.new(
                 miniTokenFactory.address,
                 this.sa.fundManager,
                 {
@@ -184,27 +184,29 @@ export class SystemMachine {
                 },
             );
 
-            return systokInstance;
+            return metaTokenInstance;
         } catch (e) {
             throw e;
         }
     }
 
     /**
-     * @dev Deploy the SystokController token
+     * @dev Deploy the MetaTokenController token
      */
-    public async deploySystokController(): Promise<SystokControllerInstance> {
+    public async deployMetaTokenController(): Promise<MetaTokenControllerInstance> {
         try {
-            const systokController = await SystokControllerArtifact.new(
+            const metaTokenController = await MetaTokenControllerArtifact.new(
                 this.nexus.address,
-                this.systok.address,
+                this.metaToken.address,
                 {
                     from: this.sa.default,
                 },
             );
-            await this.systok.changeController(systokController.address, { from: this.sa.default });
+            await this.metaToken.changeController(metaTokenController.address, {
+                from: this.sa.default,
+            });
 
-            return systokController;
+            return metaTokenController;
         } catch (e) {
             throw e;
         }

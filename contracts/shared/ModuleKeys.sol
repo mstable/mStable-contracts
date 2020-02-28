@@ -12,7 +12,7 @@ contract ModuleKeys {
 
     bytes32 constant public Key_Staking = keccak256("Staking");
 
-    bytes32 constant public Key_Systok = keccak256("Systok");
+    bytes32 constant public Key_MetaToken = keccak256("MetaToken");
 
     bytes32 constant public Key_OracleHub = keccak256("OracleHub");
 

@@ -16,7 +16,7 @@ export default function shouldBehaveLikeMassetRewards(
     // describe("Contract deployed", async () => {
     //     it("Should have valid parameters", async () => {
     //         assert((await ctx.massetRewards.mUSD()) === masset.address);
-    //         assert((await ctx.massetRewards.MTA()) === systemMachine.systok.address);
+    //         assert((await ctx.massetRewards.MTA()) === systemMachine.metaToken.address);
     //         assert((await ctx.massetRewards.governor()) === sa.governor);
     //     });
     // });

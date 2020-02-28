@@ -5,11 +5,11 @@ import { MiniMeToken } from "minimetoken/contracts/MiniMeToken.sol";
 import { Module } from "../shared/Module.sol";
 import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
-contract SystokController is Module, TokenController {
+contract MetaTokenController is Module, TokenController {
 
     using SafeMath for uint256;
 
-    MiniMeToken public systok;
+    MiniMeToken public metaToken;
 
     uint256 public delay = 1 weeks;
     uint256 public requestTime;
@@ -18,12 +18,12 @@ contract SystokController is Module, TokenController {
     /** @dev Basic constructor to initialise ClaimableGovernance */
     constructor(
         address _nexus,
-        address payable _systok
+        address payable _metaToken
     )
         public
         Module(_nexus)
     {
-        systok = MiniMeToken(_systok);
+        metaToken = MiniMeToken(_metaToken);
     }
 
     modifier onlyMinter() {
@@ -67,7 +67,7 @@ contract SystokController is Module, TokenController {
         onlyGovernor
     {
         require(now >= (requestTime.add(delay)), "Delay not over");
-        systok.changeController(proposedController);
+        metaToken.changeController(proposedController);
         proposedController = address(0);
         requestTime = 0;
     }
@@ -82,7 +82,7 @@ contract SystokController is Module, TokenController {
         onlyMinter
         returns (bool)
     {
-        return systok.generateTokens(_owner, _amount);
+        return metaToken.generateTokens(_owner, _amount);
     }
 
 

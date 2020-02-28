@@ -73,12 +73,12 @@ contract Manager is
       * @param _asset1 Address of the first asset
       * @param _asset2 Address of the second asset
       * @return uint256 Price of Masset where $1 == 1e18
-      * @return uint256 Price of Systok where $1 == 1e18
+      * @return uint256 Price of MetaToken where $1 == 1e18
       */
     function getAssetPrices(address _asset1, address _asset2)
         external
         view
-        returns(uint256 massetPrice, uint256 systokPrice)
+        returns(uint256 massetPrice, uint256 metaTokenPrice)
     {
         // Fetch the prices where $1 == 1e6
         (bool[2] memory isFresh, uint64[2] memory prices) = IOracleHub(_oracleHub()).readPricePair([_asset1, _asset2]);
@@ -98,7 +98,7 @@ contract Manager is
       * Reverts if price is not available
       * @param _asset Address of the Masset
       * @return uint256 Price of Masset where $1 == 1e18
-      * @return uint256 Price of Systok where $1 == 1e18
+      * @return uint256 Price of MetaToken where $1 == 1e18
       */
     function getAssetPrice(address _asset)
         external

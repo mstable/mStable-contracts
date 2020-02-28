@@ -72,7 +72,7 @@ contract("ForgeRewardsMUSD", async (accounts) => {
         // 3. Deploy ForgeRewardsMUSD
         rewardsContract = await ForgeRewardsMUSD.new(
             masset.address,
-            systemMachine.systok.address,
+            systemMachine.metaToken.address,
             sa.governor,
             { from: sa.governor },
         );
@@ -81,7 +81,7 @@ contract("ForgeRewardsMUSD", async (accounts) => {
     describe("Contract deployed", async () => {
         it("Should have valid parameters", async () => {
             assert((await rewardsContract.mUSD()) === masset.address);
-            assert((await rewardsContract.MTA()) === systemMachine.systok.address);
+            assert((await rewardsContract.MTA()) === systemMachine.metaToken.address);
             assert((await rewardsContract.governor()) === sa.governor);
         });
 
@@ -133,7 +133,7 @@ contract("ForgeRewardsMUSD", async (accounts) => {
             // 3. Deploy ForgeRewardsMUSD
             const newRewardsContract = await ForgeRewardsMUSD.new(
                 newMasset.address,
-                newSystemMachine.systok.address,
+                newSystemMachine.metaToken.address,
                 sa.governor,
                 { from: sa.governor },
             );

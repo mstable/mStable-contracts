@@ -91,7 +91,7 @@ contract("Nexus", async (accounts) => {
                 expect(initialized).to.equal(true);
 
                 // validate modules
-                await expectInModules(nexus, "Systok", systemMachine.systok.address, true);
+                await expectInModules(nexus, "MetaToken", systemMachine.metaToken.address, true);
 
                 await expectInModules(nexus, "OracleHub", systemMachine.oracleHub.address, false);
 

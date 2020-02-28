@@ -54,11 +54,11 @@ contract Module is ModuleKeys {
         return nexus.getModule(Key_Staking);
     }
 
-    function _systok()
+    function _metaToken()
     internal
     view
     returns (address) {
-        return nexus.getModule(Key_Systok);
+        return nexus.getModule(Key_MetaToken);
     }
 
     function _oracleHub()

@@ -8,7 +8,7 @@ const c_MUSD = artifacts.require('MUSD')
 
 const c_ForgeRewardsMUSD = artifacts.require('ForgeRewardsMUSD')
 const c_EcosystemRewardsMUSD = artifacts.require('EcosystemRewardsMUSD')
-const c_Systok = artifacts.require('Systok');
+const c_MetaToken = artifacts.require('MetaToken');
 
 const c_TUSD = artifacts.require('TUSD')
 const c_USDC = artifacts.require('USDC')
@@ -31,7 +31,7 @@ module.exports = async (deployer, network, accounts) => {
   const d_Manager = await c_Manager.deployed()
   const d_Nexus = await c_Nexus.deployed()
   const d_ForgeValidator = await c_ForgeValidator.deployed()
-  const d_Systok = await c_Systok.deployed();
+  const d_MetaToken = await c_MetaToken.deployed();
 
   /* ~~~~~~~~~ mUSD Setup ~~~~~~~~~  */
 
@@ -110,7 +110,7 @@ module.exports = async (deployer, network, accounts) => {
   await deployer.deploy(
     c_ForgeRewardsMUSD,
     d_MUSD.address,
-    d_Systok.address,
+    d_MetaToken.address,
     governor,
     { from: governor }
   );
@@ -119,7 +119,7 @@ module.exports = async (deployer, network, accounts) => {
   await deployer.deploy(
     c_EcosystemRewardsMUSD,
     d_MUSD.address,
-    d_Systok.address,
+    d_MetaToken.address,
     governor,
     { from: governor }
   );

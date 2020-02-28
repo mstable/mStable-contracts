@@ -4,7 +4,7 @@ import { IEcosystemRewards } from "./IEcosystemRewards.sol";
 import { MassetRewards } from "./MassetRewards.sol";
 
 import { IMasset } from "../interfaces/IMasset.sol";
-import { ISystok } from "../interfaces/ISystok.sol";
+import { IMetaToken } from "../interfaces/IMetaToken.sol";
 
 /**
  * @title   EcosystemRewardsMUSD
@@ -17,7 +17,7 @@ contract EcosystemRewardsMUSD is MassetRewards, IEcosystemRewards {
     /**
      * @notice Basic constructor, implementing the abstract MassetRewards contract
      */
-    constructor(IMasset _mUSD, ISystok _MTA, address _governor)
+    constructor(IMasset _mUSD, IMetaToken _MTA, address _governor)
         public
         MassetRewards(_mUSD, _MTA, _governor) {
     }

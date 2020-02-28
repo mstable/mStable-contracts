@@ -2,7 +2,7 @@ pragma solidity ^0.5.16;
 pragma experimental ABIEncoderV2;
 
 import { IMasset } from "../interfaces/IMasset.sol";
-import { ISystok } from "../interfaces/ISystok.sol";
+import { IMetaToken } from "../interfaces/IMetaToken.sol";
 
 import { MassetBasket, IManager, IForgeValidator } from "./MassetBasket.sol";
 import { MassetToken } from "./MassetToken.sol";
@@ -349,7 +349,7 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         return massetQuantity;
     }
     /**
-     * @dev Pay the forging fee by burning Systok
+     * @dev Pay the forging fee by burning MetaToken
      * @param _quantity Exact amount of Masset being forged
      * @param _payer Address who is liable for the fee
      */
@@ -359,9 +359,9 @@ contract Masset is IMasset, MassetToken, MassetBasket {
         uint256 feeRate = redemptionFee;
 
         if(feeRate > 0){
-            address systokAddress = _systok();
+            address metaTokenAddress = _metaToken();
 
-            (uint256 ownPrice, uint256 systokPrice) = IManager(_manager()).getAssetPrices(address(this), systokAddress);
+            (uint256 ownPrice, uint256 metaTokenPrice) = IManager(_manager()).getAssetPrices(address(this), metaTokenAddress);
 
             // e.g. for 500 massets.
             // feeRate == 1% == 1e16. _quantity == 5e20.
@@ -372,14 +372,14 @@ contract Masset is IMasset, MassetToken, MassetBasket {
             uint256 feeAmountInDollars = amountOfMassetSubjectToFee.mulTruncate(ownPrice);
 
             // feeAmountInDollars == $5 == 5e18
-            // systokPrice == $20 == 20e18
-            // do feeAmount*1e18 / systokPrice
-            uint256 feeAmountInSystok = feeAmountInDollars.divPrecisely(systokPrice);
+            // metaTokenPrice == $20 == 20e18
+            // do feeAmount*1e18 / metaTokenPrice
+            uint256 feeAmountInMetaToken = feeAmountInDollars.divPrecisely(metaTokenPrice);
 
-            // feeAmountInSystok == 0.25e18 == 25e16
-            require(ISystok(_systok()).transferFrom(_payer, feePool, feeAmountInSystok), "Must be successful fee payment");
+            // feeAmountInMetaToken == 0.25e18 == 25e16
+            require(IMetaToken(_metaToken()).transferFrom(_payer, feePool, feeAmountInMetaToken), "Must be successful fee payment");
 
-            emit PaidFee(_payer, feeAmountInSystok, feeRate);
+            emit PaidFee(_payer, feeAmountInMetaToken, feeRate);
         }
     }
 

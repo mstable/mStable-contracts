@@ -34,7 +34,7 @@ contract("EcosystemRewardsMUSD", async (accounts) => {
         const masset: MassetDetails = await massetMachine.createBasicMasset();
         rewardsContract = await EcosystemRewardsMUSD.new(
             masset.mAsset.address,
-            systemMachine.systok.address,
+            systemMachine.metaToken.address,
             sa.governor,
             { from: sa.governor },
         );

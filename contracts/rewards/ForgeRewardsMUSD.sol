@@ -5,7 +5,7 @@ import { MassetRewards } from "./MassetRewards.sol";
 
 import { MassetHelpers } from "../masset/shared/MassetHelpers.sol";
 import { IMasset } from "../interfaces/IMasset.sol";
-import { ISystok } from "../interfaces/ISystok.sol";
+import { IMetaToken } from "../interfaces/IMetaToken.sol";
 
 import { StableMath } from "../shared/StableMath.sol";
 import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
@@ -30,7 +30,7 @@ contract ForgeRewardsMUSD is MassetRewards, IForgeRewards {
     using StableMath for uint256;
     using SafeERC20 for IERC20;
 
-    constructor(IMasset _mUSD, ISystok _MTA, address _governor)
+    constructor(IMasset _mUSD, IMetaToken _MTA, address _governor)
         public
         MassetRewards(_mUSD, _MTA, _governor)
     {

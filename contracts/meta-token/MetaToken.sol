@@ -1,15 +1,15 @@
 pragma solidity ^0.5.16;
 
 import { MiniMeToken } from "minimetoken/contracts/MiniMeToken.sol";
-import { ISystok } from "../interfaces/ISystok.sol";
+import { IMetaToken } from "../interfaces/IMetaToken.sol";
 import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
-contract Systok is ISystok, MiniMeToken {
+contract MetaToken is IMetaToken, MiniMeToken {
 
     using SafeMath for uint256;
 
     /**
-     * @dev Systok just parameterises the MiniMeToken
+     * @dev MetaToken just parameterises the MiniMeToken
      */
     constructor(
         address _tokenFactory,

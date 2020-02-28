@@ -39,7 +39,7 @@ contract("MassetRedemption", async (accounts) => {
             await systemMachine.addMockPrices("1000000", massetDetails.mAsset.address);
 
             // 5. ensure i have MTA and approve mUSD & MTA
-            await systemMachine.systok.approve(
+            await systemMachine.metaToken.approve(
                 massetDetails.mAsset.address,
                 simpleToExactAmount(1000, 18),
                 { from: systemMachine.sa.default },

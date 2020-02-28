@@ -4,7 +4,7 @@ import {
     GUSDContract,
     MUSDContract,
     PAXContract,
-    SystokContract,
+    MetaTokenContract,
     SUSDContract,
     TUSDContract,
     USDCContract,
@@ -22,7 +22,7 @@ export const getForgeContractInstances = async ({ artifacts }: any) => {
     const cSUSD: SUSDContract = artifacts.require("SUSD");
     const cGUSD: GUSDContract = artifacts.require("GUSD");
     const cPAX: PAXContract = artifacts.require("PAX");
-    const cMTA: SystokContract = artifacts.require("Systok");
+    const cMTA: MetaTokenContract = artifacts.require("MetaToken");
 
     const forge = await cForgeRewardsMUSD.deployed();
     const mUSD = await cMUSD.deployed();

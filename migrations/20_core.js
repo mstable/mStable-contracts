@@ -6,8 +6,8 @@ const c_Nexus = artifacts.require('Nexus');
 const c_OracleHub = artifacts.require('SimpleOracleHub');
 const c_OracleHubMock = artifacts.require('SimpleOracleHubMock');
 
-const c_Systok = artifacts.require('Systok');
-const c_SystokController = artifacts.require("SystokController");
+const c_MetaToken = artifacts.require('MetaToken');
+const c_MetaTokenController = artifacts.require("MetaTokenController");
 const c_MiniMeTokenFactory = artifacts.require("MiniMeTokenFactory");
 
 const c_Manager = artifacts.require('Manager');
@@ -54,25 +54,25 @@ module.exports = async (deployer, network, accounts) => {
   const d_Nexus = await c_Nexus.deployed();
 
 
-  /** Systok */
+  /** MetaToken */
   // Step 1. Deploy the MiniMe Token Factory
   await deployer.deploy(c_MiniMeTokenFactory, { from: _ });
   const d_MiniMeTokenFactory = await c_MiniMeTokenFactory.deployed();
 
-  // Step 2. Deploy Systok itself (MiniMe)
-  await deployer.deploy(c_Systok, d_MiniMeTokenFactory.address, fundManager, { from: _ });
-  const d_Systok = await c_Systok.deployed();
+  // Step 2. Deploy MetaToken itself (MiniMe)
+  await deployer.deploy(c_MetaToken, d_MiniMeTokenFactory.address, fundManager, { from: _ });
+  const d_MetaToken = await c_MetaToken.deployed();
 
   // Step 3. Deploy the TokenController
-  await deployer.deploy(c_SystokController, d_Nexus.address, d_Systok.address, { from: _ })
-  const d_SystokController = await c_SystokController.deployed();
+  await deployer.deploy(c_MetaTokenController, d_Nexus.address, d_MetaToken.address, { from: _ })
+  const d_MetaTokenController = await c_MetaTokenController.deployed();
 
-  // Step 4. Transfer ownership to SystokController
-  await d_Systok.changeController(d_SystokController.address, { from: _ })
+  // Step 4. Transfer ownership to MetaTokenController
+  await d_MetaToken.changeController(d_MetaTokenController.address, { from: _ })
 
   // Step 5. Validate transfer
-  console.log(`[SystokController]: '${d_SystokController.address}'`)
-  console.log(`[MiniMe 'controller']: '${await d_Systok.controller()}'`)
+  console.log(`[MetaTokenController]: '${d_MetaTokenController.address}'`)
+  console.log(`[MiniMe 'controller']: '${await d_MetaToken.controller()}'`)
 
 
   /** OracleHub */
@@ -91,7 +91,7 @@ module.exports = async (deployer, network, accounts) => {
 
 
   console.log(`[Nexus]: '${d_Nexus.address}'`)
-  console.log(`[Systok (aka MTA)]: '${d_Systok.address}'`)
+  console.log(`[MetaToken (aka MTA)]: '${d_MetaToken.address}'`)
   console.log(`[OracleHub]: '${d_OracleHub.address}'`)
   console.log(`[Manager]: '${d_Manager.address}'`)
 }
