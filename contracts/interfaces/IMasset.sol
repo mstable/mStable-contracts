@@ -37,7 +37,7 @@ contract IMasset is MassetStructs {
     /** @dev Recollateralisation */
     function handlePegLoss(address _basset, bool _belowPeg) external returns (bool actioned);
     function negateIsolation(address _basset) external;
-    function initiateRecol(address _basset) external returns (bool auctionNeeded);
+    function initiateRecol(address _basset) external returns (bool auctionNeeded, bool isTransferable);
     function completeRecol(address _basset, uint256 _unitsUnderCollateralised) external;
 
     /** @dev Public cleanup function to get rid of finished Bassets */
