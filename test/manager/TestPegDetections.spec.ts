@@ -1,4 +1,5 @@
 import { shouldFail, expectEvent } from "openzeppelin-test-helpers";
+import { latest } from "openzeppelin-test-helpers/src/time";
 import { ADDRESS_1, MASSET_FACTORY_BYTES } from "@utils/constants";
 import {
     ERC20MockContract,
@@ -71,9 +72,10 @@ contract("Manager", async (accounts) => {
             expect(bassets[0].status).to.equal(BassetStatus.Normal);
 
             // Inject arbitrary prices into mock oracle data
+            const time = await latest();
             await oracleHub.addMockPrices(
                 [new BN("1150000"), new BN("999980")],
-                [Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000)],
+                [time, time],
                 [bassets[0].addr, bassets[1].addr],
             );
 

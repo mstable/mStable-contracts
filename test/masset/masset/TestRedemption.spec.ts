@@ -37,6 +37,7 @@ contract("MassetRedemption", async (accounts) => {
         it("Should redeem a bAsset", async () => {
             // 4. add the prices to the oracle
             await systemMachine.addMockPrices("1000000", massetDetails.mAsset.address);
+
             // 5. ensure i have MTA and approve mUSD & MTA
             await systemMachine.systok.approve(
                 massetDetails.mAsset.address,

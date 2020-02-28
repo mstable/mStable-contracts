@@ -1,3 +1,4 @@
+import { latest } from "openzeppelin-test-helpers/src/time";
 import { MASSET_FACTORY_BYTES } from "@utils/constants";
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
 import { aToH, BN } from "@utils/tools";
@@ -127,14 +128,14 @@ export class SystemMachine {
         mAssetPrice: string,
         mAssetAddress: string,
     ): Promise<Truffle.TransactionResponse> {
+        const time = await latest();
         return this.oracleHub.addMockPrices(
             [new BN(mAssetPrice), new BN("12000000")],
-            [Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000)],
+            [time, time],
             [mAssetAddress, this.systok.address],
             { from: this.sa.oraclePriceProvider },
         );
     }
-
     /**
      * @dev Deploy the Nexus
      */
