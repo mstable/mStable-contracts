@@ -4,7 +4,7 @@ import { ClaimableGovernorInstance } from "types/generated";
 import shouldBehaveLikeClaimable from "./ClaimableGovernor.behaviour";
 
 const ClaimableGovernor = artifacts.require("ClaimableGovernor");
-envSetup.configure();
+const { expect, assert } = envSetup.configure();
 
 contract("Governable", async (accounts) => {
     const ctx: { claimable?: ClaimableGovernorInstance } = {};

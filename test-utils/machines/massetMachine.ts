@@ -77,11 +77,11 @@ export class MassetMachine {
         return bArrays[0].map((_, i) => {
             return {
                 addr: bArrays[0][i],
-                key: bArrays[1][i],
-                ratio: bArrays[2][i],
-                maxWeight: bArrays[3][i],
-                vaultBalance: bArrays[4][i],
-                status: bArrays[5][i],
+                ratio: bArrays[1][i],
+                maxWeight: bArrays[2][i],
+                vaultBalance: bArrays[3][i],
+                isTransferFeeCharged: bArrays[4][i],
+                status: parseInt(bArrays[5][i].toString()),
             };
         });
     };

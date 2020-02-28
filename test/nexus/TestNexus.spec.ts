@@ -21,6 +21,7 @@ const Nexus = artifacts.require("Nexus");
 
 const { expect, assert } = envSetup.configure();
 
+
 contract("Nexus", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;

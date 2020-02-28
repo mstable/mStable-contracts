@@ -6,8 +6,8 @@ import * as chai from "chai";
 import { shouldFail } from "openzeppelin-test-helpers";
 import { StandardAccounts } from "@utils/machines/standardAccounts";
 
-envSetup.configure();
-const { expect, assert } = chai;
+const { expect, assert } = envSetup.configure();
+;
 
 const ForgeValidatorArtifact = artifacts.require("ForgeValidator");
 
