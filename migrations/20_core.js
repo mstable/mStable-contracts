@@ -46,8 +46,8 @@ module.exports = async (deployer, network, accounts) => {
   await deployer.deploy(c_PublicStableMath, { from: _ });
   await deployer.deploy(c_CommonHelpers, { from: _ });
   await deployer.link(c_CommonHelpers, c_Masset);
-  // await deployer.deploy(c_MassetHelpers, { from: _ });
-  // await deployer.link(c_MassetHelpers, c_Masset);
+  // await deployer.link(c_Masset, c_MassetHelpers);
+  await deployer.deploy(c_MassetHelpers, { from: _ });
 
   /** Nexus */
   await deployer.deploy(c_Nexus, governor, { from: governor });

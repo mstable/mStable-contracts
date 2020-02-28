@@ -96,36 +96,30 @@ contract ForgeValidator is IForgeValidator {
         pure
         returns (bool, string memory)
     {
-        // Basset memory bAsset = _allBassets[_indexToRedeem];
-        // if(bAsset.status == BassetStatus.BrokenAbovePeg && !basketIsFailed) return (false, "Cannot redeem selected bAsset");
-        // // require(bAsset.vaultBalance >= _bassetQuantity, "Insufficient vault balance"); // This gets checked implicity through sub, xfer
+        Basset memory bAsset = _allBassets[_indexToRedeem];
+        if(bAsset.status == BassetStatus.BrokenAbovePeg && !basketIsFailed) return (false, "Cannot redeem selected bAsset");
+        // require(bAsset.vaultBalance >= _bassetQuantity, "Insufficient vault balance"); // This gets checked implicity through sub, xfer
 
-        // // Get current weightings, and cache some outputs from the loop to avoid unecessary recursion
-        // (
-        //     bool isValid,
-        //     string memory reason,
-        //     bool[] memory overweightBassetsBefore,
-        //     bool atLeastOneOverweightBefore,
-        //     uint256[] memory ratioedBassetVaults
-        // ) = _getOverweightBassets(_totalVault, _allBassets);
+        // Get current weightings, and cache some outputs from the loop to avoid unecessary recursion
+        OverWeightBassetsResponse memory data = _getOverweightBassets(_totalVault, _allBassets);
 
-        // if(!isValid) return (false, reason);
+        if(!data.isValid) return (false, data.reason);
 
-        // // Calculate ratioed redemption amount in mAsset terms
-        // uint256 ratioedRedemptionAmount = _bassetQuantity.mulRatioTruncate(bAsset.ratio);
-        // // Subtract ratioed redemption amount from both vault and total supply
-        // ratioedBassetVaults[_indexToRedeem] = ratioedBassetVaults[_indexToRedeem].sub(ratioedRedemptionAmount);
-        // uint256 newTotalVault = _totalVault.sub(ratioedRedemptionAmount);
+        // Calculate ratioed redemption amount in mAsset terms
+        uint256 ratioedRedemptionAmount = _bassetQuantity.mulRatioTruncate(bAsset.ratio);
+        // Subtract ratioed redemption amount from both vault and total supply
+        data.ratioedBassetVaults[_indexToRedeem] = data.ratioedBassetVaults[_indexToRedeem].sub(ratioedRedemptionAmount);
+        uint256 newTotalVault = _totalVault.sub(ratioedRedemptionAmount);
 
-        // // If there is at least one overweight bAsset before, we must redeem it
-        // if(atLeastOneOverweightBefore){
-        //     if(!overweightBassetsBefore[_indexToRedeem]) return (false, "Must redeem overweight bAssets");
-        // }
-        // // Else, redemption is valid so long as no bAssets end up overweight
-        // else {
-        //     if(_getOverweightBassetsAfter(newTotalVault, _allBassets, ratioedBassetVaults))
-        //         return(false, "bAssets must remain underweight");
-        // }
+        // If there is at least one overweight bAsset before, we must redeem it
+        if(data.atLeastOneOverweight){
+            if(!data.isOverWeight[_indexToRedeem]) return (false, "Must redeem overweight bAssets");
+        }
+        // Else, redemption is valid so long as no bAssets end up overweight
+        else {
+            bool atLeastOneOverweightAfter = _getOverweightBassetsAfter(newTotalVault, _allBassets, data.ratioedBassetVaults);
+            if(atLeastOneOverweightAfter) return(false, "bAssets must remain underweight");
+        }
         return (true, "");
     }
 
