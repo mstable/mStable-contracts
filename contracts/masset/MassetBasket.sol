@@ -1,4 +1,4 @@
-pragma solidity ^0.5.16;
+pragma solidity 0.5.16;
 pragma experimental ABIEncoderV2;
 
 import { CommonHelpers } from "../shared/libs/CommonHelpers.sol";

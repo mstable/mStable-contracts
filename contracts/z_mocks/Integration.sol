@@ -1,4 +1,4 @@
-pragma solidity ^0.5.16;
+pragma solidity 0.5.16;
 
 import { IForgeRewards } from "../rewards/IForgeRewards.sol";
 import { MassetHelpers } from "../masset/shared/MassetHelpers.sol";

@@ -1,4 +1,4 @@
-pragma solidity ^0.5.16;
+pragma solidity 0.5.16;
 
 import { MiniMeToken } from "minimetoken/contracts/MiniMeToken.sol";
 import { IMetaToken } from "../interfaces/IMetaToken.sol";

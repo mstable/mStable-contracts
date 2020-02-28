@@ -1,4 +1,4 @@
-pragma solidity ^0.5.16;
+pragma solidity 0.5.16;
 
 import { IEcosystemRewards } from "./IEcosystemRewards.sol";
 import { MassetRewards } from "./MassetRewards.sol";

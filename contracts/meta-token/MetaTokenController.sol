@@ -1,4 +1,4 @@
-pragma solidity ^0.5.16;
+pragma solidity 0.5.16;
 
 import { TokenController } from "minimetoken/contracts/TokenController.sol";
 import { MiniMeToken } from "minimetoken/contracts/MiniMeToken.sol";

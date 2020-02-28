@@ -1,4 +1,4 @@
-pragma solidity ^0.5.16;
+pragma solidity 0.5.16;
 
 import { IManager } from "../interfaces/IManager.sol";
 import { IMasset } from "../interfaces/IMasset.sol";
