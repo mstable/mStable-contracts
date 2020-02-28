@@ -31,8 +31,9 @@ contract ForgeRewardsMUSD is MassetRewards, IForgeRewards {
     using SafeERC20 for IERC20;
 
     constructor(IMasset _mUSD, ISystok _MTA, address _governor)
-      public
-      MassetRewards(_mUSD, _MTA, _governor) {
+        public
+        MassetRewards(_mUSD, _MTA, _governor)
+    {
         approveAllBassets();
     }
 

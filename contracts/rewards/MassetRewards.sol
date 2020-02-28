@@ -364,14 +364,14 @@ contract MassetRewards is IMassetRewards, Governable {
         Tranche memory tranche = trancheData[_trancheNumber];
         TrancheDates memory trancheDates = _getTrancheDates(_trancheNumber);
         return (
-          trancheDates.startTime,
-          trancheDates.endTime,
-          trancheDates.claimEndTime,
-          trancheDates.unlockTime,
-          tranche.totalPoints,
-          tranche.totalRewardUnits,
-          tranche.unclaimedRewardUnits,
-          tranche.rewardees
+            trancheDates.startTime,
+            trancheDates.endTime,
+            trancheDates.claimEndTime,
+            trancheDates.unlockTime,
+            tranche.totalPoints,
+            tranche.totalRewardUnits,
+            tranche.unclaimedRewardUnits,
+            tranche.rewardees
         );
     }
 
@@ -418,13 +418,13 @@ contract MassetRewards is IMassetRewards, Governable {
         Reward memory reward = trancheData[_trancheNumber].rewardeeData[_rewardee];
         TrancheDates memory trancheDates = _getTrancheDates(_trancheNumber);
         return (
-          now > trancheDates.endTime,
-          now > trancheDates.claimEndTime,
-          now > trancheDates.unlockTime,
-          reward.userPoints,
-          reward.claimed,
-          reward.rewardAllocation,
-          reward.redeemed
+            now > trancheDates.endTime,
+            now > trancheDates.claimEndTime,
+            now > trancheDates.unlockTime,
+            reward.userPoints,
+            reward.claimed,
+            reward.rewardAllocation,
+            reward.redeemed
         );
     }
 

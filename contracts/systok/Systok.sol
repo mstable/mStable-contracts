@@ -20,7 +20,7 @@ contract Systok is ISystok, MiniMeToken {
             _tokenFactory,
             address(0x0),
             0,
-            "mStable Meta",
+            "Meta",
             18,
             "MTA",
             true

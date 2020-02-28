@@ -18,8 +18,8 @@ contract EcosystemRewardsMUSD is MassetRewards, IEcosystemRewards {
      * @notice Basic constructor, implementing the abstract MassetRewards contract
      */
     constructor(IMasset _mUSD, ISystok _MTA, address _governor)
-      public
-      MassetRewards(_mUSD, _MTA, _governor) {
+        public
+        MassetRewards(_mUSD, _MTA, _governor) {
     }
 
     /**
