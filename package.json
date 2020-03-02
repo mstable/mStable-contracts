@@ -18,7 +18,8 @@
     "test-lite": " truffle test",
     "compile": "truffle compile --all",
     "generate-typings": "rimraf ./types/generated && typechain --target 'truffle-v5' --outDir types/generated './build/*.json'",
-    "prettify": "prettier --write test/*.ts test/**/*.ts types/generated/*.ts types/*.ts artifacts/*.ts"
+    "prettify": "prettier --write test/*.ts test/**/*.ts types/generated/*.ts types/*.ts artifacts/*.ts",
+    "flatten": "sol-merger \"./contracts/**/*.sol\" ./flat"
   },
   "repository": "gitlab:mstable/mstable-contracts",
   "devDependencies": {
@@ -51,6 +52,7 @@
     "openzeppelin-test-helpers": "0.3.1",
     "parse-duration": "^0.1.2",
     "prettier": "^1.18.2",
+    "sol-merger": "^2.0.1",
     "solc": "0.5.16",
     "solidity-coverage": "^0.7.1",
     "truffle": "^5.1.11",
