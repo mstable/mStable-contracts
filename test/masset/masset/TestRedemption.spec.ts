@@ -30,7 +30,7 @@ contract("MassetRedemption", async (accounts) => {
         // 2. Create the mAsset & add it to the manager
         // 3. Do a mint with all the bAssets
         massetDetails = await massetMachine.createMassetAndSeedBasket();
-        console.log("===>>>", (await massetDetails.mAsset.totalSupply()).toString());
+        // console.log("===>>>", (await massetDetails.mAsset.totalSupply()).toString());
     });
 
     describe("Redeem", () => {

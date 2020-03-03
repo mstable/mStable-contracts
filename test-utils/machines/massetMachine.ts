@@ -82,7 +82,7 @@ export class MassetMachine {
 
             // Mint initialSupply with shared weightings
             let basketDetails = await this.getBassetsInMasset(massetDetails.mAsset.address);
-            console.log("Checkpoint 1");
+
             // Calc optimal weightings
             let totalWeighting = basketDetails.reduce((p, c) => p.add(c.maxWeight), new BN(0));
             let totalMintAmount = simpleToExactAmount(initialSupply, 18);
@@ -92,7 +92,7 @@ export class MassetMachine {
                 // e.g. 5e25 * 25e16 / 1e18
                 return totalMintAmount.mul(relativeWeighting).div(expScale);
             });
-            console.log("Checkpoint 2");
+
             // Approve bAssets
             await Promise.all(
                 massetDetails.bAssets.map((b, i) =>
@@ -101,7 +101,7 @@ export class MassetMachine {
                     }),
                 ),
             );
-            console.log("Checkpoint 3");
+
             const bitmap = await massetDetails.mAsset.getBitmapForAllBassets();
             // Mint
             // console.log("Checkpoint 4", bitmap.toNumber());
@@ -135,7 +135,6 @@ export class MassetMachine {
                 { from: this.system.sa.default },
             );
 
-            console.log("Checkpoint 6");
             return massetDetails;
         } catch (e) {
             console.error(e);
