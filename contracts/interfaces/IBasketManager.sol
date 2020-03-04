@@ -1,4 +1,5 @@
 pragma solidity 0.5.16;
+pragma experimental ABIEncoderV2;
 
 import { MassetStructs } from "../masset/shared/MassetStructs.sol";
 
@@ -22,6 +23,12 @@ contract IBasketManager is MassetStructs {
     /** @dev Public cleanup function to get rid of finished Bassets */
     function removeBasset(address _assetToRemove) external returns (bool);
 
+    /** @dev Conversion functions */
+    function convertBitmapToBassets(uint32 _bitmap, uint8 _size) public view returns (Basset[] memory, uint8[] memory);
+    function convertBitmapToBassetsAddress(uint32 _bitmap, uint8 _size) external view returns (address[] memory);
+    function getBitmapForAllBassets() external view returns (uint32 bitmap);
+    function getBitmapFor(address[] calldata _bassets) external view returns (uint32 bitmap);
+
     /** @dev Getters to retrieve Basket information */
     function getAllBassetsAddress() public view returns (address[] memory);
     function getBasket()
@@ -35,26 +42,14 @@ contract IBasketManager is MassetStructs {
         external
         view
         returns (
-            address[] memory addresses,
-            uint256[] memory ratios,
-            uint256[] memory weights,
-            uint256[] memory vaults,
-            bool[] memory isTransferFeeCharged,
-            BassetStatus[] memory statuses,
+            Basset[] memory bAssets,
             uint256 len
         );
     function getBasset(address _basset)
         external
         view
         returns (
-            address addr,
-            uint256 ratio,
-            uint256 weight,
-            uint256 vaultBalance,
-            bool isTransferFeeCharged,
-            BassetStatus status
+            Basset memory bAsset
         );
 
-    /** @dev Conversion functions */
-    function convertBitmapToBassetsAddress(uint32 _bitmap, uint8 _size) external view returns (address[] memory);
 }

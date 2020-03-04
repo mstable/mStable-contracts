@@ -1,14 +1,17 @@
 pragma solidity 0.5.16;
 pragma experimental ABIEncoderV2;
 
-import { CommonHelpers } from "../shared/libs/CommonHelpers.sol";
-
+// Internal
+import { IManager } from "../interfaces/IManager.sol";
 import { MassetStructs } from "./shared/MassetStructs.sol";
 import { Module } from "../shared/Module.sol";
 
+// Libs
+import { CommonHelpers } from "../shared/libs/CommonHelpers.sol";
 import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
 import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
+import { StableMath } from "../shared/StableMath.sol";
 
 /**
  * @title MassetBasket
@@ -17,6 +20,7 @@ import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 contract BasketManager is Module, MassetStructs {
 
     using SafeMath for uint256;
+    using StableMath for uint256;
     using SafeERC20 for IERC20;
 
     /** @dev Struct holding Basket details */
@@ -36,8 +40,7 @@ contract BasketManager is Module, MassetStructs {
         uint256[] memory _multiples,
         bool[] memory _hasTransferFees
     )
-        MassetCore(_nexus)
-        internal
+        public
     {
         require(_bassets.length > 0, "Must initialise with some bAssets");
 
@@ -46,7 +49,6 @@ contract BasketManager is Module, MassetStructs {
         // Defaults
         basket.maxBassets = 16;               // 16
         basket.collateralisationRatio = 1e18; // 100%
-        redemptionFee = 2e16;                 // 2%
 
         for (uint256 i = 0; i < _bassets.length; i++) {
             _addBasset(
@@ -60,6 +62,14 @@ contract BasketManager is Module, MassetStructs {
 
     modifier basketIsHealthy(){
         require(!basket.failed, "Basket must be alive");
+        _;
+    }
+
+    /**
+      * @dev Verifies that the caller either Manager or Gov
+      */
+    modifier managerOrGovernor() {
+        require(_manager() == msg.sender || _governor() == msg.sender, "Must be manager or governance");
         _;
     }
 
@@ -127,14 +137,14 @@ contract BasketManager is Module, MassetStructs {
         (bool exists, uint256 i) = _isAssetInBasket(_basset);
         require(exists, "bASset must exist in Basket");
 
-        (, , , uint256 vaultBalance, , BassetStatus status) = _getBasset(i);
-        require(!_bassetHasRecolled(status), "Invalid Basset state");
+        Basset memory bAsset = _getBasset(i);
+        require(!_bassetHasRecolled(bAsset.status), "Invalid Basset state");
 
         // Blist -> require status to == BList || BrokenPeg
 
         // If vaultBalance is 0 and we want to recol, then just remove from Basket
         // Ensure removal possible
-        if(vaultBalance == 0){
+        if(bAsset.vaultBalance == 0){
             _removeBasset(_basset);
             return (false, false);
         }
@@ -148,7 +158,7 @@ contract BasketManager is Module, MassetStructs {
         // req approve 0 then approve
 
         // Approve the recollateraliser to take the Basset
-        IERC20(_basset).approve(_recollateraliser(), vaultBalance);
+        IERC20(_basset).approve(_recollateraliser(), bAsset.vaultBalance);
         return (true, true);
     }
 
@@ -164,13 +174,14 @@ contract BasketManager is Module, MassetStructs {
         (bool exists, uint256 i) = _isAssetInBasket(_basset);
         require(exists, "bAsset must exist in Basket");
 
-        (, , , , , BassetStatus status) = _getBasset(i);
-        require(status == BassetStatus.Liquidating, "Invalid Basset state");
+        Basset memory bAsset = _getBasset(i);
+        require(bAsset.status == BassetStatus.Liquidating, "Invalid Basset state");
         basket.bassets[i].maxWeight = 0;
         basket.bassets[i].vaultBalance = 0;
 
         if(_unitsUnderCollateralised > 0){
-            uint256 massetSupply = this.totalSupply();
+            // TODO - set collateralisation ratio at minimum equal to total ratioed vault balances
+            uint256 massetSupply = 1e18; // GET total supply from IERC20(_mUSD)
             // e.g. 1. c = 100e24 * 1e18 = 100e24
             // e.g. 2. c = 100e24 * 9e17 =  90e24
             uint256 collateralisedMassets = massetSupply.mulTruncate(basket.collateralisationRatio);
@@ -261,6 +272,7 @@ contract BasketManager is Module, MassetStructs {
 
         basket.bassets.push(Basset({
             addr: _basset,
+            integrator: address(0),
             ratio: ratio,
             maxWeight: 0,
             vaultBalance: 0,
@@ -467,25 +479,6 @@ contract BasketManager is Module, MassetStructs {
         return indexes;
     }
 
-    function _transferTokens(
-        address _basset,
-        bool _isFeeCharged,
-        uint256 _qty
-    )
-        internal
-        returns (uint256 receivedQty)
-    {
-        receivedQty = _qty;
-        if(_isFeeCharged) {
-            uint256 balBefore = IERC20(_basset).balanceOf(address(this));
-            IERC20(_basset).safeTransferFrom(msg.sender, address(this), _qty);
-            uint256 balAfter = IERC20(_basset).balanceOf(address(this));
-            receivedQty = StableMath.min(_qty, balAfter.sub(balBefore));
-        } else {
-            IERC20(_basset).safeTransferFrom(msg.sender, address(this), _qty);
-        }
-    }
-
 
     /***************************************
                     GETTERS
@@ -499,11 +492,11 @@ contract BasketManager is Module, MassetStructs {
     external
     view
     returns (
-        uint256 masBassets,
+        uint256 maxBassets,
         bool failed,
         uint256 collateralisationRatio
     ) {
-        return (basket.masBassets, basket.failed, basket.collateralisationRatio);
+        return (basket.maxBassets, basket.failed, basket.collateralisationRatio);
     }
 
     /**
@@ -514,25 +507,15 @@ contract BasketManager is Module, MassetStructs {
     external
     view
     returns (
-        address[] memory addresses,
-        uint256[] memory ratios,
-        uint256[] memory targets,
-        uint256[] memory vaults,
-        bool[] memory isTransferFeeCharged,
-        BassetStatus[] memory statuses,
+        Basset[] memory bAssets,
         uint256 len
     ) {
         len = basket.bassets.length;
 
-        addresses = new address[](len);
-        ratios = new uint256[](len);
-        targets = new uint256[](len);
-        vaults = new uint256[](len);
-        isTransferFeeCharged = new bool[](len);
-        statuses = new BassetStatus[](len);
+        bAssets = new Basset[](len);
 
         for(uint256 i = 0; i < len; i++){
-            (addresses[i], ratios[i], targets[i], vaults[i], isTransferFeeCharged[i], statuses[i]) = _getBasset(i);
+            bAssets[i] = _getBasset(i);
         }
     }
 
@@ -544,12 +527,7 @@ contract BasketManager is Module, MassetStructs {
         public
         view
         returns (
-            address addr,
-            uint256 ratio,
-            uint256 maxWeight,
-            uint256 vaultBalance,
-            bool isTransferFeeCharged,
-            BassetStatus status
+            Basset memory bAsset
         )
     {
         (bool exists, uint256 index) = _isAssetInBasket(_basset);
@@ -582,16 +560,10 @@ contract BasketManager is Module, MassetStructs {
         internal
         view
         returns (
-            address addr,
-            uint256 ratio,
-            uint256 maxWeight,
-            uint256 vaultBalance,
-            bool isTransferFeeCharged,
-            BassetStatus status
+            Basset memory bAsset
         )
     {
-        Basset memory b = basket.bassets[_bassetIndex];
-        return (b.addr, b.ratio, b.maxWeight, b.vaultBalance, b.isTransferFeeCharged, b.status);
+        bAsset = basket.bassets[_bassetIndex];
     }
 
 

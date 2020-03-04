@@ -27,11 +27,14 @@ interface MassetStructs {
 
     }
 
-    /** @dev Stores bAsset info. The struct takes 4 storage slots per Basset */
+    /** @dev Stores bAsset info. The struct takes 5 storage slots per Basset */
     struct Basset {
 
         /** @dev Address of the bAsset */
         address addr;
+
+        /** @dev Address of the bAsset */
+        address integrator;
 
         /** @dev Status of the basset,  */
         BassetStatus status; // takes uint8 datatype (1 byte) in storage

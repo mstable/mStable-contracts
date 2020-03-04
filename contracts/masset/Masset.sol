@@ -11,6 +11,7 @@ import { MassetToken } from "./MassetToken.sol";
 import { Module } from "../shared/Module.sol";
 import { MassetStructs } from "./shared/MassetStructs.sol";
 
+// Libs
 import { StableMath } from "../shared/StableMath.sol";
 import { SafeERC20 }  from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
 import { IERC20 }     from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
@@ -20,7 +21,7 @@ import { IERC20 }     from "openzeppelin-solidity/contracts/token/ERC20/IERC20.s
  * @author Stability Labs Pty Ltd
  * @dev Base layer functionality for the Masset
  */
-contract Masset is IMasset, MassetToken, Module, MassetStructs {
+contract Masset is IMasset, MassetToken, Module {
 
     using StableMath for uint256;
     using SafeERC20 for IERC20;
@@ -70,6 +71,7 @@ contract Masset is IMasset, MassetToken, Module, MassetStructs {
     {
         feeRecipient = _feeRecipient;
         forgeValidator = IForgeValidator(_forgeValidator);
+        redemptionFee = 2e16;                 // 2%
     }
 
     /**
@@ -160,7 +162,7 @@ contract Masset is IMasset, MassetToken, Module, MassetStructs {
         address _recipient
     )
         internal
-        basketIsHealthy
+        // basketIsHealthy
         returns (uint256 massetMinted)
     {
         require(_recipient != address(0), "Recipient must not be 0x0");
@@ -201,7 +203,7 @@ contract Masset is IMasset, MassetToken, Module, MassetStructs {
         address _recipient
     )
         internal
-        basketIsHealthy
+        // basketIsHealthy
         returns (uint256 massetMinted)
     {
         require(_recipient != address(0), "Recipient must not be 0x0");
