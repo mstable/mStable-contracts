@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/camelcase */
 
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
-import { createBasket, createBasset, Basket } from "@utils/mstable-objects";
+import { createBasket, Basket } from "@utils/mstable-objects";
 import { shouldFail } from "openzeppelin-test-helpers";
 import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import { aToH, BN } from "@utils/tools";
@@ -17,7 +17,6 @@ contract("MassetMinting", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
     let masset: MassetInstance;
-    // tslint:disable-next-line:one-variable-per-declaration
     let b1;
     let b2;
     let b3;
@@ -27,7 +26,7 @@ contract("MassetMinting", async (accounts) => {
     let b7;
 
     before("Init contract", async () => {
-        systemMachine = new SystemMachine(accounts, sa.other);
+        systemMachine = new SystemMachine(sa.all, sa.other);
         await systemMachine.initialiseMocks();
         const bassetMachine = new BassetMachine(sa.default, sa.other, 500000);
 
@@ -81,7 +80,7 @@ contract("MassetMinting", async (accounts) => {
             await b7.approve(masset.address, 10, { from: sa.default });
 
             const mUSD_balBefore = await masset.balanceOf(sa.default);
-            await masset.mintBitmapTo(127, [10, 10, 10, 10, 10, 10, 10], sa.default);
+            await masset.mintMulti(127, [10, 10, 10, 10, 10, 10, 10], sa.default);
             const mUSD_balAfter = await masset.balanceOf(sa.default);
             expect(mUSD_balBefore).bignumber.eq(new BN(0));
             expect(mUSD_balAfter, "Must mint 70 base units of mUSD").bignumber.eq(new BN(70));
@@ -94,12 +93,12 @@ contract("MassetMinting", async (accounts) => {
             // await b4.approve(masset.address, 10, { from: sa.default });
 
             const bitmap = 5; // 0101 = 5
-            await masset.mintBitmapTo(bitmap, [10, 10], sa.default, { from: sa.default });
+            await masset.mintMulti(bitmap, [10, 10], sa.default, { from: sa.default });
         });
 
         it("Should mint single bAsset", async () => {
             await b1.approve(masset.address, 10, { from: sa.default });
-            await masset.mintSingle(b1.address, 10, { from: sa.default });
+            await masset.mint(b1.address, 10, { from: sa.default });
         });
 
         it("Should return bAssets bitmap", async () => {

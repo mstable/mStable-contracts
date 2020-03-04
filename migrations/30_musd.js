@@ -8,7 +8,7 @@ const c_MUSD = artifacts.require('MUSD')
 
 const c_ForgeRewardsMUSD = artifacts.require('ForgeRewardsMUSD')
 const c_EcosystemRewardsMUSD = artifacts.require('EcosystemRewardsMUSD')
-const c_Systok = artifacts.require('Systok');
+const c_MetaToken = artifacts.require('MetaToken');
 
 const c_TUSD = artifacts.require('TUSD')
 const c_USDC = artifacts.require('USDC')
@@ -20,18 +20,18 @@ const c_PAX = artifacts.require('PAX')
 
 const { MASSET_FACTORY_BYTES } = require('@utils/constants')
 const { aToH } = require('@utils/tools')
-const { percentToWeight, createMultiple,simpleToExactAmount } = require('@utils/math')
+const { percentToWeight, createMultiple, simpleToExactAmount } = require('@utils/math')
 
 
 module.exports = async (deployer, network, accounts) => {
 
-	const [ _, governor, fundManager, oracleSource, feePool ] = accounts;
+  const [_, governor, fundManager, oracleSource, feePool] = accounts;
 
   /* Get deployed Manager */
   const d_Manager = await c_Manager.deployed()
   const d_Nexus = await c_Nexus.deployed()
   const d_ForgeValidator = await c_ForgeValidator.deployed()
-  const d_Systok = await c_Systok.deployed();
+  const d_MetaToken = await c_MetaToken.deployed();
 
   /* ~~~~~~~~~ mUSD Setup ~~~~~~~~~  */
 
@@ -63,7 +63,7 @@ module.exports = async (deployer, network, accounts) => {
   ];
 
   /* Assign basset weightings in percent */
-  const basketWeights =  [
+  const basketWeights = [
     percentToWeight(30), // max 30
     percentToWeight(40), // 40
     percentToWeight(30), // 30
@@ -93,11 +93,11 @@ module.exports = async (deployer, network, accounts) => {
     d_ForgeValidator.address
   );
 
-  if(network == 'development' || network == 'coverage') {
+  if (network == 'development' || network == 'coverage') {
     const txData = await d_Manager.addMasset(
       aToH("mUSD"),
       d_MUSD.address,
-      {from: governor});
+      { from: governor });
   } else {
     // We need to send the transaction from the multisig
     //await d_MultiSig.submitTransaction(d_Manager.address, 0, txData, { from : governor });
@@ -105,22 +105,22 @@ module.exports = async (deployer, network, accounts) => {
 
   const massets = await d_Manager.getMassets();
   console.log(`[mUSD]: '${massets[0][0]}'`);
-  
+
   // Deploy ForgeRewardsMUSD contract
   await deployer.deploy(
     c_ForgeRewardsMUSD,
     d_MUSD.address,
-    d_Systok.address,
+    d_MetaToken.address,
     governor,
-    {from: governor}
+    { from: governor }
   );
 
   // Deploy EcosystemRewardsMUSD contract
   await deployer.deploy(
     c_EcosystemRewardsMUSD,
     d_MUSD.address,
-    d_Systok.address,
+    d_MetaToken.address,
     governor,
-    {from: governor}
+    { from: governor }
   );
 }

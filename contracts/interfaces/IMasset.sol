@@ -1,7 +1,7 @@
-pragma solidity ^0.5.16;
+pragma solidity 0.5.16;
 
 import { IManager } from "./IManager.sol";
-import { ISystok } from "./ISystok.sol";
+import { IMetaToken } from "./IMetaToken.sol";
 
 import { MassetStructs } from "../masset/shared/MassetStructs.sol";
 
@@ -12,16 +12,15 @@ import { MassetStructs } from "../masset/shared/MassetStructs.sol";
 contract IMasset is MassetStructs {
 
     /** @dev Minting */
-    function mintSingle(address _basset,uint256 _bassetQuantity) external returns (uint256 massetMinted);
-    function mintSingleTo(address _basset, uint256 _bassetQuantity, address _recipient) external returns (uint256 massetMinted);
-    function mintBitmapTo(uint32 _bassetsBitmap, uint256[] calldata _bassetQuantity, address _recipient) external returns (uint256 massetMinted);
+    function mint(address _basset,uint256 _bassetQuantity) external returns (uint256 massetMinted);
+    function mintTo(address _basset, uint256 _bassetQuantity, address _recipient) external returns (uint256 massetMinted);
+    function mintMulti(uint32 _bassetsBitmap, uint256[] calldata _bassetQuantity, address _recipient) external returns (uint256 massetMinted);
 
     /** @dev Redeeming */
-    function redeemSingle(address _basset,uint256 _bassetQuantity) external returns (uint256 massetRedeemed);
-    function redeemSingleTo(address _basset, uint256 _bassetQuantity, address _recipient) external returns (uint256 massetRedeemed);
-    function redeemBitmapTo(uint32 _bassetsBitmap, uint256[] calldata _bassetQuantity, address _recipient)
+    function redeem(address _basset,uint256 _bassetQuantity) external returns (uint256 massetRedeemed);
+    function redeemTo(address _basset, uint256 _bassetQuantity, address _recipient) external returns (uint256 massetRedeemed);
+    function redeemMulti(uint32 _bassetsBitmap, uint256[] calldata _bassetQuantity, address _recipient)
         external returns (uint256 massetRedeemed);
-
 
     /** @dev Setters for the Manager or Gov to update module info */
     function upgradeForgeValidator(address _newForgeValidator) external;
@@ -37,8 +36,8 @@ contract IMasset is MassetStructs {
 
     /** @dev Recollateralisation */
     function handlePegLoss(address _basset, bool _belowPeg) external returns (bool actioned);
-    function negatePegLoss(address _basset) external;
-    function initiateRecol(address _basset, address _recollateraliser) external returns (bool auctionNeeded);
+    function negateIsolation(address _basset) external;
+    function initiateRecol(address _basset) external returns (bool auctionNeeded, bool isTransferable);
     function completeRecol(address _basset, uint256 _unitsUnderCollateralised) external;
 
     /** @dev Public cleanup function to get rid of finished Bassets */

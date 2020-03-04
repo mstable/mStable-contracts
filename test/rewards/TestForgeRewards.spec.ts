@@ -1,5 +1,5 @@
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
-import { createBasket, createBasset, Basket } from "@utils/mstable-objects";
+import { createBasket, Basket } from "@utils/mstable-objects";
 import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
 import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import { aToH, BN } from "@utils/tools";
@@ -16,7 +16,6 @@ contract("ForgeRewardsMUSD", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
     let masset: MassetInstance;
-    // tslint:disable-next-line:one-variable-per-declaration
     let b1;
     let b2;
     let b3;
@@ -28,7 +27,7 @@ contract("ForgeRewardsMUSD", async (accounts) => {
 
     beforeEach("Init contract", async () => {
         // rewardContract = await deployer.deployed(c_ForgeRewardsMUSD);
-        systemMachine = new SystemMachine(accounts, sa.other);
+        systemMachine = new SystemMachine(sa.all, sa.other);
         await systemMachine.initialiseMocks();
         const bassetMachine = new BassetMachine(sa.default, sa.other, 500000);
 
@@ -73,7 +72,7 @@ contract("ForgeRewardsMUSD", async (accounts) => {
         // 3. Deploy ForgeRewardsMUSD
         rewardsContract = await ForgeRewardsMUSD.new(
             masset.address,
-            systemMachine.systok.address,
+            systemMachine.metaToken.address,
             sa.governor,
             { from: sa.governor },
         );
@@ -82,7 +81,7 @@ contract("ForgeRewardsMUSD", async (accounts) => {
     describe("Contract deployed", async () => {
         it("Should have valid parameters", async () => {
             assert((await rewardsContract.mUSD()) === masset.address);
-            assert((await rewardsContract.MTA()) === systemMachine.systok.address);
+            assert((await rewardsContract.MTA()) === systemMachine.metaToken.address);
             assert((await rewardsContract.governor()) === sa.governor);
         });
 
@@ -116,7 +115,7 @@ contract("ForgeRewardsMUSD", async (accounts) => {
 
     describe("mintTo()", () => {
         it("Should mint single bAsset", async () => {
-            const newSystemMachine = new SystemMachine(accounts, sa.other);
+            const newSystemMachine = new SystemMachine(sa.all, sa.other);
             await newSystemMachine.initialiseMocks();
 
             const newMasset = await Masset.new(
@@ -134,7 +133,7 @@ contract("ForgeRewardsMUSD", async (accounts) => {
             // 3. Deploy ForgeRewardsMUSD
             const newRewardsContract = await ForgeRewardsMUSD.new(
                 newMasset.address,
-                newSystemMachine.systok.address,
+                newSystemMachine.metaToken.address,
                 sa.governor,
                 { from: sa.governor },
             );
@@ -142,7 +141,7 @@ contract("ForgeRewardsMUSD", async (accounts) => {
             await b1.approve(newRewardsContract.address, 10, { from: sa.default });
             assert((await b1.allowance(sa.default, newRewardsContract.address)).eq(new BN(10)));
 
-            const txReceipt = await newRewardsContract.mintSingleTo(
+            const txReceipt = await newRewardsContract.mintTo(
                 b1.address,
                 10,
                 sa.default,
@@ -192,7 +191,7 @@ contract("ForgeRewardsMUSD", async (accounts) => {
             assert((await b4.allowance(sa.default, rewardsContract.address)).eq(new BN(10)));
 
             const bitmap = 15; // 1111
-            const txReceipt = await rewardsContract.mintTo(
+            const txReceipt = await rewardsContract.mintMulti(
                 bitmap,
                 [10, 10, 10, 10],
                 sa.default,

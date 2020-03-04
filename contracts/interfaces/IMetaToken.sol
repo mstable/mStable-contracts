@@ -1,10 +1,10 @@
-pragma solidity ^0.5.16;
+pragma solidity 0.5.16;
 
 /**
- * @title ISystok
- * @dev Interface for Systok
+ * @title IMetaToken
+ * @dev Interface for MetaToken
  */
-interface ISystok {
+interface IMetaToken {
     /** @dev Burnable */
     // function burnFrom(address account, uint256 amount) external;
 

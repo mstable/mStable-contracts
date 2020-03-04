@@ -1,4 +1,4 @@
-pragma solidity ^0.5.16;
+pragma solidity 0.5.16;
 
 import { INexus } from "../interfaces/INexus.sol";
 import { ModuleKeys } from "../shared/ModuleKeys.sol";

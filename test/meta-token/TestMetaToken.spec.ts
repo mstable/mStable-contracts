@@ -4,7 +4,7 @@ import envSetup from "@utils/env_setup";
 import { BassetMachine, MassetMachine, SystemMachine } from "@utils/machines";
 import { percentToWeight } from "@utils/math";
 import { aToH, chai, BN } from "@utils/tools";
-import { Basset, BassetStatus } from "@utils/mstable-objects";
+import { BassetStatus } from "@utils/mstable-objects";
 
 envSetup.configure();
 const { expect } = chai;
@@ -27,8 +27,8 @@ contract("MetaToken", async (accounts) => {
 
     describe("Burning", () => {
         it("Should only allow self & Recollateraliser to mint", async () => {
-            const { systok } = systemMachine;
-            expect(await systok.decimals()).bignumber.eq(new BN(18));
+            const { metaToken } = systemMachine;
+            expect(await metaToken.decimals()).bignumber.eq(new BN(18));
         });
         it("Should allow anyone to burn, with allowance");
     });

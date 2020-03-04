@@ -1,4 +1,5 @@
 import { shouldFail, expectEvent } from "openzeppelin-test-helpers";
+import { latest } from "openzeppelin-test-helpers/src/time";
 import { ADDRESS_1, MASSET_FACTORY_BYTES } from "@utils/constants";
 import {
     ERC20MockContract,
@@ -23,7 +24,7 @@ contract("Manager", async (accounts) => {
     const sa = new StandardAccounts(accounts);
 
     let systemMachine: SystemMachine;
-    const massetMachine = new MassetMachine(sa.all, sa.other);
+    let massetMachine: MassetMachine;
     const bassetMachine = new BassetMachine(sa._, sa.other);
 
     let manager: ManagerInstance;
@@ -31,10 +32,11 @@ contract("Manager", async (accounts) => {
 
     before("Init contracts", async () => {
         /** Get fresh SystemMachine */
-        systemMachine = new SystemMachine(accounts, sa.other);
+        systemMachine = new SystemMachine(sa.all, sa.other);
 
         /** Create a basic mock representation of the deployed system */
         await systemMachine.initialiseMocks();
+        massetMachine = new MassetMachine(systemMachine);
 
         manager = systemMachine.manager;
         oracleHub = systemMachine.oracleHub;
@@ -46,7 +48,7 @@ contract("Manager", async (accounts) => {
         });
 
         it("should do nothing if we have no pricing information", async () => {
-            await systemMachine.createMassetViaManager();
+            await massetMachine.createBasicMasset();
 
             const massets = await manager.getMassets();
             const masset = massets[0][0];
@@ -70,9 +72,10 @@ contract("Manager", async (accounts) => {
             expect(bassets[0].status).to.equal(BassetStatus.Normal);
 
             // Inject arbitrary prices into mock oracle data
+            const time = await latest();
             await oracleHub.addMockPrices(
                 [new BN("1150000"), new BN("999980")],
-                [Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000)],
+                [time, time],
                 [bassets[0].addr, bassets[1].addr],
             );
 

@@ -1,8 +1,8 @@
-pragma solidity ^0.5.16;
+pragma solidity 0.5.16;
 
 import { IMassetRewards } from "./IMassetRewards.sol";
 import { IMasset } from "../interfaces/IMasset.sol";
-import { ISystok } from "../interfaces/ISystok.sol";
+import { IMetaToken } from "../interfaces/IMetaToken.sol";
 import { StableMath } from "../shared/StableMath.sol";
 import { Governable } from "../governance/Governable.sol";
 
@@ -73,7 +73,7 @@ contract MassetRewards is IMassetRewards, Governable {
 
     /** @dev Core connections */
     IMasset public mUSD;
-    ISystok public MTA;
+    IMetaToken public MTA;
 
     /** @dev Timestamp of the initialisation of rewards (start of the contract) */
     uint256 public rewardStartTime;
@@ -83,7 +83,7 @@ contract MassetRewards is IMassetRewards, Governable {
     uint256 constant public claimPeriod = 8 weeks;
     uint256 constant public lockupPeriod = 52 weeks;
 
-    constructor(IMasset _mUSD, ISystok _MTA, address _governor) internal {
+    constructor(IMasset _mUSD, IMetaToken _MTA, address _governor) internal {
         mUSD = _mUSD;
         MTA = _MTA;
         rewardStartTime = now;
@@ -364,14 +364,14 @@ contract MassetRewards is IMassetRewards, Governable {
         Tranche memory tranche = trancheData[_trancheNumber];
         TrancheDates memory trancheDates = _getTrancheDates(_trancheNumber);
         return (
-          trancheDates.startTime,
-          trancheDates.endTime,
-          trancheDates.claimEndTime,
-          trancheDates.unlockTime,
-          tranche.totalPoints,
-          tranche.totalRewardUnits,
-          tranche.unclaimedRewardUnits,
-          tranche.rewardees
+            trancheDates.startTime,
+            trancheDates.endTime,
+            trancheDates.claimEndTime,
+            trancheDates.unlockTime,
+            tranche.totalPoints,
+            tranche.totalRewardUnits,
+            tranche.unclaimedRewardUnits,
+            tranche.rewardees
         );
     }
 
@@ -418,13 +418,13 @@ contract MassetRewards is IMassetRewards, Governable {
         Reward memory reward = trancheData[_trancheNumber].rewardeeData[_rewardee];
         TrancheDates memory trancheDates = _getTrancheDates(_trancheNumber);
         return (
-          now > trancheDates.endTime,
-          now > trancheDates.claimEndTime,
-          now > trancheDates.unlockTime,
-          reward.userPoints,
-          reward.claimed,
-          reward.rewardAllocation,
-          reward.redeemed
+            now > trancheDates.endTime,
+            now > trancheDates.claimEndTime,
+            now > trancheDates.unlockTime,
+            reward.userPoints,
+            reward.claimed,
+            reward.rewardAllocation,
+            reward.redeemed
         );
     }
 

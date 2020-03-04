@@ -1,4 +1,4 @@
-pragma solidity ^0.5.16;
+pragma solidity 0.5.16;
 pragma experimental ABIEncoderV2;
 
 import { CommonHelpers } from "../shared/libs/CommonHelpers.sol";
@@ -19,7 +19,7 @@ contract MassetBasket is MassetStructs, MassetCore {
 
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
-  
+
     /** @dev Struct holding Basket details */
     Basket public basket;
     bool public measurementMultipleEnabled;
@@ -101,14 +101,16 @@ contract MassetBasket is MassetStructs, MassetCore {
       * @dev Negates the isolation of a given Basset
       * @param _basset Address of the Basset
       */
-    function negatePegLoss(address _basset)
+    function negateIsolation(address _basset)
     external
-    onlyManager {
+    managerOrGovernor {
         (bool exists, uint256 i) = _isAssetInBasket(_basset);
         require(exists, "bASset must exist in Basket");
 
-        if(basket.bassets[i].status == BassetStatus.BrokenBelowPeg ||
-          basket.bassets[i].status == BassetStatus.BrokenAbovePeg) {
+        BassetStatus currentStatus = basket.bassets[i].status;
+        if(currentStatus == BassetStatus.BrokenBelowPeg ||
+          currentStatus == BassetStatus.BrokenAbovePeg ||
+          currentStatus == BassetStatus.Blacklisted) {
             basket.bassets[i].status = BassetStatus.Normal;
         }
     }
@@ -116,13 +118,12 @@ contract MassetBasket is MassetStructs, MassetCore {
     /**
       * @dev Sends the affected Basset off to the Recollateraliser to be auctioned
       * @param _basset Address of the Basset to isolate
-      * @param _recollateraliser Address of the recollateraliser, to which the tokens should be sent
       */
-    function initiateRecol(address _basset, address _recollateraliser)
+    function initiateRecol(address _basset)
         external
-        onlyManager
+        managerOrGovernor
         basketIsHealthy
-        returns (bool requiresAuction)
+        returns (bool requiresAuction, bool isTransferable)
     {
         (bool exists, uint256 i) = _isAssetInBasket(_basset);
         require(exists, "bASset must exist in Basket");
@@ -130,21 +131,26 @@ contract MassetBasket is MassetStructs, MassetCore {
         (, , , uint256 vaultBalance, , BassetStatus status) = _getBasset(i);
         require(!_bassetHasRecolled(status), "Invalid Basset state");
 
-        // If vaultBalance is 0 and we want to recol, then just remove from Basket?
+        // Blist -> require status to == BList || BrokenPeg
+
+        // If vaultBalance is 0 and we want to recol, then just remove from Basket
+        // Ensure removal possible
         if(vaultBalance == 0){
             _removeBasset(_basset);
-            return false;
+            return (false, false);
         }
-        // require(vaultBalance > 0, "Must have something to recollateralise");
 
         basket.bassets[i].status = BassetStatus.Liquidating;
         basket.bassets[i].vaultBalance = 0;
 
+        // Blist -> If status == Blist then return true, else
+        // If status == brokenPeg then call Approve
+        // req re-collateraliser != address(0)
+        // req approve 0 then approve
+
         // Approve the recollateraliser to take the Basset
-        // TODO / FIXME Ensure that this function is not called again for
-        // the same bAsset address. Otherwise safeApprove() call would stuck forever.
-        IERC20(_basset).safeApprove(_recollateraliser, vaultBalance);
-        return true;
+        IERC20(_basset).approve(_recollateraliser(), vaultBalance);
+        return (true, true);
     }
 
 
@@ -202,8 +208,10 @@ contract MassetBasket is MassetStructs, MassetCore {
         (bool alreadyInBasket, ) = _isAssetInBasket(_basset);
         require(!alreadyInBasket, "Asset already exists in Basket");
 
-        require(IManager(_manager()).validateBasset(address(this), _basset, _measurementMultiple, _isTransferFeeCharged),
-            "New bAsset must be valid");
+        require(
+            IManager(_manager()).validateBasset(address(this), _basset, _measurementMultiple, _isTransferFeeCharged),
+            "New bAsset must be valid"
+        );
 
         // Check for ERC20 compatibility by forcing decimal retrieval
         // Ultimate enforcement of Basset validity should service through governance

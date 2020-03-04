@@ -1,5 +1,5 @@
 
-pragma solidity ^0.5.16;
+pragma solidity 0.5.16;
 pragma experimental ABIEncoderV2;
 
 import { SimpleOracleHub } from "../../oracle-hub/SimpleOracleHub.sol";
@@ -11,6 +11,7 @@ import { SimpleOracleHub } from "../../oracle-hub/SimpleOracleHub.sol";
  */
 contract SimpleOracleHubMock is SimpleOracleHub {
 
+    event ReadPrice(address symbol, uint64 timestampSaved, uint64 timestampNow);
 
     constructor(
         address _nexus,
@@ -35,6 +36,21 @@ contract SimpleOracleHubMock is SimpleOracleHub {
         for (uint256 i = 0; i < values.length; i++) {
             data[assets[i]] = Datum(timestamps[i], values[i]);
         }
+    }
+
+    /**
+     * @dev Read a medianized price from our storage
+     * @param _asset Key of the asset to read price
+     * @return bool price is fresh
+     * @return uint64 Price as $1 == 1e6
+     */
+    function readPriceNow(address _asset)
+    external
+    view
+    returns(bool, uint64, uint64, uint64) {
+        Datum memory m = data[_asset];
+        bool isFresh = m.timestamp <= now && m.timestamp > (now - 24 hours);
+        return (isFresh, m.value, m.timestamp, uint64(now));
     }
 
 }

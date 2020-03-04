@@ -1,4 +1,4 @@
-pragma solidity ^0.5.16;
+pragma solidity 0.5.16;
 
 /**
  * @title IManager
@@ -7,8 +7,7 @@ pragma solidity ^0.5.16;
 interface IManager {
 
     /** ManagerPortal provides getters relevant to Massets */
-    function validateBasset(address _masset, address _newBasset, uint256 _measurementMultiple, bool _isTransferFeeCharged)
-        external view returns(bool isValid);
+    function validateBasset(address, address, uint256, bool) external view returns(bool isValid);
     function getAssetPrices(address _asset1, address _asset2) external view returns(uint256, uint256);
     function getAssetPrice(address _asset) external view returns(uint256);
 

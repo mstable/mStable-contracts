@@ -1,4 +1,4 @@
-pragma solidity ^0.5.16;
+pragma solidity 0.5.16;
 
 /**
   * @title MassetStructs
@@ -66,7 +66,7 @@ interface MassetStructs {
         Normal,
         BrokenBelowPeg,
         BrokenAbovePeg,
-        // Blacklisted,
+        Blacklisted,
         Liquidating,
         Liquidated,
         Failed

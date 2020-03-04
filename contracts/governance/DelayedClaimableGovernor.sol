@@ -1,4 +1,4 @@
-pragma solidity ^0.5.16;
+pragma solidity 0.5.16;
 
 import { ClaimableGovernor } from "./ClaimableGovernor.sol";
 import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";

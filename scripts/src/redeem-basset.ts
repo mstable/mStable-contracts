@@ -19,7 +19,7 @@ export default async (scope: any, bassetIndex: string, amount: string, account?:
 
     const bassetQ = simpleToExactAmount(new BN(amount), bassetDecimals.toNumber());
     await logTx(
-        mUSD.redeemSingle(basset.address, bassetQ),
+        mUSD.redeem(basset.address, bassetQ),
         `Redeeming ${amount} ${bassetSymbol} for ${account}`,
     );
 

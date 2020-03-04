@@ -1,22 +1,144 @@
-import { BN } from "@utils/tools";
-import { DEFAULT_DECIMALS, DEFAULT_SUPPLY } from "@utils/constants";
+import {
+    ManagerInstance,
+    MassetContract,
+    MassetInstance,
+    ERC20MockInstance,
+} from "types/generated";
+import { BN, aToH } from "@utils/tools";
+import { DEFAULT_DECIMALS, DEFAULT_SUPPLY, expScale } from "@utils/constants";
 import { Basset, BassetStatus } from "@utils/mstable-objects";
-import { MassetContract, MassetInstance } from "types/generated/index.d";
-import { Address } from "../../types/common";
+import { Address } from "types/common";
+import { BassetMachine } from "./bassetMachine";
+import { SystemMachine } from "./systemMachine";
+import { StandardAccounts } from "./standardAccounts";
+import { createMultiple, simpleToExactAmount, percentToWeight } from "@utils/math";
 
 const MassetArtifact = artifacts.require("Masset");
 
+export interface MassetDetails {
+    mAsset: MassetInstance;
+    bAssets: Array<ERC20MockInstance>;
+}
+
 export class MassetMachine {
-    private deployer: Address;
+    public system: SystemMachine;
 
-    private TX_DEFAULTS: any;
+    constructor(systemMachine: SystemMachine) {
+        this.system = systemMachine;
+    }
 
-    constructor(accounts: Address[], defaultSender: Address, defaultGas = 500000) {
-        this.deployer = accounts[0];
-        this.TX_DEFAULTS = {
-            from: defaultSender,
-            gas: defaultGas,
+    /**
+     * @dev Deploy a Masset via the Manager
+     */
+    public async createBasicMasset(
+        bAssetCount: number = 5,
+        sender: Address = this.system.sa.governor,
+    ): Promise<MassetDetails> {
+        const bassetMachine = new BassetMachine(
+            this.system.sa.default,
+            this.system.sa.other,
+            500000,
+        );
+
+        let bAssetPromises = [];
+        for (var i = 0; i < bAssetCount; i++) {
+            bAssetPromises.push(bassetMachine.deployERC20Async());
+        }
+        let bAssets: Array<ERC20MockInstance> = await Promise.all(bAssetPromises);
+
+        const mAsset = await MassetArtifact.new(
+            "TestMasset",
+            "TMT",
+            this.system.nexus.address,
+            bAssets.map((b) => b.address),
+            bAssets.map(() => percentToWeight(200 / bAssetCount)),
+            bAssets.map(() => createMultiple(1)),
+            bAssets.map(() => false),
+            this.system.sa.feePool,
+            this.system.forgeValidator.address,
+        );
+
+        // Adds the Masset to Manager so that it can look up its price
+        await this.system.manager.addMasset(aToH("TMT"), mAsset.address, {
+            from: this.system.sa.governor,
+        });
+        return {
+            mAsset,
+            bAssets,
         };
+    }
+
+    /**
+     * @dev Deploy a Masset via the Manager then:
+     *      1. Mint with optimal weightings
+     */
+    public async createMassetAndSeedBasket(
+        initialSupply: number = 5000000,
+        bAssetCount: number = 5,
+        sender: Address = this.system.sa.governor,
+    ): Promise<MassetDetails> {
+        try {
+            let massetDetails = await this.createBasicMasset();
+
+            // Mint initialSupply with shared weightings
+            let basketDetails = await this.getBassetsInMasset(massetDetails.mAsset.address);
+
+            // Calc optimal weightings
+            let totalWeighting = basketDetails.reduce((p, c) => p.add(c.maxWeight), new BN(0));
+            let totalMintAmount = simpleToExactAmount(initialSupply, 18);
+            let mintAmounts = basketDetails.map((b) => {
+                // e.g. 5e35 / 2e18 = 2.5e17
+                const relativeWeighting = b.maxWeight.mul(expScale).div(totalWeighting);
+                // e.g. 5e25 * 25e16 / 1e18
+                return totalMintAmount.mul(relativeWeighting).div(expScale);
+            });
+
+            // Approve bAssets
+            await Promise.all(
+                massetDetails.bAssets.map((b, i) =>
+                    b.approve(massetDetails.mAsset.address, mintAmounts[i], {
+                        from: this.system.sa.default,
+                    }),
+                ),
+            );
+
+            const bitmap = await massetDetails.mAsset.getBitmapForAllBassets();
+            // Mint
+            // console.log("Checkpoint 4", bitmap.toNumber());
+            // console.log(
+            //     "Checkpoint 4",
+            //     mintAmounts.map((m) => m.toString()),
+            // );
+            // console.log(
+            //     "Checkpoint 4",
+            //     await Promise.all(
+            //         massetDetails.bAssets.map(async (b) =>
+            //             (
+            //                 await b.allowance(this.system.sa.default, massetDetails.mAsset.address)
+            //             ).toString(),
+            //         ),
+            //     ),
+            // );
+            // console.log(
+            //     "Checkpoint 5",
+            //     await Promise.all(
+            //         massetDetails.bAssets.map(async (b) =>
+            //             (await b.balanceOf(this.system.sa.default)).toString(),
+            //         ),
+            //     ),
+            // );
+
+            await massetDetails.mAsset.mintMulti(
+                bitmap.toNumber(),
+                mintAmounts,
+                this.system.sa.default,
+                { from: this.system.sa.default },
+            );
+
+            return massetDetails;
+        } catch (e) {
+            console.error(e);
+        }
     }
 
     public async getMassetAtAddress(address: Address): Promise<MassetInstance> {

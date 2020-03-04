@@ -1,4 +1,4 @@
-pragma solidity ^0.5.16;
+pragma solidity 0.5.16;
 
 /**
  * @title Taken from OpenZeppelin 2.3.0 Ownable.sol

@@ -1,10 +1,10 @@
-pragma solidity ^0.5.16;
+pragma solidity 0.5.16;
 
 import { IEcosystemRewards } from "./IEcosystemRewards.sol";
 import { MassetRewards } from "./MassetRewards.sol";
 
 import { IMasset } from "../interfaces/IMasset.sol";
-import { ISystok } from "../interfaces/ISystok.sol";
+import { IMetaToken } from "../interfaces/IMetaToken.sol";
 
 /**
  * @title   EcosystemRewardsMUSD
@@ -17,9 +17,9 @@ contract EcosystemRewardsMUSD is MassetRewards, IEcosystemRewards {
     /**
      * @notice Basic constructor, implementing the abstract MassetRewards contract
      */
-    constructor(IMasset _mUSD, ISystok _MTA, address _governor)
-      public
-      MassetRewards(_mUSD, _MTA, _governor) {
+    constructor(IMasset _mUSD, IMetaToken _MTA, address _governor)
+        public
+        MassetRewards(_mUSD, _MTA, _governor) {
     }
 
     /**
@@ -81,7 +81,8 @@ contract EcosystemRewardsMUSD is MassetRewards, IEcosystemRewards {
         TrancheDates memory trancheDates = _getTrancheDates(_trancheNumber);
         if(now > trancheDates.endTime){
             require(now < trancheDates.claimEndTime, "Cannot clear after claim period");
-            require(trancheData[_trancheNumber].totalRewardUnits == trancheData[_trancheNumber].unclaimedRewardUnits,
+            require(
+                trancheData[_trancheNumber].totalRewardUnits == trancheData[_trancheNumber].unclaimedRewardUnits,
                 "Cannot clear after rewards claimed");
         }
 

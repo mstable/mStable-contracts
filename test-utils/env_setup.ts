@@ -1,5 +1,3 @@
-// tslint:disable:no-reference
-
 /// <reference path="../types/interfaces.d.ts" />
 /// <reference path="../types/chai.d.ts" />
 

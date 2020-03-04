@@ -1,6 +1,6 @@
 import { increase, latest } from "openzeppelin-test-helpers/src/time";
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
-import { createBasket, createBasset, Basket } from "@utils/mstable-objects";
+import { createBasket, Basket } from "@utils/mstable-objects";
 import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
 import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import { padRight, BN } from "@utils/tools";
@@ -11,21 +11,20 @@ import {
     NexusInstance,
 } from "types/generated";
 
+import envSetup from "@utils/env_setup";
 import shouldBehaveLikeClaimable from "../governance/ClaimableGovernor.behaviour";
 import shouldBehaveLikeDelayedClaimable from "../governance/DelayedClaimableGovernor.behaviour";
-
-import envSetup from "@utils/env_setup";
 
 const { ZERO_ADDRESS } = constants;
 const Nexus = artifacts.require("Nexus");
 
 const { expect, assert } = envSetup.configure();
 
-
 contract("Nexus", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
     let nexus: NexusInstance;
+
     const ZERO = new BN(0);
     const ONE_DAY = new BN(60 * 60 * 24);
     const TEN_DAYS = new BN(60 * 60 * 24 * 10);
@@ -34,7 +33,7 @@ contract("Nexus", async (accounts) => {
     describe("Behavior like...", () => {
         const ctx: { claimable?: DelayedClaimableGovernorInstance } = {};
         beforeEach("Init contract", async () => {
-            systemMachine = new SystemMachine(accounts, sa.other);
+            systemMachine = new SystemMachine(sa.all, sa.other);
             ctx.claimable = await systemMachine.deployNexus();
         });
         context("should behave like ClaimableGovernor", () => {
@@ -92,7 +91,7 @@ contract("Nexus", async (accounts) => {
                 expect(initialized).to.equal(true);
 
                 // validate modules
-                await expectInModules(nexus, "Systok", systemMachine.systok.address, true);
+                await expectInModules(nexus, "MetaToken", systemMachine.metaToken.address, true);
 
                 await expectInModules(nexus, "OracleHub", systemMachine.oracleHub.address, false);
 
@@ -805,6 +804,7 @@ async function expectInModules(
     _addr: string,
     _isLocked: boolean,
 ) {
+    /* eslint-disable prefer-const */
     let addr: string;
     let isLocked: boolean;
     [addr, isLocked] = await nexus.modules(keccak256(_key));
@@ -827,6 +827,7 @@ async function expectInProposedModules(
     let newAddress: string;
     let timestamp: BN;
     [newAddress, timestamp] = await nexus.proposedModules(keccak256(_key));
+    /* eslint-enable prefer-const */
     expect(newAddress, "New address not matched in proposed modules").to.equal(_newAddress);
     expect(timestamp, "The timestamp not matched in proposed modules").to.bignumber.equal(
         _timestamp,

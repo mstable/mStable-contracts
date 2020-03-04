@@ -17,5 +17,3 @@ module.exports = {
     'z_mocks',
   ]
 };
-
-// TODO - clean out this solcover config and figure out why it's failing on certain tests (i suspect gas limit of TX when creating Masset)

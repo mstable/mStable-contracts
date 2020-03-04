@@ -1,3 +1,4 @@
+import { latest } from "openzeppelin-test-helpers/src/time";
 import { MASSET_FACTORY_BYTES } from "@utils/constants";
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
 import { aToH, BN } from "@utils/tools";
@@ -8,8 +9,8 @@ import {
     MassetInstance,
     NexusInstance,
     SimpleOracleHubMockInstance,
-    SystokControllerInstance,
-    SystokInstance,
+    MetaTokenControllerInstance,
+    MetaTokenInstance,
 } from "types/generated";
 
 import { Address } from "../../types/common";
@@ -31,8 +32,8 @@ const NexusArtifact = artifacts.require("Nexus");
 const OracleHubMockArtifact = artifacts.require("SimpleOracleHubMock");
 
 const MiniMeTokenFactoryArtifact = artifacts.require("MiniMeTokenFactory");
-const SystokArtifact = artifacts.require("Systok");
-const SystokControllerArtifact = artifacts.require("SystokController");
+const MetaTokenArtifact = artifacts.require("MetaToken");
+const MetaTokenControllerArtifact = artifacts.require("MetaTokenController");
 
 /**
  * @dev The SystemMachine is responsible for creating mock versions of our contracts
@@ -51,8 +52,8 @@ export class SystemMachine {
 
     public oracleHub: SimpleOracleHubMockInstance;
 
-    public systok: SystokInstance;
-    public systokController: SystokControllerInstance;
+    public metaToken: MetaTokenInstance;
+    public metaTokenController: MetaTokenControllerInstance;
 
     public forgeValidator: ForgeValidatorInstance;
 
@@ -86,12 +87,16 @@ export class SystemMachine {
             const moduleAddresses: Address[] = new Array(3);
             const isLocked: boolean[] = new Array(3);
 
-            /** Systok */
-            this.systok = await this.deploySystok();
-            this.systokController = await this.deploySystokController();
-            moduleKeys[0] = await this.nexus.Key_Systok();
-            moduleAddresses[0] = this.systok.address;
-            isLocked[0] = true; // TODO Ensure that its locked at deploy time?
+            /** MetaToken */
+            this.metaToken = await this.deployMetaToken();
+            this.metaTokenController = await this.deployMetaTokenController();
+            moduleKeys[0] = await this.nexus.Key_MetaToken();
+            moduleAddresses[0] = this.metaToken.address;
+            isLocked[0] = true;
+
+            await this.metaToken.transfer(this.sa._, simpleToExactAmount(1000, 18), {
+                from: this.sa.fundManager,
+            });
 
             /** OracleHubMock */
             this.oracleHub = await this.deployOracleHub();
@@ -114,6 +119,23 @@ export class SystemMachine {
         }
     }
 
+    /**
+     * @dev Adds prices for the mAsset and MetaToken into the Oracle
+     * @param mAssetPrice Where $1 == 1e6 ("1000000")
+     * @return txHash
+     */
+    public async addMockPrices(
+        mAssetPrice: string,
+        mAssetAddress: string,
+    ): Promise<Truffle.TransactionResponse> {
+        const time = await latest();
+        return this.oracleHub.addMockPrices(
+            [new BN(mAssetPrice), new BN("12000000")],
+            [time, time],
+            [mAssetAddress, this.metaToken.address],
+            { from: this.sa.oraclePriceProvider },
+        );
+    }
     /**
      * @dev Deploy the Nexus
      */
@@ -147,14 +169,14 @@ export class SystemMachine {
     }
 
     /**
-     * @dev Deploy the SystokMock token
+     * @dev Deploy the MetaTokenMock token
      */
-    public async deploySystok(): Promise<SystokInstance> {
+    public async deployMetaToken(): Promise<MetaTokenInstance> {
         try {
             const miniTokenFactory = await MiniMeTokenFactoryArtifact.new({
                 from: this.sa.default,
             });
-            const systokInstance = await SystokArtifact.new(
+            const metaTokenInstance = await MetaTokenArtifact.new(
                 miniTokenFactory.address,
                 this.sa.fundManager,
                 {
@@ -162,27 +184,29 @@ export class SystemMachine {
                 },
             );
 
-            return systokInstance;
+            return metaTokenInstance;
         } catch (e) {
             throw e;
         }
     }
 
     /**
-     * @dev Deploy the SystokController token
+     * @dev Deploy the MetaTokenController token
      */
-    public async deploySystokController(): Promise<SystokControllerInstance> {
+    public async deployMetaTokenController(): Promise<MetaTokenControllerInstance> {
         try {
-            const systokController = await SystokControllerArtifact.new(
+            const metaTokenController = await MetaTokenControllerArtifact.new(
                 this.nexus.address,
-                this.systok.address,
+                this.metaToken.address,
                 {
                     from: this.sa.default,
                 },
             );
-            await this.systok.changeController(systokController.address, { from: this.sa.default });
+            await this.metaToken.changeController(metaTokenController.address, {
+                from: this.sa.default,
+            });
 
-            return systokController;
+            return metaTokenController;
         } catch (e) {
             throw e;
         }
@@ -199,34 +223,6 @@ export class SystemMachine {
         } catch (e) {
             throw e;
         }
-    }
-
-    /**
-     * @dev Deploy a Masset via the Manager
-     */
-    public async createMassetViaManager(
-        sender: Address = this.sa.governor,
-    ): Promise<MassetInstance> {
-        const bassetMachine = new BassetMachine(this.sa.default, this.sa.other, 500000);
-
-        const b1: ERC20MockInstance = await bassetMachine.deployERC20Async();
-        const b2: ERC20MockInstance = await bassetMachine.deployERC20Async();
-
-        const masset = await MassetArtifact.new(
-            "TestMasset",
-            "TMT",
-            this.nexus.address,
-            [b1.address, b2.address],
-            [percentToWeight(50), percentToWeight(50)],
-            [createMultiple(1), createMultiple(1)],
-            [false, false],
-            this.sa.feePool,
-            this.forgeValidator.address,
-        );
-
-        // Adds the Masset to Manager so that it can look up its price
-        await this.manager.addMasset(aToH("TMT"), masset.address, { from: this.sa.governor });
-        return masset;
     }
 
     public async initializeNexusWithModules(

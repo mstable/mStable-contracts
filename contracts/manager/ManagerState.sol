@@ -1,4 +1,4 @@
-pragma solidity ^0.5.16;
+pragma solidity 0.5.16;
 
 import { Module } from "../shared/Module.sol";
 import { DictionaryAtoB } from "../shared/libs/DictionaryAtoB.sol";
@@ -14,9 +14,6 @@ contract ManagerState is Module {
     /** @dev Custom dictionary for managing data structures */
     using DictionaryAtoB for DictionaryAtoB.AddressToBytes32;
 
-    /** @dev Hard coded Systok key for calling OracleHub */
-    bytes32 internal oracle_key_systok = "MTA";
-
     /** @dev Data structure of the Masset and Bassets */
     DictionaryAtoB.AddressToBytes32 massets;
 
@@ -24,9 +21,9 @@ contract ManagerState is Module {
      * @dev Deviation thresholds for detecting peg loss and initiating re-collateralisation
      * 1e17 == 10% deviation, i.e. if Basset deviates >= 10% from its target peg
      */
-    uint256 constant base_price = 1e18;
-    uint256 constant neg_deviation_threshold = 1e17;
-    uint256 constant pos_deviation_threshold = 1e17;
+    uint256 public constant base_price = 1e18;
+    uint256 public constant neg_deviation_threshold = 5e16;
+    uint256 public constant pos_deviation_threshold = 5e16;
 
 
     constructor(address _nexus) Module(_nexus) internal {

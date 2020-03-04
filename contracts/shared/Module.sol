@@ -1,4 +1,4 @@
-pragma solidity ^0.5.16;
+pragma solidity 0.5.16;
 
 import { ModuleKeys } from "../shared/ModuleKeys.sol";
 import { INexus } from "../interfaces/INexus.sol";
@@ -54,11 +54,11 @@ contract Module is ModuleKeys {
         return nexus.getModule(Key_Staking);
     }
 
-    function _systok()
+    function _metaToken()
     internal
     view
     returns (address) {
-        return nexus.getModule(Key_Systok);
+        return nexus.getModule(Key_MetaToken);
     }
 
     function _oracleHub()
