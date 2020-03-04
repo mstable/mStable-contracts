@@ -133,21 +133,20 @@ contract MassetBasket is MassetStructs, MassetCore {
 
         // Blist -> require status to == BList || BrokenPeg
 
-        // If vaultBalance is 0 and we want to recol, then just remove from Basket?
+        // If vaultBalance is 0 and we want to recol, then just remove from Basket
+        // Ensure removal possible
         if(vaultBalance == 0){
             _removeBasset(_basset);
             return (false, false);
         }
-        // require(vaultBalance > 0, "Must have something to recollateralise");
 
         basket.bassets[i].status = BassetStatus.Liquidating;
         basket.bassets[i].vaultBalance = 0;
 
-
-        // BLIST -> If status == Blist then return true, else
+        // Blist -> If status == Blist then return true, else
         // If status == brokenPeg then call Approve
         // req re-collateraliser != address(0)
-
+        // req approve 0 then approve
 
         // Approve the recollateraliser to take the Basset
         IERC20(_basset).approve(_recollateraliser(), vaultBalance);
