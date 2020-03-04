@@ -49,3 +49,6 @@ package-lock.json
 # solcover
 .coverage_artifacts/
 .coverage_contracts/
+
+# sol-merger
+flat/
