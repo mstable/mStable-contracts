@@ -28,23 +28,23 @@ module.exports = async (deployer, network, accounts) => {
     let addresses = new Array(3);
     let isLocked = new Array(3);
 
-    keys[0] = await d_Nexus.Key_MetaToken();
+    keys[0] = await d_Manager.Key_MetaToken();
     addresses[0] = d_MetaToken.address;
     isLocked[0] = true;
 
     if (network == 'development' || network == 'coverage') {
         const d_OracleHubMock = await c_OracleHubMock.deployed()
-        keys[1] = await d_Nexus.Key_OracleHub();
+        keys[1] = await d_Manager.Key_OracleHub();
         addresses[1] = d_OracleHubMock.address;
         isLocked[1] = false;
     } else {
         const d_OracleHub = await c_OracleHub.deployed()
-        keys[1] = await d_Nexus.Key_OracleHub();
+        keys[1] = await d_Manager.Key_OracleHub();
         addresses[1] = d_OracleHub.address;
         isLocked[1] = false;
     }
 
-    keys[2] = await d_Nexus.Key_Manager();
+    keys[2] = await d_Manager.Key_Manager();
     addresses[2] = d_Manager.address;
     isLocked[2] = false;
 

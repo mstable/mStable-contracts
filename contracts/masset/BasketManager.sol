@@ -3,9 +3,8 @@ pragma experimental ABIEncoderV2;
 
 import { CommonHelpers } from "../shared/libs/CommonHelpers.sol";
 
-import { MassetCore, IManager, IForgeValidator, StableMath } from "./MassetCore.sol";
-
 import { MassetStructs } from "./shared/MassetStructs.sol";
+import { Module } from "../shared/Module.sol";
 
 import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
@@ -15,7 +14,7 @@ import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
  * @title MassetBasket
  * @dev Manages the Masset Basket composition and acts as a cache to store the Basket Assets (Bassets)
  */
-contract MassetBasket is MassetStructs, MassetCore {
+contract BasketManager is Module, MassetStructs {
 
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
@@ -153,6 +152,40 @@ contract MassetBasket is MassetStructs, MassetCore {
         return (true, true);
     }
 
+    /**
+     * @dev Completes the auctioning process for a given Basset
+     * @param _basset Address of the ERC20 token to isolate
+     * @param _unitsUnderCollateralised Masset units that we failed to recollateralise
+     */
+    function completeRecol(address _basset, uint256 _unitsUnderCollateralised)
+        external
+        onlyManager
+    {
+        (bool exists, uint256 i) = _isAssetInBasket(_basset);
+        require(exists, "bAsset must exist in Basket");
+
+        (, , , , , BassetStatus status) = _getBasset(i);
+        require(status == BassetStatus.Liquidating, "Invalid Basset state");
+        basket.bassets[i].maxWeight = 0;
+        basket.bassets[i].vaultBalance = 0;
+
+        if(_unitsUnderCollateralised > 0){
+            uint256 massetSupply = this.totalSupply();
+            // e.g. 1. c = 100e24 * 1e18 = 100e24
+            // e.g. 2. c = 100e24 * 9e17 =  90e24
+            uint256 collateralisedMassets = massetSupply.mulTruncate(basket.collateralisationRatio);
+            // e.g. 1. c = (100e24 - 5e24)*1e18 / 100e24 = 95e42/100e24 = 95e16
+            // e.g. 2. c = ( 90e24 - 5e24)*1e18 / 100e24 = 85e16
+            basket.collateralisationRatio = (collateralisedMassets.sub(_unitsUnderCollateralised)).divPrecisely(massetSupply);
+            basket.bassets[i].status = BassetStatus.Failed;
+            basket.failed = true;
+            _removeBasset(_basset);
+        } else {
+            basket.bassets[i].status = BassetStatus.Liquidated;
+            _removeBasset(_basset);
+        }
+    }
+
 
     /***************************************
                 BASKET ADJUSTMENTS
@@ -285,8 +318,6 @@ contract MassetBasket is MassetStructs, MassetCore {
 
         basket.bassetsMap[_assetToRemove] = 0;
 
-        basket.expiredBassets.push(_assetToRemove);
-
         emit BassetRemoved(_assetToRemove);
     }
 
@@ -345,6 +376,117 @@ contract MassetBasket is MassetStructs, MassetCore {
         emit BasketWeightsUpdated(_bassets, _weights);
     }
 
+
+    /***************************************
+                    HELPERS
+    ****************************************/
+
+    /**
+     * @dev Get bitmap for all bAsset addresses
+     * @return bitmap with bits set according to bAsset address position
+     */
+    function getBitmapForAllBassets() external view returns (uint32 bitmap) {
+        for(uint32 i = 0; i < basket.bassets.length; i++) {
+            bitmap |= uint32(2)**i;
+        }
+    }
+
+    /**
+     * @dev Returns the bitmap for given bAssets addresses
+     * @param _bassets bAsset addresses for which bitmap is needed
+     * @return bitmap with bits set according to bAsset address position
+     */
+    function getBitmapFor(address[] calldata _bassets) external view returns (uint32 bitmap) {
+        for(uint32 i = 0; i < _bassets.length; i++) {
+            (bool exist, uint256 idx) = _isAssetInBasket(_bassets[i]);
+            if(exist) bitmap |= uint32(2)**uint8(idx);
+        }
+    }
+
+    /**
+     * @dev Convert bitmap representing bAssets location to bAssets addresses
+     * @param _bitmap bits set in bitmap represents which bAssets to use
+     * @param _size size of bAssets array
+     * @return array of bAssets array
+     */
+    function convertBitmapToBassetsAddress(uint32 _bitmap, uint8 _size) external view returns (address[] memory) {
+        uint8[] memory indexes = _convertBitmapToIndexArr(_bitmap, _size);
+        address[] memory bAssets = new address[](_size);
+        for(uint8 i = 0; i < indexes.length; i++) {
+            bAssets[i] = basket.bassets[indexes[i]].addr;
+        }
+        return bAssets;
+    }
+
+
+    /**
+     * @dev Convert bitmap representing bAssets location to Bassets array
+     * @param _bitmap bits set in bitmap represents which bAssets to use
+     * @param _size size of bAssets array
+     * @return array of Basset array
+     */
+    function convertBitmapToBassets(
+        uint32 _bitmap,
+        uint8 _size
+    )
+        public
+        view
+        returns (Basset[] memory, uint8[] memory)
+    {
+        uint8[] memory indexes = _convertBitmapToIndexArr(_bitmap, _size);
+        Basset[] memory bAssets = new Basset[](_size);
+        for(uint8 i = 0; i < indexes.length; i++) {
+            bAssets[i] = basket.bassets[indexes[i]];
+        }
+        return (bAssets, indexes);
+    }
+
+
+    /**
+     * @dev Convert the given bitmap into an array representing bAssets index location in the array
+     * @param _bitmap bits set in bitmap represents which bAssets to use
+     * @param _size size of the bassetsQuantity array
+     * @return array having indexes of each bAssets
+     */
+    function _convertBitmapToIndexArr(uint32 _bitmap, uint8 _size) internal view returns (uint8[] memory) {
+        uint8[] memory indexes = new uint8[](_size);
+        uint8 idx = 0;
+        // Assume there are 4 bAssets in array
+        // size = 2
+        // bitmap   = 00000000 00000000 00000000 00001010
+        // mask     = 00000000 00000000 00000000 00001000 //mask for 4th pos
+        // isBitSet = 00000000 00000000 00000000 00001000 //checking 4th pos
+        // indexes  = [1, 3]
+        uint256 len = basket.bassets.length;
+        for(uint8 i = 0; i < len; i++) {
+            uint32 mask = uint32(2)**i;
+            uint32 isBitSet = _bitmap & mask;
+            if(isBitSet >= 1) indexes[idx++] = i;
+        }
+        require(idx == _size, "Found incorrect elements");
+        return indexes;
+    }
+
+    function _transferTokens(
+        address _basset,
+        bool _isFeeCharged,
+        uint256 _qty
+    )
+        internal
+        returns (uint256 receivedQty)
+    {
+        receivedQty = _qty;
+        if(_isFeeCharged) {
+            uint256 balBefore = IERC20(_basset).balanceOf(address(this));
+            IERC20(_basset).safeTransferFrom(msg.sender, address(this), _qty);
+            uint256 balAfter = IERC20(_basset).balanceOf(address(this));
+            receivedQty = StableMath.min(_qty, balAfter.sub(balBefore));
+        } else {
+            IERC20(_basset).safeTransferFrom(msg.sender, address(this), _qty);
+        }
+    }
+
+
     /***************************************
                     GETTERS
     ****************************************/
@@ -357,11 +499,11 @@ contract MassetBasket is MassetStructs, MassetCore {
     external
     view
     returns (
-        address[] memory expiredBassets,
+        uint256 masBassets,
         bool failed,
         uint256 collateralisationRatio
     ) {
-        return (basket.expiredBassets, basket.failed, basket.collateralisationRatio);
+        return (basket.masBassets, basket.failed, basket.collateralisationRatio);
     }
 
     /**

@@ -13,9 +13,6 @@ contract MUSD is Masset {
     /** @dev constructor */
     constructor (
         address _nexus,
-        address[] memory _bassets,
-        uint256[] memory _bassetWeights,
-        bool[] memory _hasTransferFees,
         address _feePool,
         address _forgeValidator
     )
@@ -23,10 +20,6 @@ contract MUSD is Masset {
             "mStable USD",
             "mUSD",
             _nexus,
-            _bassets,
-            _bassetWeights,
-            new uint256[](0),
-            _hasTransferFees,
             _feePool,
             _forgeValidator
         )

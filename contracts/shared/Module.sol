@@ -75,6 +75,13 @@ contract Module is ModuleKeys {
         return nexus.getModule(Key_Manager);
     }
 
+    function _savingsManager()
+    internal
+    view
+    returns (address) {
+        return nexus.getModule(Key_SavingsManager);
+    }
+
     // Phase 2
     function _recollateraliser()
     internal

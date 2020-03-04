@@ -18,11 +18,6 @@ interface MassetStructs {
         uint8 maxBassets;
 
         /**
-         * @dev Old Bassets that have been removed from the system
-         */
-        address[] expiredBassets;
-
-        /**
          * @dev In the event that we do not raise enough funds from the auctioning of a failed Basset,
          * The Basket is deemed as failed, and is undercollateralised to a certain degree.
          * The collateralisation ratio is used to calc Masset burn rate.
@@ -35,7 +30,7 @@ interface MassetStructs {
     /** @dev Stores bAsset info. The struct takes 4 storage slots per Basset */
     struct Basset {
 
-        /** @dev Address of the Basset */
+        /** @dev Address of the bAsset */
         address addr;
 
         /** @dev Status of the basset,  */

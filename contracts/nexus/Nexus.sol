@@ -1,7 +1,6 @@
 pragma solidity 0.5.16;
 
 import { INexus } from "../interfaces/INexus.sol";
-import { ModuleKeys } from "../shared/ModuleKeys.sol";
 import { DelayedClaimableGovernor } from "../governance/DelayedClaimableGovernor.sol";
 
 /**
@@ -11,7 +10,7 @@ import { DelayedClaimableGovernor } from "../governance/DelayedClaimableGovernor
  * @dev     The Nexus is mStable's Kernel, and allows the publishing and propagating
  *          of new system Modules. Other Modules will read from the Nexus
  */
-contract Nexus is INexus, ModuleKeys, DelayedClaimableGovernor {
+contract Nexus is INexus, DelayedClaimableGovernor {
 
     event ModuleProposed(bytes32 indexed key, address addr, uint256 timestamp);
     event ModuleAdded(bytes32 indexed key, address addr, bool isLocked);
