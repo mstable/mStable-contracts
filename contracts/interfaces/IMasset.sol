@@ -9,7 +9,7 @@ import { MassetStructs } from "../masset/shared/MassetStructs.sol";
 contract IMasset is MassetStructs {
 
     /** @dev Calc interest */
-    function recalculateCollateral() external;
+    function recalculateCollateral() external returns (uint256 massetMinted);
 
     /** @dev Minting */
     function mint(address _basset,uint256 _bassetQuantity) external returns (uint256 massetMinted);

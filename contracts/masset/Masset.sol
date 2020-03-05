@@ -7,6 +7,7 @@ import { IForgeValidator } from "./forge-validator/IForgeValidator.sol";
 
 // Internal
 import { IMasset } from "../interfaces/IMasset.sol";
+import { BasketManager } from "./BasketManager.sol";
 import { MassetToken } from "./MassetToken.sol";
 import { Module } from "../shared/Module.sol";
 import { MassetStructs } from "./shared/MassetStructs.sol";
@@ -61,8 +62,11 @@ contract Masset is IMasset, MassetToken, Module {
     /** @dev Meta information for ecosystem fees */
     address public feeRecipient;
     uint256 public redemptionFee;
+    bool private metaFee = false;
     uint256 internal constant maxFee = 1e17;
 
+    /** @dev Generic state */
+    bool frozen = false;
 
     /** @dev constructor */
     constructor (
@@ -71,7 +75,10 @@ contract Masset is IMasset, MassetToken, Module {
         address _nexus,
         address _feeRecipient,
         address _forgeValidator,
-        address _basketManager
+        address[] memory _bassets,
+        uint256[] memory _weights,
+        uint256[] memory _multiples,
+        bool[] memory _hasTransferFees
     )
         MassetToken(
             _name,
@@ -85,8 +92,18 @@ contract Masset is IMasset, MassetToken, Module {
     {
         feeRecipient = _feeRecipient;
         forgeValidator = IForgeValidator(_forgeValidator);
+        address newBasketManager = address(
+            new BasketManager(
+                _nexus,
+                address(this),
+                _bassets,
+                _weights,
+                _multiples,
+                _hasTransferFees
+            )
+        );
+        basketManager = IBasketManager(newBasketManager);
         redemptionFee = 2e16;
-        basketManager = IBasketManager(_basketManager);
     }
 
     /**
@@ -94,6 +111,14 @@ contract Masset is IMasset, MassetToken, Module {
       */
     modifier managerOrGovernor() {
         require(_manager() == msg.sender || _governor() == msg.sender, "Must be manager or governance");
+        _;
+    }
+
+    /**
+      * @dev Verifies that the caller either Manager or Gov
+      */
+    modifier notFrozen() {
+        require(!frozen, "Contract is frozen");
         _;
     }
 
@@ -121,6 +146,7 @@ contract Masset is IMasset, MassetToken, Module {
         uint256 _bassetQuantity
     )
         external
+        notFrozen
         returns (uint256 massetMinted)
     {
         return _mintTo(_basset, _bassetQuantity, msg.sender);
@@ -139,6 +165,7 @@ contract Masset is IMasset, MassetToken, Module {
         address _recipient
     )
         external
+        notFrozen
         returns (uint256 massetMinted)
     {
         return _mintTo(_basset, _bassetQuantity, _recipient);
@@ -156,6 +183,7 @@ contract Masset is IMasset, MassetToken, Module {
         address _recipient
     )
         external
+        notFrozen
         returns(uint256 massetMinted)
     {
         return _mintTo(_bassetsBitmap, _bassetQuantity, _recipient);
@@ -271,6 +299,7 @@ contract Masset is IMasset, MassetToken, Module {
       */
     function upgradeForgeValidator(address _newForgeValidator)
     external
+    notFrozen
     managerOrGovernor {
         require(!forgeValidatorLocked, "Must be allowed to upgrade");
         require(_newForgeValidator != address(0), "Must be non null address");
@@ -282,6 +311,7 @@ contract Masset is IMasset, MassetToken, Module {
       */
     function lockForgeValidator()
     external
+    notFrozen
     managerOrGovernor {
         forgeValidatorLocked = true;
     }
@@ -292,6 +322,7 @@ contract Masset is IMasset, MassetToken, Module {
       */
     function setFeeRecipient(address _feeRecipient)
     external
+    notFrozen
     managerOrGovernor {
         require(_feeRecipient != address(0), "Must be valid address");
         feeRecipient = _feeRecipient;
@@ -304,6 +335,7 @@ contract Masset is IMasset, MassetToken, Module {
       */
     function setRedemptionFee(uint256 _redemptionFee)
     external
+    notFrozen
     managerOrGovernor {
         require(_redemptionFee <= maxFee, "Redemption fee > maxFee");
         redemptionFee = _redemptionFee;
@@ -317,7 +349,41 @@ contract Masset is IMasset, MassetToken, Module {
         return address(basketManager);
     }
 
+    function freeze()
+    external
+    notFrozen
+    onlyGovernor {
+        frozen = true;
+    }
+
+    function unFreeze()
+    external
+    onlyGovernor {
+        frozen = false;
+    }
+
+    function enableMetaFee()
+    external
+    notFrozen
+    onlyGovernor {
+        metaFee = true;
+    }
+
     /***************************************
                     INFLATION
     ****************************************/
+
+    function recalculateCollateral()
+        external
+        onlySavingsManager
+        notFrozen
+        returns (uint256 massetMinted)
+    {
+        // get basket details from BasketManager
+        // foreach bAsset
+        //      call each integration to `checkBalance`
+        //      increaseVaultBalance
+        //      accumulate interestdelta (ratioed bAsset)
+        // mint new mAsset (provided under some limit) to sender
+    }
 }
