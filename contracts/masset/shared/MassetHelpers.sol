@@ -2,7 +2,7 @@ pragma solidity 0.5.16;
 pragma experimental ABIEncoderV2;
 
 import { IMasset } from "../../interfaces/IMasset.sol";
-import { Masset } from "../Masset.sol";
+import { IBasketManager } from "../../interfaces/IBasketManager.sol";
 import { IForgeValidator } from "../forge-validator/IForgeValidator.sol";
 import { MassetStructs } from "./MassetStructs.sol";
 import { StableMath } from "../../shared/StableMath.sol";
@@ -44,7 +44,8 @@ library MassetHelpers {
     function approveAllBassets(IMasset _mUSD, address _spender)
         internal
     {
-        address[] memory bAssets = _mUSD.getAllBassetsAddress();
+        IBasketManager manager = IBasketManager(_mUSD.getBasketManager());
+        address[] memory bAssets = manager.getAllBassetsAddress();
         for(uint256 i = 0; i < bAssets.length; i++) {
             IERC20(bAssets[i]).safeIncreaseAllowance(_spender, uint256(-1));
         }
@@ -57,20 +58,20 @@ library MassetHelpers {
     }
 
     /** @dev completely external view call - expensive if done in contract */
-    function validateMint(address _mAsset, address _bAsset, uint256 _bAssetQuantity)
-        external
-        view
-        returns (bool isValid, string memory reason)
-    {
-        // 1. get forge validator address
-        IForgeValidator forgeValidator = IForgeValidator(Masset(_mAsset).forgeValidator());
-        // 2. get Basset struct
-        MassetStructs.Basset memory bAsset = _getBasset(_mAsset, _bAsset);
-        // 3. get totalSupply
-        uint256 totalSupply = IERC20(_mAsset).totalSupply();
-        // 4. call validateMint
-        return forgeValidator.validateMint(totalSupply, bAsset, _bAssetQuantity);
-    }
+    // function validateMint(address _mAsset, address _bAsset, uint256 _bAssetQuantity)
+    //     external
+    //     view
+    //     returns (bool isValid, string memory reason)
+    // {
+    //     // 1. get forge validator address
+    //     IForgeValidator forgeValidator = IForgeValidator(Masset(_mAsset).forgeValidator());
+    //     // 2. get Basset struct
+    //     MassetStructs.Basset memory bAsset = _getBasset(_mAsset, _bAsset);
+    //     // 3. get totalSupply
+    //     uint256 totalSupply = IERC20(_mAsset).totalSupply();
+    //     // 4. call validateMint
+    //     return forgeValidator.validateMint(totalSupply, bAsset, _bAssetQuantity);
+    // }
 
     // function validateMintMulti(address _mAsset, uint32 _bAssetsBitmap, uint256[] calldata _bAssetQuantity)
     //     external
@@ -87,41 +88,41 @@ library MassetHelpers {
     //     return forgeValidator.validateMint(totalSupply, bAsset, _bAssetQuantity);
     // }
 
-    function _getBasset(address _mAsset, address _bAsset)
-        internal
-        view
-        returns (MassetStructs.Basset memory)
-    {
-        (
-            ,
-            uint256 ratio,
-            uint256 weight,
-            uint256 vaultBalance,
-            bool isTransferFeeCharged,
-            MassetStructs.BassetStatus status
-        ) = IMasset(_mAsset).getBasset(_bAsset);
-        return _getBassetStruct(_bAsset, ratio, weight, vaultBalance, isTransferFeeCharged, status);
-    }
+    // function _getBasset(address _mAsset, address _bAsset)
+    //     internal
+    //     view
+    //     returns (MassetStructs.Basset memory)
+    // {
+    //     (
+    //         ,
+    //         uint256 ratio,
+    //         uint256 weight,
+    //         uint256 vaultBalance,
+    //         bool isTransferFeeCharged,
+    //         MassetStructs.BassetStatus status
+    //     ) = Masset(_mAsset).getBasset(_bAsset);
+    //     return _getBassetStruct(_bAsset, ratio, weight, vaultBalance, isTransferFeeCharged, status);
+    // }
 
-    function _getBassetStruct(
-        address addr,
-        uint256 ratio,
-        uint256 weight,
-        uint256 vaultBalance,
-        bool isTransferFeeCharged,
-        MassetStructs.BassetStatus status
-    )
-        internal
-        pure
-        returns (MassetStructs.Basset memory)
-    {
-        return MassetStructs.Basset({
-            addr: addr,
-            ratio: ratio,
-            maxWeight: weight,
-            vaultBalance: vaultBalance,
-            status: status,
-            isTransferFeeCharged: isTransferFeeCharged
-        });
-    }
+    // function _getBassetStruct(
+    //     address addr,
+    //     uint256 ratio,
+    //     uint256 weight,
+    //     uint256 vaultBalance,
+    //     bool isTransferFeeCharged,
+    //     MassetStructs.BassetStatus status
+    // )
+    //     internal
+    //     pure
+    //     returns (MassetStructs.Basset memory)
+    // {
+    //     return MassetStructs.Basset({
+    //         addr: addr,
+    //         ratio: ratio,
+    //         maxWeight: weight,
+    //         vaultBalance: vaultBalance,
+    //         status: status,
+    //         isTransferFeeCharged: isTransferFeeCharged
+    //     });
+    // }
 }

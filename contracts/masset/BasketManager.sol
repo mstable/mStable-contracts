@@ -26,6 +26,7 @@ contract BasketManager is Module, MassetStructs {
     /** @dev Struct holding Basket details */
     Basket public basket;
     bool public measurementMultipleEnabled;
+    address public mAsset;
 
     /** @dev Forging events */
     event BassetAdded(address indexed basset);
@@ -35,13 +36,17 @@ contract BasketManager is Module, MassetStructs {
     /** @dev constructor */
     constructor(
         address _nexus,
+        address _mAsset,
         address[] memory _bassets,
         uint256[] memory _weights,
         uint256[] memory _multiples,
         bool[] memory _hasTransferFees
     )
+        Module(_nexus)
         public
     {
+        mAsset = _mAsset;
+
         require(_bassets.length > 0, "Must initialise with some bAssets");
 
         measurementMultipleEnabled = _multiples.length > 0;
@@ -73,128 +78,34 @@ contract BasketManager is Module, MassetStructs {
         _;
     }
 
+    /**
+      * @dev Verifies that the caller either Manager or Gov
+      */
+    modifier onlyMasset() {
+        require(mAsset == msg.sender, "Must be called by mAsset");
+        _;
+    }
+
     /***************************************
-              RE-COLLATERALISATION
+                  VAULT BALANCE
     ****************************************/
 
-    /**
-      * @dev Executes the Auto Redistribution event by isolating the Basset from the Basket
-      * @param _basset Address of the ERC20 token to isolate
-      * @param _belowPeg Bool to describe whether the basset deviated below peg (t) or above (f)
-      * @return alreadyActioned Bool to show whether a Basset had already been actioned
-      */
-    function handlePegLoss(address _basset, bool _belowPeg)
+    function increaseVaultBalance(address _bAsset, uint256 _increaseAmount)
         external
-        onlyManager
-        basketIsHealthy
-        returns (bool alreadyActioned)
+        onlyMasset
     {
-        (bool exists, uint256 i) = _isAssetInBasket(_basset);
-        require(exists, "bASset must exist in Basket");
-
-        BassetStatus oldStatus = basket.bassets[i].status;
-        BassetStatus newStatus = _belowPeg ? BassetStatus.BrokenBelowPeg : BassetStatus.BrokenAbovePeg;
-
-        if(oldStatus == newStatus ||
-          _bassetHasRecolled(oldStatus)) {
-            return true;
-        }
-
-        // If we need to update the status.. then do it
-        basket.bassets[i].status = newStatus;
-
-        return false;
+        (bool exist, uint256 index) = _isAssetInBasket(_bAsset);
+        require(exist, "bAsset does not exist");
+        basket.bassets[index].vaultBalance = basket.bassets[index].vaultBalance.add(_increaseAmount);
     }
 
-    /**
-      * @dev Negates the isolation of a given Basset
-      * @param _basset Address of the Basset
-      */
-    function negateIsolation(address _basset)
-    external
-    managerOrGovernor {
-        (bool exists, uint256 i) = _isAssetInBasket(_basset);
-        require(exists, "bASset must exist in Basket");
-
-        BassetStatus currentStatus = basket.bassets[i].status;
-        if(currentStatus == BassetStatus.BrokenBelowPeg ||
-          currentStatus == BassetStatus.BrokenAbovePeg ||
-          currentStatus == BassetStatus.Blacklisted) {
-            basket.bassets[i].status = BassetStatus.Normal;
-        }
-    }
-
-    /**
-      * @dev Sends the affected Basset off to the Recollateraliser to be auctioned
-      * @param _basset Address of the Basset to isolate
-      */
-    function initiateRecol(address _basset)
+    function decreaseVaultBalance(address _bAsset, uint256 _decreaseAmount)
         external
-        managerOrGovernor
-        basketIsHealthy
-        returns (bool requiresAuction, bool isTransferable)
+        onlyMasset
     {
-        (bool exists, uint256 i) = _isAssetInBasket(_basset);
-        require(exists, "bASset must exist in Basket");
-
-        Basset memory bAsset = _getBasset(i);
-        require(!_bassetHasRecolled(bAsset.status), "Invalid Basset state");
-
-        // Blist -> require status to == BList || BrokenPeg
-
-        // If vaultBalance is 0 and we want to recol, then just remove from Basket
-        // Ensure removal possible
-        if(bAsset.vaultBalance == 0){
-            _removeBasset(_basset);
-            return (false, false);
-        }
-
-        basket.bassets[i].status = BassetStatus.Liquidating;
-        basket.bassets[i].vaultBalance = 0;
-
-        // Blist -> If status == Blist then return true, else
-        // If status == brokenPeg then call Approve
-        // req re-collateraliser != address(0)
-        // req approve 0 then approve
-
-        // Approve the recollateraliser to take the Basset
-        IERC20(_basset).approve(_recollateraliser(), bAsset.vaultBalance);
-        return (true, true);
-    }
-
-    /**
-     * @dev Completes the auctioning process for a given Basset
-     * @param _basset Address of the ERC20 token to isolate
-     * @param _unitsUnderCollateralised Masset units that we failed to recollateralise
-     */
-    function completeRecol(address _basset, uint256 _unitsUnderCollateralised)
-        external
-        onlyManager
-    {
-        (bool exists, uint256 i) = _isAssetInBasket(_basset);
-        require(exists, "bAsset must exist in Basket");
-
-        Basset memory bAsset = _getBasset(i);
-        require(bAsset.status == BassetStatus.Liquidating, "Invalid Basset state");
-        basket.bassets[i].maxWeight = 0;
-        basket.bassets[i].vaultBalance = 0;
-
-        if(_unitsUnderCollateralised > 0){
-            // TODO - set collateralisation ratio at minimum equal to total ratioed vault balances
-            uint256 massetSupply = 1e18; // GET total supply from IERC20(_mUSD)
-            // e.g. 1. c = 100e24 * 1e18 = 100e24
-            // e.g. 2. c = 100e24 * 9e17 =  90e24
-            uint256 collateralisedMassets = massetSupply.mulTruncate(basket.collateralisationRatio);
-            // e.g. 1. c = (100e24 - 5e24)*1e18 / 100e24 = 95e42/100e24 = 95e16
-            // e.g. 2. c = ( 90e24 - 5e24)*1e18 / 100e24 = 85e16
-            basket.collateralisationRatio = (collateralisedMassets.sub(_unitsUnderCollateralised)).divPrecisely(massetSupply);
-            basket.bassets[i].status = BassetStatus.Failed;
-            basket.failed = true;
-            _removeBasset(_basset);
-        } else {
-            basket.bassets[i].status = BassetStatus.Liquidated;
-            _removeBasset(_basset);
-        }
+        (bool exist, uint256 index) = _isAssetInBasket(_bAsset);
+        require(exist, "bAsset does not exist");
+        basket.bassets[index].vaultBalance = basket.bassets[index].vaultBalance.sub(_decreaseAmount);
     }
 
 
@@ -441,7 +352,7 @@ contract BasketManager is Module, MassetStructs {
         uint32 _bitmap,
         uint8 _size
     )
-        public
+        external
         view
         returns (Basset[] memory, uint8[] memory)
     {
@@ -492,11 +403,10 @@ contract BasketManager is Module, MassetStructs {
     external
     view
     returns (
-        uint256 maxBassets,
         bool failed,
         uint256 collateralisationRatio
     ) {
-        return (basket.maxBassets, basket.failed, basket.collateralisationRatio);
+        return (basket.failed, basket.collateralisationRatio);
     }
 
     /**
@@ -524,7 +434,7 @@ contract BasketManager is Module, MassetStructs {
       * @return Struct array of all basket assets
       */
     function getBasset(address _basset)
-        public
+        external
         view
         returns (
             Basset memory bAsset
@@ -603,4 +513,130 @@ contract BasketManager is Module, MassetStructs {
         }
         return false;
     }
+
+
+    /***************************************
+              RE-COLLATERALISATION
+    ****************************************/
+
+    /**
+      * @dev Executes the Auto Redistribution event by isolating the Basset from the Basket
+      * @param _basset Address of the ERC20 token to isolate
+      * @param _belowPeg Bool to describe whether the basset deviated below peg (t) or above (f)
+      * @return alreadyActioned Bool to show whether a Basset had already been actioned
+      */
+    function handlePegLoss(address _basset, bool _belowPeg)
+        external
+        onlyManager
+        basketIsHealthy
+        returns (bool alreadyActioned)
+    {
+        (bool exists, uint256 i) = _isAssetInBasket(_basset);
+        require(exists, "bASset must exist in Basket");
+
+        BassetStatus oldStatus = basket.bassets[i].status;
+        BassetStatus newStatus = _belowPeg ? BassetStatus.BrokenBelowPeg : BassetStatus.BrokenAbovePeg;
+
+        if(oldStatus == newStatus ||
+          _bassetHasRecolled(oldStatus)) {
+            return true;
+        }
+
+        // If we need to update the status.. then do it
+        basket.bassets[i].status = newStatus;
+
+        return false;
+    }
+
+    /**
+      * @dev Negates the isolation of a given Basset
+      * @param _basset Address of the Basset
+      */
+    function negateIsolation(address _basset)
+    external
+    managerOrGovernor {
+        (bool exists, uint256 i) = _isAssetInBasket(_basset);
+        require(exists, "bASset must exist in Basket");
+
+        BassetStatus currentStatus = basket.bassets[i].status;
+        if(currentStatus == BassetStatus.BrokenBelowPeg ||
+          currentStatus == BassetStatus.BrokenAbovePeg ||
+          currentStatus == BassetStatus.Blacklisted) {
+            basket.bassets[i].status = BassetStatus.Normal;
+        }
+    }
+
+    /**
+      * @dev Sends the affected Basset off to the Recollateraliser to be auctioned
+      * @param _basset Address of the Basset to isolate
+      */
+    function initiateRecol(address _basset)
+        external
+        managerOrGovernor
+        basketIsHealthy
+        returns (bool requiresAuction, bool isTransferable)
+    {
+        (bool exists, uint256 i) = _isAssetInBasket(_basset);
+        require(exists, "bASset must exist in Basket");
+
+        Basset memory bAsset = _getBasset(i);
+        require(!_bassetHasRecolled(bAsset.status), "Invalid Basset state");
+
+        // Blist -> require status to == BList || BrokenPeg
+
+        // If vaultBalance is 0 and we want to recol, then just remove from Basket
+        // Ensure removal possible
+        if(bAsset.vaultBalance == 0){
+            _removeBasset(_basset);
+            return (false, false);
+        }
+
+        basket.bassets[i].status = BassetStatus.Liquidating;
+        basket.bassets[i].vaultBalance = 0;
+
+        // Blist -> If status == Blist then return true, else
+        // If status == brokenPeg then call Approve
+        // req re-collateraliser != address(0)
+        // req approve 0 then approve
+
+        // Approve the recollateraliser to take the Basset
+        IERC20(_basset).approve(_recollateraliser(), bAsset.vaultBalance);
+        return (true, true);
+    }
+
+    /**
+     * @dev Completes the auctioning process for a given Basset
+     * @param _basset Address of the ERC20 token to isolate
+     * @param _unitsUnderCollateralised Masset units that we failed to recollateralise
+     */
+    function completeRecol(address _basset, uint256 _unitsUnderCollateralised)
+        external
+        onlyManager
+    {
+        (bool exists, uint256 i) = _isAssetInBasket(_basset);
+        require(exists, "bAsset must exist in Basket");
+
+        Basset memory bAsset = _getBasset(i);
+        require(bAsset.status == BassetStatus.Liquidating, "Invalid Basset state");
+        basket.bassets[i].maxWeight = 0;
+        basket.bassets[i].vaultBalance = 0;
+
+        if(_unitsUnderCollateralised > 0){
+            // TODO - set collateralisation ratio at minimum equal to total ratioed vault balances
+            uint256 massetSupply = 1e18; // GET total supply from IERC20(_mUSD)
+            // e.g. 1. c = 100e24 * 1e18 = 100e24
+            // e.g. 2. c = 100e24 * 9e17 =  90e24
+            uint256 collateralisedMassets = massetSupply.mulTruncate(basket.collateralisationRatio);
+            // e.g. 1. c = (100e24 - 5e24)*1e18 / 100e24 = 95e42/100e24 = 95e16
+            // e.g. 2. c = ( 90e24 - 5e24)*1e18 / 100e24 = 85e16
+            basket.collateralisationRatio = (collateralisedMassets.sub(_unitsUnderCollateralised)).divPrecisely(massetSupply);
+            basket.bassets[i].status = BassetStatus.Failed;
+            basket.failed = true;
+            _removeBasset(_basset);
+        } else {
+            basket.bassets[i].status = BassetStatus.Liquidated;
+            _removeBasset(_basset);
+        }
+    }
+
 }

@@ -14,6 +14,10 @@ contract IBasketManager is MassetStructs {
     function addBasset(address _basset, uint256 _measurementMultiple, bool _isTransferFeeCharged) external;
     function setBasketWeights(address[] calldata _bassets, uint256[] calldata _weights) external;
 
+    /** @dev Setters for mAsset to update balances */
+    function increaseVaultBalance(address _bAsset, uint256 _increaseAmount) external;
+    function decreaseVaultBalance(address _bAsset, uint256 _decreaseAmount) external;
+
     /** @dev Recollateralisation */
     function handlePegLoss(address _basset, bool _belowPeg) external returns (bool actioned);
     function negateIsolation(address _basset) external;
@@ -35,7 +39,6 @@ contract IBasketManager is MassetStructs {
     external
     view
     returns (
-        uint256 maxBassets,
         bool failed,
         uint256 collateralisationRatio);
     function getBassets()

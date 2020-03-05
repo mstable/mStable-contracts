@@ -5,6 +5,7 @@ import { MassetRewards } from "./MassetRewards.sol";
 
 import { MassetHelpers } from "../masset/shared/MassetHelpers.sol";
 import { IMasset } from "../interfaces/IMasset.sol";
+import { IBasketManager } from "../interfaces/IBasketManager.sol";
 import { IMetaToken } from "../interfaces/IMetaToken.sol";
 
 import { StableMath } from "../shared/StableMath.sol";
@@ -30,10 +31,13 @@ contract ForgeRewardsMUSD is MassetRewards, IForgeRewards {
     using StableMath for uint256;
     using SafeERC20 for IERC20;
 
+    IBasketManager internal manager;
+
     constructor(IMasset _mUSD, IMetaToken _MTA, address _governor)
         public
         MassetRewards(_mUSD, _MTA, _governor)
     {
+        manager = IBasketManager(_mUSD.getBasketManager());
         approveAllBassets();
     }
 
@@ -45,7 +49,7 @@ contract ForgeRewardsMUSD is MassetRewards, IForgeRewards {
      * @dev Approve max tokens for mUSD contract for each bAsset
      */
     function approveAllBassets() public {
-        address[] memory bAssets = mUSD.getAllBassetsAddress();
+        address[] memory bAssets = manager.getAllBassetsAddress();
         for(uint256 i = 0; i < bAssets.length; i++) {
             approveFor(bAssets[i], uint256(-1));
         }
@@ -113,7 +117,7 @@ contract ForgeRewardsMUSD is MassetRewards, IForgeRewards {
         returns (uint256 massetMinted)
     {
         uint256 inputLength = _bassetQuantities.length;
-        address[] memory bAssetAddresses = mUSD.convertBitmapToBassetsAddress(_bAssetBitmap, uint8(inputLength));
+        address[] memory bAssetAddresses = manager.convertBitmapToBassetsAddress(_bAssetBitmap, uint8(inputLength));
         uint256[] memory receivedQty = new uint256[](inputLength);
 
         for(uint256 i = 0; i < inputLength; i++) {

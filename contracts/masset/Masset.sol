@@ -2,7 +2,7 @@ pragma solidity 0.5.16;
 pragma experimental ABIEncoderV2;
 
 // External
-import { BasketManager } from "./BasketManager.sol";
+import { IBasketManager } from "../interfaces/IBasketManager.sol";
 import { IForgeValidator } from "./forge-validator/IForgeValidator.sol";
 
 // Internal
@@ -15,6 +15,22 @@ import { MassetStructs } from "./shared/MassetStructs.sol";
 import { StableMath } from "../shared/StableMath.sol";
 import { SafeERC20 }  from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
 import { IERC20 }     from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
+
+interface IPlatform {
+    function deposit(
+        address _spender,
+        address _bAsset,
+        uint256 _amount,
+        bool _hasFee
+    ) external returns (uint256 quantityDeposited);
+    function withdraw(
+        address _receiver,
+        address _bAsset,
+        uint256 _amount,
+        bool _hasFee
+    ) external;
+    function checkBalance(address _bAsset) external returns (uint256 balance);
+}
 
 /**
  * @title Masset
@@ -40,14 +56,11 @@ contract Masset is IMasset, MassetToken, Module {
     /** @dev Modules */
     IForgeValidator public forgeValidator;
     bool internal forgeValidatorLocked = false;
-
-    /** @dev FeePool */
-    address public feeRecipient;
+    IBasketManager private basketManager;
 
     /** @dev Meta information for ecosystem fees */
+    address public feeRecipient;
     uint256 public redemptionFee;
-
-    /** @dev Maximum minting/redemption fee */
     uint256 internal constant maxFee = 1e17;
 
 
@@ -57,7 +70,8 @@ contract Masset is IMasset, MassetToken, Module {
         string memory _symbol,
         address _nexus,
         address _feeRecipient,
-        address _forgeValidator
+        address _forgeValidator,
+        address _basketManager
     )
         MassetToken(
             _name,
@@ -71,7 +85,8 @@ contract Masset is IMasset, MassetToken, Module {
     {
         feeRecipient = _feeRecipient;
         forgeValidator = IForgeValidator(_forgeValidator);
-        redemptionFee = 2e16;                 // 2%
+        redemptionFee = 2e16;
+        basketManager = IBasketManager(_basketManager);
     }
 
     /**
@@ -152,34 +167,33 @@ contract Masset is IMasset, MassetToken, Module {
 
     /**
      * @dev Mints a number of Massets based on a Basset user sends
-     * @param _basset Address of Basset user sends
-     * @param _bassetQuantity Exact units of Basset user wants to send to contract
+     * @param _bAsset Address of Basset user sends
+     * @param _bAssetQuantity Exact units of Basset user wants to send to contract
      * @param _recipient Address to which the Masset should be minted
      */
     function _mintTo(
-        address _basset,
-        uint256 _bassetQuantity,
+        address _bAsset,
+        uint256 _bAssetQuantity,
         address _recipient
     )
         internal
-        // basketIsHealthy
         returns (uint256 massetMinted)
     {
+        (bool basketHasFailed, ) = basketManager.getBasket();
+        require(!basketHasFailed, "Basket must be healthy");
+
         require(_recipient != address(0), "Recipient must not be 0x0");
-        require(_bassetQuantity > 0, "Quantity must not be 0");
+        require(_bAssetQuantity > 0, "Quantity must not be 0");
 
-        (bool exists, uint256 i) = _isAssetInBasket(_basset);
-        require(exists, "bAsset doesn't exist");
+        Basset memory b = basketManager.getBasset(_bAsset);
 
-        Basset memory b = basket.bassets[i];
-
-        uint256 bAssetQty = _transferTokens(_basset, b.isTransferFeeCharged, _bassetQuantity);
+        uint256 bAssetQty = IPlatform(b.integrator).deposit(msg.sender, _bAsset, _bAssetQuantity, b.isTransferFeeCharged);
 
         // Validation should be after token transfer, as bAssetQty is unknown before
         (bool isValid, string memory reason) = forgeValidator.validateMint(totalSupply(), b, bAssetQty);
         require(isValid, reason);
 
-        basket.bassets[i].vaultBalance = b.vaultBalance.add(bAssetQty);
+        basketManager.increaseVaultBalance(_bAsset, bAssetQty);
         // ratioedBasset is the number of masset quantity to mint
         uint256 ratioedBasset = bAssetQty.mulRatioTruncate(b.ratio);
 
@@ -203,35 +217,38 @@ contract Masset is IMasset, MassetToken, Module {
         address _recipient
     )
         internal
-        // basketIsHealthy
         returns (uint256 massetMinted)
     {
+        (bool basketHasFailed, ) = basketManager.getBasket();
+        require(!basketHasFailed, "Basket must be healthy");
+
         require(_recipient != address(0), "Recipient must not be 0x0");
         uint256 len = _bassetQuantity.length;
 
         // Load only needed bAssets in array
-        (Basset[] memory bAssets, uint8[] memory indexes)
-            = convertBitmapToBassets(_bassetsBitmap, uint8(len));
+        (Basset[] memory bAssets, )
+            = basketManager.convertBitmapToBassets(_bassetsBitmap, uint8(len));
 
         uint256 massetQuantity = 0;
 
         uint256[] memory receivedQty = new uint256[](len);
-        // Transfer the Bassets to this contract, update storage and calc MassetQ
-        for(uint256 j = 0; j < len; j++){
-            if(_bassetQuantity[j] > 0){
-                // bAsset == bAssets[j] == basket.bassets[indexes[j]]
-                Basset memory bAsset = bAssets[j];
+        // Transfer the Bassets to the integrator, update storage and calc MassetQ
+        for(uint256 i = 0; i < len; i++){
+            if(_bassetQuantity[i] > 0){
+                // bAsset == bAssets[i] == basket.bassets[indexes[i]]
+                Basset memory bAsset = bAssets[i];
 
-                uint256 receivedBassetQty = _transferTokens(bAsset.addr, bAsset.isTransferFeeCharged, _bassetQuantity[j]);
-                receivedQty[j] = receivedBassetQty;
-                basket.bassets[indexes[j]].vaultBalance = bAsset.vaultBalance.add(receivedBassetQty);
+                uint256 receivedBassetQty = IPlatform(bAsset.integrator).deposit(msg.sender, bAsset.addr, _bassetQuantity[i], bAsset.isTransferFeeCharged);
+                receivedQty[i] = receivedBassetQty;
+
+                basketManager.increaseVaultBalance(bAsset.addr, receivedBassetQty);
 
                 uint256 ratioedBasset = receivedBassetQty.mulRatioTruncate(bAsset.ratio);
                 massetQuantity = massetQuantity.add(ratioedBasset);
             }
         }
 
-        // Validate the proposed mint, after token transfer, as bAssert quantity is unknown until transferred
+        // Validate the proposed mint, after token transfer, as bAsset quantity is unknown until transferred
         (bool isValid, string memory reason) = forgeValidator.validateMint(totalSupply(), bAssets, receivedQty);
         require(isValid, reason);
 
@@ -293,4 +310,14 @@ contract Masset is IMasset, MassetToken, Module {
         emit RedemptionFeeChanged(_redemptionFee);
     }
 
+    function getBasketManager()
+    external
+    view
+    returns (address) {
+        return address(basketManager);
+    }
+
+    /***************************************
+                    INFLATION
+    ****************************************/
 }

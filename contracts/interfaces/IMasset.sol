@@ -28,4 +28,7 @@ contract IMasset is MassetStructs {
     /** @dev Setters for Gov to set system params */
     function setRedemptionFee(uint256 _redemptionFee) external;
     function setFeeRecipient(address _feeRecipient) external;
+
+    /** @dev Getters */
+    function getBasketManager() external view returns(address);
 }

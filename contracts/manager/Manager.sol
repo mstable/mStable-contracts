@@ -122,17 +122,17 @@ contract Manager is
     function detectPegDeviation(address _mAsset)
         external
     {
-        // get all bAsset keys
-        (address[] memory addresses) = IMasset(_mAsset).getAllBassetsAddress();
-        uint count = addresses.length;
-        require(count > 0, "Incorrect basset details");
+        // // get all bAsset keys
+        // (address[] memory addresses) = IMasset(_mAsset).getAllBassetsAddress();
+        // uint count = addresses.length;
+        // require(count > 0, "Incorrect basset details");
 
-        address oracleAddress = _oracleHub();
+        // address oracleAddress = _oracleHub();
 
-        // foreach bAsset
-        for (uint i = 0; i < count; i++) {
-            _detectPegDeviation(oracleAddress, _mAsset, addresses[i]);
-        }
+        // // foreach bAsset
+        // for (uint i = 0; i < count; i++) {
+        //     _detectPegDeviation(oracleAddress, _mAsset, addresses[i]);
+        // }
     }
 
     /**
@@ -144,12 +144,12 @@ contract Manager is
         external
     {
         // get all bAsset keys
-        require(_mAsset != address(0) && _bAsset != address(0), "Invalid addresses");
-        (address addr, , , , , ) = IMasset(_mAsset).getBasset(_bAsset);
-        require(addr != address(0), "bAsset doesn't exist in mAsset");
+        // require(_mAsset != address(0) && _bAsset != address(0), "Invalid addresses");
+        // (address addr, , , , , ) = IMasset(_mAsset).getBasset(_bAsset);
+        // require(addr != address(0), "bAsset doesn't exist in mAsset");
 
-        address oracleAddress = _oracleHub();
-        _detectPegDeviation(oracleAddress, _mAsset, _bAsset);
+        // address oracleAddress = _oracleHub();
+        // _detectPegDeviation(oracleAddress, _mAsset, _bAsset);
     }
 
     function _detectPegDeviation(address _oracleHub, address _mAsset, address _bAsset)
@@ -169,9 +169,9 @@ contract Manager is
 
             // If delta >= threshold, then trigger recol
             if(hasBrokenPeg) {
-                IMasset masset = IMasset(_mAsset);
-                masset.handlePegLoss(_bAsset, isBelowPeg);
-                emit BassetBrokenPeg(_bAsset, isBelowPeg);
+                // IMasset masset = IMasset(_mAsset);
+                // masset.handlePegLoss(_bAsset, isBelowPeg);
+                // emit BassetBrokenPeg(_bAsset, isBelowPeg);
             }
             // else skip
         }
