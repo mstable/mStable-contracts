@@ -2,7 +2,6 @@ pragma solidity 0.5.16;
 pragma experimental ABIEncoderV2;
 
 // Internal
-import { IManager } from "../interfaces/IManager.sol";
 import { MassetStructs } from "./shared/MassetStructs.sol";
 import { Module } from "../shared/Module.sol";
 
@@ -163,10 +162,10 @@ contract BasketManager is Module, MassetStructs {
         (bool alreadyInBasket, ) = _isAssetInBasket(_basset);
         require(!alreadyInBasket, "Asset already exists in Basket");
 
-        require(
-            IManager(_manager()).validateBasset(address(this), _basset, _measurementMultiple, _isTransferFeeCharged),
-            "New bAsset must be valid"
-        );
+        // require(
+        //     IManager(_manager()).validateBasset(address(this), _basset, _measurementMultiple, _isTransferFeeCharged),
+        //     "New bAsset must be valid"
+        // );
 
         // Check for ERC20 compatibility by forcing decimal retrieval
         // Ultimate enforcement of Basset validity should service through governance
@@ -527,7 +526,7 @@ contract BasketManager is Module, MassetStructs {
       */
     function handlePegLoss(address _basset, bool _belowPeg)
         external
-        onlyManager
+        managerOrGovernor
         basketIsHealthy
         returns (bool alreadyActioned)
     {
@@ -576,32 +575,7 @@ contract BasketManager is Module, MassetStructs {
         basketIsHealthy
         returns (bool requiresAuction, bool isTransferable)
     {
-        (bool exists, uint256 i) = _isAssetInBasket(_basset);
-        require(exists, "bASset must exist in Basket");
-
-        Basset memory bAsset = _getBasset(i);
-        require(!_bassetHasRecolled(bAsset.status), "Invalid Basset state");
-
-        // Blist -> require status to == BList || BrokenPeg
-
-        // If vaultBalance is 0 and we want to recol, then just remove from Basket
-        // Ensure removal possible
-        if(bAsset.vaultBalance == 0){
-            _removeBasset(_basset);
-            return (false, false);
-        }
-
-        basket.bassets[i].status = BassetStatus.Liquidating;
-        basket.bassets[i].vaultBalance = 0;
-
-        // Blist -> If status == Blist then return true, else
-        // If status == brokenPeg then call Approve
-        // req re-collateraliser != address(0)
-        // req approve 0 then approve
-
-        // Approve the recollateraliser to take the Basset
-        IERC20(_basset).approve(_recollateraliser(), bAsset.vaultBalance);
-        return (true, true);
+        return (false, false);
     }
 
     /**
@@ -613,30 +587,5 @@ contract BasketManager is Module, MassetStructs {
         external
         onlyManager
     {
-        (bool exists, uint256 i) = _isAssetInBasket(_basset);
-        require(exists, "bAsset must exist in Basket");
-
-        Basset memory bAsset = _getBasset(i);
-        require(bAsset.status == BassetStatus.Liquidating, "Invalid Basset state");
-        basket.bassets[i].maxWeight = 0;
-        basket.bassets[i].vaultBalance = 0;
-
-        if(_unitsUnderCollateralised > 0){
-            // TODO - set collateralisation ratio at minimum equal to total ratioed vault balances
-            uint256 massetSupply = 1e18; // GET total supply from IERC20(_mUSD)
-            // e.g. 1. c = 100e24 * 1e18 = 100e24
-            // e.g. 2. c = 100e24 * 9e17 =  90e24
-            uint256 collateralisedMassets = massetSupply.mulTruncate(basket.collateralisationRatio);
-            // e.g. 1. c = (100e24 - 5e24)*1e18 / 100e24 = 95e42/100e24 = 95e16
-            // e.g. 2. c = ( 90e24 - 5e24)*1e18 / 100e24 = 85e16
-            basket.collateralisationRatio = (collateralisedMassets.sub(_unitsUnderCollateralised)).divPrecisely(massetSupply);
-            basket.bassets[i].status = BassetStatus.Failed;
-            basket.failed = true;
-            _removeBasset(_basset);
-        } else {
-            basket.bassets[i].status = BassetStatus.Liquidated;
-            _removeBasset(_basset);
-        }
     }
-
 }
