@@ -14,7 +14,8 @@ interface IPlatform {
     function deposit(
         address _spender,
         address _bAsset,
-        uint256 _amount
+        uint256 _amount,
+        bool isTokenFeeCharged
     ) external returns (uint256 quantityDeposited);
 
     /**
