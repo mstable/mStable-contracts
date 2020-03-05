@@ -39,6 +39,38 @@ contract SavingsManager is ISavingsManager, Module {
         _;
     }
 
+    /***************************************
+                    STATE
+    ****************************************/
+
+    function freeze()
+        external
+        notFrozen
+        onlyGovernor
+    {
+        frozen = true;
+    }
+
+    function unFreeze()
+        external
+        onlyGovernor
+    {
+        frozen = false;
+    }
+
+
+    function setSavingsContract(address _mAsset, address _savingsContract)
+        external
+        notFrozen
+        onlyGovernor
+    {
+        require(_mAsset != address(0) && _savingsContract != address(0), "Must be valid address");
+        savingsContracts[_mAsset] = ISavingsContract(_savingsContract);
+    }
+
+    /***************************************
+                  COLLECTION
+    ****************************************/
 
     function collectAndDistributeInterest(address _mAsset)
         external

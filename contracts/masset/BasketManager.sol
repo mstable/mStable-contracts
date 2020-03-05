@@ -436,12 +436,13 @@ contract BasketManager is Module, MassetStructs {
         external
         view
         returns (
-            Basset memory bAsset
+            Basset memory bAsset,
+            uint256 index
         )
     {
-        (bool exists, uint256 index) = _isAssetInBasket(_basset);
+        (bool exists, uint256 i) = _isAssetInBasket(_basset);
         require(exists, "bASset must exist");
-        return _getBasset(index);
+        return (_getBasset(i), i);
     }
 
     /**

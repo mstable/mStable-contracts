@@ -52,7 +52,8 @@ contract IBasketManager is MassetStructs {
         external
         view
         returns (
-            Basset memory bAsset
+            Basset memory bAsset,
+            uint256 index
         );
 
 }
