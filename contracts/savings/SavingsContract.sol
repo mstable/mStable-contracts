@@ -50,9 +50,10 @@ contract SavingsContract is ISavingsContract, Module {
         external
         onlySavingsManager
     {
+        require(_amount > 0, "Must deposit something");
+
         // Transfer the interest from sender to here
         require(mUSD.transferFrom(msg.sender, address(this), _amount), "Must receive tokens");
-
         totalSavings = totalSavings.add(_amount);
 
         // new exchange rate is relationship between totalCredits & totalSavings
@@ -60,8 +61,7 @@ contract SavingsContract is ISavingsContract, Module {
         // exchangeRate = totalSavings/totalCredits
         // e.g. (100e18 * 1e18) / 1e18 = 100e18
         // e.g. (101e20 * 1e18) / 100e20 = 101e18
-        uint256 newExchangeRate = totalSavings.divPrecisely(totalCredits);
-        exchangeRate = newExchangeRate;
+        exchangeRate = totalSavings.divPrecisely(totalCredits);
     }
 
 

@@ -12,7 +12,6 @@ interface MassetStructs {
          * @dev Array of Bassets currently active
          */
         Basset[] bassets;
-        mapping(address => uint256) bassetsMap;
 
         /** @dev Max number of bAssets that can be present in any Basket */
         uint8 maxBassets;

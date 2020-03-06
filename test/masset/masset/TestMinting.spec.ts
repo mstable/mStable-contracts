@@ -5,6 +5,9 @@ import { createBasket, Basket } from "@utils/mstable-objects";
 import { shouldFail } from "openzeppelin-test-helpers";
 import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import { aToH, BN } from "@utils/tools";
+import { web3 } from "web3";
+
+const Web3 = new web3();
 
 import envSetup from "@utils/env_setup";
 import * as chai from "chai";

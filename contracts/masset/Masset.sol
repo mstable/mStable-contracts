@@ -9,7 +9,7 @@ import { IForgeValidator } from "./forge-validator/IForgeValidator.sol";
 import { IMasset } from "../interfaces/IMasset.sol";
 import { BasketManager } from "./BasketManager.sol";
 import { MassetToken } from "./MassetToken.sol";
-import { Module } from "../shared/Module.sol";
+import { PausableModule } from "../shared/PausableModule.sol";
 import { MassetStructs } from "./shared/MassetStructs.sol";
 
 // Libs
@@ -32,12 +32,16 @@ interface IPlatform {
     function checkBalance(address _bAsset) external returns (uint256 balance);
 }
 
+interface IManager {
+    function getAssetPrices(address, address) external returns (uint256, uint256);
+}
+
 /**
  * @title Masset
  * @author Stability Labs Pty Ltd
  * @dev Base layer functionality for the Masset
  */
-contract Masset is IMasset, MassetToken, Module {
+contract Masset is IMasset, MassetToken, PausableModule {
 
     using StableMath for uint256;
     using SafeERC20 for IERC20;
@@ -64,8 +68,6 @@ contract Masset is IMasset, MassetToken, Module {
     bool private metaFee = false;
     uint256 internal constant maxFee = 1e17;
 
-    /** @dev Generic state */
-    bool frozen = false;
 
     /** @dev constructor */
     constructor (
@@ -84,7 +86,7 @@ contract Masset is IMasset, MassetToken, Module {
             _symbol,
             18
         )
-        Module(
+        PausableModule(
             _nexus
         )
         public
@@ -114,14 +116,6 @@ contract Masset is IMasset, MassetToken, Module {
     }
 
     /**
-      * @dev Verifies that the caller either Manager or Gov
-      */
-    modifier notFrozen() {
-        require(!frozen, "Contract is frozen");
-        _;
-    }
-
-    /**
       * @dev Verifies that the caller is the Savings Manager contract
       */
     modifier onlySavingsManager() {
@@ -145,7 +139,7 @@ contract Masset is IMasset, MassetToken, Module {
         uint256 _bassetQuantity
     )
         external
-        notFrozen
+        whenNotPaused
         returns (uint256 massetMinted)
     {
         return _mintTo(_basset, _bassetQuantity, msg.sender);
@@ -164,7 +158,7 @@ contract Masset is IMasset, MassetToken, Module {
         address _recipient
     )
         external
-        notFrozen
+        whenNotPaused
         returns (uint256 massetMinted)
     {
         return _mintTo(_basset, _bassetQuantity, _recipient);
@@ -182,7 +176,7 @@ contract Masset is IMasset, MassetToken, Module {
         address _recipient
     )
         external
-        notFrozen
+        whenNotPaused
         returns(uint256 massetMinted)
     {
         return _mintTo(_bassetsBitmap, _bassetQuantity, _recipient);
@@ -206,8 +200,8 @@ contract Masset is IMasset, MassetToken, Module {
         internal
         returns (uint256 massetMinted)
     {
-        (bool basketHasFailed, ) = basketManager.getBasket();
-        require(!basketHasFailed, "Basket must be healthy");
+        Basket memory basket = basketManager.getBasket();
+        require(!basket.failed, "Basket must be healthy");
 
         require(_recipient != address(0), "Recipient must not be 0x0");
         require(_bAssetQuantity > 0, "Quantity must not be 0");
@@ -246,8 +240,8 @@ contract Masset is IMasset, MassetToken, Module {
         internal
         returns (uint256 massetMinted)
     {
-        (bool basketHasFailed, ) = basketManager.getBasket();
-        require(!basketHasFailed, "Basket must be healthy");
+        Basket memory basket = basketManager.getBasket();
+        require(!basket.failed, "Basket must be healthy");
 
         require(_recipient != address(0), "Recipient must not be 0x0");
         uint256 len = _bassetQuantity.length;
@@ -301,7 +295,7 @@ contract Masset is IMasset, MassetToken, Module {
         uint256 _bassetQuantity
     )
         external
-        notFrozen
+        whenNotPaused
         returns (uint256 massetRedeemed)
     {
         return _redeem(_basset, _bassetQuantity, msg.sender);
@@ -314,7 +308,7 @@ contract Masset is IMasset, MassetToken, Module {
         address _recipient
     )
         external
-        notFrozen
+        whenNotPaused
         returns (uint256 massetRedeemed)
     {
         return _redeem(_basset, _bassetQuantity, _recipient);
@@ -332,23 +326,22 @@ contract Masset is IMasset, MassetToken, Module {
         address _recipient
     )
         external
-        notFrozen
+        whenNotPaused
         returns (uint256 massetRedeemed)
     {
         require(_recipient != address(0), "Recipient must not be 0x0");
         uint256 redemptionAssetCount = _bassetQuantities.length;
 
         // Fetch high level details
-        (bool basketHasFailed, uint256 collateralisationRatio) = basketManager.getBasket();
+        Basket memory basket = basketManager.getBasket();
 
         // Load only needed bAssets in array
         (Basset[] memory bAssets, uint8[] memory indexes)
             = basketManager.convertBitmapToBassets(_bassetsBitmap, uint8(redemptionAssetCount));
 
         // Validate redemption
-        (Basset[] memory allBassets, ) = basketManager.getBassets();
         (bool isValid, string memory reason) =
-            forgeValidator.validateRedemption(allBassets, basketHasFailed, totalSupply(), indexes, _bassetQuantities);
+            forgeValidator.validateRedemption(basket.bassets, basket.failed, totalSupply(), indexes, _bassetQuantities);
         require(isValid, reason);
 
         uint256 massetQuantity = 0;
@@ -361,7 +354,7 @@ contract Masset is IMasset, MassetToken, Module {
                 massetQuantity = massetQuantity.add(ratioedBasset);
 
                 // bAsset == bAssets[i] == basket.bassets[indexes[i]]
-                basketManager.decreaseVaultbalance(bAssets[i].addr, _bassetQuantities[i]);
+                basketManager.decreaseVaultBalance(bAssets[i].addr, _bassetQuantities[i]);
             }
         }
 
@@ -369,7 +362,7 @@ contract Masset is IMasset, MassetToken, Module {
         _payRedemptionFee(massetQuantity, msg.sender);
 
         // Ensure payout is relevant to collateralisation ratio (if ratio is 90%, we burn more)
-        massetQuantity = massetQuantity.divPrecisely(collateralisationRatio);
+        massetQuantity = massetQuantity.divPrecisely(basket.collateralisationRatio);
 
         // Burn the Masset
         _burn(msg.sender, massetQuantity);
@@ -406,28 +399,27 @@ contract Masset is IMasset, MassetToken, Module {
         require(_recipient != address(0), "Recipient must not be 0x0");
         require(_bAssetQuantity > 0, "Quantity must not be 0");
 
-        (bool basketHasFailed, uint256 collateralisationRatio) = basketManager.getBasket();
+        Basket memory basket = basketManager.getBasket();
 
         // Fetch bAsset from storage
         (Basset memory b, uint256 i) = basketManager.getBasset(_bAsset);
 
         // Validate redemption
-        (Basset[] memory allBassets, ) = basketManager.getBassets();
         (bool isValid, string memory reason) =
-            forgeValidator.validateRedemption(allBassets, basketHasFailed, totalSupply(), i, _bAssetQuantity);
+            forgeValidator.validateRedemption(basket.bassets, basket.failed, totalSupply(), i, _bAssetQuantity);
         require(isValid, reason);
 
         // Calc equivalent mAsset amount
         uint256 massetQuantity = _bAssetQuantity.mulRatioTruncateCeil(b.ratio);
 
         // Decrease balance in storage
-        basketManager.decreaseVaultbalance(_bAsset, _bAssetQuantity);
+        basketManager.decreaseVaultBalance(_bAsset, _bAssetQuantity);
 
         // Pay the redemption fee
         _payRedemptionFee(massetQuantity, msg.sender);
 
         // Ensure payout is relevant to collateralisation ratio (if ratio is 90%, we burn more)
-        massetQuantity = massetQuantity.divPrecisely(collateralisationRatio);
+        massetQuantity = massetQuantity.divPrecisely(basket.collateralisationRatio);
 
         // Burn the Masset
         _burn(msg.sender, massetQuantity);
@@ -438,6 +430,7 @@ contract Masset is IMasset, MassetToken, Module {
         emit RedeemedSingle(_recipient, msg.sender, massetQuantity, i, _bAssetQuantity);
         return massetQuantity;
     }
+
     /**
      * @dev Pay the forging fee by burning MetaToken
      * @param _quantity Exact amount of Masset being forged
@@ -449,27 +442,35 @@ contract Masset is IMasset, MassetToken, Module {
         uint256 feeRate = redemptionFee;
 
         if(feeRate > 0){
-            address metaTokenAddress = _metaToken();
-
-            (uint256 ownPrice, uint256 metaTokenPrice) = IManager(_manager()).getAssetPrices(address(this), metaTokenAddress);
+            uint256 feeUnitsPaid = 0;
 
             // e.g. for 500 massets.
             // feeRate == 1% == 1e16. _quantity == 5e20.
             uint256 amountOfMassetSubjectToFee = feeRate.mulTruncate(_quantity);
 
-            // amountOfMassetSubjectToFee == 5e18
-            // ownPrice == $1 == 1e18.
-            uint256 feeAmountInDollars = amountOfMassetSubjectToFee.mulTruncate(ownPrice);
+            if(metaFee){
+                address metaTokenAddress = _metaToken();
 
-            // feeAmountInDollars == $5 == 5e18
-            // metaTokenPrice == $20 == 20e18
-            // do feeAmount*1e18 / metaTokenPrice
-            uint256 feeAmountInMetaToken = feeAmountInDollars.divPrecisely(metaTokenPrice);
+                (uint256 ownPrice, uint256 metaTokenPrice) = IManager(_manager()).getAssetPrices(address(this), metaTokenAddress);
 
-            // feeAmountInMetaToken == 0.25e18 == 25e16
-            require(IERC20(metaTokenAddress).transferFrom(_payer, feeRecipient, feeAmountInMetaToken), "Must be successful fee payment");
+                // amountOfMassetSubjectToFee == 5e18
+                // ownPrice == $1 == 1e18.
+                uint256 feeAmountInDollars = amountOfMassetSubjectToFee.mulTruncate(ownPrice);
 
-            emit PaidFee(_payer, feeAmountInMetaToken, feeRate);
+                // feeAmountInDollars == $5 == 5e18
+                // metaTokenPrice == $20 == 20e18
+                // do feeAmount*1e18 / metaTokenPrice
+                feeUnitsPaid = feeAmountInDollars.divPrecisely(metaTokenPrice);
+
+                // feeAmountInMetaToken == 0.25e18 == 25e16
+                require(IERC20(metaTokenAddress).transferFrom(_payer, feeRecipient, feeUnitsPaid), "Must be successful fee payment");
+            } else {
+                feeUnitsPaid = amountOfMassetSubjectToFee;
+
+                require(transferFrom(_payer, feeRecipient, feeUnitsPaid), "Must be successful fee payment");
+            }
+
+            emit PaidFee(_payer, feeUnitsPaid, feeRate);
         }
     }
 
@@ -483,7 +484,7 @@ contract Masset is IMasset, MassetToken, Module {
       */
     function upgradeForgeValidator(address _newForgeValidator)
     external
-    notFrozen
+    whenNotPaused
     managerOrGovernor {
         require(!forgeValidatorLocked, "Must be allowed to upgrade");
         require(_newForgeValidator != address(0), "Must be non null address");
@@ -495,7 +496,7 @@ contract Masset is IMasset, MassetToken, Module {
       */
     function lockForgeValidator()
     external
-    notFrozen
+    whenNotPaused
     managerOrGovernor {
         forgeValidatorLocked = true;
     }
@@ -506,7 +507,7 @@ contract Masset is IMasset, MassetToken, Module {
       */
     function setFeeRecipient(address _feeRecipient)
     external
-    notFrozen
+    whenNotPaused
     managerOrGovernor {
         require(_feeRecipient != address(0), "Must be valid address");
         feeRecipient = _feeRecipient;
@@ -519,7 +520,7 @@ contract Masset is IMasset, MassetToken, Module {
       */
     function setRedemptionFee(uint256 _redemptionFee)
     external
-    notFrozen
+    whenNotPaused
     managerOrGovernor {
         require(_redemptionFee <= maxFee, "Redemption fee > maxFee");
         redemptionFee = _redemptionFee;
@@ -533,41 +534,47 @@ contract Masset is IMasset, MassetToken, Module {
         return address(basketManager);
     }
 
-    function freeze()
-    external
-    notFrozen
-    onlyGovernor {
-        frozen = true;
-    }
-
-    function unFreeze()
-    external
-    onlyGovernor {
-        frozen = false;
-    }
-
     function enableMetaFee()
     external
-    notFrozen
+    whenNotPaused
     onlyGovernor {
         metaFee = true;
     }
+
 
     /***************************************
                     INFLATION
     ****************************************/
 
-    function recalculateCollateral()
+    function collectInterest()
         external
         onlySavingsManager
-        notFrozen
-        returns (uint256 massetMinted)
+        whenNotPaused
+        returns (uint256 totalInterestGained, uint256 newSupply)
     {
+        totalInterestGained = 0;
         // get basket details from BasketManager
+        (Basset[] memory allBassets, uint256 count) = basketManager.getBassets();
+        uint256[] memory gains = new uint256[](count);
         // foreach bAsset
-        //      call each integration to `checkBalance`
-        //      increaseVaultBalance
-        //      accumulate interestdelta (ratioed bAsset)
-        // mint new mAsset (provided under some limit) to sender
+        for(uint256 i = 0; i < count; i++) {
+            Basset memory b = allBassets[i];
+            // call each integration to `checkBalance`
+            uint256 balance = IPlatform(b.integrator).checkBalance(b.addr);
+            // accumulate interestdelta (ratioed bAsset
+            if(balance > b.vaultBalance) {
+                uint256 interestDelta = balance.sub(b.vaultBalance);
+                gains[i] = interestDelta;
+                uint256 ratioedDelta = interestDelta.mulRatioTruncate(b.ratio);
+                totalInterestGained = totalInterestGained.add(ratioedDelta);
+            }
+        }
+        // Validate collection and increase balances
+        require(basketManager.collectInterest(gains), "Must be a valid inflation");
+        // mint new mAsset to sender
+        _mint(msg.sender, totalInterestGained);
+        emit Minted(msg.sender, totalInterestGained, 0);
+
+        newSupply = totalSupply();
     }
 }

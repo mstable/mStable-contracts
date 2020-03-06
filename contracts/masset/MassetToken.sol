@@ -9,6 +9,7 @@ import { ERC20Burnable } from "openzeppelin-solidity/contracts/token/ERC20/ERC20
  */
 contract MassetToken is ERC20Burnable, ERC20Detailed {
 
+
     /** @dev constructor - create a burnable, mintable ERC20 token */
     constructor (
         string memory _name,
@@ -22,4 +23,6 @@ contract MassetToken is ERC20Burnable, ERC20Detailed {
         )
         public
     { }
+
+
 }

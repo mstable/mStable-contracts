@@ -24,6 +24,7 @@ contract BasketManager is Module, MassetStructs {
 
     /** @dev Struct holding Basket details */
     Basket public basket;
+    mapping(address => uint256) private bassetsMap;
     bool public measurementMultipleEnabled;
     address public mAsset;
 
@@ -107,6 +108,19 @@ contract BasketManager is Module, MassetStructs {
         basket.bassets[index].vaultBalance = basket.bassets[index].vaultBalance.sub(_decreaseAmount);
     }
 
+    function collectInterest(uint256[] calldata gains)
+        external
+        onlyMasset
+        returns (bool isValid)
+    {
+        uint256 len = gains.length;
+        require(len == basket.bassets.length, "Must be valid array");
+        for(uint256 i = 0; i < len; i++){
+            basket.bassets[i].vaultBalance = basket.bassets[i].vaultBalance.add(gains[i]);
+        }
+        return true;
+    }
+
 
     /***************************************
                 BASKET ADJUSTMENTS
@@ -168,7 +182,7 @@ contract BasketManager is Module, MassetStructs {
         // );
 
         // Check for ERC20 compatibility by forcing decimal retrieval
-        // Ultimate enforcement of Basset validity should service through governance
+        // Ultimate enforcement of Basset validity should service through governance & manager
         uint256 basset_decimals = CommonHelpers.mustGetDecimals(_basset);
 
         uint256 delta = uint256(18).sub(basset_decimals);
@@ -178,7 +192,7 @@ contract BasketManager is Module, MassetStructs {
         uint256 numberOfBassetsInBasket = basket.bassets.length;
         require(numberOfBassetsInBasket < basket.maxBassets, "Max bAssets in Basket");
 
-        basket.bassetsMap[_basset] = numberOfBassetsInBasket;
+        bassetsMap[_basset] = numberOfBassetsInBasket;
 
         basket.bassets.push(Basset({
             addr: _basset,
@@ -238,7 +252,7 @@ contract BasketManager is Module, MassetStructs {
         basket.bassets[index] = basket.bassets[len-1];
         basket.bassets.pop();
 
-        basket.bassetsMap[_assetToRemove] = 0;
+        bassetsMap[_assetToRemove] = 0;
 
         emit BassetRemoved(_assetToRemove);
     }
@@ -402,10 +416,9 @@ contract BasketManager is Module, MassetStructs {
     external
     view
     returns (
-        bool failed,
-        uint256 collateralisationRatio
+        Basket memory b
     ) {
-        return (basket.failed, basket.collateralisationRatio);
+        return basket;
     }
 
     /**
@@ -476,7 +489,6 @@ contract BasketManager is Module, MassetStructs {
         bAsset = basket.bassets[_bassetIndex];
     }
 
-
     /**
       * @dev Checks if a particular asset is in the basket
       * @param _asset Address of Basset to look for
@@ -488,7 +500,7 @@ contract BasketManager is Module, MassetStructs {
         view
         returns (bool exists, uint256 index)
     {
-        index = basket.bassetsMap[_asset];
+        index = bassetsMap[_asset];
         if(index == 0) {
             if(basket.bassets.length == 0){
                 return (false, 0);
@@ -538,7 +550,7 @@ contract BasketManager is Module, MassetStructs {
         BassetStatus newStatus = _belowPeg ? BassetStatus.BrokenBelowPeg : BassetStatus.BrokenAbovePeg;
 
         if(oldStatus == newStatus ||
-          _bassetHasRecolled(oldStatus)) {
+            _bassetHasRecolled(oldStatus)) {
             return true;
         }
 
@@ -560,8 +572,8 @@ contract BasketManager is Module, MassetStructs {
 
         BassetStatus currentStatus = basket.bassets[i].status;
         if(currentStatus == BassetStatus.BrokenBelowPeg ||
-          currentStatus == BassetStatus.BrokenAbovePeg ||
-          currentStatus == BassetStatus.Blacklisted) {
+            currentStatus == BassetStatus.BrokenAbovePeg ||
+            currentStatus == BassetStatus.Blacklisted) {
             basket.bassets[i].status = BassetStatus.Normal;
         }
     }

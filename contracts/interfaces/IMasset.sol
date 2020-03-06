@@ -9,7 +9,7 @@ import { MassetStructs } from "../masset/shared/MassetStructs.sol";
 contract IMasset is MassetStructs {
 
     /** @dev Calc interest */
-    function recalculateCollateral() external returns (uint256 massetMinted);
+    function collectInterest() external returns (uint256 massetMinted, uint256 newTotalSupply);
 
     /** @dev Minting */
     function mint(address _basset,uint256 _bassetQuantity) external returns (uint256 massetMinted);
@@ -17,10 +17,10 @@ contract IMasset is MassetStructs {
     function mintMulti(uint32 _bassetsBitmap, uint256[] calldata _bassetQuantity, address _recipient) external returns (uint256 massetMinted);
 
     /** @dev Redeeming */
-    // function redeem(address _basset,uint256 _bassetQuantity) external returns (uint256 massetRedeemed);
-    // function redeemTo(address _basset, uint256 _bassetQuantity, address _recipient) external returns (uint256 massetRedeemed);
-    // function redeemMulti(uint32 _bassetsBitmap, uint256[] calldata _bassetQuantity, address _recipient)
-    //     external returns (uint256 massetRedeemed);
+    function redeem(address _basset,uint256 _bassetQuantity) external returns (uint256 massetRedeemed);
+    function redeemTo(address _basset, uint256 _bassetQuantity, address _recipient) external returns (uint256 massetRedeemed);
+    function redeemMulti(uint32 _bassetsBitmap, uint256[] calldata _bassetQuantity, address _recipient)
+        external returns (uint256 massetRedeemed);
 
     /** @dev Setters for the Manager or Gov to update module info */
     function upgradeForgeValidator(address _newForgeValidator) external;
