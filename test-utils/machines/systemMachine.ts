@@ -1,3 +1,4 @@
+
 import { latest } from "openzeppelin-test-helpers/src/time";
 import { MASSET_FACTORY_BYTES } from "@utils/constants";
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
@@ -59,6 +60,8 @@ export class SystemMachine {
 
     private TX_DEFAULTS: any;
 
+    private okExAddress = "0x6cC5F688a315f3dC28A7781717a9A798a59fDA7b";
+
     constructor(accounts: Address[], defaultSender: Address, defaultGas = 50000000) {
         this.sa = new StandardAccounts(accounts);
 
@@ -112,11 +115,58 @@ export class SystemMachine {
 
             await this.initializeNexusWithModules(moduleKeys, moduleAddresses, isLocked);
 
+            await this.mintAllTokens();
+
             return Promise.resolve(true);
         } catch (e) {
             console.log(e);
             return Promise.reject(e);
         }
+    }
+
+    public async mintAllTokens() {
+        // TODO only mint tokens when connected to mainnet fork in Ganache
+        // TODO Check that okExAddress has some ether to ensure
+        // TODO otherwise dont mint tokens.
+
+        // mainnet addresses
+        // DAI
+        const DAI = "0x6B175474E89094C44Da98b954EedeAC495271d0F";
+        await this.mintERC20(DAI);
+        // GUSD
+        const GUSD = "0x056Fd409E1d7A124BD7017459dFEa2F387b6d5Cd";
+        await this.mintERC20(GUSD);
+        // PAX
+        const PAX = "0x8E870D67F660D95d5be530380D0eC0bd388289E1";
+        await this.mintERC20(PAX);
+        // SUSD
+        const SUSD = "0x57Ab1E02fEE23774580C119740129eAC7081e9D3";
+        await this.mintERC20(SUSD);
+        // TUSD
+        const TUSD = "0x0000000000085d4780B73119b644AE5ecd22b376";
+        await this.mintERC20(TUSD);
+        // USDC 
+        const USDC = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+        await this.mintERC20(USDC);
+        // USDT
+        const USDT = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
+        await this.mintERC20(USDT);
+        
+    }
+
+    public async mintERC20(erc20: string) {
+        const instance: ERC20MockInstance = await Erc20Artifact.at(erc20);        
+        const decimals = await instance.decimals();
+        const symbol = await instance.symbol();
+        console.log("Symbol: " + symbol + " decimals: " + decimals);
+        const ONE_TOKEN = new BN(10).pow(decimals);
+        const HUNDRED_TOKEN = ONE_TOKEN.mul(new BN(100));
+        let i;
+        for(i = 0; i < this.sa.all.length; i++) {
+            await instance.transfer(this.sa.all[i], HUNDRED_TOKEN, {from: this.okExAddress});
+            const bal: BN = await instance.balanceOf(this.sa.all[i]);
+            console.log(bal.toString(10));
+        }        
     }
 
     /**
