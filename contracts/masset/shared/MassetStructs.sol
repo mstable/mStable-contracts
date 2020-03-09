@@ -12,15 +12,9 @@ interface MassetStructs {
          * @dev Array of Bassets currently active
          */
         Basset[] bassets;
-        mapping(address => uint256) bassetsMap;
 
         /** @dev Max number of bAssets that can be present in any Basket */
         uint8 maxBassets;
-
-        /**
-         * @dev Old Bassets that have been removed from the system
-         */
-        address[] expiredBassets;
 
         /**
          * @dev In the event that we do not raise enough funds from the auctioning of a failed Basset,
@@ -32,11 +26,14 @@ interface MassetStructs {
 
     }
 
-    /** @dev Stores bAsset info. The struct takes 4 storage slots per Basset */
+    /** @dev Stores bAsset info. The struct takes 5 storage slots per Basset */
     struct Basset {
 
-        /** @dev Address of the Basset */
+        /** @dev Address of the bAsset */
         address addr;
+
+        /** @dev Address of the bAsset */
+        address integrator;
 
         /** @dev Status of the basset,  */
         BassetStatus status; // takes uint8 datatype (1 byte) in storage
