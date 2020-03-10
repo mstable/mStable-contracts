@@ -128,22 +128,20 @@ export class SystemMachine {
     public async isRunningForkedGanache() {
         try {
             const code: string = await web3.eth.getCode(this.ma.DAI);
-            if(code === "") return false;
-            // const instance: ERC20MockInstance = await Erc20Artifact.at(DAI);
-            // const balance = await instance.balanceOf(this.okExAddress);
-            // if(balance.gt(new BN(0))) {
-            //     return true;
-            // }
+            // Empty code on mainnet DAI contract address
+            if(code === "0x") 
+                return false;
+            else
+                return true;
         } catch (e) {
             return false;
         }
-        return true;
     }
 
     public async mintAllTokens() {
         // When Ganache not running mainnet forked version, dont mint
         if( ! (await this.isRunningForkedGanache()) ) {
-            console.warn("Ganache not running on MAINNET fork. Hence, avoid minting tokens");
+            console.warn("*** Ganache not running on MAINNET fork. Hence, avoid minting tokens ***");
             return;
         } 
         
