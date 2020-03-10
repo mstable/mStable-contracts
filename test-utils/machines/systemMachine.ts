@@ -16,6 +16,7 @@ import {
 import { Address } from "../../types/common";
 import { BassetMachine } from "./bassetMachine";
 import { StandardAccounts } from "./standardAccounts";
+import { MainnetAccounts } from './mainnetAccounts';
 
 const CommonHelpersArtifact = artifacts.require("CommonHelpers");
 const StableMathArtifact = artifacts.require("StableMath");
@@ -46,6 +47,8 @@ export class SystemMachine {
      */
     public sa: StandardAccounts;
 
+    public ma: MainnetAccounts;
+
     public manager: ManagerInstance;
 
     public nexus: NexusInstance;
@@ -61,6 +64,7 @@ export class SystemMachine {
 
     constructor(accounts: Address[], defaultSender: Address, defaultGas = 50000000) {
         this.sa = new StandardAccounts(accounts);
+        this.ma = new MainnetAccounts();
 
         this.TX_DEFAULTS = {
             from: defaultSender,
@@ -112,11 +116,67 @@ export class SystemMachine {
 
             await this.initializeNexusWithModules(moduleKeys, moduleAddresses, isLocked);
 
+            await this.mintAllTokens();
+
             return Promise.resolve(true);
         } catch (e) {
             console.log(e);
             return Promise.reject(e);
         }
+    }
+
+    public async isRunningForkedGanache() {
+        try {
+            const code: string = await web3.eth.getCode(this.ma.DAI);
+            // Empty code on mainnet DAI contract address
+            if(code === "0x") 
+                return false;
+            else
+                return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    public async mintAllTokens() {
+        // When Ganache not running mainnet forked version, dont mint
+        if( ! (await this.isRunningForkedGanache()) ) {
+            console.warn("*** Ganache not running on MAINNET fork. Hence, avoid minting tokens ***");
+            return;
+        } 
+        
+        // mainnet addresses
+        // DAI
+        await this.mintERC20(this.ma.DAI);
+        // GUSD
+        await this.mintERC20(this.ma.GUSD);
+        // PAX
+        await this.mintERC20(this.ma.PAX);
+        // SUSD
+        // Getting error when calling `transfer()` "Transfer requires settle"
+        //await this.mintERC20(this.ma.SUSD);
+        // TUSD
+        await this.mintERC20(this.ma.TUSD);
+        // USDC 
+        await this.mintERC20(this.ma.USDC);
+        // USDT
+        await this.mintERC20(this.ma.USDT);
+        
+    }
+
+    public async mintERC20(erc20: string) {
+        const instance: ERC20MockInstance = await Erc20Artifact.at(erc20);        
+        const decimals = await instance.decimals();
+        const symbol = await instance.symbol();
+        console.log("Symbol: " + symbol + " decimals: " + decimals);
+        const ONE_TOKEN = new BN(10).pow(decimals);
+        const HUNDRED_TOKEN = ONE_TOKEN.mul(new BN(100));
+        let i;
+        for(i = 0; i < this.sa.all.length; i++) {
+            await instance.transfer(this.sa.all[i], HUNDRED_TOKEN, {from: this.ma.OKEX});
+            const bal: BN = await instance.balanceOf(this.sa.all[i]);
+            console.log(bal.toString(10));
+        }        
     }
 
     /**
