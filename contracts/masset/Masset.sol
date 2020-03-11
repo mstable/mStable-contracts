@@ -29,9 +29,9 @@ contract Masset is IMasset, MassetToken, PausableModule {
     using SafeERC20 for IERC20;
 
     /** @dev Forging events */
-    event Minted(address indexed account, uint256 massetQuantity, address bAsset, uint256 bAssetQuantity);
+    event Minted(address indexed account, uint256 massetQuantity, uint8 bAsset, uint256 bAssetQuantity);
     event MintedMulti(address indexed account, uint256 massetQuantity, uint256 bitmap, uint256[] bAssetQuantities);
-    event Redeemed(address indexed recipient, address redeemer, uint256 massetQuantity, address bAsset, uint256 bAssetQuantity);
+    event Redeemed(address indexed recipient, address redeemer, uint256 massetQuantity, uint8 bAsset, uint256 bAssetQuantity);
     event RedeemedMulti(address indexed recipient, address redeemer, uint256 massetQuantity, uint256 bitmap, uint256[] bAssetQuantities);
     event PaidFee(address payer, uint256 feeQuantity, uint256 feeRate);
 
@@ -59,7 +59,6 @@ contract Masset is IMasset, MassetToken, PausableModule {
         address _forgeValidator,
         address[] memory _bassets,
         uint256[] memory _weights,
-        uint256[] memory _multiples,
         bool[] memory _hasTransferFees
     )
         MassetToken(
@@ -80,7 +79,6 @@ contract Masset is IMasset, MassetToken, PausableModule {
                 address(this),
                 _bassets,
                 _weights,
-                _multiples,
                 _hasTransferFees
             )
         );
@@ -116,7 +114,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
      * @return returns the number of newly minted mAssets
      */
     function mint(
-        address _basset,
+        uint8 _basset,
         uint256 _bassetQuantity
     )
         external
@@ -134,7 +132,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
      * @return returns the number of newly minted mAssets
      */
     function mintTo(
-        address _basset,
+        uint8 _basset,
         uint256 _bassetQuantity,
         address _recipient
     )
@@ -174,7 +172,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
      * @param _recipient Address to which the Masset should be minted
      */
     function _mintTo(
-        address _bAsset,
+        uint8 _bAsset,
         uint256 _bAssetQuantity,
         address _recipient
     )
@@ -187,9 +185,9 @@ contract Masset is IMasset, MassetToken, PausableModule {
         require(_recipient != address(0), "Recipient must not be 0x0");
         require(_bAssetQuantity > 0, "Quantity must not be 0");
 
-        (Basset memory b, ) = basketManager.getBasset(_bAsset);
+        Basset memory b = basketManager.getBasset(_bAsset);
 
-        uint256 bAssetQty = IPlatform(b.integrator).deposit(msg.sender, _bAsset, _bAssetQuantity, b.isTransferFeeCharged);
+        uint256 bAssetQty = IPlatform(b.integrator).deposit(msg.sender, b.addr, _bAssetQuantity, b.isTransferFeeCharged);
 
         // Validation should be after token transfer, as bAssetQty is unknown before
         (bool isValid, string memory reason) = forgeValidator.validateMint(totalSupply(), b, bAssetQty);
@@ -228,7 +226,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         uint256 len = _bassetQuantity.length;
 
         // Load only needed bAssets in array
-        (Basset[] memory bAssets, )
+        (Basset[] memory bAssets, uint8[] memory indexes)
             = basketManager.convertBitmapToBassets(_bassetsBitmap, uint8(len));
 
         uint256 massetQuantity = 0;
@@ -243,7 +241,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
                 uint256 receivedBassetQty = IPlatform(bAsset.integrator).deposit(msg.sender, bAsset.addr, _bassetQuantity[i], bAsset.isTransferFeeCharged);
                 receivedQty[i] = receivedBassetQty;
 
-                basketManager.increaseVaultBalance(bAsset.addr, receivedBassetQty);
+                basketManager.increaseVaultBalance(indexes[i], receivedBassetQty);
 
                 uint256 ratioedBasset = receivedBassetQty.mulRatioTruncate(bAsset.ratio);
                 massetQuantity = massetQuantity.add(ratioedBasset);
@@ -272,7 +270,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
      * @param _bassetQuantity Exact quantities of Bassets to redeem
      */
     function redeem(
-        address _basset,
+        uint8 _basset,
         uint256 _bassetQuantity
     )
         external
@@ -284,7 +282,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
 
 
     function redeemTo(
-        address _basset,
+        uint8 _basset,
         uint256 _bassetQuantity,
         address _recipient
     )
@@ -335,7 +333,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
                 massetQuantity = massetQuantity.add(ratioedBasset);
 
                 // bAsset == bAssets[i] == basket.bassets[indexes[i]]
-                basketManager.decreaseVaultBalance(bAssets[i].addr, _bassetQuantities[i]);
+                basketManager.decreaseVaultBalance(indexes[i], _bassetQuantities[i]);
             }
         }
 
@@ -370,7 +368,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
      * @param _recipient Account to which the redeemed Bassets should be sent
      */
     function _redeem(
-        address _bAsset,
+        uint8 _bAsset,
         uint256 _bAssetQuantity,
         address _recipient
     )
@@ -383,11 +381,11 @@ contract Masset is IMasset, MassetToken, PausableModule {
         Basket memory basket = basketManager.getBasket();
 
         // Fetch bAsset from storage
-        (Basset memory b, uint256 i) = basketManager.getBasset(_bAsset);
+        Basset memory b = basketManager.getBasset(_bAsset);
 
         // Validate redemption
         (bool isValid, string memory reason) =
-            forgeValidator.validateRedemption(basket.bassets, basket.failed, totalSupply(), i, _bAssetQuantity);
+            forgeValidator.validateRedemption(basket.bassets, basket.failed, totalSupply(), _bAsset, _bAssetQuantity);
         require(isValid, reason);
 
         // Calc equivalent mAsset amount
@@ -406,7 +404,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         _burn(msg.sender, massetQuantity);
 
         // Transfer the Bassets to the user
-        IPlatform(b.integrator).withdraw(_recipient, _bAsset, _bAssetQuantity);
+        IPlatform(b.integrator).withdraw(_recipient, b.addr, _bAssetQuantity);
 
         emit Redeemed(_recipient, msg.sender, massetQuantity, _bAsset, _bAssetQuantity);
         return massetQuantity;

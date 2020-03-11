@@ -10,8 +10,8 @@ import { MassetStructs } from "../masset/shared/MassetStructs.sol";
 contract IBasketManager is MassetStructs {
 
     /** @dev Setters for mAsset to update balances */
-    function increaseVaultBalance(address _bAsset, uint256 _increaseAmount) external;
-    function decreaseVaultBalance(address _bAsset, uint256 _decreaseAmount) external;
+    function increaseVaultBalance(uint8 _bAsset, uint256 _increaseAmount) external;
+    function decreaseVaultBalance(uint8 _bAsset, uint256 _decreaseAmount) external;
     function logInterest(uint256[] calldata _increaseAmounts) external returns (bool isValid);
 
     /** @dev Setters for Gov to update Basket composition */
@@ -45,6 +45,12 @@ contract IBasketManager is MassetStructs {
         returns (
             Basset memory bAsset,
             uint256 index
+        );
+    function getBasset(uint8 _basset)
+        external
+        view
+        returns (
+            Basset memory bAsset
         );
 
     /** @dev Recollateralisation */

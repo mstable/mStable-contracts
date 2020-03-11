@@ -17,7 +17,6 @@ contract MUSD is Masset {
         address _forgeValidator,
         address[] memory _bassets,
         uint256[] memory _weights,
-        uint256[] memory _multiples,
         bool[] memory _hasTransferFees
     )
         Masset(
@@ -28,7 +27,6 @@ contract MUSD is Masset {
             _forgeValidator,
             _bassets,
             _weights,
-            _multiples,
             _hasTransferFees
         )
         public

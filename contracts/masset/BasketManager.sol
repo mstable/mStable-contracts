@@ -89,22 +89,20 @@ contract BasketManager is Module, MassetStructs {
                     VAULT BALANCE
     ****************************************/
 
-    function increaseVaultBalance(address _bAsset, uint256 _increaseAmount)
+    function increaseVaultBalance(uint8 _bAsset, uint256 _increaseAmount)
         external
         onlyMasset
     {
-        (bool exist, uint256 index) = _isAssetInBasket(_bAsset);
-        require(exist, "bAsset does not exist");
-        basket.bassets[index].vaultBalance = basket.bassets[index].vaultBalance.add(_increaseAmount);
+        require(basket.bassets.length > _bAsset, "bAsset does not exist");
+        basket.bassets[_bAsset].vaultBalance = basket.bassets[_bAsset].vaultBalance.add(_increaseAmount);
     }
 
-    function decreaseVaultBalance(address _bAsset, uint256 _decreaseAmount)
+    function decreaseVaultBalance(uint8 _bAsset, uint256 _decreaseAmount)
         external
         onlyMasset
     {
-        (bool exist, uint256 index) = _isAssetInBasket(_bAsset);
-        require(exist, "bAsset does not exist");
-        basket.bassets[index].vaultBalance = basket.bassets[index].vaultBalance.sub(_decreaseAmount);
+        require(basket.bassets.length > _bAsset, "bAsset does not exist");
+        basket.bassets[_bAsset].vaultBalance = basket.bassets[_bAsset].vaultBalance.sub(_decreaseAmount);
     }
 
     function logInterest(uint256[] calldata gains)
@@ -438,6 +436,21 @@ contract BasketManager is Module, MassetStructs {
         (bool exists, uint256 i) = _isAssetInBasket(_basset);
         require(exists, "bASset must exist");
         return (_getBasset(i), i);
+    }
+
+    /**
+      * @dev Get all basket assets, failing if the Basset does not exist
+      * @return Struct array of all basket assets
+      */
+    function getBasset(uint8 _basset)
+        external
+        view
+        returns (
+            Basset memory bAsset
+        )
+    {
+        require(basket.bassets.length > _basset, "Basset does not exist");
+        return _getBasset(_basset);
     }
 
     /**
