@@ -25,7 +25,7 @@ contract BasketManager is Module, MassetStructs {
     /** @dev Struct holding Basket details */
     Basket public basket;
     mapping(address => uint256) private bassetsMap;
-    bool public measurementMultipleEnabled;
+    bool private measurementMultipleEnabled;
     address public mAsset;
 
     /** @dev Forging events */
@@ -87,7 +87,7 @@ contract BasketManager is Module, MassetStructs {
     }
 
     /***************************************
-                  VAULT BALANCE
+                    VAULT BALANCE
     ****************************************/
 
     function increaseVaultBalance(address _bAsset, uint256 _increaseAmount)
@@ -138,24 +138,6 @@ contract BasketManager is Module, MassetStructs {
     {
         require(!measurementMultipleEnabled, "Specifying _mm enabled");
         _addBasset(_basset, StableMath.getRatioScale(), _isTransferFeeCharged);
-    }
-
-    /**
-      * @dev External func to allow the Manager to conduct add operations on the Basket
-      * @param _basset Address of the ERC20 token to add to the Basket
-      * @param _measurementMultiple MeasurementMultiple of the Basset where 1:1 == 1e8
-      */
-    function addBasset(
-        address _basset,
-        uint256 _measurementMultiple,
-        bool _isTransferFeeCharged
-    )
-        external
-        managerOrGovernor
-        basketIsHealthy
-    {
-        require(measurementMultipleEnabled, "Specifying _mm disabled");
-        _addBasset(_basset, _measurementMultiple, _isTransferFeeCharged);
     }
 
     /**

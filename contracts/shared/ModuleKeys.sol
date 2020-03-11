@@ -18,5 +18,6 @@ contract ModuleKeys {
     bytes32 constant public Key_Recollateraliser = keccak256("Recollateraliser");
     bytes32 constant public Key_MetaToken = keccak256("MetaToken");
     bytes32 constant public Key_SavingsManager = keccak256("SavingsManager");
+    bytes32 constant public Key_ProxyAdmin = keccak256("ProxyAdmin");
 
 }
