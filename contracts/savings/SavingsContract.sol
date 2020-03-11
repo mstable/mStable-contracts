@@ -52,6 +52,8 @@ contract SavingsContract is ISavingsContract, Module {
     {
         require(_amount > 0, "Must deposit something");
 
+        // Call collect interest from the manager
+
         // Transfer the interest from sender to here
         require(mUSD.transferFrom(msg.sender, address(this), _amount), "Must receive tokens");
         totalSavings = totalSavings.add(_amount);
@@ -63,7 +65,6 @@ contract SavingsContract is ISavingsContract, Module {
         // e.g. (101e20 * 1e18) / 100e20 = 101e18
         exchangeRate = totalSavings.divPrecisely(totalCredits);
     }
-
 
     /** @dev Add savings to the savings contract */
     function depositSavings(uint256 _amount)

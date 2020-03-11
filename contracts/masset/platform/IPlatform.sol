@@ -1,4 +1,4 @@
-pragma solidity ^0.5.16;
+pragma solidity 0.5.16;
 
 /**
  * @title Platform interface to integrate with lending platform like Compound, AAVE etc.
@@ -11,23 +11,14 @@ interface IPlatform {
      * @param _bAsset bAsset address
      * @param _amount Amount to deposit
      */
-    function deposit(
-        address _spender,
-        address _bAsset,
-        uint256 _amount,
-        bool isTokenFeeCharged
-    ) external returns (uint256 quantityDeposited);
+    function deposit(address _spender, address _bAsset, uint256 _amount, bool isTokenFeeCharged)
+        external returns (uint256 quantityDeposited);
 
     /**
      * @dev Withdraw given bAsset from Lending platform
      */
-    function withdraw(
-        address _receiver,
-        address _bAsset,
-        uint256 _amount
-    ) external;
+    function withdraw(address _receiver, address _bAsset, uint256 _amount) external;
 
-    // TODO we may not need this function
     /**
      * @dev Returns the current balance of the given bAsset
      */
