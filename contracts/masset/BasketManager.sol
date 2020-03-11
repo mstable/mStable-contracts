@@ -22,13 +22,16 @@ contract BasketManager is Module, MassetStructs {
     using StableMath for uint256;
     using SafeERC20 for IERC20;
 
+    /** @dev Basket Manager Version */
+    string public constant version = "1.0";
+
     /** @dev Struct holding Basket details */
     Basket public basket;
     mapping(address => uint256) private bassetsMap;
-    bool private measurementMultipleEnabled;
+
     address public mAsset;
 
-    /** @dev Forging events */
+    /** @dev Basket composition events */
     event BassetAdded(address indexed basset);
     event BassetRemoved(address indexed basset);
     event BasketWeightsUpdated(address[] indexed bassets, uint256[] maxWeights);
@@ -39,17 +42,13 @@ contract BasketManager is Module, MassetStructs {
         address _mAsset,
         address[] memory _bassets,
         uint256[] memory _weights,
-        uint256[] memory _multiples,
         bool[] memory _hasTransferFees
     )
         Module(_nexus)
         public
     {
         mAsset = _mAsset;
-
         require(_bassets.length > 0, "Must initialise with some bAssets");
-
-        measurementMultipleEnabled = _multiples.length > 0;
 
         // Defaults
         basket.maxBassets = 16;               // 16
@@ -58,7 +57,7 @@ contract BasketManager is Module, MassetStructs {
         for (uint256 i = 0; i < _bassets.length; i++) {
             _addBasset(
                 _bassets[i],
-                measurementMultipleEnabled ? _multiples[i] : StableMath.getRatioScale(),
+                StableMath.getRatioScale(),
                 _hasTransferFees[i]
                 );
         }
@@ -126,17 +125,15 @@ contract BasketManager is Module, MassetStructs {
                 BASKET ADJUSTMENTS
     ****************************************/
 
-
     /**
       * @dev External func to allow the Manager to conduct add operations on the Basket
       * @param _basset Address of the ERC20 token to add to the Basket
       */
     function addBasset(address _basset, bool _isTransferFeeCharged)
         external
-        managerOrGovernor
+        onlyGovernor
         basketIsHealthy
     {
-        require(!measurementMultipleEnabled, "Specifying _mm enabled");
         _addBasset(_basset, StableMath.getRatioScale(), _isTransferFeeCharged);
     }
 
@@ -194,9 +191,9 @@ contract BasketManager is Module, MassetStructs {
      * @param _bAsset bAsset address
      * @param _flag Charge transfer fee when its set to 'true', otherwise 'false'
      */
-    function upgradeTransferFees(address _bAsset, bool _flag)
+    function setTransferFeesFlag(address _bAsset, bool _flag)
         external
-        onlyGovernor
+        managerOrGovernor
     {
         (bool exist, uint256 index) = _isAssetInBasket(_bAsset);
         require(exist, "bAsset does not exist");
@@ -561,29 +558,5 @@ contract BasketManager is Module, MassetStructs {
             currentStatus == BassetStatus.Blacklisted) {
             basket.bassets[i].status = BassetStatus.Normal;
         }
-    }
-
-    /**
-      * @dev Sends the affected Basset off to the Recollateraliser to be auctioned
-      * @param _basset Address of the Basset to isolate
-      */
-    function initiateRecol(address _basset)
-        external
-        managerOrGovernor
-        basketIsHealthy
-        returns (bool requiresAuction, bool isTransferable)
-    {
-        return (false, false);
-    }
-
-    /**
-     * @dev Completes the auctioning process for a given Basset
-     * @param _basset Address of the ERC20 token to isolate
-     * @param _unitsUnderCollateralised Masset units that we failed to recollateralise
-     */
-    function completeRecol(address _basset, uint256 _unitsUnderCollateralised)
-        external
-        onlyManager
-    {
     }
 }
