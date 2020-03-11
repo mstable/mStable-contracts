@@ -108,7 +108,7 @@ contract BasketManager is Module, MassetStructs {
         basket.bassets[index].vaultBalance = basket.bassets[index].vaultBalance.sub(_decreaseAmount);
     }
 
-    function collectInterest(uint256[] calldata gains)
+    function logInterest(uint256[] calldata gains)
         external
         onlyMasset
         returns (bool isValid)
@@ -322,7 +322,8 @@ contract BasketManager is Module, MassetStructs {
      * @return bitmap with bits set according to bAsset address position
      */
     function getBitmapForAllBassets() external view returns (uint32 bitmap) {
-        for(uint32 i = 0; i < basket.bassets.length; i++) {
+        uint256 len = basket.bassets.length;
+        for(uint32 i = 0; i < len; i++) {
             bitmap |= uint32(2)**i;
         }
     }
@@ -430,6 +431,7 @@ contract BasketManager is Module, MassetStructs {
     view
     returns (
         Basset[] memory bAssets,
+        uint256 bitmap,
         uint256 len
     ) {
         len = basket.bassets.length;
@@ -437,6 +439,7 @@ contract BasketManager is Module, MassetStructs {
         bAssets = new Basset[](len);
 
         for(uint256 i = 0; i < len; i++){
+            bitmap |= uint32(2)**i;
             bAssets[i] = _getBasset(i);
         }
     }

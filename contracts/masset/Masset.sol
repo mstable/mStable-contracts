@@ -4,6 +4,7 @@ pragma experimental ABIEncoderV2;
 // External
 import { IBasketManager } from "../interfaces/IBasketManager.sol";
 import { IForgeValidator } from "./forge-validator/IForgeValidator.sol";
+import { IPlatform } from "./platform/IPlatform.sol";
 
 // Internal
 import { IMasset } from "../interfaces/IMasset.sol";
@@ -17,25 +18,6 @@ import { StableMath } from "../shared/StableMath.sol";
 import { SafeERC20 }  from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
 import { IERC20 }     from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 
-interface IPlatform {
-    function deposit(
-        address _spender,
-        address _bAsset,
-        uint256 _amount,
-        bool _hasFee
-    ) external returns (uint256 quantityDeposited);
-    function withdraw(
-        address _receiver,
-        address _bAsset,
-        uint256 _amount
-    ) external;
-    function checkBalance(address _bAsset) external returns (uint256 balance);
-}
-
-interface IManager {
-    function getAssetPrices(address, address) external returns (uint256, uint256);
-}
-
 /**
  * @title Masset
  * @author Stability Labs Pty Ltd
@@ -47,11 +29,11 @@ contract Masset is IMasset, MassetToken, PausableModule {
     using SafeERC20 for IERC20;
 
     /** @dev Forging events */
-    event Minted(address indexed account, uint256 massetQuantity, uint256[] bAssetQuantities);
-    event Minted(address indexed account, uint256 massetQuantity, uint256 bAssetQuantity);
+    event Minted(address indexed account, uint256 massetQuantity, address bAsset, uint256 bAssetQuantity);
+    event MintedMulti(address indexed account, uint256 massetQuantity, uint256 bitmap, uint256[] bAssetQuantities);
+    event Redeemed(address indexed recipient, address redeemer, uint256 massetQuantity, address bAsset, uint256 bAssetQuantity);
+    event RedeemedMulti(address indexed recipient, address redeemer, uint256 massetQuantity, uint256 bitmap, uint256[] bAssetQuantities);
     event PaidFee(address payer, uint256 feeQuantity, uint256 feeRate);
-    event Redeemed(address indexed recipient, address redeemer, uint256 massetQuantity, uint256[] bAssetQuantities);
-    event RedeemedSingle(address indexed recipient, address redeemer, uint256 massetQuantity, uint256 index, uint256 bAssetQuantity);
 
     /** @dev State events */
     event RedemptionFeeChanged(uint256 fee);
@@ -65,7 +47,6 @@ contract Masset is IMasset, MassetToken, PausableModule {
     /** @dev Meta information for ecosystem fees */
     address public feeRecipient;
     uint256 public redemptionFee;
-    bool private metaFee = false;
     uint256 internal constant maxFee = 1e17;
 
 
@@ -220,7 +201,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
 
         // Mint the Masset
         _mint(_recipient, ratioedBasset);
-        emit Minted(_recipient, ratioedBasset, bAssetQty);
+        emit Minted(_recipient, ratioedBasset, _bAsset, bAssetQty);
 
         return ratioedBasset;
     }
@@ -277,7 +258,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
 
         // Mint the Masset
         _mint(_recipient, massetQuantity);
-        emit Minted(_recipient, massetQuantity, _bassetQuantity);
+        emit MintedMulti(_recipient, massetQuantity, _bassetsBitmap, _bassetQuantity);
 
         return massetQuantity;
     }
@@ -374,7 +355,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
             }
         }
 
-        emit Redeemed(_recipient, msg.sender, massetQuantity, _bassetQuantities);
+        emit RedeemedMulti(_recipient, msg.sender, massetQuantity, _bassetsBitmap, _bassetQuantities);
         return massetQuantity;
     }
 
@@ -427,7 +408,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         // Transfer the Bassets to the user
         IPlatform(b.integrator).withdraw(_recipient, _bAsset, _bAssetQuantity);
 
-        emit RedeemedSingle(_recipient, msg.sender, massetQuantity, i, _bAssetQuantity);
+        emit Redeemed(_recipient, msg.sender, massetQuantity, _bAsset, _bAssetQuantity);
         return massetQuantity;
     }
 
@@ -438,39 +419,16 @@ contract Masset is IMasset, MassetToken, PausableModule {
      */
     function _payRedemptionFee(uint256 _quantity, address _payer)
     private {
-
         uint256 feeRate = redemptionFee;
 
         if(feeRate > 0){
-            uint256 feeUnitsPaid = 0;
-
             // e.g. for 500 massets.
             // feeRate == 1% == 1e16. _quantity == 5e20.
             uint256 amountOfMassetSubjectToFee = feeRate.mulTruncate(_quantity);
 
-            if(metaFee){
-                address metaTokenAddress = _metaToken();
+            require(transferFrom(_payer, feeRecipient, amountOfMassetSubjectToFee), "Must be successful fee payment");
 
-                (uint256 ownPrice, uint256 metaTokenPrice) = IManager(_manager()).getAssetPrices(address(this), metaTokenAddress);
-
-                // amountOfMassetSubjectToFee == 5e18
-                // ownPrice == $1 == 1e18.
-                uint256 feeAmountInDollars = amountOfMassetSubjectToFee.mulTruncate(ownPrice);
-
-                // feeAmountInDollars == $5 == 5e18
-                // metaTokenPrice == $20 == 20e18
-                // do feeAmount*1e18 / metaTokenPrice
-                feeUnitsPaid = feeAmountInDollars.divPrecisely(metaTokenPrice);
-
-                // feeAmountInMetaToken == 0.25e18 == 25e16
-                require(IERC20(metaTokenAddress).transferFrom(_payer, feeRecipient, feeUnitsPaid), "Must be successful fee payment");
-            } else {
-                feeUnitsPaid = amountOfMassetSubjectToFee;
-
-                require(transferFrom(_payer, feeRecipient, feeUnitsPaid), "Must be successful fee payment");
-            }
-
-            emit PaidFee(_payer, feeUnitsPaid, feeRate);
+            emit PaidFee(_payer, amountOfMassetSubjectToFee, feeRate);
         }
     }
 
@@ -534,14 +492,6 @@ contract Masset is IMasset, MassetToken, PausableModule {
         return address(basketManager);
     }
 
-    function enableMetaFee()
-    external
-    whenNotPaused
-    onlyGovernor {
-        metaFee = true;
-    }
-
-
     /***************************************
                     INFLATION
     ****************************************/
@@ -554,7 +504,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
     {
         totalInterestGained = 0;
         // get basket details from BasketManager
-        (Basset[] memory allBassets, uint256 count) = basketManager.getBassets();
+        (Basset[] memory allBassets, uint256 bitmap, uint256 count) = basketManager.getBassets();
         uint256[] memory gains = new uint256[](count);
         // foreach bAsset
         for(uint256 i = 0; i < count; i++) {
@@ -567,13 +517,15 @@ contract Masset is IMasset, MassetToken, PausableModule {
                 gains[i] = interestDelta;
                 uint256 ratioedDelta = interestDelta.mulRatioTruncate(b.ratio);
                 totalInterestGained = totalInterestGained.add(ratioedDelta);
+            } else {
+                gains[i] = 0;
             }
         }
         // Validate collection and increase balances
-        require(basketManager.collectInterest(gains), "Must be a valid inflation");
+        require(basketManager.logInterest(gains), "Must be a valid inflation");
         // mint new mAsset to sender
         _mint(msg.sender, totalInterestGained);
-        emit Minted(msg.sender, totalInterestGained, 0);
+        emit MintedMulti(msg.sender, totalInterestGained, bitmap, gains);
 
         newSupply = totalSupply();
     }

@@ -17,7 +17,7 @@ contract IBasketManager is MassetStructs {
     /** @dev Setters for mAsset to update balances */
     function increaseVaultBalance(address _bAsset, uint256 _increaseAmount) external;
     function decreaseVaultBalance(address _bAsset, uint256 _decreaseAmount) external;
-    function collectInterest(uint256[] calldata _increaseAmounts) external returns (bool isValid);
+    function logInterest(uint256[] calldata _increaseAmounts) external returns (bool isValid);
 
     /** @dev Recollateralisation */
     function handlePegLoss(address _basset, bool _belowPeg) external returns (bool actioned);
@@ -42,6 +42,7 @@ contract IBasketManager is MassetStructs {
         view
         returns (
             Basset[] memory bAssets,
+            uint32 bitmap,
             uint256 len
         );
     function getBasset(address _basset)

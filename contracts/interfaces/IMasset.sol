@@ -12,7 +12,7 @@ contract IMasset is MassetStructs {
     function collectInterest() external returns (uint256 massetMinted, uint256 newTotalSupply);
 
     /** @dev Minting */
-    function mint(address _basset,uint256 _bassetQuantity) external returns (uint256 massetMinted);
+    function mint(address _basset, uint256 _bassetQuantity) external returns (uint256 massetMinted);
     function mintTo(address _basset, uint256 _bassetQuantity, address _recipient) external returns (uint256 massetMinted);
     function mintMulti(uint32 _bassetsBitmap, uint256[] calldata _bassetQuantity, address _recipient) external returns (uint256 massetMinted);
 
