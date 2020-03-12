@@ -13,9 +13,9 @@ contract IBasketManager is MassetStructs {
     string public constant version_i = "1.0";
 
     /** @dev Setters for mAsset to update balances */
-    function increaseVaultBalance(uint8 _bAsset, uint256 _increaseAmount) external;
-    function decreaseVaultBalance(uint8 _bAsset, uint256 _decreaseAmount) external;
-    function logInterest(uint256[] calldata _increaseAmounts) external returns (bool isValid);
+    function increaseVaultBalance(uint8 _bAsset, address _integrator, uint256 _increaseAmount) external;
+    function decreaseVaultBalance(uint8 _bAsset, address _integrator, uint256 _decreaseAmount) external;
+    function collectInterest() external returns (uint256 interestCollected, uint32 bitmap, uint256[] memory gains);
 
     /** @dev Setters for Gov to update Basket composition */
     function addBasset(address _basset, bool _isTransferFeeCharged) external;
@@ -42,13 +42,14 @@ contract IBasketManager is MassetStructs {
             uint32 bitmap,
             uint256 len
         );
-    // function getBasset(address _basset)
-    //     external
-    //     view
-    //     returns (
-    //         Basset memory bAsset,
-    //         uint256 index
-    //     );
+    function getForgeBasset(address _token, bool _mint)
+        external
+        view
+        returns (
+            Basset memory bAsset,
+            address integrator,
+            uint8 index
+        );
     function getBasset(uint8 _basset)
         external
         view
@@ -57,9 +58,8 @@ contract IBasketManager is MassetStructs {
         );
 
     /** @dev Recollateralisation */
-    function handlePegLoss(uint8 _basset, bool _belowPeg) external returns (bool actioned);
-    function negateIsolation(uint8 _basset) external;
-}
+    function handlePegLoss(address _basset, bool _belowPeg) external returns (bool actioned);
+    function negateIsolation(address _basset) external;
 
     // function initiateRecol(address _basset) external returns (bool auctionNeeded, bool isTransferable);
     // function completeRecol(address _basset, uint256 _unitsUnderCollateralised) external;

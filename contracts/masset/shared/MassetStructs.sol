@@ -32,9 +32,6 @@ interface MassetStructs {
         /** @dev Address of the bAsset */
         address addr;
 
-        /** @dev Address of the bAsset */
-        address integrator;
-
         /** @dev Status of the basset,  */
         BassetStatus status; // takes uint8 datatype (1 byte) in storage
 
