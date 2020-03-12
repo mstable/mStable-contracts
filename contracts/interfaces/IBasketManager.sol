@@ -42,13 +42,13 @@ contract IBasketManager is MassetStructs {
             uint32 bitmap,
             uint256 len
         );
-    function getBasset(address _basset)
-        external
-        view
-        returns (
-            Basset memory bAsset,
-            uint256 index
-        );
+    // function getBasset(address _basset)
+    //     external
+    //     view
+    //     returns (
+    //         Basset memory bAsset,
+    //         uint256 index
+    //     );
     function getBasset(uint8 _basset)
         external
         view
@@ -57,8 +57,8 @@ contract IBasketManager is MassetStructs {
         );
 
     /** @dev Recollateralisation */
-    function handlePegLoss(address _basset, bool _belowPeg) external returns (bool actioned);
-    function negateIsolation(address _basset) external;
+    function handlePegLoss(uint8 _basset, bool _belowPeg) external returns (bool actioned);
+    function negateIsolation(uint8 _basset) external;
 }
 
     // function initiateRecol(address _basset) external returns (bool auctionNeeded, bool isTransferable);

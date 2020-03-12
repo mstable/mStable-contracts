@@ -56,10 +56,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         string memory _symbol,
         address _nexus,
         address _feeRecipient,
-        address _forgeValidator,
-        address[] memory _bassets,
-        uint256[] memory _weights,
-        bool[] memory _hasTransferFees
+        address _forgeValidator
     )
         MassetToken(
             _name,
@@ -73,16 +70,17 @@ contract Masset is IMasset, MassetToken, PausableModule {
     {
         feeRecipient = _feeRecipient;
         forgeValidator = IForgeValidator(_forgeValidator);
-        address newBasketManager = address(
-            new BasketManager(
-                _nexus,
-                address(this),
-                _bassets,
-                _weights,
-                _hasTransferFees
-            )
-        );
-        basketManager = IBasketManager(newBasketManager);
+        // address newBasketManager = address(
+        //     new BasketManager(
+        //         _nexus,
+        //         address(this),
+        //         _bassets,
+        //         new address[],
+        //         _weights,
+        //         _hasTransferFees
+        //     )
+        // );
+        // basketManager = IBasketManager(newBasketManager);
         redemptionFee = 2e16;
     }
 

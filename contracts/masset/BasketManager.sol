@@ -404,7 +404,7 @@ contract BasketManager is IBasketManager, Module {
     view
     returns (
         Basset[] memory bAssets,
-        uint256 bitmap,
+        uint32 bitmap,
         uint256 len
     ) {
         len = basket.bassets.length;
@@ -412,7 +412,7 @@ contract BasketManager is IBasketManager, Module {
         bAssets = new Basset[](len);
 
         for(uint256 i = 0; i < len; i++){
-            bitmap |= uint32(2)**i;
+            bitmap |= uint32(2)**uint8(i);
             bAssets[i] = _getBasset(i);
         }
     }
@@ -430,23 +430,6 @@ contract BasketManager is IBasketManager, Module {
     {
         require(basket.bassets.length > _basset, "Basset does not exist");
         return _getBasset(_basset);
-    }
-
-    /**
-     * @dev Get all bAssets addresses
-     * @return return an array of bAssets addresses
-     */
-    function getAllBassetsAddress()
-        public
-        view
-        returns (address[] memory)
-    {
-        uint256 len = basket.bassets.length;
-        address[] memory bAssets = new address[](len);
-        for(uint256 i = 0; i < len; i++) {
-            bAssets[i] = basket.bassets[i].addr;
-        }
-        return bAssets;
     }
 
     /**
