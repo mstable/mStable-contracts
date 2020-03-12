@@ -202,10 +202,11 @@ contract BasketManager is IBasketManager, Module {
 
         uint256 ratio = _measurementMultiple.mul(10 ** delta);
 
-        uint256 numberOfBassetsInBasket = basket.bassets.length;
+        uint8 numberOfBassetsInBasket = basket.bassets.length;
         require(numberOfBassetsInBasket < basket.maxBassets, "Max bAssets in Basket");
 
-        index = uint8(basket.bassets.length);
+        bassetsMap[_basset] = numberOfBassetsInBasket;
+        integrations[index] = _integration;
 
         basket.bassets.push(Basset({
             addr: _basset,
@@ -216,7 +217,6 @@ contract BasketManager is IBasketManager, Module {
             isTransferFeeCharged: _isTransferFeeCharged
         }));
 
-        integrations[index] = _integration;
 
         emit BassetAdded(_basset, _integration);
     }
