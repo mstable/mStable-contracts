@@ -16,7 +16,7 @@ import {
 import { Address } from "../../types/common";
 import { BassetMachine } from "./bassetMachine";
 import { StandardAccounts } from "./standardAccounts";
-import { MainnetAccounts } from './mainnetAccounts';
+import { MainnetAccounts } from "./mainnetAccounts";
 
 const CommonHelpersArtifact = artifacts.require("CommonHelpers");
 const StableMathArtifact = artifacts.require("StableMath");
@@ -87,34 +87,34 @@ export class SystemMachine {
             /** Nexus */
             this.nexus = await this.deployNexus();
 
-            const moduleKeys: string[] = new Array(3);
-            const moduleAddresses: Address[] = new Array(3);
-            const isLocked: boolean[] = new Array(3);
+            // const moduleKeys: string[] = new Array(3);
+            // const moduleAddresses: Address[] = new Array(3);
+            // const isLocked: boolean[] = new Array(3);
 
             /** MetaToken */
-            this.metaToken = await this.deployMetaToken();
-            this.metaTokenController = await this.deployMetaTokenController();
-            moduleKeys[0] = await this.nexus.Key_MetaToken();
-            moduleAddresses[0] = this.metaToken.address;
-            isLocked[0] = true;
+            // this.metaToken = await this.deployMetaToken();
+            // this.metaTokenController = await this.deployMetaTokenController();
+            // moduleKeys[0] = await this.nexus.Key_MetaToken();
+            // moduleAddresses[0] = this.metaToken.address;
+            // isLocked[0] = true;
 
-            await this.metaToken.transfer(this.sa._, simpleToExactAmount(1000, 18), {
-                from: this.sa.fundManager,
-            });
+            // await this.metaToken.transfer(this.sa._, simpleToExactAmount(1000, 18), {
+            //     from: this.sa.fundManager,
+            // });
 
             /** OracleHubMock */
-            this.oracleHub = await this.deployOracleHub();
-            moduleKeys[1] = await this.nexus.Key_OracleHub();
-            moduleAddresses[1] = this.oracleHub.address;
-            isLocked[1] = false;
+            // this.oracleHub = await this.deployOracleHub();
+            // moduleKeys[1] = await this.nexus.Key_OracleHub();
+            // moduleAddresses[1] = this.oracleHub.address;
+            // isLocked[1] = false;
 
             /** ManagerMock */
-            this.manager = await this.deployManager();
-            moduleKeys[2] = await this.nexus.Key_Manager();
-            moduleAddresses[2] = this.manager.address;
-            isLocked[2] = false;
+            // this.manager = await this.deployManager();
+            // moduleKeys[2] = await this.nexus.Key_Manager();
+            // moduleAddresses[2] = this.manager.address;
+            // isLocked[2] = false;
 
-            await this.initializeNexusWithModules(moduleKeys, moduleAddresses, isLocked);
+            // await this.initializeNexusWithModules(moduleKeys, moduleAddresses, isLocked);
 
             await this.mintAllTokens();
 
@@ -129,10 +129,8 @@ export class SystemMachine {
         try {
             const code: string = await web3.eth.getCode(this.ma.DAI);
             // Empty code on mainnet DAI contract address
-            if(code === "0x") 
-                return false;
-            else
-                return true;
+            if (code === "0x") return false;
+            else return true;
         } catch (e) {
             return false;
         }
@@ -140,11 +138,13 @@ export class SystemMachine {
 
     public async mintAllTokens() {
         // When Ganache not running mainnet forked version, dont mint
-        if( ! (await this.isRunningForkedGanache()) ) {
-            console.warn("*** Ganache not running on MAINNET fork. Hence, avoid minting tokens ***");
+        if (!(await this.isRunningForkedGanache())) {
+            console.warn(
+                "*** Ganache not running on MAINNET fork. Hence, avoid minting tokens ***",
+            );
             return;
-        } 
-        
+        }
+
         // mainnet addresses
         // DAI
         await this.mintERC20(this.ma.DAI);
@@ -157,26 +157,25 @@ export class SystemMachine {
         //await this.mintERC20(this.ma.SUSD);
         // TUSD
         await this.mintERC20(this.ma.TUSD);
-        // USDC 
+        // USDC
         await this.mintERC20(this.ma.USDC);
         // USDT
         await this.mintERC20(this.ma.USDT);
-        
     }
 
     public async mintERC20(erc20: string) {
-        const instance: ERC20MockInstance = await Erc20Artifact.at(erc20);        
+        const instance: ERC20MockInstance = await Erc20Artifact.at(erc20);
         const decimals = await instance.decimals();
         const symbol = await instance.symbol();
         console.log("Symbol: " + symbol + " decimals: " + decimals);
         const ONE_TOKEN = new BN(10).pow(decimals);
         const HUNDRED_TOKEN = ONE_TOKEN.mul(new BN(100));
         let i;
-        for(i = 0; i < this.sa.all.length; i++) {
-            await instance.transfer(this.sa.all[i], HUNDRED_TOKEN, {from: this.ma.OKEX});
+        for (i = 0; i < this.sa.all.length; i++) {
+            await instance.transfer(this.sa.all[i], HUNDRED_TOKEN, { from: this.ma.OKEX });
             const bal: BN = await instance.balanceOf(this.sa.all[i]);
             console.log(bal.toString(10));
-        }        
+        }
     }
 
     /**

@@ -8,6 +8,8 @@ import { MassetHelpers } from "../shared/MassetHelpers.sol";
 
 contract AbstractPlatform is IPlatform, WhitelistedRole {
 
+    string public constant version = "1.0";
+
     address public platformAddress;
     // bool internal pTokenRequiresApproval;
 
