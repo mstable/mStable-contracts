@@ -185,7 +185,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         require(_recipient != address(0), "Recipient must not be 0x0");
         require(_bAssetQuantity > 0, "Quantity must not be 0");
 
-        Basset memory b = basketManager.getBasset(_bAsset);
+        Basset memory b = _selectBasset(basket.bassets, _bAsset);
 
         uint256 bAssetQty = IPlatform(b.integrator).deposit(msg.sender, b.addr, _bAssetQuantity, b.isTransferFeeCharged);
 
@@ -380,8 +380,8 @@ contract Masset is IMasset, MassetToken, PausableModule {
 
         Basket memory basket = basketManager.getBasket();
 
-        // Fetch bAsset from storage
-        Basset memory b = basketManager.getBasset(_bAsset);
+        // Fetch bAsset from array
+        Basset memory b = _selectBasset(basket.bassets, _bAsset);
 
         // Validate redemption
         (bool isValid, string memory reason) =
@@ -526,5 +526,16 @@ contract Masset is IMasset, MassetToken, PausableModule {
         emit MintedMulti(msg.sender, totalInterestGained, bitmap, gains);
 
         newSupply = totalSupply();
+    }
+
+    function _selectBasset(Basset[] memory allBassets, uint8 _index)
+        internal
+        pure
+        returns (
+            Basset memory bAsset
+        )
+    {
+        require(allBassets.length > _index, "Basset does not exist");
+        return allBassets[_index];
     }
 }

@@ -19,6 +19,12 @@ contract CompoundVault is AbstractPlatform {
     {
     }
 
+    function _abstractUpdatePToken(address _bAsset, address _pToken) internal {
+        ICErc20 cToken = _getCTokenFor(_bAsset);
+        // approve the cToken to spend the bAsset
+    }
+
+
     function deposit(
         address _spender,
         address _bAsset,

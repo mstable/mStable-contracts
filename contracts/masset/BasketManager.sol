@@ -4,6 +4,7 @@ pragma experimental ABIEncoderV2;
 // Internal
 import { MassetStructs } from "./shared/MassetStructs.sol";
 import { Module } from "../shared/Module.sol";
+import { IBasketManager } from "../interfaces/IBasketManager.sol";
 
 // Libs
 import { CommonHelpers } from "../shared/libs/CommonHelpers.sol";
@@ -16,7 +17,7 @@ import { StableMath } from "../shared/StableMath.sol";
  * @title MassetBasket
  * @dev Manages the Masset Basket composition and acts as a cache to store the Basket Assets (Bassets)
  */
-contract BasketManager is Module, MassetStructs {
+contract BasketManager is IBasketManager, Module {
 
     using SafeMath for uint256;
     using StableMath for uint256;
@@ -27,13 +28,14 @@ contract BasketManager is Module, MassetStructs {
 
     /** @dev Struct holding Basket details */
     Basket public basket;
-    mapping(address => uint256) private bassetsMap;
+    // Mapping holds bAsset token address => integration address => index
+    mapping(address => mapping(address => uint256)) private bassetsMap;
 
     address public mAsset;
 
     /** @dev Basket composition events */
-    event BassetAdded(address indexed basset);
-    event BassetRemoved(address indexed basset);
+    event BassetAdded(address indexed basset, address integrator);
+    event BassetRemoved(address indexed basset, address integrator);
     event BasketWeightsUpdated(address[] indexed bassets, uint256[] maxWeights);
 
     /** @dev constructor */
@@ -41,6 +43,7 @@ contract BasketManager is Module, MassetStructs {
         address _nexus,
         address _mAsset,
         address[] memory _bassets,
+        address[] memory _integrators,
         uint256[] memory _weights,
         bool[] memory _hasTransferFees
     )
@@ -57,6 +60,7 @@ contract BasketManager is Module, MassetStructs {
         for (uint256 i = 0; i < _bassets.length; i++) {
             _addBasset(
                 _bassets[i],
+                _integrators[i],
                 StableMath.getRatioScale(),
                 _hasTransferFees[i]
                 );
@@ -127,30 +131,33 @@ contract BasketManager is Module, MassetStructs {
       * @dev External func to allow the Manager to conduct add operations on the Basket
       * @param _basset Address of the ERC20 token to add to the Basket
       */
-    function addBasset(address _basset, bool _isTransferFeeCharged)
+    function addBasset(address _basset, address _integration, bool _isTransferFeeCharged)
         external
         onlyGovernor
         basketIsHealthy
     {
-        _addBasset(_basset, StableMath.getRatioScale(), _isTransferFeeCharged);
+        _addBasset(_basset, _integration, StableMath.getRatioScale(), _isTransferFeeCharged);
     }
 
     /**
       * @dev Adds a basset to the Basket, fetching its decimals and calculating the Ratios
       * @param _basset Address of the ERC20 token to add to the Basket
+      * @param _integration Address of the Platform Integration
       * @param _measurementMultiple base 1e8 var to determine measurement ratio between basset:masset
       * e.g. a Gold backed basset pegged to 1g where Masset is base 10g would be 1e7 (0.1:1)
       * e.g. a USD backed basset pegged to 1 USD where Masset is pegged to 1 USD would be 1e8 (1:1)
       */
     function _addBasset(
         address _basset,
+        address _integration,
         uint256 _measurementMultiple,
         bool _isTransferFeeCharged
     )
         internal
     {
         require(_basset != address(0), "Asset address must be valid");
-        (bool alreadyInBasket, ) = _isAssetInBasket(_basset);
+        require(_integration != address(0), "Asset address must be valid");
+        (bool alreadyInBasket, ) = _isAssetInBasket(_basset, _integration);
         require(!alreadyInBasket, "Asset already exists in Basket");
 
         // require(
@@ -169,11 +176,11 @@ contract BasketManager is Module, MassetStructs {
         uint256 numberOfBassetsInBasket = basket.bassets.length;
         require(numberOfBassetsInBasket < basket.maxBassets, "Max bAssets in Basket");
 
-        bassetsMap[_basset] = numberOfBassetsInBasket;
+        bassetsMap[_basset][_integration] = numberOfBassetsInBasket;
 
         basket.bassets.push(Basset({
             addr: _basset,
-            integrator: address(0),
+            integrator: _integration,
             ratio: ratio,
             maxWeight: 0,
             vaultBalance: 0,
@@ -181,7 +188,7 @@ contract BasketManager is Module, MassetStructs {
             isTransferFeeCharged: _isTransferFeeCharged
         }));
 
-        emit BassetAdded(_basset);
+        emit BassetAdded(_basset, _integration);
     }
 
     /**
@@ -193,9 +200,13 @@ contract BasketManager is Module, MassetStructs {
         external
         managerOrGovernor
     {
-        (bool exist, uint256 index) = _isAssetInBasket(_bAsset);
-        require(exist, "bAsset does not exist");
-        basket.bassets[index].isTransferFeeCharged = _flag;
+        uint256 len = basket.bassets.length;
+        // Cycle through all bAssets and set flag dependent on bAsset addr
+        for(uint256 i = 0; i < len; i++){
+            if(basket.bassets[i].addr == _bAsset){
+                basket.bassets[i].isTransferFeeCharged = _flag;
+            }
+        }
     }
 
     /**
@@ -204,7 +215,7 @@ contract BasketManager is Module, MassetStructs {
       * @param _assetToRemove The asset to remove from the basket
       * @return bool To signify whether the asset was found and removed from the basket
       */
-    function removeBasset(address _assetToRemove)
+    function removeBasset(uint8 _assetToRemove)
         external
         basketIsHealthy
         managerOrGovernor
@@ -214,24 +225,24 @@ contract BasketManager is Module, MassetStructs {
         return true;
     }
 
-    function _removeBasset(address _assetToRemove)
+    function _removeBasset(uint8 _assetToRemove)
     internal {
-        (bool existsInBasket, uint256 index) = _isAssetInBasket(_assetToRemove);
-        require(existsInBasket, "Asset must appear in Basket");
-
         uint256 len = basket.bassets.length;
+        require(len > _assetToRemove, "Basset does not exist");
 
-        Basset memory basset = basket.bassets[index];
+        Basset memory basset = basket.bassets[_assetToRemove];
         // require(basset.maxWeight == 0, "bASset must have a target weight of 0");
         require(basset.vaultBalance == 0, "bASset vault must be empty");
         require(basset.status != BassetStatus.Liquidating, "bASset must be active");
 
-        basket.bassets[index] = basket.bassets[len-1];
+        basket.bassets[_assetToRemove] = basket.bassets[len-1];
         basket.bassets.pop();
 
-        bassetsMap[_assetToRemove] = 0;
+        // require(bassetsMap[basset.addr][basset.integration] )
+        // TODO - come back to this to validate
+        bassetsMap[basset.addr][basset.integrator] = 0;
 
-        emit BassetRemoved(_assetToRemove);
+        emit BassetRemoved(basset.addr, basset.integrator);
     }
 
     /**
@@ -310,28 +321,13 @@ contract BasketManager is Module, MassetStructs {
      * @param _bassets bAsset addresses for which bitmap is needed
      * @return bitmap with bits set according to bAsset address position
      */
-    function getBitmapFor(address[] calldata _bassets) external view returns (uint32 bitmap) {
+    function getBitmapFor(uint8[] calldata _bassets) external view returns (uint32 bitmap) {
+        uint256 len = basket.bassets.length;
         for(uint32 i = 0; i < _bassets.length; i++) {
-            (bool exist, uint256 idx) = _isAssetInBasket(_bassets[i]);
-            if(exist) bitmap |= uint32(2)**uint8(idx);
+            require(len > _bassets[i], "bAsset does not exist");
+            bitmap |= uint32(2)**uint8(_bassets[i]);
         }
     }
-
-    /**
-     * @dev Convert bitmap representing bAssets location to bAssets addresses
-     * @param _bitmap bits set in bitmap represents which bAssets to use
-     * @param _size size of bAssets array
-     * @return array of bAssets array
-     */
-    function convertBitmapToBassetsAddress(uint32 _bitmap, uint8 _size) external view returns (address[] memory) {
-        uint8[] memory indexes = _convertBitmapToIndexArr(_bitmap, _size);
-        address[] memory bAssets = new address[](_size);
-        for(uint8 i = 0; i < indexes.length; i++) {
-            bAssets[i] = basket.bassets[indexes[i]].addr;
-        }
-        return bAssets;
-    }
-
 
     /**
      * @dev Convert bitmap representing bAssets location to Bassets array
@@ -425,23 +421,6 @@ contract BasketManager is Module, MassetStructs {
       * @dev Get all basket assets, failing if the Basset does not exist
       * @return Struct array of all basket assets
       */
-    function getBasset(address _basset)
-        external
-        view
-        returns (
-            Basset memory bAsset,
-            uint256 index
-        )
-    {
-        (bool exists, uint256 i) = _isAssetInBasket(_basset);
-        require(exists, "bASset must exist");
-        return (_getBasset(i), i);
-    }
-
-    /**
-      * @dev Get all basket assets, failing if the Basset does not exist
-      * @return Struct array of all basket assets
-      */
     function getBasset(uint8 _basset)
         external
         view
@@ -490,12 +469,12 @@ contract BasketManager is Module, MassetStructs {
       * @return bool to signal that the asset is in basket
       * @return uint256 Index of the Basset
       */
-    function _isAssetInBasket(address _asset)
+    function _isAssetInBasket(address _asset, address _integrator)
         internal
         view
         returns (bool exists, uint256 index)
     {
-        index = bassetsMap[_asset];
+        index = bassetsMap[_asset][_integrator];
         if(index == 0) {
             if(basket.bassets.length == 0){
                 return (false, 0);
@@ -523,25 +502,24 @@ contract BasketManager is Module, MassetStructs {
 
 
     /***************************************
-              RE-COLLATERALISATION
+                RE-COLLATERALISATION
     ****************************************/
 
     /**
       * @dev Executes the Auto Redistribution event by isolating the Basset from the Basket
-      * @param _basset Address of the ERC20 token to isolate
+      * @param _bAsset Address of the ERC20 token to isolate
       * @param _belowPeg Bool to describe whether the basset deviated below peg (t) or above (f)
       * @return alreadyActioned Bool to show whether a Basset had already been actioned
       */
-    function handlePegLoss(address _basset, bool _belowPeg)
+    function handlePegLoss(uint8 _bAsset, bool _belowPeg)
         external
         managerOrGovernor
         basketIsHealthy
         returns (bool alreadyActioned)
     {
-        (bool exists, uint256 i) = _isAssetInBasket(_basset);
-        require(exists, "bASset must exist in Basket");
+        require(basket.bassets.length > _bAsset, "bAsset does not exist");
 
-        BassetStatus oldStatus = basket.bassets[i].status;
+        BassetStatus oldStatus = basket.bassets[_bAsset].status;
         BassetStatus newStatus = _belowPeg ? BassetStatus.BrokenBelowPeg : BassetStatus.BrokenAbovePeg;
 
         if(oldStatus == newStatus ||
@@ -550,26 +528,25 @@ contract BasketManager is Module, MassetStructs {
         }
 
         // If we need to update the status.. then do it
-        basket.bassets[i].status = newStatus;
+        basket.bassets[_bAsset].status = newStatus;
 
         return false;
     }
 
     /**
       * @dev Negates the isolation of a given Basset
-      * @param _basset Address of the Basset
+      * @param _bAsset Address of the Basset
       */
-    function negateIsolation(address _basset)
+    function negateIsolation(uint8 _bAsset)
     external
     managerOrGovernor {
-        (bool exists, uint256 i) = _isAssetInBasket(_basset);
-        require(exists, "bASset must exist in Basket");
+        require(basket.bassets.length > _bAsset, "bAsset does not exist");
 
-        BassetStatus currentStatus = basket.bassets[i].status;
+        BassetStatus currentStatus = basket.bassets[_bAsset].status;
         if(currentStatus == BassetStatus.BrokenBelowPeg ||
             currentStatus == BassetStatus.BrokenAbovePeg ||
             currentStatus == BassetStatus.Blacklisted) {
-            basket.bassets[i].status = BassetStatus.Normal;
+            basket.bassets[_bAsset].status = BassetStatus.Normal;
         }
     }
 }

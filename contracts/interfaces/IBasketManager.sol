@@ -9,6 +9,9 @@ import { MassetStructs } from "../masset/shared/MassetStructs.sol";
  */
 contract IBasketManager is MassetStructs {
 
+    /** @dev Basket Manager Version */
+    string public constant version_i = "1.0";
+
     /** @dev Setters for mAsset to update balances */
     function increaseVaultBalance(uint8 _bAsset, uint256 _increaseAmount) external;
     function decreaseVaultBalance(uint8 _bAsset, uint256 _decreaseAmount) external;

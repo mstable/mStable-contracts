@@ -40,7 +40,13 @@ contract AbstractPlatform is IPlatform, WhitelistedRole {
         require(bAssetToPToken[_bAsset] == address(0), "pToken already set");
         bAssetToPToken[_bAsset] = _pToken;
         emit PTokenAdded(_bAsset, _pToken);
+
+        _abstractUpdatePToken(_bAsset, _pToken);
     }
+
+    function _abstractUpdatePToken(address _bAsset, address _pToken) internal;
+
+    // function reApproveAllTokens(address _bAsset, address _pToken) external onlyWhitelistedAdmin;
 
     function updatePTokenAddress(address _bAsset, address _pToken)
         external
