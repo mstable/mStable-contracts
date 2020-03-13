@@ -2,13 +2,9 @@ pragma solidity ^0.5.16;
 
 import { AbstractPlatform } from "../platform/AbstractPlatform.sol";
 import { ICErc20 } from "../platform/compound/ICErc20.sol";
-import { SafeERC20 } from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
 import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
-import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 contract CompoundVault is AbstractPlatform {
-    using SafeERC20 for IERC20;
-    using SafeMath for uint256;
 
     constructor(address _compoundAddress)
         AbstractPlatform(_compoundAddress)

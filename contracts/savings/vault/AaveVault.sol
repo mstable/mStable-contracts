@@ -4,14 +4,9 @@ import { AbstractPlatform } from "../platform/AbstractPlatform.sol";
 import { IAaveAToken } from "../platform/aave/IAaveAToken.sol";
 import { IAaveLendingPool } from "../platform/aave/IAaveLendingPool.sol";
 import { ILendingPoolAddressesProvider } from "../platform/aave/ILendingPoolAddressesProvider.sol";
-import { SafeERC20 } from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
 import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
-import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 contract AaveVault is AbstractPlatform {
-
-    using SafeERC20 for IERC20;
-    using SafeMath for uint256;
 
     constructor(address _aaveAddress)
         AbstractPlatform(_aaveAddress)

@@ -2,10 +2,16 @@ pragma solidity ^0.5.16;
 
 import { IPlatform } from "./IPlatform.sol";
 import { GovernableWhitelist } from "../../governance/GovernableWhitelist.sol";
-import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
 import { Module } from "../../shared/Module.sol";
+import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
+import { SafeERC20 } from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
+import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
+import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
+
 
 contract AbstractPlatform is IPlatform, GovernableWhitelist, Initializable {
+    using SafeERC20 for IERC20;
+    using SafeMath for uint256;
 
     address public platformAddress;
 
