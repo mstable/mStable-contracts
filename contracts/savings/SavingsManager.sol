@@ -30,7 +30,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
     // Time at which last collection was made
     uint256 private lastCollection;
     uint256 constant private secondsInYear = 365 days;
-    uint256 constant private maxAPR = 50e18;
+    uint256 constant private maxAPR = 50e16;
 
     constructor(
         address _nexus,
@@ -89,12 +89,14 @@ contract SavingsManager is ISavingsManager, PausableModule {
         // e.g. day: (86400 * 1e18) / 3.154e7 = 2.74..e15
         uint256 yearsSinceLastCollection = secondsSinceLastCollection.divPrecisely(secondsInYear);
         // Percentage increase in total supply
+        // e.g. (1e20 * 1e18) / 1e24 = 1e14 (or a 0.01% increase)
         uint256 percentageIncrease = interestCollected.divPrecisely(totalSupply);
-        // e.g. 0.01% ((1e14) * 1e18) / 2.74..e15 = 3.65e16 or 3.65% apr
+        // e.g. 0.01% (1e14 * 1e18) / 2.74..e15 = 3.65e16 or 3.65% apr
         uint256 extrapolatedAPR = percentageIncrease.divPrecisely(yearsSinceLastCollection);
 
         require(extrapolatedAPR < maxAPR, "Interest protected from inflating past maxAPR");
 
+        // Add to the vault for distribution
         mAssetVault[_mAsset] = mAssetVault[_mAsset].add(interestCollected);
     }
 
@@ -110,12 +112,16 @@ contract SavingsManager is ISavingsManager, PausableModule {
     {
         // Get the amount of mAsset in the vault
         uint256 mAssetToDistribute = mAssetVault[_mAsset];
-        mAssetVault[_mAsset] = 0;
-        uint256 send = mAssetToDistribute.mulTruncate(savingsRate);
-        // Approve ISavingsContract
-        // Call depositInterest on contract
-        ISavingsContract target = savingsContracts[_mAsset];
-        target.depositInterest(send);
+        if(mAssetToDistribute > 0){
+            mAssetVault[_mAsset] = 0;
+
+            // Calc amount to send, remainder is kept here for Governor
+            uint256 send = mAssetToDistribute.mulTruncate(savingsRate);
+
+            // Call depositInterest on contract
+            ISavingsContract target = savingsContracts[_mAsset];
+            target.depositInterest(send);
+        }
     }
 
     /***************************************

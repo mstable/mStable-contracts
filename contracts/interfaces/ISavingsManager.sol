@@ -6,6 +6,9 @@ pragma solidity 0.5.16;
 interface ISavingsManager {
 
     /** @dev Admin privs */
+    function collectUnallocatedInterest(address _mAsset, address _recipient) external;
+
+    /** @dev Public privs */
     function collectAndDistributeInterest(address _mAsset) external;
 
 }

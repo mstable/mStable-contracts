@@ -129,12 +129,15 @@ contract BasketManager is IBasketManager, Module {
             Basset memory b = allBassets[i];
             // call each integration to `checkBalance`
             uint256 balance = IPlatform(integrations[i]).checkBalance(b.addr);
+            uint256 oldVaultBalance = b.vaultBalance;
+
             // accumulate interestdelta (ratioed bAsset
-            if(balance > b.vaultBalance) {
-                // Add to balance
-                uint256 interestDelta = balance.sub(b.vaultBalance);
+            if(balance > oldVaultBalance) {
+                // Update balance
+                basket.bassets[i].vaultBalance = balance;
+
+                uint256 interestDelta = balance.sub(oldVaultBalance);
                 gains[i] = interestDelta;
-                basket.bassets[i].vaultBalance = basket.bassets[i].vaultBalance.add(interestDelta);
                 // Calc MassetQ
                 uint256 ratioedDelta = interestDelta.mulRatioTruncate(b.ratio);
                 interestCollected = interestCollected.add(ratioedDelta);
