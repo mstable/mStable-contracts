@@ -2,7 +2,6 @@ pragma solidity 0.5.16;
 pragma experimental ABIEncoderV2;
 
 // Internal
-import { MassetStructs } from "./shared/MassetStructs.sol";
 import { Module } from "../shared/Module.sol";
 import { IBasketManager } from "../interfaces/IBasketManager.sol";
 import { IPlatform } from "./platform/IPlatform.sol";
@@ -25,7 +24,7 @@ contract BasketManager is IBasketManager, Module {
     using SafeERC20 for IERC20;
 
     /** @dev Basket Manager Version */
-    string public constant version = "1.0";
+    string public constant version_impl = "1.0";
 
     /** @dev mAsset linked to the manager (const) */
     address public mAsset;
@@ -202,7 +201,7 @@ contract BasketManager is IBasketManager, Module {
 
         uint256 ratio = _measurementMultiple.mul(10 ** delta);
 
-        uint8 numberOfBassetsInBasket = basket.bassets.length;
+        uint8 numberOfBassetsInBasket = uint8(basket.bassets.length);
         require(numberOfBassetsInBasket < basket.maxBassets, "Max bAssets in Basket");
 
         bassetsMap[_basset] = numberOfBassetsInBasket;
@@ -221,54 +220,6 @@ contract BasketManager is IBasketManager, Module {
         emit BassetAdded(_basset, _integration);
     }
 
-    /**
-     * @dev Update transfer fee flag
-     * @param _bAsset bAsset address
-     * @param _flag Charge transfer fee when its set to 'true', otherwise 'false'
-     */
-    function setTransferFeesFlag(address _bAsset, bool _flag)
-        external
-        managerOrGovernor
-    {
-        (bool exist, uint8 index) = _isAssetInBasket(_bAsset);
-        require(exist, "bAsset does not exist");
-        basket.bassets[index].isTransferFeeCharged = _flag;
-    }
-
-    /**
-      * @dev Removes a specific Asset from the Basket, given that its target/collateral level is 0
-      * @param _assetToRemove The asset to remove from the basket
-      * @return bool To signify whether the asset was found and removed from the basket
-      */
-    function removeBasset(address _assetToRemove)
-        external
-        basketIsHealthy
-        managerOrGovernor
-        returns (bool removed)
-    {
-        _removeBasset(_assetToRemove);
-        return true;
-    }
-
-    function _removeBasset(address _assetToRemove)
-    internal {
-        (bool existsInBasket, uint8 index) = _isAssetInBasket(_assetToRemove);
-        require(existsInBasket, "Asset must appear in Basket");
-
-        uint256 len = basket.bassets.length;
-        Basset memory basset = basket.bassets[index];
-        // require(basset.maxWeight == 0, "bASset must have a target weight of 0");
-        require(basset.vaultBalance == 0, "bASset vault must be empty");
-        require(basset.status != BassetStatus.Liquidating, "bASset must be active");
-
-        basket.bassets[index] = basket.bassets[len-1];
-        basket.bassets.pop();
-
-        bassetsMap[_assetToRemove] = 0;
-        integrations[index] = address(0);
-
-        emit BassetRemoved(basset.addr);
-    }
 
     /**
       * @dev External call to set weightings of all Bassets
@@ -330,6 +281,55 @@ contract BasketManager is IBasketManager, Module {
             weightSum = weightSum.add(basket.bassets[i].maxWeight);
         }
         require(weightSum >= StableMath.getFullScale(), "Basket weight must be >= 1e18");
+    }
+
+    /**
+     * @dev Update transfer fee flag
+     * @param _bAsset bAsset address
+     * @param _flag Charge transfer fee when its set to 'true', otherwise 'false'
+     */
+    function setTransferFeesFlag(address _bAsset, bool _flag)
+        external
+        managerOrGovernor
+    {
+        (bool exist, uint8 index) = _isAssetInBasket(_bAsset);
+        require(exist, "bAsset does not exist");
+        basket.bassets[index].isTransferFeeCharged = _flag;
+    }
+
+    /**
+      * @dev Removes a specific Asset from the Basket, given that its target/collateral level is 0
+      * @param _assetToRemove The asset to remove from the basket
+      * @return bool To signify whether the asset was found and removed from the basket
+      */
+    function removeBasset(address _assetToRemove)
+        external
+        basketIsHealthy
+        managerOrGovernor
+        returns (bool removed)
+    {
+        _removeBasset(_assetToRemove);
+        return true;
+    }
+
+    function _removeBasset(address _assetToRemove)
+    internal {
+        (bool existsInBasket, uint8 index) = _isAssetInBasket(_assetToRemove);
+        require(existsInBasket, "Asset must appear in Basket");
+
+        uint256 len = basket.bassets.length;
+        Basset memory basset = basket.bassets[index];
+        // require(basset.maxWeight == 0, "bASset must have a target weight of 0");
+        require(basset.vaultBalance == 0, "bASset vault must be empty");
+        require(basset.status != BassetStatus.Liquidating, "bASset must be active");
+
+        basket.bassets[index] = basket.bassets[len-1];
+        basket.bassets.pop();
+
+        bassetsMap[_assetToRemove] = 0;
+        integrations[index] = address(0);
+
+        emit BassetRemoved(basset.addr);
     }
 
 
@@ -398,6 +398,20 @@ contract BasketManager is IBasketManager, Module {
       * @dev Get all basket assets
       * @return Struct array of all basket assets
       */
+    function getBasset(address _token)
+        external
+        view
+        returns (Basset memory bAssets)
+    {
+        (bool exists, uint8 index) = _isAssetInBasket(_token);
+        require(exists, "bAsset must exist");
+        return _getBasset(index);
+    }
+
+    /**
+      * @dev Get all basket assets
+      * @return Struct array of all basket assets
+      */
     function getBassets()
         external
         view
@@ -440,24 +454,13 @@ contract BasketManager is IBasketManager, Module {
             Basset memory bAsset
         )
     {
-        bAsset = basket.bassets[_bassetIndex];
+        return basket.bassets[_bassetIndex];
     }
 
 
     /***************************************
                     HELPERS
     ****************************************/
-
-    // /**
-    //  * @dev Get bitmap for all bAsset addresses
-    //  * @return bitmap with bits set according to bAsset address position
-    //  */
-    // function getBitmapForAllBassets() external view returns (uint32 bitmap) {
-    //     uint256 len = basket.bassets.length;
-    //     for(uint32 i = 0; i < len; i++) {
-    //         bitmap |= uint32(2)**i;
-    //     }
-    // }
 
     /**
      * @dev Returns the bitmap for given bAssets addresses
@@ -470,6 +473,7 @@ contract BasketManager is IBasketManager, Module {
             if(exist) bitmap |= uint32(2)**uint8(idx);
         }
     }
+
 
     /**
      * @dev Convert the given bitmap into an array representing bAssets index location in the array
