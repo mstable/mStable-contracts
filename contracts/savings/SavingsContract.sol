@@ -40,8 +40,6 @@ contract SavingsContract is ISavingsContract, Module {
         public
     {
         mUSD = _mUSD;
-        totalSavings = 1;
-        totalCredits = 1;
     }
 
 
@@ -62,7 +60,10 @@ contract SavingsContract is ISavingsContract, Module {
                     INTEREST
     ****************************************/
 
-    /** @dev Deposit interest and update exchange rate of contract */
+    /**
+     * @dev Deposit interest and update exchange rate of contract
+     *         New exchange rate = savings / credits
+     */
     function depositInterest(uint256 _amount)
         external
         onlySavingsManager
@@ -73,12 +74,15 @@ contract SavingsContract is ISavingsContract, Module {
         require(mUSD.transferFrom(msg.sender, address(this), _amount), "Must receive tokens");
         totalSavings = totalSavings.add(_amount);
 
-        // new exchange rate is relationship between totalCredits & totalSavings
-        // totalCredits * exchangeRate = totalSavings
-        // exchangeRate = totalSavings/totalCredits
-        // e.g. (100e18 * 1e18) / 100e18 = 1e18
-        // e.g. (101e20 * 1e18) / 100e20 = 1.01e18
-        exchangeRate = totalSavings.divPrecisely(totalCredits);
+        // Calc new exchange rate, protect against initialisation case
+        if(totalCredits > 0) {
+            // new exchange rate is relationship between totalCredits & totalSavings
+            // totalCredits * exchangeRate = totalSavings
+            // exchangeRate = totalSavings/totalCredits
+            // e.g. (100e18 * 1e18) / 100e18 = 1e18
+            // e.g. (101e20 * 1e18) / 100e20 = 1.01e18
+            exchangeRate = totalSavings.divPrecisely(totalCredits);
+        }
     }
 
 
@@ -135,6 +139,10 @@ contract SavingsContract is ISavingsContract, Module {
         require(mUSD.transfer(msg.sender, massetReturned), "Must send tokens");
     }
 
+    /**
+     * @dev Converts masset amount into credits based on exchange rate
+     *               c = masset / exchangeRate
+     */
     function _massetToCredit(uint256 _amount)
         internal
         view
@@ -145,6 +153,10 @@ contract SavingsContract is ISavingsContract, Module {
         credits = _amount.divPrecisely(exchangeRate);
     }
 
+    /**
+     * @dev Converts masset amount into credits based on exchange rate
+     *               m = credits * exchangeRate
+     */
     function _creditToMasset(uint256 _credits)
         internal
         view

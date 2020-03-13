@@ -32,6 +32,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
     uint256 constant private savingsRate = 95e16;
     // Time at which last collection was made
     uint256 private lastCollection;
+    // Utils to help keep interest under check
     uint256 constant private secondsInYear = 365 days;
     uint256 constant private maxAPR = 50e16;
 
