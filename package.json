@@ -23,6 +23,7 @@
   },
   "repository": "gitlab:mstable/mstable-contracts",
   "devDependencies": {
+    "@openzeppelin/upgrades": "2.7.2",
     "@truffle/hdwallet-provider": "^1.0.18",
     "@typechain/truffle-v5": "^0.9.0",
     "@types/chai": "^4.2.2",

@@ -1,7 +1,7 @@
 pragma solidity ^0.5.16;
 
 import { Module } from "../shared/Module.sol";
-import { AdminUpgradeabilityProxy } from "../openzeppelin-sdk/upgradeability/AdminUpgradeabilityProxy.sol";
+import { AdminUpgradeabilityProxy } from "@openzeppelin/upgrades/contracts/upgradeability/AdminUpgradeabilityProxy.sol";
 import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 /**
@@ -48,8 +48,9 @@ contract DelayedProxyAdmin is Module {
     {
         require(_proxy != address(0), "Proxy address zero");
         require(isValidProxy(_proxy), "No proxy found");
+
         require(_implementation != address(0), "Implementation address zero");
-        require(requests[_proxy].implementation != address(0), "Upgrade already proposed");
+        require(requests[_proxy].implementation == address(0), "Upgrade already proposed");
 
         Request storage request = requests[_proxy];
         request.implementation = _implementation;
@@ -77,18 +78,20 @@ contract DelayedProxyAdmin is Module {
      */
     function acceptRequest(address payable _proxy) external payable onlyGovernor {
         // _proxy is payable, because AdminUpgradeabilityProxy has fallback function
+        require(_proxy != address(0), "Proxy address zero");
         Request memory request = requests[_proxy];
         require(_isDelayOver(request.timestamp), "Delay not over");
+
         address newImpl = request.implementation;
         bytes memory data = request.data;
+
+        address oldImpl = getProxyImplementation(_proxy);
 
         if(data.length == 0) {
             AdminUpgradeabilityProxy(_proxy).upgradeTo(newImpl);
         } else {
             AdminUpgradeabilityProxy(_proxy).upgradeToAndCall.value(msg.value)(newImpl, data);
         }
-
-        address oldImpl = getProxyImplementation(_proxy);
 
         delete requests[_proxy];
         emit Upgraded(_proxy, oldImpl, newImpl, data);
@@ -122,6 +125,18 @@ contract DelayedProxyAdmin is Module {
     }
 
     /**
+    * @dev Returns the admin of a proxy. Only the admin can query it.
+    * @return The address of the current admin of the proxy.
+    */
+    function getProxyAdmin(address proxy) public view returns (address) {
+        // We need to manually run the static call since the getter cannot be flagged as view
+        // bytes4(keccak256("admin()")) == 0xf851a440
+        (bool success, bytes memory returndata) = proxy.staticcall(hex"f851a440");
+        require(success, "Call failed");
+        return abi.decode(returndata, (address));
+    }
+
+    /**
     * @dev Returns the current implementation of a proxy.
     * This is needed because only the proxy admin can query it.
     * @return The address of the current implementation of the proxy.
@@ -130,18 +145,6 @@ contract DelayedProxyAdmin is Module {
         // We need to manually run the static call since the getter cannot be flagged as view
         // bytes4(keccak256("implementation()")) == 0x5c60da1b
         (bool success, bytes memory returndata) = proxy.staticcall(hex"5c60da1b");
-        require(success, "Call failed");
-        return abi.decode(returndata, (address));
-    }
-
-    /**
-    * @dev Returns the admin of a proxy. Only the admin can query it.
-    * @return The address of the current admin of the proxy.
-    */
-    function getProxyAdmin(address proxy) public view returns (address) {
-        // We need to manually run the static call since the getter cannot be flagged as view
-        // bytes4(keccak256("admin()")) == 0xf851a440
-        (bool success, bytes memory returndata) = proxy.staticcall(hex"f851a440");
         require(success, "Call failed");
         return abi.decode(returndata, (address));
     }
