@@ -37,6 +37,7 @@ contract Module is ModuleKeys {
      */
     function _initialize(address _nexus) internal {
         nexus = INexus(_nexus);
+        ModuleKeys._initialize();
     }
 
     function _governor()

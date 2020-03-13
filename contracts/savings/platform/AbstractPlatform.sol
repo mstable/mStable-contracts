@@ -2,8 +2,10 @@ pragma solidity ^0.5.16;
 
 import { IPlatform } from "./IPlatform.sol";
 import { GovernableWhitelist } from "../../governance/GovernableWhitelist.sol";
+import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
+import { Module } from "../../shared/Module.sol";
 
-contract AbstractPlatform is IPlatform, GovernableWhitelist {
+contract AbstractPlatform is IPlatform, GovernableWhitelist, Initializable {
 
     address public platformAddress;
 
@@ -17,6 +19,23 @@ contract AbstractPlatform is IPlatform, GovernableWhitelist {
         AbstractPlatform._initialize(_platformAddress);
     }
 
+    /**
+     * @dev Initialization function for upgradable proxy contract.
+     *      This function should be called via Proxy just after contract deployment.
+     */
+    function initialize(
+        address _nexus,
+        address[] memory _whitelisted,
+        address _platformAddress
+    ) public initializer {
+        Module._initialize(_nexus);
+        GovernableWhitelist._initialize(_whitelisted);
+        AbstractPlatform._initialize(_platformAddress);
+    }
+
+    /**
+     * @dev Initialize function for upgradable proxy contract
+     */
     function _initialize(address _platformAddress) internal {
         require(_platformAddress != address(0), "Platform address zero");
         platformAddress = _platformAddress;
