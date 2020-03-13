@@ -503,8 +503,8 @@ contract Masset is IMasset, MassetToken, PausableModule {
         (uint256 interestCollected, uint32 bitmap, uint256[] memory gains) = basketManager.collectInterest();
 
         // mint new mAsset to sender
-        _mint(msg.sender, totalInterestGained);
-        emit MintedMulti(msg.sender, totalInterestGained, bitmap, gains);
+        _mint(msg.sender, interestCollected);
+        emit MintedMulti(msg.sender, interestCollected, bitmap, gains);
 
         return (interestCollected, totalSupply());
     }

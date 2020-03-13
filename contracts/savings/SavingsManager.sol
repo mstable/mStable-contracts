@@ -1,12 +1,15 @@
 pragma solidity 0.5.16;
 
+// External
 import { IMasset } from "../interfaces/IMasset.sol";
-import { ISavingsManager } from "../interfaces/ISavingsManager.sol";
 import { ISavingsContract } from "../interfaces/ISavingsContract.sol";
+import { IERC20 }     from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 
+// Internal
+import { ISavingsManager } from "../interfaces/ISavingsManager.sol";
 import { PausableModule } from "../shared/PausableModule.sol";
 
-import { IERC20 }     from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
+//Libs
 import { SafeERC20 }  from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
 import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import { StableMath } from "../shared/StableMath.sol";
@@ -81,6 +84,8 @@ contract SavingsManager is ISavingsManager, PausableModule {
     {
         IMasset mAsset = IMasset(_mAsset);
         (uint256 interestCollected, uint256 totalSupply) = mAsset.collectInterest();
+
+        require(IERC20(_mAsset).balanceOf(address(this)) >= interestCollected, "Must recceive mUSD");
 
         uint256 previousCollection = lastCollection;
         lastCollection = now;
