@@ -10,6 +10,8 @@ const c_PublicStableMath = artifacts.require('PublicStableMath');
 const c_SavingsManager = artifacts.require('SavingsManager')
 const c_SavingsContract = artifacts.require('SavingsContract')
 
+const c_Nexus = artifacts.require('Nexus')
+
 const c_MassetHelpers = artifacts.require('MassetHelpers')
 const c_Masset = artifacts.require('Masset')
 const c_BasketManager = artifacts.require('BasketManager')
