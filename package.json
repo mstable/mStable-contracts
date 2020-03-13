@@ -68,8 +68,5 @@
   },
   "_moduleAliases": {
     "@utils": "transpiled/test-utils"
-  },
-  "dependencies": {
-    "@openzeppelin/upgrades": "^2.7.2"
   }
 }
