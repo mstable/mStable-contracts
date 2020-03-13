@@ -14,6 +14,10 @@ contract AbstractPlatform is IPlatform, GovernableWhitelist {
     event PTokenUpdated(address indexed _bAsset, address _pToken);
 
     constructor(address _platformAddress) internal {
+        AbstractPlatform._initialize(_platformAddress);
+    }
+
+    function _initialize(address _platformAddress) internal {
         require(_platformAddress != address(0), "Platform address zero");
         platformAddress = _platformAddress;
     }

@@ -22,7 +22,17 @@ contract AaveVault is AbstractPlatform, Initializable {
 
     }
 
-    function initialize() initializer public {
+    /**
+     * @dev Initialization function for upgradable proxy contract
+     */
+    function initialize(
+        address _nexus,
+        address[] memory _whitelisted,
+        address _aaveAddress
+    ) public initializer {
+        Module._initialize(_nexus);
+        GovernableWhitelist._initialize(_whitelisted);
+        AbstractPlatform._initialize(_platformAddress);
     }
 
     function deposit(
