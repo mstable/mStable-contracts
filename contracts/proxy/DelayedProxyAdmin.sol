@@ -32,6 +32,10 @@ contract DelayedProxyAdmin is Module {
     // ProxyAddress => Request
     mapping(address => Request) public requests;
 
+    constructor(address _nexus) public Module(_nexus) {
+
+    }
+
     /**
      * @dev The Governor can propose a new contract implementation for a given proxy.
      * @param _proxy Proxy address which is to be upgraded

@@ -21,7 +21,14 @@ contract AbstractPlatform is IPlatform, GovernableWhitelist, Initializable {
     event PTokenAdded(address indexed _bAsset, address _pToken);
     event PTokenUpdated(address indexed _bAsset, address _pToken);
 
-    constructor(address _platformAddress) internal {
+    constructor(
+        address _nexus,
+        address[] memory _whitelisted,
+        address _platformAddress
+    )
+        internal
+        GovernableWhitelist(_nexus, _whitelisted)
+    {
         AbstractPlatform._initialize(_platformAddress);
     }
 

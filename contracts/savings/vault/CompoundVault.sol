@@ -6,8 +6,16 @@ import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 
 contract CompoundVault is AbstractPlatform {
 
-    constructor(address _compoundAddress)
-        AbstractPlatform(_compoundAddress)
+    constructor(
+        address _nexus,
+        address[] memory _whitelisted,
+        address _compoundAddress
+    )
+        AbstractPlatform(
+            _nexus,
+            _whitelisted,
+            _compoundAddress
+        )
         public
     {
 

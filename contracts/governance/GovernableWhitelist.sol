@@ -26,7 +26,13 @@ contract GovernableWhitelist is Module {
      * @dev Internal Constructor
      * @param _whitelisted Array of whitelisted addresses.
      */
-    constructor(address[] memory _whitelisted) internal {
+    constructor(
+        address _nexus,
+        address[] memory _whitelisted
+    )
+        internal
+        Module(_nexus)
+    {
         GovernableWhitelist._initialize(_whitelisted);
     }
 

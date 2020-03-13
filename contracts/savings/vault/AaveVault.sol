@@ -8,8 +8,16 @@ import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 
 contract AaveVault is AbstractPlatform {
 
-    constructor(address _aaveAddress)
-        AbstractPlatform(_aaveAddress)
+    constructor(
+        address _nexus,
+        address[] memory _whitelisted,
+        address _aaveAddress
+    )
+        AbstractPlatform(
+            _nexus,
+            _whitelisted,
+            _aaveAddress
+        )
         public
     {
 
