@@ -1,9 +1,9 @@
 pragma solidity ^0.5.16;
 
 import { IPlatform } from "./IPlatform.sol";
-import { WhitelistedRole } from "openzeppelin-solidity/contracts/access/roles/WhitelistedRole.sol";
+import { GovernableWhitelist } from "../../governance/GovernableWhitelist.sol";
 
-contract AbstractPlatform is IPlatform, WhitelistedRole {
+contract AbstractPlatform is IPlatform, GovernableWhitelist {
 
     address public platformAddress;
 
@@ -18,13 +18,13 @@ contract AbstractPlatform is IPlatform, WhitelistedRole {
         platformAddress = _platformAddress;
     }
 
-    function setPTokenAddress(address _bAsset, address _pToken) external onlyWhitelistAdmin {
+    function setPTokenAddress(address _bAsset, address _pToken) external onlyGovernor {
         require(bAssetToPToken[_bAsset] == address(0), "pToken already set");
         bAssetToPToken[_bAsset] = _pToken;
         emit PTokenAdded(_bAsset, _pToken);
     }
 
-    function updatePTokenAddress(address _bAsset, address _pToken) external onlyWhitelistAdmin {
+    function updatePTokenAddress(address _bAsset, address _pToken) external onlyGovernor {
         require(bAssetToPToken[_bAsset] != address(0), "pToken not found");
         bAssetToPToken[_bAsset] = _pToken;
         emit PTokenUpdated(_bAsset, _pToken);

@@ -7,8 +7,10 @@ import { ILendingPoolAddressesProvider } from "../platform/aave/ILendingPoolAddr
 import { SafeERC20 } from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
 import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
+import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
 
-contract AaveVault is AbstractPlatform {
+
+contract AaveVault is AbstractPlatform, Initializable {
 
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
@@ -18,6 +20,9 @@ contract AaveVault is AbstractPlatform {
         public
     {
 
+    }
+
+    function initialize() initializer public {
     }
 
     function deposit(

@@ -1,12 +1,14 @@
 pragma solidity ^0.5.16;
 
+import { Module } from "../shared/Module.sol";
+
 /**
- * @title   Whitelist
+ * @title   GovernableWhitelist
  * @author  Stability Labs Pty. Lte.
  * @notice  Contract to store whitelisted address. The onlyWhitelisted() modifier should be used
  *          to allow the function calls only from the whitelisted addresses.
  */
-contract Whitelist {
+contract GovernableWhitelist is Module {
 
     event Whitelisted(address indexed _address);
 

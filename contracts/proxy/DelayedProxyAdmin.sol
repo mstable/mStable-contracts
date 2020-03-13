@@ -1,7 +1,7 @@
 pragma solidity ^0.5.16;
 
 import { Module } from "../shared/Module.sol";
-import { AdminUpgradeabilityProxy } from "../openzeppelin-sdk/upgradeability/AdminUpgradeabilityProxy.sol";
+import { AdminUpgradeabilityProxy } from "@openzeppelin/upgrades/contracts/upgradeability/AdminUpgradeabilityProxy.sol";
 import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 /**
