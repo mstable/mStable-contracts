@@ -20,11 +20,9 @@ contract AaveVault is AbstractPlatform {
     {
     }
 
-
-    function _abstractUpdatePToken(address _bAsset, address _pToken) internal {
-        IAaveLendingPool pool = _getLendingPool();
-        // approve the pool to spend the bAsset
-    }
+    /***************************************
+                    CORE
+    ****************************************/
 
     function deposit(
         address _spender,
@@ -85,6 +83,35 @@ contract AaveVault is AbstractPlatform {
         // balance is always with token aToken decimals
         IAaveAToken aToken = _getATokenFor(_bAsset);
         return _checkBalance(aToken);
+    }
+
+    /***************************************
+                    APPROVALS
+    ****************************************/
+
+    function reApproveAllTokens()
+        external
+        onlyWhitelistAdmin
+    {
+        uint256 bAssetCount = bAssetsMapped.length;
+        address pool = address(_getLendingPool());
+        for(uint i = 0; i < bAssetCount; i++){
+            MassetHelpers.safeInfiniteApprove(bAssetsMapped[i], address(pool));
+        }
+    }
+
+    function _abstractUpdatePToken(address _bAsset, address /*_pToken*/)
+        internal
+    {
+        IAaveLendingPool pool = _getLendingPool();
+        // approve the pool to spend the bAsset
+        MassetHelpers.safeInfiniteApprove(_bAsset, address(pool));
+    }
+
+    function _abstractUpdatePToken(address _bAsset, address _oldPToken, address _pToken)
+        internal
+    {
+        // No need to re-approve the pool, as it already has access to this bAsset
     }
 
     /***************************************

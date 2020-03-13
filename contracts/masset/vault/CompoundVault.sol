@@ -19,11 +19,9 @@ contract CompoundVault is AbstractPlatform {
     {
     }
 
-    function _abstractUpdatePToken(address _bAsset, address _pToken) internal {
-        ICErc20 cToken = _getCTokenFor(_bAsset);
-        // approve the cToken to spend the bAsset
-    }
-
+    /***************************************
+                    CORE
+    ****************************************/
 
     function deposit(
         address _spender,
@@ -82,6 +80,38 @@ contract CompoundVault is AbstractPlatform {
         // balance is always with token cToken decimals
         ICErc20 cToken = _getCTokenFor(_bAsset);
         return _checkBalance(cToken);
+    }
+
+    /***************************************
+                    APPROVALS
+    ****************************************/
+
+    function reApproveAllTokens()
+        external
+        onlyWhitelistAdmin
+    {
+        uint256 bAssetCount = bAssetsMapped.length;
+        for(uint i = 0; i < bAssetCount; i++){
+            address bAsset = bAssetsMapped[i];
+            address cToken = bAssetToPToken[bAsset];
+            MassetHelpers.safeInfiniteApprove(bAssetsMapped[i], cToken);
+        }
+    }
+
+    function _abstractUpdatePToken(address _bAsset, address _cToken)
+        internal
+    {
+        // approve the pool to spend the bAsset
+        MassetHelpers.safeInfiniteApprove(_bAsset, _cToken);
+    }
+
+    function _abstractUpdatePToken(address _bAsset, address _oldCToken, address _newCToken)
+        internal
+    {
+        // Clean up old allowance
+        IERC20(_bAsset).safeApprove(_oldCToken, 0);
+        // approve the pool to spend the bAsset
+        MassetHelpers.safeInfiniteApprove(_bAsset, _newCToken);
     }
 
     /***************************************

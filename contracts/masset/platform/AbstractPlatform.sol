@@ -11,10 +11,10 @@ contract AbstractPlatform is IPlatform, WhitelistedRole {
     string public constant version = "1.0";
 
     address public platformAddress;
-    // bool internal pTokenRequiresApproval;
 
     // bAsset => pToken (Platform Specific Token Address)
     mapping(address => address) public bAssetToPToken;
+    address[] internal bAssetsMapped;
 
     event PTokenAdded(address indexed _bAsset, address _pToken);
     event PTokenUpdated(address indexed _bAsset, address _pToken);
@@ -38,24 +38,32 @@ contract AbstractPlatform is IPlatform, WhitelistedRole {
         onlyWhitelistAdmin
     {
         require(bAssetToPToken[_bAsset] == address(0), "pToken already set");
+
         bAssetToPToken[_bAsset] = _pToken;
+        bAssetsMapped.push(_bAsset);
+
         emit PTokenAdded(_bAsset, _pToken);
 
-        _abstractUpdatePToken(_bAsset, _pToken);
+        _abstractSetPToken(_bAsset, _pToken);
     }
 
-    function _abstractUpdatePToken(address _bAsset, address _pToken) internal;
-
-    // function reApproveAllTokens(address _bAsset, address _pToken) external onlyWhitelistedAdmin;
 
     function updatePTokenAddress(address _bAsset, address _pToken)
         external
         onlyWhitelistAdmin
     {
-        require(bAssetToPToken[_bAsset] != address(0), "pToken not found");
+        address oldPToken = bAssetToPToken[_bAsset];
+        require(oldPToken != address(0), "pToken not found");
         bAssetToPToken[_bAsset] = _pToken;
         emit PTokenUpdated(_bAsset, _pToken);
+
+        _abstractUpdatePToken(_bAsset, oldPToken, _pToken);
     }
+
+    function _abstractSetPToken(address _bAsset, address _pToken) internal;
+    function _abstractUpdatePToken(address _bAsset, address _oldPToken, address _pToken) internal;
+
+    function reApproveAllTokens(address _bAsset, address _pToken) external;
 
     /***************************************
                     ABSTRACT
