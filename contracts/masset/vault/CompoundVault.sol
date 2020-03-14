@@ -98,7 +98,7 @@ contract CompoundVault is AbstractPlatform {
         }
     }
 
-    function _abstractUpdatePToken(address _bAsset, address _cToken)
+    function _abstractSetPToken(address _bAsset, address _cToken)
         internal
     {
         // approve the pool to spend the bAsset

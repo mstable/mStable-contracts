@@ -23,6 +23,11 @@ contract BasketManager is IBasketManager, Module {
     using StableMath for uint256;
     using SafeERC20 for IERC20;
 
+    /** @dev Basket composition events */
+    event BassetAdded(address indexed basset, address integrator);
+    event BassetRemoved(address indexed basset);
+    event BasketWeightsUpdated(address[] indexed bassets, uint256[] maxWeights);
+
     /** @dev Basket Manager Version */
     string public constant version_impl = "1.0";
 
@@ -35,11 +40,6 @@ contract BasketManager is IBasketManager, Module {
     mapping(address => uint8) private bassetsMap;
     // Holds relative addresses of the integration platforms
     mapping(uint8 => address) private integrations;
-
-    /** @dev Basket composition events */
-    event BassetAdded(address indexed basset, address integrator);
-    event BassetRemoved(address indexed basset);
-    event BasketWeightsUpdated(address[] indexed bassets, uint256[] maxWeights);
 
     /** @dev constructor */
     constructor(
@@ -129,12 +129,16 @@ contract BasketManager is IBasketManager, Module {
             Basset memory b = allBassets[i];
             // call each integration to `checkBalance`
             uint256 balance = IPlatform(integrations[i]).checkBalance(b.addr);
+            uint256 oldVaultBalance = b.vaultBalance;
+
             // accumulate interestdelta (ratioed bAsset
-            if(balance > b.vaultBalance) {
-                // Add to balance
-                uint256 interestDelta = balance.sub(b.vaultBalance);
+            if(balance > oldVaultBalance) {
+                // Update balance
+                basket.bassets[i].vaultBalance = balance;
+
+                uint256 interestDelta = balance.sub(oldVaultBalance);
                 gains[i] = interestDelta;
-                basket.bassets[i].vaultBalance = basket.bassets[i].vaultBalance.add(interestDelta);
+
                 // Calc MassetQ
                 uint256 ratioedDelta = interestDelta.mulRatioTruncate(b.ratio);
                 interestCollected = interestCollected.add(ratioedDelta);

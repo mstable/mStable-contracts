@@ -5,9 +5,12 @@ pragma solidity 0.5.16;
  * Modified to have custom name and features
  */
 contract Governable {
-    address private _governor;
+
 
     event GovernorChanged(address indexed previousGovernor, address indexed newGovernor);
+
+    address private _governor;
+
 
     /**
      * @dev Initializes the contract setting the deployer as the initial Governor.

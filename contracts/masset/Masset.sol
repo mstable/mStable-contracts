@@ -361,53 +361,54 @@ contract Masset is IMasset, MassetToken, PausableModule {
         internal
         returns (uint256 massetRedeemed)
     {
-        require(_recipient != address(0), "Recipient must not be 0x0");
-        uint256 redemptionAssetCount = _bassetQuantities.length;
+        // require(_recipient != address(0), "Recipient must not be 0x0");
+        // uint256 redemptionAssetCount = _bassetQuantities.length;
 
-        // Fetch high level details
-        Basket memory basket = basketManager.getBasket();
+        // // Fetch high level details
+        // Basket memory basket = basketManager.getBasket();
 
-        // Load only needed bAssets in array
-        (Basset[] memory bAssets, address[] memory integrators, uint8[] memory indexes)
-            = basketManager.getForgeBassets(_bassetsBitmap, uint8(redemptionAssetCount), false);
+        // // Load only needed bAssets in array
+        // (Basset[] memory bAssets, address[] memory integrators, uint8[] memory indexes)
+        //     = basketManager.getForgeBassets(_bassetsBitmap, uint8(redemptionAssetCount), false);
 
-        // Validate redemption
-        (bool isValid, string memory reason) =
-            forgeValidator.validateRedemption(basket.bassets, basket.failed, totalSupply(), indexes, _bassetQuantities);
-        require(isValid, reason);
+        // // Validate redemption
+        // (bool isValid, string memory reason) =
+        //     forgeValidator.validateRedemption(basket.bassets, basket.failed, totalSupply(), indexes, _bassetQuantities);
+        // require(isValid, reason);
 
-        uint256 massetQuantity = 0;
+        // uint256 massetQuantity = 0;
 
-        // Calc MassetQ and update the Vault
-        for(uint256 i = 0; i < redemptionAssetCount; i++){
-            if(_bassetQuantities[i] > 0){
-                // Calc equivalent mAsset amount
-                uint256 ratioedBasset = _bassetQuantities[i].mulRatioTruncateCeil(bAssets[i].ratio);
-                massetQuantity = massetQuantity.add(ratioedBasset);
+        // // Calc MassetQ and update the Vault
+        // for(uint256 i = 0; i < redemptionAssetCount; i++){
+        //     if(_bassetQuantities[i] > 0){
+        //         // Calc equivalent mAsset amount
+        //         uint256 ratioedBasset = _bassetQuantities[i].mulRatioTruncateCeil(bAssets[i].ratio);
+        //         massetQuantity = massetQuantity.add(ratioedBasset);
 
-                // bAsset == bAssets[i] == basket.bassets[indexes[i]]
-                basketManager.decreaseVaultBalance(indexes[i], integrators[i], _bassetQuantities[i]);
-            }
-        }
+        //         // bAsset == bAssets[i] == basket.bassets[indexes[i]]
+        //         basketManager.decreaseVaultBalance(indexes[i], integrators[i], _bassetQuantities[i]);
+        //     }
+        // }
 
-        // Pay the redemption fee
-        _payRedemptionFee(massetQuantity, msg.sender);
+        // // Pay the redemption fee
+        // _payRedemptionFee(massetQuantity, msg.sender);
 
-        // Ensure payout is relevant to collateralisation ratio (if ratio is 90%, we burn more)
-        massetQuantity = massetQuantity.divPrecisely(basket.collateralisationRatio);
+        // // Ensure payout is relevant to collateralisation ratio (if ratio is 90%, we burn more)
+        // massetQuantity = massetQuantity.divPrecisely(basket.collateralisationRatio);
 
-        // Burn the Masset
-        _burn(msg.sender, massetQuantity);
+        // // Burn the Masset
+        // _burn(msg.sender, massetQuantity);
 
-        // Transfer the Bassets to the user
-        for(uint256 i = 0; i < redemptionAssetCount; i++){
-            if(_bassetQuantities[i] > 0){
-                IPlatform(integrators[i]).withdraw(_recipient, bAssets[i].addr, _bassetQuantities[i]);
-            }
-        }
+        // // Transfer the Bassets to the user
+        // for(uint256 i = 0; i < redemptionAssetCount; i++){
+        //     if(_bassetQuantities[i] > 0){
+        //         IPlatform(integrators[i]).withdraw(_recipient, bAssets[i].addr, _bassetQuantities[i]);
+        //     }
+        // }
 
-        emit RedeemedMulti(_recipient, msg.sender, massetQuantity, _bassetsBitmap, _bassetQuantities);
-        return massetQuantity;
+        // emit RedeemedMulti(_recipient, msg.sender, massetQuantity, _bassetsBitmap, _bassetQuantities);
+        // return massetQuantity;
+        return 0;
     }
 
     /**
@@ -503,8 +504,8 @@ contract Masset is IMasset, MassetToken, PausableModule {
         (uint256 interestCollected, uint32 bitmap, uint256[] memory gains) = basketManager.collectInterest();
 
         // mint new mAsset to sender
-        _mint(msg.sender, totalInterestGained);
-        emit MintedMulti(msg.sender, totalInterestGained, bitmap, gains);
+        _mint(msg.sender, interestCollected);
+        emit MintedMulti(msg.sender, interestCollected, bitmap, gains);
 
         return (interestCollected, totalSupply());
     }

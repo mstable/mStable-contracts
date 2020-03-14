@@ -7,11 +7,11 @@ import { Governable } from "./Governable.sol";
  */
 contract ClaimableGovernor is Governable {
 
-    address public proposedGovernor;
-
     event GovernorChangeClaimed(address indexed proposedGovernor);
     event GovernorChangeCancelled(address indexed governor, address indexed proposed);
     event GovernorChangeRequested(address indexed governor, address indexed proposed);
+
+    address public proposedGovernor;
 
     /**
      * @dev Throws if called by any account other than the Proposed Governor.

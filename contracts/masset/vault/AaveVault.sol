@@ -100,7 +100,7 @@ contract AaveVault is AbstractPlatform {
         }
     }
 
-    function _abstractUpdatePToken(address _bAsset, address /*_pToken*/)
+    function _abstractSetPToken(address _bAsset, address /*_pToken*/)
         internal
     {
         IAaveLendingPool pool = _getLendingPool();
