@@ -14,22 +14,14 @@ contract MUSD is Masset {
     constructor (
         address _nexus,
         address _feePool,
-        address _forgeValidator,
-        address[] memory _bassets,
-        uint256[] memory _weights,
-        uint256[] memory _multiples,
-        bool[] memory _hasTransferFees
+        address _forgeValidator
     )
         Masset(
             "mStable USD",
             "mUSD",
             _nexus,
             _feePool,
-            _forgeValidator,
-            _bassets,
-            _weights,
-            _multiples,
-            _hasTransferFees
+            _forgeValidator
         )
         public
     {

@@ -33,14 +33,16 @@ contract GovernableWhitelist is Module {
         internal
         Module(_nexus)
     {
-        GovernableWhitelist._initialize(_whitelisted);
+        GovernableWhitelist._initialize(_nexus, _whitelisted);
     }
 
     /**
      * @dev Initialization function for upgradable proxy contracts
      * @param _whitelisted Array of whitelisted addresses.
      */
-    function _initialize(address[] memory _whitelisted) internal {
+    function _initialize(address _nexus, address[] memory _whitelisted) internal {
+        Module._initialize(_nexus);
+
         require(_whitelisted.length > 0, "Empty whitelist array");
 
         for(uint256 i = 0; i < _whitelisted.length; i++) {
