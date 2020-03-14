@@ -13,7 +13,7 @@ contract Module is ModuleKeys {
 
     /** @dev Initialises the Module by setting publisher, and reading all available system module information */
     constructor(address _nexus) internal {
-        nexus = INexus(_nexus);
+        Module._initialize(_nexus);
     }
 
     modifier onlyGovernor() {
@@ -29,6 +29,15 @@ contract Module is ModuleKeys {
     modifier onlyManager() {
         require(msg.sender == _manager(), "Only manager can execute");
         _;
+    }
+
+    /**
+     * @dev Initialization function for upgradable proxy contracts
+     * @param _nexus Nexus contract address
+     */
+    function _initialize(address _nexus) internal {
+        nexus = INexus(_nexus);
+        ModuleKeys._initialize();
     }
 
     function _governor()

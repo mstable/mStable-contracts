@@ -1,20 +1,21 @@
 pragma solidity 0.5.16;
 
-import { AbstractPlatform, MassetHelpers } from "../platform/AbstractPlatform.sol";
+import { AbstractPlatform, MassetHelpers, IERC20 } from "../platform/AbstractPlatform.sol";
 
 import { ICErc20 } from "../platform/ICompound.sol";
 
-import { SafeERC20 } from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
-import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
-import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
-
 contract CompoundVault is AbstractPlatform {
 
-    using SafeERC20 for IERC20;
-    using SafeMath for uint256;
-
-    constructor(address _compoundAddress)
-        AbstractPlatform(_compoundAddress)
+    constructor(
+        address _nexus,
+        address[] memory _whitelisted,
+        address _compoundAddress
+    )
+        AbstractPlatform(
+            _nexus,
+            _whitelisted,
+            _compoundAddress
+        )
         public
     {
     }
@@ -88,7 +89,7 @@ contract CompoundVault is AbstractPlatform {
 
     function reApproveAllTokens()
         external
-        onlyWhitelistAdmin
+        onlyGovernor
     {
         uint256 bAssetCount = bAssetsMapped.length;
         for(uint i = 0; i < bAssetCount; i++){

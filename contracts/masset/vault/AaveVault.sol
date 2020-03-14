@@ -1,21 +1,22 @@
 pragma solidity 0.5.16;
 
-import { AbstractPlatform, MassetHelpers } from "../platform/AbstractPlatform.sol";
+import { AbstractPlatform, MassetHelpers, IERC20 } from "../platform/AbstractPlatform.sol";
 
 import { IAaveAToken, IAaveLendingPool, ILendingPoolAddressesProvider } from "../platform/IAave.sol";
-
-import { SafeERC20 } from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
-import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
-import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 
 contract AaveVault is AbstractPlatform {
 
-    using SafeERC20 for IERC20;
-    using SafeMath for uint256;
-
-    constructor(address _aaveAddress)
-        AbstractPlatform(_aaveAddress)
+    constructor(
+        address _nexus,
+        address[] memory _whitelisted,
+        address _aaveAddress
+    )
+        AbstractPlatform(
+            _nexus,
+            _whitelisted,
+            _aaveAddress
+        )
         public
     {
     }
@@ -91,7 +92,7 @@ contract AaveVault is AbstractPlatform {
 
     function reApproveAllTokens()
         external
-        onlyWhitelistAdmin
+        onlyGovernor
     {
         uint256 bAssetCount = bAssetsMapped.length;
         address pool = address(_getLendingPool());
