@@ -1,8 +1,8 @@
 pragma solidity 0.5.16;
 
-import { AbstractPlatform, MassetHelpers, IERC20 } from "../platform/AbstractPlatform.sol";
+import { AbstractPlatform, MassetHelpers, IERC20 } from "./AbstractPlatform.sol";
 
-import { ICErc20 } from "../platform/ICompound.sol";
+import { ICErc20 } from "./ICompound.sol";
 
 contract CompoundVault is AbstractPlatform {
 

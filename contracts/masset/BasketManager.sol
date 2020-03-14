@@ -4,7 +4,7 @@ pragma experimental ABIEncoderV2;
 // Internal
 import { Module } from "../shared/Module.sol";
 import { IBasketManager } from "../interfaces/IBasketManager.sol";
-import { IPlatform } from "./platform/IPlatform.sol";
+import { IPlatform } from "../interfaces/IPlatform.sol";
 
 // Libs
 import { CommonHelpers } from "../shared/libs/CommonHelpers.sol";

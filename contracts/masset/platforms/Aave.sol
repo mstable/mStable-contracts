@@ -1,8 +1,8 @@
 pragma solidity 0.5.16;
 
-import { AbstractPlatform, MassetHelpers, IERC20 } from "../platform/AbstractPlatform.sol";
+import { AbstractPlatform, MassetHelpers, IERC20 } from "./AbstractPlatform.sol";
 
-import { IAaveAToken, IAaveLendingPool, ILendingPoolAddressesProvider } from "../platform/IAave.sol";
+import { IAaveAToken, IAaveLendingPool, ILendingPoolAddressesProvider } from "./IAave.sol";
 
 
 contract AaveVault is AbstractPlatform {

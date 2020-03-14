@@ -1,7 +1,7 @@
 pragma solidity 0.5.16;
 
 // Internal
-import { IPlatform } from "./IPlatform.sol";
+import { IPlatform } from "../../interfaces/IPlatform.sol";
 import { GovernableWhitelist } from "../../governance/GovernableWhitelist.sol";
 import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
 
