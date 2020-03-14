@@ -127,11 +127,16 @@ export class SystemMachine {
 
     public async isRunningForkedGanache() {
         try {
+            // console.log("e", web3.eth.getCode, this.ma.DAI);
+            console.log("011");
             const code: string = await web3.eth.getCode(this.ma.DAI);
+            console.log("11");
             // Empty code on mainnet DAI contract address
             if (code === "0x") return false;
-            else return true;
+            console.log("22");
+            return true;
         } catch (e) {
+            console.log("33");
             return false;
         }
     }
