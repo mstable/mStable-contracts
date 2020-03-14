@@ -20,6 +20,11 @@ contract SavingsContract is ISavingsContract, Module {
     using SafeMath for uint256;
     using StableMath for uint256;
 
+    event AutomaticInterestCollectionSwitched(bool automationEnabled);
+    event ExchangeRateUpdated(uint256 newExchangeRate, uint256 interestCollected);
+    event SavingsDeposited(address indexed saver, uint256 savingsDeposited, uint256 creditsIssued);
+    event CreditsRedeemed(address indexed redeemer, uint256 creditsRedeemed, uint256 savingsCredited);
+
     IERC20 private mUSD;
 
     uint256 public totalSavings; // Amount of mUSD saved in the contract
@@ -54,6 +59,7 @@ contract SavingsContract is ISavingsContract, Module {
         onlyGovernor
     {
         automateInterestCollection = _enabled;
+        emit AutomaticInterestCollectionSwitched(_enabled);
     }
 
     /***************************************
@@ -82,6 +88,8 @@ contract SavingsContract is ISavingsContract, Module {
             // e.g. (100e18 * 1e18) / 100e18 = 1e18
             // e.g. (101e20 * 1e18) / 100e20 = 1.01e18
             exchangeRate = totalSavings.divPrecisely(totalCredits);
+
+            emit ExchangeRateUpdated(exchangeRate, _amount);
         }
     }
 
@@ -112,6 +120,8 @@ contract SavingsContract is ISavingsContract, Module {
 
         // add credits to balances
         creditBalances[msg.sender] = creditBalances[msg.sender].add(creditsIssued);
+
+        emit SavingsDeposited(msg.sender, _amount, creditsIssued);
     }
 
 
@@ -137,6 +147,8 @@ contract SavingsContract is ISavingsContract, Module {
 
         // Transfer tokens from here to sender
         require(mUSD.transfer(msg.sender, massetReturned), "Must send tokens");
+
+        emit CreditsRedeemed(msg.sender, _credits, massetReturned);
     }
 
     /**

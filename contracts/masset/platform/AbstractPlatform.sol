@@ -8,6 +8,12 @@ import { MassetHelpers } from "../shared/MassetHelpers.sol";
 
 contract AbstractPlatform is IPlatform, WhitelistedRole {
 
+    event PTokenAdded(address indexed _bAsset, address _pToken);
+    event PTokenUpdated(address indexed _bAsset, address _pToken);
+
+    event Deposit(address indexed _bAsset, address _pToken, uint256 _amount);
+    event Withdrawal(address indexed _bAsset, address _pToken, uint256 _amount);
+
     string public constant version = "1.0";
 
     address public platformAddress;
@@ -16,11 +22,6 @@ contract AbstractPlatform is IPlatform, WhitelistedRole {
     mapping(address => address) public bAssetToPToken;
     address[] internal bAssetsMapped;
 
-    event PTokenAdded(address indexed _bAsset, address _pToken);
-    event PTokenUpdated(address indexed _bAsset, address _pToken);
-
-    event Deposit(address indexed _bAsset, address _pToken, uint256 _amount);
-    event Withdrawal(address indexed _bAsset, address _pToken, uint256 _amount);
 
     constructor(address _platformAddress)
         internal
