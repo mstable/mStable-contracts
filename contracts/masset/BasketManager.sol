@@ -20,7 +20,7 @@ import { StableMath } from "../shared/StableMath.sol";
  * @title MassetBasket
  * @dev Manages the Masset Basket composition and acts as a cache to store the Basket Assets (Bassets)
  */
-contract BasketManager is IBasketManager, Module, Initializable {
+contract BasketManager is Initializable, IBasketManager, Module {
 
     using SafeMath for uint256;
     using StableMath for uint256;

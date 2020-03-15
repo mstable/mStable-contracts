@@ -1,4 +1,7 @@
-
+/* eslint-disable @typescript-eslint/camelcase */
+/* eslint-disable @typescript-eslint/no-var-requires */
+/* eslint-disable no-undef */
+/* eslint-disable spaced-comment */
 
 
 // Imports parallel to folder layout
@@ -37,10 +40,11 @@ const c_SavingsManager = artifacts.require('SavingsManager')
 
 
 const { percentToWeight } = require('@utils/math')
+const { ZERO_ADDRESS } = require('@utils/constants')
 
 module.exports = async (deployer, network, accounts) => {
 
-  const [default_, governor, __, ___, feeRecipient] = accounts;
+  const [default_, governor, , , feeRecipient] = accounts;
 
 
   /***************************************
@@ -109,7 +113,7 @@ module.exports = async (deployer, network, accounts) => {
 
   // 2.2. Deploy no Init AaveIntegration
   //  - Deploy Implementation with dummy params (this storage doesn't get used)
-  await deployer.deploy(c_AaveIntegration, d_Nexus.address, [d_BasketManagerProxy.address], d_MockAave.address, { from: default_ });
+  await deployer.deploy(c_AaveIntegration, d_Nexus.address, [d_BasketManagerProxy.address], d_MockAave.address, [], [], { from: default_ });
   const d_AaveIntegration = await c_AaveIntegration.deployed();
   //  - Deploy Initializable Proxy
   const d_AaveIntegrationProxy = await c_InitializableProxy.new();
@@ -117,7 +121,7 @@ module.exports = async (deployer, network, accounts) => {
   // 2.3. Deploy no Init CompoundIntegration
   //  - Deploy Implementation
   // We do not need platform address for compound
-  await deployer.deploy(c_CompoundIntegration, d_Nexus.address, [d_BasketManagerProxy.address], "0x3d9819210a31b4961b30ef54be2aed79b9c9cd3b", { from: default_ });
+  await deployer.deploy(c_CompoundIntegration, d_Nexus.address, [d_BasketManagerProxy.address], [], [], { from: default_ });
   const d_CompoundIntegration = await c_CompoundIntegration.deployed();
   //  - Deploy Initializable Proxy
   const d_CompoundIntegrationProxy = await c_InitializableProxy.new();
@@ -165,8 +169,8 @@ module.exports = async (deployer, network, accounts) => {
   ]);
   await d_BasketManagerProxy.initialize(d_BasketManager.address, d_DelayedProxyAdmin.address, initializationData_BasketManager);
 
+  console.log("000 ->>> ")
 
-  // TODO - Refactor constructors of AbstractIntegration to accept initial bAsset <> pToken. Also, remove the platform
   // 2.6. Init AaveIntegration
   const initializationData_AaveIntegration = web3.eth.abi.encodeFunctionCall({
     name: 'initialize',
@@ -180,12 +184,21 @@ module.exports = async (deployer, network, accounts) => {
     }, {
       type: 'address',
       name: '_platformAddress'
+    }, {
+      type: 'address[]',
+      name: '_bAssets'
+    }, {
+      type: 'address[]',
+      name: '_pTokens'
     }]
   }, [
     d_Nexus.address,
     [d_MUSD.address, d_BasketManagerProxy.address],
-    d_MockAave.address
+    d_MockAave.address,
+    [mockBasset1.address, mockBasset2.address, mockBasset3.address],
+    [mockAToken1.address, mockAToken2.address, mockAToken3.address]
   ]);
+  console.log("111 ->>> ", initializationData_AaveIntegration)
   await d_AaveIntegrationProxy.initialize(d_AaveIntegration.address, d_DelayedProxyAdmin.address, initializationData_AaveIntegration);
 
   // 2.7. Init CompoundIntegration
@@ -201,14 +214,24 @@ module.exports = async (deployer, network, accounts) => {
     }, {
       type: 'address',
       name: '_platformAddress'
+    }, {
+      type: 'address[]',
+      name: '_bAssets'
+    }, {
+      type: 'address[]',
+      name: '_pTokens'
     }]
   }, [
     d_Nexus.address,
     [d_MUSD.address, d_BasketManagerProxy.address],
-    "0x3d9819210a31b4961b30ef54be2aed79b9c9cd3b" // We do not need platform address for compound
+    ZERO_ADDRESS, // We don't need Compound sys addr
+    [mockBasset4.address],
+    [mockCToken4.address]
   ]);
+  console.log("222 ->>> ", initializationData_CompoundIntegration)
   await d_CompoundIntegrationProxy.initialize(d_CompoundIntegration.address, d_DelayedProxyAdmin.address, initializationData_CompoundIntegration);
 
+  console.log("333 ")
 
   /***************************************
     3. Savings
@@ -238,8 +261,6 @@ module.exports = async (deployer, network, accounts) => {
   const module_addresses = [d_SavingsManager.address];
   const module_isLocked = [false];
   await d_Nexus.initialize(module_keys, module_addresses, module_isLocked, governor, { from: default_ });
-
-
 
 
   console.log(`[mUSD]: '${d_MUSD.address}'`)

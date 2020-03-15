@@ -10,12 +10,16 @@ contract AaveIntegration is AbstractIntegration {
     constructor(
         address _nexus,
         address[] memory _whitelisted,
-        address _aaveAddress
+        address _aaveAddress,
+        address[] memory _bAssets,
+        address[] memory _pTokens
     )
         AbstractIntegration(
             _nexus,
             _whitelisted,
-            _aaveAddress
+            _aaveAddress,
+            _bAssets,
+            _pTokens
         )
         public
     {

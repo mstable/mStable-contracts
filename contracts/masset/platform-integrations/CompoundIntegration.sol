@@ -9,12 +9,15 @@ contract CompoundIntegration is AbstractIntegration {
     constructor(
         address _nexus,
         address[] memory _whitelisted,
-        address _compoundAddress
+        address[] memory _bAssets,
+        address[] memory _pTokens
     )
         AbstractIntegration(
             _nexus,
             _whitelisted,
-            _compoundAddress
+            address(0),
+            _bAssets,
+            _pTokens
         )
         public
     {

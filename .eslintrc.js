@@ -26,5 +26,20 @@ module.exports = {
     },
     "rules": {
         "@typescript-eslint/no-use-before-define": 1
-    }
+    },
+    "overrides": [
+        {
+            "files": [
+                "./types/*.ts",
+                "./types/chai.d.ts",
+                "./types/interfaces.d.ts",
+                "./types/**/*.ts",
+                "./test/*.ts",
+                "./scripts/**/*.ts",
+                "./test/**/*.ts",
+                "./test-utils/*.ts",
+                "./test-utils/**/*.ts",
+                "./migrations*js"],
+        }
+    ]
 };
