@@ -13,8 +13,7 @@ const c_MockAave = artifacts.require('MockAave')
 const c_MockAToken = artifacts.require('MockAToken')
 //    - Compound
 const c_CompoundIntegration = artifacts.require('CompoundIntegration')
-// - Shared
-const c_MassetHelpers = artifacts.require('MassetHelpers')
+const c_MockCToken = artifacts.require('MockCToken')
 // - BasketManager (u)
 const c_BasketManager = artifacts.require('BasketManager')
 // - mUSD
@@ -36,11 +35,6 @@ const c_SavingsContract = artifacts.require('SavingsContract')
 // - Manager
 const c_SavingsManager = artifacts.require('SavingsManager')
 
-// Shared Libs
-// - StableMath
-const c_StableMath = artifacts.require('StableMath');
-// - CommonHelpers
-const c_CommonHelpers = artifacts.require('CommonHelpers');
 
 const { percentToWeight } = require('@utils/math')
 
@@ -68,13 +62,14 @@ module.exports = async (deployer, network, accounts) => {
   const mockAToken1 = await c_MockAToken.new(d_MockAave.address, mockBasset1.address);
   const mockAToken2 = await c_MockAToken.new(d_MockAave.address, mockBasset2.address);
   const mockAToken3 = await c_MockAToken.new(d_MockAave.address, mockBasset3.address);
-  const mockAToken4 = await c_MockAToken.new(d_MockAave.address, mockBasset4.address);
 
   //  - Add to the Platform
   await d_MockAave.addAToken(mockAToken1.address, mockBasset1.address);
   await d_MockAave.addAToken(mockAToken2.address, mockBasset2.address);
   await d_MockAave.addAToken(mockAToken3.address, mockBasset3.address);
-  await d_MockAave.addAToken(mockAToken4.address, mockBasset4.address);
+
+  // Mock C Token
+  const mockCToken4 = await c_MockCToken.new(mockBasset4.address);
 
 
   /***************************************
@@ -119,13 +114,13 @@ module.exports = async (deployer, network, accounts) => {
   //  - Deploy Initializable Proxy
   const d_AaveIntegrationProxy = await c_InitializableProxy.new();
 
-  // TODO -> Deploy Compound + Mock
-  // // 2.3. Deploy no Init CompoundIntegration
-  // //  - Deploy Implementation
-  // await deployer.deploy(c_CompoundIntegration, { from: default_ });
-  // const d_CompoundIntegration = await c_CompoundIntegration.deployed();
-  // //  - Deploy Initializable Proxy
-  // const d_CompoundIntegrationProxy = await c_InitializableProxy.new();
+  // 2.3. Deploy no Init CompoundIntegration
+  //  - Deploy Implementation
+  // We do not need platform address for compound
+  await deployer.deploy(c_CompoundIntegration, d_Nexus.address, [d_BasketManagerProxy.address], "0x3d9819210a31b4961b30ef54be2aed79b9c9cd3b", { from: default_ });
+  const d_CompoundIntegration = await c_CompoundIntegration.deployed();
+  //  - Deploy Initializable Proxy
+  const d_CompoundIntegrationProxy = await c_InitializableProxy.new();
 
 
   // 2.4. Deploy mUSD (w/ BasketManager addr)
@@ -164,13 +159,14 @@ module.exports = async (deployer, network, accounts) => {
     d_Nexus.address,
     d_MUSD.address,
     [mockBasset1.address, mockBasset2.address, mockBasset3.address, mockBasset4.address],
-    [d_AaveIntegrationProxy.address, d_AaveIntegrationProxy.address, d_AaveIntegrationProxy.address, d_AaveIntegrationProxy.address],
+    [d_AaveIntegrationProxy.address, d_AaveIntegrationProxy.address, d_AaveIntegrationProxy.address, d_CompoundIntegrationProxy.address],
     [percentToWeight(100).toString(), percentToWeight(100).toString(), percentToWeight(100).toString(), percentToWeight(100).toString()],
     [false, false, false, false]
   ]);
   await d_BasketManagerProxy.initialize(d_BasketManager.address, d_DelayedProxyAdmin.address, initializationData_BasketManager);
 
 
+  // TODO - Refactor constructors of AbstractIntegration to accept initial bAsset <> pToken. Also, remove the platform
   // 2.6. Init AaveIntegration
   const initializationData_AaveIntegration = web3.eth.abi.encodeFunctionCall({
     name: 'initialize',
@@ -192,7 +188,26 @@ module.exports = async (deployer, network, accounts) => {
   ]);
   await d_AaveIntegrationProxy.initialize(d_AaveIntegration.address, d_DelayedProxyAdmin.address, initializationData_AaveIntegration);
 
-  // // 2.7. Init CompoundIntegration
+  // 2.7. Init CompoundIntegration
+  const initializationData_CompoundIntegration = web3.eth.abi.encodeFunctionCall({
+    name: 'initialize',
+    type: 'function',
+    inputs: [{
+      type: 'address',
+      name: '_nexus'
+    }, {
+      type: 'address[]',
+      name: '_whitelisted'
+    }, {
+      type: 'address',
+      name: '_platformAddress'
+    }]
+  }, [
+    d_Nexus.address,
+    [d_MUSD.address, d_BasketManagerProxy.address],
+    "0x3d9819210a31b4961b30ef54be2aed79b9c9cd3b" // We do not need platform address for compound
+  ]);
+  await d_CompoundIntegrationProxy.initialize(d_CompoundIntegration.address, d_DelayedProxyAdmin.address, initializationData_CompoundIntegration);
 
 
   /***************************************
@@ -212,9 +227,9 @@ module.exports = async (deployer, network, accounts) => {
 
 
   /***************************************
-    +1. Initialize Nexus Modules
+    4. Initialize Nexus Modules
     Dependencies: [
-      New Governor (if any),
+      New Governor,
       SavingsManager
     ]
   ****************************************/
@@ -223,5 +238,12 @@ module.exports = async (deployer, network, accounts) => {
   const module_addresses = [d_SavingsManager.address];
   const module_isLocked = [false];
   await d_Nexus.initialize(module_keys, module_addresses, module_isLocked, governor, { from: default_ });
+
+
+
+
+  console.log(`[mUSD]: '${d_MUSD.address}'`)
+  console.log(`[SavingsManager]: '${d_SavingsManager.address}'`)
+  console.log(`[SavingsContract]: '${d_SavingsContract.address}'`)
 
 }
