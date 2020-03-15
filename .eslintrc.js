@@ -39,7 +39,7 @@ module.exports = {
                 "./test/**/*.ts",
                 "./test-utils/*.ts",
                 "./test-utils/**/*.ts",
-                "./migrations*js"],
+                "./migrations/*.js"],
         }
     ]
 };

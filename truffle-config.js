@@ -19,6 +19,12 @@ module.exports = {
       network_id: '*', // Match any network id
       gas: 8000000
     },
+    fork: {
+      host: '127.0.0.1',
+      port: 7545,
+      network_id: '*', // Match any network id
+      gas: 8000000
+    },
     coverage: {
       host: "127.0.0.1",
       port: 7546,
@@ -37,7 +43,7 @@ module.exports = {
   },
   mocha: {
     reporter: 'eth-gas-reporter',
-    reporterOptions : {
+    reporterOptions: {
       currency: 'USD'
     }
   },

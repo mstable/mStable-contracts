@@ -12,7 +12,7 @@ export class MainnetAccounts {
     public allNativeTokens: Address[];
 
     public DAI: Address = "0x6B175474E89094C44Da98b954EedeAC495271d0F";
-    
+
     public GUSD: Address = "0x056Fd409E1d7A124BD7017459dFEa2F387b6d5Cd";
 
     public PAX: Address = "0x8E870D67F660D95d5be530380D0eC0bd388289E1";
@@ -28,8 +28,6 @@ export class MainnetAccounts {
     // AAVE aToken
     public allATokens: Address[];
 
-    public aETH: Address = "0x3a3A65aAb0dd2A17E3F1947bA16138cd37d08c04";
-
     public aDAI: Address = "0xfC1E690f61EFd961294b3e1Ce3313fBD8aa4f85d";
 
     public aUSDC: Address = "0x9bA00D6856a4eDF4665BcA2C2309936572473B7E";
@@ -42,7 +40,7 @@ export class MainnetAccounts {
 
     constructor() {
         this.allNativeTokens = [
-            this.DAI, 
+            this.DAI,
             this.GUSD,
             this.PAX,
             this.TUSD,
@@ -50,15 +48,7 @@ export class MainnetAccounts {
             this.USDT,
             this.SUSD,
         ];
-        
-        this.allNativeTokens = [
-            this.aETH,
-            this.DAI,
-            this.aUSDC,
-            this.aSUSD,
-            this.aTUSD,
-            this.aUSDT,
-        ];
-    }
 
+        this.allNativeTokens = [this.aDAI, this.aUSDC, this.aSUSD, this.aTUSD, this.aUSDT];
+    }
 }

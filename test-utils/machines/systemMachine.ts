@@ -87,34 +87,7 @@ export class SystemMachine {
             /** Nexus */
             this.nexus = await this.deployNexus();
 
-            // const moduleKeys: string[] = new Array(3);
-            // const moduleAddresses: Address[] = new Array(3);
-            // const isLocked: boolean[] = new Array(3);
-
-            /** MetaToken */
-            // this.metaToken = await this.deployMetaToken();
-            // this.metaTokenController = await this.deployMetaTokenController();
-            // moduleKeys[0] = await this.nexus.Key_MetaToken();
-            // moduleAddresses[0] = this.metaToken.address;
-            // isLocked[0] = true;
-
-            // await this.metaToken.transfer(this.sa._, simpleToExactAmount(1000, 18), {
-            //     from: this.sa.fundManager,
-            // });
-
-            /** OracleHubMock */
-            // this.oracleHub = await this.deployOracleHub();
-            // moduleKeys[1] = await this.nexus.Key_OracleHub();
-            // moduleAddresses[1] = this.oracleHub.address;
-            // isLocked[1] = false;
-
-            /** ManagerMock */
-            // this.manager = await this.deployManager();
-            // moduleKeys[2] = await this.nexus.Key_Manager();
-            // moduleAddresses[2] = this.manager.address;
-            // isLocked[2] = false;
-
-            // await this.initializeNexusWithModules(moduleKeys, moduleAddresses, isLocked);
+            console.log("NETWORK", process.env.NETWORK);
 
             await this.mintAllTokens();
 
