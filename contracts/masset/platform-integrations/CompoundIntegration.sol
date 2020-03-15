@@ -1,17 +1,17 @@
 pragma solidity 0.5.16;
 
-import { AbstractPlatform, MassetHelpers, IERC20 } from "./AbstractPlatform.sol";
+import { AbstractIntegration, MassetHelpers, IERC20 } from "./AbstractIntegration.sol";
 
 import { ICErc20 } from "./ICompound.sol";
 
-contract CompoundVault is AbstractPlatform {
+contract CompoundIntegration is AbstractIntegration {
 
     constructor(
         address _nexus,
         address[] memory _whitelisted,
         address _compoundAddress
     )
-        AbstractPlatform(
+        AbstractIntegration(
             _nexus,
             _whitelisted,
             _compoundAddress
@@ -28,7 +28,7 @@ contract CompoundVault is AbstractPlatform {
         address _spender,
         address _bAsset,
         uint256 _amount,
-        bool isTokenFeeCharged
+        bool _isTokenFeeCharged
     )
         external
         onlyWhitelisted
@@ -38,9 +38,9 @@ contract CompoundVault is AbstractPlatform {
         ICErc20 cToken = _getCTokenFor(_bAsset);
 
         // Transfer collateral to this address
-        quantityDeposited = MassetHelpers.transferTokens(_spender, address(this), _bAsset, isTokenFeeCharged, _amount);
+        quantityDeposited = MassetHelpers.transferTokens(_spender, address(this), _bAsset, _isTokenFeeCharged, _amount);
 
-        if(isTokenFeeCharged) {
+        if(_isTokenFeeCharged) {
             // If we charge a fee, account for it
             uint256 prevBal = _checkBalance(cToken);
             assert(cToken.mint(_amount) == 0);

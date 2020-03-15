@@ -174,8 +174,8 @@ contract Nexus is INexus, DelayedClaimableGovernor {
         Proposal memory p = proposedModules[_key];
         require(_isDelayOver(p.timestamp), "Module upgrade delay not over");
 
-        _publishModule(_key, p.newAddress, false);
         delete proposedModules[_key];
+        _publishModule(_key, p.newAddress, false);
     }
 
     /**

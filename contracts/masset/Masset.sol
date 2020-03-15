@@ -4,7 +4,7 @@ pragma experimental ABIEncoderV2;
 // External
 // import { IBasketManager } from "../interfaces/IBasketManager.sol";
 import { IForgeValidator } from "./forge-validator/IForgeValidator.sol";
-import { IPlatform } from "../interfaces/IPlatform.sol";
+import { IPlatformIntegration } from "../interfaces/IPlatformIntegration.sol";
 
 // Internal
 import { IMasset } from "../interfaces/IMasset.sol";
@@ -57,7 +57,8 @@ contract Masset is IMasset, MassetToken, PausableModule {
         string memory _symbol,
         address _nexus,
         address _feeRecipient,
-        address _forgeValidator
+        address _forgeValidator,
+        address _basketManager
     )
         MassetToken(
             _name,
@@ -71,6 +72,8 @@ contract Masset is IMasset, MassetToken, PausableModule {
     {
         feeRecipient = _feeRecipient;
         forgeValidator = IForgeValidator(_forgeValidator);
+
+        basketManager = BasketManager(_basketManager);
 
         redemptionFee = 2e16;
     }
@@ -173,7 +176,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
 
         (Basset memory b, address integrator, uint8 index) = basketManager.getForgeBasset(_bAsset, true);
 
-        uint256 bAssetQty = IPlatform(integrator).deposit(msg.sender, b.addr, _bAssetQuantity, b.isTransferFeeCharged);
+        uint256 bAssetQty = IPlatformIntegration(integrator).deposit(msg.sender, b.addr, _bAssetQuantity, b.isTransferFeeCharged);
 
         // Validation should be after token transfer, as bAssetQty is unknown before
         (bool isValid, string memory reason) = forgeValidator.validateMint(totalSupply(), b, bAssetQty);
@@ -223,7 +226,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
                 // bAsset == bAssets[i] == basket.bassets[indexes[i]]
                 Basset memory bAsset = bAssets[i];
 
-                uint256 receivedBassetQty = IPlatform(integrators[i]).deposit(msg.sender, bAsset.addr, _bassetQuantity[i], bAsset.isTransferFeeCharged);
+                uint256 receivedBassetQty = IPlatformIntegration(integrators[i]).deposit(msg.sender, bAsset.addr, _bassetQuantity[i], bAsset.isTransferFeeCharged);
                 receivedQty[i] = receivedBassetQty;
 
                 basketManager.increaseVaultBalance(indexes[i], integrators[i], receivedBassetQty);
@@ -342,7 +345,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         _burn(msg.sender, massetQuantity);
 
         // Transfer the Bassets to the user
-        IPlatform(integrator).withdraw(_recipient, b.addr, _bAssetQuantity);
+        IPlatformIntegration(integrator).withdraw(_recipient, b.addr, _bAssetQuantity);
 
         emit Redeemed(_recipient, msg.sender, massetQuantity, _bAsset, _bAssetQuantity);
         return massetQuantity;
@@ -402,7 +405,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         // // Transfer the Bassets to the user
         // for(uint256 i = 0; i < redemptionAssetCount; i++){
         //     if(_bassetQuantities[i] > 0){
-        //         IPlatform(integrators[i]).withdraw(_recipient, bAssets[i].addr, _bassetQuantities[i]);
+        //         IPlatformIntegration(integrators[i]).withdraw(_recipient, bAssets[i].addr, _bassetQuantities[i]);
         //     }
         // }
 
