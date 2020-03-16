@@ -1,19 +1,20 @@
 pragma solidity 0.5.16;
 
-import { ModuleKeys } from "../shared/ModuleKeys.sol";
+import { InitializableModuleKeys } from "../shared/InitializableModuleKeys.sol";
 import { INexus } from "../interfaces/INexus.sol";
 
 /**
-  * @title Module
-  * @dev Subscribes to module updates from a given publisher and reads from its registry
+  * @title InitializableModule
+  * @dev Subscribes to module updates from a given publisher and reads from its registry.
+  *      Contrat is used for upgradable proxy contracts.
   */
-contract Module is ModuleKeys {
+contract InitializableModule is InitializableModuleKeys {
 
     INexus public nexus;
 
     /** @dev Initialises the Module by setting publisher, and reading all available system module information */
     constructor(address _nexus) internal {
-        nexus = INexus(_nexus);
+        InitializableModule._initialize(_nexus);
     }
 
     modifier onlyGovernor() {
@@ -29,6 +30,15 @@ contract Module is ModuleKeys {
     modifier onlyManager() {
         require(msg.sender == _manager(), "Only manager can execute");
         _;
+    }
+
+    /**
+     * @dev Initialization function for upgradable proxy contracts
+     * @param _nexus Nexus contract address
+     */
+    function _initialize(address _nexus) internal {
+        nexus = INexus(_nexus);
+        InitializableModuleKeys._initialize();
     }
 
     function _governor()
