@@ -1,9 +1,4 @@
-import {
-    ManagerInstance,
-    MassetContract,
-    MassetInstance,
-    ERC20MockInstance,
-} from "types/generated";
+import { MassetContract, MassetInstance, ERC20MockInstance } from "types/generated";
 import { BN, aToH } from "@utils/tools";
 import { DEFAULT_DECIMALS, DEFAULT_SUPPLY, expScale } from "@utils/constants";
 import { Basset, BassetStatus } from "@utils/mstable-objects";

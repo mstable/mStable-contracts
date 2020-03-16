@@ -33,7 +33,7 @@ import { percentToWeight } from "@utils/math";
 import { ZERO_ADDRESS } from "@utils/constants";
 
 export default async ({ artifacts }, deployer, network, accounts) => {
-    const [default_, governor, , , feeRecipient] = accounts;
+    const [default_, governor, feeRecipient] = accounts;
 
     /***************************************
     0. TYPECHAIN IMPORTS

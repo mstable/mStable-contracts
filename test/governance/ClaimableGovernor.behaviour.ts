@@ -32,7 +32,7 @@ export default function shouldBehaveLikeClaimable(
 
         // Try to Cancel governor
         await shouldFail.reverting.withMessage(
-            ctx.claimable.cancelGovernorChange({ from: sa._ }),
+            ctx.claimable.cancelGovernorChange({ from: sa.default }),
             "GOV: caller is not the Governor",
         );
         const newProposedGovernor = await ctx.claimable.proposedGovernor();

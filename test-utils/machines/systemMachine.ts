@@ -1,40 +1,25 @@
 import { latest } from "openzeppelin-test-helpers/src/time";
-import { MASSET_FACTORY_BYTES } from "@utils/constants";
-import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
-import { aToH, BN } from "@utils/tools";
 import {
     ERC20MockInstance,
     ForgeValidatorInstance,
-    ManagerInstance,
     MassetInstance,
     NexusInstance,
-    SimpleOracleHubMockInstance,
-    MetaTokenControllerInstance,
-    MetaTokenInstance,
 } from "types/generated";
+import { Address } from "types/common";
 
-import { Address } from "../../types/common";
 import { BassetMachine } from "./bassetMachine";
 import { StandardAccounts } from "./standardAccounts";
-import { MainnetAccounts } from "./mainnetAccounts";
 
-const CommonHelpersArtifact = artifacts.require("CommonHelpers");
-const StableMathArtifact = artifacts.require("StableMath");
+import { MASSET_FACTORY_BYTES, MainnetAccounts } from "@utils/constants";
+import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
+import { aToH, BN } from "@utils/tools";
 
 const Erc20Artifact = artifacts.require("ERC20Mock");
 
-const ManagerArtifact = artifacts.require("Manager");
-
-const MassetArtifact = artifacts.require("Masset");
+const MUSD = artifacts.require("MUSD");
 const ForgeValidatorArtifact = artifacts.require("ForgeValidator");
 
 const NexusArtifact = artifacts.require("Nexus");
-
-const OracleHubMockArtifact = artifacts.require("SimpleOracleHubMock");
-
-const MiniMeTokenFactoryArtifact = artifacts.require("MiniMeTokenFactory");
-const MetaTokenArtifact = artifacts.require("MetaToken");
-const MetaTokenControllerArtifact = artifacts.require("MetaTokenController");
 
 /**
  * @dev The SystemMachine is responsible for creating mock versions of our contracts
@@ -42,21 +27,11 @@ const MetaTokenControllerArtifact = artifacts.require("MetaTokenController");
  * framework, this will act as a Machine to generate these various mocks
  */
 export class SystemMachine {
-    /**
-     * @dev Default accounts as per system Migrations
-     */
+    /** @dev Default accounts as per system Migrations */
     public sa: StandardAccounts;
-
     public ma: MainnetAccounts;
 
-    public manager: ManagerInstance;
-
     public nexus: NexusInstance;
-
-    public oracleHub: SimpleOracleHubMockInstance;
-
-    public metaToken: MetaTokenInstance;
-    public metaTokenController: MetaTokenControllerInstance;
 
     public forgeValidator: ForgeValidatorInstance;
 
@@ -80,8 +55,6 @@ export class SystemMachine {
     public async initialiseMocks() {
         try {
             /** Shared */
-            await CommonHelpersArtifact.new();
-            await StableMathArtifact.new();
             this.forgeValidator = await ForgeValidatorArtifact.new();
 
             /** Nexus */
@@ -94,7 +67,7 @@ export class SystemMachine {
             } else if (process.env.NETWORK == "development") {
             }
 
-            await this.mintAllTokens();
+            // await this.mintAllTokens();
 
             return Promise.resolve(true);
         } catch (e) {
@@ -162,106 +135,12 @@ export class SystemMachine {
     }
 
     /**
-     * @dev Adds prices for the mAsset and MetaToken into the Oracle
-     * @param mAssetPrice Where $1 == 1e6 ("1000000")
-     * @return txHash
-     */
-    public async addMockPrices(
-        mAssetPrice: string,
-        mAssetAddress: string,
-    ): Promise<Truffle.TransactionResponse> {
-        const time = await latest();
-        return this.oracleHub.addMockPrices(
-            [new BN(mAssetPrice), new BN("12000000")],
-            [time, time],
-            [mAssetAddress, this.metaToken.address],
-            { from: this.sa.oraclePriceProvider },
-        );
-    }
-    /**
      * @dev Deploy the Nexus
      */
     public async deployNexus(deployer: Address = this.sa.default): Promise<NexusInstance> {
         try {
             const nexus = await NexusArtifact.new(this.sa.governor, { from: deployer });
-
             return nexus;
-        } catch (e) {
-            throw e;
-        }
-    }
-
-    /**
-     * @dev Deploy the OracleHubMock
-     */
-    public async deployOracleHub(
-        deployer: Address = this.sa.default,
-    ): Promise<SimpleOracleHubMockInstance> {
-        try {
-            const oracleHubInstance = await OracleHubMockArtifact.new(
-                this.nexus.address,
-                this.sa.oraclePriceProvider,
-                { from: deployer },
-            );
-
-            return oracleHubInstance;
-        } catch (e) {
-            throw e;
-        }
-    }
-
-    /**
-     * @dev Deploy the MetaTokenMock token
-     */
-    public async deployMetaToken(): Promise<MetaTokenInstance> {
-        try {
-            const miniTokenFactory = await MiniMeTokenFactoryArtifact.new({
-                from: this.sa.default,
-            });
-            const metaTokenInstance = await MetaTokenArtifact.new(
-                miniTokenFactory.address,
-                this.sa.fundManager,
-                {
-                    from: this.sa.default,
-                },
-            );
-
-            return metaTokenInstance;
-        } catch (e) {
-            throw e;
-        }
-    }
-
-    /**
-     * @dev Deploy the MetaTokenController token
-     */
-    public async deployMetaTokenController(): Promise<MetaTokenControllerInstance> {
-        try {
-            const metaTokenController = await MetaTokenControllerArtifact.new(
-                this.nexus.address,
-                this.metaToken.address,
-                {
-                    from: this.sa.default,
-                },
-            );
-            await this.metaToken.changeController(metaTokenController.address, {
-                from: this.sa.default,
-            });
-
-            return metaTokenController;
-        } catch (e) {
-            throw e;
-        }
-    }
-
-    /**
-     * @dev Deploy ManagerMock and relevant init
-     */
-    public async deployManager(): Promise<ManagerInstance> {
-        try {
-            const instance = await ManagerArtifact.new(this.nexus.address);
-
-            return instance;
         } catch (e) {
             throw e;
         }
