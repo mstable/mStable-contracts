@@ -30,7 +30,6 @@ contract AaveIntegration is AbstractIntegration {
     ****************************************/
 
     function deposit(
-        address _spender,
         address _bAsset,
         uint256 _amount,
         bool _isTokenFeeCharged
@@ -42,8 +41,8 @@ contract AaveIntegration is AbstractIntegration {
         // Get the Target token
         IAaveAToken aToken = _getATokenFor(_bAsset);
 
-        // Transfer collateral to this address
-        quantityDeposited = MassetHelpers.transferTokens(_spender, address(this), _bAsset, _isTokenFeeCharged, _amount);
+        // We should have been sent this amount, if not, the deposit will fail
+        quantityDeposited = _amount;
 
         uint16 referralCode = 9999; // temp code
 

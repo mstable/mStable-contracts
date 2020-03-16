@@ -27,7 +27,7 @@ export const ONE_WEEK = new BN(60 * 60 * 24 * 7);
 
 export class MainnetAccounts {
     // Exchange Accounts
-    public OKEX: Address = "0x6cC5F688a315f3dC28A7781717a9A798a59fDA7b";
+    public FUND_SOURCE: Address = "0x6cC5F688a315f3dC28A7781717a9A798a59fDA7b";
 
     // All Native Tokens
     public DAI: Address = "0x6B175474E89094C44Da98b954EedeAC495271d0F";

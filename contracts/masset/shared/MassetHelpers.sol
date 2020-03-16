@@ -1,7 +1,5 @@
 pragma solidity 0.5.16;
 
-import { IMasset } from "../../interfaces/IMasset.sol";
-import { IBasketManager } from "../../interfaces/IBasketManager.sol";
 import { StableMath } from "../../shared/StableMath.sol";
 import { SafeMath }  from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import { SafeERC20 }  from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
