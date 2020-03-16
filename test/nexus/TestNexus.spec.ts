@@ -1,9 +1,8 @@
 import { increase, latest } from "openzeppelin-test-helpers/src/time";
-import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
-import { createBasket, Basket } from "@utils/mstable-objects";
 import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
-import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
+import { StandardAccounts, SystemMachine } from "@utils/machines";
 import { padRight, BN } from "@utils/tools";
+import { ZERO_ADDRESS, ZERO, ONE_DAY, TEN_DAYS, ONE_WEEK } from "@utils/constants";
 import { keccak256 } from "web3-utils";
 import {
     ClaimableGovernorInstance,
@@ -11,24 +10,17 @@ import {
     NexusInstance,
 } from "types/generated";
 
-import envSetup from "@utils/env_setup";
 import shouldBehaveLikeClaimable from "../governance/ClaimableGovernor.behaviour";
 import shouldBehaveLikeDelayedClaimable from "../governance/DelayedClaimableGovernor.behaviour";
-
-const { ZERO_ADDRESS } = constants;
-const Nexus = artifacts.require("Nexus");
-
+import envSetup from "@utils/env_setup";
 const { expect, assert } = envSetup.configure();
+
+const Nexus = artifacts.require("Nexus");
 
 contract("Nexus", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
     let nexus: NexusInstance;
-
-    const ZERO = new BN(0);
-    const ONE_DAY = new BN(60 * 60 * 24);
-    const TEN_DAYS = new BN(60 * 60 * 24 * 10);
-    const WEEK = new BN(60 * 60 * 24 * 7);
 
     describe("Behavior like...", () => {
         const ctx: { claimable?: DelayedClaimableGovernorInstance } = {};
@@ -73,7 +65,7 @@ contract("Nexus", async (accounts) => {
             const upgradeDelay = await nexus.UPGRADE_DELAY();
             expect(governor).to.equal(sa.governor);
             expect(initialized).to.equal(false);
-            expect(upgradeDelay).to.bignumber.equals(WEEK);
+            expect(upgradeDelay).to.bignumber.equals(ONE_WEEK);
         });
     });
 
@@ -105,10 +97,10 @@ contract("Nexus", async (accounts) => {
             });
             it("when different governor address passed", async () => {
                 const govBefore = await nexus.governor();
-                await nexus.initialize([keccak256("dummy")], [sa._], [true], sa.other, {
+                await nexus.initialize([keccak256("dummy")], [sa.default], [true], sa.other, {
                     from: sa.governor,
                 });
-                await expectInModules(nexus, "dummy", sa._, true);
+                await expectInModules(nexus, "dummy", sa.default, true);
                 const govAfter = await nexus.governor();
                 expect(govBefore).to.not.equal(govAfter);
                 expect(govBefore).to.equal(sa.governor);
@@ -144,18 +136,30 @@ contract("Nexus", async (accounts) => {
             });
             it("when initialized with wrong array length for addresses array", async () => {
                 await shouldFail.reverting.withMessage(
-                    nexus.initialize([keccak256("dummy")], [sa._, sa.other], [true], sa.governor, {
-                        from: sa.governor,
-                    }),
+                    nexus.initialize(
+                        [keccak256("dummy")],
+                        [sa.default, sa.other],
+                        [true],
+                        sa.governor,
+                        {
+                            from: sa.governor,
+                        },
+                    ),
                     "Insufficient address data",
                 );
                 await expectInModules(nexus, "dummy", ZERO_ADDRESS, false);
             });
             it("when initialized with wrong array length for isLocked array", async () => {
                 await shouldFail.reverting.withMessage(
-                    nexus.initialize([keccak256("dummy")], [sa._], [true, false], sa.governor, {
-                        from: sa.governor,
-                    }),
+                    nexus.initialize(
+                        [keccak256("dummy")],
+                        [sa.default],
+                        [true, false],
+                        sa.governor,
+                        {
+                            from: sa.governor,
+                        },
+                    ),
                     "Insufficient locked statuses",
                 );
                 await expectInModules(nexus, "dummy", ZERO_ADDRESS, false);
@@ -168,7 +172,7 @@ contract("Nexus", async (accounts) => {
                 await expectInModules(nexus, "dummy1", sa.dummy1, true);
                 // must fail
                 await shouldFail.reverting.withMessage(
-                    nexus.initialize([keccak256("dummy")], [sa._], [true], sa.governor, {
+                    nexus.initialize([keccak256("dummy")], [sa.default], [true], sa.governor, {
                         from: sa.governor,
                     }),
                     "Nexus is already initialized",
@@ -186,14 +190,14 @@ contract("Nexus", async (accounts) => {
             });
             it("when not called by Governor", async () => {
                 await shouldFail.reverting.withMessage(
-                    nexus.proposeModule(keccak256("dummy"), sa._, { from: sa.other }),
+                    nexus.proposeModule(keccak256("dummy"), sa.default, { from: sa.other }),
                     "GOV: caller is not the Governor",
                 );
                 await expectInProposedModules(nexus, "dummy", ZERO_ADDRESS, ZERO);
             });
             it("when empty key", async () => {
                 await shouldFail.reverting.withMessage(
-                    nexus.proposeModule("0x00", sa._, { from: sa.governor }),
+                    nexus.proposeModule("0x00", sa.default, { from: sa.governor }),
                     "Key must not be zero",
                 );
                 await expectInProposedModules(nexus, "0x00", ZERO_ADDRESS, ZERO);
@@ -354,7 +358,7 @@ contract("Nexus", async (accounts) => {
                 // validate
                 await expectInProposedModules(nexus, "dummy1", sa.dummy1, timeWhenModuleProposed);
 
-                await increase(WEEK);
+                await increase(ONE_WEEK);
                 await nexus.acceptProposedModule(keccak256("dummy1"), { from: sa.governor });
 
                 // validate module accepted
@@ -407,7 +411,7 @@ contract("Nexus", async (accounts) => {
                 await nexus.requestLockModule(keccak256("dummy4"), { from: sa.governor });
                 await expectInProposedLockModules(nexus, "dummy4", await latest());
 
-                await increase(WEEK);
+                await increase(ONE_WEEK);
                 // module locked
                 await nexus.lockModule(keccak256("dummy4"), { from: sa.governor });
                 await expectInModules(nexus, "dummy4", sa.dummy4, true);
@@ -428,7 +432,7 @@ contract("Nexus", async (accounts) => {
                 await nexus.proposeModule(keccak256("dummy2"), sa.dummy1, { from: sa.governor });
                 await expectInProposedModules(nexus, "dummy2", sa.dummy1, await latest());
 
-                await increase(WEEK);
+                await increase(ONE_WEEK);
 
                 // dummy1 accepted
                 await nexus.acceptProposedModules([keccak256("dummy1")], { from: sa.governor });
@@ -453,7 +457,7 @@ contract("Nexus", async (accounts) => {
             });
             it("when delay is less then 10 second of opt out period", async () => {
                 await nexus.proposeModule(keccak256("dummy1"), sa.dummy1, { from: sa.governor });
-                await increase(WEEK.sub(new BN(10)));
+                await increase(ONE_WEEK.sub(new BN(10)));
                 await shouldFail.reverting.withMessage(
                     nexus.acceptProposedModules([keccak256("dummy1")], { from: sa.governor }),
                     "Module upgrade delay not over",
@@ -466,7 +470,7 @@ contract("Nexus", async (accounts) => {
         context("should succeed", () => {
             it("when accepted a proposed Module", async () => {
                 await nexus.proposeModule(keccak256("dummy1"), sa.dummy1, { from: sa.governor });
-                await increase(WEEK);
+                await increase(ONE_WEEK);
                 const tx = await nexus.acceptProposedModules([keccak256("dummy1")], {
                     from: sa.governor,
                 });
@@ -486,7 +490,7 @@ contract("Nexus", async (accounts) => {
             });
             it("when delay is more then 10 second of opt out period", async () => {
                 await nexus.proposeModule(keccak256("dummy1"), sa.dummy1, { from: sa.governor });
-                await increase(WEEK.add(new BN(10)));
+                await increase(ONE_WEEK.add(new BN(10)));
                 const tx = await nexus.acceptProposedModules([keccak256("dummy1")], {
                     from: sa.governor,
                 });
@@ -504,7 +508,7 @@ contract("Nexus", async (accounts) => {
 
                 await nexus.proposeModule(keccak256("dummy4"), sa.other, { from: sa.governor });
 
-                await increase(WEEK);
+                await increase(ONE_WEEK);
 
                 const tx = await nexus.acceptProposedModules([keccak256("dummy4")], {
                     from: sa.governor,
@@ -664,7 +668,7 @@ contract("Nexus", async (accounts) => {
             });
             it("when delay is less then 10 second of opt out period", async () => {
                 await nexus.requestLockModule(keccak256("dummy4"), { from: sa.governor });
-                await increase(WEEK.sub(new BN(10)));
+                await increase(ONE_WEEK.sub(new BN(10)));
                 await shouldFail.reverting.withMessage(
                     nexus.lockModule(keccak256("dummy4"), { from: sa.governor }),
                     "Delay not over",
@@ -678,7 +682,7 @@ contract("Nexus", async (accounts) => {
                 await nexus.requestLockModule(keccak256("dummy4"), { from: sa.governor });
                 await expectInProposedLockModules(nexus, "dummy4", await latest());
 
-                await increase(WEEK);
+                await increase(ONE_WEEK);
 
                 const tx = await nexus.lockModule(keccak256("dummy4"), { from: sa.governor });
                 // validate event
@@ -694,7 +698,7 @@ contract("Nexus", async (accounts) => {
                 await nexus.requestLockModule(keccak256("dummy4"), { from: sa.governor });
                 await expectInProposedLockModules(nexus, "dummy4", await latest());
 
-                await increase(WEEK.add(new BN(10)));
+                await increase(ONE_WEEK.add(new BN(10)));
 
                 const tx = await nexus.lockModule(keccak256("dummy4"), { from: sa.governor });
                 await expectInProposedLockModules(nexus, "dummy4", ZERO);
@@ -734,7 +738,7 @@ contract("Nexus", async (accounts) => {
                 await expectInProposedModules(nexus, "dummy1", sa.dummy1, await latest());
                 await expectInModules(nexus, "dummy1", ZERO_ADDRESS, false);
 
-                await increase(WEEK);
+                await increase(ONE_WEEK);
 
                 await nexus.acceptProposedModule(keccak256("dummy1"), { from: sa.governor });
                 await expectInModules(nexus, "dummy1", sa.dummy1, false);
@@ -742,7 +746,7 @@ contract("Nexus", async (accounts) => {
                 await nexus.requestLockModule(keccak256("dummy1"), { from: sa.governor });
                 await expectInProposedLockModules(nexus, "dummy1", await latest());
 
-                await increase(WEEK);
+                await increase(ONE_WEEK);
 
                 await nexus.lockModule(keccak256("dummy1"), { from: sa.governor });
                 await expectInProposedLockModules(nexus, "dummy1", ZERO);
@@ -777,7 +781,7 @@ contract("Nexus", async (accounts) => {
                 await expectInProposedModules(nexus, "other", sa.other, timestampOther);
                 await expectInModules(nexus, "other", ZERO_ADDRESS, false);
 
-                await increase(WEEK);
+                await increase(ONE_WEEK);
 
                 // accept
                 await nexus.acceptProposedModule(keccak256("dummy1"), { from: sa.governor });

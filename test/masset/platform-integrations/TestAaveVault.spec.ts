@@ -1,18 +1,19 @@
-import { ForceSendInstance, ERC20MockInstance, AaveVaultInstance } from "types/generated";
+import { ForceSendInstance, ERC20MockInstance, AaveIntegrationInstance } from "types/generated";
 import { BN } from "@utils/tools";
-import { StandardAccounts, SystemMachine, MainnetAccounts } from "@utils/machines";
+import { StandardAccounts, SystemMachine } from "@utils/machines";
+import { MainnetAccounts } from "@utils/constants";
 
 import envSetup from "@utils/env_setup";
 const { expect, assert } = envSetup.configure();
 
 const ForceSend = artifacts.require("ForceSend");
 const ERC20Mock = artifacts.require("ERC20Mock");
-const AaveVault = artifacts.require("AaveVault");
+const AaveVault = artifacts.require("AaveIntegration");
 
 let shouldSkip = false;
 
 contract("AaveVault", async (accounts) => {
-    let aaveVault: AaveVaultInstance;
+    let aaveVault: AaveIntegrationInstance;
     const sa = new StandardAccounts(accounts);
     const ma = new MainnetAccounts();
     let systemMachine = new SystemMachine(sa.all, sa.other);
@@ -43,26 +44,24 @@ contract("AaveVault", async (accounts) => {
         // SETUP
         // ======
         // deploy AaveVault
-        const aaveLendingPoolProvider = "398eC7346DcD622eDc5ae82352F02bE94C62d119";
-        aaveVault = await AaveVault.new(aaveLendingPoolProvider, { from: sa.governor });
+        // const aaveLendingPoolProvider = "398eC7346DcD622eDc5ae82352F02bE94C62d119";
+        // aaveVault = await AaveVault.new(aaveLendingPoolProvider, { from: sa.governor });
 
         // Add Whitelisted addresses to allow.
-        await aaveVault.addWhitelisted(massetAddr, { from: sa.governor });
+        // await aaveVault.addWhitelisted(massetAddr, { from: sa.governor });
 
         // Add aTokens
         // TODO add all other tokens.
-        await aaveVault.setPTokenAddress(ma.DAI, ma.aDAI, { from: sa.governor });
+        // await aaveVault.setPTokenAddress(ma.DAI, ma.aDAI, { from: sa.governor });
     });
 
     describe("AAVE", async () => {
         console.log("1");
         it("should deposit DAI to AAVE", async () => {
             // TODO have a common place for token addresses
-            console.log("2");
-            await aaveVault.deposit(sa.dummy1, ma.DAI, 100, false, { from: massetAddr });
-
+            // console.log("2");
+            // await aaveVault.deposit(sa.dummy1, ma.DAI, 100, false, { from: massetAddr });
             // check for aTokens
-
             // withdraw
         });
         it("should  do something else", async () => {
