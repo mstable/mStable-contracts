@@ -6,35 +6,37 @@ contract MockModule is Module {
 
     uint256 public temp;
 
+    constructor(address _nexus) public Module(_nexus) {}
+
     function governor() public view returns (address) {
         return super._governor();
     }
 
-    function governance() internal view returns (address) {
+    function governance() public view returns (address) {
         return super._governance();
     }
 
-    function staking() internal view returns (address) {
+    function staking() public view returns (address) {
         return super._staking();
     }
 
-    function metaToken() internal view returns (address) {
+    function metaToken() public view returns (address) {
         return super._metaToken();
     }
 
-    function oracleHub() internal view returns (address) {
+    function oracleHub() public view returns (address) {
         return super._oracleHub();
     }
 
-    function manager() internal view returns (address) {
+    function manager() public view returns (address) {
         return super._manager();
     }
 
-    function savingsManager() internal view returns (address) {
+    function savingsManager() public view returns (address) {
         return super._savingsManager();
     }
 
-    function recollateraliser() internal view returns (address) {
+    function recollateraliser() public view returns (address) {
         return super._recollateraliser();
     }
 
