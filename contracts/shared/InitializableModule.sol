@@ -4,15 +4,18 @@ import { InitializableModuleKeys } from "../shared/InitializableModuleKeys.sol";
 import { INexus } from "../interfaces/INexus.sol";
 
 /**
-  * @title InitializableModule
-  * @dev Subscribes to module updates from a given publisher and reads from its registry.
-  *      Contrat is used for upgradable proxy contracts.
-  */
+ * @title InitializableModule
+ * @dev Subscribes to module updates from a given publisher and reads from its registry.
+ *      Contrat is used for upgradable proxy contracts.
+ */
 contract InitializableModule is InitializableModuleKeys {
 
     INexus public nexus;
 
-    /** @dev Initialises the Module by setting publisher, and reading all available system module information */
+    /**
+     * @dev Initialises the Module by setting publisher,
+     * and reading all available system module information
+     */
     constructor(address _nexus) internal {
         InitializableModule._initialize(_nexus);
     }
@@ -23,7 +26,8 @@ contract InitializableModule is InitializableModuleKeys {
     }
 
     modifier onlyGovernance() {
-        require(msg.sender == _governor() || msg.sender == _governance(), "Only governance can execute");
+        require(msg.sender == _governor() || msg.sender == _governance(),
+            "Only governance can execute");
         _;
     }
 
@@ -41,62 +45,38 @@ contract InitializableModule is InitializableModuleKeys {
         InitializableModuleKeys._initialize();
     }
 
-    function _governor()
-    internal
-    view
-    returns (address) {
+    function _governor() internal view returns (address) {
         return nexus.governor();
     }
 
     // Phase 2
-    function _governance()
-    internal
-    view
-    returns (address) {
+    function _governance() internal view returns (address) {
         return nexus.getModule(Key_Governance);
     }
 
     // Phase 2
-    function _staking()
-    internal
-    view
-    returns (address) {
+    function _staking() internal view returns (address) {
         return nexus.getModule(Key_Staking);
     }
 
-    function _metaToken()
-    internal
-    view
-    returns (address) {
+    function _metaToken() internal view returns (address) {
         return nexus.getModule(Key_MetaToken);
     }
 
-    function _oracleHub()
-    internal
-    view
-    returns (address) {
+    function _oracleHub() internal view returns (address) {
         return nexus.getModule(Key_OracleHub);
     }
 
-    function _manager()
-    internal
-    view
-    returns (address) {
+    function _manager() internal view returns (address) {
         return nexus.getModule(Key_Manager);
     }
 
-    function _savingsManager()
-    internal
-    view
-    returns (address) {
+    function _savingsManager() internal view returns (address) {
         return nexus.getModule(Key_SavingsManager);
     }
 
     // Phase 2
-    function _recollateraliser()
-    internal
-    view
-    returns (address) {
+    function _recollateraliser() internal view returns (address) {
         return nexus.getModule(Key_Recollateraliser);
     }
 }
