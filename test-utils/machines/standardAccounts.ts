@@ -11,7 +11,7 @@ export class StandardAccounts {
 
     public default: Address;
     public governor: Address;
-    public feePool: Address;
+    public feeRecipient: Address;
     public other: Address;
 
     public dummy1: Address;
@@ -25,7 +25,7 @@ export class StandardAccounts {
         [
             this.default,
             this.governor,
-            this.feePool,
+            this.feeRecipient,
             this.other,
             this.dummy1,
             this.dummy2,

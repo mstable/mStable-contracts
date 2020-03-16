@@ -25,7 +25,7 @@ contract("Nexus", async (accounts) => {
     describe("Behavior like...", () => {
         const ctx: { claimable?: DelayedClaimableGovernorInstance } = {};
         beforeEach("Init contract", async () => {
-            systemMachine = new SystemMachine(sa.all, sa.other);
+            systemMachine = new SystemMachine(sa.all);
             ctx.claimable = await systemMachine.deployNexus();
         });
         context("should behave like ClaimableGovernor", () => {
@@ -43,7 +43,7 @@ contract("Nexus", async (accounts) => {
     });
 
     beforeEach("Init contract", async () => {
-        systemMachine = new SystemMachine(accounts, sa.other);
+        systemMachine = new SystemMachine(accounts);
         nexus = await systemMachine.deployNexus();
         await nexus.initialize(
             [keccak256("dummy3"), keccak256("dummy4")],
@@ -83,11 +83,12 @@ contract("Nexus", async (accounts) => {
                 expect(initialized).to.equal(true);
 
                 // validate modules
-                await expectInModules(nexus, "MetaToken", systemMachine.metaToken.address, true);
-
-                await expectInModules(nexus, "OracleHub", systemMachine.oracleHub.address, false);
-
-                await expectInModules(nexus, "Manager", systemMachine.manager.address, false);
+                await expectInModules(
+                    nexus,
+                    "SavingsManager",
+                    systemMachine.savingsManager.address,
+                    false,
+                );
             });
             it("when current governor called the function", async () => {
                 await nexus.initialize([keccak256("dummy1")], [sa.dummy1], [true], sa.governor, {

@@ -16,16 +16,16 @@ contract("AaveVault", async (accounts) => {
     let aaveVault: AaveIntegrationInstance;
     const sa = new StandardAccounts(accounts);
     const ma = new MainnetAccounts();
-    let systemMachine = new SystemMachine(sa.all, sa.other);
+    let systemMachine = new SystemMachine(sa.all);
 
     const massetAddr = sa.other;
     before("assertOnFork", async function() {
-        shouldSkip = await systemMachine.isRunningForkedGanache();
+        shouldSkip = await systemMachine.isRunningValidFork();
     });
 
     beforeEach("before Each", async function() {
         // console.log("z");
-        // const isForked: boolean = await systemMachine.isRunningForkedGanache();
+        // const isForked: boolean = await systemMachine.isRunningValidFork();
         // console.log("1");
         if (shouldSkip) {
             // console.log("Ganache with mainnet HARDFORK needed to run tests.");
@@ -38,7 +38,7 @@ contract("AaveVault", async (accounts) => {
         // ganache-cli -f https://mainnet.infura.io/v3/810573cebf304c4f867483502c8b7b93@9618357 -p 7545 -l 100000000 --allowUnlimitedContractSize --unlock "0x6cC5F688a315f3dC28A7781717a9A798a59fDA7b"
         // ========================
 
-        systemMachine = new SystemMachine(sa.all, sa.other);
+        systemMachine = new SystemMachine(sa.all);
         await systemMachine.initialiseMocks();
 
         // SETUP
@@ -56,7 +56,6 @@ contract("AaveVault", async (accounts) => {
     });
 
     describe("AAVE", async () => {
-        console.log("1");
         it("should deposit DAI to AAVE", async () => {
             // TODO have a common place for token addresses
             // console.log("2");
