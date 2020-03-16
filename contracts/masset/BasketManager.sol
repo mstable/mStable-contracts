@@ -1,10 +1,13 @@
 pragma solidity 0.5.16;
 pragma experimental ABIEncoderV2;
 
+// External
+import { IPlatformIntegration } from "../interfaces/IPlatformIntegration.sol";
+
 // Internal
 import { Module } from "../shared/Module.sol";
 import { IBasketManager } from "../interfaces/IBasketManager.sol";
-import { IPlatform } from "./platform/IPlatform.sol";
+import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
 
 // Libs
 import { CommonHelpers } from "../shared/libs/CommonHelpers.sol";
@@ -17,7 +20,7 @@ import { StableMath } from "../shared/StableMath.sol";
  * @title MassetBasket
  * @dev Manages the Masset Basket composition and acts as a cache to store the Basket Assets (Bassets)
  */
-contract BasketManager is IBasketManager, Module {
+contract BasketManager is Initializable, IBasketManager, Module {
 
     using SafeMath for uint256;
     using StableMath for uint256;
@@ -41,8 +44,13 @@ contract BasketManager is IBasketManager, Module {
     // Holds relative addresses of the integration platforms
     mapping(uint8 => address) private integrations;
 
-    /** @dev constructor */
-    constructor(
+    constructor(address _nexus) public Module(_nexus){}
+
+    /**
+     * @dev Initialization function for upgradable proxy contract.
+     *      This function should be called via Proxy just after contract deployment.
+     */
+    function initialize(
         address _nexus,
         address _mAsset,
         address[] memory _bassets,
@@ -50,11 +58,13 @@ contract BasketManager is IBasketManager, Module {
         uint256[] memory _weights,
         bool[] memory _hasTransferFees
     )
-        Module(_nexus)
         public
+        initializer
     {
+        Module._initialize(_nexus);
+
         mAsset = _mAsset;
-        require(_bassets.length > 0, "Must initialise with some bAssets");
+        // require(_bassets.length > 0, "Must initialise with some bAssets");
 
         // Defaults
         basket.maxBassets = 16;               // 16
@@ -128,7 +138,7 @@ contract BasketManager is IBasketManager, Module {
         for(uint8 i = 0; i < count; i++) {
             Basset memory b = allBassets[i];
             // call each integration to `checkBalance`
-            uint256 balance = IPlatform(integrations[i]).checkBalance(b.addr);
+            uint256 balance = IPlatformIntegration(integrations[i]).checkBalance(b.addr);
             uint256 oldVaultBalance = b.vaultBalance;
 
             // accumulate interestdelta (ratioed bAsset
@@ -405,7 +415,7 @@ contract BasketManager is IBasketManager, Module {
     function getBasset(address _token)
         external
         view
-        returns (Basset memory bAssets)
+        returns (Basset memory bAsset)
     {
         (bool exists, uint8 index) = _isAssetInBasket(_token);
         require(exists, "bAsset must exist");

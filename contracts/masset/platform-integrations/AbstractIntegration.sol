@@ -1,7 +1,7 @@
 pragma solidity 0.5.16;
 
 // Internal
-import { IPlatform } from "./IPlatform.sol";
+import { IPlatformIntegration } from "../../interfaces/IPlatformIntegration.sol";
 import { GovernableWhitelist } from "../../governance/GovernableWhitelist.sol";
 import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
 
@@ -11,7 +11,7 @@ import { SafeERC20 } from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20
 import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
-contract AbstractPlatform is IPlatform, GovernableWhitelist, Initializable {
+contract AbstractIntegration is Initializable, IPlatformIntegration, GovernableWhitelist {
 
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
@@ -33,12 +33,14 @@ contract AbstractPlatform is IPlatform, GovernableWhitelist, Initializable {
     constructor(
         address _nexus,
         address[] memory _whitelisted,
-        address _platformAddress
+        address _platformAddress,
+        address[] memory _bAssets,
+        address[] memory _pTokens
     )
         internal
         GovernableWhitelist(_nexus, _whitelisted)
     {
-        AbstractPlatform._initialize(_platformAddress);
+        AbstractIntegration._initialize(_platformAddress, _bAssets, _pTokens);
     }
 
     /**
@@ -48,21 +50,31 @@ contract AbstractPlatform is IPlatform, GovernableWhitelist, Initializable {
     function initialize(
         address _nexus,
         address[] memory _whitelisted,
-        address _platformAddress
+        address _platformAddress,
+        address[] memory _bAssets,
+        address[] memory _pTokens
     )
         public
         initializer
     {
         GovernableWhitelist._initialize(_nexus, _whitelisted);
-        AbstractPlatform._initialize(_platformAddress);
+        AbstractIntegration._initialize(_platformAddress, _bAssets, _pTokens);
     }
 
-    /**
-     * @dev Initialize function for upgradable proxy contract
-     */
-    function _initialize(address _platformAddress) internal {
-        require(_platformAddress != address(0), "Platform address zero");
+    function _initialize(
+        address _platformAddress,
+        address[] memory _bAssets,
+        address[] memory _pTokens
+    )
+        internal
+    {
         platformAddress = _platformAddress;
+
+        uint256 bAssetCount = _bAssets.length;
+        require(bAssetCount == _pTokens.length, "Invalid input arrays");
+        for(uint256 i = 0; i < bAssetCount; i++){
+            _setPTokenAddress(_bAssets[i], _pTokens[i]);
+        }
     }
 
     /***************************************
@@ -73,7 +85,14 @@ contract AbstractPlatform is IPlatform, GovernableWhitelist, Initializable {
         external
         onlyGovernor
     {
+        _setPTokenAddress(_bAsset, _pToken);
+    }
+
+    function _setPTokenAddress(address _bAsset, address _pToken)
+        internal
+    {
         require(bAssetToPToken[_bAsset] == address(0), "pToken already set");
+        require(_bAsset != address(0) && _pToken != address(0), "Invalid addresses");
 
         bAssetToPToken[_bAsset] = _pToken;
         bAssetsMapped.push(_bAsset);
@@ -83,6 +102,7 @@ contract AbstractPlatform is IPlatform, GovernableWhitelist, Initializable {
         _abstractSetPToken(_bAsset, _pToken);
     }
 
+    function _abstractSetPToken(address _bAsset, address _pToken) internal;
 
     function updatePTokenAddress(address _bAsset, address _pToken)
         external
@@ -90,22 +110,23 @@ contract AbstractPlatform is IPlatform, GovernableWhitelist, Initializable {
     {
         address oldPToken = bAssetToPToken[_bAsset];
         require(oldPToken != address(0), "pToken not found");
+        require(_bAsset != address(0) && _pToken != address(0), "Invalid addresses");
+
         bAssetToPToken[_bAsset] = _pToken;
         emit PTokenUpdated(_bAsset, _pToken);
 
         _abstractUpdatePToken(_bAsset, oldPToken, _pToken);
     }
 
-    function _abstractSetPToken(address _bAsset, address _pToken) internal;
     function _abstractUpdatePToken(address _bAsset, address _oldPToken, address _pToken) internal;
 
-    function reApproveAllTokens(address _bAsset, address _pToken) external;
+    function reApproveAllTokens() external;
 
     /***************************************
                     ABSTRACT
     ****************************************/
 
-    function deposit(address _spender, address _bAsset, uint256 _amount, bool isTokenFeeCharged)
+    function deposit(address _spender, address _bAsset, uint256 _amount, bool _isTokenFeeCharged)
         external returns (uint256 quantityDeposited);
 
     function withdraw(address _receiver, address _bAsset, uint256 _amount) external;

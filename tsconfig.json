@@ -29,5 +29,6 @@
     "./test/**/*.ts",
     "./test-utils/*.ts",
     "./test-utils/**/*.ts",
+    "./migrations/*.js"
   ]
 }

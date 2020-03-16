@@ -1,6 +1,6 @@
 pragma solidity 0.5.16;
 
-interface ICErc20 {
+interface ICERC20 {
     function mint(uint mintAmount) external returns (uint);
 
     function redeemUnderlying(uint redeemAmount) external returns (uint);

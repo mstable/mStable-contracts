@@ -13,7 +13,7 @@ contract("StableMath", async (accounts) => {
     let math: PublicStableMathInstance;
 
     beforeEach(async () => {
-        math = await PublicStableMath.deployed(sa._);
+        math = await PublicStableMath.new();
     });
 
     /** *************************************

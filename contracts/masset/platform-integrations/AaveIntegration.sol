@@ -1,21 +1,25 @@
 pragma solidity 0.5.16;
 
-import { AbstractPlatform, MassetHelpers, IERC20 } from "../platform/AbstractPlatform.sol";
+import { AbstractIntegration, MassetHelpers, IERC20 } from "./AbstractIntegration.sol";
 
-import { IAaveAToken, IAaveLendingPool, ILendingPoolAddressesProvider } from "../platform/IAave.sol";
+import { IAaveAToken, IAaveLendingPool, ILendingPoolAddressesProvider } from "./IAave.sol";
 
 
-contract AaveVault is AbstractPlatform {
+contract AaveIntegration is AbstractIntegration {
 
     constructor(
         address _nexus,
         address[] memory _whitelisted,
-        address _aaveAddress
+        address _aaveAddress,
+        address[] memory _bAssets,
+        address[] memory _pTokens
     )
-        AbstractPlatform(
+        AbstractIntegration(
             _nexus,
             _whitelisted,
-            _aaveAddress
+            _aaveAddress,
+            _bAssets,
+            _pTokens
         )
         public
     {
@@ -29,7 +33,7 @@ contract AaveVault is AbstractPlatform {
         address _spender,
         address _bAsset,
         uint256 _amount,
-        bool isTokenFeeCharged
+        bool _isTokenFeeCharged
     )
         external
         onlyWhitelisted
@@ -39,11 +43,11 @@ contract AaveVault is AbstractPlatform {
         IAaveAToken aToken = _getATokenFor(_bAsset);
 
         // Transfer collateral to this address
-        quantityDeposited = MassetHelpers.transferTokens(_spender, address(this), _bAsset, isTokenFeeCharged, _amount);
+        quantityDeposited = MassetHelpers.transferTokens(_spender, address(this), _bAsset, _isTokenFeeCharged, _amount);
 
         uint16 referralCode = 9999; // temp code
 
-        if(isTokenFeeCharged) {
+        if(_isTokenFeeCharged) {
             // If we charge a fee, account for it
             uint256 prevBal = _checkBalance(aToken);
             _getLendingPool().deposit(address(aToken), _amount, referralCode);

@@ -1,20 +1,23 @@
 pragma solidity 0.5.16;
 
-import { AbstractPlatform, MassetHelpers, IERC20 } from "../platform/AbstractPlatform.sol";
+import { AbstractIntegration, MassetHelpers, IERC20 } from "./AbstractIntegration.sol";
 
-import { ICErc20 } from "../platform/ICompound.sol";
+import { ICERC20 } from "./ICompound.sol";
 
-contract CompoundVault is AbstractPlatform {
+contract CompoundIntegration is AbstractIntegration {
 
     constructor(
         address _nexus,
         address[] memory _whitelisted,
-        address _compoundAddress
+        address[] memory _bAssets,
+        address[] memory _pTokens
     )
-        AbstractPlatform(
+        AbstractIntegration(
             _nexus,
             _whitelisted,
-            _compoundAddress
+            address(0),
+            _bAssets,
+            _pTokens
         )
         public
     {
@@ -28,19 +31,19 @@ contract CompoundVault is AbstractPlatform {
         address _spender,
         address _bAsset,
         uint256 _amount,
-        bool isTokenFeeCharged
+        bool _isTokenFeeCharged
     )
         external
         onlyWhitelisted
         returns (uint256 quantityDeposited)
     {
         // Get the Target token
-        ICErc20 cToken = _getCTokenFor(_bAsset);
+        ICERC20 cToken = _getCTokenFor(_bAsset);
 
         // Transfer collateral to this address
-        quantityDeposited = MassetHelpers.transferTokens(_spender, address(this), _bAsset, isTokenFeeCharged, _amount);
+        quantityDeposited = MassetHelpers.transferTokens(_spender, address(this), _bAsset, _isTokenFeeCharged, _amount);
 
-        if(isTokenFeeCharged) {
+        if(_isTokenFeeCharged) {
             // If we charge a fee, account for it
             uint256 prevBal = _checkBalance(cToken);
             assert(cToken.mint(_amount) == 0);
@@ -63,7 +66,7 @@ contract CompoundVault is AbstractPlatform {
         onlyWhitelisted
     {
         // Get the Target token
-        ICErc20 cToken = _getCTokenFor(_bAsset);
+        ICERC20 cToken = _getCTokenFor(_bAsset);
 
         // Redeem Underlying bAsset amount
         require(cToken.redeemUnderlying(_amount) == 0, "something went wrong");
@@ -79,7 +82,7 @@ contract CompoundVault is AbstractPlatform {
         returns (uint256 balance)
     {
         // balance is always with token cToken decimals
-        ICErc20 cToken = _getCTokenFor(_bAsset);
+        ICERC20 cToken = _getCTokenFor(_bAsset);
         return _checkBalance(cToken);
     }
 
@@ -122,14 +125,14 @@ contract CompoundVault is AbstractPlatform {
     function _getCTokenFor(address _bAsset)
         internal
         view
-        returns (ICErc20)
+        returns (ICERC20)
     {
         address cToken = bAssetToPToken[_bAsset];
         require(cToken != address(0), "cToken does not exist");
-        return ICErc20(cToken);
+        return ICERC20(cToken);
     }
 
-    function _checkBalance(ICErc20 _cToken)
+    function _checkBalance(ICERC20 _cToken)
         internal
         returns (uint256 balance)
     {
