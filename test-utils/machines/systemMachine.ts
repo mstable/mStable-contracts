@@ -88,6 +88,11 @@ export class SystemMachine {
             this.nexus = await this.deployNexus();
 
             console.log("NETWORK", process.env.NETWORK);
+            if (process.env.NETWORK == "fork") {
+                // use mainnet addresses
+                // use bAssets
+            } else if (process.env.NETWORK == "development") {
+            }
 
             await this.mintAllTokens();
 

@@ -383,7 +383,6 @@ contract BasketManager is Initializable, IBasketManager, Module {
         return (basket.bassets[idx], integrations[idx], idx);
     }
 
-
     /**
      * @dev Convert bitmap representing bAssets location to Bassets array
      * @param _bitmap bits set in bitmap represents which bAssets to use
