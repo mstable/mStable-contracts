@@ -126,7 +126,7 @@ contract AbstractIntegration is Initializable, IPlatformIntegration, GovernableW
                     ABSTRACT
     ****************************************/
 
-    function deposit(address _spender, address _bAsset, uint256 _amount, bool _isTokenFeeCharged)
+    function deposit(address _bAsset, uint256 _amount, bool _isTokenFeeCharged)
         external returns (uint256 quantityDeposited);
 
     function withdraw(address _receiver, address _bAsset, uint256 _amount) external;

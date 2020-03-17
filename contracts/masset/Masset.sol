@@ -15,6 +15,7 @@ import { MassetStructs } from "./shared/MassetStructs.sol";
 
 // Libs
 import { StableMath } from "../shared/StableMath.sol";
+import { MassetHelpers } from "./shared/MassetHelpers.sol";
 import { SafeERC20 }  from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
 import { IERC20 }     from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 
@@ -176,21 +177,24 @@ contract Masset is IMasset, MassetToken, PausableModule {
 
         (Basset memory b, address integrator, uint8 index) = basketManager.getForgeBasset(_bAsset, true);
 
-        uint256 bAssetQty = IPlatformIntegration(integrator).deposit(msg.sender, b.addr, _bAssetQuantity, b.isTransferFeeCharged);
+        // Transfer collateral to the platform integration address and call deposit
+        bool xferCharged = b.isTransferFeeCharged;
+        uint256 quantityTransfered = MassetHelpers.transferTokens(msg.sender, integrator, _bAsset, xferCharged, _bAssetQuantity);
+        uint256 quantityDeposited = IPlatformIntegration(integrator).deposit(_bAsset, quantityTransfered, xferCharged);
 
         // Validation should be after token transfer, as bAssetQty is unknown before
-        (bool isValid, string memory reason) = forgeValidator.validateMint(totalSupply(), b, bAssetQty);
+        (bool isValid, string memory reason) = forgeValidator.validateMint(totalSupply(), b, quantityDeposited);
         require(isValid, reason);
 
         // Log the Vault increase - can only be done when basket is healthy
-        basketManager.increaseVaultBalance(index, integrator, bAssetQty);
+        basketManager.increaseVaultBalance(index, integrator, quantityDeposited);
 
         // ratioedBasset is the number of masset quantity to mint
-        uint256 ratioedBasset = bAssetQty.mulRatioTruncate(b.ratio);
+        uint256 ratioedBasset = quantityDeposited.mulRatioTruncate(b.ratio);
 
         // Mint the Masset
         _mint(_recipient, ratioedBasset);
-        emit Minted(_recipient, ratioedBasset, _bAsset, bAssetQty);
+        emit Minted(_recipient, ratioedBasset, _bAsset, quantityDeposited);
 
         return ratioedBasset;
     }
@@ -222,16 +226,21 @@ contract Masset is IMasset, MassetToken, PausableModule {
         uint256[] memory receivedQty = new uint256[](len);
         // Transfer the Bassets to the integrator, update storage and calc MassetQ
         for(uint256 i = 0; i < len; i++){
-            if(_bassetQuantity[i] > 0){
+            uint256 bAssetQuantity = _bassetQuantity[i];
+            if(bAssetQuantity > 0){
                 // bAsset == bAssets[i] == basket.bassets[indexes[i]]
                 Basset memory bAsset = bAssets[i];
 
-                uint256 receivedBassetQty = IPlatformIntegration(integrators[i]).deposit(msg.sender, bAsset.addr, _bassetQuantity[i], bAsset.isTransferFeeCharged);
-                receivedQty[i] = receivedBassetQty;
+                address integrator = integrators[i];
+                bool xferCharged = bAsset.isTransferFeeCharged;
 
-                basketManager.increaseVaultBalance(indexes[i], integrators[i], receivedBassetQty);
+                uint256 quantityTransfered = MassetHelpers.transferTokens(msg.sender, integrator, bAsset.addr, xferCharged, bAssetQuantity);
+                uint256 quantityDeposited = IPlatformIntegration(integrator).deposit(bAsset.addr, quantityTransfered, xferCharged);
+                receivedQty[i] = quantityDeposited;
 
-                uint256 ratioedBasset = receivedBassetQty.mulRatioTruncate(bAsset.ratio);
+                basketManager.increaseVaultBalance(indexes[i], integrator, quantityDeposited);
+
+                uint256 ratioedBasset = quantityDeposited.mulRatioTruncate(bAsset.ratio);
                 massetQuantity = massetQuantity.add(ratioedBasset);
             }
         }

@@ -1,40 +1,21 @@
+import { MassetMachine, MassetDetails } from "@utils/machines";
 import { latest } from "openzeppelin-test-helpers/src/time";
-import { MASSET_FACTORY_BYTES } from "@utils/constants";
-import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
-import { aToH, BN } from "@utils/tools";
-import {
-    ERC20MockInstance,
-    ForgeValidatorInstance,
-    ManagerInstance,
-    MassetInstance,
-    NexusInstance,
-    SimpleOracleHubMockInstance,
-    MetaTokenControllerInstance,
-    MetaTokenInstance,
-} from "types/generated";
+import * as t from "types/generated";
+import { Address } from "types/common";
 
-import { Address } from "../../types/common";
 import { BassetMachine } from "./bassetMachine";
 import { StandardAccounts } from "./standardAccounts";
-import { MainnetAccounts } from "./mainnetAccounts";
 
-const CommonHelpersArtifact = artifacts.require("CommonHelpers");
-const StableMathArtifact = artifacts.require("StableMath");
+import { MASSET_FACTORY_BYTES, MainnetAccounts } from "@utils/constants";
+import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
+import { aToH, BN } from "@utils/tools";
 
-const Erc20Artifact = artifacts.require("ERC20Mock");
+// Nexus
+const c_Nexus: t.NexusContract = artifacts.require("Nexus");
 
-const ManagerArtifact = artifacts.require("Manager");
-
-const MassetArtifact = artifacts.require("Masset");
-const ForgeValidatorArtifact = artifacts.require("ForgeValidator");
-
-const NexusArtifact = artifacts.require("Nexus");
-
-const OracleHubMockArtifact = artifacts.require("SimpleOracleHubMock");
-
-const MiniMeTokenFactoryArtifact = artifacts.require("MiniMeTokenFactory");
-const MetaTokenArtifact = artifacts.require("MetaToken");
-const MetaTokenControllerArtifact = artifacts.require("MetaTokenController");
+// Savings
+const c_SavingsContract: t.SavingsContractContract = artifacts.require("SavingsContract");
+const c_SavingsManager: t.SavingsManagerContract = artifacts.require("SavingsManager");
 
 /**
  * @dev The SystemMachine is responsible for creating mock versions of our contracts
@@ -42,55 +23,67 @@ const MetaTokenControllerArtifact = artifacts.require("MetaTokenController");
  * framework, this will act as a Machine to generate these various mocks
  */
 export class SystemMachine {
-    /**
-     * @dev Default accounts as per system Migrations
-     */
+    /** @dev Default accounts as per system Migrations */
     public sa: StandardAccounts;
+    public massetMachine: MassetMachine;
+    public isGanacheFork = false;
 
-    public ma: MainnetAccounts;
+    public nexus: t.NexusInstance;
+    public mUSD: MassetDetails;
+    public savingsContract: t.SavingsContractInstance;
+    public savingsManager: t.SavingsManagerInstance;
 
-    public manager: ManagerInstance;
-
-    public nexus: NexusInstance;
-
-    public oracleHub: SimpleOracleHubMockInstance;
-
-    public metaToken: MetaTokenInstance;
-    public metaTokenController: MetaTokenControllerInstance;
-
-    public forgeValidator: ForgeValidatorInstance;
-
-    private TX_DEFAULTS: any;
-
-    constructor(accounts: Address[], defaultSender: Address, defaultGas = 50000000) {
+    constructor(accounts: Address[]) {
         this.sa = new StandardAccounts(accounts);
-        this.ma = new MainnetAccounts();
-
-        this.TX_DEFAULTS = {
-            from: defaultSender,
-            gas: defaultGas,
-        };
+        this.massetMachine = new MassetMachine(this);
+        if (process.env.NETWORK == "fork") {
+            this.isGanacheFork = true;
+        }
     }
 
     /**
      * @dev Initialises the system to replicate current migration scripts
-     * Critical that this mock initialisation mirrors the generic with
-     * deployments from the correct accounts
      */
     public async initialiseMocks() {
         try {
-            /** Shared */
-            await CommonHelpersArtifact.new();
-            await StableMathArtifact.new();
-            this.forgeValidator = await ForgeValidatorArtifact.new();
-
-            /** Nexus */
+            if (this.isGanacheFork) {
+                var validFork = await this.isRunningValidFork();
+                if (!validFork) throw "err";
+            }
+            /***************************************
+            1. Nexus
+            ****************************************/
             this.nexus = await this.deployNexus();
 
-            console.log("NETWORK", process.env.NETWORK);
+            /***************************************
+            2. mUSD
+            ****************************************/
+            this.mUSD = await this.massetMachine.deployMasset();
 
-            await this.mintAllTokens();
-
+            /***************************************
+            3. Savings
+            ****************************************/
+            this.savingsContract = await c_SavingsContract.new(
+                this.nexus.address,
+                this.mUSD.mUSD.address,
+                { from: this.sa.default },
+            );
+            this.savingsManager = await c_SavingsManager.new(
+                this.nexus.address,
+                this.mUSD.mUSD.address,
+                this.savingsContract.address,
+                { from: this.sa.default },
+            );
+            /***************************************
+            4. Init
+            ****************************************/
+            this.nexus.initialize(
+                [await this.savingsManager.Key_SavingsManager()],
+                [this.savingsManager.address],
+                [false],
+                this.sa.governor,
+                { from: this.sa.governor },
+            );
             return Promise.resolve(true);
         } catch (e) {
             console.log(e);
@@ -98,178 +91,26 @@ export class SystemMachine {
         }
     }
 
-    public async isRunningForkedGanache() {
-        try {
-            // console.log("e", web3.eth.getCode, this.ma.DAI);
-            console.log("011");
-            const code: string = await web3.eth.getCode(this.ma.DAI);
-            console.log("11");
-            // Empty code on mainnet DAI contract address
-            if (code === "0x") return false;
-            console.log("22");
-            return true;
-        } catch (e) {
-            console.log("33");
-            return false;
-        }
-    }
-
-    public async mintAllTokens() {
-        // When Ganache not running mainnet forked version, dont mint
-        if (!(await this.isRunningForkedGanache())) {
-            console.warn(
-                "*** Ganache not running on MAINNET fork. Hence, avoid minting tokens ***",
-            );
-            return;
-        }
-
-        // mainnet addresses
-        // DAI
-        await this.mintERC20(this.ma.DAI);
-        // GUSD
-        await this.mintERC20(this.ma.GUSD);
-        // PAX
-        await this.mintERC20(this.ma.PAX);
-        // SUSD
-        // Getting error when calling `transfer()` "Transfer requires settle"
-        //await this.mintERC20(this.ma.SUSD);
-        // TUSD
-        await this.mintERC20(this.ma.TUSD);
-        // USDC
-        await this.mintERC20(this.ma.USDC);
-        // USDT
-        await this.mintERC20(this.ma.USDT);
-    }
-
-    public async mintERC20(erc20: string) {
-        const instance: ERC20MockInstance = await Erc20Artifact.at(erc20);
-        const decimals = await instance.decimals();
-        const symbol = await instance.symbol();
-        console.log("Symbol: " + symbol + " decimals: " + decimals);
-        const ONE_TOKEN = new BN(10).pow(decimals);
-        const HUNDRED_TOKEN = ONE_TOKEN.mul(new BN(100));
-        let i;
-        for (i = 0; i < this.sa.all.length; i++) {
-            await instance.transfer(this.sa.all[i], HUNDRED_TOKEN, { from: this.ma.OKEX });
-            const bal: BN = await instance.balanceOf(this.sa.all[i]);
-            console.log(bal.toString(10));
-        }
-    }
-
-    /**
-     * @dev Adds prices for the mAsset and MetaToken into the Oracle
-     * @param mAssetPrice Where $1 == 1e6 ("1000000")
-     * @return txHash
-     */
-    public async addMockPrices(
-        mAssetPrice: string,
-        mAssetAddress: string,
-    ): Promise<Truffle.TransactionResponse> {
-        const time = await latest();
-        return this.oracleHub.addMockPrices(
-            [new BN(mAssetPrice), new BN("12000000")],
-            [time, time],
-            [mAssetAddress, this.metaToken.address],
-            { from: this.sa.oraclePriceProvider },
-        );
-    }
     /**
      * @dev Deploy the Nexus
      */
-    public async deployNexus(deployer: Address = this.sa.default): Promise<NexusInstance> {
+    public async deployNexus(deployer: Address = this.sa.default): Promise<t.NexusInstance> {
         try {
-            const nexus = await NexusArtifact.new(this.sa.governor, { from: deployer });
-
+            const nexus = await c_Nexus.new(this.sa.governor, { from: deployer });
             return nexus;
         } catch (e) {
             throw e;
         }
     }
 
-    /**
-     * @dev Deploy the OracleHubMock
-     */
-    public async deployOracleHub(
-        deployer: Address = this.sa.default,
-    ): Promise<SimpleOracleHubMockInstance> {
+    public async isRunningValidFork(): Promise<boolean> {
         try {
-            const oracleHubInstance = await OracleHubMockArtifact.new(
-                this.nexus.address,
-                this.sa.oraclePriceProvider,
-                { from: deployer },
-            );
-
-            return oracleHubInstance;
+            const testContract = new MainnetAccounts().DAI;
+            const code: string = await web3.eth.getCode(testContract);
+            if (code === "0x") return false;
+            return true;
         } catch (e) {
-            throw e;
+            return false;
         }
-    }
-
-    /**
-     * @dev Deploy the MetaTokenMock token
-     */
-    public async deployMetaToken(): Promise<MetaTokenInstance> {
-        try {
-            const miniTokenFactory = await MiniMeTokenFactoryArtifact.new({
-                from: this.sa.default,
-            });
-            const metaTokenInstance = await MetaTokenArtifact.new(
-                miniTokenFactory.address,
-                this.sa.fundManager,
-                {
-                    from: this.sa.default,
-                },
-            );
-
-            return metaTokenInstance;
-        } catch (e) {
-            throw e;
-        }
-    }
-
-    /**
-     * @dev Deploy the MetaTokenController token
-     */
-    public async deployMetaTokenController(): Promise<MetaTokenControllerInstance> {
-        try {
-            const metaTokenController = await MetaTokenControllerArtifact.new(
-                this.nexus.address,
-                this.metaToken.address,
-                {
-                    from: this.sa.default,
-                },
-            );
-            await this.metaToken.changeController(metaTokenController.address, {
-                from: this.sa.default,
-            });
-
-            return metaTokenController;
-        } catch (e) {
-            throw e;
-        }
-    }
-
-    /**
-     * @dev Deploy ManagerMock and relevant init
-     */
-    public async deployManager(): Promise<ManagerInstance> {
-        try {
-            const instance = await ManagerArtifact.new(this.nexus.address);
-
-            return instance;
-        } catch (e) {
-            throw e;
-        }
-    }
-
-    public async initializeNexusWithModules(
-        moduleKeys: string[],
-        moduleAddresses: Address[],
-        isLocked: boolean[],
-        sender: Address = this.sa.governor,
-    ): Promise<Truffle.TransactionResponse> {
-        return this.nexus.initialize(moduleKeys, moduleAddresses, isLocked, this.sa.governor, {
-            from: sender,
-        });
     }
 }

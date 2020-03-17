@@ -7,11 +7,10 @@ interface IPlatformIntegration {
 
     /**
      * @dev Deposit the given bAsset to Lending platform
-     * @param _spender Sender addess
      * @param _bAsset bAsset address
      * @param _amount Amount to deposit
      */
-    function deposit(address _spender, address _bAsset, uint256 _amount, bool isTokenFeeCharged)
+    function deposit(address _bAsset, uint256 _amount, bool isTokenFeeCharged)
         external returns (uint256 quantityDeposited);
 
     /**

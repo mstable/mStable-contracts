@@ -10,18 +10,10 @@ export class StandardAccounts {
     public all: Address[];
 
     public default: Address;
-
-    public _: Address;
-
     public governor: Address;
-
-    public fundManager: Address;
-
+    public feeRecipient: Address;
     public other: Address;
 
-    public feePool: Address;
-
-    public oraclePriceProvider: Address;
     public dummy1: Address;
     public dummy2: Address;
     public dummy3: Address;
@@ -33,16 +25,12 @@ export class StandardAccounts {
         [
             this.default,
             this.governor,
-            this.fundManager,
+            this.feeRecipient,
             this.other,
-            this.feePool,
-            this.oraclePriceProvider,
             this.dummy1,
             this.dummy2,
             this.dummy3,
             this.dummy4,
         ] = accounts;
-
-        this._ = this.default;
     }
 }

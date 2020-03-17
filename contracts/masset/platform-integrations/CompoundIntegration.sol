@@ -28,7 +28,6 @@ contract CompoundIntegration is AbstractIntegration {
     ****************************************/
 
     function deposit(
-        address _spender,
         address _bAsset,
         uint256 _amount,
         bool _isTokenFeeCharged
@@ -40,8 +39,8 @@ contract CompoundIntegration is AbstractIntegration {
         // Get the Target token
         ICERC20 cToken = _getCTokenFor(_bAsset);
 
-        // Transfer collateral to this address
-        quantityDeposited = MassetHelpers.transferTokens(_spender, address(this), _bAsset, _isTokenFeeCharged, _amount);
+        // We should have been sent this amount, if not, the deposit will fail
+        quantityDeposited = _amount;
 
         if(_isTokenFeeCharged) {
             // If we charge a fee, account for it
