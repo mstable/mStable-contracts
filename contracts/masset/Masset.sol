@@ -179,8 +179,8 @@ contract Masset is IMasset, MassetToken, PausableModule {
 
         // Transfer collateral to the platform integration address and call deposit
         bool xferCharged = b.isTransferFeeCharged;
-        uint256 quantityTransfered = MassetHelpers.transferTokens(msg.sender, integrator, _bAsset, xferCharged, _bAssetQuantity);
-        uint256 quantityDeposited = IPlatformIntegration(integrator).deposit(_bAsset, quantityTransfered, xferCharged);
+        uint256 quantityTransferred = MassetHelpers.transferTokens(msg.sender, integrator, _bAsset, xferCharged, _bAssetQuantity);
+        uint256 quantityDeposited = IPlatformIntegration(integrator).deposit(_bAsset, quantityTransferred, xferCharged);
 
         // Validation should be after token transfer, as bAssetQty is unknown before
         (bool isValid, string memory reason) = forgeValidator.validateMint(totalSupply(), b, quantityDeposited);

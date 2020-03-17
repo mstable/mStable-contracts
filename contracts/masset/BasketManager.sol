@@ -42,7 +42,7 @@ contract BasketManager is Initializable, IBasketManager, Module {
     // Mapping holds bAsset token address => index
     mapping(address => uint8) private bassetsMap;
     // Holds relative addresses of the integration platforms
-    mapping(uint8 => address) private integrations;
+    mapping(uint8 => address) public integrations;
 
     constructor(address _nexus) public Module(_nexus){}
 
@@ -380,6 +380,7 @@ contract BasketManager is Initializable, IBasketManager, Module {
     {
         (bool exists, uint8 idx) = _isAssetInBasket(_token);
         require(exists, "bAsset does not exist");
+        // Get the most optimal integration contract
         return (basket.bassets[idx], integrations[idx], idx);
     }
 
