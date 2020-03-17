@@ -159,7 +159,6 @@ contract DelayedProxyAdmin is Module {
     * @param proxy Proxy to change admin.
     * @param newAdmin Address to transfer proxy administration to.
     */
-    // Not allow changing admin
     // function changeProxyAdmin(AdminUpgradeabilityProxy proxy, address newAdmin) public onlyGovernor {
     //     proxy.changeAdmin(newAdmin);
     // }

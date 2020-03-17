@@ -199,7 +199,7 @@ contract BasketManager is Initializable, IBasketManager, Module {
         require(_integration != address(0), "Asset address must be valid");
         (bool alreadyInBasket, ) = _isAssetInBasket(_basset);
         require(!alreadyInBasket, "Asset already exists in Basket");
-        
+
         // TODO -> Require mm to be >= 1e6 (i.e. 1%) and <= 1e10
 
         // require(
@@ -232,6 +232,8 @@ contract BasketManager is Initializable, IBasketManager, Module {
 
 
         emit BassetAdded(_basset, _integration);
+
+        return numberOfBassetsInBasket;
     }
 
 

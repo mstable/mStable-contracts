@@ -16,13 +16,13 @@ export default function shouldBehaveLikeDelayedClaimable(
 ) {
     it("should have delay set", async () => {
         const delay = await ctx.claimable.delay();
-        expect(delay, "wrong delay").bignumber.gt(new BN(0));
+        expect(delay, "wrong delay").bignumber.gt(new BN(0) as any);
     });
 
     it("should have request time set", async () => {
         const timestamp = await latest();
         const requestTime = await ctx.claimable.requestTime();
-        expect(requestTime, "requestTime is 0").bignumber.gt(new BN(0));
+        expect(requestTime, "requestTime is 0").bignumber.gt(new BN(0) as any);
         expect(timestamp, "wrong timestamp").bignumber.eq(requestTime);
     });
 
@@ -75,7 +75,7 @@ export default function shouldBehaveLikeDelayedClaimable(
 
     it("should allow cancel change request", async () => {
         const requestTime = await ctx.claimable.requestTime();
-        expect(requestTime, "wrong requestTime").bignumber.gt(new BN(0));
+        expect(requestTime, "wrong requestTime").bignumber.gt(new BN(0) as any);
 
         const tx = await ctx.claimable.cancelGovernorChange({ from: sa.governor });
 

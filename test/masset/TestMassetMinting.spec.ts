@@ -1,4 +1,3 @@
-import { Address } from "types/common";
 /* eslint-disable @typescript-eslint/camelcase */
 
 import * as t from "types/generated";
@@ -28,9 +27,9 @@ const approveMasset = async (
     fullMassetUnits: number,
     sender: string,
 ): Promise<BN> => {
-    let bAssetDecimals: BN = await bAsset.decimals();
+    const bAssetDecimals: BN = await bAsset.decimals();
     // let decimalDifference: BN = bAssetDecimals.sub(new BN(18));
-    let approvalAmount: BN = simpleToExactAmount(fullMassetUnits, bAssetDecimals.toNumber());
+    const approvalAmount: BN = simpleToExactAmount(fullMassetUnits, bAssetDecimals.toNumber());
     await bAsset.approve(mAsset.address, approvalAmount, { from: sender });
     return approvalAmount;
 };
@@ -55,7 +54,7 @@ contract("MassetMinting", async (accounts) => {
             // For those tokens with 12 decimals, they can at minimum mint 1*10**6 mAsset base units.
             // Thus, these basic calculations should work in whole mAsset units, with specific tests for
             // low decimal bAssets
-            const bAssets = massetDetails.bAssets;
+            const { bAssets } = massetDetails;
             const approval0: BN = await approveMasset(
                 bAssets[0],
                 massetDetails.mAsset,
@@ -93,7 +92,7 @@ contract("MassetMinting", async (accounts) => {
             );
         });
         it("Should mint 2 bAssets", async () => {
-            const bAssets = massetDetails.bAssets;
+            const { bAssets } = massetDetails;
             const approval0: BN = await approveMasset(
                 bAssets[0],
                 massetDetails.mAsset,
@@ -112,7 +111,7 @@ contract("MassetMinting", async (accounts) => {
             });
         });
         it("Should mint single bAsset", async () => {
-            const bAssets = massetDetails.bAssets;
+            const { bAssets } = massetDetails;
             const oneMasset = simpleToExactAmount(1, 18);
             const mUSD_bal0 = await massetDetails.mAsset.balanceOf(sa.default);
 
