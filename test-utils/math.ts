@@ -27,7 +27,7 @@ export const exactAmountToSimple = (value, decimals): BN => {
     return new BN(value).div(new BN(10).pow(new BN(decimals)));
 };
 
-export const applyRatioMassetToBasset = (input: BN, ratio: BN): BN => {
+export const applyRatioMassetToBasset = (input: BN, ratio: BN): string => {
     return input
         .mul(ratioScale)
         .div(ratio)

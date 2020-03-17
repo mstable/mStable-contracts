@@ -39,6 +39,12 @@ export class SystemMachine {
         if (process.env.NETWORK == "fork") {
             this.isGanacheFork = true;
         }
+        /***************************************
+        Deploy Nexus at minimum, to allow MassetMachine access
+        ****************************************/
+        this.deployNexus().then((nexus: t.NexusInstance) => {
+            this.nexus = nexus;
+        });
     }
 
     /**
@@ -51,7 +57,7 @@ export class SystemMachine {
                 if (!validFork) throw "err";
             }
             /***************************************
-            1. Nexus
+            1. Nexus (Redeploy)
             ****************************************/
             this.nexus = await this.deployNexus();
 
@@ -65,12 +71,12 @@ export class SystemMachine {
             ****************************************/
             this.savingsContract = await c_SavingsContract.new(
                 this.nexus.address,
-                this.mUSD.mUSD.address,
+                this.mUSD.mAsset.address,
                 { from: this.sa.default },
             );
             this.savingsManager = await c_SavingsManager.new(
                 this.nexus.address,
-                this.mUSD.mUSD.address,
+                this.mUSD.mAsset.address,
                 this.savingsContract.address,
                 { from: this.sa.default },
             );

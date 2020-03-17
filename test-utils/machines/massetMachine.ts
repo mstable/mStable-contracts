@@ -33,7 +33,7 @@ const c_MUSD: t.MUSDContract = artifacts.require("MUSD");
 const c_ERC20Mock: t.ERC20MockContract = artifacts.require("ERC20Mock");
 
 export interface MassetDetails {
-    mUSD?: t.MUSDInstance;
+    mAsset?: t.MassetInstance;
     basketManager?: t.BasketManagerInstance;
     bAssets?: Array<t.ERC20MockInstance>;
     aaveIntegration?: t.AaveIntegrationInstance;
@@ -60,41 +60,41 @@ export class MassetMachine {
         Dependencies: []
         ****************************************/
 
-        if (isForkedGanache) {
-            // load all the REAL bAssets and credit the user with balance
-        } else {
-            //  - Mock bAssets
-            const mockBasset1: t.ERC20MockInstance = await c_ERC20Mock.new(
-                "Mock1",
-                "MK1",
-                12,
-                this.sa.default,
-                100000000,
-            );
-            const mockBasset2: t.ERC20MockInstance = await c_ERC20Mock.new(
-                "Mock2",
-                "MK2",
-                18,
-                this.sa.default,
-                100000000,
-            );
-            const mockBasset3: t.ERC20MockInstance = await c_ERC20Mock.new(
-                "Mock3",
-                "MK3",
-                6,
-                this.sa.default,
-                100000000,
-            );
-            const mockBasset4: t.ERC20MockInstance = await c_ERC20Mock.new(
-                "Mock4",
-                "MK4",
-                18,
-                this.sa.default,
-                100000000,
-            );
+        // if (isForkedGanache) {
+        //     // load all the REAL bAssets and credit the user with balance
+        // } else {
+        //     //  - Mock bAssets
+        const mockBasset1: t.ERC20MockInstance = await c_ERC20Mock.new(
+            "Mock1",
+            "MK1",
+            12,
+            this.sa.default,
+            100000000,
+        );
+        const mockBasset2: t.ERC20MockInstance = await c_ERC20Mock.new(
+            "Mock2",
+            "MK2",
+            18,
+            this.sa.default,
+            100000000,
+        );
+        const mockBasset3: t.ERC20MockInstance = await c_ERC20Mock.new(
+            "Mock3",
+            "MK3",
+            6,
+            this.sa.default,
+            100000000,
+        );
+        const mockBasset4: t.ERC20MockInstance = await c_ERC20Mock.new(
+            "Mock4",
+            "MK4",
+            18,
+            this.sa.default,
+            100000000,
+        );
 
-            md.bAssets = [mockBasset1, mockBasset2, mockBasset3, mockBasset4];
-        }
+        md.bAssets = [mockBasset1, mockBasset2, mockBasset3, mockBasset4];
+        // }
 
         //  - Mock Aave integration
         const d_MockAave: t.MockAaveInstance = await c_MockAave.new({ from: this.sa.default });
@@ -195,7 +195,7 @@ export class MassetMachine {
             d_BasketManagerProxy.address,
             { from: this.sa.default },
         );
-        md.mUSD = d_MUSD;
+        md.mAsset = d_MUSD;
 
         // 2.5. Init BasketManager
         const initializationData_BasketManager: string = d_BasketManager.contract.methods

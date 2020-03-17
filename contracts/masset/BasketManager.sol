@@ -219,7 +219,7 @@ contract BasketManager is Initializable, IBasketManager, Module {
         require(numberOfBassetsInBasket < basket.maxBassets, "Max bAssets in Basket");
 
         bassetsMap[_basset] = numberOfBassetsInBasket;
-        integrations[index] = _integration;
+        integrations[numberOfBassetsInBasket] = _integration;
 
         basket.bassets.push(Basset({
             addr: _basset,
