@@ -404,7 +404,7 @@ contract BasketManager is Initializable, IBasketManager, Module {
         indexes = _convertBitmapToIndexArr(_bitmap, _size);
         for(uint8 i = 0; i < indexes.length; i++) {
             bAssets[i] = basket.bassets[indexes[i]];
-            integrators[i] = integrations[i];
+            integrators[i] = integrations[indexes[i]];
         }
     }
 

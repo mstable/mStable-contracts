@@ -38,6 +38,11 @@ export class SystemMachine {
         this.massetMachine = new MassetMachine(this);
         if (process.env.NETWORK == "fork") {
             this.isGanacheFork = true;
+            this.isRunningValidFork().then((valid: boolean) => {
+                if (!valid) {
+                    throw "Must run on a valid fork";
+                }
+            });
         }
         /***************************************
         Deploy Nexus at minimum, to allow MassetMachine access
@@ -52,10 +57,6 @@ export class SystemMachine {
      */
     public async initialiseMocks() {
         try {
-            if (this.isGanacheFork) {
-                var validFork = await this.isRunningValidFork();
-                if (!validFork) throw "err";
-            }
             /***************************************
             1. Nexus (Redeploy)
             ****************************************/

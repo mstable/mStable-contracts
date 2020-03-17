@@ -19,4 +19,5 @@ interface IAaveLendingPool {
 
 interface ILendingPoolAddressesProvider {
     function getLendingPool() external view returns (address);
+    function getLendingPoolCore() external view returns (address payable);
 }

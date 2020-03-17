@@ -31,7 +31,7 @@ const approveMasset = async (
     let bAssetDecimals: BN = await bAsset.decimals();
     // let decimalDifference: BN = bAssetDecimals.sub(new BN(18));
     let approvalAmount: BN = simpleToExactAmount(fullMassetUnits, bAssetDecimals.toNumber());
-    await bAsset.approve(mAsset.address, approvalAmount.toString(), { from: sender });
+    await bAsset.approve(mAsset.address, approvalAmount, { from: sender });
     return approvalAmount;
 };
 
@@ -55,7 +55,6 @@ contract("MassetMinting", async (accounts) => {
             // For those tokens with 12 decimals, they can at minimum mint 1*10**6 mAsset base units.
             // Thus, these basic calculations should work in whole mAsset units, with specific tests for
             // low decimal bAssets
-
             const bAssets = massetDetails.bAssets;
             const approval0: BN = await approveMasset(
                 bAssets[0],
@@ -81,7 +80,6 @@ contract("MassetMinting", async (accounts) => {
                 1,
                 sa.default,
             );
-
             const mUSD_balBefore = await massetDetails.mAsset.balanceOf(sa.default);
             await massetDetails.mAsset.mintMulti(
                 15,
@@ -102,14 +100,12 @@ contract("MassetMinting", async (accounts) => {
                 1,
                 sa.default,
             );
-            // await b2.approve(masset.address, 10, { from: sa.default });
             const approval2: BN = await approveMasset(
                 bAssets[2],
                 massetDetails.mAsset,
                 1,
                 sa.default,
             );
-            // await b4.approve(masset.address, 10, { from: sa.default });
             const bitmap = 5; // 0101 = 5
             await massetDetails.mAsset.mintMulti(bitmap, [approval0, approval2], sa.default, {
                 from: sa.default,
@@ -117,6 +113,9 @@ contract("MassetMinting", async (accounts) => {
         });
         it("Should mint single bAsset", async () => {
             const bAssets = massetDetails.bAssets;
+            const oneMasset = simpleToExactAmount(1, 18);
+            const mUSD_bal0 = await massetDetails.mAsset.balanceOf(sa.default);
+
             const approval0: BN = await approveMasset(
                 bAssets[0],
                 massetDetails.mAsset,
@@ -124,6 +123,42 @@ contract("MassetMinting", async (accounts) => {
                 sa.default,
             );
             await massetDetails.mAsset.mint(bAssets[0].address, approval0, { from: sa.default });
+
+            const mUSD_bal1 = await massetDetails.mAsset.balanceOf(sa.default);
+            expect(mUSD_bal1).bignumber.eq(mUSD_bal0.add(oneMasset));
+
+            const approval1: BN = await approveMasset(
+                bAssets[1],
+                massetDetails.mAsset,
+                1,
+                sa.default,
+            );
+            await massetDetails.mAsset.mint(bAssets[1].address, approval1, { from: sa.default });
+
+            const mUSD_bal2 = await massetDetails.mAsset.balanceOf(sa.default);
+            expect(mUSD_bal2).bignumber.eq(mUSD_bal1.add(oneMasset));
+
+            const approval2: BN = await approveMasset(
+                bAssets[2],
+                massetDetails.mAsset,
+                1,
+                sa.default,
+            );
+            await massetDetails.mAsset.mint(bAssets[2].address, approval2, { from: sa.default });
+
+            const mUSD_bal3 = await massetDetails.mAsset.balanceOf(sa.default);
+            expect(mUSD_bal3).bignumber.eq(mUSD_bal2.add(oneMasset));
+
+            const approval3: BN = await approveMasset(
+                bAssets[3],
+                massetDetails.mAsset,
+                1,
+                sa.default,
+            );
+            await massetDetails.mAsset.mint(bAssets[3].address, approval3, { from: sa.default });
+
+            const mUSD_bal4 = await massetDetails.mAsset.balanceOf(sa.default);
+            expect(mUSD_bal4).bignumber.eq(mUSD_bal3.add(oneMasset));
         });
 
         it("Should return bAssets bitmap", async () => {
