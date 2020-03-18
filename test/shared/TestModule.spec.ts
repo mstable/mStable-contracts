@@ -17,13 +17,14 @@ contract("Module", async (accounts) => {
     let nexus: NexusInstance;
 
     before("before all", async () => {
-        systemMachine = new SystemMachine(sa.all, sa.other);
+        // create New Nexus 
+        systemMachine = new SystemMachine(sa.all);
         await systemMachine.initialiseMocks();
         nexus = systemMachine.nexus;
     });
 
     beforeEach("before each", async () => {
-        // create New Nexus        
+               
         ctx.module = await MockModule.new(nexus.address);
     });
 

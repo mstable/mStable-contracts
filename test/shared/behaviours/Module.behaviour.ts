@@ -1,11 +1,11 @@
 import { StandardAccounts } from "@utils/machines";
-import { MockModuleInstance, NexusInstance } from "types/generated";
+import { ModuleInstance, NexusInstance } from "types/generated";
 
 const NexusArtifact = artifacts.require("Nexus");
 const { ZERO_ADDRESS } = require("@utils/constants");
 
 export default function shouldBehaveLikeModule(
-    ctx: { module: MockModuleInstance },
+    ctx: { module: ModuleInstance },
     sa: StandardAccounts,
 ) {
 
@@ -40,7 +40,6 @@ export default function shouldBehaveLikeModule(
         const nexus: NexusInstance = await NexusArtifact.at(nexusAddr);    
         
         const isInit = await nexus.initialized();
-        // TODO initialize() should be performed on Nexus when initialiseMocks() is called
         expect(true).to.equal(isInit);
     });
     
