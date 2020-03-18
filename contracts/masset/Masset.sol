@@ -333,7 +333,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
 
         (Basset memory b, address integrator, uint8 index) = basketManager.getForgeBasset(_bAsset, false);
 
-        // // Validate redemption
+        // Validate redemption
         (bool isValid, string memory reason) =
             forgeValidator.validateRedemption(basket.bassets, basket.failed, totalSupply(), index, _bAssetQuantity);
         require(isValid, reason);
@@ -341,7 +341,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         // Calc equivalent mAsset amount
         uint256 massetQuantity = _bAssetQuantity.mulRatioTruncateCeil(b.ratio);
 
-        // // Decrease balance in storage
+        // Decrease balance in storage
         basketManager.decreaseVaultBalance(index, integrator, _bAssetQuantity);
 
         // Pay the redemption fee

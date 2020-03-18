@@ -366,52 +366,48 @@ export class MassetMachine {
         bAssetCount: number = 4,
         sender: Address = this.system.sa.governor,
     ): Promise<MassetDetails> {
-        try {
-            let massetDetails = await this.deployMasset();
+        let massetDetails = await this.deployMasset();
 
-            // Mint initialSupply with shared weightings
-            let basketDetails = await this.getBassetsInMasset(massetDetails);
+        // Mint initialSupply with shared weightings
+        let basketDetails = await this.getBassetsInMasset(massetDetails);
 
-            // Calc optimal weightings
-            let totalWeighting = basketDetails.reduce((p, c) => {
-                return p.add(c.maxWeight);
-            }, new BN(0));
-            let totalMintAmount = simpleToExactAmount(initialSupply, 18);
-            let mintAmounts = await Promise.all(
-                basketDetails.map(async (b) => {
-                    // e.g. 5e35 / 2e18 = 2.5e17
-                    const relativeWeighting = b.maxWeight.mul(expScale).div(totalWeighting);
-                    // e.g. 1e20 * 25e16 / 1e18 = 25e18
-                    const mintAmount = totalMintAmount.mul(relativeWeighting).div(expScale);
-                    // const bAssetDecimals: BN = await b.decimals();
-                    // const decimalDelta = new BN(18).sub(bAssetDecimals);
-                    return mintAmount.mul(ratioScale).div(b.ratio);
+        // Calc optimal weightings
+        let totalWeighting = basketDetails.reduce((p, c) => {
+            return p.add(c.maxWeight);
+        }, new BN(0));
+        let totalMintAmount = simpleToExactAmount(initialSupply, 18);
+        let mintAmounts = await Promise.all(
+            basketDetails.map(async (b) => {
+                // e.g. 5e35 / 2e18 = 2.5e17
+                const relativeWeighting = b.maxWeight.mul(expScale).div(totalWeighting);
+                // e.g. 1e20 * 25e16 / 1e18 = 25e18
+                const mintAmount = totalMintAmount.mul(relativeWeighting).div(expScale);
+                // const bAssetDecimals: BN = await b.decimals();
+                // const decimalDelta = new BN(18).sub(bAssetDecimals);
+                return mintAmount.mul(ratioScale).div(b.ratio);
+            }),
+        );
+
+        // Approve bAssets
+        await Promise.all(
+            massetDetails.bAssets.map((b, i) =>
+                b.approve(massetDetails.mAsset.address, mintAmounts[i], {
+                    from: this.system.sa.default,
                 }),
-            );
+            ),
+        );
 
-            // Approve bAssets
-            await Promise.all(
-                massetDetails.bAssets.map((b, i) =>
-                    b.approve(massetDetails.mAsset.address, mintAmounts[i], {
-                        from: this.system.sa.default,
-                    }),
-                ),
-            );
+        const bitmap = await massetDetails.basketManager.getBitmapFor(
+            basketDetails.map((b) => b.addr),
+        );
+        await massetDetails.mAsset.mintMulti(
+            bitmap.toNumber(),
+            mintAmounts,
+            this.system.sa.default,
+            { from: this.system.sa.default },
+        );
 
-            const bitmap = await massetDetails.basketManager.getBitmapFor(
-                basketDetails.map((b) => b.addr),
-            );
-            await massetDetails.mAsset.mintMulti(
-                bitmap.toNumber(),
-                mintAmounts,
-                this.system.sa.default,
-                { from: this.system.sa.default },
-            );
-
-            return massetDetails;
-        } catch (e) {
-            console.error(e);
-        }
+        return massetDetails;
     }
 
     public async getBassetsInMasset(masset: MassetDetails): Promise<Basset[]> {

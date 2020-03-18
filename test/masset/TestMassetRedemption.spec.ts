@@ -67,9 +67,7 @@ contract("MassetRedemption", async (accounts) => {
             const bAsset_redemption = await Promise.all(
                 bAssets.map(async (b) => simpleToExactAmount(1, await b.decimals())),
             );
-            const bAsset_balBefore = await Promise.all(
-                bAssets.map(async (b) => await b.balanceOf(sa.default)),
-            );
+            const bAsset_balBefore = await Promise.all(bAssets.map((b) => b.balanceOf(sa.default)));
             const mUSD_supplyBefore = await massetDetails.mAsset.totalSupply();
             // Get bitmap
             const bitmap = await massetDetails.basketManager.getBitmapFor(
@@ -81,9 +79,7 @@ contract("MassetRedemption", async (accounts) => {
             });
             // Assert balances
             const mUSD_supplyAfter = await massetDetails.mAsset.totalSupply();
-            const bAsset_balAfter = await Promise.all(
-                bAssets.map(async (b) => await b.balanceOf(sa.default)),
-            );
+            const bAsset_balAfter = await Promise.all(bAssets.map((b) => b.balanceOf(sa.default)));
             expect(mUSD_supplyAfter, "Must burn 2 full units of mUSD").bignumber.eq(
                 mUSD_supplyBefore.sub(simpleToExactAmount(2, 18)),
             );
