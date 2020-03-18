@@ -4,9 +4,10 @@ import { InitializableModuleKeys } from "../shared/InitializableModuleKeys.sol";
 import { INexus } from "../interfaces/INexus.sol";
 
 /**
- * @title InitializableModule
- * @dev Subscribes to module updates from a given publisher and reads from its registry.
- *      Contrat is used for upgradable proxy contracts.
+ * @title   InitializableModule
+ * @author  Stability Labs Pty. Lte.
+ * @dev     Subscribes to module updates from a given publisher and reads from its registry.
+ *          Contrat is used for upgradable proxy contracts.
  */
 contract InitializableModule is InitializableModuleKeys {
 

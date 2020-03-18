@@ -3,7 +3,9 @@ pragma solidity 0.5.16;
 import { Module } from "./Module.sol";
 
 /**
- * @dev Forked from Openzeppelin-contracts/lifecycle/pausable
+ * @title   PausableModule
+ * @author  Stability Labs Pty. Lte.
+ * @dev     Forked from Openzeppelin-contracts/lifecycle/pausable
  */
 contract PausableModule is Module {
     /**
@@ -20,7 +22,8 @@ contract PausableModule is Module {
 
     /**
      * @dev Initializes the contract in unpaused state. Assigns the Pauser role
-     * to the deployer.
+     *      to the deployer.
+     * @param _nexus Nexus contract address
      */
     constructor (address _nexus) internal Module(_nexus) {
         _paused = false;
@@ -28,6 +31,7 @@ contract PausableModule is Module {
 
     /**
      * @dev Returns true if the contract is paused, and false otherwise.
+     * @return Returns `true` when paused, otherwise `false`
      */
     function paused() public view returns (bool) {
         return _paused;
@@ -50,7 +54,7 @@ contract PausableModule is Module {
     }
 
     /**
-     * @dev Called by a pauser to pause, triggers stopped state.
+     * @dev Called by the Governor to pause, triggers stopped state.
      */
     function pause() public onlyGovernor whenNotPaused {
         _paused = true;
@@ -58,7 +62,7 @@ contract PausableModule is Module {
     }
 
     /**
-     * @dev Called by a pauser to unpause, returns to normal state.
+     * @dev Called by Governor to unpause, returns to normal state.
      */
     function unpause() public onlyGovernor whenPaused {
         _paused = false;

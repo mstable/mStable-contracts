@@ -1,4 +1,4 @@
-import { MockModuleInstance, NexusInstance } from "types/generated";
+import { MockModuleInstance, MockNexusInstance } from "types/generated";
 import { StandardAccounts, SystemMachine } from "@utils/machines";
 import { BN } from "@utils/tools";
 import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
@@ -6,6 +6,7 @@ import envSetup from "@utils/env_setup";
 import shouldBehaveLikeModule from "./behaviours/Module.behaviour";
 
 const MockModule = artifacts.require("MockModule");
+const MockNexus = artifacts.require("MockNexus");
 
 const { expect, assert } = envSetup.configure();
 const { ZERO_ADDRESS } = require("@utils/constants");
@@ -13,16 +14,14 @@ const { ZERO_ADDRESS } = require("@utils/constants");
 contract("Module", async (accounts) => {
     const ctx: { module?: MockModuleInstance } = {};
     const sa = new StandardAccounts(accounts);
-    let systemMachine: SystemMachine;
-    let nexus: NexusInstance;
+    let nexus: MockNexusInstance;
+    const governanceAddr = sa.dummy1;
+    const managerAddr = sa.dummy2;
 
     before("before all", async () => {
         // create New Nexus 
-        systemMachine = new SystemMachine(sa.all);
-        await systemMachine.initialiseMocks();
-        nexus = systemMachine.nexus;
+        nexus = await MockNexus.new(sa.governor, governanceAddr, managerAddr);
     });
-
     beforeEach("before each", async () => {
                
         ctx.module = await MockModule.new(nexus.address);
@@ -73,6 +72,13 @@ contract("Module", async (accounts) => {
             expect(nexusManager).to.equal(manager);
         });
 
+        it("and return SavingsManager address", async () => {
+            const savingsManager = await ctx.module.savingsManager();
+            expect(savingsManager).to.not.equal(ZERO_ADDRESS);
+            const nexusSavingsManager = await nexus.getModule(web3.utils.keccak256("SavingsManager"));
+            expect(nexusSavingsManager).to.equal(savingsManager);
+        });
+
         it("and return recollateraliser address", async () => {
             const recollateraliser = await ctx.module.recollateraliser();
             expect(recollateraliser).to.not.equal(ZERO_ADDRESS);
@@ -88,7 +94,7 @@ contract("Module", async (accounts) => {
             expect(new BN(1)).to.bignumber.equal(temp);
         });
 
-        it("when shouldAllowOnlyGovernance() called by Governance", async () => {
+        it("when shouldAllowOnlyGovernance() called by Governor address", async () => {
             let temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);
             await ctx.module.shouldAllowOnlyGovernance({from: sa.governor});
@@ -96,10 +102,18 @@ contract("Module", async (accounts) => {
             expect(new BN(2)).to.bignumber.equal(temp);
         });
 
+        it("when shouldAllowOnlyGovernance() called by Governance address", async () => {
+            let temp = await ctx.module.temp();
+            expect(new BN(0)).to.bignumber.equal(temp);
+            await ctx.module.shouldAllowOnlyGovernance({from: governanceAddr});
+            temp = await ctx.module.temp();
+            expect(new BN(2)).to.bignumber.equal(temp);
+        });
+
         it("when shouldAllowOnlyManager() called by Manager", async () => {
             let temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);
-            await ctx.module.shouldAllowOnlyManager({from: sa.governor});
+            await ctx.module.shouldAllowOnlyManager({from: managerAddr});
             temp = await ctx.module.temp();
             expect(new BN(3)).to.bignumber.equal(temp);
         });
@@ -122,7 +136,7 @@ contract("Module", async (accounts) => {
             expect(new BN(0)).to.bignumber.equal(temp);
             await shouldFail.reverting.withMessage(
                 ctx.module.shouldAllowOnlyGovernance({from: sa.other}),
-                ""
+                "Only governance can execute"
             );
             temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);
@@ -133,7 +147,7 @@ contract("Module", async (accounts) => {
             expect(new BN(0)).to.bignumber.equal(temp);
             await shouldFail.reverting.withMessage(
                 ctx.module.shouldAllowOnlyManager({from: sa.other}),
-                ""
+                "Only manager can execute"
             );
             temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);
