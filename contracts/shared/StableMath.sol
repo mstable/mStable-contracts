@@ -73,7 +73,7 @@ library StableMath {
         pure
         returns (uint256)
     {
-        return mulTruncate(x, y, fullScale);
+        return mulTruncateScale(x, y, fullScale);
     }
 
     /**
@@ -85,7 +85,7 @@ library StableMath {
      * @return      Result after multiplying the two inputs and then dividing by the shared
      *              scale unit
      */
-    function mulTruncate(uint256 x, uint256 y, uint256 scale)
+    function mulTruncateScale(uint256 x, uint256 y, uint256 scale)
         internal
         pure
         returns (uint256)
@@ -153,7 +153,7 @@ library StableMath {
         pure
         returns (uint256 c)
     {
-        return mulTruncate(x, ratio, ratioScale);
+        return mulTruncateScale(x, ratio, ratioScale);
     }
 
     /**

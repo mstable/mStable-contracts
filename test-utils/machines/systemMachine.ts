@@ -7,7 +7,7 @@ import { BassetMachine } from "./bassetMachine";
 import { StandardAccounts } from "./standardAccounts";
 
 import { MASSET_FACTORY_BYTES, MainnetAccounts } from "@utils/constants";
-import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
+import { createMultiple, simpleToExactAmount } from "@utils/math";
 import { aToH, BN } from "@utils/tools";
 
 // Nexus
