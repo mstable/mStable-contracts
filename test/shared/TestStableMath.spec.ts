@@ -16,9 +16,9 @@ contract("StableMath", async (accounts) => {
         math = await PublicStableMath.new();
     });
 
-    /** *************************************
+    /***************************************
                     GETTERS
-    *************************************** */
+    ****************************************/
 
     it("should have the correct scale", async () => {
         expect(await math.getFullScale()).bignumber.eq(simpleToExactAmount(1, 18));
@@ -39,9 +39,9 @@ contract("StableMath", async (accounts) => {
         );
     });
 
-    /** *************************************
-              PRECISE ARITHMETIC
-    *************************************** */
+    /***************************************
+            PRECISE ARITHMETIC
+    ****************************************/
 
     it("should return correct results from mulTruncate(x, y)", async () => {});
 
@@ -51,9 +51,9 @@ contract("StableMath", async (accounts) => {
 
     it("should return correct results from divPrecisely(x, y)", async () => {});
 
-    /** *************************************
-                  RATIO FUNCS
-    *************************************** */
+    /***************************************
+                RATIO FUNCS
+    ****************************************/
 
     it("should calculate correct mAsset value from bAsset in mulRatioTruncate(x, ratio)", async () => {});
 
