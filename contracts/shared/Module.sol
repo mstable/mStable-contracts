@@ -6,14 +6,14 @@ import { INexus } from "../interfaces/INexus.sol";
 /**
  * @title   Module
  * @author  Stability Labs Pty. Lte.
- * @dev     Subscribes to module updates from a given publisher and reads from its registry
+ * @dev     Subscribes to module updates from a given publisher by reading from its registry
  */
 contract Module is ModuleKeys {
 
     INexus public nexus;
 
     /**
-     * @dev Initialises the Module by setting publisher,
+     * @dev Initialises the Module by setting publisher addresses,
      *      and reading all available system module information
      */
     constructor(address _nexus) internal {
@@ -51,7 +51,7 @@ contract Module is ModuleKeys {
 
     /**
      * @dev Returns Governor address from the Nexus
-     * @return Address of Governor Contract(MultiSig for Phase-1)
+     * @return Address of Governor Contract
      */
     function _governor() internal view returns (address) {
         return nexus.governor();
@@ -67,7 +67,7 @@ contract Module is ModuleKeys {
 
     /**
      * @dev Return Staking Module address from the Nexus
-     * @return Address of the Staking Module contract (Phase 2)
+     * @return Address of the Staking Module contract
      */
     function _staking() internal view returns (address) {
         return nexus.getModule(Key_Staking);

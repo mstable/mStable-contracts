@@ -19,11 +19,10 @@ contract("Module", async (accounts) => {
     const managerAddr = sa.dummy2;
 
     before("before all", async () => {
-        // create New Nexus 
+        // create New Nexus
         nexus = await MockNexus.new(sa.governor, governanceAddr, managerAddr);
     });
     beforeEach("before each", async () => {
-               
         ctx.module = await MockModule.new(nexus.address);
     });
 
@@ -75,21 +74,25 @@ contract("Module", async (accounts) => {
         it("and return SavingsManager address", async () => {
             const savingsManager = await ctx.module.savingsManager();
             expect(savingsManager).to.not.equal(ZERO_ADDRESS);
-            const nexusSavingsManager = await nexus.getModule(web3.utils.keccak256("SavingsManager"));
+            const nexusSavingsManager = await nexus.getModule(
+                web3.utils.keccak256("SavingsManager"),
+            );
             expect(nexusSavingsManager).to.equal(savingsManager);
         });
 
         it("and return recollateraliser address", async () => {
             const recollateraliser = await ctx.module.recollateraliser();
             expect(recollateraliser).to.not.equal(ZERO_ADDRESS);
-            const nexusRecollateraliser = await nexus.getModule(web3.utils.keccak256("Recollateraliser"));
+            const nexusRecollateraliser = await nexus.getModule(
+                web3.utils.keccak256("Recollateraliser"),
+            );
             expect(nexusRecollateraliser).to.equal(recollateraliser);
         });
 
         it("when shouldAllowOnlyGovernor() called by Governor", async () => {
             let temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);
-            await ctx.module.shouldAllowOnlyGovernor({from: sa.governor});
+            await ctx.module.shouldAllowOnlyGovernor({ from: sa.governor });
             temp = await ctx.module.temp();
             expect(new BN(1)).to.bignumber.equal(temp);
         });
@@ -97,7 +100,7 @@ contract("Module", async (accounts) => {
         it("when shouldAllowOnlyGovernance() called by Governor address", async () => {
             let temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);
-            await ctx.module.shouldAllowOnlyGovernance({from: sa.governor});
+            await ctx.module.shouldAllowOnlyGovernance({ from: sa.governor });
             temp = await ctx.module.temp();
             expect(new BN(2)).to.bignumber.equal(temp);
         });
@@ -105,7 +108,7 @@ contract("Module", async (accounts) => {
         it("when shouldAllowOnlyGovernance() called by Governance address", async () => {
             let temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);
-            await ctx.module.shouldAllowOnlyGovernance({from: governanceAddr});
+            await ctx.module.shouldAllowOnlyGovernance({ from: governanceAddr });
             temp = await ctx.module.temp();
             expect(new BN(2)).to.bignumber.equal(temp);
         });
@@ -113,12 +116,12 @@ contract("Module", async (accounts) => {
         it("when shouldAllowOnlyManager() called by Manager", async () => {
             let temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);
-            await ctx.module.shouldAllowOnlyManager({from: managerAddr});
+            await ctx.module.shouldAllowOnlyManager({ from: managerAddr });
             temp = await ctx.module.temp();
             expect(new BN(3)).to.bignumber.equal(temp);
         });
     });
-    
+
     describe("should fail", async () => {
         it("when zero address for Nexus", async () => {
             await shouldFail.reverting.withMessage(
@@ -131,8 +134,8 @@ contract("Module", async (accounts) => {
             let temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);
             await shouldFail.reverting.withMessage(
-                ctx.module.shouldAllowOnlyGovernor({from: sa.other}),
-                "Only governor can execute"
+                ctx.module.shouldAllowOnlyGovernor({ from: sa.other }),
+                "Only governor can execute",
             );
             temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);
@@ -142,8 +145,8 @@ contract("Module", async (accounts) => {
             let temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);
             await shouldFail.reverting.withMessage(
-                ctx.module.shouldAllowOnlyGovernance({from: sa.other}),
-                "Only governance can execute"
+                ctx.module.shouldAllowOnlyGovernance({ from: sa.other }),
+                "Only governance can execute",
             );
             temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);
@@ -153,13 +156,11 @@ contract("Module", async (accounts) => {
             let temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);
             await shouldFail.reverting.withMessage(
-                ctx.module.shouldAllowOnlyManager({from: sa.other}),
-                "Only manager can execute"
+                ctx.module.shouldAllowOnlyManager({ from: sa.other }),
+                "Only manager can execute",
             );
             temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);
         });
     });
-    
-
 });

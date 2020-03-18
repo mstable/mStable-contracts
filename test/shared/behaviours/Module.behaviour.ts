@@ -8,8 +8,7 @@ export default function shouldBehaveLikeModule(
     ctx: { module: ModuleInstance },
     sa: StandardAccounts,
 ) {
-
-    it("should have all ModuleKeys initialized", async () =>{
+    it("should have all ModuleKeys initialized", async () => {
         let key: string;
         key = await ctx.module.Key_Governance();
         expect(key).to.equal(web3.utils.keccak256("Governance"));
@@ -30,22 +29,22 @@ export default function shouldBehaveLikeModule(
         expect(key).to.equal(web3.utils.keccak256("MetaToken"));
 
         key = await ctx.module.Key_SavingsManager();
-        expect(key).to.equal(web3.utils.keccak256("SavingsManager"));        
+        expect(key).to.equal(web3.utils.keccak256("SavingsManager"));
     });
 
     it("should have Nexus", async () => {
         const nexusAddr = await ctx.module.nexus();
         expect(nexusAddr).to.not.equal(ZERO_ADDRESS);
 
-        const nexus: NexusInstance = await NexusArtifact.at(nexusAddr);    
-        
+        const nexus: NexusInstance = await NexusArtifact.at(nexusAddr);
+
         const isInit = await nexus.initialized();
         expect(true).to.equal(isInit);
     });
-    
+
     it("should have Governor address", async () => {
         const nexusAddr = await ctx.module.nexus();
-        const nexus: NexusInstance = await NexusArtifact.at(nexusAddr);    
+        const nexus: NexusInstance = await NexusArtifact.at(nexusAddr);
         const nexusGovernor = await nexus.governor();
         expect(nexusGovernor).to.equal(sa.governor);
     });

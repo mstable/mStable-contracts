@@ -7,7 +7,7 @@ import { INexus } from "../interfaces/INexus.sol";
  * @title   InitializableModule
  * @author  Stability Labs Pty. Lte.
  * @dev     Subscribes to module updates from a given publisher and reads from its registry.
- *          Contrat is used for upgradable proxy contracts.
+ *          Contract is used for upgradable proxy contracts.
  */
 contract InitializableModule is InitializableModuleKeys {
 
@@ -60,7 +60,7 @@ contract InitializableModule is InitializableModuleKeys {
 
     /**
      * @dev Returns Governor address from the Nexus
-     * @return Address of Governor Contract(MultiSig for Phase-1)
+     * @return Address of Governor Contract
      */
     function _governor() internal view returns (address) {
         return nexus.governor();
@@ -76,7 +76,7 @@ contract InitializableModule is InitializableModuleKeys {
 
     /**
      * @dev Return Staking Module address from the Nexus
-     * @return Address of the Staking Module contract (Phase 2)
+     * @return Address of the Staking Module contract
      */
     function _staking() internal view returns (address) {
         return nexus.getModule(Key_Staking);
