@@ -9,14 +9,14 @@ pragma solidity 0.5.16;
   */
 contract ModuleKeys {
 
-    // Governance
-    bytes32 public constant Key_Governance = keccak256("Governance"); // 2.x
-    bytes32 public constant Key_Staking = keccak256("Staking"); // 1.2
+    // Governance                                                                   // Phases
+    bytes32 public constant Key_Governance = keccak256("Governance");               // 2.x
+    bytes32 public constant Key_Staking = keccak256("Staking");                     // 1.2
 
     // mStable
-    bytes32 public constant Key_OracleHub = keccak256("OracleHub"); // 1.2
-    bytes32 public constant Key_Manager = keccak256("Manager"); // 1.2
-    bytes32 public constant Key_Recollateraliser = keccak256("Recollateraliser"); // 2.x
-    bytes32 public constant Key_MetaToken = keccak256("MetaToken"); // 1.1
-    bytes32 public constant Key_SavingsManager = keccak256("SavingsManager"); // 1.0
+    bytes32 public constant Key_OracleHub = keccak256("OracleHub");                 // 1.2
+    bytes32 public constant Key_Manager = keccak256("Manager");                     // 1.2
+    bytes32 public constant Key_Recollateraliser = keccak256("Recollateraliser");   // 2.x
+    bytes32 public constant Key_MetaToken = keccak256("MetaToken");                 // 1.1
+    bytes32 public constant Key_SavingsManager = keccak256("SavingsManager");       // 1.0
 }

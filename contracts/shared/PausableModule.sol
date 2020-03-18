@@ -21,6 +21,22 @@ contract PausableModule is Module {
     bool private _paused;
 
     /**
+     * @dev Modifier to make a function callable only when the contract is not paused.
+     */
+    modifier whenNotPaused() {
+        require(!_paused, "Pausable: paused");
+        _;
+    }
+
+    /**
+     * @dev Modifier to make a function callable only when the contract is paused.
+     */
+    modifier whenPaused() {
+        require(_paused, "Pausable: not paused");
+        _;
+    }
+
+    /**
      * @dev Initializes the contract in unpaused state. Assigns the Pauser role
      *      to the deployer.
      * @param _nexus Nexus contract address
@@ -35,22 +51,6 @@ contract PausableModule is Module {
      */
     function paused() public view returns (bool) {
         return _paused;
-    }
-
-    /**
-     * @dev Modifier to make a function callable only when the contract is not paused.
-     */
-    modifier whenNotPaused() {
-        require(!_paused, "Pausable: paused");
-        _;
-    }
-
-    /**
-     * @dev Modifier to make a function callable only when the contract is paused.
-     */
-    modifier whenPaused() {
-        require(_paused, "Pausable: not paused");
-        _;
     }
 
     /**

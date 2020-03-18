@@ -1,12 +1,17 @@
 pragma solidity 0.5.16;
 
-import { Module } from "../../shared/Module.sol";
+import { InitializableModule } from "../../shared/InitializableModule.sol";
 
-contract MockModule is Module {
+contract MockInitializableModule is InitializableModule {
 
     uint256 public temp;
 
-    constructor(address _nexus) public Module(_nexus) {}
+    constructor(address _nexus)
+        public
+        InitializableModule(address(0x0))
+    {
+        InitializableModule._initialize(_nexus);
+    }
 
     function governor() public view returns (address) {
         return super._governor();

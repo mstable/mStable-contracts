@@ -1,17 +1,17 @@
-import { MockModuleInstance, MockNexusInstance } from "types/generated";
+import { MockInitializableModuleInstance, MockModuleInstance, MockNexusInstance } from "types/generated";
 import { StandardAccounts, SystemMachine } from "@utils/machines";
 import { BN } from "@utils/tools";
 import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
 import envSetup from "@utils/env_setup";
 import shouldBehaveLikeModule from "./behaviours/Module.behaviour";
 
-const MockModule = artifacts.require("MockModule");
+const MockInitializableModule = artifacts.require("MockInitializableModule");
 const MockNexus = artifacts.require("MockNexus");
 
 const { expect, assert } = envSetup.configure();
 const { ZERO_ADDRESS } = require("@utils/constants");
 
-contract("Module", async (accounts) => {
+contract("InitializableModule", async (accounts) => {
     const ctx: { module?: MockModuleInstance } = {};
     const sa = new StandardAccounts(accounts);
     let nexus: MockNexusInstance;
@@ -24,7 +24,7 @@ contract("Module", async (accounts) => {
     });
     beforeEach("before each", async () => {
                
-        ctx.module = await MockModule.new(nexus.address);
+        ctx.module = await MockInitializableModule.new(nexus.address);
     });
 
     shouldBehaveLikeModule(ctx as Required<typeof ctx>, sa);
@@ -120,13 +120,6 @@ contract("Module", async (accounts) => {
     });
     
     describe("should fail", async () => {
-        it("when zero address for Nexus", async () => {
-            await shouldFail.reverting.withMessage(
-                MockModule.new(ZERO_ADDRESS),
-                "Nexus is zero address",
-            );
-        });
-
         it("when shouldAllowOnlyGovernor() called by other", async () => {
             let temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);

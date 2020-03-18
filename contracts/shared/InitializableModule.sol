@@ -21,17 +21,29 @@ contract InitializableModule is InitializableModuleKeys {
         InitializableModule._initialize(_nexus);
     }
 
+    /**
+     * @dev Modifier to allow function calls only from the Governor.
+     */
     modifier onlyGovernor() {
         require(msg.sender == _governor(), "Only governor can execute");
         _;
     }
 
+    /**
+     * @dev Modifier to allow function calls only from the Governance.
+     *      Governance is either Governor address or Governance address.
+     */
     modifier onlyGovernance() {
-        require(msg.sender == _governor() || msg.sender == _governance(),
-            "Only governance can execute");
+        require(
+            msg.sender == _governor() || msg.sender == _governance(),
+            "Only governance can execute"
+        );
         _;
     }
 
+    /**
+     * @dev Modifier to allow function calls only from the Manager.
+     */
     modifier onlyManager() {
         require(msg.sender == _manager(), "Only manager can execute");
         _;
@@ -46,37 +58,66 @@ contract InitializableModule is InitializableModuleKeys {
         InitializableModuleKeys._initialize();
     }
 
+    /**
+     * @dev Returns Governor address from the Nexus
+     * @return Address of Governor Contract(MultiSig for Phase-1)
+     */
     function _governor() internal view returns (address) {
         return nexus.governor();
     }
 
-    // Phase 2
+    /**
+     * @dev Returns Governance Module address from the Nexus
+     * @return Address of the Governance (Phase 2)
+     */
     function _governance() internal view returns (address) {
         return nexus.getModule(Key_Governance);
     }
 
-    // Phase 2
+    /**
+     * @dev Return Staking Module address from the Nexus
+     * @return Address of the Staking Module contract (Phase 2)
+     */
     function _staking() internal view returns (address) {
         return nexus.getModule(Key_Staking);
     }
 
+    /**
+     * @dev Return MetaToken Module address from the Nexus
+     * @return Address of the MetaToken Module contract
+     */
     function _metaToken() internal view returns (address) {
         return nexus.getModule(Key_MetaToken);
     }
 
+    /**
+     * @dev Return OracleHub Module address from the Nexus
+     * @return Address of the OracleHub Module contract
+     */
     function _oracleHub() internal view returns (address) {
         return nexus.getModule(Key_OracleHub);
     }
 
+    /**
+     * @dev Return Manager Module address from the Nexus
+     * @return Address of the Manager Module contract
+     */
     function _manager() internal view returns (address) {
         return nexus.getModule(Key_Manager);
     }
 
+    /**
+     * @dev Return SavingsManager Module address from the Nexus
+     * @return Address of the SavingsManager Module contract
+     */
     function _savingsManager() internal view returns (address) {
         return nexus.getModule(Key_SavingsManager);
     }
 
-    // Phase 2
+    /**
+     * @dev Return Recollateraliser Module address from the Nexus
+     * @return  Address of the Recollateraliser Module contract (Phase 2)
+     */
     function _recollateraliser() internal view returns (address) {
         return nexus.getModule(Key_Recollateraliser);
     }

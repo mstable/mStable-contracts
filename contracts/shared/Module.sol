@@ -17,6 +17,7 @@ contract Module is ModuleKeys {
      *      and reading all available system module information
      */
     constructor(address _nexus) internal {
+        require(_nexus != address(0), "Nexus is zero address");
         nexus = INexus(_nexus);
     }
 
@@ -33,8 +34,10 @@ contract Module is ModuleKeys {
      *      Governance is either Governor address or Governance address.
      */
     modifier onlyGovernance() {
-        require(msg.sender == _governor() || msg.sender == _governance(),
-            "Only governance can execute");
+        require(
+            msg.sender == _governor() || msg.sender == _governance(),
+            "Only governance can execute"
+        );
         _;
     }
 
@@ -103,7 +106,7 @@ contract Module is ModuleKeys {
     }
 
     /**
-     * @dev     Return Recollateraliser Module address from the Nexus
+     * @dev Return Recollateraliser Module address from the Nexus
      * @return  Address of the Recollateraliser Module contract (Phase 2)
      */
     function _recollateraliser() internal view returns (address) {
