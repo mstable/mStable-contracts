@@ -296,12 +296,11 @@ export class MassetMachine {
                 this.system.nexus.address,
                 d_MUSD.address,
                 bassetDetails.bAssets.map((b) => b.address),
-                bassetDetails.platform.map((p) =>
-                        p == Platform.aave
-                            ? d_AaveIntegrationProxy.address
-                            : d_CompoundIntegrationProxy.address,
-                    ),
-                ,
+                bassetDetails.platforms.map((p) =>
+                    p == Platform.aave
+                        ? d_AaveIntegrationProxy.address
+                        : d_CompoundIntegrationProxy.address,
+                ),
                 bassetDetails.bAssets.map(() => percentToWeight(100).toString()),
                 bassetDetails.bAssets.map(() => false),
             )

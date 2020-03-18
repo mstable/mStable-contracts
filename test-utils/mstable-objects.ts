@@ -41,7 +41,7 @@ export const createBasket = (bassets: Basset[], failed = false): Basket => {
         bassets,
         expiredBassets: [],
         failed,
-        collateralisationRatio: percentToWeight(100).toFixed(),
+        collateralisationRatio: percentToWeight(100),
     };
 };
 
