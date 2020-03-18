@@ -1,5 +1,17 @@
-contract("Masset", () => {
+import { MockModuleInstance, MockNexusInstance } from "types/generated";
+import { StandardAccounts, SystemMachine } from "@utils/machines";
+import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
+import shouldBehaveLikePausableModule from "../shared/behaviours/PausableModule.behaviour";
+
+contract("Masset", async (accounts) => {
+    const ctx: { module?: MockModuleInstance } = {};
+    const sa = new StandardAccounts(accounts);
+
     beforeEach("create masset");
+
+    // TODO After creation of Masset, enable the following behaviours
+    // shouldBehaveLikeModule(ctx as Required<typeof ctx>, sa);
+    // shouldBehaveLikePausableModule(ctx as Required<typeof ctx>, sa);
 
     describe("mint", () => {
         context("when the basket is healthy", () => {
