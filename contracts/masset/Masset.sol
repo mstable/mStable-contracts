@@ -333,7 +333,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
 
         (Basset memory b, address integrator, uint8 index) = basketManager.getForgeBasset(_bAsset, false);
 
-        // Validate redemption
+        // // Validate redemption
         (bool isValid, string memory reason) =
             forgeValidator.validateRedemption(basket.bassets, basket.failed, totalSupply(), index, _bAssetQuantity);
         require(isValid, reason);
@@ -341,7 +341,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         // Calc equivalent mAsset amount
         uint256 massetQuantity = _bAssetQuantity.mulRatioTruncateCeil(b.ratio);
 
-        // Decrease balance in storage
+        // // Decrease balance in storage
         basketManager.decreaseVaultBalance(index, integrator, _bAssetQuantity);
 
         // Pay the redemption fee
@@ -373,55 +373,56 @@ contract Masset is IMasset, MassetToken, PausableModule {
         internal
         returns (uint256 massetRedeemed)
     {
-        // require(_recipient != address(0), "Recipient must not be 0x0");
-        // uint256 redemptionAssetCount = _bassetQuantities.length;
+        require(_recipient != address(0), "Recipient must not be 0x0");
+        uint256 redemptionAssetCount = _bassetQuantities.length;
 
-        // // Fetch high level details
-        // Basket memory basket = basketManager.getBasket();
+        // Fetch high level details
+        Basket memory basket = basketManager.getBasket();
 
-        // // Load only needed bAssets in array
-        // (Basset[] memory bAssets, address[] memory integrators, uint8[] memory indexes)
-        //     = basketManager.getForgeBassets(_bassetsBitmap, uint8(redemptionAssetCount), false);
+        // Load only needed bAssets in array
+        (Basset[] memory bAssets, address[] memory integrators, uint8[] memory indexes)
+            = basketManager.getForgeBassets(_bassetsBitmap, uint8(redemptionAssetCount), false);
 
-        // // Validate redemption
-        // (bool isValid, string memory reason) =
-        //     forgeValidator.validateRedemption(basket.bassets, basket.failed, totalSupply(), indexes, _bassetQuantities);
-        // require(isValid, reason);
+        // Validate redemption
+        (bool isValid, string memory reason) =
+            forgeValidator.validateRedemption(basket.bassets, basket.failed, totalSupply(), indexes, _bassetQuantities);
+        require(isValid, reason);
 
-        // uint256 massetQuantity = 0;
+        uint256 massetQuantity = 0;
 
-        // // Calc MassetQ and update the Vault
-        // for(uint256 i = 0; i < redemptionAssetCount; i++){
-        //     if(_bassetQuantities[i] > 0){
-        //         // Calc equivalent mAsset amount
-        //         uint256 ratioedBasset = _bassetQuantities[i].mulRatioTruncateCeil(bAssets[i].ratio);
-        //         massetQuantity = massetQuantity.add(ratioedBasset);
+        // Calc MassetQ and update the Vault
+        for(uint256 i = 0; i < redemptionAssetCount; i++){
+            uint256 bAssetQuantity = _bassetQuantities[i];
+            if(bAssetQuantity > 0){
+                // Calc equivalent mAsset amount
+                uint256 ratioedBasset = bAssetQuantity.mulRatioTruncateCeil(bAssets[i].ratio);
+                massetQuantity = massetQuantity.add(ratioedBasset);
 
-        //         // bAsset == bAssets[i] == basket.bassets[indexes[i]]
-        //         basketManager.decreaseVaultBalance(indexes[i], integrators[i], _bassetQuantities[i]);
-        //     }
-        // }
+                // bAsset == bAssets[i] == basket.bassets[indexes[i]]
+                basketManager.decreaseVaultBalance(indexes[i], integrators[i], bAssetQuantity);
+            }
+        }
 
-        // // Pay the redemption fee
-        // _payRedemptionFee(massetQuantity, msg.sender);
+        // Pay the redemption fee
+        _payRedemptionFee(massetQuantity, msg.sender);
 
-        // // Ensure payout is relevant to collateralisation ratio (if ratio is 90%, we burn more)
-        // massetQuantity = massetQuantity.divPrecisely(basket.collateralisationRatio);
+        // Ensure payout is relevant to collateralisation ratio (if ratio is 90%, we burn more)
+        massetQuantity = massetQuantity.divPrecisely(basket.collateralisationRatio);
 
-        // // Burn the Masset
-        // _burn(msg.sender, massetQuantity);
+        // Burn the Masset
+        _burn(msg.sender, massetQuantity);
 
-        // // Transfer the Bassets to the user
-        // for(uint256 i = 0; i < redemptionAssetCount; i++){
-        //     if(_bassetQuantities[i] > 0){
-        //         IPlatformIntegration(integrators[i]).withdraw(_recipient, bAssets[i].addr, _bassetQuantities[i]);
-        //     }
-        // }
+        // Transfer the Bassets to the user
+        for(uint256 i = 0; i < redemptionAssetCount; i++){
+            if(_bassetQuantities[i] > 0){
+                IPlatformIntegration(integrators[i]).withdraw(_recipient, bAssets[i].addr, _bassetQuantities[i]);
+            }
+        }
 
-        // emit RedeemedMulti(_recipient, msg.sender, massetQuantity, _bassetsBitmap, _bassetQuantities);
-        // return massetQuantity;
-        return 0;
+        emit RedeemedMulti(_recipient, msg.sender, massetQuantity, _bassetsBitmap, _bassetQuantities);
+        return massetQuantity;
     }
+
 
     /**
      * @dev Pay the forging fee by burning MetaToken
@@ -435,9 +436,10 @@ contract Masset is IMasset, MassetToken, PausableModule {
         if(feeRate > 0){
             // e.g. for 500 massets.
             // feeRate == 1% == 1e16. _quantity == 5e20.
-            uint256 amountOfMassetSubjectToFee = feeRate.mulTruncate(_quantity);
+            // (5e20 * 1e16) / 1e18 = 5e18
+            uint256 amountOfMassetSubjectToFee = _quantity.mulTruncate(feeRate);
 
-            require(transferFrom(_payer, feeRecipient, amountOfMassetSubjectToFee), "Must be successful fee payment");
+            _transfer(_payer, feeRecipient, amountOfMassetSubjectToFee);
 
             emit PaidFee(_payer, amountOfMassetSubjectToFee, feeRate);
         }

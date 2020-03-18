@@ -10,6 +10,7 @@ import envSetup from "@utils/env_setup";
 import * as chai from "chai";
 import { ERC20MockInstance, MassetInstance } from "types/generated";
 import { MassetDetails } from "@utils/machines/massetMachine";
+import { expScale } from "@utils/constants";
 
 const Masset = artifacts.require("Masset");
 
@@ -24,29 +25,71 @@ contract("MassetRedemption", async (accounts) => {
     before("Init contract", async () => {
         // 1. Create the system Mock machines
         systemMachine = new SystemMachine(sa.all);
-        await systemMachine.initialiseMocks();
         massetMachine = new MassetMachine(systemMachine);
 
-        // 2. Create the mAsset & add it to the manager
-        // 3. Do a mint with all the bAssets
-        // massetDetails = await massetMachine.createMassetAndSeedBasket();
-        // console.log("===>>>", (await massetDetails.mAsset.totalSupply()).toString());
+        // 2. Do a mint with all the bAssets
+        massetDetails = await massetMachine.createMassetAndSeedBasket();
     });
 
     describe("Redeem", () => {
         it("Should redeem a bAsset", async () => {
-            // 4. add the prices to the oracle
-            // await systemMachine.addMockPrices("1000000", massetDetails.mAsset.address);
-            // 5. ensure i have MTA and approve mUSD & MTA
-            // await systemMachine.metaToken.approve(
-            //     massetDetails.mAsset.address,
-            //     simpleToExactAmount(1000, 18),
-            //     { from: systemMachine.sa.default },
-            // );
-            // // 6. redeem
-            // await massetDetails.mAsset.redeem(massetDetails.bAssets[0].address, "1", {
-            //     from: systemMachine.sa.default,
+            // Approval for Fee, if necessary
+            // const redemptionAmount = simpleToExactAmount(1, 18);
+            // const redemptionFee = await massetDetails.mAsset.redemptionFee();
+            // let redemptionFeeUnits = redemptionAmount.mul(redemptionFee).div(expScale);
+            // redemptionFeeUnits = redemptionFeeUnits.add(new BN("10000000000000000000"));
+            // // 3. ensure i have MTA and approve mUSD
+            // await massetDetails.mAsset.approve(massetDetails.mAsset.address, redemptionFeeUnits, {
+            //     from: sa.default,
             // });
+            const mUSD_supplyBefore = await massetDetails.mAsset.totalSupply();
+            const bAsset_balBefore = await massetDetails.bAssets[0].balanceOf(sa.default);
+            const bAsset_redemption = simpleToExactAmount(
+                1,
+                await massetDetails.bAssets[0].decimals(),
+            );
+            await massetDetails.mAsset.redeem(massetDetails.bAssets[0].address, bAsset_redemption, {
+                from: sa.default,
+            });
+            const mUSD_supplyAfter = await massetDetails.mAsset.totalSupply();
+            const bAsset_balAfter = await massetDetails.bAssets[0].balanceOf(sa.default);
+            expect(mUSD_supplyAfter, "Must burn 1 full units of mUSD").bignumber.eq(
+                mUSD_supplyBefore.sub(simpleToExactAmount(1, 18)),
+            );
+            expect(bAsset_balAfter, "Must redeem 1 full units of bAsset").bignumber.eq(
+                bAsset_balBefore.add(bAsset_redemption),
+            );
+        });
+
+        it("Should redeem multiple bAssets", async () => {
+            // Calc bAsset redemption amounts
+            const bAssets = massetDetails.bAssets.slice(0, 2);
+            const bAsset_redemption = await Promise.all(
+                bAssets.map(async (b) => simpleToExactAmount(1, await b.decimals())),
+            );
+            const bAsset_balBefore = await Promise.all(
+                bAssets.map(async (b) => await b.balanceOf(sa.default)),
+            );
+            const mUSD_supplyBefore = await massetDetails.mAsset.totalSupply();
+            // Get bitmap
+            const bitmap = await massetDetails.basketManager.getBitmapFor(
+                bAssets.map((b) => b.address),
+            );
+            // Redeem
+            await massetDetails.mAsset.redeemMulti(bitmap, bAsset_redemption, sa.default, {
+                from: sa.default,
+            });
+            // Assert balances
+            const mUSD_supplyAfter = await massetDetails.mAsset.totalSupply();
+            const bAsset_balAfter = await Promise.all(
+                bAssets.map(async (b) => await b.balanceOf(sa.default)),
+            );
+            expect(mUSD_supplyAfter, "Must burn 2 full units of mUSD").bignumber.eq(
+                mUSD_supplyBefore.sub(simpleToExactAmount(2, 18)),
+            );
+            expect(bAsset_balAfter[0], "Must redeem 1 full units of each bAsset").bignumber.eq(
+                bAsset_balBefore[0].add(bAsset_redemption[0]),
+            );
         });
     });
     // describe("Redeem", async () => {

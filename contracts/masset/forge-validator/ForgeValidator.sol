@@ -213,7 +213,7 @@ contract ForgeValidator is IForgeValidator {
             }
 
             response.ratioedBassetVaults[i] = _bassets[i].vaultBalance.mulRatioTruncate(_bassets[i].ratio);
-            uint256 maxWeightInUnits = _bassets[i].maxWeight.mulTruncate(_total);
+            uint256 maxWeightInUnits = _total.mulTruncate(_bassets[i].maxWeight);
 
             // If the bAsset is de-pegged on the up-side, it doesn't matter if it goes above max
             bool bassetOverWeight = response.ratioedBassetVaults[i] > maxWeightInUnits && status != BassetStatus.BrokenAbovePeg;
@@ -239,7 +239,7 @@ contract ForgeValidator is IForgeValidator {
         atLeastOneOverweight = false;
 
         for(uint256 i = 0; i < len; i++) {
-            uint256 maxWeightInUnits = _bAssets[i].maxWeight.mulTruncate(_newTotal);
+            uint256 maxWeightInUnits = _newTotal.mulTruncate(_bAssets[i].maxWeight);
             // If the bAsset is de-pegged on the up-side, it doesn't matter if it goes above max
             bool bassetOverWeight = _ratioedBassetVaultsAfter[i] > maxWeightInUnits && _bAssets[i].status != BassetStatus.BrokenAbovePeg;
 
