@@ -382,7 +382,6 @@ contract BasketManager is Initializable, IBasketManager, Module {
     {
         (bool exists, uint8 idx) = _isAssetInBasket(_token);
         require(exists, "bAsset does not exist");
-        // Get the most optimal integration contract
         return (basket.bassets[idx], integrations[idx], idx);
     }
 
