@@ -21,6 +21,7 @@ contract SavingsContract is ISavingsContract, Module {
     using StableMath for uint256;
 
     event AutomaticInterestCollectionSwitched(bool automationEnabled);
+
     event ExchangeRateUpdated(uint256 newExchangeRate, uint256 interestCollected);
     event SavingsDeposited(address indexed saver, uint256 savingsDeposited, uint256 creditsIssued);
     event CreditsRedeemed(address indexed redeemer, uint256 creditsRedeemed, uint256 savingsCredited);

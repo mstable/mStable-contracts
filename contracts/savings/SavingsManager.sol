@@ -32,7 +32,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
     mapping(address => ISavingsContract) public savingsContracts;
 
     // Amount of collected interest that will be send to Savings Contract
-    uint256 constant private savingsRate = 95e16;
+    uint256 constant private savingsRate = 90e16;
     // Time at which last collection was made
     uint256 private lastCollection;
     // Utils to help keep interest under check

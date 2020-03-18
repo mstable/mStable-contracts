@@ -10,9 +10,10 @@ import {
     NexusInstance,
 } from "types/generated";
 
+import envSetup from "@utils/env_setup";
 import shouldBehaveLikeClaimable from "../governance/ClaimableGovernor.behaviour";
 import shouldBehaveLikeDelayedClaimable from "../governance/DelayedClaimableGovernor.behaviour";
-import envSetup from "@utils/env_setup";
+
 const { expect, assert } = envSetup.configure();
 
 const Nexus = artifacts.require("Nexus");

@@ -1,9 +1,12 @@
+/* eslint-disable consistent-return */
+
 import { ForceSendInstance, ERC20MockInstance, AaveIntegrationInstance } from "types/generated";
 import { BN } from "@utils/tools";
 import { StandardAccounts, SystemMachine } from "@utils/machines";
 import { MainnetAccounts } from "@utils/constants";
 
 import envSetup from "@utils/env_setup";
+
 const { expect, assert } = envSetup.configure();
 
 const ForceSend = artifacts.require("ForceSend");

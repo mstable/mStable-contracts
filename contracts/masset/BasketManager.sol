@@ -42,7 +42,7 @@ contract BasketManager is Initializable, IBasketManager, Module {
     // Mapping holds bAsset token address => index
     mapping(address => uint8) private bassetsMap;
     // Holds relative addresses of the integration platforms
-    mapping(uint8 => address) private integrations;
+    mapping(uint8 => address) public integrations;
 
     constructor(address _nexus) public Module(_nexus){}
 
@@ -199,7 +199,7 @@ contract BasketManager is Initializable, IBasketManager, Module {
         require(_integration != address(0), "Asset address must be valid");
         (bool alreadyInBasket, ) = _isAssetInBasket(_basset);
         require(!alreadyInBasket, "Asset already exists in Basket");
-        
+
         // TODO -> Require mm to be >= 1e6 (i.e. 1%) and <= 1e10
 
         // require(
@@ -219,7 +219,7 @@ contract BasketManager is Initializable, IBasketManager, Module {
         require(numberOfBassetsInBasket < basket.maxBassets, "Max bAssets in Basket");
 
         bassetsMap[_basset] = numberOfBassetsInBasket;
-        integrations[index] = _integration;
+        integrations[numberOfBassetsInBasket] = _integration;
 
         basket.bassets.push(Basset({
             addr: _basset,
@@ -232,6 +232,8 @@ contract BasketManager is Initializable, IBasketManager, Module {
 
 
         emit BassetAdded(_basset, _integration);
+
+        return numberOfBassetsInBasket;
     }
 
 
@@ -403,7 +405,7 @@ contract BasketManager is Initializable, IBasketManager, Module {
         indexes = _convertBitmapToIndexArr(_bitmap, _size);
         for(uint8 i = 0; i < indexes.length; i++) {
             bAssets[i] = basket.bassets[indexes[i]];
-            integrators[i] = integrations[i];
+            integrators[i] = integrations[indexes[i]];
         }
     }
 

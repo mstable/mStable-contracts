@@ -42,7 +42,7 @@ contract MockAave is IAaveLendingPool, ILendingPoolAddressesProvider {
         reserveToAToken[_underlying] = _aToken;
     }
 
-    function deposit(address _reserve, uint256 _amount, uint16 _referralCode) external {
+    function deposit(address _reserve, uint256 _amount, uint16 /*_referralCode*/) external {
         // Take their reserve
         ERC20(_reserve).transferFrom(msg.sender, address(this), _amount);
         // Credit them with aToken
@@ -51,6 +51,10 @@ contract MockAave is IAaveLendingPool, ILendingPoolAddressesProvider {
 
     function getLendingPool() external view returns (address) {
         return address(this);
+    }
+
+    function getLendingPoolCore() external view returns (address payable) {
+        return address(uint160(address(this)));
     }
 
 }

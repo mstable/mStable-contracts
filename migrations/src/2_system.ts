@@ -4,6 +4,10 @@ import { percentToWeight } from "@utils/math";
 import { ZERO_ADDRESS } from "@utils/constants";
 
 export default async ({ artifacts }, deployer, network, accounts) => {
+    if (deployer.network == "fork") {
+        // Don't bother running these migrations -- speed up the testing
+        return;
+    }
     const [default_, governor, feeRecipient] = accounts;
 
     /***************************************
