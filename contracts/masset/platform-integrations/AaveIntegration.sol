@@ -49,12 +49,12 @@ contract AaveIntegration is AbstractIntegration {
         if(_isTokenFeeCharged) {
             // If we charge a fee, account for it
             uint256 prevBal = _checkBalance(aToken);
-            _getLendingPool().deposit(address(aToken), _amount, referralCode);
+            _getLendingPool().deposit(address(_bAsset), _amount, referralCode);
             uint256 newBal = _checkBalance(aToken);
             quantityDeposited = _min(quantityDeposited, newBal.sub(prevBal));
         } else {
             // aTokens are 1:1 for each asset
-            _getLendingPool().deposit(address(aToken), _amount, referralCode);
+            _getLendingPool().deposit(address(_bAsset), _amount, referralCode);
         }
 
         emit Deposit(_bAsset, address(aToken), quantityDeposited);
@@ -98,18 +98,19 @@ contract AaveIntegration is AbstractIntegration {
         onlyGovernor
     {
         uint256 bAssetCount = bAssetsMapped.length;
-        address pool = address(_getLendingPool());
+        address lendingPoolVault = _getLendingPoolCore();
+        // approve the pool to spend the bAsset
         for(uint i = 0; i < bAssetCount; i++){
-            MassetHelpers.safeInfiniteApprove(bAssetsMapped[i], address(pool));
+            MassetHelpers.safeInfiniteApprove(bAssetsMapped[i], lendingPoolVault);
         }
     }
 
     function _abstractSetPToken(address _bAsset, address /*_pToken*/)
         internal
     {
-        IAaveLendingPool pool = _getLendingPool();
+        address lendingPoolVault = _getLendingPoolCore();
         // approve the pool to spend the bAsset
-        MassetHelpers.safeInfiniteApprove(_bAsset, address(pool));
+        MassetHelpers.safeInfiniteApprove(_bAsset, lendingPoolVault);
     }
 
     function _abstractUpdatePToken(address _bAsset, address _oldPToken, address _pToken)
@@ -130,6 +131,16 @@ contract AaveIntegration is AbstractIntegration {
         address lendingPool = ILendingPoolAddressesProvider(platformAddress).getLendingPool();
         require(lendingPool != address(0), "Lending pool does not exist");
         return IAaveLendingPool(lendingPool);
+    }
+
+    function _getLendingPoolCore()
+        internal
+        view
+        returns (address)
+    {
+        address lendingPoolCore = ILendingPoolAddressesProvider(platformAddress).getLendingPoolCore();
+        require(lendingPoolCore != address(0), "Lending pool does not exist");
+        return lendingPoolCore;
     }
 
     function _getATokenFor(address _bAsset)

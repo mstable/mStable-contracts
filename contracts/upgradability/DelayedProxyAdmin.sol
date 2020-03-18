@@ -1,6 +1,6 @@
 pragma solidity ^0.5.16;
 
-import { Module } from "../../shared/Module.sol";
+import { Module } from "../shared/Module.sol";
 import { AdminUpgradeabilityProxy } from "@openzeppelin/upgrades/contracts/upgradeability/AdminUpgradeabilityProxy.sol";
 import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
@@ -159,7 +159,6 @@ contract DelayedProxyAdmin is Module {
     * @param proxy Proxy to change admin.
     * @param newAdmin Address to transfer proxy administration to.
     */
-    // Not allow changing admin
     // function changeProxyAdmin(AdminUpgradeabilityProxy proxy, address newAdmin) public onlyGovernor {
     //     proxy.changeAdmin(newAdmin);
     // }

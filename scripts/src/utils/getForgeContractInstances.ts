@@ -9,8 +9,9 @@ import {
     TUSDContract,
     USDCContract,
     USDTContract,
+    ERC20Instance,
 } from "types/generated";
-import { OrderedBassets } from "./types";
+// import { OrderedBassets } from "./types";
 
 export const getForgeContractInstances = async ({ artifacts }: any) => {
     const cForgeRewardsMUSD: ForgeRewardsMUSDContract = artifacts.require("ForgeRewardsMUSD");
@@ -35,7 +36,7 @@ export const getForgeContractInstances = async ({ artifacts }: any) => {
     const PAX = await cPAX.deployed();
     const MTA = await cMTA.deployed();
 
-    const bassets: OrderedBassets = [USDT, USDC, TUSD, DAI, SUSD, GUSD, PAX];
+    const bassets: Array<ERC20Instance> = [USDT, USDC, TUSD, DAI, SUSD, GUSD, PAX];
 
     return {
         bassets,
