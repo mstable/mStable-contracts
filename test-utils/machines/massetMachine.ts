@@ -1,9 +1,10 @@
+import { MassetDetails } from "./massetMachine";
 import * as t from "types/generated";
 import { Address } from "types/common";
 import { SystemMachine, StandardAccounts, BassetMachine } from ".";
 import { createMultiple, simpleToExactAmount, percentToWeight } from "@utils/math";
 import { BN, aToH } from "@utils/tools";
-import { expScale, MainnetAccounts } from "@utils/constants";
+import { expScale, MainnetAccounts, ratioScale } from "@utils/constants";
 import { Basset, BassetStatus } from "@utils/mstable-objects";
 import { ZERO_ADDRESS } from "@utils/constants";
 
@@ -73,135 +74,6 @@ export class MassetMachine {
         this.system = systemMachine;
         this.ma = new MainnetAccounts();
         this.sa = this.system.sa;
-    }
-
-    public async loadBassetsFork(): Promise<BassetIntegrationDetails> {
-        // load all the REAL bAssets
-        const bAsset_DAI = await c_ERC20Mock.at(this.ma.DAI);
-        await this.mintERC20(bAsset_DAI, this.ma.FUND_SOURCES.dai);
-
-        const bAsset_USDC = await c_ERC20Mock.at(this.ma.USDC);
-        await this.mintERC20(bAsset_USDC, this.ma.FUND_SOURCES.usdc);
-
-        const bAsset_TUSD = await c_ERC20Mock.at(this.ma.TUSD);
-        await this.mintERC20(bAsset_TUSD, this.ma.FUND_SOURCES.tusd);
-
-        const bAsset_USDT = await c_ERC20Mock.at(this.ma.USDT);
-        await this.mintERC20(bAsset_USDT, this.ma.FUND_SOURCES.usdt);
-        // credit sa.default with ample balances
-        const bAssets = [bAsset_DAI, bAsset_USDC, bAsset_TUSD, bAsset_USDT];
-        // return all the addresses
-        return {
-            bAssets,
-            platforms: [Platform.compound, Platform.compound, Platform.aave, Platform.aave],
-            aavePlatformAddress: this.ma.aavePlatform,
-            aTokens: [
-                {
-                    bAsset: bAsset_TUSD.address,
-                    aToken: this.ma.aTUSD,
-                },
-                {
-                    bAsset: bAsset_USDT.address,
-                    aToken: this.ma.aUSDT,
-                },
-            ],
-            cTokens: [
-                {
-                    bAsset: bAsset_DAI.address,
-                    cToken: this.ma.cDAI,
-                },
-                {
-                    bAsset: bAsset_USDC.address,
-                    cToken: this.ma.cUSDC,
-                },
-            ],
-        };
-    }
-
-    public async loadBassetsLocal(): Promise<BassetIntegrationDetails> {
-        //  - Mock bAssets
-        const mockBasset1: t.ERC20MockInstance = await c_ERC20Mock.new(
-            "Mock1",
-            "MK1",
-            12,
-            this.sa.default,
-            100000000,
-        );
-        const mockBasset2: t.ERC20MockInstance = await c_ERC20Mock.new(
-            "Mock2",
-            "MK2",
-            18,
-            this.sa.default,
-            100000000,
-        );
-        const mockBasset3: t.ERC20MockInstance = await c_ERC20Mock.new(
-            "Mock3",
-            "MK3",
-            6,
-            this.sa.default,
-            100000000,
-        );
-        const mockBasset4: t.ERC20MockInstance = await c_ERC20Mock.new(
-            "Mock4",
-            "MK4",
-            18,
-            this.sa.default,
-            100000000,
-        );
-
-        //  - Mock Aave integration
-        const d_MockAave: t.MockAaveInstance = await c_MockAave.new({ from: this.sa.default });
-
-        //  - Mock aTokens
-        const mockAToken1: t.IAaveATokenInstance = await c_MockAToken.new(
-            d_MockAave.address,
-            mockBasset1.address,
-        );
-        const mockAToken2: t.IAaveATokenInstance = await c_MockAToken.new(
-            d_MockAave.address,
-            mockBasset2.address,
-        );
-        const mockAToken3: t.IAaveATokenInstance = await c_MockAToken.new(
-            d_MockAave.address,
-            mockBasset3.address,
-        );
-
-        //  - Add to the Platform
-        await d_MockAave.addAToken(mockAToken1.address, mockBasset1.address);
-        await d_MockAave.addAToken(mockAToken2.address, mockBasset2.address);
-        await d_MockAave.addAToken(mockAToken3.address, mockBasset3.address);
-
-        // Mock C Token
-        const mockCToken4: t.MockCTokenInstance = await c_MockCToken.new(mockBasset4.address);
-        return {
-            bAssets: [mockBasset1, mockBasset2, mockBasset3, mockBasset4],
-            platforms: [Platform.aave, Platform.aave, Platform.aave, Platform.compound],
-            aavePlatformAddress: d_MockAave.address,
-            aTokens: [
-                {
-                    bAsset: mockBasset1.address,
-                    aToken: mockAToken1.address,
-                },
-                {
-                    bAsset: mockBasset2.address,
-                    aToken: mockAToken2.address,
-                },
-                {
-                    bAsset: mockBasset3.address,
-                    aToken: mockAToken3.address,
-                },
-            ],
-            cTokens: [
-                {
-                    bAsset: mockBasset4.address,
-                    cToken: mockCToken4.address,
-                },
-            ],
-        };
-    }
-
-    public async loadBassets(): Promise<BassetIntegrationDetails> {
-        return this.system.isGanacheFork ? this.loadBassetsFork() : this.loadBassetsLocal();
     }
 
     public async deployMasset(): Promise<MassetDetails> {
@@ -345,6 +217,135 @@ export class MassetMachine {
         return md;
     }
 
+    public async loadBassets(): Promise<BassetIntegrationDetails> {
+        return this.system.isGanacheFork ? this.loadBassetsFork() : this.loadBassetsLocal();
+    }
+
+    public async loadBassetsFork(): Promise<BassetIntegrationDetails> {
+        // load all the REAL bAssets
+        const bAsset_DAI = await c_ERC20Mock.at(this.ma.DAI);
+        await this.mintERC20(bAsset_DAI, this.ma.FUND_SOURCES.dai);
+
+        const bAsset_USDC = await c_ERC20Mock.at(this.ma.USDC);
+        await this.mintERC20(bAsset_USDC, this.ma.FUND_SOURCES.usdc);
+
+        const bAsset_TUSD = await c_ERC20Mock.at(this.ma.TUSD);
+        await this.mintERC20(bAsset_TUSD, this.ma.FUND_SOURCES.tusd);
+
+        const bAsset_USDT = await c_ERC20Mock.at(this.ma.USDT);
+        await this.mintERC20(bAsset_USDT, this.ma.FUND_SOURCES.usdt);
+        // credit sa.default with ample balances
+        const bAssets = [bAsset_DAI, bAsset_USDC, bAsset_TUSD, bAsset_USDT];
+        // return all the addresses
+        return {
+            bAssets,
+            platforms: [Platform.compound, Platform.compound, Platform.aave, Platform.aave],
+            aavePlatformAddress: this.ma.aavePlatform,
+            aTokens: [
+                {
+                    bAsset: bAsset_TUSD.address,
+                    aToken: this.ma.aTUSD,
+                },
+                {
+                    bAsset: bAsset_USDT.address,
+                    aToken: this.ma.aUSDT,
+                },
+            ],
+            cTokens: [
+                {
+                    bAsset: bAsset_DAI.address,
+                    cToken: this.ma.cDAI,
+                },
+                {
+                    bAsset: bAsset_USDC.address,
+                    cToken: this.ma.cUSDC,
+                },
+            ],
+        };
+    }
+
+    public async loadBassetsLocal(): Promise<BassetIntegrationDetails> {
+        //  - Mock bAssets
+        const mockBasset1: t.ERC20MockInstance = await c_ERC20Mock.new(
+            "Mock1",
+            "MK1",
+            12,
+            this.sa.default,
+            100000000,
+        );
+        const mockBasset2: t.ERC20MockInstance = await c_ERC20Mock.new(
+            "Mock2",
+            "MK2",
+            18,
+            this.sa.default,
+            100000000,
+        );
+        const mockBasset3: t.ERC20MockInstance = await c_ERC20Mock.new(
+            "Mock3",
+            "MK3",
+            6,
+            this.sa.default,
+            100000000,
+        );
+        const mockBasset4: t.ERC20MockInstance = await c_ERC20Mock.new(
+            "Mock4",
+            "MK4",
+            18,
+            this.sa.default,
+            100000000,
+        );
+
+        //  - Mock Aave integration
+        const d_MockAave: t.MockAaveInstance = await c_MockAave.new({ from: this.sa.default });
+
+        //  - Mock aTokens
+        const mockAToken1: t.IAaveATokenInstance = await c_MockAToken.new(
+            d_MockAave.address,
+            mockBasset1.address,
+        );
+        const mockAToken2: t.IAaveATokenInstance = await c_MockAToken.new(
+            d_MockAave.address,
+            mockBasset2.address,
+        );
+        const mockAToken3: t.IAaveATokenInstance = await c_MockAToken.new(
+            d_MockAave.address,
+            mockBasset3.address,
+        );
+
+        //  - Add to the Platform
+        await d_MockAave.addAToken(mockAToken1.address, mockBasset1.address);
+        await d_MockAave.addAToken(mockAToken2.address, mockBasset2.address);
+        await d_MockAave.addAToken(mockAToken3.address, mockBasset3.address);
+
+        // Mock C Token
+        const mockCToken4: t.MockCTokenInstance = await c_MockCToken.new(mockBasset4.address);
+        return {
+            bAssets: [mockBasset1, mockBasset2, mockBasset3, mockBasset4],
+            platforms: [Platform.aave, Platform.aave, Platform.aave, Platform.compound],
+            aavePlatformAddress: d_MockAave.address,
+            aTokens: [
+                {
+                    bAsset: mockBasset1.address,
+                    aToken: mockAToken1.address,
+                },
+                {
+                    bAsset: mockBasset2.address,
+                    aToken: mockAToken2.address,
+                },
+                {
+                    bAsset: mockBasset3.address,
+                    aToken: mockAToken3.address,
+                },
+            ],
+            cTokens: [
+                {
+                    bAsset: mockBasset4.address,
+                    cToken: mockCToken4.address,
+                },
+            ],
+        };
+    }
+
     public async mintERC20(
         erc20: t.ERC20MockInstance,
         source: Address,
@@ -356,184 +357,71 @@ export class MassetMachine {
         });
     }
 
-    // /**
-    //  * @dev Deploy a Masset via the Manager
-    //  */
-    // public async createBasicMasset(
-    //     bAssetCount: number = 5,
-    //     sender: Address = this.system.sa.governor,
-    // ): Promise<MassetDetails> {
-    //     const bassetMachine = new BassetMachine(
-    //         this.system.sa.default,
-    //         this.system.sa.other,
-    //         500000,
-    //     );
+    /**
+     * @dev Deploy a Masset via the Manager then:
+     *      1. Mint with optimal weightings
+     */
+    public async createMassetAndSeedBasket(
+        initialSupply: number = 100,
+        bAssetCount: number = 4,
+        sender: Address = this.system.sa.governor,
+    ): Promise<MassetDetails> {
+        let massetDetails = await this.deployMasset();
 
-    //     let bAssetPromises = [];
-    //     for (var i = 0; i < bAssetCount; i++) {
-    //         bAssetPromises.push(bassetMachine.deployERC20Async());
-    //     }
-    //     let bAssets: Array<ERC20MockInstance> = await Promise.all(bAssetPromises);
+        // Mint initialSupply with shared weightings
+        let basketDetails = await this.getBassetsInMasset(massetDetails);
 
-    //     const mAsset = await MassetArtifact.new(
-    //         "TestMasset",
-    //         "TMT",
-    //         this.system.nexus.address,
-    //         bAssets.map((b) => b.address),
-    //         bAssets.map(() => percentToWeight(200 / bAssetCount)),
-    //         bAssets.map(() => createMultiple(1)),
-    //         bAssets.map(() => false),
-    //         this.system.sa.feeRecipient,
-    //         this.system.forgeValidator.address,
-    //     );
+        // Calc optimal weightings
+        let totalWeighting = basketDetails.reduce((p, c) => {
+            return p.add(c.maxWeight);
+        }, new BN(0));
+        let totalMintAmount = simpleToExactAmount(initialSupply, 18);
+        let mintAmounts = await Promise.all(
+            basketDetails.map(async (b) => {
+                // e.g. 5e35 / 2e18 = 2.5e17
+                const relativeWeighting = b.maxWeight.mul(expScale).div(totalWeighting);
+                // e.g. 1e20 * 25e16 / 1e18 = 25e18
+                const mintAmount = totalMintAmount.mul(relativeWeighting).div(expScale);
+                // const bAssetDecimals: BN = await b.decimals();
+                // const decimalDelta = new BN(18).sub(bAssetDecimals);
+                return mintAmount.mul(ratioScale).div(b.ratio);
+            }),
+        );
 
-    //     // Adds the Masset to Manager so that it can look up its price
-    //     await this.system.manager.addMasset(aToH("TMT"), mAsset.address, {
-    //         from: this.system.sa.governor,
-    //     });
-    //     return {
-    //         mAsset,
-    //         bAssets,
-    //     };
-    // }
+        // Approve bAssets
+        await Promise.all(
+            massetDetails.bAssets.map((b, i) =>
+                b.approve(massetDetails.mAsset.address, mintAmounts[i], {
+                    from: this.system.sa.default,
+                }),
+            ),
+        );
 
-    // /**
-    //  * @dev Deploy a Masset via the Manager then:
-    //  *      1. Mint with optimal weightings
-    //  */
-    // public async createMassetAndSeedBasket(
-    //     initialSupply: number = 5000000,
-    //     bAssetCount: number = 5,
-    //     sender: Address = this.system.sa.governor,
-    // ): Promise<MassetDetails> {
-    //     try {
-    //         let massetDetails = await this.createBasicMasset();
+        const bitmap = await massetDetails.basketManager.getBitmapFor(
+            basketDetails.map((b) => b.addr),
+        );
+        await massetDetails.mAsset.mintMulti(
+            bitmap.toNumber(),
+            mintAmounts,
+            this.system.sa.default,
+            { from: this.system.sa.default },
+        );
 
-    //         // Mint initialSupply with shared weightings
-    //         let basketDetails = await this.getBassetsInMasset(massetDetails.mAsset.address);
+        return massetDetails;
+    }
 
-    //         // Calc optimal weightings
-    //         let totalWeighting = basketDetails.reduce((p, c) => p.add(c.maxWeight), new BN(0));
-    //         let totalMintAmount = simpleToExactAmount(initialSupply, 18);
-    //         let mintAmounts = basketDetails.map((b) => {
-    //             // e.g. 5e35 / 2e18 = 2.5e17
-    //             const relativeWeighting = b.maxWeight.mul(expScale).div(totalWeighting);
-    //             // e.g. 5e25 * 25e16 / 1e18
-    //             return totalMintAmount.mul(relativeWeighting).div(expScale);
-    //         });
-
-    //         // Approve bAssets
-    //         await Promise.all(
-    //             massetDetails.bAssets.map((b, i) =>
-    //                 b.approve(massetDetails.mAsset.address, mintAmounts[i], {
-    //                     from: this.system.sa.default,
-    //                 }),
-    //             ),
-    //         );
-
-    //         const bitmap = await massetDetails.mAsset.getBitmapForAllBassets();
-    //         // Mint
-    //         // console.log("Checkpoint 4", bitmap.toNumber());
-    //         // console.log(
-    //         //     "Checkpoint 4",
-    //         //     mintAmounts.map((m) => m.toString()),
-    //         // );
-    //         // console.log(
-    //         //     "Checkpoint 4",
-    //         //     await Promise.all(
-    //         //         massetDetails.bAssets.map(async (b) =>
-    //         //             (
-    //         //                 await b.allowance(this.system.sa.default, massetDetails.mAsset.address)
-    //         //             ).toString(),
-    //         //         ),
-    //         //     ),
-    //         // );
-    //         // console.log(
-    //         //     "Checkpoint 5",
-    //         //     await Promise.all(
-    //         //         massetDetails.bAssets.map(async (b) =>
-    //         //             (await b.balanceOf(this.system.sa.default)).toString(),
-    //         //         ),
-    //         //     ),
-    //         // );
-
-    //         await massetDetails.mAsset.mintMulti(
-    //             bitmap.toNumber(),
-    //             mintAmounts,
-    //             this.system.sa.default,
-    //             { from: this.system.sa.default },
-    //         );
-
-    //         return massetDetails;
-    //     } catch (e) {
-    //         console.error(e);
-    //     }
-    // }
-
-    // public async getMassetAtAddress(address: Address): Promise<MassetInstance> {
-    //     return MassetArtifact.at(address);
-    // }
-
-    // public async getBassetsInMasset(address: Address): Promise<Basset[]> {
-    //     // const masset = await this.getMassetAtAddress(address);
-    //     const masset = await this.getMassetAtAddress(address);
-    //     const bArrays = await masset.getBassets();
-
-    //     return this.convertToBasset(bArrays);
-    // }
-
-    // /*
-    // public async function createMassetWithBassets(
-    //     sysMachine: SystemMachine,
-    //     sa: StandardAccounts,
-    //     numOfBassets): Promise<MassetInstance> {
-
-    //     await sysMachine.initialiseMocks();
-    //     const bassetMachine = new BassetMachine(sa.default, sa.other, 500000);
-
-    //     // 1. Deploy bAssets
-    //     let bAssets = new Array();
-    //     let bAssetsAddr = new Array();
-    //     let symbols = new Array();
-    //     let weights = new Array();
-    //     let multiplier = new Array();
-
-    //     const percent = 200 / numOfBassets;// Lets take 200% and divide by total bAssets to create
-    //     let i;
-    //     for (i = 0; i < numOfBassets; i++) {
-    //         bAssets[i] = await bassetMachine.deployERC20Async();
-    //         bAssetsAddr[i] = bAssets[i].address;
-    //         symbols[i] = aToH("bAsset-" + (i + 1));
-    //         weights[i] = percentToWeight(percent);
-    //         multiplier[i] = createMultiple(1); // By Default all ratio 1
-    //     }
-
-    //     // 2. Masset contract deploy
-    //     const masset: MassetInstance = await MassetArtifact.new(
-    //         "TestMasset",
-    //         "TMT",
-    //         sysMachine.nexus.address,
-    //         bAssetsAddr,
-    //         symbols,
-    //         weights,
-    //         multiplier,
-    //         sa.feeRecipient,
-    //         sysMachine.forgeValidator.address,
-    //     );
-    //     return masset;
-    // }
-    // */
-
-    // private convertToBasset = (bArrays: any[]): Basset[] => {
-    //     return bArrays[0].map((_, i) => {
-    //         return {
-    //             addr: bArrays[0][i],
-    //             ratio: bArrays[1][i],
-    //             maxWeight: bArrays[2][i],
-    //             vaultBalance: bArrays[3][i],
-    //             isTransferFeeCharged: bArrays[4][i],
-    //             status: parseInt(bArrays[5][i].toString()),
-    //         };
-    //     });
-    // };
+    public async getBassetsInMasset(masset: MassetDetails): Promise<Basset[]> {
+        const response = await masset.basketManager.getBassets();
+        const bArrays: Array<Basset> = response[0].map((b) => {
+            return {
+                addr: b.addr,
+                status: parseInt(b.status.toString()),
+                isTransferFeeCharged: b.isTransferFeeCharged,
+                ratio: new BN(b.ratio),
+                maxWeight: new BN(b.maxWeight),
+                vaultBalance: new BN(b.vaultBalance),
+            };
+        });
+        return bArrays;
+    }
 }

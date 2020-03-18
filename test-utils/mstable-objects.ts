@@ -28,11 +28,11 @@ export enum BassetStatus {
 
 export interface Basset {
     addr: string;
+    status: BassetStatus;
     isTransferFeeCharged: boolean;
     ratio: BN;
     maxWeight: BN;
     vaultBalance: BN;
-    status: BassetStatus;
     contract?: ERC20MockInstance;
 }
 
@@ -45,18 +45,18 @@ export const createBasket = (bassets: Basset[], failed = false): Basket => {
     };
 };
 
-export const createBasset = (
-    maxWeight: number,
-    vaultBalance: number,
-    decimals = 18,
-    status = BassetStatus.Normal,
-): Basset => {
-    return {
-        addr: ZERO_ADDRESS,
-        isTransferFeeCharged: false,
-        ratio: createMultiple(new BN(10).pow(new BN(18 - decimals)).toNumber()),
-        maxWeight: percentToWeight(maxWeight),
-        vaultBalance: simpleToExactAmount(vaultBalance, decimals),
-        status,
-    };
-};
+// export const createBasset = (
+//     maxWeight: number,
+//     vaultBalance: number,
+//     decimals = 18,
+//     status = BassetStatus.Normal,
+// ): Basset => {
+//     return {
+//         addr: ZERO_ADDRESS,
+//         isTransferFeeCharged: false,
+//         ratio: createMultiple(new BN(10).pow(new BN(18 - decimals)).toNumber()),
+//         maxWeight: percentToWeight(maxWeight),
+//         vaultBalance: simpleToExactAmount(vaultBalance, decimals),
+//         status,
+//     };
+// };
