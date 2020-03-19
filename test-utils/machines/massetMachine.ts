@@ -3,7 +3,7 @@ import { Address } from "types/common";
 import { SystemMachine, StandardAccounts, BassetMachine } from ".";
 import { createMultiple, simpleToExactAmount, percentToWeight } from "@utils/math";
 import { BN, aToH } from "@utils/tools";
-import { expScale, MainnetAccounts } from "@utils/constants";
+import { fullScale, MainnetAccounts } from "@utils/constants";
 import { Basset, BassetStatus } from "@utils/mstable-objects";
 import { ZERO_ADDRESS } from "@utils/constants";
 
@@ -417,9 +417,9 @@ export class MassetMachine {
     //         let totalMintAmount = simpleToExactAmount(initialSupply, 18);
     //         let mintAmounts = basketDetails.map((b) => {
     //             // e.g. 5e35 / 2e18 = 2.5e17
-    //             const relativeWeighting = b.maxWeight.mul(expScale).div(totalWeighting);
+    //             const relativeWeighting = b.maxWeight.mul(fullScale).div(totalWeighting);
     //             // e.g. 5e25 * 25e16 / 1e18
-    //             return totalMintAmount.mul(relativeWeighting).div(expScale);
+    //             return totalMintAmount.mul(relativeWeighting).div(fullScale);
     //         });
 
     //         // Approve bAssets
