@@ -28,7 +28,7 @@ contract("MassetRedemption", async (accounts) => {
         massetMachine = new MassetMachine(systemMachine);
 
         // 2. Do a mint with all the bAssets
-        massetDetails = await massetMachine.createMassetAndSeedBasket();
+        massetDetails = await massetMachine.deployMassetAndSeedBasket();
     });
 
     describe("Redeem", () => {

@@ -38,6 +38,7 @@ export interface MassetDetails {
     mAsset?: t.MassetInstance;
     basketManager?: t.BasketManagerInstance;
     bAssets?: Array<t.ERC20MockInstance>;
+    proxyAdmin?: t.DelayedProxyAdminInstance;
     aaveIntegration?: t.AaveIntegrationInstance;
     compoundIntegration?: t.CompoundIntegrationInstance;
 }
@@ -105,6 +106,7 @@ export class MassetMachine {
                 from: this.sa.default,
             },
         );
+        md.proxyAdmin = d_DelayedProxyAdmin;
 
         // 2.1. Deploy no Init BasketManager
         //  - Deploy Implementation
@@ -214,6 +216,7 @@ export class MassetMachine {
             d_DelayedProxyAdmin.address,
             initializationData_CompoundIntegration,
         );
+
         return md;
     }
 
@@ -361,7 +364,7 @@ export class MassetMachine {
      * @dev Deploy a Masset via the Manager then:
      *      1. Mint with optimal weightings
      */
-    public async createMassetAndSeedBasket(
+    public async deployMassetAndSeedBasket(
         initialSupply: number = 100,
         bAssetCount: number = 4,
         sender: Address = this.system.sa.governor,
