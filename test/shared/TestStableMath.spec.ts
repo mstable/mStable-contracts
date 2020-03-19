@@ -278,26 +278,171 @@ contract("StableMath", async (accounts) => {
     });
 
     describe("calling mulRatioTruncateCeil(x, ratio)", async () => {
-        it("shoushould calculate correct mAsset value from bAsset in mulRatioTruncateCeil(x, ratio)", async () => {});
+        it("should calculate correct mAsset value from bAsset", async () => {
+            var x = simpleToExactAmount(1, 4); // 1e4 base bAsset units
+            var y = ratioScale; // 1e8 standard ratio
+            var result = await math.mulRatioTruncateCeil(x, y);
+            expect(result).bignumber.eq(simpleToExactAmount(1, 4));
+
+            x = simpleToExactAmount(1, 12); // 1e12 units of bAsset
+            y = simpleToExactAmount(1, 14); // bAsset with 12 decimals, 1e8 * 1e(18-12)
+            result = await math.mulRatioTruncateCeil(x, y);
+            expect(result).bignumber.eq(simpleToExactAmount(1, 18));
+
+            x = new BN(1234); // 1234 units of bAsset
+            y = simpleToExactAmount("0.324", 14); // bAsset with 12 decimals and 0.324 mm
+            result = await math.mulRatioTruncateCeil(x, y);
+            // result == 399.816 units
+            expect(result).bignumber.eq(new BN(399816000));
+        });
+        it("should round up any fractions", async () => {
+            var x = new BN(1234); // 1234 units of bAsset
+            var y = simpleToExactAmount("0.324", 8); // bAsset with 18 decimals, but 0.324 mm
+            var result = await math.mulRatioTruncateCeil(x, y);
+            // result == 399.816 units
+            expect(result).bignumber.eq(new BN(400));
+
+            x = simpleToExactAmount(1234, 3); // 1.234e6 units of bAsset
+            y = simpleToExactAmount(3243, 4); // ratio = 3.243e7
+            result = await math.mulRatioTruncateCeil(x, y);
+            // result == 400186.2 units
+            expect(result).bignumber.eq(new BN(400187));
+        });
+        it("should return 1 if operands multiplied are less than the scale", async () => {
+            var x = new BN(100);
+            var y = simpleToExactAmount(1, 5);
+            var result = await math.mulRatioTruncateCeil(x, y);
+            // (1e2 * 1e5) / 1e8 = 0.1
+            expect(result).bignumber.eq(new BN(1));
+        });
+        it("should return 0 if either operand is 0", async () => {
+            expect(
+                await math.mulRatioTruncateCeil(new BN(0), simpleToExactAmount(1, 18)),
+            ).bignumber.eq(new BN(0));
+            expect(
+                await math.mulRatioTruncateCeil(simpleToExactAmount(1, 18), new BN(0)),
+            ).bignumber.eq(new BN(0));
+        });
     });
 
     describe("calling divRatioPrecisely(x, ratio)", async () => {
-        it("should calculate correct bAsset value from mAsset in divRatioPrecisely(x, ratio)", async () => {});
+        it("should calculate x as a percentage value of y to scale of 1e8", async () => {
+            var x = simpleToExactAmount(1, 18);
+            var y = simpleToExactAmount(1, 8);
+            var result = await math.divRatioPrecisely(x, y);
+            // (1e18 * 1e8) / 1e8 == 1e18
+            expect(result).bignumber.eq(simpleToExactAmount(1, 18));
+
+            x = simpleToExactAmount(1, 14); // 1e14 base units of mAsset
+            y = simpleToExactAmount(1, 12); // bAsset with 14 decimals
+            result = await math.divRatioPrecisely(x, y);
+            // Should equal mAsset units - 4 decimals, or 1e10
+            expect(result).bignumber.eq(simpleToExactAmount(1, 10));
+
+            x = simpleToExactAmount("0.235", 18); // 235e15
+            y = simpleToExactAmount(1, 12);
+            result = await math.divRatioPrecisely(x, y);
+            // Should equal mAsset units - 4 decimals, or 235e11
+            expect(result).bignumber.eq(simpleToExactAmount(235, 11));
+        });
+        it("should ignore remaining fractions", async () => {
+            var x = new BN(100);
+            var y = simpleToExactAmount(1234, 6);
+            var result = await math.divRatioPrecisely(x, y);
+            // (1e2 * 1e8) / 1234e6 == 8.103...
+            expect(result).bignumber.eq(new BN(8));
+
+            x = simpleToExactAmount(1, 4);
+            y = simpleToExactAmount(1, 14);
+            result = await math.divRatioPrecisely(x, y);
+            // (1e4 * 1e8) / 1e14 == 0.01
+            expect(result).bignumber.eq(new BN(0));
+        });
+        it("should fail if the divisor is 0", async () => {
+            var sampleInput = simpleToExactAmount(1, 18);
+            await shouldFail.reverting.withMessage(
+                math.divRatioPrecisely(sampleInput, 0),
+                "SafeMath: division by zero",
+            );
+        });
+        it("should fail if the left operand is too large", async () => {
+            var sampleInput = simpleToExactAmount(1, 71);
+            await shouldFail.reverting.withMessage(
+                math.divRatioPrecisely(sampleInput, simpleToExactAmount(1, 8)),
+                "SafeMath: multiplication overflow",
+            );
+        });
     });
 
-    /** *************************************
+    /***************************************
                     HELPERS
-    *************************************** */
+    ****************************************/
 
     describe("calling min(x, y)", async () => {
-        it("should find the minimum number", async () => {});
+        it("should find the minimum number", async () => {
+            var x = new BN(1);
+            var y = new BN(2);
+            expect(await math.min(x, y)).bignumber.eq(x);
+            expect(await math.min(y, x)).bignumber.eq(x);
+
+            x = new BN(2);
+            y = new BN(1);
+            expect(await math.min(x, y)).bignumber.eq(y);
+            expect(await math.min(y, x)).bignumber.eq(y);
+
+            x = new BN(0);
+            y = simpleToExactAmount(2323, 24);
+            expect(await math.min(x, y)).bignumber.eq(x);
+            expect(await math.min(y, x)).bignumber.eq(x);
+
+            x = simpleToExactAmount("0.242", 4);
+            y = new BN(0);
+            expect(await math.min(x, y)).bignumber.eq(y);
+            expect(await math.min(y, x)).bignumber.eq(y);
+        });
     });
 
     describe("calling max(x, y)", async () => {
-        it("should find the maximum number", async () => {});
+        it("should find the maximum number", async () => {
+            var x = new BN(1);
+            var y = new BN(2);
+            expect(await math.max(x, y)).bignumber.eq(y);
+            expect(await math.max(y, x)).bignumber.eq(y);
+
+            x = new BN(2);
+            y = new BN(1);
+            expect(await math.max(x, y)).bignumber.eq(x);
+            expect(await math.max(y, x)).bignumber.eq(x);
+
+            x = new BN(0);
+            y = simpleToExactAmount(2323, 24);
+            expect(await math.max(x, y)).bignumber.eq(y);
+            expect(await math.max(y, x)).bignumber.eq(y);
+
+            x = simpleToExactAmount("0.242", 4);
+            y = new BN(0);
+            expect(await math.max(x, y)).bignumber.eq(x);
+            expect(await math.max(y, x)).bignumber.eq(x);
+        });
     });
 
     describe("calling clamp(x, uepprBound)", async () => {
-        it("should clamp to the upper bound", async () => {});
+        it("should clamp to the upper bound", async () => {
+            var x = new BN(1);
+            var bound = new BN(2);
+            expect(await math.clamp(x, bound)).bignumber.eq(x);
+
+            x = new BN(2);
+            bound = new BN(1);
+            expect(await math.clamp(x, bound)).bignumber.eq(bound);
+
+            x = new BN(0);
+            bound = simpleToExactAmount(2323, 24);
+            expect(await math.clamp(x, bound)).bignumber.eq(x);
+
+            x = simpleToExactAmount("0.242", 4);
+            bound = new BN(0);
+            expect(await math.clamp(x, bound)).bignumber.eq(bound);
+        });
     });
 });
