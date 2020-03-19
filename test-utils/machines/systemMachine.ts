@@ -55,47 +55,44 @@ export class SystemMachine {
     /**
      * @dev Initialises the system to replicate current migration scripts
      */
-    public async initialiseMocks() {
-        try {
-            /***************************************
+    public async initialiseMocks(seedMasset = false) {
+        /***************************************
             1. Nexus (Redeploy)
-            ****************************************/
-            this.nexus = await this.deployNexus();
+        ****************************************/
+        this.nexus = await this.deployNexus();
 
-            /***************************************
+        /***************************************
             2. mUSD
-            ****************************************/
-            this.mUSD = await this.massetMachine.deployMasset();
+        ****************************************/
+        this.mUSD = seedMasset
+            ? await this.massetMachine.createMassetAndSeedBasket()
+            : await this.massetMachine.deployMasset();
 
-            /***************************************
+        /***************************************
             3. Savings
-            ****************************************/
-            this.savingsContract = await c_SavingsContract.new(
-                this.nexus.address,
-                this.mUSD.mAsset.address,
-                { from: this.sa.default },
-            );
-            this.savingsManager = await c_SavingsManager.new(
-                this.nexus.address,
-                this.mUSD.mAsset.address,
-                this.savingsContract.address,
-                { from: this.sa.default },
-            );
-            /***************************************
+        ****************************************/
+        this.savingsContract = await c_SavingsContract.new(
+            this.nexus.address,
+            this.mUSD.mAsset.address,
+            { from: this.sa.default },
+        );
+        this.savingsManager = await c_SavingsManager.new(
+            this.nexus.address,
+            this.mUSD.mAsset.address,
+            this.savingsContract.address,
+            { from: this.sa.default },
+        );
+        /***************************************
             4. Init
-            ****************************************/
-            this.nexus.initialize(
-                [await this.savingsManager.Key_SavingsManager()],
-                [this.savingsManager.address],
-                [false],
-                this.sa.governor,
-                { from: this.sa.governor },
-            );
-            return Promise.resolve(true);
-        } catch (e) {
-            console.log(e);
-            return Promise.reject(e);
-        }
+        ****************************************/
+        this.nexus.initialize(
+            [await this.savingsManager.Key_SavingsManager()],
+            [this.savingsManager.address],
+            [false],
+            this.sa.governor,
+            { from: this.sa.governor },
+        );
+        return Promise.resolve(true);
     }
 
     /**
