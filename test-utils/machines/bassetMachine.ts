@@ -1,9 +1,9 @@
-import { ERC20MockInstance } from "types/generated/index.d";
+import { MockERC20Instance } from "types/generated/index.d";
 import { Address } from "../../types/common";
 import { BN } from "../tools";
 import { DEFAULT_DECIMALS, DEFAULT_SUPPLY } from "../constants";
 
-const ERC20MockArtifact = artifacts.require("ERC20Mock");
+const MockERC20Artifact = artifacts.require("MockERC20");
 
 export class BassetMachine {
     private deployer: Address;
@@ -24,8 +24,8 @@ export class BassetMachine {
         decimals: BN = DEFAULT_DECIMALS,
         initialRecipient: Address = this.deployer,
         initialMint: BN = DEFAULT_SUPPLY,
-    ): Promise<ERC20MockInstance> {
-        const mockInstance = await ERC20MockArtifact.new(
+    ): Promise<MockERC20Instance> {
+        const mockInstance = await MockERC20Artifact.new(
             name,
             symbol,
             decimals,

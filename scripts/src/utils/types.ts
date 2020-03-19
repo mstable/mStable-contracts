@@ -1,7 +1,7 @@
 import { Basset } from "@utils/mstable-objects";
-import { ERC20Instance, ERC20MockInstance } from "types/generated";
+import { ERC20Instance, MockERC20Instance } from "types/generated";
 
-export type BassetInstance = ERC20Instance | ERC20MockInstance;
+export type BassetInstance = ERC20Instance | MockERC20Instance;
 
 // export type OrderedBassets = [
 //     USDTInstance,

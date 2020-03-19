@@ -22,7 +22,7 @@ const Masset: t.MassetContract = artifacts.require("Masset");
 const { expect, assert } = envSetup.configure();
 
 const approveMasset = async (
-    bAsset: t.ERC20MockInstance,
+    bAsset: t.MockERC20Instance,
     mAsset: t.MassetInstance,
     fullMassetUnits: number,
     sender: string,

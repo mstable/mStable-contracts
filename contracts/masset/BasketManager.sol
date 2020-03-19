@@ -207,9 +207,8 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
         //     "New bAsset must be valid"
         // );
 
-        // Check for ERC20 compatibility by forcing decimal retrieval
-        // Ultimate enforcement of Basset validity should service through governance & manager
-        uint256 basset_decimals = CommonHelpers.mustGetDecimals(_basset);
+        // Ultimate enforcement of bAsset validity should service through governance & manager & oracle
+        uint256 basset_decimals = CommonHelpers.getDecimals(_basset);
 
         uint256 delta = uint256(18).sub(basset_decimals);
 
