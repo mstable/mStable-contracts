@@ -112,7 +112,7 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
         onlyMasset
         basketIsHealthy
     {
-        require(basket.bassets.length > _bAsset, "bAsset does not exist");
+        // require(basket.bassets.length > _bAsset, "bAsset does not exist");
         basket.bassets[_bAsset].vaultBalance = basket.bassets[_bAsset].vaultBalance.add(_increaseAmount);
     }
 
@@ -120,7 +120,7 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
         external
         onlyMasset
     {
-        require(basket.bassets.length > _bAsset, "bAsset does not exist");
+        // require(basket.bassets.length > _bAsset, "bAsset does not exist");
         basket.bassets[_bAsset].vaultBalance = basket.bassets[_bAsset].vaultBalance.sub(_decreaseAmount);
     }
 
@@ -370,18 +370,20 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
       * @dev Get all basket assets, failing if the Basset does not exist
       * @return Struct array of all basket assets
       */
-    function getForgeBasset(address _token, bool /*_mint*/)
+    function prepareForgeBasset(address _token, bool /*_mint*/)
         external
-        view
         returns (
-            Basset memory bAsset,
-            address integrator,
-            uint8 index
+            ForgeProps memory props
         )
     {
         (bool exists, uint8 idx) = _isAssetInBasket(_token);
         require(exists, "bAsset does not exist");
-        return (basket.bassets[idx], integrations[idx], idx);
+        return ForgeProps({
+            isValid: true,
+            bAsset: basket.bassets[idx],
+            integrator: integrations[idx],
+            index: idx
+        });
     }
 
     /**
@@ -390,22 +392,27 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
      * @param _size size of bAssets array
      * @return array of Basset array
      */
-    function getForgeBassets(
+    function prepareForgeBassets(
         uint32 _bitmap,
         uint8 _size,
         bool /* _isMint */
     )
         external
-        view
-        returns (Basset[] memory bAssets, address[] memory integrators, uint8[] memory indexes)
+        returns (ForgePropsMulti memory props)
     {
-        bAssets = new Basset[](_size);
-        integrators = new address[](_size);
-        indexes = _convertBitmapToIndexArr(_bitmap, _size);
+        Basset[] memory bAssets = new Basset[](_size);
+        address[] memory integrators = new address[](_size);
+        uint8[] memory indexes = _convertBitmapToIndexArr(_bitmap, _size);
         for(uint8 i = 0; i < indexes.length; i++) {
             bAssets[i] = basket.bassets[indexes[i]];
             integrators[i] = integrations[indexes[i]];
         }
+        return ForgePropsMulti({
+            isValid: true,
+            bAssets: bAssets,
+            integrators: integrators,
+            indexes: indexes
+        });
     }
 
     /**
@@ -420,6 +427,20 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
         (bool exists, uint8 index) = _isAssetInBasket(_token);
         require(exists, "bAsset must exist");
         return _getBasset(index);
+    }
+
+    /**
+      * @dev Get all basket assets
+      * @return Struct array of all basket assets
+      */
+    function getBassetIntegrator(address _token)
+        external
+        view
+        returns (address integrator)
+    {
+        (bool exists, uint8 index) = _isAssetInBasket(_token);
+        require(exists, "bAsset must exist");
+        return integrations[index];
     }
 
     /**

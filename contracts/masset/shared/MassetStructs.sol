@@ -53,7 +53,6 @@ interface MassetStructs {
 
     }
 
-
     /** @dev Status of the Basset - has it broken its peg? */
     enum BassetStatus {
         Default,
@@ -64,5 +63,19 @@ interface MassetStructs {
         Liquidating,
         Liquidated,
         Failed
+    }
+
+    struct ForgeProps {
+        bool isValid;
+        Basset bAsset;
+        address integrator;
+        uint8 index;
+    }
+
+    struct ForgePropsMulti {
+        bool isValid;
+        Basset[] bAssets;
+        address[] integrators;
+        uint8[] indexes;
     }
 }
