@@ -65,7 +65,7 @@ export class SystemMachine {
             2. mUSD
         ****************************************/
         this.mUSD = seedMasset
-            ? await this.massetMachine.createMassetAndSeedBasket()
+            ? await this.massetMachine.deployMassetAndSeedBasket()
             : await this.massetMachine.deployMasset();
 
         /***************************************
