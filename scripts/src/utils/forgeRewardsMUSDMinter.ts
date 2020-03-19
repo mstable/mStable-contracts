@@ -1,4 +1,4 @@
-import { applyRatioMassetToBasset, exactAmountToSimple, simpleToExactAmount } from "@utils/math";
+import { applyRatioMassetToBasset, exactToSimpleAmount, simpleToExactAmount } from "@utils/math";
 import { BN } from "@utils/tools";
 import { BassetStatus } from "@utils/mstable-objects";
 import { ForgeRewardsMUSDInstance, MUSDInstance } from "types/generated";
@@ -74,7 +74,7 @@ export class ForgeRewardsMUSDMinter {
     public async getMUSDBalance(account: string) {
         const decimals = await this.mUSD.decimals();
         const amount = await this.mUSD.balanceOf(account);
-        return exactAmountToSimple(amount, decimals);
+        return exactToSimpleAmount(amount, decimals);
     }
 
     private async getBassetsData(bassets = this.bassetAddresses) {
@@ -118,7 +118,7 @@ export class ForgeRewardsMUSDMinter {
             // maxWeight == 40% == 40e16
             // convertExactToSimple divides by 1e18
             // this creates an exact percentage amount
-            const relativeUnitsToMint = exactAmountToSimple(mintInputExact.mul(maxWeight), 18);
+            const relativeUnitsToMint = exactToSimpleAmount(mintInputExact.mul(maxWeight), 18);
             return applyRatioMassetToBasset(relativeUnitsToMint, ratio);
         });
     }

@@ -30,12 +30,12 @@ contract PublicStableMath {
         return x.scaleInteger();
     }
 
-    function mulTruncate(uint256 x, uint256 y, uint256 scale)
+    function mulTruncateScale(uint256 x, uint256 y, uint256 scale)
         public
         pure
         returns (uint256)
     {
-        return x.mulTruncate(y, scale);
+        return x.mulTruncateScale(y, scale);
     }
 
     function mulTruncate(uint256 x, uint256 y)
