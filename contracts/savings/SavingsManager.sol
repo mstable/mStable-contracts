@@ -24,6 +24,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
     using SafeERC20 for IERC20;
 
     event SavingsContractEnabled(address indexed mAsset, address savingsContract);
+    event SavingsRateChanged(uint256 newSavingsRate);
     event InterestCollected(address indexed mAsset, uint256 interest, uint256 newTotalSupply, uint256 apy);
     event InterestDistributed(address indexed mAsset, uint256 amountSent);
     event InterestWithdrawnByGovernor(address indexed mAsset, address recipient, uint256 amount);
@@ -32,7 +33,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
     mapping(address => ISavingsContract) public savingsContracts;
 
     // Amount of collected interest that will be send to Savings Contract
-    uint256 constant private savingsRate = 90e16;
+    uint256 private savingsRate = 1e18;
     // Time at which last collection was made
     uint256 private lastCollection;
     // Utils to help keep interest under check
@@ -67,6 +68,15 @@ contract SavingsManager is ISavingsManager, PausableModule {
         IERC20(_mAsset).safeApprove(address(_savingsContract), uint256(-1));
 
         emit SavingsContractEnabled(_mAsset, _savingsContract);
+    }
+
+    function setSavingsRate(uint256 _savingsRate)
+        external
+        onlyGovernor
+    {
+        require(_savingsRate > 50e16 && _savingsRate <= 1e18, "Must be a valid rate");
+        savingsRate = _savingsRate;
+        emit SavingsRateChanged(_savingsRate);
     }
 
     /***************************************

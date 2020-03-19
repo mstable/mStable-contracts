@@ -11,10 +11,6 @@ interface BasicToken {
   */
 library CommonHelpers {
 
-    function addU(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x, "Must not overflow");
-    }
-
     /**
       * @dev Enforce the successfull execution of a contracts 'decimals()' function
       * This should prove to a certain degree that the token contract is an ERC20
@@ -39,22 +35,5 @@ library CommonHelpers {
         require(decimals > 0, "Token must decimal places");
 
         return decimals;
-    }
-
-    /**
-      * @dev Calculate the total sum of all items in an array
-      * @return uint256 total sum of basket asset weightings
-      */
-    function sumOfArrayValues(uint256[] memory _array)
-    internal
-    pure
-    returns (uint256) {
-        uint256 sum = 0;
-        uint256 arrayLength = _array.length;
-        for (uint256 i = 0; i < arrayLength; i++) {
-            uint256 result = addU(sum, _array[i]);
-            sum = result;
-        }
-        return sum;
     }
 }

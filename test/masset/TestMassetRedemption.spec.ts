@@ -10,7 +10,7 @@ import envSetup from "@utils/env_setup";
 import * as chai from "chai";
 import { ERC20MockInstance, MassetInstance } from "types/generated";
 import { MassetDetails } from "@utils/machines/massetMachine";
-import { expScale } from "@utils/constants";
+import { fullScale } from "@utils/constants";
 
 const Masset = artifacts.require("Masset");
 
@@ -36,7 +36,7 @@ contract("MassetRedemption", async (accounts) => {
             // Approval for Fee, if necessary
             // const redemptionAmount = simpleToExactAmount(1, 18);
             // const redemptionFee = await massetDetails.mAsset.redemptionFee();
-            // let redemptionFeeUnits = redemptionAmount.mul(redemptionFee).div(expScale);
+            // let redemptionFeeUnits = redemptionAmount.mul(redemptionFee).div(fullScale);
             // redemptionFeeUnits = redemptionFeeUnits.add(new BN("10000000000000000000"));
             // // 3. ensure i have MTA and approve mUSD
             // await massetDetails.mAsset.approve(massetDetails.mAsset.address, redemptionFeeUnits, {

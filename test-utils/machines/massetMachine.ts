@@ -4,7 +4,7 @@ import { Address } from "types/common";
 import { SystemMachine, StandardAccounts, BassetMachine } from ".";
 import { createMultiple, simpleToExactAmount, percentToWeight } from "@utils/math";
 import { BN, aToH } from "@utils/tools";
-import { expScale, MainnetAccounts, ratioScale } from "@utils/constants";
+import { fullScale, MainnetAccounts, ratioScale } from "@utils/constants";
 import { Basset, BassetStatus } from "@utils/mstable-objects";
 import { ZERO_ADDRESS } from "@utils/constants";
 
@@ -382,9 +382,9 @@ export class MassetMachine {
         let mintAmounts = await Promise.all(
             basketDetails.map(async (b) => {
                 // e.g. 5e35 / 2e18 = 2.5e17
-                const relativeWeighting = b.maxWeight.mul(expScale).div(totalWeighting);
+                const relativeWeighting = b.maxWeight.mul(fullScale).div(totalWeighting);
                 // e.g. 1e20 * 25e16 / 1e18 = 25e18
-                const mintAmount = totalMintAmount.mul(relativeWeighting).div(expScale);
+                const mintAmount = totalMintAmount.mul(relativeWeighting).div(fullScale);
                 // const bAssetDecimals: BN = await b.decimals();
                 // const decimalDelta = new BN(18).sub(bAssetDecimals);
                 return mintAmount.mul(ratioScale).div(b.ratio);
