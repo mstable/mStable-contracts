@@ -21,6 +21,9 @@ jobs:
           name: Lint Sol
           command: yarn lint-sol
       - run:
+          name: Prep contracts and generate typings
+          command: yarn test-prep
+      - run:
           name: Lint TS
           command: yarn lint-ts
       # - run:
