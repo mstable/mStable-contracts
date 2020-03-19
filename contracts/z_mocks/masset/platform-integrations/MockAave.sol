@@ -1,8 +1,8 @@
 pragma solidity 0.5.16;
 
-import { IAaveAToken, IAaveLendingPool, ILendingPoolAddressesProvider } from "../../masset/platform-integrations/IAave.sol";
+import { IAaveAToken, IAaveLendingPool, ILendingPoolAddressesProvider } from "../../../masset/platform-integrations/IAave.sol";
 
-import { MassetHelpers } from "../../masset/shared/MassetHelpers.sol";
+import { MassetHelpers } from "../../../masset/shared/MassetHelpers.sol";
 import { IERC20, ERC20, ERC20Mintable } from "openzeppelin-solidity/contracts/token/ERC20/ERC20Mintable.sol";
 
 

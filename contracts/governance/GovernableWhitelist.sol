@@ -1,6 +1,6 @@
-pragma solidity ^0.5.16;
+pragma solidity 0.5.16;
 
-import { Module } from "../shared/Module.sol";
+import { InitializableModule } from "../shared/InitializableModule.sol";
 
 /**
  * @title   GovernableWhitelist
@@ -8,7 +8,7 @@ import { Module } from "../shared/Module.sol";
  * @notice  Contract to store whitelisted address. The onlyWhitelisted() modifier should be used
  *          to allow the function calls only from the whitelisted addresses.
  */
-contract GovernableWhitelist is Module {
+contract GovernableWhitelist is InitializableModule {
 
     event Whitelisted(address indexed _address);
 
@@ -31,7 +31,7 @@ contract GovernableWhitelist is Module {
         address[] memory _whitelisted
     )
         internal
-        Module(_nexus)
+        InitializableModule(_nexus)
     {
         GovernableWhitelist._initialize(_nexus, _whitelisted);
     }
@@ -41,7 +41,7 @@ contract GovernableWhitelist is Module {
      * @param _whitelisted Array of whitelisted addresses.
      */
     function _initialize(address _nexus, address[] memory _whitelisted) internal {
-        Module._initialize(_nexus);
+        InitializableModule._initialize(_nexus);
 
         require(_whitelisted.length > 0, "Empty whitelist array");
 

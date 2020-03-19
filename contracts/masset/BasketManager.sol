@@ -5,7 +5,7 @@ pragma experimental ABIEncoderV2;
 import { IPlatformIntegration } from "../interfaces/IPlatformIntegration.sol";
 
 // Internal
-import { Module } from "../shared/Module.sol";
+import { InitializableModule } from "../shared/InitializableModule.sol";
 import { IBasketManager } from "../interfaces/IBasketManager.sol";
 import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
 
@@ -20,7 +20,7 @@ import { StableMath } from "../shared/StableMath.sol";
  * @title MassetBasket
  * @dev Manages the Masset Basket composition and acts as a cache to store the Basket Assets (Bassets)
  */
-contract BasketManager is Initializable, IBasketManager, Module {
+contract BasketManager is Initializable, IBasketManager, InitializableModule {
 
     using SafeMath for uint256;
     using StableMath for uint256;
@@ -44,7 +44,7 @@ contract BasketManager is Initializable, IBasketManager, Module {
     // Holds relative addresses of the integration platforms
     mapping(uint8 => address) public integrations;
 
-    constructor(address _nexus) public Module(_nexus){}
+    constructor(address _nexus) public InitializableModule(_nexus){}
 
     /**
      * @dev Initialization function for upgradable proxy contract.
@@ -61,7 +61,7 @@ contract BasketManager is Initializable, IBasketManager, Module {
         public
         initializer
     {
-        Module._initialize(_nexus);
+        InitializableModule._initialize(_nexus);
 
         mAsset = _mAsset;
         // require(_bassets.length > 0, "Must initialise with some bAssets");
