@@ -30,7 +30,7 @@ contract("SavingsContract", async (accounts) => {
         });
         describe("depositing mUSD into savings", () => {
             it("Should deposit the mUSD and assign credits to the saver", async () => {
-                var depositAmount = simpleToExactAmount(1, 18);
+                const depositAmount = simpleToExactAmount(1, 18);
                 // const exchangeRate_before = await systemMachine.savingsContract.exchangeRate();
                 const credits_balBefore = await systemMachine.savingsContract.creditBalances(
                     sa.default,
@@ -70,7 +70,7 @@ contract("SavingsContract", async (accounts) => {
         });
         describe("Withdrawing mUSD from savings", () => {
             it("Should withdraw the mUSD and burn the credits", async () => {
-                var redemptionAmount = simpleToExactAmount(1, 18);
+                const redemptionAmount = simpleToExactAmount(1, 18);
                 const credits_balBefore = await systemMachine.savingsContract.creditBalances(
                     sa.default,
                 );

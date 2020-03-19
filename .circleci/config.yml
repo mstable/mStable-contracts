@@ -18,13 +18,16 @@ jobs:
           name: Install packages
           command: yarn
       - run:
-          name: Lint Everything
-          command: yarn lint
+          name: Lint Sol
+          command: yarn lint-sol
       - run:
-          name: Test Contracts
-          command: yarn test 2>&1 | tee test_output
-      - store_artifacts:
-          path: /test_output
+          name: Lint TS
+          command: yarn lint-ts
+      # - run:
+      #     name: Test Contracts
+      #     command: yarn test 2>&1 | tee test_output
+      # - store_artifacts:
+      #     path: /test_output
       - run:
           name: Produce Coverage Report
           command: yarn coverage

@@ -2,7 +2,7 @@ import { StandardAccounts } from "@utils/machines";
 import { PausableModuleInstance } from "types/generated";
 import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
 
-const { ZERO_ADDRESS } = require("@utils/constants");
+import { ZERO_ADDRESS } from "@utils/constants";
 
 export default function shouldBehaveLikePausableModule(
     ctx: { module: PausableModuleInstance },

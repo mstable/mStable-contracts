@@ -1,8 +1,8 @@
 import { StandardAccounts } from "@utils/machines";
 import { ModuleInstance, NexusInstance } from "types/generated";
+import { ZERO_ADDRESS } from "@utils/constants";
 
 const NexusArtifact = artifacts.require("Nexus");
-const { ZERO_ADDRESS } = require("@utils/constants");
 
 export default function shouldBehaveLikeModule(
     ctx: { module: ModuleInstance },

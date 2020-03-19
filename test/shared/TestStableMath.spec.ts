@@ -18,9 +18,9 @@ contract("StableMath", async (accounts) => {
         math = await PublicStableMath.new();
     });
 
-    /***************************************
+    /** *************************************
                     GETTERS
-    ****************************************/
+    *************************************** */
 
     describe("calling the getters", async () => {
         it("should return the correct scale", async () => {
@@ -62,16 +62,16 @@ contract("StableMath", async (accounts) => {
         });
     });
 
-    /***************************************
+    /** *************************************
             PRECISE ARITHMETIC
-    ****************************************/
+    *************************************** */
 
     describe("calling mulTruncate(x, y, scale)", async () => {
         it("should return correct results", async () => {
-            var x = simpleToExactAmount(1, 10);
-            var y = simpleToExactAmount(9, 9);
-            var scale = simpleToExactAmount(1, 12);
-            var result = await math.mulTruncateScale(x, y, scale);
+            let x = simpleToExactAmount(1, 10);
+            let y = simpleToExactAmount(9, 9);
+            let scale = simpleToExactAmount(1, 12);
+            let result = await math.mulTruncateScale(x, y, scale);
             expect(result).bignumber.eq(new BN(x).mul(y).div(scale));
             expect(result).bignumber.lt(x as any);
 
@@ -83,14 +83,14 @@ contract("StableMath", async (accounts) => {
             expect(result).bignumber.lt(x as any);
         });
         it("should truncate fractions", async () => {
-            var x = new BN(11);
-            var y = new BN(3);
+            const x = new BN(11);
+            const y = new BN(3);
             // 33 / 10 == 3.33.. should return 3
-            var result = await math.mulTruncateScale(x, y, new BN(10));
+            const result = await math.mulTruncateScale(x, y, new BN(10));
             expect(result).bignumber.eq(new BN(3));
         });
         it("should fail if scale operand is 0", async () => {
-            var sampleInput = simpleToExactAmount(1, 18);
+            const sampleInput = simpleToExactAmount(1, 18);
             await shouldFail.reverting.withMessage(
                 math.mulTruncateScale(sampleInput, sampleInput, 0),
                 "SafeMath: division by zero",
@@ -108,9 +108,9 @@ contract("StableMath", async (accounts) => {
 
     describe("calling mulTruncate(x, y)", async () => {
         it("should return correct results", async () => {
-            var x = simpleToExactAmount(1, 10);
-            var y = simpleToExactAmount(9, 9);
-            var result = await math.mulTruncate(x, y);
+            let x = simpleToExactAmount(1, 10);
+            let y = simpleToExactAmount(9, 9);
+            let result = await math.mulTruncate(x, y);
             expect(result).bignumber.eq(new BN(x).mul(y).div(fullScale));
             expect(result).bignumber.lt(x as any);
 
@@ -121,16 +121,16 @@ contract("StableMath", async (accounts) => {
             expect(result).bignumber.lt(x as any);
         });
         it("should truncate fractions", async () => {
-            var x = new BN(1234);
-            var y = simpleToExactAmount(75, 16);
-            var result = await math.mulTruncate(x, y);
+            const x = new BN(1234);
+            const y = simpleToExactAmount(75, 16);
+            const result = await math.mulTruncate(x, y);
             // 75% of 1234 = 925.5, round to 925
             expect(result).bignumber.eq(new BN(925));
         });
         it("should return 0 if operands multiplied are less than the scale", async () => {
-            var x = new BN(100);
-            var y = simpleToExactAmount(1, 15);
-            var result = await math.mulTruncate(x, y);
+            const x = new BN(100);
+            const y = simpleToExactAmount(1, 15);
+            const result = await math.mulTruncate(x, y);
             // (1e2 * 1e15) / 1e18 = 0.1
             expect(result).bignumber.eq(new BN(0));
         });
@@ -146,9 +146,9 @@ contract("StableMath", async (accounts) => {
 
     describe("calling mulTruncateCeil(x, y)", async () => {
         it("should round up any fraction", async () => {
-            var x = new BN(3);
-            var y = simpleToExactAmount(11, 17);
-            var result = await math.mulTruncateCeil(x, y);
+            let x = new BN(3);
+            let y = simpleToExactAmount(11, 17);
+            let result = await math.mulTruncateCeil(x, y);
             // (3 * 11e17) / 1e18 == 33e17 / 1e18 == 3.3.
             expect(result).bignumber.eq(new BN(4));
 
@@ -165,16 +165,16 @@ contract("StableMath", async (accounts) => {
             expect(result).bignumber.eq(new BN(926));
         });
         it("should return 1 if operands multiplied are less than the scale", async () => {
-            var x = new BN(100);
-            var y = simpleToExactAmount(1, 15);
-            var result = await math.mulTruncateCeil(x, y);
+            const x = new BN(100);
+            const y = simpleToExactAmount(1, 15);
+            const result = await math.mulTruncateCeil(x, y);
             // (1e2 * 1e15) / 1e18 = 0.1
             expect(result).bignumber.eq(new BN(1));
         });
         it("should not round a 0 fraction", async () => {
-            var x = new BN(30);
-            var y = simpleToExactAmount(11, 17);
-            var result = await math.mulTruncateCeil(x, y);
+            const x = new BN(30);
+            const y = simpleToExactAmount(11, 17);
+            const result = await math.mulTruncateCeil(x, y);
             // (30 * 11e17) / 1e18 == 33e18 / 1e18 == 33
             expect(result).bignumber.eq(new BN(33));
         });
@@ -190,9 +190,9 @@ contract("StableMath", async (accounts) => {
 
     describe("calling divPrecisely(x, y)", async () => {
         it("should calculate x as a percentage value of y to scale of 1e18", async () => {
-            var x = simpleToExactAmount(1, 18);
-            var y = simpleToExactAmount(1, 17);
-            var result = await math.divPrecisely(x, y);
+            let x = simpleToExactAmount(1, 18);
+            let y = simpleToExactAmount(1, 17);
+            let result = await math.divPrecisely(x, y);
             // (1e18 * 1e18) / 1e17 == 1e19
             expect(result).bignumber.eq(simpleToExactAmount(1, 19));
 
@@ -203,9 +203,9 @@ contract("StableMath", async (accounts) => {
             expect(result).bignumber.eq(simpleToExactAmount(1, 16));
         });
         it("should ignore remaining fractions", async () => {
-            var x = new BN(100);
-            var y = simpleToExactAmount(1234, 16);
-            var result = await math.divPrecisely(x, y);
+            let x = new BN(100);
+            let y = simpleToExactAmount(1234, 16);
+            let result = await math.divPrecisely(x, y);
             // (1e2 * 1e18) / 1234e16 == 8.103...
             expect(result).bignumber.eq(new BN(8));
 
@@ -216,14 +216,14 @@ contract("StableMath", async (accounts) => {
             expect(result).bignumber.eq(new BN(0));
         });
         it("should fail if the divisor is 0", async () => {
-            var sampleInput = simpleToExactAmount(1, 18);
+            const sampleInput = simpleToExactAmount(1, 18);
             await shouldFail.reverting.withMessage(
                 math.divPrecisely(sampleInput, 0),
                 "SafeMath: division by zero",
             );
         });
         it("should fail if the left operand is too large", async () => {
-            var sampleInput = simpleToExactAmount(1, 65);
+            const sampleInput = simpleToExactAmount(1, 65);
             await shouldFail.reverting.withMessage(
                 math.divPrecisely(sampleInput, simpleToExactAmount(1, 18)),
                 "SafeMath: multiplication overflow",
@@ -231,15 +231,15 @@ contract("StableMath", async (accounts) => {
         });
     });
 
-    /***************************************
+    /** *************************************
                 RATIO FUNCS
-    ****************************************/
+    *************************************** */
 
     describe("calling mulRatioTruncate(x, ratio)", async () => {
         it("should calculate correct mAsset value from bAsset", async () => {
-            var x = simpleToExactAmount(1, 4); // 1e4 base bAsset units
-            var y = ratioScale; // 1e8 standard ratio
-            var result = await math.mulRatioTruncate(x, y);
+            let x = simpleToExactAmount(1, 4); // 1e4 base bAsset units
+            let y = ratioScale; // 1e8 standard ratio
+            let result = await math.mulRatioTruncate(x, y);
             expect(result).bignumber.eq(simpleToExactAmount(1, 4));
 
             x = simpleToExactAmount(1, 12); // 1e12 units of bAsset
@@ -254,16 +254,16 @@ contract("StableMath", async (accounts) => {
             expect(result).bignumber.eq(new BN(399816000));
         });
         it("should truncate fractions", async () => {
-            var x = new BN(1234); // 1234 units of bAsset
-            var y = simpleToExactAmount("0.324", 8); // bAsset with 18 decimals, but 0.324 mm
-            var result = await math.mulRatioTruncate(x, y);
+            const x = new BN(1234); // 1234 units of bAsset
+            const y = simpleToExactAmount("0.324", 8); // bAsset with 18 decimals, but 0.324 mm
+            const result = await math.mulRatioTruncate(x, y);
             // result == 399.816 units
             expect(result).bignumber.eq(new BN(399));
         });
         it("should return 0 if operands multiplied are less than the scale", async () => {
-            var x = new BN(100);
-            var y = simpleToExactAmount(1, 5);
-            var result = await math.mulRatioTruncate(x, y);
+            const x = new BN(100);
+            const y = simpleToExactAmount(1, 5);
+            const result = await math.mulRatioTruncate(x, y);
             // (1e2 * 1e5) / 1e8 = 0.1
             expect(result).bignumber.eq(new BN(0));
         });
@@ -279,9 +279,9 @@ contract("StableMath", async (accounts) => {
 
     describe("calling mulRatioTruncateCeil(x, ratio)", async () => {
         it("should calculate correct mAsset value from bAsset", async () => {
-            var x = simpleToExactAmount(1, 4); // 1e4 base bAsset units
-            var y = ratioScale; // 1e8 standard ratio
-            var result = await math.mulRatioTruncateCeil(x, y);
+            let x = simpleToExactAmount(1, 4); // 1e4 base bAsset units
+            let y = ratioScale; // 1e8 standard ratio
+            let result = await math.mulRatioTruncateCeil(x, y);
             expect(result).bignumber.eq(simpleToExactAmount(1, 4));
 
             x = simpleToExactAmount(1, 12); // 1e12 units of bAsset
@@ -296,9 +296,9 @@ contract("StableMath", async (accounts) => {
             expect(result).bignumber.eq(new BN(399816000));
         });
         it("should round up any fractions", async () => {
-            var x = new BN(1234); // 1234 units of bAsset
-            var y = simpleToExactAmount("0.324", 8); // bAsset with 18 decimals, but 0.324 mm
-            var result = await math.mulRatioTruncateCeil(x, y);
+            let x = new BN(1234); // 1234 units of bAsset
+            let y = simpleToExactAmount("0.324", 8); // bAsset with 18 decimals, but 0.324 mm
+            let result = await math.mulRatioTruncateCeil(x, y);
             // result == 399.816 units
             expect(result).bignumber.eq(new BN(400));
 
@@ -309,9 +309,9 @@ contract("StableMath", async (accounts) => {
             expect(result).bignumber.eq(new BN(400187));
         });
         it("should return 1 if operands multiplied are less than the scale", async () => {
-            var x = new BN(100);
-            var y = simpleToExactAmount(1, 5);
-            var result = await math.mulRatioTruncateCeil(x, y);
+            const x = new BN(100);
+            const y = simpleToExactAmount(1, 5);
+            const result = await math.mulRatioTruncateCeil(x, y);
             // (1e2 * 1e5) / 1e8 = 0.1
             expect(result).bignumber.eq(new BN(1));
         });
@@ -327,9 +327,9 @@ contract("StableMath", async (accounts) => {
 
     describe("calling divRatioPrecisely(x, ratio)", async () => {
         it("should calculate x as a percentage value of y to scale of 1e8", async () => {
-            var x = simpleToExactAmount(1, 18);
-            var y = simpleToExactAmount(1, 8);
-            var result = await math.divRatioPrecisely(x, y);
+            let x = simpleToExactAmount(1, 18);
+            let y = simpleToExactAmount(1, 8);
+            let result = await math.divRatioPrecisely(x, y);
             // (1e18 * 1e8) / 1e8 == 1e18
             expect(result).bignumber.eq(simpleToExactAmount(1, 18));
 
@@ -346,9 +346,9 @@ contract("StableMath", async (accounts) => {
             expect(result).bignumber.eq(simpleToExactAmount(235, 11));
         });
         it("should ignore remaining fractions", async () => {
-            var x = new BN(100);
-            var y = simpleToExactAmount(1234, 6);
-            var result = await math.divRatioPrecisely(x, y);
+            let x = new BN(100);
+            let y = simpleToExactAmount(1234, 6);
+            let result = await math.divRatioPrecisely(x, y);
             // (1e2 * 1e8) / 1234e6 == 8.103...
             expect(result).bignumber.eq(new BN(8));
 
@@ -359,14 +359,14 @@ contract("StableMath", async (accounts) => {
             expect(result).bignumber.eq(new BN(0));
         });
         it("should fail if the divisor is 0", async () => {
-            var sampleInput = simpleToExactAmount(1, 18);
+            const sampleInput = simpleToExactAmount(1, 18);
             await shouldFail.reverting.withMessage(
                 math.divRatioPrecisely(sampleInput, 0),
                 "SafeMath: division by zero",
             );
         });
         it("should fail if the left operand is too large", async () => {
-            var sampleInput = simpleToExactAmount(1, 71);
+            const sampleInput = simpleToExactAmount(1, 71);
             await shouldFail.reverting.withMessage(
                 math.divRatioPrecisely(sampleInput, simpleToExactAmount(1, 8)),
                 "SafeMath: multiplication overflow",
@@ -374,14 +374,14 @@ contract("StableMath", async (accounts) => {
         });
     });
 
-    /***************************************
+    /** *************************************
                     HELPERS
-    ****************************************/
+    *************************************** */
 
     describe("calling min(x, y)", async () => {
         it("should find the minimum number", async () => {
-            var x = new BN(1);
-            var y = new BN(2);
+            let x = new BN(1);
+            let y = new BN(2);
             expect(await math.min(x, y)).bignumber.eq(x);
             expect(await math.min(y, x)).bignumber.eq(x);
 
@@ -404,8 +404,8 @@ contract("StableMath", async (accounts) => {
 
     describe("calling max(x, y)", async () => {
         it("should find the maximum number", async () => {
-            var x = new BN(1);
-            var y = new BN(2);
+            let x = new BN(1);
+            let y = new BN(2);
             expect(await math.max(x, y)).bignumber.eq(y);
             expect(await math.max(y, x)).bignumber.eq(y);
 
@@ -428,8 +428,8 @@ contract("StableMath", async (accounts) => {
 
     describe("calling clamp(x, uepprBound)", async () => {
         it("should clamp to the upper bound", async () => {
-            var x = new BN(1);
-            var bound = new BN(2);
+            let x = new BN(1);
+            let bound = new BN(2);
             expect(await math.clamp(x, bound)).bignumber.eq(x);
 
             x = new BN(2);
