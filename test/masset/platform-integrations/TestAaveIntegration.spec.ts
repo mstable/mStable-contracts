@@ -14,7 +14,7 @@ const AaveVault = artifacts.require("AaveIntegration");
 
 let shouldSkip = false;
 
-contract("AaveVault", async (accounts) => {
+contract("AaveIntegration", async (accounts) => {
     let aaveVault: AaveIntegrationInstance;
     const sa = new StandardAccounts(accounts);
     const ma = new MainnetAccounts();

@@ -28,7 +28,7 @@ interface ICERC20 {
     /**
      * @notice The user's underlying balance, representing their assets in the protocol, is equal to
      * the user's cToken balance multiplied by the Exchange Rate.
-     * @param account The account to get the underlying balance of.
+     * @param owner The account to get the underlying balance of.
      * @return The amount of underlying currently owned by the account.
      */
     function balanceOfUnderlying(address owner) external returns (uint);

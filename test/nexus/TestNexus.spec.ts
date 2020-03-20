@@ -25,8 +25,10 @@ contract("Nexus", async (accounts) => {
 
     describe("Behavior like...", () => {
         const ctx: { claimable?: DelayedClaimableGovernorInstance } = {};
-        beforeEach("Init contract", async () => {
+        before("", async () => {
             systemMachine = new SystemMachine(sa.all);
+        });
+        beforeEach("Init contract", async () => {
             ctx.claimable = await systemMachine.deployNexus();
         });
         context("should behave like ClaimableGovernor", () => {
@@ -41,20 +43,6 @@ contract("Nexus", async (accounts) => {
 
             shouldBehaveLikeDelayedClaimable(ctx as Required<typeof ctx>, sa);
         });
-    });
-
-    beforeEach("Init contract", async () => {
-        systemMachine = new SystemMachine(accounts);
-        nexus = await systemMachine.deployNexus();
-        await nexus.initialize(
-            [keccak256("dummy3"), keccak256("dummy4")],
-            [sa.dummy3, sa.dummy4],
-            [true, false],
-            sa.governor,
-            { from: sa.governor },
-        );
-        await expectInModules(nexus, "dummy3", sa.dummy3, true);
-        await expectInModules(nexus, "dummy4", sa.dummy4, false);
     });
 
     describe("Before initialize", () => {
@@ -182,6 +170,19 @@ contract("Nexus", async (accounts) => {
                 await expectInModules(nexus, "dummy1", sa.dummy1, true);
             });
         });
+    });
+
+    beforeEach("Init contract", async () => {
+        nexus = await systemMachine.deployNexus();
+        await nexus.initialize(
+            [keccak256("dummy3"), keccak256("dummy4")],
+            [sa.dummy3, sa.dummy4],
+            [true, false],
+            sa.governor,
+            { from: sa.governor },
+        );
+        await expectInModules(nexus, "dummy3", sa.dummy3, true);
+        await expectInModules(nexus, "dummy4", sa.dummy4, false);
     });
 
     describe("proposeModule()", () => {

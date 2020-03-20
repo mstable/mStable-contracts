@@ -25,7 +25,6 @@ contract AbstractIntegration is Initializable, IPlatformIntegration, GovernableW
     using SafeMath for uint256;
 
     event PTokenAdded(address indexed _bAsset, address _pToken);
-    event PTokenUpdated(address indexed _bAsset, address _pToken);
 
     event Deposit(address indexed _bAsset, address _pToken, uint256 _amount);
     event Withdrawal(address indexed _bAsset, address _pToken, uint256 _amount);
