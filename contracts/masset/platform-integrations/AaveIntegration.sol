@@ -1,10 +1,14 @@
 pragma solidity 0.5.16;
 
+import { IAaveAToken, IAaveLendingPool, ILendingPoolAddressesProvider } from "./IAave.sol";
 import { AbstractIntegration, MassetHelpers, IERC20 } from "./AbstractIntegration.sol";
 
-import { IAaveAToken, IAaveLendingPool, ILendingPoolAddressesProvider } from "./IAave.sol";
 
-
+/**
+ * @title   AaveIntegration
+ * @author  Stability Labs Pty. Lte.
+ * @notice  A simple connection to deposit and withdraw bAssets from Aave
+ */
 contract AaveIntegration is AbstractIntegration {
 
     constructor(
@@ -29,6 +33,15 @@ contract AaveIntegration is AbstractIntegration {
                     CORE
     ****************************************/
 
+    /**
+     * @dev Deposit a quantity of bAsset into the platform. Credited aTokens
+     * remain here in the vault. Can only be called by whitelisted addresses
+     * (mAsset and corresponding BasketManager)
+     * @param _bAsset              Address for the bAsset
+     * @param _amount              Units of bAsset to deposit
+     * @param _isTokenFeeCharged   Flag that signals if an xfer fee is charged on bAsset
+     * @return quantityDeposited   Quantity of bAsset that entered the platform
+     */
     function deposit(
         address _bAsset,
         uint256 _amount,
@@ -60,6 +73,13 @@ contract AaveIntegration is AbstractIntegration {
         emit Deposit(_bAsset, address(aToken), quantityDeposited);
     }
 
+    /**
+     * @dev Withdraw a quantity of bAsset from the platform. Redemption
+     * should fail if we have insufficient balance on the platform.
+     * @param _receiver     Address to which the bAsset should be sent
+     * @param _bAsset       Address of the bAsset
+     * @param _amount       Units of bAsset to withdraw
+     */
     function withdraw(
         address _receiver,
         address _bAsset,
@@ -80,6 +100,13 @@ contract AaveIntegration is AbstractIntegration {
         emit Withdrawal(_bAsset, address(aToken), _amount);
     }
 
+    /**
+     * @dev Get the total bAsset value held in the platform
+     * This includes any interest that was generated since depositing
+     * Aave gradually increases the balances of all aToken holders, as the interest grows
+     * @param _bAsset     Address of the bAsset
+     * @return balance    Total value of the bAsset in the platform
+     */
     function checkBalance(address _bAsset)
         external
         returns (uint256 balance)
@@ -93,6 +120,11 @@ contract AaveIntegration is AbstractIntegration {
                     APPROVALS
     ****************************************/
 
+    /**
+     * @dev Re-approve the spending of all bAssets by the Aave lending pool core,
+     * if for some reason is it necessary for example if the address of core changes.
+     * Only callable through Governance.
+     */
     function reApproveAllTokens()
         external
         onlyGovernor
@@ -105,6 +137,12 @@ contract AaveIntegration is AbstractIntegration {
         }
     }
 
+    /**
+     * @dev Internal method to respond to the addition of new bAsset / pTokens
+     * We need to approve the Aave lending pool core conrtact and give it permission
+     * to spend the bAsset
+     * @param _bAsset Address of the bAsset to approve
+     */
     function _abstractSetPToken(address _bAsset, address /*_pToken*/)
         internal
     {
@@ -113,16 +151,15 @@ contract AaveIntegration is AbstractIntegration {
         MassetHelpers.safeInfiniteApprove(_bAsset, lendingPoolVault);
     }
 
-    function _abstractUpdatePToken(address _bAsset, address _oldPToken, address _pToken)
-        internal
-    {
-        // No need to re-approve the pool, as it already has access to this bAsset
-    }
-
     /***************************************
                     HELPERS
     ****************************************/
 
+    /**
+     * @dev Get the current address of the Aave lending pool, which is the gateway to
+     * depositing.
+     * @return Current lending pool implementation
+     */
     function _getLendingPool()
         internal
         view
@@ -133,6 +170,11 @@ contract AaveIntegration is AbstractIntegration {
         return IAaveLendingPool(lendingPool);
     }
 
+    /**
+     * @dev Get the current address of the Aave lending pool core, which stores all the
+     * reserve tokens in its vault.
+     * @return Current lending pool core address
+     */
     function _getLendingPoolCore()
         internal
         view
@@ -143,6 +185,12 @@ contract AaveIntegration is AbstractIntegration {
         return lendingPoolCore;
     }
 
+    /**
+     * @dev Get the pToken wrapped in the IAaveAToken interface for this bAsset, to use
+     * for withdrawing or balance checking. Fails if the pToken doesn't exist in our mappings.
+     * @param _bAsset  Address of the bAsset
+     * @return aToken  Corresponding to this bAsset
+     */
     function _getATokenFor(address _bAsset)
         internal
         view
@@ -153,6 +201,11 @@ contract AaveIntegration is AbstractIntegration {
         return IAaveAToken(aToken);
     }
 
+    /**
+     * @dev Get the total bAsset value held in the platform
+     * @param _aToken     aToken for which to check balance
+     * @return balance    Total value of the bAsset in the platform
+     */
     function _checkBalance(IAaveAToken _aToken)
         internal
         view

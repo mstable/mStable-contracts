@@ -11,6 +11,14 @@ import { SafeERC20 } from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20
 import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
+/**
+ * @title   AbstractIntegration
+ * @author  Stability Labs Pty. Lte.
+ * @notice  A generalised platform integration contract from which to inherit
+ * @dev     Contains functionality for managing access to a specific lending
+ *          platform. pTokens are the generic name given to platform tokens e.g. cDai
+ *          Governance are responsible for setting platform and pToken addresses.
+ */
 contract AbstractIntegration is Initializable, IPlatformIntegration, GovernableWhitelist {
 
     using SafeERC20 for IERC20;
@@ -24,12 +32,18 @@ contract AbstractIntegration is Initializable, IPlatformIntegration, GovernableW
 
     string public constant version = "1.0";
 
+    // Core address for the given platform */
     address public platformAddress;
 
     // bAsset => pToken (Platform Specific Token Address)
     mapping(address => address) public bAssetToPToken;
+    // Full list of all bAssets supported here
     address[] internal bAssetsMapped;
 
+    /**
+     * @dev Since this is abstract, we keep the constructor internal
+     * This contract is upgradable, see `_initialize` for constructor
+     */
     constructor(
         address _nexus,
         address[] memory _whitelisted,
@@ -46,6 +60,11 @@ contract AbstractIntegration is Initializable, IPlatformIntegration, GovernableW
     /**
      * @dev Initialization function for upgradable proxy contract.
      *      This function should be called via Proxy just after contract deployment.
+     * @param _nexus            Address of the Nexus
+     * @param _whitelisted      Whitelisted addresses for vault access
+     * @param _platformAddress  Generic platform address
+     * @param _bAssets          Addresses of initial supported bAssets
+     * @param _pTokens          Platform Token corresponding addresses
      */
     function initialize(
         address _nexus,
@@ -61,6 +80,12 @@ contract AbstractIntegration is Initializable, IPlatformIntegration, GovernableW
         AbstractIntegration._initialize(_platformAddress, _bAssets, _pTokens);
     }
 
+    /**
+     * @dev Internal initialize function, to set up initial internal state
+     * @param _platformAddress  Generic platform address
+     * @param _bAssets          Addresses of initial supported bAssets
+     * @param _pTokens          Platform Token corresponding addresses
+     */
     function _initialize(
         address _platformAddress,
         address[] memory _bAssets,
@@ -81,6 +106,12 @@ contract AbstractIntegration is Initializable, IPlatformIntegration, GovernableW
                     CONFIG
     ****************************************/
 
+    /**
+     * @dev Provide support for bAsset by passing its pToken address.
+     * This method can only be called by the system Governor
+     * @param _bAsset   Address for the bAsset
+     * @param _pToken   Address for the corresponding platform token
+     */
     function setPTokenAddress(address _bAsset, address _pToken)
         external
         onlyGovernor
@@ -88,6 +119,13 @@ contract AbstractIntegration is Initializable, IPlatformIntegration, GovernableW
         _setPTokenAddress(_bAsset, _pToken);
     }
 
+    /**
+     * @dev Provide support for bAsset by passing its pToken address.
+     * Add to internal mappings and execute the platform specific,
+     * abstract method `_abstractSetPToken`
+     * @param _bAsset   Address for the bAsset
+     * @param _pToken   Address for the corresponding platform token
+     */
     function _setPTokenAddress(address _bAsset, address _pToken)
         internal
     {
@@ -104,39 +142,45 @@ contract AbstractIntegration is Initializable, IPlatformIntegration, GovernableW
 
     function _abstractSetPToken(address _bAsset, address _pToken) internal;
 
-    function updatePTokenAddress(address _bAsset, address _pToken)
-        external
-        onlyGovernor
-    {
-        address oldPToken = bAssetToPToken[_bAsset];
-        require(oldPToken != address(0), "pToken not found");
-        require(_bAsset != address(0) && _pToken != address(0), "Invalid addresses");
-
-        bAssetToPToken[_bAsset] = _pToken;
-        emit PTokenUpdated(_bAsset, _pToken);
-
-        _abstractUpdatePToken(_bAsset, oldPToken, _pToken);
-    }
-
-    function _abstractUpdatePToken(address _bAsset, address _oldPToken, address _pToken) internal;
-
     function reApproveAllTokens() external;
 
     /***************************************
                     ABSTRACT
     ****************************************/
 
+    /**
+     * @dev Deposit a quantity of bAsset into the platform
+     * @param _bAsset              Address for the bAsset
+     * @param _amount              Units of bAsset to deposit
+     * @param _isTokenFeeCharged   Flag that signals if an xfer fee is charged on bAsset
+     * @return quantityDeposited   Quantity of bAsset that entered the platform
+     */
     function deposit(address _bAsset, uint256 _amount, bool _isTokenFeeCharged)
         external returns (uint256 quantityDeposited);
 
+    /**
+     * @dev Withdraw a quantity of bAsset from the platform
+     * @param _receiver     Address to which the bAsset should be sent
+     * @param _bAsset       Address of the bAsset
+     * @param _amount       Units of bAsset to withdraw
+     */
     function withdraw(address _receiver, address _bAsset, uint256 _amount) external;
 
+    /**
+     * @dev Get the total bAsset value held in the platform
+     * This includes any interest that was generated since depositing
+     * @param _bAsset     Address of the bAsset
+     * @return balance    Total value of the bAsset in the platform
+     */
     function checkBalance(address _bAsset) external returns (uint256 balance);
 
     /***************************************
                     HELPERS
     ****************************************/
 
+    /**
+     * @dev Simple helper func to get the min of two values
+     */
     function _min(uint256 x, uint256 y)
         internal
         pure
