@@ -1,17 +1,18 @@
 pragma solidity 0.5.16;
 
 import { Module } from "../shared/Module.sol";
-import { AdminUpgradeabilityProxy } from "@openzeppelin/upgrades/contracts/upgradeability/AdminUpgradeabilityProxy.sol";
 import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
+import { AdminUpgradeabilityProxy } from "@openzeppelin/upgrades/contracts/upgradeability/AdminUpgradeabilityProxy.sol";
 
 /**
- * @title   Whitelist
+ * @title   DelayedProxyAdmin
  * @author  Stability Labs Pty. Lte.
  * @notice  Proxy admin contract to upgrade the upgradable contracts. The upgradable contracts
  *          are transparent proxy contracts from OpenZeppelin-SDK.
  * @dev     The contract has a delyed upgradability. The Governor can propose a new implementation
  *          for a proxy contract. After 1 week of opt-out delay, upgrade request can be accepted
  *          and upgrade of contract is performed.
+ *          Part of the code taken from OpenZeppelin-SDK's ProxyAdmin.sol
  */
 contract DelayedProxyAdmin is Module {
     using SafeMath for uint256;
@@ -20,10 +21,13 @@ contract DelayedProxyAdmin is Module {
     event UpgradeCancelled(address indexed proxy);
     event Upgraded(address indexed proxy, address oldImpl, address newImpl, bytes data);
 
+    /**
+     * @dev Request struct to store proposed upgrade requests
+     */
     struct Request{
-        address implementation;
-        bytes data;
-        uint256 timestamp;
+        address implementation; // New contract implementation address
+        bytes data;             // Data to call a function on new contract implementation
+        uint256 timestamp;      // Timestamp when upgrade request is proposed
     }
 
     // Opt-out upgrade delay
@@ -32,9 +36,11 @@ contract DelayedProxyAdmin is Module {
     // ProxyAddress => Request
     mapping(address => Request) public requests;
 
-    constructor(address _nexus) public Module(_nexus) {
-
-    }
+    /**
+     * @dev Constructor
+     * @param _nexus Nexus contract address
+     */
+    constructor(address _nexus) public Module(_nexus) {}
 
     /**
      * @dev The Governor can propose a new contract implementation for a given proxy.
@@ -50,11 +56,10 @@ contract DelayedProxyAdmin is Module {
         external
         onlyGovernor
     {
-        require(_proxy != address(0), "Proxy address zero");
-        require(isValidProxy(_proxy), "No proxy found");
-
-        require(_implementation != address(0), "Implementation address zero");
+        require(_proxy != address(0), "Proxy address is zero");
+        require(_implementation != address(0), "Implementation address is zero");
         require(requests[_proxy].implementation == address(0), "Upgrade already proposed");
+        validateProxy(_proxy, _implementation);
 
         Request storage request = requests[_proxy];
         request.implementation = _implementation;
@@ -69,7 +74,7 @@ contract DelayedProxyAdmin is Module {
      * @param _proxy The proxy address of the existing request
      */
     function cancelUpgrade(address _proxy) external onlyGovernor {
-        require(_proxy != address(0), "Proxy address zero");
+        require(_proxy != address(0), "Proxy address is zero");
         require(requests[_proxy].implementation != address(0), "No request found");
         delete requests[_proxy];
         emit UpgradeCancelled(_proxy);
@@ -77,12 +82,12 @@ contract DelayedProxyAdmin is Module {
 
     /**
      * @dev The Governor can accept upgrade request after opt-out delay over. The function is
-     *      payable, to forward any ETH to initialize function call upon upgrade.
+     *      `payable`, to forward ETH to initialize function call upon upgrade.
      * @param _proxy The address of the proxy
      */
-    function acceptRequest(address payable _proxy) external payable onlyGovernor {
+    function acceptUpgradeRequest(address payable _proxy) external payable onlyGovernor {
         // _proxy is payable, because AdminUpgradeabilityProxy has fallback function
-        require(_proxy != address(0), "Proxy address zero");
+        require(_proxy != address(0), "Proxy address is zero");
         Request memory request = requests[_proxy];
         require(_isDelayOver(request.timestamp), "Delay not over");
 
@@ -92,6 +97,7 @@ contract DelayedProxyAdmin is Module {
         address oldImpl = getProxyImplementation(_proxy);
 
         if(data.length == 0) {
+            require(msg.value == 0, "msg.value should be zero");
             AdminUpgradeabilityProxy(_proxy).upgradeTo(newImpl);
         } else {
             AdminUpgradeabilityProxy(_proxy).upgradeToAndCall.value(msg.value)(newImpl, data);
@@ -103,6 +109,7 @@ contract DelayedProxyAdmin is Module {
 
     /**
      * @dev Checks that the opt-out delay is over
+     * @param _timestamp Timestamp when upgrade requested
      * @return Returns `true` when upgrade delay is over, otherwise `false`
      */
     function _isDelayOver(uint256 _timestamp) private view returns (bool) {
@@ -114,28 +121,30 @@ contract DelayedProxyAdmin is Module {
     /**
      * @dev Checks the given proxy address is a valid proxy for this contract
      * @param _proxy The address of the proxy
-     * @return Returns `true` when proxy address is valid, otherwise `false`
+     * @param _newImpl New implementation contract address
      */
-    function isValidProxy(address _proxy) internal view returns (bool) {
+    function validateProxy(address _proxy, address _newImpl) internal view {
         // Proxy has an implementation
-        address impl = getProxyImplementation(_proxy);
-        if(impl == address(0)) return false;
+        address currentImpl = getProxyImplementation(_proxy);
+        require(currentImpl != address(0), "Current implementation is zero");
+
+        // Existing implementation must not be same as new one
+        require(_newImpl != currentImpl, "Implementation must be different");
 
         // This contract is the Proxy admin of the given _proxy address
         address admin = getProxyAdmin(_proxy);
-        if(admin != address(this)) return false;
-
-        return true;
+        require(admin == address(this), "Proxy admin not matched");
     }
 
     /**
     * @dev Returns the admin of a proxy. Only the admin can query it.
+    * @param _proxy Contract address of Proxy
     * @return The address of the current admin of the proxy.
     */
-    function getProxyAdmin(address proxy) public view returns (address) {
+    function getProxyAdmin(address _proxy) public view returns (address) {
         // We need to manually run the static call since the getter cannot be flagged as view
         // bytes4(keccak256("admin()")) == 0xf851a440
-        (bool success, bytes memory returndata) = proxy.staticcall(hex"f851a440");
+        (bool success, bytes memory returndata) = _proxy.staticcall(hex"f851a440");
         require(success, "Call failed");
         return abi.decode(returndata, (address));
     }
@@ -143,17 +152,19 @@ contract DelayedProxyAdmin is Module {
     /**
     * @dev Returns the current implementation of a proxy.
     * This is needed because only the proxy admin can query it.
+    * @param _proxy Contract address of Proxy
     * @return The address of the current implementation of the proxy.
     */
-    function getProxyImplementation(address proxy) public view returns (address) {
+    function getProxyImplementation(address _proxy) public view returns (address) {
         // We need to manually run the static call since the getter cannot be flagged as view
         // bytes4(keccak256("implementation()")) == 0x5c60da1b
-        (bool success, bytes memory returndata) = proxy.staticcall(hex"5c60da1b");
+        (bool success, bytes memory returndata) = _proxy.staticcall(hex"5c60da1b");
         require(success, "Call failed");
         return abi.decode(returndata, (address));
     }
 
     // TODO this can be removed. However, kept it for us to remind that we are not calling this fn.
+    // We are not allwing this function call from Governor or Governance.
     /**
     * @dev Changes the admin of a proxy.
     * @param proxy Proxy to change admin.
@@ -162,5 +173,4 @@ contract DelayedProxyAdmin is Module {
     // function changeProxyAdmin(AdminUpgradeabilityProxy proxy, address newAdmin) public onlyGovernor {
     //     proxy.changeAdmin(newAdmin);
     // }
-
 }
