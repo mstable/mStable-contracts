@@ -22,7 +22,7 @@ contract AbstractIntegration is Initializable, IPlatformIntegration, GovernableW
     event Deposit(address indexed _bAsset, address _pToken, uint256 _amount);
     event Withdrawal(address indexed _bAsset, address _pToken, uint256 _amount);
 
-    string public constant version = "1.0";
+    string public version = "1.0";
 
     address public platformAddress;
 
@@ -41,6 +41,7 @@ contract AbstractIntegration is Initializable, IPlatformIntegration, GovernableW
         GovernableWhitelist(_nexus, _whitelisted)
     {
         AbstractIntegration._initialize(_platformAddress, _bAssets, _pTokens);
+        version = "1.0";
     }
 
     /**
@@ -59,6 +60,7 @@ contract AbstractIntegration is Initializable, IPlatformIntegration, GovernableW
     {
         GovernableWhitelist._initialize(_nexus, _whitelisted);
         AbstractIntegration._initialize(_platformAddress, _bAssets, _pTokens);
+        version = "1.0";
     }
 
     function _initialize(

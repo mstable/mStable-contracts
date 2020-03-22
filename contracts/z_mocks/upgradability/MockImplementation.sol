@@ -10,13 +10,9 @@ contract MockImplementationV1 is Initializable {
         version = "V1";
         uintVal = 2;
     }
-
-    function method1() public pure returns (bool) {
-        return true;
-    }
 }
 
-contract MockImplementationV2 is Initializable {
+contract MockImplementationV2 is Initializable{
     string public version = "";
     uint256 public uintVal = 1;
 
@@ -25,12 +21,4 @@ contract MockImplementationV2 is Initializable {
         version = "V2";
         uintVal = 3;
     }
-
-    /**
-     * @dev Function to check that new method2 is added in new implementation
-     */
-    function method2() public pure returns (bool) {
-        return true;
-    }
-
 }
