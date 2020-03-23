@@ -54,6 +54,7 @@ contract InitializableModule is InitializableModuleKeys {
      * @param _nexus Nexus contract address
      */
     function _initialize(address _nexus) internal {
+        require(_nexus != address(0), "Nexus address is zero");
         nexus = INexus(_nexus);
         InitializableModuleKeys._initialize();
     }

@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/camelcase */
 /* eslint-disable consistent-return */
 
-import { MockERC20Instance, AaveIntegrationInstance } from "types/generated";
+import * as t from "types/generated";
 import { BN } from "@utils/tools";
 import { StandardAccounts, SystemMachine } from "@utils/machines";
 import { MainnetAccounts } from "@utils/constants";
@@ -9,29 +10,29 @@ import envSetup from "@utils/env_setup";
 
 const { expect, assert } = envSetup.configure();
 
+const c_MockNexus: t.MockNexusContract = artifacts.require("MockNexus");
 const MockERC20 = artifacts.require("MockERC20");
-const AaveVault = artifacts.require("AaveIntegration");
+const c_AaveIntegration: t.AaveIntegrationContract = artifacts.require("AaveIntegration");
+const c_Nexus: t.NexusContract = artifacts.require("Nexus");
 
 let shouldSkip = false;
 
 contract("AaveIntegration", async (accounts) => {
-    let aaveVault: AaveIntegrationInstance;
+    let d_Nexus: t.MockNexusInstance;
+    let d_AaveIntegration: t.AaveIntegrationInstance;
     const sa = new StandardAccounts(accounts);
     const ma = new MainnetAccounts();
     let systemMachine = new SystemMachine(sa.all);
+    const governanceAddr = sa.governor;
+    const managerAddr = sa.dummy4;
 
-    const massetAddr = sa.other;
     before("assertOnFork", async function() {
         shouldSkip = await systemMachine.isRunningValidFork();
+        d_Nexus = await c_MockNexus.new(sa.governor, governanceAddr, managerAddr);
     });
 
     beforeEach("before Each", async function() {
-        // console.log("z");
-        // const isForked: boolean = await systemMachine.isRunningValidFork();
-        // console.log("1");
         if (shouldSkip) {
-            // console.log("Ganache with mainnet HARDFORK needed to run tests.");
-            // console.error("Ganache with mainnet HARDFORK needed to run tests.");
             return this.skip();
         }
         // console.log("z");
@@ -46,8 +47,7 @@ contract("AaveIntegration", async (accounts) => {
         // SETUP
         // ======
         // deploy AaveVault
-        // const aaveLendingPoolProvider = "398eC7346DcD622eDc5ae82352F02bE94C62d119";
-        // aaveVault = await AaveVault.new(aaveLendingPoolProvider, { from: sa.governor });
+        // aaveVault = await c_AaveIntegration.new(ma.aavePlatform, { from: sa.governor });
 
         // Add Whitelisted addresses to allow.
         // await aaveVault.addWhitelisted(massetAddr, { from: sa.governor });
@@ -60,14 +60,159 @@ contract("AaveIntegration", async (accounts) => {
     describe("AAVE", async () => {
         it("should deposit DAI to AAVE", async () => {
             // TODO have a common place for token addresses
-            // console.log("2");
             // await aaveVault.deposit(sa.dummy1, ma.DAI, 100, false, { from: massetAddr });
             // check for aTokens
             // withdraw
         });
-        it("should  do something else", async () => {
-            console.log("3");
-            assert(true, "xx");
+        it("should  do something else");
+    });
+
+    describe("behaviour", async () => {
+        beforeEach("behave like a Module", async () => {
+            // Module
+        });
+
+        // shouldB
+    });
+
+    describe("InitializableModule", async () => {
+
+    });
+
+    describe("AbstractIntegration", async () => {
+        describe("constructor", async () => {
+            describe("should succeed", async () => {
+                it("when passed valid arguments");
+
+                it("and have expected version");
+
+                it("and have expected platformAddress");
+
+                it("and have expected bAssetToPToken");
+            });
+
+            describe("should fail", async () => {                
+                it("when nexus address is zero");     
+            });
+        });
+
+        describe("initialize", async () => {
+            describe("should succeed", async () => {
+                it("");
+            });
+            
+            describe("should fail", async () => {
+                it("when initialize function called again");
+
+                it("when platformAddress is zero");
+
+                it("when bAsset and pToken array length are different");
+
+                it("when bAsset address is zero");
+
+                it("when pToken address is zero");
+
+                it("when pToken address already assigned for a bAsset");
+            });            
+        });
+
+        describe("setPTokenAddress", async () => {
+            describe("should succeed", async () => {
+                it("when function called by the Governor");
+            });
+
+            describe("should fail", async () => {
+                it("when function called by Other user");
+
+                it("when bAsset address is zero");
+
+                it("when pToken address is zero");
+
+                it("when pToken address already assigned for a bAsset");
+            });
         });
     });
+
+    describe("GovernableWhitelist", async () => {
+        describe("constructor", async () => {
+            describe("should succeed", async () => {
+                it("when passed valid arguments");
+            });
+
+            describe("should fail", async () => {
+                it("when empty whitelisted array");
+
+                it("when whitelisted address is zero");
+
+                it("when address already whitelisted");       
+            });
+        });
+    });
+
+    describe("AaveIntegration", async () => {
+        describe("constructor", async () => {
+            describe("should succeed", async () => {
+                it("");
+            });
+
+            describe("should fail", async () => {
+                it("");
+            });
+        });
+
+        describe("deposit", async () => {
+            describe("should succeed", async () => {
+                it("when a whitelisted user calls function");
+
+                it("when token transfer fee charged");
+
+                it("when no token transfer fee charged");
+            });
+
+            describe("should fail", async () => {
+                it("when a non-whitelisted user calls function");
+
+                it("when wrong bAsset address passed");
+            });
+        });
+
+        describe("withdraw", async () => {
+            describe("should succeed", async () => {
+                it("when a whitelisted user calls function");
+            });
+
+            describe("should fail", async () => {
+                it("when a non-whitelisted user calls function");
+
+                it("when wrong bAsset address passed");
+            });
+        });
+
+        describe("checkBalance", async () => {
+            describe("should succeed", async () => {
+                it("when supported token address passed");
+            });
+
+            describe("should fail", async () => {
+                it("when non-supported token address passed");
+            });
+        });
+
+        describe("reApproveAllTokens", async () => {
+            describe("should succeed", async () => {
+                it("when function called by the Governor");
+                
+                it("when function called multiple times");
+            });
+
+            describe("should fail", async () => {
+                it("when function called by the Other user");
+            });
+        });
+
+        describe("disapprove", async () => {
+            it("should be implemented...");
+        });
+    });
+
 });
