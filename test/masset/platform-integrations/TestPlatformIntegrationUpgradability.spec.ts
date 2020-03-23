@@ -19,6 +19,7 @@ const MockImplementationV2: t.MockImplementationV2Contract = artifacts.require("
 const c_MockNexus: t.MockNexusContract = artifacts.require("MockNexus");
 const c_AaveIntegration: t.AaveIntegrationContract = artifacts.require("AaveIntegration");
 const c_AaveIntegrationV2: t.AaveIntegrationV2Contract = artifacts.require("AaveIntegrationV2");
+const c_AaveIntegrationV3: t.AaveIntegrationV3Contract = artifacts.require("AaveIntegrationV3");
 
 const c_MockAToken: t.MockATokenContract = artifacts.require("MockAToken");
 const c_MockAave: t.MockAaveContract = artifacts.require("MockAave");
@@ -36,11 +37,14 @@ contract("UpgradedAaveIntegration", async (accounts) => {
     let d_AaveIntegrationProxy: t.InitializableAdminUpgradeabilityProxyInstance;
     let d_AaveIntegrationV1: t.AaveIntegrationInstance;
     let d_AaveIntegrationV2: t.AaveIntegrationV2Instance;
+    let d_AaveIntegrationV3: t.AaveIntegrationV3Instance;
+
     let d_MockAave: t.MockAaveInstance;
     let d_mockBasset1: t.ERC20MockInstance;
     let d_mockAToken1: t.MockATokenInstance;
 
     let proxyToImplV2: t.AaveIntegrationV2Instance;
+    let proxyToImplV3: t.AaveIntegrationV3Instance;
 
     before("before all", async () => {
         // create New Nexus
@@ -203,7 +207,36 @@ contract("UpgradedAaveIntegration", async (accounts) => {
             );
         });
 
-        it("should not have removed functions");
+        it("should not have removed functions in upgraded contract", async () => {
+            // Upgrade to new version of AaveIntegration v3 via ProxyAdmin
+            // ========================================================
+            d_AaveIntegrationV3 = await c_AaveIntegrationV3.new(
+                d_Nexus.address,
+                [sa.dummy3, sa.dummy4],
+                sa.dummy1,
+                [],
+                []
+            );
+            const initializationData_AaveIntegrationV3: string = d_AaveIntegrationV3.contract.methods
+            .initializeNewUint().encodeABI();
+            await d_DelayedProxyAdmin.proposeUpgrade(
+                d_AaveIntegrationProxy.address, 
+                d_AaveIntegrationV3.address, 
+                initializationData_AaveIntegrationV3,
+                {from: sa.governor}
+            );
+            await increase(ONE_WEEK);
+            await d_DelayedProxyAdmin.acceptUpgradeRequest(
+                d_AaveIntegrationProxy.address,
+                {from: sa.governor}
+            );
+
+            // We are taking V2's code so that `newMethod()` function can be called
+            // However, we know that implementation is on V3
+            proxyToImplV2 = await c_AaveIntegrationV2.at(d_AaveIntegrationProxy.address);
+
+            await shouldFail.reverting.withMessage(proxyToImplV2.newMethod(), "");
+        });
     });
 
 });
