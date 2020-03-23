@@ -31,13 +31,13 @@ const c_BasketManager: t.BasketManagerContract = artifacts.require("BasketManage
 
 // Masset
 const c_MUSD: t.MUSDContract = artifacts.require("MUSD");
-const c_ERC20Mock: t.ERC20MockContract = artifacts.require("ERC20Mock");
+const c_MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
 const c_ERC20: t.ERC20Contract = artifacts.require("ERC20");
 
 export interface MassetDetails {
     mAsset?: t.MassetInstance;
     basketManager?: t.BasketManagerInstance;
-    bAssets?: Array<t.ERC20MockInstance>;
+    bAssets?: Array<t.MockERC20Instance>;
     proxyAdmin?: t.DelayedProxyAdminInstance;
     aaveIntegration?: t.AaveIntegrationInstance;
     compoundIntegration?: t.CompoundIntegrationInstance;
@@ -58,7 +58,7 @@ enum Platform {
 }
 
 interface BassetIntegrationDetails {
-    bAssets: Array<t.ERC20MockInstance>;
+    bAssets: Array<t.MockERC20Instance>;
     platforms: Array<Platform>;
     aavePlatformAddress: Address;
     aTokens: Array<ATokenDetails>;
@@ -226,16 +226,16 @@ export class MassetMachine {
 
     public async loadBassetsFork(): Promise<BassetIntegrationDetails> {
         // load all the REAL bAssets
-        const bAsset_DAI = await c_ERC20Mock.at(this.ma.DAI);
+        const bAsset_DAI = await c_MockERC20.at(this.ma.DAI);
         await this.mintERC20(bAsset_DAI, this.ma.FUND_SOURCES.dai);
 
-        const bAsset_USDC = await c_ERC20Mock.at(this.ma.USDC);
+        const bAsset_USDC = await c_MockERC20.at(this.ma.USDC);
         await this.mintERC20(bAsset_USDC, this.ma.FUND_SOURCES.usdc);
 
-        const bAsset_TUSD = await c_ERC20Mock.at(this.ma.TUSD);
+        const bAsset_TUSD = await c_MockERC20.at(this.ma.TUSD);
         await this.mintERC20(bAsset_TUSD, this.ma.FUND_SOURCES.tusd);
 
-        const bAsset_USDT = await c_ERC20Mock.at(this.ma.USDT);
+        const bAsset_USDT = await c_MockERC20.at(this.ma.USDT);
         await this.mintERC20(bAsset_USDT, this.ma.FUND_SOURCES.usdt);
         // credit sa.default with ample balances
         const bAssets = [bAsset_DAI, bAsset_USDC, bAsset_TUSD, bAsset_USDT];
@@ -269,28 +269,28 @@ export class MassetMachine {
 
     public async loadBassetsLocal(): Promise<BassetIntegrationDetails> {
         //  - Mock bAssets
-        const mockBasset1: t.ERC20MockInstance = await c_ERC20Mock.new(
+        const mockBasset1: t.MockERC20Instance = await c_MockERC20.new(
             "Mock1",
             "MK1",
             12,
             this.sa.default,
             100000000,
         );
-        const mockBasset2: t.ERC20MockInstance = await c_ERC20Mock.new(
+        const mockBasset2: t.MockERC20Instance = await c_MockERC20.new(
             "Mock2",
             "MK2",
             18,
             this.sa.default,
             100000000,
         );
-        const mockBasset3: t.ERC20MockInstance = await c_ERC20Mock.new(
+        const mockBasset3: t.MockERC20Instance = await c_MockERC20.new(
             "Mock3",
             "MK3",
             6,
             this.sa.default,
             100000000,
         );
-        const mockBasset4: t.ERC20MockInstance = await c_ERC20Mock.new(
+        const mockBasset4: t.MockERC20Instance = await c_MockERC20.new(
             "Mock4",
             "MK4",
             18,
@@ -350,7 +350,7 @@ export class MassetMachine {
     }
 
     public async mintERC20(
-        erc20: t.ERC20MockInstance,
+        erc20: t.MockERC20Instance,
         source: Address,
         recipient: string = this.sa.default,
     ): Promise<Truffle.TransactionResponse> {

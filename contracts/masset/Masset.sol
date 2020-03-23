@@ -2,13 +2,12 @@ pragma solidity 0.5.16;
 pragma experimental ABIEncoderV2;
 
 // External
-// import { IBasketManager } from "../interfaces/IBasketManager.sol";
 import { IForgeValidator } from "./forge-validator/IForgeValidator.sol";
 import { IPlatformIntegration } from "../interfaces/IPlatformIntegration.sol";
+import { IBasketManager } from "../interfaces/IBasketManager.sol";
 
 // Internal
 import { IMasset } from "../interfaces/IMasset.sol";
-import { BasketManager } from "./BasketManager.sol";
 import { MassetToken } from "./MassetToken.sol";
 import { PausableModule } from "../shared/PausableModule.sol";
 import { MassetStructs } from "./shared/MassetStructs.sol";
@@ -44,7 +43,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
     IForgeValidator public forgeValidator;
     bool internal forgeValidatorLocked = false;
     // IBasketManager private basketManager;
-    BasketManager private basketManager;
+    IBasketManager private basketManager;
 
     /** @dev Meta information for ecosystem fees */
     address public feeRecipient;
@@ -74,7 +73,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         feeRecipient = _feeRecipient;
         forgeValidator = IForgeValidator(_forgeValidator);
 
-        basketManager = BasketManager(_basketManager);
+        basketManager = IBasketManager(_basketManager);
 
         redemptionFee = 2e16;
     }
@@ -175,22 +174,24 @@ contract Masset is IMasset, MassetToken, PausableModule {
         require(_recipient != address(0), "Recipient must not be 0x0");
         require(_bAssetQuantity > 0, "Quantity must not be 0");
 
-        (Basset memory b, address integrator, uint8 index) = basketManager.getForgeBasset(_bAsset, true);
+        ForgeProps memory props = basketManager.prepareForgeBasset(_bAsset, true);
+        if(!props.isValid) return 0;
 
         // Transfer collateral to the platform integration address and call deposit
-        bool xferCharged = b.isTransferFeeCharged;
+        bool xferCharged = props.bAsset.isTransferFeeCharged;
+        address integrator = props.integrator;
         uint256 quantityTransferred = MassetHelpers.transferTokens(msg.sender, integrator, _bAsset, xferCharged, _bAssetQuantity);
         uint256 quantityDeposited = IPlatformIntegration(integrator).deposit(_bAsset, quantityTransferred, xferCharged);
 
         // Validation should be after token transfer, as bAssetQty is unknown before
-        (bool isValid, string memory reason) = forgeValidator.validateMint(totalSupply(), b, quantityDeposited);
-        require(isValid, reason);
+        (bool mintValid, string memory reason) = forgeValidator.validateMint(totalSupply(), props.bAsset, quantityDeposited);
+        require(mintValid, reason);
 
         // Log the Vault increase - can only be done when basket is healthy
-        basketManager.increaseVaultBalance(index, integrator, quantityDeposited);
+        basketManager.increaseVaultBalance(props.index, integrator, quantityDeposited);
 
         // ratioedBasset is the number of masset quantity to mint
-        uint256 ratioedBasset = quantityDeposited.mulRatioTruncate(b.ratio);
+        uint256 ratioedBasset = quantityDeposited.mulRatioTruncate(props.bAsset.ratio);
 
         // Mint the Masset
         _mint(_recipient, ratioedBasset);
@@ -218,8 +219,9 @@ contract Masset is IMasset, MassetToken, PausableModule {
         uint256 len = _bassetQuantity.length;
 
         // Load only needed bAssets in array
-        (Basset[] memory bAssets, address[] memory integrators, uint8[] memory indexes)
-            = basketManager.getForgeBassets(_bassetsBitmap, uint8(len), true);
+        ForgePropsMulti memory props
+            = basketManager.prepareForgeBassets(_bassetsBitmap, uint8(len), true);
+        if(!props.isValid) return 0;
 
         uint256 massetQuantity = 0;
 
@@ -229,16 +231,16 @@ contract Masset is IMasset, MassetToken, PausableModule {
             uint256 bAssetQuantity = _bassetQuantity[i];
             if(bAssetQuantity > 0){
                 // bAsset == bAssets[i] == basket.bassets[indexes[i]]
-                Basset memory bAsset = bAssets[i];
+                Basset memory bAsset = props.bAssets[i];
 
-                address integrator = integrators[i];
+                address integrator = props.integrators[i];
                 bool xferCharged = bAsset.isTransferFeeCharged;
 
                 uint256 quantityTransfered = MassetHelpers.transferTokens(msg.sender, integrator, bAsset.addr, xferCharged, bAssetQuantity);
                 uint256 quantityDeposited = IPlatformIntegration(integrator).deposit(bAsset.addr, quantityTransfered, xferCharged);
                 receivedQty[i] = quantityDeposited;
 
-                basketManager.increaseVaultBalance(indexes[i], integrator, quantityDeposited);
+                basketManager.increaseVaultBalance(props.indexes[i], integrator, quantityDeposited);
 
                 uint256 ratioedBasset = quantityDeposited.mulRatioTruncate(bAsset.ratio);
                 massetQuantity = massetQuantity.add(ratioedBasset);
@@ -246,8 +248,8 @@ contract Masset is IMasset, MassetToken, PausableModule {
         }
 
         // Validate the proposed mint, after token transfer, as bAsset quantity is unknown until transferred
-        (bool isValid, string memory reason) = forgeValidator.validateMint(totalSupply(), bAssets, receivedQty);
-        require(isValid, reason);
+        (bool mintValid, string memory reason) = forgeValidator.validateMint(totalSupply(), props.bAssets, receivedQty);
+        require(mintValid, reason);
 
         require(massetQuantity > 0, "No masset quantity to mint");
 
@@ -331,18 +333,19 @@ contract Masset is IMasset, MassetToken, PausableModule {
 
         Basket memory basket = basketManager.getBasket();
 
-        (Basset memory b, address integrator, uint8 index) = basketManager.getForgeBasset(_bAsset, false);
+        ForgeProps memory props = basketManager.prepareForgeBasset(_bAsset, false);
+        if(!props.isValid) return 0;
 
         // Validate redemption
-        (bool isValid, string memory reason) =
-            forgeValidator.validateRedemption(basket.bassets, basket.failed, totalSupply(), index, _bAssetQuantity);
-        require(isValid, reason);
+        (bool redemptionValid, string memory reason) =
+            forgeValidator.validateRedemption(basket.bassets, basket.failed, totalSupply(), props.index, _bAssetQuantity);
+        require(redemptionValid, reason);
 
         // Calc equivalent mAsset amount
-        uint256 massetQuantity = _bAssetQuantity.mulRatioTruncateCeil(b.ratio);
+        uint256 massetQuantity = _bAssetQuantity.mulRatioTruncateCeil(props.bAsset.ratio);
 
         // Decrease balance in storage
-        basketManager.decreaseVaultBalance(index, integrator, _bAssetQuantity);
+        basketManager.decreaseVaultBalance(props.index, props.integrator, _bAssetQuantity);
 
         // Pay the redemption fee
         _payRedemptionFee(massetQuantity, msg.sender);
@@ -354,7 +357,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         _burn(msg.sender, massetQuantity);
 
         // Transfer the Bassets to the user
-        IPlatformIntegration(integrator).withdraw(_recipient, b.addr, _bAssetQuantity);
+        IPlatformIntegration(props.integrator).withdraw(_recipient, props.bAsset.addr, _bAssetQuantity);
 
         emit Redeemed(_recipient, msg.sender, massetQuantity, _bAsset, _bAssetQuantity);
         return massetQuantity;
@@ -380,13 +383,14 @@ contract Masset is IMasset, MassetToken, PausableModule {
         Basket memory basket = basketManager.getBasket();
 
         // Load only needed bAssets in array
-        (Basset[] memory bAssets, address[] memory integrators, uint8[] memory indexes)
-            = basketManager.getForgeBassets(_bassetsBitmap, uint8(redemptionAssetCount), false);
+        ForgePropsMulti memory props
+            = basketManager.prepareForgeBassets(_bassetsBitmap, uint8(redemptionAssetCount), false);
+        if(!props.isValid) return 0;
 
         // Validate redemption
-        (bool isValid, string memory reason) =
-            forgeValidator.validateRedemption(basket.bassets, basket.failed, totalSupply(), indexes, _bassetQuantities);
-        require(isValid, reason);
+        (bool redemptionValid, string memory reason) =
+            forgeValidator.validateRedemption(basket.bassets, basket.failed, totalSupply(), props.indexes, _bassetQuantities);
+        require(redemptionValid, reason);
 
         uint256 massetQuantity = 0;
 
@@ -395,11 +399,11 @@ contract Masset is IMasset, MassetToken, PausableModule {
             uint256 bAssetQuantity = _bassetQuantities[i];
             if(bAssetQuantity > 0){
                 // Calc equivalent mAsset amount
-                uint256 ratioedBasset = bAssetQuantity.mulRatioTruncateCeil(bAssets[i].ratio);
+                uint256 ratioedBasset = bAssetQuantity.mulRatioTruncateCeil(props.bAssets[i].ratio);
                 massetQuantity = massetQuantity.add(ratioedBasset);
 
                 // bAsset == bAssets[i] == basket.bassets[indexes[i]]
-                basketManager.decreaseVaultBalance(indexes[i], integrators[i], bAssetQuantity);
+                basketManager.decreaseVaultBalance(props.indexes[i], props.integrators[i], bAssetQuantity);
             }
         }
 
@@ -415,7 +419,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         // Transfer the Bassets to the user
         for(uint256 i = 0; i < redemptionAssetCount; i++){
             if(_bassetQuantities[i] > 0){
-                IPlatformIntegration(integrators[i]).withdraw(_recipient, bAssets[i].addr, _bassetQuantities[i]);
+                IPlatformIntegration(props.integrators[i]).withdraw(_recipient, props.bAssets[i].addr, _bassetQuantities[i]);
             }
         }
 

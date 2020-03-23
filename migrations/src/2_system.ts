@@ -32,7 +32,7 @@ export default async ({ artifacts }, deployer, network, accounts) => {
     const c_BasketManager: t.BasketManagerContract = artifacts.require("BasketManager");
     // - mUSD
     const c_MUSD: t.MUSDContract = artifacts.require("MUSD");
-    const c_ERC20Mock: t.ERC20MockContract = artifacts.require("ERC20Mock");
+    const c_MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
 
     // Nexus
     const c_Nexus: t.NexusContract = artifacts.require("Nexus");
@@ -57,28 +57,28 @@ export default async ({ artifacts }, deployer, network, accounts) => {
     ****************************************/
 
     //  - Mock bAssets
-    const mockBasset1: t.ERC20MockInstance = await c_ERC20Mock.new(
+    const mockBasset1: t.MockERC20Instance = await c_MockERC20.new(
         "Mock1",
         "MK1",
         12,
         default_,
         100000000,
     );
-    const mockBasset2: t.ERC20MockInstance = await c_ERC20Mock.new(
+    const mockBasset2: t.MockERC20Instance = await c_MockERC20.new(
         "Mock2",
         "MK2",
         18,
         default_,
         100000000,
     );
-    const mockBasset3: t.ERC20MockInstance = await c_ERC20Mock.new(
+    const mockBasset3: t.MockERC20Instance = await c_MockERC20.new(
         "Mock3",
         "MK3",
         6,
         default_,
         100000000,
     );
-    const mockBasset4: t.ERC20MockInstance = await c_ERC20Mock.new(
+    const mockBasset4: t.MockERC20Instance = await c_MockERC20.new(
         "Mock4",
         "MK4",
         18,

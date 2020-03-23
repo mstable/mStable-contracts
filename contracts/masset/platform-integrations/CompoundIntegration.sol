@@ -1,9 +1,14 @@
 pragma solidity 0.5.16;
 
+import { ICERC20 } from "./ICompound.sol";
 import { AbstractIntegration, MassetHelpers, IERC20 } from "./AbstractIntegration.sol";
 
-import { ICERC20 } from "./ICompound.sol";
 
+/**
+ * @title   CompoundIntegration
+ * @author  Stability Labs Pty. Lte.
+ * @notice  A simple connection to deposit and withdraw bAssets from Compound
+ */
 contract CompoundIntegration is AbstractIntegration {
 
     constructor(
@@ -27,6 +32,15 @@ contract CompoundIntegration is AbstractIntegration {
                     CORE
     ****************************************/
 
+    /**
+     * @dev Deposit a quantity of bAsset into the platform. Credited cTokens
+     * remain here in the vault. Can only be called by whitelisted addresses
+     * (mAsset and corresponding BasketManager)
+     * @param _bAsset              Address for the bAsset
+     * @param _amount              Units of bAsset to deposit
+     * @param _isTokenFeeCharged   Flag that signals if an xfer fee is charged on bAsset
+     * @return quantityDeposited   Quantity of bAsset that entered the platform
+     */
     function deposit(
         address _bAsset,
         uint256 _amount,
@@ -56,6 +70,13 @@ contract CompoundIntegration is AbstractIntegration {
         emit Deposit(_bAsset, address(cToken), quantityDeposited);
     }
 
+    /**
+     * @dev Withdraw a quantity of bAsset from Compound. Redemption
+     * should fail if we have insufficient cToken balance.
+     * @param _receiver     Address to which the withdrawn bAsset should be sent
+     * @param _bAsset       Address of the bAsset
+     * @param _amount       Units of bAsset to withdraw
+     */
     function withdraw(
         address _receiver,
         address _bAsset,
@@ -76,6 +97,14 @@ contract CompoundIntegration is AbstractIntegration {
         emit Withdrawal(_bAsset, address(cToken), _amount);
     }
 
+    /**
+     * @dev Get the total bAsset value held in the platform
+     * This includes any interest that was generated since depositing
+     * Compound exchange rate between the cToken and bAsset gradually increases,
+     * causing the cToken to be worth more corresponding bAsset.
+     * @param _bAsset     Address of the bAsset
+     * @return balance    Total value of the bAsset in the platform
+     */
     function checkBalance(address _bAsset)
         external
         returns (uint256 balance)
@@ -89,6 +118,10 @@ contract CompoundIntegration is AbstractIntegration {
                     APPROVALS
     ****************************************/
 
+    /**
+     * @dev Re-approve the spending of all bAssets by their corresponding cToken,
+     * if for some reason is it necessary. Only callable through Governance.
+     */
     function reApproveAllTokens()
         external
         onlyGovernor
@@ -101,6 +134,12 @@ contract CompoundIntegration is AbstractIntegration {
         }
     }
 
+    /**
+     * @dev Internal method to respond to the addition of new bAsset / cTokens
+     * We need to approve the cToken and give it permission to spend the bAsset
+     * @param _bAsset Address of the bAsset to approve
+     * @param _cToken This cToken has the approval approval
+     */
     function _abstractSetPToken(address _bAsset, address _cToken)
         internal
     {
@@ -108,19 +147,16 @@ contract CompoundIntegration is AbstractIntegration {
         MassetHelpers.safeInfiniteApprove(_bAsset, _cToken);
     }
 
-    function _abstractUpdatePToken(address _bAsset, address _oldCToken, address _newCToken)
-        internal
-    {
-        // Clean up old allowance
-        IERC20(_bAsset).safeApprove(_oldCToken, 0);
-        // approve the pool to spend the bAsset
-        MassetHelpers.safeInfiniteApprove(_bAsset, _newCToken);
-    }
-
     /***************************************
                     HELPERS
     ****************************************/
 
+    /**
+     * @dev Get the cToken wrapped in the ICERC20 interface for this bAsset.
+     * Fails if the pToken doesn't exist in our mappings.
+     * @param _bAsset  Address of the bAsset
+     * @return cToken  Corresponding cToken to this bAsset
+     */
     function _getCTokenFor(address _bAsset)
         internal
         view
@@ -131,6 +167,11 @@ contract CompoundIntegration is AbstractIntegration {
         return ICERC20(cToken);
     }
 
+    /**
+     * @dev Get the total bAsset value held in the platform
+     * @param _cToken     cToken for which to check balance
+     * @return balance    Total value of the bAsset in the platform
+     */
     function _checkBalance(ICERC20 _cToken)
         internal
         returns (uint256 balance)

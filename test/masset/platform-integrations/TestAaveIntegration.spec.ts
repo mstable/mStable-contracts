@@ -1,6 +1,6 @@
 /* eslint-disable consistent-return */
 
-import { ERC20MockInstance, AaveIntegrationInstance } from "types/generated";
+import { MockERC20Instance, AaveIntegrationInstance } from "types/generated";
 import { BN } from "@utils/tools";
 import { StandardAccounts, SystemMachine } from "@utils/machines";
 import { MainnetAccounts } from "@utils/constants";
@@ -9,12 +9,12 @@ import envSetup from "@utils/env_setup";
 
 const { expect, assert } = envSetup.configure();
 
-const ERC20Mock = artifacts.require("ERC20Mock");
+const MockERC20 = artifacts.require("MockERC20");
 const AaveVault = artifacts.require("AaveIntegration");
 
 let shouldSkip = false;
 
-contract("AaveVault", async (accounts) => {
+contract("AaveIntegration", async (accounts) => {
     let aaveVault: AaveIntegrationInstance;
     const sa = new StandardAccounts(accounts);
     const ma = new MainnetAccounts();

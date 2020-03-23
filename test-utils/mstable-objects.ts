@@ -2,7 +2,7 @@ import { BN } from "./tools";
 
 import { ZERO_ADDRESS } from "./constants";
 import { createMultiple, percentToWeight, simpleToExactAmount } from "./math";
-import { ERC20MockInstance } from "types/generated";
+import { MockERC20Instance } from "types/generated";
 
 /**
  * @notice Relevant object interfaces and helper methods to initialise mock instances of those interfaces
@@ -33,7 +33,7 @@ export interface Basset {
     ratio: BN;
     maxWeight: BN;
     vaultBalance: BN;
-    contract?: ERC20MockInstance;
+    contract?: MockERC20Instance;
 }
 
 export const createBasket = (bassets: Basset[], failed = false): Basket => {

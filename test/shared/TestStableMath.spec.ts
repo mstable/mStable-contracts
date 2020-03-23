@@ -14,7 +14,7 @@ contract("StableMath", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     let math: PublicStableMathInstance;
 
-    beforeEach(async () => {
+    before(async () => {
         math = await PublicStableMath.new();
     });
 

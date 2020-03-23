@@ -8,7 +8,7 @@ import { aToH, BN } from "@utils/tools";
 
 import envSetup from "@utils/env_setup";
 import * as chai from "chai";
-import { ERC20MockInstance, MassetInstance } from "types/generated";
+import { MockERC20Instance, MassetInstance } from "types/generated";
 import { MassetDetails } from "@utils/machines/massetMachine";
 import { fullScale } from "@utils/constants";
 
