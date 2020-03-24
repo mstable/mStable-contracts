@@ -46,7 +46,7 @@ interface MassetStructs {
         uint256 ratio;
 
         /** @dev Target weights of the Basset (100% == 1e18) */
-        uint256 maxWeight;
+        uint256 targetWeight;
 
         /** @dev Amount of the Basset that is held in Collateral */
         uint256 vaultBalance;
@@ -70,6 +70,7 @@ interface MassetStructs {
         Basset bAsset;
         address integrator;
         uint8 index;
+        uint256 grace;
     }
 
     struct ForgePropsMulti {
@@ -77,5 +78,6 @@ interface MassetStructs {
         Basset[] bAssets;
         address[] integrators;
         uint8[] indexes;
+        uint256 grace;
     }
 }

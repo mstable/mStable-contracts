@@ -1,6 +1,6 @@
 import * as t from "types/generated";
 
-import { percentToWeight } from "@utils/math";
+import { percentToWeight, simpleToExactAmount } from "@utils/math";
 import { ZERO_ADDRESS } from "@utils/constants";
 
 export default async ({ artifacts }, deployer, network, accounts) => {
@@ -192,6 +192,7 @@ export default async ({ artifacts }, deployer, network, accounts) => {
         .initialize(
             d_Nexus.address,
             d_MUSD.address,
+            simpleToExactAmount("100000", 18).toString(),
             [mockBasset1.address, mockBasset2.address, mockBasset3.address, mockBasset4.address],
             [
                 d_AaveIntegrationProxy.address,
@@ -200,10 +201,10 @@ export default async ({ artifacts }, deployer, network, accounts) => {
                 d_CompoundIntegrationProxy.address,
             ],
             [
-                percentToWeight(100).toString(),
-                percentToWeight(100).toString(),
-                percentToWeight(100).toString(),
-                percentToWeight(100).toString(),
+                percentToWeight(25).toString(),
+                percentToWeight(25).toString(),
+                percentToWeight(25).toString(),
+                percentToWeight(25).toString(),
             ],
             [false, false, false, false],
         )

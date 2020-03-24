@@ -31,7 +31,7 @@ export interface Basset {
     status: BassetStatus;
     isTransferFeeCharged: boolean;
     ratio: BN;
-    maxWeight: BN;
+    targetWeight: BN;
     vaultBalance: BN;
     contract?: MockERC20Instance;
 }
@@ -46,7 +46,7 @@ export const createBasket = (bassets: Basset[], failed = false): Basket => {
 };
 
 // export const createBasset = (
-//     maxWeight: number,
+//     targetWeight: number,
 //     vaultBalance: number,
 //     decimals = 18,
 //     status = BassetStatus.Normal,
@@ -55,7 +55,7 @@ export const createBasket = (bassets: Basset[], failed = false): Basket => {
 //         addr: ZERO_ADDRESS,
 //         isTransferFeeCharged: false,
 //         ratio: createMultiple(new BN(10).pow(new BN(18 - decimals)).toNumber()),
-//         maxWeight: percentToWeight(maxWeight),
+//         targetWeight: percentToWeight(targetWeight),
 //         vaultBalance: simpleToExactAmount(vaultBalance, decimals),
 //         status,
 //     };

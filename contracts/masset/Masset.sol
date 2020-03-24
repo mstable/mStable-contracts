@@ -184,7 +184,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         uint256 quantityDeposited = IPlatformIntegration(integrator).deposit(_bAsset, quantityTransferred, xferCharged);
 
         // Validation should be after token transfer, as bAssetQty is unknown before
-        (bool mintValid, string memory reason) = forgeValidator.validateMint(totalSupply(), props.bAsset, quantityDeposited);
+        (bool mintValid, string memory reason) = forgeValidator.validateMint(totalSupply(), props.grace, props.bAsset, quantityDeposited);
         require(mintValid, reason);
 
         // Log the Vault increase - can only be done when basket is healthy
@@ -248,7 +248,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         }
 
         // Validate the proposed mint, after token transfer, as bAsset quantity is unknown until transferred
-        (bool mintValid, string memory reason) = forgeValidator.validateMint(totalSupply(), props.bAssets, receivedQty);
+        (bool mintValid, string memory reason) = forgeValidator.validateMint(totalSupply(), props.grace, props.bAssets, receivedQty);
         require(mintValid, reason);
 
         require(massetQuantity > 0, "No masset quantity to mint");
@@ -338,7 +338,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
 
         // Validate redemption
         (bool redemptionValid, string memory reason) =
-            forgeValidator.validateRedemption(basket.bassets, basket.failed, totalSupply(), props.index, _bAssetQuantity);
+            forgeValidator.validateRedemption(basket.failed, totalSupply(), basket.bassets, props.grace, props.index, _bAssetQuantity);
         require(redemptionValid, reason);
 
         // Calc equivalent mAsset amount
@@ -389,7 +389,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
 
         // Validate redemption
         (bool redemptionValid, string memory reason) =
-            forgeValidator.validateRedemption(basket.bassets, basket.failed, totalSupply(), props.indexes, _bassetQuantities);
+            forgeValidator.validateRedemption(basket.failed, totalSupply(), basket.bassets, props.grace, props.indexes, _bassetQuantities);
         require(redemptionValid, reason);
 
         uint256 massetQuantity = 0;
