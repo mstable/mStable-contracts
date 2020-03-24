@@ -1,7 +1,11 @@
-import { MassetDetails } from "types/machines";
 import * as t from "types/generated";
 import { Address } from "types/common";
-import { BassetIntegrationDetails, Platform, ATokenDetails, CTokenDetails } from "types/machines";
+import {
+    BassetIntegrationDetails,
+    Platform,
+    ATokenDetails,
+    CTokenDetails,
+} from "../../types/machines";
 import { SystemMachine, StandardAccounts } from ".";
 import { createMultiple, simpleToExactAmount, percentToWeight } from "@utils/math";
 import { BN, aToH } from "@utils/tools";
@@ -34,6 +38,15 @@ const c_BasketManager: t.BasketManagerContract = artifacts.require("BasketManage
 const c_MUSD: t.MUSDContract = artifacts.require("MUSD");
 const c_MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
 const c_ERC20: t.ERC20Contract = artifacts.require("ERC20");
+
+export interface MassetDetails {
+    mAsset?: t.MassetInstance;
+    basketManager?: t.BasketManagerInstance;
+    bAssets?: Array<t.MockERC20Instance>;
+    proxyAdmin?: t.DelayedProxyAdminInstance;
+    aaveIntegration?: t.AaveIntegrationInstance;
+    compoundIntegration?: t.CompoundIntegrationInstance;
+}
 
 export class MassetMachine {
     public system: SystemMachine;

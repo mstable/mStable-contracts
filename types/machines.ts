@@ -1,13 +1,5 @@
 import * as t from "./generated";
-
-export interface MassetDetails {
-    mAsset?: t.MassetInstance;
-    basketManager?: t.BasketManagerInstance;
-    bAssets?: Array<t.MockERC20Instance>;
-    proxyAdmin?: t.DelayedProxyAdminInstance;
-    aaveIntegration?: t.AaveIntegrationInstance;
-    compoundIntegration?: t.CompoundIntegrationInstance;
-}
+import { Address } from "./common";
 
 export interface ATokenDetails {
     bAsset: Address;

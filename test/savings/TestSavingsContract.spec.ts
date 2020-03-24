@@ -3,13 +3,18 @@
 import { createMultiple, simpleToExactAmount } from "@utils/math";
 import { createBasket, Basket } from "@utils/mstable-objects";
 import { shouldFail } from "openzeppelin-test-helpers";
-import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
+import {
+    BassetMachine,
+    MassetMachine,
+    StandardAccounts,
+    SystemMachine,
+    MassetDetails,
+} from "@utils/machines";
 import { aToH, BN } from "@utils/tools";
 
 import envSetup from "@utils/env_setup";
 import * as chai from "chai";
 import { MockERC20Instance, MassetInstance } from "types/generated";
-import { MassetDetails } from "types/machines";
 import { fullScale } from "@utils/constants";
 
 const { expect, assert } = envSetup.configure();

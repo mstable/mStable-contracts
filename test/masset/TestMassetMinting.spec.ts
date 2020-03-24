@@ -5,9 +5,14 @@ import { shouldFail } from "openzeppelin-test-helpers";
 
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
 import { createBasket, Basket } from "@utils/mstable-objects";
-import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
+import {
+    BassetMachine,
+    MassetMachine,
+    StandardAccounts,
+    SystemMachine,
+    MassetDetails,
+} from "@utils/machines";
 import { aToH, BN } from "@utils/tools";
-import { MassetDetails } from "types/machines";
 
 import envSetup from "@utils/env_setup";
 import * as chai from "chai";
