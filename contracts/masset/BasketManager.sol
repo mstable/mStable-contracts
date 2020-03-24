@@ -39,6 +39,7 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
 
     /** @dev Struct holding Basket details */
     Basket public basket;
+    uint256 constant grace = 1e23;
     // Mapping holds bAsset token address => index
     mapping(address => uint8) private bassetsMap;
     // Holds relative addresses of the integration platforms

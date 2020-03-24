@@ -17,7 +17,7 @@ contract ForgeValidator is IForgeValidator {
     /**
      * @dev Checks whether a given mint is valid
      */
-    function validateMint(uint256 _totalVault, Basset calldata _basset, uint256 _bassetQuantity)
+    function validateMint(uint256 _totalVault, uint256 _grace, Basset calldata _basset, uint256 _bassetQuantity)
         external
         pure
         returns (bool isValid, string memory reason)
@@ -31,9 +31,9 @@ contract ForgeValidator is IForgeValidator {
         // How much of this bAsset do we have in the vault, in terms of mAsset?
         uint256 newBalanceInMasset = _basset.vaultBalance.mulRatioTruncate(_basset.ratio).add(mintAmountInMasset);
         // What is the percentage of this bAsset in the basket?
-        uint256 weighting = newBalanceInMasset.divPrecisely(_totalVault.add(mintAmountInMasset));
+        uint256 targetWeightInUnits = (_totalVault.add(mintAmountInMasset)).mulTruncate(_basset.maxWeight);
 
-        if(weighting > _basset.maxWeight) return (false, "Must be below max weighting");
+        if(newBalanceInMasset > targetWeightInUnits.add(_grace)) return (false, "Must be below max weighting");
 
         return (true, "");
     }
@@ -91,6 +91,7 @@ contract ForgeValidator is IForgeValidator {
         Basset[] calldata _allBassets,
         bool basketIsFailed,
         uint256 _totalVault,
+        uint256 _grace,
         uint256 _indexToRedeem,
         uint256 _bassetQuantity
     )
@@ -112,6 +113,11 @@ contract ForgeValidator is IForgeValidator {
         // Subtract ratioed redemption amount from both vault and total supply
         data.ratioedBassetVaults[_indexToRedeem] = data.ratioedBassetVaults[_indexToRedeem].sub(ratioedRedemptionAmount);
         uint256 newTotalVault = _totalVault.sub(ratioedRedemptionAmount);
+
+        // Redemption is valid if:
+        //  - if the token you are redeeming is above max weight (as before) << Change to include grace in max weights
+        //  - it does not push any of the other tokens above their max weight (as before) << Change to include grace in max weights
+        //  - and the token you are redeeming does not go below min weight (new)
 
         // If there is at least one overweight bAsset before, we must redeem it
         if(data.atLeastOneOverweight){
