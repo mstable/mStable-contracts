@@ -1,9 +1,9 @@
-import { MassetMachine, MassetDetails } from "@utils/machines";
+import { MassetMachine } from "@utils/machines";
 import { latest } from "openzeppelin-test-helpers/src/time";
 import * as t from "types/generated";
 import { Address } from "types/common";
+import { MassetDetails } from "types/machines";
 
-import { BassetMachine } from "./bassetMachine";
 import { StandardAccounts } from "./standardAccounts";
 
 import { MASSET_FACTORY_BYTES, MainnetAccounts } from "@utils/constants";

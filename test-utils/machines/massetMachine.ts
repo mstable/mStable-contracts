@@ -1,10 +1,11 @@
-import { MassetDetails } from "./massetMachine";
+import { MassetDetails } from "types/machines";
 import * as t from "types/generated";
 import { Address } from "types/common";
-import { SystemMachine, StandardAccounts, BassetMachine } from ".";
+import { BassetIntegrationDetails, Platform, ATokenDetails, CTokenDetails } from "types/machines";
+import { SystemMachine, StandardAccounts } from ".";
 import { createMultiple, simpleToExactAmount, percentToWeight } from "@utils/math";
 import { BN, aToH } from "@utils/tools";
-import { fullScale, MainnetAccounts, ratioScale } from "@utils/constants";
+import { fullScale, MainnetAccounts, KovanAccounts, ratioScale } from "@utils/constants";
 import { Basset, BassetStatus } from "@utils/mstable-objects";
 import { ZERO_ADDRESS } from "@utils/constants";
 
@@ -34,46 +35,17 @@ const c_MUSD: t.MUSDContract = artifacts.require("MUSD");
 const c_MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
 const c_ERC20: t.ERC20Contract = artifacts.require("ERC20");
 
-export interface MassetDetails {
-    mAsset?: t.MassetInstance;
-    basketManager?: t.BasketManagerInstance;
-    bAssets?: Array<t.MockERC20Instance>;
-    proxyAdmin?: t.DelayedProxyAdminInstance;
-    aaveIntegration?: t.AaveIntegrationInstance;
-    compoundIntegration?: t.CompoundIntegrationInstance;
-}
-
-interface ATokenDetails {
-    bAsset: Address;
-    aToken: Address;
-}
-interface CTokenDetails {
-    bAsset: Address;
-    cToken: Address;
-}
-
-enum Platform {
-    aave,
-    compound,
-}
-
-interface BassetIntegrationDetails {
-    bAssets: Array<t.MockERC20Instance>;
-    platforms: Array<Platform>;
-    aavePlatformAddress: Address;
-    aTokens: Array<ATokenDetails>;
-    cTokens: Array<CTokenDetails>;
-}
-
 export class MassetMachine {
     public system: SystemMachine;
     public sa: StandardAccounts;
 
     public ma: MainnetAccounts;
+    public ka: KovanAccounts;
 
     constructor(systemMachine: SystemMachine) {
         this.system = systemMachine;
         this.ma = new MainnetAccounts();
+        this.ka = new KovanAccounts();
         this.sa = this.system.sa;
     }
 

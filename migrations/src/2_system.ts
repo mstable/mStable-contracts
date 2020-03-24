@@ -1,14 +1,160 @@
 import * as t from "types/generated";
+import { Address } from "types/common";
 
 import { percentToWeight } from "@utils/math";
-import { ZERO_ADDRESS } from "@utils/constants";
+import { ZERO_ADDRESS, KovanAccounts } from "@utils/constants";
+
+export interface ATokenDetails {
+    bAsset: Address;
+    aToken: Address;
+}
+export interface CTokenDetails {
+    bAsset: Address;
+    cToken: Address;
+}
+
+export enum Platform {
+    aave,
+    compound,
+}
+
+export interface BassetIntegrationDetails {
+    bAssets: Array<t.MockERC20Instance>;
+    platforms: Array<Platform>;
+    aavePlatformAddress: Address;
+    aTokens: Array<ATokenDetails>;
+    cTokens: Array<CTokenDetails>;
+}
+
+async function loadBassetsKovan(artifacts): Promise<BassetIntegrationDetails> {
+    const c_MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
+
+    let ka = new KovanAccounts();
+    // load all the REAL bAssets from Kovan
+    const bAsset_DAI = await c_MockERC20.at(ka.DAI);
+    const bAsset_USDC = await c_MockERC20.at(ka.USDC);
+    const bAsset_TUSD = await c_MockERC20.at(ka.TUSD);
+    const bAsset_USDT = await c_MockERC20.at(ka.USDT);
+    const bAssets = [bAsset_DAI, bAsset_USDC, bAsset_TUSD, bAsset_USDT];
+    // return all the addresses
+    return {
+        bAssets,
+        platforms: [Platform.compound, Platform.compound, Platform.aave, Platform.aave],
+        aavePlatformAddress: ka.aavePlatform,
+        cTokens: [
+            {
+                bAsset: bAsset_DAI.address,
+                cToken: ka.cDAI,
+            },
+            {
+                bAsset: bAsset_USDC.address,
+                cToken: ka.cUSDC,
+            },
+        ],
+        aTokens: [
+            {
+                bAsset: bAsset_TUSD.address,
+                aToken: ka.aTUSD,
+            },
+            {
+                bAsset: bAsset_USDT.address,
+                aToken: ka.aUSDT,
+            },
+        ],
+    };
+}
+
+async function loadBassetsLocal(artifacts, deployer): Promise<BassetIntegrationDetails> {
+    const c_MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
+    const c_MockAave: t.MockAaveContract = artifacts.require("MockAave");
+    const c_MockAToken: t.MockATokenContract = artifacts.require("MockAToken");
+    const c_MockCToken: t.MockCTokenContract = artifacts.require("MockCToken");
+    //  - Mock bAssets
+    const mockBasset1: t.MockERC20Instance = await c_MockERC20.new(
+        "Mock1",
+        "MK1",
+        12,
+        deployer,
+        100000000,
+    );
+    const mockBasset2: t.MockERC20Instance = await c_MockERC20.new(
+        "Mock2",
+        "MK2",
+        18,
+        deployer,
+        100000000,
+    );
+    const mockBasset3: t.MockERC20Instance = await c_MockERC20.new(
+        "Mock3",
+        "MK3",
+        6,
+        deployer,
+        100000000,
+    );
+    const mockBasset4: t.MockERC20Instance = await c_MockERC20.new(
+        "Mock4",
+        "MK4",
+        18,
+        deployer,
+        100000000,
+    );
+
+    //  - Mock Aave integration
+    const d_MockAave: t.MockAaveInstance = await c_MockAave.new({ from: deployer });
+
+    //  - Mock aTokens
+    const mockAToken1: t.IAaveATokenInstance = await c_MockAToken.new(
+        d_MockAave.address,
+        mockBasset1.address,
+    );
+    const mockAToken2: t.IAaveATokenInstance = await c_MockAToken.new(
+        d_MockAave.address,
+        mockBasset2.address,
+    );
+    const mockAToken3: t.IAaveATokenInstance = await c_MockAToken.new(
+        d_MockAave.address,
+        mockBasset3.address,
+    );
+
+    //  - Add to the Platform
+    await d_MockAave.addAToken(mockAToken1.address, mockBasset1.address);
+    await d_MockAave.addAToken(mockAToken2.address, mockBasset2.address);
+    await d_MockAave.addAToken(mockAToken3.address, mockBasset3.address);
+
+    // Mock C Token
+    const mockCToken4: t.MockCTokenInstance = await c_MockCToken.new(mockBasset4.address);
+    return {
+        bAssets: [mockBasset1, mockBasset2, mockBasset3, mockBasset4],
+        platforms: [Platform.aave, Platform.aave, Platform.aave, Platform.compound],
+        aavePlatformAddress: d_MockAave.address,
+        aTokens: [
+            {
+                bAsset: mockBasset1.address,
+                aToken: mockAToken1.address,
+            },
+            {
+                bAsset: mockBasset2.address,
+                aToken: mockAToken2.address,
+            },
+            {
+                bAsset: mockBasset3.address,
+                aToken: mockAToken3.address,
+            },
+        ],
+        cTokens: [
+            {
+                bAsset: mockBasset4.address,
+                cToken: mockCToken4.address,
+            },
+        ],
+    };
+}
 
 export default async ({ artifacts }, deployer, network, accounts) => {
     if (deployer.network == "fork") {
         // Don't bother running these migrations -- speed up the testing
         return;
     }
-    const [default_, governor, feeRecipient] = accounts;
 
     /***************************************
     0. TYPECHAIN IMPORTS
@@ -21,18 +167,14 @@ export default async ({ artifacts }, deployer, network, accounts) => {
     // - Platforms (u)
     //    - Aave
     const c_AaveIntegration: t.AaveIntegrationContract = artifacts.require("AaveIntegration");
-    const c_MockAave: t.MockAaveContract = artifacts.require("MockAave");
-    const c_MockAToken: t.MockATokenContract = artifacts.require("MockAToken");
     //    - Compound
     const c_CompoundIntegration: t.CompoundIntegrationContract = artifacts.require(
         "CompoundIntegration",
     );
-    const c_MockCToken: t.MockCTokenContract = artifacts.require("MockCToken");
     // - BasketManager (u)
     const c_BasketManager: t.BasketManagerContract = artifacts.require("BasketManager");
     // - mUSD
     const c_MUSD: t.MUSDContract = artifacts.require("MUSD");
-    const c_MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
 
     // Nexus
     const c_Nexus: t.NexusContract = artifacts.require("Nexus");
@@ -56,60 +198,18 @@ export default async ({ artifacts }, deployer, network, accounts) => {
     Dependencies: []
     ****************************************/
 
-    //  - Mock bAssets
-    const mockBasset1: t.MockERC20Instance = await c_MockERC20.new(
-        "Mock1",
-        "MK1",
-        12,
-        default_,
-        100000000,
-    );
-    const mockBasset2: t.MockERC20Instance = await c_MockERC20.new(
-        "Mock2",
-        "MK2",
-        18,
-        default_,
-        100000000,
-    );
-    const mockBasset3: t.MockERC20Instance = await c_MockERC20.new(
-        "Mock3",
-        "MK3",
-        6,
-        default_,
-        100000000,
-    );
-    const mockBasset4: t.MockERC20Instance = await c_MockERC20.new(
-        "Mock4",
-        "MK4",
-        18,
-        default_,
-        100000000,
-    );
-
-    //  - Mock Aave integration
-    const d_MockAave: t.MockAaveInstance = await c_MockAave.new({ from: default_ });
-
-    //  - Mock aTokens
-    const mockAToken1: t.MockATokenInstance = await c_MockAToken.new(
-        d_MockAave.address,
-        mockBasset1.address,
-    );
-    const mockAToken2: t.MockATokenInstance = await c_MockAToken.new(
-        d_MockAave.address,
-        mockBasset2.address,
-    );
-    const mockAToken3: t.MockATokenInstance = await c_MockAToken.new(
-        d_MockAave.address,
-        mockBasset3.address,
-    );
-
-    //  - Add to the Platform
-    await d_MockAave.addAToken(mockAToken1.address, mockBasset1.address);
-    await d_MockAave.addAToken(mockAToken2.address, mockBasset2.address);
-    await d_MockAave.addAToken(mockAToken3.address, mockBasset3.address);
-
-    // Mock C Token
-    const mockCToken4: t.MockCTokenInstance = await c_MockCToken.new(mockBasset4.address);
+    let default_, governor, feeRecipient;
+    let bassetDetails: BassetIntegrationDetails;
+    if (deployer.network == "kovan") {
+        [default_, governor] = accounts;
+        feeRecipient = accounts[2];
+        console.log("Loading Kovan bAssets and lending platforms");
+        bassetDetails = await loadBassetsKovan(artifacts);
+    } else {
+        [default_, governor, feeRecipient] = accounts;
+        console.log("Generating MOCK bAssets and lending platforms");
+        bassetDetails = await loadBassetsLocal(artifacts, default_);
+    }
 
     /***************************************
     1. Nexus
@@ -148,7 +248,7 @@ export default async ({ artifacts }, deployer, network, accounts) => {
         c_AaveIntegration,
         d_Nexus.address,
         [d_BasketManagerProxy.address],
-        d_MockAave.address,
+        bassetDetails.aavePlatformAddress,
         [],
         [],
         { from: default_ },
@@ -192,20 +292,14 @@ export default async ({ artifacts }, deployer, network, accounts) => {
         .initialize(
             d_Nexus.address,
             d_MUSD.address,
-            [mockBasset1.address, mockBasset2.address, mockBasset3.address, mockBasset4.address],
-            [
-                d_AaveIntegrationProxy.address,
-                d_AaveIntegrationProxy.address,
-                d_AaveIntegrationProxy.address,
-                d_CompoundIntegrationProxy.address,
-            ],
-            [
-                percentToWeight(100).toString(),
-                percentToWeight(100).toString(),
-                percentToWeight(100).toString(),
-                percentToWeight(100).toString(),
-            ],
-            [false, false, false, false],
+            bassetDetails.bAssets.map((b) => b.address),
+            bassetDetails.platforms.map((p) =>
+                p == Platform.aave
+                    ? d_AaveIntegrationProxy.address
+                    : d_CompoundIntegrationProxy.address,
+            ),
+            bassetDetails.bAssets.map(() => percentToWeight(100).toString()),
+            bassetDetails.bAssets.map(() => false),
         )
         .encodeABI();
     await d_BasketManagerProxy.initialize(
@@ -219,9 +313,9 @@ export default async ({ artifacts }, deployer, network, accounts) => {
         .initialize(
             d_Nexus.address,
             [d_MUSD.address, d_BasketManagerProxy.address],
-            d_MockAave.address,
-            [mockBasset1.address, mockBasset2.address, mockBasset3.address],
-            [mockAToken1.address, mockAToken2.address, mockAToken3.address],
+            bassetDetails.aavePlatformAddress,
+            bassetDetails.aTokens.map((a) => a.bAsset),
+            bassetDetails.aTokens.map((a) => a.aToken),
         )
         .encodeABI();
     await d_AaveIntegrationProxy.initialize(
@@ -236,8 +330,8 @@ export default async ({ artifacts }, deployer, network, accounts) => {
             d_Nexus.address,
             [d_MUSD.address, d_BasketManagerProxy.address],
             ZERO_ADDRESS, // We don't need Compound sys addr
-            [mockBasset4.address],
-            [mockCToken4.address],
+            bassetDetails.cTokens.map((c) => c.bAsset),
+            bassetDetails.cTokens.map((c) => c.cToken),
         )
         .encodeABI();
     await d_CompoundIntegrationProxy.initialize(
