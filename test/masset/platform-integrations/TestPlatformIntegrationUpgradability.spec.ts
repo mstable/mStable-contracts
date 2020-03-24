@@ -108,10 +108,17 @@ contract("UpgradedAaveIntegration", async (accounts) => {
         const platformAddress = await proxyToImplV1.platformAddress();
         expect(d_MockAave.address).to.equal(platformAddress);
 
+        await d_MockAave.addAToken(d_mockAToken1.address, d_mockBasset1.address);
+
         // Perform some operation to have storage updated
         // ==============================================
-        // TODO Integration with Mainnet or deposit some Tokens to Aave
         // Ensure that storage updated as expected
+        const amount = new BN(100);
+        await d_mockBasset1.transfer(proxyToImplV1.address, amount);
+        // const referralCode = new BN(9999);
+        await proxyToImplV1.deposit(d_mockBasset1.address, amount, false, { from: sa.dummy3 });
+        const bal = await d_mockAToken1.balanceOf(proxyToImplV1.address);
+        expect(new BN(100)).to.bignumber.equal(bal);
 
         // Upgrade to new version of AaveIntegration v2 via ProxyAdmin
         // ========================================================
@@ -261,6 +268,10 @@ contract("UpgradedAaveIntegration", async (accounts) => {
                 proxyToImplV3.setPTokenAddress(sa.dummy1, sa.dummy2, { from: sa.governor }),
                 "Not allowed to add more pTokens",
             );
+        });
+        it("should have aToken balance intact", async () => {
+            const bal = await d_mockAToken1.balanceOf(proxyToImplV2.address);
+            expect(new BN(100)).to.bignumber.equal(bal);
         });
     });
 });
