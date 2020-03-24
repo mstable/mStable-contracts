@@ -270,7 +270,7 @@ contract("UpgradedAaveIntegration", async (accounts) => {
             );
         });
         it("should have aToken balance intact", async () => {
-            const bal = await d_mockAToken1.balanceOf(proxyToImplV2.address);
+            const bal = await proxyToImplV3.checkBalanceView(d_mockBasset1.address);
             expect(new BN(100)).to.bignumber.equal(bal);
         });
     });

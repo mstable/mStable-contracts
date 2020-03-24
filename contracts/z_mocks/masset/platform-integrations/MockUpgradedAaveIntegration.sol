@@ -95,6 +95,7 @@ contract AaveIntegrationV2 is AbstractIntegration {
         return _checkBalance(aToken).add(100);
     }
 
+
     /***************************************
                     APPROVALS
     ****************************************/
@@ -188,6 +189,7 @@ contract AaveIntegrationV2 is AbstractIntegration {
         revert("Not allowed to add more pTokens");
     }
 
+
 }
 
 contract AaveIntegrationV3 is AbstractIntegration {
@@ -278,6 +280,7 @@ contract AaveIntegrationV3 is AbstractIntegration {
         // ADDED 100 to the token balance just to check upgrade
         return _checkBalance(aToken).add(100);
     }
+
 
     /***************************************
                     APPROVALS
@@ -375,4 +378,15 @@ contract AaveIntegrationV3 is AbstractIntegration {
         revert("Not allowed to add more pTokens");
     }
 
+
+    function checkBalanceView(address _bAsset)
+        external
+        view
+        returns (uint256 balance)
+    {
+        // balance is always with token aToken decimals
+        IAaveAToken aToken = _getATokenFor(_bAsset);
+        // ADDED 100 to the token balance just to check upgrade
+        return _checkBalance(aToken);
+    }
 }
