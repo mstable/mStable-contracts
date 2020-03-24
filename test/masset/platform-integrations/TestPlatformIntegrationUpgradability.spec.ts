@@ -2,8 +2,8 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import * as t from "types/generated";
-import { shouldFail, expectEvent } from 'openzeppelin-test-helpers';
-import { latest, increase } from 'openzeppelin-test-helpers/src/time';
+import { shouldFail, expectEvent } from "openzeppelin-test-helpers";
+import { latest, increase } from "openzeppelin-test-helpers/src/time";
 import { StandardAccounts } from "@utils/machines";
 import { ZERO_ADDRESS } from "@utils/constants";
 import { BN } from "@utils/tools";
@@ -14,8 +14,12 @@ const DelayedProxyAdmin: t.DelayedProxyAdminContract = artifacts.require("Delaye
 const InitializableProxy: t.InitializableAdminUpgradeabilityProxyContract = artifacts.require(
     "@openzeppelin/upgrades/InitializableAdminUpgradeabilityProxy",
 );
-const MockImplementationV1: t.MockImplementationV1Contract = artifacts.require("MockImplementationV1");
-const MockImplementationV2: t.MockImplementationV2Contract = artifacts.require("MockImplementationV2");
+const MockImplementationV1: t.MockImplementationV1Contract = artifacts.require(
+    "MockImplementationV1",
+);
+const MockImplementationV2: t.MockImplementationV2Contract = artifacts.require(
+    "MockImplementationV2",
+);
 const c_MockNexus: t.MockNexusContract = artifacts.require("MockNexus");
 const c_AaveIntegration: t.AaveIntegrationContract = artifacts.require("AaveIntegration");
 const c_AaveIntegrationV2: t.AaveIntegrationV2Contract = artifacts.require("AaveIntegrationV2");
@@ -54,7 +58,7 @@ contract("UpgradedAaveIntegration", async (accounts) => {
     beforeEach("before each", async () => {
         // 1. Deploy DelayedProxyAdmin
         d_DelayedProxyAdmin = await DelayedProxyAdmin.new(d_Nexus.address);
-        
+
         // 2 Deploy a proxy contract
         d_AaveIntegrationProxy = await InitializableProxy.new();
 
@@ -66,42 +70,33 @@ contract("UpgradedAaveIntegration", async (accounts) => {
             [sa.dummy3, sa.dummy4],
             sa.dummy1,
             [],
-            []
+            [],
         );
 
         // Initialize AaveIntegration
-        d_mockBasset1 = await c_ERC20Mock.new(
-            "Mock1",
-            "MK1",
-            12,
-            sa.default,
-            100000000,
-        );
+        d_mockBasset1 = await c_ERC20Mock.new("Mock1", "MK1", 12, sa.default, 100000000);
 
         // Mock Aave instance
         d_MockAave = await c_MockAave.new({ from: sa.default });
 
-        d_mockAToken1 = await c_MockAToken.new(
-            d_MockAave.address,
-            d_mockBasset1.address,
-        );
-        
+        d_mockAToken1 = await c_MockAToken.new(d_MockAave.address, d_mockBasset1.address);
+
         const initializationData_AaveIntegration: string = d_AaveIntegrationV1.contract.methods
-        .initialize(
-            d_Nexus.address,
-            [sa.dummy3, sa.dummy4],
-            d_MockAave.address,
-            [d_mockBasset1.address],
-            [d_mockAToken1.address],
-        )
-        .encodeABI();
+            .initialize(
+                d_Nexus.address,
+                [sa.dummy3, sa.dummy4],
+                d_MockAave.address,
+                [d_mockBasset1.address],
+                [d_mockAToken1.address],
+            )
+            .encodeABI();
 
         await d_AaveIntegrationProxy.initialize(
             d_AaveIntegrationV1.address,
             d_DelayedProxyAdmin.address,
             initializationData_AaveIntegration,
         );
-    
+
         // Ensure that setup is correct and AaveIntegration V1 is deployed via Proxy
         // ========================================================================
         const proxyToImplV1 = await c_AaveIntegration.at(d_AaveIntegrationProxy.address);
@@ -112,7 +107,6 @@ contract("UpgradedAaveIntegration", async (accounts) => {
         expect("1.0").to.equal(version);
         const platformAddress = await proxyToImplV1.platformAddress();
         expect(d_MockAave.address).to.equal(platformAddress);
-
 
         // Perform some operation to have storage updated
         // ==============================================
@@ -126,24 +120,23 @@ contract("UpgradedAaveIntegration", async (accounts) => {
             [sa.dummy3, sa.dummy4],
             sa.dummy1,
             [],
-            []
+            [],
         );
         const initializationData_AaveIntegrationV2: string = d_AaveIntegrationV2.contract.methods
-        .initializeNewUint().encodeABI();
+            .initializeNewUint()
+            .encodeABI();
         await d_DelayedProxyAdmin.proposeUpgrade(
-            d_AaveIntegrationProxy.address, 
-            d_AaveIntegrationV2.address, 
+            d_AaveIntegrationProxy.address,
+            d_AaveIntegrationV2.address,
             initializationData_AaveIntegrationV2,
-            {from: sa.governor}
+            { from: sa.governor },
         );
         await increase(ONE_WEEK);
-        await d_DelayedProxyAdmin.acceptUpgradeRequest(
-            d_AaveIntegrationProxy.address,
-             {from: sa.governor}
-        );
+        await d_DelayedProxyAdmin.acceptUpgradeRequest(d_AaveIntegrationProxy.address, {
+            from: sa.governor,
+        });
 
         proxyToImplV2 = await c_AaveIntegrationV2.at(d_AaveIntegrationProxy.address);
-        
     });
 
     describe("Upgraded AaveIntegration", async () => {
@@ -202,8 +195,8 @@ contract("UpgradedAaveIntegration", async (accounts) => {
 
         it("should have modified functions", async () => {
             await shouldFail.reverting.withMessage(
-                proxyToImplV2.setPTokenAddress(sa.dummy1, sa.dummy2, {from: sa.governor}),
-                "Not allowed to add more pTokens"
+                proxyToImplV2.setPTokenAddress(sa.dummy1, sa.dummy2, { from: sa.governor }),
+                "Not allowed to add more pTokens",
             );
         });
 
@@ -215,28 +208,25 @@ contract("UpgradedAaveIntegration", async (accounts) => {
                 [sa.dummy3, sa.dummy4],
                 sa.dummy1,
                 [],
-                []
+                [],
             );
             const initializationData_AaveIntegrationV3: string = d_AaveIntegrationV3.contract.methods
-            .initializeNewUint().encodeABI();
+                .initializeNewUint()
+                .encodeABI();
             await d_DelayedProxyAdmin.proposeUpgrade(
-                d_AaveIntegrationProxy.address, 
-                d_AaveIntegrationV3.address, 
+                d_AaveIntegrationProxy.address,
+                d_AaveIntegrationV3.address,
                 initializationData_AaveIntegrationV3,
-                {from: sa.governor}
+                { from: sa.governor },
             );
             await increase(ONE_WEEK);
-            await d_DelayedProxyAdmin.acceptUpgradeRequest(
-                d_AaveIntegrationProxy.address,
-                {from: sa.governor}
-            );
+            await d_DelayedProxyAdmin.acceptUpgradeRequest(d_AaveIntegrationProxy.address, {
+                from: sa.governor,
+            });
 
             // We are taking V2's code so that `newMethod()` function can be called
             // However, we know that implementation is on V3
-            proxyToImplV2 = await c_AaveIntegrationV2.at(d_AaveIntegrationProxy.address);
-
             await shouldFail.reverting.withMessage(proxyToImplV2.newMethod(), "");
         });
     });
-
 });

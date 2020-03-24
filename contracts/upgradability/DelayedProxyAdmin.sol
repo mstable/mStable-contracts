@@ -126,7 +126,6 @@ contract DelayedProxyAdmin is Module {
     function validateProxy(address _proxy, address _newImpl) internal view {
         // Proxy has an implementation
         address currentImpl = getProxyImplementation(_proxy);
-        require(currentImpl != address(0), "Current implementation is zero");
 
         // Existing implementation must not be same as new one
         require(_newImpl != currentImpl, "Implementation must be different");
@@ -164,7 +163,7 @@ contract DelayedProxyAdmin is Module {
     }
 
     // TODO this can be removed. However, kept it for us to remind that we are not calling this fn.
-    // We are not allwing this function call from Governor or Governance.
+    // We are not allowing this function call from Governor or Governance.
     /**
     * @dev Changes the admin of a proxy.
     * @param proxy Proxy to change admin.

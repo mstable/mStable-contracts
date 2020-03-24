@@ -5,18 +5,32 @@ import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.so
 contract MockImplementationV1 is Initializable {
     string public version = "";
     uint256 public uintVal = 1;
+    address private proxyAdmin;
 
-    function initialize() public initializer {
+    modifier onlyProxyAdmin() {
+        require(msg.sender == proxyAdmin, "Only proxyAdmin can execute");
+        _;
+    }
+
+    function initialize(address _proxyAdmin) public initializer {
         version = "V1";
         uintVal = 2;
+        // Initialize the proxy address (DelayedProxyAdmin's address)
+        proxyAdmin = _proxyAdmin;
     }
 }
 
 contract MockImplementationV2 is Initializable{
     string public version = "";
     uint256 public uintVal = 1;
+    address private proxyAdmin;
 
-    function initializeV2() public payable {
+    modifier onlyProxyAdmin() {
+        require(msg.sender == proxyAdmin, "Only proxyAdmin can execute");
+        _;
+    }
+
+    function initializeV2() public payable onlyProxyAdmin {
         // function is payable to test
         version = "V2";
         uintVal = 3;
