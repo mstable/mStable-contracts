@@ -10,6 +10,7 @@ contract AaveIntegrationV2 is AbstractIntegration {
     uint256 public newUint = 1;
 
     constructor(
+        address _proxyAdmin,
         address _nexus,
         address[] memory _whitelisted,
         address _aaveAddress,
@@ -17,6 +18,7 @@ contract AaveIntegrationV2 is AbstractIntegration {
         address[] memory _pTokens
     )
         AbstractIntegration(
+            _proxyAdmin,
             _nexus,
             _whitelisted,
             _aaveAddress,
@@ -167,7 +169,7 @@ contract AaveIntegrationV2 is AbstractIntegration {
 
     // NEW FUNCTIONS
     // ===============
-    function initializeNewUint() public {
+    function initializeNewUint() public onlyProxyAdmin {
         version = "2.0";
         newUint = 1;
     }
@@ -193,6 +195,7 @@ contract AaveIntegrationV3 is AbstractIntegration {
     uint256 public newUint = 1;
 
     constructor(
+        address _proxyAdmin,
         address _nexus,
         address[] memory _whitelisted,
         address _aaveAddress,
@@ -200,6 +203,7 @@ contract AaveIntegrationV3 is AbstractIntegration {
         address[] memory _pTokens
     )
         AbstractIntegration(
+            _proxyAdmin,
             _nexus,
             _whitelisted,
             _aaveAddress,
@@ -349,7 +353,7 @@ contract AaveIntegrationV3 is AbstractIntegration {
 
     // NEW FUNCTIONS
     // ===============
-    function initializeNewUint() public {
+    function initializeNewUint() public onlyProxyAdmin {
         version = "3.0";
         newUint = 1;
     }

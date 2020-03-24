@@ -14,11 +14,31 @@ contract InitializableModule is InitializableModuleKeys {
     INexus public nexus;
 
     /**
-     * @dev Initialises the Module by setting publisher,
-     * and reading all available system module information
+     * @dev Address of the DelayedProxyAdmin contract.
+     *      This will be initialized from the first implementation contract. In the new upgraded
+     *      contract instances, this will not change.
+     *      DO NOT MODIFY / REMOVE THIS FROM THE NEW UPGRADED CONTRACTS
      */
-    constructor(address _nexus) internal {
-        InitializableModule._initialize(_nexus);
+    address public proxyAdmin;
+
+    /**
+     * @dev The modifier should be used for `initializeX()` functions present in the new upgraded
+     *      contract implementation. This modifier is used to avoid unauthorized calls to the
+     *      `initializeX()` like functions in the new implementation contract.
+     */
+    modifier onlyProxyAdmin() {
+        require(msg.sender == proxyAdmin, "Only ProxyAdmin can execute");
+        _;
+    }
+
+    /**
+     * @dev Initialises the Module by setting publisher, and reading all available system
+     *      module information.
+     * @param _proxyAdmin DelayedProxyAdmin contract address
+     * @param _nexus Nexus contract address
+     */
+    constructor(address _proxyAdmin, address _nexus) internal {
+        InitializableModule._initialize(_proxyAdmin, _nexus);
     }
 
     /**
@@ -51,9 +71,11 @@ contract InitializableModule is InitializableModuleKeys {
 
     /**
      * @dev Initialization function for upgradable proxy contracts
+     * @param _proxyAdmin DelayedProxyAdmin contract address
      * @param _nexus Nexus contract address
      */
-    function _initialize(address _nexus) internal {
+    function _initialize(address _proxyAdmin, address _nexus) internal {
+        proxyAdmin = _proxyAdmin;
         nexus = INexus(_nexus);
         InitializableModuleKeys._initialize();
     }

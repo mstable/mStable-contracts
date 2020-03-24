@@ -66,6 +66,7 @@ contract("UpgradedAaveIntegration", async (accounts) => {
         // Any data we pass to this contract, it does not matter, as all the call to this contract
         // will be via Proxy
         d_AaveIntegrationV1 = await c_AaveIntegration.new(
+            d_DelayedProxyAdmin.address,
             d_Nexus.address,
             [sa.dummy3, sa.dummy4],
             sa.dummy1,
@@ -83,6 +84,7 @@ contract("UpgradedAaveIntegration", async (accounts) => {
 
         const initializationData_AaveIntegration: string = d_AaveIntegrationV1.contract.methods
             .initialize(
+                d_DelayedProxyAdmin.address,
                 d_Nexus.address,
                 [sa.dummy3, sa.dummy4],
                 d_MockAave.address,
@@ -116,6 +118,7 @@ contract("UpgradedAaveIntegration", async (accounts) => {
         // Upgrade to new version of AaveIntegration v2 via ProxyAdmin
         // ========================================================
         d_AaveIntegrationV2 = await c_AaveIntegrationV2.new(
+            d_DelayedProxyAdmin.address,
             d_Nexus.address,
             [sa.dummy3, sa.dummy4],
             sa.dummy1,
@@ -204,6 +207,7 @@ contract("UpgradedAaveIntegration", async (accounts) => {
             // Upgrade to new version of AaveIntegration v3 via ProxyAdmin
             // ========================================================
             d_AaveIntegrationV3 = await c_AaveIntegrationV3.new(
+                d_DelayedProxyAdmin.address,
                 d_Nexus.address,
                 [sa.dummy3, sa.dummy4],
                 sa.dummy1,
@@ -233,6 +237,7 @@ contract("UpgradedAaveIntegration", async (accounts) => {
             // Upgrade to new version of AaveIntegration v3 via ProxyAdmin
             // ========================================================
             d_AaveIntegrationV3 = await c_AaveIntegrationV3.new(
+                d_DelayedProxyAdmin.address,
                 d_Nexus.address,
                 [sa.dummy3, sa.dummy4],
                 sa.dummy1,
@@ -254,12 +259,10 @@ contract("UpgradedAaveIntegration", async (accounts) => {
             });
 
             proxyToImplV3 = await c_AaveIntegrationV3.at(d_AaveIntegrationProxy.address);
-            await proxyToImplV3.initializeNewUint();
-
-            const version = await proxyToImplV3.version();
-            expect("3.0").to.equal(version);
-            const newUint = await proxyToImplV3.newUint();
-            expect(new BN(1)).to.bignumber.equal(newUint);
+            await shouldFail.reverting.withMessage(
+                proxyToImplV3.setPTokenAddress(sa.dummy1, sa.dummy2, { from: sa.governor }),
+                "Not allowed to add more pTokens",
+            );
         });
     });
 });

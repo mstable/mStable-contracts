@@ -44,13 +44,20 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
     // Holds relative addresses of the integration platforms
     mapping(uint8 => address) public integrations;
 
-    constructor(address _nexus) public InitializableModule(_nexus){}
+    constructor(
+        address _proxyAdmin,
+        address _nexus
+    )
+        public
+        InitializableModule(_proxyAdmin, _nexus)
+    {}
 
     /**
      * @dev Initialization function for upgradable proxy contract.
      *      This function should be called via Proxy just after contract deployment.
      */
     function initialize(
+        address _proxyAdmin,
         address _nexus,
         address _mAsset,
         address[] memory _bassets,
@@ -61,7 +68,7 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
         public
         initializer
     {
-        InitializableModule._initialize(_nexus);
+        InitializableModule._initialize(_proxyAdmin, _nexus);
 
         mAsset = _mAsset;
         // require(_bassets.length > 0, "Must initialise with some bAssets");

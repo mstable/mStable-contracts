@@ -31,6 +31,7 @@ contract AbstractIntegration is Initializable, IPlatformIntegration, GovernableW
     address[] internal bAssetsMapped;
 
     constructor(
+        address _proxyAdmin,
         address _nexus,
         address[] memory _whitelisted,
         address _platformAddress,
@@ -38,10 +39,9 @@ contract AbstractIntegration is Initializable, IPlatformIntegration, GovernableW
         address[] memory _pTokens
     )
         internal
-        GovernableWhitelist(_nexus, _whitelisted)
+        GovernableWhitelist(_proxyAdmin, _nexus, _whitelisted)
     {
         AbstractIntegration._initialize(_platformAddress, _bAssets, _pTokens);
-        version = "1.0";
     }
 
     /**
@@ -49,6 +49,7 @@ contract AbstractIntegration is Initializable, IPlatformIntegration, GovernableW
      *      This function should be called via Proxy just after contract deployment.
      */
     function initialize(
+        address _proxyAdmin,
         address _nexus,
         address[] memory _whitelisted,
         address _platformAddress,
@@ -58,7 +59,7 @@ contract AbstractIntegration is Initializable, IPlatformIntegration, GovernableW
         public
         initializer
     {
-        GovernableWhitelist._initialize(_nexus, _whitelisted);
+        GovernableWhitelist._initialize(_proxyAdmin, _nexus, _whitelisted);
         AbstractIntegration._initialize(_platformAddress, _bAssets, _pTokens);
         version = "1.0";
     }

@@ -7,12 +7,14 @@ import { ICERC20 } from "./ICompound.sol";
 contract CompoundIntegration is AbstractIntegration {
 
     constructor(
+        address _proxyAdmin,
         address _nexus,
         address[] memory _whitelisted,
         address[] memory _bAssets,
         address[] memory _pTokens
     )
         AbstractIntegration(
+            _proxyAdmin,
             _nexus,
             _whitelisted,
             address(0),

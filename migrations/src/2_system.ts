@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/camelcase */
 import * as t from "types/generated";
 
 import { percentToWeight } from "@utils/math";
@@ -137,7 +138,9 @@ export default async ({ artifacts }, deployer, network, accounts) => {
 
     // 2.1. Deploy no Init BasketManager
     //  - Deploy Implementation
-    await deployer.deploy(c_BasketManager, d_Nexus.address, { from: default_ });
+    await deployer.deploy(c_BasketManager, d_DelayedProxyAdmin.address, d_Nexus.address, {
+        from: default_,
+    });
     const d_BasketManager: t.BasketManagerInstance = await c_BasketManager.deployed();
     //  - Deploy Initializable Proxy
     const d_BasketManagerProxy: t.InitializableAdminUpgradeabilityProxyInstance = await c_InitializableProxy.new();
@@ -146,6 +149,7 @@ export default async ({ artifacts }, deployer, network, accounts) => {
     //  - Deploy Implementation with dummy params (this storage doesn't get used)
     await deployer.deploy(
         c_AaveIntegration,
+        d_DelayedProxyAdmin.address,
         d_Nexus.address,
         [d_BasketManagerProxy.address],
         d_MockAave.address,
@@ -162,6 +166,7 @@ export default async ({ artifacts }, deployer, network, accounts) => {
     // We do not need platform address for compound
     await deployer.deploy(
         c_CompoundIntegration,
+        d_DelayedProxyAdmin.address,
         d_Nexus.address,
         [d_BasketManagerProxy.address],
         [],
@@ -190,6 +195,7 @@ export default async ({ artifacts }, deployer, network, accounts) => {
     // 2.5. Init BasketManager
     const initializationData_BasketManager: string = d_BasketManager.contract.methods
         .initialize(
+            d_DelayedProxyAdmin.address,
             d_Nexus.address,
             d_MUSD.address,
             [mockBasset1.address, mockBasset2.address, mockBasset3.address, mockBasset4.address],
@@ -217,6 +223,7 @@ export default async ({ artifacts }, deployer, network, accounts) => {
     // 2.6. Init AaveIntegration
     const initializationData_AaveIntegration: string = d_AaveIntegration.contract.methods
         .initialize(
+            d_DelayedProxyAdmin.address,
             d_Nexus.address,
             [d_MUSD.address, d_BasketManagerProxy.address],
             d_MockAave.address,
@@ -233,6 +240,7 @@ export default async ({ artifacts }, deployer, network, accounts) => {
     // 2.7. Init CompoundIntegration
     const initializationData_CompoundIntegration: string = d_CompoundIntegration.contract.methods
         .initialize(
+            d_DelayedProxyAdmin.address,
             d_Nexus.address,
             [d_MUSD.address, d_BasketManagerProxy.address],
             ZERO_ADDRESS, // We don't need Compound sys addr
