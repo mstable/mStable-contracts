@@ -228,5 +228,38 @@ contract("UpgradedAaveIntegration", async (accounts) => {
             // However, we know that implementation is on V3
             await shouldFail.reverting.withMessage(proxyToImplV2.newMethod(), "");
         });
+
+        it("should allow calling old function", async () => {
+            // Upgrade to new version of AaveIntegration v3 via ProxyAdmin
+            // ========================================================
+            d_AaveIntegrationV3 = await c_AaveIntegrationV3.new(
+                d_Nexus.address,
+                [sa.dummy3, sa.dummy4],
+                sa.dummy1,
+                [],
+                [],
+            );
+            const initializationData_AaveIntegrationV3: string = d_AaveIntegrationV3.contract.methods
+                .initializeNewUint()
+                .encodeABI();
+            await d_DelayedProxyAdmin.proposeUpgrade(
+                d_AaveIntegrationProxy.address,
+                d_AaveIntegrationV3.address,
+                initializationData_AaveIntegrationV3,
+                { from: sa.governor },
+            );
+            await increase(ONE_WEEK);
+            await d_DelayedProxyAdmin.acceptUpgradeRequest(d_AaveIntegrationProxy.address, {
+                from: sa.governor,
+            });
+
+            proxyToImplV3 = await c_AaveIntegrationV3.at(d_AaveIntegrationProxy.address);
+            await proxyToImplV3.initializeNewUint();
+
+            const version = await proxyToImplV3.version();
+            expect("3.0").to.equal(version);
+            const newUint = await proxyToImplV3.newUint();
+            expect(new BN(1)).to.bignumber.equal(newUint);
+        });
     });
 });
