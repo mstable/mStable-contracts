@@ -21,6 +21,9 @@ const MockImplementationV1: t.MockImplementationV1Contract = artifacts.require(
 const MockImplementationV2: t.MockImplementationV2Contract = artifacts.require(
     "MockImplementationV2",
 );
+const MockImplementationV3: t.MockImplementationV3Contract = artifacts.require(
+    "MockImplementationV3",
+);
 const MockNexus: t.MockNexusContract = artifacts.require("MockNexus");
 
 contract("DelayedProxyAdmin", async (accounts) => {
@@ -36,6 +39,7 @@ contract("DelayedProxyAdmin", async (accounts) => {
     let proxy: t.InitializableAdminUpgradeabilityProxyInstance;
     let mockImplV1: t.MockImplementationV1Instance;
     let mockImplV2: t.MockImplementationV2Instance;
+    let mockImplV3: t.MockImplementationV3Instance;
 
     before("before all", async () => {
         // create New Nexus
@@ -209,10 +213,12 @@ contract("DelayedProxyAdmin", async (accounts) => {
                     const mockImpl = await MockImplementationV2.new();
                     await initProxy.initialize(mockImpl.address, sa.other, "0x");
 
+                    mockImplV3 = await MockImplementationV3.new();
+
                     await shouldFail.reverting.withMessage(
                         delayedProxyAdmin.proposeUpgrade(
                             initProxy.address,
-                            mockImpl.address,
+                            mockImplV3.address,
                             "0x",
                             {
                                 from: sa.governor,

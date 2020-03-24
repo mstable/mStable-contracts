@@ -36,3 +36,20 @@ contract MockImplementationV2 is Initializable{
         uintVal = 3;
     }
 }
+
+contract MockImplementationV3 is Initializable{
+    string public version = "";
+    uint256 public uintVal = 1;
+    address private proxyAdmin;
+
+    modifier onlyProxyAdmin() {
+        require(msg.sender == proxyAdmin, "Only proxyAdmin can execute");
+        _;
+    }
+
+    function initializeV3() public payable onlyProxyAdmin {
+        // function is payable to test
+        version = "V3";
+        uintVal = 4;
+    }
+}
