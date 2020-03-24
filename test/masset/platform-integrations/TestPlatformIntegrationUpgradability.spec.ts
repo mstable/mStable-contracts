@@ -53,9 +53,7 @@ contract("UpgradedAaveIntegration", async (accounts) => {
     before("before all", async () => {
         // create New Nexus
         d_Nexus = await c_MockNexus.new(sa.governor, governanceAddr, managerAddr);
-    });
 
-    beforeEach("before each", async () => {
         // 1. Deploy DelayedProxyAdmin
         d_DelayedProxyAdmin = await DelayedProxyAdmin.new(d_Nexus.address);
 
