@@ -19,15 +19,16 @@ contract("InitializableModule", async (accounts) => {
     const ctx: { module?: MockModuleInstance } = {};
     const sa = new StandardAccounts(accounts);
     let nexus: MockNexusInstance;
-    const governanceAddr = sa.dummy1;
-    const managerAddr = sa.dummy2;
+    const proxyAdmin = sa.dummy1;
+    const governanceAddr = sa.dummy2;
+    const managerAddr = sa.dummy3;
 
     before("before all", async () => {
         // create New Nexus
         nexus = await MockNexus.new(sa.governor, governanceAddr, managerAddr);
     });
     beforeEach("before each", async () => {
-        ctx.module = await MockInitializableModule.new(nexus.address);
+        ctx.module = await MockInitializableModule.new(proxyAdmin, nexus.address);
     });
 
     shouldBehaveLikeModule(ctx as Required<typeof ctx>, sa);
