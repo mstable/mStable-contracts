@@ -253,7 +253,7 @@ contract ForgeValidator is IForgeValidator {
             // If the bAsset is de-pegged on the up-side, it doesn't matter if it goes above max
             bool bassetOverWeight = _ratioedBassetVaultsAfter[i] > targetWeightInUnits.add(_grace) &&
                 _bAssets[i].status != BassetStatus.BrokenAbovePeg;
-            bool bassetUnderWeight = _ratioedBassetVaultsAfter[i] < targetWeightInUnits.sub(_grace);
+            bool bassetUnderWeight = _grace > targetWeightInUnits ? false : _ratioedBassetVaultsAfter[i] < targetWeightInUnits.sub(_grace);
 
             atLeastOneOverweight = atLeastOneOverweight || bassetOverWeight;
             atLeastOneUnderweight = atLeastOneUnderweight || bassetUnderWeight;
