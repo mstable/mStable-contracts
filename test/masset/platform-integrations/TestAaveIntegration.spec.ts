@@ -2,13 +2,19 @@
 /* eslint-disable consistent-return */
 
 import * as t from "types/generated";
-import { Address } from "types/common";
-import { BassetIntegrationDetails, Platform, CTokenDetails, ATokenDetails } from "types/machines";
+import {
+    BassetIntegrationDetails,
+    Platform,
+    CTokenDetails,
+    ATokenDetails,
+    Address,
+} from "../../../types";
 import { BN } from "@utils/tools";
 import { StandardAccounts, SystemMachine, MassetMachine } from "@utils/machines";
 import { MainnetAccounts } from "@utils/constants";
 
 import envSetup from "@utils/env_setup";
+
 const { expect, assert } = envSetup.configure();
 
 const MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
@@ -47,10 +53,10 @@ contract("AaveIntegration", async (accounts) => {
         d_AaveIntegration = await c_AaveIntegration.at(d_AaveIntegration.address);
 
         // Load network specific integration data
-        let integrationDetails = await massetMachine.loadBassets();
+        const integrationDetails = await massetMachine.loadBassets();
 
         // Initialize the proxy storage
-        let aaveImplementation = await c_AaveIntegration.new();
+        const aaveImplementation = await c_AaveIntegration.new();
 
         const initializationData_AaveIntegration: string = aaveImplementation.contract.methods
             .initialize(

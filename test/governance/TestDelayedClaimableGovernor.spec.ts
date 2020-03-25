@@ -1,4 +1,4 @@
-import { BassetMachine, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
+import { MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import envSetup from "@utils/env_setup";
 import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
 import { DelayedClaimableGovernorInstance } from "types/generated";
