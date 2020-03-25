@@ -32,13 +32,14 @@ module.exports = {
       gas: 0xfffffffffff, // <-- Use this high gas value
       gasPrice: 0x01      // <-- Use this low gas price
     },
-    rinkeby: {
+    ropsten: {
       provider() {
-        return new HDWalletProvider(process.env.PHRASE, `https://rinkeby.infura.io/v3/${process.env.INFURA}`, 4, 7)
+        return new HDWalletProvider("", `https://ropsten.infura.io/v3/`, 0, 3)
       },
-      network_id: 4,
+      network_id: 3,
       gasPrice: 10000000000, // 10 GWei,
-      skipDryRun: true
+      skipDryRun: true,
+      gas: 8000000
     }
   },
   mocha: {

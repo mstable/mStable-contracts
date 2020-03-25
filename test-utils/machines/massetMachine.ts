@@ -1,8 +1,13 @@
 /* eslint-disable @typescript-eslint/camelcase */
-import { MassetDetails } from "./massetMachine";
 import * as t from "types/generated";
 import { Address } from "types/common";
-import { SystemMachine, StandardAccounts, BassetMachine } from ".";
+import {
+    BassetIntegrationDetails,
+    Platform,
+    ATokenDetails,
+    CTokenDetails,
+} from "../../types/machines";
+import { SystemMachine, StandardAccounts } from ".";
 import { createMultiple, simpleToExactAmount, percentToWeight } from "@utils/math";
 import { BN, aToH } from "@utils/tools";
 import { fullScale, MainnetAccounts, ratioScale } from "@utils/constants";
@@ -42,28 +47,6 @@ export interface MassetDetails {
     proxyAdmin?: t.DelayedProxyAdminInstance;
     aaveIntegration?: t.AaveIntegrationInstance;
     compoundIntegration?: t.CompoundIntegrationInstance;
-}
-
-interface ATokenDetails {
-    bAsset: Address;
-    aToken: Address;
-}
-interface CTokenDetails {
-    bAsset: Address;
-    cToken: Address;
-}
-
-enum Platform {
-    aave,
-    compound,
-}
-
-interface BassetIntegrationDetails {
-    bAssets: Array<t.MockERC20Instance>;
-    platforms: Array<Platform>;
-    aavePlatformAddress: Address;
-    aTokens: Array<ATokenDetails>;
-    cTokens: Array<CTokenDetails>;
 }
 
 export class MassetMachine {
