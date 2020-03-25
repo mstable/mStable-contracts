@@ -29,7 +29,7 @@ contract AbstractIntegration is Initializable, IPlatformIntegration, GovernableW
     event Deposit(address indexed _bAsset, address _pToken, uint256 _amount);
     event Withdrawal(address indexed _bAsset, address _pToken, uint256 _amount);
 
-    string public constant version = "1.0";
+    string public version = "1.0";
 
     // Core address for the given platform */
     address public platformAddress;
@@ -44,6 +44,7 @@ contract AbstractIntegration is Initializable, IPlatformIntegration, GovernableW
      * This contract is upgradable, see `_initialize` for constructor
      */
     constructor(
+        address _proxyAdmin,
         address _nexus,
         address[] memory _whitelisted,
         address _platformAddress,
@@ -51,7 +52,7 @@ contract AbstractIntegration is Initializable, IPlatformIntegration, GovernableW
         address[] memory _pTokens
     )
         internal
-        GovernableWhitelist(_nexus, _whitelisted)
+        GovernableWhitelist(_proxyAdmin, _nexus, _whitelisted)
     {
         AbstractIntegration._initialize(_platformAddress, _bAssets, _pTokens);
     }
@@ -66,6 +67,7 @@ contract AbstractIntegration is Initializable, IPlatformIntegration, GovernableW
      * @param _pTokens          Platform Token corresponding addresses
      */
     function initialize(
+        address _proxyAdmin,
         address _nexus,
         address[] memory _whitelisted,
         address _platformAddress,
@@ -75,8 +77,9 @@ contract AbstractIntegration is Initializable, IPlatformIntegration, GovernableW
         public
         initializer
     {
-        GovernableWhitelist._initialize(_nexus, _whitelisted);
+        GovernableWhitelist._initialize(_proxyAdmin, _nexus, _whitelisted);
         AbstractIntegration._initialize(_platformAddress, _bAssets, _pTokens);
+        version = "1.0";
     }
 
     /**
