@@ -2,6 +2,11 @@
 /* eslint-disable consistent-return */
 
 import * as t from "types/generated";
+import { BN } from "@utils/tools";
+import { StandardAccounts, SystemMachine, MassetMachine } from "@utils/machines";
+import { MainnetAccounts } from "@utils/constants";
+
+import envSetup from "@utils/env_setup";
 import {
     BassetIntegrationDetails,
     Platform,
@@ -9,11 +14,6 @@ import {
     ATokenDetails,
     Address,
 } from "../../../types";
-import { BN } from "@utils/tools";
-import { StandardAccounts, SystemMachine, MassetMachine } from "@utils/machines";
-import { MainnetAccounts } from "@utils/constants";
-
-import envSetup from "@utils/env_setup";
 
 const { expect, assert } = envSetup.configure();
 
