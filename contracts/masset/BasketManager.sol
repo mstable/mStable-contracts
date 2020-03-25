@@ -3,6 +3,7 @@ pragma experimental ABIEncoderV2;
 
 // External
 import { IPlatformIntegration } from "../interfaces/IPlatformIntegration.sol";
+import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 
 // Internal
 import { InitializableModule } from "../shared/InitializableModule.sol";
@@ -10,8 +11,7 @@ import { IBasketManager } from "../interfaces/IBasketManager.sol";
 import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
 
 // Libs
-import { CommonHelpers } from "../shared/libs/CommonHelpers.sol";
-import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
+import { CommonHelpers } from "../shared/CommonHelpers.sol";
 import { SafeERC20 } from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
 import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import { StableMath } from "../shared/StableMath.sol";

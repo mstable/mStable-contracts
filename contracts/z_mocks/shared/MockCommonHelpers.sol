@@ -1,6 +1,6 @@
 pragma solidity 0.5.16;
 
-import { CommonHelpers } from "../../shared/libs/CommonHelpers.sol";
+import { CommonHelpers } from "../../shared/CommonHelpers.sol";
 
 contract MockCommonHelpers {
 

@@ -459,7 +459,6 @@ contract Masset is IMasset, MassetToken, PausableModule {
       */
     function upgradeForgeValidator(address _newForgeValidator)
     external
-    whenNotPaused
     managerOrGovernor {
         require(!forgeValidatorLocked, "Must be allowed to upgrade");
         require(_newForgeValidator != address(0), "Must be non null address");
@@ -471,7 +470,6 @@ contract Masset is IMasset, MassetToken, PausableModule {
       */
     function lockForgeValidator()
     external
-    whenNotPaused
     managerOrGovernor {
         forgeValidatorLocked = true;
     }
@@ -482,7 +480,6 @@ contract Masset is IMasset, MassetToken, PausableModule {
       */
     function setFeeRecipient(address _feeRecipient)
     external
-    whenNotPaused
     managerOrGovernor {
         require(_feeRecipient != address(0), "Must be valid address");
         feeRecipient = _feeRecipient;
@@ -495,7 +492,6 @@ contract Masset is IMasset, MassetToken, PausableModule {
       */
     function setRedemptionFee(uint256 _redemptionFee)
     external
-    whenNotPaused
     managerOrGovernor {
         require(_redemptionFee <= maxFee, "Redemption fee > maxFee");
         redemptionFee = _redemptionFee;

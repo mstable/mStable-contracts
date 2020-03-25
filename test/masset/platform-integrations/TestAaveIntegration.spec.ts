@@ -16,7 +16,6 @@ import {
     Address,
 } from "../../../types";
 import shouldBehaveLikeModule from "../../shared/behaviours/Module.behaviour";
-import { white } from "color-name";
 
 const { expect, assert } = envSetup.configure();
 
@@ -54,6 +53,10 @@ contract("AaveIntegration", async (accounts) => {
         nexus = await c_MockNexus.new(sa.governor, sa.dummy1, sa.dummy2);
         massetMachine = systemMachine.massetMachine;
 
+        await runSetup();
+    });
+
+    const runSetup = async () => {
         // SETUP
         // ======
         // Init proxyAdmin
@@ -85,7 +88,7 @@ contract("AaveIntegration", async (accounts) => {
         );
 
         ctx.module = d_AaveIntegration;
-    });
+    };
 
     describe("initializing AaveIntegration", async () => {
         describe("verifying GovernableWhitelist initialization", async () => {
@@ -276,64 +279,116 @@ contract("AaveIntegration", async (accounts) => {
     });
 
     describe("setting P Token Address", async () => {
-        it("should succeed when function called by the Governor");
-        it("should approve the spending of the bAsset correctly");
-        it("should fail when function called by Other user");
-        it("should fail when passed invalid args", () => {
+        let erc20Mock: t.MockERC20Instance;
+        let aTokenMock: t.MockATokenInstance;
+        beforeEach("init mocks", async () => {
+            erc20Mock = await c_MockERC20.new("TMP", "TMP", 18, sa.default, "1000000");
+            aTokenMock = await c_MockAaveAToken.new(sa.other, erc20Mock.address);
+            await runSetup();
+        });
+        it("should pass only when function called by the Governor", async () => {
+            await shouldFail.reverting.withMessage(
+                d_AaveIntegration.setPTokenAddress(erc20Mock.address, aTokenMock.address, {
+                    from: sa.default,
+                }),
+                "Only governor can execute",
+            );
+            await d_AaveIntegration.setPTokenAddress(erc20Mock.address, aTokenMock.address, {
+                from: sa.governor,
+            });
+            expect(aTokenMock.address).eq(
+                await d_AaveIntegration.bAssetToPToken(erc20Mock.address),
+            );
+        });
+        it("should approve the spending of the bAsset correctly and emit event", async () => {
+            await d_AaveIntegration.setPTokenAddress(erc20Mock.address, aTokenMock.address, {
+                from: sa.governor,
+            });
+            expect(aTokenMock.address).eq(
+                await d_AaveIntegration.bAssetToPToken(erc20Mock.address),
+            );
+            let addressProvider = await c_AaveLendingPoolAddressProvider.at(
+                integrationDetails.aavePlatformAddress,
+            );
+            let approvedAddress = await addressProvider.getLendingPoolCore();
+            let balance = await erc20Mock.allowance(d_AaveIntegration.address, approvedAddress);
+            expect(balance).bignumber.eq(MAX_UINT256 as any);
+        });
+        it("should fail when passed invalid args", async () => {
             // bAsset address is zero
+            await shouldFail.reverting.withMessage(
+                d_AaveIntegration.setPTokenAddress(ZERO_ADDRESS, aTokenMock.address, {
+                    from: sa.governor,
+                }),
+                "Invalid addresses",
+            );
             // pToken address is zero
+            await shouldFail.reverting.withMessage(
+                d_AaveIntegration.setPTokenAddress(erc20Mock.address, ZERO_ADDRESS, {
+                    from: sa.governor,
+                }),
+                "Invalid addresses",
+            );
             // pToken address already assigned for a bAsset
+            await d_AaveIntegration.setPTokenAddress(erc20Mock.address, aTokenMock.address, {
+                from: sa.governor,
+            });
+            await shouldFail.reverting.withMessage(
+                d_AaveIntegration.setPTokenAddress(erc20Mock.address, sa.default, {
+                    from: sa.governor,
+                }),
+                "pToken already set",
+            );
         });
     });
 
-    describe("deposit", async () => {
-        describe("should succeed", async () => {
-            it("when a whitelisted user calls function");
-
-            it("when token transfer fee charged");
-
-            it("when no token transfer fee charged");
+    describe("calling deposit", async () => {
+        it("should only allow a whitelisted user to call function");
+        it("should deposit tokens to Aave", async () => {
+            // check that the lending pool core has tokens
+            // check that our new balance of aTokens is given
+            // should give accurate return value
         });
 
-        describe("should fail", async () => {
-            it("when a non-whitelisted user calls function");
-
-            it("when wrong bAsset address passed");
+        it("should deposit all if there is no fee");
+        it("should handle the fee calculations", async () => {
+            // should deduct the transfer fee from the return value
         });
+
+        it("should fail if we do not first pass the required bAsset");
+        it("should fail with broken arguments");
+        it("should fail if the bAsset is not supported");
     });
 
     describe("withdraw", async () => {
-        describe("should succeed", async () => {
-            it("when a whitelisted user calls function");
+        it("should only allow a whitelisted user to call function");
+        it("should withdraw tokens from Aave", async () => {
+            // check that the recipient receives the tokens
+            // check that the lending pool core has tokens
+            // check that our new balance of aTokens is given
+            // should give accurate return value
         });
 
-        describe("should fail", async () => {
-            it("when a non-whitelisted user calls function");
-
-            it("when wrong bAsset address passed");
+        it("should withdraw all if there is no fee");
+        it("should handle the fee calculations", async () => {
+            // should deduct the transfer fee from the return value
         });
+
+        it("should fail if there is insufficient balance");
+        it("should fail with broken arguments");
+        it("should fail if the bAsset is not supported");
     });
 
     describe("checkBalance", async () => {
-        describe("should succeed", async () => {
-            it("when supported token address passed");
-        });
-
-        describe("should fail", async () => {
-            it("when non-supported token address passed");
-        });
+        it("should return balance when supported token address passed");
+        it("should increase our balance over time and activity");
+        it("should return balance with same precision as bAsset");
     });
 
     describe("reApproveAllTokens", async () => {
-        describe("should succeed", async () => {
-            it("when function called by the Governor");
+        it("should only be callable bby the Governor");
 
-            it("when function called multiple times");
-        });
-
-        describe("should fail", async () => {
-            it("when function called by the Other user");
-        });
+        it("should be able to be called multiple times");
     });
 
     describe("disapprove", async () => {

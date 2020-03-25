@@ -176,26 +176,6 @@ contract AaveIntegrationV3 is InitializableAbstractIntegration {
 
     uint256 public newUint = 1;
 
-    // constructor(
-    //     address _proxyAdmin,
-    //     address _nexus,
-    //     address[] memory _whitelisted,
-    //     address _aaveAddress,
-    //     address[] memory _bAssets,
-    //     address[] memory _pTokens
-    // )
-    //     AbstractIntegration(
-    //         _proxyAdmin,
-    //         _nexus,
-    //         _whitelisted,
-    //         _aaveAddress,
-    //         _bAssets,
-    //         _pTokens
-    //     )
-    //     public
-    // {
-    // }
-
     /***************************************
                     CORE
     ****************************************/
