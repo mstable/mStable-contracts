@@ -1,7 +1,7 @@
 pragma solidity 0.5.16;
 
 import { ICERC20 } from "./ICompound.sol";
-import { AbstractIntegration, MassetHelpers, IERC20 } from "./AbstractIntegration.sol";
+import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "./InitializableAbstractIntegration.sol";
 
 
 /**
@@ -9,26 +9,7 @@ import { AbstractIntegration, MassetHelpers, IERC20 } from "./AbstractIntegratio
  * @author  Stability Labs Pty. Lte.
  * @notice  A simple connection to deposit and withdraw bAssets from Compound
  */
-contract CompoundIntegration is AbstractIntegration {
-
-    constructor(
-        address _proxyAdmin,
-        address _nexus,
-        address[] memory _whitelisted,
-        address[] memory _bAssets,
-        address[] memory _pTokens
-    )
-        AbstractIntegration(
-            _proxyAdmin,
-            _nexus,
-            _whitelisted,
-            address(0),
-            _bAssets,
-            _pTokens
-        )
-        public
-    {
-    }
+contract CompoundIntegration is InitializableAbstractIntegration {
 
     /***************************************
                     CORE

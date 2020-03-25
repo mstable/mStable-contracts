@@ -94,41 +94,20 @@ export class MassetMachine {
 
         // 2.1. Deploy no Init BasketManager
         //  - Deploy Implementation
-        const d_BasketManager: t.BasketManagerInstance = await c_BasketManager.new(
-            md.proxyAdmin.address,
-            this.system.nexus.address,
-            {
-                from: this.sa.default,
-            },
-        );
+        const d_BasketManager: t.BasketManagerInstance = await c_BasketManager.new();
         //  - Deploy Initializable Proxy
         const d_BasketManagerProxy: t.InitializableAdminUpgradeabilityProxyInstance = await c_InitializableProxy.new();
 
         // 2.2. Deploy no Init AaveIntegration
         //  - Deploy Implementation with dummy params (this storage doesn't get used)
-        const d_AaveIntegration: t.AaveIntegrationInstance = await c_AaveIntegration.new(
-            md.proxyAdmin.address,
-            this.system.nexus.address,
-            [d_BasketManagerProxy.address],
-            bassetDetails.aavePlatformAddress,
-            [],
-            [],
-            { from: this.sa.default },
-        );
+        const d_AaveIntegration: t.AaveIntegrationInstance = await c_AaveIntegration.new();
         //  - Deploy Initializable Proxy
         const d_AaveIntegrationProxy: t.InitializableAdminUpgradeabilityProxyInstance = await c_InitializableProxy.new();
 
         // 2.3. Deploy no Init CompoundIntegration
         //  - Deploy Implementation
         // We do not need platform address for compound
-        const d_CompoundIntegration: t.CompoundIntegrationInstance = await c_CompoundIntegration.new(
-            md.proxyAdmin.address,
-            this.system.nexus.address,
-            [d_BasketManagerProxy.address],
-            [],
-            [],
-            { from: this.sa.default },
-        );
+        const d_CompoundIntegration: t.CompoundIntegrationInstance = await c_CompoundIntegration.new();
         //  - Deploy Initializable Proxy
         const d_CompoundIntegrationProxy: t.InitializableAdminUpgradeabilityProxyInstance = await c_InitializableProxy.new();
 
@@ -300,21 +279,17 @@ export class MassetMachine {
             d_MockAave.address,
             mockBasset2.address,
         );
-        const mockAToken3: t.IAaveATokenInstance = await c_MockAToken.new(
-            d_MockAave.address,
-            mockBasset3.address,
-        );
 
         //  - Add to the Platform
         await d_MockAave.addAToken(mockAToken1.address, mockBasset1.address);
         await d_MockAave.addAToken(mockAToken2.address, mockBasset2.address);
-        await d_MockAave.addAToken(mockAToken3.address, mockBasset3.address);
 
         // Mock C Token
+        const mockCToken3: t.MockCTokenInstance = await c_MockCToken.new(mockBasset3.address);
         const mockCToken4: t.MockCTokenInstance = await c_MockCToken.new(mockBasset4.address);
         return {
             bAssets: [mockBasset1, mockBasset2, mockBasset3, mockBasset4],
-            platforms: [Platform.aave, Platform.aave, Platform.aave, Platform.compound],
+            platforms: [Platform.aave, Platform.aave, Platform.compound, Platform.compound],
             aavePlatformAddress: d_MockAave.address,
             aTokens: [
                 {
@@ -325,12 +300,12 @@ export class MassetMachine {
                     bAsset: mockBasset2.address,
                     aToken: mockAToken2.address,
                 },
-                {
-                    bAsset: mockBasset3.address,
-                    aToken: mockAToken3.address,
-                },
             ],
             cTokens: [
+                {
+                    bAsset: mockBasset3.address,
+                    cToken: mockCToken3.address,
+                },
                 {
                     bAsset: mockBasset4.address,
                     cToken: mockCToken4.address,

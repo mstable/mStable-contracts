@@ -1,33 +1,13 @@
 pragma solidity 0.5.16;
 
-import { AbstractIntegration, MassetHelpers, IERC20 } from "../../../masset/platform-integrations/AbstractIntegration.sol";
+import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "../../../masset/platform-integrations/InitializableAbstractIntegration.sol";
 
 import { IAaveAToken, IAaveLendingPool, ILendingPoolAddressesProvider } from "../../../masset/platform-integrations/IAave.sol";
 
-contract AaveIntegrationV2 is AbstractIntegration {
+contract AaveIntegrationV2 is InitializableAbstractIntegration {
 
     // new variable
     uint256 public newUint = 1;
-
-    constructor(
-        address _proxyAdmin,
-        address _nexus,
-        address[] memory _whitelisted,
-        address _aaveAddress,
-        address[] memory _bAssets,
-        address[] memory _pTokens
-    )
-        AbstractIntegration(
-            _proxyAdmin,
-            _nexus,
-            _whitelisted,
-            _aaveAddress,
-            _bAssets,
-            _pTokens
-        )
-        public
-    {
-    }
 
     /***************************************
                     CORE
@@ -192,29 +172,29 @@ contract AaveIntegrationV2 is AbstractIntegration {
 
 }
 
-contract AaveIntegrationV3 is AbstractIntegration {
+contract AaveIntegrationV3 is InitializableAbstractIntegration {
 
     uint256 public newUint = 1;
 
-    constructor(
-        address _proxyAdmin,
-        address _nexus,
-        address[] memory _whitelisted,
-        address _aaveAddress,
-        address[] memory _bAssets,
-        address[] memory _pTokens
-    )
-        AbstractIntegration(
-            _proxyAdmin,
-            _nexus,
-            _whitelisted,
-            _aaveAddress,
-            _bAssets,
-            _pTokens
-        )
-        public
-    {
-    }
+    // constructor(
+    //     address _proxyAdmin,
+    //     address _nexus,
+    //     address[] memory _whitelisted,
+    //     address _aaveAddress,
+    //     address[] memory _bAssets,
+    //     address[] memory _pTokens
+    // )
+    //     AbstractIntegration(
+    //         _proxyAdmin,
+    //         _nexus,
+    //         _whitelisted,
+    //         _aaveAddress,
+    //         _bAssets,
+    //         _pTokens
+    //     )
+    //     public
+    // {
+    // }
 
     /***************************************
                     CORE

@@ -1,14 +1,18 @@
 pragma solidity 0.5.16;
 
 import { InitializableModule } from "../../shared/InitializableModule.sol";
+import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
 
-contract MockInitializableModule is InitializableModule {
+contract MockInitializableModule is Initializable, InitializableModule {
 
     uint256 public temp;
 
-    constructor(address _proxyAdmin, address _nexus)
+    function initialize(
+        address _proxyAdmin,
+        address _nexus
+    )
         public
-        InitializableModule(_proxyAdmin, address(0x0))
+        initializer
     {
         InitializableModule._initialize(_proxyAdmin, _nexus);
     }

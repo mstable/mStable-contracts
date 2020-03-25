@@ -238,25 +238,14 @@ export default async ({ artifacts }, deployer, network, accounts) => {
 
     // 2.1. Deploy no Init BasketManager
     //  - Deploy Implementation
-    await deployer.deploy(c_BasketManager, d_DelayedProxyAdmin.address, d_Nexus.address, {
-        from: default_,
-    });
+    await deployer.deploy(c_BasketManager);
     const d_BasketManager: t.BasketManagerInstance = await c_BasketManager.deployed();
     //  - Deploy Initializable Proxy
     const d_BasketManagerProxy: t.InitializableAdminUpgradeabilityProxyInstance = await c_InitializableProxy.new();
 
     // 2.2. Deploy no Init AaveIntegration
     //  - Deploy Implementation with dummy params (this storage doesn't get used)
-    await deployer.deploy(
-        c_AaveIntegration,
-        d_DelayedProxyAdmin.address,
-        d_Nexus.address,
-        [d_BasketManagerProxy.address],
-        bassetDetails.aavePlatformAddress,
-        [],
-        [],
-        { from: default_ },
-    );
+    await deployer.deploy(c_AaveIntegration);
     const d_AaveIntegration: t.AaveIntegrationInstance = await c_AaveIntegration.deployed();
     //  - Deploy Initializable Proxy
     const d_AaveIntegrationProxy: t.InitializableAdminUpgradeabilityProxyInstance = await c_InitializableProxy.new();
@@ -264,15 +253,7 @@ export default async ({ artifacts }, deployer, network, accounts) => {
     // 2.3. Deploy no Init CompoundIntegration
     //  - Deploy Implementation
     // We do not need platform address for compound
-    await deployer.deploy(
-        c_CompoundIntegration,
-        d_DelayedProxyAdmin.address,
-        d_Nexus.address,
-        [d_BasketManagerProxy.address],
-        [],
-        [],
-        { from: default_ },
-    );
+    await deployer.deploy(c_CompoundIntegration);
     const d_CompoundIntegration: t.CompoundIntegrationInstance = await c_CompoundIntegration.deployed();
     //  - Deploy Initializable Proxy
     const d_CompoundIntegrationProxy: t.InitializableAdminUpgradeabilityProxyInstance = await c_InitializableProxy.new();

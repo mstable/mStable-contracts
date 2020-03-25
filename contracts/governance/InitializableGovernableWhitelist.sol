@@ -3,12 +3,12 @@ pragma solidity 0.5.16;
 import { InitializableModule } from "../shared/InitializableModule.sol";
 
 /**
- * @title   GovernableWhitelist
+ * @title   InitializableGovernableWhitelist
  * @author  Stability Labs Pty. Lte.
  * @notice  Contract to store whitelisted address. The onlyWhitelisted() modifier should be used
  *          to allow the function calls only from the whitelisted addresses.
  */
-contract GovernableWhitelist is InitializableModule {
+contract InitializableGovernableWhitelist is InitializableModule {
 
     event Whitelisted(address indexed _address);
 
@@ -20,23 +20,6 @@ contract GovernableWhitelist is InitializableModule {
     modifier onlyWhitelisted() {
         require(whitelist[msg.sender], "Not a whitelisted address");
         _;
-    }
-
-    /**
-     * @dev Internal Constructor
-     * @param _proxyAdmin DelayedProxyAdmin contract address
-     * @param _nexus Nexus contract address
-     * @param _whitelisted Array of whitelisted addresses.
-     */
-    constructor(
-        address _proxyAdmin,
-        address _nexus,
-        address[] memory _whitelisted
-    )
-        internal
-        InitializableModule(_proxyAdmin, _nexus)
-    {
-        GovernableWhitelist._initialize(_proxyAdmin, _nexus, _whitelisted);
     }
 
     /**

@@ -28,7 +28,9 @@ contract("InitializableModule", async (accounts) => {
         nexus = await MockNexus.new(sa.governor, governanceAddr, managerAddr);
     });
     beforeEach("before each", async () => {
-        ctx.module = await MockInitializableModule.new(proxyAdmin, nexus.address);
+        let initializedModule = await MockInitializableModule.new();
+        await initializedModule.initialize(proxyAdmin, nexus.address);
+        ctx.module = initializedModule;
     });
 
     shouldBehaveLikeModule(ctx as Required<typeof ctx>, sa);

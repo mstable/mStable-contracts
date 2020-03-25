@@ -32,16 +32,6 @@ contract InitializableModule is InitializableModuleKeys {
     }
 
     /**
-     * @dev Initialises the Module by setting publisher, and reading all available system
-     *      module information.
-     * @param _proxyAdmin DelayedProxyAdmin contract address
-     * @param _nexus Nexus contract address
-     */
-    constructor(address _proxyAdmin, address _nexus) internal {
-        InitializableModule._initialize(_proxyAdmin, _nexus);
-    }
-
-    /**
      * @dev Modifier to allow function calls only from the Governor.
      */
     modifier onlyGovernor() {
@@ -75,6 +65,7 @@ contract InitializableModule is InitializableModuleKeys {
      * @param _nexus Nexus contract address
      */
     function _initialize(address _proxyAdmin, address _nexus) internal {
+        require(_proxyAdmin != address(0), "Admin address is zero");
         require(_nexus != address(0), "Nexus address is zero");
         proxyAdmin = _proxyAdmin;
         nexus = INexus(_nexus);

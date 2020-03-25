@@ -2,7 +2,7 @@ pragma solidity 0.5.16;
 
 // Internal
 import { IPlatformIntegration } from "../../interfaces/IPlatformIntegration.sol";
-import { GovernableWhitelist } from "../../governance/GovernableWhitelist.sol";
+import { InitializableGovernableWhitelist } from "../../governance/InitializableGovernableWhitelist.sol";
 import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
 
 // Libs
@@ -19,7 +19,7 @@ import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
  *          platform. pTokens are the generic name given to platform tokens e.g. cDai
  *          Governance are responsible for setting platform and pToken addresses.
  */
-contract AbstractIntegration is Initializable, IPlatformIntegration, GovernableWhitelist {
+contract InitializableAbstractIntegration is Initializable, IPlatformIntegration, InitializableGovernableWhitelist {
 
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
@@ -38,24 +38,6 @@ contract AbstractIntegration is Initializable, IPlatformIntegration, GovernableW
     mapping(address => address) public bAssetToPToken;
     // Full list of all bAssets supported here
     address[] internal bAssetsMapped;
-
-    /**
-     * @dev Since this is abstract, we keep the constructor internal
-     * This contract is upgradable, see `_initialize` for constructor
-     */
-    constructor(
-        address _proxyAdmin,
-        address _nexus,
-        address[] memory _whitelisted,
-        address _platformAddress,
-        address[] memory _bAssets,
-        address[] memory _pTokens
-    )
-        internal
-        GovernableWhitelist(_proxyAdmin, _nexus, _whitelisted)
-    {
-        AbstractIntegration._initialize(_platformAddress, _bAssets, _pTokens);
-    }
 
     /**
      * @dev Initialization function for upgradable proxy contract.
@@ -77,8 +59,8 @@ contract AbstractIntegration is Initializable, IPlatformIntegration, GovernableW
         public
         initializer
     {
-        GovernableWhitelist._initialize(_proxyAdmin, _nexus, _whitelisted);
-        AbstractIntegration._initialize(_platformAddress, _bAssets, _pTokens);
+        InitializableGovernableWhitelist._initialize(_proxyAdmin, _nexus, _whitelisted);
+        InitializableAbstractIntegration._initialize(_platformAddress, _bAssets, _pTokens);
         version = "1.0";
     }
 

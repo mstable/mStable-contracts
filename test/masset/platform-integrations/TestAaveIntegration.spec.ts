@@ -2,69 +2,71 @@
 /* eslint-disable consistent-return */
 
 import * as t from "types/generated";
+import { Address } from "types/common";
+import { BassetIntegrationDetails, Platform, CTokenDetails, ATokenDetails } from "types/machines";
 import { BN } from "@utils/tools";
-import { StandardAccounts, SystemMachine } from "@utils/machines";
+import { StandardAccounts, SystemMachine, MassetMachine } from "@utils/machines";
 import { MainnetAccounts } from "@utils/constants";
 
 import envSetup from "@utils/env_setup";
-
 const { expect, assert } = envSetup.configure();
 
-const c_MockNexus: t.MockNexusContract = artifacts.require("MockNexus");
-const MockERC20 = artifacts.require("MockERC20");
-const c_AaveIntegration: t.AaveIntegrationContract = artifacts.require("AaveIntegration");
-const c_Nexus: t.NexusContract = artifacts.require("Nexus");
+const MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
+const c_MockAave: t.MockAaveContract = artifacts.require("MockAave");
 
-let shouldSkip = false;
+const c_InitializableProxy: t.InitializableAdminUpgradeabilityProxyContract = artifacts.require(
+    "@openzeppelin/upgrades/InitializableAdminUpgradeabilityProxy",
+);
+const c_AaveIntegration: t.AaveIntegrationContract = artifacts.require("AaveIntegration");
+
+let isRunningFork = false;
 
 contract("AaveIntegration", async (accounts) => {
-    let d_Nexus: t.MockNexusInstance;
-    let d_AaveIntegration: t.AaveIntegrationInstance;
     const sa = new StandardAccounts(accounts);
     const ma = new MainnetAccounts();
-    let systemMachine = new SystemMachine(sa.all);
-    const governanceAddr = sa.governor;
-    const managerAddr = sa.dummy4;
+    let systemMachine: SystemMachine;
+    let massetMachine: MassetMachine;
+    let aavePlatformAddress: Address;
+    let d_AaveIntegration: t.AaveIntegrationInstance;
 
     before("assertOnFork", async function() {
-        shouldSkip = await systemMachine.isRunningValidFork();
-        d_Nexus = await c_MockNexus.new(sa.governor, governanceAddr, managerAddr);
+        systemMachine = new SystemMachine(sa.all);
+        isRunningFork = await systemMachine.isRunningValidFork();
+        massetMachine = systemMachine.massetMachine;
     });
 
     beforeEach("before Each", async function() {
-        if (shouldSkip) {
+        if (!isRunningFork) {
             return this.skip();
         }
-        // console.log("z");
-        // COMMAND FOR GANACHE FORK
-        // ========================
-        // ganache-cli -f https://mainnet.infura.io/v3/810573cebf304c4f867483502c8b7b93@9618357 -p 7545 -l 100000000 --allowUnlimitedContractSize --unlock "0x6cC5F688a315f3dC28A7781717a9A798a59fDA7b"
-        // ========================
-
-        systemMachine = new SystemMachine(sa.all);
-        await systemMachine.initialiseMocks();
 
         // SETUP
         // ======
-        // deploy AaveVault
-        // aaveVault = await c_AaveIntegration.new(ma.aavePlatform, { from: sa.governor });
+        // Initialize the proxy
+        const d_AaveIntegrationProxy: t.InitializableAdminUpgradeabilityProxyInstance = await c_InitializableProxy.new();
+        d_AaveIntegration = await c_AaveIntegration.at(d_AaveIntegration.address);
 
-        // Add Whitelisted addresses to allow.
-        // await aaveVault.addWhitelisted(massetAddr, { from: sa.governor });
+        // Load network specific integration data
+        let integrationDetails = await massetMachine.loadBassets();
 
-        // Add aTokens
-        // TODO add all other tokens.
-        // await aaveVault.setPTokenAddress(ma.DAI, ma.aDAI, { from: sa.governor });
-    });
+        // Initialize the proxy storage
+        let aaveImplementation = await c_AaveIntegration.new();
 
-    describe("AAVE", async () => {
-        it("should deposit DAI to AAVE", async () => {
-            // TODO have a common place for token addresses
-            // await aaveVault.deposit(sa.dummy1, ma.DAI, 100, false, { from: massetAddr });
-            // check for aTokens
-            // withdraw
-        });
-        it("should  do something else");
+        const initializationData_AaveIntegration: string = aaveImplementation.contract.methods
+            .initialize(
+                sa.governor,
+                systemMachine.nexus.address,
+                [sa.default],
+                integrationDetails.aavePlatformAddress,
+                integrationDetails.aTokens.map((a) => a.bAsset),
+                integrationDetails.aTokens.map((a) => a.aToken),
+            )
+            .encodeABI();
+        await d_AaveIntegrationProxy.initialize(
+            aaveImplementation.address,
+            sa.default,
+            initializationData_AaveIntegration,
+        );
     });
 
     describe("behaviour", async () => {
@@ -75,47 +77,65 @@ contract("AaveIntegration", async (accounts) => {
         // shouldB
     });
 
-    describe("InitializableModule", async () => {
+    describe("GovernableWhitelist", async () => {
+        describe("initialize", async () => {
+            it("should properly store valid arguments", () => {
+                // check for whitelisted accs
+                // check for proxyadmin set
+                // check for nexus addr
+            });
 
+            it("should properly initialize initializableModule", () => {});
+
+            it("should fail when empty whitelisted array");
+
+            it("should fail when whitelisted address is zero");
+
+            it("should fail when address already whitelisted");
+        });
+    });
+
+    describe("Initializing AaveIntegration", async () => {
+        // describe("by constructor", async () => {
+        //     it("should succeed when passed valid arguments");
+
+        //     it("should properly store valid arguments", () => {
+        //         // check for whitelisted accs
+        //         // check for proxyadmin set
+        //         // check for nexus addr
+        //         // check for pTokens added & events
+        //     });
+
+        //     it("should fail if passed incorrect data", async () => {
+        //         // platformAddress is zero
+        //         // bAsset and pToken array length are different
+        //         // pToken address is zero
+        //         // duplicate pToken or bAsset
+        //     });
+        // });
+
+        // describe("by initialize()", async () => {
+        it("should properly store valid arguments", () => {
+            // check for whitelisted accs
+            // check for proxyadmin set
+            // check for nexus addr
+            // check for pTokens added & events
+        });
+
+        it("should initialize GovernableWhitelist", () => {});
+
+        it("should fail when called again");
+
+        it("should fail if passed incorrect data", async () => {
+            // platformAddress is zero
+            // bAsset and pToken array length are different
+            // pToken address is zero
+            // duplicate pToken or bAsset
+        });
+        // });
     });
 
     describe("AbstractIntegration", async () => {
-        describe("constructor", async () => {
-            describe("should succeed", async () => {
-                it("when passed valid arguments");
-
-                it("and have expected version");
-
-                it("and have expected platformAddress");
-
-                it("and have expected bAssetToPToken");
-            });
-
-            describe("should fail", async () => {                
-                it("when nexus address is zero");     
-            });
-        });
-
-        describe("initialize", async () => {
-            describe("should succeed", async () => {
-                it("");
-            });
-            
-            describe("should fail", async () => {
-                it("when initialize function called again");
-
-                it("when platformAddress is zero");
-
-                it("when bAsset and pToken array length are different");
-
-                it("when bAsset address is zero");
-
-                it("when pToken address is zero");
-
-                it("when pToken address already assigned for a bAsset");
-            });            
-        });
-
         describe("setPTokenAddress", async () => {
             describe("should succeed", async () => {
                 it("when function called by the Governor");
@@ -129,22 +149,6 @@ contract("AaveIntegration", async (accounts) => {
                 it("when pToken address is zero");
 
                 it("when pToken address already assigned for a bAsset");
-            });
-        });
-    });
-
-    describe("GovernableWhitelist", async () => {
-        describe("constructor", async () => {
-            describe("should succeed", async () => {
-                it("when passed valid arguments");
-            });
-
-            describe("should fail", async () => {
-                it("when empty whitelisted array");
-
-                it("when whitelisted address is zero");
-
-                it("when address already whitelisted");       
             });
         });
     });
@@ -201,7 +205,7 @@ contract("AaveIntegration", async (accounts) => {
         describe("reApproveAllTokens", async () => {
             describe("should succeed", async () => {
                 it("when function called by the Governor");
-                
+
                 it("when function called multiple times");
             });
 
@@ -214,5 +218,4 @@ contract("AaveIntegration", async (accounts) => {
             it("should be implemented...");
         });
     });
-
 });
