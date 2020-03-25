@@ -161,7 +161,7 @@ contract AaveIntegrationV2 is InitializableAbstractIntegration {
 
     // MODIFIED FUNCTIONS
     // ==================
-    function setPTokenAddress(address _bAsset, address _pToken)
+    function setPTokenAddress(address /*_bAsset*/, address /*_pToken*/)
         external
         onlyGovernor
     {
@@ -306,6 +306,18 @@ contract AaveIntegrationV3 is InitializableAbstractIntegration {
         return IAaveLendingPool(lendingPool);
     }
 
+    // NEW
+    function checkBalanceView(address _bAsset)
+        external
+        view
+        returns (uint256 balance)
+    {
+        // balance is always with token aToken decimals
+        IAaveAToken aToken = _getATokenFor(_bAsset);
+        // ADDED 100 to the token balance just to check upgrade
+        return _checkBalance(aToken);
+    }
+
     function _getLendingPoolCore()
         internal
         view
@@ -350,7 +362,7 @@ contract AaveIntegrationV3 is InitializableAbstractIntegration {
 
     // MODIFIED FUNCTIONS
     // ==================
-    function setPTokenAddress(address _bAsset, address _pToken)
+    function setPTokenAddress(address /* _bAsset*/, address /*_pToken*/)
         external
         onlyGovernor
     {
@@ -359,14 +371,4 @@ contract AaveIntegrationV3 is InitializableAbstractIntegration {
     }
 
 
-    function checkBalanceView(address _bAsset)
-        external
-        view
-        returns (uint256 balance)
-    {
-        // balance is always with token aToken decimals
-        IAaveAToken aToken = _getATokenFor(_bAsset);
-        // ADDED 100 to the token balance just to check upgrade
-        return _checkBalance(aToken);
-    }
 }

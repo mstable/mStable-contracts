@@ -16,7 +16,7 @@ const MockNexus = artifacts.require("MockNexus");
 const { expect, assert } = envSetup.configure();
 
 contract("InitializableModule", async (accounts) => {
-    const ctx: { module?: MockModuleInstance } = {};
+    const ctx: { module?: MockInitializableModuleInstance } = {};
     const sa = new StandardAccounts(accounts);
     let nexus: MockNexusInstance;
     const proxyAdmin = sa.dummy1;
@@ -36,6 +36,11 @@ contract("InitializableModule", async (accounts) => {
     shouldBehaveLikeModule(ctx as Required<typeof ctx>, sa);
 
     describe("should succeed", async () => {
+        it("and set the proxy admin address", async () => {
+            const proxyAdminLocal = await ctx.module.proxyAdmin();
+            expect(proxyAdminLocal).to.not.equal(ZERO_ADDRESS);
+            expect(proxyAdminLocal).to.equal(proxyAdmin);
+        });
         it("and return governor address", async () => {
             const governor = await ctx.module.governor();
             expect(governor).to.not.equal(ZERO_ADDRESS);
