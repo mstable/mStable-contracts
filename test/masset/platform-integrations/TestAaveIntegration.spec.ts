@@ -50,7 +50,7 @@ contract("AaveIntegration", async (accounts) => {
         // ======
         // Initialize the proxy
         const d_AaveIntegrationProxy: t.InitializableAdminUpgradeabilityProxyInstance = await c_InitializableProxy.new();
-        d_AaveIntegration = await c_AaveIntegration.at(d_AaveIntegration.address);
+        d_AaveIntegration = await c_AaveIntegration.at(d_AaveIntegrationProxy.address);
 
         // Load network specific integration data
         const integrationDetails = await massetMachine.loadBassets();
