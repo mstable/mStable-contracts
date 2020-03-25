@@ -29,16 +29,16 @@ contract("AaveIntegration", async (accounts) => {
     let aavePlatformAddress: Address;
     let d_AaveIntegration: t.AaveIntegrationInstance;
 
-    before("assertOnFork", async function() {
+    before("init", async function() {
         systemMachine = new SystemMachine(sa.all);
         isRunningFork = await systemMachine.isRunningValidFork();
         massetMachine = systemMachine.massetMachine;
     });
 
     beforeEach("before Each", async function() {
-        if (!isRunningFork) {
-            return this.skip();
-        }
+        // if (!isRunningFork) {
+        //     return this.skip();
+        // }
 
         // SETUP
         // ======
@@ -69,23 +69,18 @@ contract("AaveIntegration", async (accounts) => {
         );
     });
 
-    describe("behaviour", async () => {
-        beforeEach("behave like a Module", async () => {
-            // Module
-        });
+    context("Initializing AaveIntegration", async () => {
+        describe("verifying GovernableWhitelist initialization", async () => {
+            describe("verifying for InitializableModule initialization", async () => {
+                // should behave like a module
+                it("should properly initialize initializableModule");
+            });
 
-        // shouldB
-    });
-
-    describe("GovernableWhitelist", async () => {
-        describe("initialize", async () => {
             it("should properly store valid arguments", () => {
                 // check for whitelisted accs
                 // check for proxyadmin set
                 // check for nexus addr
             });
-
-            it("should properly initialize initializableModule", () => {});
 
             it("should fail when empty whitelisted array");
 
@@ -93,36 +88,16 @@ contract("AaveIntegration", async (accounts) => {
 
             it("should fail when address already whitelisted");
         });
-    });
 
-    describe("Initializing AaveIntegration", async () => {
-        // describe("by constructor", async () => {
-        //     it("should succeed when passed valid arguments");
-
-        //     it("should properly store valid arguments", () => {
-        //         // check for whitelisted accs
-        //         // check for proxyadmin set
-        //         // check for nexus addr
-        //         // check for pTokens added & events
-        //     });
-
-        //     it("should fail if passed incorrect data", async () => {
-        //         // platformAddress is zero
-        //         // bAsset and pToken array length are different
-        //         // pToken address is zero
-        //         // duplicate pToken or bAsset
-        //     });
-        // });
-
-        // describe("by initialize()", async () => {
         it("should properly store valid arguments", () => {
             // check for whitelisted accs
             // check for proxyadmin set
             // check for nexus addr
+            // check for platform addr
             // check for pTokens added & events
         });
 
-        it("should initialize GovernableWhitelist", () => {});
+        it("should approve spending of the passed bAssets", () => {});
 
         it("should fail when called again");
 
@@ -132,38 +107,20 @@ contract("AaveIntegration", async (accounts) => {
             // pToken address is zero
             // duplicate pToken or bAsset
         });
-        // });
     });
 
-    describe("AbstractIntegration", async () => {
-        describe("setPTokenAddress", async () => {
-            describe("should succeed", async () => {
-                it("when function called by the Governor");
-            });
-
-            describe("should fail", async () => {
-                it("when function called by Other user");
-
-                it("when bAsset address is zero");
-
-                it("when pToken address is zero");
-
-                it("when pToken address already assigned for a bAsset");
-            });
+    describe("setPTokenAddress", async () => {
+        it("should succeed when function called by the Governor");
+        it("should approve the spending of the bAsset correctly");
+        it("should fail when function called by Other user");
+        it("should fail when passed invalid args", () => {
+            // bAsset address is zero
+            // pToken address is zero
+            // pToken address already assigned for a bAsset
         });
     });
 
-    describe("AaveIntegration", async () => {
-        describe("constructor", async () => {
-            describe("should succeed", async () => {
-                it("");
-            });
-
-            describe("should fail", async () => {
-                it("");
-            });
-        });
-
+    describe("Testing core functionality", async () => {
         describe("deposit", async () => {
             describe("should succeed", async () => {
                 it("when a whitelisted user calls function");
