@@ -27,7 +27,7 @@ const c_AaveIntegrationV3: t.AaveIntegrationV3Contract = artifacts.require("Aave
 
 const c_MockAToken: t.MockATokenContract = artifacts.require("MockAToken");
 const c_MockAave: t.MockAaveContract = artifacts.require("MockAave");
-const c_ERC20Mock: t.ERC20MockContract = artifacts.require("ERC20Mock");
+const c_MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
 
 contract("UpgradedAaveIntegration", async (accounts) => {
     let d_Nexus: t.MockNexusInstance;
@@ -44,7 +44,7 @@ contract("UpgradedAaveIntegration", async (accounts) => {
     let d_AaveIntegrationV3: t.AaveIntegrationV3Instance;
 
     let d_MockAave: t.MockAaveInstance;
-    let d_mockBasset1: t.ERC20MockInstance;
+    let d_mockBasset1: t.MockERC20Instance;
     let d_mockAToken1: t.MockATokenInstance;
 
     let proxyToImplV2: t.AaveIntegrationV2Instance;
@@ -73,7 +73,7 @@ contract("UpgradedAaveIntegration", async (accounts) => {
         );
 
         // Initialize AaveIntegration
-        d_mockBasset1 = await c_ERC20Mock.new("Mock1", "MK1", 12, sa.default, 100000000);
+        d_mockBasset1 = await c_MockERC20.new("Mock1", "MK1", 12, sa.default, 100000000);
 
         // Mock Aave instance
         d_MockAave = await c_MockAave.new({ from: sa.default });
