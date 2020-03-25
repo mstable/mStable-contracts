@@ -9,7 +9,7 @@ import {
 import { SystemMachine, StandardAccounts } from ".";
 import { createMultiple, simpleToExactAmount, percentToWeight } from "@utils/math";
 import { BN, aToH } from "@utils/tools";
-import { fullScale, MainnetAccounts, KovanAccounts, ratioScale } from "@utils/constants";
+import { fullScale, MainnetAccounts, ratioScale } from "@utils/constants";
 import { Basset, BassetStatus } from "@utils/mstable-objects";
 import { ZERO_ADDRESS } from "@utils/constants";
 
@@ -53,12 +53,10 @@ export class MassetMachine {
     public sa: StandardAccounts;
 
     public ma: MainnetAccounts;
-    public ka: KovanAccounts;
 
     constructor(systemMachine: SystemMachine) {
         this.system = systemMachine;
         this.ma = new MainnetAccounts();
-        this.ka = new KovanAccounts();
         this.sa = this.system.sa;
     }
 

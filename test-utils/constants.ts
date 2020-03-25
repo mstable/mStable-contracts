@@ -70,23 +70,23 @@ export class MainnetAccounts {
     public allCTokens: Address[] = [this.cDAI, this.cUSDC];
 }
 
-export class KovanAccounts {
+export class RopstenAccounts {
     // All Native Tokens
-    public DAI: Address = "0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa";
-    public TUSD: Address = "0x1c4a937d171752e1313d70fb16ae2ea02f86303e";
-    public USDC: Address = "0x75b0622cec14130172eae9cf166b92e5c112faff";
-    public USDT: Address = "0x13512979ade267ab5100878e2e0f485b568328a4";
+    public DAI: Address = "0xb5e5d0f8c0cba267cd3d7035d6adc8eba7df7cdd";
+    public USDC: Address = "0x8a9447df1fb47209d36204e6d56767a33bf20f9f";
+    public TUSD: Address = "0xa51EE1845C13Cb03FcA998304b00EcC407fc1F92";
+    public USDT: Address = "0xB404c51BBC10dcBE948077F18a4B8E553D160084";
 
     public allNativeTokens: Address[] = [this.DAI, this.TUSD, this.USDC, this.USDT];
 
     // AAVE
-    public aavePlatform: Address = "0x506B0B2CF20FAA8f38a4E2B524EE43e1f4458Cc5";
-    public aTUSD: Address = "0xA79383e0d2925527ba5Ec1c1bcaA13c28EE00314";
-    public aUSDT: Address = "0xA01bA9fB493b851F4Ac5093A324CB081A909C34B";
+    public aavePlatform: Address = "0x1c8756FD2B28e9426CDBDcC7E3c4d64fa9A54728";
+    public aTUSD: Address = "0x82F01c5694f36690a985F01dC0aD46e1B20E7a1a";
+    public aUSDT: Address = "0x790744bC4257B4a0519a3C5649Ac1d16DDaFAE0D";
     public allATokens: Address[] = [this.aTUSD, this.aUSDT];
 
     // Compound cTokens
-    public cDAI: Address = "0xe7bc397dbd069fc7d0109c0636d06888bb50668c";
-    public cUSDC: Address = "0xcfc9bb230f00bffdb560fce2428b4e05f3442e35";
+    public cDAI: Address = "0x6ce27497a64fffb5517aa4aee908b1e7eb63b9ff";
+    public cUSDC: Address = "0x20572e4c090f15667cf7378e16fad2ea0e2f3eff";
     public allCTokens: Address[] = [this.cDAI, this.cUSDC];
 }

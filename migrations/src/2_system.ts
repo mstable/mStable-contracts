@@ -2,7 +2,7 @@ import * as t from "types/generated";
 import { Address } from "types/common";
 
 import { percentToWeight } from "@utils/math";
-import { ZERO_ADDRESS, KovanAccounts } from "@utils/constants";
+import { ZERO_ADDRESS, RopstenAccounts } from "@utils/constants";
 
 export interface ATokenDetails {
     bAsset: Address;
@@ -26,39 +26,39 @@ export interface BassetIntegrationDetails {
     cTokens: Array<CTokenDetails>;
 }
 
-async function loadBassetsKovan(artifacts): Promise<BassetIntegrationDetails> {
+async function loadBassetsRopsten(artifacts): Promise<BassetIntegrationDetails> {
     const c_MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
 
-    let ka = new KovanAccounts();
-    // load all the REAL bAssets from Kovan
-    const bAsset_DAI = await c_MockERC20.at(ka.DAI);
-    const bAsset_USDC = await c_MockERC20.at(ka.USDC);
-    const bAsset_TUSD = await c_MockERC20.at(ka.TUSD);
-    const bAsset_USDT = await c_MockERC20.at(ka.USDT);
+    let ra = new RopstenAccounts();
+    // load all the REAL bAssets from Ropsten
+    const bAsset_DAI = await c_MockERC20.at(ra.DAI);
+    const bAsset_USDC = await c_MockERC20.at(ra.USDC);
+    const bAsset_TUSD = await c_MockERC20.at(ra.TUSD);
+    const bAsset_USDT = await c_MockERC20.at(ra.USDT);
     const bAssets = [bAsset_DAI, bAsset_USDC, bAsset_TUSD, bAsset_USDT];
     // return all the addresses
     return {
         bAssets,
         platforms: [Platform.compound, Platform.compound, Platform.aave, Platform.aave],
-        aavePlatformAddress: ka.aavePlatform,
+        aavePlatformAddress: ra.aavePlatform,
         cTokens: [
             {
                 bAsset: bAsset_DAI.address,
-                cToken: ka.cDAI,
+                cToken: ra.cDAI,
             },
             {
                 bAsset: bAsset_USDC.address,
-                cToken: ka.cUSDC,
+                cToken: ra.cUSDC,
             },
         ],
         aTokens: [
             {
                 bAsset: bAsset_TUSD.address,
-                aToken: ka.aTUSD,
+                aToken: ra.aTUSD,
             },
             {
                 bAsset: bAsset_USDT.address,
-                aToken: ka.aUSDT,
+                aToken: ra.aUSDT,
             },
         ],
     };
@@ -200,11 +200,11 @@ export default async ({ artifacts }, deployer, network, accounts) => {
 
     let default_, governor, feeRecipient;
     let bassetDetails: BassetIntegrationDetails;
-    if (deployer.network == "kovan") {
+    if (deployer.network == "ropsten") {
         [default_, governor] = accounts;
         feeRecipient = accounts[2];
-        console.log("Loading Kovan bAssets and lending platforms");
-        bassetDetails = await loadBassetsKovan(artifacts);
+        console.log("Loading Ropsten bAssets and lending platforms");
+        bassetDetails = await loadBassetsRopsten(artifacts);
     } else {
         [default_, governor, feeRecipient] = accounts;
         console.log("Generating MOCK bAssets and lending platforms");

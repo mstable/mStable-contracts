@@ -32,11 +32,11 @@ module.exports = {
       gas: 0xfffffffffff, // <-- Use this high gas value
       gasPrice: 0x01      // <-- Use this low gas price
     },
-    kovan: {
+    ropsten: {
       provider() {
-        return new HDWalletProvider("", `https://kovan.infura.io/v3/`, 0, 3)
+        return new HDWalletProvider("", `https://ropsten.infura.io/v3/`, 0, 3)
       },
-      network_id: 42,
+      network_id: 3,
       gasPrice: 10000000000, // 10 GWei,
       skipDryRun: true,
       gas: 8000000
