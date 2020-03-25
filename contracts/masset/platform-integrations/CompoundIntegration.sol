@@ -12,12 +12,14 @@ import { AbstractIntegration, MassetHelpers, IERC20 } from "./AbstractIntegratio
 contract CompoundIntegration is AbstractIntegration {
 
     constructor(
+        address _proxyAdmin,
         address _nexus,
         address[] memory _whitelisted,
         address[] memory _bAssets,
         address[] memory _pTokens
     )
         AbstractIntegration(
+            _proxyAdmin,
             _nexus,
             _whitelisted,
             address(0),

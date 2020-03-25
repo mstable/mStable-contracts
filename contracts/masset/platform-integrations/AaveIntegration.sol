@@ -12,6 +12,7 @@ import { AbstractIntegration, MassetHelpers, IERC20 } from "./AbstractIntegratio
 contract AaveIntegration is AbstractIntegration {
 
     constructor(
+        address _proxyAdmin,
         address _nexus,
         address[] memory _whitelisted,
         address _aaveAddress,
@@ -19,6 +20,7 @@ contract AaveIntegration is AbstractIntegration {
         address[] memory _pTokens
     )
         AbstractIntegration(
+            _proxyAdmin,
             _nexus,
             _whitelisted,
             _aaveAddress,
