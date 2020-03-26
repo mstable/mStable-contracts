@@ -332,13 +332,14 @@ contract Masset is IMasset, MassetToken, PausableModule {
         require(_bAssetQuantity > 0, "Quantity must not be 0");
 
         Basket memory basket = basketManager.getBasket();
+        uint256 colRatio = basket.collateralisationRatio;
 
         ForgeProps memory props = basketManager.prepareForgeBasset(_bAsset, false);
         if(!props.isValid) return 0;
 
         // Validate redemption
         (bool redemptionValid, string memory reason) =
-            forgeValidator.validateRedemption(basket.failed, totalSupply(), basket.bassets, props.grace, props.index, _bAssetQuantity);
+            forgeValidator.validateRedemption(basket.failed, totalSupply().mulTruncate(colRatio), basket.bassets, props.grace, props.index, _bAssetQuantity);
         require(redemptionValid, reason);
 
         // Calc equivalent mAsset amount
@@ -351,7 +352,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         _payRedemptionFee(massetQuantity, msg.sender);
 
         // Ensure payout is relevant to collateralisation ratio (if ratio is 90%, we burn more)
-        massetQuantity = massetQuantity.divPrecisely(basket.collateralisationRatio);
+        massetQuantity = massetQuantity.divPrecisely(colRatio);
 
         // Burn the Masset
         _burn(msg.sender, massetQuantity);
@@ -381,6 +382,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
 
         // Fetch high level details
         Basket memory basket = basketManager.getBasket();
+        uint256 colRatio = basket.collateralisationRatio;
 
         // Load only needed bAssets in array
         ForgePropsMulti memory props
@@ -389,7 +391,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
 
         // Validate redemption
         (bool redemptionValid, string memory reason) =
-            forgeValidator.validateRedemption(basket.failed, totalSupply(), basket.bassets, props.grace, props.indexes, _bassetQuantities);
+            forgeValidator.validateRedemption(basket.failed, totalSupply().mulTruncate(colRatio), basket.bassets, props.grace, props.indexes, _bassetQuantities);
         require(redemptionValid, reason);
 
         uint256 massetQuantity = 0;
@@ -411,7 +413,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         _payRedemptionFee(massetQuantity, msg.sender);
 
         // Ensure payout is relevant to collateralisation ratio (if ratio is 90%, we burn more)
-        massetQuantity = massetQuantity.divPrecisely(basket.collateralisationRatio);
+        massetQuantity = massetQuantity.divPrecisely(colRatio);
 
         // Burn the Masset
         _burn(msg.sender, massetQuantity);
