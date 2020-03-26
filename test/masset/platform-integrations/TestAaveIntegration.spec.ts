@@ -358,6 +358,7 @@ contract("AaveIntegration", async (accounts) => {
         it("should fail if we do not first pass the required bAsset");
         it("should fail with broken arguments");
         it("should fail if the bAsset is not supported");
+        it("should fail if lending pool does not exist (mock)");
     });
 
     describe("withdraw", async () => {
@@ -386,7 +387,9 @@ contract("AaveIntegration", async (accounts) => {
     });
 
     describe("reApproveAllTokens", async () => {
+        it("should re-approve ALL bAssets with aTokens");
         it("should only be callable bby the Governor");
+        it("should fail if lending pool core does not exist (mock)");
 
         it("should be able to be called multiple times");
     });
