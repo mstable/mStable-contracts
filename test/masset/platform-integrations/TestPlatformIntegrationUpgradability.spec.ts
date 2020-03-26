@@ -96,8 +96,6 @@ contract("UpgradedAaveIntegration", async (accounts) => {
 
         const pToken = await proxyToImplV1.bAssetToPToken(d_mockBasset1.address);
         expect(pToken).to.equal(d_mockAToken1.address);
-        const version = await proxyToImplV1.version();
-        expect("1.0").to.equal(version);
         const platformAddress = await proxyToImplV1.platformAddress();
         expect(d_MockAave.address).to.equal(platformAddress);
 
@@ -170,11 +168,6 @@ contract("UpgradedAaveIntegration", async (accounts) => {
 
             key = await proxyToImplV2.Key_SavingsManager();
             expect(key).to.equal(web3.utils.keccak256("SavingsManager"));
-        });
-
-        it("should have initialized with new version", async () => {
-            const version = await proxyToImplV2.version();
-            expect("2.0").to.equal(version);
         });
 
         it("should have initialized with new variables", async () => {

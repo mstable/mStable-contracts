@@ -29,8 +29,6 @@ contract InitializableAbstractIntegration is Initializable, IPlatformIntegration
     event Deposit(address indexed _bAsset, address _pToken, uint256 _amount);
     event Withdrawal(address indexed _bAsset, address _pToken, uint256 _amount);
 
-    string public version = "1.0";
-
     // Core address for the given platform */
     address public platformAddress;
 
@@ -61,7 +59,6 @@ contract InitializableAbstractIntegration is Initializable, IPlatformIntegration
     {
         InitializableGovernableWhitelist._initialize(_proxyAdmin, _nexus, _whitelisted);
         InitializableAbstractIntegration._initialize(_platformAddress, _bAssets, _pTokens);
-        version = "1.0";
     }
 
     /**
