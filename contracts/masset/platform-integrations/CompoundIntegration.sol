@@ -11,6 +11,14 @@ import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "./Initi
  */
 contract CompoundIntegration is InitializableAbstractIntegration {
 
+    /**
+     * @dev The version of the contract implementation. The version must be updated in the below
+     *      comment when the contrat is upgraded to a new implementation.
+     */
+    /*******************
+        VERSION: 1.0
+    *******************/
+
     /***************************************
                     CORE
     ****************************************/

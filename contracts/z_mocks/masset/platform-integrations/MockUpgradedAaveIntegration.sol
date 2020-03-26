@@ -151,7 +151,6 @@ contract AaveIntegrationV2 is InitializableAbstractIntegration {
     // NEW FUNCTIONS
     // ===============
     function initializeNewUint() public onlyProxyAdmin {
-        version = "2.0";
         newUint = 1;
     }
 
@@ -329,7 +328,6 @@ contract AaveIntegrationV3 is InitializableAbstractIntegration {
     // NEW FUNCTIONS
     // ===============
     function initializeNewUint() public onlyProxyAdmin {
-        version = "3.0";
         newUint = 1;
     }
 

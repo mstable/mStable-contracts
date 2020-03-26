@@ -163,8 +163,6 @@ contract("AaveIntegration", async (accounts) => {
         });
 
         it("should properly store valid arguments", async () => {
-            // Should be initialized with correct version
-            expect("1.0").eq(await d_AaveIntegration.version());
             // check for platform addr
             expect(integrationDetails.aavePlatformAddress).eq(
                 await d_AaveIntegration.platformAddress(),
