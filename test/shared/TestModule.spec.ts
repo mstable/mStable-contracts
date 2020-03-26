@@ -92,10 +92,10 @@ contract("Module", async (accounts) => {
         });
 
         it("and return proxyadmin address", async () => {
-            const proxyAdmin = await ctx.module.proxyAdmin();
-            expect(proxyAdmin).to.not.equal(ZERO_ADDRESS);
+            const proxyAdminAddr = await ctx.module.proxyAdmin();
+            expect(proxyAdminAddr).to.not.equal(ZERO_ADDRESS);
             const nexusProxyAdmin = await nexus.getModule(web3.utils.keccak256("ProxyAdmin"));
-            expect(nexusProxyAdmin).to.equal(proxyAdmin);
+            expect(nexusProxyAdmin).to.equal(proxyAdminAddr);
         });
 
         it("when shouldAllowOnlyGovernor() called by Governor", async () => {
