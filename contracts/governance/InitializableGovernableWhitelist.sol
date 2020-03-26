@@ -24,18 +24,16 @@ contract InitializableGovernableWhitelist is InitializableModule {
 
     /**
      * @dev Initialization function for upgradable proxy contracts
-     * @param _proxyAdmin DelayedProxyAdmin contract address
      * @param _nexus Nexus contract address
      * @param _whitelisted Array of whitelisted addresses.
      */
     function _initialize(
-        address _proxyAdmin,
         address _nexus,
         address[] memory _whitelisted
     )
         internal
     {
-        InitializableModule._initialize(_proxyAdmin, _nexus);
+        InitializableModule._initialize(_nexus);
 
         require(_whitelisted.length > 0, "Empty whitelist array");
 

@@ -23,8 +23,7 @@ const c_MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
 const c_MockERC20WithFee: t.MockERC20WithFeeContract = artifacts.require("MockERC20WithFee");
 const c_MockAaveAToken: t.MockATokenContract = artifacts.require("MockAToken");
 const c_MockAave: t.MockAaveContract = artifacts.require("MockAave");
-const c_MockNexus: t.MockNexusContract = artifacts.require("MockNexus");
-
+const c_Nexus: t.NexusContract = artifacts.require("Nexus");
 const c_AaveLendingPoolAddressProvider: t.ILendingPoolAddressesProviderContract = artifacts.require(
     "ILendingPoolAddressesProvider",
 );
@@ -54,7 +53,6 @@ contract("AaveIntegration", async (accounts) => {
 
     before("base init", async () => {
         systemMachine = new SystemMachine(sa.all);
-        nexus = await c_MockNexus.new(sa.governor, sa.dummy1, sa.dummy2);
         massetMachine = systemMachine.massetMachine;
 
         await runSetup();
@@ -63,6 +61,7 @@ contract("AaveIntegration", async (accounts) => {
     const runSetup = async () => {
         // SETUP
         // ======
+        nexus = await c_Nexus.new(sa.governor);
         // Init proxyAdmin
         d_DelayedProxyAdmin = await c_DelayedProxyAdmin.new(nexus.address);
         // Initialize the proxy
@@ -77,7 +76,6 @@ contract("AaveIntegration", async (accounts) => {
 
         const initializationData_AaveIntegration: string = aaveImplementation.contract.methods
             .initialize(
-                d_DelayedProxyAdmin.address,
                 nexus.address,
                 [sa.default],
                 integrationDetails.aavePlatformAddress,
@@ -91,6 +89,14 @@ contract("AaveIntegration", async (accounts) => {
             initializationData_AaveIntegration,
         );
 
+        await nexus.initialize(
+            [await d_DelayedProxyAdmin.Key_ProxyAdmin()],
+            [d_DelayedProxyAdmin.address],
+            [true],
+            sa.governor,
+            { from: sa.governor },
+        );
+
         ctx.module = d_AaveIntegration;
     };
 
@@ -100,12 +106,6 @@ contract("AaveIntegration", async (accounts) => {
                 shouldBehaveLikeModule(ctx as Required<typeof ctx>, sa);
 
                 it("should properly store valid arguments", async () => {
-                    // Expect governor to act as proxy admin
-                    expect(d_DelayedProxyAdmin.address).eq(await d_AaveIntegration.proxyAdmin());
-                    // Ensure ProxyAdmin on the implementation matches that of the proxy
-                    expect(await d_AaveIntegration.proxyAdmin()).eq(
-                        await d_DelayedProxyAdmin.getProxyAdmin(d_AaveIntegration.address),
-                    );
                     // Check for nexus addr
                     expect(await d_AaveIntegration.nexus()).eq(nexus.address);
                 });
@@ -122,12 +122,11 @@ contract("AaveIntegration", async (accounts) => {
                 expect(notWhitelisted2).eq(false);
             });
             it("should fail when empty whitelisted array", async () => {
-                let tempImpl = await c_AaveIntegration.new();
-                let erc20Mock = await c_MockERC20.new("TMP", "TMP", 18, sa.default, "1000000");
-                let aTokenMock = await c_MockAaveAToken.new(sa.other, erc20Mock.address);
+                const tempImpl = await c_AaveIntegration.new();
+                const erc20Mock = await c_MockERC20.new("TMP", "TMP", 18, sa.default, "1000000");
+                const aTokenMock = await c_MockAaveAToken.new(sa.other, erc20Mock.address);
                 await shouldFail.reverting.withMessage(
                     tempImpl.initialize(
-                        sa.governor,
                         nexus.address,
                         [],
                         sa.other,
@@ -138,12 +137,11 @@ contract("AaveIntegration", async (accounts) => {
                 );
             });
             it("should fail when whitelisted address is zero or duplicate", async () => {
-                let tempImpl = await c_AaveIntegration.new();
-                let erc20Mock = await c_MockERC20.new("TMP", "TMP", 18, sa.default, "1000000");
-                let aTokenMock = await c_MockAaveAToken.new(sa.other, erc20Mock.address);
+                const tempImpl = await c_AaveIntegration.new();
+                const erc20Mock = await c_MockERC20.new("TMP", "TMP", 18, sa.default, "1000000");
+                const aTokenMock = await c_MockAaveAToken.new(sa.other, erc20Mock.address);
                 await shouldFail.reverting.withMessage(
                     tempImpl.initialize(
-                        sa.governor,
                         nexus.address,
                         [sa.dummy1, sa.dummy1],
                         sa.other,
@@ -154,7 +152,6 @@ contract("AaveIntegration", async (accounts) => {
                 );
                 await shouldFail.reverting.withMessage(
                     tempImpl.initialize(
-                        sa.governor,
                         nexus.address,
                         [ZERO_ADDRESS],
                         sa.other,
@@ -181,21 +178,20 @@ contract("AaveIntegration", async (accounts) => {
         });
 
         it("should approve spending of the passed bAssets", async () => {
-            let bAsset = await c_ERC20.at(integrationDetails.aTokens[0].bAsset);
-            let addressProvider = await c_AaveLendingPoolAddressProvider.at(
+            const bAsset = await c_MockERC20.at(integrationDetails.aTokens[0].bAsset);
+            const addressProvider = await c_AaveLendingPoolAddressProvider.at(
                 integrationDetails.aavePlatformAddress,
             );
-            let approvedAddress = await addressProvider.getLendingPoolCore();
-            let balance = await bAsset.allowance(d_AaveIntegration.address, approvedAddress);
+            const approvedAddress = await addressProvider.getLendingPoolCore();
+            const balance = await bAsset.allowance(d_AaveIntegration.address, approvedAddress);
             expect(balance).bignumber.eq(MAX_UINT256 as any);
         });
 
         it("should fail when called again", async () => {
-            let tempImpl = await c_AaveIntegration.new();
-            let erc20Mock = await c_MockERC20.new("TMP", "TMP", 18, sa.default, "1000000");
-            let aTokenMock = await c_MockAaveAToken.new(sa.other, erc20Mock.address);
+            const tempImpl = await c_AaveIntegration.new();
+            const erc20Mock = await c_MockERC20.new("TMP", "TMP", 18, sa.default, "1000000");
+            const aTokenMock = await c_MockAaveAToken.new(sa.other, erc20Mock.address);
             await tempImpl.initialize(
-                sa.governor,
                 nexus.address,
                 [sa.dummy1],
                 integrationDetails.aavePlatformAddress,
@@ -204,7 +200,6 @@ contract("AaveIntegration", async (accounts) => {
             );
             await shouldFail.reverting.withMessage(
                 tempImpl.initialize(
-                    sa.governor,
                     nexus.address,
                     [sa.dummy1],
                     sa.other,
@@ -216,13 +211,12 @@ contract("AaveIntegration", async (accounts) => {
         });
 
         it("should fail if passed incorrect data", async () => {
-            let tempImpl = await c_AaveIntegration.new();
-            let erc20Mock = await c_MockERC20.new("TMP", "TMP", 18, sa.default, "1000000");
-            let aTokenMock = await c_MockAaveAToken.new(sa.other, erc20Mock.address);
+            const tempImpl = await c_AaveIntegration.new();
+            const erc20Mock = await c_MockERC20.new("TMP", "TMP", 18, sa.default, "1000000");
+            const aTokenMock = await c_MockAaveAToken.new(sa.other, erc20Mock.address);
             // platformAddress is invalid
             await shouldFail.reverting(
                 tempImpl.initialize(
-                    sa.governor,
                     nexus.address,
                     [sa.dummy1],
                     ZERO_ADDRESS,
@@ -233,7 +227,6 @@ contract("AaveIntegration", async (accounts) => {
             // bAsset and pToken array length are different
             await shouldFail.reverting.withMessage(
                 tempImpl.initialize(
-                    sa.governor,
                     nexus.address,
                     [sa.dummy1, sa.dummy2],
                     integrationDetails.aavePlatformAddress,
@@ -245,7 +238,6 @@ contract("AaveIntegration", async (accounts) => {
             // pToken address is zero
             await shouldFail.reverting.withMessage(
                 tempImpl.initialize(
-                    sa.governor,
                     nexus.address,
                     [sa.dummy1, sa.dummy2],
                     integrationDetails.aavePlatformAddress,
@@ -257,7 +249,6 @@ contract("AaveIntegration", async (accounts) => {
             // duplicate pToken or bAsset
             await shouldFail.reverting.withMessage(
                 tempImpl.initialize(
-                    sa.governor,
                     nexus.address,
                     [sa.dummy1, sa.dummy2],
                     integrationDetails.aavePlatformAddress,
@@ -269,7 +260,6 @@ contract("AaveIntegration", async (accounts) => {
             // invalid bAsset addresses
             await shouldFail.reverting(
                 tempImpl.initialize(
-                    sa.governor,
                     nexus.address,
                     [sa.dummy1, sa.dummy2],
                     integrationDetails.aavePlatformAddress,
@@ -309,11 +299,11 @@ contract("AaveIntegration", async (accounts) => {
             expect(aTokenMock.address).eq(
                 await d_AaveIntegration.bAssetToPToken(erc20Mock.address),
             );
-            let addressProvider = await c_AaveLendingPoolAddressProvider.at(
+            const addressProvider = await c_AaveLendingPoolAddressProvider.at(
                 integrationDetails.aavePlatformAddress,
             );
-            let approvedAddress = await addressProvider.getLendingPoolCore();
-            let balance = await erc20Mock.allowance(d_AaveIntegration.address, approvedAddress);
+            const approvedAddress = await addressProvider.getLendingPoolCore();
+            const balance = await erc20Mock.allowance(d_AaveIntegration.address, approvedAddress);
             expect(balance).bignumber.eq(MAX_UINT256 as any);
         });
         it("should fail when passed invalid args", async () => {
@@ -350,22 +340,22 @@ contract("AaveIntegration", async (accounts) => {
         });
         it("should deposit tokens to Aave", async () => {
             // Step 0. Choose tokens
-            let bAsset = await c_ERC20.at(integrationDetails.aTokens[0].bAsset);
-            let amount = new BN(100);
-            let aToken = await c_AaveAToken.at(integrationDetails.aTokens[0].aToken);
+            const bAsset = await c_ERC20.at(integrationDetails.aTokens[0].bAsset);
+            const amount = new BN(100);
+            const aToken = await c_AaveAToken.at(integrationDetails.aTokens[0].aToken);
             // 0.1 Get balance before
-            let addressProvider = await c_AaveLendingPoolAddressProvider.at(
+            const addressProvider = await c_AaveLendingPoolAddressProvider.at(
                 integrationDetails.aavePlatformAddress,
             );
-            let bAssetRecipient = await addressProvider.getLendingPoolCore();
-            let bAssetRecipient_balBefore = await bAsset.balanceOf(bAssetRecipient);
-            let aaveIntegration_balBefore = await aToken.balanceOf(d_AaveIntegration.address);
+            const bAssetRecipient = await addressProvider.getLendingPoolCore();
+            const bAssetRecipient_balBefore = await bAsset.balanceOf(bAssetRecipient);
+            const aaveIntegration_balBefore = await aToken.balanceOf(d_AaveIntegration.address);
 
             // Step 1. xfer tokens to integration
             await bAsset.transfer(d_AaveIntegration.address, amount.toString());
 
             // Step 2. call deposit
-            let tx = await d_AaveIntegration.deposit(bAsset.address, amount.toString(), false);
+            const tx = await d_AaveIntegration.deposit(bAsset.address, amount.toString(), false);
 
             // Step 3. Check for things:
             // 3.1 Check that lending pool core has bAssets
@@ -382,12 +372,12 @@ contract("AaveIntegration", async (accounts) => {
 
         it("should handle the fee calculations", async () => {
             // Step 0. Choose tokens and set up env
-            let addressProvider = await c_AaveLendingPoolAddressProvider.at(
+            const addressProvider = await c_AaveLendingPoolAddressProvider.at(
                 integrationDetails.aavePlatformAddress,
             );
-            let bAsset = await c_MockERC20WithFee.new("FEE", "F", 12, sa.default, "1000000");
-            let amount = new BN(10).pow(new BN(12));
-            let aToken = await c_MockAaveAToken.new(
+            const bAsset = await c_MockERC20WithFee.new("FEE", "F", 12, sa.default, "1000000");
+            const amount = new BN(10).pow(new BN(12));
+            const aToken = await c_MockAaveAToken.new(
                 await addressProvider.getLendingPool(),
                 bAsset.address,
             );
@@ -403,25 +393,25 @@ contract("AaveIntegration", async (accounts) => {
                 from: sa.governor,
             });
             // 0.2 Get balance before
-            let bAssetRecipient = await addressProvider.getLendingPoolCore();
-            let bAssetRecipient_balBefore = await bAsset.balanceOf(bAssetRecipient);
-            let aaveIntegration_balBefore = await aToken.balanceOf(d_AaveIntegration.address);
+            const bAssetRecipient = await addressProvider.getLendingPoolCore();
+            const bAssetRecipient_balBefore = await bAsset.balanceOf(bAssetRecipient);
+            const aaveIntegration_balBefore = await aToken.balanceOf(d_AaveIntegration.address);
 
             // Step 1. xfer tokens to integration
-            let bal1 = await bAsset.balanceOf(d_AaveIntegration.address);
+            const bal1 = await bAsset.balanceOf(d_AaveIntegration.address);
             await bAsset.transfer(d_AaveIntegration.address, amount.toString());
 
-            let bal2 = await bAsset.balanceOf(d_AaveIntegration.address);
-            let receivedAmount = bal2.sub(bal1);
+            const bal2 = await bAsset.balanceOf(d_AaveIntegration.address);
+            const receivedAmount = bal2.sub(bal1);
             // fee = initialAmount - receivedAmount
-            let fee = amount.sub(receivedAmount);
+            const fee = amount.sub(receivedAmount);
             // feeRate = fee/amount (base 1e18)
-            let feeRate = fee.mul(fullScale).div(amount);
+            const feeRate = fee.mul(fullScale).div(amount);
             // expectedDepoit = receivedAmount - (receivedAmount*feeRate)
-            let expectedDeposit = receivedAmount.sub(receivedAmount.mul(feeRate).div(fullScale));
+            const expectedDeposit = receivedAmount.sub(receivedAmount.mul(feeRate).div(fullScale));
 
             // Step 2. call deposit
-            let tx = await d_AaveIntegration.deposit(
+            const tx = await d_AaveIntegration.deposit(
                 bAsset.address,
                 receivedAmount.toString(),
                 true,
@@ -433,13 +423,13 @@ contract("AaveIntegration", async (accounts) => {
                 bAssetRecipient_balBefore.add(expectedDeposit),
             );
             // 3.2 Check that aave integration has aTokens
-            let aaveIntegration_balAfter = await aToken.balanceOf(d_AaveIntegration.address);
+            const aaveIntegration_balAfter = await aToken.balanceOf(d_AaveIntegration.address);
             expect(aaveIntegration_balAfter).bignumber.lte(
                 aaveIntegration_balBefore.add(receivedAmount) as any,
             );
             // 3.3 Check that return value is cool (via event)
-            let receivedATokens = aaveIntegration_balAfter.sub(aaveIntegration_balBefore);
-            let min = receivedATokens.lt(expectedDeposit) ? receivedATokens : expectedDeposit;
+            const receivedATokens = aaveIntegration_balAfter.sub(aaveIntegration_balBefore);
+            const min = receivedATokens.lt(expectedDeposit) ? receivedATokens : expectedDeposit;
             expectEvent.inLogs(tx.logs, "Deposit", { _amount: min });
         });
 

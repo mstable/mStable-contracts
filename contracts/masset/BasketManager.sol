@@ -17,13 +17,12 @@ import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import { StableMath } from "../shared/StableMath.sol";
 
 /**
- * @title MassetBasket
- * @dev Manages the Masset Basket composition and acts as a cache to store the Basket Assets (Bassets)
+ * @title   MassetBasket
+ * @notice  Manages the Masset Basket composition and acts as a cache to store the Basket Assets (Bassets)
  * @dev     VERSION: 1.0
- *          DATE:    2020-3-26
+ *          DATE:    2020-03-26
  */
 contract BasketManager is Initializable, IBasketManager, InitializableModule {
-
 
     using SafeMath for uint256;
     using StableMath for uint256;
@@ -33,9 +32,6 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
     event BassetAdded(address indexed basset, address integrator);
     event BassetRemoved(address indexed basset);
     event BasketWeightsUpdated(address[] indexed bassets, uint256[] maxWeights);
-
-    /** @dev Basket Manager Version */
-    string public constant version_impl = "1.0";
 
     /** @dev mAsset linked to the manager (const) */
     address public mAsset;
@@ -52,7 +48,6 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
      *      This function should be called via Proxy just after contract deployment.
      */
     function initialize(
-        address _proxyAdmin,
         address _nexus,
         address _mAsset,
         address[] memory _bassets,
@@ -63,7 +58,7 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
         public
         initializer
     {
-        InitializableModule._initialize(_proxyAdmin, _nexus);
+        InitializableModule._initialize(_nexus);
 
         mAsset = _mAsset;
         // require(_bassets.length > 0, "Must initialise with some bAssets");

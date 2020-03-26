@@ -12,6 +12,7 @@ contract InitializableModuleKeys {
     // Governance                           // Phases
     bytes32 public Key_Governance;          // 2.x
     bytes32 public Key_Staking;             // 1.2
+    bytes32 public Key_ProxyAdmin;          // 1.0
 
     // mStable
     bytes32 public Key_OracleHub;           // 1.2
@@ -27,6 +28,7 @@ contract InitializableModuleKeys {
     function _initialize() internal {
         Key_Governance = keccak256("Governance");
         Key_Staking = keccak256("Staking");
+        Key_ProxyAdmin = keccak256("ProxyAdmin");
 
         Key_OracleHub = keccak256("OracleHub");
         Key_Manager = keccak256("Manager");

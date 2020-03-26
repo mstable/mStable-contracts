@@ -276,7 +276,6 @@ export default async ({ artifacts }, deployer, network, accounts) => {
     // 2.5. Init BasketManager
     const initializationData_BasketManager: string = d_BasketManager.contract.methods
         .initialize(
-            d_DelayedProxyAdmin.address,
             d_Nexus.address,
             d_MUSD.address,
             bassetDetails.bAssets.map((b) => b.address),
@@ -298,7 +297,6 @@ export default async ({ artifacts }, deployer, network, accounts) => {
     // 2.6. Init AaveIntegration
     const initializationData_AaveIntegration: string = d_AaveIntegration.contract.methods
         .initialize(
-            d_DelayedProxyAdmin.address,
             d_Nexus.address,
             [d_MUSD.address, d_BasketManagerProxy.address],
             bassetDetails.aavePlatformAddress,
@@ -315,7 +313,6 @@ export default async ({ artifacts }, deployer, network, accounts) => {
     // 2.7. Init CompoundIntegration
     const initializationData_CompoundIntegration: string = d_CompoundIntegration.contract.methods
         .initialize(
-            d_DelayedProxyAdmin.address,
             d_Nexus.address,
             [d_MUSD.address, d_BasketManagerProxy.address],
             ZERO_ADDRESS, // We don't need Compound sys addr
@@ -358,9 +355,12 @@ export default async ({ artifacts }, deployer, network, accounts) => {
     ]
   ****************************************/
 
-    const module_keys = [await d_SavingsManager.Key_SavingsManager()];
-    const module_addresses = [d_SavingsManager.address];
-    const module_isLocked = [false];
+    const module_keys = [
+        await d_SavingsManager.Key_SavingsManager(),
+        await d_DelayedProxyAdmin.Key_ProxyAdmin(),
+    ];
+    const module_addresses = [d_SavingsManager.address, d_DelayedProxyAdmin.address];
+    const module_isLocked = [false, true];
     await d_Nexus.initialize(module_keys, module_addresses, module_isLocked, governor, {
         from: governor,
     });

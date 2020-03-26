@@ -77,6 +77,8 @@ contract("DelayedProxyAdmin", async (accounts) => {
         // 1. Deploy DelayedProxyAdmin
         delayedProxyAdmin = await DelayedProxyAdmin.new(nexus.address);
 
+        await nexus.setProxyAdmin(delayedProxyAdmin.address);
+
         // 2. Deploy MockImplementation
         mockImplV1 = await MockImplementationV1.new();
         let uintVal = await mockImplV1.uintVal();

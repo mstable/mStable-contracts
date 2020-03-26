@@ -16,6 +16,8 @@ const c_Nexus: t.NexusContract = artifacts.require("Nexus");
 const c_SavingsContract: t.SavingsContractContract = artifacts.require("SavingsContract");
 const c_SavingsManager: t.SavingsManagerContract = artifacts.require("SavingsManager");
 
+const c_DelayedProxyAdmin: t.DelayedProxyAdminContract = artifacts.require("DelayedProxyAdmin");
+
 /**
  * @dev The SystemMachine is responsible for creating mock versions of our contracts
  * Since we will need to generate usable, customisable contracts throughout our test
@@ -31,6 +33,7 @@ export class SystemMachine {
     public mUSD: MassetDetails;
     public savingsContract: t.SavingsContractInstance;
     public savingsManager: t.SavingsManagerInstance;
+    public delayedProxyAdmin: t.DelayedProxyAdminInstance;
 
     constructor(accounts: Address[]) {
         this.sa = new StandardAccounts(accounts);
@@ -81,13 +84,17 @@ export class SystemMachine {
             this.savingsContract.address,
             { from: this.sa.default },
         );
+
         /***************************************
             4. Init
         ****************************************/
         this.nexus.initialize(
-            [await this.savingsManager.Key_SavingsManager()],
-            [this.savingsManager.address],
-            [false],
+            [
+                await this.savingsManager.Key_SavingsManager(),
+                await this.mUSD.proxyAdmin.Key_ProxyAdmin(),
+            ],
+            [this.savingsManager.address, this.mUSD.proxyAdmin.address],
+            [false, true],
             this.sa.governor,
             { from: this.sa.governor },
         );

@@ -8,13 +8,12 @@ contract MockInitializableModule is Initializable, InitializableModule {
     uint256 public temp;
 
     function initialize(
-        address _proxyAdmin,
         address _nexus
     )
         public
         initializer
     {
-        InitializableModule._initialize(_proxyAdmin, _nexus);
+        InitializableModule._initialize(_nexus);
     }
 
     function governor() public view returns (address) {
@@ -23,6 +22,10 @@ contract MockInitializableModule is Initializable, InitializableModule {
 
     function governance() public view returns (address) {
         return super._governance();
+    }
+
+    function proxyAdmin() public view returns (address) {
+        return super._proxyAdmin();
     }
 
     function staking() public view returns (address) {

@@ -15,12 +15,14 @@ contract("Module", async (accounts) => {
     const ctx: { module?: MockModuleInstance } = {};
     const sa = new StandardAccounts(accounts);
     let nexus: MockNexusInstance;
-    const governanceAddr = sa.dummy1;
-    const managerAddr = sa.dummy2;
+    const proxyAdmin = sa.dummy1;
+    const governanceAddr = sa.dummy2;
+    const managerAddr = sa.dummy3;
 
     before("before all", async () => {
         // create New Nexus
         nexus = await MockNexus.new(sa.governor, governanceAddr, managerAddr);
+        nexus.setProxyAdmin(proxyAdmin);
     });
     beforeEach("before each", async () => {
         ctx.module = await MockModule.new(nexus.address);
@@ -87,6 +89,13 @@ contract("Module", async (accounts) => {
                 web3.utils.keccak256("Recollateraliser"),
             );
             expect(nexusRecollateraliser).to.equal(recollateraliser);
+        });
+
+        it("and return proxyadmin address", async () => {
+            const proxyAdminAddr = await ctx.module.proxyAdmin();
+            expect(proxyAdminAddr).to.not.equal(ZERO_ADDRESS);
+            const nexusProxyAdmin = await nexus.getModule(web3.utils.keccak256("ProxyAdmin"));
+            expect(nexusProxyAdmin).to.equal(proxyAdminAddr);
         });
 
         it("when shouldAllowOnlyGovernor() called by Governor", async () => {

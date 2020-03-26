@@ -56,6 +56,7 @@ contract("UpgradedAaveIntegration", async (accounts) => {
 
         // 1. Deploy DelayedProxyAdmin
         d_DelayedProxyAdmin = await DelayedProxyAdmin.new(d_Nexus.address);
+        d_Nexus.setProxyAdmin(d_DelayedProxyAdmin.address);
 
         // 2 Deploy a proxy contract
         d_AaveIntegrationProxy = await InitializableProxy.new();
@@ -75,7 +76,6 @@ contract("UpgradedAaveIntegration", async (accounts) => {
 
         const initializationData_AaveIntegration: string = d_AaveIntegrationV1.contract.methods
             .initialize(
-                d_DelayedProxyAdmin.address,
                 d_Nexus.address,
                 [sa.dummy3, sa.dummy4],
                 d_MockAave.address,
@@ -184,6 +184,14 @@ contract("UpgradedAaveIntegration", async (accounts) => {
             await shouldFail.reverting.withMessage(
                 proxyToImplV2.setPTokenAddress(sa.dummy1, sa.dummy2, { from: sa.governor }),
                 "Not allowed to add more pTokens",
+            );
+        });
+
+        it("should fail initializeNewUint() when called by Other", async () => {
+            d_AaveIntegrationV3 = await c_AaveIntegrationV3.new();
+            await shouldFail.reverting.withMessage(
+                d_AaveIntegrationV3.initializeNewUint({ from: sa.other }),
+                "", // This will just revert as Nexus is not available
             );
         });
 

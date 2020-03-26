@@ -26,21 +26,17 @@ contract("InitializableModule", async (accounts) => {
     before("before all", async () => {
         // create New Nexus
         nexus = await MockNexus.new(sa.governor, governanceAddr, managerAddr);
+        nexus.setProxyAdmin(proxyAdmin);
     });
     beforeEach("before each", async () => {
         const initializedModule = await MockInitializableModule.new();
-        await initializedModule.initialize(proxyAdmin, nexus.address);
+        await initializedModule.initialize(nexus.address);
         ctx.module = initializedModule;
     });
 
     shouldBehaveLikeModule(ctx as Required<typeof ctx>, sa);
 
     describe("should succeed", async () => {
-        it("and set the proxy admin address", async () => {
-            const proxyAdminLocal = await ctx.module.proxyAdmin();
-            expect(proxyAdminLocal).to.not.equal(ZERO_ADDRESS);
-            expect(proxyAdminLocal).to.equal(proxyAdmin);
-        });
         it("and return governor address", async () => {
             const governor = await ctx.module.governor();
             expect(governor).to.not.equal(ZERO_ADDRESS);
@@ -53,6 +49,13 @@ contract("InitializableModule", async (accounts) => {
             expect(governance).to.not.equal(ZERO_ADDRESS);
             const nexusGovernance = await nexus.getModule(web3.utils.keccak256("Governance"));
             expect(nexusGovernance).to.equal(governance);
+        });
+
+        it("and return proxyAdmin address", async () => {
+            const proxyAdminAddr = await ctx.module.proxyAdmin();
+            expect(proxyAdminAddr).to.not.equal(ZERO_ADDRESS);
+            const nexusProxyAdmin = await nexus.getModule(web3.utils.keccak256("ProxyAdmin"));
+            expect(nexusProxyAdmin).to.equal(proxyAdminAddr);
         });
 
         it("and return staking address", async () => {
