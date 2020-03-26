@@ -44,9 +44,9 @@ contract MockAave is IAaveLendingPool, ILendingPoolAddressesProvider {
 
     function deposit(address _reserve, uint256 _amount, uint16 /*_referralCode*/) external {
         // Take their reserve
-        ERC20(_reserve).transferFrom(msg.sender, address(this), _amount);
+        uint256 xferred = MassetHelpers.transferTokens(msg.sender, address(this), _reserve, true, _amount);
         // Credit them with aToken
-        ERC20Mintable(reserveToAToken[_reserve]).mint(msg.sender, _amount);
+        ERC20Mintable(reserveToAToken[_reserve]).mint(msg.sender, xferred);
     }
 
     function getLendingPool() external view returns (address) {

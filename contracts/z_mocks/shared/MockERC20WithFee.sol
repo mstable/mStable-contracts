@@ -33,7 +33,7 @@ contract ERC20WithFee is IERC20, MinterRole {
     using SafeMath for uint256;
     using StableMath for uint256;
 
-    uint256 internal feeRate;
+    uint256 public feeRate;
 
     mapping (address => uint256) private _balances;
 
@@ -212,7 +212,7 @@ contract ERC20WithFee is IERC20, MinterRole {
 
         _burn(sender, fee);
 
-        _balances[sender] = _balances[sender].sub(amount);
+        _balances[sender] = _balances[sender].sub(remainder);
         _balances[recipient] = _balances[recipient].add(remainder);
         emit Transfer(sender, recipient, remainder);
     }
