@@ -333,7 +333,7 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
 
         uint256 len = basket.bassets.length;
         Basset memory basset = basket.bassets[index];
-        require(basset.targetWeight == 0, "bASset must have a target weight of 0");
+        // require(basset.targetWeight == 0, "bASset must have a target weight of 0");
         require(basset.vaultBalance == 0, "bASset vault must be empty");
         require(basset.status != BassetStatus.Liquidating, "bASset must be active");
 
