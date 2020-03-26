@@ -22,7 +22,7 @@ const { expect, assert } = envSetup.configure();
 const c_MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
 const c_MockAaveAToken: t.MockATokenContract = artifacts.require("MockAToken");
 const c_MockAave: t.MockAaveContract = artifacts.require("MockAave");
-const c_MockNexus: t.MockNexusContract = artifacts.require("MockNexus");
+const c_Nexus: t.NexusContract = artifacts.require("Nexus");
 const c_AaveLendingPoolAddressProvider: t.ILendingPoolAddressesProviderContract = artifacts.require(
     "ILendingPoolAddressesProvider",
 );
@@ -38,7 +38,7 @@ contract("AaveIntegration", async (accounts) => {
     const ma = new MainnetAccounts();
 
     let systemMachine: SystemMachine;
-    let nexus: t.MockNexusInstance;
+    let nexus: t.NexusInstance;
     let massetMachine: MassetMachine;
 
     let integrationDetails: BassetIntegrationDetails;
@@ -50,7 +50,6 @@ contract("AaveIntegration", async (accounts) => {
 
     before("base init", async () => {
         systemMachine = new SystemMachine(sa.all);
-        nexus = await c_MockNexus.new(sa.governor, sa.dummy1, sa.dummy2);
         massetMachine = systemMachine.massetMachine;
 
         await runSetup();
@@ -59,9 +58,9 @@ contract("AaveIntegration", async (accounts) => {
     const runSetup = async () => {
         // SETUP
         // ======
+        nexus = await c_Nexus.new(sa.governor);
         // Init proxyAdmin
         d_DelayedProxyAdmin = await c_DelayedProxyAdmin.new(nexus.address);
-        await nexus.setProxyAdmin(d_DelayedProxyAdmin.address);
         // Initialize the proxy
         d_AaveIntegrationProxy = await c_InitializableProxy.new();
         d_AaveIntegration = await c_AaveIntegration.at(d_AaveIntegrationProxy.address);
@@ -87,6 +86,14 @@ contract("AaveIntegration", async (accounts) => {
             initializationData_AaveIntegration,
         );
 
+        await nexus.initialize(
+            [await d_DelayedProxyAdmin.Key_ProxyAdmin()],
+            [d_DelayedProxyAdmin.address],
+            [true],
+            sa.governor,
+            { from: sa.governor },
+        );
+
         ctx.module = d_AaveIntegration;
     };
 
@@ -98,7 +105,6 @@ contract("AaveIntegration", async (accounts) => {
                 it("should properly store valid arguments", async () => {
                     // Check for nexus addr
                     expect(await d_AaveIntegration.nexus()).eq(nexus.address);
-                    // TODO check Nexus.proxyAdmin
                 });
             });
 

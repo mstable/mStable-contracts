@@ -86,19 +86,14 @@ export class SystemMachine {
         );
 
         /***************************************
-            5. DelayedProxyAdmin
-        ****************************************/
-        this.delayedProxyAdmin = await c_DelayedProxyAdmin.new(this.nexus.address);
-
-        /***************************************
-            6. Init
+            4. Init
         ****************************************/
         this.nexus.initialize(
             [
                 await this.savingsManager.Key_SavingsManager(),
-                await this.delayedProxyAdmin.Key_ProxyAdmin(),
+                await this.mUSD.proxyAdmin.Key_ProxyAdmin(),
             ],
-            [this.savingsManager.address, this.delayedProxyAdmin.address],
+            [this.savingsManager.address, this.mUSD.proxyAdmin.address],
             [false, true],
             this.sa.governor,
             { from: this.sa.governor },
