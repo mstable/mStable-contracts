@@ -133,7 +133,6 @@ export class MassetMachine {
         // 2.5. Init BasketManager
         const initializationData_BasketManager: string = d_BasketManager.contract.methods
             .initialize(
-                md.proxyAdmin.address,
                 this.system.nexus.address,
                 d_MUSD.address,
                 bassetDetails.bAssets.map((b) => b.address),
@@ -155,7 +154,6 @@ export class MassetMachine {
         // 2.6. Init AaveIntegration
         const initializationData_AaveIntegration: string = d_AaveIntegration.contract.methods
             .initialize(
-                md.proxyAdmin.address,
                 this.system.nexus.address,
                 [d_MUSD.address, d_BasketManagerProxy.address],
                 bassetDetails.aavePlatformAddress,
@@ -172,7 +170,6 @@ export class MassetMachine {
         // 2.7. Init CompoundIntegration
         const initializationData_CompoundIntegration: string = d_CompoundIntegration.contract.methods
             .initialize(
-                md.proxyAdmin.address,
                 this.system.nexus.address,
                 [d_MUSD.address, d_BasketManagerProxy.address],
                 ZERO_ADDRESS, // We don't need Compound sys addr

@@ -39,9 +39,6 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
     event BassetRemoved(address indexed basset);
     event BasketWeightsUpdated(address[] indexed bassets, uint256[] maxWeights);
 
-    /** @dev Basket Manager Version */
-    string public constant version_impl = "1.0";
-
     /** @dev mAsset linked to the manager (const) */
     address public mAsset;
 
@@ -57,7 +54,6 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
      *      This function should be called via Proxy just after contract deployment.
      */
     function initialize(
-        address _proxyAdmin,
         address _nexus,
         address _mAsset,
         address[] memory _bassets,
@@ -68,7 +64,7 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
         public
         initializer
     {
-        InitializableModule._initialize(_proxyAdmin, _nexus);
+        InitializableModule._initialize(_nexus);
 
         mAsset = _mAsset;
         // require(_bassets.length > 0, "Must initialise with some bAssets");

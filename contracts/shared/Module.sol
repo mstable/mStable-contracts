@@ -42,6 +42,16 @@ contract Module is ModuleKeys {
     }
 
     /**
+     * @dev Modifier to allow function calls only from the ProxyAdmin.
+     */
+    modifier onlyProxyAdmin() {
+        require(
+            msg.sender == _proxyAdmin(), "Only ProxyAdmin can execute"
+        );
+        _;
+    }
+
+    /**
      * @dev Modifier to allow function calls only from the Manager.
      */
     modifier onlyManager() {
@@ -71,6 +81,14 @@ contract Module is ModuleKeys {
      */
     function _staking() internal view returns (address) {
         return nexus.getModule(Key_Staking);
+    }
+
+    /**
+     * @dev Return ProxyAdmin Module address from the Nexus
+     * @return Address of the ProxyAdmin Module contract
+     */
+    function _proxyAdmin() internal view returns (address) {
+        return nexus.getModule(Key_ProxyAdmin);
     }
 
     /**

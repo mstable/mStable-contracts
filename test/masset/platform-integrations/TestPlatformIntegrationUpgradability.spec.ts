@@ -56,6 +56,7 @@ contract("UpgradedAaveIntegration", async (accounts) => {
 
         // 1. Deploy DelayedProxyAdmin
         d_DelayedProxyAdmin = await DelayedProxyAdmin.new(d_Nexus.address);
+        d_Nexus.setProxyAdmin(d_DelayedProxyAdmin.address);
 
         // 2 Deploy a proxy contract
         d_AaveIntegrationProxy = await InitializableProxy.new();
@@ -75,7 +76,6 @@ contract("UpgradedAaveIntegration", async (accounts) => {
 
         const initializationData_AaveIntegration: string = d_AaveIntegrationV1.contract.methods
             .initialize(
-                d_DelayedProxyAdmin.address,
                 d_Nexus.address,
                 [sa.dummy3, sa.dummy4],
                 d_MockAave.address,

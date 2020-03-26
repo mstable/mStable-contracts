@@ -47,7 +47,6 @@ contract InitializableAbstractIntegration is Initializable, IPlatformIntegration
      * @param _pTokens          Platform Token corresponding addresses
      */
     function initialize(
-        address _proxyAdmin,
         address _nexus,
         address[] memory _whitelisted,
         address _platformAddress,
@@ -57,7 +56,7 @@ contract InitializableAbstractIntegration is Initializable, IPlatformIntegration
         public
         initializer
     {
-        InitializableGovernableWhitelist._initialize(_proxyAdmin, _nexus, _whitelisted);
+        InitializableGovernableWhitelist._initialize(_nexus, _whitelisted);
         InitializableAbstractIntegration._initialize(_platformAddress, _bAssets, _pTokens);
     }
 
