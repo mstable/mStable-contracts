@@ -187,6 +187,14 @@ contract("UpgradedAaveIntegration", async (accounts) => {
             );
         });
 
+        it("should fail initializeNewUint() when called by Other", async () => {
+            d_AaveIntegrationV3 = await c_AaveIntegrationV3.new();
+            await shouldFail.reverting.withMessage(
+                d_AaveIntegrationV3.initializeNewUint({ from: sa.other }),
+                "", // This will just revert as Nexus is not available
+            );
+        });
+
         it("should not have removed functions in upgraded contract", async () => {
             // Upgrade to new version of AaveIntegration v3 via ProxyAdmin
             // ========================================================
