@@ -8,16 +8,12 @@ import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "./Initi
  * @title   CompoundIntegration
  * @author  Stability Labs Pty. Lte.
  * @notice  A simple connection to deposit and withdraw bAssets from Compound
+ * @dev     VERSION: 1.0
+ *          DATE:    2020-03-26
  */
 contract CompoundIntegration is InitializableAbstractIntegration {
 
-    /**
-     * @dev The version of the contract implementation. The version must be updated in the below
-     *      comment when the contrat is upgraded to a new implementation.
-     */
-    /*******************
-        VERSION: 1.0
-    *******************/
+
 
     /***************************************
                     CORE
