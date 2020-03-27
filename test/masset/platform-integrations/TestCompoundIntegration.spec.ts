@@ -20,7 +20,7 @@ import shouldBehaveLikeModule from "../../shared/behaviours/Module.behaviour";
 const { expect, assert } = envSetup.configure();
 
 const c_ERC20: t.ERC20Contract = artifacts.require("ERC20");
-const c_CERC20: t.ICErc20Contract = artifacts.require("ICERC20");
+const c_CERC20: t.ICERC20Contract = artifacts.require("ICERC20");
 
 const c_MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
 const c_MockCToken: t.MockCTokenContract = artifacts.require("MockCToken");
