@@ -46,12 +46,17 @@ contract MockCToken is ICERC20, ERC20Mintable {
     }
 
     function balanceOfUnderlying(address owner) external returns (uint) {
+        updateExchangeRate();
         uint256 cTokenBal = this.balanceOf(owner);
         return cTokenBal.mulTruncate(exchangeRate);
     }
 
     function updateExchangeRate() public returns (uint256){
         exchangeRate = exchangeRate.add(1e14);
+    }
+
+    function exchangeRateStored() external view returns (uint) {
+        return exchangeRate;
     }
 
 }

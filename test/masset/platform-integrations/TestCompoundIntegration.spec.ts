@@ -19,6 +19,9 @@ import shouldBehaveLikeModule from "../../shared/behaviours/Module.behaviour";
 
 const { expect, assert } = envSetup.configure();
 
+const c_ERC20: t.ERC20Contract = artifacts.require("ERC20");
+const c_CERC20: t.ICErc20Contract = artifacts.require("ICERC20");
+
 const c_MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
 const c_MockCToken: t.MockCTokenContract = artifacts.require("MockCToken");
 
@@ -36,11 +39,12 @@ contract("CompoundIntegration", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     const ma = new MainnetAccounts();
 
+    // No platform specific address for Compound, hence using ZERO_ADDRESS
+    const compoundPlatformAddress = ZERO_ADDRESS;
+
     let systemMachine: SystemMachine;
     let nexus: t.NexusInstance;
     let massetMachine: MassetMachine;
-
-    let compoundPlatformAddress = ZERO_ADDRESS; // No platform specific address for Compound
 
     let integrationDetails: BassetIntegrationDetails;
     let d_DelayedProxyAdmin: t.DelayedProxyAdminInstance;
@@ -328,6 +332,62 @@ contract("CompoundIntegration", async (accounts) => {
     });
 
     describe("calling deposit", async () => {
+        beforeEach("init mocks", async () => {
+            await runSetup();
+        });
+
+        it("should deposit tokens to Compound", async () => {
+            // Step 0. Choose tokens
+            const bAsset = await c_ERC20.at(integrationDetails.cTokens[0].bAsset);
+            const amount = new BN(10).pow(new BN(18));
+            const cToken = await c_CERC20.at(integrationDetails.cTokens[0].cToken);
+
+            // 0.1 Get balance before
+            const bAssetRecipient_balBefore = await bAsset.balanceOf(cToken.address);
+
+            let balanceOf = await cToken.balanceOf(d_CompoundIntegration.address);
+            let exchangeRate = await cToken.exchangeRateStored();
+            const balanceBefore = balanceOf.mul(exchangeRate).div(new BN(10).pow(new BN(18)));
+            console.log("bal before: " + balanceBefore.toString());
+            // const compoundIntegration_balBefore = await cToken.balanceOfUnderlying(
+            //     d_CompoundIntegration.address,
+            // );
+            // console.log(compoundIntegration_balBefore);
+
+            // Step 1. xfer tokens to integration
+            await bAsset.transfer(d_CompoundIntegration.address, amount);
+
+            // Step 2. call deposit
+            const tx = await d_CompoundIntegration.deposit(bAsset.address, amount, false);
+
+            balanceOf = await cToken.balanceOf(d_CompoundIntegration.address);
+            exchangeRate = await cToken.exchangeRateStored();
+            const balanceAfter = balanceOf.mul(exchangeRate).div(new BN(10).pow(new BN(18)));
+            console.log("bal after deposit: " + balanceAfter.toString());
+
+            // Step 3. Check for things:
+            // 3.1 Check that cToken has bAssets
+            expect(await bAsset.balanceOf(cToken.address)).bignumber.eq(
+                bAssetRecipient_balBefore.add(amount),
+            );
+            // 3.2 Check that compound integration has cTokens
+            // expect(await cToken.balanceOfUnderlying(d_CompoundIntegration.address)).bignumber.eq(
+            //     compoundIntegration_balBefore.add(amount),
+            // );
+            // 3.3 Check that return value is cool (via event)
+            expectEvent.inLogs(tx.logs, "Deposit", { _amount: amount });
+
+            // console.log((await bAsset.balanceOf(sa.default)).toString());
+            // const amt = await cToken.balanceOfUnderlying(d_CompoundIntegration.address);
+            await d_CompoundIntegration.withdraw(sa.default, bAsset.address, amount);
+            // console.log((await bAsset.balanceOf(sa.default)).toString());
+
+            balanceOf = await cToken.balanceOf(d_CompoundIntegration.address);
+            exchangeRate = await cToken.exchangeRateStored();
+            const balanceAfterWithd = balanceOf.mul(exchangeRate).div(new BN(10).pow(new BN(18)));
+            console.log("after withdraw: " + balanceAfterWithd.toString());
+        });
+
         it("should only allow a whitelisted user to call function");
         it("should deposit tokens to Aave", async () => {
             // check that the lending pool core has tokens

@@ -234,34 +234,50 @@ export class MassetMachine {
     }
 
     public async loadBassetsLocal(): Promise<BassetIntegrationDetails> {
+        const TEN = new BN(10);
+        const HUNDRED = new BN(100);
+        let decimals: BN = new BN(0);
+        let hundredTokens = new BN(100);
+
         //  - Mock bAssets
+        decimals = new BN(18);
+        hundredTokens = HUNDRED.mul(TEN.pow(decimals));
         const mockBasset1: t.MockERC20Instance = await c_MockERC20.new(
             "Mock1",
             "MK1",
-            12,
+            decimals,
             this.sa.default,
-            100000000,
+            hundredTokens,
         );
+
+        decimals = new BN(18);
+        hundredTokens = HUNDRED.mul(TEN.pow(decimals));
         const mockBasset2: t.MockERC20Instance = await c_MockERC20.new(
             "Mock2",
             "MK2",
-            18,
+            decimals,
             this.sa.default,
-            100000000,
+            hundredTokens,
         );
+
+        decimals = new BN(18);
+        hundredTokens = HUNDRED.mul(TEN.pow(decimals));
         const mockBasset3: t.MockERC20Instance = await c_MockERC20.new(
             "Mock3",
             "MK3",
-            6,
+            decimals,
             this.sa.default,
-            100000000,
+            hundredTokens,
         );
+
+        decimals = new BN(18);
+        hundredTokens = HUNDRED.mul(TEN.pow(decimals));
         const mockBasset4: t.MockERC20Instance = await c_MockERC20.new(
             "Mock4",
             "MK4",
-            18,
+            decimals,
             this.sa.default,
-            100000000,
+            hundredTokens,
         );
 
         //  - Mock Aave integration
