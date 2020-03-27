@@ -668,7 +668,7 @@ contract("AaveIntegration", async (accounts) => {
             // Step 1. call deposit
             await shouldFail.reverting.withMessage(
                 d_AaveIntegration.withdraw(sa.default, bAsset.address, amount.toString(), false),
-                "SafeERC20: low-level call failed",
+                "SafeMath: subtraction overflow",
             );
         });
         it("should fail with broken arguments", async () => {
