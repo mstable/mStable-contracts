@@ -147,17 +147,6 @@ contract("Module", async (accounts) => {
             );
         });
 
-        it("when shouldAllowOnlyProxyAdmin() called by other", async () => {
-            let temp = await ctx.module.temp();
-            expect(new BN(0)).to.bignumber.equal(temp);
-            await shouldFail.reverting.withMessage(
-                ctx.module.shouldAllowOnlyGovernance({ from: sa.other }),
-                "Only governor can execute",
-            );
-            temp = await ctx.module.temp();
-            expect(new BN(0)).to.bignumber.equal(temp);
-        });
-
         it("when shouldAllowOnlyGovernor() called by other", async () => {
             let temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);
