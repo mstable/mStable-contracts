@@ -63,4 +63,8 @@ contract MockInitializableModule is Initializable, InitializableModule {
     function shouldAllowOnlyManager() public onlyManager {
         temp = 3;
     }
+
+    function shouldAllowOnlyProxyAdmin() public onlyProxyAdmin {
+        temp = 4;
+    }
 }

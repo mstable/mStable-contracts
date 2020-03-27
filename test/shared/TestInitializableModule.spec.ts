@@ -135,6 +135,14 @@ contract("InitializableModule", async (accounts) => {
             temp = await ctx.module.temp();
             expect(new BN(3)).to.bignumber.equal(temp);
         });
+
+        it("when shouldAllowOnlyProxyAdmin() called by proxyAdmin", async () => {
+            let temp = await ctx.module.temp();
+            expect(new BN(0)).to.bignumber.equal(temp);
+            await ctx.module.shouldAllowOnlyProxyAdmin({ from: proxyAdmin });
+            temp = await ctx.module.temp();
+            expect(new BN(4)).to.bignumber.equal(temp);
+        });
     });
 
     describe("should fail", async () => {
@@ -166,6 +174,17 @@ contract("InitializableModule", async (accounts) => {
             await shouldFail.reverting.withMessage(
                 ctx.module.shouldAllowOnlyManager({ from: sa.other }),
                 "Only manager can execute",
+            );
+            temp = await ctx.module.temp();
+            expect(new BN(0)).to.bignumber.equal(temp);
+        });
+
+        it("when shouldAllowOnlyProxyAdmin() called by other", async () => {
+            let temp = await ctx.module.temp();
+            expect(new BN(0)).to.bignumber.equal(temp);
+            await shouldFail.reverting.withMessage(
+                ctx.module.shouldAllowOnlyProxyAdmin({ from: sa.other }),
+                "Only ProxyAdmin can execute",
             );
             temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);
