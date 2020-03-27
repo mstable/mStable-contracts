@@ -296,7 +296,7 @@ export class MassetMachine {
 
         return {
             bAssets: [mockBasset1, mockBasset2, mockBasset3, mockBasset4], // DAI, USDC, TUSD, USDT
-            platforms: [Platform.aave, Platform.aave, Platform.compound, Platform.compound],
+            platforms: [Platform.compound, Platform.compound, Platform.aave, Platform.aave],
             aavePlatformAddress: d_MockAave.address,
             aTokens: [
                 {

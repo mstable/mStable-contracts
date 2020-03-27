@@ -482,10 +482,10 @@ contract("AaveIntegration", async (accounts) => {
         });
         it("should fail with broken arguments", async () => {
             // Step 0. Choose tokens
-            const bAsset = await c_ERC20.at(integrationDetails.aTokens[1].bAsset);
+            const bAsset = await c_ERC20.at(integrationDetails.aTokens[0].bAsset);
             const bAsset_decimals = await bAsset.decimals();
             const amount = new BN(10).pow(bAsset_decimals);
-            const aToken = await c_AaveAToken.at(integrationDetails.aTokens[1].aToken);
+            const aToken = await c_AaveAToken.at(integrationDetails.aTokens[0].aToken);
 
             // 0.1 Get balance before
             const addressProvider = await c_AaveLendingPoolAddressProvider.at(
