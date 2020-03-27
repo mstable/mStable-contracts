@@ -6,6 +6,7 @@ import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
 import { BN } from "@utils/tools";
 import { StandardAccounts, SystemMachine, MassetMachine } from "@utils/machines";
 import { MainnetAccounts, ZERO_ADDRESS, MAX_UINT256, fullScale } from "@utils/constants";
+import { simpleToExactAmount } from "@utils/math";
 
 import envSetup from "@utils/env_setup";
 import {
@@ -58,7 +59,7 @@ contract("AaveIntegration", async (accounts) => {
         await runSetup();
     });
 
-    const runSetup = async (enableUSDTFee = false) => {
+    const runSetup = async (enableUSDTFee = false, simulateMint = false) => {
         // SETUP
         // ======
         nexus = await c_Nexus.new(sa.governor);
@@ -96,6 +97,24 @@ contract("AaveIntegration", async (accounts) => {
             sa.governor,
             { from: sa.governor },
         );
+
+        if (simulateMint) {
+            await Promise.all(
+                integrationDetails.aTokens.map(async ({ bAsset, aToken }) => {
+                    // Step 0. Choose tokens
+                    const d_bAsset = await c_ERC20.at(bAsset);
+                    const bAsset_decimals = await d_bAsset.decimals();
+                    const amount = new BN(11).mul(new BN(10).pow(bAsset_decimals));
+                    const amount_dep = new BN(10).mul(new BN(10).pow(bAsset_decimals));
+
+                    // Step 1. xfer tokens to integration
+                    await d_bAsset.transfer(d_AaveIntegration.address, amount.toString());
+
+                    // Step 2. call deposit
+                    return d_AaveIntegration.deposit(bAsset, amount_dep.toString(), true);
+                }),
+            );
+        }
 
         ctx.module = d_AaveIntegration;
     };
@@ -527,7 +546,7 @@ contract("AaveIntegration", async (accounts) => {
             // 3.3 Check that return value is cool (via event)
             expectEvent.inLogs(tx.logs, "Deposit", { _amount: amount });
         });
-        it("should fail if lending pool or core does not exist (skip on mainnet)", async () => {
+        it("should fail if lending pool or core does not exist (skip on fork)", async () => {
             // Can only run on local, due to constraints from Aave
             if (!systemMachine.isGanacheFork) {
                 const mockAave = await c_MockAave.at(integrationDetails.aavePlatformAddress);
@@ -549,22 +568,166 @@ contract("AaveIntegration", async (accounts) => {
     });
 
     describe("withdraw", async () => {
-        it("should only allow a whitelisted user to call function");
+        beforeEach("init mocks", async () => {
+            await runSetup(false, true);
+        });
         it("should withdraw tokens from Aave", async () => {
-            // check that the recipient receives the tokens
-            // check that the lending pool core has tokens
-            // check that our new balance of aTokens is given
-            // should give accurate return value
+            // Step 0. Choose tokens
+            const bAsset = await c_ERC20.at(integrationDetails.aTokens[0].bAsset);
+            const bAsset_decimals = await bAsset.decimals();
+            const amount = new BN(10).pow(bAsset_decimals);
+            const aToken = await c_AaveAToken.at(integrationDetails.aTokens[0].aToken);
+            // 0.1 Get balance before
+            const bAssetRecipient = sa.dummy1;
+            const bAssetRecipient_balBefore = await bAsset.balanceOf(bAssetRecipient);
+            const aaveIntegration_balBefore = await aToken.balanceOf(d_AaveIntegration.address);
+
+            // Step 1. call withdraw
+            const tx = await d_AaveIntegration.withdraw(
+                bAssetRecipient,
+                bAsset.address,
+                amount.toString(),
+                false,
+            );
+
+            // Step 2. Check for things:
+            // 2.1 Check that the recipient receives the tokens
+            expect(await bAsset.balanceOf(bAssetRecipient)).bignumber.eq(
+                bAssetRecipient_balBefore.add(amount),
+            );
+            // 2.2 Check that integration aToken balance has gone down
+            expect(await aToken.balanceOf(d_AaveIntegration.address)).bignumber.eq(
+                aaveIntegration_balBefore.sub(amount),
+            );
+            // 2.3 Should give accurate return value
+            expectEvent.inLogs(tx.logs, "Withdrawal", { _amount: amount });
         });
 
-        it("should withdraw all if there is no fee");
         it("should handle the fee calculations", async () => {
+            await runSetup(true, true);
             // should deduct the transfer fee from the return value
+            const bAsset = await c_ERC20.at(integrationDetails.aTokens[1].bAsset);
+            const bAsset_decimals = await bAsset.decimals();
+            const amount = new BN(10).pow(bAsset_decimals);
+            const aToken = await c_AaveAToken.at(integrationDetails.aTokens[1].aToken);
+
+            // 0.1 Get balance before
+            const bAssetRecipient = sa.dummy1;
+            const bAssetRecipient_balBefore = await bAsset.balanceOf(bAssetRecipient);
+            const aaveIntegration_balBefore = await aToken.balanceOf(d_AaveIntegration.address);
+
+            // Step 1. call withdraw
+            const tx = await d_AaveIntegration.withdraw(
+                bAssetRecipient,
+                bAsset.address,
+                amount.toString(),
+                true,
+            );
+            const bAssetRecipient_balAfter = await bAsset.balanceOf(bAssetRecipient);
+            const aaveIntegration_balAfter = await aToken.balanceOf(d_AaveIntegration.address);
+
+            // 99% of amt
+            let scale = simpleToExactAmount("0.99", 18);
+            console.log("scale", scale.toString());
+            let amountScaled = amount.mul(scale);
+            console.log("amountScaled", amountScaled.toString());
+            let expectedAmount = amountScaled.div(fullScale);
+            console.log("expected", expectedAmount.toString());
+            // Step 2. Validate recipient
+            expect(bAssetRecipient_balAfter).bignumber.gte(
+                bAssetRecipient_balBefore.add(expectedAmount) as any,
+            );
+            expect(bAssetRecipient_balAfter).bignumber.lte(
+                bAssetRecipient_balBefore.add(amount) as any,
+            );
+            expect(aaveIntegration_balAfter).bignumber.eq(
+                aaveIntegration_balBefore.sub(amount) as any,
+            );
         });
 
-        it("should fail if there is insufficient balance");
-        it("should fail with broken arguments");
-        it("should fail if the bAsset is not supported");
+        it("should only allow a whitelisted user to call function", async () => {
+            // Step 0. Choose tokens
+            const bAsset = await c_ERC20.at(integrationDetails.aTokens[0].bAsset);
+            const bAsset_decimals = await bAsset.decimals();
+            const amount = new BN(10).pow(bAsset_decimals);
+
+            // Step 1. call deposit
+            await shouldFail.reverting.withMessage(
+                d_AaveIntegration.withdraw(sa.dummy1, bAsset.address, amount.toString(), false, {
+                    from: sa.dummy1,
+                }),
+                "Not a whitelisted address",
+            );
+        });
+        it("should fail if there is insufficient balance", async () => {
+            // Step 0. Choose tokens
+            const bAsset = await c_ERC20.at(integrationDetails.aTokens[0].bAsset);
+            const bAsset_decimals = await bAsset.decimals();
+            const amount = new BN(1000).mul(new BN(10).pow(bAsset_decimals));
+
+            // Step 1. call deposit
+            await shouldFail.reverting.withMessage(
+                d_AaveIntegration.withdraw(sa.default, bAsset.address, amount.toString(), false),
+                "SafeERC20: low-level call failed",
+            );
+        });
+        it("should fail with broken arguments", async () => {
+            // Step 0. Choose tokens
+            const bAsset = await c_ERC20.at(integrationDetails.aTokens[0].bAsset);
+            const bAsset_decimals = await bAsset.decimals();
+            const amount = new BN(10).pow(bAsset_decimals);
+            const aToken = await c_AaveAToken.at(integrationDetails.aTokens[0].aToken);
+
+            // 0.1 Get balance before
+            const bAssetRecipient = sa.dummy1;
+            const bAssetRecipient_balBefore = await bAsset.balanceOf(bAssetRecipient);
+            const aaveIntegration_balBefore = await aToken.balanceOf(d_AaveIntegration.address);
+
+            // Fails with ZERO bAsset Address
+            await shouldFail.reverting.withMessage(
+                d_AaveIntegration.withdraw(sa.dummy1, ZERO_ADDRESS, amount.toString(), false),
+                "aToken does not exist",
+            );
+            // Fails with ZERO recipient address
+            await shouldFail.reverting.withMessage(
+                d_AaveIntegration.withdraw(ZERO_ADDRESS, bAsset.address, new BN(1), false),
+                "",
+            );
+            // Fails with ZERO Amount
+            await shouldFail.reverting.withMessage(
+                d_AaveIntegration.withdraw(sa.dummy1, bAsset.address, "0", false),
+                "Must withdraw something",
+            );
+            // Succeeds with Incorrect bool (defaults to false)
+            const tx = await d_AaveIntegration.withdraw(
+                sa.dummy1,
+                bAsset.address,
+                amount.toString(),
+                undefined,
+            );
+
+            // 2.1 Check that the recipient receives the tokens
+            expect(await bAsset.balanceOf(bAssetRecipient)).bignumber.eq(
+                bAssetRecipient_balBefore.add(amount),
+            );
+            // 2.2 Check that integration aToken balance has gone down
+            expect(await aToken.balanceOf(d_AaveIntegration.address)).bignumber.eq(
+                aaveIntegration_balBefore.sub(amount),
+            );
+            // 2.3 Should give accurate return value
+            expectEvent.inLogs(tx.logs, "Withdrawal", { _amount: amount });
+        });
+        it("should fail if the bAsset is not supported", async () => {
+            // Step 0. Choose tokens
+            const bAsset = await c_ERC20.at(integrationDetails.cTokens[0].bAsset);
+            const amount = new BN(10).pow(new BN(12));
+
+            // Step 1. call withdraw
+            await shouldFail.reverting.withMessage(
+                d_AaveIntegration.withdraw(sa.dummy1, bAsset.address, amount.toString(), false),
+                "aToken does not exist",
+            );
+        });
     });
 
     describe("checkBalance", async () => {
@@ -575,7 +738,15 @@ contract("AaveIntegration", async (accounts) => {
 
     describe("reApproveAllTokens", async () => {
         it("should re-approve ALL bAssets with aTokens");
-        it("should only be callable bby the Governor");
+        it("should only be callable by the Governor", async () => {
+            // Step 1. call deposit
+            await shouldFail.reverting.withMessage(
+                d_AaveIntegration.reApproveAllTokens({
+                    from: sa.dummy1,
+                }),
+                "Only governor can execute",
+            );
+        });
         it("should fail if lending pool core does not exist (mock)");
 
         it("should be able to be called multiple times");

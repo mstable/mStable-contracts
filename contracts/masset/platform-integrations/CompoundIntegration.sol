@@ -69,7 +69,8 @@ contract CompoundIntegration is InitializableAbstractIntegration {
     function withdraw(
         address _receiver,
         address _bAsset,
-        uint256 _amount
+        uint256 _amount,
+        bool _isTokenFeeCharged
     )
         external
         onlyWhitelisted

@@ -68,21 +68,33 @@ contract AaveIntegration is InitializableAbstractIntegration {
     function withdraw(
         address _receiver,
         address _bAsset,
-        uint256 _amount
+        uint256 _amount,
+        bool _isTokenFeeCharged
     )
         external
         onlyWhitelisted
     {
+        require(_amount > 0, "Must withdraw something");
         // Get the Target token
         IAaveAToken aToken = _getATokenFor(_bAsset);
 
+        uint256 quantityWithdrawn = _amount;
+
         // Don't need to Approve aToken, as it gets burned in redeem()
-        aToken.redeem(_amount);
+        if(_isTokenFeeCharged) {
+            IERC20 b = IERC20(_bAsset);
+            uint256 prevBal = b.balanceOf(address(this));
+            aToken.redeem(_amount);
+            uint256 newBal = b.balanceOf(address(this));
+            quantityWithdrawn = _min(quantityWithdrawn, newBal.sub(prevBal));
+        } else {
+            aToken.redeem(_amount);
+        }
 
         // Send redeemed bAsset to the receiver
-        IERC20(_bAsset).safeTransfer(_receiver, _amount);
+        IERC20(_bAsset).safeTransfer(_receiver, quantityWithdrawn);
 
-        emit Withdrawal(_bAsset, address(aToken), _amount);
+        emit Withdrawal(_bAsset, address(aToken), quantityWithdrawn);
     }
 
     /**

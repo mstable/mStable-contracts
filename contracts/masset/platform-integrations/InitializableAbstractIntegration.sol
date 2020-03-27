@@ -140,11 +140,12 @@ contract InitializableAbstractIntegration is Initializable, IPlatformIntegration
 
     /**
      * @dev Withdraw a quantity of bAsset from the platform
-     * @param _receiver     Address to which the bAsset should be sent
-     * @param _bAsset       Address of the bAsset
-     * @param _amount       Units of bAsset to withdraw
+     * @param _receiver          Address to which the bAsset should be sent
+     * @param _bAsset            Address of the bAsset
+     * @param _amount            Units of bAsset to withdraw
+     * @param _isTokenFeeCharged Flag that signals if an xfer fee is charged on bAsset
      */
-    function withdraw(address _receiver, address _bAsset, uint256 _amount) external;
+    function withdraw(address _receiver, address _bAsset, uint256 _amount, bool _isTokenFeeCharged) external;
 
     /**
      * @dev Get the total bAsset value held in the platform
