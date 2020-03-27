@@ -541,36 +541,8 @@ contract("AaveIntegration", async (accounts) => {
         it("should fail if lending pool or core does not exist (skip on mainnet)", async () => {
             // Can only run on local, due to constraints from Aave
             if (!systemMachine.isGanacheFork) {
-                // SETUP
-                // ======
-                nexus = await c_Nexus.new(sa.governor);
-                // Init proxyAdmin
-                d_DelayedProxyAdmin = await c_DelayedProxyAdmin.new(nexus.address);
-                // Initialize the proxy
-                d_AaveIntegrationProxy = await c_InitializableProxy.new();
-                d_AaveIntegration = await c_AaveIntegration.at(d_AaveIntegrationProxy.address);
-
-                // Load network specific integration data
-                integrationDetails = await massetMachine.loadBassets(true);
-
-                // Initialize the proxy storage
-                const aaveImplementation = await c_AaveIntegration.new();
-
-                const initializationData_AaveIntegration: string = aaveImplementation.contract.methods
-                    .initialize(
-                        nexus.address,
-                        [sa.default],
-                        integrationDetails.aavePlatformAddress,
-                        integrationDetails.aTokens.map((a) => a.bAsset),
-                        integrationDetails.aTokens.map((a) => a.aToken),
-                    )
-                    .encodeABI();
-                await d_AaveIntegrationProxy.initialize(
-                    aaveImplementation.address,
-                    d_DelayedProxyAdmin.address,
-                    initializationData_AaveIntegration,
-                );
-
+                const mockAave = await c_MockAave.at(integrationDetails.aavePlatformAddress);
+                await mockAave.breakLendingPools();
                 const bAsset = await c_ERC20.at(integrationDetails.aTokens[1].bAsset);
                 await bAsset.transfer(d_AaveIntegration.address, "1");
                 // Fails with ZERO Amount

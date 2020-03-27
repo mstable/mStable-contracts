@@ -163,10 +163,10 @@ contract AaveIntegration is InitializableAbstractIntegration {
     function _getLendingPoolCore()
         internal
         view
-        returns (address)
+        returns (address payable)
     {
-        address lendingPoolCore = ILendingPoolAddressesProvider(platformAddress).getLendingPoolCore();
-        require(lendingPoolCore != address(0), "Lending pool core does not exist");
+        address payable lendingPoolCore = ILendingPoolAddressesProvider(platformAddress).getLendingPoolCore();
+        require(lendingPoolCore != address(uint160(address(0))), "Lending pool core does not exist");
         return lendingPoolCore;
     }
 
