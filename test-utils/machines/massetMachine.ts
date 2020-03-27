@@ -37,7 +37,9 @@ const c_BasketManager: t.BasketManagerContract = artifacts.require("BasketManage
 
 // Masset
 const c_MUSD: t.MUSDContract = artifacts.require("MUSD");
+const c_MockERC20WithFee: t.MockERC20WithFeeContract = artifacts.require("MockERC20WithFee");
 const c_MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
+const c_MockUSDT: t.MockUSDTContract = artifacts.require("MockUSDT");
 const c_ERC20: t.ERC20Contract = artifacts.require("ERC20");
 
 export interface MassetDetails {
@@ -186,11 +188,13 @@ export class MassetMachine {
         return md;
     }
 
-    public async loadBassets(): Promise<BassetIntegrationDetails> {
-        return this.system.isGanacheFork ? this.loadBassetsFork() : this.loadBassetsLocal();
+    public async loadBassets(enableUSDTFee = false): Promise<BassetIntegrationDetails> {
+        return this.system.isGanacheFork
+            ? this.loadBassetsFork(enableUSDTFee)
+            : this.loadBassetsLocal(enableUSDTFee);
     }
 
-    public async loadBassetsFork(): Promise<BassetIntegrationDetails> {
+    public async loadBassetsFork(enableUSDTFee = false): Promise<BassetIntegrationDetails> {
         // load all the REAL bAssets
         const bAsset_DAI = await c_MockERC20.at(this.ma.DAI);
         await this.mintERC20(bAsset_DAI, this.ma.FUND_SOURCES.dai);
@@ -203,6 +207,14 @@ export class MassetMachine {
 
         const bAsset_USDT = await c_MockERC20.at(this.ma.USDT);
         await this.mintERC20(bAsset_USDT, this.ma.FUND_SOURCES.usdt);
+
+        if (enableUSDTFee) {
+            const mockUSDT = await c_MockUSDT.at(bAsset_USDT.address);
+            // Set fee rate to 0.1% and max fee to 30 USDT
+            await mockUSDT.setParams("10", "30", {
+                from: this.ma.USDT_OWNER,
+            });
+        }
         // credit sa.default with ample balances
         const bAssets = [bAsset_DAI, bAsset_USDC, bAsset_TUSD, bAsset_USDT];
         // return all the addresses
@@ -233,7 +245,7 @@ export class MassetMachine {
         };
     }
 
-    public async loadBassetsLocal(): Promise<BassetIntegrationDetails> {
+    public async loadBassetsLocal(enableUSDTFee = false): Promise<BassetIntegrationDetails> {
         //  - Mock bAssets
         const mockBasset1: t.MockERC20Instance = await c_MockERC20.new(
             "Mock1",
@@ -245,67 +257,65 @@ export class MassetMachine {
         const mockBasset2: t.MockERC20Instance = await c_MockERC20.new(
             "Mock2",
             "MK2",
-            18,
+            6,
             this.sa.default,
             100000000,
         );
         const mockBasset3: t.MockERC20Instance = await c_MockERC20.new(
             "Mock3",
             "MK3",
-            6,
-            this.sa.default,
-            100000000,
-        );
-        const mockBasset4: t.MockERC20Instance = await c_MockERC20.new(
-            "Mock4",
-            "MK4",
             18,
             this.sa.default,
             100000000,
         );
+        // Mock up USDT
+        const mockBasset4: t.MockERC20Instance = enableUSDTFee
+            ? await c_MockERC20WithFee.new("Mock4", "MK4", 18, this.sa.default, 100000000)
+            : await c_MockERC20.new("Mock4", "MK4", 18, this.sa.default, 100000000);
+
+        // Mock C Token
+        const mockCToken1: t.MockCTokenInstance = await c_MockCToken.new(mockBasset1.address);
+        const mockCToken2: t.MockCTokenInstance = await c_MockCToken.new(mockBasset2.address);
 
         //  - Mock Aave integration
         const d_MockAave: t.MockAaveInstance = await c_MockAave.new({ from: this.sa.default });
 
         //  - Mock aTokens
-        const mockAToken1: t.IAaveATokenInstance = await c_MockAToken.new(
+        const mockAToken3: t.IAaveATokenInstance = await c_MockAToken.new(
             d_MockAave.address,
-            mockBasset1.address,
+            mockBasset3.address,
         );
-        const mockAToken2: t.IAaveATokenInstance = await c_MockAToken.new(
+        const mockAToken4: t.IAaveATokenInstance = await c_MockAToken.new(
             d_MockAave.address,
-            mockBasset2.address,
+            mockBasset4.address,
         );
 
         //  - Add to the Platform
-        await d_MockAave.addAToken(mockAToken1.address, mockBasset1.address);
-        await d_MockAave.addAToken(mockAToken2.address, mockBasset2.address);
+        await d_MockAave.addAToken(mockAToken3.address, mockBasset3.address);
+        await d_MockAave.addAToken(mockAToken4.address, mockBasset4.address);
 
-        // Mock C Token
-        const mockCToken3: t.MockCTokenInstance = await c_MockCToken.new(mockBasset3.address);
-        const mockCToken4: t.MockCTokenInstance = await c_MockCToken.new(mockBasset4.address);
         return {
-            bAssets: [mockBasset1, mockBasset2, mockBasset3, mockBasset4],
+            bAssets: [mockBasset1, mockBasset2, mockBasset3, mockBasset4], // DAI, USDC, TUSD, USDT
             platforms: [Platform.aave, Platform.aave, Platform.compound, Platform.compound],
             aavePlatformAddress: d_MockAave.address,
             aTokens: [
                 {
-                    bAsset: mockBasset1.address,
-                    aToken: mockAToken1.address,
+                    bAsset: mockBasset3.address,
+                    aToken: mockAToken3.address,
                 },
                 {
-                    bAsset: mockBasset2.address,
-                    aToken: mockAToken2.address,
+                    bAsset: mockBasset4.address,
+                    aToken: mockAToken4.address,
                 },
             ],
             cTokens: [
                 {
-                    bAsset: mockBasset3.address,
-                    cToken: mockCToken3.address,
+                    bAsset: mockBasset1.address,
+                    cToken: mockCToken1.address,
                 },
                 {
-                    bAsset: mockBasset4.address,
-                    cToken: mockCToken4.address,
+                    bAsset: mockBasset2.address,
+                    cToken: mockCToken2.address,
                 },
             ],
         };

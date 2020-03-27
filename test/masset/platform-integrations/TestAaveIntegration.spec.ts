@@ -58,7 +58,7 @@ contract("AaveIntegration", async (accounts) => {
         await runSetup();
     });
 
-    const runSetup = async () => {
+    const runSetup = async (enableUSDTFee = false) => {
         // SETUP
         // ======
         nexus = await c_Nexus.new(sa.governor);
@@ -69,7 +69,7 @@ contract("AaveIntegration", async (accounts) => {
         d_AaveIntegration = await c_AaveIntegration.at(d_AaveIntegrationProxy.address);
 
         // Load network specific integration data
-        integrationDetails = await massetMachine.loadBassets();
+        integrationDetails = await massetMachine.loadBassets(enableUSDTFee);
 
         // Initialize the proxy storage
         const aaveImplementation = await c_AaveIntegration.new();
@@ -371,73 +371,62 @@ contract("AaveIntegration", async (accounts) => {
         });
 
         it("should handle the fee calculations", async () => {
-            // Can only run on local, due to constraints from Aave
-            if (!systemMachine.isGanacheFork) {
-                // Step 0. Choose tokens and set up env
-                const addressProvider = await c_AaveLendingPoolAddressProvider.at(
-                    integrationDetails.aavePlatformAddress,
-                );
-                const bAsset = await c_MockERC20WithFee.new("FEE", "F", 12, sa.default, "1000000");
-                const amount = new BN(10).pow(new BN(12));
-                const aToken = await c_MockAaveAToken.new(
-                    await addressProvider.getLendingPool(),
-                    bAsset.address,
-                );
-                await (await c_MockAave.at(integrationDetails.aavePlatformAddress)).addAToken(
-                    aToken.address,
-                    bAsset.address,
-                );
-                // 0.1 Add bAsset and aToken to system
-                await d_AaveIntegration.setPTokenAddress(bAsset.address, aToken.address, {
-                    from: sa.governor,
-                });
-                // 0.2 Get balance before
-                const bAssetRecipient = await addressProvider.getLendingPoolCore();
-                const bAssetRecipient_balBefore = await bAsset.balanceOf(bAssetRecipient);
-                const aaveIntegration_balBefore = await aToken.balanceOf(d_AaveIntegration.address);
+            // Step 0. Choose tokens and set up env
+            await runSetup(true);
 
-                // Step 1. xfer tokens to integration
-                const bal1 = await bAsset.balanceOf(d_AaveIntegration.address);
-                await bAsset.transfer(d_AaveIntegration.address, amount.toString());
+            const addressProvider = await c_AaveLendingPoolAddressProvider.at(
+                integrationDetails.aavePlatformAddress,
+            );
+            const bAsset = await c_ERC20.at(integrationDetails.aTokens[1].bAsset);
+            const bAsset_decimals = await bAsset.decimals();
+            const amount = new BN(10).pow(bAsset_decimals);
+            const aToken = await c_AaveAToken.at(integrationDetails.aTokens[1].aToken);
 
-                const bal2 = await bAsset.balanceOf(d_AaveIntegration.address);
-                const receivedAmount = bal2.sub(bal1);
-                // fee = initialAmount - receivedAmount
-                const fee = amount.sub(receivedAmount);
-                // feeRate = fee/amount (base 1e18)
-                const feeRate = fee.mul(fullScale).div(amount);
-                // expectedDepoit = receivedAmount - (receivedAmount*feeRate)
-                const expectedDeposit = receivedAmount.sub(
-                    receivedAmount.mul(feeRate).div(fullScale),
-                );
+            // 0.1 Get balance before
+            const bAssetRecipient = await addressProvider.getLendingPoolCore();
+            const bAssetRecipient_balBefore = await bAsset.balanceOf(bAssetRecipient);
+            const aaveIntegration_balBefore = await aToken.balanceOf(d_AaveIntegration.address);
 
-                // Step 2. call deposit
-                const tx = await d_AaveIntegration.deposit(
-                    bAsset.address,
-                    receivedAmount.toString(),
-                    true,
-                );
+            // Step 1. xfer tokens to integration
+            const bal1 = await bAsset.balanceOf(d_AaveIntegration.address);
+            await bAsset.transfer(d_AaveIntegration.address, amount.toString());
 
-                // Step 3. Check for things:
-                // 3.1 Check that lending pool core has bAssets
-                expect(await bAsset.balanceOf(bAssetRecipient)).bignumber.eq(
-                    bAssetRecipient_balBefore.add(expectedDeposit),
-                );
-                // 3.2 Check that aave integration has aTokens
-                const aaveIntegration_balAfter = await aToken.balanceOf(d_AaveIntegration.address);
-                expect(aaveIntegration_balAfter).bignumber.lte(
-                    aaveIntegration_balBefore.add(receivedAmount) as any,
-                );
-                expect(aaveIntegration_balAfter).bignumber.gte(
-                    aaveIntegration_balBefore.add(expectedDeposit) as any,
-                );
-                // 3.3 Check that return value is cool (via event)
-                const receivedATokens = aaveIntegration_balAfter.sub(aaveIntegration_balBefore);
-                const min = receivedATokens.lt(receivedAmount) ? receivedATokens : receivedAmount;
-                expectEvent.inLogs(tx.logs, "Deposit", { _amount: min });
-            }
+            const bal2 = await bAsset.balanceOf(d_AaveIntegration.address);
+            const receivedAmount = bal2.sub(bal1);
+            // Ensure fee is being deducted
+            expect(receivedAmount).bignumber.lt(amount as any);
+            // fee = initialAmount - receivedAmount
+            const fee = amount.sub(receivedAmount);
+            // feeRate = fee/amount (base 1e18)
+            const feeRate = fee.mul(fullScale).div(amount);
+            // expectedDepoit = receivedAmount - (receivedAmount*feeRate)
+            const expectedDeposit = receivedAmount.sub(receivedAmount.mul(feeRate).div(fullScale));
+
+            // Step 2. call deposit
+            const tx = await d_AaveIntegration.deposit(
+                bAsset.address,
+                receivedAmount.toString(),
+                true,
+            );
+
+            // Step 3. Check for things:
+            // 3.1 Check that lending pool core has bAssets
+            expect(await bAsset.balanceOf(bAssetRecipient)).bignumber.eq(
+                bAssetRecipient_balBefore.add(expectedDeposit),
+            );
+            // 3.2 Check that aave integration has aTokens
+            const aaveIntegration_balAfter = await aToken.balanceOf(d_AaveIntegration.address);
+            expect(aaveIntegration_balAfter).bignumber.lte(
+                aaveIntegration_balBefore.add(receivedAmount) as any,
+            );
+            expect(aaveIntegration_balAfter).bignumber.gte(
+                aaveIntegration_balBefore.add(expectedDeposit) as any,
+            );
+            // 3.3 Check that return value is cool (via event)
+            const receivedATokens = aaveIntegration_balAfter.sub(aaveIntegration_balBefore);
+            const min = receivedATokens.lt(receivedAmount) ? receivedATokens : receivedAmount;
+            expectEvent.inLogs(tx.logs, "Deposit", { _amount: min });
         });
-
         it("should only allow a whitelisted user to call function", async () => {
             // Step 0. Choose tokens
             const bAsset = await c_ERC20.at(integrationDetails.aTokens[1].bAsset);
