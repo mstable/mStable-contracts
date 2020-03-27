@@ -628,11 +628,8 @@ contract("AaveIntegration", async (accounts) => {
 
             // 99% of amt
             let scale = simpleToExactAmount("0.99", 18);
-            console.log("scale", scale.toString());
             let amountScaled = amount.mul(scale);
-            console.log("amountScaled", amountScaled.toString());
             let expectedAmount = amountScaled.div(fullScale);
-            console.log("expected", expectedAmount.toString());
             // Step 2. Validate recipient
             expect(bAssetRecipient_balAfter).bignumber.gte(
                 bAssetRecipient_balBefore.add(expectedAmount) as any,
