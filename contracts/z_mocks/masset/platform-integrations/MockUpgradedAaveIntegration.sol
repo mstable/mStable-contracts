@@ -47,7 +47,8 @@ contract AaveIntegrationV2 is InitializableAbstractIntegration {
     function withdraw(
         address _receiver,
         address _bAsset,
-        uint256 _amount
+        uint256 _amount,
+        bool _isTokenFeeCharged
     )
         external
         onlyWhitelisted
@@ -213,7 +214,8 @@ contract AaveIntegrationV3 is InitializableAbstractIntegration {
     function withdraw(
         address _receiver,
         address _bAsset,
-        uint256 _amount
+        uint256 _amount,
+        bool _isTokenFeeCharged
     )
         external
         onlyWhitelisted
