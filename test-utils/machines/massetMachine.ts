@@ -26,6 +26,7 @@ const c_InitializableProxy: t.InitializableAdminUpgradeabilityProxyContract = ar
 // Integrations
 const c_AaveIntegration: t.AaveIntegrationContract = artifacts.require("AaveIntegration");
 const c_MockAave: t.MockAaveContract = artifacts.require("MockAave");
+const c_MockBrokenAave: t.MockAaveContract = artifacts.require("MockBrokenAave");
 const c_MockAToken: t.MockATokenContract = artifacts.require("MockAToken");
 const c_CompoundIntegration: t.CompoundIntegrationContract = artifacts.require(
     "CompoundIntegration",
@@ -186,8 +187,10 @@ export class MassetMachine {
         return md;
     }
 
-    public async loadBassets(): Promise<BassetIntegrationDetails> {
-        return this.system.isGanacheFork ? this.loadBassetsFork() : this.loadBassetsLocal();
+    public async loadBassets(useBrokenAave = false): Promise<BassetIntegrationDetails> {
+        return this.system.isGanacheFork
+            ? this.loadBassetsFork()
+            : this.loadBassetsLocal(useBrokenAave);
     }
 
     public async loadBassetsFork(): Promise<BassetIntegrationDetails> {
@@ -233,7 +236,7 @@ export class MassetMachine {
         };
     }
 
-    public async loadBassetsLocal(): Promise<BassetIntegrationDetails> {
+    public async loadBassetsLocal(useBrokenAave = false): Promise<BassetIntegrationDetails> {
         //  - Mock bAssets
         const mockBasset1: t.MockERC20Instance = await c_MockERC20.new(
             "Mock1",
@@ -265,7 +268,9 @@ export class MassetMachine {
         );
 
         //  - Mock Aave integration
-        const d_MockAave: t.MockAaveInstance = await c_MockAave.new({ from: this.sa.default });
+        const d_MockAave: t.MockAaveInstance = useBrokenAave
+            ? await c_MockBrokenAave.new({ from: this.sa.default })
+            : await c_MockAave.new({ from: this.sa.default });
 
         //  - Mock aTokens
         const mockAToken1: t.IAaveATokenInstance = await c_MockAToken.new(

@@ -37,6 +37,8 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         onlyWhitelisted
         returns (uint256 quantityDeposited)
     {
+        require(_amount > 0, "Must deposit something");
+
         // Get the Target token
         ICERC20 cToken = _getCTokenFor(_bAsset);
 

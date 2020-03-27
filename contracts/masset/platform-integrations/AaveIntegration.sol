@@ -35,6 +35,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
         onlyWhitelisted
         returns (uint256 quantityDeposited)
     {
+        require(_amount > 0, "Must deposit something");
         // Get the Target token
         IAaveAToken aToken = _getATokenFor(_bAsset);
 
@@ -165,7 +166,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
         returns (address)
     {
         address lendingPoolCore = ILendingPoolAddressesProvider(platformAddress).getLendingPoolCore();
-        require(lendingPoolCore != address(0), "Lending pool does not exist");
+        require(lendingPoolCore != address(0), "Lending pool core does not exist");
         return lendingPoolCore;
     }
 

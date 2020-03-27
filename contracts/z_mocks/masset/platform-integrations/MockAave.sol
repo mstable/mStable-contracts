@@ -44,9 +44,9 @@ contract MockAave is IAaveLendingPool, ILendingPoolAddressesProvider {
 
     function deposit(address _reserve, uint256 _amount, uint16 /*_referralCode*/) external {
         // Take their reserve
-        uint256 xferred = MassetHelpers.transferTokens(msg.sender, address(this), _reserve, true, _amount);
+        MassetHelpers.transferTokens(msg.sender, address(this), _reserve, true, _amount);
         // Credit them with aToken
-        ERC20Mintable(reserveToAToken[_reserve]).mint(msg.sender, xferred);
+        ERC20Mintable(reserveToAToken[_reserve]).mint(msg.sender, _amount);
     }
 
     function getLendingPool() external view returns (address) {
@@ -55,6 +55,32 @@ contract MockAave is IAaveLendingPool, ILendingPoolAddressesProvider {
 
     function getLendingPoolCore() external view returns (address payable) {
         return address(uint160(address(this)));
+    }
+
+}
+
+contract MockBrokenAave is IAaveLendingPool, ILendingPoolAddressesProvider {
+
+    mapping(address => address) reserveToAToken;
+
+    function addAToken(address _aToken, address _underlying) public {
+        MassetHelpers.safeInfiniteApprove(_underlying, _aToken);
+        reserveToAToken[_underlying] = _aToken;
+    }
+
+    function deposit(address _reserve, uint256 _amount, uint16 /*_referralCode*/) external {
+        // Take their reserve
+        MassetHelpers.transferTokens(msg.sender, address(this), _reserve, true, _amount);
+        // Credit them with aToken
+        ERC20Mintable(reserveToAToken[_reserve]).mint(msg.sender, _amount);
+    }
+
+    function getLendingPool() external view returns (address) {
+        return address(0);
+    }
+
+    function getLendingPoolCore() external view returns (address payable) {
+        return address(uint160(address(0)));
     }
 
 }
