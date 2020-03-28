@@ -6,11 +6,11 @@ contract MockInitializableModule is InitializableModule {
 
     uint256 public temp;
 
-    constructor(address _nexus)
+    constructor(address _proxyAdmin, address _nexus)
         public
-        InitializableModule(address(0x0))
+        InitializableModule(_proxyAdmin, address(0x0))
     {
-        InitializableModule._initialize(_nexus);
+        InitializableModule._initialize(_proxyAdmin, _nexus);
     }
 
     function governor() public view returns (address) {

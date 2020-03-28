@@ -1,7 +1,13 @@
-import { MassetDetails } from "./massetMachine";
+/* eslint-disable @typescript-eslint/camelcase */
 import * as t from "types/generated";
 import { Address } from "types/common";
-import { SystemMachine, StandardAccounts, BassetMachine } from ".";
+import {
+    BassetIntegrationDetails,
+    Platform,
+    ATokenDetails,
+    CTokenDetails,
+} from "../../types/machines";
+import { SystemMachine, StandardAccounts } from ".";
 import { createMultiple, simpleToExactAmount, percentToWeight } from "@utils/math";
 import { BN, aToH } from "@utils/tools";
 import { fullScale, MainnetAccounts, ratioScale } from "@utils/constants";
@@ -41,28 +47,6 @@ export interface MassetDetails {
     proxyAdmin?: t.DelayedProxyAdminInstance;
     aaveIntegration?: t.AaveIntegrationInstance;
     compoundIntegration?: t.CompoundIntegrationInstance;
-}
-
-interface ATokenDetails {
-    bAsset: Address;
-    aToken: Address;
-}
-interface CTokenDetails {
-    bAsset: Address;
-    cToken: Address;
-}
-
-enum Platform {
-    aave,
-    compound,
-}
-
-interface BassetIntegrationDetails {
-    bAssets: Array<t.MockERC20Instance>;
-    platforms: Array<Platform>;
-    aavePlatformAddress: Address;
-    aTokens: Array<ATokenDetails>;
-    cTokens: Array<CTokenDetails>;
 }
 
 export class MassetMachine {
@@ -111,6 +95,7 @@ export class MassetMachine {
         // 2.1. Deploy no Init BasketManager
         //  - Deploy Implementation
         const d_BasketManager: t.BasketManagerInstance = await c_BasketManager.new(
+            md.proxyAdmin.address,
             this.system.nexus.address,
             {
                 from: this.sa.default,
@@ -122,6 +107,7 @@ export class MassetMachine {
         // 2.2. Deploy no Init AaveIntegration
         //  - Deploy Implementation with dummy params (this storage doesn't get used)
         const d_AaveIntegration: t.AaveIntegrationInstance = await c_AaveIntegration.new(
+            md.proxyAdmin.address,
             this.system.nexus.address,
             [d_BasketManagerProxy.address],
             bassetDetails.aavePlatformAddress,
@@ -136,6 +122,7 @@ export class MassetMachine {
         //  - Deploy Implementation
         // We do not need platform address for compound
         const d_CompoundIntegration: t.CompoundIntegrationInstance = await c_CompoundIntegration.new(
+            md.proxyAdmin.address,
             this.system.nexus.address,
             [d_BasketManagerProxy.address],
             [],
@@ -167,9 +154,10 @@ export class MassetMachine {
         // 2.5. Init BasketManager
         const initializationData_BasketManager: string = d_BasketManager.contract.methods
             .initialize(
+                md.proxyAdmin.address,
                 this.system.nexus.address,
                 d_MUSD.address,
-                simpleToExactAmount("100000", 18).toString(),
+                simpleToExactAmount(1, 24).toString(),
                 bassetDetails.bAssets.map((b) => b.address),
                 bassetDetails.platforms.map((p) =>
                     p == Platform.aave
@@ -189,6 +177,7 @@ export class MassetMachine {
         // 2.6. Init AaveIntegration
         const initializationData_AaveIntegration: string = d_AaveIntegration.contract.methods
             .initialize(
+                md.proxyAdmin.address,
                 this.system.nexus.address,
                 [d_MUSD.address, d_BasketManagerProxy.address],
                 bassetDetails.aavePlatformAddress,
@@ -205,6 +194,7 @@ export class MassetMachine {
         // 2.7. Init CompoundIntegration
         const initializationData_CompoundIntegration: string = d_CompoundIntegration.contract.methods
             .initialize(
+                md.proxyAdmin.address,
                 this.system.nexus.address,
                 [d_MUSD.address, d_BasketManagerProxy.address],
                 ZERO_ADDRESS, // We don't need Compound sys addr
