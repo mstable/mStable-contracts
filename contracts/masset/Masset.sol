@@ -391,7 +391,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
 
         // Validate redemption
         (bool redemptionValid, string memory reason) =
-            forgeValidator.validateRedemption(basket.failed, totalSupply().mulTruncate(colRatio), basket.bassets, props.grace, props.indexes, _bassetQuantities);
+            forgeValidator.validateRedemption(basket.failed, totalSupply().mulTruncate(colRatio), props.grace, props.indexes, _bassetQuantities, basket.bassets);
         require(redemptionValid, reason);
 
         uint256 massetQuantity = 0;
