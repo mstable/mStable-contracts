@@ -379,7 +379,7 @@ contract("CompoundIntegration", async (accounts) => {
 
             // console.log((await bAsset.balanceOf(sa.default)).toString());
             // const amt = await cToken.balanceOfUnderlying(d_CompoundIntegration.address);
-            await d_CompoundIntegration.withdraw(sa.default, bAsset.address, amount);
+            await d_CompoundIntegration.withdraw(sa.default, bAsset.address, amount, false);
             // console.log((await bAsset.balanceOf(sa.default)).toString());
 
             balanceOf = await cToken.balanceOf(d_CompoundIntegration.address);

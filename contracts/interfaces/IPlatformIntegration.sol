@@ -16,7 +16,7 @@ interface IPlatformIntegration {
     /**
      * @dev Withdraw given bAsset from Lending platform
      */
-    function withdraw(address _receiver, address _bAsset, uint256 _amount) external;
+    function withdraw(address _receiver, address _bAsset, uint256 _amount, bool _isTokenFeeCharged) external;
 
     /**
      * @dev Returns the current balance of the given bAsset

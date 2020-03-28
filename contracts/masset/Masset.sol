@@ -357,7 +357,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         _burn(msg.sender, massetQuantity);
 
         // Transfer the Bassets to the user
-        IPlatformIntegration(props.integrator).withdraw(_recipient, props.bAsset.addr, _bAssetQuantity);
+        IPlatformIntegration(props.integrator).withdraw(_recipient, props.bAsset.addr, _bAssetQuantity, props.bAsset.isTransferFeeCharged);
 
         emit Redeemed(_recipient, msg.sender, massetQuantity, _bAsset, _bAssetQuantity);
         return massetQuantity;
@@ -419,7 +419,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         // Transfer the Bassets to the user
         for(uint256 i = 0; i < redemptionAssetCount; i++){
             if(_bassetQuantities[i] > 0){
-                IPlatformIntegration(props.integrators[i]).withdraw(_recipient, props.bAssets[i].addr, _bassetQuantities[i]);
+                IPlatformIntegration(props.integrators[i]).withdraw(_recipient, props.bAssets[i].addr, _bassetQuantities[i], props.bAssets[i].isTransferFeeCharged);
             }
         }
 

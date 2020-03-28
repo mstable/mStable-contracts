@@ -55,4 +55,8 @@ contract MockModule is Module {
     function shouldAllowOnlyManager() public onlyManager {
         temp = 3;
     }
+
+    function shouldAllowOnlyProxyAdmin() public onlyProxyAdmin {
+        temp = 4;
+    }
 }
