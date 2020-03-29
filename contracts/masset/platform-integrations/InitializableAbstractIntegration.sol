@@ -87,17 +87,18 @@ contract InitializableAbstractIntegration is Initializable, IPlatformIntegration
     ****************************************/
 
     /**
-     * @dev Provide support for bAsset by passing its pToken address.
-     * This method can only be called by the system Governor
-     * @param _bAsset   Address for the bAsset
-     * @param _pToken   Address for the corresponding platform token
+     * @dev xxx
      */
     function supportNewMasset(address _mAsset, address[] calldata _bAssets, address[] calldata _pTokens)
         external
         onlyGovernor
     {
         _addWhitelist(_mAsset);
-        _setPTokenAddress(_bAsset, _pToken);
+        uint256 bAssetCount = _bAssets.length;
+        require(bAssetCount == _pTokens.length, "Invalid input arrays");
+        for(uint256 i = 0; i < bAssetCount; i++){
+            _setPTokenAddress(_bAssets[i], _pTokens[i]);
+        }
     }
 
     /**
