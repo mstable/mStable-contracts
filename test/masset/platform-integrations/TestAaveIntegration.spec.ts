@@ -395,7 +395,7 @@ contract("AaveIntegration", async (accounts) => {
             );
             // 3.2 Check that aave integration has aTokens
             const expectedBalance = aaveIntegration_balBefore.add(amount);
-            let actualBalance = await aToken.balanceOf(d_AaveIntegration.address);
+            const actualBalance = await aToken.balanceOf(d_AaveIntegration.address);
             assertBNSlightlyGT(actualBalance, expectedBalance, new BN("100"));
             // Cross that match with the `checkBalance` call
             checkBalanceTx = await d_AaveIntegration.logBalance(bAsset.address);
@@ -565,10 +565,10 @@ contract("AaveIntegration", async (accounts) => {
                 bAssetRecipient_balBefore.add(amount),
             );
             // 3.2 Check that aave integration has aTokens
-            let newBal = await aToken.balanceOf(d_AaveIntegration.address);
+            const newBal = await aToken.balanceOf(d_AaveIntegration.address);
             assertBNSlightlyGT(newBal, aaveIntegration_balBefore.add(amount), new BN("1000"));
             // Cross that match with the `checkBalance` call
-            let checkBalanceTx = await d_AaveIntegration.logBalance(bAsset.address);
+            const checkBalanceTx = await d_AaveIntegration.logBalance(bAsset.address);
             expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", { balance: newBal });
             // 3.3 Check that return value is cool (via event)
             expectEvent.inLogs(tx.logs, "Deposit", { _amount: amount });
@@ -622,11 +622,11 @@ contract("AaveIntegration", async (accounts) => {
                 bAssetRecipient_balBefore.add(amount),
             );
             // 2.2 Check that integration aToken balance has gone down
-            let actualBalance = await aToken.balanceOf(d_AaveIntegration.address);
-            let expectedBalance = aaveIntegration_balBefore.sub(amount);
+            const actualBalance = await aToken.balanceOf(d_AaveIntegration.address);
+            const expectedBalance = aaveIntegration_balBefore.sub(amount);
             assertBNSlightlyGT(actualBalance, expectedBalance, new BN("100"));
             // Cross that match with the `checkBalance` call
-            let checkBalanceTx = await d_AaveIntegration.logBalance(bAsset.address);
+            const checkBalanceTx = await d_AaveIntegration.logBalance(bAsset.address);
             expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", {
                 balance: actualBalance,
             });
@@ -658,9 +658,9 @@ contract("AaveIntegration", async (accounts) => {
             const aaveIntegration_balAfter = await aToken.balanceOf(d_AaveIntegration.address);
 
             // 99% of amt
-            let scale = simpleToExactAmount("0.99", 18);
-            let amountScaled = amount.mul(scale);
-            let expectedAmount = amountScaled.div(fullScale);
+            const scale = simpleToExactAmount("0.99", 18);
+            const amountScaled = amount.mul(scale);
+            const expectedAmount = amountScaled.div(fullScale);
             // Step 2. Validate recipient
             expect(bAssetRecipient_balAfter).bignumber.gte(
                 bAssetRecipient_balBefore.add(expectedAmount) as any,
@@ -671,10 +671,10 @@ contract("AaveIntegration", async (accounts) => {
             expect(aaveIntegration_balAfter).bignumber.eq(
                 aaveIntegration_balBefore.sub(amount) as any,
             );
-            let expectedBalance = aaveIntegration_balBefore.sub(amount);
+            const expectedBalance = aaveIntegration_balBefore.sub(amount);
             assertBNSlightlyGT(aaveIntegration_balAfter, expectedBalance, new BN("100"));
             // Cross that match with the `checkBalance` call
-            let checkBalanceTx = await d_AaveIntegration.logBalance(bAsset.address);
+            const checkBalanceTx = await d_AaveIntegration.logBalance(bAsset.address);
             expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", {
                 balance: aaveIntegration_balAfter,
             });
@@ -772,7 +772,7 @@ contract("AaveIntegration", async (accounts) => {
             const aToken = await c_AaveAToken.at(integrationDetails.aTokens[0].aToken);
 
             const aaveIntegration_bal = await aToken.balanceOf(d_AaveIntegration.address);
-            let checkBalanceTx = await d_AaveIntegration.logBalance(bAsset.address, {
+            const checkBalanceTx = await d_AaveIntegration.logBalance(bAsset.address, {
                 from: sa.dummy1,
             });
             expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", {
@@ -813,7 +813,9 @@ contract("AaveIntegration", async (accounts) => {
             // Doing this activity should raise our aToken balances slightly
             // 2.1. Approve the LendingPool Core
             await bAsset.approve(await addressProvider.getLendingPoolCore(), amount);
-            let d_lendingPool = await c_AaveLendingPool.at(await addressProvider.getLendingPool());
+            const d_lendingPool = await c_AaveLendingPool.at(
+                await addressProvider.getLendingPool(),
+            );
             // 2.2. Call the deposit func
             await d_lendingPool.deposit(bAsset.address, amount, 9999);
             // 2.3. Fast forward some time
@@ -861,7 +863,7 @@ contract("AaveIntegration", async (accounts) => {
         });
         it("should re-approve ALL bAssets with aTokens", async () => {
             const bassetsMapped = await d_AaveIntegration.getBassetsMapped();
-            expect(bassetsMapped.length > 0).to.be.true;
+            expect(bassetsMapped.length).to.be.gt(0);
 
             const addressProvider = await c_AaveLendingPoolAddressProvider.at(
                 integrationDetails.aavePlatformAddress,
@@ -884,7 +886,7 @@ contract("AaveIntegration", async (accounts) => {
         });
         it("should be able to be called multiple times", async () => {
             const bassetsMapped = await d_AaveIntegration.getBassetsMapped();
-            expect(bassetsMapped.length > 0).to.be.true;
+            expect(bassetsMapped.length).to.be.gt(0);
 
             await d_AaveIntegration.reApproveAllTokens({
                 from: sa.governor,
