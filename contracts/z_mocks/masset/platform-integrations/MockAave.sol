@@ -1,6 +1,7 @@
 pragma solidity 0.5.16;
 
 import { IAaveAToken, IAaveLendingPool, ILendingPoolAddressesProvider } from "../../../masset/platform-integrations/IAave.sol";
+import { AaveIntegration } from "../../../masset/platform-integrations/AaveIntegration.sol";
 
 import { MassetHelpers, SafeERC20 } from "../../../masset/shared/MassetHelpers.sol";
 import { IERC20, ERC20, ERC20Mintable } from "openzeppelin-solidity/contracts/token/ERC20/ERC20Mintable.sol";
@@ -65,4 +66,22 @@ contract MockAave is IAaveLendingPool, ILendingPoolAddressesProvider {
         core = address(uint160(address(0)));
     }
 
+}
+
+
+contract MockAaveIntegration is AaveIntegration {
+
+    event CurrentBalance(address indexed bAsset, uint256 balance);
+
+
+    function logBalance(address _bAsset)
+        external
+        returns (uint256 balance)
+    {
+        // balance is always with token aToken decimals
+        IAaveAToken aToken = _getATokenFor(_bAsset);
+        balance = _checkBalance(aToken);
+
+        emit CurrentBalance(_bAsset, balance);
+    }
 }

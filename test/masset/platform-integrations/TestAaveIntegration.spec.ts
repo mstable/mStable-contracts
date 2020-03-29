@@ -35,7 +35,7 @@ const c_DelayedProxyAdmin: t.DelayedProxyAdminContract = artifacts.require("Dela
 const c_InitializableProxy: t.InitializableAdminUpgradeabilityProxyContract = artifacts.require(
     "@openzeppelin/upgrades/InitializableAdminUpgradeabilityProxy",
 );
-const c_AaveIntegration: t.AaveIntegrationContract = artifacts.require("AaveIntegration");
+const c_AaveIntegration: t.MockAaveIntegrationContract = artifacts.require("MockAaveIntegration");
 
 contract("AaveIntegration", async (accounts) => {
     const sa = new StandardAccounts(accounts);
@@ -728,7 +728,10 @@ contract("AaveIntegration", async (accounts) => {
     });
 
     describe("checkBalance", async () => {
-        it("should return balance when supported token address passed");
+        beforeEach("init mocks", async () => {
+            await runSetup(false, true);
+        });
+        it("should return balance when supported token address passed", async () => {});
         it("should increase our balance over time and activity");
         it("should return balance with same precision as bAsset");
     });
@@ -747,9 +750,5 @@ contract("AaveIntegration", async (accounts) => {
         it("should fail if lending pool core does not exist (mock)");
 
         it("should be able to be called multiple times");
-    });
-
-    describe("disapprove", async () => {
-        it("should be implemented...");
     });
 });
