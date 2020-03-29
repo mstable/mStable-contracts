@@ -174,7 +174,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         require(_recipient != address(0), "Recipient must not be 0x0");
         require(_bAssetQuantity > 0, "Quantity must not be 0");
 
-        ForgeProps memory props = basketManager.prepareForgeBasset(_bAsset, true);
+        ForgeProps memory props = basketManager.prepareForgeBasset(address(this), _bAsset, true);
         if(!props.isValid) return 0;
 
         // Transfer collateral to the platform integration address and call deposit
@@ -188,7 +188,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         require(mintValid, reason);
 
         // Log the Vault increase - can only be done when basket is healthy
-        basketManager.increaseVaultBalance(props.index, integrator, quantityDeposited);
+        basketManager.increaseMyVaultBalance(props.index, integrator, quantityDeposited);
 
         // ratioedBasset is the number of masset quantity to mint
         uint256 ratioedBasset = quantityDeposited.mulRatioTruncate(props.bAsset.ratio);
@@ -220,7 +220,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
 
         // Load only needed bAssets in array
         ForgePropsMulti memory props
-            = basketManager.prepareForgeBassets(_bassetsBitmap, uint8(len), true);
+            = basketManager.prepareForgeBassets(address(this), _bassetsBitmap, uint8(len), true);
         if(!props.isValid) return 0;
 
         uint256 massetQuantity = 0;
@@ -240,7 +240,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
                 uint256 quantityDeposited = IPlatformIntegration(integrator).deposit(bAsset.addr, quantityTransfered, xferCharged);
                 receivedQty[i] = quantityDeposited;
 
-                basketManager.increaseVaultBalance(props.indexes[i], integrator, quantityDeposited);
+                basketManager.increaseMyVaultBalance(props.indexes[i], integrator, quantityDeposited);
 
                 uint256 ratioedBasset = quantityDeposited.mulRatioTruncate(bAsset.ratio);
                 massetQuantity = massetQuantity.add(ratioedBasset);
@@ -331,9 +331,9 @@ contract Masset is IMasset, MassetToken, PausableModule {
         require(_recipient != address(0), "Recipient must not be 0x0");
         require(_bAssetQuantity > 0, "Quantity must not be 0");
 
-        Basket memory basket = basketManager.getBasket();
+        Basket memory basket = basketManager.getBasket(address(this));
 
-        ForgeProps memory props = basketManager.prepareForgeBasset(_bAsset, false);
+        ForgeProps memory props = basketManager.prepareForgeBasset(address(this), _bAsset, false);
         if(!props.isValid) return 0;
 
         // Validate redemption
@@ -345,7 +345,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         uint256 massetQuantity = _bAssetQuantity.mulRatioTruncateCeil(props.bAsset.ratio);
 
         // Decrease balance in storage
-        basketManager.decreaseVaultBalance(props.index, props.integrator, _bAssetQuantity);
+        basketManager.decreaseMyVaultBalance(props.index, props.integrator, _bAssetQuantity);
 
         // Pay the redemption fee
         _payRedemptionFee(massetQuantity, msg.sender);
@@ -380,11 +380,11 @@ contract Masset is IMasset, MassetToken, PausableModule {
         uint256 redemptionAssetCount = _bassetQuantities.length;
 
         // Fetch high level details
-        Basket memory basket = basketManager.getBasket();
+        Basket memory basket = basketManager.getBasket(address(this));
 
         // Load only needed bAssets in array
         ForgePropsMulti memory props
-            = basketManager.prepareForgeBassets(_bassetsBitmap, uint8(redemptionAssetCount), false);
+            = basketManager.prepareForgeBassets(address(this), _bassetsBitmap, uint8(redemptionAssetCount), false);
         if(!props.isValid) return 0;
 
         // Validate redemption
@@ -403,7 +403,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
                 massetQuantity = massetQuantity.add(ratioedBasset);
 
                 // bAsset == bAssets[i] == basket.bassets[indexes[i]]
-                basketManager.decreaseVaultBalance(props.indexes[i], props.integrators[i], bAssetQuantity);
+                basketManager.decreaseMyVaultBalance(props.indexes[i], props.integrators[i], bAssetQuantity);
             }
         }
 
@@ -515,7 +515,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         whenNotPaused
         returns (uint256 totalInterestGained, uint256 newSupply)
     {
-        (uint256 interestCollected, uint32 bitmap, uint256[] memory gains) = basketManager.collectInterest();
+        (uint256 interestCollected, uint32 bitmap, uint256[] memory gains) = basketManager.collectMyInterest();
 
         // mint new mAsset to sender
         _mint(msg.sender, interestCollected);

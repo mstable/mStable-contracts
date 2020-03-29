@@ -92,6 +92,20 @@ contract InitializableAbstractIntegration is Initializable, IPlatformIntegration
      * @param _bAsset   Address for the bAsset
      * @param _pToken   Address for the corresponding platform token
      */
+    function supportNewMasset(address _mAsset, address[] calldata _bAssets, address[] calldata _pTokens)
+        external
+        onlyGovernor
+    {
+        _addWhitelist(_mAsset);
+        _setPTokenAddress(_bAsset, _pToken);
+    }
+
+    /**
+     * @dev Provide support for bAsset by passing its pToken address.
+     * This method can only be called by the system Governor
+     * @param _bAsset   Address for the bAsset
+     * @param _pToken   Address for the corresponding platform token
+     */
     function setPTokenAddress(address _bAsset, address _pToken)
         external
         onlyGovernor

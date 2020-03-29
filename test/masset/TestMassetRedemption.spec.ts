@@ -3,12 +3,7 @@
 import { createMultiple, simpleToExactAmount } from "@utils/math";
 import { createBasket, Basket } from "@utils/mstable-objects";
 import { shouldFail } from "openzeppelin-test-helpers";
-import {
-    MassetMachine,
-    StandardAccounts,
-    SystemMachine,
-    MassetDetails,
-} from "@utils/machines";
+import { MassetMachine, StandardAccounts, SystemMachine, MassetDetails } from "@utils/machines";
 import { aToH, BN } from "@utils/tools";
 
 import envSetup from "@utils/env_setup";
@@ -75,6 +70,7 @@ contract("MassetRedemption", async (accounts) => {
             const mUSD_supplyBefore = await massetDetails.mAsset.totalSupply();
             // Get bitmap
             const bitmap = await massetDetails.basketManager.getBitmapFor(
+                massetDetails.mAsset.address,
                 bAssets.map((b) => b.address),
             );
             // Redeem

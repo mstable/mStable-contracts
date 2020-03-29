@@ -373,6 +373,7 @@ export class MassetMachine {
         );
 
         const bitmap = await massetDetails.basketManager.getBitmapFor(
+            massetDetails.mAsset.address,
             basketDetails.map((b) => b.addr),
         );
         await massetDetails.mAsset.mintMulti(
@@ -386,7 +387,7 @@ export class MassetMachine {
     }
 
     public async getBassetsInMasset(masset: MassetDetails): Promise<Basset[]> {
-        const response = await masset.basketManager.getBassets();
+        const response = await masset.basketManager.getBassets(masset.mAsset.address);
         const bArrays: Array<Basset> = response[0].map((b) => {
             return {
                 addr: b.addr,
