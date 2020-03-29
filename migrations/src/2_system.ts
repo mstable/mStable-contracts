@@ -2,7 +2,7 @@
 import * as t from "types/generated";
 import { Address } from "types/common";
 
-import { percentToWeight } from "@utils/math";
+import { percentToWeight, simpleToExactAmount } from "@utils/math";
 import { ZERO_ADDRESS, RopstenAccounts } from "@utils/constants";
 
 export interface ATokenDetails {
@@ -298,13 +298,14 @@ export default async ({ artifacts }, deployer, network, accounts) => {
             d_DelayedProxyAdmin.address,
             d_Nexus.address,
             d_MUSD.address,
+            simpleToExactAmount(1, 24).toString(),
             bassetDetails.bAssets.map((b) => b.address),
             bassetDetails.platforms.map((p) =>
                 p == Platform.aave
                     ? d_AaveIntegrationProxy.address
                     : d_CompoundIntegrationProxy.address,
             ),
-            bassetDetails.bAssets.map(() => percentToWeight(100).toString()),
+            bassetDetails.bAssets.map(() => percentToWeight(25).toString()),
             bassetDetails.bAssets.map(() => false),
         )
         .encodeABI();

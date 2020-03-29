@@ -31,11 +31,11 @@ contract SavingsManager is ISavingsManager, PausableModule {
 
     // Locations of each mAsset savings contract
     mapping(address => ISavingsContract) public savingsContracts;
+    // Time at which last collection was made
+    mapping(address => uint256) public lastCollection;
 
     // Amount of collected interest that will be send to Savings Contract
     uint256 private savingsRate = 1e18;
-    // Time at which last collection was made
-    uint256 private lastCollection;
     // Utils to help keep interest under check
     uint256 constant private secondsInYear = 365 days;
     // Put a theoretical cap on max APY at 50%
@@ -87,42 +87,48 @@ contract SavingsManager is ISavingsManager, PausableModule {
         external
         whenNotPaused
     {
-        IMasset mAsset = IMasset(_mAsset);
-        (uint256 interestCollected, uint256 totalSupply) = mAsset.collectInterest();
+        uint256 previousCollection = lastCollection[_mAsset];
 
-        if(interestCollected > 0){
+        // Only collect interest if it has been 30 mins
+        uint256 timeSinceLastCollection = now.sub(previousCollection);
+        if(timeSinceLastCollection > 30 minutes){
 
-            // 1. Validate that the interest has been collected and is within certain limits
-            require(IERC20(_mAsset).balanceOf(address(this)) >= interestCollected, "Must recceive mUSD");
+            lastCollection[_mAsset] = now;
 
-            uint256 previousCollection = lastCollection;
-            lastCollection = now;
+            IMasset mAsset = IMasset(_mAsset);
+            (uint256 interestCollected, uint256 totalSupply) = mAsset.collectInterest();
 
-            // Seconds since last collection
-            uint256 secondsSinceLastCollection = now.sub(previousCollection);
-            // e.g. day: (86400 * 1e18) / 3.154e7 = 2.74..e15
-            uint256 yearsSinceLastCollection = secondsSinceLastCollection.divPrecisely(secondsInYear);
-            // Percentage increase in total supply
-            // e.g. (1e20 * 1e18) / 1e24 = 1e14 (or a 0.01% increase)
-            uint256 percentageIncrease = interestCollected.divPrecisely(totalSupply);
-            // e.g. 0.01% (1e14 * 1e18) / 2.74..e15 = 3.65e16 or 3.65% apr
-            uint256 extrapolatedAPY = percentageIncrease.divPrecisely(yearsSinceLastCollection);
+            if(interestCollected > 0){
 
-            require(extrapolatedAPY < maxAPY, "Interest protected from inflating past maxAPY");
+                // 1. Validate that the interest has been collected and is within certain limits
+                require(IERC20(_mAsset).balanceOf(address(this)) >= interestCollected, "Must recceive mUSD");
 
-            emit InterestCollected(_mAsset, interestCollected, totalSupply, extrapolatedAPY);
+                // Seconds since last collection
+                uint256 secondsSinceLastCollection = now.sub(previousCollection);
+                // e.g. day: (86400 * 1e18) / 3.154e7 = 2.74..e15
+                uint256 yearsSinceLastCollection = secondsSinceLastCollection.divPrecisely(secondsInYear);
+                // Percentage increase in total supply
+                // e.g. (1e20 * 1e18) / 1e24 = 1e14 (or a 0.01% increase)
+                uint256 percentageIncrease = interestCollected.divPrecisely(totalSupply);
+                // e.g. 0.01% (1e14 * 1e18) / 2.74..e15 = 3.65e16 or 3.65% apr
+                uint256 extrapolatedAPY = percentageIncrease.divPrecisely(yearsSinceLastCollection);
 
-            // 2. Distribute the interest
-            // Calculate the share for savers (95e16 or 95%)
-            uint256 saversShare = interestCollected.mulTruncate(savingsRate);
+                require(extrapolatedAPY < maxAPY, "Interest protected from inflating past maxAPY");
 
-            // Call depositInterest on contract
-            ISavingsContract target = savingsContracts[_mAsset];
-            target.depositInterest(saversShare);
+                emit InterestCollected(_mAsset, interestCollected, totalSupply, extrapolatedAPY);
 
-            emit InterestDistributed(_mAsset, saversShare);
-        } else {
-            emit InterestCollected(_mAsset, 0, totalSupply, 0);
+                // 2. Distribute the interest
+                // Calculate the share for savers (95e16 or 95%)
+                uint256 saversShare = interestCollected.mulTruncate(savingsRate);
+
+                // Call depositInterest on contract
+                ISavingsContract target = savingsContracts[_mAsset];
+                target.depositInterest(saversShare);
+
+                emit InterestDistributed(_mAsset, saversShare);
+            } else {
+                emit InterestCollected(_mAsset, 0, totalSupply, 0);
+            }
         }
     }
 
