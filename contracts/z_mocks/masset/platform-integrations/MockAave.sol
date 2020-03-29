@@ -84,4 +84,12 @@ contract MockAaveIntegration is AaveIntegration {
 
         emit CurrentBalance(_bAsset, balance);
     }
+
+    function getBassetsMapped()
+        external
+        view
+        returns (address[] memory bassets)
+    {
+        return bAssetsMapped;
+    }
 }
