@@ -269,14 +269,20 @@ export class MassetMachine {
             this.sa.default,
             100000000,
         );
-        // Mock up USDT
+        // Mock up USDT for Aave
         const mockBasset4: t.MockERC20Instance = enableUSDTFee
             ? await c_MockERC20WithFee.new("Mock4", "MK4", 18, this.sa.default, 100000000)
             : await c_MockERC20.new("Mock4", "MK4", 18, this.sa.default, 100000000);
 
+        // Mock up USDT for Compound
+        const mockBasset5: t.MockERC20Instance = enableUSDTFee
+            ? await c_MockERC20WithFee.new("Mock5", "MK5", 18, this.sa.default, 100000000)
+            : await c_MockERC20.new("Mock5", "MK5", 18, this.sa.default, 100000000);
+
         // Mock C Token
         const mockCToken1: t.MockCTokenInstance = await c_MockCToken.new(mockBasset1.address);
         const mockCToken2: t.MockCTokenInstance = await c_MockCToken.new(mockBasset2.address);
+        const mockCToken3: t.MockCTokenInstance = await c_MockCToken.new(mockBasset5.address);
 
         //  - Mock Aave integration
         const d_MockAave: t.MockAaveInstance = await c_MockAave.new({ from: this.sa.default });
@@ -296,8 +302,15 @@ export class MassetMachine {
         await d_MockAave.addAToken(mockAToken4.address, mockBasset4.address);
 
         return {
-            bAssets: [mockBasset1, mockBasset2, mockBasset3, mockBasset4], // DAI, USDC, TUSD, USDT
-            platforms: [Platform.compound, Platform.compound, Platform.aave, Platform.aave],
+            // DAI, USDC, TUSD, USDT(aave), USDT(compound)
+            bAssets: [mockBasset1, mockBasset2, mockBasset3, mockBasset4, mockBasset5],
+            platforms: [
+                Platform.compound,
+                Platform.compound,
+                Platform.aave,
+                Platform.aave,
+                Platform.compound,
+            ],
             aavePlatformAddress: d_MockAave.address,
             aTokens: [
                 {
@@ -317,6 +330,10 @@ export class MassetMachine {
                 {
                     bAsset: mockBasset2.address,
                     cToken: mockCToken2.address,
+                },
+                {
+                    bAsset: mockBasset5.address,
+                    cToken: mockCToken3.address,
                 },
             ],
         };

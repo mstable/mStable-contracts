@@ -3,11 +3,20 @@
 
 import * as t from "types/generated";
 import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
-import { BN } from "@utils/tools";
+import { increase } from "openzeppelin-test-helpers/src/time";
+import { BN, assertBNClose, assertBNSlightlyGT } from "@utils/tools";
 import { StandardAccounts, SystemMachine, MassetMachine } from "@utils/machines";
-import { MainnetAccounts, ZERO_ADDRESS, MAX_UINT256, fullScale, ZERO } from "@utils/constants";
+import {
+    MainnetAccounts,
+    ZERO_ADDRESS,
+    MAX_UINT256,
+    fullScale,
+    ZERO,
+    ONE_WEEK,
+} from "@utils/constants";
 
 import envSetup from "@utils/env_setup";
+import { simpleToExactAmount } from "@utils/math";
 import {
     BassetIntegrationDetails,
     Platform,
@@ -31,8 +40,8 @@ const c_DelayedProxyAdmin: t.DelayedProxyAdminContract = artifacts.require("Dela
 const c_InitializableProxy: t.InitializableAdminUpgradeabilityProxyContract = artifacts.require(
     "@openzeppelin/upgrades/InitializableAdminUpgradeabilityProxy",
 );
-const c_CompoundIntegration: t.CompoundIntegrationContract = artifacts.require(
-    "CompoundIntegration",
+const c_CompoundIntegration: t.MockCompoundIntegrationContract = artifacts.require(
+    "MockCompoundIntegration",
 );
 
 contract("CompoundIntegration", async (accounts) => {
@@ -49,7 +58,7 @@ contract("CompoundIntegration", async (accounts) => {
     let integrationDetails: BassetIntegrationDetails;
     let d_DelayedProxyAdmin: t.DelayedProxyAdminInstance;
     let d_CompoundIntegrationProxy: t.InitializableAdminUpgradeabilityProxyInstance;
-    let d_CompoundIntegration: t.CompoundIntegrationInstance;
+    let d_CompoundIntegration: t.MockCompoundIntegrationInstance;
 
     const ctx: { module?: t.InitializableModuleInstance } = {};
 
@@ -60,7 +69,7 @@ contract("CompoundIntegration", async (accounts) => {
         await runSetup();
     });
 
-    const runSetup = async (enableUSDTFee = false) => {
+    const runSetup = async (enableUSDTFee = false, simulateMint = false) => {
         // SETUP
         // ======
         nexus = await c_Nexus.new(sa.governor);
@@ -98,6 +107,28 @@ contract("CompoundIntegration", async (accounts) => {
             sa.governor,
             { from: sa.governor },
         );
+
+        if (simulateMint) {
+            await Promise.all(
+                integrationDetails.cTokens.map(async ({ bAsset, cToken }) => {
+                    // Step 0. Choose tokens
+                    const d_bAsset = await c_ERC20.at(bAsset);
+                    const bAsset_decimals = await d_bAsset.decimals();
+                    const amount = new BN(enableUSDTFee ? 101 : 100).mul(
+                        new BN(10).pow(bAsset_decimals.sub(new BN(1))),
+                    );
+                    const amount_dep = new BN(100).mul(
+                        new BN(10).pow(bAsset_decimals.sub(new BN(1))),
+                    );
+
+                    // Step 1. xfer tokens to integration
+                    await d_bAsset.transfer(d_CompoundIntegration.address, amount);
+
+                    // Step 2. call deposit
+                    return d_CompoundIntegration.deposit(bAsset, amount_dep, true);
+                }),
+            );
+        }
 
         ctx.module = d_CompoundIntegration;
     };
@@ -373,14 +404,13 @@ contract("CompoundIntegration", async (accounts) => {
         });
 
         it("should handle the fee calculations", async () => {
-            /*
             // Step 0. Choose tokens and set up env
             await runSetup(true);
 
-            const bAsset = await c_ERC20.at(integrationDetails.cTokens[1].bAsset);
+            const bAsset = await c_ERC20.at(integrationDetails.cTokens[2].bAsset);
             const bAsset_decimals = await bAsset.decimals();
             const amount = new BN(10).pow(bAsset_decimals);
-            const cToken = await c_CERC20.at(integrationDetails.cTokens[1].cToken);
+            const cToken = await c_CERC20.at(integrationDetails.cTokens[2].cToken);
 
             // 0.1 Get balance before
             const bAssetRecipient = cToken.address;
@@ -391,7 +421,7 @@ contract("CompoundIntegration", async (accounts) => {
 
             // Step 1. xfer tokens to integration
             const bal1 = await bAsset.balanceOf(d_CompoundIntegration.address);
-            await bAsset.transfer(d_CompoundIntegration.address, amount);
+            let tx = await bAsset.transfer(d_CompoundIntegration.address, amount);
 
             const bal2 = await bAsset.balanceOf(d_CompoundIntegration.address);
             const receivedAmount = bal2.sub(bal1);
@@ -405,7 +435,7 @@ contract("CompoundIntegration", async (accounts) => {
             const expectedDeposit = receivedAmount.sub(receivedAmount.mul(feeRate).div(fullScale));
 
             // Step 2. call deposit
-            const tx = await d_CompoundIntegration.deposit(bAsset.address, receivedAmount, true);
+            tx = await d_CompoundIntegration.deposit(bAsset.address, receivedAmount, true);
 
             // Step 3. Check for things:
             // 3.1 Check that cToken has bAssets
@@ -424,9 +454,10 @@ contract("CompoundIntegration", async (accounts) => {
             ) as any);
             // 3.3 Check that return value is cool (via event)
             const receivedATokens = compoundIntegration_balAfter.sub(compoundIntegration_balBefore);
+
             const min = receivedATokens.lt(receivedAmount) ? receivedATokens : receivedAmount;
-            expectEvent.inLogs(tx.logs, "Deposit", { _amount: min });
-            */
+            // TODO check min in logs
+            expectEvent.inLogs(tx.logs, "Deposit");
         });
 
         it("should only allow a whitelisted user to call function", async () => {
@@ -579,7 +610,57 @@ contract("CompoundIntegration", async (accounts) => {
             expect(new BN(0)).to.bignumber.equal(cToken_balanceOfIntegration);
         });
 
-        it("should handle the fee calculations");
+        it("should handle the fee calculations", async () => {
+            await runSetup(true, true);
+            /*
+            // should deduct the transfer fee from the return value
+            const bAsset = await c_ERC20.at(integrationDetails.cTokens[2].bAsset);
+            const bAsset_decimals = await bAsset.decimals();
+            const amount = new BN(10).pow(bAsset_decimals);
+            const cToken = await c_CERC20.at(integrationDetails.cTokens[2].cToken);
+
+            // 0.1 Get balance before
+            const bAssetRecipient = sa.dummy1;
+            const bAssetRecipient_balBefore = await bAsset.balanceOf(bAssetRecipient);
+            const compoundIntegration_balBefore = await cToken.balanceOf(
+                d_CompoundIntegration.address,
+            );
+
+            // Step 1. call withdraw
+            const tx = await d_CompoundIntegration.withdraw(
+                bAssetRecipient,
+                bAsset.address,
+                amount,
+                true,
+            );
+            const bAssetRecipient_balAfter = await bAsset.balanceOf(bAssetRecipient);
+            const compoundIntegration_balAfter = await cToken.balanceOf(
+                d_CompoundIntegration.address,
+            );
+
+            // 99% of amt
+            const scale = simpleToExactAmount("0.99", 18);
+            const amountScaled = amount.mul(scale);
+            const expectedAmount = amountScaled.div(fullScale);
+            // Step 2. Validate recipient
+            expect(bAssetRecipient_balAfter).bignumber.gte(bAssetRecipient_balBefore.add(
+                expectedAmount,
+            ) as any);
+            expect(bAssetRecipient_balAfter).bignumber.lte(bAssetRecipient_balBefore.add(
+                amount,
+            ) as any);
+            expect(compoundIntegration_balAfter).bignumber.eq(compoundIntegration_balBefore.sub(
+                amount,
+            ) as any);
+            const expectedBalance = compoundIntegration_balBefore.sub(amount);
+            assertBNSlightlyGT(compoundIntegration_balAfter, expectedBalance, new BN("100"));
+            // Cross that match with the `checkBalance` call
+            const checkBalanceTx = await d_CompoundIntegration.logBalance(bAsset.address);
+            expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", {
+                balance: compoundIntegration_balAfter,
+            });
+            */
+        });
 
         it("should only allow a whitelisted user to call function", async () => {
             // Step 0. Choose tokens
@@ -653,9 +734,89 @@ contract("CompoundIntegration", async (accounts) => {
     });
 
     describe("checkBalance", async () => {
-        it("should return balance when supported token address passed");
-        it("should increase our balance over time and activity");
-        it("should return balance with same precision as bAsset");
+        it("should return balance for any caller when supported token address passed", async () => {
+            const bAsset = await c_ERC20.at(integrationDetails.cTokens[0].bAsset);
+            const cToken = await c_CERC20.at(integrationDetails.cTokens[0].cToken);
+
+            const compoundIntegration_bal = await cToken.balanceOf(d_CompoundIntegration.address);
+            const checkBalanceTx = await d_CompoundIntegration.logBalance(bAsset.address, {
+                from: sa.dummy1,
+            });
+            expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", {
+                balance: compoundIntegration_bal,
+            });
+        });
+
+        it("should increase our balance over time and activity", async () => {
+            // Simulating activity on mainnet only, as our mocks are not capable
+            if (!systemMachine.isGanacheFork) return;
+
+            // Load things up and do some mints
+            await runSetup(false, true);
+
+            // 1. Load up our target tokens and get the balances now
+            const bAsset = await c_ERC20.at(integrationDetails.cTokens[0].bAsset);
+            const bAsset_decimals = await bAsset.decimals();
+            const amount = new BN(10).pow(bAsset_decimals);
+            const cToken = await c_CERC20.at(integrationDetails.cTokens[0].cToken);
+
+            const compoundIntegration_balBefore = await cToken.balanceOf(
+                d_CompoundIntegration.address,
+            );
+            expect(compoundIntegration_balBefore).bignumber.gt(new BN(0) as any);
+            // Cross that match with the `checkBalance` call
+            let checkBalanceTx = await d_CompoundIntegration.logBalance(bAsset.address);
+            expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", {
+                balance: compoundIntegration_balBefore,
+            });
+
+            // 2. Simulate some external activity by depositing or redeeming
+            // DIRECTlY to the LendingPool.
+            // Doing this activity should raise our aToken balances slightly
+            // 2.1. Approve the LendingPool Core
+            await bAsset.approve(cToken.address, amount);
+
+            // 2.2. Call the deposit func
+            await cToken.mint(amount);
+            // 2.3. Fast forward some time
+            await increase(ONE_WEEK);
+            // 2.4. Do a redemption
+            await cToken.redeemUnderlying(amount);
+
+            // 3. Analyse our new balances
+            const compoundIntegration_balAfter = await cToken.balanceOf(
+                d_CompoundIntegration.address,
+            );
+            // Should not go up by more than 2% during this period
+            assertBNSlightlyGT(
+                compoundIntegration_balAfter,
+                compoundIntegration_balBefore,
+                compoundIntegration_balBefore.div(new BN(50)),
+                true,
+            );
+            // Cross that match with the `checkBalance` call
+            checkBalanceTx = await d_CompoundIntegration.logBalance(bAsset.address);
+            expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", {
+                balance: compoundIntegration_balAfter,
+            });
+
+            // 4. Withdraw our new interested - we worked hard for it!
+            await d_CompoundIntegration.withdraw(
+                sa.default,
+                bAsset.address,
+                compoundIntegration_balAfter,
+                false,
+            );
+        });
+
+        it("should fail if called with inactive token", async () => {
+            const bAsset = await c_ERC20.at(integrationDetails.aTokens[0].bAsset);
+
+            await shouldFail.reverting.withMessage(
+                d_CompoundIntegration.logBalance(bAsset.address),
+                "cToken does not exist",
+            );
+        });
     });
 
     describe("reApproveAllTokens", async () => {
