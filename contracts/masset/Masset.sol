@@ -19,9 +19,11 @@ import { SafeERC20 }  from "openzeppelin-solidity/contracts/token/ERC20/SafeERC2
 import { IERC20 }     from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 
 /**
- * @title Masset
- * @author Stability Labs Pty Ltd
- * @dev Base layer functionality for the Masset
+ * @title   Masset
+ * @author  Stability Labs Pty. Lte.
+ * @notice  The Masset is a token that allows minting and redemption at a 1:1 ratio
+ *          for underlying basket assets (bAssets) of the same peg (i.e. USD,
+ *          EUR, gGold). Composition and validation is enforced via the BasketManager.
  */
 contract Masset is IMasset, MassetToken, PausableModule {
 
@@ -42,7 +44,6 @@ contract Masset is IMasset, MassetToken, PausableModule {
     /** @dev Modules */
     IForgeValidator public forgeValidator;
     bool internal forgeValidatorLocked = false;
-    // IBasketManager private basketManager;
     IBasketManager private basketManager;
 
     /** @dev Meta information for ecosystem fees */
