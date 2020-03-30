@@ -33,20 +33,12 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
     event BassetRemoved(address indexed mAsset, address basset);
     event BasketWeightsUpdated(address indexed mAsset, address[] bassets, uint256[] targetWeights);
 
-    /** @dev mAsset linked to the manager (const) */
-    // address public mAsset;
-
     /** @dev Struct holding Basket details */
-    // Basket public basket;
     mapping(address => Basket) public baskets;
     mapping(address => uint256) internal grace;
-
     // Mapping holds bAsset token address => index
-    // mapping(address => uint8) private bassetsMap;
     mapping(address => mapping(address => uint8)) private bassetsMap;
-
     // Holds relative addresses of the integration platforms
-    // mapping(uint8 => address) public integrations;
     mapping(address => mapping(uint8 => address)) public integrations;
 
     /**
@@ -89,6 +81,7 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
         uint256[] memory _weights,
         bool[] memory _hasTransferFees
     ) internal {
+        require(baskets[_mAsset].collateralisationRatio == 0, "Must not be exiting mAsset");
         // Defaults
         baskets[_mAsset].maxBassets = 16;               // 16
         baskets[_mAsset].collateralisationRatio = 1e18; // 100%
