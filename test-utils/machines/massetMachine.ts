@@ -133,6 +133,7 @@ export class MassetMachine {
         md.mAsset = d_MUSD;
 
         // 2.5. Init BasketManager
+        const weight = 100 / bassetDetails.bAssets.length;
         const initializationData_BasketManager: string = d_BasketManager.contract.methods
             .initialize(
                 this.system.nexus.address,
@@ -144,7 +145,7 @@ export class MassetMachine {
                         ? d_AaveIntegrationProxy.address
                         : d_CompoundIntegrationProxy.address,
                 ),
-                bassetDetails.bAssets.map(() => percentToWeight(25).toString()),
+                bassetDetails.bAssets.map(() => percentToWeight(weight).toString()),
                 bassetDetails.bAssets.map(() => false),
             )
             .encodeABI();
