@@ -31,13 +31,14 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
     /** @dev Basket composition events */
     event BassetAdded(address indexed basset, address integrator);
     event BassetRemoved(address indexed basset);
-    event BasketWeightsUpdated(address[] indexed bassets, uint256[] maxWeights);
+    event BasketWeightsUpdated(address[] indexed bassets, uint256[] targetWeights);
 
     /** @dev mAsset linked to the manager (const) */
     address public mAsset;
 
     /** @dev Struct holding Basket details */
     Basket public basket;
+    uint256 public grace;
     // Mapping holds bAsset token address => index
     mapping(address => uint8) private bassetsMap;
     // Holds relative addresses of the integration platforms
@@ -50,6 +51,7 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
     function initialize(
         address _nexus,
         address _mAsset,
+        uint256 _grace,
         address[] memory _bassets,
         address[] memory _integrators,
         uint256[] memory _weights,
@@ -61,6 +63,7 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
         InitializableModule._initialize(_nexus);
 
         mAsset = _mAsset;
+        grace = _grace;
         // require(_bassets.length > 0, "Must initialise with some bAssets");
 
         // Defaults
@@ -220,7 +223,7 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
         basket.bassets.push(Basset({
             addr: _basset,
             ratio: ratio,
-            maxWeight: 0,
+            targetWeight: 0,
             vaultBalance: 0,
             status: BassetStatus.Normal,
             isTransferFeeCharged: _isTransferFeeCharged
@@ -275,9 +278,9 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
             if(bAsset.status == BassetStatus.Normal) {
                 require(bassetWeight >= 0, "Weight must be positive");
                 require(bassetWeight <= StableMath.getFullScale(), "Asset weight must be <= 1e18");
-                basket.bassets[index].maxWeight = bassetWeight;
+                basket.bassets[index].targetWeight = bassetWeight;
             } else {
-                require(bassetWeight == basket.bassets[index].maxWeight, "Affected bAssets must be static");
+                require(bassetWeight == basket.bassets[index].targetWeight, "Affected bAssets must be static");
             }
         }
 
@@ -290,9 +293,9 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
         uint256 len = basket.bassets.length;
         uint256 weightSum = 0;
         for(uint256 i = 0; i < len; i++){
-            weightSum = weightSum.add(basket.bassets[i].maxWeight);
+            weightSum = weightSum.add(basket.bassets[i].targetWeight);
         }
-        require(weightSum >= StableMath.getFullScale(), "Basket weight must be >= 1e18");
+        require(weightSum == StableMath.getFullScale(), "Basket weight must be >= 1e18");
     }
 
     /**
@@ -307,6 +310,18 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
         (bool exist, uint8 index) = _isAssetInBasket(_bAsset);
         require(exist, "bAsset does not exist");
         basket.bassets[index].isTransferFeeCharged = _flag;
+    }
+
+    /**
+     * @dev Update Grace allowance
+     * @param _newGrace Exact amount of units
+     */
+    function setGrace(uint256 _newGrace)
+        external
+        managerOrGovernor
+    {
+        require(_newGrace >= 1e18 && _newGrace <= 1e25, "Must be within valid grace range");
+        grace = _newGrace;
     }
 
     /**
@@ -331,9 +346,9 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
 
         uint256 len = basket.bassets.length;
         Basset memory basset = basket.bassets[index];
-        // require(basset.targetWeight == 0, "bASset must have a target weight of 0");
-        require(basset.vaultBalance == 0, "bASset vault must be empty");
-        require(basset.status != BassetStatus.Liquidating, "bASset must be active");
+        require(basset.targetWeight == 0, "bAsset must have a target weight of 0");
+        require(basset.vaultBalance == 0, "bAsset vault must be empty");
+        require(basset.status != BassetStatus.Liquidating, "bAsset must be active");
 
         basket.bassets[index] = basket.bassets[len-1];
         basket.bassets.pop();
@@ -379,7 +394,8 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
             isValid: true,
             bAsset: basket.bassets[idx],
             integrator: integrations[idx],
-            index: idx
+            index: idx,
+            grace: grace
         });
     }
 
@@ -408,7 +424,8 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
             isValid: true,
             bAssets: bAssets,
             integrators: integrators,
-            indexes: indexes
+            indexes: indexes,
+            grace: grace
         });
     }
 

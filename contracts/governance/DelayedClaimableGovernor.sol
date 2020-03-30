@@ -4,9 +4,11 @@ import { ClaimableGovernor } from "./ClaimableGovernor.sol";
 import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 /**
- * @title Current Goverenor can initiate governance change request.
- * After a defined delay, proposed Governor can claim governance
- * ownership.
+ * @title   DelayedClaimableGovernor
+ * @author  Stability Labs Pty. Lte.
+ * @notice  Current Governor can initiate governance change request.
+ *          After a defined delay, proposed Governor can claim governance
+ *          ownership.
  */
 contract DelayedClaimableGovernor is ClaimableGovernor {
 
@@ -17,7 +19,8 @@ contract DelayedClaimableGovernor is ClaimableGovernor {
 
     /**
      * @dev Initializes the contract with given delay
-     * @param _delay Delay in seconds for 2 way handshake
+     * @param _governor Initial governor
+     * @param _delay    Delay in seconds for 2 way handshake
      */
     constructor(address _governor, uint256 _delay)
         public
