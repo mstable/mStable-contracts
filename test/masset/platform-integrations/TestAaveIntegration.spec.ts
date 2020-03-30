@@ -58,7 +58,7 @@ contract("AaveIntegration", async (accounts) => {
         systemMachine = new SystemMachine(sa.all);
         massetMachine = systemMachine.massetMachine;
 
-        await runSetup();
+        await runSetup(false, true);
     });
 
     const runSetup = async (enableUSDTFee = false, simulateMint = false) => {
@@ -112,14 +112,20 @@ contract("AaveIntegration", async (accounts) => {
                     const amount_dep = new BN(100).mul(
                         new BN(10).pow(bAsset_decimals.sub(new BN(1))),
                     );
-
+                    console.log("checkpoint", (await d_bAsset.balanceOf(sa.default)).toString());
                     // Step 1. xfer tokens to integration
                     await d_bAsset.transfer(d_AaveIntegration.address, amount.toString());
 
+                    console.log(
+                        "checkpoint2",
+                        (await d_bAsset.balanceOf(d_AaveIntegration.address)).toString(),
+                        amount_dep.toString(),
+                    );
                     // Step 2. call deposit
                     return d_AaveIntegration.deposit(bAsset, amount_dep.toString(), true);
                 }),
             );
+            console.log("checkpoint3");
         }
 
         ctx.module = d_AaveIntegration;
