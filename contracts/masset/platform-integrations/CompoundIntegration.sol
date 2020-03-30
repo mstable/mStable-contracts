@@ -80,9 +80,10 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         uint256 quantityWithdrawn = _amount;
 
         if(_isTokenFeeCharged) {
-            uint256 prevBal = _checkBalance(cToken);
+            IERC20 b = IERC20(_bAsset);
+            uint256 prevBal = b.balanceOf(address(this));
             require(cToken.redeemUnderlying(_amount) == 0, "redeem failed");
-            uint256 newBal = _checkBalance(cToken);
+            uint256 newBal = b.balanceOf(address(this));
             quantityWithdrawn = _min(quantityWithdrawn, newBal.sub(prevBal));
         } else {
             // Redeem Underlying bAsset amount
