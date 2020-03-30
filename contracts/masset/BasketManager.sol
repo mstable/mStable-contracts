@@ -67,21 +67,23 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
     {
         InitializableModule._initialize(_nexus);
 
-        _initNewMasset(_mAsset, _bassets, _integrators, _weights, _hasTransferFees);
+        _initNewMasset(_mAsset, _grace, _bassets, _integrators, _weights, _hasTransferFees);
     }
 
     function initNewMasset(
         address _mAsset,
+        uint256 _grace,
         address[] calldata _bassets,
         address[] calldata _integrators,
         uint256[] calldata _weights,
         bool[] calldata _hasTransferFees
     ) external onlyGovernor {
-        _initNewMasset(_mAsset, _bassets, _integrators, _weights, _hasTransferFees);
+        _initNewMasset(_mAsset, _grace, _bassets, _integrators, _weights, _hasTransferFees);
     }
 
     function _initNewMasset(
         address _mAsset,
+        uint256 _grace,
         address[] memory _bassets,
         address[] memory _integrators,
         uint256[] memory _weights,
@@ -90,6 +92,7 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
         // Defaults
         baskets[_mAsset].maxBassets = 16;               // 16
         baskets[_mAsset].collateralisationRatio = 1e18; // 100%
+        grace[_mAsset] = _grace;
 
         require(_bassets.length > 0, "Must initialise with some bAssets");
         for (uint256 i = 0; i < _bassets.length; i++) {
