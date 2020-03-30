@@ -4,9 +4,17 @@
 import * as t from "types/generated";
 import { increase } from "openzeppelin-test-helpers/src/time";
 import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
-import { BN, assertBNClose, assertBNSlightlyGT } from "@utils/tools";
+import { BN, assertBNClose, assertBNSlightlyGT, assertBNSlightlyGTPercent } from "@utils/tools";
 import { StandardAccounts, SystemMachine, MassetMachine } from "@utils/machines";
-import { MainnetAccounts, ZERO_ADDRESS, MAX_UINT256, fullScale, ONE_WEEK } from "@utils/constants";
+import {
+    MainnetAccounts,
+    ZERO_ADDRESS,
+    MAX_UINT256,
+    fullScale,
+    ONE_WEEK,
+    TEN_MINS,
+    percentScale,
+} from "@utils/constants";
 import { simpleToExactAmount } from "@utils/math";
 
 import envSetup from "@utils/env_setup";
@@ -58,7 +66,7 @@ contract("AaveIntegration", async (accounts) => {
         systemMachine = new SystemMachine(sa.all);
         massetMachine = systemMachine.massetMachine;
 
-        await runSetup();
+        await runSetup(false, false);
     });
 
     const runSetup = async (enableUSDTFee = false, simulateMint = false) => {
@@ -112,10 +120,8 @@ contract("AaveIntegration", async (accounts) => {
                     const amount_dep = new BN(100).mul(
                         new BN(10).pow(bAsset_decimals.sub(new BN(1))),
                     );
-
                     // Step 1. xfer tokens to integration
                     await d_bAsset.transfer(d_AaveIntegration.address, amount.toString());
-
                     // Step 2. call deposit
                     return d_AaveIntegration.deposit(bAsset, amount_dep.toString(), true);
                 }),
@@ -377,10 +383,8 @@ contract("AaveIntegration", async (accounts) => {
             const bAssetRecipient_balBefore = await bAsset.balanceOf(bAssetRecipient);
             const aaveIntegration_balBefore = await aToken.balanceOf(d_AaveIntegration.address);
             // Cross that match with the `checkBalance` call
-            let checkBalanceTx = await d_AaveIntegration.logBalance(bAsset.address);
-            expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", {
-                balance: aaveIntegration_balBefore,
-            });
+            let directBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            expect(directBalance).bignumber.eq(aaveIntegration_balBefore);
 
             // Step 1. xfer tokens to integration
             await bAsset.transfer(d_AaveIntegration.address, amount.toString());
@@ -396,10 +400,19 @@ contract("AaveIntegration", async (accounts) => {
             // 3.2 Check that aave integration has aTokens
             const expectedBalance = aaveIntegration_balBefore.add(amount);
             const actualBalance = await aToken.balanceOf(d_AaveIntegration.address);
-            assertBNSlightlyGT(actualBalance, expectedBalance, new BN("100"));
+            assertBNSlightlyGTPercent(actualBalance, expectedBalance);
             // Cross that match with the `checkBalance` call
-            checkBalanceTx = await d_AaveIntegration.logBalance(bAsset.address);
-            expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", { balance: actualBalance });
+            directBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            expect(directBalance).bignumber.eq(actualBalance);
+            // Assert that Balance goes up over time
+            await increase(TEN_MINS);
+            let newBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            assertBNSlightlyGTPercent(
+                newBalance,
+                directBalance,
+                "0.0001",
+                systemMachine.isGanacheFork,
+            );
             // 3.3 Check that return value is cool (via event)
             expectEvent.inLogs(tx.logs, "Deposit", { _amount: amount });
         });
@@ -421,10 +434,8 @@ contract("AaveIntegration", async (accounts) => {
             const bAssetRecipient_balBefore = await bAsset.balanceOf(bAssetRecipient);
             const aaveIntegration_balBefore = await aToken.balanceOf(d_AaveIntegration.address);
             // Cross that match with the `checkBalance` call
-            let checkBalanceTx = await d_AaveIntegration.logBalance(bAsset.address);
-            expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", {
-                balance: aaveIntegration_balBefore,
-            });
+            let directBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            expect(directBalance).bignumber.eq(aaveIntegration_balBefore);
 
             // Step 1. xfer tokens to integration
             const bal1 = await bAsset.balanceOf(d_AaveIntegration.address);
@@ -461,10 +472,8 @@ contract("AaveIntegration", async (accounts) => {
                 fee,
             );
             // Cross that match with the `checkBalance` call
-            checkBalanceTx = await d_AaveIntegration.logBalance(bAsset.address);
-            expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", {
-                balance: aaveIntegration_balAfter,
-            });
+            directBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            expect(directBalance).bignumber.eq(aaveIntegration_balAfter);
 
             // 3.3 Check that return value is cool (via event)
             const receivedATokens = aaveIntegration_balAfter.sub(aaveIntegration_balBefore);
@@ -568,8 +577,9 @@ contract("AaveIntegration", async (accounts) => {
             const newBal = await aToken.balanceOf(d_AaveIntegration.address);
             assertBNSlightlyGT(newBal, aaveIntegration_balBefore.add(amount), new BN("1000"));
             // Cross that match with the `checkBalance` call
-            const checkBalanceTx = await d_AaveIntegration.logBalance(bAsset.address);
-            expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", { balance: newBal });
+            const directBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            expect(directBalance).bignumber.eq(newBal);
+
             // 3.3 Check that return value is cool (via event)
             expectEvent.inLogs(tx.logs, "Deposit", { _amount: amount });
         });
@@ -624,12 +634,24 @@ contract("AaveIntegration", async (accounts) => {
             // 2.2 Check that integration aToken balance has gone down
             const actualBalance = await aToken.balanceOf(d_AaveIntegration.address);
             const expectedBalance = aaveIntegration_balBefore.sub(amount);
-            assertBNSlightlyGT(actualBalance, expectedBalance, new BN("100"));
+            assertBNSlightlyGTPercent(
+                actualBalance,
+                expectedBalance,
+                "0.001",
+                systemMachine.isGanacheFork,
+            );
             // Cross that match with the `checkBalance` call
-            const checkBalanceTx = await d_AaveIntegration.logBalance(bAsset.address);
-            expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", {
-                balance: actualBalance,
-            });
+            const directBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            expect(directBalance).bignumber.eq(actualBalance);
+            // Assert that Balance goes up over time
+            await increase(TEN_MINS);
+            const newBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            assertBNSlightlyGTPercent(
+                newBalance,
+                directBalance,
+                "0.001",
+                systemMachine.isGanacheFork,
+            );
             // 2.3 Should give accurate return value
             expectEvent.inLogs(tx.logs, "Withdrawal", { _amount: amount });
         });
@@ -674,10 +696,8 @@ contract("AaveIntegration", async (accounts) => {
             const expectedBalance = aaveIntegration_balBefore.sub(amount);
             assertBNSlightlyGT(aaveIntegration_balAfter, expectedBalance, new BN("100"));
             // Cross that match with the `checkBalance` call
-            const checkBalanceTx = await d_AaveIntegration.logBalance(bAsset.address);
-            expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", {
-                balance: aaveIntegration_balAfter,
-            });
+            const directBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            expect(directBalance).bignumber.eq(expectedBalance);
         });
 
         it("should only allow a whitelisted user to call function", async () => {
@@ -703,7 +723,9 @@ contract("AaveIntegration", async (accounts) => {
             // Step 1. call deposit
             await shouldFail.reverting.withMessage(
                 d_AaveIntegration.withdraw(sa.default, bAsset.address, amount.toString(), false),
-                "SafeMath: subtraction overflow",
+                systemMachine.isGanacheFork
+                    ? "User cannot redeem more than the available balance"
+                    : "SafeMath: subtraction overflow",
             );
         });
         it("should fail with broken arguments", async () => {
@@ -746,8 +768,12 @@ contract("AaveIntegration", async (accounts) => {
                 bAssetRecipient_balBefore.add(amount),
             );
             // 2.2 Check that integration aToken balance has gone down
-            expect(await aToken.balanceOf(d_AaveIntegration.address)).bignumber.eq(
+            let currentBalance = await aToken.balanceOf(d_AaveIntegration.address);
+            assertBNSlightlyGTPercent(
+                currentBalance,
                 aaveIntegration_balBefore.sub(amount),
+                "0.0001",
+                systemMachine.isGanacheFork,
             );
             // 2.3 Should give accurate return value
             expectEvent.inLogs(tx.logs, "Withdrawal", { _amount: amount });
@@ -772,12 +798,9 @@ contract("AaveIntegration", async (accounts) => {
             const aToken = await c_AaveAToken.at(integrationDetails.aTokens[0].aToken);
 
             const aaveIntegration_bal = await aToken.balanceOf(d_AaveIntegration.address);
-            const checkBalanceTx = await d_AaveIntegration.logBalance(bAsset.address, {
-                from: sa.dummy1,
-            });
-            expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", {
-                balance: aaveIntegration_bal,
-            });
+            // Cross that match with the `checkBalance` call
+            const directBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            expect(directBalance).bignumber.eq(aaveIntegration_bal);
         });
 
         // it("should return balance with same precision as bAsset", async () => {});
@@ -803,10 +826,8 @@ contract("AaveIntegration", async (accounts) => {
             const aaveIntegration_balBefore = await aToken.balanceOf(d_AaveIntegration.address);
             expect(aaveIntegration_balBefore).bignumber.gt(new BN(0) as any);
             // Cross that match with the `checkBalance` call
-            let checkBalanceTx = await d_AaveIntegration.logBalance(bAsset.address);
-            expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", {
-                balance: aaveIntegration_balBefore,
-            });
+            let directBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            expect(directBalance).bignumber.eq(aaveIntegration_balBefore);
 
             // 2. Simulate some external activity by depositing or redeeming
             // DIRECTlY to the LendingPool.
@@ -826,17 +847,15 @@ contract("AaveIntegration", async (accounts) => {
             // 3. Analyse our new balances
             const aaveIntegration_balAfter = await aToken.balanceOf(d_AaveIntegration.address);
             // Should not go up by more than 2% during this period
-            assertBNSlightlyGT(
+            assertBNSlightlyGTPercent(
                 aaveIntegration_balAfter,
                 aaveIntegration_balBefore,
-                aaveIntegration_balBefore.div(new BN(50)),
+                "1",
                 true,
             );
             // Cross that match with the `checkBalance` call
-            checkBalanceTx = await d_AaveIntegration.logBalance(bAsset.address);
-            expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", {
-                balance: aaveIntegration_balAfter,
-            });
+            directBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            expect(directBalance).bignumber.eq(aaveIntegration_balAfter);
 
             // 4. Withdraw our new interested - we worked hard for it!
             await d_AaveIntegration.withdraw(

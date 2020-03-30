@@ -71,18 +71,19 @@ contract MockAave is IAaveLendingPool, ILendingPoolAddressesProvider {
 
 contract MockAaveIntegration is AaveIntegration {
 
-    event CurrentBalance(address indexed bAsset, uint256 balance);
+    // event CurrentBalance(address indexed bAsset, uint256 balance);
 
 
     function logBalance(address _bAsset)
         external
+        view
         returns (uint256 balance)
     {
         // balance is always with token aToken decimals
         IAaveAToken aToken = _getATokenFor(_bAsset);
         balance = _checkBalance(aToken);
 
-        emit CurrentBalance(_bAsset, balance);
+        // emit CurrentBalance(_bAsset, balance);
     }
 
     function getBassetsMapped()

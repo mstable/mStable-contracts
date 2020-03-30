@@ -47,12 +47,12 @@ contract AaveIntegration is InitializableAbstractIntegration {
         if(_isTokenFeeCharged) {
             // If we charge a fee, account for it
             uint256 prevBal = _checkBalance(aToken);
-            _getLendingPool().deposit(address(_bAsset), _amount, referralCode);
+            _getLendingPool().deposit(_bAsset, _amount, referralCode);
             uint256 newBal = _checkBalance(aToken);
             quantityDeposited = _min(quantityDeposited, newBal.sub(prevBal));
         } else {
             // aTokens are 1:1 for each asset
-            _getLendingPool().deposit(address(_bAsset), _amount, referralCode);
+            _getLendingPool().deposit(_bAsset, _amount, referralCode);
         }
 
         emit Deposit(_bAsset, address(aToken), quantityDeposited);

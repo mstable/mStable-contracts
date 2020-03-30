@@ -209,10 +209,15 @@ export class MassetMachine {
         const bAsset_USDT = await c_MockERC20.at(this.ma.USDT);
         await this.mintERC20(bAsset_USDT, this.ma.FUND_SOURCES.usdt);
 
+        const mockUSDT = await c_MockUSDT.at(bAsset_USDT.address);
         if (enableUSDTFee) {
-            const mockUSDT = await c_MockUSDT.at(bAsset_USDT.address);
             // Set fee rate to 0.1% and max fee to 30 USDT
             await mockUSDT.setParams("10", "30", {
+                from: this.ma.USDT_OWNER,
+            });
+        } else {
+            // Set fee rate to 0.1% and max fee to 30 USDT
+            await mockUSDT.setParams("0", "30", {
                 from: this.ma.USDT_OWNER,
             });
         }
