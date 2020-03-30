@@ -3,6 +3,7 @@ pragma experimental ABIEncoderV2;
 
 // External
 import { IPlatformIntegration } from "../interfaces/IPlatformIntegration.sol";
+import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 
 // Internal
 import { InitializableModule } from "../shared/InitializableModule.sol";
@@ -10,15 +11,16 @@ import { IBasketManager } from "../interfaces/IBasketManager.sol";
 import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
 
 // Libs
-import { CommonHelpers } from "../shared/libs/CommonHelpers.sol";
-import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
+import { CommonHelpers } from "../shared/CommonHelpers.sol";
 import { SafeERC20 } from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
 import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import { StableMath } from "../shared/StableMath.sol";
 
 /**
- * @title MassetBasket
- * @dev Manages the Masset Basket composition and acts as a cache to store the Basket Assets (Bassets)
+ * @title   MassetBasket
+ * @notice  Manages the Masset Basket composition and acts as a cache to store the Basket Assets (Bassets)
+ * @dev     VERSION: 1.0
+ *          DATE:    2020-03-26
  */
 contract BasketManager is Initializable, IBasketManager, InitializableModule {
 
@@ -31,9 +33,6 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
     event BassetRemoved(address indexed basset);
     event BasketWeightsUpdated(address[] indexed bassets, uint256[] targetWeights);
 
-    /** @dev Basket Manager Version */
-    string public constant version_impl = "1.0";
-
     /** @dev mAsset linked to the manager (const) */
     address public mAsset;
 
@@ -45,20 +44,11 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
     // Holds relative addresses of the integration platforms
     mapping(uint8 => address) public integrations;
 
-    constructor(
-        address _proxyAdmin,
-        address _nexus
-    )
-        public
-        InitializableModule(_proxyAdmin, _nexus)
-    {}
-
     /**
      * @dev Initialization function for upgradable proxy contract.
      *      This function should be called via Proxy just after contract deployment.
      */
     function initialize(
-        address _proxyAdmin,
         address _nexus,
         address _mAsset,
         uint256 _grace,
@@ -70,7 +60,7 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
         public
         initializer
     {
-        InitializableModule._initialize(_proxyAdmin, _nexus);
+        InitializableModule._initialize(_nexus);
 
         mAsset = _mAsset;
         grace = _grace;

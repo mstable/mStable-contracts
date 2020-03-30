@@ -40,6 +40,10 @@ contract MockModule is Module {
         return super._recollateraliser();
     }
 
+    function proxyAdmin() public view returns (address) {
+        return super._proxyAdmin();
+    }
+
     function shouldAllowOnlyGovernor() public onlyGovernor {
         temp = 1;
     }
@@ -50,5 +54,9 @@ contract MockModule is Module {
 
     function shouldAllowOnlyManager() public onlyManager {
         temp = 3;
+    }
+
+    function shouldAllowOnlyProxyAdmin() public onlyProxyAdmin {
+        temp = 4;
     }
 }

@@ -1,35 +1,17 @@
 pragma solidity 0.5.16;
 
 import { IAaveAToken, IAaveLendingPool, ILendingPoolAddressesProvider } from "./IAave.sol";
-import { AbstractIntegration, MassetHelpers, IERC20 } from "./AbstractIntegration.sol";
+import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "./InitializableAbstractIntegration.sol";
 
 
 /**
  * @title   AaveIntegration
  * @author  Stability Labs Pty. Lte.
  * @notice  A simple connection to deposit and withdraw bAssets from Aave
+ * @dev     VERSION: 1.0
+ *          DATE:    2020-03-26
  */
-contract AaveIntegration is AbstractIntegration {
-
-    constructor(
-        address _proxyAdmin,
-        address _nexus,
-        address[] memory _whitelisted,
-        address _aaveAddress,
-        address[] memory _bAssets,
-        address[] memory _pTokens
-    )
-        AbstractIntegration(
-            _proxyAdmin,
-            _nexus,
-            _whitelisted,
-            _aaveAddress,
-            _bAssets,
-            _pTokens
-        )
-        public
-    {
-    }
+contract AaveIntegration is InitializableAbstractIntegration {
 
     /***************************************
                     CORE
@@ -53,6 +35,7 @@ contract AaveIntegration is AbstractIntegration {
         onlyWhitelisted
         returns (uint256 quantityDeposited)
     {
+        require(_amount > 0, "Must deposit something");
         // Get the Target token
         IAaveAToken aToken = _getATokenFor(_bAsset);
 
@@ -64,12 +47,12 @@ contract AaveIntegration is AbstractIntegration {
         if(_isTokenFeeCharged) {
             // If we charge a fee, account for it
             uint256 prevBal = _checkBalance(aToken);
-            _getLendingPool().deposit(address(_bAsset), _amount, referralCode);
+            _getLendingPool().deposit(_bAsset, _amount, referralCode);
             uint256 newBal = _checkBalance(aToken);
             quantityDeposited = _min(quantityDeposited, newBal.sub(prevBal));
         } else {
             // aTokens are 1:1 for each asset
-            _getLendingPool().deposit(address(_bAsset), _amount, referralCode);
+            _getLendingPool().deposit(_bAsset, _amount, referralCode);
         }
 
         emit Deposit(_bAsset, address(aToken), quantityDeposited);
@@ -85,21 +68,33 @@ contract AaveIntegration is AbstractIntegration {
     function withdraw(
         address _receiver,
         address _bAsset,
-        uint256 _amount
+        uint256 _amount,
+        bool _isTokenFeeCharged
     )
         external
         onlyWhitelisted
     {
+        require(_amount > 0, "Must withdraw something");
         // Get the Target token
         IAaveAToken aToken = _getATokenFor(_bAsset);
 
+        uint256 quantityWithdrawn = _amount;
+
         // Don't need to Approve aToken, as it gets burned in redeem()
-        aToken.redeem(_amount);
+        if(_isTokenFeeCharged) {
+            IERC20 b = IERC20(_bAsset);
+            uint256 prevBal = b.balanceOf(address(this));
+            aToken.redeem(_amount);
+            uint256 newBal = b.balanceOf(address(this));
+            quantityWithdrawn = _min(quantityWithdrawn, newBal.sub(prevBal));
+        } else {
+            aToken.redeem(_amount);
+        }
 
         // Send redeemed bAsset to the receiver
-        IERC20(_bAsset).safeTransfer(_receiver, _amount);
+        IERC20(_bAsset).safeTransfer(_receiver, quantityWithdrawn);
 
-        emit Withdrawal(_bAsset, address(aToken), _amount);
+        emit Withdrawal(_bAsset, address(aToken), quantityWithdrawn);
     }
 
     /**
@@ -180,10 +175,10 @@ contract AaveIntegration is AbstractIntegration {
     function _getLendingPoolCore()
         internal
         view
-        returns (address)
+        returns (address payable)
     {
-        address lendingPoolCore = ILendingPoolAddressesProvider(platformAddress).getLendingPoolCore();
-        require(lendingPoolCore != address(0), "Lending pool does not exist");
+        address payable lendingPoolCore = ILendingPoolAddressesProvider(platformAddress).getLendingPoolCore();
+        require(lendingPoolCore != address(uint160(address(0))), "Lending pool core does not exist");
         return lendingPoolCore;
     }
 

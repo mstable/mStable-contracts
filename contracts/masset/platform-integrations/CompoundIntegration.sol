@@ -1,34 +1,19 @@
 pragma solidity 0.5.16;
 
 import { ICERC20 } from "./ICompound.sol";
-import { AbstractIntegration, MassetHelpers, IERC20 } from "./AbstractIntegration.sol";
+import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "./InitializableAbstractIntegration.sol";
 
 
 /**
  * @title   CompoundIntegration
  * @author  Stability Labs Pty. Lte.
  * @notice  A simple connection to deposit and withdraw bAssets from Compound
+ * @dev     VERSION: 1.0
+ *          DATE:    2020-03-26
  */
-contract CompoundIntegration is AbstractIntegration {
+contract CompoundIntegration is InitializableAbstractIntegration {
 
-    constructor(
-        address _proxyAdmin,
-        address _nexus,
-        address[] memory _whitelisted,
-        address[] memory _bAssets,
-        address[] memory _pTokens
-    )
-        AbstractIntegration(
-            _proxyAdmin,
-            _nexus,
-            _whitelisted,
-            address(0),
-            _bAssets,
-            _pTokens
-        )
-        public
-    {
-    }
+
 
     /***************************************
                     CORE
@@ -52,6 +37,8 @@ contract CompoundIntegration is AbstractIntegration {
         onlyWhitelisted
         returns (uint256 quantityDeposited)
     {
+        require(_amount > 0, "Must deposit something");
+
         // Get the Target token
         ICERC20 cToken = _getCTokenFor(_bAsset);
 
@@ -82,7 +69,8 @@ contract CompoundIntegration is AbstractIntegration {
     function withdraw(
         address _receiver,
         address _bAsset,
-        uint256 _amount
+        uint256 _amount,
+        bool _isTokenFeeCharged
     )
         external
         onlyWhitelisted

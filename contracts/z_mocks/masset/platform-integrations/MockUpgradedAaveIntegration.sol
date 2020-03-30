@@ -1,33 +1,13 @@
 pragma solidity 0.5.16;
 
-import { AbstractIntegration, MassetHelpers, IERC20 } from "../../../masset/platform-integrations/AbstractIntegration.sol";
+import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "../../../masset/platform-integrations/InitializableAbstractIntegration.sol";
 
 import { IAaveAToken, IAaveLendingPool, ILendingPoolAddressesProvider } from "../../../masset/platform-integrations/IAave.sol";
 
-contract AaveIntegrationV2 is AbstractIntegration {
+contract AaveIntegrationV2 is InitializableAbstractIntegration {
 
     // new variable
     uint256 public newUint = 1;
-
-    constructor(
-        address _proxyAdmin,
-        address _nexus,
-        address[] memory _whitelisted,
-        address _aaveAddress,
-        address[] memory _bAssets,
-        address[] memory _pTokens
-    )
-        AbstractIntegration(
-            _proxyAdmin,
-            _nexus,
-            _whitelisted,
-            _aaveAddress,
-            _bAssets,
-            _pTokens
-        )
-        public
-    {
-    }
 
     /***************************************
                     CORE
@@ -67,7 +47,8 @@ contract AaveIntegrationV2 is AbstractIntegration {
     function withdraw(
         address _receiver,
         address _bAsset,
-        uint256 _amount
+        uint256 _amount,
+        bool _isTokenFeeCharged
     )
         external
         onlyWhitelisted
@@ -171,7 +152,6 @@ contract AaveIntegrationV2 is AbstractIntegration {
     // NEW FUNCTIONS
     // ===============
     function initializeNewUint() public onlyProxyAdmin {
-        version = "2.0";
         newUint = 1;
     }
 
@@ -181,7 +161,7 @@ contract AaveIntegrationV2 is AbstractIntegration {
 
     // MODIFIED FUNCTIONS
     // ==================
-    function setPTokenAddress(address _bAsset, address _pToken)
+    function setPTokenAddress(address /*_bAsset*/, address /*_pToken*/)
         external
         onlyGovernor
     {
@@ -192,29 +172,9 @@ contract AaveIntegrationV2 is AbstractIntegration {
 
 }
 
-contract AaveIntegrationV3 is AbstractIntegration {
+contract AaveIntegrationV3 is InitializableAbstractIntegration {
 
     uint256 public newUint = 1;
-
-    constructor(
-        address _proxyAdmin,
-        address _nexus,
-        address[] memory _whitelisted,
-        address _aaveAddress,
-        address[] memory _bAssets,
-        address[] memory _pTokens
-    )
-        AbstractIntegration(
-            _proxyAdmin,
-            _nexus,
-            _whitelisted,
-            _aaveAddress,
-            _bAssets,
-            _pTokens
-        )
-        public
-    {
-    }
 
     /***************************************
                     CORE
@@ -254,7 +214,8 @@ contract AaveIntegrationV3 is AbstractIntegration {
     function withdraw(
         address _receiver,
         address _bAsset,
-        uint256 _amount
+        uint256 _amount,
+        bool _isTokenFeeCharged
     )
         external
         onlyWhitelisted
@@ -326,6 +287,18 @@ contract AaveIntegrationV3 is AbstractIntegration {
         return IAaveLendingPool(lendingPool);
     }
 
+    // NEW
+    function checkBalanceView(address _bAsset)
+        external
+        view
+        returns (uint256 balance)
+    {
+        // balance is always with token aToken decimals
+        IAaveAToken aToken = _getATokenFor(_bAsset);
+        // ADDED 100 to the token balance just to check upgrade
+        return _checkBalance(aToken);
+    }
+
     function _getLendingPoolCore()
         internal
         view
@@ -357,7 +330,6 @@ contract AaveIntegrationV3 is AbstractIntegration {
     // NEW FUNCTIONS
     // ===============
     function initializeNewUint() public onlyProxyAdmin {
-        version = "3.0";
         newUint = 1;
     }
 
@@ -370,7 +342,7 @@ contract AaveIntegrationV3 is AbstractIntegration {
 
     // MODIFIED FUNCTIONS
     // ==================
-    function setPTokenAddress(address _bAsset, address _pToken)
+    function setPTokenAddress(address /* _bAsset*/, address /*_pToken*/)
         external
         onlyGovernor
     {
@@ -379,14 +351,4 @@ contract AaveIntegrationV3 is AbstractIntegration {
     }
 
 
-    function checkBalanceView(address _bAsset)
-        external
-        view
-        returns (uint256 balance)
-    {
-        // balance is always with token aToken decimals
-        IAaveAToken aToken = _getATokenFor(_bAsset);
-        // ADDED 100 to the token balance just to check upgrade
-        return _checkBalance(aToken);
-    }
 }

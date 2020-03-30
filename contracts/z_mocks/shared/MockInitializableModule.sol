@@ -1,16 +1,19 @@
 pragma solidity 0.5.16;
 
 import { InitializableModule } from "../../shared/InitializableModule.sol";
+import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
 
-contract MockInitializableModule is InitializableModule {
+contract MockInitializableModule is Initializable, InitializableModule {
 
     uint256 public temp;
 
-    constructor(address _proxyAdmin, address _nexus)
+    function initialize(
+        address _nexus
+    )
         public
-        InitializableModule(_proxyAdmin, address(0x0))
+        initializer
     {
-        InitializableModule._initialize(_proxyAdmin, _nexus);
+        InitializableModule._initialize(_nexus);
     }
 
     function governor() public view returns (address) {
@@ -19,6 +22,10 @@ contract MockInitializableModule is InitializableModule {
 
     function governance() public view returns (address) {
         return super._governance();
+    }
+
+    function proxyAdmin() public view returns (address) {
+        return super._proxyAdmin();
     }
 
     function staking() public view returns (address) {
@@ -55,5 +62,9 @@ contract MockInitializableModule is InitializableModule {
 
     function shouldAllowOnlyManager() public onlyManager {
         temp = 3;
+    }
+
+    function shouldAllowOnlyProxyAdmin() public onlyProxyAdmin {
+        temp = 4;
     }
 }

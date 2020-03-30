@@ -259,9 +259,6 @@ contract("Nexus", async (accounts) => {
                 await expectInProposedModules(nexus, "dummy4", sa.other, lastTimestamp);
 
                 // address is not updated in modules mapping
-                let currentAddr: string;
-                let currentIsLocked: boolean;
-
                 await expectInModules(nexus, "dummy4", sa.dummy4, false);
             });
         });

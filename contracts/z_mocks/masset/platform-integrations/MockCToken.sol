@@ -38,6 +38,9 @@ contract MockCToken is ICERC20, ERC20Mintable {
     }
 
     function redeemUnderlying(uint redeemAmount) external returns (uint) {
+        // Pretend to inflate the cTokenExchangeRate
+        updateExchangeRate();
+
         uint256 cTokens = redeemAmount.divPrecisely(exchangeRate);
         // Burn the cToken
         _burn(msg.sender, cTokens);

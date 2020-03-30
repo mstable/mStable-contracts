@@ -14,34 +14,6 @@ contract InitializableModule is InitializableModuleKeys {
     INexus public nexus;
 
     /**
-     * @dev Address of the DelayedProxyAdmin contract.
-     *      This will be initialized from the first implementation contract. In the new upgraded
-     *      contract instances, this will not change.
-     *      DO NOT MODIFY / REMOVE THIS FROM THE NEW UPGRADED CONTRACTS
-     */
-    address public proxyAdmin;
-
-    /**
-     * @dev The modifier should be used for `initializeX()` functions present in the new upgraded
-     *      contract implementation. This modifier is used to avoid unauthorized calls to the
-     *      `initializeX()` like functions in the new implementation contract.
-     */
-    modifier onlyProxyAdmin() {
-        require(msg.sender == proxyAdmin, "Only ProxyAdmin can execute");
-        _;
-    }
-
-    /**
-     * @dev Initialises the Module by setting publisher, and reading all available system
-     *      module information.
-     * @param _proxyAdmin DelayedProxyAdmin contract address
-     * @param _nexus Nexus contract address
-     */
-    constructor(address _proxyAdmin, address _nexus) internal {
-        InitializableModule._initialize(_proxyAdmin, _nexus);
-    }
-
-    /**
      * @dev Modifier to allow function calls only from the Governor.
      */
     modifier onlyGovernor() {
@@ -62,6 +34,16 @@ contract InitializableModule is InitializableModuleKeys {
     }
 
     /**
+     * @dev Modifier to allow function calls only from the ProxyAdmin.
+     */
+    modifier onlyProxyAdmin() {
+        require(
+            msg.sender == _proxyAdmin(), "Only ProxyAdmin can execute"
+        );
+        _;
+    }
+
+    /**
      * @dev Modifier to allow function calls only from the Manager.
      */
     modifier onlyManager() {
@@ -71,11 +53,10 @@ contract InitializableModule is InitializableModuleKeys {
 
     /**
      * @dev Initialization function for upgradable proxy contracts
-     * @param _proxyAdmin DelayedProxyAdmin contract address
      * @param _nexus Nexus contract address
      */
-    function _initialize(address _proxyAdmin, address _nexus) internal {
-        proxyAdmin = _proxyAdmin;
+    function _initialize(address _nexus) internal {
+        require(_nexus != address(0), "Nexus address is zero");
         nexus = INexus(_nexus);
         InitializableModuleKeys._initialize();
     }
@@ -102,6 +83,14 @@ contract InitializableModule is InitializableModuleKeys {
      */
     function _staking() internal view returns (address) {
         return nexus.getModule(Key_Staking);
+    }
+
+    /**
+     * @dev Return ProxyAdmin Module address from the Nexus
+     * @return Address of the ProxyAdmin Module contract
+     */
+    function _proxyAdmin() internal view returns (address) {
+        return nexus.getModule(Key_ProxyAdmin);
     }
 
     /**

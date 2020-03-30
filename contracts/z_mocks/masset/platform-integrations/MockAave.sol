@@ -1,8 +1,9 @@
 pragma solidity 0.5.16;
 
 import { IAaveAToken, IAaveLendingPool, ILendingPoolAddressesProvider } from "../../../masset/platform-integrations/IAave.sol";
+import { AaveIntegration } from "../../../masset/platform-integrations/AaveIntegration.sol";
 
-import { MassetHelpers } from "../../../masset/shared/MassetHelpers.sol";
+import { MassetHelpers, SafeERC20 } from "../../../masset/shared/MassetHelpers.sol";
 import { IERC20, ERC20, ERC20Mintable } from "openzeppelin-solidity/contracts/token/ERC20/ERC20Mintable.sol";
 
 
@@ -17,9 +18,10 @@ import { IERC20, ERC20, ERC20Mintable } from "openzeppelin-solidity/contracts/to
 contract MockAToken is ERC20Mintable {
 
     address public lendingPool;
-    ERC20 public underlyingToken;
+    IERC20 public underlyingToken;
+    using SafeERC20 for IERC20;
 
-    constructor(address _lendingPool, ERC20 _underlyingToken) public {
+    constructor(address _lendingPool, IERC20 _underlyingToken) public {
         lendingPool = _lendingPool;
         underlyingToken = _underlyingToken;
         addMinter(_lendingPool);
@@ -29,13 +31,15 @@ contract MockAToken is ERC20Mintable {
         // Redeem these a Tokens
         _burn(msg.sender, _amount);
         // For the underlying
-        underlyingToken.transferFrom(lendingPool, msg.sender, _amount);
+        underlyingToken.safeTransferFrom(lendingPool, msg.sender, _amount);
     }
 }
 
 contract MockAave is IAaveLendingPool, ILendingPoolAddressesProvider {
 
     mapping(address => address) reserveToAToken;
+    address pool = address(this);
+    address payable core = address(uint160(address(this)));
 
     function addAToken(address _aToken, address _underlying) public {
         MassetHelpers.safeInfiniteApprove(_underlying, _aToken);
@@ -44,17 +48,49 @@ contract MockAave is IAaveLendingPool, ILendingPoolAddressesProvider {
 
     function deposit(address _reserve, uint256 _amount, uint16 /*_referralCode*/) external {
         // Take their reserve
-        ERC20(_reserve).transferFrom(msg.sender, address(this), _amount);
+        MassetHelpers.transferTokens(msg.sender, address(this), _reserve, true, _amount);
         // Credit them with aToken
         ERC20Mintable(reserveToAToken[_reserve]).mint(msg.sender, _amount);
     }
 
     function getLendingPool() external view returns (address) {
-        return address(this);
+        return pool;
     }
 
     function getLendingPoolCore() external view returns (address payable) {
-        return address(uint160(address(this)));
+        return core;
     }
 
+    function breakLendingPools() external {
+        pool = address(0);
+        core = address(uint160(address(0)));
+    }
+
+}
+
+
+contract MockAaveIntegration is AaveIntegration {
+
+    // event CurrentBalance(address indexed bAsset, uint256 balance);
+
+
+    function logBalance(address _bAsset)
+        external
+        view
+        returns (uint256 balance)
+    {
+        // balance is always with token aToken decimals
+        IAaveAToken aToken = _getATokenFor(_bAsset);
+        balance = _checkBalance(aToken);
+
+        // emit CurrentBalance(_bAsset, balance);
+    }
+
+    function getBassetsMapped()
+        external
+        view
+        returns (address[] memory bassets)
+    {
+        return bAssetsMapped;
+    }
 }

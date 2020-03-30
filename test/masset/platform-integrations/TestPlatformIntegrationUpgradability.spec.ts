@@ -56,6 +56,7 @@ contract("UpgradedAaveIntegration", async (accounts) => {
 
         // 1. Deploy DelayedProxyAdmin
         d_DelayedProxyAdmin = await DelayedProxyAdmin.new(d_Nexus.address);
+        d_Nexus.setProxyAdmin(d_DelayedProxyAdmin.address);
 
         // 2 Deploy a proxy contract
         d_AaveIntegrationProxy = await InitializableProxy.new();
@@ -63,14 +64,7 @@ contract("UpgradedAaveIntegration", async (accounts) => {
         // 3. Deploy AaveIntegration version 1.0
         // Any data we pass to this contract, it does not matter, as all the call to this contract
         // will be via Proxy
-        d_AaveIntegrationV1 = await c_AaveIntegration.new(
-            d_DelayedProxyAdmin.address,
-            d_Nexus.address,
-            [sa.dummy3, sa.dummy4],
-            sa.dummy1,
-            [],
-            [],
-        );
+        d_AaveIntegrationV1 = await c_AaveIntegration.new();
 
         // Initialize AaveIntegration
         d_mockBasset1 = await c_MockERC20.new("Mock1", "MK1", 12, sa.default, 100000000);
@@ -82,7 +76,6 @@ contract("UpgradedAaveIntegration", async (accounts) => {
 
         const initializationData_AaveIntegration: string = d_AaveIntegrationV1.contract.methods
             .initialize(
-                d_DelayedProxyAdmin.address,
                 d_Nexus.address,
                 [sa.dummy3, sa.dummy4],
                 d_MockAave.address,
@@ -103,8 +96,6 @@ contract("UpgradedAaveIntegration", async (accounts) => {
 
         const pToken = await proxyToImplV1.bAssetToPToken(d_mockBasset1.address);
         expect(pToken).to.equal(d_mockAToken1.address);
-        const version = await proxyToImplV1.version();
-        expect("1.0").to.equal(version);
         const platformAddress = await proxyToImplV1.platformAddress();
         expect(d_MockAave.address).to.equal(platformAddress);
 
@@ -122,14 +113,7 @@ contract("UpgradedAaveIntegration", async (accounts) => {
 
         // Upgrade to new version of AaveIntegration v2 via ProxyAdmin
         // ========================================================
-        d_AaveIntegrationV2 = await c_AaveIntegrationV2.new(
-            d_DelayedProxyAdmin.address,
-            d_Nexus.address,
-            [sa.dummy3, sa.dummy4],
-            sa.dummy1,
-            [],
-            [],
-        );
+        d_AaveIntegrationV2 = await c_AaveIntegrationV2.new();
         const initializationData_AaveIntegrationV2: string = d_AaveIntegrationV2.contract.methods
             .initializeNewUint()
             .encodeABI();
@@ -186,11 +170,6 @@ contract("UpgradedAaveIntegration", async (accounts) => {
             expect(key).to.equal(web3.utils.keccak256("SavingsManager"));
         });
 
-        it("should have initialized with new version", async () => {
-            const version = await proxyToImplV2.version();
-            expect("2.0").to.equal(version);
-        });
-
         it("should have initialized with new variables", async () => {
             const newUint = await proxyToImplV2.newUint();
             expect(new BN(1)).to.bignumber.equal(newUint);
@@ -208,17 +187,18 @@ contract("UpgradedAaveIntegration", async (accounts) => {
             );
         });
 
+        it("should fail initializeNewUint() when called by Other", async () => {
+            d_AaveIntegrationV3 = await c_AaveIntegrationV3.new();
+            await shouldFail.reverting.withMessage(
+                d_AaveIntegrationV3.initializeNewUint({ from: sa.other }),
+                "", // This will just revert as Nexus is not available
+            );
+        });
+
         it("should not have removed functions in upgraded contract", async () => {
             // Upgrade to new version of AaveIntegration v3 via ProxyAdmin
             // ========================================================
-            d_AaveIntegrationV3 = await c_AaveIntegrationV3.new(
-                d_DelayedProxyAdmin.address,
-                d_Nexus.address,
-                [sa.dummy3, sa.dummy4],
-                sa.dummy1,
-                [],
-                [],
-            );
+            d_AaveIntegrationV3 = await c_AaveIntegrationV3.new();
             const initializationData_AaveIntegrationV3: string = d_AaveIntegrationV3.contract.methods
                 .initializeNewUint()
                 .encodeABI();
@@ -241,14 +221,7 @@ contract("UpgradedAaveIntegration", async (accounts) => {
         it("should allow calling old function", async () => {
             // Upgrade to new version of AaveIntegration v3 via ProxyAdmin
             // ========================================================
-            d_AaveIntegrationV3 = await c_AaveIntegrationV3.new(
-                d_DelayedProxyAdmin.address,
-                d_Nexus.address,
-                [sa.dummy3, sa.dummy4],
-                sa.dummy1,
-                [],
-                [],
-            );
+            d_AaveIntegrationV3 = await c_AaveIntegrationV3.new();
             const initializationData_AaveIntegrationV3: string = d_AaveIntegrationV3.contract.methods
                 .initializeNewUint()
                 .encodeABI();

@@ -358,7 +358,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         _burn(msg.sender, massetQuantity);
 
         // Transfer the Bassets to the user
-        IPlatformIntegration(props.integrator).withdraw(_recipient, props.bAsset.addr, _bAssetQuantity);
+        IPlatformIntegration(props.integrator).withdraw(_recipient, props.bAsset.addr, _bAssetQuantity, props.bAsset.isTransferFeeCharged);
 
         emit Redeemed(_recipient, msg.sender, massetQuantity, _bAsset, _bAssetQuantity);
         return massetQuantity;
@@ -421,7 +421,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         // Transfer the Bassets to the user
         for(uint256 i = 0; i < redemptionAssetCount; i++){
             if(_bassetQuantities[i] > 0){
-                IPlatformIntegration(props.integrators[i]).withdraw(_recipient, props.bAssets[i].addr, _bassetQuantities[i]);
+                IPlatformIntegration(props.integrators[i]).withdraw(_recipient, props.bAssets[i].addr, _bassetQuantities[i], props.bAssets[i].isTransferFeeCharged);
             }
         }
 
@@ -461,7 +461,6 @@ contract Masset is IMasset, MassetToken, PausableModule {
       */
     function upgradeForgeValidator(address _newForgeValidator)
     external
-    whenNotPaused
     managerOrGovernor {
         require(!forgeValidatorLocked, "Must be allowed to upgrade");
         require(_newForgeValidator != address(0), "Must be non null address");
@@ -473,7 +472,6 @@ contract Masset is IMasset, MassetToken, PausableModule {
       */
     function lockForgeValidator()
     external
-    whenNotPaused
     managerOrGovernor {
         forgeValidatorLocked = true;
     }
@@ -484,7 +482,6 @@ contract Masset is IMasset, MassetToken, PausableModule {
       */
     function setFeeRecipient(address _feeRecipient)
     external
-    whenNotPaused
     managerOrGovernor {
         require(_feeRecipient != address(0), "Must be valid address");
         feeRecipient = _feeRecipient;
@@ -497,7 +494,6 @@ contract Masset is IMasset, MassetToken, PausableModule {
       */
     function setRedemptionFee(uint256 _redemptionFee)
     external
-    whenNotPaused
     managerOrGovernor {
         require(_redemptionFee <= maxFee, "Redemption fee > maxFee");
         redemptionFee = _redemptionFee;

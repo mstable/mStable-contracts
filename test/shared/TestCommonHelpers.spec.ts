@@ -11,7 +11,7 @@ const { expect, assert } = envSetup.configure();
 const MockCommonHelpers = artifacts.require("MockCommonHelpers");
 const MockERC20 = artifacts.require("MockERC20");
 
-contract("StableMath", async (accounts) => {
+contract("CommonHelpers", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     let commonHelpers: MockCommonHelpersInstance;
 

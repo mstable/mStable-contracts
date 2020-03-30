@@ -25,3 +25,6 @@ contract MockERC20 is ERC20, ERC20Detailed, ERC20Mintable {
     }
 }
 
+contract MockUSDT {
+    function setParams(uint newBasisPoints, uint newMaxFee) public;
+}

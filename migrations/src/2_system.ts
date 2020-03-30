@@ -238,25 +238,14 @@ export default async ({ artifacts }, deployer, network, accounts) => {
 
     // 2.1. Deploy no Init BasketManager
     //  - Deploy Implementation
-    await deployer.deploy(c_BasketManager, d_DelayedProxyAdmin.address, d_Nexus.address, {
-        from: default_,
-    });
+    await deployer.deploy(c_BasketManager);
     const d_BasketManager: t.BasketManagerInstance = await c_BasketManager.deployed();
     //  - Deploy Initializable Proxy
     const d_BasketManagerProxy: t.InitializableAdminUpgradeabilityProxyInstance = await c_InitializableProxy.new();
 
     // 2.2. Deploy no Init AaveIntegration
     //  - Deploy Implementation with dummy params (this storage doesn't get used)
-    await deployer.deploy(
-        c_AaveIntegration,
-        d_DelayedProxyAdmin.address,
-        d_Nexus.address,
-        [d_BasketManagerProxy.address],
-        bassetDetails.aavePlatformAddress,
-        [],
-        [],
-        { from: default_ },
-    );
+    await deployer.deploy(c_AaveIntegration);
     const d_AaveIntegration: t.AaveIntegrationInstance = await c_AaveIntegration.deployed();
     //  - Deploy Initializable Proxy
     const d_AaveIntegrationProxy: t.InitializableAdminUpgradeabilityProxyInstance = await c_InitializableProxy.new();
@@ -264,15 +253,7 @@ export default async ({ artifacts }, deployer, network, accounts) => {
     // 2.3. Deploy no Init CompoundIntegration
     //  - Deploy Implementation
     // We do not need platform address for compound
-    await deployer.deploy(
-        c_CompoundIntegration,
-        d_DelayedProxyAdmin.address,
-        d_Nexus.address,
-        [d_BasketManagerProxy.address],
-        [],
-        [],
-        { from: default_ },
-    );
+    await deployer.deploy(c_CompoundIntegration);
     const d_CompoundIntegration: t.CompoundIntegrationInstance = await c_CompoundIntegration.deployed();
     //  - Deploy Initializable Proxy
     const d_CompoundIntegrationProxy: t.InitializableAdminUpgradeabilityProxyInstance = await c_InitializableProxy.new();
@@ -295,7 +276,6 @@ export default async ({ artifacts }, deployer, network, accounts) => {
     // 2.5. Init BasketManager
     const initializationData_BasketManager: string = d_BasketManager.contract.methods
         .initialize(
-            d_DelayedProxyAdmin.address,
             d_Nexus.address,
             d_MUSD.address,
             simpleToExactAmount(1, 24).toString(),
@@ -318,7 +298,6 @@ export default async ({ artifacts }, deployer, network, accounts) => {
     // 2.6. Init AaveIntegration
     const initializationData_AaveIntegration: string = d_AaveIntegration.contract.methods
         .initialize(
-            d_DelayedProxyAdmin.address,
             d_Nexus.address,
             [d_MUSD.address, d_BasketManagerProxy.address],
             bassetDetails.aavePlatformAddress,
@@ -335,7 +314,6 @@ export default async ({ artifacts }, deployer, network, accounts) => {
     // 2.7. Init CompoundIntegration
     const initializationData_CompoundIntegration: string = d_CompoundIntegration.contract.methods
         .initialize(
-            d_DelayedProxyAdmin.address,
             d_Nexus.address,
             [d_MUSD.address, d_BasketManagerProxy.address],
             ZERO_ADDRESS, // We don't need Compound sys addr
@@ -378,9 +356,12 @@ export default async ({ artifacts }, deployer, network, accounts) => {
     ]
   ****************************************/
 
-    const module_keys = [await d_SavingsManager.Key_SavingsManager()];
-    const module_addresses = [d_SavingsManager.address];
-    const module_isLocked = [false];
+    const module_keys = [
+        await d_SavingsManager.Key_SavingsManager(),
+        await d_DelayedProxyAdmin.Key_ProxyAdmin(),
+    ];
+    const module_addresses = [d_SavingsManager.address, d_DelayedProxyAdmin.address];
+    const module_isLocked = [false, true];
     await d_Nexus.initialize(module_keys, module_addresses, module_isLocked, governor, {
         from: governor,
     });

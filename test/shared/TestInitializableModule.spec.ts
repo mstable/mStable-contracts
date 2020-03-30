@@ -16,7 +16,7 @@ const MockNexus = artifacts.require("MockNexus");
 const { expect, assert } = envSetup.configure();
 
 contract("InitializableModule", async (accounts) => {
-    const ctx: { module?: MockModuleInstance } = {};
+    const ctx: { module?: MockInitializableModuleInstance } = {};
     const sa = new StandardAccounts(accounts);
     let nexus: MockNexusInstance;
     const proxyAdmin = sa.dummy1;
@@ -26,9 +26,12 @@ contract("InitializableModule", async (accounts) => {
     before("before all", async () => {
         // create New Nexus
         nexus = await MockNexus.new(sa.governor, governanceAddr, managerAddr);
+        nexus.setProxyAdmin(proxyAdmin);
     });
     beforeEach("before each", async () => {
-        ctx.module = await MockInitializableModule.new(proxyAdmin, nexus.address);
+        const initializedModule = await MockInitializableModule.new();
+        await initializedModule.initialize(nexus.address);
+        ctx.module = initializedModule;
     });
 
     shouldBehaveLikeModule(ctx as Required<typeof ctx>, sa);
@@ -46,6 +49,13 @@ contract("InitializableModule", async (accounts) => {
             expect(governance).to.not.equal(ZERO_ADDRESS);
             const nexusGovernance = await nexus.getModule(web3.utils.keccak256("Governance"));
             expect(nexusGovernance).to.equal(governance);
+        });
+
+        it("and return proxyAdmin address", async () => {
+            const proxyAdminAddr = await ctx.module.proxyAdmin();
+            expect(proxyAdminAddr).to.not.equal(ZERO_ADDRESS);
+            const nexusProxyAdmin = await nexus.getModule(web3.utils.keccak256("ProxyAdmin"));
+            expect(nexusProxyAdmin).to.equal(proxyAdminAddr);
         });
 
         it("and return staking address", async () => {
@@ -125,6 +135,14 @@ contract("InitializableModule", async (accounts) => {
             temp = await ctx.module.temp();
             expect(new BN(3)).to.bignumber.equal(temp);
         });
+
+        it("when shouldAllowOnlyProxyAdmin() called by proxyAdmin", async () => {
+            let temp = await ctx.module.temp();
+            expect(new BN(0)).to.bignumber.equal(temp);
+            await ctx.module.shouldAllowOnlyProxyAdmin({ from: proxyAdmin });
+            temp = await ctx.module.temp();
+            expect(new BN(4)).to.bignumber.equal(temp);
+        });
     });
 
     describe("should fail", async () => {
@@ -156,6 +174,17 @@ contract("InitializableModule", async (accounts) => {
             await shouldFail.reverting.withMessage(
                 ctx.module.shouldAllowOnlyManager({ from: sa.other }),
                 "Only manager can execute",
+            );
+            temp = await ctx.module.temp();
+            expect(new BN(0)).to.bignumber.equal(temp);
+        });
+
+        it("when shouldAllowOnlyProxyAdmin() called by other", async () => {
+            let temp = await ctx.module.temp();
+            expect(new BN(0)).to.bignumber.equal(temp);
+            await shouldFail.reverting.withMessage(
+                ctx.module.shouldAllowOnlyProxyAdmin({ from: sa.other }),
+                "Only ProxyAdmin can execute",
             );
             temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);
