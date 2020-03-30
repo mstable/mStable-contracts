@@ -137,13 +137,14 @@ export class MassetMachine {
             .initialize(
                 this.system.nexus.address,
                 d_MUSD.address,
+                simpleToExactAmount(1, 24).toString(),
                 bassetDetails.bAssets.map((b) => b.address),
                 bassetDetails.platforms.map((p) =>
                     p == Platform.aave
                         ? d_AaveIntegrationProxy.address
                         : d_CompoundIntegrationProxy.address,
                 ),
-                bassetDetails.bAssets.map(() => percentToWeight(100).toString()),
+                bassetDetails.bAssets.map(() => percentToWeight(25).toString()),
                 bassetDetails.bAssets.map(() => false),
             )
             .encodeABI();
@@ -208,10 +209,15 @@ export class MassetMachine {
         const bAsset_USDT = await c_MockERC20.at(this.ma.USDT);
         await this.mintERC20(bAsset_USDT, this.ma.FUND_SOURCES.usdt);
 
+        const mockUSDT = await c_MockUSDT.at(bAsset_USDT.address);
         if (enableUSDTFee) {
-            const mockUSDT = await c_MockUSDT.at(bAsset_USDT.address);
             // Set fee rate to 0.1% and max fee to 30 USDT
             await mockUSDT.setParams("10", "30", {
+                from: this.ma.USDT_OWNER,
+            });
+        } else {
+            // Set fee rate to 0.1% and max fee to 30 USDT
+            await mockUSDT.setParams("0", "30", {
                 from: this.ma.USDT_OWNER,
             });
         }
@@ -348,13 +354,13 @@ export class MassetMachine {
 
         // Calc optimal weightings
         let totalWeighting = basketDetails.reduce((p, c) => {
-            return p.add(c.maxWeight);
+            return p.add(c.targetWeight);
         }, new BN(0));
         let totalMintAmount = simpleToExactAmount(initialSupply, 18);
         let mintAmounts = await Promise.all(
             basketDetails.map(async (b) => {
                 // e.g. 5e35 / 2e18 = 2.5e17
-                const relativeWeighting = b.maxWeight.mul(fullScale).div(totalWeighting);
+                const relativeWeighting = b.targetWeight.mul(fullScale).div(totalWeighting);
                 // e.g. 1e20 * 25e16 / 1e18 = 25e18
                 const mintAmount = totalMintAmount.mul(relativeWeighting).div(fullScale);
                 // const bAssetDecimals: BN = await b.decimals();
@@ -394,7 +400,7 @@ export class MassetMachine {
                 status: parseInt(b.status.toString()),
                 isTransferFeeCharged: b.isTransferFeeCharged,
                 ratio: new BN(b.ratio),
-                maxWeight: new BN(b.maxWeight),
+                targetWeight: new BN(b.targetWeight),
                 vaultBalance: new BN(b.vaultBalance),
             };
         });

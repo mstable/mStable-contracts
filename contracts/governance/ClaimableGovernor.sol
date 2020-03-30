@@ -3,7 +3,9 @@ pragma solidity 0.5.16;
 import { Governable } from "./Governable.sol";
 
 /**
- * @title 2 way handshake for Governance transfer
+ * @title   ClaimableGovernor
+ * @author  Stability Labs Pty. Lte.
+ * @notice  2 way handshake for Governance transfer
  */
 contract ClaimableGovernor is Governable {
 
