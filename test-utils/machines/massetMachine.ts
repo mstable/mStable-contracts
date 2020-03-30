@@ -315,7 +315,7 @@ export class MassetMachine {
                     cToken: mockCToken1.address,
                 },
                 {
-                    bAsset: mockBasset4.address,
+                    bAsset: mockBasset2.address,
                     cToken: mockCToken2.address,
                 },
             ],
