@@ -1,6 +1,8 @@
 import * as chai from "chai";
 import { asciiToHex as aToH, padRight } from "web3-utils";
 import BN from "bn.js";
+import { simpleToExactAmount } from "./math";
+import { fullScale } from "./constants";
 
 /**
  *  Convenience method to assert that two BN.js instances are within 100 units of each other.
@@ -45,4 +47,31 @@ const assertBNSlightlyGT = (
     );
 };
 
-export { assertBNSlightlyGT, assertBNClose, aToH, BN, chai, padRight };
+/**
+ *  Convenience method to assert that one BN.js number is eq to, or greater than an expected value by some small amount
+ *  @param actual The BN.js instance you received
+ *  @param equator The BN.js to equate to
+ *  @param maxActualShouldExceedExpected Percentage amount of increase, as a string (1% = 1)
+ *  @param mustBeGreater Fail if the operands are equal
+ */
+const assertBNSlightlyGTPercent = (
+    actual: BN,
+    equator: BN,
+    maxPercentIncrease = "0.1",
+    mustBeGreater = false,
+) => {
+    let maxIncreaseBN = simpleToExactAmount(maxPercentIncrease, 16);
+    let maxIncreaseUnits = equator.mul(maxIncreaseBN).div(fullScale);
+    // const actualDelta = actual.gt(equator) ? actual.sub(equator) : equator.sub(actual);
+
+    assert.ok(
+        mustBeGreater ? actual.gt(equator) : actual.gte(equator),
+        `Actual value should be greater than the expected value`,
+    );
+    assert.ok(
+        actual.lte(equator.add(maxIncreaseUnits)),
+        `Actual value should not exceed ${maxPercentIncrease}% greater than expected`,
+    );
+};
+
+export { assertBNSlightlyGT, assertBNSlightlyGTPercent, assertBNClose, aToH, BN, chai, padRight };
