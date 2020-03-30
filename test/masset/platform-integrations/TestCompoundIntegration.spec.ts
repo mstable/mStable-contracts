@@ -5,7 +5,7 @@ import * as t from "types/generated";
 import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
 import { BN } from "@utils/tools";
 import { StandardAccounts, SystemMachine, MassetMachine } from "@utils/machines";
-import { MainnetAccounts, ZERO_ADDRESS, MAX_UINT256, ZERO } from "@utils/constants";
+import { MainnetAccounts, ZERO_ADDRESS, MAX_UINT256, fullScale, ZERO } from "@utils/constants";
 
 import envSetup from "@utils/env_setup";
 import {
@@ -19,7 +19,7 @@ import shouldBehaveLikeModule from "../../shared/behaviours/Module.behaviour";
 
 const { expect, assert } = envSetup.configure();
 
-const c_ERC20: t.ERC20Contract = artifacts.require("ERC20");
+const c_ERC20: t.ERC20DetailedContract = artifacts.require("ERC20Detailed");
 const c_CERC20: t.ICERC20Contract = artifacts.require("ICERC20");
 
 const c_MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
@@ -60,7 +60,7 @@ contract("CompoundIntegration", async (accounts) => {
         await runSetup();
     });
 
-    const runSetup = async () => {
+    const runSetup = async (enableUSDTFee = false) => {
         // SETUP
         // ======
         nexus = await c_Nexus.new(sa.governor);
@@ -71,7 +71,7 @@ contract("CompoundIntegration", async (accounts) => {
         d_CompoundIntegration = await c_CompoundIntegration.at(d_CompoundIntegrationProxy.address);
 
         // Load network specific integration data
-        integrationDetails = await massetMachine.loadBassets();
+        integrationDetails = await massetMachine.loadBassets(enableUSDTFee);
 
         // Initialize the proxy storage
         const compoundImplementation = await c_CompoundIntegration.new();
@@ -180,14 +180,14 @@ contract("CompoundIntegration", async (accounts) => {
             );
         });
 
-        it("should approve spending of the passed bAssets", async () => {
-            // const bAsset = await c_MockERC20.at(integrationDetails.aTokens[0].bAsset);
-            // const addressProvider = await c_AaveLendingPoolAddressProvider.at(
-            //     integrationDetails.aavePlatformAddress,
-            // );
-            // const approvedAddress = await addressProvider.getLendingPoolCore();
-            // const balance = await bAsset.allowance(d_CompoundIntegration.address, approvedAddress);
-            // expect(balance).bignumber.eq(MAX_UINT256 as any);
+        it("should pre-approve spending of the passed bAssets", async () => {
+            await Promise.all(
+                integrationDetails.cTokens.map(async ({ bAsset, cToken }) => {
+                    const d_bAsset = await c_ERC20.at(bAsset);
+                    const balance = await d_bAsset.allowance(d_CompoundIntegration.address, cToken);
+                    expect(balance).bignumber.eq(MAX_UINT256);
+                }),
+            );
         });
 
         it("should fail when called again", async () => {
@@ -303,6 +303,7 @@ contract("CompoundIntegration", async (accounts) => {
             );
             expect(balance).bignumber.eq(MAX_UINT256 as any);
         });
+
         it("should fail when passed invalid args", async () => {
             // bAsset address is zero
             await shouldFail.reverting.withMessage(
@@ -339,31 +340,21 @@ contract("CompoundIntegration", async (accounts) => {
         it("should deposit tokens to Compound", async () => {
             // Step 0. Choose tokens
             const bAsset = await c_ERC20.at(integrationDetails.cTokens[0].bAsset);
-            const amount = new BN(10).pow(new BN(18));
+            const amount = new BN(10).pow(await bAsset.decimals());
             const cToken = await c_CERC20.at(integrationDetails.cTokens[0].cToken);
 
-            // 0.1 Get balance before
+            const user_bAsset_balanceBefore = await bAsset.balanceOf(sa.default);
             const bAssetRecipient_balBefore = await bAsset.balanceOf(cToken.address);
-
-            let balanceOf = await cToken.balanceOf(d_CompoundIntegration.address);
-            let exchangeRate = await cToken.exchangeRateStored();
-            const balanceBefore = balanceOf.mul(exchangeRate).div(new BN(10).pow(new BN(18)));
-            console.log("bal before: " + balanceBefore.toString());
-            // const compoundIntegration_balBefore = await cToken.balanceOfUnderlying(
-            //     d_CompoundIntegration.address,
-            // );
-            // console.log(compoundIntegration_balBefore);
 
             // Step 1. xfer tokens to integration
             await bAsset.transfer(d_CompoundIntegration.address, amount);
 
+            expect(user_bAsset_balanceBefore.sub(amount)).to.bignumber.equal(
+                await bAsset.balanceOf(sa.default),
+            );
+
             // Step 2. call deposit
             const tx = await d_CompoundIntegration.deposit(bAsset.address, amount, false);
-
-            balanceOf = await cToken.balanceOf(d_CompoundIntegration.address);
-            exchangeRate = await cToken.exchangeRateStored();
-            const balanceAfter = balanceOf.mul(exchangeRate).div(new BN(10).pow(new BN(18)));
-            console.log("bal after deposit: " + balanceAfter.toString());
 
             // Step 3. Check for things:
             // 3.1 Check that cToken has bAssets
@@ -371,57 +362,294 @@ contract("CompoundIntegration", async (accounts) => {
                 bAssetRecipient_balBefore.add(amount),
             );
             // 3.2 Check that compound integration has cTokens
-            // expect(await cToken.balanceOfUnderlying(d_CompoundIntegration.address)).bignumber.eq(
-            //     compoundIntegration_balBefore.add(amount),
-            // );
+            const cToken_balanceOfIntegration = await cToken.balanceOf(
+                d_CompoundIntegration.address,
+            );
+            const exchangeRate = await cToken.exchangeRateStored();
+            const expected_cTokens = amount.mul(new BN(10).pow(new BN(18))).div(exchangeRate);
+            expect(expected_cTokens).to.bignumber.equal(cToken_balanceOfIntegration);
+
+            expectEvent.inLogs(tx.logs, "Deposit", { _amount: amount });
+        });
+
+        it("should handle the fee calculations", async () => {
+            /*
+            // Step 0. Choose tokens and set up env
+            await runSetup(true);
+
+            const bAsset = await c_ERC20.at(integrationDetails.cTokens[1].bAsset);
+            const bAsset_decimals = await bAsset.decimals();
+            const amount = new BN(10).pow(bAsset_decimals);
+            const cToken = await c_CERC20.at(integrationDetails.cTokens[1].cToken);
+
+            // 0.1 Get balance before
+            const bAssetRecipient = cToken.address;
+            const bAssetRecipient_balBefore = await bAsset.balanceOf(bAssetRecipient);
+            const compoundIntegration_balBefore = await cToken.balanceOf(
+                d_CompoundIntegration.address,
+            );
+
+            // Step 1. xfer tokens to integration
+            const bal1 = await bAsset.balanceOf(d_CompoundIntegration.address);
+            await bAsset.transfer(d_CompoundIntegration.address, amount);
+
+            const bal2 = await bAsset.balanceOf(d_CompoundIntegration.address);
+            const receivedAmount = bal2.sub(bal1);
+            // Ensure fee is being deducted
+            expect(receivedAmount).bignumber.lt(amount as any);
+            // fee = initialAmount - receivedAmount
+            const fee = amount.sub(receivedAmount);
+            // feeRate = fee/amount (base 1e18)
+            const feeRate = fee.mul(fullScale).div(amount);
+            // expectedDepoit = receivedAmount - (receivedAmount*feeRate)
+            const expectedDeposit = receivedAmount.sub(receivedAmount.mul(feeRate).div(fullScale));
+
+            // Step 2. call deposit
+            const tx = await d_CompoundIntegration.deposit(bAsset.address, receivedAmount, true);
+
+            // Step 3. Check for things:
+            // 3.1 Check that cToken has bAssets
+            expect(await bAsset.balanceOf(bAssetRecipient)).bignumber.eq(
+                bAssetRecipient_balBefore.add(expectedDeposit),
+            );
+            // 3.2 Check that compound integration has cTokens
+            const compoundIntegration_balAfter = await cToken.balanceOf(
+                d_CompoundIntegration.address,
+            );
+            expect(compoundIntegration_balAfter).bignumber.lte(compoundIntegration_balBefore.add(
+                receivedAmount,
+            ) as any);
+            expect(compoundIntegration_balAfter).bignumber.gte(compoundIntegration_balBefore.add(
+                expectedDeposit,
+            ) as any);
+            // 3.3 Check that return value is cool (via event)
+            const receivedATokens = compoundIntegration_balAfter.sub(compoundIntegration_balBefore);
+            const min = receivedATokens.lt(receivedAmount) ? receivedATokens : receivedAmount;
+            expectEvent.inLogs(tx.logs, "Deposit", { _amount: min });
+            */
+        });
+
+        it("should only allow a whitelisted user to call function", async () => {
+            // Step 0. Choose tokens
+            const bAsset = await c_ERC20.at(integrationDetails.aTokens[1].bAsset);
+            const amount = new BN(10).pow(new BN(await bAsset.decimals()));
+
+            // Step 1. call deposit
+            await shouldFail.reverting.withMessage(
+                d_CompoundIntegration.deposit(bAsset.address, amount, false, {
+                    from: sa.dummy1,
+                }),
+                "Not a whitelisted address",
+            );
+        });
+
+        it("should fail if the bAsset is not supported", async () => {
+            // Step 0. Choose tokens
+            const bAsset = await c_ERC20.at(integrationDetails.aTokens[0].bAsset);
+            const amount = new BN(10).pow(await bAsset.decimals());
+
+            // Step 1. call deposit
+            await shouldFail.reverting.withMessage(
+                d_CompoundIntegration.deposit(bAsset.address, amount, false),
+                "cToken does not exist",
+            );
+        });
+
+        it("should fail if we do not first pass the required bAsset", async () => {
+            // Step 0. Choose tokens
+            const bAsset = await c_ERC20.at(integrationDetails.cTokens[0].bAsset);
+            const amount = new BN(10).pow(new BN(await bAsset.decimals()));
+
+            // Step 2. call deposit
+            await shouldFail.reverting.withMessage(
+                d_CompoundIntegration.deposit(bAsset.address, amount, false),
+                "SafeMath: subtraction overflow",
+            );
+        });
+
+        it("should fail if we try to deposit too much", async () => {
+            const bAsset = await c_ERC20.at(integrationDetails.cTokens[1].bAsset);
+            const bAsset_decimals = await bAsset.decimals();
+            const amount = new BN(10).mul(new BN(10).pow(bAsset_decimals));
+            const amount_high = new BN(11).mul(new BN(10).pow(bAsset_decimals));
+
+            // Step 1. xfer low tokens to integration
+            await bAsset.transfer(d_CompoundIntegration.address, amount.toString());
+            expect(await bAsset.balanceOf(d_CompoundIntegration.address)).bignumber.lte(
+                amount as any,
+            );
+            // Step 2. call deposit with high tokens
+            await shouldFail.reverting.withMessage(
+                d_CompoundIntegration.deposit(bAsset.address, amount_high.toString(), false),
+                "SafeMath: subtraction overflow",
+            );
+        });
+
+        it("should fail with broken arguments", async () => {
+            // Step 0. Choose tokens
+            const bAsset = await c_ERC20.at(integrationDetails.cTokens[0].bAsset);
+            const bAsset_decimals = await bAsset.decimals();
+            const amount = new BN(10).pow(bAsset_decimals);
+            const cToken = await c_CERC20.at(integrationDetails.cTokens[0].cToken);
+
+            // 0.1 Get balance before
+            const bAssetRecipient = cToken.address;
+            const bAssetRecipient_balBefore = await bAsset.balanceOf(bAssetRecipient);
+            const compoundIntegration_balBefore = await cToken.balanceOf(
+                d_CompoundIntegration.address,
+            );
+
+            // Step 1. xfer low tokens to integration
+            await bAsset.transfer(d_CompoundIntegration.address, amount);
+
+            // Fails with ZERO bAsset Address
+            await shouldFail.reverting.withMessage(
+                d_CompoundIntegration.deposit(ZERO_ADDRESS, amount, false),
+                "cToken does not exist",
+            );
+            // Fails with ZERO Amount
+            await shouldFail.reverting.withMessage(
+                d_CompoundIntegration.deposit(bAsset.address, "0", false),
+                "Must deposit something",
+            );
+            // Succeeds with Incorrect bool (defaults to false)
+            const tx = await d_CompoundIntegration.deposit(bAsset.address, amount, undefined);
+
+            // Step 3. Check for things:
+            // 3.1 Check that cToken has bAssets
+            expect(await bAsset.balanceOf(bAssetRecipient)).bignumber.eq(
+                bAssetRecipient_balBefore.add(amount),
+            );
+            // 3.2 Check that compound integration has cTokens
+            const cToken_balanceOfIntegration = await cToken.balanceOf(
+                d_CompoundIntegration.address,
+            );
+            const exchangeRate = await cToken.exchangeRateStored();
+            const expected_cTokens = amount.mul(new BN(10).pow(new BN(18))).div(exchangeRate);
+            expect(expected_cTokens).to.bignumber.equal(cToken_balanceOfIntegration);
+
             // 3.3 Check that return value is cool (via event)
             expectEvent.inLogs(tx.logs, "Deposit", { _amount: amount });
-
-            // console.log((await bAsset.balanceOf(sa.default)).toString());
-            // const amt = await cToken.balanceOfUnderlying(d_CompoundIntegration.address);
-            await d_CompoundIntegration.withdraw(sa.default, bAsset.address, amount, false);
-            // console.log((await bAsset.balanceOf(sa.default)).toString());
-
-            balanceOf = await cToken.balanceOf(d_CompoundIntegration.address);
-            exchangeRate = await cToken.exchangeRateStored();
-            const balanceAfterWithd = balanceOf.mul(exchangeRate).div(new BN(10).pow(new BN(18)));
-            console.log("after withdraw: " + balanceAfterWithd.toString());
         });
-
-        it("should only allow a whitelisted user to call function");
-        it("should deposit tokens to Aave", async () => {
-            // check that the lending pool core has tokens
-            // check that our new balance of aTokens is given
-            // should give accurate return value
-        });
-
-        it("should deposit all if there is no fee");
-        it("should handle the fee calculations", async () => {
-            // should deduct the transfer fee from the return value
-        });
-
-        it("should fail if we do not first pass the required bAsset");
-        it("should fail with broken arguments");
-        it("should fail if the bAsset is not supported");
     });
 
     describe("withdraw", async () => {
-        it("should only allow a whitelisted user to call function");
-        it("should withdraw tokens from Aave", async () => {
-            // check that the recipient receives the tokens
-            // check that the lending pool core has tokens
-            // check that our new balance of aTokens is given
-            // should give accurate return value
+        beforeEach("init mocks", async () => {
+            await runSetup();
         });
 
-        it("should withdraw all if there is no fee");
-        it("should handle the fee calculations", async () => {
-            // should deduct the transfer fee from the return value
+        it("should withdraw tokens from Compound", async () => {
+            // Step 0. Choose tokens
+            const bAsset = await c_ERC20.at(integrationDetails.cTokens[0].bAsset);
+            const amount = new BN(10).pow(await bAsset.decimals());
+            const cToken = await c_CERC20.at(integrationDetails.cTokens[0].cToken);
+
+            const user_bAsset_balanceBefore = await bAsset.balanceOf(sa.default);
+            const bAssetRecipient_balBefore = await bAsset.balanceOf(cToken.address);
+
+            // Step 1. xfer tokens to integration
+            await bAsset.transfer(d_CompoundIntegration.address, amount);
+
+            expect(user_bAsset_balanceBefore.sub(amount)).to.bignumber.equal(
+                await bAsset.balanceOf(sa.default),
+            );
+
+            // Step 2. call deposit
+            const tx = await d_CompoundIntegration.deposit(bAsset.address, amount, false);
+
+            // Step 3. Check for things:
+            // 3.1 Check that cToken has bAssets
+            expect(await bAsset.balanceOf(cToken.address)).bignumber.eq(
+                bAssetRecipient_balBefore.add(amount),
+            );
+            // 3.2 Check that compound integration has cTokens
+            let cToken_balanceOfIntegration = await cToken.balanceOf(d_CompoundIntegration.address);
+            const exchangeRate = await cToken.exchangeRateStored();
+            const expected_cTokens = amount.mul(new BN(10).pow(new BN(18))).div(exchangeRate);
+            expect(expected_cTokens).to.bignumber.equal(cToken_balanceOfIntegration);
+
+            expectEvent.inLogs(tx.logs, "Deposit", { _amount: amount });
+
+            await d_CompoundIntegration.withdraw(sa.default, bAsset.address, amount, false);
+
+            const user_bAsset_balanceAfter = await bAsset.balanceOf(sa.default);
+            expect(user_bAsset_balanceAfter).to.bignumber.equal(user_bAsset_balanceBefore);
+
+            cToken_balanceOfIntegration = await cToken.balanceOf(d_CompoundIntegration.address);
+            expect(new BN(0)).to.bignumber.equal(cToken_balanceOfIntegration);
         });
 
-        it("should fail if there is insufficient balance");
-        it("should fail with broken arguments");
-        it("should fail if the bAsset is not supported");
+        it("should handle the fee calculations");
+
+        it("should only allow a whitelisted user to call function", async () => {
+            // Step 0. Choose tokens
+            const bAsset = await c_ERC20.at(integrationDetails.cTokens[0].bAsset);
+            const amount = new BN(10).pow(await bAsset.decimals());
+
+            // Step 1. call deposit
+            await shouldFail.reverting.withMessage(
+                d_CompoundIntegration.withdraw(sa.dummy1, bAsset.address, amount, false, {
+                    from: sa.dummy1,
+                }),
+                "Not a whitelisted address",
+            );
+        });
+
+        it("should fail if there is insufficient balance", async () => {
+            // Step 0. Choose tokens
+            const bAsset = await c_ERC20.at(integrationDetails.cTokens[0].bAsset);
+            const bAsset_decimals = await bAsset.decimals();
+            const amount = new BN(1000).mul(new BN(10).pow(bAsset_decimals));
+
+            // Step 1. call deposit
+            await shouldFail.reverting.withMessage(
+                d_CompoundIntegration.withdraw(sa.default, bAsset.address, amount, false),
+                "SafeMath: subtraction overflow",
+            );
+        });
+
+        it("should fail with broken arguments", async () => {
+            // Step 0. Choose tokens
+            const bAsset = await c_ERC20.at(integrationDetails.cTokens[0].bAsset);
+            const bAsset_decimals = await bAsset.decimals();
+            const amount = new BN(10).pow(bAsset_decimals);
+            const cToken = await c_CERC20.at(integrationDetails.cTokens[0].cToken);
+
+            // 0.1 Get balance before
+            const bAssetRecipient = sa.dummy1;
+
+            // Fails with ZERO bAsset Address
+            await shouldFail.reverting.withMessage(
+                d_CompoundIntegration.withdraw(sa.dummy1, ZERO_ADDRESS, amount, false),
+                "cToken does not exist",
+            );
+            // Fails with ZERO recipient address
+            await shouldFail.reverting.withMessage(
+                d_CompoundIntegration.withdraw(ZERO_ADDRESS, bAsset.address, new BN(1), false),
+                "",
+            );
+            // Fails with ZERO Amount
+            await shouldFail.reverting.withMessage(
+                d_CompoundIntegration.withdraw(sa.dummy1, bAsset.address, "0", false),
+                "Must withdraw something",
+            );
+
+            expect(ZERO).to.bignumber.equal(await bAsset.balanceOf(bAssetRecipient));
+
+            expect(ZERO).to.bignumber.equal(await cToken.balanceOf(d_CompoundIntegration.address));
+        });
+
+        it("should fail if the bAsset is not supported", async () => {
+            // Step 0. Choose tokens
+            const bAsset = await c_ERC20.at(integrationDetails.aTokens[0].bAsset);
+            const amount = new BN(10).pow(await bAsset.decimals());
+
+            // Step 1. call withdraw
+            await shouldFail.reverting.withMessage(
+                d_CompoundIntegration.withdraw(sa.dummy1, bAsset.address, amount, false),
+                "cToken does not exist",
+            );
+        });
     });
 
     describe("checkBalance", async () => {
@@ -431,12 +659,66 @@ contract("CompoundIntegration", async (accounts) => {
     });
 
     describe("reApproveAllTokens", async () => {
-        it("should only be callable bby the Governor");
+        it("should re-approve ALL bAssets with aTokens", async () => {
+            const bAsset1 = await c_ERC20.at(integrationDetails.cTokens[0].bAsset);
+            const cToken1 = await c_CERC20.at(integrationDetails.cTokens[0].cToken);
+            let allowance = await bAsset1.allowance(d_CompoundIntegration.address, cToken1.address);
+            expect(MAX_UINT256).to.bignumber.equal(allowance);
 
-        it("should be able to be called multiple times");
-    });
+            const bAsset2 = await c_ERC20.at(integrationDetails.cTokens[0].bAsset);
+            const cToken2 = await c_CERC20.at(integrationDetails.cTokens[0].cToken);
+            allowance = await bAsset2.allowance(d_CompoundIntegration.address, cToken2.address);
+            expect(MAX_UINT256).to.bignumber.equal(allowance);
 
-    describe("disapprove", async () => {
-        it("should be implemented...");
+            d_CompoundIntegration.reApproveAllTokens({
+                from: sa.governor,
+            });
+
+            allowance = await bAsset1.allowance(d_CompoundIntegration.address, cToken1.address);
+            expect(MAX_UINT256).to.bignumber.equal(allowance);
+
+            allowance = await bAsset2.allowance(d_CompoundIntegration.address, cToken2.address);
+            expect(MAX_UINT256).to.bignumber.equal(allowance);
+        });
+
+        it("should only be callable by the Governor", async () => {
+            // Fail when not called by the Governor
+            await shouldFail.reverting.withMessage(
+                d_CompoundIntegration.reApproveAllTokens({
+                    from: sa.dummy1,
+                }),
+                "Only governor can execute",
+            );
+
+            // Succeed when called by the Governor
+            d_CompoundIntegration.reApproveAllTokens({
+                from: sa.governor,
+            });
+        });
+
+        it("should be able to be called multiple times", async () => {
+            const bAsset1 = await c_ERC20.at(integrationDetails.cTokens[0].bAsset);
+            const cToken1 = await c_CERC20.at(integrationDetails.cTokens[0].cToken);
+            const bAsset2 = await c_ERC20.at(integrationDetails.cTokens[0].bAsset);
+            const cToken2 = await c_CERC20.at(integrationDetails.cTokens[0].cToken);
+
+            let allowance = await bAsset1.allowance(d_CompoundIntegration.address, cToken1.address);
+            expect(MAX_UINT256).to.bignumber.equal(allowance);
+            allowance = await bAsset2.allowance(d_CompoundIntegration.address, cToken2.address);
+            expect(MAX_UINT256).to.bignumber.equal(allowance);
+
+            d_CompoundIntegration.reApproveAllTokens({
+                from: sa.governor,
+            });
+
+            d_CompoundIntegration.reApproveAllTokens({
+                from: sa.governor,
+            });
+
+            allowance = await bAsset1.allowance(d_CompoundIntegration.address, cToken1.address);
+            expect(MAX_UINT256).to.bignumber.equal(allowance);
+            allowance = await bAsset2.allowance(d_CompoundIntegration.address, cToken2.address);
+            expect(MAX_UINT256).to.bignumber.equal(allowance);
+        });
     });
 });

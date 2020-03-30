@@ -39,7 +39,7 @@ contract MockCToken is ICERC20, ERC20Mintable {
 
     function redeemUnderlying(uint redeemAmount) external returns (uint) {
         // Pretend to inflate the cTokenExchangeRate
-        updateExchangeRate();
+        // updateExchangeRate();
 
         uint256 cTokens = redeemAmount.divPrecisely(exchangeRate);
         // Burn the cToken
@@ -53,8 +53,8 @@ contract MockCToken is ICERC20, ERC20Mintable {
         return cTokenBal.mulTruncate(exchangeRate);
     }
 
-    function updateExchangeRate() public returns (uint256){
-        exchangeRate = exchangeRate.add(1e13);
+    function updateExchangeRate() internal returns (uint256){
+        exchangeRate = exchangeRate.add(1e14);
     }
 
     function exchangeRateStored() external view returns (uint) {
