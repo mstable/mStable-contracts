@@ -13,6 +13,7 @@ import {
     fullScale,
     ONE_WEEK,
     TEN_MINS,
+    percentScale,
 } from "@utils/constants";
 import { simpleToExactAmount } from "@utils/math";
 
@@ -405,11 +406,11 @@ contract("AaveIntegration", async (accounts) => {
             expect(directBalance).bignumber.eq(actualBalance);
             // Assert that Balance goes up over time
             await increase(TEN_MINS);
-            const newBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            let newBalance = await d_AaveIntegration.logBalance(bAsset.address);
             assertBNSlightlyGTPercent(
                 newBalance,
                 directBalance,
-                "0.1",
+                "0.0001",
                 systemMachine.isGanacheFork,
             );
             // 3.3 Check that return value is cool (via event)
@@ -722,7 +723,9 @@ contract("AaveIntegration", async (accounts) => {
             // Step 1. call deposit
             await shouldFail.reverting.withMessage(
                 d_AaveIntegration.withdraw(sa.default, bAsset.address, amount.toString(), false),
-                "SafeMath: subtraction overflow",
+                systemMachine.isGanacheFork
+                    ? "User cannot redeem more than the available balance"
+                    : "SafeMath: subtraction overflow",
             );
         });
         it("should fail with broken arguments", async () => {
@@ -765,8 +768,12 @@ contract("AaveIntegration", async (accounts) => {
                 bAssetRecipient_balBefore.add(amount),
             );
             // 2.2 Check that integration aToken balance has gone down
-            expect(await aToken.balanceOf(d_AaveIntegration.address)).bignumber.eq(
+            let currentBalance = await aToken.balanceOf(d_AaveIntegration.address);
+            assertBNSlightlyGTPercent(
+                currentBalance,
                 aaveIntegration_balBefore.sub(amount),
+                "0.0001",
+                systemMachine.isGanacheFork,
             );
             // 2.3 Should give accurate return value
             expectEvent.inLogs(tx.logs, "Withdrawal", { _amount: amount });
