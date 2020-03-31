@@ -51,6 +51,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
     {
         savingsContracts[_mUSD] = _savingsContract;
         IERC20(_mUSD).approve(address(_savingsContract), uint256(-1));
+        emit SavingsContractEnabled(_mUSD, address(_savingsContract));
     }
 
     /***************************************

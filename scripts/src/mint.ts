@@ -1,12 +1,12 @@
 import { BN } from "@utils/tools";
 import { StandardAccounts } from "@utils/machines/standardAccounts";
-import { ForgeRewardsMUSDMinter } from "./utils/forgeRewardsMUSDMinter";
-import { getForgeContractInstances } from "./utils/getForgeContractInstances";
+import { MUSDMinter } from "./utils/mUSDMinter";
+import { getRelevantContractInstances } from "./utils/getRelevantContractInstances";
 import { logTx } from "./utils/logging";
 
 export default async (scope: any, amount: string, account?: string) => {
-    const { mUSD, forge, bassets } = await getForgeContractInstances(scope);
-    const minter = new ForgeRewardsMUSDMinter(forge, mUSD, bassets);
+    const { mUSD, basketManager, bassets } = await getRelevantContractInstances(scope);
+    const minter = new MUSDMinter(mUSD, basketManager, bassets);
 
     const sa = new StandardAccounts(await scope.web3.eth.getAccounts());
     const txDetails = { from: sa.default };
@@ -20,7 +20,7 @@ export default async (scope: any, amount: string, account?: string) => {
     console.log(`mUSD balance before: ${await minter.getMUSDBalance(account)}`);
 
     await logTx(
-        minter.mintAllBassets(new BN(amount), account, account, txDetails),
+        minter.mintAllBassets(new BN(amount), account, txDetails),
         `Minting all bassets for ${amount} for account ${account}`,
     );
 

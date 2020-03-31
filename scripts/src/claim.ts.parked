@@ -1,6 +1,6 @@
 import humanizeDuration from "humanize-duration";
 import { StandardAccounts } from "@utils/machines/standardAccounts";
-import { getForgeContractInstances } from "./utils/getForgeContractInstances";
+import { getForgeContractInstances } from "./utils/getRelevantContractInstances";
 import { logRewardeeData, logTrancheData, logTx } from "./utils/logging";
 import { blockTimestampExact } from "./utils/time";
 
