@@ -96,6 +96,9 @@ contract DelayedProxyAdmin is Module {
 
         address oldImpl = getProxyImplementation(_proxy);
 
+        // Deleting before to avoid re-entrancy
+        delete requests[_proxy];
+
         if(data.length == 0) {
             require(msg.value == 0, "msg.value should be zero");
             AdminUpgradeabilityProxy(_proxy).upgradeTo(newImpl);
@@ -103,7 +106,6 @@ contract DelayedProxyAdmin is Module {
             AdminUpgradeabilityProxy(_proxy).upgradeToAndCall.value(msg.value)(newImpl, data);
         }
 
-        delete requests[_proxy];
         emit Upgraded(_proxy, oldImpl, newImpl, data);
     }
 

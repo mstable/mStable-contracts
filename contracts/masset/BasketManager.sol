@@ -276,7 +276,6 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
             uint256 bassetWeight = _weights[i];
 
             if(bAsset.status == BassetStatus.Normal) {
-                require(bassetWeight >= 0, "Weight must be positive");
                 require(bassetWeight <= StableMath.getFullScale(), "Asset weight must be <= 1e18");
                 basket.bassets[index].targetWeight = bassetWeight;
             } else {
