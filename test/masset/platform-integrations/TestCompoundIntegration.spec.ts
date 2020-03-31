@@ -422,10 +422,10 @@ contract("CompoundIntegration", async (accounts) => {
             // Step 0. Choose tokens and set up env
             await runSetup(true);
 
-            const bAsset = await c_ERC20.at(integrationDetails.cTokens[2].bAsset);
+            const bAsset = await c_ERC20.at(integrationDetails.cTokens[1].bAsset);
             const bAsset_decimals = await bAsset.decimals();
             const amount = new BN(10).pow(bAsset_decimals);
-            const cToken = await c_CERC20.at(integrationDetails.cTokens[2].cToken);
+            const cToken = await c_CERC20.at(integrationDetails.cTokens[1].cToken);
 
             // 0.1 Get balance before
             const bAssetRecipient = cToken.address;
@@ -636,10 +636,10 @@ contract("CompoundIntegration", async (accounts) => {
             await runSetup(true, true);
 
             // should deduct the transfer fee from the return value
-            const bAsset = await c_ERC20.at(integrationDetails.cTokens[2].bAsset);
+            const bAsset = await c_ERC20.at(integrationDetails.cTokens[1].bAsset);
             const bAsset_decimals = await bAsset.decimals();
             const amount = new BN(10).pow(bAsset_decimals);
-            const cToken = await c_CERC20.at(integrationDetails.cTokens[2].cToken);
+            const cToken = await c_CERC20.at(integrationDetails.cTokens[1].cToken);
 
             // 0.1 Get balance before
             const bAssetRecipient = sa.dummy1;

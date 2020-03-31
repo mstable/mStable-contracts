@@ -261,13 +261,10 @@ export class MassetMachine {
             this.sa.default,
             100000000,
         );
-        const mockBasset2: t.MockERC20Instance = await c_MockERC20.new(
-            "Mock2",
-            "MK2",
-            6,
-            this.sa.default,
-            100000000,
-        );
+        const mockBasset2: t.MockERC20Instance = enableUSDTFee
+            ? await c_MockERC20WithFee.new("Mock5", "MK5", 6, this.sa.default, 100000000)
+            : await c_MockERC20.new("Mock5", "MK5", 6, this.sa.default, 100000000);
+
         const mockBasset3: t.MockERC20Instance = await c_MockERC20.new(
             "Mock3",
             "MK3",
@@ -280,15 +277,9 @@ export class MassetMachine {
             ? await c_MockERC20WithFee.new("Mock4", "MK4", 18, this.sa.default, 100000000)
             : await c_MockERC20.new("Mock4", "MK4", 18, this.sa.default, 100000000);
 
-        // Mock up USDT for Compound
-        const mockBasset5: t.MockERC20Instance = enableUSDTFee
-            ? await c_MockERC20WithFee.new("Mock5", "MK5", 18, this.sa.default, 100000000)
-            : await c_MockERC20.new("Mock5", "MK5", 18, this.sa.default, 100000000);
-
         // Mock C Token
         const mockCToken1: t.MockCTokenInstance = await c_MockCToken.new(mockBasset1.address);
         const mockCToken2: t.MockCTokenInstance = await c_MockCToken.new(mockBasset2.address);
-        const mockCToken3: t.MockCTokenInstance = await c_MockCToken.new(mockBasset5.address);
 
         //  - Mock Aave integration
         const d_MockAave: t.MockAaveInstance = await c_MockAave.new({ from: this.sa.default });
@@ -309,14 +300,8 @@ export class MassetMachine {
 
         return {
             // DAI, USDC, TUSD, USDT(aave), USDT(compound)
-            bAssets: [mockBasset1, mockBasset2, mockBasset3, mockBasset4, mockBasset5],
-            platforms: [
-                Platform.compound,
-                Platform.compound,
-                Platform.aave,
-                Platform.aave,
-                Platform.compound,
-            ],
+            bAssets: [mockBasset1, mockBasset2, mockBasset3, mockBasset4],
+            platforms: [Platform.compound, Platform.compound, Platform.aave, Platform.aave],
             aavePlatformAddress: d_MockAave.address,
             aTokens: [
                 {
@@ -336,10 +321,6 @@ export class MassetMachine {
                 {
                     bAsset: mockBasset2.address,
                     cToken: mockCToken2.address,
-                },
-                {
-                    bAsset: mockBasset5.address,
-                    cToken: mockCToken3.address,
                 },
             ],
         };
