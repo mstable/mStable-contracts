@@ -905,12 +905,11 @@ contract("AaveIntegration", async (accounts) => {
         });
         it("should be able to be called multiple times", async () => {
             const bassetsMapped = await d_AaveIntegration.getBassetsMapped();
-            expect(bassetsMapped.length).to.be.gt(0 as any);
+            expect(bassetsMapped.length).to.be.gt(0);
 
             await d_AaveIntegration.reApproveAllTokens({
                 from: sa.governor,
             });
-
             await d_AaveIntegration.reApproveAllTokens({
                 from: sa.governor,
             });

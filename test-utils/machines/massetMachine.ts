@@ -133,6 +133,7 @@ export class MassetMachine {
         md.mAsset = d_MUSD;
 
         // 2.5. Init BasketManager
+        const weight = 100 / bassetDetails.bAssets.length;
         const initializationData_BasketManager: string = d_BasketManager.contract.methods
             .initialize(
                 this.system.nexus.address,
@@ -144,7 +145,7 @@ export class MassetMachine {
                         ? d_AaveIntegrationProxy.address
                         : d_CompoundIntegrationProxy.address,
                 ),
-                bassetDetails.bAssets.map(() => percentToWeight(25).toString()),
+                bassetDetails.bAssets.map(() => percentToWeight(weight).toString()),
                 bassetDetails.bAssets.map(() => false),
             )
             .encodeABI();
@@ -260,13 +261,10 @@ export class MassetMachine {
             this.sa.default,
             100000000,
         );
-        const mockBasset2: t.MockERC20Instance = await c_MockERC20.new(
-            "Mock2",
-            "MK2",
-            6,
-            this.sa.default,
-            100000000,
-        );
+        const mockBasset2: t.MockERC20Instance = enableUSDTFee
+            ? await c_MockERC20WithFee.new("Mock5", "MK5", 6, this.sa.default, 100000000)
+            : await c_MockERC20.new("Mock5", "MK5", 6, this.sa.default, 100000000);
+
         const mockBasset3: t.MockERC20Instance = await c_MockERC20.new(
             "Mock3",
             "MK3",
@@ -274,7 +272,7 @@ export class MassetMachine {
             this.sa.default,
             100000000,
         );
-        // Mock up USDT
+        // Mock up USDT for Aave
         const mockBasset4: t.MockERC20Instance = enableUSDTFee
             ? await c_MockERC20WithFee.new("Mock4", "MK4", 18, this.sa.default, 100000000)
             : await c_MockERC20.new("Mock4", "MK4", 18, this.sa.default, 100000000);
@@ -301,7 +299,8 @@ export class MassetMachine {
         await d_MockAave.addAToken(mockAToken4.address, mockBasset4.address);
 
         return {
-            bAssets: [mockBasset1, mockBasset2, mockBasset3, mockBasset4], // DAI, USDC, TUSD, USDT
+            // DAI, USDC, TUSD, USDT(aave), USDT(compound)
+            bAssets: [mockBasset1, mockBasset2, mockBasset3, mockBasset4],
             platforms: [Platform.compound, Platform.compound, Platform.aave, Platform.aave],
             aavePlatformAddress: d_MockAave.address,
             aTokens: [
