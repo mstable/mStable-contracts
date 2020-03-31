@@ -19,8 +19,8 @@ contract AaveIntegration is InitializableAbstractIntegration {
 
     /**
      * @dev Deposit a quantity of bAsset into the platform. Credited aTokens
-     * remain here in the vault. Can only be called by whitelisted addresses
-     * (mAsset and corresponding BasketManager)
+     *      remain here in the vault. Can only be called by whitelisted addresses
+     *      (mAsset and corresponding BasketManager)
      * @param _bAsset              Address for the bAsset
      * @param _amount              Units of bAsset to deposit
      * @param _isTokenFeeCharged   Flag that signals if an xfer fee is charged on bAsset
@@ -60,7 +60,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
 
     /**
      * @dev Withdraw a quantity of bAsset from the platform. Redemption
-     * should fail if we have insufficient balance on the platform.
+     *      should fail if we have insufficient balance on the platform.
      * @param _receiver     Address to which the bAsset should be sent
      * @param _bAsset       Address of the bAsset
      * @param _amount       Units of bAsset to withdraw
@@ -99,8 +99,8 @@ contract AaveIntegration is InitializableAbstractIntegration {
 
     /**
      * @dev Get the total bAsset value held in the platform
-     * This includes any interest that was generated since depositing
-     * Aave gradually increases the balances of all aToken holders, as the interest grows
+     *      This includes any interest that was generated since depositing
+     *      Aave gradually increases the balances of all aToken holders, as the interest grows
      * @param _bAsset     Address of the bAsset
      * @return balance    Total value of the bAsset in the platform
      */
@@ -119,8 +119,8 @@ contract AaveIntegration is InitializableAbstractIntegration {
 
     /**
      * @dev Re-approve the spending of all bAssets by the Aave lending pool core,
-     * if for some reason is it necessary for example if the address of core changes.
-     * Only callable through Governance.
+     *      if for some reason is it necessary for example if the address of core changes.
+     *      Only callable through Governance.
      */
     function reApproveAllTokens()
         external
@@ -136,8 +136,8 @@ contract AaveIntegration is InitializableAbstractIntegration {
 
     /**
      * @dev Internal method to respond to the addition of new bAsset / pTokens
-     * We need to approve the Aave lending pool core conrtact and give it permission
-     * to spend the bAsset
+     *      We need to approve the Aave lending pool core conrtact and give it permission
+     *      to spend the bAsset
      * @param _bAsset Address of the bAsset to approve
      */
     function _abstractSetPToken(address _bAsset, address /*_pToken*/)
@@ -154,7 +154,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
 
     /**
      * @dev Get the current address of the Aave lending pool, which is the gateway to
-     * depositing.
+     *      depositing.
      * @return Current lending pool implementation
      */
     function _getLendingPool()
@@ -169,7 +169,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
 
     /**
      * @dev Get the current address of the Aave lending pool core, which stores all the
-     * reserve tokens in its vault.
+     *      reserve tokens in its vault.
      * @return Current lending pool core address
      */
     function _getLendingPoolCore()
@@ -184,7 +184,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
 
     /**
      * @dev Get the pToken wrapped in the IAaveAToken interface for this bAsset, to use
-     * for withdrawing or balance checking. Fails if the pToken doesn't exist in our mappings.
+     *      for withdrawing or balance checking. Fails if the pToken doesn't exist in our mappings.
      * @param _bAsset  Address of the bAsset
      * @return aToken  Corresponding to this bAsset
      */

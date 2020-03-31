@@ -98,9 +98,9 @@ contract CompoundIntegration is InitializableAbstractIntegration {
 
     /**
      * @dev Get the total bAsset value held in the platform
-     * This includes any interest that was generated since depositing
-     * Compound exchange rate between the cToken and bAsset gradually increases,
-     * causing the cToken to be worth more corresponding bAsset.
+     *      This includes any interest that was generated since depositing
+     *      Compound exchange rate between the cToken and bAsset gradually increases,
+     *      causing the cToken to be worth more corresponding bAsset.
      * @param _bAsset     Address of the bAsset
      * @return balance    Total value of the bAsset in the platform
      */

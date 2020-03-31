@@ -17,6 +17,7 @@ import { StableMath } from "../shared/StableMath.sol";
 import { MassetHelpers } from "./shared/MassetHelpers.sol";
 import { SafeERC20 }  from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
 import { IERC20 }     from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
+import { ReentrancyGuard } from "openzeppelin-solidity/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title   Masset
@@ -30,29 +31,28 @@ contract Masset is IMasset, MassetToken, PausableModule {
     using StableMath for uint256;
     using SafeERC20 for IERC20;
 
-    /** @dev Forging events */
+    // Forging Events
     event Minted(address indexed account, uint256 massetQuantity, address bAsset, uint256 bAssetQuantity);
     event MintedMulti(address indexed account, uint256 massetQuantity, uint256 bitmap, uint256[] bAssetQuantities);
     event Redeemed(address indexed recipient, address redeemer, uint256 massetQuantity, address bAsset, uint256 bAssetQuantity);
     event RedeemedMulti(address indexed recipient, address redeemer, uint256 massetQuantity, uint256 bitmap, uint256[] bAssetQuantities);
     event PaidFee(address payer, uint256 feeQuantity, uint256 feeRate);
 
-    /** @dev State events */
+    // State Events
     event RedemptionFeeChanged(uint256 fee);
     event FeeRecipientChanged(address feePool);
+    event ForgeValidatorChanged(address forgeValidator);
 
-    /** @dev Modules */
+    // Modules and connectors
     IForgeValidator public forgeValidator;
     bool internal forgeValidatorLocked = false;
     IBasketManager private basketManager;
 
-    /** @dev Meta information for ecosystem fees */
+    // Basic redemption fee information
     address public feeRecipient;
     uint256 public redemptionFee;
     uint256 internal constant maxFee = 1e17;
 
-
-    /** @dev constructor */
     constructor (
         string memory _name,
         string memory _symbol,
@@ -101,69 +101,68 @@ contract Masset is IMasset, MassetToken, PausableModule {
     ****************************************/
 
     /**
-     * @dev Mint a single bAsset
-     * @param _basset bAsset address to mint
-     * @param _bassetQuantity bAsset quantity to mint
-     * @return returns the number of newly minted mAssets
+     * @dev Mint a single bAsset, at a 1:1 ratio with the bAsset. This contract
+     *      must have approval to spend the senders bAsset
+     * @param _bAsset         Address of the bAsset to mint
+     * @param _bAssetQuantity Quantity in bAsset units
+     * @return massetMinted   Number of newly minted mAssets
      */
     function mint(
-        address _basset,
-        uint256 _bassetQuantity
+        address _bAsset,
+        uint256 _bAssetQuantity
     )
         external
         whenNotPaused
         returns (uint256 massetMinted)
     {
-        return _mintTo(_basset, _bassetQuantity, msg.sender);
+        return _mintTo(_bAsset, _bAssetQuantity, msg.sender);
     }
 
     /**
-     * @dev Mint a single bAsset
-     * @param _basset bAsset address to mint
-     * @param _bassetQuantity bAsset quantity to mint
+     * @dev Mint a single bAsset, at a 1:1 ratio with the bAsset. This contract
+     *      must have approval to spend the senders bAsset
+     * @param _bAsset         Address of the bAsset to mint
+     * @param _bAssetQuantity Quantity in bAsset units
      * @param _recipient receipient of the newly minted mAsset tokens
-     * @return returns the number of newly minted mAssets
+     * @return massetMinted   Number of newly minted mAssets
      */
     function mintTo(
-        address _basset,
-        uint256 _bassetQuantity,
+        address _bAsset,
+        uint256 _bAssetQuantity,
         address _recipient
     )
         external
         whenNotPaused
         returns (uint256 massetMinted)
     {
-        return _mintTo(_basset, _bassetQuantity, _recipient);
+        return _mintTo(_bAsset, _bAssetQuantity, _recipient);
     }
 
     /**
-     * @dev Mint with bAsset addresses in bitmap
-     * @param _bassetsBitmap bAssets index in bitmap
-     * @param _bassetQuantity bAsset's quantity to send
-     * @return massetMinted returns the number of newly minted mAssets
+     * @dev Mint with multiple bAssets, at a 1:1 ratio to mAsset. This contract
+     *      must have approval to spend the senders bAssets
+     * @param _bAssetsBitmap    Indexes that we should mint with in a bitmap
+     * @param _bAssetQuantity   Quantity of each bAsset to mint
+     * @param _recipient        Address to receive the newly minted mAsset tokens
+     * @return massetMinted     Number of newly minted mAssets
      */
     function mintMulti(
-        uint32 _bassetsBitmap,
-        uint256[] calldata _bassetQuantity,
+        uint32 _bAssetsBitmap,
+        uint256[] calldata _bAssetQuantity,
         address _recipient
     )
         external
         whenNotPaused
         returns(uint256 massetMinted)
     {
-        return _mintTo(_bassetsBitmap, _bassetQuantity, _recipient);
+        return _mintTo(_bAssetsBitmap, _bAssetQuantity, _recipient);
     }
 
     /***************************************
               MINTING (INTERNAL)
     ****************************************/
 
-    /**
-     * @dev Mints a number of Massets based on a Basset user sends
-     * @param _bAsset Address of Basset user sends
-     * @param _bAssetQuantity Exact units of Basset user wants to send to contract
-     * @param _recipient Address to which the Masset should be minted
-     */
+    /** @dev Mint Single */
     function _mintTo(
         address _bAsset,
         uint256 _bAssetQuantity,
@@ -175,7 +174,6 @@ contract Masset is IMasset, MassetToken, PausableModule {
         require(_recipient != address(0), "Recipient must not be 0x0");
         require(_bAssetQuantity > 0, "Quantity must not be 0");
 
-        // 1000
         ForgeProps memory props = basketManager.prepareForgeBasset(_bAsset, true);
         if(!props.isValid) return 0;
 
@@ -202,27 +200,21 @@ contract Masset is IMasset, MassetToken, PausableModule {
         return ratioedBasset;
     }
 
-    /**
-     * @dev Mints a number of Massets based on the sum of the value of the Bassets
-     * @param _bassetsBitmap bits set in bitmap represent position of bAssets to use
-     * @param _bassetQuantity Exact units of Bassets to mint
-     * @param _recipient Address to which the Masset should be minted
-     * @return number of newly minted mAssets
-     */
+    /** @dev Mint Multi */
     function _mintTo(
-        uint32 _bassetsBitmap,
-        uint256[] memory _bassetQuantity,
+        uint32 _bAssetsBitmap,
+        uint256[] memory _bAssetQuantity,
         address _recipient
     )
         internal
         returns (uint256 massetMinted)
     {
         require(_recipient != address(0), "Recipient must not be 0x0");
-        uint256 len = _bassetQuantity.length;
+        uint256 len = _bAssetQuantity.length;
 
         // Load only needed bAssets in array
         ForgePropsMulti memory props
-            = basketManager.prepareForgeBassets(_bassetsBitmap, uint8(len), true);
+            = basketManager.prepareForgeBassets(_bAssetsBitmap, uint8(len), true);
         if(!props.isValid) return 0;
 
         uint256 massetQuantity = 0;
@@ -230,7 +222,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         uint256[] memory receivedQty = new uint256[](len);
         // Transfer the Bassets to the integrator, update storage and calc MassetQ
         for(uint256 i = 0; i < len; i++){
-            uint256 bAssetQuantity = _bassetQuantity[i];
+            uint256 bAssetQuantity = _bAssetQuantity[i];
             if(bAssetQuantity > 0){
                 // bAsset == bAssets[i] == basket.bassets[indexes[i]]
                 Basset memory bAsset = props.bAssets[i];
@@ -257,7 +249,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
 
         // Mint the Masset
         _mint(_recipient, massetQuantity);
-        emit MintedMulti(_recipient, massetQuantity, _bassetsBitmap, _bassetQuantity);
+        emit MintedMulti(_recipient, massetQuantity, _bAssetsBitmap, _bAssetQuantity);
 
         return massetQuantity;
     }
@@ -267,61 +259,67 @@ contract Masset is IMasset, MassetToken, PausableModule {
     ****************************************/
 
     /**
-     * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
-     * @param _bassetQuantity Exact quantities of Bassets to redeem
+     * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset
+     *      quantity from the sender. Sender also incurs a small Masset fee, if any.
+     * @param _bAsset           Address of the bAsset to redeem
+     * @param _bAssetQuantity   Units of the bAsset to redeem
+     * @return massetMinted     Relative number of mAsset units burned to pay for the bAssets
      */
     function redeem(
-        address _basset,
-        uint256 _bassetQuantity
+        address _bAsset,
+        uint256 _bAssetQuantity
     )
         external
         whenNotPaused
         returns (uint256 massetRedeemed)
     {
-        return _redeemTo(_basset, _bassetQuantity, msg.sender);
+        return _redeemTo(_bAsset, _bAssetQuantity, msg.sender);
     }
-
-
-    function redeemTo(
-        address _basset,
-        uint256 _bassetQuantity,
-        address _recipient
-    )
-        external
-        whenNotPaused
-        returns (uint256 massetRedeemed)
-    {
-        return _redeemTo(_basset, _bassetQuantity, _recipient);
-    }
-
 
     /**
-     * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
-     * @param _bassetQuantities Exact quantities of Bassets to redeem
-     * @param _recipient Account to which the redeemed Bassets should be sent
+     * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset
+     *      quantity from the sender. Sender also incurs a small Masset fee, if any.
+     * @param _bAsset           Address of the bAsset to redeem
+     * @param _bAssetQuantity   Units of the bAsset to redeem
+     * @return massetMinted     Relative number of mAsset units burned to pay for the bAssets
      */
-    function redeemMulti(
-        uint32 _bassetsBitmap,
-        uint256[] calldata _bassetQuantities,
+    function redeemTo(
+        address _bAsset,
+        uint256 _bAssetQuantity,
         address _recipient
     )
         external
         whenNotPaused
         returns (uint256 massetRedeemed)
     {
-        return _redeemTo(_bassetsBitmap, _bassetQuantities, _recipient);
+        return _redeemTo(_bAsset, _bAssetQuantity, _recipient);
+    }
+
+    /**
+     * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset
+     *      quantity from the sender. Sender also incurs a small Masset fee, if any.
+     * @param _bAssetsBitmap    Indexes that we should redeem with in a bitmap
+     * @param _bAssetQuantity   Quantity of each bAsset to redeem
+     * @param _recipient        Address to receive the withdrawn bAssets
+     * @return massetMinted     Relative number of mAsset units burned to pay for the bAssets
+     */
+    function redeemMulti(
+        uint32 _bAssetsBitmap,
+        uint256[] calldata _bAssetQuantities,
+        address _recipient
+    )
+        external
+        whenNotPaused
+        returns (uint256 massetRedeemed)
+    {
+        return _redeemTo(_bAssetsBitmap, _bAssetQuantities, _recipient);
     }
 
     /***************************************
               REDEMPTION (INTERNAL)
     ****************************************/
 
-    /**
-     * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
-     * @param _bAsset Addr
-     * @param _bAssetQuantity Exact quantities of Bassets to redeem
-     * @param _recipient Account to which the redeemed Bassets should be sent
-     */
+    /** @dev Redeem Single */
     function _redeemTo(
         address _bAsset,
         uint256 _bAssetQuantity,
@@ -351,7 +349,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         basketManager.decreaseVaultBalance(props.index, props.integrator, _bAssetQuantity);
 
         // Pay the redemption fee
-        _payRedemptionFee(massetQuantity, msg.sender);
+        _payRedemptionFee(massetQuantity);
 
         // Ensure payout is relevant to collateralisation ratio (if ratio is 90%, we burn more)
         massetQuantity = massetQuantity.divPrecisely(colRatio);
@@ -366,21 +364,17 @@ contract Masset is IMasset, MassetToken, PausableModule {
         return massetQuantity;
     }
 
-    /**
-     * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset quantity from the User
-     * @param _bassetQuantities Exact quantities of Bassets to redeem
-     * @param _recipient Account to which the redeemed Bassets should be sent
-     */
+    /** @dev Redeem Multi */
     function _redeemTo(
-        uint32 _bassetsBitmap,
-        uint256[] memory _bassetQuantities,
+        uint32 _bAssetsBitmap,
+        uint256[] memory _bAssetQuantities,
         address _recipient
     )
         internal
         returns (uint256 massetRedeemed)
     {
         require(_recipient != address(0), "Recipient must not be 0x0");
-        uint256 redemptionAssetCount = _bassetQuantities.length;
+        uint256 redemptionAssetCount = _bAssetQuantities.length;
 
         // Fetch high level details
         Basket memory basket = basketManager.getBasket();
@@ -388,19 +382,19 @@ contract Masset is IMasset, MassetToken, PausableModule {
 
         // Load only needed bAssets in array
         ForgePropsMulti memory props
-            = basketManager.prepareForgeBassets(_bassetsBitmap, uint8(redemptionAssetCount), false);
+            = basketManager.prepareForgeBassets(_bAssetsBitmap, uint8(redemptionAssetCount), false);
         if(!props.isValid) return 0;
 
         // Validate redemption
         (bool redemptionValid, string memory reason) =
-            forgeValidator.validateRedemption(basket.failed, totalSupply().mulTruncate(colRatio), props.grace, props.indexes, _bassetQuantities, basket.bassets);
+            forgeValidator.validateRedemption(basket.failed, totalSupply().mulTruncate(colRatio), props.grace, props.indexes, _bAssetQuantities, basket.bassets);
         require(redemptionValid, reason);
 
         uint256 massetQuantity = 0;
 
         // Calc MassetQ and update the Vault
         for(uint256 i = 0; i < redemptionAssetCount; i++){
-            uint256 bAssetQuantity = _bassetQuantities[i];
+            uint256 bAssetQuantity = _bAssetQuantities[i];
             if(bAssetQuantity > 0){
                 // Calc equivalent mAsset amount
                 uint256 ratioedBasset = bAssetQuantity.mulRatioTruncateCeil(props.bAssets[i].ratio);
@@ -412,7 +406,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         }
 
         // Pay the redemption fee
-        _payRedemptionFee(massetQuantity, msg.sender);
+        _payRedemptionFee(massetQuantity);
 
         // Ensure payout is relevant to collateralisation ratio (if ratio is 90%, we burn more)
         massetQuantity = massetQuantity.divPrecisely(colRatio);
@@ -422,22 +416,21 @@ contract Masset is IMasset, MassetToken, PausableModule {
 
         // Transfer the Bassets to the user
         for(uint256 i = 0; i < redemptionAssetCount; i++){
-            if(_bassetQuantities[i] > 0){
-                IPlatformIntegration(props.integrators[i]).withdraw(_recipient, props.bAssets[i].addr, _bassetQuantities[i], props.bAssets[i].isTransferFeeCharged);
+            if(_bAssetQuantities[i] > 0){
+                IPlatformIntegration(props.integrators[i]).withdraw(_recipient, props.bAssets[i].addr, _bAssetQuantities[i], props.bAssets[i].isTransferFeeCharged);
             }
         }
 
-        emit RedeemedMulti(_recipient, msg.sender, massetQuantity, _bassetsBitmap, _bassetQuantities);
+        emit RedeemedMulti(_recipient, msg.sender, massetQuantity, _bAssetsBitmap, _bAssetQuantities);
         return massetQuantity;
     }
 
 
     /**
-     * @dev Pay the forging fee by burning MetaToken
-     * @param _quantity Exact amount of Masset being forged
-     * @param _payer Address who is liable for the fee
+     * @dev Pay the forging fee by burning relative amount of Masset
+     * @param _quantity     Exact amount of Masset being forged
      */
-    function _payRedemptionFee(uint256 _quantity, address _payer)
+    function _payRedemptionFee(uint256 _quantity)
     private {
         uint256 feeRate = redemptionFee;
 
@@ -447,9 +440,9 @@ contract Masset is IMasset, MassetToken, PausableModule {
             // (5e20 * 1e16) / 1e18 = 5e18
             uint256 amountOfMassetSubjectToFee = _quantity.mulTruncate(feeRate);
 
-            _transfer(_payer, feeRecipient, amountOfMassetSubjectToFee);
+            _transfer(msg.sender, feeRecipient, amountOfMassetSubjectToFee);
 
-            emit PaidFee(_payer, amountOfMassetSubjectToFee, feeRate);
+            emit PaidFee(msg.sender, amountOfMassetSubjectToFee, feeRate);
         }
     }
 
@@ -458,7 +451,8 @@ contract Masset is IMasset, MassetToken, PausableModule {
     ****************************************/
 
     /**
-      * @dev Upgrades the version of ForgeValidator protocol
+      * @dev Upgrades the version of ForgeValidator protocol. Governor can do this
+      *      only while ForgeValidator is unlocked.
       * @param _newForgeValidator Address of the new ForgeValidator
       */
     function upgradeForgeValidator(address _newForgeValidator)
@@ -467,31 +461,33 @@ contract Masset is IMasset, MassetToken, PausableModule {
         require(!forgeValidatorLocked, "Must be allowed to upgrade");
         require(_newForgeValidator != address(0), "Must be non null address");
         forgeValidator = IForgeValidator(_newForgeValidator);
+        emit ForgeValidatorChanged(_newForgeValidator);
     }
 
     /**
-      * @dev Locks the ForgeValidator into it's final form
+      * @dev Locks the ForgeValidator into it's final form. Called by Governor
       */
     function lockForgeValidator()
     external
-    managerOrGovernor {
+    onlyGovernor {
         forgeValidatorLocked = true;
     }
 
     /**
-      * @dev Set the recipient address of forge fees
-      * @param _feeRecipient Address of the fee pool
+      * @dev Set the recipient address of redemption fees
+      * @param _feeRecipient Address of the fee recipient
       */
     function setFeeRecipient(address _feeRecipient)
     external
     managerOrGovernor {
         require(_feeRecipient != address(0), "Must be valid address");
         feeRecipient = _feeRecipient;
+
         emit FeeRecipientChanged(_feeRecipient);
     }
 
     /**
-      * @dev Set the ecosystem fee for redeeming a masset
+      * @dev Set the ecosystem fee for redeeming a mAsset
       * @param _redemptionFee Fee calculated in (%/100 * 1e18)
       */
     function setRedemptionFee(uint256 _redemptionFee)
@@ -502,6 +498,10 @@ contract Masset is IMasset, MassetToken, PausableModule {
         emit RedemptionFeeChanged(_redemptionFee);
     }
 
+    /**
+      * @dev Gets the address of the BasketManager for this mAsset
+      * @return basketManager Address
+      */
     function getBasketManager()
     external
     view
@@ -513,6 +513,12 @@ contract Masset is IMasset, MassetToken, PausableModule {
                     INFLATION
     ****************************************/
 
+    /**
+     * @dev Collects the interest generated from the Basket, minting a relative
+     *      amount of mAsset and sending it over to the SavingsManager.
+     * @return totalInterestGained   Equivalent amount of mAsset units that have been generated
+     * @return newSupply             New total mAsset supply
+     */
     function collectInterest()
         external
         onlySavingsManager
@@ -523,7 +529,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
 
         // mint new mAsset to sender
         _mint(msg.sender, interestCollected);
-        emit MintedMulti(msg.sender, interestCollected, bitmap, gains);
+        emit MintedMulti(address(this), interestCollected, bitmap, gains);
 
         return (interestCollected, totalSupply());
     }
