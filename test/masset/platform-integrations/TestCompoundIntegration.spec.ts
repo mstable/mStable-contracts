@@ -403,16 +403,16 @@ contract("CompoundIntegration", async (accounts) => {
             const tx = await d_CompoundIntegration.deposit(bAsset.address, amount, false);
 
             // Step 3. Check for things:
-            // 3.1 Check that cToken has bAssets
-            expect(await bAsset.balanceOf(cToken.address)).bignumber.eq(
-                bAssetRecipient_balBefore.add(amount),
-            );
-            // 3.2 Check that compound integration has cTokens
+            // 3.1 Check that compound integration has cTokens
             const cToken_balanceOfIntegration = await cToken.balanceOf(
                 d_CompoundIntegration.address,
             );
             expect(await convertUnderlyingToCToken(cToken, amount)).to.bignumber.equal(
                 cToken_balanceOfIntegration,
+            );
+            // 3.2 Check that cToken has bAssets
+            expect(await bAsset.balanceOf(cToken.address)).bignumber.eq(
+                bAssetRecipient_balBefore.add(amount),
             );
 
             expectEvent.inLogs(tx.logs, "Deposit", { _amount: amount });
