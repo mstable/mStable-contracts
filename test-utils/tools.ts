@@ -4,6 +4,8 @@ import BN from "bn.js";
 import { simpleToExactAmount } from "./math";
 import { fullScale } from "./constants";
 
+declare var assert;
+
 /**
  *  Convenience method to assert that two BN.js instances are within 100 units of each other.
  *  @param actual The BN.js instance you received

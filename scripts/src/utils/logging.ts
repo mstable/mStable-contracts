@@ -1,7 +1,6 @@
 import { BN } from "@utils/tools";
 import chalk from "chalk";
 import { blockTimestampSimple } from "./time";
-import TransactionResponse = Truffle.TransactionResponse;
 
 export const logBlockTimestamp = async (web3: any, block = "latest") => {
     const timestamp = await blockTimestampSimple(web3, block);
@@ -36,7 +35,7 @@ const sanitizeArgs = (args: object) => {
         .reduce((acc, key) => ({ ...acc, [key]: args[key] }), {});
 };
 
-const logTxResponse = ({ logs }: TransactionResponse) => {
+const logTxResponse = ({ logs }: Truffle.TransactionResponse) => {
     logs.forEach(({ event, args }) => {
         console.log(chalk.gray("Event ") + chalk.italic(event));
         logAndSanitizeArgs(args);
@@ -44,7 +43,7 @@ const logTxResponse = ({ logs }: TransactionResponse) => {
 };
 
 export const logTx = async (
-    txPromise: Promise<TransactionResponse | TransactionResponse[]>,
+    txPromise: Promise<Truffle.TransactionResponse | Truffle.TransactionResponse[]>,
     description: string,
 ) => {
     logSeparator();
