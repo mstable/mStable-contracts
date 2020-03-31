@@ -63,8 +63,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
     )
         MassetToken(
             _name,
-            _symbol,
-            18
+            _symbol
         )
         PausableModule(
             _nexus
@@ -299,7 +298,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
      * @dev Redeems a certain quantity of Bassets, in exchange for burning the relative Masset
      *      quantity from the sender. Sender also incurs a small Masset fee, if any.
      * @param _bAssetsBitmap    Indexes that we should redeem with in a bitmap
-     * @param _bAssetQuantity   Quantity of each bAsset to redeem
+     * @param _bAssetQuantities Quantity of each bAsset to redeem
      * @param _recipient        Address to receive the withdrawn bAssets
      * @return massetMinted     Relative number of mAsset units burned to pay for the bAssets
      */

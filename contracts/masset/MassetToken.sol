@@ -4,24 +4,22 @@ import { ERC20Detailed } from "openzeppelin-solidity/contracts/token/ERC20/ERC20
 import { ERC20 } from "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
 
 /**
- * @title MassetToken
- * @dev Basic Token functionality for Masset
+ * @title  MassetToken
+ * @author Stability Labs Pty. Lte.
+ * @dev    Basic ERC20Detailed Token functionality for Masset
  */
 contract MassetToken is ERC20, ERC20Detailed {
 
-
-    /** @dev constructor - create a burnable, mintable ERC20 token */
     constructor (
         string memory _name,
-        string memory _symbol,
-        uint8 _decimals
+        string memory _symbol
     )
         ERC20Detailed(
             _name,
             _symbol,
-            _decimals
+            18
         )
-        public
+        internal
     { }
 
 

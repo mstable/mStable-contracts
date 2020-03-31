@@ -4,7 +4,7 @@
   "private": true,
   "license": "None",
   "description": "mStable Contracts",
-  "author": "Stability Labs Pty. Ltd.",
+  "author": "Stability Labs Pty. Lte.",
   "scripts": {
     "migrate": "truffle migrate --network development --reset",
     "migrate:rinkeby": "truffle migrate --network rinkeby --reset",
