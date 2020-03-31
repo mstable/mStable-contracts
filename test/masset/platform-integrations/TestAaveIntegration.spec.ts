@@ -910,6 +910,9 @@ contract("AaveIntegration", async (accounts) => {
             await d_AaveIntegration.reApproveAllTokens({
                 from: sa.governor,
             });
+            await d_AaveIntegration.reApproveAllTokens({
+                from: sa.governor,
+            });
         });
         it("should only be callable by the Governor", async () => {
             await shouldFail.reverting.withMessage(
