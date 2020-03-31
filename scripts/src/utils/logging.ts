@@ -1,8 +1,6 @@
 import { BN } from "@utils/tools";
 import chalk from "chalk";
-import { ForgeRewardsMUSDInstance } from "types/generated";
 import { blockTimestampSimple } from "./time";
-import TransactionResponse = Truffle.TransactionResponse;
 
 export const logBlockTimestamp = async (web3: any, block = "latest") => {
     const timestamp = await blockTimestampSimple(web3, block);
@@ -37,7 +35,7 @@ const sanitizeArgs = (args: object) => {
         .reduce((acc, key) => ({ ...acc, [key]: args[key] }), {});
 };
 
-const logTxResponse = ({ logs }: TransactionResponse) => {
+const logTxResponse = ({ logs }: Truffle.TransactionResponse) => {
     logs.forEach(({ event, args }) => {
         console.log(chalk.gray("Event ") + chalk.italic(event));
         logAndSanitizeArgs(args);
@@ -45,7 +43,7 @@ const logTxResponse = ({ logs }: TransactionResponse) => {
 };
 
 export const logTx = async (
-    txPromise: Promise<TransactionResponse | TransactionResponse[]>,
+    txPromise: Promise<Truffle.TransactionResponse | Truffle.TransactionResponse[]>,
     description: string,
 ) => {
     logSeparator();
@@ -68,67 +66,67 @@ export const logTx = async (
     return response;
 };
 
-export const logTrancheData = async (forge: ForgeRewardsMUSDInstance, trancheNumber: string) => {
-    const [
-        startTime,
-        endTime,
-        claimEndTime,
-        unlockTime,
-        totalMintVolume,
-        totalRewardUnits,
-        unclaimedRewardUnits,
-        rewardees,
-    ] = await forge.getTrancheData(trancheNumber);
-    const data = {
-        startTime,
-        endTime,
-        claimEndTime,
-        unlockTime,
-        totalMintVolume,
-        totalRewardUnits,
-        unclaimedRewardUnits,
-        rewardees,
-    };
+// export const logTrancheData = async (forge: ForgeRewardsMUSDInstance, trancheNumber: string) => {
+//     const [
+//         startTime,
+//         endTime,
+//         claimEndTime,
+//         unlockTime,
+//         totalMintVolume,
+//         totalRewardUnits,
+//         unclaimedRewardUnits,
+//         rewardees,
+//     ] = await forge.getTrancheData(trancheNumber);
+//     const data = {
+//         startTime,
+//         endTime,
+//         claimEndTime,
+//         unlockTime,
+//         totalMintVolume,
+//         totalRewardUnits,
+//         unclaimedRewardUnits,
+//         rewardees,
+//     };
 
-    logSeparator();
-    console.log(`Tranche ${trancheNumber} data:`);
-    logObject(data);
+//     logSeparator();
+//     console.log(`Tranche ${trancheNumber} data:`);
+//     logObject(data);
 
-    return data;
-};
+//     return data;
+// };
 
-export const logRewardeeData = async (
-    forge: ForgeRewardsMUSDInstance,
-    trancheNumber: string,
-    account: string,
-): Promise<{
-    claimed: boolean;
-    claimWindowClosed: boolean;
-    mintVolume: BN;
-    mintWindowClosed: boolean;
-    redeemed: boolean;
-    rewardAllocation: BN;
-    unlocked: boolean;
-}> => {
-    const data: {
-        claimed: boolean;
-        claimWindowClosed: boolean;
-        mintVolume: string;
-        mintWindowClosed: boolean;
-        redeemed: boolean;
-        rewardAllocation: string;
-        unlocked: boolean;
-    } = await forge.contract.methods["getRewardeeData(uint256,address)"](
-        trancheNumber,
-        account,
-    ).call();
+// export const logRewardeeData = async (
+//     forge: ForgeRewardsMUSDInstance,
+//     trancheNumber: string,
+//     account: string,
+// ): Promise<{
+//     claimed: boolean;
+//     claimWindowClosed: boolean;
+//     mintVolume: BN;
+//     mintWindowClosed: boolean;
+//     redeemed: boolean;
+//     rewardAllocation: BN;
+//     unlocked: boolean;
+// }> => {
+//     const data: {
+//         claimed: boolean;
+//         claimWindowClosed: boolean;
+//         mintVolume: string;
+//         mintWindowClosed: boolean;
+//         redeemed: boolean;
+//         rewardAllocation: string;
+//         unlocked: boolean;
+//     } = await forge.contract.methods["getRewardeeData(uint256,address)"](
+//         trancheNumber,
+//         account,
+//     ).call();
 
-    data.rewardAllocation = new BN(data.rewardAllocation);
-    data.mintVolume = new BN(data.mintVolume);
+//     data.rewardAllocation = new BN(data.rewardAllocation);
+//     data.mintVolume = new BN(data.mintVolume);
 
-    logSeparator();
-    console.log(`Rewardee data for ${account} in tranche ${trancheNumber}:`);
-    logAndSanitizeArgs(data);
+//     logSeparator();
+//     console.log(`Rewardee data for ${account} in tranche ${trancheNumber}:`);
+//     logAndSanitizeArgs(data);
 
-    return data;
-};
+//     return data;
+// };

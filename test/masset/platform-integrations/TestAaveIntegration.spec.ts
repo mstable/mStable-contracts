@@ -882,7 +882,7 @@ contract("AaveIntegration", async (accounts) => {
         });
         it("should re-approve ALL bAssets with aTokens", async () => {
             const bassetsMapped = await d_AaveIntegration.getBassetsMapped();
-            expect(bassetsMapped.length).to.be.gt(0);
+            expect(bassetsMapped.length).to.be.gt(0 as any);
 
             const addressProvider = await c_AaveLendingPoolAddressProvider.at(
                 integrationDetails.aavePlatformAddress,
@@ -906,10 +906,6 @@ contract("AaveIntegration", async (accounts) => {
         it("should be able to be called multiple times", async () => {
             const bassetsMapped = await d_AaveIntegration.getBassetsMapped();
             expect(bassetsMapped.length).to.be.gt(0);
-
-            await d_AaveIntegration.reApproveAllTokens({
-                from: sa.governor,
-            });
 
             await d_AaveIntegration.reApproveAllTokens({
                 from: sa.governor,
