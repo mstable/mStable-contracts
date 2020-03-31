@@ -124,7 +124,7 @@ Example usage:
 * Mint 100 MUSD: `yarn script mint 100`
 * Redeem 100 of the MUSD basset at index 0 (USDT): `yarn redeem-basset 0 100`
 * Deposit 100 mUSD into savings: `yarn deposit-savings 100`
-* Travel through time (forwards only, sorry): `yaren script time-travel 1 year`
+* Travel through time (forwards only, sorry): `yarn script time-travel 1 year`
 
 ### Coverage
 
