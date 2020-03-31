@@ -4,7 +4,7 @@
 import * as t from "types/generated";
 import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
 import { increase } from "openzeppelin-test-helpers/src/time";
-import { BN, assertBNClose, assertBNSlightlyGT } from "@utils/tools";
+import { BN, assertBNClose, assertBNSlightlyGT, assertBNSlightlyGTPercent } from "@utils/tools";
 import { StandardAccounts, SystemMachine, MassetMachine } from "@utils/machines";
 import {
     MainnetAccounts,
@@ -44,6 +44,21 @@ const c_InitializableProxy: t.InitializableAdminUpgradeabilityProxyContract = ar
 const c_CompoundIntegration: t.MockCompoundIntegrationContract = artifacts.require(
     "MockCompoundIntegration",
 );
+
+const convertUnderlyingToCToken = async (
+    cToken: t.ICERC20Instance,
+    underlyingAmount: BN,
+): Promise<BN> => {
+    const exchangeRate = await cToken.exchangeRateStored();
+    return underlyingAmount.mul(fullScale).div(exchangeRate);
+};
+const convertCTokenToUnderlying = async (
+    cToken: t.ICERC20Instance,
+    cTokenAmount: BN,
+): Promise<BN> => {
+    const exchangeRate = await cToken.exchangeRateStored();
+    return cTokenAmount.mul(exchangeRate).div(fullScale);
+};
 
 contract("CompoundIntegration", async (accounts) => {
     const sa = new StandardAccounts(accounts);
@@ -380,7 +395,6 @@ contract("CompoundIntegration", async (accounts) => {
 
             // Step 1. xfer tokens to integration
             await bAsset.transfer(d_CompoundIntegration.address, amount);
-
             expect(user_bAsset_balanceBefore.sub(amount)).to.bignumber.equal(
                 await bAsset.balanceOf(sa.default),
             );
@@ -397,9 +411,9 @@ contract("CompoundIntegration", async (accounts) => {
             const cToken_balanceOfIntegration = await cToken.balanceOf(
                 d_CompoundIntegration.address,
             );
-            const exchangeRate = await cToken.exchangeRateStored();
-            const expected_cTokens = amount.mul(new BN(10).pow(new BN(18))).div(exchangeRate);
-            expect(expected_cTokens).to.bignumber.equal(cToken_balanceOfIntegration);
+            expect(await convertUnderlyingToCToken(cToken, amount)).to.bignumber.equal(
+                cToken_balanceOfIntegration,
+            );
 
             expectEvent.inLogs(tx.logs, "Deposit", { _amount: amount });
         });
@@ -447,25 +461,16 @@ contract("CompoundIntegration", async (accounts) => {
             const compoundIntegration_balAfter = await cToken.balanceOf(
                 d_CompoundIntegration.address,
             );
+            const expected_cTokens = await convertUnderlyingToCToken(cToken, receivedAmount);
+            assertBNSlightlyGTPercent(compoundIntegration_balAfter, expected_cTokens, "0.01");
 
-            const exchangeRate = await cToken.exchangeRateStored();
-            const expected_cTokens = amount.mul(new BN(10).pow(new BN(18))).div(exchangeRate);
-            const cTokenAfterFeeDeduction = expected_cTokens.sub(
-                expected_cTokens.mul(transferFeeScale).div(fullScale),
-            );
-            expect(cTokenAfterFeeDeduction).to.bignumber.equal(compoundIntegration_balAfter);
-            // ======
-            expect(compoundIntegration_balAfter).bignumber.lte(compoundIntegration_balBefore.add(
-                receivedAmount,
-            ) as any);
-            expect(compoundIntegration_balAfter).bignumber.gte(compoundIntegration_balBefore.add(
-                expectedDeposit,
-            ) as any);
             // 3.3 Check that return value is cool (via event)
-            const receivedATokens = compoundIntegration_balAfter.sub(compoundIntegration_balBefore);
+            const receivedUnderlying = await convertCTokenToUnderlying(
+                cToken,
+                compoundIntegration_balAfter,
+            );
 
-            const min = receivedATokens.lt(receivedAmount) ? receivedATokens : receivedAmount;
-            // TODO calculate and check min amount in the logs
+            const min = receivedAmount.lt(receivedUnderlying) ? receivedAmount : receivedUnderlying;
             expectEvent.inLogs(tx.logs, "Deposit", { _amount: min });
         });
 
@@ -564,8 +569,7 @@ contract("CompoundIntegration", async (accounts) => {
             const cToken_balanceOfIntegration = await cToken.balanceOf(
                 d_CompoundIntegration.address,
             );
-            const exchangeRate = await cToken.exchangeRateStored();
-            const expected_cTokens = amount.mul(new BN(10).pow(new BN(18))).div(exchangeRate);
+            const expected_cTokens = await convertUnderlyingToCToken(cToken, amount);
             expect(expected_cTokens).to.bignumber.equal(cToken_balanceOfIntegration);
 
             // 3.3 Check that return value is cool (via event)
@@ -605,22 +609,30 @@ contract("CompoundIntegration", async (accounts) => {
             // 3.2 Check that compound integration has cTokens
             let cToken_balanceOfIntegration = await cToken.balanceOf(d_CompoundIntegration.address);
             const exchangeRate = await cToken.exchangeRateStored();
-            const expected_cTokens = amount.mul(new BN(10).pow(new BN(18))).div(exchangeRate);
+            const expected_cTokens = amount.mul(fullScale).div(exchangeRate);
             expect(expected_cTokens).to.bignumber.equal(cToken_balanceOfIntegration);
 
             expectEvent.inLogs(tx.logs, "Deposit", { _amount: amount });
 
+            // 4. Call withdraw
             await d_CompoundIntegration.withdraw(sa.default, bAsset.address, amount, false);
+            const expected_cTokenWithdrawal = await convertUnderlyingToCToken(cToken, amount);
 
+            // 5. Check stuff
+            // 5.1 Check that bAsset has returned to the user
             const user_bAsset_balanceAfter = await bAsset.balanceOf(sa.default);
             expect(user_bAsset_balanceAfter).to.bignumber.equal(user_bAsset_balanceBefore);
 
-            cToken_balanceOfIntegration = await cToken.balanceOf(d_CompoundIntegration.address);
-            expect(new BN(0)).to.bignumber.equal(cToken_balanceOfIntegration);
+            // 5.2 Check that bAsset has returned to the user
+            let cToken_balanceOfIntegrationAfter = await cToken.balanceOf(
+                d_CompoundIntegration.address,
+            );
+            expect(cToken_balanceOfIntegrationAfter).bignumber.eq(
+                cToken_balanceOfIntegration.sub(expected_cTokenWithdrawal),
+            );
         });
 
         it("should handle the fee calculations", async () => {
-            /*
             await runSetup(true, true);
 
             // should deduct the transfer fee from the return value
@@ -653,23 +665,25 @@ contract("CompoundIntegration", async (accounts) => {
             const amountScaled = amount.mul(scale);
             const expectedAmount = amountScaled.div(fullScale);
             // Step 2. Validate recipient
-            expect(bAssetRecipient_balAfter).bignumber.gte(bAssetRecipient_balBefore.add(
-                expectedAmount,
-            ) as any);
-            expect(bAssetRecipient_balAfter).bignumber.lte(bAssetRecipient_balBefore.add(
-                amount,
-            ) as any);
-            expect(compoundIntegration_balAfter).bignumber.eq(compoundIntegration_balBefore.sub(
-                amount,
-            ) as any);
+            expect(bAssetRecipient_balAfter).bignumber.gte(
+                bAssetRecipient_balBefore.add(expectedAmount) as any,
+            );
+            expect(bAssetRecipient_balAfter).bignumber.lte(
+                bAssetRecipient_balBefore.add(amount) as any,
+            );
+            expect(compoundIntegration_balAfter).bignumber.eq(
+                compoundIntegration_balBefore.sub(
+                    await convertUnderlyingToCToken(cToken, amount),
+                ) as any,
+            );
             const expectedBalance = compoundIntegration_balBefore.sub(amount);
-            assertBNSlightlyGT(compoundIntegration_balAfter, expectedBalance, new BN("100"));
+            assertBNSlightlyGTPercent(compoundIntegration_balAfter, expectedBalance, "0.1");
+            let underlyingBalance = await convertCTokenToUnderlying(cToken, compoundIntegration_balAfter);
             // Cross that match with the `checkBalance` call
             const checkBalanceTx = await d_CompoundIntegration.logBalance(bAsset.address);
             expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", {
-                balance: compoundIntegration_balAfter,
+                balance: underlyingBalance,
             });
-            */
         });
 
         it("should only allow a whitelisted user to call function", async () => {
@@ -774,11 +788,15 @@ contract("CompoundIntegration", async (accounts) => {
                 d_CompoundIntegration.address,
             );
             expect(compoundIntegration_balBefore).bignumber.gt(new BN(0) as any);
+            let underlyingBalanceBefore = await convertCTokenToUnderlying(
+                cToken,
+                compoundIntegration_balBefore,
+            );
             // Cross that match with the `checkBalance` call
-            let checkBalanceTx = await d_CompoundIntegration.logBalance(bAsset.address);
-            expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", {
-                balance: compoundIntegration_balBefore,
-            });
+            // let checkBalanceTx = await d_CompoundIntegration.logBalance(bAsset.address);
+            // expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", {
+            //     balance: underlyingBalanceBefore,
+            // });
 
             // 2. Simulate some external activity by depositing or redeeming
             // DIRECTlY to the LendingPool.
@@ -798,23 +816,22 @@ contract("CompoundIntegration", async (accounts) => {
                 d_CompoundIntegration.address,
             );
             // Should not go up by more than 2% during this period
-            assertBNSlightlyGT(
+            let underlyingBalanceAfter = await convertCTokenToUnderlying(
+                cToken,
                 compoundIntegration_balAfter,
-                compoundIntegration_balBefore,
-                compoundIntegration_balBefore.div(new BN(50)),
-                true,
             );
+            assertBNSlightlyGTPercent(underlyingBalanceAfter, underlyingBalanceBefore, "2", true);
             // Cross that match with the `checkBalance` call
-            checkBalanceTx = await d_CompoundIntegration.logBalance(bAsset.address);
+            let checkBalanceTx = await d_CompoundIntegration.logBalance(bAsset.address);
             expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", {
-                balance: compoundIntegration_balAfter,
+                balance: underlyingBalanceAfter,
             });
 
             // 4. Withdraw our new interested - we worked hard for it!
             await d_CompoundIntegration.withdraw(
                 sa.default,
                 bAsset.address,
-                compoundIntegration_balAfter,
+                underlyingBalanceAfter,
                 false,
             );
         });
