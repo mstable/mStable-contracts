@@ -11,6 +11,7 @@ import {
     ZERO_ADDRESS,
     MAX_UINT256,
     fullScale,
+    transferFeeScale,
     ZERO,
     ONE_WEEK,
 } from "@utils/constants";
@@ -446,6 +447,14 @@ contract("CompoundIntegration", async (accounts) => {
             const compoundIntegration_balAfter = await cToken.balanceOf(
                 d_CompoundIntegration.address,
             );
+
+            const exchangeRate = await cToken.exchangeRateStored();
+            const expected_cTokens = amount.mul(new BN(10).pow(new BN(18))).div(exchangeRate);
+            const cTokenAfterFeeDeduction = expected_cTokens.sub(
+                expected_cTokens.mul(transferFeeScale).div(fullScale),
+            );
+            expect(cTokenAfterFeeDeduction).to.bignumber.equal(compoundIntegration_balAfter);
+            // ======
             expect(compoundIntegration_balAfter).bignumber.lte(compoundIntegration_balBefore.add(
                 receivedAmount,
             ) as any);
@@ -456,8 +465,8 @@ contract("CompoundIntegration", async (accounts) => {
             const receivedATokens = compoundIntegration_balAfter.sub(compoundIntegration_balBefore);
 
             const min = receivedATokens.lt(receivedAmount) ? receivedATokens : receivedAmount;
-            // TODO check min in logs
-            expectEvent.inLogs(tx.logs, "Deposit");
+            // TODO calculate and check min amount in the logs
+            expectEvent.inLogs(tx.logs, "Deposit", { _amount: min });
         });
 
         it("should only allow a whitelisted user to call function", async () => {
@@ -611,8 +620,9 @@ contract("CompoundIntegration", async (accounts) => {
         });
 
         it("should handle the fee calculations", async () => {
-            await runSetup(true, true);
             /*
+            await runSetup(true, true);
+
             // should deduct the transfer fee from the return value
             const bAsset = await c_ERC20.at(integrationDetails.cTokens[2].bAsset);
             const bAsset_decimals = await bAsset.decimals();
