@@ -21,9 +21,7 @@ contract DelayedProxyAdmin is Module {
     event UpgradeCancelled(address indexed proxy);
     event Upgraded(address indexed proxy, address oldImpl, address newImpl, bytes data);
 
-    /**
-     * @dev Request struct to store proposed upgrade requests
-     */
+    // Request struct to store proposed upgrade requests
     struct Request{
         address implementation; // New contract implementation address
         bytes data;             // Data to call a function on new contract implementation

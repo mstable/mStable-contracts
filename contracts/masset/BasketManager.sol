@@ -17,8 +17,11 @@ import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import { StableMath } from "../shared/StableMath.sol";
 
 /**
- * @title   MassetBasket
- * @notice  Manages the Masset Basket composition and acts as a cache to store the Basket Assets (Bassets)
+ * @title   BasketManager
+ * @notice  Manages the Basket composition for a particular mAsset. Feeds all required
+ *          basket data to the mAsset and is responsible for keeping accurate data.
+ *          BasketManager can also optimise lending pool integrations and perform
+ *          re-collateralisation on failed bAssets.
  * @dev     VERSION: 1.0
  *          DATE:    2020-03-26
  */
@@ -28,18 +31,19 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
     using StableMath for uint256;
     using SafeERC20 for IERC20;
 
-    /** @dev Basket composition events */
+    // Events for Basket composition changes
     event BassetAdded(address indexed basset, address integrator);
     event BassetRemoved(address indexed basset);
     event BasketWeightsUpdated(address[] indexed bassets, uint256[] targetWeights);
 
-    /** @dev mAsset linked to the manager (const) */
+    // mAsset linked to the manager (const)
     address public mAsset;
 
-    /** @dev Struct holding Basket details */
+    // Struct holding Basket details
     Basket public basket;
+    // Variable used to determine deviation threshold in ForgeValidator
     uint256 public grace;
-    // Mapping holds bAsset token address => index
+    // Mapping holds bAsset token address => array index
     mapping(address => uint8) private bassetsMap;
     // Holds relative addresses of the integration platforms
     mapping(uint8 => address) public integrations;
@@ -47,6 +51,13 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
     /**
      * @dev Initialization function for upgradable proxy contract.
      *      This function should be called via Proxy just after contract deployment.
+     * @param _nexus            Address of system Nexus
+     * @param _mAsset           Address of the mAsset whose Basket to manage
+     * @param _grace            Deviation allowance for ForgeValidator
+     * @param _bassets          Array of erc20 bAsset addresses
+     * @param _integrators      Matching array of the platform intergations for bAssets
+     * @param _weights          Weightings of each bAsset, summing to 1e18
+     * @param _hasTransferFees  Bool signifying if this bAsset has xfer fees
      */
     function initialize(
         address _nexus,
@@ -64,7 +75,8 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
 
         mAsset = _mAsset;
         grace = _grace;
-        // require(_bassets.length > 0, "Must initialise with some bAssets");
+
+        require(_bassets.length > 0, "Must initialise with some bAssets");
 
         // Defaults
         basket.maxBassets = 16;               // 16
@@ -81,6 +93,9 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
         _setBasketWeights(_bassets, _weights);
     }
 
+    /**
+     * @dev Requires the overall basket composition to be healthy
+     */
     modifier basketIsHealthy(){
         require(!basket.failed, "Basket must be alive");
         _;
@@ -95,7 +110,7 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
     }
 
     /**
-      * @dev Verifies that the caller either Manager or Gov
+      * @dev Verifies that the caller is target mAsset
       */
     modifier onlyMasset() {
         require(mAsset == msg.sender, "Must be called by mAsset");
@@ -106,7 +121,10 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
                     VAULT BALANCE
     ****************************************/
 
-    // Can only be done when basket is healthy - this avoids minting after basket failure
+    /**
+     * @notice Called by the mAsset to signal that bAssets have been added to the vault
+     * @dev Called by only mAsset, and only when the basket is healthy
+     */
     function increaseVaultBalance(uint8 _bAsset, address /* _integrator */, uint256 _increaseAmount)
         external
         onlyMasset

@@ -175,6 +175,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         require(_recipient != address(0), "Recipient must not be 0x0");
         require(_bAssetQuantity > 0, "Quantity must not be 0");
 
+        // 1000
         ForgeProps memory props = basketManager.prepareForgeBasset(_bAsset, true);
         if(!props.isValid) return 0;
 
