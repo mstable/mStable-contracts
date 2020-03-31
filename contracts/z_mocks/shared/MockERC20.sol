@@ -13,12 +13,11 @@ contract MockERC20 is ERC20, ERC20Detailed, ERC20Mintable {
         address _initialRecipient,
         uint256 _initialMint
     )
-        ERC20Detailed
-    (
-        _name,
-        _symbol,
-        _decimals
-    )
+        ERC20Detailed(
+            _name,
+            _symbol,
+            _decimals
+        )
         public
     {
         _mint(_initialRecipient, _initialMint.mul(10 ** uint256(_decimals)));

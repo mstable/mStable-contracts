@@ -10,7 +10,7 @@ export const createMultiple = (ratio: number): BN => {
     return new BN(ratio).mul(ratioScale);
 };
 
-export const simpleToExactAmount = (amount: number | string, decimals: number | BN): BN => {
+export const simpleToExactAmount = (amount: number | string | BN, decimals: number | BN): BN => {
     // Code is largely lifted from the guts of web3 toWei here:
     // https://github.com/ethjs/ethjs-unit/blob/master/src/index.js
     let amountString = amount.toString();
@@ -101,5 +101,5 @@ export const exactToSimpleAmount = (amount: BN, decimals: number | BN): BN => {
 };
 
 export const applyRatioMassetToBasset = (input: BN, ratio: BN): BN => {
-    return input.mul(ratioScale).div(ratio);
+    return input.mul(ratioScale).div(new BN(ratio));
 };
