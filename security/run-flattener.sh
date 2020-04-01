@@ -9,7 +9,7 @@
 trap "exit" INT
 
 # Run sol-merger on all contracts. The command needs all contracts
-sol-merger "../contracts/**/*.sol" ./flat
+sol-merger "contracts/**/*.sol" ./flat
 
 MOCK='Mock'
 

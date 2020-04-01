@@ -19,7 +19,8 @@
     "compile": "truffle compile --all",
     "generate-typings": "rimraf ./types/generated && typechain --target 'truffle-v5' --outDir types/generated './build/contracts/*.json'",
     "prettify": "prettier --write test/*.ts test/**/*.ts types/generated/*.ts types/*.ts artifacts/*.ts",
-    "flatten": "sol-merger \"./contracts/**/*.sol\" ./flat"
+    "flatten": "sol-merger \"./contracts/**/*.sol\" ./flat",
+    "slither-exec": "security/run-slither.sh"
   },
   "repository": "gitlab:mstable/mstable-contracts",
   "devDependencies": {
