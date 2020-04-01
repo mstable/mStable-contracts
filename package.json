@@ -22,6 +22,9 @@
     "flatten": "sol-merger \"./contracts/**/*.sol\" ./flat"
   },
   "repository": "gitlab:mstable/mstable-contracts",
+  "dependencies": {
+    "sol-merger": "^2.0.1"
+  },
   "devDependencies": {
     "@openzeppelin/upgrades": "2.7.2",
     "@truffle/hdwallet-provider": "^1.0.18",
@@ -53,10 +56,9 @@
     "openzeppelin-test-helpers": "0.3.1",
     "parse-duration": "^0.1.2",
     "prettier": "^1.18.2",
-    "sol-merger": "^2.0.1",
     "solc": "0.5.16",
     "solidity-coverage": "^0.7.1",
-    "truffle": "^5.1.11",
+    "truffle": "^5.1.19",
     "truffle-typings": "^1.0.8",
     "ts-node": "^8.4.1",
     "tsconfig-paths": "^3.9.0",

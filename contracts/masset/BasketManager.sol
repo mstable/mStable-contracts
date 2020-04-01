@@ -425,7 +425,7 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
       * @param _token     Address of the bAsset
       * @return props     Struct of all relevant Forge information
       */
-    function prepareForgeBasset(address _token, bool /*_mint*/)
+    function prepareForgeBasset(address _token, uint256 /*_amt*/, bool /*_mint*/)
         external
         returns (
             ForgeProps memory props
@@ -452,6 +452,7 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
     function prepareForgeBassets(
         uint32 _bitmap,
         uint8 _size,
+        uint256[] calldata /*_amts*/,
         bool /* _isMint */
     )
         external

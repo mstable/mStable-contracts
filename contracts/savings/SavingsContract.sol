@@ -12,30 +12,41 @@ import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import { StableMath } from "../shared/StableMath.sol";
 
+
 /**
- * @title SavingsContract
+ * @title   SavingsContract
+ * @author  Stability Labs Pty. Lte.
+ * @notice  Savings contract uses the ever increasing "exchangeRate" to increase
+ *          the value of the Savers "credits" relative to the amount of additional
+ *          underlying collateral that has been deposited into this contract ("interest")
+ * @dev     VERSION: 1.0
+ *          DATE:    2020-03-28
  */
 contract SavingsContract is ISavingsContract, Module {
 
     using SafeMath for uint256;
     using StableMath for uint256;
 
-    event AutomaticInterestCollectionSwitched(bool automationEnabled);
-
+    // Core events for depositing and withdrawing
     event ExchangeRateUpdated(uint256 newExchangeRate, uint256 interestCollected);
     event SavingsDeposited(address indexed saver, uint256 savingsDeposited, uint256 creditsIssued);
     event CreditsRedeemed(address indexed redeemer, uint256 creditsRedeemed, uint256 savingsCredited);
+    event AutomaticInterestCollectionSwitched(bool automationEnabled);
 
+    // Underlying asset is mUSD
     IERC20 private mUSD;
 
-    uint256 public totalSavings; // Amount of mUSD saved in the contract
-    uint256 public totalCredits; // Total number of savings credits issued
+    // Amount of underlying savings in the contract
+    uint256 public totalSavings;
+    // Total number of savings credits issued
+    uint256 public totalCredits;
 
     // Rate between 'savings credits' and mUSD
-    // e.g. 1 credit (1e18) mul exchangeRate / 1e18 = mUSD, starts at 1:1
+    // e.g. 1 credit (1e18) mulTruncate(exchangeRate) = mUSD, starts at 1:1
     // exchangeRate increases over time and is essentially a percentage based value
     uint256 public exchangeRate = 1e18;
-    mapping(address => uint256) public creditBalances; // Amount of credits for each saver
+    // Amount of credits for each saver
+    mapping(address => uint256) public creditBalances;
     bool private automateInterestCollection = true;
 
     constructor(
@@ -48,7 +59,7 @@ contract SavingsContract is ISavingsContract, Module {
         mUSD = _mUSD;
     }
 
-
+    /** @dev Only the savings managaer (pulled from Nexus) can execute this */
     modifier onlySavingsManager() {
         require(msg.sender == _savingsManager(), "Only savings manager can execute");
         _;
@@ -68,8 +79,11 @@ contract SavingsContract is ISavingsContract, Module {
     ****************************************/
 
     /**
-     * @dev Deposit interest and update exchange rate of contract
-     *         New exchange rate = savings / credits
+     * @dev Deposit interest (add to savings) and update exchange rate of contract.
+     *      Exchange rate is calculated as the ratio between new savings q and credits:
+     *                    exchange rate = savings / credits
+     *
+     * @param _amount   Units of underlying to add to the savings vault
      */
     function depositInterest(uint256 _amount)
         external
@@ -99,7 +113,15 @@ contract SavingsContract is ISavingsContract, Module {
                     SAVING
     ****************************************/
 
-    /** @dev Add savings to the savings contract */
+    /**
+     * @dev Deposit the senders savings to the vault, and credit them internally with "credits".
+     *      Credit amount is calculated as a ratio of deposit amount and exchange rate:
+     *                    credits = underlying / exchangeRate
+     *      If automation is enabled, we will first update the internal exchange rate by
+     *      collecting any interest generated on the underlying.
+     * @param _amount          Units of underlying to deposit into savings vault
+     * @return creditsIssued   Units of credits issued internally
+     */
     function depositSavings(uint256 _amount)
         external
         returns (uint256 creditsIssued)
@@ -125,10 +147,12 @@ contract SavingsContract is ISavingsContract, Module {
         emit SavingsDeposited(msg.sender, _amount, creditsIssued);
     }
 
-
     /**
-     * @dev Redeem number of credits
-     * @param _credits Amount of credits to redeem
+     * @dev Redeem specific number of the senders "credits" in exchange for underlying.
+     *      Payout amount is calculated as a ratio of credits and exchange rate:
+     *                    payout = credits * exchangeRate
+     * @param _credits         Amount of credits to redeem
+     * @return massetReturned  Units of underlying mAsset paid out
      */
     function redeem(uint256 _credits)
         external

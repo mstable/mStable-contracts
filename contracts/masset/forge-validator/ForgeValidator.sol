@@ -258,7 +258,7 @@ contract ForgeValidator is IForgeValidator {
         response = OverWeightBassetsResponse({
             isValid: true,
             reason: "",
-            isOverWeight: new bool[](len),
+        isOverWeight: new bool[](len),
             ratioedBassetVaults: new uint256[](len),
             atLeastOneOverweight: false
         });

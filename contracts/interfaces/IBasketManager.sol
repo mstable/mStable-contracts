@@ -24,9 +24,9 @@ contract IBasketManager is MassetStructs {
 
     /** @dev Getters to retrieve Basket information */
     function getBasket() external view returns (Basket memory b);
-    function prepareForgeBasset(address _token, bool _mint) external
+    function prepareForgeBasset(address _token, uint256 _amt, bool _mint) external
         returns (ForgeProps memory props);
-    function prepareForgeBassets(uint32 _bitmap, uint8 _size, bool _mint) external
+    function prepareForgeBassets(uint32 _bitmap, uint8 _size, uint256[] calldata _amts, bool _mint) external
         returns (ForgePropsMulti memory props);
     function getBasset(address _token) external view returns (Basset memory bAsset);
     function getBassets() external view returns (Basset[] memory bAssets, uint32 bitmap, uint256 len);

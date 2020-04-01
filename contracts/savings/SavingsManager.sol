@@ -15,7 +15,12 @@ import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import { StableMath } from "../shared/StableMath.sol";
 
 /**
- * @title SavingsManager
+ * @title   SavingsManager
+ * @author  Stability Labs Pty. Lte.
+ * @notice  Savings Manager collects interest from mAssets and sends them to the
+ *          corresponding Savings Contract, performing some validation in the process.
+ * @dev     VERSION: 1.0
+ *          DATE:    2020-03-28
  */
 contract SavingsManager is ISavingsManager, PausableModule {
 
@@ -23,8 +28,10 @@ contract SavingsManager is ISavingsManager, PausableModule {
     using StableMath for uint256;
     using SafeERC20 for IERC20;
 
+    // Core admin events
     event SavingsContractEnabled(address indexed mAsset, address savingsContract);
     event SavingsRateChanged(uint256 newSavingsRate);
+    // Interest collection
     event InterestCollected(address indexed mAsset, uint256 interest, uint256 newTotalSupply, uint256 apy);
     event InterestDistributed(address indexed mAsset, uint256 amountSent);
     event InterestWithdrawnByGovernor(address indexed mAsset, address recipient, uint256 amount);
@@ -34,11 +41,11 @@ contract SavingsManager is ISavingsManager, PausableModule {
     // Time at which last collection was made
     mapping(address => uint256) public lastCollection;
 
-    // Amount of collected interest that will be send to Savings Contract
+    // Amount of collected interest that will be sent to Savings Contract
     uint256 private savingsRate = 1e18;
     // Utils to help keep interest under check
     uint256 constant private secondsInYear = 365 days;
-    // Put a theoretical cap on max APY at 50%
+    // Theoretical cap on APY at 50% to avoid excess inflation
     uint256 constant private maxAPY = 50e16;
 
     constructor(
@@ -49,8 +56,9 @@ contract SavingsManager is ISavingsManager, PausableModule {
         PausableModule(_nexus)
         public
     {
-        savingsContracts[_mUSD] = _savingsContract;
         IERC20(_mUSD).approve(address(_savingsContract), uint256(-1));
+
+        savingsContracts[_mUSD] = _savingsContract;
         emit SavingsContractEnabled(_mUSD, address(_savingsContract));
     }
 
@@ -58,6 +66,11 @@ contract SavingsManager is ISavingsManager, PausableModule {
                     STATE
     ****************************************/
 
+    /**
+     * @dev Enables a new savings contract, either by replacement or upgrade
+     * @param _mAsset           Address of underlying mAsset
+     * @param _savingsContract  Address of the savings contract
+     */
     function setSavingsContract(address _mAsset, address _savingsContract)
         external
         onlyGovernor
@@ -71,11 +84,15 @@ contract SavingsManager is ISavingsManager, PausableModule {
         emit SavingsContractEnabled(_mAsset, _savingsContract);
     }
 
+    /**
+     * @dev Sets a new savings rate for interest distribution
+     * @param _savingsRate   Rate of savings sent to SavingsContract (100% = 1e18)
+     */
     function setSavingsRate(uint256 _savingsRate)
         external
         onlyGovernor
     {
-        require(_savingsRate > 50e16 && _savingsRate <= 1e18, "Must be a valid rate");
+        require(_savingsRate > 9e17 && _savingsRate <= 1e18, "Must be a valid rate");
         savingsRate = _savingsRate;
         emit SavingsRateChanged(_savingsRate);
     }
@@ -84,24 +101,31 @@ contract SavingsManager is ISavingsManager, PausableModule {
                 COLLECTION
     ****************************************/
 
+    /**
+     * @dev Collects interest from a target mAsset and distributes to the SavingsContract.
+     *      Applies constraints such that the max APY since the last fee collection cannot
+     *      exceed the "maxAPY" variable.
+     * @param _mAsset       mAsset for which the interest should be collected
+     */
     function collectAndDistributeInterest(address _mAsset)
         external
         whenNotPaused
     {
         uint256 previousCollection = lastCollection[_mAsset];
 
-        // Only collect interest if it has been 30 mins
+        // 1. Only collect interest if it has been 30 mins
         uint256 timeSinceLastCollection = now.sub(previousCollection);
         if(timeSinceLastCollection > 30 minutes){
 
             lastCollection[_mAsset] = now;
 
+            // 2. Collect the new interest from the mAsset
             IMasset mAsset = IMasset(_mAsset);
             (uint256 interestCollected, uint256 totalSupply) = mAsset.collectInterest();
 
             if(interestCollected > 0){
 
-                // 1. Validate that the interest has been collected and is within certain limits
+                // 3. Validate that the interest has been collected and is within certain limits
                 require(IERC20(_mAsset).balanceOf(address(this)) >= interestCollected, "Must recceive mUSD");
 
                 // Seconds since last collection
@@ -118,12 +142,14 @@ contract SavingsManager is ISavingsManager, PausableModule {
 
                 emit InterestCollected(_mAsset, interestCollected, totalSupply, extrapolatedAPY);
 
-                // 2. Distribute the interest
+                // 4. Distribute the interest
                 // Calculate the share for savers (95e16 or 95%)
                 uint256 saversShare = interestCollected.mulTruncate(savingsRate);
 
                 // Call depositInterest on contract
                 ISavingsContract target = savingsContracts[_mAsset];
+                require(address(target) != address(0), "Must have a valid savings contract");
+
                 target.depositInterest(saversShare);
 
                 emit InterestDistributed(_mAsset, saversShare);
@@ -137,6 +163,12 @@ contract SavingsManager is ISavingsManager, PausableModule {
                 MANAGEMENT
     ****************************************/
 
+    /**
+     * @dev Withdraws any unallocated interest, i.e. that which has been saved for use
+     *      elsewhere in the system, based on the savingsRate
+     * @param _mAsset       mAsset to collect from
+     * @param _recipient    Address of mAsset recipient
+     */
     function withdrawUnallocatedInterest(address _mAsset, address _recipient)
         external
         onlyGovernor
