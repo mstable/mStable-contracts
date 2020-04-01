@@ -103,3 +103,7 @@ export const exactToSimpleAmount = (amount: BN, decimals: number | BN): BN => {
 export const applyRatioMassetToBasset = (input: BN, ratio: BN): BN => {
     return input.mul(ratioScale).div(new BN(ratio));
 };
+
+export const applyRatio = (bAssetQ: BN, ratio: BN): BN => {
+    return bAssetQ.mul(ratio).div(ratioScale);
+};

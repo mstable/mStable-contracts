@@ -4,7 +4,7 @@ import { expectEvent, shouldFail } from "openzeppelin-test-helpers";
 import { keccak256 } from "web3-utils";
 
 import { MassetMachine, StandardAccounts, SystemMachine, MassetDetails } from "@utils/machines";
-import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
+import { createMultiple, percentToWeight, simpleToExactAmount, applyRatio } from "@utils/math";
 import { createBasket, Basket } from "@utils/mstable-objects";
 import { ZERO_ADDRESS, ONE_WEEK, TEN_MINS } from "@utils/constants";
 import { aToH, BN, assertBNSlightlyGTPercent } from "@utils/tools";
@@ -153,7 +153,7 @@ contract("Masset", async (accounts) => {
         beforeEach("init basset with vaults", async () => {
             await runSetup(true);
         });
-        it("should allow the SavingsManager to collect interest", async () => {
+        it("should collect interest, update the vaults and send to the manager", async () => {
             // 1.0. Simulate some activity on the lending markets
             // Fast forward a bit
             await increase(TEN_MINS);
@@ -176,6 +176,10 @@ contract("Masset", async (accounts) => {
             // 2.0 Get all balances and data before
             const mUSDBalBefore = await massetDetails.mAsset.balanceOf(sa.dummy1);
             const bassetsBefore = await massetMachine.getBassetsInMasset(massetDetails);
+            const sumOfVaultsBefore = bassetsBefore.reduce(
+                (p, c, i) => p.add(applyRatio(c.vaultBalance, c.ratio)),
+                new BN(0),
+            );
             const totalSupplyBefore = await massetDetails.mAsset.totalSupply();
 
             // 3.0 Collect the interest
@@ -186,14 +190,51 @@ contract("Masset", async (accounts) => {
 
             // 4.0 Check outputs
             const mUSDBalAfter = await massetDetails.mAsset.balanceOf(sa.dummy1);
-            // expect;
             const bassetsAfter = await massetMachine.getBassetsInMasset(massetDetails);
+            const sumOfVaultsAfter = bassetsAfter.reduce(
+                (p, c, i) => p.add(applyRatio(c.vaultBalance, c.ratio)),
+                new BN(0),
+            );
             const totalSupplyAfter = await massetDetails.mAsset.totalSupply();
 
-            // expectEvent.inLogs(tx.logs, "MintedMulti", { _amount: amount });
+            // 4.1 totalSupply should only increase by <= 0.0005%
+            assertBNSlightlyGTPercent(
+                totalSupplyAfter,
+                totalSupplyBefore,
+                systemMachine.isGanacheFork ? "0.001" : "0.01",
+                true,
+            );
+            // 4.2 check that increase in vault balance is equivalent to total balance
+            let increasedTotalSupply = totalSupplyAfter.sub(totalSupplyBefore);
+            expect(sumOfVaultsAfter.sub(sumOfVaultsBefore)).bignumber.eq(increasedTotalSupply);
+            // 4.3 Ensure that the SavingsManager received the mAsset
+            expect(mUSDBalAfter).bignumber.eq(mUSDBalBefore.add(increasedTotalSupply));
+            // 4.4 Event emits correct unit
+            expectEvent.inLogs(tx.logs, "MintedMulti", { massetQuantity: increasedTotalSupply });
+        });
+        it("should only allow the SavingsManager to collect interest when unpaused", async () => {
+            const nexus = await Nexus.at(await massetDetails.mAsset.nexus());
+            const [savingsManagerInNexus] = await nexus.modules(keccak256("SavingsManager"));
+            expect(sa.dummy1).eq(savingsManagerInNexus);
+
+            await shouldFail.reverting.withMessage(
+                massetDetails.mAsset.collectInterest({ from: sa.governor }),
+                "Must be savings manager",
+            );
+            await shouldFail.reverting.withMessage(
+                massetDetails.mAsset.collectInterest({ from: sa.default }),
+                "Must be savings manager",
+            );
+
+            await massetDetails.mAsset.pause({ from: sa.governor });
+            await shouldFail.reverting.withMessage(
+                massetDetails.mAsset.collectInterest({ from: sa.dummy1 }),
+                "Pausable: paused",
+            );
         });
         it("should increase at <=10% APY");
         it("should set all the vars on the basket composition");
         it("should have a minimal increase if called in quick succession");
     });
 });
+// });

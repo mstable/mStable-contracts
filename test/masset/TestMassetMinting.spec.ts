@@ -29,35 +29,35 @@ contract("MassetMinting", async (accounts) => {
         massetDetails = await massetMachine.deployMassetAndSeedBasket();
     });
 
-    describe("mint", () => {
-        context("when the basket is healthy", () => {
-            context("when the basket is under the limit", () => {});
+    // describe("mint", () => {
+    //     context("when the basket is healthy", () => {
+    //         context("when the basket is under the limit", () => {});
 
-            context("when the basket exceeds the limit", () => {});
-        });
+    //         context("when the basket exceeds the limit", () => {});
+    //     });
 
-        context("when the basket is not healthy", () => {
-            it("reverts");
-        });
-    });
+    //     context("when the basket is not healthy", () => {
+    //         it("reverts");
+    //     });
+    // });
 
-    describe("mintTo", () => {
-        context("when the basket is healthy", () => {
-            context("when the basket is under the limit", () => {
-                context("when the recipient is an EOA", () => {});
+    // describe("mintTo", () => {
+    //     context("when the basket is healthy", () => {
+    //         context("when the basket is under the limit", () => {
+    //             context("when the recipient is an EOA", () => {});
 
-                context("when the recipient is a contract ", () => {});
+    //             context("when the recipient is a contract ", () => {});
 
-                context("when the recipient is the zero address", () => {});
-            });
+    //             context("when the recipient is the zero address", () => {});
+    //         });
 
-            context("when the basket exceeds the limit", () => {});
-        });
+    //         context("when the basket exceeds the limit", () => {});
+    //     });
 
-        context("when the basket is not healthy", () => {
-            it("reverts");
-        });
-    });
+    //     context("when the basket is not healthy", () => {
+    //         it("reverts");
+    //     });
+    // });
 
     describe("Minting", () => {
         it("Should mint multiple bAssets", async () => {
@@ -150,7 +150,22 @@ contract("MassetMinting", async (accounts) => {
             const mUSD_bal4 = await massetDetails.mAsset.balanceOf(sa.default);
             expect(mUSD_bal4).bignumber.eq(mUSD_bal3.add(oneMasset));
         });
-
+        it("should fail if recipient is 0x0");
+        it("should mint to sender in basic mint func");
+        describe("testing forgevalidation", async () => {
+            // context("when some bAssets are overweight...")
+            it("should fail if the mint pushes overweight");
+            it("should fail if the mint uses invalid bAssets");
+            // it("should fail if the mint uses invalid bAssets");
+        });
+        describe("testing PrepareForgeBasset connection", async () => {
+            it("should mint nothing if the prearation returns invalid");
+            // it("should");
+        });
+        it("should allow minting with some 0 quantities, but not all");
+        it("mintMulti should fail if mAsset quantity is 0");
         it("Should mint selected bAssets only", async () => {});
+        it("Should mintTo a selected recipient", async () => {});
+        it("Should deposit tokens into target platforms", async () => {});
     });
 });
