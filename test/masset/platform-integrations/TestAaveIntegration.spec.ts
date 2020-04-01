@@ -406,7 +406,7 @@ contract("AaveIntegration", async (accounts) => {
             expect(directBalance).bignumber.eq(actualBalance);
             // Assert that Balance goes up over time
             await increase(TEN_MINS);
-            let newBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            const newBalance = await d_AaveIntegration.logBalance(bAsset.address);
             assertBNSlightlyGTPercent(
                 newBalance,
                 directBalance,
@@ -768,7 +768,7 @@ contract("AaveIntegration", async (accounts) => {
                 bAssetRecipient_balBefore.add(amount),
             );
             // 2.2 Check that integration aToken balance has gone down
-            let currentBalance = await aToken.balanceOf(d_AaveIntegration.address);
+            const currentBalance = await aToken.balanceOf(d_AaveIntegration.address);
             assertBNSlightlyGTPercent(
                 currentBalance,
                 aaveIntegration_balBefore.sub(amount),

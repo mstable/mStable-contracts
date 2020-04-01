@@ -607,7 +607,7 @@ contract("CompoundIntegration", async (accounts) => {
                 bAssetRecipient_balBefore.add(amount),
             );
             // 3.2 Check that compound integration has cTokens
-            let cToken_balanceOfIntegration = await cToken.balanceOf(d_CompoundIntegration.address);
+            const cToken_balanceOfIntegration = await cToken.balanceOf(d_CompoundIntegration.address);
             const exchangeRate = await cToken.exchangeRateStored();
             const expected_cTokens = amount.mul(fullScale).div(exchangeRate);
             expect(expected_cTokens).to.bignumber.equal(cToken_balanceOfIntegration);
@@ -624,7 +624,7 @@ contract("CompoundIntegration", async (accounts) => {
             expect(user_bAsset_balanceAfter).to.bignumber.equal(user_bAsset_balanceBefore);
 
             // 5.2 Check that bAsset has returned to the user
-            let cToken_balanceOfIntegrationAfter = await cToken.balanceOf(
+            const cToken_balanceOfIntegrationAfter = await cToken.balanceOf(
                 d_CompoundIntegration.address,
             );
             expect(cToken_balanceOfIntegrationAfter).bignumber.eq(
@@ -678,7 +678,7 @@ contract("CompoundIntegration", async (accounts) => {
             );
             const expectedBalance = compoundIntegration_balBefore.sub(amount);
             assertBNSlightlyGTPercent(compoundIntegration_balAfter, expectedBalance, "0.1");
-            let underlyingBalance = await convertCTokenToUnderlying(cToken, compoundIntegration_balAfter);
+            const underlyingBalance = await convertCTokenToUnderlying(cToken, compoundIntegration_balAfter);
             // Cross that match with the `checkBalance` call
             const checkBalanceTx = await d_CompoundIntegration.logBalance(bAsset.address);
             expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", {
@@ -788,7 +788,7 @@ contract("CompoundIntegration", async (accounts) => {
                 d_CompoundIntegration.address,
             );
             expect(compoundIntegration_balBefore).bignumber.gt(new BN(0) as any);
-            let underlyingBalanceBefore = await convertCTokenToUnderlying(
+            const underlyingBalanceBefore = await convertCTokenToUnderlying(
                 cToken,
                 compoundIntegration_balBefore,
             );
@@ -816,13 +816,13 @@ contract("CompoundIntegration", async (accounts) => {
                 d_CompoundIntegration.address,
             );
             // Should not go up by more than 2% during this period
-            let underlyingBalanceAfter = await convertCTokenToUnderlying(
+            const underlyingBalanceAfter = await convertCTokenToUnderlying(
                 cToken,
                 compoundIntegration_balAfter,
             );
             assertBNSlightlyGTPercent(underlyingBalanceAfter, underlyingBalanceBefore, "2", true);
             // Cross that match with the `checkBalance` call
-            let checkBalanceTx = await d_CompoundIntegration.logBalance(bAsset.address);
+            const checkBalanceTx = await d_CompoundIntegration.logBalance(bAsset.address);
             expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", {
                 balance: underlyingBalanceAfter,
             });

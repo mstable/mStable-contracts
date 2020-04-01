@@ -9,11 +9,10 @@ import { createBasket, Basket } from "@utils/mstable-objects";
 import { ZERO_ADDRESS, ONE_WEEK, TEN_MINS } from "@utils/constants";
 import { aToH, BN, assertBNSlightlyGTPercent } from "@utils/tools";
 
-import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
-import shouldBehaveLikePausableModule from "../shared/behaviours/PausableModule.behaviour";
-
 import envSetup from "@utils/env_setup";
 import * as chai from "chai";
+import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
+import shouldBehaveLikePausableModule from "../shared/behaviours/PausableModule.behaviour";
 
 const Masset: t.MassetContract = artifacts.require("Masset");
 const Nexus: t.NexusContract = artifacts.require("Nexus");
@@ -108,7 +107,7 @@ contract("Masset", async (accounts) => {
         });
         it("should allow the fee recipient to be changed by governor", async () => {
             // update by the governor
-            let oldFeeRecipient = await massetDetails.mAsset.feeRecipient();
+            const oldFeeRecipient = await massetDetails.mAsset.feeRecipient();
             expect(oldFeeRecipient).not.eq(sa.other);
             await massetDetails.mAsset.setFeeRecipient(sa.other, { from: sa.governor });
             expect(await massetDetails.mAsset.feeRecipient()).eq(sa.other);
@@ -125,8 +124,8 @@ contract("Masset", async (accounts) => {
         });
         it("should allow the fee rate to be changed", async () => {
             // update by the governor
-            let oldFee = await massetDetails.mAsset.redemptionFee();
-            let newfee = simpleToExactAmount(1, 16); // 1%
+            const oldFee = await massetDetails.mAsset.redemptionFee();
+            const newfee = simpleToExactAmount(1, 16); // 1%
             expect(oldFee).bignumber.not.eq(newfee);
             await massetDetails.mAsset.setRedemptionFee(newfee, { from: sa.governor });
             expect(await massetDetails.mAsset.redemptionFee()).bignumber.eq(newfee);
@@ -136,13 +135,13 @@ contract("Masset", async (accounts) => {
                 "Must be manager or governance",
             );
             // cannot exceed cap
-            let feeExceedingCap = simpleToExactAmount(11, 16); // 11%
+            const feeExceedingCap = simpleToExactAmount(11, 16); // 11%
             await shouldFail.reverting.withMessage(
                 massetDetails.mAsset.setRedemptionFee(feeExceedingCap, { from: sa.governor }),
                 "Rate must be within bounds",
             );
             // cannot exceed min
-            let feeExceedingMin = new BN(-1); // 11%
+            const feeExceedingMin = new BN(-1); // 11%
             await shouldFail.reverting.withMessage(
                 massetDetails.mAsset.setRedemptionFee(feeExceedingMin, { from: sa.governor }),
                 "Rate must be within bounds",
@@ -168,7 +167,6 @@ contract("Masset", async (accounts) => {
                 1,
                 sa.default,
             );
-            const mUSD_balBefore = await massetDetails.mAsset.balanceOf(sa.default);
             await massetDetails.mAsset.mintMulti(
                 await massetDetails.basketManager.getBitmapFor(bAssets.map((b) => b.address)),
                 approvals,
@@ -176,21 +174,21 @@ contract("Masset", async (accounts) => {
             );
 
             // 2.0 Get all balances and data before
-            let mUSDBalBefore = await massetDetails.mAsset.balanceOf(sa.dummy1);
-            let bassetsBefore = await massetMachine.getBassetsInMasset(massetDetails);
-            let totalSupplyBefore = await massetDetails.mAsset.totalSupply();
+            const mUSDBalBefore = await massetDetails.mAsset.balanceOf(sa.dummy1);
+            const bassetsBefore = await massetMachine.getBassetsInMasset(massetDetails);
+            const totalSupplyBefore = await massetDetails.mAsset.totalSupply();
 
             // 3.0 Collect the interest
-            let nexus = await Nexus.at(await massetDetails.mAsset.nexus());
-            let [savingsManagerInNexus] = await nexus.modules(keccak256("SavingsManager"));
+            const nexus = await Nexus.at(await massetDetails.mAsset.nexus());
+            const [savingsManagerInNexus] = await nexus.modules(keccak256("SavingsManager"));
             expect(sa.dummy1).eq(savingsManagerInNexus);
-            let tx = await massetDetails.mAsset.collectInterest({ from: sa.dummy1 });
+            const tx = await massetDetails.mAsset.collectInterest({ from: sa.dummy1 });
 
             // 4.0 Check outputs
-            let mUSDBalAfter = await massetDetails.mAsset.balanceOf(sa.dummy1);
-            expect;
-            let bassetsAfter = await massetMachine.getBassetsInMasset(massetDetails);
-            let totalSupplyAfter = await massetDetails.mAsset.totalSupply();
+            const mUSDBalAfter = await massetDetails.mAsset.balanceOf(sa.dummy1);
+            // expect;
+            const bassetsAfter = await massetMachine.getBassetsInMasset(massetDetails);
+            const totalSupplyAfter = await massetDetails.mAsset.totalSupply();
 
             // expectEvent.inLogs(tx.logs, "MintedMulti", { _amount: amount });
         });
