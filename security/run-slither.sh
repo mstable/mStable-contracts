@@ -8,20 +8,19 @@
 # To allow `ctrl + c` to exit from the script
 trap "exit" INT
 
-# Create the folder if it not exist
-mkdir -p slither-report
+# Run flattener
+./run-flattener.sh
 
-MOCK='Mock'
+# Create the folder if it not exist
+mkdir -p slither/slither-report
 
 # Loop each file present in `flat` folder and run slither on it
 # Slither report of each file will be created under `slither-report` folder
-for filename in ../flat/*.sol; do
+for filename in ./flat/*.sol; do
 	
 	name=${filename##*/}
-
-	if [[ "$name" != *"$MOCK"* ]]; then		
-    	slither $filename --print human-summary 2>&1 | tee slither-report/$name.log
-    fi
+  	slither $filename --print human-summary 2>&1 | tee slither/slither-report/$name.log
+   	slither $filename 2>&1 | tee slither/slither-report/$name-default.log
 done
 
 # Run the default slither on all contracts
