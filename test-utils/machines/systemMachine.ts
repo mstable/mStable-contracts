@@ -57,7 +57,7 @@ export class SystemMachine {
     /**
      * @dev Initialises the system to replicate current migration scripts
      */
-    public async initialiseMocks(seedMasset = false) {
+    public async initialiseMocks(seedMasset = false, dummySavingsManager = false) {
         /***************************************
             1. Nexus (Redeploy)
         ****************************************/
@@ -88,12 +88,15 @@ export class SystemMachine {
         /***************************************
             4. Init
         ****************************************/
-        this.nexus.initialize(
+        await this.nexus.initialize(
             [
                 await this.savingsManager.Key_SavingsManager(),
                 await this.mUSD.proxyAdmin.Key_ProxyAdmin(),
             ],
-            [this.savingsManager.address, this.mUSD.proxyAdmin.address],
+            [
+                dummySavingsManager ? this.sa.dummy1 : this.savingsManager.address,
+                this.mUSD.proxyAdmin.address,
+            ],
             [false, true],
             this.sa.governor,
             { from: this.sa.governor },

@@ -45,13 +45,13 @@ contract Masset is IMasset, MassetToken, PausableModule {
 
     // Modules and connectors
     IForgeValidator public forgeValidator;
-    bool internal forgeValidatorLocked = false;
+    bool private forgeValidatorLocked = false;
     IBasketManager private basketManager;
 
     // Basic redemption fee information
     address public feeRecipient;
     uint256 public redemptionFee;
-    uint256 internal constant maxFee = 1e17;
+    uint256 private constant maxFee = 1e17;
 
     constructor (
         string memory _name,
@@ -233,12 +233,12 @@ contract Masset is IMasset, MassetToken, PausableModule {
                 uint256 quantityDeposited = IPlatformIntegration(integrator).deposit(bAsset.addr, quantityTransfered, xferCharged);
                 receivedQty[i] = quantityDeposited;
 
-                basketManager.increaseVaultBalance(props.indexes[i], integrator, quantityDeposited);
-
                 uint256 ratioedBasset = quantityDeposited.mulRatioTruncate(bAsset.ratio);
                 massetQuantity = massetQuantity.add(ratioedBasset);
             }
         }
+
+        basketManager.increaseVaultBalances(props.indexes, props.integrators, receivedQty, len);
 
         // Validate the proposed mint, after token transfer
         (bool mintValid, string memory reason) = forgeValidator.validateMint(totalSupply(), props.grace, props.bAssets, receivedQty);
@@ -401,9 +401,11 @@ contract Masset is IMasset, MassetToken, PausableModule {
                 massetQuantity = massetQuantity.add(ratioedBasset);
 
                 // bAsset == bAssets[i] == basket.bassets[indexes[i]]
-                basketManager.decreaseVaultBalance(props.indexes[i], props.integrators[i], bAssetQuantity);
+                // basketManager.decreaseVaultBalance(props.indexes[i], props.integrators[i], bAssetQuantity);
             }
         }
+
+        basketManager.decreaseVaultBalances(props.indexes, props.integrators, _bAssetQuantities, redemptionAssetCount);
 
         // Pay the redemption fee
         _payRedemptionFee(massetQuantity);
@@ -493,8 +495,9 @@ contract Masset is IMasset, MassetToken, PausableModule {
     function setRedemptionFee(uint256 _redemptionFee)
     external
     managerOrGovernor {
-        require(_redemptionFee <= maxFee, "Redemption fee > maxFee");
+        require(_redemptionFee >= 0 &&_redemptionFee <= maxFee, "Rate must be within bounds");
         redemptionFee = _redemptionFee;
+
         emit RedemptionFeeChanged(_redemptionFee);
     }
 

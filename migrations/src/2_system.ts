@@ -208,7 +208,11 @@ export default async ({ artifacts }, deployer, network, accounts) => {
         bassetDetails = await loadBassetsRopsten(artifacts);
     } else {
         [default_, governor, feeRecipient] = accounts;
-        console.log("Generating MOCK bAssets and lending platforms");
+        console.log(
+            `==============================================\n` +
+                `Generating MOCK bAssets and lending platforms\n` +
+                `==============================================\n\n`,
+        );
         bassetDetails = await loadBassetsLocal(artifacts, default_);
     }
 

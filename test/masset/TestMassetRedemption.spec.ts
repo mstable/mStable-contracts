@@ -3,12 +3,7 @@
 import { createMultiple, simpleToExactAmount } from "@utils/math";
 import { createBasket, Basket } from "@utils/mstable-objects";
 import { shouldFail } from "openzeppelin-test-helpers";
-import {
-    MassetMachine,
-    StandardAccounts,
-    SystemMachine,
-    MassetDetails,
-} from "@utils/machines";
+import { MassetMachine, StandardAccounts, SystemMachine, MassetDetails } from "@utils/machines";
 import { aToH, BN } from "@utils/tools";
 
 import envSetup from "@utils/env_setup";
@@ -92,6 +87,11 @@ contract("MassetRedemption", async (accounts) => {
             );
         });
     });
+    it("should handle changes in fee rate");
+    it("should send the redemption fee to the fee recipient", async () => {
+        // responds to changes
+    });
+    it("should handle changes to forge validator");
     // describe("Redeem", async () => {
     //     context("when the basket is healthy", () => {
     //         context("when the basket is under the limit", () => {

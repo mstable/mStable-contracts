@@ -44,6 +44,7 @@ const c_ERC20: t.ERC20Contract = artifacts.require("ERC20");
 
 export interface MassetDetails {
     mAsset?: t.MassetInstance;
+    forgeValidator?: t.ForgeValidatorInstance;
     basketManager?: t.BasketManagerInstance;
     bAssets?: Array<t.MockERC20Instance>;
     proxyAdmin?: t.DelayedProxyAdminInstance;
@@ -63,6 +64,10 @@ export class MassetMachine {
         this.sa = this.system.sa;
     }
 
+    /**
+     * @dev Deploys an mAsset with default parameters, modelled on original mUSD
+     * @return Interface will all deployed information
+     **/
     public async deployMasset(): Promise<MassetDetails> {
         let md: MassetDetails = {};
 
@@ -122,6 +127,7 @@ export class MassetMachine {
         const d_ForgeValidator: t.ForgeValidatorInstance = await c_ForgeValidator.new({
             from: this.sa.default,
         });
+        md.forgeValidator = d_ForgeValidator;
         // 2.4.2. Deploy mUSD
         const d_MUSD: t.MUSDInstance = await c_MUSD.new(
             this.system.nexus.address,
@@ -403,5 +409,30 @@ export class MassetMachine {
             };
         });
         return bArrays;
+    }
+
+    public async approveMasset(
+        bAsset: t.MockERC20Instance,
+        mAsset: t.MassetInstance,
+        fullMassetUnits: number,
+        sender: string,
+    ): Promise<BN> {
+        const bAssetDecimals: BN = await bAsset.decimals();
+        // let decimalDifference: BN = bAssetDecimals.sub(new BN(18));
+        const approvalAmount: BN = simpleToExactAmount(fullMassetUnits, bAssetDecimals.toNumber());
+        await bAsset.approve(mAsset.address, approvalAmount, { from: sender });
+        return approvalAmount;
+    }
+
+    public async approveMassetMulti(
+        bAssets: Array<t.MockERC20Instance>,
+        mAsset: t.MassetInstance,
+        fullMassetUnits: number,
+        sender: string,
+    ): Promise<Array<BN>> {
+        let result = Promise.all(
+            bAssets.map((b) => this.approveMasset(b, mAsset, fullMassetUnits, sender)),
+        );
+        return result;
     }
 }

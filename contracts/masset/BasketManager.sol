@@ -138,6 +138,27 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
     }
 
     /**
+     * @dev Called by only mAsset, and only when the basket is healthy, to add units to
+     *      storage after they have been deposited into the vault
+     * @param _bAssets          Index of the bAsset
+     * @param _increaseAmount   Units deposited
+     */
+    function increaseVaultBalances(
+        uint8[] calldata _bAssets,
+        address[] calldata /* _integrator */,
+        uint256[] calldata _increaseAmount,
+        uint256 len
+    )
+        external
+        onlyMasset
+        basketIsHealthy
+    {
+        for(uint i = 0; i < len; i++){
+            basket.bassets[_bAssets[i]].vaultBalance = basket.bassets[_bAssets[i]].vaultBalance.add(_increaseAmount[i]);
+        }
+    }
+
+    /**
      * @dev Called by mAsset after redeeming tokens. Simply reduce the balance in the vault
      * @param _bAsset           Index of the bAsset
      * @param _decreaseAmount   Units withdrawn
@@ -147,6 +168,25 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
         onlyMasset
     {
         basket.bassets[_bAsset].vaultBalance = basket.bassets[_bAsset].vaultBalance.sub(_decreaseAmount);
+    }
+
+    /**
+     * @dev Called by mAsset after redeeming tokens. Simply reduce the balance in the vault
+     * @param _bAssets          Index of the bAsset
+     * @param _decreaseAmount   Units withdrawn
+     */
+    function decreaseVaultBalances(
+        uint8[] calldata _bAssets,
+        address[] calldata /* _integrator */,
+        uint256[] calldata _decreaseAmount,
+        uint256 len
+    )
+        external
+        onlyMasset
+    {
+        for(uint i = 0; i < len; i++){
+            basket.bassets[_bAssets[i]].vaultBalance = basket.bassets[_bAssets[i]].vaultBalance.sub(_decreaseAmount[i]);
+        }
     }
 
     /**

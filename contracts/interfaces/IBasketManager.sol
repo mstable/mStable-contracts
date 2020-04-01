@@ -14,7 +14,9 @@ contract IBasketManager is MassetStructs {
 
     /** @dev Setters for mAsset to update balances */
     function increaseVaultBalance(uint8 _bAsset, address _integrator, uint256 _increaseAmount) external;
+    function increaseVaultBalances(uint8[] calldata _bAsset, address[] calldata _integrator, uint256[] calldata _increaseAmount, uint256 _len) external;
     function decreaseVaultBalance(uint8 _bAsset, address _integrator, uint256 _decreaseAmount) external;
+    function decreaseVaultBalances(uint8[] calldata _bAsset, address[] calldata _integrator, uint256[] calldata _decreaseAmount, uint256 _len) external;
     function collectInterest() external returns (uint256 interestCollected, uint32 bitmap, uint256[] memory gains);
 
     /** @dev Setters for Gov to update Basket composition */
