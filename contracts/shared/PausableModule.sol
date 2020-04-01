@@ -50,14 +50,14 @@ contract PausableModule is Module {
      * @dev Returns true if the contract is paused, and false otherwise.
      * @return Returns `true` when paused, otherwise `false`
      */
-    function paused() public view returns (bool) {
+    function paused() external view returns (bool) {
         return _paused;
     }
 
     /**
      * @dev Called by the Governor to pause, triggers stopped state.
      */
-    function pause() public onlyGovernor whenNotPaused {
+    function pause() external onlyGovernor whenNotPaused {
         _paused = true;
         emit Paused(msg.sender);
     }
@@ -65,7 +65,7 @@ contract PausableModule is Module {
     /**
      * @dev Called by Governor to unpause, returns to normal state.
      */
-    function unpause() public onlyGovernor whenPaused {
+    function unpause() external onlyGovernor whenPaused {
         _paused = false;
         emit Unpaused(msg.sender);
     }

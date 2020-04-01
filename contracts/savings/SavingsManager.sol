@@ -64,10 +64,10 @@ contract SavingsManager is ISavingsManager, PausableModule {
         require(_mAsset != address(0) && _savingsContract != address(0), "Must be valid address");
         savingsContracts[_mAsset] = ISavingsContract(_savingsContract);
 
+        emit SavingsContractEnabled(_mAsset, _savingsContract);
+
         IERC20(_mAsset).safeApprove(address(_savingsContract), 0);
         IERC20(_mAsset).safeApprove(address(_savingsContract), uint256(-1));
-
-        emit SavingsContractEnabled(_mAsset, _savingsContract);
     }
 
     function setSavingsRate(uint256 _savingsRate)
@@ -142,8 +142,9 @@ contract SavingsManager is ISavingsManager, PausableModule {
     {
         IERC20 mAsset = IERC20(_mAsset);
         uint256 balance = mAsset.balanceOf(address(this));
-        mAsset.safeTransfer(_recipient, balance);
 
         emit InterestWithdrawnByGovernor(_mAsset, _recipient, balance);
+
+        mAsset.safeTransfer(_recipient, balance);
     }
 }
