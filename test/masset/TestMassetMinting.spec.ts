@@ -58,24 +58,24 @@ contract("MassetMinting", async (accounts) => {
         md: MassetDetails,
         mAssetMintAmount: BN | number,
         bAsset: t.MockERC20Instance,
-        useMintTo: boolean = false,
+        useMintTo = false,
         recipient: string = sa.default,
         sender: string = sa.default,
     ): Promise<MintOutput> => {
         const minterBassetBalBefore = await bAsset.balanceOf(sender);
-        recipient = useMintTo ? sender : recipient;
-        const recipientBalBefore = await md.mAsset.balanceOf(recipient);
+        const derivedRecipient = useMintTo ? sender : recipient;
+        const recipientBalBefore = await md.mAsset.balanceOf(derivedRecipient);
 
         const approval0: BN = await massetMachine.approveMasset(
             bAsset,
             md.mAsset,
             new BN(mAssetMintAmount),
         );
-        useMintTo
-            ? await md.mAsset.mintTo(bAsset.address, approval0, recipient)
-            : await md.mAsset.mint(bAsset.address, approval0);
+        await (useMintTo
+            ? md.mAsset.mintTo(bAsset.address, approval0, derivedRecipient)
+            : md.mAsset.mint(bAsset.address, approval0));
 
-        const recipientBalAfter = await md.mAsset.balanceOf(recipient);
+        const recipientBalAfter = await md.mAsset.balanceOf(derivedRecipient);
         expect(recipientBalAfter).bignumber.eq(
             recipientBalBefore.add(simpleToExactAmount(mAssetMintAmount, 18)),
         );
