@@ -15,8 +15,8 @@ import { MassetStructs } from "./shared/MassetStructs.sol";
 // Libs
 import { StableMath } from "../shared/StableMath.sol";
 import { MassetHelpers } from "./shared/MassetHelpers.sol";
-import { SafeERC20 }  from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
-import { IERC20 }     from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
+import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import { ReentrancyGuard } from "openzeppelin-solidity/contracts/utils/ReentrancyGuard.sol";
 
 /**
@@ -26,7 +26,7 @@ import { ReentrancyGuard } from "openzeppelin-solidity/contracts/utils/Reentranc
  *          for underlying basket assets (bAssets) of the same peg (i.e. USD,
  *          EUR, gGold). Composition and validation is enforced via the BasketManager.
  */
-contract Masset is IMasset, MassetToken, PausableModule {
+contract Masset is IMasset, MassetToken, PausableModule, ReentrancyGuard {
 
     using StableMath for uint256;
     using SafeERC20 for IERC20;
@@ -168,6 +168,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         address _recipient
     )
         internal
+        nonReentrant
         returns (uint256 massetMinted)
     {
         require(_recipient != address(0), "Recipient must not be 0x0");
@@ -206,6 +207,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         address _recipient
     )
         internal
+        nonReentrant
         returns (uint256 massetMinted)
     {
         require(_recipient != address(0), "Recipient must not be 0x0");
@@ -326,6 +328,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         address _recipient
     )
         internal
+        nonReentrant
         returns (uint256 massetRedeemed)
     {
         require(_recipient != address(0), "Recipient must not be 0x0");
@@ -371,6 +374,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         address _recipient
     )
         internal
+        nonReentrant
         returns (uint256 massetRedeemed)
     {
         require(_recipient != address(0), "Recipient must not be 0x0");
@@ -458,8 +462,9 @@ contract Masset is IMasset, MassetToken, PausableModule {
       * @param _newForgeValidator Address of the new ForgeValidator
       */
     function upgradeForgeValidator(address _newForgeValidator)
-    external
-    managerOrGovernor {
+        external
+        managerOrGovernor
+    {
         require(!forgeValidatorLocked, "Must be allowed to upgrade");
         require(_newForgeValidator != address(0), "Must be non null address");
         forgeValidator = IForgeValidator(_newForgeValidator);
@@ -470,8 +475,9 @@ contract Masset is IMasset, MassetToken, PausableModule {
       * @dev Locks the ForgeValidator into it's final form. Called by Governor
       */
     function lockForgeValidator()
-    external
-    onlyGovernor {
+        external
+        managerOrGovernor
+    {
         forgeValidatorLocked = true;
     }
 
@@ -480,8 +486,9 @@ contract Masset is IMasset, MassetToken, PausableModule {
       * @param _feeRecipient Address of the fee recipient
       */
     function setFeeRecipient(address _feeRecipient)
-    external
-    managerOrGovernor {
+        external
+        managerOrGovernor
+    {
         require(_feeRecipient != address(0), "Must be valid address");
         feeRecipient = _feeRecipient;
 
@@ -493,8 +500,9 @@ contract Masset is IMasset, MassetToken, PausableModule {
       * @param _redemptionFee Fee calculated in (%/100 * 1e18)
       */
     function setRedemptionFee(uint256 _redemptionFee)
-    external
-    managerOrGovernor {
+        external
+        managerOrGovernor
+    {
         require(_redemptionFee >= 0 &&_redemptionFee <= maxFee, "Rate must be within bounds");
         redemptionFee = _redemptionFee;
 
@@ -506,9 +514,10 @@ contract Masset is IMasset, MassetToken, PausableModule {
       * @return basketManager Address
       */
     function getBasketManager()
-    external
-    view
-    returns (address) {
+        external
+        view
+        returns (address)
+    {
         return address(basketManager);
     }
 
@@ -526,6 +535,7 @@ contract Masset is IMasset, MassetToken, PausableModule {
         external
         onlySavingsManager
         whenNotPaused
+        nonReentrant
         returns (uint256 totalInterestGained, uint256 newSupply)
     {
         (uint256 interestCollected, uint32 bitmap, uint256[] memory gains) = basketManager.collectInterest();

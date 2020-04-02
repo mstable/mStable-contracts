@@ -49,7 +49,7 @@ contract Governable {
      * Can only be called by the current Governor.
      * @param _newGovernor Address of the new Governor
      */
-    function changeGovernor(address _newGovernor) public onlyGovernor {
+    function changeGovernor(address _newGovernor) external onlyGovernor {
         _changeGovernor(_newGovernor);
     }
 

@@ -28,7 +28,7 @@ contract ClaimableGovernor is Governable {
     }
 
     //@override
-    function changeGovernor(address) public onlyGovernor {
+    function changeGovernor(address) external onlyGovernor {
         revert("Direct change not allowed");
     }
 
