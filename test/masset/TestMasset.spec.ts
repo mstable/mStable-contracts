@@ -236,4 +236,3 @@ contract("Masset", async (accounts) => {
         it("should have a minimal increase if called in quick succession");
     });
 });
-// });
