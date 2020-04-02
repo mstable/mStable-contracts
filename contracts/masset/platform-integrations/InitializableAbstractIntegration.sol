@@ -48,12 +48,12 @@ contract InitializableAbstractIntegration is Initializable, IPlatformIntegration
      */
     function initialize(
         address _nexus,
-        address[] memory _whitelisted,
+        address[] calldata _whitelisted,
         address _platformAddress,
-        address[] memory _bAssets,
-        address[] memory _pTokens
+        address[] calldata _bAssets,
+        address[] calldata _pTokens
     )
-        public
+        external
         initializer
     {
         InitializableGovernableWhitelist._initialize(_nexus, _whitelisted);

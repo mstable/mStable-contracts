@@ -267,7 +267,7 @@ contract Nexus is INexus, DelayedClaimableGovernor {
      * @param _key  Key of the module
      * @return      Return the address of the module
      */
-    function getModule(bytes32 _key) public view returns (address addr) {
+    function getModule(bytes32 _key) external view returns (address addr) {
         addr = modules[_key].addr;
     }
 

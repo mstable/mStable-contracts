@@ -52,12 +52,12 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
         address _nexus,
         address _mAsset,
         uint256 _grace,
-        address[] memory _bassets,
-        address[] memory _integrators,
-        uint256[] memory _weights,
-        bool[] memory _hasTransferFees
+        address[] calldata _bassets,
+        address[] calldata _integrators,
+        uint256[] calldata _weights,
+        bool[] calldata _hasTransferFees
     )
-        public
+        external
         initializer
     {
         InitializableModule._initialize(_nexus);
@@ -276,7 +276,6 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
             uint256 bassetWeight = _weights[i];
 
             if(bAsset.status == BassetStatus.Normal) {
-                require(bassetWeight >= 0, "Weight must be positive");
                 require(bassetWeight <= StableMath.getFullScale(), "Asset weight must be <= 1e18");
                 basket.bassets[index].targetWeight = bassetWeight;
             } else {

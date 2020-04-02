@@ -30,7 +30,7 @@ contract MockNexus is Nexus, ModuleKeys {
         initialized = true;
     }
 
-    function setProxyAdmin(address _proxyAdmin) public {
+    function setProxyAdmin(address _proxyAdmin) external {
         modules[Key_ProxyAdmin] = Module({addr: _proxyAdmin, isLocked: true});
     }
 
