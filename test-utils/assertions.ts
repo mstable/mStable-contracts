@@ -1,0 +1,113 @@
+import { MassetDetails, MassetMachine } from "@utils/machines";
+import { BN } from "./tools";
+import { simpleToExactAmount } from "./math";
+import { fullScale } from "./constants";
+import { BasketComposition } from "../types/machines";
+import envSetup from "./env_setup";
+
+const { expect, assert } = envSetup.configure();
+
+/**
+ *  Convenience method to assert that two BN.js instances are within 100 units of each other.
+ *  @param actual The BN.js instance you received
+ *  @param expected The BN.js amount you expected to receive, allowing a varience of +/- 10 units
+ */
+export const assertBNClose = (actual: BN, expected: BN, variance = new BN(10)) => {
+    const actualDelta = actual.gt(expected) ? actual.sub(expected) : expected.sub(actual);
+
+    assert.ok(
+        actual.gte(expected.sub(variance)),
+        `Number is too small to be close (Delta between actual and expected is ${actualDelta.toString()}, but variance was only ${variance.toString()}`,
+    );
+    assert.ok(
+        actual.lte(expected.add(variance)),
+        `Number is too large to be close (Delta between actual and expected is ${actualDelta.toString()}, but variance was only ${variance.toString()})`,
+    );
+};
+
+/**
+ *  Convenience method to assert that one BN.js instance is GTE the other
+ *  @param actual The BN.js instance you received
+ *  @param expected The operant to compare against
+ */
+export const assertBnGte = (actual: BN, comparison: BN) => {
+    assert.ok(
+        actual.gte(comparison),
+        `Number must be GTE comparitor, got: ${actual.toString()}; comparitor: ${comparison.toString()}`,
+    );
+};
+
+/**
+ *  Convenience method to assert that one BN.js number is eq to, or greater than an expected value by some small amount
+ *  @param actual The BN.js instance you received
+ *  @param equator The BN.js to equate to
+ *  @param maxActualShouldExceedExpected Upper limit for the growth
+ *  @param mustBeGreater Fail if the operands are equal
+ */
+export const assertBNSlightlyGT = (
+    actual: BN,
+    equator: BN,
+    maxActualShouldExceedExpected = new BN(100),
+    mustBeGreater = false,
+) => {
+    const actualDelta = actual.gt(equator) ? actual.sub(equator) : equator.sub(actual);
+
+    assert.ok(
+        mustBeGreater ? actual.gt(equator) : actual.gte(equator),
+        `Actual value should be greater than the expected value`,
+    );
+    assert.ok(
+        actual.lte(equator.add(maxActualShouldExceedExpected)),
+        `Actual value should not exceed ${maxActualShouldExceedExpected.toString()} units greater than expected. Variance was ${actualDelta.toString()}`,
+    );
+};
+
+/**
+ *  Convenience method to assert that one BN.js number is eq to, or greater than an expected value by some small amount
+ *  @param actual The BN.js instance you received
+ *  @param equator The BN.js to equate to
+ *  @param maxActualShouldExceedExpected Percentage amount of increase, as a string (1% = 1)
+ *  @param mustBeGreater Fail if the operands are equal
+ */
+export const assertBNSlightlyGTPercent = (
+    actual: BN,
+    equator: BN,
+    maxPercentIncrease = "0.1",
+    mustBeGreater = false,
+) => {
+    let maxIncreaseBN = simpleToExactAmount(maxPercentIncrease, 16);
+    let maxIncreaseUnits = equator.mul(maxIncreaseBN).div(fullScale);
+    // const actualDelta = actual.gt(equator) ? actual.sub(equator) : equator.sub(actual);
+
+    assert.ok(
+        mustBeGreater ? actual.gt(equator) : actual.gte(equator),
+        `Actual value should be greater than the expected value`,
+    );
+    assert.ok(
+        actual.lte(equator.add(maxIncreaseUnits)),
+        `Actual value should not exceed ${maxPercentIncrease}% greater than expected`,
+    );
+};
+
+export const assertBasketIsHealthy = async (machine: MassetMachine, md: MassetDetails) => {
+    // Read full basket composition
+    const composition = await machine.getBasketComposition(md);
+    // Assert sum of bAssets in vault storage is gte to total supply of mAsset
+    assertBnGte(composition.sumOfBassets, composition.totalSupply);
+    // No basket weight should be above max
+    composition.bAssets.forEach((b) => {
+        expect(b.overweight).to.eq(false);
+    });
+    // no basket weight should be below min
+    composition.bAssets.forEach((b) => {
+        expect(b.underweight).to.eq(false);
+    });
+    // should be unpaused
+    expect(await md.mAsset.paused()).to.eq(false);
+    // not failed
+    expect(composition.failed).to.eq(false);
+    expect(composition.colRatio).bignumber.eq(fullScale);
+    // prepareForgeBasset works
+    // Potentially wrap in mock and check event
+    await md.basketManager.prepareForgeBasset(md.bAssets[0].address, "1", false);
+};

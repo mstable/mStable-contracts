@@ -3,10 +3,10 @@
 import * as t from "types/generated";
 import { expectRevert } from "@openzeppelin/test-helpers";
 
+import { assertBasketIsHealthy, assertBnGte } from "@utils/assertions";
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
-import { createBasket, Basket } from "@utils/mstable-objects";
 import { MassetDetails, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
-import { aToH, BN, assertBnGte } from "@utils/tools";
+import { aToH, BN } from "@utils/tools";
 import { ZERO_ADDRESS, fullScale } from "@utils/constants";
 
 import envSetup from "@utils/env_setup";
@@ -39,7 +39,7 @@ contract("MassetMinting", async (accounts) => {
 
     const runSetup = async () => {
         massetDetails = await massetMachine.deployMassetAndSeedBasket();
-        await assertBasketIsHealthy(massetDetails);
+        await assertBasketIsHealthy(massetMachine, massetDetails);
     };
 
     // Helper methods for:
@@ -47,28 +47,6 @@ contract("MassetMinting", async (accounts) => {
     //  - Expect Basket to be overweight
     //  - Setting BasketManager into broken state
 
-    const assertBasketIsHealthy = async (md: MassetDetails) => {
-        // Read full basket composition
-        const composition = await massetMachine.getBasketComposition(md);
-        // Assert sum of bAssets in vault storage is gte to total supply of mAsset
-        assertBnGte(composition.sumOfBassets, composition.totalSupply);
-        // No basket weight should be above max
-        composition.bAssets.forEach((b) => {
-            expect(b.overweight).to.eq(false);
-        });
-        // no basket weight should be below min
-        composition.bAssets.forEach((b) => {
-            expect(b.underweight).to.eq(false);
-        });
-        // should be unpaused
-        expect(await md.mAsset.paused()).to.eq(false);
-        // not failed
-        expect(composition.failed).to.eq(false);
-        expect(composition.colRatio).bignumber.eq(fullScale);
-        // prepareForgeBasset works
-        // Potentially wrap in mock and check event
-        await md.basketManager.prepareForgeBasset(md.bAssets[0].address, "1", false);
-    };
     const assertBassetOverweight = async (md: MassetDetails, bAsset: t.MockERC20Instance) => {
         // Read full basket composition
         const composition = await massetMachine.getBasketComposition(md);

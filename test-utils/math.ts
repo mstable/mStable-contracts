@@ -5,11 +5,6 @@ export const percentToWeight = (percent: number): BN => {
     return new BN(percent).mul(percentScale);
 };
 
-// TODO - new BN does not handle fractions.. ensure only passing integers
-export const createMultiple = (ratio: number): BN => {
-    return new BN(ratio).mul(ratioScale);
-};
-
 export const simpleToExactAmount = (amount: number | string | BN, decimals: number | BN): BN => {
     // Code is largely lifted from the guts of web3 toWei here:
     // https://github.com/ethjs/ethjs-unit/blob/master/src/index.js
@@ -106,4 +101,9 @@ export const applyRatioMassetToBasset = (input: BN, ratio: BN): BN => {
 
 export const applyRatio = (bAssetQ: BN, ratio: BN): BN => {
     return bAssetQ.mul(ratio).div(ratioScale);
+};
+
+// TODO - new BN does not handle fractions.. ensure only passing integers
+export const createMultiple = (ratio: number): BN => {
+    return new BN(ratio).mul(ratioScale);
 };
