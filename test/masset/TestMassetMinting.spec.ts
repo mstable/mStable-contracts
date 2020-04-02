@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/camelcase */
 
 import * as t from "types/generated";
-import { shouldFail } from "openzeppelin-test-helpers";
+import { expectRevert } from "@openzeppelin/test-helpers";
 
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
 import { createBasket, Basket } from "@utils/mstable-objects";

@@ -2,8 +2,8 @@
 /* eslint-disable consistent-return */
 
 import * as t from "types/generated";
-import { increase } from "openzeppelin-test-helpers/src/time";
-import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
+import { increase } from "@openzeppelin/test-helpers/src/time";
+import { constants, expectEvent, expectRevert } from "@openzeppelin/test-helpers";
 import { BN, assertBNClose, assertBNSlightlyGT, assertBNSlightlyGTPercent } from "@utils/tools";
 import { StandardAccounts, SystemMachine, MassetMachine } from "@utils/machines";
 import {
@@ -156,7 +156,7 @@ contract("AaveIntegration", async (accounts) => {
                 const tempImpl = await c_AaveIntegration.new();
                 const erc20Mock = await c_MockERC20.new("TMP", "TMP", 18, sa.default, "1000000");
                 const aTokenMock = await c_MockAaveAToken.new(sa.other, erc20Mock.address);
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     tempImpl.initialize(
                         nexus.address,
                         [],
@@ -171,7 +171,7 @@ contract("AaveIntegration", async (accounts) => {
                 const tempImpl = await c_AaveIntegration.new();
                 const erc20Mock = await c_MockERC20.new("TMP", "TMP", 18, sa.default, "1000000");
                 const aTokenMock = await c_MockAaveAToken.new(sa.other, erc20Mock.address);
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     tempImpl.initialize(
                         nexus.address,
                         [sa.dummy1, sa.dummy1],
@@ -181,7 +181,7 @@ contract("AaveIntegration", async (accounts) => {
                     ),
                     "Already whitelisted",
                 );
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     tempImpl.initialize(
                         nexus.address,
                         [ZERO_ADDRESS],
@@ -229,7 +229,7 @@ contract("AaveIntegration", async (accounts) => {
                 [erc20Mock.address],
                 [aTokenMock.address],
             );
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 tempImpl.initialize(
                     nexus.address,
                     [sa.dummy1],
@@ -246,7 +246,7 @@ contract("AaveIntegration", async (accounts) => {
             const erc20Mock = await c_MockERC20.new("TMP", "TMP", 18, sa.default, "1000000");
             const aTokenMock = await c_MockAaveAToken.new(sa.other, erc20Mock.address);
             // platformAddress is invalid
-            await shouldFail.reverting(
+            await expectRevert.unspecified(
                 tempImpl.initialize(
                     nexus.address,
                     [sa.dummy1],
@@ -256,7 +256,7 @@ contract("AaveIntegration", async (accounts) => {
                 ),
             );
             // bAsset and pToken array length are different
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 tempImpl.initialize(
                     nexus.address,
                     [sa.dummy1, sa.dummy2],
@@ -267,7 +267,7 @@ contract("AaveIntegration", async (accounts) => {
                 "Invalid input arrays",
             );
             // pToken address is zero
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 tempImpl.initialize(
                     nexus.address,
                     [sa.dummy1, sa.dummy2],
@@ -278,7 +278,7 @@ contract("AaveIntegration", async (accounts) => {
                 "Invalid addresses",
             );
             // duplicate pToken or bAsset
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 tempImpl.initialize(
                     nexus.address,
                     [sa.dummy1, sa.dummy2],
@@ -289,14 +289,14 @@ contract("AaveIntegration", async (accounts) => {
                 "pToken already set",
             );
             // invalid bAsset addresses
-            await shouldFail.reverting(
+            await expectRevert.unspecified(
                 tempImpl.initialize(
                     nexus.address,
                     [sa.dummy1, sa.dummy2],
                     integrationDetails.aavePlatformAddress,
                     [sa.default],
                     [aTokenMock.address],
-                ),
+                )
             );
         });
     });
@@ -310,7 +310,7 @@ contract("AaveIntegration", async (accounts) => {
             await runSetup();
         });
         it("should pass only when function called by the Governor", async () => {
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_AaveIntegration.setPTokenAddress(erc20Mock.address, aTokenMock.address, {
                     from: sa.default,
                 }),
@@ -339,14 +339,14 @@ contract("AaveIntegration", async (accounts) => {
         });
         it("should fail when passed invalid args", async () => {
             // bAsset address is zero
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_AaveIntegration.setPTokenAddress(ZERO_ADDRESS, aTokenMock.address, {
                     from: sa.governor,
                 }),
                 "Invalid addresses",
             );
             // pToken address is zero
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_AaveIntegration.setPTokenAddress(erc20Mock.address, ZERO_ADDRESS, {
                     from: sa.governor,
                 }),
@@ -356,7 +356,7 @@ contract("AaveIntegration", async (accounts) => {
             await d_AaveIntegration.setPTokenAddress(erc20Mock.address, aTokenMock.address, {
                 from: sa.governor,
             });
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_AaveIntegration.setPTokenAddress(erc20Mock.address, sa.default, {
                     from: sa.governor,
                 }),
@@ -414,7 +414,7 @@ contract("AaveIntegration", async (accounts) => {
                 systemMachine.isGanacheFork,
             );
             // 3.3 Check that return value is cool (via event)
-            expectEvent.inLogs(tx.logs, "Deposit", { _amount: amount });
+            expectEvent(tx.receipt, "Deposit", { _amount: amount });
         });
 
         it("should handle the fee calculations", async () => {
@@ -478,7 +478,7 @@ contract("AaveIntegration", async (accounts) => {
             // 3.3 Check that return value is cool (via event)
             const receivedATokens = aaveIntegration_balAfter.sub(aaveIntegration_balBefore);
             const min = receivedATokens.lt(receivedAmount) ? receivedATokens : receivedAmount;
-            expectEvent.inLogs(tx.logs, "Deposit", { _amount: min });
+            expectEvent(tx.receipt, "Deposit", { _amount: min });
         });
         it("should only allow a whitelisted user to call function", async () => {
             // Step 0. Choose tokens
@@ -486,7 +486,7 @@ contract("AaveIntegration", async (accounts) => {
             const amount = new BN(10).pow(new BN(12));
 
             // Step 1. call deposit
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_AaveIntegration.deposit(bAsset.address, amount.toString(), false, {
                     from: sa.dummy1,
                 }),
@@ -499,7 +499,7 @@ contract("AaveIntegration", async (accounts) => {
             const amount = new BN(10).pow(new BN(12));
 
             // Step 1. call deposit
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_AaveIntegration.deposit(bAsset.address, amount.toString(), false),
                 "aToken does not exist",
             );
@@ -511,7 +511,7 @@ contract("AaveIntegration", async (accounts) => {
             const aToken = await c_AaveAToken.at(integrationDetails.aTokens[0].aToken);
 
             // Step 2. call deposit
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_AaveIntegration.deposit(bAsset.address, amount.toString(), false),
                 "SafeERC20: low-level call failed",
             );
@@ -528,7 +528,7 @@ contract("AaveIntegration", async (accounts) => {
             await bAsset.transfer(d_AaveIntegration.address, amount.toString());
             expect(await bAsset.balanceOf(d_AaveIntegration.address)).bignumber.lte(amount as any);
             // Step 2. call deposit with high tokens
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_AaveIntegration.deposit(bAsset.address, amount_high.toString(), false),
                 "SafeERC20: low-level call failed",
             );
@@ -552,12 +552,12 @@ contract("AaveIntegration", async (accounts) => {
             await bAsset.transfer(d_AaveIntegration.address, amount.toString());
 
             // Fails with ZERO bAsset Address
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_AaveIntegration.deposit(ZERO_ADDRESS, amount.toString(), false),
                 "aToken does not exist",
             );
             // Fails with ZERO Amount
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_AaveIntegration.deposit(bAsset.address, "0", false),
                 "Must deposit something",
             );
@@ -581,7 +581,7 @@ contract("AaveIntegration", async (accounts) => {
             expect(directBalance).bignumber.eq(newBal);
 
             // 3.3 Check that return value is cool (via event)
-            expectEvent.inLogs(tx.logs, "Deposit", { _amount: amount });
+            expectEvent(tx.receipt, "Deposit", { _amount: amount });
         });
         it("should fail if lending pool or core does not exist (skip on fork)", async () => {
             // Can only run on local, due to constraints from Aave
@@ -591,12 +591,12 @@ contract("AaveIntegration", async (accounts) => {
             const bAsset = await c_ERC20.at(integrationDetails.aTokens[1].bAsset);
             await bAsset.transfer(d_AaveIntegration.address, "1");
             // Fails with ZERO Amount
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_AaveIntegration.deposit(bAsset.address, "1", false),
                 "Lending pool does not exist",
             );
             // Fails with ZERO Amount
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_AaveIntegration.reApproveAllTokens({ from: sa.governor }),
                 "Lending pool core does not exist",
             );
@@ -653,7 +653,7 @@ contract("AaveIntegration", async (accounts) => {
                 systemMachine.isGanacheFork,
             );
             // 2.3 Should give accurate return value
-            expectEvent.inLogs(tx.logs, "Withdrawal", { _amount: amount });
+            expectEvent(tx.receipt, "Withdrawal", { _amount: amount });
         });
 
         it("should handle the fee calculations", async () => {
@@ -707,7 +707,7 @@ contract("AaveIntegration", async (accounts) => {
             const amount = new BN(10).pow(bAsset_decimals);
 
             // Step 1. call deposit
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_AaveIntegration.withdraw(sa.dummy1, bAsset.address, amount.toString(), false, {
                     from: sa.dummy1,
                 }),
@@ -721,11 +721,11 @@ contract("AaveIntegration", async (accounts) => {
             const amount = new BN(1000).mul(new BN(10).pow(bAsset_decimals));
 
             // Step 1. call deposit
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_AaveIntegration.withdraw(sa.default, bAsset.address, amount.toString(), false),
                 systemMachine.isGanacheFork
                     ? "User cannot redeem more than the available balance"
-                    : "SafeMath: subtraction overflow",
+                    : "ERC20: burn amount exceeds balance",
             );
         });
         it("should fail with broken arguments", async () => {
@@ -741,17 +741,16 @@ contract("AaveIntegration", async (accounts) => {
             const aaveIntegration_balBefore = await aToken.balanceOf(d_AaveIntegration.address);
 
             // Fails with ZERO bAsset Address
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_AaveIntegration.withdraw(sa.dummy1, ZERO_ADDRESS, amount.toString(), false),
                 "aToken does not exist",
             );
             // Fails with ZERO recipient address
-            await shouldFail.reverting.withMessage(
+            await expectRevert.unspecified(
                 d_AaveIntegration.withdraw(ZERO_ADDRESS, bAsset.address, new BN(1), false),
-                "",
             );
             // Fails with ZERO Amount
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_AaveIntegration.withdraw(sa.dummy1, bAsset.address, "0", false),
                 "Must withdraw something",
             );
@@ -776,7 +775,7 @@ contract("AaveIntegration", async (accounts) => {
                 systemMachine.isGanacheFork,
             );
             // 2.3 Should give accurate return value
-            expectEvent.inLogs(tx.logs, "Withdrawal", { _amount: amount });
+            expectEvent(tx.receipt, "Withdrawal", { _amount: amount });
         });
         it("should fail if the bAsset is not supported", async () => {
             // Step 0. Choose tokens
@@ -784,7 +783,7 @@ contract("AaveIntegration", async (accounts) => {
             const amount = new BN(10).pow(new BN(12));
 
             // Step 1. call withdraw
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_AaveIntegration.withdraw(sa.dummy1, bAsset.address, amount.toString(), false),
                 "aToken does not exist",
             );
@@ -868,7 +867,7 @@ contract("AaveIntegration", async (accounts) => {
         it("should fail if called with inactive token", async () => {
             const bAsset = await c_ERC20.at(integrationDetails.cTokens[0].bAsset);
 
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_AaveIntegration.logBalance(bAsset.address),
                 "aToken does not exist",
             );
@@ -915,7 +914,7 @@ contract("AaveIntegration", async (accounts) => {
             });
         });
         it("should only be callable by the Governor", async () => {
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_AaveIntegration.reApproveAllTokens({
                     from: sa.dummy1,
                 }),
@@ -928,7 +927,7 @@ contract("AaveIntegration", async (accounts) => {
             const mockAave = await c_MockAave.at(integrationDetails.aavePlatformAddress);
             await mockAave.breakLendingPools();
             // Fails with ZERO Amount
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_AaveIntegration.reApproveAllTokens({ from: sa.governor }),
                 "Lending pool core does not exist",
             );

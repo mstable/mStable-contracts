@@ -2,7 +2,7 @@ pragma solidity 0.5.16;
 
 import { ICERC20 } from "../../../masset/platform-integrations/ICompound.sol";
 
-import { IERC20, ERC20, ERC20Mintable } from "openzeppelin-solidity/contracts/token/ERC20/ERC20Mintable.sol";
+import { IERC20, ERC20, ERC20Mintable } from "@openzeppelin/contracts/token/ERC20/ERC20Mintable.sol";
 import { StableMath } from "../../../shared/StableMath.sol";
 
 

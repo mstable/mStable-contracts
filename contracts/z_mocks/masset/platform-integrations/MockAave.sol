@@ -4,7 +4,7 @@ import { IAaveAToken, IAaveLendingPool, ILendingPoolAddressesProvider } from "..
 import { AaveIntegration } from "../../../masset/platform-integrations/AaveIntegration.sol";
 
 import { MassetHelpers, SafeERC20 } from "../../../masset/shared/MassetHelpers.sol";
-import { IERC20, ERC20, ERC20Mintable } from "openzeppelin-solidity/contracts/token/ERC20/ERC20Mintable.sol";
+import { IERC20, ERC20, ERC20Mintable } from "@openzeppelin/contracts/token/ERC20/ERC20Mintable.sol";
 
 
 // 1. User calls 'getLendingPool'

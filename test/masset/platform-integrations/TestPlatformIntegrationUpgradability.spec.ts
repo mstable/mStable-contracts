@@ -2,8 +2,8 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import * as t from "types/generated";
-import { shouldFail, expectEvent } from "openzeppelin-test-helpers";
-import { latest, increase } from "openzeppelin-test-helpers/src/time";
+import { expectRevert, expectEvent } from "@openzeppelin/test-helpers";
+import { latest, increase } from "@openzeppelin/test-helpers/src/time";
 import { StandardAccounts } from "@utils/machines";
 import { ZERO_ADDRESS } from "@utils/constants";
 import { BN } from "@utils/tools";
@@ -181,7 +181,7 @@ contract("UpgradedAaveIntegration", async (accounts) => {
         });
 
         it("should have modified functions", async () => {
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 proxyToImplV2.setPTokenAddress(sa.dummy1, sa.dummy2, { from: sa.governor }),
                 "Not allowed to add more pTokens",
             );
@@ -189,9 +189,9 @@ contract("UpgradedAaveIntegration", async (accounts) => {
 
         it("should fail initializeNewUint() when called by Other", async () => {
             d_AaveIntegrationV3 = await c_AaveIntegrationV3.new();
-            await shouldFail.reverting.withMessage(
+            // This will just revert as Nexus is not available
+            await expectRevert.unspecified(
                 d_AaveIntegrationV3.initializeNewUint({ from: sa.other }),
-                "", // This will just revert as Nexus is not available
             );
         });
 
@@ -215,7 +215,7 @@ contract("UpgradedAaveIntegration", async (accounts) => {
 
             // We are taking V2's code so that `newMethod()` function can be called
             // However, we know that implementation is on V3
-            await shouldFail.reverting.withMessage(proxyToImplV2.newMethod(), "");
+            await expectRevert.unspecified(proxyToImplV2.newMethod());
         });
 
         it("should allow calling old function", async () => {
@@ -237,7 +237,7 @@ contract("UpgradedAaveIntegration", async (accounts) => {
             });
 
             proxyToImplV3 = await c_AaveIntegrationV3.at(d_AaveIntegrationProxy.address);
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 proxyToImplV3.setPTokenAddress(sa.dummy1, sa.dummy2, { from: sa.governor }),
                 "Not allowed to add more pTokens",
             );

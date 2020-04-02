@@ -1,4 +1,4 @@
-import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
+import { constants, expectEvent, expectRevert } from "@openzeppelin/test-helpers";
 
 import { StandardAccounts } from "@utils/machines";
 import { exactToSimpleAmount, simpleToExactAmount } from "@utils/math";
@@ -55,7 +55,7 @@ contract("StableMath", async (accounts) => {
         });
 
         it("should fail if integer overflow", async () => {
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 math.scaleInteger(simpleToExactAmount(1, 70)),
                 "SafeMath: multiplication overflow",
             );
@@ -91,7 +91,7 @@ contract("StableMath", async (accounts) => {
         });
         it("should fail if scale operand is 0", async () => {
             const sampleInput = simpleToExactAmount(1, 18);
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 math.mulTruncateScale(sampleInput, sampleInput, 0),
                 "SafeMath: division by zero",
             );
@@ -217,14 +217,14 @@ contract("StableMath", async (accounts) => {
         });
         it("should fail if the divisor is 0", async () => {
             const sampleInput = simpleToExactAmount(1, 18);
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 math.divPrecisely(sampleInput, 0),
                 "SafeMath: division by zero",
             );
         });
         it("should fail if the left operand is too large", async () => {
             const sampleInput = simpleToExactAmount(1, 65);
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 math.divPrecisely(sampleInput, simpleToExactAmount(1, 18)),
                 "SafeMath: multiplication overflow",
             );
@@ -360,14 +360,14 @@ contract("StableMath", async (accounts) => {
         });
         it("should fail if the divisor is 0", async () => {
             const sampleInput = simpleToExactAmount(1, 18);
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 math.divRatioPrecisely(sampleInput, 0),
                 "SafeMath: division by zero",
             );
         });
         it("should fail if the left operand is too large", async () => {
             const sampleInput = simpleToExactAmount(1, 71);
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 math.divRatioPrecisely(sampleInput, simpleToExactAmount(1, 8)),
                 "SafeMath: multiplication overflow",
             );
