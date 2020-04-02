@@ -8,11 +8,11 @@ import { createBasket, Basket } from "@utils/mstable-objects";
 import { ZERO_ADDRESS, ONE_WEEK, TEN_MINS } from "@utils/constants";
 import { aToH, BN, assertBNSlightlyGTPercent } from "@utils/tools";
 
+import envSetup from "@utils/env_setup";
+import * as chai from "chai";
 import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
 import shouldBehaveLikePausableModule from "../shared/behaviours/PausableModule.behaviour";
 
-import envSetup from "@utils/env_setup";
-import * as chai from "chai";
 
 const Masset: t.MassetContract = artifacts.require("Masset");
 const Nexus: t.NexusContract = artifacts.require("Nexus");
@@ -205,7 +205,7 @@ contract("Masset", async (accounts) => {
                 true,
             );
             // 4.2 check that increase in vault balance is equivalent to total balance
-            let increasedTotalSupply = totalSupplyAfter.sub(totalSupplyBefore);
+            const increasedTotalSupply = totalSupplyAfter.sub(totalSupplyBefore);
             expect(sumOfVaultsAfter.sub(sumOfVaultsBefore)).bignumber.eq(increasedTotalSupply);
             // 4.3 Ensure that the SavingsManager received the mAsset
             expect(mUSDBalAfter).bignumber.eq(mUSDBalBefore.add(increasedTotalSupply));

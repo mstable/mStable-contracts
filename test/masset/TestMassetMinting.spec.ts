@@ -29,143 +29,193 @@ contract("MassetMinting", async (accounts) => {
         massetDetails = await massetMachine.deployMassetAndSeedBasket();
     });
 
-    // describe("mint", () => {
-    //     context("when the basket is healthy", () => {
-    //         context("when the basket is under the limit", () => {});
+    // Foreach -> mintSingle and mintMulti should have similar behaviour
 
-    //         context("when the basket exceeds the limit", () => {});
-    //     });
-
-    //     context("when the basket is not healthy", () => {
-    //         it("reverts");
-    //     });
-    // });
-
-    // describe("mintTo", () => {
-    //     context("when the basket is healthy", () => {
-    //         context("when the basket is under the limit", () => {
-    //             context("when the recipient is an EOA", () => {});
-
-    //             context("when the recipient is a contract ", () => {});
-
-    //             context("when the recipient is the zero address", () => {});
-    //         });
-
-    //         context("when the basket exceeds the limit", () => {});
-    //     });
-
-    //     context("when the basket is not healthy", () => {
-    //         it("reverts");
-    //     });
-    // });
-
-    describe("Minting", () => {
-        it("Should mint multiple bAssets", async () => {
-            // It's only possible to mint a single base unit of mAsset, if the bAsset also has 18 decimals
-            // For those tokens with 12 decimals, they can at minimum mint 1*10**6 mAsset base units.
-            // Thus, these basic calculations should work in whole mAsset units, with specific tests for
-            // low decimal bAssets
-            const { bAssets } = massetDetails;
-
-            const approvals = await massetMachine.approveMassetMulti(
-                [bAssets[0], bAssets[1], bAssets[2]],
-                massetDetails.mAsset,
-                1,
-                sa.default,
-            );
-            await massetDetails.mAsset.mintMulti(7, approvals, sa.default);
-
-            const approvals2 = await massetMachine.approveMassetMulti(
-                [bAssets[0], bAssets[1], bAssets[2], bAssets[3]],
-                massetDetails.mAsset,
-                1,
-                sa.default,
-            );
-            const mUSD_balBefore = await massetDetails.mAsset.balanceOf(sa.default);
-            await massetDetails.mAsset.mintMulti(15, approvals2, sa.default);
-            const mUSD_balAfter = await massetDetails.mAsset.balanceOf(sa.default);
-            expect(mUSD_balAfter, "Must mint 4 full units of mUSD").bignumber.eq(
-                mUSD_balBefore.add(simpleToExactAmount(4, 18)),
-            );
-        });
-        it("Should mint 2 bAssets", async () => {
-            const { bAssets } = massetDetails;
-            const approvals = await massetMachine.approveMassetMulti(
-                [bAssets[0], bAssets[2]],
-                massetDetails.mAsset,
-                1,
-                sa.default,
-            );
-            const bitmap = 5; // 0101 = 5
-            await massetDetails.mAsset.mintMulti(bitmap, approvals, sa.default, {
-                from: sa.default,
+    describe("minting with a single bAsset", () => {
+        context("at any time", () => {
+            it("should fail if recipient is 0x0", async () => {
+                //mintSingle
             });
+
+            it("should fail if the bAsset does not exist", async () => {
+                //mintSingle
+            });
+            it("should send mUSD when recipient is a contract");
+            it("should send mUSD when the recipient is an EOA", () => {});
+            it("should mint to sender in basic mint func", async () => {
+                //mintSingle
+            });
+            it("should mint nothing if the preparation returns invalid from manager", async () => {
+                //mintSingle
+            });
+            it("should revert when 0 quantities");
+            it("reverts if the mAsset is paused");
+            it("should fail if sender doesn't have balance");
+            it("should fail if sender doesn't give approval");
         });
-        it("Should mint single bAsset", async () => {
-            const { bAssets } = massetDetails;
-            const oneMasset = simpleToExactAmount(1, 18);
-            const mUSD_bal0 = await massetDetails.mAsset.balanceOf(sa.default);
 
-            const approval0: BN = await massetMachine.approveMasset(
-                bAssets[0],
-                massetDetails.mAsset,
-                1,
-                sa.default,
-            );
-            await massetDetails.mAsset.mint(bAssets[0].address, approval0, { from: sa.default });
+        context("when the weights are within the ForgeValidator limit", () => {
+            // handle loads of bAssets (like 10)
+            // handle dud result from prepareForgeBassets
 
-            const mUSD_bal1 = await massetDetails.mAsset.balanceOf(sa.default);
-            expect(mUSD_bal1).bignumber.eq(mUSD_bal0.add(oneMasset));
+            // mint effects -> should increase vaultBalance
+            // should calculate ratio correctly (use varying ratios)
+            // emit mint event
+            // return q
+            it("Should mint single bAsset", async () => {
+                const { bAssets } = massetDetails;
+                const oneMasset = simpleToExactAmount(1, 18);
+                const mUSD_bal0 = await massetDetails.mAsset.balanceOf(sa.default);
 
-            const approval1: BN = await massetMachine.approveMasset(
-                bAssets[1],
-                massetDetails.mAsset,
-                1,
-                sa.default,
-            );
-            await massetDetails.mAsset.mint(bAssets[1].address, approval1, { from: sa.default });
+                const approval0: BN = await massetMachine.approveMasset(
+                    bAssets[0],
+                    massetDetails.mAsset,
+                    1,
+                    sa.default,
+                );
+                await massetDetails.mAsset.mint(bAssets[0].address, approval0, {
+                    from: sa.default,
+                });
 
-            const mUSD_bal2 = await massetDetails.mAsset.balanceOf(sa.default);
-            expect(mUSD_bal2).bignumber.eq(mUSD_bal1.add(oneMasset));
+                const mUSD_bal1 = await massetDetails.mAsset.balanceOf(sa.default);
+                expect(mUSD_bal1).bignumber.eq(mUSD_bal0.add(oneMasset));
 
-            const approval2: BN = await massetMachine.approveMasset(
-                bAssets[2],
-                massetDetails.mAsset,
-                1,
-                sa.default,
-            );
-            await massetDetails.mAsset.mint(bAssets[2].address, approval2, { from: sa.default });
+                const approval1: BN = await massetMachine.approveMasset(
+                    bAssets[1],
+                    massetDetails.mAsset,
+                    1,
+                    sa.default,
+                );
+                await massetDetails.mAsset.mint(bAssets[1].address, approval1, {
+                    from: sa.default,
+                });
 
-            const mUSD_bal3 = await massetDetails.mAsset.balanceOf(sa.default);
-            expect(mUSD_bal3).bignumber.eq(mUSD_bal2.add(oneMasset));
+                const mUSD_bal2 = await massetDetails.mAsset.balanceOf(sa.default);
+                expect(mUSD_bal2).bignumber.eq(mUSD_bal1.add(oneMasset));
 
-            const approval3: BN = await massetMachine.approveMasset(
-                bAssets[3],
-                massetDetails.mAsset,
-                1,
-                sa.default,
-            );
-            await massetDetails.mAsset.mint(bAssets[3].address, approval3, { from: sa.default });
+                const approval2: BN = await massetMachine.approveMasset(
+                    bAssets[2],
+                    massetDetails.mAsset,
+                    1,
+                    sa.default,
+                );
+                await massetDetails.mAsset.mint(bAssets[2].address, approval2, {
+                    from: sa.default,
+                });
 
-            const mUSD_bal4 = await massetDetails.mAsset.balanceOf(sa.default);
-            expect(mUSD_bal4).bignumber.eq(mUSD_bal3.add(oneMasset));
+                const mUSD_bal3 = await massetDetails.mAsset.balanceOf(sa.default);
+                expect(mUSD_bal3).bignumber.eq(mUSD_bal2.add(oneMasset));
+
+                const approval3: BN = await massetMachine.approveMasset(
+                    bAssets[3],
+                    massetDetails.mAsset,
+                    1,
+                    sa.default,
+                );
+                await massetDetails.mAsset.mint(bAssets[3].address, approval3, {
+                    from: sa.default,
+                });
+
+                const mUSD_bal4 = await massetDetails.mAsset.balanceOf(sa.default);
+                expect(mUSD_bal4).bignumber.eq(mUSD_bal3.add(oneMasset));
+            });
+            it("should deposit tokens into target platform", async () => {
+                // check event for sender -> intergator
+            });
+            context("using bAssets with transfer fees", async () => {
+                it("should handle tokens with transfer fees", async () => {});
+                it("should fail if the token charges a fee but we dont know about it", async () => {});
+            }
+            it("should mint selected bAsset only", async () => {});
+            // context("when some bAssets are overweight...")
+            it("should fail if the mint pushes overweight");
+            it("should fail if the mint pushes....");
+            it("should fail if the mint uses invalid bAssets");
+            // it("should fail if the mint uses invalid bAssets");
         });
-        it("should fail if recipient is 0x0");
-        it("should mint to sender in basic mint func");
-        describe("testing forgevalidation", async () => {
+
+        context("and the integrator is invalid", () => {
+        });
+        context("and the weights exceeds the ForgeValidator limit", () => {
+            // minting should work as long as the thing we mint with doesnt exceed max
+            // other states?
+        });
+    });
+
+    describe("minting with multiple bAssets", () => {
+        context("at any time", () => {
+            it("should fail if recipient is 0x0", async () => {
+                //mintSingle
+            });
+
+            it("should fail if the bAsset does not exist", async () => {
+                //mintSingle
+            });
+            it("should send mUSD when recipient is a contract");
+            it("should send mUSD when the recipient is an EOA", () => {});
+            it("should mint to sender in basic mint func", async () => {
+                //mintSingle
+            });
+            it("should mint nothing if the preparation returns invalid from manager", async () => {
+                //mintSingle
+            });
+            it("should revert when 0 quantities");
+            it("reverts if the mAsset is paused");
+            it("should allow minting with some 0 quantities, but not all");
+            it("should mint nothing if the preparation returns invalid from manager", async () => {});
+            it("should fail if output mAsset quantity is 0");
+        });
+
+        context("when the weights are within the ForgeValidator limit", () => {
+            it("Should mint using multiple bAssets", async () => {
+                // It's only possible to mint a single base unit of mAsset, if the bAsset also has 18 decimals
+                // For those tokens with 12 decimals, they can at minimum mint 1*10**6 mAsset base units.
+                // Thus, these basic calculations should work in whole mAsset units, with specific tests for
+                // low decimal bAssets
+                const { bAssets } = massetDetails;
+
+                const approvals = await massetMachine.approveMassetMulti(
+                    [bAssets[0], bAssets[1], bAssets[2]],
+                    massetDetails.mAsset,
+                    1,
+                    sa.default,
+                );
+                await massetDetails.mAsset.mintMulti(7, approvals, sa.default);
+
+                const approvals2 = await massetMachine.approveMassetMulti(
+                    [bAssets[0], bAssets[1], bAssets[2], bAssets[3]],
+                    massetDetails.mAsset,
+                    1,
+                    sa.default,
+                );
+                const mUSD_balBefore = await massetDetails.mAsset.balanceOf(sa.default);
+                await massetDetails.mAsset.mintMulti(15, approvals2, sa.default);
+                const mUSD_balAfter = await massetDetails.mAsset.balanceOf(sa.default);
+                expect(mUSD_balAfter, "Must mint 4 full units of mUSD").bignumber.eq(
+                    mUSD_balBefore.add(simpleToExactAmount(4, 18)),
+                );
+            });
+            it("Should mint using 2 bAssets", async () => {
+                const { bAssets } = massetDetails;
+                const approvals = await massetMachine.approveMassetMulti(
+                    [bAssets[0], bAssets[2]],
+                    massetDetails.mAsset,
+                    1,
+                    sa.default,
+                );
+                const bitmap = 5; // 0101 = 5
+                await massetDetails.mAsset.mintMulti(bitmap, approvals, sa.default, {
+                    from: sa.default,
+                });
+            });
+            it("should deposit tokens into target platform", async () => {});
+            it("should mint selected bAssets only", async () => {});
             // context("when some bAssets are overweight...")
             it("should fail if the mint pushes overweight");
             it("should fail if the mint uses invalid bAssets");
             // it("should fail if the mint uses invalid bAssets");
         });
-        describe("testing PrepareForgeBasset connection", async () => {
-            it("should mint nothing if the prearation returns invalid");
-            // it("should");
-        });
-        it("should allow minting with some 0 quantities, but not all");
-        it("mintMulti should fail if mAsset quantity is 0");
-        it("Should mint selected bAssets only", async () => {});
-        it("Should mintTo a selected recipient", async () => {});
-        it("Should deposit tokens into target platforms", async () => {});
+
+        context("and the weights exceeds the ForgeValidator limit", () => {});
     });
 });
