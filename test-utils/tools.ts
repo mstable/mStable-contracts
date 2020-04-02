@@ -25,6 +25,18 @@ const assertBNClose = (actual: BN, expected: BN, variance = new BN(10)) => {
 };
 
 /**
+ *  Convenience method to assert that one BN.js instance is GTE the other
+ *  @param actual The BN.js instance you received
+ *  @param expected The operant to compare against
+ */
+const assertBnGte = (actual: BN, comparison: BN) => {
+    assert.ok(
+        actual.gte(comparison),
+        `Number must be GTE comparitor, got: ${actual.toString()}; comparitor: ${comparison.toString()}`,
+    );
+};
+
+/**
  *  Convenience method to assert that one BN.js number is eq to, or greater than an expected value by some small amount
  *  @param actual The BN.js instance you received
  *  @param equator The BN.js to equate to
@@ -76,4 +88,13 @@ const assertBNSlightlyGTPercent = (
     );
 };
 
-export { assertBNSlightlyGT, assertBNSlightlyGTPercent, assertBNClose, aToH, BN, chai, padRight };
+export {
+    assertBNSlightlyGT,
+    assertBNSlightlyGTPercent,
+    assertBNClose,
+    assertBnGte,
+    aToH,
+    BN,
+    chai,
+    padRight,
+};

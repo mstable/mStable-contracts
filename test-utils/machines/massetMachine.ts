@@ -6,6 +6,8 @@ import {
     Platform,
     ATokenDetails,
     CTokenDetails,
+    BasketComposition,
+    BassetDetails,
 } from "../../types/machines";
 import { SystemMachine, StandardAccounts } from ".";
 import { createMultiple, simpleToExactAmount, percentToWeight } from "@utils/math";
@@ -396,8 +398,8 @@ export class MassetMachine {
         return massetDetails;
     }
 
-    public async getBassetsInMasset(masset: MassetDetails): Promise<Basset[]> {
-        const response = await masset.basketManager.getBassets();
+    public async getBassetsInMasset(massetDetails: MassetDetails): Promise<Basset[]> {
+        const response = await massetDetails.basketManager.getBassets();
         const bArrays: Array<Basset> = response[0].map((b) => {
             return {
                 addr: b.addr,
@@ -411,11 +413,51 @@ export class MassetMachine {
         return bArrays;
     }
 
+    public async getBasketComposition(massetDetails: MassetDetails): Promise<BasketComposition> {
+        // raw bAsset data
+        let bAssets = await this.getBassetsInMasset(massetDetails);
+        let basket = await massetDetails.basketManager.getBasket();
+        let grace = await massetDetails.basketManager.grace();
+        // total supply of mAsset
+        let totalSupply = await massetDetails.mAsset.totalSupply();
+        // get weights (relative to totalSupply)
+        // apply ratios, then find proportion of totalSupply all in BN
+        let targetWeightInUnits = bAssets.map((b) =>
+            totalSupply.mul(b.targetWeight).div(fullScale),
+        );
+        // get overweight
+        let currentVaultUnits = bAssets.map((b) => b.vaultBalance.mul(b.ratio).div(ratioScale));
+        let overweightBassets = bAssets.map((b, i) =>
+            currentVaultUnits[i].gte(targetWeightInUnits[i].add(grace)),
+        );
+        // get underweight
+        let underweightBassets = bAssets.map((b, i) =>
+            currentVaultUnits[i].gte(targetWeightInUnits[i].add(grace)),
+        );
+        // get total amount
+        let sumOfBassets = currentVaultUnits.reduce((p, c, i) => p.add(c), new BN(0));
+        return {
+            bAssets: bAssets.map((b, i) => {
+                return {
+                    address: b.addr,
+                    mAssetUnits: currentVaultUnits[i],
+                    overweight: overweightBassets[i],
+                    underweight: underweightBassets[i],
+                };
+            }),
+            totalSupply,
+            grace,
+            sumOfBassets,
+            failed: basket.failed,
+            colRatio: basket.collateralisationRatio,
+        };
+    }
+
     public async approveMasset(
         bAsset: t.MockERC20Instance,
         mAsset: t.MassetInstance,
-        fullMassetUnits: number,
-        sender: string,
+        fullMassetUnits: number | BN,
+        sender: string = this.sa.default,
     ): Promise<BN> {
         const bAssetDecimals: BN = await bAsset.decimals();
         // let decimalDifference: BN = bAssetDecimals.sub(new BN(18));

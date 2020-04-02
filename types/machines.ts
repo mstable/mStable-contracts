@@ -1,5 +1,6 @@
 import * as t from "./generated";
 import { Address } from "./common";
+import BN = require("bn.js");
 
 export interface ATokenDetails {
     bAsset: Address;
@@ -21,4 +22,20 @@ export interface BassetIntegrationDetails {
     aavePlatformAddress: Address;
     aTokens: Array<ATokenDetails>;
     cTokens: Array<CTokenDetails>;
+}
+
+export interface BassetDetails {
+    address: Address;
+    mAssetUnits: BN;
+    overweight: boolean;
+    underweight: boolean;
+}
+
+export interface BasketComposition {
+    bAssets: Array<BassetDetails>;
+    totalSupply: BN;
+    grace: BN;
+    sumOfBassets: BN;
+    failed: boolean;
+    colRatio: BN;
 }

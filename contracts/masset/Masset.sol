@@ -171,7 +171,7 @@ contract Masset is IMasset, MassetToken, PausableModule, ReentrancyGuard {
         nonReentrant
         returns (uint256 massetMinted)
     {
-        require(_recipient != address(0), "Recipient must not be 0x0");
+        require(_recipient != address(0), "Must be a valid recipient");
         require(_bAssetQuantity > 0, "Quantity must not be 0");
 
         ForgeProps memory props = basketManager.prepareForgeBasset(_bAsset, _bAssetQuantity, true);
@@ -210,7 +210,7 @@ contract Masset is IMasset, MassetToken, PausableModule, ReentrancyGuard {
         nonReentrant
         returns (uint256 massetMinted)
     {
-        require(_recipient != address(0), "Recipient must not be 0x0");
+        require(_recipient != address(0), "Must be a valid recipient");
         uint256 len = _bAssetQuantity.length;
 
         // Load only needed bAssets in array
@@ -331,7 +331,7 @@ contract Masset is IMasset, MassetToken, PausableModule, ReentrancyGuard {
         nonReentrant
         returns (uint256 massetRedeemed)
     {
-        require(_recipient != address(0), "Recipient must not be 0x0");
+        require(_recipient != address(0), "Must be a valid recipient");
         require(_bAssetQuantity > 0, "Quantity must not be 0");
 
         Basket memory basket = basketManager.getBasket();
@@ -377,7 +377,7 @@ contract Masset is IMasset, MassetToken, PausableModule, ReentrancyGuard {
         nonReentrant
         returns (uint256 massetRedeemed)
     {
-        require(_recipient != address(0), "Recipient must not be 0x0");
+        require(_recipient != address(0), "Must be a valid recipient");
         uint256 redemptionAssetCount = _bAssetQuantities.length;
 
         // Fetch high level details

@@ -3,7 +3,7 @@ import { Address } from "types/common";
 
 /**
  * @notice This file contains constants relevant across the mStable test suite
- * Wherever possible, it should confirm to fixed on chain vars
+ * Wherever possible, it should conform to fixed on chain vars
  */
 
 export const percentScale = new BN(10).pow(new BN(16));
