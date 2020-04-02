@@ -2,8 +2,7 @@
 /* eslint-disable consistent-return */
 
 import * as t from "types/generated";
-import { constants, expectEvent, expectRevert } from "@openzeppelin/test-helpers";
-import { increase } from "@openzeppelin/test-helpers/src/time";
+import { constants, expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
 import { BN, assertBNClose, assertBNSlightlyGT, assertBNSlightlyGTPercent } from "@utils/tools";
 import { StandardAccounts, SystemMachine, MassetMachine } from "@utils/machines";
 import {
@@ -811,7 +810,7 @@ contract("CompoundIntegration", async (accounts) => {
             // 2.2. Call the deposit func
             await cToken.mint(amount);
             // 2.3. Fast forward some time
-            await increase(ONE_WEEK);
+            await time.increase(ONE_WEEK);
             // 2.4. Do a redemption
             await cToken.redeemUnderlying(amount);
 

@@ -10,7 +10,7 @@ module.exports = {
   },
   silent: false,
   // client: require("ganache-core"),
-  copyPackages: ['openzeppelin-solidity'],
+  copyPackages: ['@openzeppelin'],
   skipFiles: [
     'Migrations.sol',
     'interfaces',

@@ -2,8 +2,7 @@
 /* eslint-disable consistent-return */
 
 import * as t from "types/generated";
-import { increase } from "@openzeppelin/test-helpers/src/time";
-import { constants, expectEvent, expectRevert } from "@openzeppelin/test-helpers";
+import { constants, expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
 import { BN, assertBNClose, assertBNSlightlyGT, assertBNSlightlyGTPercent } from "@utils/tools";
 import { StandardAccounts, SystemMachine, MassetMachine } from "@utils/machines";
 import {
@@ -405,7 +404,7 @@ contract("AaveIntegration", async (accounts) => {
             directBalance = await d_AaveIntegration.logBalance(bAsset.address);
             expect(directBalance).bignumber.eq(actualBalance);
             // Assert that Balance goes up over time
-            await increase(TEN_MINS);
+            await time.increase(TEN_MINS);
             const newBalance = await d_AaveIntegration.logBalance(bAsset.address);
             assertBNSlightlyGTPercent(
                 newBalance,
@@ -644,7 +643,7 @@ contract("AaveIntegration", async (accounts) => {
             const directBalance = await d_AaveIntegration.logBalance(bAsset.address);
             expect(directBalance).bignumber.eq(actualBalance);
             // Assert that Balance goes up over time
-            await increase(TEN_MINS);
+            await time.increase(TEN_MINS);
             const newBalance = await d_AaveIntegration.logBalance(bAsset.address);
             assertBNSlightlyGTPercent(
                 newBalance,
@@ -839,7 +838,7 @@ contract("AaveIntegration", async (accounts) => {
             // 2.2. Call the deposit func
             await d_lendingPool.deposit(bAsset.address, amount, 9999);
             // 2.3. Fast forward some time
-            await increase(ONE_WEEK);
+            await time.increase(ONE_WEEK);
             // 2.4. Do a redemption
             await aToken.redeem(amount);
 

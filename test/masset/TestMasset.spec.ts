@@ -1,6 +1,5 @@
 import * as t from "types/generated";
-import { increase } from "openzeppelin-test-helpers/src/time";
-import { expectEvent, shouldFail } from "openzeppelin-test-helpers";
+import { expectEvent, time, expectRevert } from "@openzeppelin/test-helpers";
 import { keccak256 } from "web3-utils";
 
 import { MassetMachine, StandardAccounts, SystemMachine, MassetDetails } from "@utils/machines";
@@ -9,10 +8,11 @@ import { createBasket, Basket } from "@utils/mstable-objects";
 import { ZERO_ADDRESS, ONE_WEEK, TEN_MINS } from "@utils/constants";
 import { aToH, BN, assertBNSlightlyGTPercent } from "@utils/tools";
 
-import envSetup from "@utils/env_setup";
-import * as chai from "chai";
 import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
 import shouldBehaveLikePausableModule from "../shared/behaviours/PausableModule.behaviour";
+
+import envSetup from "@utils/env_setup";
+import * as chai from "chai";
 
 const Masset: t.MassetContract = artifacts.require("Masset");
 const Nexus: t.NexusContract = artifacts.require("Nexus");
@@ -81,26 +81,26 @@ contract("Masset", async (accounts) => {
             expect(sa.governor).eq(await systemMachine.nexus.governor());
             expect(await massetDetails.mAsset.forgeValidator()).eq(sa.other);
             // rejected if not governor
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 massetDetails.mAsset.upgradeForgeValidator(sa.dummy2, { from: sa.default }),
                 "Must be manager or governance",
             );
             // rejected if invalid params
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 massetDetails.mAsset.upgradeForgeValidator(ZERO_ADDRESS, { from: sa.governor }),
                 "Must be non null address",
             );
         });
         it("should allow locking of the ForgeValidator", async () => {
             // rejected if not governor
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 massetDetails.mAsset.lockForgeValidator({ from: sa.default }),
                 "Only governor can execute",
             );
             // Lock
             await massetDetails.mAsset.lockForgeValidator({ from: sa.governor });
             // no setting when locked
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 massetDetails.mAsset.upgradeForgeValidator(sa.dummy2, { from: sa.governor }),
                 "Must be allowed to upgrade",
             );
@@ -112,12 +112,12 @@ contract("Masset", async (accounts) => {
             await massetDetails.mAsset.setFeeRecipient(sa.other, { from: sa.governor });
             expect(await massetDetails.mAsset.feeRecipient()).eq(sa.other);
             // rejected if not governor
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 massetDetails.mAsset.setFeeRecipient(sa.dummy1, { from: sa.default }),
                 "Must be manager or governance",
             );
             // no zero
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 massetDetails.mAsset.setFeeRecipient(ZERO_ADDRESS, { from: sa.governor }),
                 "Must be valid address",
             );
@@ -130,19 +130,19 @@ contract("Masset", async (accounts) => {
             await massetDetails.mAsset.setRedemptionFee(newfee, { from: sa.governor });
             expect(await massetDetails.mAsset.redemptionFee()).bignumber.eq(newfee);
             // rejected if not governor
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 massetDetails.mAsset.setRedemptionFee(newfee, { from: sa.default }),
                 "Must be manager or governance",
             );
             // cannot exceed cap
             const feeExceedingCap = simpleToExactAmount(11, 16); // 11%
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 massetDetails.mAsset.setRedemptionFee(feeExceedingCap, { from: sa.governor }),
                 "Rate must be within bounds",
             );
             // cannot exceed min
             const feeExceedingMin = new BN(-1); // 11%
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 massetDetails.mAsset.setRedemptionFee(feeExceedingMin, { from: sa.governor }),
                 "Rate must be within bounds",
             );
@@ -156,7 +156,7 @@ contract("Masset", async (accounts) => {
         it("should collect interest, update the vaults and send to the manager", async () => {
             // 1.0. Simulate some activity on the lending markets
             // Fast forward a bit
-            await increase(TEN_MINS);
+            await time.increase(TEN_MINS);
 
             // 1.1. Simulate some activity on the lending markets
             // Mint with all bAssets
@@ -217,17 +217,17 @@ contract("Masset", async (accounts) => {
             const [savingsManagerInNexus] = await nexus.modules(keccak256("SavingsManager"));
             expect(sa.dummy1).eq(savingsManagerInNexus);
 
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 massetDetails.mAsset.collectInterest({ from: sa.governor }),
                 "Must be savings manager",
             );
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 massetDetails.mAsset.collectInterest({ from: sa.default }),
                 "Must be savings manager",
             );
 
             await massetDetails.mAsset.pause({ from: sa.governor });
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 massetDetails.mAsset.collectInterest({ from: sa.dummy1 }),
                 "Pausable: paused",
             );

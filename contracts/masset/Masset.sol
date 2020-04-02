@@ -476,7 +476,7 @@ contract Masset is IMasset, MassetToken, PausableModule, ReentrancyGuard {
       */
     function lockForgeValidator()
         external
-        managerOrGovernor
+        onlyGovernor
     {
         forgeValidatorLocked = true;
     }

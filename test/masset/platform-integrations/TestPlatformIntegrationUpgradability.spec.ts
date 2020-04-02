@@ -2,8 +2,7 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import * as t from "types/generated";
-import { expectRevert, expectEvent } from "@openzeppelin/test-helpers";
-import { latest, increase } from "@openzeppelin/test-helpers/src/time";
+import { expectRevert, expectEvent, time } from "@openzeppelin/test-helpers";
 import { StandardAccounts } from "@utils/machines";
 import { ZERO_ADDRESS } from "@utils/constants";
 import { BN } from "@utils/tools";
@@ -123,7 +122,7 @@ contract("UpgradedAaveIntegration", async (accounts) => {
             initializationData_AaveIntegrationV2,
             { from: sa.governor },
         );
-        await increase(ONE_WEEK);
+        await time.increase(ONE_WEEK);
         await d_DelayedProxyAdmin.acceptUpgradeRequest(d_AaveIntegrationProxy.address, {
             from: sa.governor,
         });
@@ -208,7 +207,7 @@ contract("UpgradedAaveIntegration", async (accounts) => {
                 initializationData_AaveIntegrationV3,
                 { from: sa.governor },
             );
-            await increase(ONE_WEEK);
+            await time.increase(ONE_WEEK);
             await d_DelayedProxyAdmin.acceptUpgradeRequest(d_AaveIntegrationProxy.address, {
                 from: sa.governor,
             });
@@ -231,7 +230,7 @@ contract("UpgradedAaveIntegration", async (accounts) => {
                 initializationData_AaveIntegrationV3,
                 { from: sa.governor },
             );
-            await increase(ONE_WEEK);
+            await time.increase(ONE_WEEK);
             await d_DelayedProxyAdmin.acceptUpgradeRequest(d_AaveIntegrationProxy.address, {
                 from: sa.governor,
             });

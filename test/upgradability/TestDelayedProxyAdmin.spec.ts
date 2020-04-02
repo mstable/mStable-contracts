@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import * as t from "types/generated";
-import { latest, increase } from "@openzeppelin/test-helpers/src/time";
-import { expectRevert, expectEvent } from "@openzeppelin/test-helpers";
+import { expectRevert, expectEvent, time } from "@openzeppelin/test-helpers";
 import { StandardAccounts } from "@utils/machines";
 import { ZERO_ADDRESS, ZERO } from "@utils/constants";
 import { BN } from "@utils/tools";
@@ -65,10 +64,7 @@ contract("DelayedProxyAdmin", async (accounts) => {
 
         context("should fail", async () => {
             it("when zero Nexus address", async () => {
-                await expectRevert(
-                    DelayedProxyAdmin.new(ZERO_ADDRESS),
-                    "Nexus is zero address",
-                );
+                await expectRevert(DelayedProxyAdmin.new(ZERO_ADDRESS), "Nexus is zero address");
             });
         });
     });
@@ -112,7 +108,7 @@ contract("DelayedProxyAdmin", async (accounts) => {
                     "0x",
                     { from: sa.governor },
                 );
-                const timestamp = await latest();
+                const timestamp = await time.latest();
                 await expectInRequest(
                     delayedProxyAdmin,
                     proxy.address,
@@ -137,7 +133,7 @@ contract("DelayedProxyAdmin", async (accounts) => {
                     encodeData,
                     { from: sa.governor },
                 );
-                const timestamp = await latest();
+                const timestamp = await time.latest();
                 await expectInRequest(
                     delayedProxyAdmin,
                     proxy.address,
@@ -196,7 +192,7 @@ contract("DelayedProxyAdmin", async (accounts) => {
                 await expectRevert.unspecified(
                     delayedProxyAdmin.proposeUpgrade(newProxy.address, mockImplV2.address, "0x", {
                         from: sa.governor,
-                    })
+                    }),
                 );
             });
 
@@ -223,7 +219,7 @@ contract("DelayedProxyAdmin", async (accounts) => {
                     "0x",
                     { from: sa.governor },
                 );
-                const timestamp = await latest();
+                const timestamp = await time.latest();
                 await expectInRequest(
                     delayedProxyAdmin,
                     proxy.address,
@@ -272,7 +268,7 @@ contract("DelayedProxyAdmin", async (accounts) => {
                 encodeData,
                 { from: sa.governor },
             );
-            const timestamp = await latest();
+            const timestamp = await time.latest();
             await expectInRequest(
                 delayedProxyAdmin,
                 proxy.address,
@@ -307,7 +303,7 @@ contract("DelayedProxyAdmin", async (accounts) => {
 
             it("when cancel after 1 week as well", async () => {
                 // Cancel after 1 week
-                await increase(ONE_WEEK);
+                await time.increase(ONE_WEEK);
                 const tx = await delayedProxyAdmin.cancelUpgrade(proxy.address, {
                     from: sa.governor,
                 });
@@ -371,7 +367,7 @@ contract("DelayedProxyAdmin", async (accounts) => {
                 encodeData,
                 { from: sa.governor },
             );
-            const timestamp = await latest();
+            const timestamp = await time.latest();
             await expectInRequest(
                 delayedProxyAdmin,
                 proxy.address,
@@ -390,7 +386,7 @@ contract("DelayedProxyAdmin", async (accounts) => {
 
         context("should succeed", async () => {
             it("when valid request and function called by the Governor", async () => {
-                await increase(ONE_WEEK);
+                await time.increase(ONE_WEEK);
                 const tx = await delayedProxyAdmin.acceptUpgradeRequest(proxy.address, {
                     from: sa.governor,
                 });
@@ -417,7 +413,7 @@ contract("DelayedProxyAdmin", async (accounts) => {
                 await delayedProxyAdmin.proposeUpgrade(proxy.address, mockImplV2.address, "0x", {
                     from: sa.governor,
                 });
-                await increase(ONE_WEEK);
+                await time.increase(ONE_WEEK);
                 const tx = await delayedProxyAdmin.acceptUpgradeRequest(proxy.address, {
                     from: sa.governor,
                 });
@@ -430,7 +426,7 @@ contract("DelayedProxyAdmin", async (accounts) => {
             });
 
             it("when ETH is sent to upgraded implementation along with function call", async () => {
-                await increase(ONE_WEEK);
+                await time.increase(ONE_WEEK);
                 await delayedProxyAdmin.acceptUpgradeRequest(proxy.address, {
                     from: sa.governor,
                     value: "100",
@@ -463,8 +459,8 @@ contract("DelayedProxyAdmin", async (accounts) => {
             });
 
             it("when opt-out delay not over", async () => {
-                const timestamp = await latest();
-                await increase(ONE_DAY);
+                const timestamp = await time.latest();
+                await time.increase(ONE_DAY);
                 await expectRevert(
                     delayedProxyAdmin.acceptUpgradeRequest(proxy.address, {
                         from: sa.governor,
@@ -481,8 +477,8 @@ contract("DelayedProxyAdmin", async (accounts) => {
             });
 
             it("when opt-out delay is 10 seconds before 1 week", async () => {
-                const timestamp = await latest();
-                await increase(ONE_WEEK.sub(new BN(10)));
+                const timestamp = await time.latest();
+                await time.increase(ONE_WEEK.sub(new BN(10)));
                 await expectRevert(
                     delayedProxyAdmin.acceptUpgradeRequest(proxy.address, {
                         from: sa.governor,
@@ -503,7 +499,7 @@ contract("DelayedProxyAdmin", async (accounts) => {
                 await delayedProxyAdmin.proposeUpgrade(proxy.address, mockImplV2.address, "0x", {
                     from: sa.governor,
                 });
-                await increase(ONE_WEEK);
+                await time.increase(ONE_WEEK);
                 await expectRevert(
                     delayedProxyAdmin.acceptUpgradeRequest(proxy.address, {
                         from: sa.governor,
@@ -527,7 +523,7 @@ contract("DelayedProxyAdmin", async (accounts) => {
                 encodeData,
                 { from: sa.governor },
             );
-            const timestamp = await latest();
+            const timestamp = await time.latest();
             await expectInRequest(
                 delayedProxyAdmin,
                 proxy.address,
@@ -554,15 +550,11 @@ contract("DelayedProxyAdmin", async (accounts) => {
 
             context("should fail", async () => {
                 it("when proxy address is zero", async () => {
-                    await expectRevert.unspecified(
-                        delayedProxyAdmin.getProxyAdmin(ZERO_ADDRESS)
-                    );
+                    await expectRevert.unspecified(delayedProxyAdmin.getProxyAdmin(ZERO_ADDRESS));
                 });
 
                 it("when wrong proxy address", async () => {
-                    await expectRevert.unspecified(
-                        delayedProxyAdmin.getProxyAdmin(sa.dummy4)
-                    );
+                    await expectRevert.unspecified(delayedProxyAdmin.getProxyAdmin(sa.dummy4));
                 });
             });
         });
@@ -578,7 +570,7 @@ contract("DelayedProxyAdmin", async (accounts) => {
                     let implAddr = await delayedProxyAdmin.getProxyImplementation(proxy.address);
                     expect(mockImplV1.address).to.equal(implAddr);
 
-                    await increase(ONE_WEEK);
+                    await time.increase(ONE_WEEK);
 
                     await delayedProxyAdmin.acceptUpgradeRequest(proxy.address, {
                         from: sa.governor,
@@ -592,7 +584,7 @@ contract("DelayedProxyAdmin", async (accounts) => {
             context("should fail", async () => {
                 it("when proxy address is zero", async () => {
                     await expectRevert.unspecified(
-                        delayedProxyAdmin.getProxyImplementation(ZERO_ADDRESS)
+                        delayedProxyAdmin.getProxyImplementation(ZERO_ADDRESS),
                     );
                 });
             });

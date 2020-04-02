@@ -1,5 +1,4 @@
-import { increase, latest } from "@openzeppelin/test-helpers/src/time";
-import { constants, expectEvent, expectRevert } from "@openzeppelin/test-helpers";
+import { constants, expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
 import { StandardAccounts, SystemMachine } from "@utils/machines";
 import { padRight, BN } from "@utils/tools";
 import { ZERO_ADDRESS, ZERO, ONE_DAY, TEN_DAYS, ONE_WEEK } from "@utils/constants";
@@ -230,7 +229,7 @@ contract("Nexus", async (accounts) => {
             });
             it("when module already proposed", async () => {
                 await nexus.proposeModule(keccak256("dummy2"), sa.dummy2, { from: sa.governor });
-                const timestamp = await latest();
+                const timestamp = await time.latest();
                 await expectInProposedModules(nexus, "dummy2", sa.dummy2, timestamp);
 
                 await expectRevert(
@@ -243,7 +242,7 @@ contract("Nexus", async (accounts) => {
         context("should succeed", () => {
             it("when a new module is proposed", async () => {
                 await nexus.proposeModule(keccak256("dummy1"), sa.dummy1, { from: sa.governor });
-                const lastTimestamp = await latest();
+                const lastTimestamp = await time.latest();
 
                 await expectInProposedModules(nexus, "dummy1", sa.dummy1, lastTimestamp);
             });
@@ -254,7 +253,7 @@ contract("Nexus", async (accounts) => {
 
                 // propose new address
                 await nexus.proposeModule(keccak256("dummy4"), sa.other, { from: sa.governor });
-                const lastTimestamp = await latest();
+                const lastTimestamp = await time.latest();
 
                 await expectInProposedModules(nexus, "dummy4", sa.other, lastTimestamp);
 
@@ -291,7 +290,7 @@ contract("Nexus", async (accounts) => {
                 // validate proposed module
 
                 // validate dummy1 added
-                const latestTimestamp = await latest();
+                const latestTimestamp = await time.latest();
                 await expectInProposedModules(nexus, "dummy1", sa.dummy1, latestTimestamp);
 
                 // validate dummy3 still exist
@@ -336,8 +335,8 @@ contract("Nexus", async (accounts) => {
             });
             it("when delay not over", async () => {
                 await nexus.proposeModule(keccak256("dummy1"), sa.dummy1, { from: sa.governor });
-                const timeWhenModuleProposed = await latest();
-                await increase(ONE_DAY);
+                const timeWhenModuleProposed = await time.latest();
+                await time.increase(ONE_DAY);
                 await expectRevert(
                     nexus.acceptProposedModule(keccak256("dummy1"), { from: sa.governor }),
                     "Module upgrade delay not over",
@@ -353,12 +352,12 @@ contract("Nexus", async (accounts) => {
         context("should succeed", () => {
             it("when accepted after delay is over", async () => {
                 await nexus.proposeModule(keccak256("dummy1"), sa.dummy1, { from: sa.governor });
-                const timeWhenModuleProposed = await latest();
+                const timeWhenModuleProposed = await time.latest();
 
                 // validate
                 await expectInProposedModules(nexus, "dummy1", sa.dummy1, timeWhenModuleProposed);
 
-                await increase(ONE_WEEK);
+                await time.increase(ONE_WEEK);
                 await nexus.acceptProposedModule(keccak256("dummy1"), { from: sa.governor });
 
                 // validate module accepted
@@ -404,14 +403,14 @@ contract("Nexus", async (accounts) => {
                 // update address request
                 await expectInModules(nexus, "dummy4", sa.dummy4, false);
                 await nexus.proposeModule(keccak256("dummy4"), sa.other, { from: sa.governor });
-                const timestampWhenProposed = await latest();
+                const timestampWhenProposed = await time.latest();
                 await expectInProposedModules(nexus, "dummy4", sa.other, timestampWhenProposed);
-                await increase(ONE_DAY);
+                await time.increase(ONE_DAY);
                 // lock request
                 await nexus.requestLockModule(keccak256("dummy4"), { from: sa.governor });
-                await expectInProposedLockModules(nexus, "dummy4", await latest());
+                await expectInProposedLockModules(nexus, "dummy4", await time.latest());
 
-                await increase(ONE_WEEK);
+                await time.increase(ONE_WEEK);
                 // module locked
                 await nexus.lockModule(keccak256("dummy4"), { from: sa.governor });
                 await expectInModules(nexus, "dummy4", sa.dummy4, true);
@@ -426,13 +425,13 @@ contract("Nexus", async (accounts) => {
             it("when address is already used by another module", async () => {
                 // proposed new module - dummy1
                 await nexus.proposeModule(keccak256("dummy1"), sa.dummy1, { from: sa.governor });
-                await expectInProposedModules(nexus, "dummy1", sa.dummy1, await latest());
+                await expectInProposedModules(nexus, "dummy1", sa.dummy1, await time.latest());
 
                 // propose new module - dummy2 with dummy1 as address
                 await nexus.proposeModule(keccak256("dummy2"), sa.dummy1, { from: sa.governor });
-                await expectInProposedModules(nexus, "dummy2", sa.dummy1, await latest());
+                await expectInProposedModules(nexus, "dummy2", sa.dummy1, await time.latest());
 
-                await increase(ONE_WEEK);
+                await time.increase(ONE_WEEK);
 
                 // dummy1 accepted
                 await nexus.acceptProposedModules([keccak256("dummy1")], { from: sa.governor });
@@ -446,7 +445,7 @@ contract("Nexus", async (accounts) => {
             });
             it("when delay is not over", async () => {
                 await nexus.proposeModule(keccak256("dummy1"), sa.dummy1, { from: sa.governor });
-                await increase(ONE_DAY);
+                await time.increase(ONE_DAY);
                 await expectRevert(
                     nexus.acceptProposedModules([keccak256("dummy1")], { from: sa.governor }),
                     "Module upgrade delay not over",
@@ -457,7 +456,7 @@ contract("Nexus", async (accounts) => {
             });
             it("when delay is less then 10 second of opt out period", async () => {
                 await nexus.proposeModule(keccak256("dummy1"), sa.dummy1, { from: sa.governor });
-                await increase(ONE_WEEK.sub(new BN(10)));
+                await time.increase(ONE_WEEK.sub(new BN(10)));
                 await expectRevert(
                     nexus.acceptProposedModules([keccak256("dummy1")], { from: sa.governor }),
                     "Module upgrade delay not over",
@@ -470,7 +469,7 @@ contract("Nexus", async (accounts) => {
         context("should succeed", () => {
             it("when accepted a proposed Module", async () => {
                 await nexus.proposeModule(keccak256("dummy1"), sa.dummy1, { from: sa.governor });
-                await increase(ONE_WEEK);
+                await time.increase(ONE_WEEK);
                 const tx = await nexus.acceptProposedModules([keccak256("dummy1")], {
                     from: sa.governor,
                 });
@@ -490,7 +489,7 @@ contract("Nexus", async (accounts) => {
             });
             it("when delay is more then 10 second of opt out period", async () => {
                 await nexus.proposeModule(keccak256("dummy1"), sa.dummy1, { from: sa.governor });
-                await increase(ONE_WEEK.add(new BN(10)));
+                await time.increase(ONE_WEEK.add(new BN(10)));
                 const tx = await nexus.acceptProposedModules([keccak256("dummy1")], {
                     from: sa.governor,
                 });
@@ -508,7 +507,7 @@ contract("Nexus", async (accounts) => {
 
                 await nexus.proposeModule(keccak256("dummy4"), sa.other, { from: sa.governor });
 
-                await increase(ONE_WEEK);
+                await time.increase(ONE_WEEK);
 
                 const tx = await nexus.acceptProposedModules([keccak256("dummy4")], {
                     from: sa.governor,
@@ -575,7 +574,7 @@ contract("Nexus", async (accounts) => {
                 const tx = await nexus.requestLockModule(keccak256("dummy4"), {
                     from: sa.governor,
                 });
-                const latestTimestamp = await latest();
+                const latestTimestamp = await time.latest();
                 expectEvent(tx.receipt, "ModuleLockRequested", {
                     key: padRight(keccak256("dummy4"), 64),
                     timestamp: latestTimestamp,
@@ -623,7 +622,7 @@ contract("Nexus", async (accounts) => {
 
                 await nexus.requestLockModule(keccak256("dummy4"), { from: sa.governor });
 
-                const latestTimestamp = await latest();
+                const latestTimestamp = await time.latest();
                 await expectInProposedLockModules(nexus, "dummy4", latestTimestamp);
 
                 const tx = await nexus.cancelLockModule(keccak256("dummy4"), { from: sa.governor });
@@ -660,7 +659,7 @@ contract("Nexus", async (accounts) => {
             });
             it("when delay not over", async () => {
                 await nexus.requestLockModule(keccak256("dummy4"), { from: sa.governor });
-                await increase(ONE_DAY);
+                await time.increase(ONE_DAY);
                 await expectRevert(
                     nexus.lockModule(keccak256("dummy4"), { from: sa.governor }),
                     "Delay not over",
@@ -668,7 +667,7 @@ contract("Nexus", async (accounts) => {
             });
             it("when delay is less then 10 second of opt out period", async () => {
                 await nexus.requestLockModule(keccak256("dummy4"), { from: sa.governor });
-                await increase(ONE_WEEK.sub(new BN(10)));
+                await time.increase(ONE_WEEK.sub(new BN(10)));
                 await expectRevert(
                     nexus.lockModule(keccak256("dummy4"), { from: sa.governor }),
                     "Delay not over",
@@ -680,9 +679,9 @@ contract("Nexus", async (accounts) => {
                 await expectInModules(nexus, "dummy4", sa.dummy4, false);
 
                 await nexus.requestLockModule(keccak256("dummy4"), { from: sa.governor });
-                await expectInProposedLockModules(nexus, "dummy4", await latest());
+                await expectInProposedLockModules(nexus, "dummy4", await time.latest());
 
-                await increase(ONE_WEEK);
+                await time.increase(ONE_WEEK);
 
                 const tx = await nexus.lockModule(keccak256("dummy4"), { from: sa.governor });
                 // validate event
@@ -696,9 +695,9 @@ contract("Nexus", async (accounts) => {
                 await expectInModules(nexus, "dummy4", sa.dummy4, false);
 
                 await nexus.requestLockModule(keccak256("dummy4"), { from: sa.governor });
-                await expectInProposedLockModules(nexus, "dummy4", await latest());
+                await expectInProposedLockModules(nexus, "dummy4", await time.latest());
 
-                await increase(ONE_WEEK.add(new BN(10)));
+                await time.increase(ONE_WEEK.add(new BN(10)));
 
                 const tx = await nexus.lockModule(keccak256("dummy4"), { from: sa.governor });
                 await expectInProposedLockModules(nexus, "dummy4", ZERO);
@@ -735,18 +734,18 @@ contract("Nexus", async (accounts) => {
         context("should not allow", () => {
             it("proposeModule + requestLockModule for a same key", async () => {
                 await nexus.proposeModule(keccak256("dummy1"), sa.dummy1, { from: sa.governor });
-                await expectInProposedModules(nexus, "dummy1", sa.dummy1, await latest());
+                await expectInProposedModules(nexus, "dummy1", sa.dummy1, await time.latest());
                 await expectInModules(nexus, "dummy1", ZERO_ADDRESS, false);
 
-                await increase(ONE_WEEK);
+                await time.increase(ONE_WEEK);
 
                 await nexus.acceptProposedModule(keccak256("dummy1"), { from: sa.governor });
                 await expectInModules(nexus, "dummy1", sa.dummy1, false);
 
                 await nexus.requestLockModule(keccak256("dummy1"), { from: sa.governor });
-                await expectInProposedLockModules(nexus, "dummy1", await latest());
+                await expectInProposedLockModules(nexus, "dummy1", await time.latest());
 
-                await increase(ONE_WEEK);
+                await time.increase(ONE_WEEK);
 
                 await nexus.lockModule(keccak256("dummy1"), { from: sa.governor });
                 await expectInProposedLockModules(nexus, "dummy1", ZERO);
@@ -756,7 +755,7 @@ contract("Nexus", async (accounts) => {
         context("should succeed", () => {
             it("when propose a module, cancel it and then propose the same module it again", async () => {
                 await nexus.proposeModule(keccak256("dummy1"), sa.dummy1, { from: sa.governor });
-                await expectInProposedModules(nexus, "dummy1", sa.dummy1, await latest());
+                await expectInProposedModules(nexus, "dummy1", sa.dummy1, await time.latest());
                 await expectInModules(nexus, "dummy1", ZERO_ADDRESS, false);
 
                 await nexus.cancelProposedModule(keccak256("dummy1"), { from: sa.governor });
@@ -764,24 +763,24 @@ contract("Nexus", async (accounts) => {
                 await expectInModules(nexus, "dummy1", ZERO_ADDRESS, false);
 
                 await nexus.proposeModule(keccak256("dummy1"), sa.dummy1, { from: sa.governor });
-                await expectInProposedModules(nexus, "dummy1", sa.dummy1, await latest());
+                await expectInProposedModules(nexus, "dummy1", sa.dummy1, await time.latest());
                 await expectInModules(nexus, "dummy1", ZERO_ADDRESS, false);
             });
             it("can propose multiple modules and cancel one, and accept one, and leave one", async () => {
                 await nexus.proposeModule(keccak256("dummy1"), sa.dummy1, { from: sa.governor });
-                await expectInProposedModules(nexus, "dummy1", sa.dummy1, await latest());
+                await expectInProposedModules(nexus, "dummy1", sa.dummy1, await time.latest());
                 await expectInModules(nexus, "dummy1", ZERO_ADDRESS, false);
 
                 await nexus.proposeModule(keccak256("dummy2"), sa.dummy2, { from: sa.governor });
-                await expectInProposedModules(nexus, "dummy2", sa.dummy2, await latest());
+                await expectInProposedModules(nexus, "dummy2", sa.dummy2, await time.latest());
                 await expectInModules(nexus, "dummy2", ZERO_ADDRESS, false);
 
                 await nexus.proposeModule(keccak256("other"), sa.other, { from: sa.governor });
-                const timestampOther = await latest();
+                const timestampOther = await time.latest();
                 await expectInProposedModules(nexus, "other", sa.other, timestampOther);
                 await expectInModules(nexus, "other", ZERO_ADDRESS, false);
 
-                await increase(ONE_WEEK);
+                await time.increase(ONE_WEEK);
 
                 // accept
                 await nexus.acceptProposedModule(keccak256("dummy1"), { from: sa.governor });

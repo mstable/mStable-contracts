@@ -1,8 +1,7 @@
 import { StandardAccounts } from "@utils/machines";
 import { BN } from "@utils/tools";
 import envSetup from "@utils/env_setup";
-import { constants, expectEvent, expectRevert } from "@openzeppelin/test-helpers";
-import { increase, increaseTo, latest } from "@openzeppelin/test-helpers/src/time";
+import { constants, expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
 import { DelayedClaimableGovernorInstance } from "types/generated";
 
 const { ZERO_ADDRESS } = constants;
@@ -20,7 +19,7 @@ export default function shouldBehaveLikeDelayedClaimable(
     });
 
     it("should have request time set", async () => {
-        const timestamp = await latest();
+        const timestamp = await time.latest();
         const requestTime = await ctx.claimable.requestTime();
         expect(requestTime, "requestTime is 0").bignumber.gt(new BN(0) as any);
         expect(timestamp, "wrong timestamp").bignumber.eq(requestTime);
@@ -38,9 +37,9 @@ export default function shouldBehaveLikeDelayedClaimable(
     });
 
     it("prevent newOwner to claim ownership before 10 second of delay over time", async () => {
-        const timestamp = await latest();
+        const timestamp = await time.latest();
         const delay = await ctx.claimable.delay();
-        await increase(delay.sub(new BN(10)));
+        await time.increase(delay.sub(new BN(10)));
 
         const newOwner = sa.other;
         await expectRevert(
@@ -55,9 +54,9 @@ export default function shouldBehaveLikeDelayedClaimable(
     });
 
     it("allow pending owner to claim ownership after delay over", async () => {
-        const timestamp = await latest();
+        const timestamp = await time.latest();
         const delay = await ctx.claimable.delay();
-        await increase(delay);
+        await time.increase(delay);
         const previousGov = await ctx.claimable.governor();
         const newGovernor = sa.other;
         const tx = await ctx.claimable.claimGovernorChange({ from: newGovernor });
