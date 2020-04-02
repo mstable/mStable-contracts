@@ -65,7 +65,7 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
         address _nexus,
         address _mAsset,
         uint256 _grace,
-        address[] calldata _bassets,
+        address[] calldata _bAssets,
         address[] calldata _integrators,
         uint256[] calldata _weights,
         bool[] calldata _hasTransferFees
@@ -350,8 +350,8 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
             uint256 bAssetWeight = _weights[i];
 
             if(bAsset.status == BassetStatus.Normal) {
-                require(bassetWeight >= 0 && bassetWeight <= StableMath.getFullScale(), "Asset weight must be <= 1e18");
-                basket.bassets[index].targetWeight = bassetWeight;
+                require(bAssetWeight >= 0 && bAssetWeight <= StableMath.getFullScale(), "Asset weight must be <= 1e18");
+                basket.bassets[index].targetWeight = bAssetWeight;
             } else {
                 require(bAssetWeight == basket.bassets[index].targetWeight, "Affected bAssets must be static");
             }
