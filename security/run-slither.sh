@@ -9,19 +9,19 @@
 trap "exit" INT
 
 # Run flattener
-security/run-flattener.sh
+./run-flattener.sh
 
 # Create the folder if it not exist
-mkdir -p security/slither/slither-report
+mkdir -p ./slither/slither-report
 
 # Loop each file present in `flat` folder and run slither on it
 # Slither report of each file will be created under `slither-report` folder
-for filename in ./flat/*.sol; do
+for filename in ../flat/*.sol; do
 	
 	name=${filename##*/}
-  	slither $filename --print human-summary 2>&1 | tee security/slither/slither-report/$name.log
-   	slither $filename 2>&1 | tee security/slither/slither-report/$name-default.log
+  	slither $filename --print human-summary 2>&1 | sed 's/\x1B\[[0-9;]\+[A-Za-z]//g' | tee ./slither/slither-report/$name.log
+   	slither $filename 2>&1 | sed 's/\x1B\[[0-9;]\+[A-Za-z]//g' | tee ./slither/slither-report/$name-default.log
 done
 
 # Run the default slither on all contracts
-slither . 2>&1 | tee security/slither-report/slither.log
+slither . 2>&1 | sed 's/\x1B\[[0-9;]\+[A-Za-z]//g' | tee ./slither-report/slither.log
