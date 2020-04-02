@@ -1,9 +1,9 @@
 pragma solidity 0.5.16;
 
-import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
+import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 import { StableMath } from "../../shared/StableMath.sol";
-import { MinterRole } from "openzeppelin-solidity/contracts/access/roles/MinterRole.sol";
-import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
+import { MinterRole } from "@openzeppelin/contracts/access/roles/MinterRole.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @dev Implementation of the `IERC20` interface.

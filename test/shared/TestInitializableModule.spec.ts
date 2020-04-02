@@ -5,7 +5,7 @@ import {
 } from "types/generated";
 import { StandardAccounts, SystemMachine } from "@utils/machines";
 import { BN } from "@utils/tools";
-import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
+import { constants, expectEvent, expectRevert } from "@openzeppelin/test-helpers";
 import envSetup from "@utils/env_setup";
 import { ZERO_ADDRESS } from "@utils/constants";
 import shouldBehaveLikeModule from "./behaviours/Module.behaviour";
@@ -149,7 +149,7 @@ contract("InitializableModule", async (accounts) => {
         it("when shouldAllowOnlyGovernor() called by other", async () => {
             let temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 ctx.module.shouldAllowOnlyGovernor({ from: sa.other }),
                 "Only governor can execute",
             );
@@ -160,7 +160,7 @@ contract("InitializableModule", async (accounts) => {
         it("when shouldAllowOnlyGovernance() called by other", async () => {
             let temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 ctx.module.shouldAllowOnlyGovernance({ from: sa.other }),
                 "Only governance can execute",
             );
@@ -171,7 +171,7 @@ contract("InitializableModule", async (accounts) => {
         it("when shouldAllowOnlyManager() called by other", async () => {
             let temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 ctx.module.shouldAllowOnlyManager({ from: sa.other }),
                 "Only manager can execute",
             );
@@ -182,7 +182,7 @@ contract("InitializableModule", async (accounts) => {
         it("when shouldAllowOnlyProxyAdmin() called by other", async () => {
             let temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 ctx.module.shouldAllowOnlyProxyAdmin({ from: sa.other }),
                 "Only ProxyAdmin can execute",
             );

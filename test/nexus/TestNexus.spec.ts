@@ -1,5 +1,5 @@
-import { increase, latest } from "openzeppelin-test-helpers/src/time";
-import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
+import { increase, latest } from "@openzeppelin/test-helpers/src/time";
+import { constants, expectEvent, expectRevert } from "@openzeppelin/test-helpers";
 import { StandardAccounts, SystemMachine } from "@utils/machines";
 import { padRight, BN } from "@utils/tools";
 import { ZERO_ADDRESS, ZERO, ONE_DAY, TEN_DAYS, ONE_WEEK } from "@utils/constants";
@@ -99,13 +99,13 @@ contract("Nexus", async (accounts) => {
         });
         context("should fail", () => {
             it("when called by other than governor", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.initialize([], [], [], sa.governor),
                     "GOV: caller is not the Governor",
                 );
             });
             it("when initialized with same address for different modules", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.initialize(
                         [keccak256("dummy1"), keccak256("dummy2")],
                         [sa.dummy1, sa.dummy1],
@@ -119,13 +119,13 @@ contract("Nexus", async (accounts) => {
                 await expectInModules(nexus, "dummy2", ZERO_ADDRESS, false);
             });
             it("when initialized with an empty array", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.initialize([], [], [], sa.governor, { from: sa.governor }),
                     "No keys provided",
                 );
             });
             it("when initialized with wrong array length for addresses array", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.initialize(
                         [keccak256("dummy")],
                         [sa.default, sa.other],
@@ -140,7 +140,7 @@ contract("Nexus", async (accounts) => {
                 await expectInModules(nexus, "dummy", ZERO_ADDRESS, false);
             });
             it("when initialized with wrong array length for isLocked array", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.initialize(
                         [keccak256("dummy")],
                         [sa.default],
@@ -161,7 +161,7 @@ contract("Nexus", async (accounts) => {
                 });
                 await expectInModules(nexus, "dummy1", sa.dummy1, true);
                 // must fail
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.initialize([keccak256("dummy")], [sa.default], [true], sa.governor, {
                         from: sa.governor,
                     }),
@@ -192,21 +192,21 @@ contract("Nexus", async (accounts) => {
                 expect(initialized).to.equal(true);
             });
             it("when not called by Governor", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.proposeModule(keccak256("dummy"), sa.default, { from: sa.other }),
                     "GOV: caller is not the Governor",
                 );
                 await expectInProposedModules(nexus, "dummy", ZERO_ADDRESS, ZERO);
             });
             it("when empty key", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.proposeModule("0x00", sa.default, { from: sa.governor }),
                     "Key must not be zero",
                 );
                 await expectInProposedModules(nexus, "0x00", ZERO_ADDRESS, ZERO);
             });
             it("when zero address", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.proposeModule(keccak256("dummy"), ZERO_ADDRESS, { from: sa.governor }),
                     "Module address must not be 0",
                 );
@@ -214,7 +214,7 @@ contract("Nexus", async (accounts) => {
             });
             it("when module key & address are same", async () => {
                 await expectInModules(nexus, "dummy4", sa.dummy4, false);
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.proposeModule(keccak256("dummy4"), sa.dummy4, { from: sa.governor }),
                     "Module already has same address",
                 );
@@ -222,7 +222,7 @@ contract("Nexus", async (accounts) => {
             });
             it("when module is locked (update for existing module)", async () => {
                 await expectInModules(nexus, "dummy3", sa.dummy3, true);
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.proposeModule(keccak256("dummy3"), sa.other, { from: sa.governor }),
                     "Module must be unlocked",
                 );
@@ -233,7 +233,7 @@ contract("Nexus", async (accounts) => {
                 const timestamp = await latest();
                 await expectInProposedModules(nexus, "dummy2", sa.dummy2, timestamp);
 
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.proposeModule(keccak256("dummy2"), sa.dummy3, { from: sa.governor }),
                     "Module already proposed",
                 );
@@ -271,13 +271,13 @@ contract("Nexus", async (accounts) => {
                 expect(initialized).to.equal(true);
             });
             it("when not called by Governor", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.cancelProposedModule(keccak256("dummy"), { from: sa.other }),
                     "GOV: caller is not the Governor",
                 );
             });
             it("when proposed module not found", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.cancelProposedModule(keccak256("dummy"), { from: sa.governor }),
                     "Proposed module not found",
                 );
@@ -306,7 +306,7 @@ contract("Nexus", async (accounts) => {
                 await expectInProposedModules(nexus, "dummy1", ZERO_ADDRESS, ZERO);
 
                 // expect event
-                expectEvent.inLogs(tx.logs, "ModuleCancelled", {
+                expectEvent(tx.receipt, "ModuleCancelled", {
                     key: padRight(keccak256("dummy1"), 64),
                 });
 
@@ -323,13 +323,13 @@ contract("Nexus", async (accounts) => {
                 expect(initialized).to.equal(true);
             });
             it("when not called by Governor", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.acceptProposedModule(keccak256("dummy"), { from: sa.other }),
                     "GOV: caller is not the Governor",
                 );
             });
             it("when non existing key passed", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.acceptProposedModule(keccak256("dummy"), { from: sa.governor }),
                     "Module upgrade delay not over",
                 );
@@ -338,7 +338,7 @@ contract("Nexus", async (accounts) => {
                 await nexus.proposeModule(keccak256("dummy1"), sa.dummy1, { from: sa.governor });
                 const timeWhenModuleProposed = await latest();
                 await increase(ONE_DAY);
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.acceptProposedModule(keccak256("dummy1"), { from: sa.governor }),
                     "Module upgrade delay not over",
                 );
@@ -377,25 +377,25 @@ contract("Nexus", async (accounts) => {
                 expect(initialized).to.equal(true);
             });
             it("when not called by Governor", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.acceptProposedModules([keccak256("dummy")], { from: sa.other }),
                     "GOV: caller is not the Governor",
                 );
             });
             it("when empty array", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.acceptProposedModules([], { from: sa.governor }),
                     "Keys array empty",
                 );
             });
             it("when non existing key passed", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.acceptProposedModules([keccak256("dummy")], { from: sa.governor }),
                     "Module upgrade delay not over",
                 );
             });
             it("when module not proposed", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.acceptProposedModules([keccak256("dummy1")], { from: sa.governor }),
                     "Module upgrade delay not over",
                 );
@@ -417,7 +417,7 @@ contract("Nexus", async (accounts) => {
                 await expectInModules(nexus, "dummy4", sa.dummy4, true);
 
                 // now accpet update request - must fail
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.acceptProposedModules([keccak256("dummy4")], { from: sa.governor }),
                     "Module must be unlocked",
                 );
@@ -439,7 +439,7 @@ contract("Nexus", async (accounts) => {
                 await expectInModules(nexus, "dummy1", sa.dummy1, false);
 
                 // dummy2 must be rejected
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.acceptProposedModules([keccak256("dummy2")], { from: sa.governor }),
                     "Modules must have unique addr",
                 );
@@ -447,7 +447,7 @@ contract("Nexus", async (accounts) => {
             it("when delay is not over", async () => {
                 await nexus.proposeModule(keccak256("dummy1"), sa.dummy1, { from: sa.governor });
                 await increase(ONE_DAY);
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.acceptProposedModules([keccak256("dummy1")], { from: sa.governor }),
                     "Module upgrade delay not over",
                 );
@@ -458,7 +458,7 @@ contract("Nexus", async (accounts) => {
             it("when delay is less then 10 second of opt out period", async () => {
                 await nexus.proposeModule(keccak256("dummy1"), sa.dummy1, { from: sa.governor });
                 await increase(ONE_WEEK.sub(new BN(10)));
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.acceptProposedModules([keccak256("dummy1")], { from: sa.governor }),
                     "Module upgrade delay not over",
                 );
@@ -476,7 +476,7 @@ contract("Nexus", async (accounts) => {
                 });
 
                 // validate event
-                await expectEvent.inLogs(tx.logs, "ModuleAdded", {
+                await expectEvent(tx.receipt, "ModuleAdded", {
                     key: padRight(keccak256("dummy1"), 64),
                     addr: sa.dummy1,
                     isLocked: false,
@@ -496,7 +496,7 @@ contract("Nexus", async (accounts) => {
                 });
 
                 // validate event
-                await expectEvent.inLogs(tx.logs, "ModuleAdded", {
+                await expectEvent(tx.receipt, "ModuleAdded", {
                     key: padRight(keccak256("dummy1"), 64),
                     addr: sa.dummy1,
                     isLocked: false,
@@ -515,7 +515,7 @@ contract("Nexus", async (accounts) => {
                 });
 
                 // validate event
-                await expectEvent.inLogs(tx.logs, "ModuleAdded", {
+                await expectEvent(tx.receipt, "ModuleAdded", {
                     key: padRight(keccak256("dummy4"), 64),
                     addr: sa.other,
                     isLocked: false,
@@ -537,25 +537,25 @@ contract("Nexus", async (accounts) => {
                 expect(initialized).to.equal(true);
             });
             it("when not called by the Governor", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.requestLockModule(keccak256("dummy"), { from: sa.other }),
                     "GOV: caller is not the Governor",
                 );
             });
             it("when module not exist", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.requestLockModule(keccak256("dummy"), { from: sa.governor }),
                     "Module must exist",
                 );
             });
             it("when module key is zero", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.requestLockModule("0x00", { from: sa.governor }),
                     "Module must exist",
                 );
             });
             it("when module already locked", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.requestLockModule(keccak256("dummy3"), { from: sa.governor }),
                     "Module must be unlocked",
                 );
@@ -563,7 +563,7 @@ contract("Nexus", async (accounts) => {
             it("when locked already proposed", async () => {
                 // lock proposed
                 nexus.requestLockModule(keccak256("dummy4"), { from: sa.governor });
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.requestLockModule(keccak256("dummy4"), { from: sa.governor }),
                     "Lock already proposed",
                 );
@@ -576,7 +576,7 @@ contract("Nexus", async (accounts) => {
                     from: sa.governor,
                 });
                 const latestTimestamp = await latest();
-                expectEvent.inLogs(tx.logs, "ModuleLockRequested", {
+                expectEvent(tx.receipt, "ModuleLockRequested", {
                     key: padRight(keccak256("dummy4"), 64),
                     timestamp: latestTimestamp,
                 });
@@ -593,25 +593,25 @@ contract("Nexus", async (accounts) => {
                 expect(initialized).to.equal(true);
             });
             it("when not called by Governor", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.cancelLockModule(keccak256("dummy"), { from: sa.other }),
                     "GOV: caller is not the Governor",
                 );
             });
             it("when not proposed lock before", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.cancelLockModule(keccak256("dummy"), { from: sa.governor }),
                     "Module lock request not found",
                 );
             });
             it("when zero key", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.cancelLockModule("0x00", { from: sa.governor }),
                     "Module lock request not found",
                 );
             });
             it("when lock request not found", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.cancelLockModule(keccak256("dummy4"), { from: sa.governor }),
                     "Module lock request not found",
                 );
@@ -629,7 +629,7 @@ contract("Nexus", async (accounts) => {
                 const tx = await nexus.cancelLockModule(keccak256("dummy4"), { from: sa.governor });
 
                 // validate event
-                expectEvent.inLogs(tx.logs, "ModuleLockCancelled", {
+                expectEvent(tx.receipt, "ModuleLockCancelled", {
                     key: padRight(keccak256("dummy4"), 64),
                 });
 
@@ -647,13 +647,13 @@ contract("Nexus", async (accounts) => {
                 expect(initialized).to.equal(true);
             });
             it("when not called by Governor", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.lockModule(keccak256("dummy"), { from: sa.other }),
                     "GOV: caller is not the Governor",
                 );
             });
             it("when not existing key passed", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.lockModule(keccak256("dummy"), { from: sa.governor }),
                     "Delay not over",
                 );
@@ -661,7 +661,7 @@ contract("Nexus", async (accounts) => {
             it("when delay not over", async () => {
                 await nexus.requestLockModule(keccak256("dummy4"), { from: sa.governor });
                 await increase(ONE_DAY);
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.lockModule(keccak256("dummy4"), { from: sa.governor }),
                     "Delay not over",
                 );
@@ -669,7 +669,7 @@ contract("Nexus", async (accounts) => {
             it("when delay is less then 10 second of opt out period", async () => {
                 await nexus.requestLockModule(keccak256("dummy4"), { from: sa.governor });
                 await increase(ONE_WEEK.sub(new BN(10)));
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     nexus.lockModule(keccak256("dummy4"), { from: sa.governor }),
                     "Delay not over",
                 );
@@ -686,7 +686,7 @@ contract("Nexus", async (accounts) => {
 
                 const tx = await nexus.lockModule(keccak256("dummy4"), { from: sa.governor });
                 // validate event
-                expectEvent.inLogs(tx.logs, "ModuleLockEnabled", {
+                expectEvent(tx.receipt, "ModuleLockEnabled", {
                     key: padRight(keccak256("dummy4"), 64),
                 });
 
@@ -703,7 +703,7 @@ contract("Nexus", async (accounts) => {
                 const tx = await nexus.lockModule(keccak256("dummy4"), { from: sa.governor });
                 await expectInProposedLockModules(nexus, "dummy4", ZERO);
                 // validate event
-                expectEvent.inLogs(tx.logs, "ModuleLockEnabled", {
+                expectEvent(tx.receipt, "ModuleLockEnabled", {
                     key: padRight(keccak256("dummy4"), 64),
                 });
 

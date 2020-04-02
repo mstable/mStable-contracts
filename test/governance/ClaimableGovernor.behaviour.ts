@@ -1,5 +1,5 @@
 import { StandardAccounts } from "@utils/machines";
-import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
+import { constants, expectEvent, expectRevert } from "@openzeppelin/test-helpers";
 import { ClaimableGovernorInstance } from "types/generated";
 
 const { ZERO_ADDRESS } = constants;
@@ -31,7 +31,7 @@ export default function shouldBehaveLikeClaimable(
         assert.isTrue(proposedGovernor === newGovernor);
 
         // Try to Cancel governor
-        await shouldFail.reverting.withMessage(
+        await expectRevert(
             ctx.claimable.cancelGovernorChange({ from: sa.default }),
             "GOV: caller is not the Governor",
         );
@@ -47,7 +47,7 @@ export default function shouldBehaveLikeClaimable(
         assert.isTrue(proposedGovernor === newGovernor);
 
         // Try to Cancel governor
-        await shouldFail.reverting.withMessage(
+        await expectRevert(
             ctx.claimable.cancelGovernorChange({ from: sa.other }),
             "GOV: caller is not the Governor",
         );
@@ -74,14 +74,14 @@ export default function shouldBehaveLikeClaimable(
     });
 
     it("should prevent Others to call claimOwnership when there is no pendingGovernor", async () => {
-        await shouldFail.reverting.withMessage(
+        await expectRevert(
             ctx.claimable.claimGovernorChange({ from: sa.other }),
             "Sender is not proposed governor",
         );
     });
 
     it("should prevent Governor to call claimOwnership when there is no pendingGovernor", async () => {
-        await shouldFail.reverting.withMessage(
+        await expectRevert(
             ctx.claimable.claimGovernorChange({ from: sa.governor }),
             "Sender is not proposed governor",
         );
@@ -92,7 +92,7 @@ export default function shouldBehaveLikeClaimable(
         const governor = await ctx.claimable.governor();
 
         assert.isTrue(governor !== other);
-        await shouldFail.reverting.withMessage(
+        await expectRevert(
             ctx.claimable.requestGovernorChange(other, { from: other }),
             "GOV: caller is not the Governor",
         );
@@ -100,14 +100,14 @@ export default function shouldBehaveLikeClaimable(
 
     it("should prevent direct change governor", async () => {
         const { other } = sa;
-        await shouldFail.reverting.withMessage(
+        await expectRevert(
             ctx.claimable.changeGovernor(other, { from: sa.governor }),
             "Direct change not allowed",
         );
     });
 
     it("requestGovernorChange(): should prevent zero address", async () => {
-        await shouldFail.reverting.withMessage(
+        await expectRevert(
             ctx.claimable.requestGovernorChange(ZERO_ADDRESS, { from: sa.governor }),
             "Proposed governor is address(0)",
         );
@@ -116,14 +116,14 @@ export default function shouldBehaveLikeClaimable(
     it("should prevent when already proposed", async () => {
         const { other } = sa;
         await ctx.claimable.requestGovernorChange(other, { from: sa.governor });
-        await shouldFail.reverting.withMessage(
+        await expectRevert(
             ctx.claimable.requestGovernorChange(other, { from: sa.governor }),
             "Proposed governor already set",
         );
     });
 
     it("cancelGovernorChange(): should prevent when not proposed", async () => {
-        await shouldFail.reverting.withMessage(
+        await expectRevert(
             ctx.claimable.cancelGovernorChange({ from: sa.governor }),
             "Proposed Governor not set",
         );

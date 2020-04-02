@@ -1,6 +1,6 @@
 import { MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import envSetup from "@utils/env_setup";
-import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
+import { constants, expectEvent, expectRevert } from "@openzeppelin/test-helpers";
 import { DelayedClaimableGovernorInstance } from "types/generated";
 import shouldBehaveLikeClaimable from "./ClaimableGovernor.behaviour";
 import shouldBehaveLikeDelayedClaimable from "./DelayedClaimableGovernor.behaviour";
@@ -35,7 +35,7 @@ contract("DelayedClaimableGovernance", async (accounts) => {
         shouldBehaveLikeDelayedClaimable(ctx as Required<typeof ctx>, sa);
 
         it("should not allow zero delay", async () => {
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 DelayedClaimableGovernor.new(sa.governor, 0, { from: sa.governor }),
                 "Delay must be greater than zero",
             );

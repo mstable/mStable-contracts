@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/camelcase */
 
 import * as t from "types/generated";
-import { shouldFail } from "openzeppelin-test-helpers";
+import { expectRevert } from "@openzeppelin/test-helpers";
 
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
 import { createBasket, Basket } from "@utils/mstable-objects";
@@ -179,7 +179,7 @@ contract("MassetMinting", async (accounts) => {
             // console.log(indexes);
             // TODO (3,3) will return indexes[0,1,0] which is wrong
             // TODO need to look for solution
-            // shouldFail(await masset.convertBitmapToIndexArr(3, 3));
+            // expectRevert(await masset.convertBitmapToIndexArr(3, 3));
             // console.log(indexes);
         });
 
