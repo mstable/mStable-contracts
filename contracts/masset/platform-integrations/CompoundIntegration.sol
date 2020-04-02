@@ -13,16 +13,14 @@ import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "./Initi
  */
 contract CompoundIntegration is InitializableAbstractIntegration {
 
-
-
     /***************************************
                     CORE
     ****************************************/
 
     /**
      * @dev Deposit a quantity of bAsset into the platform. Credited cTokens
-     * remain here in the vault. Can only be called by whitelisted addresses
-     * (mAsset and corresponding BasketManager)
+     *      remain here in the vault. Can only be called by whitelisted addresses
+     *      (mAsset and corresponding BasketManager)
      * @param _bAsset              Address for the bAsset
      * @param _amount              Units of bAsset to deposit
      * @param _isTokenFeeCharged   Flag that signals if an xfer fee is charged on bAsset
@@ -48,12 +46,12 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         if(_isTokenFeeCharged) {
             // If we charge a fee, account for it
             uint256 prevBal = _checkBalance(cToken);
-            assert(cToken.mint(_amount) == 0);
+            require(cToken.mint(_amount) == 0, "cToken mint failed");
             uint256 newBal = _checkBalance(cToken);
             quantityDeposited = _min(quantityDeposited, newBal.sub(prevBal));
         } else {
             // Else just execute the mint
-            assert(cToken.mint(_amount) == 0);
+            require(cToken.mint(_amount) == 0, "cToken mint failed");
         }
 
         emit Deposit(_bAsset, address(cToken), quantityDeposited);
@@ -61,7 +59,7 @@ contract CompoundIntegration is InitializableAbstractIntegration {
 
     /**
      * @dev Withdraw a quantity of bAsset from Compound. Redemption
-     * should fail if we have insufficient cToken balance.
+     *      should fail if we have insufficient cToken balance.
      * @param _receiver     Address to which the withdrawn bAsset should be sent
      * @param _bAsset       Address of the bAsset
      * @param _amount       Units of bAsset to withdraw
@@ -75,16 +73,27 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         external
         onlyWhitelisted
     {
+        require(_amount > 0, "Must withdraw something");
         // Get the Target token
         ICERC20 cToken = _getCTokenFor(_bAsset);
 
-        // Redeem Underlying bAsset amount
-        require(cToken.redeemUnderlying(_amount) == 0, "something went wrong");
+        uint256 quantityWithdrawn = _amount;
+
+        if(_isTokenFeeCharged) {
+            IERC20 b = IERC20(_bAsset);
+            uint256 prevBal = b.balanceOf(address(this));
+            require(cToken.redeemUnderlying(_amount) == 0, "redeem failed");
+            uint256 newBal = b.balanceOf(address(this));
+            quantityWithdrawn = _min(quantityWithdrawn, newBal.sub(prevBal));
+        } else {
+            // Redeem Underlying bAsset amount
+            require(cToken.redeemUnderlying(_amount) == 0, "redeem failed");
+        }
 
         // Send redeemed bAsset to the receiver
-        IERC20(_bAsset).safeTransfer(_receiver, _amount);
+        IERC20(_bAsset).safeTransfer(_receiver, quantityWithdrawn);
 
-        emit Withdrawal(_bAsset, address(cToken), _amount);
+        emit Withdrawal(_bAsset, address(cToken), quantityWithdrawn);
     }
 
     /**
@@ -101,7 +110,7 @@ contract CompoundIntegration is InitializableAbstractIntegration {
     {
         // balance is always with token cToken decimals
         ICERC20 cToken = _getCTokenFor(_bAsset);
-        return _checkBalance(cToken);
+        balance = _checkBalance(cToken);
     }
 
     /***************************************
@@ -110,7 +119,7 @@ contract CompoundIntegration is InitializableAbstractIntegration {
 
     /**
      * @dev Re-approve the spending of all bAssets by their corresponding cToken,
-     * if for some reason is it necessary. Only callable through Governance.
+     *      if for some reason is it necessary. Only callable through Governance.
      */
     function reApproveAllTokens()
         external
@@ -120,13 +129,13 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         for(uint i = 0; i < bAssetCount; i++){
             address bAsset = bAssetsMapped[i];
             address cToken = bAssetToPToken[bAsset];
-            MassetHelpers.safeInfiniteApprove(bAssetsMapped[i], cToken);
+            MassetHelpers.safeInfiniteApprove(bAsset, cToken);
         }
     }
 
     /**
      * @dev Internal method to respond to the addition of new bAsset / cTokens
-     * We need to approve the cToken and give it permission to spend the bAsset
+     *      We need to approve the cToken and give it permission to spend the bAsset
      * @param _bAsset Address of the bAsset to approve
      * @param _cToken This cToken has the approval approval
      */
@@ -143,9 +152,9 @@ contract CompoundIntegration is InitializableAbstractIntegration {
 
     /**
      * @dev Get the cToken wrapped in the ICERC20 interface for this bAsset.
-     * Fails if the pToken doesn't exist in our mappings.
-     * @param _bAsset  Address of the bAsset
-     * @return cToken  Corresponding cToken to this bAsset
+     *      Fails if the pToken doesn't exist in our mappings.
+     * @param _bAsset   Address of the bAsset
+     * @return          Corresponding cToken to this bAsset
      */
     function _getCTokenFor(address _bAsset)
         internal
@@ -166,6 +175,6 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         internal
         returns (uint256 balance)
     {
-        return _cToken.balanceOfUnderlying(address(this));
+        balance = _cToken.balanceOfUnderlying(address(this));
     }
 }

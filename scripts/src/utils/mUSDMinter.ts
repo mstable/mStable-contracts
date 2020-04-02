@@ -1,16 +1,16 @@
 import { applyRatioMassetToBasset, exactToSimpleAmount, simpleToExactAmount } from "@utils/math";
 import { BN } from "@utils/tools";
 import { BassetStatus } from "@utils/mstable-objects";
-import { ForgeRewardsMUSDInstance, MUSDInstance } from "types/generated";
-import { BassetInstance, BassetWithDecimals, OrderedBassets } from "./types";
+import * as t from "types/generated";
+import { BassetInstance, BassetWithDecimals } from "./types";
 
 import TransactionDetails = Truffle.TransactionDetails;
 
-export class ForgeRewardsMUSDMinter {
+export class MUSDMinter {
     constructor(
-        public readonly forge: ForgeRewardsMUSDInstance,
-        public readonly mUSD: MUSDInstance,
-        public readonly bassets: OrderedBassets,
+        public readonly mUSD: t.MUSDInstance,
+        public readonly basketManager: t.BasketManagerInstance,
+        public readonly bassets: Array<BassetInstance>,
     ) {}
 
     public async approve(
@@ -22,7 +22,7 @@ export class ForgeRewardsMUSDMinter {
         return Promise.all(
             bassets.map((address, index) =>
                 this.getBassetByAddress(address).approve(
-                    this.forge.address,
+                    this.mUSD.address,
                     simpleToExactAmount(amount, decimals[index]),
                     txDetails,
                 ),
@@ -38,7 +38,6 @@ export class ForgeRewardsMUSDMinter {
         bassets = this.bassetAddresses,
         quantities: number[],
         musdRecipient: string,
-        rewardRecipient: string,
         txDetails: TransactionDetails,
     ) {
         if (bassets.length !== quantities.length) {
@@ -51,24 +50,19 @@ export class ForgeRewardsMUSDMinter {
             simpleToExactAmount(amount, data[index].decimals),
         );
 
-        return this.forge.mintTo(
-            bitmap,
-            decimalQuantities,
-            musdRecipient,
-            rewardRecipient,
-            txDetails,
-        );
+        return this.mUSD.mintMulti(bitmap, decimalQuantities, musdRecipient, txDetails);
     }
 
     public async mintAllBassets(
         mintInput: BN,
         musdRecipient: string,
-        rewardRecipient: string,
         txDetails: TransactionDetails,
     ) {
         const bitmap = await this.getBitmap(this.bassetAddresses);
+        console.log(bitmap);
         const quantities = await this.calcOptimalBassetQuantitiesForMint(mintInput);
-        return this.forge.mintTo(bitmap, quantities, musdRecipient, rewardRecipient, txDetails);
+        console.log(quantities);
+        return this.mUSD.mintMulti(bitmap, quantities, musdRecipient, txDetails);
     }
 
     public async getMUSDBalance(account: string) {
@@ -78,39 +72,26 @@ export class ForgeRewardsMUSDMinter {
     }
 
     private async getBassetsData(bassets = this.bassetAddresses) {
-        const {
-            addresses,
-            ratios,
-            targets,
-            vaults,
-            isTransferFeeCharged,
-            statuses,
-        } = (await this.mUSD.getBassets()) as any;
-        // ^ Apparently the Typechain Truffle target isn't typed well anymore :-(
-
-        const decimals = await this.getDecimals(bassets);
-        return bassets.reduce(
-            (data, _, index) => [
-                ...data,
-                {
-                    addr: addresses[index],
-                    isTransferFeeCharged: isTransferFeeCharged[index],
-                    ratio: ratios[index],
-                    decimals: decimals[index],
-                    maxWeight: targets[index],
-                    vaultBalance: vaults[index],
-                    status: BassetStatus[statuses[index].toNumber()],
-                },
-            ],
-            [] as BassetWithDecimals[],
+        let data = await Promise.all(
+            bassets.map(async (b) => {
+                let x = await this.basketManager.getBasset(b);
+                let d = await this.getBassetByAddress(b).decimals();
+                return {
+                    ...x,
+                    status: parseInt(x.status.toString(), 10) as BassetStatus,
+                    decimals: d,
+                };
+            }),
         );
+
+        return data as BassetWithDecimals[];
     }
 
     private async calcOptimalBassetQuantitiesForMint(mintInput: BN) {
         const massetDecimals = await this.mUSD.decimals();
         const mintInputExact = simpleToExactAmount(mintInput, massetDecimals.toNumber());
         const data = await this.getBassetsData(this.bassetAddresses);
-        return data.map(({ maxWeight, ratio }) => {
+        return data.map(({ targetWeight, ratio }) => {
             // 1e18 Massets
             // 1e18 * ratioScale = 1e26
             // if Ratio == 1e8 then its straight up
@@ -118,13 +99,18 @@ export class ForgeRewardsMUSDMinter {
             // maxWeight == 40% == 40e16
             // convertExactToSimple divides by 1e18
             // this creates an exact percentage amount
-            const relativeUnitsToMint = exactToSimpleAmount(mintInputExact.mul(maxWeight), 18);
+            console.log("1", mintInputExact, new BN(targetWeight));
+            const relativeUnitsToMint = exactToSimpleAmount(
+                mintInputExact.mul(new BN(targetWeight)),
+                18,
+            );
+            console.log("2");
             return applyRatioMassetToBasset(relativeUnitsToMint, ratio);
         });
     }
 
     private async getBitmap(bassets = this.bassetAddresses): Promise<number> {
-        const bitmap = await this.mUSD.getBitmapFor(bassets);
+        const bitmap = await this.basketManager.getBitmapFor(bassets);
         return bitmap.toNumber();
     }
 

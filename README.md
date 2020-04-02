@@ -122,10 +122,9 @@ The scripts can be described as follows:
 Example usage:
 
 * Mint 100 MUSD: `yarn script mint 100`
-* Fund tranche 0 with 100 MTA: `yarn script fund 0 100`
-* Claim the reward for tranche 0: `yarn script claim 0`
 * Redeem 100 of the MUSD basset at index 0 (USDT): `yarn redeem-basset 0 100`
-* Redeem the reward for tranche 0: `yarn script redeem-reward 0`
+* Deposit 100 mUSD into savings: `yarn deposit-savings 100`
+* Withdraw 100 mUSD from savings: `yarn withdraw-savings 100`
 * Travel through time (forwards only, sorry): `yarn script time-travel 1 year`
 
 ### Coverage
