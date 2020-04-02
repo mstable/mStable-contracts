@@ -2,8 +2,8 @@
 /* eslint-disable consistent-return */
 
 import * as t from "types/generated";
-import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
-import { increase } from "openzeppelin-test-helpers/src/time";
+import { constants, expectEvent, expectRevert } from "@openzeppelin/test-helpers";
+import { increase } from "@openzeppelin/test-helpers/src/time";
 import { BN, assertBNClose, assertBNSlightlyGT, assertBNSlightlyGTPercent } from "@utils/tools";
 import { StandardAccounts, SystemMachine, MassetMachine } from "@utils/machines";
 import {
@@ -174,7 +174,7 @@ contract("CompoundIntegration", async (accounts) => {
                 const tempImpl = await c_CompoundIntegration.new();
                 const erc20Mock = await c_MockERC20.new("TMP", "TMP", 18, sa.default, "1000000");
                 const aTokenMock = await c_MockCToken.new(erc20Mock.address);
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     tempImpl.initialize(
                         nexus.address,
                         [],
@@ -190,7 +190,7 @@ contract("CompoundIntegration", async (accounts) => {
                 const tempImpl = await c_CompoundIntegration.new();
                 const erc20Mock = await c_MockERC20.new("TMP", "TMP", 18, sa.default, "1000000");
                 const aTokenMock = await c_MockCToken.new(erc20Mock.address);
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     tempImpl.initialize(
                         nexus.address,
                         [sa.dummy1, sa.dummy1],
@@ -200,7 +200,7 @@ contract("CompoundIntegration", async (accounts) => {
                     ),
                     "Already whitelisted",
                 );
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     tempImpl.initialize(
                         nexus.address,
                         [ZERO_ADDRESS],
@@ -248,7 +248,7 @@ contract("CompoundIntegration", async (accounts) => {
                 [erc20Mock.address],
                 [aTokenMock.address],
             );
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 tempImpl.initialize(
                     nexus.address,
                     [sa.dummy1],
@@ -266,7 +266,7 @@ contract("CompoundIntegration", async (accounts) => {
             const aTokenMock = await c_MockCToken.new(erc20Mock.address);
 
             // bAsset and pToken array length are different
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 tempImpl.initialize(
                     nexus.address,
                     [sa.dummy1, sa.dummy2],
@@ -277,7 +277,7 @@ contract("CompoundIntegration", async (accounts) => {
                 "Invalid input arrays",
             );
             // pToken address is zero
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 tempImpl.initialize(
                     nexus.address,
                     [sa.dummy1, sa.dummy2],
@@ -288,7 +288,7 @@ contract("CompoundIntegration", async (accounts) => {
                 "Invalid addresses",
             );
             // duplicate pToken or bAsset
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 tempImpl.initialize(
                     nexus.address,
                     [sa.dummy1, sa.dummy2],
@@ -299,7 +299,7 @@ contract("CompoundIntegration", async (accounts) => {
                 "pToken already set",
             );
             // invalid bAsset addresses
-            await shouldFail.reverting(
+            await expectRevert.unspecified(
                 tempImpl.initialize(
                     nexus.address,
                     [sa.dummy1, sa.dummy2],
@@ -321,7 +321,7 @@ contract("CompoundIntegration", async (accounts) => {
         });
 
         it("should pass only when function called by the Governor", async () => {
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_CompoundIntegration.setPTokenAddress(erc20Mock.address, cTokenMock.address, {
                     from: sa.default,
                 }),
@@ -353,14 +353,14 @@ contract("CompoundIntegration", async (accounts) => {
 
         it("should fail when passed invalid args", async () => {
             // bAsset address is zero
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_CompoundIntegration.setPTokenAddress(ZERO_ADDRESS, cTokenMock.address, {
                     from: sa.governor,
                 }),
                 "Invalid addresses",
             );
             // pToken address is zero
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_CompoundIntegration.setPTokenAddress(erc20Mock.address, ZERO_ADDRESS, {
                     from: sa.governor,
                 }),
@@ -370,7 +370,7 @@ contract("CompoundIntegration", async (accounts) => {
             await d_CompoundIntegration.setPTokenAddress(erc20Mock.address, cTokenMock.address, {
                 from: sa.governor,
             });
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_CompoundIntegration.setPTokenAddress(erc20Mock.address, sa.default, {
                     from: sa.governor,
                 }),
@@ -415,7 +415,7 @@ contract("CompoundIntegration", async (accounts) => {
                 bAssetRecipient_balBefore.add(amount),
             );
 
-            expectEvent.inLogs(tx.logs, "Deposit", { _amount: amount });
+            expectEvent(tx.receipt, "Deposit", { _amount: amount });
         });
 
         it("should handle the fee calculations", async () => {
@@ -471,7 +471,7 @@ contract("CompoundIntegration", async (accounts) => {
             );
 
             const min = receivedAmount.lt(receivedUnderlying) ? receivedAmount : receivedUnderlying;
-            expectEvent.inLogs(tx.logs, "Deposit", { _amount: min });
+            expectEvent(tx.receipt, "Deposit", { _amount: min });
         });
 
         it("should only allow a whitelisted user to call function", async () => {
@@ -480,7 +480,7 @@ contract("CompoundIntegration", async (accounts) => {
             const amount = new BN(10).pow(new BN(await bAsset.decimals()));
 
             // Step 1. call deposit
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_CompoundIntegration.deposit(bAsset.address, amount, false, {
                     from: sa.dummy1,
                 }),
@@ -494,7 +494,7 @@ contract("CompoundIntegration", async (accounts) => {
             const amount = new BN(10).pow(await bAsset.decimals());
 
             // Step 1. call deposit
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_CompoundIntegration.deposit(bAsset.address, amount, false),
                 "cToken does not exist",
             );
@@ -506,9 +506,9 @@ contract("CompoundIntegration", async (accounts) => {
             const amount = new BN(10).pow(new BN(await bAsset.decimals()));
 
             // Step 2. call deposit
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_CompoundIntegration.deposit(bAsset.address, amount, false),
-                "SafeMath: subtraction overflow",
+                "ERC20: transfer amount exceeds balance",
             );
         });
 
@@ -524,9 +524,9 @@ contract("CompoundIntegration", async (accounts) => {
                 amount as any,
             );
             // Step 2. call deposit with high tokens
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_CompoundIntegration.deposit(bAsset.address, amount_high.toString(), false),
-                "SafeMath: subtraction overflow",
+                "ERC20: transfer amount exceeds balance",
             );
         });
 
@@ -548,12 +548,12 @@ contract("CompoundIntegration", async (accounts) => {
             await bAsset.transfer(d_CompoundIntegration.address, amount);
 
             // Fails with ZERO bAsset Address
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_CompoundIntegration.deposit(ZERO_ADDRESS, amount, false),
                 "cToken does not exist",
             );
             // Fails with ZERO Amount
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_CompoundIntegration.deposit(bAsset.address, "0", false),
                 "Must deposit something",
             );
@@ -573,7 +573,7 @@ contract("CompoundIntegration", async (accounts) => {
             expect(expected_cTokens).to.bignumber.equal(cToken_balanceOfIntegration);
 
             // 3.3 Check that return value is cool (via event)
-            expectEvent.inLogs(tx.logs, "Deposit", { _amount: amount });
+            expectEvent(tx.receipt, "Deposit", { _amount: amount });
         });
     });
 
@@ -612,7 +612,7 @@ contract("CompoundIntegration", async (accounts) => {
             const expected_cTokens = amount.mul(fullScale).div(exchangeRate);
             expect(expected_cTokens).to.bignumber.equal(cToken_balanceOfIntegration);
 
-            expectEvent.inLogs(tx.logs, "Deposit", { _amount: amount });
+            expectEvent(tx.receipt, "Deposit", { _amount: amount });
 
             // 4. Call withdraw
             await d_CompoundIntegration.withdraw(sa.default, bAsset.address, amount, false);
@@ -678,10 +678,13 @@ contract("CompoundIntegration", async (accounts) => {
             );
             const expectedBalance = compoundIntegration_balBefore.sub(amount);
             assertBNSlightlyGTPercent(compoundIntegration_balAfter, expectedBalance, "0.1");
-            let underlyingBalance = await convertCTokenToUnderlying(cToken, compoundIntegration_balAfter);
+            let underlyingBalance = await convertCTokenToUnderlying(
+                cToken,
+                compoundIntegration_balAfter,
+            );
             // Cross that match with the `checkBalance` call
             const checkBalanceTx = await d_CompoundIntegration.logBalance(bAsset.address);
-            expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", {
+            expectEvent(checkBalanceTx.receipt, "CurrentBalance", {
                 balance: underlyingBalance,
             });
         });
@@ -692,7 +695,7 @@ contract("CompoundIntegration", async (accounts) => {
             const amount = new BN(10).pow(await bAsset.decimals());
 
             // Step 1. call deposit
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_CompoundIntegration.withdraw(sa.dummy1, bAsset.address, amount, false, {
                     from: sa.dummy1,
                 }),
@@ -707,9 +710,9 @@ contract("CompoundIntegration", async (accounts) => {
             const amount = new BN(1000).mul(new BN(10).pow(bAsset_decimals));
 
             // Step 1. call deposit
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_CompoundIntegration.withdraw(sa.default, bAsset.address, amount, false),
-                "SafeMath: subtraction overflow",
+                "ERC20: burn amount exceeds balance",
             );
         });
 
@@ -724,17 +727,16 @@ contract("CompoundIntegration", async (accounts) => {
             const bAssetRecipient = sa.dummy1;
 
             // Fails with ZERO bAsset Address
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_CompoundIntegration.withdraw(sa.dummy1, ZERO_ADDRESS, amount, false),
                 "cToken does not exist",
             );
             // Fails with ZERO recipient address
-            await shouldFail.reverting.withMessage(
+            await expectRevert.unspecified(
                 d_CompoundIntegration.withdraw(ZERO_ADDRESS, bAsset.address, new BN(1), false),
-                "",
             );
             // Fails with ZERO Amount
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_CompoundIntegration.withdraw(sa.dummy1, bAsset.address, "0", false),
                 "Must withdraw something",
             );
@@ -750,7 +752,7 @@ contract("CompoundIntegration", async (accounts) => {
             const amount = new BN(10).pow(await bAsset.decimals());
 
             // Step 1. call withdraw
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_CompoundIntegration.withdraw(sa.dummy1, bAsset.address, amount, false),
                 "cToken does not exist",
             );
@@ -766,7 +768,7 @@ contract("CompoundIntegration", async (accounts) => {
             const checkBalanceTx = await d_CompoundIntegration.logBalance(bAsset.address, {
                 from: sa.dummy1,
             });
-            expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", {
+            expectEvent(checkBalanceTx.receipt, "CurrentBalance", {
                 balance: compoundIntegration_bal,
             });
         });
@@ -794,7 +796,7 @@ contract("CompoundIntegration", async (accounts) => {
             );
             // Cross that match with the `checkBalance` call
             // let checkBalanceTx = await d_CompoundIntegration.logBalance(bAsset.address);
-            // expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", {
+            // expectEvent(checkBalanceTx.receipt, "CurrentBalance", {
             //     balance: underlyingBalanceBefore,
             // });
 
@@ -823,7 +825,7 @@ contract("CompoundIntegration", async (accounts) => {
             assertBNSlightlyGTPercent(underlyingBalanceAfter, underlyingBalanceBefore, "2", true);
             // Cross that match with the `checkBalance` call
             let checkBalanceTx = await d_CompoundIntegration.logBalance(bAsset.address);
-            expectEvent.inLogs(checkBalanceTx.logs, "CurrentBalance", {
+            expectEvent(checkBalanceTx.receipt, "CurrentBalance", {
                 balance: underlyingBalanceAfter,
             });
 
@@ -839,7 +841,7 @@ contract("CompoundIntegration", async (accounts) => {
         it("should fail if called with inactive token", async () => {
             const bAsset = await c_ERC20.at(integrationDetails.aTokens[0].bAsset);
 
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_CompoundIntegration.logBalance(bAsset.address),
                 "cToken does not exist",
             );
@@ -871,7 +873,7 @@ contract("CompoundIntegration", async (accounts) => {
 
         it("should only be callable by the Governor", async () => {
             // Fail when not called by the Governor
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 d_CompoundIntegration.reApproveAllTokens({
                     from: sa.dummy1,
                 }),

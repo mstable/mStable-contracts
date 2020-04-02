@@ -1,7 +1,7 @@
 import { ModuleInstance, MockNexusInstance, PausableModuleInstance } from "types/generated";
 import { StandardAccounts, SystemMachine } from "@utils/machines";
 import { BN } from "@utils/tools";
-import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
+import { constants, expectEvent, expectRevert } from "@openzeppelin/test-helpers";
 import envSetup from "@utils/env_setup";
 import { ZERO_ADDRESS } from "@utils/constants";
 import shouldBehaveLikeModule from "./behaviours/Module.behaviour";

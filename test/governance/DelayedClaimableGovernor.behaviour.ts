@@ -1,8 +1,8 @@
 import { StandardAccounts } from "@utils/machines";
 import { BN } from "@utils/tools";
 import envSetup from "@utils/env_setup";
-import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
-import { increase, increaseTo, latest } from "openzeppelin-test-helpers/src/time";
+import { constants, expectEvent, expectRevert } from "@openzeppelin/test-helpers";
+import { increase, increaseTo, latest } from "@openzeppelin/test-helpers/src/time";
 import { DelayedClaimableGovernorInstance } from "types/generated";
 
 const { ZERO_ADDRESS } = constants;
@@ -28,7 +28,7 @@ export default function shouldBehaveLikeDelayedClaimable(
 
     it("prevent newGovernor to claim ownership before delay over", async () => {
         const newOwner = sa.other;
-        await shouldFail.reverting.withMessage(
+        await expectRevert(
             ctx.claimable.claimGovernorChange({ from: newOwner }),
             "Delay not over",
         );
@@ -43,7 +43,7 @@ export default function shouldBehaveLikeDelayedClaimable(
         await increase(delay.sub(new BN(10)));
 
         const newOwner = sa.other;
-        await shouldFail.reverting.withMessage(
+        await expectRevert(
             ctx.claimable.claimGovernorChange({ from: newOwner }),
             "Delay not over",
         );
@@ -61,8 +61,8 @@ export default function shouldBehaveLikeDelayedClaimable(
         const previousGov = await ctx.claimable.governor();
         const newGovernor = sa.other;
         const tx = await ctx.claimable.claimGovernorChange({ from: newGovernor });
-        expectEvent.inLogs(tx.logs, "GovernorChangeClaimed", { proposedGovernor: newGovernor });
-        expectEvent.inLogs(tx.logs, "GovernorChanged", {
+        expectEvent(tx.receipt, "GovernorChangeClaimed", { proposedGovernor: newGovernor });
+        expectEvent(tx.receipt, "GovernorChanged", {
             previousGovernor: previousGov,
             newGovernor,
         });

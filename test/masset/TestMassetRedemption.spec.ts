@@ -2,7 +2,7 @@
 
 import { createMultiple, simpleToExactAmount } from "@utils/math";
 import { createBasket, Basket } from "@utils/mstable-objects";
-import { shouldFail } from "openzeppelin-test-helpers";
+import { expectRevert } from "@openzeppelin/test-helpers";
 import {
     MassetMachine,
     StandardAccounts,

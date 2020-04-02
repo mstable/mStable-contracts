@@ -1,5 +1,5 @@
 import { MassetMachine, MassetDetails } from "@utils/machines";
-import { latest } from "openzeppelin-test-helpers/src/time";
+import { latest } from "@openzeppelin/test-helpers/src/time";
 import * as t from "types/generated";
 import { Address } from "types/common";
 

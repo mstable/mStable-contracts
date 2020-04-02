@@ -1,8 +1,8 @@
 pragma solidity 0.5.16;
 
-import { ERC20Detailed } from "openzeppelin-solidity/contracts/token/ERC20/ERC20Detailed.sol";
-import { ERC20 } from "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
-// import { ERC20Burnable } from "openzeppelin-solidity/contracts/token/ERC20/ERC20Burnable.sol";
+import { ERC20Detailed } from "@openzeppelin/contracts/token/ERC20/ERC20Detailed.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+// import { ERC20Burnable } from "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
 
 /**
  * @title MassetToken

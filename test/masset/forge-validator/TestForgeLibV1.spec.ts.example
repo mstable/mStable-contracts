@@ -3,7 +3,7 @@ import envSetup from "@utils/env_setup";
 import { percentToWeight, simpleToExactAmount } from "@utils/math";
 import { createBasket, createBasset, Basket } from "@utils/mstable-objects";
 import * as chai from "chai";
-import { shouldFail } from "openzeppelin-test-helpers";
+import { expectRevert } from "@openzeppelin/test-helpers";
 import { StandardAccounts } from "@utils/machines/standardAccounts";
 
 const { expect, assert } = envSetup.configure();
@@ -57,7 +57,7 @@ contract("ForgeValidator", async (accounts) => {
     describe("Test minting validation", () => {
         describe("Basic validation mechanisms", async () => {
             it("should throw if there is a missing basset", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     forgeValidator.validateMint(standardBasket, [
                         simpleToExactAmount(200, 18),
                         simpleToExactAmount(200, 14),
@@ -67,7 +67,7 @@ contract("ForgeValidator", async (accounts) => {
             });
 
             it("should throw if there is an extra basset", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     forgeValidator.validateMint(standardBasket, [
                         simpleToExactAmount(1000, 18),
                         simpleToExactAmount(1000, 18),
@@ -81,7 +81,7 @@ contract("ForgeValidator", async (accounts) => {
 
         describe("With empty basket", async () => {
             it("should not allow a mint that is not on the target weights", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     forgeValidator.validateMint(emptyBasket, [
                         simpleToExactAmount(10000, 18),
                         simpleToExactAmount(200, 18),
@@ -118,7 +118,7 @@ contract("ForgeValidator", async (accounts) => {
             });
 
             it("should not allow a mint that is not on the target weights", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     forgeValidator.validateMint(standardBasket, [
                         simpleToExactAmount(1000, 18),
                         simpleToExactAmount(1000, 14),
@@ -131,7 +131,7 @@ contract("ForgeValidator", async (accounts) => {
             it("should not allow a mint that is not on the target weights (even with grace)", async () => {
                 standardBasket.grace = percentToWeight(50).toString();
 
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     forgeValidator.validateMint(standardBasket, [
                         simpleToExactAmount(1000, 18),
                         simpleToExactAmount(1000, 14),
@@ -171,7 +171,7 @@ contract("ForgeValidator", async (accounts) => {
             });
 
             it("should throw if a mint pushes us further away", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     forgeValidator.validateMint(adjustingBasket, [
                         simpleToExactAmount(32, 18),
                         simpleToExactAmount(36, 14),
@@ -182,7 +182,7 @@ contract("ForgeValidator", async (accounts) => {
             });
 
             it("should throw if we go way over the target", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     forgeValidator.validateMint(adjustingBasket, [
                         simpleToExactAmount(5000, 18),
                         simpleToExactAmount(0, 14),
@@ -204,7 +204,7 @@ contract("ForgeValidator", async (accounts) => {
             });
 
             it("should throw if the mint pushes us outside the grace range", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     forgeValidator.validateMint(adjustingBasketWithGrace, [
                         simpleToExactAmount(480, 18),
                         simpleToExactAmount(400, 14),
@@ -236,7 +236,7 @@ contract("ForgeValidator", async (accounts) => {
     describe("Test redeem validation ", () => {
         describe("With empty basket", () => {
             it("should not allow a redemption if there is insufficient balance", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     forgeValidator.validateRedemption(emptyBasket, [
                         simpleToExactAmount(100, 18),
                         simpleToExactAmount(100, 18),
@@ -256,7 +256,7 @@ contract("ForgeValidator", async (accounts) => {
 
         describe("With static basket", () => {
             it("should throw if there is a missing basset", async () => {
-                await shouldFail.reverting.withMessage(
+                await expectRevert(
                     forgeValidator.validateRedemption(standardBasket, [
                         simpleToExactAmount(200, 18),
                         simpleToExactAmount(200, 18),

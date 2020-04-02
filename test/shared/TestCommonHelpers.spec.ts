@@ -1,4 +1,4 @@
-import { constants, expectEvent, shouldFail } from "openzeppelin-test-helpers";
+import { constants, expectEvent, expectRevert } from "@openzeppelin/test-helpers";
 
 import { StandardAccounts } from "@utils/machines";
 import { BN } from "@utils/tools";
@@ -59,29 +59,29 @@ contract("CommonHelpers", async (accounts) => {
         });
 
         it("should fail if passed dud addresses", async () => {
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 commonHelpers.getDecimals(ZERO_ADDRESS),
                 "Returned error: VM Exception while processing transaction: revert",
             );
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 commonHelpers.getDecimals(sa.default),
                 "Returned error: VM Exception while processing transaction: revert",
             );
         });
         it("should fail if the token has lt 4 or gt 18 decimals", async () => {
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 commonHelpers.getDecimals(tokenWith0.address),
                 "Token must have sufficient decimal places",
             );
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 commonHelpers.getDecimals(tokenWith2.address),
                 "Token must have sufficient decimal places",
             );
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 commonHelpers.getDecimals(tokenWith19.address),
                 "Token must have sufficient decimal places",
             );
-            await shouldFail.reverting.withMessage(
+            await expectRevert(
                 commonHelpers.getDecimals(tokenWithXX.address),
                 "Token must have sufficient decimal places",
             );

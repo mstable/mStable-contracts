@@ -8,8 +8,8 @@ import { ISavingsContract } from "../interfaces/ISavingsContract.sol";
 import { Module } from "../shared/Module.sol";
 
 // Libs
-import { IERC20 } from "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
-import { SafeMath } from "openzeppelin-solidity/contracts/math/SafeMath.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 import { StableMath } from "../shared/StableMath.sol";
 
 /**
