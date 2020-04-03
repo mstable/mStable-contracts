@@ -3,7 +3,7 @@
 import * as t from "types/generated";
 import { expectEvent, expectRevert } from "@openzeppelin/test-helpers";
 
-import { assertBasketIsHealthy, assertBnGte } from "@utils/assertions";
+import { assertBasketIsHealthy, assertBnGte, assertBNSlightlyGTPercent } from "@utils/assertions";
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
 import { MassetDetails, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import { aToH, BN } from "@utils/tools";
@@ -42,8 +42,10 @@ contract("Masset", async (accounts) => {
         await runSetup();
     });
 
-    const runSetup = async () => {
-        massetDetails = await massetMachine.deployMassetAndSeedBasket();
+    const runSetup = async (seedBasket = true, enableUSDTFee = false) => {
+        massetDetails = seedBasket
+            ? await massetMachine.deployMassetAndSeedBasket(enableUSDTFee)
+            : await massetMachine.deployMasset(enableUSDTFee);
         await assertBasketIsHealthy(massetMachine, massetDetails);
     };
 
@@ -160,10 +162,98 @@ contract("Masset", async (accounts) => {
             });
             context("using bAssets with transfer fees", async () => {
                 before(async () => {
-                    await runSetup();
+                    await runSetup(false, true);
                 });
-                it("should fail if the token charges a fee but we dont know about it");
-                it("should handle tokens with transfer fees");
+                it("should handle tokens with transfer fees", async () => {
+                    await assertBasketIsHealthy(massetMachine, massetDetails);
+
+                    // 1.0 Assert bAsset has fee
+                    const bAsset = massetDetails.bAssets[3];
+                    const basket = await massetMachine.getBasketComposition(massetDetails);
+                    expect(basket.bAssets[3].isTransferFeeCharged).to.eq(true);
+
+                    // 2.0 Get balances
+                    const minterBassetBalBefore = await bAsset.balanceOf(sa.default);
+                    const recipient = sa.dummy3;
+                    const recipientBalBefore = await massetDetails.mAsset.balanceOf(recipient);
+                    expect(recipientBalBefore).bignumber.eq(new BN(0));
+                    const bAssetBefore = await massetDetails.basketManager.getBasset(
+                        bAsset.address,
+                    );
+                    const mAssetMintAmount = new BN(10);
+                    const approval0: BN = await massetMachine.approveMasset(
+                        bAsset,
+                        massetDetails.mAsset,
+                        new BN(mAssetMintAmount),
+                    );
+                    // 3.0 Do the mint
+                    const tx = await massetDetails.mAsset.mintTo(
+                        bAsset.address,
+                        approval0,
+                        recipient,
+                    );
+
+                    const mAssetQuantity = simpleToExactAmount(mAssetMintAmount, 18);
+                    const bAssetQuantity = simpleToExactAmount(
+                        mAssetMintAmount,
+                        await bAsset.decimals(),
+                    );
+                    // 3.1 Check Transfers to lending platform
+                    await expectEvent(tx.receipt, "Transfer", {
+                        from: sa.default,
+                        to: await massetDetails.basketManager.getBassetIntegrator(bAsset.address),
+                    });
+                    // 3.2 Check Deposits into lending platform
+                    const emitter = await AaveIntegration.new();
+                    await expectEvent.inTransaction(tx.tx, emitter, "Deposit", {
+                        _bAsset: bAsset.address,
+                    });
+                    // 4.0 Recipient should have mAsset quantity after
+                    const recipientBalAfter = await massetDetails.mAsset.balanceOf(recipient);
+                    // Assert that we minted gt 99% of the bAsset
+                    assertBNSlightlyGTPercent(
+                        recipientBalBefore.add(mAssetQuantity),
+                        recipientBalAfter,
+                        "0.3",
+                    );
+                    // Sender should have less bAsset after
+                    const minterBassetBalAfter = await bAsset.balanceOf(sa.default);
+                    expect(minterBassetBalAfter).bignumber.eq(
+                        minterBassetBalBefore.sub(bAssetQuantity),
+                    );
+                    // VaultBalance should update for this bAsset
+                    const bAssetAfter = await massetDetails.basketManager.getBasset(bAsset.address);
+                    expect(new BN(bAssetAfter.vaultBalance)).bignumber.eq(recipientBalAfter);
+
+                    // Complete basket should remain in healthy state
+                    await assertBasketIsHealthy(massetMachine, massetDetails);
+                });
+                it("should fail if the token charges a fee but we dont know about it", async () => {
+                    await assertBasketIsHealthy(massetMachine, massetDetails);
+
+                    // 1.0 Assert bAsset has fee
+                    const bAsset = massetDetails.bAssets[3];
+                    const basket = await massetMachine.getBasketComposition(massetDetails);
+                    expect(basket.bAssets[3].isTransferFeeCharged).to.eq(true);
+                    await massetDetails.basketManager.setTransferFeesFlag(bAsset.address, false);
+
+                    // 2.0 Get balances
+                    const mAssetMintAmount = new BN(10);
+                    const approval0: BN = await massetMachine.approveMasset(
+                        bAsset,
+                        massetDetails.mAsset,
+                        new BN(mAssetMintAmount),
+                    );
+                    // 3.0 Do the mint
+                    await expectRevert(
+                        massetDetails.mAsset.mintTo(
+                            bAsset.address,
+                            approval0,
+                            sa.default,
+                        ),
+                        "SafeERC20: low-level call failed",
+                    );
+                });
             });
             it("should revert when 0 quantities", async () => {
                 const bAsset = massetDetails.bAssets[0];

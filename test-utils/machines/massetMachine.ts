@@ -70,14 +70,14 @@ export class MassetMachine {
      * @dev Deploys an mAsset with default parameters, modelled on original mUSD
      * @return Interface will all deployed information
      **/
-    public async deployMasset(): Promise<MassetDetails> {
+    public async deployMasset(enableUSDTFee: boolean = false): Promise<MassetDetails> {
         let md: MassetDetails = {};
 
         /***************************************
         0. Mock platforms and bAssets
         Dependencies: []
         ****************************************/
-        const bassetDetails = await this.loadBassets();
+        const bassetDetails = await this.loadBassets(enableUSDTFee);
         md.bAssets = bassetDetails.bAssets;
 
         /***************************************
@@ -154,7 +154,7 @@ export class MassetMachine {
                         : d_CompoundIntegrationProxy.address,
                 ),
                 bassetDetails.bAssets.map(() => percentToWeight(weight).toString()),
-                bassetDetails.bAssets.map(() => false),
+                bassetDetails.fees,
             )
             .encodeABI();
         await d_BasketManagerProxy.initialize(
@@ -235,6 +235,7 @@ export class MassetMachine {
         // return all the addresses
         return {
             bAssets,
+            fees: [false, false, false, enableUSDTFee],
             platforms: [Platform.compound, Platform.compound, Platform.aave, Platform.aave],
             aavePlatformAddress: this.ma.aavePlatform,
             aTokens: [
@@ -307,8 +308,9 @@ export class MassetMachine {
         await d_MockAave.addAToken(mockAToken4.address, mockBasset4.address);
 
         return {
-            // DAI, USDC, TUSD, USDT(aave), USDT(compound)
+            // DAI, USDC, TUSDT(aave), USDT(compound)
             bAssets: [mockBasset1, mockBasset2, mockBasset3, mockBasset4],
+            fees: [false, false, false, enableUSDTFee],
             platforms: [Platform.compound, Platform.compound, Platform.aave, Platform.aave],
             aavePlatformAddress: d_MockAave.address,
             aTokens: [
@@ -350,11 +352,12 @@ export class MassetMachine {
      *      1. Mint with optimal weightings
      */
     public async deployMassetAndSeedBasket(
+        enableUSDTFee: boolean = false,
         initialSupply: number = 100,
         bAssetCount: number = 4,
         sender: Address = this.system.sa.governor,
     ): Promise<MassetDetails> {
-        let massetDetails = await this.deployMasset();
+        let massetDetails = await this.deployMasset(enableUSDTFee);
 
         // Mint initialSupply with shared weightings
         let basketDetails = await this.getBassetsInMasset(massetDetails);
@@ -439,6 +442,7 @@ export class MassetMachine {
         return {
             bAssets: bAssets.map((b, i) => {
                 return {
+                    ...b,
                     address: b.addr,
                     mAssetUnits: currentVaultUnits[i],
                     overweight: overweightBassets[i],

@@ -136,10 +136,10 @@ contract DelayedProxyAdmin is Module {
     }
 
     /**
-    * @dev Returns the admin of a proxy. Only the admin can query it.
-    * @param _proxy Contract address of Proxy
-    * @return The address of the current admin of the proxy.
-    */
+     * @dev Returns the admin of a proxy. Only the admin can query it.
+     * @param _proxy Contract address of Proxy
+     * @return The address of the current admin of the proxy.
+     */
     function getProxyAdmin(address _proxy) public view returns (address) {
         // We need to manually run the static call since the getter cannot be flagged as view
         // bytes4(keccak256("admin()")) == 0xf851a440
@@ -149,11 +149,11 @@ contract DelayedProxyAdmin is Module {
     }
 
     /**
-    * @dev Returns the current implementation of a proxy.
-    * This is needed because only the proxy admin can query it.
-    * @param _proxy Contract address of Proxy
-    * @return The address of the current implementation of the proxy.
-    */
+     * @dev Returns the current implementation of a proxy.
+     * This is needed because only the proxy admin can query it.
+     * @param _proxy Contract address of Proxy
+     * @return The address of the current implementation of the proxy.
+     */
     function getProxyImplementation(address _proxy) public view returns (address) {
         // We need to manually run the static call since the getter cannot be flagged as view
         // bytes4(keccak256("implementation()")) == 0x5c60da1b
