@@ -141,10 +141,7 @@ contract("Module", async (accounts) => {
 
     describe("should fail", async () => {
         it("when zero address for Nexus", async () => {
-            await expectRevert(
-                MockModule.new(ZERO_ADDRESS),
-                "Nexus is zero address",
-            );
+            await expectRevert(MockModule.new(ZERO_ADDRESS), "Nexus is zero address");
         });
 
         it("when shouldAllowOnlyGovernor() called by other", async () => {
@@ -184,8 +181,8 @@ contract("Module", async (accounts) => {
             let temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);
             await expectRevert(
-                ctx.module.shouldAllowOnlyGovernance({ from: sa.other }),
-                "Only governance can execute",
+                ctx.module.shouldAllowOnlyProxyAdmin({ from: sa.other }),
+                "Only ProxyAdmin can execute",
             );
             temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);

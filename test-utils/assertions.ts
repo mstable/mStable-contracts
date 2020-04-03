@@ -103,7 +103,7 @@ export const assertBasketIsHealthy = async (machine: MassetMachine, md: MassetDe
         expect(b.underweight).to.eq(false);
     });
     // should be unpaused
-    expect(await md.mAsset.paused()).to.eq(false);
+    expect(await md.basketManager.paused()).to.eq(false);
     // not failed
     expect(composition.failed).to.eq(false);
     expect(composition.colRatio).bignumber.eq(fullScale);

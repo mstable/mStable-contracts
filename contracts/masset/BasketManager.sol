@@ -6,9 +6,10 @@ import { IPlatformIntegration } from "../interfaces/IPlatformIntegration.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Internal
-import { InitializableModule } from "../shared/InitializableModule.sol";
+import { InitializablePausableModule } from "../shared/InitializablePausableModule.sol";
 import { IBasketManager } from "../interfaces/IBasketManager.sol";
 import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
+import { PausableModule } from "../shared/PausableModule.sol";
 
 // Libs
 import { CommonHelpers } from "../shared/CommonHelpers.sol";
@@ -25,7 +26,7 @@ import { StableMath } from "../shared/StableMath.sol";
  * @dev     VERSION: 1.0
  *          DATE:    2020-03-26
  */
-contract BasketManager is Initializable, IBasketManager, InitializableModule {
+contract BasketManager is Initializable, IBasketManager, InitializablePausableModule {
 
     using SafeMath for uint256;
     using StableMath for uint256;
@@ -73,7 +74,7 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
         external
         initializer
     {
-        InitializableModule._initialize(_nexus);
+        InitializablePausableModule._initialize(_nexus);
 
         mAsset = _mAsset;
         grace = _grace;
@@ -199,6 +200,7 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
     function collectInterest()
         external
         onlyMasset
+        whenNotPaused
         returns (uint256 interestCollected, uint32 bitmap, uint256[] memory gains)
     {
         // Get basket details
@@ -466,6 +468,7 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
       */
     function prepareForgeBasset(address _token, uint256 /*_amt*/, bool /*_mint*/)
         external
+        whenNotPaused
         returns (
             ForgeProps memory props
         )
@@ -495,6 +498,7 @@ contract BasketManager is Initializable, IBasketManager, InitializableModule {
         bool /* _isMint */
     )
         external
+        whenNotPaused
         returns (ForgePropsMulti memory props)
     {
         Basset[] memory bAssets = new Basset[](_size);
