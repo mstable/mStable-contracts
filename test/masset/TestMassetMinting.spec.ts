@@ -235,7 +235,7 @@ contract("Masset", async (accounts) => {
                     const bAsset = massetDetails.bAssets[3];
                     const basket = await massetMachine.getBasketComposition(massetDetails);
                     expect(basket.bAssets[3].isTransferFeeCharged).to.eq(true);
-                    await massetDetails.basketManager.setTransferFeesFlag(bAsset.address, false);
+                    await massetDetails.basketManager.setTransferFeesFlag(bAsset.address, false, { from: sa.governor });
 
                     // 2.0 Get balances
                     const mAssetMintAmount = new BN(10);
@@ -255,6 +255,7 @@ contract("Masset", async (accounts) => {
                     );
                 });
             });
+            // context("with an affected bAsset")
             it("should revert when 0 quantities", async () => {
                 const bAsset = massetDetails.bAssets[0];
                 await massetMachine.approveMasset(bAsset, massetDetails.mAsset, new BN(1));
@@ -414,10 +415,6 @@ contract("Masset", async (accounts) => {
                 const mUSD_bal4 = await massetDetails.mAsset.balanceOf(sa.default);
                 expect(mUSD_bal4).bignumber.eq(mUSD_bal3.add(oneMasset));
             });
-            it("should deposit tokens into target platform", async () => {
-                // await assertBasicMint();
-            });
-
             it("reverts if the BasketManager is paused", async () => {
                 const bAsset = massetDetails.bAssets[0];
                 await massetDetails.basketManager.pause({ from: sa.governor });
@@ -479,8 +476,6 @@ contract("Masset", async (accounts) => {
             it("should fail if we exceed the max weight");
             it("should still perform with 12-16 bAssets in the basket");
 
-            // Require a new BasketManager setup
-            it("should fail if we mint with an affected bAsset");
         });
 
         context("when the weights exceeds the ForgeValidator limit", () => {
