@@ -7,6 +7,7 @@ import { assertBasketIsHealthy, assertBnGte, assertBNSlightlyGTPercent } from "@
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
 import { MassetDetails, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import { aToH, BN } from "@utils/tools";
+import { BassetStatus } from "@utils/mstable-objects";
 import { ZERO_ADDRESS, fullScale } from "@utils/constants";
 
 import envSetup from "@utils/env_setup";
@@ -125,8 +126,11 @@ contract("Masset", async (accounts) => {
     };
 
     describe("minting with a single bAsset", () => {
-        context("at any time", () => {
-            context("sending to a specific recipient", async () => {
+        context("when the weights are within the ForgeValidator limit", () => {
+            before("reset", async () => {
+                await runSetup();
+            });
+            context("and sending to a specific recipient", async () => {
                 before(async () => {
                     await runSetup();
                 });
@@ -235,7 +239,9 @@ contract("Masset", async (accounts) => {
                     const bAsset = massetDetails.bAssets[3];
                     const basket = await massetMachine.getBasketComposition(massetDetails);
                     expect(basket.bAssets[3].isTransferFeeCharged).to.eq(true);
-                    await massetDetails.basketManager.setTransferFeesFlag(bAsset.address, false, { from: sa.governor });
+                    await massetDetails.basketManager.setTransferFeesFlag(bAsset.address, false, {
+                        from: sa.governor,
+                    });
 
                     // 2.0 Get balances
                     const mAssetMintAmount = new BN(10);
@@ -246,16 +252,28 @@ contract("Masset", async (accounts) => {
                     );
                     // 3.0 Do the mint
                     await expectRevert(
-                        massetDetails.mAsset.mintTo(
-                            bAsset.address,
-                            approval0,
-                            sa.default,
-                        ),
+                        massetDetails.mAsset.mintTo(bAsset.address, approval0, sa.default),
                         "SafeERC20: low-level call failed",
                     );
                 });
             });
-            // context("with an affected bAsset")
+            context("with an affected bAsset", async () => {
+                it("should fail if bAsset is broken below peg", async () => {
+                    await assertBasketIsHealthy(massetMachine, massetDetails);
+
+                    const bAsset = massetDetails.bAssets[0];
+                    await massetDetails.basketManager.handlePegLoss(bAsset.address, true, {
+                        from: sa.governor,
+                    });
+                    const newBasset = await massetDetails.basketManager.getBasset(bAsset.address);
+                    expect(newBasset.status).to.eq(BassetStatus.BrokenBelowPeg.toString());
+                    await massetMachine.approveMasset(bAsset, massetDetails.mAsset, new BN(1));
+                    await expectRevert(
+                        massetDetails.mAsset.mint(bAsset.address, new BN(1)),
+                        "bAsset not allowed in mint",
+                    );
+                });
+            });
             it("should revert when 0 quantities", async () => {
                 const bAsset = massetDetails.bAssets[0];
                 await massetMachine.approveMasset(bAsset, massetDetails.mAsset, new BN(1));
@@ -424,16 +442,6 @@ contract("Masset", async (accounts) => {
                     "Pausable: paused",
                 );
             });
-        });
-
-        // Checks:
-        //  - Increases vault balance (only)
-        //  - Calcs ratio correctly
-        //  - Emits mint event
-        context("when the weights are within the ForgeValidator limit", () => {
-            before("reset", async () => {
-                await runSetup();
-            });
 
             it("should succeed so long as we don't exceed the max weight", async () => {
                 // await assertBasketIsHealthy(massetMachine, md);
@@ -473,21 +481,28 @@ contract("Masset", async (accounts) => {
                 // // Complete basket should remain in healthy state
                 // assertBasketIsHealthy(massetMachine, md);
             });
-            it("should fail if we exceed the max weight");
             it("should still perform with 12-16 bAssets in the basket");
-
         });
 
         context("when the weights exceeds the ForgeValidator limit", () => {
             // minting should work as long as the thing we mint with doesnt exceed max
             // other states?
+            it("should succeed if bAsset is underweight");
+            it("should fail if we exceed the max weight");
+            it("should fail if bAsset already exceeds max");
+            it("should pass if bAsset is under, but something else is above");
         });
         context("when the mAsset has failed", () => {
-            it("should revert any mints");
+            it("should revert any mints", async () => {
+                // Basket must be alive
+            });
         });
     });
 
     describe("minting with multiple bAssets", () => {
+        before(async () => {
+            await runSetup();
+        });
         context("at any time", () => {
             it("should fail if recipient is 0x0", async () => {
                 // mintSingle

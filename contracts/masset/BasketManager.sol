@@ -693,7 +693,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         returns (bool alreadyActioned)
     {
         (bool exists, uint256 i) = _isAssetInBasket(_bAsset);
-        require(exists, "bASset must exist in Basket");
+        require(exists, "bAsset must exist in Basket");
 
         BassetStatus oldStatus = basket.bassets[i].status;
         BassetStatus newStatus = _belowPeg ? BassetStatus.BrokenBelowPeg : BassetStatus.BrokenAbovePeg;
@@ -717,7 +717,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     external
     managerOrGovernor {
         (bool exists, uint256 i) = _isAssetInBasket(_bAsset);
-        require(exists, "bASset must exist in Basket");
+        require(exists, "bAsset must exist in Basket");
 
         BassetStatus currentStatus = basket.bassets[i].status;
         if(currentStatus == BassetStatus.BrokenBelowPeg ||
