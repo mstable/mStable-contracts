@@ -9,7 +9,7 @@ import { IBasketManager } from "../interfaces/IBasketManager.sol";
 // Internal
 import { IMasset } from "../interfaces/IMasset.sol";
 import { MassetToken } from "./MassetToken.sol";
-import { PausableModule } from "../shared/PausableModule.sol";
+import { Module } from "../shared/Module.sol";
 import { MassetStructs } from "./shared/MassetStructs.sol";
 
 // Libs
@@ -26,7 +26,7 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
  *          for underlying basket assets (bAssets) of the same peg (i.e. USD,
  *          EUR, gGold). Composition and validation is enforced via the BasketManager.
  */
-contract Masset is IMasset, MassetToken, PausableModule, ReentrancyGuard {
+contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
 
     using StableMath for uint256;
     using SafeERC20 for IERC20;
@@ -65,7 +65,7 @@ contract Masset is IMasset, MassetToken, PausableModule, ReentrancyGuard {
             _name,
             _symbol
         )
-        PausableModule(
+        Module(
             _nexus
         )
         public
@@ -111,7 +111,6 @@ contract Masset is IMasset, MassetToken, PausableModule, ReentrancyGuard {
         uint256 _bAssetQuantity
     )
         external
-        whenNotPaused
         returns (uint256 massetMinted)
     {
         return _mintTo(_bAsset, _bAssetQuantity, msg.sender);
@@ -131,7 +130,6 @@ contract Masset is IMasset, MassetToken, PausableModule, ReentrancyGuard {
         address _recipient
     )
         external
-        whenNotPaused
         returns (uint256 massetMinted)
     {
         return _mintTo(_bAsset, _bAssetQuantity, _recipient);
@@ -151,7 +149,6 @@ contract Masset is IMasset, MassetToken, PausableModule, ReentrancyGuard {
         address _recipient
     )
         external
-        whenNotPaused
         returns(uint256 massetMinted)
     {
         return _mintTo(_bAssetsBitmap, _bAssetQuantity, _recipient);
@@ -271,7 +268,6 @@ contract Masset is IMasset, MassetToken, PausableModule, ReentrancyGuard {
         uint256 _bAssetQuantity
     )
         external
-        whenNotPaused
         returns (uint256 massetRedeemed)
     {
         return _redeemTo(_bAsset, _bAssetQuantity, msg.sender);
@@ -291,7 +287,6 @@ contract Masset is IMasset, MassetToken, PausableModule, ReentrancyGuard {
         address _recipient
     )
         external
-        whenNotPaused
         returns (uint256 massetRedeemed)
     {
         return _redeemTo(_bAsset, _bAssetQuantity, _recipient);
@@ -311,7 +306,6 @@ contract Masset is IMasset, MassetToken, PausableModule, ReentrancyGuard {
         address _recipient
     )
         external
-        whenNotPaused
         returns (uint256 massetRedeemed)
     {
         return _redeemTo(_bAssetsBitmap, _bAssetQuantities, _recipient);
@@ -534,7 +528,6 @@ contract Masset is IMasset, MassetToken, PausableModule, ReentrancyGuard {
     function collectInterest()
         external
         onlySavingsManager
-        whenNotPaused
         nonReentrant
         returns (uint256 totalInterestGained, uint256 newSupply)
     {

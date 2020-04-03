@@ -3,10 +3,10 @@
 import * as t from "types/generated";
 import { expectRevert } from "@openzeppelin/test-helpers";
 
+import { assertBasketIsHealthy, assertBnGte } from "@utils/assertions";
 import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
-import { createBasket, Basket } from "@utils/mstable-objects";
 import { MassetDetails, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
-import { aToH, BN, assertBnGte } from "@utils/tools";
+import { aToH, BN } from "@utils/tools";
 import { ZERO_ADDRESS, fullScale } from "@utils/constants";
 
 import envSetup from "@utils/env_setup";
@@ -39,36 +39,13 @@ contract("MassetMinting", async (accounts) => {
 
     const runSetup = async () => {
         massetDetails = await massetMachine.deployMassetAndSeedBasket();
-        await assertBasketIsHealthy(massetDetails);
+        await assertBasketIsHealthy(massetMachine, massetDetails);
     };
 
     // Helper methods for:
-    //  - Expecting certain bAsset tb overweight
-    //  - Expect Basket to be overweight
     //  - Setting BasketManager into broken state
 
-    const assertBasketIsHealthy = async (md: MassetDetails) => {
-        // Read full basket composition
-        const composition = await massetMachine.getBasketComposition(md);
-        // Assert sum of bAssets in vault storage is gte to total supply of mAsset
-        assertBnGte(composition.sumOfBassets, composition.totalSupply);
-        // No basket weight should be above max
-        composition.bAssets.forEach((b) => {
-            expect(b.overweight).to.eq(false);
-        });
-        // no basket weight should be below min
-        composition.bAssets.forEach((b) => {
-            expect(b.underweight).to.eq(false);
-        });
-        // should be unpaused
-        expect(await md.mAsset.paused()).to.eq(false);
-        // not failed
-        expect(composition.failed).to.eq(false);
-        expect(composition.colRatio).bignumber.eq(fullScale);
-        // prepareForgeBasset works
-        // Potentially wrap in mock and check event
-        await md.basketManager.prepareForgeBasset(md.bAssets[0].address, "1", false);
-    };
+    // Helper to assert that a given bAsset is currently above its target weight
     const assertBassetOverweight = async (md: MassetDetails, bAsset: t.MockERC20Instance) => {
         // Read full basket composition
         const composition = await massetMachine.getBasketComposition(md);
@@ -76,24 +53,29 @@ contract("MassetMinting", async (accounts) => {
         expect(target.overweight).to.eq(true);
     };
 
+    // Helper to assert basic minting conditions, i.e. balance before and after
     const assertBasicMint = async (
         md: MassetDetails,
         mAssetMintAmount: BN | number,
         bAsset: t.MockERC20Instance,
-        recipient: string,
+        useMintTo = false,
+        recipient: string = sa.default,
         sender: string = sa.default,
     ): Promise<MintOutput> => {
         const minterBassetBalBefore = await bAsset.balanceOf(sender);
-        const recipientBalBefore = await md.mAsset.balanceOf(recipient);
+        const derivedRecipient = useMintTo ? sender : recipient;
+        const recipientBalBefore = await md.mAsset.balanceOf(derivedRecipient);
 
         const approval0: BN = await massetMachine.approveMasset(
             bAsset,
             md.mAsset,
             new BN(mAssetMintAmount),
         );
-        await md.mAsset.mintTo(bAsset.address, approval0, recipient);
+        await (useMintTo
+            ? md.mAsset.mintTo(bAsset.address, approval0, derivedRecipient)
+            : md.mAsset.mint(bAsset.address, approval0));
 
-        const recipientBalAfter = await md.mAsset.balanceOf(recipient);
+        const recipientBalAfter = await md.mAsset.balanceOf(derivedRecipient);
         expect(recipientBalAfter).bignumber.eq(
             recipientBalBefore.add(simpleToExactAmount(mAssetMintAmount, 18)),
         );
@@ -127,27 +109,64 @@ contract("MassetMinting", async (accounts) => {
                 it("should send mUSD when recipient is a contract", async () => {
                     const { bAssets } = massetDetails;
                     const recipient = massetDetails.forgeValidator.address;
-                    await assertBasicMint(massetDetails, new BN(1), bAssets[0], recipient);
+                    await assertBasicMint(massetDetails, new BN(1), bAssets[0], true, recipient);
                 });
-                it("should send mUSD when the recipient is an EOA", () => {});
+                it("should send mUSD when the recipient is an EOA", async () => {
+                    const { bAssets } = massetDetails;
+                    const recipient = sa.dummy1;
+                    await assertBasicMint(massetDetails, new BN(1), bAssets[1], true, recipient);
+                });
             });
             context("and not defining recipient", async () => {
                 it("should mint to sender in basic mint func", async () => {
-                    // mintSingle
+                    const { bAssets } = massetDetails;
+                    await assertBasicMint(massetDetails, new BN(1), bAssets[1], false);
                 });
             });
-
-            it("should revert when 0 quantities");
-            it("reverts if the mAsset is paused");
-            it("should fail if given an invalid integrator");
-            it("should fail if sender doesn't have balance");
-            it("should fail if sender doesn't give approval");
+            it("should revert when 0 quantities", async () => {
+                const bAsset = massetDetails.bAssets[0];
+                await massetMachine.approveMasset(bAsset, massetDetails.mAsset, new BN(1));
+                await expectRevert(
+                    massetDetails.mAsset.mint(bAsset.address, new BN(0)),
+                    "Quantity must not be 0",
+                );
+            });
+            it("should fail if sender doesn't have balance", async () => {
+                const bAsset = massetDetails.bAssets[0];
+                const sender = sa.dummy1;
+                expect(await bAsset.balanceOf(sender)).bignumber.eq(new BN(0));
+                await massetMachine.approveMasset(
+                    bAsset,
+                    massetDetails.mAsset,
+                    new BN(100),
+                    sender,
+                );
+                await expectRevert(
+                    massetDetails.mAsset.mint(bAsset.address, new BN(100), { from: sender }),
+                    "SafeERC20: low-level call failed",
+                );
+            });
+            it("should fail if sender doesn't give approval", async () => {
+                const bAsset = massetDetails.bAssets[0];
+                const sender = sa.dummy2;
+                await bAsset.transfer(sender, new BN(10000));
+                expect(await bAsset.allowance(sender, massetDetails.mAsset.address)).bignumber.eq(
+                    new BN(0),
+                );
+                expect(await bAsset.balanceOf(sender)).bignumber.eq(new BN(10000));
+                await expectRevert(
+                    massetDetails.mAsset.mint(bAsset.address, new BN(100), { from: sender }),
+                    "SafeERC20: low-level call failed",
+                );
+            });
             it("should fail if the bAsset does not exist", async () => {
                 // mintSingle
             });
             it("should mint nothing if the preparation returns invalid from manager", async () => {
                 // mintSingle
             });
+            it("should fail if given an invalid integrator");
+            it("reverts if the mAsset is paused", async () => {});
         });
 
         context("when the weights are within the ForgeValidator limit", () => {

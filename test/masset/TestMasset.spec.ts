@@ -4,15 +4,14 @@ import { keccak256 } from "web3-utils";
 
 import { MassetMachine, StandardAccounts, SystemMachine, MassetDetails } from "@utils/machines";
 import { createMultiple, percentToWeight, simpleToExactAmount, applyRatio } from "@utils/math";
-import { createBasket, Basket } from "@utils/mstable-objects";
+import { assertBNSlightlyGTPercent } from "@utils/assertions";
 import { ZERO_ADDRESS, ONE_WEEK, TEN_MINS } from "@utils/constants";
-import { aToH, BN, assertBNSlightlyGTPercent } from "@utils/tools";
+import { aToH, BN } from "@utils/tools";
 
 import envSetup from "@utils/env_setup";
 import * as chai from "chai";
 import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
 import shouldBehaveLikePausableModule from "../shared/behaviours/PausableModule.behaviour";
-
 
 const Masset: t.MassetContract = artifacts.require("Masset");
 const Nexus: t.NexusContract = artifacts.require("Nexus");
@@ -20,7 +19,7 @@ const Nexus: t.NexusContract = artifacts.require("Nexus");
 const { expect, assert } = envSetup.configure();
 
 contract("Masset", async (accounts) => {
-    const ctx: { module?: t.PausableModuleInstance } = {};
+    const ctx: { module?: t.ModuleInstance } = {};
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
     let massetMachine: MassetMachine;
@@ -47,7 +46,6 @@ contract("Masset", async (accounts) => {
             });
 
             shouldBehaveLikeModule(ctx as Required<typeof ctx>, sa);
-            shouldBehaveLikePausableModule(ctx as Required<typeof ctx>, sa);
 
             it("should properly store valid arguments", async () => {
                 // Check for nexus addr
@@ -212,7 +210,7 @@ contract("Masset", async (accounts) => {
             // 4.4 Event emits correct unit
             expectEvent.inLogs(tx.logs, "MintedMulti", { massetQuantity: increasedTotalSupply });
         });
-        it("should only allow the SavingsManager to collect interest when unpaused", async () => {
+        it("should only allow the SavingsManager to collect interest when BasketManager unpaused", async () => {
             const nexus = await Nexus.at(await massetDetails.mAsset.nexus());
             const [savingsManagerInNexus] = await nexus.modules(keccak256("SavingsManager"));
             expect(sa.dummy1).eq(savingsManagerInNexus);
@@ -226,7 +224,7 @@ contract("Masset", async (accounts) => {
                 "Must be savings manager",
             );
 
-            await massetDetails.mAsset.pause({ from: sa.governor });
+            await massetDetails.basketManager.pause({ from: sa.governor });
             await expectRevert(
                 massetDetails.mAsset.collectInterest({ from: sa.dummy1 }),
                 "Pausable: paused",
@@ -237,4 +235,3 @@ contract("Masset", async (accounts) => {
         it("should have a minimal increase if called in quick succession");
     });
 });
-// });

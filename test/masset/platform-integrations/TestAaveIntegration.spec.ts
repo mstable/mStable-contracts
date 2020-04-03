@@ -3,7 +3,8 @@
 
 import * as t from "types/generated";
 import { constants, expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
-import { BN, assertBNClose, assertBNSlightlyGT, assertBNSlightlyGTPercent } from "@utils/tools";
+import { BN } from "@utils/tools";
+import { assertBNClose, assertBNSlightlyGT, assertBNSlightlyGTPercent  } from "@utils/assertions";
 import { StandardAccounts, SystemMachine, MassetMachine } from "@utils/machines";
 import {
     MainnetAccounts,

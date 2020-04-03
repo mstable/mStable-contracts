@@ -1,6 +1,6 @@
 pragma solidity 0.5.16;
 
-import { InitializableModuleKeys } from "../shared/InitializableModuleKeys.sol";
+import { InitializableModuleKeys } from "./InitializableModuleKeys.sol";
 import { INexus } from "../interfaces/INexus.sol";
 
 /**
