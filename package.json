@@ -9,7 +9,7 @@
     "migrate": "truffle migrate --network development --reset",
     "migrate:rinkeby": "truffle migrate --network rinkeby --reset",
     "lint": "yarn run lint-ts; yarn run lint-sol",
-    "lint-ts": "yarn eslint ./test --ext .ts,.js --fix",
+    "lint-ts": "yarn eslint ./test --ext .ts,.js --fix --quiet",
     "lint-sol": "solium -d contracts/ --fix ",
     "coverage": "node --max_old_space_size=6144 node_modules/truffle/build/cli.bundled.js run coverage --network coverage --solcoverjs './.solcover.js'",
     "script": "yarn truffle exec ./scripts/main.js",

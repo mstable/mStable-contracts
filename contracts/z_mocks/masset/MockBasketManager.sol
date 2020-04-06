@@ -2,7 +2,21 @@ pragma solidity 0.5.16;
 pragma experimental ABIEncoderV2;
 
 import { MassetStructs } from "../../masset/shared/MassetStructs.sol";
+import { BasketManager } from "../../masset/BasketManager.sol";
 import { StableMath } from "../../shared/StableMath.sol";
+
+// This mock allows the direct setting of basket properties
+contract MockBasketManager is BasketManager {
+
+    function setBasket(bool failed, uint256 colRatio)
+        external
+    {
+        basket.failed = failed;
+        basket.collateralisationRatio = colRatio;
+    }
+}
+
+
 
 // This mock returns an invalid forge from the prepareForgeBasset call
 contract MockBasketManager1 is MassetStructs {
@@ -20,7 +34,7 @@ contract MockBasketManager1 is MassetStructs {
         });
     }
 
-    function prepareForgeBasset(address _token, uint256 /*_amt*/, bool /*_mint*/)
+    function prepareForgeBasset(address /*_amts*/, uint256 /*_amt*/, bool /*_mint*/)
         external
         returns (
             ForgeProps memory props
@@ -36,8 +50,8 @@ contract MockBasketManager1 is MassetStructs {
     }
 
     function prepareForgeBassets(
-        uint32 _bitmap,
-        uint8 _size,
+        uint32 /*_amts*/,
+        uint8 /*_amts*/,
         uint256[] calldata /*_amts*/,
         bool /* _isMint */
     )
@@ -93,7 +107,7 @@ contract MockBasketManager2 is MassetStructs {
     }
 
     function prepareForgeBassets(
-        uint32 _/*bitmap*/,
+        uint32 /*bitmap*/,
         uint8 /*_size*/,
         uint256[] calldata /*_amts*/,
         bool /* _isMint */

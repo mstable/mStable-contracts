@@ -35,7 +35,7 @@ const c_CompoundIntegration: t.CompoundIntegrationContract = artifacts.require(
 const c_MockCToken: t.MockCTokenContract = artifacts.require("MockCToken");
 
 // Basket
-const c_BasketManager: t.BasketManagerContract = artifacts.require("BasketManager");
+const c_BasketManager: t.MockBasketManagerContract = artifacts.require("MockBasketManager");
 
 // Masset
 const c_MUSD: t.MUSDContract = artifacts.require("MUSD");
@@ -47,7 +47,7 @@ const c_ERC20: t.ERC20Contract = artifacts.require("ERC20");
 export interface MassetDetails {
     mAsset?: t.MassetInstance;
     forgeValidator?: t.ForgeValidatorInstance;
-    basketManager?: t.BasketManagerInstance;
+    basketManager?: t.MockBasketManagerInstance;
     bAssets?: Array<t.MockERC20Instance>;
     proxyAdmin?: t.DelayedProxyAdminInstance;
     aaveIntegration?: t.AaveIntegrationInstance;
@@ -121,8 +121,8 @@ export class MassetMachine {
         const d_CompoundIntegrationProxy: t.InitializableAdminUpgradeabilityProxyInstance = await c_InitializableProxy.new();
 
         md.basketManager = await c_BasketManager.at(d_BasketManagerProxy.address);
-        md.aaveIntegration = await c_AaveIntegration.at(d_AaveIntegration.address);
-        md.compoundIntegration = await c_CompoundIntegration.at(d_CompoundIntegration.address);
+        md.aaveIntegration = await c_AaveIntegration.at(d_AaveIntegrationProxy.address);
+        md.compoundIntegration = await c_CompoundIntegration.at(d_CompoundIntegrationProxy.address);
 
         // 2.4. Deploy mUSD (w/ BasketManager addr)
         // 2.4.1. Deploy ForgeValidator
@@ -413,13 +413,18 @@ export class MassetMachine {
                 vaultBalance: new BN(b.vaultBalance),
             };
         });
-        return bArrays;
+        const bAssetContracts = await Promise.all(bArrays.map((b) => c_MockERC20.at(b.addr)));
+        return bArrays.map((b, i) => {
+            return {
+                ...b,
+                contract: bAssetContracts[i],
+            };
+        });
     }
 
     public async getBasketComposition(massetDetails: MassetDetails): Promise<BasketComposition> {
         // raw bAsset data
         let bAssets = await this.getBassetsInMasset(massetDetails);
-        let bAssetContracts = await Promise.all(bAssets.map((b) => c_MockERC20.at(b.addr)));
         let basket = await massetDetails.basketManager.getBasket();
         let grace = await massetDetails.basketManager.grace();
         // total supply of mAsset
@@ -436,7 +441,9 @@ export class MassetMachine {
         );
         // get underweight
         let underweightBassets = bAssets.map((b, i) =>
-            currentVaultUnits[i].gte(targetWeightInUnits[i].add(grace)),
+            currentVaultUnits[i].lt(
+                targetWeightInUnits[i].gte(grace) ? targetWeightInUnits[i].sub(grace) : new BN(0),
+            ),
         );
         // get total amount
         let sumOfBassets = currentVaultUnits.reduce((p, c, i) => p.add(c), new BN(0));
@@ -444,7 +451,6 @@ export class MassetMachine {
             bAssets: bAssets.map((b, i) => {
                 return {
                     ...b,
-                    contract: bAssetContracts[i],
                     address: b.addr,
                     mAssetUnits: currentVaultUnits[i],
                     overweight: overweightBassets[i],
