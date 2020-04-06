@@ -208,7 +208,7 @@ contract("Masset", async (accounts) => {
             // 4.3 Ensure that the SavingsManager received the mAsset
             expect(mUSDBalAfter).bignumber.eq(mUSDBalBefore.add(increasedTotalSupply));
             // 4.4 Event emits correct unit
-            expectEvent.inLogs(tx.logs, "MintedMulti", { massetQuantity: increasedTotalSupply });
+            expectEvent.inLogs(tx.logs, "MintedMulti", { mAssetQuantity: increasedTotalSupply });
         });
         it("should only allow the SavingsManager to collect interest when BasketManager unpaused", async () => {
             const nexus = await Nexus.at(await massetDetails.mAsset.nexus());

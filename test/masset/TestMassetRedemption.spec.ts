@@ -15,7 +15,7 @@ const Masset = artifacts.require("Masset");
 
 const { expect, assert } = envSetup.configure();
 
-contract("MassetRedemption", async (accounts) => {
+contract("Masset", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
     let massetMachine: MassetMachine;

@@ -147,7 +147,7 @@ contract("InitializableModule", async (accounts) => {
 
     describe("should fail", async () => {
         it("if initialized with null Nexus address", async () => {
-            let newModule = await MockInitializableModule.new();
+            const newModule = await MockInitializableModule.new();
             await expectRevert(newModule.initialize(ZERO_ADDRESS), "Nexus address is zero");
             await newModule.initialize(sa.dummy1);
         });

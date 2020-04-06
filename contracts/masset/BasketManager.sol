@@ -751,7 +751,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         managerOrGovernor
     {
         (bool exists, uint256 i) = _isAssetInBasket(_bAsset);
-        require(exists, "bASset must exist in Basket");
+        require(exists, "bAsset must exist in Basket");
 
         BassetStatus currentStatus = basket.bassets[i].status;
         if(currentStatus == BassetStatus.BrokenBelowPeg ||

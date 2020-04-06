@@ -32,10 +32,10 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     // Forging Events
-    event Minted(address indexed account, uint256 massetQuantity, address bAsset, uint256 bAssetQuantity);
-    event MintedMulti(address indexed account, uint256 massetQuantity, uint256 bitmap, uint256[] bAssetQuantities);
-    event Redeemed(address indexed recipient, address redeemer, uint256 massetQuantity, address bAsset, uint256 bAssetQuantity);
-    event RedeemedMulti(address indexed recipient, address redeemer, uint256 massetQuantity, uint256 bitmap, uint256[] bAssetQuantities);
+    event Minted(address indexed account, uint256 mAssetQuantity, address bAsset, uint256 bAssetQuantity);
+    event MintedMulti(address indexed account, uint256 mAssetQuantity, uint256 bitmap, uint256[] bAssetQuantities);
+    event Redeemed(address indexed recipient, address redeemer, uint256 mAssetQuantity, address bAsset, uint256 bAssetQuantity);
+    event RedeemedMulti(address indexed recipient, address redeemer, uint256 mAssetQuantity, uint256 bitmap, uint256[] bAssetQuantities);
     event PaidFee(address payer, uint256 feeQuantity, uint256 feeRate);
 
     // State Events
@@ -174,11 +174,10 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         ForgeProps memory props = basketManager.prepareForgeBasset(_bAsset, _bAssetQuantity, true);
         if(!props.isValid) return 0;
 
-        // Transfer collateral to the platform integration address and call deposit
-        bool xferCharged = props.bAsset.isTransferFeeCharged;
+        // Transfer collateral to the platform integration address and call deposit\
         address integrator = props.integrator;
-        uint256 quantityTransferred = MassetHelpers.transferTokens(msg.sender, integrator, _bAsset, xferCharged, _bAssetQuantity);
-        uint256 quantityDeposited = IPlatformIntegration(integrator).deposit(_bAsset, quantityTransferred, xferCharged);
+        (uint256 quantityDeposited, uint256 ratioedDeposit) =
+            _depositTokens(_bAsset, props.bAsset.ratio, integrator, props.bAsset.isTransferFeeCharged, _bAssetQuantity);
 
         // Validation should be after token transfer, as bAssetQty is unknown before
         (bool mintValid, string memory reason) = forgeValidator.validateMint(totalSupply(), props.grace, props.bAsset, quantityDeposited);
@@ -187,14 +186,26 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         // Log the Vault increase - can only be done when basket is healthy
         basketManager.increaseVaultBalance(props.index, integrator, quantityDeposited);
 
-        // ratioedBasset is the number of masset quantity to mint
-        uint256 ratioedBasset = quantityDeposited.mulRatioTruncate(props.bAsset.ratio);
-
         // Mint the Masset
-        _mint(_recipient, ratioedBasset);
-        emit Minted(_recipient, ratioedBasset, _bAsset, quantityDeposited);
+        _mint(_recipient, ratioedDeposit);
+        emit Minted(_recipient, ratioedDeposit, _bAsset, quantityDeposited);
 
-        return ratioedBasset;
+        return ratioedDeposit;
+    }
+
+    function _depositTokens(
+        address _bAsset,
+        uint256 _bAssetRatio,
+        address _integrator,
+        bool _xferCharged,
+        uint256 _quantity
+    )
+        internal
+        returns (uint256 quantityDeposited, uint256 ratioedDeposit)
+    {
+        uint256 quantityTransferred = MassetHelpers.transferTokens(msg.sender, _integrator, _bAsset, _xferCharged, _quantity);
+        quantityDeposited = IPlatformIntegration(_integrator).deposit(_bAsset, quantityTransferred, _xferCharged);
+        ratioedDeposit = quantityDeposited.mulRatioTruncate(_bAssetRatio);
     }
 
     /** @dev Mint Multi */
@@ -215,9 +226,9 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
             = basketManager.prepareForgeBassets(_bAssetsBitmap, uint8(len), _bAssetQuantity, true);
         if(!props.isValid) return 0;
 
-        uint256 massetQuantity = 0;
-
+        uint256 mAssetQuantity = 0;
         uint256[] memory receivedQty = new uint256[](len);
+
         // Transfer the Bassets to the integrator, update storage and calc MassetQ
         for(uint256 i = 0; i < len; i++){
             uint256 bAssetQuantity = _bAssetQuantity[i];
@@ -225,17 +236,14 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
                 // bAsset == bAssets[i] == basket.bassets[indexes[i]]
                 Basset memory bAsset = props.bAssets[i];
 
-                address integrator = props.integrators[i];
-                bool xferCharged = bAsset.isTransferFeeCharged;
+                (uint256 quantityDeposited, uint256 ratioedDeposit) =
+                    _depositTokens(bAsset.addr, bAsset.ratio, props.integrators[i], bAsset.isTransferFeeCharged, bAssetQuantity);
 
-                uint256 quantityTransfered = MassetHelpers.transferTokens(msg.sender, integrator, bAsset.addr, xferCharged, bAssetQuantity);
-                uint256 quantityDeposited = IPlatformIntegration(integrator).deposit(bAsset.addr, quantityTransfered, xferCharged);
                 receivedQty[i] = quantityDeposited;
-
-                uint256 ratioedBasset = quantityDeposited.mulRatioTruncate(bAsset.ratio);
-                massetQuantity = massetQuantity.add(ratioedBasset);
+                mAssetQuantity = mAssetQuantity.add(ratioedDeposit);
             }
         }
+        require(mAssetQuantity > 0, "No masset quantity to mint");
 
         basketManager.increaseVaultBalances(props.indexes, props.integrators, receivedQty, len);
 
@@ -243,13 +251,11 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         (bool mintValid, string memory reason) = forgeValidator.validateMint(totalSupply(), props.grace, props.bAssets, receivedQty);
         require(mintValid, reason);
 
-        require(massetQuantity > 0, "No masset quantity to mint");
-
         // Mint the Masset
-        _mint(_recipient, massetQuantity);
-        emit MintedMulti(_recipient, massetQuantity, _bAssetsBitmap, _bAssetQuantity);
+        _mint(_recipient, mAssetQuantity);
+        emit MintedMulti(_recipient, mAssetQuantity, _bAssetsBitmap, _bAssetQuantity);
 
-        return massetQuantity;
+        return mAssetQuantity;
     }
 
     /***************************************
@@ -340,25 +346,25 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         require(redemptionValid, reason);
 
         // Calc equivalent mAsset amount
-        uint256 massetQuantity = _bAssetQuantity.mulRatioTruncateCeil(props.bAsset.ratio);
+        uint256 mAssetQuantity = _bAssetQuantity.mulRatioTruncateCeil(props.bAsset.ratio);
 
         // Decrease balance in storage
         basketManager.decreaseVaultBalance(props.index, props.integrator, _bAssetQuantity);
 
         // Pay the redemption fee
-        _payRedemptionFee(massetQuantity);
+        _payRedemptionFee(mAssetQuantity);
 
         // Ensure payout is relevant to collateralisation ratio (if ratio is 90%, we burn more)
-        massetQuantity = massetQuantity.divPrecisely(colRatio);
+        mAssetQuantity = mAssetQuantity.divPrecisely(colRatio);
 
         // Burn the Masset
-        _burn(msg.sender, massetQuantity);
+        _burn(msg.sender, mAssetQuantity);
 
         // Transfer the Bassets to the user
         IPlatformIntegration(props.integrator).withdraw(_recipient, props.bAsset.addr, _bAssetQuantity, props.bAsset.isTransferFeeCharged);
 
-        emit Redeemed(_recipient, msg.sender, massetQuantity, _bAsset, _bAssetQuantity);
-        return massetQuantity;
+        emit Redeemed(_recipient, msg.sender, mAssetQuantity, _bAsset, _bAssetQuantity);
+        return mAssetQuantity;
     }
 
     /** @dev Redeem mAsset for a multiple bAssets */
@@ -388,7 +394,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
             forgeValidator.validateRedemption(basket.failed, totalSupply().mulTruncate(colRatio), props.grace, props.indexes, _bAssetQuantities, basket.bassets);
         require(redemptionValid, reason);
 
-        uint256 massetQuantity = 0;
+        uint256 mAssetQuantity = 0;
 
         // Calc MassetQ and update the Vault
         for(uint256 i = 0; i < redemptionAssetCount; i++){
@@ -396,7 +402,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
             if(bAssetQuantity > 0){
                 // Calc equivalent mAsset amount
                 uint256 ratioedBasset = bAssetQuantity.mulRatioTruncateCeil(props.bAssets[i].ratio);
-                massetQuantity = massetQuantity.add(ratioedBasset);
+                mAssetQuantity = mAssetQuantity.add(ratioedBasset);
 
                 // bAsset == bAssets[i] == basket.bassets[indexes[i]]
                 // basketManager.decreaseVaultBalance(props.indexes[i], props.integrators[i], bAssetQuantity);
@@ -406,13 +412,13 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         basketManager.decreaseVaultBalances(props.indexes, props.integrators, _bAssetQuantities, redemptionAssetCount);
 
         // Pay the redemption fee
-        _payRedemptionFee(massetQuantity);
+        _payRedemptionFee(mAssetQuantity);
 
         // Ensure payout is relevant to collateralisation ratio (if ratio is 90%, we burn more)
-        massetQuantity = massetQuantity.divPrecisely(colRatio);
+        mAssetQuantity = mAssetQuantity.divPrecisely(colRatio);
 
         // Burn the Masset
-        _burn(msg.sender, massetQuantity);
+        _burn(msg.sender, mAssetQuantity);
 
         // Transfer the Bassets to the user
         for(uint256 i = 0; i < redemptionAssetCount; i++){
@@ -421,8 +427,8 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
             }
         }
 
-        emit RedeemedMulti(_recipient, msg.sender, massetQuantity, _bAssetsBitmap, _bAssetQuantities);
-        return massetQuantity;
+        emit RedeemedMulti(_recipient, msg.sender, mAssetQuantity, _bAssetsBitmap, _bAssetQuantities);
+        return mAssetQuantity;
     }
 
 

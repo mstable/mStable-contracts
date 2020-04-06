@@ -16,7 +16,7 @@ const { expect, assert } = envSetup.configure();
 
 const BasketManager: t.BasketManagerContract = artifacts.require("BasketManager");
 const MockNexus: t.MockNexusContract = artifacts.require("MockNexus");
-const MockBasketManager: t.MockBasketManagerContract = artifacts.require("MockBasketManager");
+const MockBasketManager: t.MockBasketManager3Contract = artifacts.require("MockBasketManager3");
 
 contract("BasketManager", async (accounts) => {
     let systemMachine: SystemMachine;
@@ -34,7 +34,7 @@ contract("BasketManager", async (accounts) => {
     let basketManager: t.BasketManagerInstance;
     let nexus: t.MockNexusInstance;
 
-    async function createMockBasketManger(): Promise<t.MockBasketManagerInstance> {
+    async function createMockBasketManger(): Promise<t.MockBasketManager3Instance> {
         const mockBasketManager = await MockBasketManager.new();
         await mockBasketManager.initialize(
             nexus.address,
@@ -359,7 +359,7 @@ contract("BasketManager", async (accounts) => {
         it("should fail when basket is failed", async () => {
             await Promise.all(
                 integrationDetails.aTokens.map(async (a, index) => {
-                    const mockBasketManager: t.MockBasketManagerInstance = await createMockBasketManger();
+                    const mockBasketManager: t.MockBasketManager3Instance = await createMockBasketManger();
                     await mockBasketManager.failBasket();
                     const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
                     await expectRevert(
