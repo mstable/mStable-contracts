@@ -39,7 +39,7 @@ contract("Masset", async (accounts) => {
     before("Init contract", async () => {
         systemMachine = new SystemMachine(sa.all);
         massetMachine = new MassetMachine(systemMachine);
-
+        let x = 1;
         await runSetup();
     });
 
