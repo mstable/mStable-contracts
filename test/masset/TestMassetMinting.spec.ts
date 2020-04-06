@@ -1,3 +1,4 @@
+import { blockTimestampSimple } from "./../../scripts/src/utils/time";
 /* eslint-disable @typescript-eslint/camelcase */
 
 import * as t from "types/generated";
@@ -39,7 +40,7 @@ contract("Masset", async (accounts) => {
     before("Init contract", async () => {
         systemMachine = new SystemMachine(sa.all);
         massetMachine = new MassetMachine(systemMachine);
-        let x = 1;
+
         await runSetup();
     });
 
@@ -274,48 +275,169 @@ contract("Masset", async (accounts) => {
                     );
                 });
             });
-            it("should revert when 0 quantities", async () => {
-                const bAsset = massetDetails.bAssets[0];
-                await massetMachine.approveMasset(bAsset, massetDetails.mAsset, new BN(1));
-                await expectRevert(
-                    massetDetails.mAsset.mint(bAsset.address, new BN(0)),
-                    "Quantity must not be 0",
-                );
+            context("passing invalid arguments", async () => {
+                before(async () => {
+                    await runSetup();
+                });
+                it("should revert when 0 quantities", async () => {
+                    const bAsset = massetDetails.bAssets[0];
+                    await massetMachine.approveMasset(bAsset, massetDetails.mAsset, new BN(1));
+                    await expectRevert(
+                        massetDetails.mAsset.mint(bAsset.address, new BN(0)),
+                        "Quantity must not be 0",
+                    );
+                });
+                it("should fail if sender doesn't have balance", async () => {
+                    const bAsset = massetDetails.bAssets[0];
+                    const sender = sa.dummy1;
+                    expect(await bAsset.balanceOf(sender)).bignumber.eq(new BN(0));
+                    await massetMachine.approveMasset(
+                        bAsset,
+                        massetDetails.mAsset,
+                        new BN(100),
+                        sender,
+                    );
+                    await expectRevert(
+                        massetDetails.mAsset.mint(bAsset.address, new BN(100), { from: sender }),
+                        "SafeERC20: low-level call failed",
+                    );
+                });
+                it("should fail if sender doesn't give approval", async () => {
+                    const bAsset = massetDetails.bAssets[0];
+                    const sender = sa.dummy2;
+                    await bAsset.transfer(sender, new BN(10000));
+                    expect(
+                        await bAsset.allowance(sender, massetDetails.mAsset.address),
+                    ).bignumber.eq(new BN(0));
+                    expect(await bAsset.balanceOf(sender)).bignumber.eq(new BN(10000));
+                    await expectRevert(
+                        massetDetails.mAsset.mint(bAsset.address, new BN(100), { from: sender }),
+                        "SafeERC20: low-level call failed",
+                    );
+                });
+                it("should fail if the bAsset does not exist", async () => {
+                    const bAsset = await MockERC20.new("Mock", "MKK", 18, sa.default, 1000);
+                    await expectRevert(
+                        massetDetails.mAsset.mint(bAsset.address, new BN(100)),
+                        "bAsset does not exist",
+                    );
+                });
             });
-            it("should fail if sender doesn't have balance", async () => {
-                const bAsset = massetDetails.bAssets[0];
-                const sender = sa.dummy1;
-                expect(await bAsset.balanceOf(sender)).bignumber.eq(new BN(0));
-                await massetMachine.approveMasset(
-                    bAsset,
+            context("pushing the weighting beyond the maximum limit", async () => {
+                before(async () => {
+                    await runSetup(false, false);
+                });
+                it("should succeed so long as we don't exceed the max weight", async () => {
+                    await assertBasketIsHealthy(massetMachine, massetDetails);
+
+                    const composition = await massetMachine.getBasketComposition(massetDetails);
+                    // Expect 4 bAssets with 25, 25, 25, 25 weightings
+                    composition.bAssets.forEach((b) => {
+                        expect(b.vaultBalance).bignumber.eq(new BN(0));
+                        expect(b.targetWeight).bignumber.eq(simpleToExactAmount(25, 16));
+                    });
+                    // Mint 10 of each bAsset, taking total to
+                    for (const b of composition.bAssets) {
+                        await assertBasicMint(massetDetails, new BN(25), b.contract, false);
+                    }
+                    // Set no grace allowance
+                    await massetDetails.basketManager.setGrace(simpleToExactAmount(1, 18), {
+                        from: sa.governor,
+                    });
+                    // Assert basket is still healthy with 0 grace
+                    await assertBasketIsHealthy(massetMachine, massetDetails);
+
+                    // Should revert since we would be pushing above target + grace
+                    let bAsset = massetDetails.bAssets[0];
+                    const approval: BN = await massetMachine.approveMasset(
+                        bAsset,
+                        massetDetails.mAsset,
+                        new BN(2),
+                    );
+                    await expectRevert(
+                        massetDetails.mAsset.mint(bAsset.address, approval),
+                        "Must be below implicit max weighting",
+                    );
+                    // Set sufficient grace allowance
+                    await massetDetails.basketManager.setGrace(simpleToExactAmount(2, 18), {
+                        from: sa.governor,
+                    });
+                    // Mint should pass now
+                    await assertBasicMint(massetDetails, new BN(2), bAsset, false);
+                });
+            });
+            it("should mint with single bAsset", async () => {
+                const { bAssets } = massetDetails;
+                const oneMasset = simpleToExactAmount(1, 18);
+                const mUSD_bal0 = await massetDetails.mAsset.balanceOf(sa.default);
+
+                const approval0: BN = await massetMachine.approveMasset(
+                    bAssets[0],
                     massetDetails.mAsset,
-                    new BN(100),
-                    sender,
+                    1,
+                    sa.default,
                 );
-                await expectRevert(
-                    massetDetails.mAsset.mint(bAsset.address, new BN(100), { from: sender }),
-                    "SafeERC20: low-level call failed",
+                await massetDetails.mAsset.mint(bAssets[0].address, approval0, {
+                    from: sa.default,
+                });
+
+                const mUSD_bal1 = await massetDetails.mAsset.balanceOf(sa.default);
+                expect(mUSD_bal1).bignumber.eq(mUSD_bal0.add(oneMasset));
+
+                const approval1: BN = await massetMachine.approveMasset(
+                    bAssets[1],
+                    massetDetails.mAsset,
+                    1,
+                    sa.default,
                 );
+                await massetDetails.mAsset.mint(bAssets[1].address, approval1, {
+                    from: sa.default,
+                });
+
+                const mUSD_bal2 = await massetDetails.mAsset.balanceOf(sa.default);
+                expect(mUSD_bal2).bignumber.eq(mUSD_bal1.add(oneMasset));
+
+                const approval2: BN = await massetMachine.approveMasset(
+                    bAssets[2],
+                    massetDetails.mAsset,
+                    1,
+                    sa.default,
+                );
+                await massetDetails.mAsset.mint(bAssets[2].address, approval2, {
+                    from: sa.default,
+                });
+
+                const mUSD_bal3 = await massetDetails.mAsset.balanceOf(sa.default);
+                expect(mUSD_bal3).bignumber.eq(mUSD_bal2.add(oneMasset));
+
+                const approval3: BN = await massetMachine.approveMasset(
+                    bAssets[3],
+                    massetDetails.mAsset,
+                    1,
+                    sa.default,
+                );
+                await massetDetails.mAsset.mint(bAssets[3].address, approval3, {
+                    from: sa.default,
+                });
+
+                const mUSD_bal4 = await massetDetails.mAsset.balanceOf(sa.default);
+                expect(mUSD_bal4).bignumber.eq(mUSD_bal3.add(oneMasset));
             });
-            it("should fail if sender doesn't give approval", async () => {
-                const bAsset = massetDetails.bAssets[0];
-                const sender = sa.dummy2;
-                await bAsset.transfer(sender, new BN(10000));
-                expect(await bAsset.allowance(sender, massetDetails.mAsset.address)).bignumber.eq(
-                    new BN(0),
-                );
-                expect(await bAsset.balanceOf(sender)).bignumber.eq(new BN(10000));
-                await expectRevert(
-                    massetDetails.mAsset.mint(bAsset.address, new BN(100), { from: sender }),
-                    "SafeERC20: low-level call failed",
-                );
-            });
-            it("should fail if the bAsset does not exist", async () => {
-                const bAsset = await MockERC20.new("Mock", "MKK", 18, sa.default, 1000);
-                await expectRevert(
-                    massetDetails.mAsset.mint(bAsset.address, new BN(100)),
-                    "bAsset does not exist",
-                );
+        });
+
+        context("when the weights exceeds the ForgeValidator limit", () => {
+            // minting should work as long as the thing we mint with doesnt exceed max
+            it("should succeed if bAsset is underweight");
+            it("should fail if we exceed the max weight");
+            it("should fail if bAsset already exceeds max");
+            it("should pass if bAsset is under, but something else is above");
+        });
+        context("when there are a large number of bAssets in the basket", async () => {
+            it("should still perform with 12-16 bAssets in the basket");
+        });
+        context("when the basket manager returns invalid response", async () => {
+            before(async () => {
+                await runSetup();
             });
             it("should mint nothing if the preparation returns invalid from manager", async () => {
                 // mintSingle
@@ -376,63 +498,6 @@ contract("Masset", async (accounts) => {
                 const mAssetSupplyAfter = await mockMasset.totalSupply();
                 expect(mAssetSupplyBefore).bignumber.eq(mAssetSupplyAfter);
             });
-            it("Should mint single bAsset", async () => {
-                const { bAssets } = massetDetails;
-                const oneMasset = simpleToExactAmount(1, 18);
-                const mUSD_bal0 = await massetDetails.mAsset.balanceOf(sa.default);
-
-                const approval0: BN = await massetMachine.approveMasset(
-                    bAssets[0],
-                    massetDetails.mAsset,
-                    1,
-                    sa.default,
-                );
-                await massetDetails.mAsset.mint(bAssets[0].address, approval0, {
-                    from: sa.default,
-                });
-
-                const mUSD_bal1 = await massetDetails.mAsset.balanceOf(sa.default);
-                expect(mUSD_bal1).bignumber.eq(mUSD_bal0.add(oneMasset));
-
-                const approval1: BN = await massetMachine.approveMasset(
-                    bAssets[1],
-                    massetDetails.mAsset,
-                    1,
-                    sa.default,
-                );
-                await massetDetails.mAsset.mint(bAssets[1].address, approval1, {
-                    from: sa.default,
-                });
-
-                const mUSD_bal2 = await massetDetails.mAsset.balanceOf(sa.default);
-                expect(mUSD_bal2).bignumber.eq(mUSD_bal1.add(oneMasset));
-
-                const approval2: BN = await massetMachine.approveMasset(
-                    bAssets[2],
-                    massetDetails.mAsset,
-                    1,
-                    sa.default,
-                );
-                await massetDetails.mAsset.mint(bAssets[2].address, approval2, {
-                    from: sa.default,
-                });
-
-                const mUSD_bal3 = await massetDetails.mAsset.balanceOf(sa.default);
-                expect(mUSD_bal3).bignumber.eq(mUSD_bal2.add(oneMasset));
-
-                const approval3: BN = await massetMachine.approveMasset(
-                    bAssets[3],
-                    massetDetails.mAsset,
-                    1,
-                    sa.default,
-                );
-                await massetDetails.mAsset.mint(bAssets[3].address, approval3, {
-                    from: sa.default,
-                });
-
-                const mUSD_bal4 = await massetDetails.mAsset.balanceOf(sa.default);
-                expect(mUSD_bal4).bignumber.eq(mUSD_bal3.add(oneMasset));
-            });
             it("reverts if the BasketManager is paused", async () => {
                 const bAsset = massetDetails.bAssets[0];
                 await massetDetails.basketManager.pause({ from: sa.governor });
@@ -442,140 +507,90 @@ contract("Masset", async (accounts) => {
                     "Pausable: paused",
                 );
             });
-
-            it("should succeed so long as we don't exceed the max weight", async () => {
-                // await assertBasketIsHealthy(massetMachine, md);
-                // const minterBassetBalBefore = await bAsset.balanceOf(sender);
-                // const derivedRecipient = useMintTo ? sender : recipient;
-                // const recipientBalBefore = await md.mAsset.balanceOf(derivedRecipient);
-                // const bAssetBefore = await md.basketManager.getBasset(bAsset.address);
-                // const approval0: BN = await massetMachine.approveMasset(
-                //     bAsset,
-                //     md.mAsset,
-                //     new BN(mAssetMintAmount),
-                // );
-                // let tx = useMintTo
-                //     ? await md.mAsset.mintTo(bAsset.address, approval0, derivedRecipient)
-                //     : await md.mAsset.mint(bAsset.address, approval0);
-                // let mAssetQuantity = simpleToExactAmount(mAssetMintAmount, 18);
-                // let bAssetQuantity = simpleToExactAmount(mAssetMintAmount, await bAsset.decimals());
-                // await expectEvent(tx.receipt, "Minted", {
-                //     account: derivedRecipient,
-                //     mAssetQuantity: mAssetQuantity,
-                //     bAsset: bAsset.address,
-                //     bAssetQuantity: bAssetQuantity,
-                // });
-                // // Recipient should have mAsset quantity after
-                // const recipientBalAfter = await md.mAsset.balanceOf(derivedRecipient);
-                // expect(recipientBalAfter).bignumber.eq(recipientBalBefore.add(mAssetQuantity));
-                // // Sender should have less bAsset after
-                // const minterBassetBalAfter = await bAsset.balanceOf(sender);
-                // expect(minterBassetBalAfter).bignumber.eq(
-                //     minterBassetBalBefore.sub(bAssetQuantity),
-                // );
-                // // VaultBalance should update for this bAsset
-                // const bAssetAfter = await md.basketManager.getBasset(bAsset.address);
-                // expect(new BN(bAssetAfter.vaultBalance)).bignumber.eq(
-                //     new BN(bAssetBefore.vaultBalance).add(bAssetQuantity),
-                // );
-                // // Complete basket should remain in healthy state
-                // assertBasketIsHealthy(massetMachine, md);
-            });
-            it("should still perform with 12-16 bAssets in the basket");
-        });
-
-        context("when the weights exceeds the ForgeValidator limit", () => {
-            // minting should work as long as the thing we mint with doesnt exceed max
-            // other states?
-            it("should succeed if bAsset is underweight");
-            it("should fail if we exceed the max weight");
-            it("should fail if bAsset already exceeds max");
-            it("should pass if bAsset is under, but something else is above");
         });
         context("when the mAsset has failed", () => {
             it("should revert any mints", async () => {
                 // Basket must be alive
             });
         });
-    });
 
-    describe("minting with multiple bAssets", () => {
-        before(async () => {
-            await runSetup();
-        });
-        context("at any time", () => {
-            it("should fail if recipient is 0x0", async () => {
-                // mintSingle
-            });
+        // describe("minting with multiple bAssets", () => {
+        //     before(async () => {
+        //         await runSetup();
+        //     });
+        //     context("at any time", () => {
+        //         it("should fail if recipient is 0x0", async () => {
+        //             // mintSingle
+        //         });
 
-            it("should fail if the bAsset does not exist", async () => {
-                // mintSingle
-            });
-            it("should send mUSD when recipient is a contract");
-            it("should send mUSD when the recipient is an EOA", () => {});
-            it("should mint to sender in basic mint func", async () => {
-                // mintSingle
-            });
-            it("should mint nothing if the preparation returns invalid from manager", async () => {
-                // mintSingle
-            });
-            it("should revert when 0 quantities");
-            it("reverts if the mAsset is paused");
-            it("should allow minting with some 0 quantities, but not all");
-            it("should mint nothing if the preparation returns invalid from manager", async () => {});
-            it("should fail if output mAsset quantity is 0");
-        });
+        //         it("should fail if the bAsset does not exist", async () => {
+        //             // mintSingle
+        //         });
+        //         it("should send mUSD when recipient is a contract");
+        //         it("should send mUSD when the recipient is an EOA", () => {});
+        //         it("should mint to sender in basic mint func", async () => {
+        //             // mintSingle
+        //         });
+        //         it("should mint nothing if the preparation returns invalid from manager", async () => {
+        //             // mintSingle
+        //         });
+        //         it("should revert when 0 quantities");
+        //         it("reverts if the mAsset is paused");
+        //         it("should allow minting with some 0 quantities, but not all");
+        //         it("should mint nothing if the preparation returns invalid from manager", async () => {});
+        //         it("should fail if output mAsset quantity is 0");
+        //     });
 
-        context("when the weights are within the ForgeValidator limit", () => {
-            it("Should mint using multiple bAssets", async () => {
-                // It's only possible to mint a single base unit of mAsset, if the bAsset also has 18 decimals
-                // For those tokens with 12 decimals, they can at minimum mint 1*10**6 mAsset base units.
-                // Thus, these basic calculations should work in whole mAsset units, with specific tests for
-                // low decimal bAssets
-                const { bAssets } = massetDetails;
+        //     context("when the weights are within the ForgeValidator limit", () => {
+        //         it("Should mint using multiple bAssets", async () => {
+        //             // It's only possible to mint a single base unit of mAsset, if the bAsset also has 18 decimals
+        //             // For those tokens with 12 decimals, they can at minimum mint 1*10**6 mAsset base units.
+        //             // Thus, these basic calculations should work in whole mAsset units, with specific tests for
+        //             // low decimal bAssets
+        //             const { bAssets } = massetDetails;
 
-                const approvals = await massetMachine.approveMassetMulti(
-                    [bAssets[0], bAssets[1], bAssets[2]],
-                    massetDetails.mAsset,
-                    1,
-                    sa.default,
-                );
-                await massetDetails.mAsset.mintMulti(7, approvals, sa.default);
+        //             const approvals = await massetMachine.approveMassetMulti(
+        //                 [bAssets[0], bAssets[1], bAssets[2]],
+        //                 massetDetails.mAsset,
+        //                 1,
+        //                 sa.default,
+        //             );
+        //             await massetDetails.mAsset.mintMulti(7, approvals, sa.default);
 
-                const approvals2 = await massetMachine.approveMassetMulti(
-                    [bAssets[0], bAssets[1], bAssets[2], bAssets[3]],
-                    massetDetails.mAsset,
-                    1,
-                    sa.default,
-                );
-                const mUSD_balBefore = await massetDetails.mAsset.balanceOf(sa.default);
-                await massetDetails.mAsset.mintMulti(15, approvals2, sa.default);
-                const mUSD_balAfter = await massetDetails.mAsset.balanceOf(sa.default);
-                expect(mUSD_balAfter, "Must mint 4 full units of mUSD").bignumber.eq(
-                    mUSD_balBefore.add(simpleToExactAmount(4, 18)),
-                );
-            });
-            it("Should mint using 2 bAssets", async () => {
-                const { bAssets } = massetDetails;
-                const approvals = await massetMachine.approveMassetMulti(
-                    [bAssets[0], bAssets[2]],
-                    massetDetails.mAsset,
-                    1,
-                    sa.default,
-                );
-                const bitmap = 5; // 0101 = 5
-                await massetDetails.mAsset.mintMulti(bitmap, approvals, sa.default, {
-                    from: sa.default,
-                });
-            });
-            it("should deposit tokens into target platform", async () => {});
-            it("should mint selected bAssets only", async () => {});
-            // context("when some bAssets are overweight...")
-            it("should fail if the mint pushes overweight");
-            it("should fail if the mint uses invalid bAssets");
-            // it("should fail if the mint uses invalid bAssets");
-        });
+        //             const approvals2 = await massetMachine.approveMassetMulti(
+        //                 [bAssets[0], bAssets[1], bAssets[2], bAssets[3]],
+        //                 massetDetails.mAsset,
+        //                 1,
+        //                 sa.default,
+        //             );
+        //             const mUSD_balBefore = await massetDetails.mAsset.balanceOf(sa.default);
+        //             await massetDetails.mAsset.mintMulti(15, approvals2, sa.default);
+        //             const mUSD_balAfter = await massetDetails.mAsset.balanceOf(sa.default);
+        //             expect(mUSD_balAfter, "Must mint 4 full units of mUSD").bignumber.eq(
+        //                 mUSD_balBefore.add(simpleToExactAmount(4, 18)),
+        //             );
+        //         });
+        //         it("Should mint using 2 bAssets", async () => {
+        //             const { bAssets } = massetDetails;
+        //             const approvals = await massetMachine.approveMassetMulti(
+        //                 [bAssets[0], bAssets[2]],
+        //                 massetDetails.mAsset,
+        //                 1,
+        //                 sa.default,
+        //             );
+        //             const bitmap = 5; // 0101 = 5
+        //             await massetDetails.mAsset.mintMulti(bitmap, approvals, sa.default, {
+        //                 from: sa.default,
+        //             });
+        //         });
+        //         it("should deposit tokens into target platform", async () => {});
+        //         it("should mint selected bAssets only", async () => {});
+        //         // context("when some bAssets are overweight...")
+        //         it("should fail if the mint pushes overweight");
+        //         it("should fail if the mint uses invalid bAssets");
+        //         // it("should fail if the mint uses invalid bAssets");
+        //     });
 
-        context("and the weights exceeds the ForgeValidator limit", () => {});
+        //     context("and the weights exceeds the ForgeValidator limit", () => {});
     });
 });

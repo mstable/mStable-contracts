@@ -419,6 +419,7 @@ export class MassetMachine {
     public async getBasketComposition(massetDetails: MassetDetails): Promise<BasketComposition> {
         // raw bAsset data
         let bAssets = await this.getBassetsInMasset(massetDetails);
+        let bAssetContracts = await Promise.all(bAssets.map((b) => c_MockERC20.at(b.addr)));
         let basket = await massetDetails.basketManager.getBasket();
         let grace = await massetDetails.basketManager.grace();
         // total supply of mAsset
@@ -443,6 +444,7 @@ export class MassetMachine {
             bAssets: bAssets.map((b, i) => {
                 return {
                     ...b,
+                    contract: bAssetContracts[i],
                     address: b.addr,
                     mAssetUnits: currentVaultUnits[i],
                     overweight: overweightBassets[i],
