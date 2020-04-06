@@ -1,11 +1,13 @@
 import * as t from "types/generated";
-import envSetup from "@utils/env_setup";
-import { BN } from "@utils/tools";
 import * as chai from "chai";
+import envSetup from "@utils/env_setup";
+
+import { BN } from "@utils/tools";
+import { Basset, BassetStatus, equalBassets, buildBasset } from "@utils/mstable-objects.ts";
 import { createMultiple, simpleToExactAmount, percentToWeight } from "@utils/math";
 import { constants, expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
 import { MassetMachine, StandardAccounts, SystemMachine, MassetDetails } from "@utils/machines";
-import { ZERO_ADDRESS, ZERO } from "@utils/constants";
+import { ZERO_ADDRESS, ZERO, ratioScale, fullScale } from "@utils/constants";
 import { BassetIntegrationDetails } from "../../types";
 
 import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
@@ -14,62 +16,43 @@ const { expect, assert } = envSetup.configure();
 
 const BasketManager: t.BasketManagerContract = artifacts.require("BasketManager");
 const MockNexus: t.MockNexusContract = artifacts.require("MockNexus");
+const MockBasketManager: t.MockBasketManagerContract = artifacts.require("MockBasketManager");
 
 contract("BasketManager", async (accounts) => {
     let systemMachine: SystemMachine;
     let massetMachine: MassetMachine;
 
     const sa = new StandardAccounts(accounts);
-    const grace = new BN(10).pow(new BN(18));
+    const grace = fullScale;
     const ctx: { module?: t.InitializablePausableModuleInstance } = {};
     const masset = sa.dummy1;
     const governance = sa.dummy2;
     const manager = sa.dummy3;
+    const mockAaveIntegrationAddr = sa.dummy4;
 
     let integrationDetails: BassetIntegrationDetails;
     let basketManager: t.BasketManagerInstance;
     let nexus: t.MockNexusInstance;
 
+    async function createMockBasketManger(): Promise<t.MockBasketManagerInstance> {
+        const mockBasketManager = await MockBasketManager.new();
+        await mockBasketManager.initialize(
+            nexus.address,
+            masset,
+            grace,
+            integrationDetails.aTokens.map((a) => a.bAsset),
+            [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
+            [percentToWeight(50), percentToWeight(50)],
+            [false, false],
+        );
+        return mockBasketManager;
+    }
+
     async function expectBassets(bAssetsArr: Array<Basset>, bitmap: BN, len: BN): Promise<void> {
         const bAssets = await basketManager.getBassets();
-        // expect(bAssetsArr).to.equal(bAssets[0]);
-        await equalBasset(bAssetsArr, bAssets[0]);
+        equalBassets(bAssetsArr, bAssets[0]);
         expect(bitmap).to.bignumber.equal(bAssets[1]);
         expect(len).to.bignumber.equal(bAssets[2]);
-    }
-
-    async function equalBasset(
-        bAssetArr1: Array<Basset>,
-        bAssetArr2: Array<Basset>,
-    ): Promise<void> {
-        expect(bAssetArr1.length).to.equal(bAssetArr2.length);
-        bAssetArr1.map((a, index) => {
-            expect(a.addr).to.equal(bAssetArr2[index].addr);
-            expect(a.status).to.bignumber.equal(bAssetArr2[index].status);
-            expect(a.isTransferFeeCharged).to.equal(bAssetArr2[index].isTransferFeeCharged);
-            expect(a.ratio).to.bignumber.equal(bAssetArr2[index].ratio);
-            expect(a.targetWeight).to.bignumber.equal(bAssetArr2[index].targetWeight);
-            expect(a.vaultBalance).to.bignumber.equal(bAssetArr2[index].vaultBalance);
-            return null;
-        });
-    }
-
-    async function buildBasset(
-        _addr: string,
-        _status: number,
-        _isTransferFeeCharged: boolean,
-        _ratio: BN,
-        _targetWeight: BN,
-        _vaultBalance: BN,
-    ): Promise<Basset> {
-        return {
-            addr: _addr,
-            status: new BN(_status),
-            isTransferFeeCharged: _isTransferFeeCharged,
-            ratio: _ratio,
-            targetWeight: _targetWeight,
-            vaultBalance: _vaultBalance,
-        };
     }
 
     before("", async () => {
@@ -77,7 +60,6 @@ contract("BasketManager", async (accounts) => {
         massetMachine = systemMachine.massetMachine;
         const md: MassetDetails = await massetMachine.deployMasset();
         integrationDetails = await massetMachine.loadBassets();
-        console.log(integrationDetails.aTokens[0].bAsset);
         // await systemMachine.initialiseMocks(false, true);
 
         nexus = await MockNexus.new(sa.governor, governance, manager);
@@ -88,7 +70,7 @@ contract("BasketManager", async (accounts) => {
             masset,
             grace,
             integrationDetails.aTokens.map((a) => a.bAsset),
-            integrationDetails.aTokens.map((a) => a.aToken),
+            [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
             [percentToWeight(50), percentToWeight(50)],
             [false, false],
         );
@@ -111,7 +93,7 @@ contract("BasketManager", async (accounts) => {
                         masset,
                         grace,
                         integrationDetails.aTokens.map((a) => a.bAsset),
-                        integrationDetails.aTokens.map((a) => a.aToken),
+                        [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
                         [percentToWeight(50), percentToWeight(50)],
                         [false, false],
                     ),
@@ -127,7 +109,7 @@ contract("BasketManager", async (accounts) => {
                         masset,
                         grace,
                         integrationDetails.aTokens.map((a) => a.bAsset),
-                        integrationDetails.aTokens.map((a) => a.aToken),
+                        [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
                         [percentToWeight(50), percentToWeight(50)],
                         [false, false],
                     ),
@@ -143,7 +125,7 @@ contract("BasketManager", async (accounts) => {
                         ZERO_ADDRESS,
                         grace,
                         integrationDetails.aTokens.map((a) => a.bAsset),
-                        integrationDetails.aTokens.map((a) => a.aToken),
+                        [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
                         [percentToWeight(50), percentToWeight(50)],
                         [false, false],
                     ),
@@ -159,7 +141,7 @@ contract("BasketManager", async (accounts) => {
                         masset,
                         ZERO,
                         integrationDetails.aTokens.map((a) => a.bAsset),
-                        integrationDetails.aTokens.map((a) => a.aToken),
+                        [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
                         [percentToWeight(50), percentToWeight(50)],
                         [false, false],
                     ),
@@ -176,7 +158,7 @@ contract("BasketManager", async (accounts) => {
                         masset,
                         graceVal,
                         integrationDetails.aTokens.map((a) => a.bAsset),
-                        integrationDetails.aTokens.map((a) => a.aToken),
+                        [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
                         [percentToWeight(50), percentToWeight(50)],
                         [false, false],
                     ),
@@ -192,7 +174,7 @@ contract("BasketManager", async (accounts) => {
                         masset,
                         grace,
                         [],
-                        integrationDetails.aTokens.map((a) => a.aToken),
+                        [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
                         [percentToWeight(50), percentToWeight(50)],
                         [false, false],
                     ),
@@ -223,7 +205,7 @@ contract("BasketManager", async (accounts) => {
                         masset,
                         grace,
                         integrationDetails.aTokens.map((a) => a.bAsset),
-                        integrationDetails.aTokens.map((a) => a.aToken),
+                        [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
                         [],
                         [false, false],
                     ),
@@ -239,7 +221,7 @@ contract("BasketManager", async (accounts) => {
                         masset,
                         grace,
                         integrationDetails.aTokens.map((a) => a.bAsset),
-                        integrationDetails.aTokens.map((a) => a.aToken),
+                        [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
                         [percentToWeight(50), percentToWeight(50)],
                         [],
                     ),
@@ -254,7 +236,7 @@ contract("BasketManager", async (accounts) => {
                         masset,
                         grace,
                         [sa.dummy1, sa.dummy1],
-                        integrationDetails.aTokens.map((a) => a.aToken),
+                        [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
                         [percentToWeight(50), percentToWeight(50)],
                         [false, false],
                     ),
@@ -269,7 +251,7 @@ contract("BasketManager", async (accounts) => {
                         masset,
                         grace,
                         [sa.dummy1, sa.dummy2, sa.dummy3],
-                        integrationDetails.aTokens.map((a) => a.aToken),
+                        [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
                         [percentToWeight(50), percentToWeight(50)],
                         [false, false],
                     ),
@@ -285,31 +267,33 @@ contract("BasketManager", async (accounts) => {
                     masset,
                     grace,
                     integrationDetails.aTokens.map((a) => a.bAsset),
-                    integrationDetails.aTokens.map((a) => a.aToken),
+                    [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
                     [percentToWeight(50), percentToWeight(50)],
                     [false, false],
                 );
 
                 expectEvent.inLogs(tx.logs, "BassetAdded", {
                     bAsset: integrationDetails.aTokens[0].bAsset,
-                    integrator: integrationDetails.aTokens[0].aToken,
+                    integrator: mockAaveIntegrationAddr,
                 });
 
                 expectEvent.inLogs(tx.logs, "BassetAdded", {
                     bAsset: integrationDetails.aTokens[1].bAsset,
-                    integrator: integrationDetails.aTokens[1].aToken,
+                    integrator: mockAaveIntegrationAddr,
                 });
 
                 // event GraceUpdated(uint256 newGrace)
                 expectEvent.inLogs(tx.logs, "GraceUpdated", { newGrace: grace });
 
-                // TODO This event is not emitted
-                // TODO when indexed keyword is removed, then only this event is emitted
-                // event BasketWeightsUpdated(address[] indexed bAssets, uint256[] targetWeights)
-                // expectEvent.inLogs(tx.logs, "BasketWeightsUpdated", {
-                //     bAssets: integrationDetails.aTokens.map((a) => a.bAsset),
-                //     targetWeights: [percentToWeight(50), percentToWeight(50)],
-                // });
+                // TODO test-helpers not supports `deep` array compare. Hence, need to test like below
+                expectEvent.inLogs(tx.logs, "BasketWeightsUpdated");
+                const basketWeightUpdatedEvent = tx.logs[3];
+                expect(integrationDetails.aTokens.map((a) => a.bAsset)).to.deep.equal(
+                    basketWeightUpdatedEvent.args[0],
+                );
+                basketWeightUpdatedEvent.args[1].map((a) =>
+                    expect(a).to.bignumber.equal(percentToWeight(50)),
+                );
 
                 // should have initialized with nexus
                 expect(nexus.address).to.equal(await basketManager.nexus());
@@ -317,13 +301,12 @@ contract("BasketManager", async (accounts) => {
                 expect(masset).to.equal(await basketManager.mAsset());
 
                 // should have default basket configurations
-                const ratio = new BN(10).pow(new BN(8));
                 const weight = new BN(10).pow(new BN(18)).div(new BN(2));
                 const b1: Basset = await buildBasset(
                     integrationDetails.aTokens[0].bAsset,
                     BassetStatus.Normal,
                     false,
-                    ratio,
+                    ratioScale,
                     weight,
                     ZERO,
                 );
@@ -332,18 +315,20 @@ contract("BasketManager", async (accounts) => {
                     integrationDetails.aTokens[1].bAsset,
                     BassetStatus.Normal,
                     false,
-                    ratio,
+                    ratioScale,
                     weight,
                     ZERO,
                 );
                 await expectBassets([b1, b2], new BN(3), new BN(2));
 
                 // should have all bAsset's integrations addresses
-                integrationDetails.aTokens.map(async (a) => {
-                    const aTokenAddr = await basketManager.getBassetIntegrator(a.bAsset);
-                    expect(a.aToken).to.equal(aTokenAddr);
-                    return null;
-                });
+                await Promise.all(
+                    integrationDetails.aTokens.map(async (a) => {
+                        const aTokenAddr = await basketManager.getBassetIntegrator(a.bAsset);
+                        expect(mockAaveIntegrationAddr).to.equal(aTokenAddr);
+                        return null;
+                    }),
+                );
             });
         });
     });
@@ -354,9 +339,14 @@ contract("BasketManager", async (accounts) => {
                 integrationDetails.aTokens.map(async (a, index) => {
                     const bAssetBefore = await basketManager.getBasset(a.bAsset);
                     await expectRevert(
-                        basketManager.increaseVaultBalance(index, a.aToken, new BN(100), {
-                            from: sa.other,
-                        }),
+                        basketManager.increaseVaultBalance(
+                            index,
+                            mockAaveIntegrationAddr,
+                            new BN(100),
+                            {
+                                from: sa.other,
+                            },
+                        ),
                         "Must be called by mAsset",
                     );
                     const bAssetAfter = await basketManager.getBasset(a.bAsset);
@@ -366,17 +356,64 @@ contract("BasketManager", async (accounts) => {
             );
         });
 
-        it("should fail when basket is failed");
+        it("should fail when basket is failed", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a, index) => {
+                    const mockBasketManager: t.MockBasketManagerInstance = await createMockBasketManger();
+                    await mockBasketManager.failBasket();
+                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
+                    await expectRevert(
+                        mockBasketManager.increaseVaultBalance(
+                            index,
+                            mockAaveIntegrationAddr,
+                            new BN(100),
+                            {
+                                from: masset,
+                            },
+                        ),
+                        "Basket must be alive",
+                    );
+                    const bAssetAfter = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetBefore.vaultBalance).to.bignumber.equal(bAssetAfter.vaultBalance);
+                    return null;
+                }),
+            );
+        });
 
-        it("should fail when invalid basket index");
+        it("should fail when invalid basket index", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a, index) => {
+                    const invalidIndex = index + 5;
+                    const bAssetBefore = await basketManager.getBasset(a.bAsset);
+                    await expectRevert.assertion(
+                        basketManager.increaseVaultBalance(
+                            invalidIndex,
+                            mockAaveIntegrationAddr,
+                            new BN(100),
+                            {
+                                from: masset,
+                            },
+                        ),
+                    );
+                    const bAssetAfter = await basketManager.getBasset(a.bAsset);
+                    expect(bAssetBefore.vaultBalance).to.bignumber.equal(bAssetAfter.vaultBalance);
+                    return null;
+                }),
+            );
+        });
 
         it("should succeed for a valid bAsset", async () => {
             await Promise.all(
                 integrationDetails.aTokens.map(async (a, index) => {
                     const bAssetBefore: Basset = await basketManager.getBasset(a.bAsset);
-                    await basketManager.increaseVaultBalance(index, a.aToken, new BN(100), {
-                        from: masset,
-                    });
+                    await basketManager.increaseVaultBalance(
+                        index,
+                        mockAaveIntegrationAddr,
+                        new BN(100),
+                        {
+                            from: masset,
+                        },
+                    );
                     const bAssetAfter = await basketManager.getBasset(a.bAsset);
                     expect(new BN(bAssetBefore.vaultBalance).add(new BN(100))).to.bignumber.equal(
                         bAssetAfter.vaultBalance,
@@ -387,7 +424,7 @@ contract("BasketManager", async (accounts) => {
         });
     });
 
-    describe("increaseVaultBalances()", async () => {
+    describe("increaseVaultBalances()", () => {
         it("should fail when called by other than masset contract");
 
         it("should fail when basket is failed");
@@ -410,17 +447,27 @@ contract("BasketManager", async (accounts) => {
             await Promise.all(
                 integrationDetails.aTokens.map(async (a, index) => {
                     const bAssetBefore: Basset = await basketManager.getBasset(a.bAsset);
-                    await basketManager.increaseVaultBalance(index, a.aToken, new BN(100), {
-                        from: masset,
-                    });
+                    await basketManager.increaseVaultBalance(
+                        index,
+                        mockAaveIntegrationAddr,
+                        new BN(100),
+                        {
+                            from: masset,
+                        },
+                    );
                     const bAssetAfter: Basset = await basketManager.getBasset(a.bAsset);
                     expect(new BN(bAssetBefore.vaultBalance).add(new BN(100))).to.bignumber.equal(
                         bAssetAfter.vaultBalance,
                     );
 
-                    await basketManager.decreaseVaultBalance(index, a.aToken, new BN(10), {
-                        from: masset,
-                    });
+                    await basketManager.decreaseVaultBalance(
+                        index,
+                        mockAaveIntegrationAddr,
+                        new BN(10),
+                        {
+                            from: masset,
+                        },
+                    );
                     const bAssetAfterDecrease: Basset = await basketManager.getBasset(a.bAsset);
                     expect(new BN(bAssetAfter.vaultBalance).sub(new BN(10))).to.bignumber.equal(
                         bAssetAfterDecrease.vaultBalance,
@@ -586,23 +633,3 @@ contract("BasketManager", async (accounts) => {
         // console.log(indexes);
     });
 });
-
-export interface Basset {
-    addr: string;
-    status: BN;
-    isTransferFeeCharged: boolean;
-    ratio: BN;
-    targetWeight: BN;
-    vaultBalance: BN;
-}
-
-export enum BassetStatus {
-    Default,
-    Normal,
-    BrokenBelowPeg,
-    BrokenAbovePeg,
-    Blacklisted,
-    Liquidating,
-    Liquidated,
-    Failed,
-}

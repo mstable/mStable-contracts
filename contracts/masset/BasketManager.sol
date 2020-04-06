@@ -35,7 +35,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     // Events for Basket composition changes
     event BassetAdded(address indexed bAsset, address integrator);
     event BassetRemoved(address indexed bAsset);
-    event BasketWeightsUpdated(address[] indexed bAssets, uint256[] targetWeights);
+    event BasketWeightsUpdated(address[] bAssets, uint256[] targetWeights);
     event GraceUpdated(uint256 newGrace);
     event BassetStatusChanged(address indexed bAsset, BassetStatus status);
 
