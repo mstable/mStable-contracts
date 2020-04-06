@@ -1,58 +1,390 @@
+import * as t from "types/generated";
 import envSetup from "@utils/env_setup";
+import { BN } from "@utils/tools";
 import * as chai from "chai";
+import { createMultiple, simpleToExactAmount, percentToWeight } from "@utils/math";
+import { constants, expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
+import { MassetMachine, StandardAccounts, SystemMachine, MassetDetails } from "@utils/machines";
+import { ZERO_ADDRESS, ZERO } from "@utils/constants";
+import { BassetIntegrationDetails } from "../../types";
+
+import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
 
 const { expect, assert } = envSetup.configure();
+
+const BasketManager: t.BasketManagerContract = artifacts.require("BasketManager");
+const MockNexus: t.MockNexusContract = artifacts.require("MockNexus");
+
 contract("BasketManager", async (accounts) => {
-    before("", async () => {});
+    let systemMachine: SystemMachine;
+    let massetMachine: MassetMachine;
+
+    const sa = new StandardAccounts(accounts);
+    const grace = new BN(10).pow(new BN(18));
+    const ctx: { module?: t.InitializablePausableModuleInstance } = {};
+    const masset = sa.dummy1;
+    const governance = sa.dummy2;
+    const manager = sa.dummy3;
+
+    let integrationDetails: BassetIntegrationDetails;
+    let basketManager: t.BasketManagerInstance;
+    let nexus: t.MockNexusInstance;
+
+    async function expectBassets(bAssetsArr: Array<Basset>, bitmap: BN, len: BN): Promise<void> {
+        const bAssets = await basketManager.getBassets();
+        // expect(bAssetsArr).to.equal(bAssets[0]);
+        await equalBasset(bAssetsArr, bAssets[0]);
+        expect(bitmap).to.bignumber.equal(bAssets[1]);
+        expect(len).to.bignumber.equal(bAssets[2]);
+    }
+
+    async function equalBasset(
+        bAssetArr1: Array<Basset>,
+        bAssetArr2: Array<Basset>,
+    ): Promise<void> {
+        expect(bAssetArr1.length).to.equal(bAssetArr2.length);
+        bAssetArr1.map((a, index) => {
+            expect(a.addr).to.equal(bAssetArr2[index].addr);
+            expect(a.status).to.bignumber.equal(bAssetArr2[index].status);
+            expect(a.isTransferFeeCharged).to.equal(bAssetArr2[index].isTransferFeeCharged);
+            expect(a.ratio).to.bignumber.equal(bAssetArr2[index].ratio);
+            expect(a.targetWeight).to.bignumber.equal(bAssetArr2[index].targetWeight);
+            expect(a.vaultBalance).to.bignumber.equal(bAssetArr2[index].vaultBalance);
+            return null;
+        });
+    }
+
+    async function buildBasset(
+        _addr: string,
+        _status: number,
+        _isTransferFeeCharged: boolean,
+        _ratio: BN,
+        _targetWeight: BN,
+        _vaultBalance: BN,
+    ): Promise<Basset> {
+        return {
+            addr: _addr,
+            status: new BN(_status),
+            isTransferFeeCharged: _isTransferFeeCharged,
+            ratio: _ratio,
+            targetWeight: _targetWeight,
+            vaultBalance: _vaultBalance,
+        };
+    }
+
+    before("", async () => {
+        systemMachine = new SystemMachine(sa.all);
+        massetMachine = systemMachine.massetMachine;
+        const md: MassetDetails = await massetMachine.deployMasset();
+        integrationDetails = await massetMachine.loadBassets();
+        console.log(integrationDetails.aTokens[0].bAsset);
+        // await systemMachine.initialiseMocks(false, true);
+
+        nexus = await MockNexus.new(sa.governor, governance, manager);
+        // systemMachine.
+        basketManager = await BasketManager.new();
+        await basketManager.initialize(
+            nexus.address,
+            masset,
+            grace,
+            integrationDetails.aTokens.map((a) => a.bAsset),
+            integrationDetails.aTokens.map((a) => a.aToken),
+            [percentToWeight(50), percentToWeight(50)],
+            [false, false],
+        );
+
+        ctx.module = basketManager;
+    });
 
     describe("behaviours:", async () => {
         describe("should behave like a Module", async () => {
-            // should behave like Module
+            shouldBehaveLikeModule(ctx as Required<typeof ctx>, sa);
         });
     });
 
     describe("initialize()", () => {
         describe("should fail", () => {
-            it("when nexus address is zero");
+            it("when already initialized", async () => {
+                await expectRevert(
+                    basketManager.initialize(
+                        nexus.address,
+                        masset,
+                        grace,
+                        integrationDetails.aTokens.map((a) => a.bAsset),
+                        integrationDetails.aTokens.map((a) => a.aToken),
+                        [percentToWeight(50), percentToWeight(50)],
+                        [false, false],
+                    ),
+                    "Contract instance has already been initialized",
+                );
+            });
 
-            it("when mAsset address is zero");
+            it("when nexus address is zero", async () => {
+                const bm = await BasketManager.new();
+                await expectRevert(
+                    bm.initialize(
+                        ZERO_ADDRESS,
+                        masset,
+                        grace,
+                        integrationDetails.aTokens.map((a) => a.bAsset),
+                        integrationDetails.aTokens.map((a) => a.aToken),
+                        [percentToWeight(50), percentToWeight(50)],
+                        [false, false],
+                    ),
+                    "Nexus address is zero",
+                );
+            });
 
-            it("when grace value is not in range");
+            it("when mAsset address is zero", async () => {
+                const bm = await BasketManager.new();
+                await expectRevert(
+                    bm.initialize(
+                        nexus.address,
+                        ZERO_ADDRESS,
+                        grace,
+                        integrationDetails.aTokens.map((a) => a.bAsset),
+                        integrationDetails.aTokens.map((a) => a.aToken),
+                        [percentToWeight(50), percentToWeight(50)],
+                        [false, false],
+                    ),
+                    "mAsset address is zero",
+                );
+            });
 
-            it("when bAsset array is empty");
+            it("when grace value is zero", async () => {
+                const bm = await BasketManager.new();
+                await expectRevert(
+                    bm.initialize(
+                        nexus.address,
+                        masset,
+                        ZERO,
+                        integrationDetails.aTokens.map((a) => a.bAsset),
+                        integrationDetails.aTokens.map((a) => a.aToken),
+                        [percentToWeight(50), percentToWeight(50)],
+                        [false, false],
+                    ),
+                    "Must be within valid grace range",
+                );
+            });
 
-            it("when a bAsset already exist");
+            it("when grace value is greater than max limit", async () => {
+                const bm = await BasketManager.new();
+                const graceVal = new BN(10).pow(new BN(28));
+                await expectRevert(
+                    bm.initialize(
+                        nexus.address,
+                        masset,
+                        graceVal,
+                        integrationDetails.aTokens.map((a) => a.bAsset),
+                        integrationDetails.aTokens.map((a) => a.aToken),
+                        [percentToWeight(50), percentToWeight(50)],
+                        [false, false],
+                    ),
+                    "Must be within valid grace range",
+                );
+            });
 
-            it("when array not have equal length");
+            it("when bAsset array is empty", async () => {
+                const bm = await BasketManager.new();
+                await expectRevert(
+                    bm.initialize(
+                        nexus.address,
+                        masset,
+                        grace,
+                        [],
+                        integrationDetails.aTokens.map((a) => a.aToken),
+                        [percentToWeight(50), percentToWeight(50)],
+                        [false, false],
+                    ),
+                    "Must initialise with some bAssets",
+                );
+            });
 
-            it("when already initialized");
+            it("when integration array is empty", async () => {
+                const bm = await BasketManager.new();
+                await expectRevert.assertion(
+                    bm.initialize(
+                        nexus.address,
+                        masset,
+                        grace,
+                        integrationDetails.aTokens.map((a) => a.bAsset),
+                        [],
+                        [percentToWeight(50), percentToWeight(50)],
+                        [false, false],
+                    ),
+                );
+            });
+
+            it("when weigh array is empty", async () => {
+                const bm = await BasketManager.new();
+                await expectRevert(
+                    bm.initialize(
+                        nexus.address,
+                        masset,
+                        grace,
+                        integrationDetails.aTokens.map((a) => a.bAsset),
+                        integrationDetails.aTokens.map((a) => a.aToken),
+                        [],
+                        [false, false],
+                    ),
+                    "Must be matching bAsset arrays",
+                );
+            });
+
+            it("when tokenFee array is empty", async () => {
+                const bm = await BasketManager.new();
+                await expectRevert.assertion(
+                    bm.initialize(
+                        nexus.address,
+                        masset,
+                        grace,
+                        integrationDetails.aTokens.map((a) => a.bAsset),
+                        integrationDetails.aTokens.map((a) => a.aToken),
+                        [percentToWeight(50), percentToWeight(50)],
+                        [],
+                    ),
+                );
+            });
+
+            it("when a bAsset already exist", async () => {
+                const bm = await BasketManager.new();
+                await expectRevert.unspecified(
+                    bm.initialize(
+                        nexus.address,
+                        masset,
+                        grace,
+                        [sa.dummy1, sa.dummy1],
+                        integrationDetails.aTokens.map((a) => a.aToken),
+                        [percentToWeight(50), percentToWeight(50)],
+                        [false, false],
+                    ),
+                );
+            });
+
+            it("when array not have equal length", async () => {
+                const bm = await BasketManager.new();
+                await expectRevert.unspecified(
+                    bm.initialize(
+                        nexus.address,
+                        masset,
+                        grace,
+                        [sa.dummy1, sa.dummy2, sa.dummy3],
+                        integrationDetails.aTokens.map((a) => a.aToken),
+                        [percentToWeight(50), percentToWeight(50)],
+                        [false, false],
+                    ),
+                );
+            });
         });
 
         describe("with valid parameters", async () => {
-            it("should have initialized with nexus");
+            it("should have initialized with events", async () => {
+                const bm = await BasketManager.new();
+                const tx = await bm.initialize(
+                    nexus.address,
+                    masset,
+                    grace,
+                    integrationDetails.aTokens.map((a) => a.bAsset),
+                    integrationDetails.aTokens.map((a) => a.aToken),
+                    [percentToWeight(50), percentToWeight(50)],
+                    [false, false],
+                );
 
-            it("should have mAsset address");
+                expectEvent.inLogs(tx.logs, "BassetAdded", {
+                    bAsset: integrationDetails.aTokens[0].bAsset,
+                    integrator: integrationDetails.aTokens[0].aToken,
+                });
 
-            it("should have default basket configurations");
+                expectEvent.inLogs(tx.logs, "BassetAdded", {
+                    bAsset: integrationDetails.aTokens[1].bAsset,
+                    integrator: integrationDetails.aTokens[1].aToken,
+                });
 
-            it("should have all bAssets added + events");
+                // event GraceUpdated(uint256 newGrace)
+                expectEvent.inLogs(tx.logs, "GraceUpdated", { newGrace: grace });
 
-            it("should have all bAsset's integrations addresses");
+                // TODO This event is not emitted
+                // TODO when indexed keyword is removed, then only this event is emitted
+                // event BasketWeightsUpdated(address[] indexed bAssets, uint256[] targetWeights)
+                // expectEvent.inLogs(tx.logs, "BasketWeightsUpdated", {
+                //     bAssets: integrationDetails.aTokens.map((a) => a.bAsset),
+                //     targetWeights: [percentToWeight(50), percentToWeight(50)],
+                // });
 
-            it("should have all expected transferFee flag for each bAsset");
+                // should have initialized with nexus
+                expect(nexus.address).to.equal(await basketManager.nexus());
+                // should have mAsset address
+                expect(masset).to.equal(await basketManager.mAsset());
 
-            it("should have expected weight");
+                // should have default basket configurations
+                const ratio = new BN(10).pow(new BN(8));
+                const weight = new BN(10).pow(new BN(18)).div(new BN(2));
+                const b1: Basset = await buildBasset(
+                    integrationDetails.aTokens[0].bAsset,
+                    BassetStatus.Normal,
+                    false,
+                    ratio,
+                    weight,
+                    ZERO,
+                );
+
+                const b2: Basset = await buildBasset(
+                    integrationDetails.aTokens[1].bAsset,
+                    BassetStatus.Normal,
+                    false,
+                    ratio,
+                    weight,
+                    ZERO,
+                );
+                await expectBassets([b1, b2], new BN(3), new BN(2));
+
+                // should have all bAsset's integrations addresses
+                integrationDetails.aTokens.map(async (a) => {
+                    const aTokenAddr = await basketManager.getBassetIntegrator(a.bAsset);
+                    expect(a.aToken).to.equal(aTokenAddr);
+                    return null;
+                });
+            });
         });
     });
 
     describe("increaseVaultBalance()", async () => {
-        it("should fail when called by other than masset contract");
+        it("should fail when called by other than masset contract", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a, index) => {
+                    const bAssetBefore = await basketManager.getBasset(a.bAsset);
+                    await expectRevert(
+                        basketManager.increaseVaultBalance(index, a.aToken, new BN(100), {
+                            from: sa.other,
+                        }),
+                        "Must be called by mAsset",
+                    );
+                    const bAssetAfter = await basketManager.getBasset(a.bAsset);
+                    expect(bAssetBefore.vaultBalance).to.bignumber.equal(bAssetAfter.vaultBalance);
+                    return null;
+                }),
+            );
+        });
 
         it("should fail when basket is failed");
 
         it("should fail when invalid basket index");
 
-        it("should succeed for a valid basket index");
+        it("should succeed for a valid bAsset", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a, index) => {
+                    const bAssetBefore: Basset = await basketManager.getBasset(a.bAsset);
+                    await basketManager.increaseVaultBalance(index, a.aToken, new BN(100), {
+                        from: masset,
+                    });
+                    const bAssetAfter = await basketManager.getBasset(a.bAsset);
+                    expect(new BN(bAssetBefore.vaultBalance).add(new BN(100))).to.bignumber.equal(
+                        bAssetAfter.vaultBalance,
+                    );
+                    return null;
+                }),
+            );
+        });
     });
 
     describe("increaseVaultBalances()", async () => {
@@ -74,7 +406,29 @@ contract("BasketManager", async (accounts) => {
 
         it("should fail when invalid basket index");
 
-        it("should succeed for a valid basket index");
+        it("should succeed for a valid basket index", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a, index) => {
+                    const bAssetBefore: Basset = await basketManager.getBasset(a.bAsset);
+                    await basketManager.increaseVaultBalance(index, a.aToken, new BN(100), {
+                        from: masset,
+                    });
+                    const bAssetAfter: Basset = await basketManager.getBasset(a.bAsset);
+                    expect(new BN(bAssetBefore.vaultBalance).add(new BN(100))).to.bignumber.equal(
+                        bAssetAfter.vaultBalance,
+                    );
+
+                    await basketManager.decreaseVaultBalance(index, a.aToken, new BN(10), {
+                        from: masset,
+                    });
+                    const bAssetAfterDecrease: Basset = await basketManager.getBasset(a.bAsset);
+                    expect(new BN(bAssetAfter.vaultBalance).sub(new BN(10))).to.bignumber.equal(
+                        bAssetAfterDecrease.vaultBalance,
+                    );
+                    return null;
+                }),
+            );
+        });
     });
 
     describe("decreaseVaultBalances()", async () => {
@@ -232,3 +586,23 @@ contract("BasketManager", async (accounts) => {
         // console.log(indexes);
     });
 });
+
+export interface Basset {
+    addr: string;
+    status: BN;
+    isTransferFeeCharged: boolean;
+    ratio: BN;
+    targetWeight: BN;
+    vaultBalance: BN;
+}
+
+export enum BassetStatus {
+    Default,
+    Normal,
+    BrokenBelowPeg,
+    BrokenAbovePeg,
+    Blacklisted,
+    Liquidating,
+    Liquidated,
+    Failed,
+}

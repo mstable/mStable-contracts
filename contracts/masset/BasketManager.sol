@@ -75,11 +75,10 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         initializer
     {
         InitializablePausableModule._initialize(_nexus);
-
-        mAsset = _mAsset;
-        grace = _grace;
-
+        require(_mAsset != address(0), "mAsset address is zero");
         require(_bAssets.length > 0, "Must initialise with some bAssets");
+        mAsset = _mAsset;
+        _updateGrace(_grace);
 
         // Defaults
         basket.maxBassets = 16;               // 16
@@ -91,7 +90,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
                 _integrators[i],
                 StableMath.getRatioScale(),
                 _hasTransferFees[i]
-                );
+            );
         }
         _setBasketWeights(_bAssets, _weights);
     }
@@ -128,11 +127,11 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     /**
      * @dev Called by only mAsset, and only when the basket is healthy, to add units to
      *      storage after they have been deposited into the vault
-     * @param _bAsset           Index of the bAsset
+     * @param _bAssetIndex      Index of the bAsset
      * @param _increaseAmount   Units deposited
      */
     function increaseVaultBalance(
-        uint8 _bAsset,
+        uint8 _bAssetIndex,
         address /* _integrator */,
         uint256 _increaseAmount
     )
@@ -140,19 +139,19 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         onlyMasset
         basketIsHealthy
     {
-        basket.bassets[_bAsset].vaultBalance =
-            basket.bassets[_bAsset].vaultBalance.add(_increaseAmount);
+        basket.bassets[_bAssetIndex].vaultBalance =
+            basket.bassets[_bAssetIndex].vaultBalance.add(_increaseAmount);
     }
 
     /**
      * @dev Called by only mAsset, and only when the basket is healthy, to add units to
      *      storage after they have been deposited into the vault
-     * @param _bAssets          Index of the bAsset
+     * @param _bAssetIndices    Array of bAsset indexes
      * @param _increaseAmount   Units deposited
      * @param _len              Length of the array
      */
     function increaseVaultBalances(
-        uint8[] calldata _bAssets,
+        uint8[] calldata _bAssetIndices,
         address[] calldata /* _integrator */,
         uint256[] calldata _increaseAmount,
         uint256 _len
@@ -162,36 +161,36 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         basketIsHealthy
     {
         for(uint i = 0; i < _len; i++) {
-            basket.bassets[_bAssets[i]].vaultBalance =
-                basket.bassets[_bAssets[i]].vaultBalance.add(_increaseAmount[i]);
+            basket.bassets[_bAssetIndices[i]].vaultBalance =
+                basket.bassets[_bAssetIndices[i]].vaultBalance.add(_increaseAmount[i]);
         }
     }
 
     /**
      * @dev Called by mAsset after redeeming tokens. Simply reduce the balance in the vault
-     * @param _bAsset           Index of the bAsset
+     * @param _bAssetIndex      Index of the bAsset
      * @param _decreaseAmount   Units withdrawn
      */
     function decreaseVaultBalance(
-        uint8 _bAsset,
+        uint8 _bAssetIndex,
         address /* _integrator */,
         uint256 _decreaseAmount
     )
         external
         onlyMasset
     {
-        basket.bassets[_bAsset].vaultBalance =
-            basket.bassets[_bAsset].vaultBalance.sub(_decreaseAmount);
+        basket.bassets[_bAssetIndex].vaultBalance =
+            basket.bassets[_bAssetIndex].vaultBalance.sub(_decreaseAmount);
     }
 
     /**
      * @dev Called by mAsset after redeeming tokens. Simply reduce the balance in the vault
-     * @param _bAssets          Index of the bAsset
+     * @param _bAssetIndices    Array of bAsset indexes
      * @param _decreaseAmount   Units withdrawn
      * @param _len              Length of the array
      */
     function decreaseVaultBalances(
-        uint8[] calldata _bAssets,
+        uint8[] calldata _bAssetIndices,
         address[] calldata /* _integrator */,
         uint256[] calldata _decreaseAmount,
         uint256 _len
@@ -200,8 +199,8 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         onlyMasset
     {
         for(uint i = 0; i < _len; i++) {
-            basket.bassets[_bAssets[i]].vaultBalance =
-                basket.bassets[_bAssets[i]].vaultBalance.sub(_decreaseAmount[i]);
+            basket.bassets[_bAssetIndices[i]].vaultBalance =
+                basket.bassets[_bAssetIndices[i]].vaultBalance.sub(_decreaseAmount[i]);
         }
     }
 
@@ -425,6 +424,10 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         external
         managerOrGovernor
     {
+        _updateGrace(_newGrace);
+    }
+
+    function _updateGrace(uint256 _newGrace) private {
         require(_newGrace >= 1e18 && _newGrace <= 1e25, "Must be within valid grace range");
         grace = _newGrace;
         emit GraceUpdated(_newGrace);
@@ -487,17 +490,17 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     /**
      * @dev Prepare given bAsset for Forging. Currently returns integrator
      *      and essential minting info.
-     * @param _token     Address of the bAsset
+     * @param _bAsset    Address of the bAsset
      * @return props     Struct of all relevant Forge information
      */
-    function prepareForgeBasset(address _token, uint256 /*_amt*/, bool /*_mint*/)
+    function prepareForgeBasset(address _bAsset, uint256 /*_amt*/, bool /*_mint*/)
         external
         whenNotPaused
         returns (
             ForgeProps memory props
         )
     {
-        (bool exists, uint8 idx) = _isAssetInBasket(_token);
+        (bool exists, uint8 idx) = _isAssetInBasket(_bAsset);
         require(exists, "bAsset does not exist");
         props = ForgeProps({
             isValid: true,
@@ -561,30 +564,30 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
 
     /**
      * @dev Get data for a specific bAsset, if it exists
-     * @param _token   Address of bAsset
+     * @param _bAsset   Address of bAsset
      * @return bAsset  Struct with full bAsset data
      */
-    function getBasset(address _token)
+    function getBasset(address _bAsset)
         external
         view
         returns (Basset memory bAsset)
     {
-        (bool exists, uint8 index) = _isAssetInBasket(_token);
+        (bool exists, uint8 index) = _isAssetInBasket(_bAsset);
         require(exists, "bAsset must exist");
         bAsset = _getBasset(index);
     }
 
     /**
      * @dev Get current integrator for a specific bAsset, if it exists
-     * @param _token       Address of bAsset
+     * @param _bAsset      Address of bAsset
      * @return integrator  Address of current integrator
      */
-    function getBassetIntegrator(address _token)
+    function getBassetIntegrator(address _bAsset)
         external
         view
         returns (address integrator)
     {
-        (bool exists, uint8 index) = _isAssetInBasket(_token);
+        (bool exists, uint8 index) = _isAssetInBasket(_bAsset);
         require(exists, "bAsset must exist");
         integrator = integrations[index];
     }
