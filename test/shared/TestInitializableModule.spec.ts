@@ -146,6 +146,12 @@ contract("InitializableModule", async (accounts) => {
     });
 
     describe("should fail", async () => {
+        it("if initialized with null Nexus address", async () => {
+            const newModule = await MockInitializableModule.new();
+            await expectRevert(newModule.initialize(ZERO_ADDRESS), "Nexus address is zero");
+            await newModule.initialize(sa.dummy1);
+        });
+
         it("when shouldAllowOnlyGovernor() called by other", async () => {
             let temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);

@@ -2,9 +2,9 @@
 /* eslint-disable consistent-return */
 
 import * as t from "types/generated";
-import { constants, expectEvent, expectRevert } from "@openzeppelin/test-helpers";
-import { increase } from "@openzeppelin/test-helpers/src/time";
-import { BN, assertBNClose, assertBNSlightlyGT, assertBNSlightlyGTPercent } from "@utils/tools";
+import { constants, expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
+import { BN } from "@utils/tools";
+import { assertBNClose, assertBNSlightlyGT, assertBNSlightlyGTPercent } from "@utils/assertions";
 import { StandardAccounts, SystemMachine, MassetMachine } from "@utils/machines";
 import {
     MainnetAccounts,
@@ -607,7 +607,9 @@ contract("CompoundIntegration", async (accounts) => {
                 bAssetRecipient_balBefore.add(amount),
             );
             // 3.2 Check that compound integration has cTokens
-            let cToken_balanceOfIntegration = await cToken.balanceOf(d_CompoundIntegration.address);
+            const cToken_balanceOfIntegration = await cToken.balanceOf(
+                d_CompoundIntegration.address,
+            );
             const exchangeRate = await cToken.exchangeRateStored();
             const expected_cTokens = amount.mul(fullScale).div(exchangeRate);
             expect(expected_cTokens).to.bignumber.equal(cToken_balanceOfIntegration);
@@ -624,7 +626,7 @@ contract("CompoundIntegration", async (accounts) => {
             expect(user_bAsset_balanceAfter).to.bignumber.equal(user_bAsset_balanceBefore);
 
             // 5.2 Check that bAsset has returned to the user
-            let cToken_balanceOfIntegrationAfter = await cToken.balanceOf(
+            const cToken_balanceOfIntegrationAfter = await cToken.balanceOf(
                 d_CompoundIntegration.address,
             );
             expect(cToken_balanceOfIntegrationAfter).bignumber.eq(
@@ -678,7 +680,7 @@ contract("CompoundIntegration", async (accounts) => {
             );
             const expectedBalance = compoundIntegration_balBefore.sub(amount);
             assertBNSlightlyGTPercent(compoundIntegration_balAfter, expectedBalance, "0.1");
-            let underlyingBalance = await convertCTokenToUnderlying(
+            const underlyingBalance = await convertCTokenToUnderlying(
                 cToken,
                 compoundIntegration_balAfter,
             );
@@ -790,7 +792,7 @@ contract("CompoundIntegration", async (accounts) => {
                 d_CompoundIntegration.address,
             );
             expect(compoundIntegration_balBefore).bignumber.gt(new BN(0) as any);
-            let underlyingBalanceBefore = await convertCTokenToUnderlying(
+            const underlyingBalanceBefore = await convertCTokenToUnderlying(
                 cToken,
                 compoundIntegration_balBefore,
             );
@@ -809,7 +811,7 @@ contract("CompoundIntegration", async (accounts) => {
             // 2.2. Call the deposit func
             await cToken.mint(amount);
             // 2.3. Fast forward some time
-            await increase(ONE_WEEK);
+            await time.increase(ONE_WEEK);
             // 2.4. Do a redemption
             await cToken.redeemUnderlying(amount);
 
@@ -818,13 +820,13 @@ contract("CompoundIntegration", async (accounts) => {
                 d_CompoundIntegration.address,
             );
             // Should not go up by more than 2% during this period
-            let underlyingBalanceAfter = await convertCTokenToUnderlying(
+            const underlyingBalanceAfter = await convertCTokenToUnderlying(
                 cToken,
                 compoundIntegration_balAfter,
             );
             assertBNSlightlyGTPercent(underlyingBalanceAfter, underlyingBalanceBefore, "2", true);
             // Cross that match with the `checkBalance` call
-            let checkBalanceTx = await d_CompoundIntegration.logBalance(bAsset.address);
+            const checkBalanceTx = await d_CompoundIntegration.logBalance(bAsset.address);
             expectEvent(checkBalanceTx.receipt, "CurrentBalance", {
                 balance: underlyingBalanceAfter,
             });

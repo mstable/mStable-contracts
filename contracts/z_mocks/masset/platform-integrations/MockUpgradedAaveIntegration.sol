@@ -48,7 +48,7 @@ contract AaveIntegrationV2 is InitializableAbstractIntegration {
         address _receiver,
         address _bAsset,
         uint256 _amount,
-        bool _isTokenFeeCharged
+        bool /*_isTokenFeeCharged*/
     )
         external
         onlyWhitelisted
@@ -215,7 +215,7 @@ contract AaveIntegrationV3 is InitializableAbstractIntegration {
         address _receiver,
         address _bAsset,
         uint256 _amount,
-        bool _isTokenFeeCharged
+        bool /*_isTokenFeeCharged*/
     )
         external
         onlyWhitelisted

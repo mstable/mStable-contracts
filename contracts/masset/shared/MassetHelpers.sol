@@ -6,9 +6,12 @@ import { SafeERC20 }  from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import { IERC20 }     from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
-  * @title MassetHelpers
-  * @dev Helper functions to facilitate minting and redemption from off chain
-  */
+ * @title   MassetHelpers
+ * @author  Stability Labs Pty. Lte.
+ * @notice  Helper functions to facilitate minting and redemption from off chain
+ * @dev     VERSION: 1.0
+ *          DATE:    2020-03-28
+ */
 library MassetHelpers {
 
     using StableMath for uint256;

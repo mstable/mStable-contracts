@@ -1,18 +1,23 @@
-import { MockModuleInstance, MockNexusInstance } from "types/generated";
+import {
+    MockInitializablePausableModuleInstance,
+    PausableModuleInstance,
+    MockNexusInstance,
+} from "types/generated";
 import { StandardAccounts, SystemMachine } from "@utils/machines";
 import { BN } from "@utils/tools";
 import { constants, expectEvent, expectRevert } from "@openzeppelin/test-helpers";
 import envSetup from "@utils/env_setup";
 import { ZERO_ADDRESS } from "@utils/constants";
 import shouldBehaveLikeModule from "./behaviours/Module.behaviour";
+import shouldBehaveLikePausableModule from "./behaviours/PausableModule.behaviour";
 
-const MockModule = artifacts.require("MockModule");
+const MockInitializablePausableModule = artifacts.require("MockInitializablePausableModule");
 const MockNexus = artifacts.require("MockNexus");
 
 const { expect, assert } = envSetup.configure();
 
-contract("Module", async (accounts) => {
-    const ctx: { module?: MockModuleInstance } = {};
+contract("InitializablePausableModule", async (accounts) => {
+    const ctx: { module?: MockInitializablePausableModuleInstance } = {};
     const sa = new StandardAccounts(accounts);
     let nexus: MockNexusInstance;
     const proxyAdmin = sa.dummy1;
@@ -25,10 +30,13 @@ contract("Module", async (accounts) => {
         nexus.setProxyAdmin(proxyAdmin);
     });
     beforeEach("before each", async () => {
-        ctx.module = await MockModule.new(nexus.address);
+        const initializedModule = await MockInitializablePausableModule.new();
+        await initializedModule.initialize(nexus.address);
+        ctx.module = initializedModule;
     });
 
     shouldBehaveLikeModule(ctx as Required<typeof ctx>, sa);
+    shouldBehaveLikePausableModule(ctx as Required<typeof ctx>, sa);
 
     describe("should succeed", async () => {
         it("and return governor address", async () => {
@@ -43,6 +51,13 @@ contract("Module", async (accounts) => {
             expect(governance).to.not.equal(ZERO_ADDRESS);
             const nexusGovernance = await nexus.getModule(web3.utils.keccak256("Governance"));
             expect(nexusGovernance).to.equal(governance);
+        });
+
+        it("and return proxyAdmin address", async () => {
+            const proxyAdminAddr = await ctx.module.proxyAdmin();
+            expect(proxyAdminAddr).to.not.equal(ZERO_ADDRESS);
+            const nexusProxyAdmin = await nexus.getModule(web3.utils.keccak256("ProxyAdmin"));
+            expect(nexusProxyAdmin).to.equal(proxyAdminAddr);
         });
 
         it("and return staking address", async () => {
@@ -91,13 +106,6 @@ contract("Module", async (accounts) => {
             expect(nexusRecollateraliser).to.equal(recollateraliser);
         });
 
-        it("and return proxyadmin address", async () => {
-            const proxyAdminAddr = await ctx.module.proxyAdmin();
-            expect(proxyAdminAddr).to.not.equal(ZERO_ADDRESS);
-            const nexusProxyAdmin = await nexus.getModule(web3.utils.keccak256("ProxyAdmin"));
-            expect(nexusProxyAdmin).to.equal(proxyAdminAddr);
-        });
-
         it("when shouldAllowOnlyGovernor() called by Governor", async () => {
             let temp = await ctx.module.temp();
             expect(new BN(0)).to.bignumber.equal(temp);
@@ -140,8 +148,10 @@ contract("Module", async (accounts) => {
     });
 
     describe("should fail", async () => {
-        it("when zero address for Nexus", async () => {
-            await expectRevert(MockModule.new(ZERO_ADDRESS), "Nexus is zero address");
+        it("if initialized with null Nexus address", async () => {
+            const newModule = await MockInitializablePausableModule.new();
+            await expectRevert(newModule.initialize(ZERO_ADDRESS), "Nexus address is zero");
+            await newModule.initialize(sa.dummy1);
         });
 
         it("when shouldAllowOnlyGovernor() called by other", async () => {

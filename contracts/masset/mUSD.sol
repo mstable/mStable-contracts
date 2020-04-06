@@ -4,13 +4,12 @@ pragma experimental ABIEncoderV2;
 import { Masset } from "./Masset.sol";
 
 /**
-  * @title mUSD
-  * @author Stability Labs Pty Ltd
-  * @dev Base layer functionality for the Masset
+  * @title  mUSD
+  * @author Stability Labs Pty. Lte.
+  * @dev    mUSD is an mAsset backed 1:1 by a number of USD stablecoins
   */
 contract MUSD is Masset {
 
-    /** @dev constructor */
     constructor (
         address _nexus,
         address _feePool,

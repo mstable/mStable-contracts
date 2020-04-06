@@ -14,7 +14,9 @@ contract IBasketManager is MassetStructs {
 
     /** @dev Setters for mAsset to update balances */
     function increaseVaultBalance(uint8 _bAsset, address _integrator, uint256 _increaseAmount) external;
+    function increaseVaultBalances(uint8[] calldata _bAsset, address[] calldata _integrator, uint256[] calldata _increaseAmount, uint256 _len) external;
     function decreaseVaultBalance(uint8 _bAsset, address _integrator, uint256 _decreaseAmount) external;
+    function decreaseVaultBalances(uint8[] calldata _bAsset, address[] calldata _integrator, uint256[] calldata _decreaseAmount, uint256 _len) external;
     function collectInterest() external returns (uint256 interestCollected, uint32 bitmap, uint256[] memory gains);
 
     /** @dev Setters for Gov to update Basket composition */
@@ -24,9 +26,9 @@ contract IBasketManager is MassetStructs {
 
     /** @dev Getters to retrieve Basket information */
     function getBasket() external view returns (Basket memory b);
-    function prepareForgeBasset(address _token, bool _mint) external
+    function prepareForgeBasset(address _token, uint256 _amt, bool _mint) external
         returns (ForgeProps memory props);
-    function prepareForgeBassets(uint32 _bitmap, uint8 _size, bool _mint) external
+    function prepareForgeBassets(uint32 _bitmap, uint8 _size, uint256[] calldata _amts, bool _mint) external
         returns (ForgePropsMulti memory props);
     function getBasset(address _token) external view returns (Basset memory bAsset);
     function getBassets() external view returns (Basset[] memory bAssets, uint32 bitmap, uint256 len);

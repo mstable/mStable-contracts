@@ -1,7 +1,7 @@
 pragma solidity 0.5.16;
 
 /**
- * @notice Compound C Token interface
+ * @dev Compound C Token interface
  * Documentation: https://compound.finance/developers/ctokens
  */
 interface ICERC20 {

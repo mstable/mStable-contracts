@@ -3,12 +3,7 @@
 import { createMultiple, simpleToExactAmount } from "@utils/math";
 import { createBasket, Basket } from "@utils/mstable-objects";
 import { expectRevert } from "@openzeppelin/test-helpers";
-import {
-    MassetMachine,
-    StandardAccounts,
-    SystemMachine,
-    MassetDetails,
-} from "@utils/machines";
+import { MassetMachine, StandardAccounts, SystemMachine, MassetDetails } from "@utils/machines";
 import { aToH, BN } from "@utils/tools";
 
 import envSetup from "@utils/env_setup";
@@ -20,7 +15,7 @@ const Masset = artifacts.require("Masset");
 
 const { expect, assert } = envSetup.configure();
 
-contract("MassetRedemption", async (accounts) => {
+contract("Masset", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
     let massetMachine: MassetMachine;
@@ -36,6 +31,19 @@ contract("MassetRedemption", async (accounts) => {
     });
 
     describe("Redeem", () => {
+        //     context("when the basket is healthy", () => {
+        //         context("when the basket is under the limit", () => {
+        //             context("when the recipient is an EOA", () => {
+        //                 // massetDetails.mAsset.redeem()
+        //                 expect(true, "this");
+        //             });
+        //             context("When mAsset is not added to Manager");
+        //             context("When no prices are present");
+        //             context("When mAsset prices are present");
+        //         });
+
+        //         context("when the basket exceeds the limit", () => {});
+        //     });
         it("Should redeem a bAsset", async () => {
             // Approval for Fee, if necessary
             // const redemptionAmount = simpleToExactAmount(1, 18);
@@ -65,6 +73,9 @@ contract("MassetRedemption", async (accounts) => {
             );
         });
 
+        it("should allow redeemMulti with some 0 quantities");
+        it("should not allow redeemTo with 0");
+        it("should fail if recipient is 0x0");
         it("Should redeem multiple bAssets", async () => {
             // Calc bAsset redemption amounts
             const bAssets = massetDetails.bAssets.slice(0, 2);
@@ -92,19 +103,21 @@ contract("MassetRedemption", async (accounts) => {
             );
         });
     });
-    // describe("Redeem", async () => {
-    //     context("when the basket is healthy", () => {
-    //         context("when the basket is under the limit", () => {
-    //             context("when the recipient is an EOA", () => {
-    //                 // massetDetails.mAsset.redeem()
-    //                 expect(true, "this");
-    //             });
-    //             context("When mAsset is not added to Manager");
-    //             context("When no prices are present");
-    //             context("When mAsset prices are present");
-    //         });
-
-    //         context("when the basket exceeds the limit", () => {});
-    //     });
-    // });
+    describe("testing forgevalidation", async () => {
+        it("should fail if the redeem ...");
+        it("should fail if the redeem ...");
+        it("should handle changes to forge validator");
+        // it("should fail if the mint uses invalid bAssets");
+    });
+    describe("testing PrepareForgeBasset connection", async () => {
+        it("should mint nothing if the prearation returns invalid");
+        // it("should");
+    });
+    describe("taking the redemption fee", async () => {
+        it("should not charge a fee if rate is 0");
+        it("should handle changes in fee rate");
+        it("should send the redemption fee to the fee recipient", async () => {
+            // responds to changes
+        });
+    });
 });

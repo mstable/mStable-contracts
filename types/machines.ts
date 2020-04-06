@@ -1,5 +1,7 @@
 import * as t from "./generated";
 import { Address } from "./common";
+import { Basset } from "../test-utils/mstable-objects";
+import BN = require("bn.js");
 
 export interface ATokenDetails {
     bAsset: Address;
@@ -17,8 +19,25 @@ export enum Platform {
 
 export interface BassetIntegrationDetails {
     bAssets: Array<t.MockERC20Instance>;
+    fees: Array<boolean>;
     platforms: Array<Platform>;
     aavePlatformAddress: Address;
     aTokens: Array<ATokenDetails>;
     cTokens: Array<CTokenDetails>;
+}
+
+export interface BassetDetails extends Basset {
+    address: Address;
+    mAssetUnits: BN;
+    overweight: boolean;
+    underweight: boolean;
+}
+
+export interface BasketComposition {
+    bAssets: Array<BassetDetails>;
+    totalSupply: BN;
+    grace: BN;
+    sumOfBassets: BN;
+    failed: boolean;
+    colRatio: BN;
 }

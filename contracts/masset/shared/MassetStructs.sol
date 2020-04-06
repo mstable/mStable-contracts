@@ -1,9 +1,10 @@
 pragma solidity 0.5.16;
 
 /**
-  * @title MassetStructs
-  * @dev Structs used in the Masset contract and associated Libs
-  */
+ * @title   MassetStructs
+ * @author  Stability Labs Pty. Lte.
+ * @notice  Structs used in the Masset contract and associated Libs
+ */
 interface MassetStructs {
 
     struct Basket {

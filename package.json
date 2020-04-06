@@ -4,7 +4,7 @@
   "private": true,
   "license": "None",
   "description": "mStable Contracts",
-  "author": "Stability Labs Pty. Ltd.",
+  "author": "Stability Labs Pty. Lte.",
   "scripts": {
     "migrate": "truffle migrate --network development --reset",
     "migrate:rinkeby": "truffle migrate --network rinkeby --reset",
@@ -22,6 +22,9 @@
     "flatten": "sol-merger \"./contracts/**/*.sol\" ./flat"
   },
   "repository": "gitlab:mstable/mstable-contracts",
+  "dependencies": {
+    "sol-merger": "^2.0.1"
+  },
   "devDependencies": {
     "@openzeppelin/contracts": "2.5.0",
     "@openzeppelin/test-helpers": "0.5.5",
@@ -53,10 +56,9 @@
     "mocha": "^7.0.1",
     "parse-duration": "^0.1.2",
     "prettier": "^1.18.2",
-    "sol-merger": "^2.0.1",
     "solc": "0.5.16",
     "solidity-coverage": "^0.7.1",
-    "truffle": "^5.1.11",
+    "truffle": "5.1.19",
     "truffle-typings": "^1.0.8",
     "ts-node": "^8.4.1",
     "tsconfig-paths": "^3.9.0",
