@@ -5,7 +5,7 @@ import { Address } from "types/common";
 import { StandardAccounts } from "./standardAccounts";
 
 import { MASSET_FACTORY_BYTES, MainnetAccounts } from "@utils/constants";
-import { createMultiple, simpleToExactAmount } from "@utils/math";
+import { simpleToExactAmount } from "@utils/math";
 import { aToH, BN } from "@utils/tools";
 
 // Nexus

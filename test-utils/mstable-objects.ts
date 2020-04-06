@@ -11,6 +11,7 @@ import { MockERC20Instance } from "types/generated";
 
 export interface Basket {
     bassets: Basset[];
+    maxBassets: BN;
     expiredBassets: string[];
     failed: boolean;
     collateralisationRatio: BN;
@@ -21,6 +22,7 @@ export enum BassetStatus {
     Normal,
     BrokenBelowPeg,
     BrokenAbovePeg,
+    Blacklisted,
     Liquidating,
     Liquidated,
     Failed,
@@ -30,33 +32,35 @@ export interface Basset {
     addr: string;
     status: BassetStatus;
     isTransferFeeCharged: boolean;
-    ratio: BN;
-    targetWeight: BN;
-    vaultBalance: BN;
+    ratio: BN | string;
+    targetWeight: BN | string;
+    vaultBalance: BN | string;
     contract?: MockERC20Instance;
 }
 
 export const createBasket = (bassets: Basset[], failed = false): Basket => {
     return {
         bassets,
+        maxBassets: new BN(16),
         expiredBassets: [],
         failed,
         collateralisationRatio: percentToWeight(100),
     };
 };
 
-// export const createBasset = (
-//     targetWeight: number,
-//     vaultBalance: number,
-//     decimals = 18,
-//     status = BassetStatus.Normal,
-// ): Basset => {
-//     return {
-//         addr: ZERO_ADDRESS,
-//         isTransferFeeCharged: false,
-//         ratio: createMultiple(new BN(10).pow(new BN(18 - decimals)).toNumber()),
-//         targetWeight: percentToWeight(targetWeight),
-//         vaultBalance: simpleToExactAmount(vaultBalance, decimals),
-//         status,
-//     };
-// };
+export const createBasset = (
+    targetWeight: BN,
+    vaultBalance: BN,
+    decimals = 18,
+    status = BassetStatus.Normal,
+    isTransferFeeCharged = false,
+): Basset => {
+    return {
+        addr: ZERO_ADDRESS,
+        isTransferFeeCharged,
+        ratio: createMultiple(decimals).toString(),
+        targetWeight: percentToWeight(targetWeight).toString(),
+        vaultBalance: simpleToExactAmount(vaultBalance, decimals).toString(),
+        status,
+    };
+};

@@ -13,7 +13,7 @@ import { MassetStructs } from "../shared/MassetStructs.sol";
 contract IForgeValidator is MassetStructs {
     function validateMint(uint256 _totalVault, uint256 _grace, Basset calldata _basset, uint256 _bassetQuantity)
         external pure returns (bool, string memory);
-    function validateMint(uint256 _totalVault, uint256 _grace, Basset[] calldata _bassets, uint256[] calldata _bassetQuantity)
+    function validateMintMulti(uint256 _totalVault, uint256 _grace, Basset[] calldata _bassets, uint256[] calldata _bassetQuantity)
         external pure returns (bool, string memory);
     function validateRedemption(
         bool basketIsFailed,
@@ -22,7 +22,7 @@ contract IForgeValidator is MassetStructs {
         uint256 _grace,
         uint256 _indexToRedeem,
         uint256 _bassetQuantity) external pure returns (bool, string memory);
-    function validateRedemption(
+    function validateRedemptionMulti(
         bool basketIsFailed,
         uint256 _totalVault,
         uint256 _grace,

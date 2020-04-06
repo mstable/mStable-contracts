@@ -10,7 +10,7 @@ import {
     BassetDetails,
 } from "../../types/machines";
 import { SystemMachine, StandardAccounts } from ".";
-import { createMultiple, simpleToExactAmount, percentToWeight } from "@utils/math";
+import { simpleToExactAmount, percentToWeight } from "@utils/math";
 import { BN, aToH } from "@utils/tools";
 import { fullScale, MainnetAccounts, ratioScale } from "@utils/constants";
 import { Basset, BassetStatus } from "@utils/mstable-objects";

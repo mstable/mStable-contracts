@@ -3,7 +3,7 @@ import { expectEvent, time, expectRevert } from "@openzeppelin/test-helpers";
 import { keccak256 } from "web3-utils";
 
 import { MassetMachine, StandardAccounts, SystemMachine, MassetDetails } from "@utils/machines";
-import { createMultiple, percentToWeight, simpleToExactAmount, applyRatio } from "@utils/math";
+import { simpleToExactAmount, applyRatio } from "@utils/math";
 import { assertBNSlightlyGTPercent } from "@utils/assertions";
 import { ZERO_ADDRESS, ONE_WEEK, TEN_MINS } from "@utils/constants";
 import { aToH, BN } from "@utils/tools";

@@ -1,14 +1,9 @@
 /* eslint-disable @typescript-eslint/camelcase */
 
-import { createMultiple, simpleToExactAmount } from "@utils/math";
+import { simpleToExactAmount } from "@utils/math";
 import { createBasket, Basket } from "@utils/mstable-objects";
 import { expectRevert } from "@openzeppelin/test-helpers";
-import {
-    MassetMachine,
-    StandardAccounts,
-    SystemMachine,
-    MassetDetails,
-} from "@utils/machines";
+import { MassetMachine, StandardAccounts, SystemMachine, MassetDetails } from "@utils/machines";
 import { aToH, BN } from "@utils/tools";
 
 import envSetup from "@utils/env_setup";

@@ -61,7 +61,7 @@ contract ForgeValidator is IForgeValidator {
      * @return isValid          Bool to signify that the mint does not move our weightings the wrong way
      * @return reason           If the mint is invalid, this is the reason
      */
-    function validateMint(
+    function validateMintMulti(
         uint256 _totalVault,
         uint256 _grace,
         Basset[] calldata _bAssets,
@@ -175,7 +175,7 @@ contract ForgeValidator is IForgeValidator {
      * @return isValid          Bool to signify that the redemption is allowed
      * @return reason           If the redemption is invalid, this is the reason
      */
-    function validateRedemption(
+    function validateRedemptionMulti(
         bool _basketIsFailed,
         uint256 _totalVault,
         uint256 _grace,

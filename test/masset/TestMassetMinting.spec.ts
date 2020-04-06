@@ -5,7 +5,7 @@ import * as t from "types/generated";
 import { expectEvent, expectRevert } from "@openzeppelin/test-helpers";
 
 import { assertBasketIsHealthy, assertBnGte, assertBNSlightlyGTPercent } from "@utils/assertions";
-import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
+import { simpleToExactAmount } from "@utils/math";
 import { MassetDetails, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import { aToH, BN } from "@utils/tools";
 import { BassetStatus } from "@utils/mstable-objects";

@@ -1,7 +1,7 @@
 import { BN } from "./tools";
 import { percentScale, ratioScale } from "./constants";
 
-export const percentToWeight = (percent: number): BN => {
+export const percentToWeight = (percent: BN | number): BN => {
     return new BN(percent).mul(percentScale);
 };
 
@@ -103,7 +103,7 @@ export const applyRatio = (bAssetQ: BN, ratio: BN): BN => {
     return bAssetQ.mul(ratio).div(ratioScale);
 };
 
-// TODO - new BN does not handle fractions.. ensure only passing integers
-export const createMultiple = (ratio: number): BN => {
+export const createMultiple = (decimals: number): BN => {
+    let ratio = new BN(10).pow(new BN(18 - decimals));
     return new BN(ratio).mul(ratioScale);
 };
