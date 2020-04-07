@@ -364,18 +364,18 @@ export class MassetMachine {
 
         // Calc optimal weightings
         let totalWeighting = basketDetails.reduce((p, c) => {
-            return p.add(c.targetWeight);
+            return p.add(new BN(c.targetWeight));
         }, new BN(0));
         let totalMintAmount = simpleToExactAmount(initialSupply, 18);
         let mintAmounts = await Promise.all(
             basketDetails.map(async (b) => {
                 // e.g. 5e35 / 2e18 = 2.5e17
-                const relativeWeighting = b.targetWeight.mul(fullScale).div(totalWeighting);
+                const relativeWeighting = new BN(b.targetWeight).mul(fullScale).div(totalWeighting);
                 // e.g. 1e20 * 25e16 / 1e18 = 25e18
                 const mintAmount = totalMintAmount.mul(relativeWeighting).div(fullScale);
                 // const bAssetDecimals: BN = await b.decimals();
                 // const decimalDelta = new BN(18).sub(bAssetDecimals);
-                return mintAmount.mul(ratioScale).div(b.ratio);
+                return mintAmount.mul(ratioScale).div(new BN(b.ratio));
             }),
         );
 
@@ -432,10 +432,12 @@ export class MassetMachine {
         // get weights (relative to totalSupply)
         // apply ratios, then find proportion of totalSupply all in BN
         let targetWeightInUnits = bAssets.map((b) =>
-            totalSupply.mul(b.targetWeight).div(fullScale),
+            totalSupply.mul(new BN(b.targetWeight)).div(fullScale),
         );
         // get overweight
-        let currentVaultUnits = bAssets.map((b) => b.vaultBalance.mul(b.ratio).div(ratioScale));
+        let currentVaultUnits = bAssets.map((b) =>
+            new BN(b.vaultBalance).mul(new BN(b.ratio)).div(ratioScale),
+        );
         let overweightBassets = bAssets.map((b, i) =>
             currentVaultUnits[i].gte(targetWeightInUnits[i].add(grace)),
         );

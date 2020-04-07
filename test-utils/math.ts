@@ -95,12 +95,12 @@ export const exactToSimpleAmount = (amount: BN, decimals: number | BN): BN => {
     return new BN(value);
 };
 
-export const applyRatioMassetToBasset = (input: BN, ratio: BN): BN => {
+export const applyRatioMassetToBasset = (input: BN, ratio: BN | string): BN => {
     return input.mul(ratioScale).div(new BN(ratio));
 };
 
-export const applyRatio = (bAssetQ: BN, ratio: BN): BN => {
-    return bAssetQ.mul(ratio).div(ratioScale);
+export const applyRatio = (bAssetQ: BN | string, ratio: BN | string): BN => {
+    return new BN(bAssetQ).mul(new BN(ratio)).div(ratioScale);
 };
 
 export const createMultiple = (decimals: number): BN => {
