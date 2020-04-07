@@ -45,11 +45,7 @@ contract("Masset", async (accounts) => {
         await runSetup();
     });
 
-    const runSetup = async (
-        seedBasket = true,
-        enableUSDTFee = false,
-        overrideBasketManager = false,
-    ) => {
+    const runSetup = async (seedBasket = true, enableUSDTFee = false) => {
         massetDetails = seedBasket
             ? await massetMachine.deployMassetAndSeedBasket(enableUSDTFee)
             : await massetMachine.deployMasset(enableUSDTFee);
@@ -81,14 +77,6 @@ contract("Masset", async (accounts) => {
         await expectRevert(mAsset.mint(bAsset.address, approval), reason);
     };
 
-    // Helper to assert that a given bAsset is currently above its target weight
-    const assertBassetOverweight = async (md: MassetDetails, bAsset: t.MockERC20Instance) => {
-        // Read full basket composition
-        const composition = await massetMachine.getBasketComposition(md);
-        const target = composition.bAssets.find((b) => b.address === bAsset.address);
-        expect(target.overweight).to.eq(true);
-    };
-
     // Helper to assert basic minting conditions, i.e. balance before and after
     const assertBasicMint = async (
         md: MassetDetails,
@@ -102,7 +90,7 @@ contract("Masset", async (accounts) => {
         if (!ignoreHealthAssertions) await assertBasketIsHealthy(massetMachine, md);
 
         const minterBassetBalBefore = await bAsset.balanceOf(sender);
-        const derivedRecipient = useMintTo ? sender : recipient;
+        const derivedRecipient = useMintTo ? recipient : sender;
         const recipientBalBefore = await md.mAsset.balanceOf(derivedRecipient);
         const bAssetBefore = await md.basketManager.getBasset(bAsset.address);
 
@@ -187,6 +175,40 @@ contract("Masset", async (accounts) => {
                     await assertBasicMint(massetDetails, new BN(1), bAssets[1], true, recipient);
                 });
             });
+            context("and specifying one bAsset base unit", async () => {
+                before(async () => {
+                    await runSetup();
+                });
+                it("should mint a higher q of mAsset base units when using bAsset with 12", async () => {
+                    const { bAssets, mAsset } = massetDetails;
+                    const bAsset = bAssets[0];
+                    // bAsset has 12 dp
+                    const decimals = await bAsset.decimals();
+                    expect(decimals).bignumber.eq(new BN(12));
+
+                    await bAsset.approve(mAsset.address, new BN(1));
+
+                    const minterBassetBalBefore = await bAsset.balanceOf(sa.default);
+                    const recipientBalBefore = await mAsset.balanceOf(sa.default);
+
+                    const tx = await mAsset.mint(bAsset.address, new BN(1));
+                    const expectedMasset = new BN(10).pow(new BN(18).sub(decimals));
+                    await expectEvent(tx.receipt, "Minted", {
+                        account: sa.default,
+                        mAssetQuantity: expectedMasset,
+                        bAsset: bAsset.address,
+                        bAssetQuantity: new BN(1),
+                    });
+                    // Recipient should have mAsset quantity after
+                    const recipientBalAfter = await mAsset.balanceOf(sa.default);
+                    expect(recipientBalAfter).bignumber.eq(recipientBalBefore.add(expectedMasset));
+                    // Sender should have less bAsset after
+                    const minterBassetBalAfter = await bAsset.balanceOf(sa.default);
+                    expect(minterBassetBalAfter).bignumber.eq(minterBassetBalBefore.sub(new BN(1)));
+                    // Complete basket should remain in healthy state
+                    await assertBasketIsHealthy(massetMachine, massetDetails);
+                });
+            });
             context("and not defining recipient", async () => {
                 before(async () => {
                     await runSetup();
@@ -213,9 +235,6 @@ contract("Masset", async (accounts) => {
                     const recipient = sa.dummy3;
                     const recipientBalBefore = await massetDetails.mAsset.balanceOf(recipient);
                     expect(recipientBalBefore).bignumber.eq(new BN(0));
-                    const bAssetBefore = await massetDetails.basketManager.getBasset(
-                        bAsset.address,
-                    );
                     const mAssetMintAmount = new BN(10);
                     const approval0: BN = await massetMachine.approveMasset(
                         bAsset,
@@ -493,11 +512,6 @@ contract("Masset", async (accounts) => {
 
                 // Should succeed since we would be pushing towards target
                 const bAsset0 = massetDetails.bAssets[0];
-                const approval0: BN = await massetMachine.approveMasset(
-                    bAsset0,
-                    massetDetails.mAsset,
-                    new BN(1),
-                );
                 await assertBasicMint(
                     massetDetails,
                     new BN(1),

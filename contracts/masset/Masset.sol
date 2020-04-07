@@ -193,6 +193,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         return ratioedDeposit;
     }
 
+    /** @dev Deposits tokens into the platform integration and returns the ratioed amount */
     function _depositTokens(
         address _bAsset,
         uint256 _bAssetRatio,

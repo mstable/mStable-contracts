@@ -138,6 +138,8 @@ contract ForgeValidator is IForgeValidator {
         OverWeightBassetsResponse memory data = _getOverweightBassets(_totalVault, _grace, _allBassets);
         if(!data.isValid) return (false, data.reason);
 
+        if(_bAssetQuantity > bAsset.vaultBalance) return (false, "Cannot redeem more bAssets than are in the vault");
+
         // Calculate ratioed redemption amount in mAsset terms
         uint256 ratioedRedemptionAmount = _bAssetQuantity.mulRatioTruncate(bAsset.ratio);
         // Subtract ratioed redemption amount from both vault and total supply
@@ -198,6 +200,8 @@ contract ForgeValidator is IForgeValidator {
         for(uint256 i = 0; i < idxCount; i++){
             if(_allBassets[_idxs[i]].status == BassetStatus.BrokenAbovePeg && !_basketIsFailed)
                 return (false, "Cannot redeem depegged bAsset");
+            if(_bAssetQuantities[i] > _allBassets[_idxs[i]].vaultBalance)
+                return (false, "Cannot redeem more bAssets than are in the vault");
 
             uint256 ratioedRedemptionAmount = _bAssetQuantities[i].mulRatioTruncate(_allBassets[_idxs[i]].ratio);
             data.ratioedBassetVaults[_idxs[i]] = data.ratioedBassetVaults[_idxs[i]].sub(ratioedRedemptionAmount);
