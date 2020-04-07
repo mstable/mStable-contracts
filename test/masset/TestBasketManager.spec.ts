@@ -7,7 +7,7 @@ import { Basset, BassetStatus, equalBassets, buildBasset } from "@utils/mstable-
 import { createMultiple, simpleToExactAmount, percentToWeight } from "@utils/math";
 import { constants, expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
 import { MassetMachine, StandardAccounts, SystemMachine, MassetDetails } from "@utils/machines";
-import { ZERO_ADDRESS, ZERO, ratioScale, fullScale } from "@utils/constants";
+import { ZERO_ADDRESS, ZERO, ratioScale, fullScale, MIN_GRACE, MAX_GRACE } from "@utils/constants";
 import { BassetIntegrationDetails } from "../../types";
 
 import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
@@ -23,7 +23,7 @@ contract("BasketManager", async (accounts) => {
     let massetMachine: MassetMachine;
 
     const sa = new StandardAccounts(accounts);
-    const grace = fullScale;
+    const grace: BN = new BN(10).pow(new BN(24));
     const ctx: { module?: t.InitializablePausableModuleInstance } = {};
     const masset = sa.dummy1;
     const governance = sa.dummy2;
@@ -688,6 +688,11 @@ contract("BasketManager", async (accounts) => {
 
         it("should fail when bAsset address is zero", async () => {
             await expectRevert(
+                basketManager.setTransferFeesFlag(ZERO_ADDRESS, true, { from: manager }),
+                "bAsset does not exist",
+            );
+
+            await expectRevert(
                 basketManager.setTransferFeesFlag(ZERO_ADDRESS, true, { from: sa.governor }),
                 "bAsset does not exist",
             );
@@ -798,11 +803,119 @@ contract("BasketManager", async (accounts) => {
     });
 
     describe("setGrace()", async () => {
-        it("should fail when not called by manager or governor");
+        const NEW_GRACE = new BN(10).pow(new BN(20));
+        const NEW_GRACE2 = new BN(10).pow(new BN(21));
 
-        it("should fail when grace is out of range");
+        beforeEach("", async () => {
+            await createNewBasketManager();
+        });
 
-        it("should update when in range");
+        it("should fail when not called by manager or governor", async () => {
+            const graceBefore = await basketManager.grace();
+
+            await expectRevert(
+                basketManager.setGrace(MIN_GRACE, { from: sa.other }),
+                "Must be manager or governor",
+            );
+
+            const graceAfter = await basketManager.grace();
+            expect(graceBefore).to.bignumber.equal(graceAfter);
+        });
+
+        it("should update when called by manager", async () => {
+            const graceBefore = await basketManager.grace();
+            expect(graceBefore).to.bignumber.not.equal(NEW_GRACE);
+
+            await basketManager.setGrace(NEW_GRACE, { from: manager });
+
+            const graceAfter = await basketManager.grace();
+            expect(NEW_GRACE).to.bignumber.equal(graceAfter);
+        });
+
+        it("should update when called by governor", async () => {
+            const graceBefore = await basketManager.grace();
+            expect(graceBefore).to.bignumber.not.equal(NEW_GRACE);
+
+            await basketManager.setGrace(NEW_GRACE, { from: sa.governor });
+
+            const graceAfter = await basketManager.grace();
+            expect(NEW_GRACE).to.bignumber.equal(graceAfter);
+        });
+
+        it("should fail when grace is lower than min range", async () => {
+            const graceBefore = await basketManager.grace();
+
+            await expectRevert(
+                basketManager.setGrace(MIN_GRACE.sub(new BN(10)), { from: manager }),
+                "Must be within valid grace range",
+            );
+
+            const graceAfter = await basketManager.grace();
+            expect(graceBefore).to.bignumber.equal(graceAfter);
+
+            await expectRevert(
+                basketManager.setGrace(MIN_GRACE.sub(new BN(10)), { from: sa.governor }),
+                "Must be within valid grace range",
+            );
+
+            const graceAfter2 = await basketManager.grace();
+            expect(graceAfter).to.bignumber.equal(graceAfter2);
+        });
+
+        it("should fail when grace is grater than max range", async () => {
+            const graceBefore = await basketManager.grace();
+
+            await expectRevert(
+                basketManager.setGrace(MAX_GRACE.add(new BN(10)), { from: manager }),
+                "Must be within valid grace range",
+            );
+
+            const graceAfter = await basketManager.grace();
+            expect(graceBefore).to.bignumber.equal(graceAfter);
+
+            await expectRevert(
+                basketManager.setGrace(MAX_GRACE.add(new BN(10)), { from: sa.governor }),
+                "Must be within valid grace range",
+            );
+
+            const graceAfter2 = await basketManager.grace();
+            expect(graceAfter).to.bignumber.equal(graceAfter2);
+        });
+
+        it("should update when in range", async () => {
+            const graceBefore = await basketManager.grace();
+            expect(graceBefore).to.bignumber.not.equal(NEW_GRACE);
+
+            await basketManager.setGrace(NEW_GRACE, { from: manager });
+
+            const graceAfter = await basketManager.grace();
+            expect(NEW_GRACE).to.bignumber.equal(graceAfter);
+
+            await basketManager.setGrace(NEW_GRACE2, { from: sa.governor });
+
+            const graceAfter2 = await basketManager.grace();
+            expect(NEW_GRACE2).to.bignumber.equal(graceAfter2);
+        });
+
+        it("should update when equal to min range", async () => {
+            const graceBefore = await basketManager.grace();
+            expect(graceBefore).to.bignumber.not.equal(MIN_GRACE);
+
+            await basketManager.setGrace(MIN_GRACE, { from: manager });
+
+            const graceAfter = await basketManager.grace();
+            expect(MIN_GRACE).to.bignumber.equal(graceAfter);
+        });
+
+        it("should update when equal to max range", async () => {
+            const graceBefore = await basketManager.grace();
+            expect(graceBefore).to.bignumber.not.equal(MAX_GRACE);
+
+            await basketManager.setGrace(MAX_GRACE, { from: manager });
+
+            const graceAfter = await basketManager.grace();
+            expect(MAX_GRACE).to.bignumber.equal(graceAfter);
+        });
     });
 
     describe("removeBasset()", async () => {
