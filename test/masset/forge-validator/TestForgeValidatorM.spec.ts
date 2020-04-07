@@ -1,18 +1,15 @@
 import * as t from "types/generated";
 
-import { percentToWeight, simpleToExactAmount } from "@utils/math";
-import { createBasset, createBasket, Basket } from "@utils/mstable-objects";
-import { StandardAccounts } from "@utils/machines/standardAccounts";
+import { simpleToExactAmount } from "@utils/math";
+import { BN } from "@utils/tools";
+import { createBasset, BassetStatus } from "@utils/mstable-objects";
 
 import envSetup from "@utils/env_setup";
-import BN = require("bn.js");
-const { expect, assert } = envSetup.configure();
+const { expect } = envSetup.configure();
 
 const ForgeValidatorArtifact = artifacts.require("ForgeValidator");
 
 contract("ForgeValidator", async (accounts) => {
-    const sa = new StandardAccounts(accounts);
-
     let forgeValidator: t.ForgeValidatorInstance;
 
     before("Init contract", async () => {
@@ -20,17 +17,110 @@ contract("ForgeValidator", async (accounts) => {
     });
 
     context("validating a single mint", async () => {
-        context("with a basset under its max weight", async () => {
-            describe("minting with standard", async () => {
-                it("works", async () => {
-                    let [isValid, reason] = await forgeValidator.validateMint(
-                        simpleToExactAmount(new BN(100), 18),
-                        simpleToExactAmount(new BN(1), 18),
-                        createBasset(new BN(25), new BN(25)),
-                        simpleToExactAmount(new BN(1), 18),
-                    );
-                    expect(isValid).to.eq(true);
+        const assertSingleMint = async (
+            totalSupply: number | string,
+            deviationAllowanceUnits: number | string,
+            bAssetTarget: number,
+            bAssetVaultUnits: number,
+            bAssetDecimals: number,
+            mintAmountUnits: number | string,
+            bAssetStatus: BassetStatus = BassetStatus.Normal,
+            expectedValidity: boolean,
+            expectedReason: string = "",
+            sender: string = accounts[0],
+        ) => {
+            let [isValid, reason] = await forgeValidator.validateMint(
+                simpleToExactAmount(totalSupply, 18),
+                simpleToExactAmount(deviationAllowanceUnits, 18),
+                createBasset(
+                    new BN(bAssetTarget),
+                    new BN(bAssetVaultUnits),
+                    bAssetDecimals,
+                    bAssetStatus,
+                ),
+                simpleToExactAmount(mintAmountUnits, bAssetDecimals),
+                { from: sender },
+            );
+            expect(isValid).to.eq(expectedValidity);
+            expect(expectedReason).to.eq(reason);
+        };
+
+        // At target weight is defined when bAssetVaultUnits == (totalSupply * bAssetTarget)
+        context("with a basset at its target weight", async () => {
+            it("returns valid for a simple validation that remains within the grace threshold", async () => {
+                // 100 total supply
+                // bAsset 25 vaultBalance, 25 targetWeighting
+                // new weighting now 26/101, within grace boundary
+                await assertSingleMint(100, 1, 25, 25, 18, 1, undefined, true);
+            });
+            it("should work for any sender", async () => {
+                await assertSingleMint(100, 1, 25, 25, 18, 1, undefined, true, accounts[1]);
+                await assertSingleMint(100, 1, 25, 25, 18, 1, undefined, true, accounts[2]);
+            });
+            it("returns inValid if mint pushes bAsset overweight", async () => {
+                // 100 total supply
+                // bAsset 25 vaultBalance, 25 targetWeighting
+                // 1 deviation allowance but 2 mint units - pushing above threshold
+                await assertSingleMint(
+                    100,
+                    1,
+                    25,
+                    25,
+                    6,
+                    2,
+                    undefined,
+                    false,
+                    "Must be below implicit max weighting",
+                );
+            });
+            describe("with large basket supply", async () => {});
+            describe("with a variable grace", async () => {});
+            describe("and various decimals", async () => {
+                it("returns valid with custom ratio", async () => {
+                    // 100 total supply
+                    // bAsset 25 vaultBalance, 25 targetWeighting, 6 decimals
+                    await assertSingleMint(100, 1, 25, 25, 6, 1, undefined, true);
                 });
+            });
+            describe("and various mint volumes", async () => {
+                // should be ok with 0
+                // should fail with lots
+            });
+        });
+        // Underweight is defined when (totalSupply * bassetTarget) - deviationAllowance > bAssetVaultUnits
+        context("with a basset underweight", async () => {
+            it("returns valid for a simple validation", async () => {});
+            it("returns inValid if mint pushes bAsset overweight", async () => {});
+            describe("with large basket supply", async () => {});
+            describe("with a variable grace", async () => {});
+            describe("and various decimals", async () => {});
+            describe("and various mint volumes", async () => {
+                // should be ok with 0
+                // should fail with lots
+            });
+        });
+        // Overweight is defined when bAssetVaultUnits > (totalSupply * bAssetTarget) + deviationAllowance
+        context("with a basset overweight", async () => {
+            it("returns valid for a simple validation", async () => {});
+            it("returns inValid if mint pushes bAsset overweight", async () => {});
+            describe("with large basket supply", async () => {});
+            describe("with a variable grace", async () => {});
+            describe("and various decimals", async () => {});
+            describe("and various mint volumes", async () => {
+                // should be ok with 0
+                // should fail with lots
+            });
+        });
+        // Affected bAssets have been excluded from the basket temporarily or permanently due to circumstance
+        context("with an affected bAsset", async () => {
+            it("returns valid for a simple validation", async () => {});
+            it("returns inValid if mint pushes bAsset overweight", async () => {});
+            describe("with large basket supply", async () => {});
+            describe("with a variable grace", async () => {});
+            describe("and various decimals", async () => {});
+            describe("and various mint volumes", async () => {
+                // should be ok with 0
+                // should fail with lots
             });
         });
     });
