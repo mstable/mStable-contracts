@@ -187,18 +187,17 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
      * @dev Called by mAsset after redeeming tokens. Simply reduce the balance in the vault
      * @param _bAssetIndices    Array of bAsset indexes
      * @param _decreaseAmount   Units withdrawn
-     * @param _len              Length of the array
      */
     function decreaseVaultBalances(
         uint8[] calldata _bAssetIndices,
         address[] calldata /* _integrator */,
-        uint256[] calldata _decreaseAmount,
-        uint256 _len
+        uint256[] calldata _decreaseAmount
     )
         external
         onlyMasset
     {
-        for(uint i = 0; i < _len; i++) {
+        uint256 len = _bAssetIndices.length;
+        for(uint i = 0; i < len; i++) {
             basket.bassets[_bAssetIndices[i]].vaultBalance =
                 basket.bassets[_bAssetIndices[i]].vaultBalance.sub(_decreaseAmount[i]);
         }
@@ -454,8 +453,8 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
      * @param _assetToRemove The asset to remove from the basket
      */
     function _removeBasset(address _assetToRemove) internal {
-        (bool existsInBasket, uint8 index) = _isAssetInBasket(_assetToRemove);
-        require(existsInBasket, "Asset must appear in Basket");
+        (bool exists, uint8 index) = _isAssetInBasket(_assetToRemove);
+        require(exists, "bAsset does not exist");
 
         uint256 len = basket.bassets.length;
         Basset memory bAsset = basket.bassets[index];
@@ -463,7 +462,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         require(bAsset.vaultBalance == 0, "bAsset vault must be empty");
         require(bAsset.status != BassetStatus.Liquidating, "bAsset must be active");
 
-        basket.bassets[index] = basket.bassets[len-1];
+        basket.bassets[index] = basket.bassets[len.sub(1)];
         basket.bassets.pop();
 
         bAssetsMap[_assetToRemove] = 0;

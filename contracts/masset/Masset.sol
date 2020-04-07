@@ -409,7 +409,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
             }
         }
 
-        basketManager.decreaseVaultBalances(props.indexes, props.integrators, _bAssetQuantities, redemptionAssetCount);
+        basketManager.decreaseVaultBalances(props.indexes, props.integrators, _bAssetQuantities);
 
         // Pay the redemption fee
         _payRedemptionFee(mAssetQuantity);

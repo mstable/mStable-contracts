@@ -496,11 +496,33 @@ contract("BasketManager", async (accounts) => {
             );
         });
 
-        it("should fail when number of elements are more than number of bAssets");
+        it("should succeed and increase vault balance", async () => {
+            const indexes: Array<number> = [0, 1];
+            const integrators: Array<string> = [mockAaveIntegrationAddr, mockAaveIntegrationAddr];
+            const increaseAmounts: Array<BN> = [new BN(100), new BN(100)];
 
-        it("should fail when array length and len not match");
+            const bAssetBeforeArr: Array<Basset> = new Array(indexes.length);
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a, index) => {
+                    bAssetBeforeArr[index] = await basketManager.getBasset(a.bAsset);
+                }),
+            );
 
-        it("should succeed and increase vault balance");
+            await basketManager.increaseVaultBalances(indexes, integrators, increaseAmounts, {
+                from: masset,
+            });
+
+            const bAssetAfterArr: Array<Basset> = new Array(indexes.length);
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a, index) => {
+                    bAssetAfterArr[index] = await basketManager.getBasset(a.bAsset);
+
+                    expect(
+                        new BN(bAssetBeforeArr[index].vaultBalance).add(new BN(100)),
+                    ).to.bignumber.equal(bAssetAfterArr[index].vaultBalance);
+                }),
+            );
+        });
     });
 
     describe("decreaseVaultBalance()", async () => {
@@ -588,6 +610,7 @@ contract("BasketManager", async (accounts) => {
             const indexes: Array<number> = [0, 1];
             const integrators: Array<string> = [mockAaveIntegrationAddr, mockAaveIntegrationAddr];
             const increaseAmounts: Array<BN> = [new BN(100), new BN(100)];
+            const decreaseAmounts: Array<BN> = [new BN(100), new BN(100)];
 
             await basketManager.increaseVaultBalances(indexes, integrators, increaseAmounts, {
                 from: masset,
@@ -601,13 +624,9 @@ contract("BasketManager", async (accounts) => {
             );
 
             await expectRevert(
-                basketManager.decreaseVaultBalances(
-                    indexes,
-                    integrators,
-                    increaseAmounts,
-                    indexes.length,
-                    { from: sa.other },
-                ),
+                basketManager.decreaseVaultBalances(indexes, integrators, decreaseAmounts, {
+                    from: sa.other,
+                }),
                 "Must be called by mAsset",
             );
 
@@ -623,13 +642,75 @@ contract("BasketManager", async (accounts) => {
             );
         });
 
-        it("should fail when basket is failed");
+        it("should fail when invalid bAsset index", async () => {
+            const indexes: Array<number> = [0, 1];
+            const invalidIndexes: Array<number> = [5, 6];
+            const integrators: Array<string> = [mockAaveIntegrationAddr, mockAaveIntegrationAddr];
+            const increaseAmounts: Array<BN> = [new BN(100), new BN(100)];
+            const decreaseAmounts: Array<BN> = [new BN(100), new BN(100)];
 
-        it("should fail when number of elements are more than number of bAssets");
+            await basketManager.increaseVaultBalances(indexes, integrators, increaseAmounts, {
+                from: masset,
+            });
 
-        it("should fail when array length and len not match");
+            const bAssetBeforeArr: Array<Basset> = new Array(indexes.length);
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a, index) => {
+                    bAssetBeforeArr[index] = await basketManager.getBasset(a.bAsset);
+                }),
+            );
 
-        it("should succeed and decrease vault balance");
+            await expectRevert(
+                basketManager.decreaseVaultBalances(invalidIndexes, integrators, decreaseAmounts, {
+                    from: sa.other,
+                }),
+                "Must be called by mAsset",
+            );
+
+            const bAssetAfterArr: Array<Basset> = new Array(indexes.length);
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a, index) => {
+                    bAssetAfterArr[index] = await basketManager.getBasset(a.bAsset);
+
+                    expect(bAssetBeforeArr[index].vaultBalance).to.bignumber.equal(
+                        bAssetAfterArr[index].vaultBalance,
+                    );
+                }),
+            );
+        });
+
+        it("should succeed and decrease vault balance", async () => {
+            const indexes: Array<number> = [0, 1];
+            const integrators: Array<string> = [mockAaveIntegrationAddr, mockAaveIntegrationAddr];
+            const increaseAmounts: Array<BN> = [new BN(100), new BN(100)];
+            const decreaseAmounts: Array<BN> = [new BN(100), new BN(100)];
+
+            await basketManager.decreaseVaultBalances(indexes, integrators, increaseAmounts, {
+                from: masset,
+            });
+
+            const bAssetBeforeArr: Array<Basset> = new Array(indexes.length);
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a, index) => {
+                    bAssetBeforeArr[index] = await basketManager.getBasset(a.bAsset);
+                }),
+            );
+
+            await basketManager.decreaseVaultBalances(indexes, integrators, decreaseAmounts, {
+                from: masset,
+            });
+
+            const bAssetAfterArr: Array<Basset> = new Array(indexes.length);
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a, index) => {
+                    bAssetAfterArr[index] = await basketManager.getBasset(a.bAsset);
+
+                    expect(
+                        new BN(bAssetBeforeArr[index].vaultBalance).sub(new BN(100)),
+                    ).to.bignumber.equal(bAssetAfterArr[index].vaultBalance);
+                }),
+            );
+        });
     });
 
     describe("collectInterest()", async () => {
@@ -826,7 +907,8 @@ contract("BasketManager", async (accounts) => {
             const graceBefore = await basketManager.grace();
             expect(graceBefore).to.bignumber.not.equal(NEW_GRACE);
 
-            await basketManager.setGrace(NEW_GRACE, { from: manager });
+            const tx = await basketManager.setGrace(NEW_GRACE, { from: manager });
+            expectEvent.inLogs(tx.logs, "GraceUpdated", { newGrace: NEW_GRACE });
 
             const graceAfter = await basketManager.grace();
             expect(NEW_GRACE).to.bignumber.equal(graceAfter);
@@ -836,7 +918,8 @@ contract("BasketManager", async (accounts) => {
             const graceBefore = await basketManager.grace();
             expect(graceBefore).to.bignumber.not.equal(NEW_GRACE);
 
-            await basketManager.setGrace(NEW_GRACE, { from: sa.governor });
+            const tx = await basketManager.setGrace(NEW_GRACE, { from: sa.governor });
+            expectEvent.inLogs(tx.logs, "GraceUpdated", { newGrace: NEW_GRACE });
 
             const graceAfter = await basketManager.grace();
             expect(NEW_GRACE).to.bignumber.equal(graceAfter);
@@ -886,32 +969,58 @@ contract("BasketManager", async (accounts) => {
             const graceBefore = await basketManager.grace();
             expect(graceBefore).to.bignumber.not.equal(NEW_GRACE);
 
-            await basketManager.setGrace(NEW_GRACE, { from: manager });
+            let tx = await basketManager.setGrace(NEW_GRACE, { from: manager });
+            expectEvent.inLogs(tx.logs, "GraceUpdated", { newGrace: NEW_GRACE });
 
             const graceAfter = await basketManager.grace();
             expect(NEW_GRACE).to.bignumber.equal(graceAfter);
 
-            await basketManager.setGrace(NEW_GRACE2, { from: sa.governor });
+            tx = await basketManager.setGrace(NEW_GRACE2, { from: sa.governor });
+            expectEvent.inLogs(tx.logs, "GraceUpdated", { newGrace: NEW_GRACE2 });
 
             const graceAfter2 = await basketManager.grace();
             expect(NEW_GRACE2).to.bignumber.equal(graceAfter2);
         });
 
-        it("should update when equal to min range", async () => {
+        it("should update when equal to min range (by manager)", async () => {
             const graceBefore = await basketManager.grace();
             expect(graceBefore).to.bignumber.not.equal(MIN_GRACE);
 
-            await basketManager.setGrace(MIN_GRACE, { from: manager });
+            const tx = await basketManager.setGrace(MIN_GRACE, { from: manager });
+            expectEvent.inLogs(tx.logs, "GraceUpdated", { newGrace: MIN_GRACE });
 
             const graceAfter = await basketManager.grace();
             expect(MIN_GRACE).to.bignumber.equal(graceAfter);
         });
 
-        it("should update when equal to max range", async () => {
+        it("should update when equal to min range (by governor)", async () => {
+            const graceBefore = await basketManager.grace();
+            expect(graceBefore).to.bignumber.not.equal(MIN_GRACE);
+
+            const tx = await basketManager.setGrace(MIN_GRACE, { from: sa.governor });
+            expectEvent.inLogs(tx.logs, "GraceUpdated", { newGrace: MIN_GRACE });
+
+            const graceAfter = await basketManager.grace();
+            expect(MIN_GRACE).to.bignumber.equal(graceAfter);
+        });
+
+        it("should update when equal to max range (by manager)", async () => {
             const graceBefore = await basketManager.grace();
             expect(graceBefore).to.bignumber.not.equal(MAX_GRACE);
 
-            await basketManager.setGrace(MAX_GRACE, { from: manager });
+            const tx = await basketManager.setGrace(MAX_GRACE, { from: manager });
+            expectEvent.inLogs(tx.logs, "GraceUpdated", { newGrace: MAX_GRACE });
+
+            const graceAfter = await basketManager.grace();
+            expect(MAX_GRACE).to.bignumber.equal(graceAfter);
+        });
+
+        it("should update when equal to max range (by governor)", async () => {
+            const graceBefore = await basketManager.grace();
+            expect(graceBefore).to.bignumber.not.equal(MAX_GRACE);
+
+            const tx = await basketManager.setGrace(MAX_GRACE, { from: sa.governor });
+            expectEvent.inLogs(tx.logs, "GraceUpdated", { newGrace: MAX_GRACE });
 
             const graceAfter = await basketManager.grace();
             expect(MAX_GRACE).to.bignumber.equal(graceAfter);
@@ -920,13 +1029,68 @@ contract("BasketManager", async (accounts) => {
 
     describe("removeBasset()", async () => {
         describe("should fail", async () => {
-            it("when basket is not healthy");
+            beforeEach("", async () => {
+                await createNewBasketManager();
+            });
 
-            it("when not called by manager or governor");
+            it("when basket is not healthy", async () => {
+                const mockBasketManager = await createMockBasketManger();
+                mockBasketManager.failBasket();
 
-            it("when bAsset address is zero");
+                await Promise.all(
+                    integrationDetails.aTokens.map(async (a) => {
+                        const lengthBefore = (await mockBasketManager.getBassets()).length;
 
-            it("when bAsset address not exist");
+                        await expectRevert(
+                            mockBasketManager.removeBasset(a.bAsset, { from: manager }),
+                            "Basket must be alive",
+                        );
+
+                        const lengthAfter = (await mockBasketManager.getBassets()).length;
+                        expect(lengthBefore).to.equal(lengthAfter);
+                    }),
+                );
+            });
+
+            it("when not called by manager or governor", async () => {
+                await Promise.all(
+                    integrationDetails.aTokens.map(async (a) => {
+                        const lengthBefore = (await basketManager.getBassets()).length;
+
+                        await expectRevert(
+                            basketManager.removeBasset(a.bAsset, { from: sa.other }),
+                            "Must be manager or governor",
+                        );
+
+                        const lengthAfter = (await basketManager.getBassets()).length;
+                        expect(lengthBefore).to.equal(lengthAfter);
+                    }),
+                );
+            });
+
+            it("when bAsset address is zero", async () => {
+                const lengthBefore = (await basketManager.getBassets()).length;
+
+                await expectRevert(
+                    basketManager.removeBasset(ZERO_ADDRESS, { from: manager }),
+                    "bAsset does not exist",
+                );
+
+                const lengthAfter = (await basketManager.getBassets()).length;
+                expect(lengthBefore).to.equal(lengthAfter);
+            });
+
+            it("when bAsset address not exist", async () => {
+                const lengthBefore = (await basketManager.getBassets()).length;
+
+                await expectRevert(
+                    basketManager.removeBasset(sa.other, { from: manager }),
+                    "bAsset does not exist",
+                );
+
+                const lengthAfter = (await basketManager.getBassets()).length;
+                expect(lengthBefore).to.equal(lengthAfter);
+            });
 
             it("when bAsset targetWeight is non zero");
 
