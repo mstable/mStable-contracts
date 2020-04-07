@@ -745,25 +745,125 @@ contract("BasketManager", async (accounts) => {
     });
 
     describe("setBasketWeights()", async () => {
-        describe("should fail", async () => {
-            it("when not called by governor");
-
-            it("should fail when empty array passed");
-
-            it("when basket is not healthy");
-
-            it("when array length not matched");
-
-            it("when bAsset not exist");
-
-            it("when bAssetWeight is greater than 1e18");
-
-            it("when bAsset is not active");
-
-            it("when total weight is not valid");
+        let mockBasketManager: t.MockBasketManager3Instance;
+        beforeEach("", async () => {
+            mockBasketManager = await createMockBasketManger();
         });
 
-        it("should update the weights");
+        describe("should fail", async () => {
+            it("when not called by governor", async () => {
+                await expectRevert(
+                    mockBasketManager.setBasketWeights(
+                        integrationDetails.aTokens.map((a) => a.bAsset),
+                        [percentToWeight(60), percentToWeight(40)],
+                        { from: sa.other },
+                    ),
+                    "Only governor can execute",
+                );
+            });
+
+            it("should fail when empty array passed", async () => {
+                await expectRevert(
+                    mockBasketManager.setBasketWeights([], [], { from: sa.governor }),
+                    "Empty bAssets array passed",
+                );
+            });
+
+            it("when basket is not healthy", async () => {
+                await mockBasketManager.failBasket();
+
+                await expectRevert(
+                    mockBasketManager.setBasketWeights(
+                        integrationDetails.aTokens.map((a) => a.bAsset),
+                        [percentToWeight(60), percentToWeight(40)],
+                        { from: sa.governor },
+                    ),
+                    "Basket must be alive",
+                );
+            });
+
+            it("when array length not matched", async () => {
+                await expectRevert(
+                    mockBasketManager.setBasketWeights(
+                        integrationDetails.aTokens.map((a) => a.bAsset),
+                        [percentToWeight(100)],
+                        { from: sa.governor },
+                    ),
+                    "Must be matching bAsset arrays",
+                );
+            });
+
+            it("when bAsset not exist", async () => {
+                await expectRevert(
+                    mockBasketManager.setBasketWeights([sa.other], [percentToWeight(100)], {
+                        from: sa.governor,
+                    }),
+                    "bAsset must exist",
+                );
+            });
+
+            it("when bAssetWeight is greater than 1e18", async () => {
+                await expectRevert(
+                    mockBasketManager.setBasketWeights(
+                        integrationDetails.aTokens.map((a) => a.bAsset),
+                        [percentToWeight(101), percentToWeight(100)],
+                        { from: sa.governor },
+                    ),
+                    "Asset weight must be <= 1e18",
+                );
+            });
+
+            it("when bAsset is not active", async () => {
+                const bAssetBelowPeg = integrationDetails.aTokens[0].bAsset;
+                await mockBasketManager.setBassetStatus(
+                    bAssetBelowPeg,
+                    BassetStatus.BrokenBelowPeg,
+                );
+
+                await expectRevert(
+                    mockBasketManager.setBasketWeights(
+                        integrationDetails.aTokens.map((a) => a.bAsset),
+                        [percentToWeight(60), percentToWeight(40)],
+                        { from: sa.governor },
+                    ),
+                    "Affected bAssets must be static",
+                );
+            });
+
+            it("when total weight is not valid", async () => {
+                await expectRevert(
+                    mockBasketManager.setBasketWeights(
+                        integrationDetails.aTokens.map((a) => a.bAsset),
+                        [percentToWeight(60), percentToWeight(50)],
+                        { from: sa.governor },
+                    ),
+                    "Basket weight must be = 1e18",
+                );
+            });
+        });
+
+        it("should update the weights", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    const bAsset: Basset = await mockBasketManager.getBasset(a.bAsset);
+                    expect(percentToWeight(50)).to.bignumber.equal(bAsset.targetWeight);
+                }),
+            );
+
+            await mockBasketManager.setBasketWeights(
+                integrationDetails.aTokens.map((a) => a.bAsset),
+                [percentToWeight(60), percentToWeight(40)],
+                { from: sa.governor },
+            );
+
+            const expectedWeight: Array<BN> = [percentToWeight(60), percentToWeight(40)];
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a, index) => {
+                    const bAsset: Basset = await mockBasketManager.getBasset(a.bAsset);
+                    expect(expectedWeight[index]).to.bignumber.equal(bAsset.targetWeight);
+                }),
+            );
+        });
     });
 
     describe("setTransferFeesFlag()", async () => {

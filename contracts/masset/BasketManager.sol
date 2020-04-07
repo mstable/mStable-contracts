@@ -360,6 +360,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         internal
     {
         uint256 bAssetCount = _bAssets.length;
+        require(bAssetCount > 0, "Empty bAssets array passed");
         require(bAssetCount == _weights.length, "Must be matching bAsset arrays");
 
         for (uint256 i = 0; i < bAssetCount; i++) {
