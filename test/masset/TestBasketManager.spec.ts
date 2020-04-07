@@ -1028,11 +1028,11 @@ contract("BasketManager", async (accounts) => {
     });
 
     describe("removeBasset()", async () => {
-        describe("should fail", async () => {
-            beforeEach("", async () => {
-                await createNewBasketManager();
-            });
+        beforeEach("", async () => {
+            await createNewBasketManager();
+        });
 
+        describe("should fail", async () => {
             it("when basket is not healthy", async () => {
                 const mockBasketManager = await createMockBasketManger();
                 mockBasketManager.failBasket();
@@ -1092,14 +1092,164 @@ contract("BasketManager", async (accounts) => {
                 expect(lengthBefore).to.equal(lengthAfter);
             });
 
-            it("when bAsset targetWeight is non zero");
+            it("when bAsset targetWeight is non zero (by manager)", async () => {
+                await Promise.all(
+                    integrationDetails.aTokens.map(async (a) => {
+                        const lengthBefore = (await basketManager.getBassets()).length;
 
-            it("when bAsset vault balance is non zero");
+                        await expectRevert(
+                            basketManager.removeBasset(a.bAsset, { from: manager }),
+                            "bAsset must have a target weight of 0",
+                        );
 
-            it("when bAsset is not active");
+                        const lengthAfter = (await basketManager.getBassets()).length;
+                        expect(lengthBefore).to.equal(lengthAfter);
+                    }),
+                );
+            });
+
+            it("when bAsset targetWeight is non zero (by governor)", async () => {
+                await Promise.all(
+                    integrationDetails.aTokens.map(async (a) => {
+                        const lengthBefore = (await basketManager.getBassets()).length;
+
+                        await expectRevert(
+                            basketManager.removeBasset(a.bAsset, { from: sa.governor }),
+                            "bAsset must have a target weight of 0",
+                        );
+
+                        const lengthAfter = (await basketManager.getBassets()).length;
+                        expect(lengthBefore).to.equal(lengthAfter);
+                    }),
+                );
+            });
+
+            it("when bAsset vault balance is non zero (by manager)", async () => {
+                const bAssetToRemove = integrationDetails.aTokens[0].bAsset;
+
+                const lengthBefore = (await basketManager.getBassets()).length;
+
+                await basketManager.increaseVaultBalance(0, mockAaveIntegrationAddr, new BN(100), {
+                    from: masset,
+                });
+
+                const bAssets = integrationDetails.aTokens.map((a) => a.bAsset);
+                const newWeights = [percentToWeight(0), percentToWeight(100)];
+                await basketManager.setBasketWeights(bAssets, newWeights, { from: sa.governor });
+
+                await expectRevert(
+                    basketManager.removeBasset(bAssetToRemove, { from: manager }),
+                    "bAsset vault must be empty",
+                );
+
+                const lengthAfter = (await basketManager.getBassets()).length;
+                expect(lengthBefore).to.equal(lengthAfter);
+            });
+
+            it("when bAsset vault balance is non zero (by governor)", async () => {
+                const bAssetToRemove = integrationDetails.aTokens[0].bAsset;
+
+                const lengthBefore = (await basketManager.getBassets()).length;
+
+                await basketManager.increaseVaultBalance(0, mockAaveIntegrationAddr, new BN(100), {
+                    from: masset,
+                });
+
+                const bAssets = integrationDetails.aTokens.map((a) => a.bAsset);
+                const newWeights = [percentToWeight(0), percentToWeight(100)];
+                await basketManager.setBasketWeights(bAssets, newWeights, { from: sa.governor });
+
+                await expectRevert(
+                    basketManager.removeBasset(bAssetToRemove, { from: sa.governor }),
+                    "bAsset vault must be empty",
+                );
+
+                const lengthAfter = (await basketManager.getBassets()).length;
+                expect(lengthBefore).to.equal(lengthAfter);
+            });
+
+            it("when bAsset status is not active (by manager)", async () => {
+                const mockBasketManager = await createMockBasketManger();
+                const bAssetToRemove = integrationDetails.aTokens[0].bAsset;
+
+                const lengthBefore = (await mockBasketManager.getBassets()).length;
+
+                const bAssets = integrationDetails.aTokens.map((a) => a.bAsset);
+                const newWeights = [percentToWeight(0), percentToWeight(100)];
+                await mockBasketManager.setBasketWeights(bAssets, newWeights, {
+                    from: sa.governor,
+                });
+
+                await mockBasketManager.setBassetStatus(bAssetToRemove, BassetStatus.Liquidating);
+
+                await expectRevert(
+                    mockBasketManager.removeBasset(bAssetToRemove, { from: manager }),
+                    "bAsset must be active",
+                );
+
+                const lengthAfter = (await mockBasketManager.getBassets()).length;
+                expect(lengthBefore).to.equal(lengthAfter);
+            });
+
+            it("when bAsset status is not active (by governor)", async () => {
+                const mockBasketManager = await createMockBasketManger();
+                const bAssetToRemove = integrationDetails.aTokens[0].bAsset;
+
+                const lengthBefore = (await mockBasketManager.getBassets()).length;
+
+                const bAssets = integrationDetails.aTokens.map((a) => a.bAsset);
+                const newWeights = [percentToWeight(0), percentToWeight(100)];
+                await mockBasketManager.setBasketWeights(bAssets, newWeights, {
+                    from: sa.governor,
+                });
+
+                await mockBasketManager.setBassetStatus(bAssetToRemove, BassetStatus.Liquidating);
+
+                await expectRevert(
+                    mockBasketManager.removeBasset(bAssetToRemove, { from: sa.governor }),
+                    "bAsset must be active",
+                );
+
+                const lengthAfter = (await mockBasketManager.getBassets()).length;
+                expect(lengthBefore).to.equal(lengthAfter);
+            });
         });
 
-        it("should succeed when request is valid");
+        it("should succeed when request is valid (by manager)", async () => {
+            const mockBasketManager = await createMockBasketManger();
+            const bAssetToRemove = integrationDetails.aTokens[0].bAsset;
+
+            const lengthBefore = (await mockBasketManager.getBassets()).length;
+
+            const bAssets = integrationDetails.aTokens.map((a) => a.bAsset);
+            const newWeights = [percentToWeight(0), percentToWeight(100)];
+            await mockBasketManager.setBasketWeights(bAssets, newWeights, {
+                from: sa.governor,
+            });
+
+            await mockBasketManager.removeBasset(bAssetToRemove, { from: manager });
+
+            const lengthAfter = (await mockBasketManager.getBassets()).length;
+            expect(lengthBefore).to.equal(lengthAfter);
+        });
+
+        it("should succeed when request is valid (by governor)", async () => {
+            const mockBasketManager = await createMockBasketManger();
+            const bAssetToRemove = integrationDetails.aTokens[0].bAsset;
+
+            const lengthBefore = (await mockBasketManager.getBassets()).length;
+
+            const bAssets = integrationDetails.aTokens.map((a) => a.bAsset);
+            const newWeights = [percentToWeight(0), percentToWeight(100)];
+            await mockBasketManager.setBasketWeights(bAssets, newWeights, {
+                from: sa.governor,
+            });
+
+            await mockBasketManager.removeBasset(bAssetToRemove, { from: sa.governor });
+
+            const lengthAfter = (await mockBasketManager.getBassets()).length;
+            expect(lengthBefore).to.equal(lengthAfter);
+        });
     });
 
     describe("getBasket()", async () => {
