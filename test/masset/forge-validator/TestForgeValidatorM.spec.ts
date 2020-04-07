@@ -5,6 +5,7 @@ import { BN } from "@utils/tools";
 import { createBasset, BassetStatus } from "@utils/mstable-objects";
 
 import envSetup from "@utils/env_setup";
+
 const { expect } = envSetup.configure();
 
 const ForgeValidatorArtifact = artifacts.require("ForgeValidator");
@@ -26,10 +27,10 @@ contract("ForgeValidator", async (accounts) => {
             mintAmountUnits: number | string,
             bAssetStatus: BassetStatus = BassetStatus.Normal,
             expectedValidity: boolean,
-            expectedReason: string = "",
+            expectedReason = "",
             sender: string = accounts[0],
         ) => {
-            let [isValid, reason] = await forgeValidator.validateMint(
+            const [isValid, reason] = await forgeValidator.validateMint(
                 simpleToExactAmount(totalSupply, 18),
                 simpleToExactAmount(deviationAllowanceUnits, 18),
                 createBasset(bAssetTarget, bAssetVaultUnits, bAssetDecimals, bAssetStatus),
@@ -74,7 +75,7 @@ contract("ForgeValidator", async (accounts) => {
                     //    250,000 vaultBalance, 2.5% targetWeighting
                     // new weighting now 260k/1010k
                     // target weight = 250250, so 9750 grace is needed
-                    let graceUnits = 9750;
+                    const graceUnits = 9750;
                     await assertSingleMint(
                         10000000,
                         graceUnits,
@@ -91,7 +92,7 @@ contract("ForgeValidator", async (accounts) => {
                     //    250,000 vaultBalance, 2.5% targetWeighting
                     // new weighting now 260k/1010k (roughly 2.51%)
                     // target weight = 250250, so 9750 grace is needed
-                    let graceUnits = 9749;
+                    const graceUnits = 9749;
                     await assertSingleMint(
                         10000000,
                         graceUnits,
@@ -463,7 +464,7 @@ contract("ForgeValidator", async (accounts) => {
                     25,
                     18,
                     0,
-                    BassetStatus.BrokenAbovePeg,
+                    BassetStatus.BrokenBelowPeg,
                     false,
                     "bAsset not allowed in mint",
                 );
