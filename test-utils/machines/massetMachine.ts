@@ -310,7 +310,7 @@ export class MassetMachine {
         return {
             // DAI, USDC, TUSDT(aave), USDT(compound)
             bAssets: [mockBasset1, mockBasset2, mockBasset3, mockBasset4],
-            fees: [false, false, false, enableUSDTFee],
+            fees: [false, enableUSDTFee, false, enableUSDTFee],
             platforms: [Platform.compound, Platform.compound, Platform.aave, Platform.aave],
             aavePlatformAddress: d_MockAave.address,
             aTokens: [
