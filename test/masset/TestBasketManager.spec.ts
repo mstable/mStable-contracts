@@ -55,15 +55,7 @@ contract("BasketManager", async (accounts) => {
         expect(len).to.bignumber.equal(bAssets[2]);
     }
 
-    before("", async () => {
-        systemMachine = new SystemMachine(sa.all);
-        massetMachine = systemMachine.massetMachine;
-        const md: MassetDetails = await massetMachine.deployMasset();
-        integrationDetails = await massetMachine.loadBassets();
-        // await systemMachine.initialiseMocks(false, true);
-
-        nexus = await MockNexus.new(sa.governor, governance, manager);
-        // systemMachine.
+    async function createNewBasketManager(): Promise<t.BasketManagerInstance> {
         basketManager = await BasketManager.new();
         await basketManager.initialize(
             nexus.address,
@@ -74,6 +66,19 @@ contract("BasketManager", async (accounts) => {
             [percentToWeight(50), percentToWeight(50)],
             [false, false],
         );
+
+        return basketManager;
+    }
+
+    before("", async () => {
+        systemMachine = new SystemMachine(sa.all);
+        massetMachine = systemMachine.massetMachine;
+        integrationDetails = await massetMachine.loadBassets();
+        // await systemMachine.initialiseMocks(false, true);
+
+        nexus = await MockNexus.new(sa.governor, governance, manager);
+        // systemMachine.
+        await createNewBasketManager();
 
         ctx.module = basketManager;
     });
@@ -357,10 +362,10 @@ contract("BasketManager", async (accounts) => {
         });
 
         it("should fail when basket is failed", async () => {
+            const mockBasketManager: t.MockBasketManager3Instance = await createMockBasketManger();
+            await mockBasketManager.failBasket();
             await Promise.all(
                 integrationDetails.aTokens.map(async (a, index) => {
-                    const mockBasketManager: t.MockBasketManager3Instance = await createMockBasketManger();
-                    await mockBasketManager.failBasket();
                     const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
                     await expectRevert(
                         mockBasketManager.increaseVaultBalance(
@@ -425,9 +430,71 @@ contract("BasketManager", async (accounts) => {
     });
 
     describe("increaseVaultBalances()", () => {
-        it("should fail when called by other than masset contract");
+        it("should fail when called by other than masset contract", async () => {
+            const indexes: Array<number> = [0, 1];
+            const integrators: Array<string> = [mockAaveIntegrationAddr, mockAaveIntegrationAddr];
+            const increaseAmounts: Array<BN> = [new BN(100), new BN(100)];
 
-        it("should fail when basket is failed");
+            const bAssetBeforeArr: Array<Basset> = new Array(indexes.length);
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a, index) => {
+                    bAssetBeforeArr[index] = await basketManager.getBasset(a.bAsset);
+                }),
+            );
+
+            await expectRevert(
+                basketManager.increaseVaultBalances(indexes, integrators, increaseAmounts, {
+                    from: sa.other,
+                }),
+                "Must be called by mAsset",
+            );
+
+            const bAssetAfterArr: Array<Basset> = new Array(indexes.length);
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a, index) => {
+                    bAssetAfterArr[index] = await basketManager.getBasset(a.bAsset);
+
+                    expect(bAssetBeforeArr[index].vaultBalance).to.bignumber.equal(
+                        bAssetAfterArr[index].vaultBalance,
+                    );
+                }),
+            );
+        });
+
+        it("should fail when basket is failed", async () => {
+            const indexes: Array<number> = [0, 1];
+            const integrators: Array<string> = [mockAaveIntegrationAddr, mockAaveIntegrationAddr];
+            const increaseAmounts: Array<BN> = [new BN(100), new BN(100)];
+
+            const mockBasketManager = await createMockBasketManger();
+
+            const bAssetBeforeArr: Array<Basset> = new Array(indexes.length);
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a, index) => {
+                    bAssetBeforeArr[index] = await mockBasketManager.getBasset(a.bAsset);
+                }),
+            );
+
+            await mockBasketManager.failBasket();
+
+            await expectRevert(
+                mockBasketManager.increaseVaultBalances(indexes, integrators, increaseAmounts, {
+                    from: masset,
+                }),
+                "Basket must be alive",
+            );
+
+            const bAssetAfterArr: Array<Basset> = new Array(indexes.length);
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a, index) => {
+                    bAssetAfterArr[index] = await mockBasketManager.getBasset(a.bAsset);
+
+                    expect(bAssetBeforeArr[index].vaultBalance).to.bignumber.equal(
+                        bAssetAfterArr[index].vaultBalance,
+                    );
+                }),
+            );
+        });
 
         it("should fail when number of elements are more than number of bAssets");
 
@@ -437,11 +504,49 @@ contract("BasketManager", async (accounts) => {
     });
 
     describe("decreaseVaultBalance()", async () => {
-        it("should fail when called by other than masset contract");
+        it("should fail when called by other than masset contract", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a, index) => {
+                    const bAssetBefore = await basketManager.getBasset(a.bAsset);
+                    await expectRevert(
+                        basketManager.decreaseVaultBalance(
+                            index,
+                            mockAaveIntegrationAddr,
+                            new BN(100),
+                            {
+                                from: sa.other,
+                            },
+                        ),
+                        "Must be called by mAsset",
+                    );
+                    const bAssetAfter = await basketManager.getBasset(a.bAsset);
+                    expect(bAssetBefore.vaultBalance).to.bignumber.equal(bAssetAfter.vaultBalance);
+                    return null;
+                }),
+            );
+        });
 
-        it("should fail when basket is failed");
-
-        it("should fail when invalid basket index");
+        it("should fail when invalid basket index", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a, index) => {
+                    const invalidIndex = index + 5;
+                    const bAssetBefore = await basketManager.getBasset(a.bAsset);
+                    await expectRevert.assertion(
+                        basketManager.decreaseVaultBalance(
+                            invalidIndex,
+                            mockAaveIntegrationAddr,
+                            new BN(100),
+                            {
+                                from: masset,
+                            },
+                        ),
+                    );
+                    const bAssetAfter = await basketManager.getBasset(a.bAsset);
+                    expect(bAssetBefore.vaultBalance).to.bignumber.equal(bAssetAfter.vaultBalance);
+                    return null;
+                }),
+            );
+        });
 
         it("should succeed for a valid basket index", async () => {
             await Promise.all(
@@ -479,7 +584,44 @@ contract("BasketManager", async (accounts) => {
     });
 
     describe("decreaseVaultBalances()", async () => {
-        it("should fail when called by other than masset contract");
+        it("should fail when called by other than masset contract", async () => {
+            const indexes: Array<number> = [0, 1];
+            const integrators: Array<string> = [mockAaveIntegrationAddr, mockAaveIntegrationAddr];
+            const increaseAmounts: Array<BN> = [new BN(100), new BN(100)];
+
+            await basketManager.increaseVaultBalances(indexes, integrators, increaseAmounts, {
+                from: masset,
+            });
+
+            const bAssetBeforeArr: Array<Basset> = new Array(indexes.length);
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a, index) => {
+                    bAssetBeforeArr[index] = await basketManager.getBasset(a.bAsset);
+                }),
+            );
+
+            await expectRevert(
+                basketManager.decreaseVaultBalances(
+                    indexes,
+                    integrators,
+                    increaseAmounts,
+                    indexes.length,
+                    { from: sa.other },
+                ),
+                "Must be called by mAsset",
+            );
+
+            const bAssetAfterArr: Array<Basset> = new Array(indexes.length);
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a, index) => {
+                    bAssetAfterArr[index] = await basketManager.getBasset(a.bAsset);
+
+                    expect(bAssetBeforeArr[index].vaultBalance).to.bignumber.equal(
+                        bAssetAfterArr[index].vaultBalance,
+                    );
+                }),
+            );
+        });
 
         it("should fail when basket is failed");
 
@@ -524,15 +666,135 @@ contract("BasketManager", async (accounts) => {
     });
 
     describe("setTransferFeesFlag()", async () => {
-        it("should fail when not called by manager or governor");
+        beforeEach("", async () => {
+            await createNewBasketManager();
+        });
+        it("should fail when not called by manager or governor", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    let bAsset: Basset = await basketManager.getBasset(a.bAsset);
+                    expect(false).to.equal(bAsset.isTransferFeeCharged);
 
-        it("should fail when bAsset address is zero");
+                    await expectRevert(
+                        basketManager.setTransferFeesFlag(a.bAsset, true, { from: sa.other }),
+                        "Must be manager or governor",
+                    );
 
-        it("should fail when bAsset not exist");
+                    bAsset = await basketManager.getBasset(a.bAsset);
+                    expect(false).to.equal(bAsset.isTransferFeeCharged);
+                }),
+            );
+        });
 
-        it("should succeed for valid bAsset");
+        it("should fail when bAsset address is zero", async () => {
+            await expectRevert(
+                basketManager.setTransferFeesFlag(ZERO_ADDRESS, true, { from: sa.governor }),
+                "bAsset does not exist",
+            );
+        });
 
-        it("should emit event on fee enabled / disabled");
+        it("should fail when bAsset not exist", async () => {
+            await expectRevert(
+                basketManager.setTransferFeesFlag(sa.other, true, { from: manager }),
+                "bAsset does not exist",
+            );
+
+            await expectRevert(
+                basketManager.setTransferFeesFlag(sa.other, true, { from: sa.governor }),
+                "bAsset does not exist",
+            );
+        });
+
+        it("should succeed when called by manager for a valid bAsset", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    let bAsset: Basset = await basketManager.getBasset(a.bAsset);
+                    expect(false).to.equal(bAsset.isTransferFeeCharged);
+
+                    const tx = await basketManager.setTransferFeesFlag(a.bAsset, true, {
+                        from: manager,
+                    });
+                    expectEvent.inLogs(tx.logs, "TransferFeeEnabled", {
+                        bAsset: a.bAsset,
+                        enabled: true,
+                    });
+
+                    bAsset = await basketManager.getBasset(a.bAsset);
+                    expect(true).to.equal(bAsset.isTransferFeeCharged);
+                }),
+            );
+        });
+
+        it("should succeed when called by governor for a valid bAsset", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    let bAsset: Basset = await basketManager.getBasset(a.bAsset);
+                    expect(false).to.equal(bAsset.isTransferFeeCharged);
+
+                    const tx = await basketManager.setTransferFeesFlag(a.bAsset, true, {
+                        from: sa.governor,
+                    });
+                    expectEvent.inLogs(tx.logs, "TransferFeeEnabled", {
+                        bAsset: a.bAsset,
+                        enabled: true,
+                    });
+
+                    bAsset = await basketManager.getBasset(a.bAsset);
+                    expect(true).to.equal(bAsset.isTransferFeeCharged);
+                }),
+            );
+        });
+
+        it("should allow enable fee for bAsset", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    let bAsset: Basset = await basketManager.getBasset(a.bAsset);
+                    expect(false).to.equal(bAsset.isTransferFeeCharged);
+
+                    const tx = await basketManager.setTransferFeesFlag(a.bAsset, true, {
+                        from: manager,
+                    });
+                    expectEvent.inLogs(tx.logs, "TransferFeeEnabled", {
+                        bAsset: a.bAsset,
+                        enabled: true,
+                    });
+
+                    bAsset = await basketManager.getBasset(a.bAsset);
+                    expect(true).to.equal(bAsset.isTransferFeeCharged);
+                }),
+            );
+        });
+
+        it("should allow disable fee for bAsset", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    let bAsset: Basset = await basketManager.getBasset(a.bAsset);
+                    expect(false).to.equal(bAsset.isTransferFeeCharged);
+
+                    let tx = await basketManager.setTransferFeesFlag(a.bAsset, true, {
+                        from: manager,
+                    });
+                    expectEvent.inLogs(tx.logs, "TransferFeeEnabled", {
+                        bAsset: a.bAsset,
+                        enabled: true,
+                    });
+
+                    bAsset = await basketManager.getBasset(a.bAsset);
+                    expect(true).to.equal(bAsset.isTransferFeeCharged);
+
+                    tx = await basketManager.setTransferFeesFlag(a.bAsset, false, {
+                        from: manager,
+                    });
+                    expectEvent.inLogs(tx.logs, "TransferFeeEnabled", {
+                        bAsset: a.bAsset,
+                        enabled: false,
+                    });
+
+                    bAsset = await basketManager.getBasset(a.bAsset);
+                    expect(false).to.equal(bAsset.isTransferFeeCharged);
+                }),
+            );
+        });
     });
 
     describe("setGrace()", async () => {

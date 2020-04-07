@@ -38,6 +38,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     event BasketWeightsUpdated(address[] bAssets, uint256[] targetWeights);
     event GraceUpdated(uint256 newGrace);
     event BassetStatusChanged(address indexed bAsset, BassetStatus status);
+    event TransferFeeEnabled(address indexed bAsset, bool enabled);
 
     // mAsset linked to the manager (const)
     address public mAsset;
@@ -148,19 +149,18 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
      *      storage after they have been deposited into the vault
      * @param _bAssetIndices    Array of bAsset indexes
      * @param _increaseAmount   Units deposited
-     * @param _len              Length of the array
      */
     function increaseVaultBalances(
         uint8[] calldata _bAssetIndices,
         address[] calldata /* _integrator */,
-        uint256[] calldata _increaseAmount,
-        uint256 _len
+        uint256[] calldata _increaseAmount
     )
         external
         onlyMasset
         basketIsHealthy
     {
-        for(uint i = 0; i < _len; i++) {
+        uint256 len = _bAssetIndices.length;
+        for(uint i = 0; i < len; i++) {
             basket.bassets[_bAssetIndices[i]].vaultBalance =
                 basket.bassets[_bAssetIndices[i]].vaultBalance.add(_increaseAmount[i]);
         }
@@ -414,6 +414,8 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         (bool exist, uint8 index) = _isAssetInBasket(_bAsset);
         require(exist, "bAsset does not exist");
         basket.bassets[index].isTransferFeeCharged = _flag;
+
+        emit TransferFeeEnabled(_bAsset, _flag);
     }
 
     /**

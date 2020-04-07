@@ -18,8 +18,7 @@ contract IBasketManager is MassetStructs {
     function increaseVaultBalances(
         uint8[] calldata _bAsset,
         address[] calldata _integrator,
-        uint256[] calldata _increaseAmount,
-        uint256 _len) external;
+        uint256[] calldata _increaseAmount) external;
 
     function decreaseVaultBalance(
         uint8 _bAsset,
