@@ -49,9 +49,9 @@ export const createBasket = (bassets: Basset[], failed = false): Basket => {
 };
 
 export const createBasset = (
-    targetWeight: BN,
-    vaultBalance: BN,
-    decimals = 18,
+    targetWeight: BN | number | string,
+    vaultBalance: BN | number | string,
+    decimals: number = 18,
     status = BassetStatus.Normal,
     isTransferFeeCharged = false,
 ): Basset => {

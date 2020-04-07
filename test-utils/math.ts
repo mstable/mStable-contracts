@@ -1,8 +1,8 @@
 import { BN } from "./tools";
-import { percentScale, ratioScale } from "./constants";
+import { ratioScale } from "./constants";
 
-export const percentToWeight = (percent: BN | number): BN => {
-    return new BN(percent).mul(percentScale);
+export const percentToWeight = (percent: number | string | BN): BN => {
+    return simpleToExactAmount(percent, 16);
 };
 
 export const simpleToExactAmount = (amount: number | string | BN, decimals: number | BN): BN => {
