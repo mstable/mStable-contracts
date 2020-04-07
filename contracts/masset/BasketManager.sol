@@ -371,8 +371,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
             uint256 bAssetWeight = _weights[i];
 
             if(bAsset.status == BassetStatus.Normal) {
-                require(
-                    bAssetWeight >= 0 && bAssetWeight <= StableMath.getFullScale(),
+                require(bAssetWeight <= StableMath.getFullScale(),
                     "Asset weight must be <= 1e18"
                 );
                 basket.bassets[index].targetWeight = bAssetWeight;
@@ -390,15 +389,15 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     }
 
     /**
-      * @dev Throws if the total Basket weight does not sum to 100
-      */
+     * @dev Throws if the total Basket weight does not sum to 100
+     */
     function _validateBasketWeight() internal view {
         uint256 len = basket.bassets.length;
         uint256 weightSum = 0;
         for(uint256 i = 0; i < len; i++) {
             weightSum = weightSum.add(basket.bassets[i].targetWeight);
         }
-        require(weightSum == StableMath.getFullScale(), "Basket weight must be >= 1e18");
+        require(weightSum == StableMath.getFullScale(), "Basket weight must be = 1e18");
     }
 
     /**
@@ -752,7 +751,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         managerOrGovernor
     {
         (bool exists, uint256 i) = _isAssetInBasket(_bAsset);
-        require(exists, "bAsset must exist in Basket");
+        require(exists, "bAsset must exist");
 
         BassetStatus currentStatus = basket.bassets[i].status;
         if(currentStatus == BassetStatus.BrokenBelowPeg ||

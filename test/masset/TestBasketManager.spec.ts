@@ -3,7 +3,13 @@ import * as chai from "chai";
 import envSetup from "@utils/env_setup";
 
 import { BN } from "@utils/tools";
-import { Basset, BassetStatus, equalBassets, buildBasset } from "@utils/mstable-objects.ts";
+import {
+    Basset,
+    BassetStatus,
+    equalBassets,
+    buildBasset,
+    equalBasset,
+} from "@utils/mstable-objects.ts";
 import { createMultiple, simpleToExactAmount, percentToWeight } from "@utils/math";
 import { constants, expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
 import { MassetMachine, StandardAccounts, SystemMachine, MassetDetails } from "@utils/machines";
@@ -739,11 +745,25 @@ contract("BasketManager", async (accounts) => {
     });
 
     describe("setBasketWeights()", async () => {
-        it("should fail when empty array passed");
+        describe("should fail", async () => {
+            it("when not called by governor");
+
+            it("should fail when empty array passed");
+
+            it("when basket is not healthy");
+
+            it("when array length not matched");
+
+            it("when bAsset not exist");
+
+            it("when bAssetWeight is greater than 1e18");
+
+            it("when bAsset is not active");
+
+            it("when total weight is not valid");
+        });
 
         it("should update the weights");
-
-        it("should throw if some bassets are in an recollateralising state");
     });
 
     describe("setTransferFeesFlag()", async () => {
@@ -1227,7 +1247,8 @@ contract("BasketManager", async (accounts) => {
                 from: sa.governor,
             });
 
-            await mockBasketManager.removeBasset(bAssetToRemove, { from: manager });
+            const tx = await mockBasketManager.removeBasset(bAssetToRemove, { from: manager });
+            expectEvent.inLogs(tx.logs, "BassetRemoved", { bAsset: bAssetToRemove });
 
             const lengthAfter = (await mockBasketManager.getBassets()).length;
             expect(lengthBefore).to.equal(lengthAfter);
@@ -1245,7 +1266,8 @@ contract("BasketManager", async (accounts) => {
                 from: sa.governor,
             });
 
-            await mockBasketManager.removeBasset(bAssetToRemove, { from: sa.governor });
+            const tx = await mockBasketManager.removeBasset(bAssetToRemove, { from: sa.governor });
+            expectEvent.inLogs(tx.logs, "BassetRemoved", { bAsset: bAssetToRemove });
 
             const lengthAfter = (await mockBasketManager.getBassets()).length;
             expect(lengthBefore).to.equal(lengthAfter);
@@ -1273,15 +1295,41 @@ contract("BasketManager", async (accounts) => {
     });
 
     describe("getBasset()", async () => {
-        it("should failed when token address is passed");
+        it("should failed when wrong bAsset address is passed", async () => {
+            await expectRevert(basketManager.getBasset(sa.other), "bAsset must exist");
+        });
 
-        it("should return bAsset");
+        it("should return bAsset", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    const bAsset: Basset = await basketManager.getBasset(a.bAsset);
+                    const expectedBasset = buildBasset(
+                        a.bAsset,
+                        BassetStatus.Normal,
+                        false,
+                        ratioScale,
+                        percentToWeight(50),
+                        new BN(0),
+                    );
+                    equalBasset(expectedBasset, bAsset);
+                }),
+            );
+        });
     });
 
     describe("getBassetIntegrator()", async () => {
-        it("should failed when token address is passed");
+        it("should failed when wrong bAsset address is passed", async () => {
+            await expectRevert(basketManager.getBassetIntegrator(sa.other), "bAsset must exist");
+        });
 
-        it("should return integrator");
+        it("should return integrator address", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    const integrator = await basketManager.getBassetIntegrator(a.bAsset);
+                    expect(mockAaveIntegrationAddr).to.equal(integrator);
+                }),
+            );
+        });
     });
 
     describe("getBitmapFor()", async () => {
@@ -1308,7 +1356,186 @@ contract("BasketManager", async (accounts) => {
     });
 
     describe("negateIsolation()", async () => {
-        it("should fail when not called by manager or governor");
+        let mockBasketManager: t.MockBasketManager3Instance;
+
+        beforeEach("", async () => {
+            mockBasketManager = await createMockBasketManger();
+        });
+
+        it("should fail when not called by manager or governor", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    await expectRevert(
+                        mockBasketManager.negateIsolation(a.bAsset, { from: sa.other }),
+                        "Must be manager or governor",
+                    );
+                }),
+            );
+        });
+
+        it("should fail when wrong bAsset address passed", async () => {
+            await expectRevert(
+                mockBasketManager.negateIsolation(sa.other, { from: manager }),
+                "bAsset must exist",
+            );
+
+            await expectRevert(
+                mockBasketManager.negateIsolation(sa.other, { from: sa.governor }),
+                "bAsset must exist",
+            );
+        });
+
+        it("should succeed when status is 'BrokenBelowPeg' (by manager)", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
+                    expect(new BN(BassetStatus.Normal)).to.bignumber.equal(bAssetBefore.status);
+
+                    await mockBasketManager.setBassetStatus(a.bAsset, BassetStatus.BrokenBelowPeg);
+                    const bAssetAfter = await mockBasketManager.getBasset(a.bAsset);
+                    expect(new BN(BassetStatus.BrokenBelowPeg)).to.bignumber.equal(
+                        bAssetAfter.status,
+                    );
+
+                    const tx = await mockBasketManager.negateIsolation(a.bAsset, { from: manager });
+                    expectEvent.inLogs(tx.logs, "BassetStatusChanged", {
+                        bAsset: a.bAsset,
+                        status: new BN(BassetStatus.Normal),
+                    });
+                    const bAssetAfterNegate = await mockBasketManager.getBasset(a.bAsset);
+                    expect(new BN(BassetStatus.Normal)).to.bignumber.equal(
+                        bAssetAfterNegate.status,
+                    );
+                }),
+            );
+        });
+
+        it("should succeed when status is 'BrokenAbovePeg' (by manager)", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
+                    expect(new BN(BassetStatus.Normal)).to.bignumber.equal(bAssetBefore.status);
+
+                    await mockBasketManager.setBassetStatus(a.bAsset, BassetStatus.BrokenAbovePeg);
+                    const bAssetAfter = await mockBasketManager.getBasset(a.bAsset);
+                    expect(new BN(BassetStatus.BrokenAbovePeg)).to.bignumber.equal(
+                        bAssetAfter.status,
+                    );
+
+                    const tx = await mockBasketManager.negateIsolation(a.bAsset, { from: manager });
+                    expectEvent.inLogs(tx.logs, "BassetStatusChanged", {
+                        bAsset: a.bAsset,
+                        status: new BN(BassetStatus.Normal),
+                    });
+                    const bAssetAfterNegate = await mockBasketManager.getBasset(a.bAsset);
+                    expect(new BN(BassetStatus.Normal)).to.bignumber.equal(
+                        bAssetAfterNegate.status,
+                    );
+                }),
+            );
+        });
+
+        it("should succeed when status is 'Blacklisted' (by manager)", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
+                    expect(new BN(BassetStatus.Normal)).to.bignumber.equal(bAssetBefore.status);
+
+                    await mockBasketManager.setBassetStatus(a.bAsset, BassetStatus.Blacklisted);
+                    const bAssetAfter = await mockBasketManager.getBasset(a.bAsset);
+                    expect(new BN(BassetStatus.Blacklisted)).to.bignumber.equal(bAssetAfter.status);
+
+                    const tx = await mockBasketManager.negateIsolation(a.bAsset, { from: manager });
+                    expectEvent.inLogs(tx.logs, "BassetStatusChanged", {
+                        bAsset: a.bAsset,
+                        status: new BN(BassetStatus.Normal),
+                    });
+                    const bAssetAfterNegate = await mockBasketManager.getBasset(a.bAsset);
+                    expect(new BN(BassetStatus.Normal)).to.bignumber.equal(
+                        bAssetAfterNegate.status,
+                    );
+                }),
+            );
+        });
+
+        it("should succeed when status is 'BrokenBelowPeg' (by governor)", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
+                    expect(new BN(BassetStatus.Normal)).to.bignumber.equal(bAssetBefore.status);
+
+                    await mockBasketManager.setBassetStatus(a.bAsset, BassetStatus.BrokenBelowPeg);
+                    const bAssetAfter = await mockBasketManager.getBasset(a.bAsset);
+                    expect(new BN(BassetStatus.BrokenBelowPeg)).to.bignumber.equal(
+                        bAssetAfter.status,
+                    );
+
+                    const tx = await mockBasketManager.negateIsolation(a.bAsset, {
+                        from: sa.governor,
+                    });
+                    expectEvent.inLogs(tx.logs, "BassetStatusChanged", {
+                        bAsset: a.bAsset,
+                        status: new BN(BassetStatus.Normal),
+                    });
+                    const bAssetAfterNegate = await mockBasketManager.getBasset(a.bAsset);
+                    expect(new BN(BassetStatus.Normal)).to.bignumber.equal(
+                        bAssetAfterNegate.status,
+                    );
+                }),
+            );
+        });
+
+        it("should succeed when status is 'BrokenAbovePeg' (by governor)", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
+                    expect(new BN(BassetStatus.Normal)).to.bignumber.equal(bAssetBefore.status);
+
+                    await mockBasketManager.setBassetStatus(a.bAsset, BassetStatus.BrokenAbovePeg);
+                    const bAssetAfter = await mockBasketManager.getBasset(a.bAsset);
+                    expect(new BN(BassetStatus.BrokenAbovePeg)).to.bignumber.equal(
+                        bAssetAfter.status,
+                    );
+
+                    const tx = await mockBasketManager.negateIsolation(a.bAsset, {
+                        from: sa.governor,
+                    });
+                    expectEvent.inLogs(tx.logs, "BassetStatusChanged", {
+                        bAsset: a.bAsset,
+                        status: new BN(BassetStatus.Normal),
+                    });
+                    const bAssetAfterNegate = await mockBasketManager.getBasset(a.bAsset);
+                    expect(new BN(BassetStatus.Normal)).to.bignumber.equal(
+                        bAssetAfterNegate.status,
+                    );
+                }),
+            );
+        });
+
+        it("should succeed when status is 'Blacklisted' (by governor)", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
+                    expect(new BN(BassetStatus.Normal)).to.bignumber.equal(bAssetBefore.status);
+
+                    await mockBasketManager.setBassetStatus(a.bAsset, BassetStatus.Blacklisted);
+                    const bAssetAfter = await mockBasketManager.getBasset(a.bAsset);
+                    expect(new BN(BassetStatus.Blacklisted)).to.bignumber.equal(bAssetAfter.status);
+
+                    const tx = await mockBasketManager.negateIsolation(a.bAsset, {
+                        from: sa.governor,
+                    });
+                    expectEvent.inLogs(tx.logs, "BassetStatusChanged", {
+                        bAsset: a.bAsset,
+                        status: new BN(BassetStatus.Normal),
+                    });
+                    const bAssetAfterNegate = await mockBasketManager.getBasset(a.bAsset);
+                    expect(new BN(BassetStatus.Normal)).to.bignumber.equal(
+                        bAssetAfterNegate.status,
+                    );
+                }),
+            );
+        });
     });
 
     // =====
