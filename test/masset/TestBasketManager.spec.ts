@@ -54,6 +54,28 @@ contract("BasketManager", async (accounts) => {
         return mockBasketManager;
     }
 
+    function createDefaultBassets(): Array<Basset> {
+        const weight = new BN(10).pow(new BN(18)).div(new BN(2));
+        const b1: Basset = buildBasset(
+            integrationDetails.aTokens[0].bAsset,
+            BassetStatus.Normal,
+            false,
+            ratioScale,
+            weight,
+            ZERO,
+        );
+
+        const b2: Basset = buildBasset(
+            integrationDetails.aTokens[1].bAsset,
+            BassetStatus.Normal,
+            false,
+            ratioScale,
+            weight,
+            ZERO,
+        );
+        return [b1, b2];
+    }
+
     async function expectBassets(bAssetsArr: Array<Basset>, bitmap: BN, len: BN): Promise<void> {
         const bAssets = await basketManager.getBassets();
         equalBassets(bAssetsArr, bAssets[0]);
@@ -312,25 +334,7 @@ contract("BasketManager", async (accounts) => {
                 expect(masset).to.equal(await basketManager.mAsset());
 
                 // should have default basket configurations
-                const weight = new BN(10).pow(new BN(18)).div(new BN(2));
-                const b1: Basset = await buildBasset(
-                    integrationDetails.aTokens[0].bAsset,
-                    BassetStatus.Normal,
-                    false,
-                    ratioScale,
-                    weight,
-                    ZERO,
-                );
-
-                const b2: Basset = await buildBasset(
-                    integrationDetails.aTokens[1].bAsset,
-                    BassetStatus.Normal,
-                    false,
-                    ratioScale,
-                    weight,
-                    ZERO,
-                );
-                await expectBassets([b1, b2], new BN(3), new BN(2));
+                await expectBassets(createDefaultBassets(), new BN(3), new BN(2));
 
                 // should have all bAsset's integrations addresses
                 await Promise.all(
@@ -1375,7 +1379,14 @@ contract("BasketManager", async (accounts) => {
     });
 
     describe("getBasket()", async () => {
-        it("get full basket with all parameters");
+        it("get full basket with all parameters", async () => {
+            const basket = await basketManager.getBasket();
+            const bAssets = basket.bassets;
+            equalBassets(bAssets, createDefaultBassets());
+            expect(false).to.equal(basket.failed);
+            expect(new BN(16)).to.bignumber.equal(basket.maxBassets);
+            expect(fullScale).to.bignumber.equal(basket.collateralisationRatio);
+        });
     });
 
     describe("prepareForgeBasset()", async () => {
@@ -1391,7 +1402,9 @@ contract("BasketManager", async (accounts) => {
     });
 
     describe("getBassets()", async () => {
-        it("should get all bAssets");
+        it("should get all bAssets", async () => {
+            await expectBassets(createDefaultBassets(), new BN(3), new BN(2));
+        });
     });
 
     describe("getBasset()", async () => {
@@ -1448,11 +1461,564 @@ contract("BasketManager", async (accounts) => {
     });
 
     describe("handlePegLoss()", async () => {
-        it("should fail when not called by manager or governor");
+        let mockBasketManager: t.MockBasketManager3Instance;
 
-        it("should fail when basket is not healthy");
+        beforeEach("", async () => {
+            mockBasketManager = await createMockBasketManger();
+        });
 
-        it("should fail when bAsset not exist");
+        describe("should fail", async () => {
+            it("when not called by manager or governor", async () => {
+                await Promise.all(
+                    integrationDetails.aTokens.map(async (a) => {
+                        await expectRevert(
+                            mockBasketManager.handlePegLoss(a.bAsset, true, { from: sa.other }),
+                            "Must be manager or governor",
+                        );
+                    }),
+                );
+            });
+
+            it("when basket is not healthy (by manager)", async () => {
+                await mockBasketManager.failBasket();
+
+                await Promise.all(
+                    integrationDetails.aTokens.map(async (a) => {
+                        await expectRevert(
+                            mockBasketManager.handlePegLoss(a.bAsset, true, { from: manager }),
+                            "Basket must be alive",
+                        );
+                    }),
+                );
+            });
+
+            it("when basket is not healthy (by governor)", async () => {
+                await mockBasketManager.failBasket();
+
+                await Promise.all(
+                    integrationDetails.aTokens.map(async (a) => {
+                        await expectRevert(
+                            mockBasketManager.handlePegLoss(a.bAsset, true, { from: sa.governor }),
+                            "Basket must be alive",
+                        );
+                    }),
+                );
+            });
+
+            it("when bAsset not exist", async () => {
+                await expectRevert(
+                    mockBasketManager.handlePegLoss(sa.other, true, { from: sa.governor }),
+                    "bAsset must exist in Basket",
+                );
+            });
+        });
+
+        it("should not change status when already BrokenBelowPeg (by manager)", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetBefore.status).to.bignumber.equal(new BN(BassetStatus.Normal));
+
+                    await mockBasketManager.setBassetStatus(a.bAsset, BassetStatus.BrokenBelowPeg);
+                    const bAssetAfterStatusChange = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetAfterStatusChange.status).to.bignumber.equal(
+                        new BN(BassetStatus.BrokenBelowPeg),
+                    );
+
+                    await mockBasketManager.handlePegLoss(a.bAsset, true, { from: manager });
+                    const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
+                        new BN(BassetStatus.BrokenBelowPeg),
+                    );
+                }),
+            );
+        });
+
+        it("should not change status when already BrokenBelowPeg (by governor)", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetBefore.status).to.bignumber.equal(new BN(BassetStatus.Normal));
+
+                    await mockBasketManager.setBassetStatus(a.bAsset, BassetStatus.BrokenBelowPeg);
+                    const bAssetAfterStatusChange = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetAfterStatusChange.status).to.bignumber.equal(
+                        new BN(BassetStatus.BrokenBelowPeg),
+                    );
+
+                    await mockBasketManager.handlePegLoss(a.bAsset, true, { from: sa.governor });
+                    const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
+                        new BN(BassetStatus.BrokenBelowPeg),
+                    );
+                }),
+            );
+        });
+
+        it("should not change status when already BrokenAbovePeg (by manager)", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetBefore.status).to.bignumber.equal(new BN(BassetStatus.Normal));
+
+                    await mockBasketManager.setBassetStatus(a.bAsset, BassetStatus.BrokenAbovePeg);
+                    const bAssetAfterStatusChange = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetAfterStatusChange.status).to.bignumber.equal(
+                        new BN(BassetStatus.BrokenAbovePeg),
+                    );
+
+                    await mockBasketManager.handlePegLoss(a.bAsset, false, { from: manager });
+                    const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
+                        new BN(BassetStatus.BrokenAbovePeg),
+                    );
+                }),
+            );
+        });
+
+        it("should not change status when already BrokenAbovePeg (by governor)", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetBefore.status).to.bignumber.equal(new BN(BassetStatus.Normal));
+
+                    await mockBasketManager.setBassetStatus(a.bAsset, BassetStatus.BrokenAbovePeg);
+                    const bAssetAfterStatusChange = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetAfterStatusChange.status).to.bignumber.equal(
+                        new BN(BassetStatus.BrokenAbovePeg),
+                    );
+
+                    await mockBasketManager.handlePegLoss(a.bAsset, false, { from: sa.governor });
+                    const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
+                        new BN(BassetStatus.BrokenAbovePeg),
+                    );
+                }),
+            );
+        });
+
+        it("should not change status when bAsset has recolled - Liquidating (by manager)", async () => {
+            const belowPegBools: Array<boolean> = [true, false];
+            await Promise.all(
+                belowPegBools.map(async (flag) => {
+                    await Promise.all(
+                        integrationDetails.aTokens.map(async (a) => {
+                            const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
+                            expect(bAssetBefore.status).to.bignumber.equal(
+                                new BN(BassetStatus.Normal),
+                            );
+
+                            await mockBasketManager.setBassetStatus(
+                                a.bAsset,
+                                BassetStatus.Liquidating,
+                            );
+                            const bAssetAfterStatusChange = await mockBasketManager.getBasset(
+                                a.bAsset,
+                            );
+                            expect(bAssetAfterStatusChange.status).to.bignumber.equal(
+                                new BN(BassetStatus.Liquidating),
+                            );
+
+                            await mockBasketManager.handlePegLoss(a.bAsset, flag, {
+                                from: manager,
+                            });
+                            const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(
+                                a.bAsset,
+                            );
+                            expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
+                                new BN(BassetStatus.Liquidating),
+                            );
+                        }),
+                    );
+                    return null;
+                }),
+            );
+        });
+
+        it("should not change status when bAsset has recolled - Liquidating (by governor)", async () => {
+            const belowPegBools: Array<boolean> = [true, false];
+            await Promise.all(
+                belowPegBools.map(async (flag) => {
+                    await Promise.all(
+                        integrationDetails.aTokens.map(async (a) => {
+                            const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
+                            expect(bAssetBefore.status).to.bignumber.equal(
+                                new BN(BassetStatus.Normal),
+                            );
+
+                            await mockBasketManager.setBassetStatus(
+                                a.bAsset,
+                                BassetStatus.Liquidating,
+                            );
+                            const bAssetAfterStatusChange = await mockBasketManager.getBasset(
+                                a.bAsset,
+                            );
+                            expect(bAssetAfterStatusChange.status).to.bignumber.equal(
+                                new BN(BassetStatus.Liquidating),
+                            );
+
+                            await mockBasketManager.handlePegLoss(a.bAsset, flag, {
+                                from: sa.governor,
+                            });
+                            const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(
+                                a.bAsset,
+                            );
+                            expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
+                                new BN(BassetStatus.Liquidating),
+                            );
+                        }),
+                    );
+                    return null;
+                }),
+            );
+        });
+
+        it("should not change status when bAsset has recolled - Liquidated (by manager)", async () => {
+            const belowPegBools: Array<boolean> = [true, false];
+            await Promise.all(
+                belowPegBools.map(async (flag) => {
+                    await Promise.all(
+                        integrationDetails.aTokens.map(async (a) => {
+                            const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
+                            expect(bAssetBefore.status).to.bignumber.equal(
+                                new BN(BassetStatus.Normal),
+                            );
+
+                            await mockBasketManager.setBassetStatus(
+                                a.bAsset,
+                                BassetStatus.Liquidated,
+                            );
+                            const bAssetAfterStatusChange = await mockBasketManager.getBasset(
+                                a.bAsset,
+                            );
+                            expect(bAssetAfterStatusChange.status).to.bignumber.equal(
+                                new BN(BassetStatus.Liquidated),
+                            );
+
+                            await mockBasketManager.handlePegLoss(a.bAsset, flag, {
+                                from: manager,
+                            });
+                            const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(
+                                a.bAsset,
+                            );
+                            expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
+                                new BN(BassetStatus.Liquidated),
+                            );
+                        }),
+                    );
+                    return null;
+                }),
+            );
+        });
+
+        it("should not change status when bAsset has recolled - Liquidated (by governor)", async () => {
+            const belowPegBools: Array<boolean> = [true, false];
+            await Promise.all(
+                belowPegBools.map(async (flag) => {
+                    await Promise.all(
+                        integrationDetails.aTokens.map(async (a) => {
+                            const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
+                            expect(bAssetBefore.status).to.bignumber.equal(
+                                new BN(BassetStatus.Normal),
+                            );
+
+                            await mockBasketManager.setBassetStatus(
+                                a.bAsset,
+                                BassetStatus.Liquidated,
+                            );
+                            const bAssetAfterStatusChange = await mockBasketManager.getBasset(
+                                a.bAsset,
+                            );
+                            expect(bAssetAfterStatusChange.status).to.bignumber.equal(
+                                new BN(BassetStatus.Liquidated),
+                            );
+
+                            await mockBasketManager.handlePegLoss(a.bAsset, flag, {
+                                from: sa.governor,
+                            });
+                            const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(
+                                a.bAsset,
+                            );
+                            expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
+                                new BN(BassetStatus.Liquidated),
+                            );
+                        }),
+                    );
+                    return null;
+                }),
+            );
+        });
+
+        it("should not change status when bAsset has recolled - Failed (by manager)", async () => {
+            const belowPegBools: Array<boolean> = [true, false];
+            await Promise.all(
+                belowPegBools.map(async (flag) => {
+                    await Promise.all(
+                        integrationDetails.aTokens.map(async (a) => {
+                            const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
+                            expect(bAssetBefore.status).to.bignumber.equal(
+                                new BN(BassetStatus.Normal),
+                            );
+
+                            await mockBasketManager.setBassetStatus(a.bAsset, BassetStatus.Failed);
+                            const bAssetAfterStatusChange = await mockBasketManager.getBasset(
+                                a.bAsset,
+                            );
+                            expect(bAssetAfterStatusChange.status).to.bignumber.equal(
+                                new BN(BassetStatus.Failed),
+                            );
+
+                            await mockBasketManager.handlePegLoss(a.bAsset, flag, {
+                                from: manager,
+                            });
+                            const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(
+                                a.bAsset,
+                            );
+                            expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
+                                new BN(BassetStatus.Failed),
+                            );
+                        }),
+                    );
+                    return null;
+                }),
+            );
+        });
+
+        it("should not change status when bAsset has recolled - Failed (by governor)", async () => {
+            const belowPegBools: Array<boolean> = [true, false];
+            await Promise.all(
+                belowPegBools.map(async (flag) => {
+                    await Promise.all(
+                        integrationDetails.aTokens.map(async (a) => {
+                            const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
+                            expect(bAssetBefore.status).to.bignumber.equal(
+                                new BN(BassetStatus.Normal),
+                            );
+
+                            await mockBasketManager.setBassetStatus(a.bAsset, BassetStatus.Failed);
+                            const bAssetAfterStatusChange = await mockBasketManager.getBasset(
+                                a.bAsset,
+                            );
+                            expect(bAssetAfterStatusChange.status).to.bignumber.equal(
+                                new BN(BassetStatus.Failed),
+                            );
+
+                            await mockBasketManager.handlePegLoss(a.bAsset, flag, {
+                                from: sa.governor,
+                            });
+                            const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(
+                                a.bAsset,
+                            );
+                            expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
+                                new BN(BassetStatus.Failed),
+                            );
+                        }),
+                    );
+                    return null;
+                }),
+            );
+        });
+        // =====
+        it("should change status when (Normal, belowPeg) (by manager)", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetBefore.status).to.bignumber.equal(new BN(BassetStatus.Normal));
+
+                    const tx = await mockBasketManager.handlePegLoss(a.bAsset, true, {
+                        from: manager,
+                    });
+                    expectEvent.inLogs(tx.logs, "BassetStatusChanged", {
+                        bAsset: a.bAsset,
+                        status: new BN(BassetStatus.BrokenBelowPeg),
+                    });
+
+                    const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
+                        new BN(BassetStatus.BrokenBelowPeg),
+                    );
+                }),
+            );
+        });
+
+        it("should change status when (Normal, belowPeg) (by governor)", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetBefore.status).to.bignumber.equal(new BN(BassetStatus.Normal));
+
+                    const tx = await mockBasketManager.handlePegLoss(a.bAsset, true, {
+                        from: sa.governor,
+                    });
+                    expectEvent.inLogs(tx.logs, "BassetStatusChanged", {
+                        bAsset: a.bAsset,
+                        status: new BN(BassetStatus.BrokenBelowPeg),
+                    });
+
+                    const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
+                        new BN(BassetStatus.BrokenBelowPeg),
+                    );
+                }),
+            );
+        });
+
+        it("should change status when (Normal, abovePeg) (by manager)", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetBefore.status).to.bignumber.equal(new BN(BassetStatus.Normal));
+
+                    const tx = await mockBasketManager.handlePegLoss(a.bAsset, false, {
+                        from: manager,
+                    });
+                    expectEvent.inLogs(tx.logs, "BassetStatusChanged", {
+                        bAsset: a.bAsset,
+                        status: new BN(BassetStatus.BrokenAbovePeg),
+                    });
+
+                    const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
+                        new BN(BassetStatus.BrokenAbovePeg),
+                    );
+                }),
+            );
+        });
+
+        it("should change status when (Normal, abovePeg) (by governor)", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetBefore.status).to.bignumber.equal(new BN(BassetStatus.Normal));
+
+                    const tx = await mockBasketManager.handlePegLoss(a.bAsset, false, {
+                        from: sa.governor,
+                    });
+                    expectEvent.inLogs(tx.logs, "BassetStatusChanged", {
+                        bAsset: a.bAsset,
+                        status: new BN(BassetStatus.BrokenAbovePeg),
+                    });
+
+                    const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
+                        new BN(BassetStatus.BrokenAbovePeg),
+                    );
+                }),
+            );
+        });
+
+        // =====
+        it("should change status when (Blacklisted, belowPeg) (by manager)", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetBefore.status).to.bignumber.equal(new BN(BassetStatus.Normal));
+
+                    await mockBasketManager.setBassetStatus(a.bAsset, BassetStatus.Blacklisted);
+                    const bAssetAfterStatusChange = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetAfterStatusChange.status).to.bignumber.equal(
+                        new BN(BassetStatus.Blacklisted),
+                    );
+
+                    const tx = await mockBasketManager.handlePegLoss(a.bAsset, true, {
+                        from: manager,
+                    });
+                    expectEvent.inLogs(tx.logs, "BassetStatusChanged", {
+                        bAsset: a.bAsset,
+                        status: new BN(BassetStatus.BrokenBelowPeg),
+                    });
+
+                    const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
+                        new BN(BassetStatus.BrokenBelowPeg),
+                    );
+                }),
+            );
+        });
+
+        it("should change status when (Blacklisted, belowPeg) (by governor)", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetBefore.status).to.bignumber.equal(new BN(BassetStatus.Normal));
+
+                    await mockBasketManager.setBassetStatus(a.bAsset, BassetStatus.Blacklisted);
+                    const bAssetAfterStatusChange = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetAfterStatusChange.status).to.bignumber.equal(
+                        new BN(BassetStatus.Blacklisted),
+                    );
+
+                    const tx = await mockBasketManager.handlePegLoss(a.bAsset, true, {
+                        from: sa.governor,
+                    });
+                    expectEvent.inLogs(tx.logs, "BassetStatusChanged", {
+                        bAsset: a.bAsset,
+                        status: new BN(BassetStatus.BrokenBelowPeg),
+                    });
+
+                    const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
+                        new BN(BassetStatus.BrokenBelowPeg),
+                    );
+                }),
+            );
+        });
+
+        it("should change status when (Blacklisted, abovePeg) (by manager)", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetBefore.status).to.bignumber.equal(new BN(BassetStatus.Normal));
+
+                    await mockBasketManager.setBassetStatus(a.bAsset, BassetStatus.Blacklisted);
+                    const bAssetAfterStatusChange = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetAfterStatusChange.status).to.bignumber.equal(
+                        new BN(BassetStatus.Blacklisted),
+                    );
+
+                    const tx = await mockBasketManager.handlePegLoss(a.bAsset, false, {
+                        from: manager,
+                    });
+                    expectEvent.inLogs(tx.logs, "BassetStatusChanged", {
+                        bAsset: a.bAsset,
+                        status: new BN(BassetStatus.BrokenAbovePeg),
+                    });
+
+                    const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
+                        new BN(BassetStatus.BrokenAbovePeg),
+                    );
+                }),
+            );
+        });
+
+        it("should change status when (Blacklisted, abovePeg) (by governor)", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetBefore.status).to.bignumber.equal(new BN(BassetStatus.Normal));
+
+                    await mockBasketManager.setBassetStatus(a.bAsset, BassetStatus.Blacklisted);
+                    const bAssetAfterStatusChange = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetAfterStatusChange.status).to.bignumber.equal(
+                        new BN(BassetStatus.Blacklisted),
+                    );
+
+                    const tx = await mockBasketManager.handlePegLoss(a.bAsset, false, {
+                        from: sa.governor,
+                    });
+                    expectEvent.inLogs(tx.logs, "BassetStatusChanged", {
+                        bAsset: a.bAsset,
+                        status: new BN(BassetStatus.BrokenAbovePeg),
+                    });
+
+                    const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(a.bAsset);
+                    expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
+                        new BN(BassetStatus.BrokenAbovePeg),
+                    );
+                }),
+            );
+        });
     });
 
     describe("negateIsolation()", async () => {
