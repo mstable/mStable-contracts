@@ -497,9 +497,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     function prepareForgeBasset(address _bAsset, uint256 /*_amt*/, bool /*_mint*/)
         external
         whenNotPaused
-        returns (
-            ForgeProps memory props
-        )
+        returns (ForgeProps memory props)
     {
         (bool exists, uint8 idx) = _isAssetInBasket(_bAsset);
         require(exists, "bAsset does not exist");

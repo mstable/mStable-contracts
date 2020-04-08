@@ -25,6 +25,9 @@ const BasketManager: t.BasketManagerContract = artifacts.require("BasketManager"
 const MockNexus: t.MockNexusContract = artifacts.require("MockNexus");
 const MockBasketManager: t.MockBasketManager3Contract = artifacts.require("MockBasketManager3");
 const MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
+const MockCompoundIntegration: t.MockCompoundIntegration2Contract = artifacts.require(
+    "MockCompoundIntegration2",
+);
 
 contract("BasketManager", async (accounts) => {
     let systemMachine: SystemMachine;
@@ -726,12 +729,97 @@ contract("BasketManager", async (accounts) => {
     });
 
     describe("collectInterest()", async () => {
+        let mockCompound: t.MockCompoundIntegration2Instance;
+
         beforeEach("", async () => {
             // deposit to mock platforms
+            mockCompound = await MockCompoundIntegration.new();
+            basketManager = await BasketManager.new();
+            await basketManager.initialize(
+                nexus.address,
+                masset,
+                grace,
+                integrationDetails.aTokens.map((a) => a.bAsset),
+                [mockCompound.address, mockCompound.address],
+                [percentToWeight(50), percentToWeight(50)],
+                [false, false],
+            );
         });
 
-        it("should have interested generated");
-        it("todo...");
+        describe("should fail", async () => {
+            it("when called from other than Masset", async () => {
+                await expectRevert(
+                    basketManager.collectInterest({ from: sa.other }),
+                    "Must be called by mAsset",
+                );
+            });
+
+            it("when contract is Pasued", async () => {
+                await basketManager.pause({ from: sa.governor });
+                await expectRevert(
+                    basketManager.collectInterest({ from: masset }),
+                    "Pausable: paused",
+                );
+            });
+        });
+
+        it("should have interest generated", async () => {
+            const existingValutBal = new BN(10).pow(new BN(17));
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a, index) => {
+                    await basketManager.increaseVaultBalance(
+                        index,
+                        mockCompound.address,
+                        existingValutBal,
+                        { from: masset },
+                    );
+
+                    const bAsset = await basketManager.getBasset(a.bAsset);
+                    expect(existingValutBal).to.bignumber.equal(bAsset.vaultBalance);
+                }),
+            );
+
+            const platformBalance = new BN(10).pow(new BN(18));
+            await mockCompound.setCustomBalance(platformBalance);
+
+            await basketManager.collectInterest({ from: masset });
+
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a, index) => {
+                    const bAsset = await basketManager.getBasset(a.bAsset);
+                    expect(platformBalance).to.bignumber.equal(bAsset.vaultBalance);
+                }),
+            );
+        });
+
+        it("when no interest generated", async () => {
+            const existingValutBal = new BN(10).pow(new BN(18));
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a, index) => {
+                    await basketManager.increaseVaultBalance(
+                        index,
+                        mockCompound.address,
+                        existingValutBal,
+                        { from: masset },
+                    );
+
+                    const bAsset = await basketManager.getBasset(a.bAsset);
+                    expect(existingValutBal).to.bignumber.equal(bAsset.vaultBalance);
+                }),
+            );
+
+            const platformBalance = new BN(10).pow(new BN(18));
+            await mockCompound.setCustomBalance(platformBalance);
+
+            await basketManager.collectInterest({ from: masset });
+
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a, index) => {
+                    const bAsset = await basketManager.getBasset(a.bAsset);
+                    expect(existingValutBal).to.bignumber.equal(bAsset.vaultBalance);
+                }),
+            );
+        });
     });
 
     describe("addBasset()", async () => {
@@ -1539,15 +1627,67 @@ contract("BasketManager", async (accounts) => {
     });
 
     describe("prepareForgeBasset()", async () => {
-        it("should fail when wrong token is passed");
+        beforeEach("", async () => {
+            await createNewBasketManager();
+        });
 
-        it("should return ForgeProps");
+        it("should fail when contract is Paused", async () => {
+            await basketManager.pause({ from: sa.governor });
+
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    await expectRevert(
+                        basketManager.prepareForgeBasset(a.bAsset, 0, false),
+                        "Pausable: paused",
+                    );
+                }),
+            );
+        });
+
+        it("should fail when wrong token is passed", async () => {
+            await expectRevert(
+                basketManager.prepareForgeBasset(sa.other, 0, false),
+                "bAsset does not exist",
+            );
+        });
+
+        it("should return ForgeProps", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    await basketManager.prepareForgeBasset(a.bAsset, 0, false);
+                    // TODO unable to verify the returned values
+                }),
+            );
+        });
     });
 
     describe("prepareForgeBassets()", async () => {
-        it("should fail when wrong bitmap is passed");
+        beforeEach("", async () => {
+            await createNewBasketManager();
+        });
 
-        it("should return ForgePropsMulti");
+        it("should fail when contract is Paused", async () => {
+            await basketManager.pause({ from: sa.governor });
+            const bitmap = new BN(3);
+            await expectRevert(
+                basketManager.prepareForgeBassets(bitmap, 2, [], false),
+                "Pausable: paused",
+            );
+        });
+
+        it("should fail when wrong bitmap is passed", async () => {
+            const bitmap = new BN(7);
+            await expectRevert(
+                basketManager.prepareForgeBassets(bitmap, 3, [], false),
+                "Found incorrect elements",
+            );
+        });
+
+        it("should return ForgePropsMulti", async () => {
+            const bitmap = new BN(3);
+            await basketManager.prepareForgeBassets(bitmap, 2, [], false);
+            // TODO unable to verify the returned values
+        });
     });
 
     describe("getBassets()", async () => {

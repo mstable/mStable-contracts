@@ -129,5 +129,6 @@ contract MockBasketManager3 is BasketManager {
         require(exists, "bAsset not exist");
         basket.bassets[index].status = _status;
     }
+
 }
 
