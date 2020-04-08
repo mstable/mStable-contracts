@@ -196,7 +196,7 @@ contract("Masset", async (accounts) => {
                 before(async () => {
                     await runSetup();
                 });
-                it("should mint to sender in basic mint func", async () => {
+                it("should redeem to sender in basic redeem func", async () => {
                     const { bAssets } = massetDetails;
                     await assertBasicRedemption(massetDetails, new BN(1), bAssets[1], false);
                 });
@@ -660,7 +660,7 @@ contract("Masset", async (accounts) => {
                         "Must redeem overweight bAssets",
                     );
                 });
-                it("should fail if we mint so much that it goes underweight", async () => {
+                it("should fail if we redeem so much that it goes underweight", async () => {
                     const { bAssets, mAsset, basketManager } = massetDetails;
                     let composition = await massetMachine.getBasketComposition(massetDetails);
                     // Expect 4 bAssets with 25, 25, 25, 25 weightings
