@@ -558,8 +558,8 @@ contract("Masset", async (accounts) => {
         context("when there are a large number of bAssets in the basket", async () => {
             // Create a basket filled with 16 bAssets, all hooked into the Mock intergation platform
             before(async () => {
-                const { aaveIntegration, basketManager } = massetDetails;
                 await runSetup();
+                const { aaveIntegration, basketManager } = massetDetails;
                 const aaveAddress = await aaveIntegration.platformAddress();
                 const mockAave = await MockAave.at(aaveAddress);
                 // Create 12 new bAssets
