@@ -290,10 +290,10 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         internal
         returns (uint8 index)
     {
-        require(_bAsset != address(0), "Asset address must be valid");
-        require(_integration != address(0), "Asset address must be valid");
+        require(_bAsset != address(0), "bAsset address must be valid");
+        require(_integration != address(0), "integration address must be valid");
         (bool alreadyInBasket, ) = _isAssetInBasket(_bAsset);
-        require(!alreadyInBasket, "Asset already exists in Basket");
+        require(!alreadyInBasket, "bAsset already exists in Basket");
         require(_measurementMultiple >= 1e6 && _measurementMultiple <= 1e10, "MM out of range");
 
         // Programmatic enforcement of bAsset validity should service through oracle

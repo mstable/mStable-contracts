@@ -98,3 +98,8 @@ export const buildBasset = (
         vaultBalance: _vaultBalance,
     };
 };
+
+export const calculateRatio = (measureMultiple: BN, bAssetDecimals: BN): BN => {
+    const delta = new BN(18).sub(bAssetDecimals);
+    return measureMultiple.mul(new BN(10).pow(new BN(delta)));
+};

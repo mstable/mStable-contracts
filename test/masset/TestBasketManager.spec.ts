@@ -9,6 +9,7 @@ import {
     equalBassets,
     buildBasset,
     equalBasset,
+    calculateRatio,
 } from "@utils/mstable-objects.ts";
 import { createMultiple, simpleToExactAmount, percentToWeight } from "@utils/math";
 import { constants, expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
@@ -23,6 +24,7 @@ const { expect, assert } = envSetup.configure();
 const BasketManager: t.BasketManagerContract = artifacts.require("BasketManager");
 const MockNexus: t.MockNexusContract = artifacts.require("MockNexus");
 const MockBasketManager: t.MockBasketManager3Contract = artifacts.require("MockBasketManager3");
+const MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
 
 contract("BasketManager", async (accounts) => {
     let systemMachine: SystemMachine;
@@ -733,19 +735,166 @@ contract("BasketManager", async (accounts) => {
     });
 
     describe("addBasset()", async () => {
-        describe("should fail", async () => {
-            it("when bAsset address is zero");
-
-            it("when integration address is zero");
-
-            it("when bAsset already exist");
-
-            it("when measurement multiple is out of range");
+        let mockERC20: t.MockERC20Instance;
+        beforeEach("", async () => {
+            await createNewBasketManager();
+            mockERC20 = await MockERC20.new("Mock", "MKT", 18, sa.default, new BN(10000));
         });
 
-        it("should calculate the ratio correctly");
+        describe("should fail", async () => {
+            it("when called by other then governor", async () => {
+                await expectRevert(
+                    basketManager.addBasset(mockERC20.address, mockAaveIntegrationAddr, false, {
+                        from: sa.other,
+                    }),
+                    "Only governor can execute",
+                );
+            });
 
-        it("should allow for various measurementmultiples (under certain limit)");
+            it("when basket is failed", async () => {
+                const mockBasketManager = await createMockBasketManger();
+                await mockBasketManager.failBasket();
+                await expectRevert(
+                    mockBasketManager.addBasset(mockERC20.address, mockAaveIntegrationAddr, false, {
+                        from: sa.governor,
+                    }),
+                    "Basket must be alive",
+                );
+            });
+
+            it("when bAsset address is zero", async () => {
+                await expectRevert(
+                    basketManager.addBasset(ZERO_ADDRESS, mockAaveIntegrationAddr, false, {
+                        from: sa.governor,
+                    }),
+                    "Asset address must be valid",
+                );
+            });
+
+            it("when integration address is zero", async () => {
+                await expectRevert(
+                    basketManager.addBasset(mockERC20.address, ZERO_ADDRESS, false, {
+                        from: sa.governor,
+                    }),
+                    "integration address must be valid",
+                );
+            });
+
+            it("when bAsset already exist", async () => {
+                await Promise.all(
+                    integrationDetails.aTokens.map(async (a) => {
+                        await expectRevert(
+                            basketManager.addBasset(a.bAsset, mockAaveIntegrationAddr, false, {
+                                from: sa.governor,
+                            }),
+                            "bAsset already exists in Basket",
+                        );
+                    }),
+                );
+            });
+
+            it("when max bAssets reached", async () => {
+                const mockERC20s: Array<t.MockERC20Instance> = new Array(13);
+                for (let index = 0; index < 14; index++) {
+                    const mock = await MockERC20.new("Mock", "MKT", 18, sa.default, new BN(10000));
+                    mockERC20s.push(mock);
+                }
+
+                let bAssets = await basketManager.getBassets();
+                const lengthBefore = bAssets[0].length;
+                expect(2).to.equal(lengthBefore);
+
+                await Promise.all(
+                    mockERC20s.map(async (a) => {
+                        await basketManager.addBasset(a.address, mockAaveIntegrationAddr, false, {
+                            from: sa.governor,
+                        });
+                    }),
+                );
+
+                bAssets = await basketManager.getBassets();
+                const lengthAfter = bAssets[0].length;
+                expect(16).to.equal(lengthAfter);
+
+                await expectRevert(
+                    basketManager.addBasset(mockERC20.address, mockAaveIntegrationAddr, false, {
+                        from: sa.governor,
+                    }),
+                    "Max bAssets in Basket",
+                );
+            });
+        });
+
+        it("should add a new bAsset with 18 decimals", async () => {
+            let bAssets = await basketManager.getBassets();
+            const lengthBefore = bAssets[0].length;
+            expect(2).to.equal(lengthBefore);
+
+            const tx = await basketManager.addBasset(
+                mockERC20.address,
+                mockAaveIntegrationAddr,
+                false,
+                {
+                    from: sa.governor,
+                },
+            );
+            expectEvent.inLogs(tx.logs, "BassetAdded", {
+                bAsset: mockERC20.address,
+                integrator: mockAaveIntegrationAddr,
+            });
+
+            bAssets = await basketManager.getBassets();
+            const lengthAfter = bAssets[0].length;
+            expect(3).to.equal(lengthAfter);
+
+            const bAsset = await basketManager.getBasset(mockERC20.address);
+            const ratio = calculateRatio(ratioScale, await mockERC20.decimals());
+            const expectedBasset = buildBasset(
+                mockERC20.address,
+                BassetStatus.Normal,
+                false,
+                ratio,
+                new BN(0),
+                new BN(0),
+            );
+            equalBasset(expectedBasset, bAsset);
+        });
+
+        it("should add a new bAsset with 10 decimals", async () => {
+            mockERC20 = await MockERC20.new("Mock", "MKT", 10, sa.default, new BN(10000));
+            let bAssets = await basketManager.getBassets();
+            const lengthBefore = bAssets[0].length;
+            expect(2).to.equal(lengthBefore);
+
+            const tx = await basketManager.addBasset(
+                mockERC20.address,
+                mockAaveIntegrationAddr,
+                false,
+                {
+                    from: sa.governor,
+                },
+            );
+            expectEvent.inLogs(tx.logs, "BassetAdded", {
+                bAsset: mockERC20.address,
+                integrator: mockAaveIntegrationAddr,
+            });
+
+            bAssets = await basketManager.getBassets();
+            const lengthAfter = bAssets[0].length;
+            expect(3).to.equal(lengthAfter);
+
+            const bAsset = await basketManager.getBasset(mockERC20.address);
+            const ratio = calculateRatio(ratioScale, await mockERC20.decimals());
+            const expectedBasset = buildBasset(
+                mockERC20.address,
+                BassetStatus.Normal,
+                false,
+                ratio,
+                new BN(0),
+                new BN(0),
+            );
+            equalBasset(expectedBasset, bAsset);
+        });
     });
 
     describe("setBasketWeights()", async () => {
