@@ -20,7 +20,7 @@ import { StableMath } from "../shared/StableMath.sol";
 /**
  * @title   BasketManager
  * @notice  Manages the Basket composition for a particular mAsset. Feeds all required
- *          basket data to the mAsset and is responsible for keeping accurate data.
+ *          basket data to the mAsset and is responsible for keeping accurate records.
  *          BasketManager can also optimise lending pool integrations and perform
  *          re-collateralisation on failed bAssets.
  * @dev     VERSION: 1.0

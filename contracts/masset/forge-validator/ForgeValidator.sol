@@ -131,6 +131,8 @@ contract ForgeValidator is IForgeValidator {
         pure
         returns (bool, string memory)
     {
+        if(_indexToRedeem >= _allBassets.length) return (false, "Basset does not exist");
+
         Basset memory bAsset = _allBassets[_indexToRedeem];
         if(bAsset.status == BassetStatus.BrokenAbovePeg && !_basketIsFailed) return (false, "Cannot redeem depegged bAsset");
 
