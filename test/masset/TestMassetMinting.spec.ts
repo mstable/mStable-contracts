@@ -327,7 +327,7 @@ contract("Masset", async (accounts) => {
                     await runSetup();
                 });
                 it("should revert when 0 quantities", async () => {
-                    const { bAssets, mAsset, basketManager } = massetDetails;
+                    const { bAssets, mAsset } = massetDetails;
                     const bAsset = bAssets[0];
                     await massetMachine.approveMasset(bAsset, mAsset, new BN(1));
                     await expectRevert(
@@ -336,7 +336,7 @@ contract("Masset", async (accounts) => {
                     );
                 });
                 it("should fail if sender doesn't have balance", async () => {
-                    const { bAssets, mAsset, basketManager } = massetDetails;
+                    const { bAssets, mAsset } = massetDetails;
                     const bAsset = bAssets[0];
                     const sender = sa.dummy1;
                     expect(await bAsset.balanceOf(sender)).bignumber.eq(new BN(0));
@@ -347,7 +347,7 @@ contract("Masset", async (accounts) => {
                     );
                 });
                 it("should fail if sender doesn't give approval", async () => {
-                    const { bAssets, mAsset, basketManager } = massetDetails;
+                    const { bAssets, mAsset } = massetDetails;
                     const bAsset = bAssets[0];
                     const sender = sa.dummy2;
                     await bAsset.transfer(sender, new BN(10000));
@@ -359,7 +359,7 @@ contract("Masset", async (accounts) => {
                     );
                 });
                 it("should fail if the bAsset does not exist", async () => {
-                    const { bAssets, mAsset, basketManager } = massetDetails;
+                    const { mAsset } = massetDetails;
                     const bAsset = await MockERC20.new("Mock", "MKK", 18, sa.default, 1000);
                     await expectRevert(
                         mAsset.mint(bAsset.address, new BN(100)),
@@ -588,7 +588,7 @@ contract("Masset", async (accounts) => {
                 }
             });
             it("should still perform with 12-16 bAssets in the basket", async () => {
-                const { bAssets, mAsset, basketManager } = massetDetails;
+                const { basketManager } = massetDetails;
                 // Assert that we have indeed 16 bAssets
                 const onChainBassets = await massetMachine.getBassetsInMasset(massetDetails);
                 expect(onChainBassets.length).to.eq(16);
@@ -613,7 +613,7 @@ contract("Masset", async (accounts) => {
                 await runSetup();
             });
             it("should mint nothing if the preparation returns invalid from manager", async () => {
-                const { bAssets, mAsset, forgeValidator } = massetDetails;
+                const { mAsset, forgeValidator } = massetDetails;
                 // mintSingle
                 const bAsset = await MockERC20.new("Mock", "MKK", 18, sa.default, 1000);
                 const newManager = await MockBasketManager1.new(bAsset.address);
@@ -699,30 +699,68 @@ contract("Masset", async (accounts) => {
         before(async () => {
             await runSetup();
         });
-        context("at any time", () => {
-            it("should fail if recipient is 0x0", async () => {
-                // mintSingle
-            });
-
-            it("should fail if the bAsset does not exist", async () => {
-                // mintSingle
-            });
-            it("should send mUSD when recipient is a contract");
-            it("should send mUSD when the recipient is an EOA", () => {});
-            it("should mint to sender in basic mint func", async () => {
-                // mintSingle
-            });
-            it("should mint nothing if the preparation returns invalid from manager", async () => {
-                // mintSingle
-            });
-            it("should revert when 0 quantities");
-            it("reverts if the mAsset is paused");
-            it("should allow minting with some 0 quantities, but not all");
-            it("should mint nothing if the preparation returns invalid from manager", async () => {});
-            it("should fail if output mAsset quantity is 0");
-        });
-
         context("when the weights are within the ForgeValidator limit", () => {
+            context("and sending to a specific recipient", async () => {
+                before(async () => {
+                    // await runSetup();
+                });
+                it("should mint selected bAssets only", async () => {
+
+                });
+                it("should fail if recipient is 0x0", async () => {
+                });
+                it("should send mUSD when recipient is a contract", async () => {
+                });
+                it("should send mUSD when the recipient is an EOA", async () => {
+                });
+            });
+            context("and specifying one bAsset base unit", async () => {
+                before(async () => {
+                    // await runSetup();
+                });
+                it("should mint a higher q of mAsset base units when using bAsset with 12", async () => {
+                });
+            });
+            context("and not defining recipient", async () => {
+                before(async () => {
+                    // await runSetup();
+                });
+                it("should mint to sender in basic mint func", async () => {
+                });
+            });
+            context("using bAssets with transfer fees", async () => {
+                before(async () => {
+                    await runSetup(false, true);
+                });
+                it("should handle tokens with transfer fees", async () => {
+                });
+                it("should fail if the token charges a fee but we dont know about it", async () => {
+                });
+            });
+            context("with an affected bAsset", async () => {
+                it("should fail if bAsset is broken below peg", async () => {
+                });
+            });
+            context("passing invalid arguments", async () => {
+                before(async () => {
+                    await runSetup();
+                });
+                it("should allow minting with some 0 quantities, but not all");
+                it("should fail if output mAsset quantity is 0");
+                it("should fail if sender doesn't have balance", async () => {
+                });
+                it("should fail if sender doesn't give approval", async () => {
+                });
+                it("should fail if the bAsset does not exist", async () => {
+                });
+            });
+            context("pushing the weighting beyond the maximum limit", async () => {
+                before(async () => {
+                    // await runSetup(false, false);
+                });
+                it("should succeed so long as we don't exceed the max weight", async () => {
+                });
+            });
             it("Should mint using multiple bAssets", async () => {
                 const { bAssets, mAsset } = massetDetails;
                 // It's only possible to mint a single base unit of mAsset, if the bAsset also has 18 decimals
@@ -764,14 +802,39 @@ contract("Masset", async (accounts) => {
                     from: sa.default,
                 });
             });
-            it("should deposit tokens into target platform", async () => {});
-            it("should mint selected bAssets only", async () => {});
-            // context("when some bAssets are overweight...")
-            it("should fail if the mint pushes overweight");
-            it("should fail if the mint uses invalid bAssets");
-            // it("should fail if the mint uses invalid bAssets");
+            
         });
-
-        context("and the weights exceeds the ForgeValidator limit", () => {});
+        context("when the weights exceeds the ForgeValidator limit", async () => {
+            beforeEach(async () => {
+            });
+            // minting should work as long as the thing we mint with doesnt exceed max
+            it("should succeed if bAsset is underweight", async () => {
+            });
+        });
+        context("when there are a large number of bAssets in the basket", async () => {
+            // Create a basket filled with 16 bAssets, all hooked into the Mock intergation platform
+            before(async () => {
+            });
+            it("should still perform with 12-16 bAssets in the basket", async () => {
+            });
+        });
+        context("when the basket manager returns invalid response", async () => {
+            before(async () => {
+                // await runSetup();
+            });
+            it("should mint nothing if the preparation returns invalid from manager", async () => {
+            });
+            it("should fail if given an invalid integrator", async () => {
+            });
+            it("reverts if the BasketManager is paused", async () => {
+            });
+        });
+        context("when the mAsset has failed", () => {
+            before(async () => {
+                // await runSetup(true);
+            });
+            it("should revert any mints", async () => {
+            });
+        });
     });
 });
