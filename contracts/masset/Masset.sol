@@ -206,6 +206,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
     {
         uint256 quantityTransferred = MassetHelpers.transferTokens(msg.sender, _integrator, _bAsset, _xferCharged, _quantity);
         quantityDeposited = IPlatformIntegration(_integrator).deposit(_bAsset, quantityTransferred, _xferCharged);
+        require(quantityDeposited <= _quantity, "Must not return invalid mint quantity");
         ratioedDeposit = quantityDeposited.mulRatioTruncate(_bAssetRatio);
     }
 

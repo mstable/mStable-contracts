@@ -105,6 +105,13 @@ export const applyRatio = (bAssetQ: BN | string, ratio: BN | string): BN => {
     return new BN(bAssetQ).mul(new BN(ratio)).div(ratioScale);
 };
 
+// How many mAssets is this bAsset worth
+export const applyRatioCeil = (bAssetQ: BN | string, ratio: BN | string): BN => {
+    const scaled = new BN(bAssetQ).mul(new BN(ratio));
+    const ceil = new BN(scaled).add(ratioScale.sub(new BN(1)));
+    return ceil.div(ratioScale);
+};
+
 export const createMultiple = (decimals: number): BN => {
     let ratio = new BN(10).pow(new BN(18 - decimals));
     return new BN(ratio).mul(ratioScale);
