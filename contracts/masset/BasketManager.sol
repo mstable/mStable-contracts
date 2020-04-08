@@ -204,7 +204,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     }
 
     /**
-     * @dev Called by mAsset to calculate how much interested has been generated in the basket
+     * @dev Called by mAsset to calculate how much interest has been generated in the basket
      *      and withdraw it. Cycles through the connected platforms to check the balances.
      * @return interestCollected   Total amount of interest collected, in mAsset terms
      * @return bitmap              Bitmap to correspond to the gains
@@ -333,8 +333,8 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
 
     /**
      * @dev External call for the governor to set weightings of all bAssets
-     * @param _bAssets     Array of bAsset addresses
-     * @param _weights     Array of bAsset weights - summing 100% where 100% == 1e18
+     * @param _bAssets Array of bAsset addresses
+     * @param _weights Array of bAsset weights - summing 100% where 100% == 1e18
      */
     function setBasketWeights(
         address[] calldata _bAssets,

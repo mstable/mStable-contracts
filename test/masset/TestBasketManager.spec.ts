@@ -1748,6 +1748,13 @@ contract("BasketManager", async (accounts) => {
             expect(new BN(3)).to.bignumber.equal(bitmap);
         });
 
+        it("should return bitmap even for non-existing bAsset", async () => {
+            const bAssetArr: Array<string> = integrationDetails.aTokens.map((a) => a.bAsset);
+            bAssetArr.push(sa.other);
+            const bitmap = await basketManager.getBitmapFor(bAssetArr);
+            expect(new BN(3)).to.bignumber.equal(bitmap);
+        });
+
         it("should return bitmap for 16 bAssets", async () => {
             const mockERC20s: Array<t.MockERC20Instance> = new Array(14);
             for (let index = 0; index < 14; index++) {
@@ -2335,6 +2342,22 @@ contract("BasketManager", async (accounts) => {
 
         beforeEach("", async () => {
             mockBasketManager = await createMockBasketManger();
+        });
+
+        it("should skip when Normal (by manager)", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    await mockBasketManager.negateIsolation(a.bAsset, { from: manager });
+                }),
+            );
+        });
+
+        it("should skip when Normal (by governor)", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    await mockBasketManager.negateIsolation(a.bAsset, { from: sa.governor });
+                }),
+            );
         });
 
         it("should fail when not called by manager or governor", async () => {
