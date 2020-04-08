@@ -1595,18 +1595,38 @@ contract("BasketManager", async (accounts) => {
     });
 
     describe("getBitmapFor()", async () => {
-        // Returns two bit set, as there are only two bAssets
-        // const bitmap = await masset.getBitmapForAllBassets();
-        // expect(bitmap, "wrong bitmap").bignumber.eq(new BN(127));
-        // Result sets only first bit, as b1 is at first index in bAsset array
-        // bitmap = await masset.getBitmapFor([b1.address]);
-        // expect(bitmap).bignumber.eq(new BN(1));
-        // Result sets only second bit, as b2 is at second index in bAsset array
-        // bitmap = await masset.getBitmapFor([b2.address]);
-        // expect(bitmap).bignumber.eq(new BN(2));
-        // TODO add test for 0 items
-        // TODO add test for 32 items
-        // TODO add test for more than 32 items
+        it("should return bitmpa for 0 bAssets", async () => {
+            const bitmap = await basketManager.getBitmapFor([]);
+
+            expect(new BN(0)).to.bignumber.equal(bitmap);
+        });
+
+        it("should return bitmap for 2 bAssets", async () => {
+            const bitmap = await basketManager.getBitmapFor(
+                integrationDetails.aTokens.map((a) => a.bAsset),
+            );
+            expect(new BN(3)).to.bignumber.equal(bitmap);
+        });
+
+        it("should return bitmap for 16 bAssets", async () => {
+            const mockERC20s: Array<t.MockERC20Instance> = new Array(14);
+            for (let index = 0; index < 14; index++) {
+                const mock = await MockERC20.new("Mock", "MKT", 18, sa.default, new BN(10000));
+                mockERC20s.push(mock);
+            }
+
+            await Promise.all(
+                mockERC20s.map(async (a) => {
+                    basketManager.addBasset(a.address, mockAaveIntegrationAddr, false, {
+                        from: sa.governor,
+                    });
+                }),
+            );
+
+            const bAssets = await basketManager.getBassets();
+            const bitmap = await basketManager.getBitmapFor(bAssets[0].map((a) => a.addr));
+            expect(new BN(65535)).to.bignumber.equal(bitmap);
+        });
     });
 
     describe("handlePegLoss()", async () => {
