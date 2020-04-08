@@ -1,0 +1,123 @@
+Compilation warnings/errors on ../flat/BasketManager.sol:
+../flat/BasketManager.sol:2:1: Warning: Experimental features are turned on. Do not use experimental features on live deployments.
+pragma experimental ABIEncoderV2;
+^-------------------------------^
+
+INFO:Detectors:[93m
+Reentrancy in BasketManager.collectInterest() (../flat/BasketManager.sol#1436-1470):
+	External calls:
+	- balance = IPlatformIntegration(integrations[i]).checkBalance(b.addr) (../flat/BasketManager.sol#1452)
+	State variables written after the call(s):
+	- BasketManager.basket (../flat/BasketManager.sol#1270) in basket.bassets[i].vaultBalance = balance (../flat/BasketManager.sol#1458)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-1[0m
+
+## README ##
+Masset has nonRentrant modifier to protect.
+
+
+INFO:Detectors:[92m
+BasketManager.collectInterest() (../flat/BasketManager.sol#1436-1470) has external calls inside a loop: balance = IPlatformIntegration(integrations[i]).checkBalance(b.addr) (../flat/BasketManager.sol#1452)
+
+## README ##
+OK
+
+
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation/#calls-inside-a-loop[0m
+INFO:Detectors:[92m
+Initializable.isConstructor() (../flat/BasketManager.sol#504-514) uses assembly
+	- INLINE ASM None (../flat/BasketManager.sol#512)
+Address.isContract(address) (../flat/BasketManager.sol#908-917) uses assembly
+	- INLINE ASM None (../flat/BasketManager.sol#915)
+
+## README ##
+Library Code
+
+
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#assembly-usage[0m
+INFO:Detectors:[92m
+Pragma version0.5.16 (../flat/BasketManager.sol#1) necessitates versions too recent to be trusted. Consider deploying with 0.5.11
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#incorrect-versions-of-solidity[0m
+
+## README ##
+OK
+
+INFO:Detectors:[92m
+Low level call in Address.sendValue(address,uint256) (../flat/BasketManager.sol#947-953):
+	- (success) = recipient.call.value(amount)() (../flat/BasketManager.sol#951)
+Low level call in SafeERC20.callOptionalReturn(IERC20,bytes) (../flat/BasketManager.sol#995-1014):
+	- (success,returndata) = address(token).call(data) (../flat/BasketManager.sol#1007)
+
+## README ##
+Could not find in code, might be with SafeERC20
+
+
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#low-level-calls[0m
+INFO:Detectors:[92m
+Variable InitializableModuleKeys.Key_Governance (../flat/BasketManager.sol#100) is not in mixedCase
+Variable InitializableModuleKeys.Key_Staking (../flat/BasketManager.sol#101) is not in mixedCase
+Variable InitializableModuleKeys.Key_ProxyAdmin (../flat/BasketManager.sol#102) is not in mixedCase
+Variable InitializableModuleKeys.Key_OracleHub (../flat/BasketManager.sol#105) is not in mixedCase
+Variable InitializableModuleKeys.Key_Manager (../flat/BasketManager.sol#106) is not in mixedCase
+Variable InitializableModuleKeys.Key_Recollateraliser (../flat/BasketManager.sol#107) is not in mixedCase
+Variable InitializableModuleKeys.Key_MetaToken (../flat/BasketManager.sol#108) is not in mixedCase
+Variable InitializableModuleKeys.Key_SavingsManager (../flat/BasketManager.sol#109) is not in mixedCase
+Variable Initializable.______gap (../flat/BasketManager.sol#517) is not in mixedCase
+Constant ModuleKeys.Key_Governance (../flat/BasketManager.sol#523) is not in UPPER_CASE_WITH_UNDERSCORES
+Constant ModuleKeys.Key_Staking (../flat/BasketManager.sol#524) is not in UPPER_CASE_WITH_UNDERSCORES
+Constant ModuleKeys.Key_ProxyAdmin (../flat/BasketManager.sol#525) is not in UPPER_CASE_WITH_UNDERSCORES
+Constant ModuleKeys.Key_OracleHub (../flat/BasketManager.sol#528) is not in UPPER_CASE_WITH_UNDERSCORES
+Constant ModuleKeys.Key_Manager (../flat/BasketManager.sol#529) is not in UPPER_CASE_WITH_UNDERSCORES
+Constant ModuleKeys.Key_Recollateraliser (../flat/BasketManager.sol#530) is not in UPPER_CASE_WITH_UNDERSCORES
+Constant ModuleKeys.Key_MetaToken (../flat/BasketManager.sol#531) is not in UPPER_CASE_WITH_UNDERSCORES
+Constant ModuleKeys.Key_SavingsManager (../flat/BasketManager.sol#532) is not in UPPER_CASE_WITH_UNDERSCORES
+Parameter CommonHelpers.getDecimals(address)._token (../flat/BasketManager.sol#736) is not in mixedCase
+Constant StableMath.fullScale (../flat/BasketManager.sol#1025) is not in UPPER_CASE_WITH_UNDERSCORES
+Constant StableMath.ratioScale (../flat/BasketManager.sol#1033) is not in UPPER_CASE_WITH_UNDERSCORES
+Parameter BasketManager.initialize(address,address,uint256,address[],address[],uint256[],bool[])._nexus (../flat/BasketManager.sol#1290) is not in mixedCase
+Parameter BasketManager.initialize(address,address,uint256,address[],address[],uint256[],bool[])._mAsset (../flat/BasketManager.sol#1291) is not in mixedCase
+Parameter BasketManager.initialize(address,address,uint256,address[],address[],uint256[],bool[])._grace (../flat/BasketManager.sol#1292) is not in mixedCase
+Parameter BasketManager.initialize(address,address,uint256,address[],address[],uint256[],bool[])._bAssets (../flat/BasketManager.sol#1293) is not in mixedCase
+Parameter BasketManager.initialize(address,address,uint256,address[],address[],uint256[],bool[])._integrators (../flat/BasketManager.sol#1294) is not in mixedCase
+Parameter BasketManager.initialize(address,address,uint256,address[],address[],uint256[],bool[])._weights (../flat/BasketManager.sol#1295) is not in mixedCase
+Parameter BasketManager.initialize(address,address,uint256,address[],address[],uint256[],bool[])._hasTransferFees (../flat/BasketManager.sol#1296) is not in mixedCase
+Parameter BasketManager.increaseVaultBalance(uint8,address,uint256)._bAssetIndex (../flat/BasketManager.sol#1358) is not in mixedCase
+Parameter BasketManager.increaseVaultBalance(uint8,address,uint256)._increaseAmount (../flat/BasketManager.sol#1360) is not in mixedCase
+Parameter BasketManager.increaseVaultBalances(uint8[],address[],uint256[])._bAssetIndices (../flat/BasketManager.sol#1377) is not in mixedCase
+Parameter BasketManager.increaseVaultBalances(uint8[],address[],uint256[])._increaseAmount (../flat/BasketManager.sol#1379) is not in mixedCase
+Parameter BasketManager.decreaseVaultBalance(uint8,address,uint256)._bAssetIndex (../flat/BasketManager.sol#1398) is not in mixedCase
+Parameter BasketManager.decreaseVaultBalance(uint8,address,uint256)._decreaseAmount (../flat/BasketManager.sol#1400) is not in mixedCase
+Parameter BasketManager.decreaseVaultBalances(uint8[],address[],uint256[])._bAssetIndices (../flat/BasketManager.sol#1415) is not in mixedCase
+Parameter BasketManager.decreaseVaultBalances(uint8[],address[],uint256[])._decreaseAmount (../flat/BasketManager.sol#1417) is not in mixedCase
+Parameter BasketManager.addBasset(address,address,bool)._bAsset (../flat/BasketManager.sol#1484) is not in mixedCase
+Parameter BasketManager.addBasset(address,address,bool)._integration (../flat/BasketManager.sol#1484) is not in mixedCase
+Parameter BasketManager.addBasset(address,address,bool)._isTransferFeeCharged (../flat/BasketManager.sol#1484) is not in mixedCase
+Parameter BasketManager.setBasketWeights(address[],uint256[])._bAssets (../flat/BasketManager.sol#1563) is not in mixedCase
+Parameter BasketManager.setBasketWeights(address[],uint256[])._weights (../flat/BasketManager.sol#1564) is not in mixedCase
+Parameter BasketManager.setTransferFeesFlag(address,bool)._bAsset (../flat/BasketManager.sol#1632) is not in mixedCase
+Parameter BasketManager.setTransferFeesFlag(address,bool)._flag (../flat/BasketManager.sol#1632) is not in mixedCase
+Parameter BasketManager.setGrace(uint256)._newGrace (../flat/BasketManager.sol#1647) is not in mixedCase
+Parameter BasketManager.removeBasset(address)._assetToRemove (../flat/BasketManager.sol#1665) is not in mixedCase
+Parameter BasketManager.prepareForgeBasset(address,uint256,bool)._bAsset (../flat/BasketManager.sol#1720) is not in mixedCase
+Parameter BasketManager.prepareForgeBassets(uint32,uint8,uint256[],bool)._bitmap (../flat/BasketManager.sol#1744) is not in mixedCase
+Parameter BasketManager.prepareForgeBassets(uint32,uint8,uint256[],bool)._size (../flat/BasketManager.sol#1745) is not in mixedCase
+Parameter BasketManager.getBasset(address)._bAsset (../flat/BasketManager.sol#1792) is not in mixedCase
+Parameter BasketManager.getBassetIntegrator(address)._bAsset (../flat/BasketManager.sol#1807) is not in mixedCase
+Parameter BasketManager.getBitmapFor(address[])._bAssets (../flat/BasketManager.sol#1854) is not in mixedCase
+Parameter BasketManager.handlePegLoss(address,bool)._bAsset (../flat/BasketManager.sol#1944) is not in mixedCase
+Parameter BasketManager.handlePegLoss(address,bool)._belowPeg (../flat/BasketManager.sol#1944) is not in mixedCase
+Parameter BasketManager.negateIsolation(address)._bAsset (../flat/BasketManager.sol#1971) is not in mixedCase
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#conformance-to-solidity-naming-conventions[0m
+
+
+## README ##
+mixedCase problems are linter issues.
+
+INFO:Detectors:[92m
+Initializable.______gap (../flat/BasketManager.sol#517) is never used in BasketManager (../flat/BasketManager.sol#1252-1986)
+
+## README ##
+OZ-SDK library
+
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#unused-state-variables[0m
+INFO:Slither:../flat/BasketManager.sol analyzed (19 contracts with 46 detectors), 61 result(s) found
+INFO:Slither:[94mUse https://crytic.io/ to get access to additional detectors and Github integration[0m
