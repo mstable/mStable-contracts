@@ -1,3 +1,4 @@
+/* eslint-disable no-await-in-loop */
 import * as t from "types/generated";
 import * as chai from "chai";
 import envSetup from "@utils/env_setup";
@@ -883,7 +884,7 @@ contract("BasketManager", async (accounts) => {
 
             it("when max bAssets reached", async () => {
                 const mockERC20s: Array<t.MockERC20Instance> = new Array(13);
-                for (let index = 0; index < 14; index++) {
+                for (let index = 0; index < 14; index += 1) {
                     const mock = await MockERC20.new("Mock", "MKT", 18, sa.default, new BN(10000));
                     mockERC20s.push(mock);
                 }
@@ -1757,7 +1758,7 @@ contract("BasketManager", async (accounts) => {
 
         it("should return bitmap for 16 bAssets", async () => {
             const mockERC20s: Array<t.MockERC20Instance> = new Array(14);
-            for (let index = 0; index < 14; index++) {
+            for (let index = 0; index < 14; index += 1) {
                 const mock = await MockERC20.new("Mock", "MKT", 18, sa.default, new BN(10000));
                 mockERC20s.push(mock);
             }
