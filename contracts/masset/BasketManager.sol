@@ -35,9 +35,10 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     // Events for Basket composition changes
     event BassetAdded(address indexed bAsset, address integrator);
     event BassetRemoved(address indexed bAsset);
-    event BasketWeightsUpdated(address[] indexed bAssets, uint256[] targetWeights);
+    event BasketWeightsUpdated(address[] bAssets, uint256[] targetWeights);
     event GraceUpdated(uint256 newGrace);
     event BassetStatusChanged(address indexed bAsset, BassetStatus status);
+    event TransferFeeEnabled(address indexed bAsset, bool enabled);
 
     // mAsset linked to the manager (const)
     address public mAsset;
@@ -49,7 +50,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     // Mapping holds bAsset token address => array index
     mapping(address => uint8) private bAssetsMap;
     // Holds relative addresses of the integration platforms
-    mapping(uint8 => address) public integrations;
+    address[] public integrations;
 
     /**
      * @dev Initialization function for upgradable proxy contract.
@@ -75,11 +76,10 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         initializer
     {
         InitializablePausableModule._initialize(_nexus);
-
-        mAsset = _mAsset;
-        grace = _grace;
-
+        require(_mAsset != address(0), "mAsset address is zero");
         require(_bAssets.length > 0, "Must initialise with some bAssets");
+        mAsset = _mAsset;
+        _updateGrace(_grace);
 
         // Defaults
         basket.maxBassets = 16;               // 16
@@ -91,7 +91,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
                 _integrators[i],
                 StableMath.getRatioScale(),
                 _hasTransferFees[i]
-                );
+            );
         }
         _setBasketWeights(_bAssets, _weights);
     }
@@ -99,22 +99,23 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     /**
      * @dev Requires the overall basket composition to be healthy
      */
-    modifier basketIsHealthy(){
+    modifier basketIsHealthy() {
         require(!basket.failed, "Basket must be alive");
         _;
     }
 
     /**
-      * @dev Verifies that the caller either Manager or Gov
-      */
+     * @dev Verifies that the caller either Manager or Gov
+     */
     modifier managerOrGovernor() {
-        require(_manager() == msg.sender || _governor() == msg.sender, "Must be manager or governance");
+        require(_manager() == msg.sender || _governor() == msg.sender,
+            "Must be manager or governor");
         _;
     }
 
     /**
-      * @dev Verifies that the caller is governed mAsset
-      */
+     * @dev Verifies that the caller is governed mAsset
+     */
     modifier onlyMasset() {
         require(mAsset == msg.sender, "Must be called by mAsset");
         _;
@@ -127,71 +128,83 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     /**
      * @dev Called by only mAsset, and only when the basket is healthy, to add units to
      *      storage after they have been deposited into the vault
-     * @param _bAsset           Index of the bAsset
+     * @param _bAssetIndex      Index of the bAsset
      * @param _increaseAmount   Units deposited
      */
-    function increaseVaultBalance(uint8 _bAsset, address /* _integrator */, uint256 _increaseAmount)
+    function increaseVaultBalance(
+        uint8 _bAssetIndex,
+        address /* _integrator */,
+        uint256 _increaseAmount
+    )
         external
         onlyMasset
         basketIsHealthy
     {
-        basket.bassets[_bAsset].vaultBalance = basket.bassets[_bAsset].vaultBalance.add(_increaseAmount);
+        basket.bassets[_bAssetIndex].vaultBalance =
+            basket.bassets[_bAssetIndex].vaultBalance.add(_increaseAmount);
     }
 
     /**
      * @dev Called by only mAsset, and only when the basket is healthy, to add units to
      *      storage after they have been deposited into the vault
-     * @param _bAssets          Index of the bAsset
+     * @param _bAssetIndices    Array of bAsset indexes
      * @param _increaseAmount   Units deposited
      */
     function increaseVaultBalances(
-        uint8[] calldata _bAssets,
+        uint8[] calldata _bAssetIndices,
         address[] calldata /* _integrator */,
-        uint256[] calldata _increaseAmount,
-        uint256 len
+        uint256[] calldata _increaseAmount
     )
         external
         onlyMasset
         basketIsHealthy
     {
-        for(uint i = 0; i < len; i++){
-            basket.bassets[_bAssets[i]].vaultBalance = basket.bassets[_bAssets[i]].vaultBalance.add(_increaseAmount[i]);
+        uint256 len = _bAssetIndices.length;
+        for(uint i = 0; i < len; i++) {
+            basket.bassets[_bAssetIndices[i]].vaultBalance =
+                basket.bassets[_bAssetIndices[i]].vaultBalance.add(_increaseAmount[i]);
         }
     }
 
     /**
      * @dev Called by mAsset after redeeming tokens. Simply reduce the balance in the vault
-     * @param _bAsset           Index of the bAsset
+     * @param _bAssetIndex      Index of the bAsset
      * @param _decreaseAmount   Units withdrawn
      */
-    function decreaseVaultBalance(uint8 _bAsset, address /* _integrator */, uint256 _decreaseAmount)
-        external
-        onlyMasset
-    {
-        basket.bassets[_bAsset].vaultBalance = basket.bassets[_bAsset].vaultBalance.sub(_decreaseAmount);
-    }
-
-    /**
-     * @dev Called by mAsset after redeeming tokens. Simply reduce the balance in the vault
-     * @param _bAssets          Index of the bAsset
-     * @param _decreaseAmount   Units withdrawn
-     */
-    function decreaseVaultBalances(
-        uint8[] calldata _bAssets,
-        address[] calldata /* _integrator */,
-        uint256[] calldata _decreaseAmount,
-        uint256 len
+    function decreaseVaultBalance(
+        uint8 _bAssetIndex,
+        address /* _integrator */,
+        uint256 _decreaseAmount
     )
         external
         onlyMasset
     {
-        for(uint i = 0; i < len; i++){
-            basket.bassets[_bAssets[i]].vaultBalance = basket.bassets[_bAssets[i]].vaultBalance.sub(_decreaseAmount[i]);
+        basket.bassets[_bAssetIndex].vaultBalance =
+            basket.bassets[_bAssetIndex].vaultBalance.sub(_decreaseAmount);
+    }
+
+    /**
+     * @dev Called by mAsset after redeeming tokens. Simply reduce the balance in the vault
+     * @param _bAssetIndices    Array of bAsset indexes
+     * @param _decreaseAmount   Units withdrawn
+     */
+    function decreaseVaultBalances(
+        uint8[] calldata _bAssetIndices,
+        address[] calldata /* _integrator */,
+        uint256[] calldata _decreaseAmount
+    )
+        external
+        onlyMasset
+    {
+        uint256 len = _bAssetIndices.length;
+        for(uint i = 0; i < len; i++) {
+            basket.bassets[_bAssetIndices[i]].vaultBalance =
+                basket.bassets[_bAssetIndices[i]].vaultBalance.sub(_decreaseAmount[i]);
         }
     }
 
     /**
-     * @dev Called by mAsset to calculate how much interested has been generated in the basket
+     * @dev Called by mAsset to calculate how much interest has been generated in the basket
      *      and withdraw it. Cycles through the connected platforms to check the balances.
      * @return interestCollected   Total amount of interest collected, in mAsset terms
      * @return bitmap              Bitmap to correspond to the gains
@@ -207,6 +220,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         (Basset[] memory allBassets, uint32 bitmapLocal, uint256 count) = _getBassets();
         gains = new uint256[](count);
         interestCollected = 0;
+        bitmap = bitmapLocal;
 
         // foreach bAsset
         for(uint8 i = 0; i < count; i++) {
@@ -215,7 +229,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
             uint256 balance = IPlatformIntegration(integrations[i]).checkBalance(b.addr);
             uint256 oldVaultBalance = b.vaultBalance;
 
-            // accumulate interestdelta (ratioed bAsset
+            // accumulate interest (ratioed bAsset)
             if(balance > oldVaultBalance) {
                 // Update balance
                 basket.bassets[i].vaultBalance = balance;
@@ -230,8 +244,6 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
                 gains[i] = 0;
             }
         }
-
-        return(interestCollected, bitmapLocal, gains);
     }
 
 
@@ -240,29 +252,35 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     ****************************************/
 
     /**
-      * @dev External func to allow the Governor to conduct add operations on the Basket
-      * @param _bAsset               Address of the ERC20 token to add to the Basket
-      * @param _integration          Address of the vault integration to deposit and withdraw
-      * @param _isTransferFeeCharged Bool - are transfer fees charged on this bAsset
-      * @return index                Position of the bAsset in the Basket
-      */
+     * @dev External func to allow the Governor to conduct add operations on the Basket
+     * @param _bAsset               Address of the ERC20 token to add to the Basket
+     * @param _integration          Address of the vault integration to deposit and withdraw
+     * @param _isTransferFeeCharged Bool - are transfer fees charged on this bAsset
+     * @return index                Position of the bAsset in the Basket
+     */
     function addBasset(address _bAsset, address _integration, bool _isTransferFeeCharged)
         external
         onlyGovernor
         basketIsHealthy
         returns (uint8 index)
     {
-        return _addBasset(_bAsset, _integration, StableMath.getRatioScale(), _isTransferFeeCharged);
+        index = _addBasset(
+            _bAsset,
+            _integration,
+            StableMath.getRatioScale(),
+            _isTransferFeeCharged
+        );
     }
 
     /**
-      * @dev Adds a bAsset to the Basket, fetching its decimals and calculating the Ratios
-      * @param _bAsset               Address of the ERC20 token to add to the Basket
-      * @param _integration          Address of the Platform Integration
-      * @param _measurementMultiple  Base 1e8 var to determine measurement ratio between bAsset:mAsset
-      * @param _isTransferFeeCharged Bool - are transfer fees charged on this bAsset
-      * @return index                Position of the bAsset in the Basket
-      */
+     * @dev Adds a bAsset to the Basket, fetching its decimals and calculating the Ratios
+     * @param _bAsset               Address of the ERC20 token to add to the Basket
+     * @param _integration          Address of the Platform Integration
+     * @param _measurementMultiple  Base 1e8 var to determine measurement ratio
+     *                              between bAsset:mAsset
+     * @param _isTransferFeeCharged Bool - are transfer fees charged on this bAsset
+     * @return index                Position of the bAsset in the Basket
+     */
     function _addBasset(
         address _bAsset,
         address _integration,
@@ -272,15 +290,18 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         internal
         returns (uint8 index)
     {
-        require(_bAsset != address(0), "Asset address must be valid");
-        require(_integration != address(0), "Asset address must be valid");
-        (bool alreadyInBasket, ) = _isAssetInBasket(_bAsset);
-        require(!alreadyInBasket, "Asset already exists in Basket");
+        require(_bAsset != address(0), "bAsset address must be valid");
+        require(_integration != address(0), "Integration address must be valid");
         require(_measurementMultiple >= 1e6 && _measurementMultiple <= 1e10, "MM out of range");
+
+        (bool alreadyInBasket, ) = _isAssetInBasket(_bAsset);
+        require(!alreadyInBasket, "bAsset already exists in Basket");
+
 
         // Programmatic enforcement of bAsset validity should service through oracle
         // require(
-        //     IManager(_manager()).validateBasset(address(this), _bAsset, _measurementMultiple, _isTransferFeeCharged),
+        //     IManager(_manager()).validateBasset(address(this),
+        //          _bAsset, _measurementMultiple, _isTransferFeeCharged),
         //     "New bAsset must be valid"
         // );
 
@@ -294,8 +315,8 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         require(numberOfBassetsInBasket < basket.maxBassets, "Max bAssets in Basket");
 
         bAssetsMap[_bAsset] = numberOfBassetsInBasket;
-        integrations[numberOfBassetsInBasket] = _integration;
 
+        integrations.push(_integration);
         basket.bassets.push(Basset({
             addr: _bAsset,
             ratio: ratio,
@@ -308,15 +329,15 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
 
         emit BassetAdded(_bAsset, _integration);
 
-        return numberOfBassetsInBasket;
+        index = numberOfBassetsInBasket;
     }
 
 
     /**
-      * @dev External call for the governor to set weightings of all bAssets
-      * @param _bAssets     Array of bAsset addresses
-      * @param _weights     Array of bAsset weights - summing 100% where 100% == 1e18
-      */
+     * @dev External call for the governor to set weightings of all bAssets
+     * @param _bAssets Array of bAsset addresses
+     * @param _weights Array of bAsset weights - summing 100% where 100% == 1e18
+     */
     function setBasketWeights(
         address[] calldata _bAssets,
         uint256[] calldata _weights
@@ -329,11 +350,11 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     }
 
     /**
-      * @notice Sets new Basket weightings
-      * @dev Requires the modified bAssets to be in a Normal state
-      * @param _bAssets Array of bAsset addresses
-      * @param _weights Array of bAsset weights - summing 100% where 100% == 1e18
-      */
+     * @notice Sets new Basket weightings
+     * @dev Requires the modified bAssets to be in a Normal state
+     * @param _bAssets Array of bAsset addresses
+     * @param _weights Array of bAsset weights - summing 100% where 100% == 1e18
+     */
     function _setBasketWeights(
         address[] memory _bAssets,
         uint256[] memory _weights
@@ -341,6 +362,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         internal
     {
         uint256 bAssetCount = _bAssets.length;
+        require(bAssetCount > 0, "Empty bAssets array passed");
         require(bAssetCount == _weights.length, "Must be matching bAsset arrays");
 
         for (uint256 i = 0; i < bAssetCount; i++) {
@@ -352,10 +374,15 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
             uint256 bAssetWeight = _weights[i];
 
             if(bAsset.status == BassetStatus.Normal) {
-                require(bAssetWeight >= 0 && bAssetWeight <= StableMath.getFullScale(), "Asset weight must be <= 1e18");
+                require(bAssetWeight <= StableMath.getFullScale(),
+                    "Asset weight must be <= 1e18"
+                );
                 basket.bassets[index].targetWeight = bAssetWeight;
             } else {
-                require(bAssetWeight == basket.bassets[index].targetWeight, "Affected bAssets must be static");
+                require(
+                    bAssetWeight == basket.bassets[index].targetWeight,
+                    "Affected bAssets must be static"
+                );
             }
         }
 
@@ -365,15 +392,15 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     }
 
     /**
-      * @dev Throws if the total Basket weight does not sum to 100
-      */
+     * @dev Throws if the total Basket weight does not sum to 100
+     */
     function _validateBasketWeight() internal view {
         uint256 len = basket.bassets.length;
         uint256 weightSum = 0;
-        for(uint256 i = 0; i < len; i++){
+        for(uint256 i = 0; i < len; i++) {
             weightSum = weightSum.add(basket.bassets[i].targetWeight);
         }
-        require(weightSum == StableMath.getFullScale(), "Basket weight must be >= 1e18");
+        require(weightSum == StableMath.getFullScale(), "Basket weight must be = 1e18");
     }
 
     /**
@@ -388,6 +415,8 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         (bool exist, uint8 index) = _isAssetInBasket(_bAsset);
         require(exist, "bAsset does not exist");
         basket.bassets[index].isTransferFeeCharged = _flag;
+
+        emit TransferFeeEnabled(_bAsset, _flag);
     }
 
     /**
@@ -398,16 +427,20 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         external
         managerOrGovernor
     {
+        _updateGrace(_newGrace);
+    }
+
+    function _updateGrace(uint256 _newGrace) private {
         require(_newGrace >= 1e18 && _newGrace <= 1e25, "Must be within valid grace range");
         grace = _newGrace;
         emit GraceUpdated(_newGrace);
     }
 
     /**
-      * @dev Removes a specific Asset from the Basket, given that its target/collateral
-      *      level is already 0, throws if invalid.
-      * @param _assetToRemove The asset to remove from the basket
-      */
+     * @dev Removes a specific Asset from the Basket, given that its target/collateral
+     *      level is already 0, throws if invalid.
+     * @param _assetToRemove The asset to remove from the basket
+     */
     function removeBasset(address _assetToRemove)
         external
         basketIsHealthy
@@ -417,26 +450,38 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     }
 
     /**
-      * @dev Removes a specific Asset from the Basket, given that its target/collateral
-      *      level is already 0, throws if invalid.
-      * @param _assetToRemove The asset to remove from the basket
-      */
-    function _removeBasset(address _assetToRemove)
-    internal {
-        (bool existsInBasket, uint8 index) = _isAssetInBasket(_assetToRemove);
-        require(existsInBasket, "Asset must appear in Basket");
+     * @dev Removes a specific Asset from the Basket, given that its target/collateral
+     *      level is already 0, throws if invalid.
+     * @param _assetToRemove The asset to remove from the basket
+     */
+    function _removeBasset(address _assetToRemove) internal {
+        (bool exists, uint8 index) = _isAssetInBasket(_assetToRemove);
+        require(exists, "bAsset does not exist");
 
         uint256 len = basket.bassets.length;
         Basset memory bAsset = basket.bassets[index];
+
         require(bAsset.targetWeight == 0, "bAsset must have a target weight of 0");
         require(bAsset.vaultBalance == 0, "bAsset vault must be empty");
         require(bAsset.status != BassetStatus.Liquidating, "bAsset must be active");
 
-        basket.bassets[index] = basket.bassets[len-1];
-        basket.bassets.pop();
-
-        bAssetsMap[_assetToRemove] = 0;
-        integrations[index] = address(0);
+        uint8 lastIndex = uint8(len.sub(1));
+        if(index == lastIndex) {
+            basket.bassets.pop();
+            bAssetsMap[_assetToRemove] = 0;
+            integrations.pop();
+        } else {
+            // Swap the bassets
+            basket.bassets[index] = basket.bassets[lastIndex];
+            basket.bassets.pop();
+            Basset memory swappedBasset = basket.bassets[index];
+            // Update bassetsMap
+            bAssetsMap[_assetToRemove] = 0;
+            bAssetsMap[swappedBasset.addr] = index;
+            // Update integrations
+            integrations[index] = integrations[lastIndex];
+            integrations.pop();
+        }
 
         emit BassetRemoved(bAsset.addr);
     }
@@ -447,35 +492,31 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     ****************************************/
 
     /**
-      * @dev Get basket details for `MassetStructs.Basket`
-      * @return b   Basket struct
-      */
+     * @dev Get basket details for `MassetStructs.Basket`
+     * @return b   Basket struct
+     */
     function getBasket()
         external
         view
-        returns (
-            Basket memory b
-        )
+        returns (Basket memory b)
     {
-        return basket;
+        b = basket;
     }
 
     /**
-      * @dev Prepare given bAsset for Forging. Currently returns integrator
-      *      and essential minting info.
-      * @param _token     Address of the bAsset
-      * @return props     Struct of all relevant Forge information
-      */
-    function prepareForgeBasset(address _token, uint256 /*_amt*/, bool /*_mint*/)
+     * @dev Prepare given bAsset for Forging. Currently returns integrator
+     *      and essential minting info.
+     * @param _bAsset    Address of the bAsset
+     * @return props     Struct of all relevant Forge information
+     */
+    function prepareForgeBasset(address _bAsset, uint256 /*_amt*/, bool /*_mint*/)
         external
         whenNotPaused
-        returns (
-            ForgeProps memory props
-        )
+        returns (ForgeProps memory props)
     {
-        (bool exists, uint8 idx) = _isAssetInBasket(_token);
+        (bool exists, uint8 idx) = _isAssetInBasket(_bAsset);
         require(exists, "bAsset does not exist");
-        return ForgeProps({
+        props = ForgeProps({
             isValid: true,
             bAsset: basket.bassets[idx],
             integrator: integrations[idx],
@@ -508,7 +549,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
             bAssets[i] = basket.bassets[indexes[i]];
             integrators[i] = integrations[indexes[i]];
         }
-        return ForgePropsMulti({
+        props = ForgePropsMulti({
             isValid: true,
             bAssets: bAssets,
             integrators: integrators,
@@ -518,11 +559,11 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     }
 
     /**
-      * @dev Get data for a all bAssets in basket
-      * @return bAssets  Struct[] with full bAsset data
-      * @return bitmap   Bitmap for all bAssets
-      * @return len      Number of bAssets in the Basket
-      */
+     * @dev Get data for a all bAssets in basket
+     * @return bAssets  Struct[] with full bAsset data
+     * @return bitmap   Bitmap for all bAssets
+     * @return len      Number of bAssets in the Basket
+     */
     function getBassets()
         external
         view
@@ -536,33 +577,33 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     }
 
     /**
-      * @dev Get data for a specific bAsset, if it exists
-      * @param _token   Address of bAsset
-      * @return bAsset  Struct with full bAsset data
-      */
-    function getBasset(address _token)
+     * @dev Get data for a specific bAsset, if it exists
+     * @param _bAsset   Address of bAsset
+     * @return bAsset  Struct with full bAsset data
+     */
+    function getBasset(address _bAsset)
         external
         view
         returns (Basset memory bAsset)
     {
-        (bool exists, uint8 index) = _isAssetInBasket(_token);
+        (bool exists, uint8 index) = _isAssetInBasket(_bAsset);
         require(exists, "bAsset must exist");
-        return _getBasset(index);
+        bAsset = _getBasset(index);
     }
 
     /**
-      * @dev Get current integrator for a specific bAsset, if it exists
-      * @param _token       Address of bAsset
-      * @return integrator  Address of current integrator
-      */
-    function getBassetIntegrator(address _token)
+     * @dev Get current integrator for a specific bAsset, if it exists
+     * @param _bAsset      Address of bAsset
+     * @return integrator  Address of current integrator
+     */
+    function getBassetIntegrator(address _bAsset)
         external
         view
         returns (address integrator)
     {
-        (bool exists, uint8 index) = _isAssetInBasket(_token);
+        (bool exists, uint8 index) = _isAssetInBasket(_bAsset);
         require(exists, "bAsset must exist");
-        return integrations[index];
+        integrator = integrations[index];
     }
 
     function _getBassets()
@@ -578,7 +619,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
 
         bAssets = new Basset[](len);
 
-        for(uint8 i = 0; i < len; i++){
+        for(uint8 i = 0; i < len; i++) {
             bitmap |= uint32(2)**uint8(i);
             bAssets[i] = _getBasset(i);
         }
@@ -587,11 +628,9 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     function _getBasset(uint8 _bAssetIndex)
         internal
         view
-        returns (
-            Basset memory bAsset
-        )
+        returns (Basset memory bAsset)
     {
-        return basket.bassets[_bAssetIndex];
+        bAsset = basket.bassets[_bAssetIndex];
     }
 
 
@@ -617,7 +656,14 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
      * @param _size     Size of the bAssetsQuantity array
      * @return array having indexes of each bAssets
      */
-    function _convertBitmapToIndexArr(uint32 _bitmap, uint8 _size) internal view returns (uint8[] memory) {
+    function _convertBitmapToIndexArr(
+        uint32 _bitmap,
+        uint8 _size
+    )
+        internal
+        view
+        returns (uint8[] memory)
+    {
         uint8[] memory indexes = new uint8[](_size);
         uint8 idx = 0;
         // Assume there are 4 bAssets in array
@@ -637,11 +683,11 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     }
 
     /**
-      * @dev Checks if a particular asset is in the basket
-      * @param _asset   Address of bAsset to look for
-      * @return exists  bool to signal that the asset is in basket
-      * @return index   uint256 Index of the bAsset
-      */
+     * @dev Checks if a particular asset is in the basket
+     * @param _asset   Address of bAsset to look for
+     * @return exists  bool to signal that the asset is in basket
+     * @return index   uint256 Index of the bAsset
+     */
     function _isAssetInBasket(address _asset)
         internal
         view
@@ -649,7 +695,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     {
         index = bAssetsMap[_asset];
         if(index == 0) {
-            if(basket.bassets.length == 0){
+            if(basket.bassets.length == 0) {
                 return (false, 0);
             }
             return (basket.bassets[0].addr == _asset, 0);
@@ -681,11 +727,12 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     ****************************************/
 
     /**
-      * @dev Executes the Auto Redistribution event by isolating the bAsset from the Basket
-      * @param _bAsset          Address of the ERC20 token to isolate
-      * @param _belowPeg        Bool to describe whether the bAsset deviated below peg (t) or above (f)
-      * @return alreadyActioned Bool to show whether a bAsset had already been actioned
-      */
+     * @dev Executes the Auto Redistribution event by isolating the bAsset from the Basket
+     * @param _bAsset          Address of the ERC20 token to isolate
+     * @param _belowPeg        Bool to describe whether the bAsset deviated below peg (t)
+     *                         or above (f)
+     * @return alreadyActioned Bool to show whether a bAsset had already been actioned
+     */
     function handlePegLoss(address _bAsset, bool _belowPeg)
         external
         managerOrGovernor
@@ -696,10 +743,10 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         require(exists, "bAsset must exist in Basket");
 
         BassetStatus oldStatus = basket.bassets[i].status;
-        BassetStatus newStatus = _belowPeg ? BassetStatus.BrokenBelowPeg : BassetStatus.BrokenAbovePeg;
+        BassetStatus newStatus =
+            _belowPeg ? BassetStatus.BrokenBelowPeg : BassetStatus.BrokenAbovePeg;
 
-        if(oldStatus == newStatus ||
-            _bAssetHasRecolled(oldStatus)) {
+        if(oldStatus == newStatus || _bAssetHasRecolled(oldStatus)) {
             return true;
         }
 
@@ -710,14 +757,15 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     }
 
     /**
-      * @dev Negates the isolation of a given bAsset
-      * @param _bAsset Address of the bAsset
-      */
+     * @dev Negates the isolation of a given bAsset
+     * @param _bAsset Address of the bAsset
+     */
     function negateIsolation(address _bAsset)
-    external
-    managerOrGovernor {
+        external
+        managerOrGovernor
+    {
         (bool exists, uint256 i) = _isAssetInBasket(_bAsset);
-        require(exists, "bAsset must exist in Basket");
+        require(exists, "bAsset must exist");
 
         BassetStatus currentStatus = basket.bassets[i].status;
         if(currentStatus == BassetStatus.BrokenBelowPeg ||

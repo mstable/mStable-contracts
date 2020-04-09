@@ -1,6 +1,7 @@
 pragma solidity 0.5.16;
 pragma experimental ABIEncoderV2;
 
+import { BasketManager } from "../../masset/BasketManager.sol";
 import { MassetStructs } from "../../masset/shared/MassetStructs.sol";
 import { StableMath } from "../../shared/StableMath.sol";
 
@@ -20,7 +21,7 @@ contract MockBasketManager1 is MassetStructs {
         });
     }
 
-    function prepareForgeBasset(address _token, uint256 /*_amt*/, bool /*_mint*/)
+    function prepareForgeBasset(address /*bitmap*/, uint256 /*_amt*/, bool /*_mint*/)
         external
         returns (
             ForgeProps memory props
@@ -36,8 +37,8 @@ contract MockBasketManager1 is MassetStructs {
     }
 
     function prepareForgeBassets(
-        uint32 _bitmap,
-        uint8 _size,
+        uint32 /*bitmap*/,
+        uint8 /*bitmap*/,
         uint256[] calldata /*_amts*/,
         bool /* _isMint */
     )
@@ -58,6 +59,7 @@ contract MockBasketManager1 is MassetStructs {
             grace: 0
         });
     }
+
 }
 
 
@@ -93,7 +95,7 @@ contract MockBasketManager2 is MassetStructs {
     }
 
     function prepareForgeBassets(
-        uint32 _/*bitmap*/,
+        uint32 /*bitmap*/,
         uint8 /*_size*/,
         uint256[] calldata /*_amts*/,
         bool /* _isMint */
@@ -115,5 +117,18 @@ contract MockBasketManager2 is MassetStructs {
             grace: 0
         });
     }
+}
+
+contract MockBasketManager3 is BasketManager {
+    function failBasket() public {
+        basket.failed = true;
+    }
+
+    function setBassetStatus(address _bAsset, BassetStatus _status) public {
+        (bool exists, uint8 index) = _isAssetInBasket(_bAsset);
+        require(exists, "bAsset not exist");
+        basket.bassets[index].status = _status;
+    }
+
 }
 

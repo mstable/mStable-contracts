@@ -1,8 +1,6 @@
 pragma solidity 0.5.16;
 
-interface BasicToken {
-    function decimals() external view returns (uint8);
-}
+import { IBasicToken } from  "./IBasicToken.sol";
 
 /**
  * @title   CommonHelpers
@@ -21,7 +19,7 @@ library CommonHelpers {
     internal
     view
     returns (uint256) {
-        uint256 decimals = BasicToken(_token).decimals();
+        uint256 decimals = IBasicToken(_token).decimals();
         require(decimals >= 4 && decimals <= 18, "Token must have sufficient decimal places");
 
         return decimals;

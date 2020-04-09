@@ -245,7 +245,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         }
         require(mAssetQuantity > 0, "No masset quantity to mint");
 
-        basketManager.increaseVaultBalances(props.indexes, props.integrators, receivedQty, len);
+        basketManager.increaseVaultBalances(props.indexes, props.integrators, receivedQty);
 
         // Validate the proposed mint, after token transfer
         (bool mintValid, string memory reason) = forgeValidator.validateMint(totalSupply(), props.grace, props.bAssets, receivedQty);
@@ -409,7 +409,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
             }
         }
 
-        basketManager.decreaseVaultBalances(props.indexes, props.integrators, _bAssetQuantities, redemptionAssetCount);
+        basketManager.decreaseVaultBalances(props.indexes, props.integrators, _bAssetQuantities);
 
         // Pay the redemption fee
         _payRedemptionFee(mAssetQuantity);

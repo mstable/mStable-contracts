@@ -1,4 +1,5 @@
 {
+  "solidity.packageDefaultDependenciesDirectory": "node_modules",
   "solidity.packageDefaultDependenciesContractsDirectory": "",
   "cSpell.words": [
     "whitelisted"
