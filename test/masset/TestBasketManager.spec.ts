@@ -122,7 +122,7 @@ contract("BasketManager", async (accounts) => {
             beforeEach(async () => {
                 await createNewBasketManager();
                 ctx.module = basketManager;
-            })
+            });
             shouldBehaveLikeModule(ctx as Required<typeof ctx>, sa);
             shouldBehaveLikePausableModule(ctx as Required<typeof ctx>, sa);
         });
@@ -1581,9 +1581,13 @@ contract("BasketManager", async (accounts) => {
             const bAssetIntegratorAfter = await mockBasketManager.getBassetIntegrator(
                 unMovedBasset,
             );
+            expect(ZERO_ADDRESS).eq(await mockBasketManager.integrations(1));
+
             expect(bAssetIntegratorBefore).eq(bAssetIntegratorAfter);
             const lengthAfter = (await mockBasketManager.getBassets())[0].length;
             expect(lengthBefore - 1).to.equal(lengthAfter);
+            
+            await expectRevert(basketManager.getBasset(bAssetToRemove), "bAsset must exist");
         });
 
         it("should succeed when request is valid (by governor)", async () => {
@@ -1601,18 +1605,23 @@ contract("BasketManager", async (accounts) => {
 
             const bAssetBefore = await mockBasketManager.getBasset(unMovedBasset);
             const bAssetIntegratorBefore = await mockBasketManager.getBassetIntegrator(
-                unMovedBasset
+                unMovedBasset,
             );
             const tx = await mockBasketManager.removeBasset(bAssetToRemove, { from: sa.governor });
             expectEvent.inLogs(tx.logs, "BassetRemoved", { bAsset: bAssetToRemove });
+
+            // Basket should still behave as normal, getting the desired details and integrator
             const bAssetAfter = await mockBasketManager.getBasset(unMovedBasset);
             equalBasset(bAssetBefore, bAssetAfter);
             const bAssetIntegratorAfter = await mockBasketManager.getBassetIntegrator(
-                unMovedBasset
+                unMovedBasset,
             );
             expect(bAssetIntegratorBefore).eq(bAssetIntegratorAfter);
+            expect(ZERO_ADDRESS).eq(await mockBasketManager.integrations(1));
             const lengthAfter = (await mockBasketManager.getBassets())[0].length;
             expect(lengthBefore - 1).to.equal(lengthAfter);
+
+            await expectRevert(basketManager.getBasset(bAssetToRemove), "bAsset must exist");
         });
     });
 
@@ -1684,9 +1693,7 @@ contract("BasketManager", async (accounts) => {
         });
 
         it("should return ForgePropsMulti", async () => {
-            const bitmap = new BN(3);
-            await basketManager.prepareForgeBassets(bitmap, 2, [], false);
-            // TODO unable to verify the returned values
+            // rely on integration tests from the mAsset to ensure that the forge props are being passed correctly
         });
     });
 

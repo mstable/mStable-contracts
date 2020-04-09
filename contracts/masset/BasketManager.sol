@@ -292,9 +292,11 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     {
         require(_bAsset != address(0), "bAsset address must be valid");
         require(_integration != address(0), "Integration address must be valid");
+        require(_measurementMultiple >= 1e6 && _measurementMultiple <= 1e10, "MM out of range");
+
         (bool alreadyInBasket, ) = _isAssetInBasket(_bAsset);
         require(!alreadyInBasket, "bAsset already exists in Basket");
-        require(_measurementMultiple >= 1e6 && _measurementMultiple <= 1e10, "MM out of range");
+
 
         // Programmatic enforcement of bAsset validity should service through oracle
         // require(
@@ -313,8 +315,8 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         require(numberOfBassetsInBasket < basket.maxBassets, "Max bAssets in Basket");
 
         bAssetsMap[_bAsset] = numberOfBassetsInBasket;
-        integrations.push(_integration);
 
+        integrations.push(_integration);
         basket.bassets.push(Basset({
             addr: _bAsset,
             ratio: ratio,
