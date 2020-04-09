@@ -1,6 +1,5 @@
 /* eslint-disable no-await-in-loop */
 import * as t from "types/generated";
-import * as chai from "chai";
 import envSetup from "@utils/env_setup";
 
 import { BN } from "@utils/tools";
@@ -12,15 +11,16 @@ import {
     equalBasset,
     calculateRatio,
 } from "@utils/mstable-objects.ts";
-import { createMultiple, simpleToExactAmount, percentToWeight } from "@utils/math";
-import { constants, expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
-import { MassetMachine, StandardAccounts, SystemMachine, MassetDetails } from "@utils/machines";
+import { percentToWeight } from "@utils/math";
+import { expectEvent, expectRevert } from "@openzeppelin/test-helpers";
+import { MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import { ZERO_ADDRESS, ZERO, ratioScale, fullScale, MIN_GRACE, MAX_GRACE } from "@utils/constants";
 import { BassetIntegrationDetails } from "../../types";
 
 import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
+import shouldBehaveLikePausableModule from "../shared/behaviours/PausableModule.behaviour";
 
-const { expect, assert } = envSetup.configure();
+const { expect } = envSetup.configure();
 
 const BasketManager: t.BasketManagerContract = artifacts.require("BasketManager");
 const MockNexus: t.MockNexusContract = artifacts.require("MockNexus");
@@ -83,10 +83,10 @@ contract("BasketManager", async (accounts) => {
     }
 
     async function expectBassets(bAssetsArr: Array<Basset>, bitmap: BN, len: BN): Promise<void> {
-        const bAssets = await basketManager.getBassets();
-        equalBassets(bAssetsArr, bAssets[0]);
-        expect(bitmap).to.bignumber.equal(bAssets[1]);
-        expect(len).to.bignumber.equal(bAssets[2]);
+        const [receivedBassets, receivedBitmap, receivedLen] = await basketManager.getBassets();
+        equalBassets(bAssetsArr, receivedBassets);
+        expect(bitmap).to.bignumber.equal(receivedBitmap);
+        expect(len).to.bignumber.equal(receivedLen);
     }
 
     async function createNewBasketManager(): Promise<t.BasketManagerInstance> {
@@ -104,7 +104,7 @@ contract("BasketManager", async (accounts) => {
         return basketManager;
     }
 
-    before("", async () => {
+    before(async () => {
         systemMachine = new SystemMachine(sa.all);
         massetMachine = systemMachine.massetMachine;
         integrationDetails = await massetMachine.loadBassets();
@@ -119,7 +119,12 @@ contract("BasketManager", async (accounts) => {
 
     describe("behaviours:", async () => {
         describe("should behave like a Module", async () => {
+            beforeEach(async () => {
+                await createNewBasketManager();
+                ctx.module = basketManager;
+            })
             shouldBehaveLikeModule(ctx as Required<typeof ctx>, sa);
+            shouldBehaveLikePausableModule(ctx as Required<typeof ctx>, sa);
         });
     });
 
@@ -324,7 +329,7 @@ contract("BasketManager", async (accounts) => {
                 // event GraceUpdated(uint256 newGrace)
                 expectEvent.inLogs(tx.logs, "GraceUpdated", { newGrace: grace });
 
-                // TODO test-helpers not supports `deep` array compare. Hence, need to test like below
+                // test-helpers not supports `deep` array compare. Hence, need to test like below
                 expectEvent.inLogs(tx.logs, "BasketWeightsUpdated");
                 const basketWeightUpdatedEvent = tx.logs[3];
                 expect(integrationDetails.aTokens.map((a) => a.bAsset)).to.deep.equal(
@@ -732,7 +737,7 @@ contract("BasketManager", async (accounts) => {
     describe("collectInterest()", async () => {
         let mockCompound: t.MockCompoundIntegration2Instance;
 
-        beforeEach("", async () => {
+        beforeEach(async () => {
             // deposit to mock platforms
             mockCompound = await MockCompoundIntegration.new();
             basketManager = await BasketManager.new();
@@ -765,18 +770,18 @@ contract("BasketManager", async (accounts) => {
         });
 
         it("should have interest generated", async () => {
-            const existingValutBal = new BN(10).pow(new BN(17));
+            const existingVaultBal = new BN(10).pow(new BN(17));
             await Promise.all(
                 integrationDetails.aTokens.map(async (a, index) => {
                     await basketManager.increaseVaultBalance(
                         index,
                         mockCompound.address,
-                        existingValutBal,
+                        existingVaultBal,
                         { from: masset },
                     );
 
                     const bAsset = await basketManager.getBasset(a.bAsset);
-                    expect(existingValutBal).to.bignumber.equal(bAsset.vaultBalance);
+                    expect(existingVaultBal).to.bignumber.equal(bAsset.vaultBalance);
                 }),
             );
 
@@ -825,13 +830,13 @@ contract("BasketManager", async (accounts) => {
 
     describe("addBasset()", async () => {
         let mockERC20: t.MockERC20Instance;
-        beforeEach("", async () => {
+        beforeEach(async () => {
             await createNewBasketManager();
             mockERC20 = await MockERC20.new("Mock", "MKT", 18, sa.default, new BN(10000));
         });
 
         describe("should fail", async () => {
-            it("when called by other then governor", async () => {
+            it("when called by other than governor", async () => {
                 await expectRevert(
                     basketManager.addBasset(mockERC20.address, mockAaveIntegrationAddr, false, {
                         from: sa.other,
@@ -865,7 +870,7 @@ contract("BasketManager", async (accounts) => {
                     basketManager.addBasset(mockERC20.address, ZERO_ADDRESS, false, {
                         from: sa.governor,
                     }),
-                    "integration address must be valid",
+                    "Integration address must be valid",
                 );
             });
 
@@ -947,6 +952,8 @@ contract("BasketManager", async (accounts) => {
                 new BN(0),
             );
             equalBasset(expectedBasset, bAsset);
+            const integrator = await basketManager.getBassetIntegrator(mockERC20.address);
+            expect(integrator).eq(mockAaveIntegrationAddr);
         });
 
         it("should add a new bAsset with 10 decimals", async () => {
@@ -983,12 +990,14 @@ contract("BasketManager", async (accounts) => {
                 new BN(0),
             );
             equalBasset(expectedBasset, bAsset);
+            const integrator = await basketManager.getBassetIntegrator(mockERC20.address);
+            expect(integrator).eq(mockAaveIntegrationAddr);
         });
     });
 
     describe("setBasketWeights()", async () => {
         let mockBasketManager: t.MockBasketManager3Instance;
-        beforeEach("", async () => {
+        beforeEach(async () => {
             mockBasketManager = await createMockBasketManger();
         });
 
@@ -1106,10 +1115,40 @@ contract("BasketManager", async (accounts) => {
                 }),
             );
         });
+        it("should update the weights even with affected bAsset", async () => {
+            await Promise.all(
+                integrationDetails.aTokens.map(async (a) => {
+                    const bAsset: Basset = await mockBasketManager.getBasset(a.bAsset);
+                    expect(percentToWeight(50)).to.bignumber.equal(bAsset.targetWeight);
+                }),
+            );
+            const mockERC20 = await MockERC20.new("Mock", "MKT", 18, sa.default, new BN(10000));
+            await mockBasketManager.addBasset(mockERC20.address, mockAaveIntegrationAddr, false, {
+                from: sa.governor,
+            });
+
+            await mockBasketManager.setBasketWeights(
+                [...integrationDetails.aTokens.map((a) => a.bAsset), mockERC20.address],
+                [percentToWeight(30), percentToWeight(50), percentToWeight(20)],
+                { from: sa.governor },
+            );
+
+            const expectedWeight: Array<BN> = [
+                percentToWeight(30),
+                percentToWeight(50),
+                percentToWeight(20),
+            ];
+            let [bassets] = await mockBasketManager.getBassets();
+            await Promise.all(
+                bassets.map(async (b, index) => {
+                    expect(expectedWeight[index]).to.bignumber.equal(new BN(b.targetWeight));
+                }),
+            );
+        });
     });
 
     describe("setTransferFeesFlag()", async () => {
-        beforeEach("", async () => {
+        beforeEach(async () => {
             await createNewBasketManager();
         });
         it("should fail when not called by manager or governor", async () => {
@@ -1249,7 +1288,7 @@ contract("BasketManager", async (accounts) => {
         const NEW_GRACE = new BN(10).pow(new BN(20));
         const NEW_GRACE2 = new BN(10).pow(new BN(21));
 
-        beforeEach("", async () => {
+        beforeEach(async () => {
             await createNewBasketManager();
         });
 
@@ -1390,7 +1429,7 @@ contract("BasketManager", async (accounts) => {
     });
 
     describe("removeBasset()", async () => {
-        beforeEach("", async () => {
+        beforeEach(async () => {
             await createNewBasketManager();
         });
 
@@ -1401,14 +1440,14 @@ contract("BasketManager", async (accounts) => {
 
                 await Promise.all(
                     integrationDetails.aTokens.map(async (a) => {
-                        const lengthBefore = (await mockBasketManager.getBassets()).length;
+                        const lengthBefore = (await mockBasketManager.getBassets())[0].length;
 
                         await expectRevert(
                             mockBasketManager.removeBasset(a.bAsset, { from: manager }),
                             "Basket must be alive",
                         );
 
-                        const lengthAfter = (await mockBasketManager.getBassets()).length;
+                        const lengthAfter = (await mockBasketManager.getBassets())[0].length;
                         expect(lengthBefore).to.equal(lengthAfter);
                     }),
                 );
@@ -1417,101 +1456,63 @@ contract("BasketManager", async (accounts) => {
             it("when not called by manager or governor", async () => {
                 await Promise.all(
                     integrationDetails.aTokens.map(async (a) => {
-                        const lengthBefore = (await basketManager.getBassets()).length;
+                        const lengthBefore = (await basketManager.getBassets())[0].length;
 
                         await expectRevert(
                             basketManager.removeBasset(a.bAsset, { from: sa.other }),
                             "Must be manager or governor",
                         );
 
-                        const lengthAfter = (await basketManager.getBassets()).length;
+                        const lengthAfter = (await basketManager.getBassets())[0].length;
                         expect(lengthBefore).to.equal(lengthAfter);
                     }),
                 );
             });
 
             it("when bAsset address is zero", async () => {
-                const lengthBefore = (await basketManager.getBassets()).length;
+                const lengthBefore = (await basketManager.getBassets())[0].length;
 
                 await expectRevert(
                     basketManager.removeBasset(ZERO_ADDRESS, { from: manager }),
                     "bAsset does not exist",
                 );
 
-                const lengthAfter = (await basketManager.getBassets()).length;
+                const lengthAfter = (await basketManager.getBassets())[0].length;
                 expect(lengthBefore).to.equal(lengthAfter);
             });
 
             it("when bAsset address not exist", async () => {
-                const lengthBefore = (await basketManager.getBassets()).length;
+                const lengthBefore = (await basketManager.getBassets())[0].length;
 
                 await expectRevert(
                     basketManager.removeBasset(sa.other, { from: manager }),
                     "bAsset does not exist",
                 );
 
-                const lengthAfter = (await basketManager.getBassets()).length;
+                const lengthAfter = (await basketManager.getBassets())[0].length;
                 expect(lengthBefore).to.equal(lengthAfter);
-            });
-
-            it("when bAsset targetWeight is non zero (by manager)", async () => {
-                await Promise.all(
-                    integrationDetails.aTokens.map(async (a) => {
-                        const lengthBefore = (await basketManager.getBassets()).length;
-
-                        await expectRevert(
-                            basketManager.removeBasset(a.bAsset, { from: manager }),
-                            "bAsset must have a target weight of 0",
-                        );
-
-                        const lengthAfter = (await basketManager.getBassets()).length;
-                        expect(lengthBefore).to.equal(lengthAfter);
-                    }),
-                );
             });
 
             it("when bAsset targetWeight is non zero (by governor)", async () => {
                 await Promise.all(
                     integrationDetails.aTokens.map(async (a) => {
-                        const lengthBefore = (await basketManager.getBassets()).length;
+                        const lengthBefore = (await basketManager.getBassets())[0].length;
 
                         await expectRevert(
                             basketManager.removeBasset(a.bAsset, { from: sa.governor }),
                             "bAsset must have a target weight of 0",
                         );
 
-                        const lengthAfter = (await basketManager.getBassets()).length;
+                        const lengthAfter = (await basketManager.getBassets())[0].length;
                         expect(lengthBefore).to.equal(lengthAfter);
                     }),
                 );
             });
 
-            it("when bAsset vault balance is non zero (by manager)", async () => {
-                const bAssetToRemove = integrationDetails.aTokens[0].bAsset;
-
-                const lengthBefore = (await basketManager.getBassets()).length;
-
-                await basketManager.increaseVaultBalance(0, mockAaveIntegrationAddr, new BN(100), {
-                    from: masset,
-                });
-
-                const bAssets = integrationDetails.aTokens.map((a) => a.bAsset);
-                const newWeights = [percentToWeight(0), percentToWeight(100)];
-                await basketManager.setBasketWeights(bAssets, newWeights, { from: sa.governor });
-
-                await expectRevert(
-                    basketManager.removeBasset(bAssetToRemove, { from: manager }),
-                    "bAsset vault must be empty",
-                );
-
-                const lengthAfter = (await basketManager.getBassets()).length;
-                expect(lengthBefore).to.equal(lengthAfter);
-            });
-
             it("when bAsset vault balance is non zero (by governor)", async () => {
                 const bAssetToRemove = integrationDetails.aTokens[0].bAsset;
 
-                const lengthBefore = (await basketManager.getBassets()).length;
+                const lengthBefore = (await basketManager.getBassets())[0].length;
 
                 await basketManager.increaseVaultBalance(0, mockAaveIntegrationAddr, new BN(100), {
                     from: masset,
@@ -1526,30 +1527,7 @@ contract("BasketManager", async (accounts) => {
                     "bAsset vault must be empty",
                 );
 
-                const lengthAfter = (await basketManager.getBassets()).length;
-                expect(lengthBefore).to.equal(lengthAfter);
-            });
-
-            it("when bAsset status is not active (by manager)", async () => {
-                const mockBasketManager = await createMockBasketManger();
-                const bAssetToRemove = integrationDetails.aTokens[0].bAsset;
-
-                const lengthBefore = (await mockBasketManager.getBassets()).length;
-
-                const bAssets = integrationDetails.aTokens.map((a) => a.bAsset);
-                const newWeights = [percentToWeight(0), percentToWeight(100)];
-                await mockBasketManager.setBasketWeights(bAssets, newWeights, {
-                    from: sa.governor,
-                });
-
-                await mockBasketManager.setBassetStatus(bAssetToRemove, BassetStatus.Liquidating);
-
-                await expectRevert(
-                    mockBasketManager.removeBasset(bAssetToRemove, { from: manager }),
-                    "bAsset must be active",
-                );
-
-                const lengthAfter = (await mockBasketManager.getBassets()).length;
+                const lengthAfter = (await basketManager.getBassets())[0].length;
                 expect(lengthBefore).to.equal(lengthAfter);
             });
 
@@ -1557,7 +1535,7 @@ contract("BasketManager", async (accounts) => {
                 const mockBasketManager = await createMockBasketManger();
                 const bAssetToRemove = integrationDetails.aTokens[0].bAsset;
 
-                const lengthBefore = (await mockBasketManager.getBassets()).length;
+                const lengthBefore = (await mockBasketManager.getBassets())[0].length;
 
                 const bAssets = integrationDetails.aTokens.map((a) => a.bAsset);
                 const newWeights = [percentToWeight(0), percentToWeight(100)];
@@ -1572,7 +1550,7 @@ contract("BasketManager", async (accounts) => {
                     "bAsset must be active",
                 );
 
-                const lengthAfter = (await mockBasketManager.getBassets()).length;
+                const lengthAfter = (await mockBasketManager.getBassets())[0].length;
                 expect(lengthBefore).to.equal(lengthAfter);
             });
         });
@@ -1580,44 +1558,66 @@ contract("BasketManager", async (accounts) => {
         it("should succeed when request is valid (by manager)", async () => {
             const mockBasketManager = await createMockBasketManger();
             const bAssetToRemove = integrationDetails.aTokens[0].bAsset;
+            const unMovedBasset = integrationDetails.aTokens[1].bAsset;
 
-            const lengthBefore = (await mockBasketManager.getBassets()).length;
+            const lengthBefore = (await mockBasketManager.getBassets())[0].length;
 
             const bAssets = integrationDetails.aTokens.map((a) => a.bAsset);
             const newWeights = [percentToWeight(0), percentToWeight(100)];
             await mockBasketManager.setBasketWeights(bAssets, newWeights, {
                 from: sa.governor,
             });
+            const bAssetBefore = await mockBasketManager.getBasset(unMovedBasset);
+            const bAssetIntegratorBefore = await mockBasketManager.getBassetIntegrator(
+                unMovedBasset,
+            );
 
             const tx = await mockBasketManager.removeBasset(bAssetToRemove, { from: manager });
             expectEvent.inLogs(tx.logs, "BassetRemoved", { bAsset: bAssetToRemove });
 
-            const lengthAfter = (await mockBasketManager.getBassets()).length;
-            expect(lengthBefore).to.equal(lengthAfter);
+            // Basket should still behave as normal, getting the desired details and integrator
+            const bAssetAfter = await mockBasketManager.getBasset(unMovedBasset);
+            equalBasset(bAssetBefore, bAssetAfter);
+            const bAssetIntegratorAfter = await mockBasketManager.getBassetIntegrator(
+                unMovedBasset,
+            );
+            expect(bAssetIntegratorBefore).eq(bAssetIntegratorAfter);
+            const lengthAfter = (await mockBasketManager.getBassets())[0].length;
+            expect(lengthBefore - 1).to.equal(lengthAfter);
         });
 
         it("should succeed when request is valid (by governor)", async () => {
             const mockBasketManager = await createMockBasketManger();
-            const bAssetToRemove = integrationDetails.aTokens[0].bAsset;
+            const bAssetToRemove = integrationDetails.aTokens[1].bAsset;
+            const unMovedBasset = integrationDetails.aTokens[0].bAsset;
 
-            const lengthBefore = (await mockBasketManager.getBassets()).length;
+            const lengthBefore = (await mockBasketManager.getBassets())[0].length;
 
             const bAssets = integrationDetails.aTokens.map((a) => a.bAsset);
-            const newWeights = [percentToWeight(0), percentToWeight(100)];
+            const newWeights = [percentToWeight(100), percentToWeight(0)];
             await mockBasketManager.setBasketWeights(bAssets, newWeights, {
                 from: sa.governor,
             });
 
+            const bAssetBefore = await mockBasketManager.getBasset(unMovedBasset);
+            const bAssetIntegratorBefore = await mockBasketManager.getBassetIntegrator(
+                unMovedBasset
+            );
             const tx = await mockBasketManager.removeBasset(bAssetToRemove, { from: sa.governor });
             expectEvent.inLogs(tx.logs, "BassetRemoved", { bAsset: bAssetToRemove });
-
-            const lengthAfter = (await mockBasketManager.getBassets()).length;
-            expect(lengthBefore).to.equal(lengthAfter);
+            const bAssetAfter = await mockBasketManager.getBasset(unMovedBasset);
+            equalBasset(bAssetBefore, bAssetAfter);
+            const bAssetIntegratorAfter = await mockBasketManager.getBassetIntegrator(
+                unMovedBasset
+            );
+            expect(bAssetIntegratorBefore).eq(bAssetIntegratorAfter);
+            const lengthAfter = (await mockBasketManager.getBassets())[0].length;
+            expect(lengthBefore - 1).to.equal(lengthAfter);
         });
     });
 
     describe("getBasket()", async () => {
-        it("get full basket with all parameters", async () => {
+        it("gets the full basket with all parameters", async () => {
             const basket = await basketManager.getBasket();
             const bAssets = basket.bassets;
             equalBassets(bAssets, createDefaultBassets());
@@ -1628,7 +1628,7 @@ contract("BasketManager", async (accounts) => {
     });
 
     describe("prepareForgeBasset()", async () => {
-        beforeEach("", async () => {
+        beforeEach(async () => {
             await createNewBasketManager();
         });
 
@@ -1656,14 +1656,13 @@ contract("BasketManager", async (accounts) => {
             await Promise.all(
                 integrationDetails.aTokens.map(async (a) => {
                     await basketManager.prepareForgeBasset(a.bAsset, 0, false);
-                    // TODO unable to verify the returned values
                 }),
             );
         });
     });
 
     describe("prepareForgeBassets()", async () => {
-        beforeEach("", async () => {
+        beforeEach(async () => {
             await createNewBasketManager();
         });
 
@@ -1736,7 +1735,7 @@ contract("BasketManager", async (accounts) => {
     });
 
     describe("getBitmapFor()", async () => {
-        it("should return bitmpa for 0 bAssets", async () => {
+        it("should return bitmap for 0 bAssets", async () => {
             const bitmap = await basketManager.getBitmapFor([]);
 
             expect(new BN(0)).to.bignumber.equal(bitmap);
@@ -1780,7 +1779,7 @@ contract("BasketManager", async (accounts) => {
     describe("handlePegLoss()", async () => {
         let mockBasketManager: t.MockBasketManager3Instance;
 
-        beforeEach("", async () => {
+        beforeEach(async () => {
             mockBasketManager = await createMockBasketManger();
         });
 
@@ -1830,27 +1829,6 @@ contract("BasketManager", async (accounts) => {
             });
         });
 
-        it("should not change status when already BrokenBelowPeg (by manager)", async () => {
-            await Promise.all(
-                integrationDetails.aTokens.map(async (a) => {
-                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
-                    expect(bAssetBefore.status).to.bignumber.equal(new BN(BassetStatus.Normal));
-
-                    await mockBasketManager.setBassetStatus(a.bAsset, BassetStatus.BrokenBelowPeg);
-                    const bAssetAfterStatusChange = await mockBasketManager.getBasset(a.bAsset);
-                    expect(bAssetAfterStatusChange.status).to.bignumber.equal(
-                        new BN(BassetStatus.BrokenBelowPeg),
-                    );
-
-                    await mockBasketManager.handlePegLoss(a.bAsset, true, { from: manager });
-                    const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(a.bAsset);
-                    expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
-                        new BN(BassetStatus.BrokenBelowPeg),
-                    );
-                }),
-            );
-        });
-
         it("should not change status when already BrokenBelowPeg (by governor)", async () => {
             await Promise.all(
                 integrationDetails.aTokens.map(async (a) => {
@@ -1885,27 +1863,6 @@ contract("BasketManager", async (accounts) => {
                     );
 
                     await mockBasketManager.handlePegLoss(a.bAsset, false, { from: manager });
-                    const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(a.bAsset);
-                    expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
-                        new BN(BassetStatus.BrokenAbovePeg),
-                    );
-                }),
-            );
-        });
-
-        it("should not change status when already BrokenAbovePeg (by governor)", async () => {
-            await Promise.all(
-                integrationDetails.aTokens.map(async (a) => {
-                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
-                    expect(bAssetBefore.status).to.bignumber.equal(new BN(BassetStatus.Normal));
-
-                    await mockBasketManager.setBassetStatus(a.bAsset, BassetStatus.BrokenAbovePeg);
-                    const bAssetAfterStatusChange = await mockBasketManager.getBasset(a.bAsset);
-                    expect(bAssetAfterStatusChange.status).to.bignumber.equal(
-                        new BN(BassetStatus.BrokenAbovePeg),
-                    );
-
-                    await mockBasketManager.handlePegLoss(a.bAsset, false, { from: sa.governor });
                     const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(a.bAsset);
                     expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
                         new BN(BassetStatus.BrokenAbovePeg),
@@ -1990,44 +1947,6 @@ contract("BasketManager", async (accounts) => {
             );
         });
 
-        it("should not change status when bAsset has recolled - Liquidated (by manager)", async () => {
-            const belowPegBools: Array<boolean> = [true, false];
-            await Promise.all(
-                belowPegBools.map(async (flag) => {
-                    await Promise.all(
-                        integrationDetails.aTokens.map(async (a) => {
-                            const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
-                            expect(bAssetBefore.status).to.bignumber.equal(
-                                new BN(BassetStatus.Normal),
-                            );
-
-                            await mockBasketManager.setBassetStatus(
-                                a.bAsset,
-                                BassetStatus.Liquidated,
-                            );
-                            const bAssetAfterStatusChange = await mockBasketManager.getBasset(
-                                a.bAsset,
-                            );
-                            expect(bAssetAfterStatusChange.status).to.bignumber.equal(
-                                new BN(BassetStatus.Liquidated),
-                            );
-
-                            await mockBasketManager.handlePegLoss(a.bAsset, flag, {
-                                from: manager,
-                            });
-                            const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(
-                                a.bAsset,
-                            );
-                            expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
-                                new BN(BassetStatus.Liquidated),
-                            );
-                        }),
-                    );
-                    return null;
-                }),
-            );
-        });
-
         it("should not change status when bAsset has recolled - Liquidated (by governor)", async () => {
             const belowPegBools: Array<boolean> = [true, false];
             await Promise.all(
@@ -2058,41 +1977,6 @@ contract("BasketManager", async (accounts) => {
                             );
                             expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
                                 new BN(BassetStatus.Liquidated),
-                            );
-                        }),
-                    );
-                    return null;
-                }),
-            );
-        });
-
-        it("should not change status when bAsset has recolled - Failed (by manager)", async () => {
-            const belowPegBools: Array<boolean> = [true, false];
-            await Promise.all(
-                belowPegBools.map(async (flag) => {
-                    await Promise.all(
-                        integrationDetails.aTokens.map(async (a) => {
-                            const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
-                            expect(bAssetBefore.status).to.bignumber.equal(
-                                new BN(BassetStatus.Normal),
-                            );
-
-                            await mockBasketManager.setBassetStatus(a.bAsset, BassetStatus.Failed);
-                            const bAssetAfterStatusChange = await mockBasketManager.getBasset(
-                                a.bAsset,
-                            );
-                            expect(bAssetAfterStatusChange.status).to.bignumber.equal(
-                                new BN(BassetStatus.Failed),
-                            );
-
-                            await mockBasketManager.handlePegLoss(a.bAsset, flag, {
-                                from: manager,
-                            });
-                            const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(
-                                a.bAsset,
-                            );
-                            expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
-                                new BN(BassetStatus.Failed),
                             );
                         }),
                     );
@@ -2135,29 +2019,6 @@ contract("BasketManager", async (accounts) => {
                 }),
             );
         });
-        // =====
-        it("should change status when (Normal, belowPeg) (by manager)", async () => {
-            await Promise.all(
-                integrationDetails.aTokens.map(async (a) => {
-                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
-                    expect(bAssetBefore.status).to.bignumber.equal(new BN(BassetStatus.Normal));
-
-                    const tx = await mockBasketManager.handlePegLoss(a.bAsset, true, {
-                        from: manager,
-                    });
-                    expectEvent.inLogs(tx.logs, "BassetStatusChanged", {
-                        bAsset: a.bAsset,
-                        status: new BN(BassetStatus.BrokenBelowPeg),
-                    });
-
-                    const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(a.bAsset);
-                    expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
-                        new BN(BassetStatus.BrokenBelowPeg),
-                    );
-                }),
-            );
-        });
-
         it("should change status when (Normal, belowPeg) (by governor)", async () => {
             await Promise.all(
                 integrationDetails.aTokens.map(async (a) => {
@@ -2180,28 +2041,6 @@ contract("BasketManager", async (accounts) => {
             );
         });
 
-        it("should change status when (Normal, abovePeg) (by manager)", async () => {
-            await Promise.all(
-                integrationDetails.aTokens.map(async (a) => {
-                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
-                    expect(bAssetBefore.status).to.bignumber.equal(new BN(BassetStatus.Normal));
-
-                    const tx = await mockBasketManager.handlePegLoss(a.bAsset, false, {
-                        from: manager,
-                    });
-                    expectEvent.inLogs(tx.logs, "BassetStatusChanged", {
-                        bAsset: a.bAsset,
-                        status: new BN(BassetStatus.BrokenAbovePeg),
-                    });
-
-                    const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(a.bAsset);
-                    expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
-                        new BN(BassetStatus.BrokenAbovePeg),
-                    );
-                }),
-            );
-        });
-
         it("should change status when (Normal, abovePeg) (by governor)", async () => {
             await Promise.all(
                 integrationDetails.aTokens.map(async (a) => {
@@ -2219,35 +2058,6 @@ contract("BasketManager", async (accounts) => {
                     const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(a.bAsset);
                     expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
                         new BN(BassetStatus.BrokenAbovePeg),
-                    );
-                }),
-            );
-        });
-
-        // =====
-        it("should change status when (Blacklisted, belowPeg) (by manager)", async () => {
-            await Promise.all(
-                integrationDetails.aTokens.map(async (a) => {
-                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
-                    expect(bAssetBefore.status).to.bignumber.equal(new BN(BassetStatus.Normal));
-
-                    await mockBasketManager.setBassetStatus(a.bAsset, BassetStatus.Blacklisted);
-                    const bAssetAfterStatusChange = await mockBasketManager.getBasset(a.bAsset);
-                    expect(bAssetAfterStatusChange.status).to.bignumber.equal(
-                        new BN(BassetStatus.Blacklisted),
-                    );
-
-                    const tx = await mockBasketManager.handlePegLoss(a.bAsset, true, {
-                        from: manager,
-                    });
-                    expectEvent.inLogs(tx.logs, "BassetStatusChanged", {
-                        bAsset: a.bAsset,
-                        status: new BN(BassetStatus.BrokenBelowPeg),
-                    });
-
-                    const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(a.bAsset);
-                    expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
-                        new BN(BassetStatus.BrokenBelowPeg),
                     );
                 }),
             );
@@ -2276,34 +2086,6 @@ contract("BasketManager", async (accounts) => {
                     const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(a.bAsset);
                     expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
                         new BN(BassetStatus.BrokenBelowPeg),
-                    );
-                }),
-            );
-        });
-
-        it("should change status when (Blacklisted, abovePeg) (by manager)", async () => {
-            await Promise.all(
-                integrationDetails.aTokens.map(async (a) => {
-                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
-                    expect(bAssetBefore.status).to.bignumber.equal(new BN(BassetStatus.Normal));
-
-                    await mockBasketManager.setBassetStatus(a.bAsset, BassetStatus.Blacklisted);
-                    const bAssetAfterStatusChange = await mockBasketManager.getBasset(a.bAsset);
-                    expect(bAssetAfterStatusChange.status).to.bignumber.equal(
-                        new BN(BassetStatus.Blacklisted),
-                    );
-
-                    const tx = await mockBasketManager.handlePegLoss(a.bAsset, false, {
-                        from: manager,
-                    });
-                    expectEvent.inLogs(tx.logs, "BassetStatusChanged", {
-                        bAsset: a.bAsset,
-                        status: new BN(BassetStatus.BrokenAbovePeg),
-                    });
-
-                    const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(a.bAsset);
-                    expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
-                        new BN(BassetStatus.BrokenAbovePeg),
                     );
                 }),
             );
@@ -2341,7 +2123,7 @@ contract("BasketManager", async (accounts) => {
     describe("negateIsolation()", async () => {
         let mockBasketManager: t.MockBasketManager3Instance;
 
-        beforeEach("", async () => {
+        beforeEach(async () => {
             mockBasketManager = await createMockBasketManger();
         });
 
@@ -2535,16 +2317,5 @@ contract("BasketManager", async (accounts) => {
                 }),
             );
         });
-    });
-
-    // =====
-
-    it("Should convert bitmap to index array", async () => {
-        // let indexes = await masset.convertBitmapToIndexArr(3, 2);
-        // console.log(indexes);
-        // TODO (3,3) will return indexes[0,1,0] which is wrong
-        // TODO need to look for solution
-        // shouldFail(await masset.convertBitmapToIndexArr(3, 3));
-        // console.log(indexes);
     });
 });

@@ -21,7 +21,7 @@ contract MockBasketManager1 is MassetStructs {
         });
     }
 
-    function prepareForgeBasset(address _token, uint256 /*_amt*/, bool /*_mint*/)
+    function prepareForgeBasset(address /*bitmap*/, uint256 /*_amt*/, bool /*_mint*/)
         external
         returns (
             ForgeProps memory props
@@ -37,8 +37,8 @@ contract MockBasketManager1 is MassetStructs {
     }
 
     function prepareForgeBassets(
-        uint32 _bitmap,
-        uint8 _size,
+        uint32 /*bitmap*/,
+        uint8 /*bitmap*/,
         uint256[] calldata /*_amts*/,
         bool /* _isMint */
     )
@@ -95,7 +95,7 @@ contract MockBasketManager2 is MassetStructs {
     }
 
     function prepareForgeBassets(
-        uint32 _/*bitmap*/,
+        uint32 /*bitmap*/,
         uint8 /*_size*/,
         uint256[] calldata /*_amts*/,
         bool /* _isMint */

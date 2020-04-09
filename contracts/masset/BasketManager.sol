@@ -50,7 +50,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     // Mapping holds bAsset token address => array index
     mapping(address => uint8) private bAssetsMap;
     // Holds relative addresses of the integration platforms
-    mapping(uint8 => address) public integrations;
+    address[] public integrations;
 
     /**
      * @dev Initialization function for upgradable proxy contract.
@@ -229,7 +229,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
             uint256 balance = IPlatformIntegration(integrations[i]).checkBalance(b.addr);
             uint256 oldVaultBalance = b.vaultBalance;
 
-            // accumulate interestdelta (ratioed bAsset
+            // accumulate interest (ratioed bAsset)
             if(balance > oldVaultBalance) {
                 // Update balance
                 basket.bassets[i].vaultBalance = balance;
@@ -291,7 +291,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         returns (uint8 index)
     {
         require(_bAsset != address(0), "bAsset address must be valid");
-        require(_integration != address(0), "integration address must be valid");
+        require(_integration != address(0), "Integration address must be valid");
         (bool alreadyInBasket, ) = _isAssetInBasket(_bAsset);
         require(!alreadyInBasket, "bAsset already exists in Basket");
         require(_measurementMultiple >= 1e6 && _measurementMultiple <= 1e10, "MM out of range");
@@ -313,7 +313,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         require(numberOfBassetsInBasket < basket.maxBassets, "Max bAssets in Basket");
 
         bAssetsMap[_bAsset] = numberOfBassetsInBasket;
-        integrations[numberOfBassetsInBasket] = _integration;
+        integrations.push(_integration);
 
         basket.bassets.push(Basset({
             addr: _bAsset,
@@ -458,15 +458,28 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
 
         uint256 len = basket.bassets.length;
         Basset memory bAsset = basket.bassets[index];
+
         require(bAsset.targetWeight == 0, "bAsset must have a target weight of 0");
         require(bAsset.vaultBalance == 0, "bAsset vault must be empty");
         require(bAsset.status != BassetStatus.Liquidating, "bAsset must be active");
 
-        basket.bassets[index] = basket.bassets[len.sub(1)];
-        basket.bassets.pop();
-
-        bAssetsMap[_assetToRemove] = 0;
-        integrations[index] = address(0);
+        uint8 lastIndex = uint8(len.sub(1));
+        if(index == lastIndex) {
+            basket.bassets.pop();
+            bAssetsMap[_assetToRemove] = 0;
+            integrations.pop();
+        } else {
+            // Swap the bassets
+            basket.bassets[index] = basket.bassets[lastIndex];
+            basket.bassets.pop();
+            Basset memory swappedBasset = basket.bassets[index];
+            // Update bassetsMap
+            bAssetsMap[_assetToRemove] = 0;
+            bAssetsMap[swappedBasset.addr] = index;
+            // Update integrations
+            integrations[index] = integrations[lastIndex];
+            integrations.pop();
+        }
 
         emit BassetRemoved(bAsset.addr);
     }
