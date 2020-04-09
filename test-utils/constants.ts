@@ -24,9 +24,7 @@ export const ADDRESS_1 = "0xcd959e71449425f6e4ac814b7f5aebde93012e24";
 export const ADDRESS_2 = "0xcd959e71449425f6e4ac814b7f5aebde93012e24";
 export const ADDRESS_3 = "0xc257274276a4e539741ca11b590b9447b26a8051";
 
-export const MAX_UINT256 = new BN(
-    "115792089237316195423570985008687907853269984665640564039457584007913129639935",
-);
+export const MAX_UINT256 = new BN(2).pow(new BN(256)).sub(new BN(1));
 
 export const ZERO = new BN(0);
 export const TEN_MINS = new BN(60 * 10);

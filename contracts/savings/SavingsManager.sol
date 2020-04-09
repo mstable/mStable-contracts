@@ -3,13 +3,13 @@ pragma solidity 0.5.16;
 // External
 import { IMasset } from "../interfaces/IMasset.sol";
 import { ISavingsContract } from "../interfaces/ISavingsContract.sol";
-import { IERC20 }     from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Internal
 import { ISavingsManager } from "../interfaces/ISavingsManager.sol";
 import { PausableModule } from "../shared/PausableModule.sol";
 
 //Libs
+import { IERC20 }     from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 }  from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 import { StableMath } from "../shared/StableMath.sol";
@@ -29,7 +29,8 @@ contract SavingsManager is ISavingsManager, PausableModule {
     using SafeERC20 for IERC20;
 
     // Core admin events
-    event SavingsContractEnabled(address indexed mAsset, address savingsContract);
+    event SavingsContractAdded(address indexed mAsset, address savingsContract);
+    event SavingsContractUpdated(address indexed mAsset, address savingsContract);
     event SavingsRateChanged(uint256 newSavingsRate);
     // Interest collection
     event InterestCollected(address indexed mAsset, uint256 interest, uint256 newTotalSupply, uint256 apy);
@@ -41,7 +42,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
     // Time at which last collection was made
     mapping(address => uint256) public lastCollection;
 
-    // Amount of collected interest that will be sent to Savings Contract
+    // Amount of collected interest that will be sent to Savings Contract (100%)
     uint256 private savingsRate = 1e18;
     // Utils to help keep interest under check
     uint256 constant private secondsInYear = 365 days;
@@ -51,14 +52,12 @@ contract SavingsManager is ISavingsManager, PausableModule {
     constructor(
         address _nexus,
         address _mUSD,
-        ISavingsContract _savingsContract
+        address _savingsContract
     )
-        PausableModule(_nexus)
         public
+        PausableModule(_nexus)
     {
-        savingsContracts[_mUSD] = _savingsContract;
-        IERC20(_mUSD).safeApprove(address(_savingsContract), uint256(-1));
-        emit SavingsContractEnabled(_mUSD, address(_savingsContract));
+        _updateSavingsContract(_mUSD, _savingsContract);
     }
 
     /***************************************
@@ -66,18 +65,38 @@ contract SavingsManager is ISavingsManager, PausableModule {
     ****************************************/
 
     /**
-     * @dev Enables a new savings contract, either by replacement or upgrade
+     * @dev Adds a new savings contract
      * @param _mAsset           Address of underlying mAsset
      * @param _savingsContract  Address of the savings contract
      */
-    function setSavingsContract(address _mAsset, address _savingsContract)
+    function addSavingsContract(address _mAsset, address _savingsContract)
         external
         onlyGovernor
     {
+        require(address(savingsContracts[_mAsset]) == address(0), "Savings contract exist");
+        _updateSavingsContract(_mAsset, _savingsContract);
+        emit SavingsContractAdded(_mAsset, _savingsContract);
+    }
+
+    /**
+     * @dev Updates an existing savings contract
+     * @param _mAsset           Address of underlying mAsset
+     * @param _savingsContract  Address of the savings contract
+     */
+    function updateSavingsContract(address _mAsset, address _savingsContract)
+        external
+        onlyGovernor
+    {
+        require(address(savingsContracts[_mAsset]) != address(0), "Savings contract not exist");
+        _updateSavingsContract(_mAsset, _savingsContract);
+        emit SavingsContractUpdated(_mAsset, _savingsContract);
+    }
+
+    function _updateSavingsContract(address _mAsset, address _savingsContract)
+        internal
+    {
         require(_mAsset != address(0) && _savingsContract != address(0), "Must be valid address");
         savingsContracts[_mAsset] = ISavingsContract(_savingsContract);
-
-        emit SavingsContractEnabled(_mAsset, _savingsContract);
 
         IERC20(_mAsset).safeApprove(address(_savingsContract), 0);
         IERC20(_mAsset).safeApprove(address(_savingsContract), uint256(-1));
@@ -91,6 +110,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
         external
         onlyGovernor
     {
+        // Greater than 90% upto 100%
         require(_savingsRate > 9e17 && _savingsRate <= 1e18, "Must be a valid rate");
         savingsRate = _savingsRate;
         emit SavingsRateChanged(_savingsRate);
@@ -110,11 +130,14 @@ contract SavingsManager is ISavingsManager, PausableModule {
         external
         whenNotPaused
     {
+        ISavingsContract savingsContract = savingsContracts[_mAsset];
+        require(address(savingsContract) != address(0), "Must have a valid savings contract");
+
         uint256 previousCollection = lastCollection[_mAsset];
 
         // 1. Only collect interest if it has been 30 mins
         uint256 timeSinceLastCollection = now.sub(previousCollection);
-        if(timeSinceLastCollection > 30 minutes){
+        if(timeSinceLastCollection > 30 minutes) {
 
             lastCollection[_mAsset] = now;
 
@@ -122,15 +145,19 @@ contract SavingsManager is ISavingsManager, PausableModule {
             IMasset mAsset = IMasset(_mAsset);
             (uint256 interestCollected, uint256 totalSupply) = mAsset.collectInterest();
 
-            if(interestCollected > 0){
+            if(interestCollected > 0) {
 
                 // 3. Validate that the interest has been collected and is within certain limits
-                require(IERC20(_mAsset).balanceOf(address(this)) >= interestCollected, "Must recceive mUSD");
+                require(
+                    IERC20(_mAsset).balanceOf(address(this)) >= interestCollected,
+                    "Must receive mUSD"
+                );
 
                 // Seconds since last collection
                 uint256 secondsSinceLastCollection = now.sub(previousCollection);
                 // e.g. day: (86400 * 1e18) / 3.154e7 = 2.74..e15
-                uint256 yearsSinceLastCollection = secondsSinceLastCollection.divPrecisely(secondsInYear);
+                uint256 yearsSinceLastCollection =
+                    secondsSinceLastCollection.divPrecisely(secondsInYear);
                 // Percentage increase in total supply
                 // e.g. (1e20 * 1e18) / 1e24 = 1e14 (or a 0.01% increase)
                 uint256 percentageIncrease = interestCollected.divPrecisely(totalSupply);
@@ -146,10 +173,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
                 uint256 saversShare = interestCollected.mulTruncate(savingsRate);
 
                 // Call depositInterest on contract
-                ISavingsContract target = savingsContracts[_mAsset];
-                require(address(target) != address(0), "Must have a valid savings contract");
-
-                target.depositInterest(saversShare);
+                savingsContract.depositInterest(saversShare);
 
                 emit InterestDistributed(_mAsset, saversShare);
             } else {
