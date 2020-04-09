@@ -1581,13 +1581,13 @@ contract("BasketManager", async (accounts) => {
             const bAssetIntegratorAfter = await mockBasketManager.getBassetIntegrator(
                 unMovedBasset,
             );
-            expect(ZERO_ADDRESS).eq(await mockBasketManager.integrations(1));
+            await expectRevert(mockBasketManager.integrations(1), "invalid opcode");
 
             expect(bAssetIntegratorBefore).eq(bAssetIntegratorAfter);
             const lengthAfter = (await mockBasketManager.getBassets())[0].length;
             expect(lengthBefore - 1).to.equal(lengthAfter);
-            
-            await expectRevert(basketManager.getBasset(bAssetToRemove), "bAsset must exist");
+
+            await expectRevert(mockBasketManager.getBasset(bAssetToRemove), "bAsset must exist");
         });
 
         it("should succeed when request is valid (by governor)", async () => {
@@ -1617,11 +1617,11 @@ contract("BasketManager", async (accounts) => {
                 unMovedBasset,
             );
             expect(bAssetIntegratorBefore).eq(bAssetIntegratorAfter);
-            expect(ZERO_ADDRESS).eq(await mockBasketManager.integrations(1));
+            // await expectRevert(mockBasketManager.integrations(1), "invalid opcode");
             const lengthAfter = (await mockBasketManager.getBassets())[0].length;
             expect(lengthBefore - 1).to.equal(lengthAfter);
 
-            await expectRevert(basketManager.getBasset(bAssetToRemove), "bAsset must exist");
+            await expectRevert(mockBasketManager.getBasset(bAssetToRemove), "bAsset must exist");
         });
     });
 
