@@ -1138,7 +1138,7 @@ contract("BasketManager", async (accounts) => {
                 percentToWeight(50),
                 percentToWeight(20),
             ];
-            let [bassets] = await mockBasketManager.getBassets();
+            const [bassets] = await mockBasketManager.getBassets();
             await Promise.all(
                 bassets.map(async (b, index) => {
                     expect(expectedWeight[index]).to.bignumber.equal(new BN(b.targetWeight));

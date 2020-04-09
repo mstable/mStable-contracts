@@ -7,7 +7,7 @@ import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 
 /**
  * @title   ForgeValidator
- * @author  Stability Labs Pty. Lte.
+ * @author  Stability Labs Pty. Ltd.
  * @notice  Calculates whether or not minting or redemption is valid, based
  *          on how it affects the underlying basket collateral weightings
  * @dev     VERSION: 1.0

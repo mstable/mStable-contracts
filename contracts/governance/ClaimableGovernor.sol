@@ -4,7 +4,7 @@ import { Governable } from "./Governable.sol";
 
 /**
  * @title   ClaimableGovernor
- * @author  Stability Labs Pty. Lte.
+ * @author  Stability Labs Pty. Ltd.
  * @notice  2 way handshake for Governance transfer
  */
 contract ClaimableGovernor is Governable {

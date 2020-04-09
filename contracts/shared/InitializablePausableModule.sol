@@ -4,7 +4,7 @@ import { InitializableModule } from "./InitializableModule.sol";
 
 /**
  * @title   InitializableModule
- * @author  Stability Labs Pty. Lte.
+ * @author  Stability Labs Pty. Ltd.
  * @dev     Subscribes to module updates from a given publisher and reads from its registry.
  *          Contract is used for upgradable proxy contracts.
  */

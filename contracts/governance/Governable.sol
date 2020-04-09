@@ -2,7 +2,7 @@ pragma solidity 0.5.16;
 
 /**
  * @title   Governable
- * @author  Stability Labs Pty. Lte.
+ * @author  Stability Labs Pty. Ltd.
  * @notice  Simple contract implementing an Ownable pattern.
  * @dev     Derives from OpenZeppelin 2.3.0 Ownable.sol
  *          Modified to have custom name and features

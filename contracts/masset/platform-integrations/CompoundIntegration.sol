@@ -6,7 +6,7 @@ import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "./Initi
 
 /**
  * @title   CompoundIntegration
- * @author  Stability Labs Pty. Lte.
+ * @author  Stability Labs Pty. Ltd.
  * @notice  A simple connection to deposit and withdraw bAssets from Compound
  * @dev     VERSION: 1.0
  *          DATE:    2020-03-26

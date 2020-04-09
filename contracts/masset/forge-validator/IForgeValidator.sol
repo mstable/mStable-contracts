@@ -5,7 +5,7 @@ import { MassetStructs } from "../shared/MassetStructs.sol";
 
 /**
  * @title   IForgeValidator
- * @author  Stability Labs Pty. Lte.
+ * @author  Stability Labs Pty. Ltd.
  * @notice  Calculates whether or not minting or redemption is valid, based
  *          on how it affects the underlying basket collateral weightings
  * @dev     Abstract ForgeValidator contract for interacting with the Forge Validator implementation

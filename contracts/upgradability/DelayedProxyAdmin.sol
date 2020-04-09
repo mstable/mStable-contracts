@@ -6,7 +6,7 @@ import { AdminUpgradeabilityProxy } from "@openzeppelin/upgrades/contracts/upgra
 
 /**
  * @title   DelayedProxyAdmin
- * @author  Stability Labs Pty. Lte.
+ * @author  Stability Labs Pty. Ltd.
  * @notice  Proxy admin contract to upgrade the upgradable contracts. The upgradable contracts
  *          are transparent proxy contracts from OpenZeppelin-SDK.
  * @dev     The contract has a delyed upgradability. The Governor can propose a new implementation

@@ -35,7 +35,7 @@ interface BassetDeets {
 const setBasset = (
     target: number | string,
     vaultUnits: number | string,
-    decimals: number = 18,
+    decimals = 18,
     status: BassetStatus = BassetStatus.Normal,
 ): BassetDeets => {
     return {
@@ -59,7 +59,7 @@ interface Result {
     expectedValidity: boolean;
     expectedReason: string;
 }
-const setResult = (expectedValidity: boolean, expectedReason: string = ""): Result => {
+const setResult = (expectedValidity: boolean, expectedReason = ""): Result => {
     return {
         expectedValidity,
         expectedReason,

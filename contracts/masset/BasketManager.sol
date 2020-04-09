@@ -298,14 +298,8 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         require(!alreadyInBasket, "bAsset already exists in Basket");
 
         // Programmatic enforcement of bAsset validity should service through oracle
-        // require(
-        //     IManager(_manager()).validateBasset(address(this),
-        //          _bAsset, _measurementMultiple, _isTransferFeeCharged),
-        //     "New bAsset must be valid"
-        // );
 
         uint256 bAsset_decimals = CommonHelpers.getDecimals(_bAsset);
-
         uint256 delta = uint256(18).sub(bAsset_decimals);
 
         uint256 ratio = _measurementMultiple.mul(10 ** delta);
@@ -373,7 +367,8 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
             uint256 bAssetWeight = _weights[i];
 
             if(bAsset.status == BassetStatus.Normal) {
-                require(bAssetWeight <= StableMath.getFullScale(),
+                require(
+                    bAssetWeight <= StableMath.getFullScale(),
                     "Asset weight must be <= 1e18"
                 );
                 basket.bassets[index].targetWeight = bAssetWeight;

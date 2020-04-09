@@ -4,7 +4,7 @@ import { IBasicToken } from "./IBasicToken.sol";
 
 /**
  * @title   CommonHelpers
- * @author  Stability Labs Pty. Lte.
+ * @author  Stability Labs Pty. Ltd.
  */
 library CommonHelpers {
 
