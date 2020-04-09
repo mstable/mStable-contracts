@@ -32,7 +32,7 @@ export enum BassetStatus {
 
 export interface Basset {
     addr: string;
-    status: BN;
+    status: BN | BassetStatus;
     isTransferFeeCharged: boolean;
     ratio: BN | string;
     targetWeight: BN | string;
@@ -63,7 +63,7 @@ export const createBasset = (
         ratio: createMultiple(decimals).toString(),
         targetWeight: percentToWeight(targetWeight).toString(),
         vaultBalance: simpleToExactAmount(vaultBalance, decimals).toString(),
-        status: new BN(status),
+        status: status,
     };
 };
 
