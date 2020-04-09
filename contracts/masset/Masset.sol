@@ -139,7 +139,8 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
      * @dev Mint with multiple bAssets, at a 1:1 ratio to mAsset. This contract
      *      must have approval to spend the senders bAssets
      * @param _bAssetsBitmap    Indexes that we should mint with in a bitmap
-     * @param _bAssetQuantity   Quantity of each bAsset to mint
+     * @param _bAssetQuantity   Quantity of each bAsset to mint. Order of array
+     * should mirror that of lowest index to the highest in the bitmap.
      * @param _recipient        Address to receive the newly minted mAsset tokens
      * @return massetMinted     Number of newly minted mAssets
      */

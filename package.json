@@ -1,8 +1,8 @@
 {
   "name": "mstable-contracts",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "private": true,
-  "license": "None",
+  "license": "MIT",
   "description": "mStable Contracts",
   "author": "Stability Labs Pty. Ltd.",
   "scripts": {
@@ -27,7 +27,7 @@
   },
   "devDependencies": {
     "@openzeppelin/contracts": "2.5.0",
-    "@openzeppelin/test-helpers": "0.5.5",
+    "@openzeppelin/test-helpers": "git+https://git@github.com/alsco77/openzeppelin-test-helpers.git",
     "@openzeppelin/upgrades": "2.7.2",
     "@truffle/hdwallet-provider": "^1.0.18",
     "@typechain/truffle-v5": "^0.9.0",
