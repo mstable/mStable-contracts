@@ -193,21 +193,6 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         return ratioedDeposit;
     }
 
-    function _depositTokens(
-        address _bAsset,
-        uint256 _bAssetRatio,
-        address _integrator,
-        bool _xferCharged,
-        uint256 _quantity
-    )
-        internal
-        returns (uint256 quantityDeposited, uint256 ratioedDeposit)
-    {
-        uint256 quantityTransferred = MassetHelpers.transferTokens(msg.sender, _integrator, _bAsset, _xferCharged, _quantity);
-        quantityDeposited = IPlatformIntegration(_integrator).deposit(_bAsset, quantityTransferred, _xferCharged);
-        ratioedDeposit = quantityDeposited.mulRatioTruncate(_bAssetRatio);
-    }
-
     /** @dev Mint Multi */
     function _mintTo(
         uint32 _bAssetsBitmap,
@@ -257,6 +242,24 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
 
         return mAssetQuantity;
     }
+
+    /** @dev Deposits tokens into the platform integration and returns the ratioed amount */
+    function _depositTokens(
+        address _bAsset,
+        uint256 _bAssetRatio,
+        address _integrator,
+        bool _xferCharged,
+        uint256 _quantity
+    )
+        internal
+        returns (uint256 quantityDeposited, uint256 ratioedDeposit)
+    {
+        uint256 quantityTransferred = MassetHelpers.transferTokens(msg.sender, _integrator, _bAsset, _xferCharged, _quantity);
+        quantityDeposited = IPlatformIntegration(_integrator).deposit(_bAsset, quantityTransferred, _xferCharged);
+        require(quantityDeposited <= _quantity, "Must not return invalid mint quantity");
+        ratioedDeposit = quantityDeposited.mulRatioTruncate(_bAssetRatio);
+    }
+
 
     /***************************************
               REDEMPTION (PUBLIC)
@@ -367,6 +370,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         return mAssetQuantity;
     }
 
+
     /** @dev Redeem mAsset for a multiple bAssets */
     function _redeemTo(
         uint32 _bAssetsBitmap,
@@ -403,12 +407,8 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
                 // Calc equivalent mAsset amount
                 uint256 ratioedBasset = bAssetQuantity.mulRatioTruncateCeil(props.bAssets[i].ratio);
                 mAssetQuantity = mAssetQuantity.add(ratioedBasset);
-
-                // bAsset == bAssets[i] == basket.bassets[indexes[i]]
-                // basketManager.decreaseVaultBalance(props.indexes[i], props.integrators[i], bAssetQuantity);
             }
         }
-
         basketManager.decreaseVaultBalances(props.indexes, props.integrators, _bAssetQuantities);
 
         // Pay the redemption fee

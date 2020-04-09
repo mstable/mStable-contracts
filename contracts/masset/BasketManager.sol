@@ -248,7 +248,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
 
 
     /***************************************
-                BASKET ADJUSTMENTS
+                BASKET MNGMENT
     ****************************************/
 
     /**
@@ -296,7 +296,6 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
 
         (bool alreadyInBasket, ) = _isAssetInBasket(_bAsset);
         require(!alreadyInBasket, "bAsset already exists in Basket");
-
 
         // Programmatic enforcement of bAsset validity should service through oracle
         // require(
@@ -430,6 +429,10 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         _updateGrace(_newGrace);
     }
 
+    /**
+     * @dev Update Grace allowance for use in the Forge Validation
+     * @param _newGrace Exact amount of units
+     */
     function _updateGrace(uint256 _newGrace) private {
         require(_newGrace >= 1e18 && _newGrace <= 1e25, "Must be within valid grace range");
         grace = _newGrace;
@@ -616,7 +619,6 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         )
     {
         len = basket.bassets.length;
-
         bAssets = new Basset[](len);
 
         for(uint8 i = 0; i < len; i++) {
