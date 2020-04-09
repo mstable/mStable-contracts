@@ -406,7 +406,7 @@ export class MassetMachine {
         const bArrays: Array<Basset> = response[0].map((b) => {
             return {
                 addr: b.addr,
-                status: parseInt(b.status.toString()),
+                status: b.status,
                 isTransferFeeCharged: b.isTransferFeeCharged,
                 ratio: new BN(b.ratio),
                 targetWeight: new BN(b.targetWeight),
