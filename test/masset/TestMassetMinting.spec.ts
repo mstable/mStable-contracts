@@ -488,7 +488,7 @@ contract("Masset", async (accounts) => {
                     await basketManager.removeBasset(bAssets[1].address, { from: sa.governor });
                 });
                 it("should still deposit to the right lending platform", async () => {
-                    const { bAssets, mAsset, basketManager } = massetDetails;
+                    const { bAssets } = massetDetails;
 
                     let removedBassetBalBefore = await bAssets[1].balanceOf(sa.default);
                     await assertBasicMint(massetDetails, new BN(1), bAssets[3], false);
@@ -496,7 +496,7 @@ contract("Masset", async (accounts) => {
                     expect(removedBassetBalBefore).bignumber.eq(removedBassetBalAfter);
                 });
                 it("should not be possible to mint with the removed bAsset", async () => {
-                    const { bAssets, mAsset, basketManager } = massetDetails;
+                    const { bAssets, mAsset } = massetDetails;
                     await expectRevert(
                         mAsset.mint(bAssets[1].address, new BN(1)),
                         "bAsset does not exist",
@@ -1253,7 +1253,7 @@ contract("Masset", async (accounts) => {
                     let removedBassetBalAfter = await bAssets[1].balanceOf(sa.default);
                     expect(removedBassetBalBefore).bignumber.eq(removedBassetBalAfter);
                 });
-                it("should not be possible to mint with the last bAsset", async () => {
+                it("should not be possible to mint with the removed bAsset", async () => {
                     const { mAsset, bAssets } = massetDetails;
                     await expectRevert(
                         mAsset.mintMulti([bAssets[1].address], [new BN(1)], sa.default),

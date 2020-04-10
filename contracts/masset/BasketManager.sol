@@ -108,7 +108,8 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
      * @dev Verifies that the caller either Manager or Gov
      */
     modifier managerOrGovernor() {
-        require(_manager() == msg.sender || _governor() == msg.sender,
+        require(
+            _manager() == msg.sender || _governor() == msg.sender,
             "Must be manager or governor");
         _;
     }
@@ -537,7 +538,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         returns (ForgePropsMulti memory props)
     {
         // Pass the fetching logic to the internal view func to reduce SLOAD cost
-        (Basset[] memory bAssets, uint8[] memory indexes, address[] memory integrators) = _prepForgeBassets(_bAssets);
+        (Basset[] memory bAssets, uint8[] memory indexes, address[] memory integrators) = _fetchForgeBassets(_bAssets);
         props = ForgePropsMulti({
             isValid: true,
             bAssets: bAssets,
@@ -549,12 +550,12 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
 
     /**
      * @dev Internal func to fetch an array of bAssets and their integrators from storage
-     * @param _bAssets   Array of non-duplicate bAsset addresses with which to forge
+     * @param _bAssets       Array of non-duplicate bAsset addresses with which to forge
      * @return bAssets       Array of bAsset structs for the given addresses
      * @return indexes       Array of indexes for the given addresses
      * @return integrators   Array of integrators for the given addresses
      */
-    function _prepForgeBassets(address[] memory _bAssets)
+    function _fetchForgeBassets(address[] memory _bAssets)
         internal
         view
         returns (
