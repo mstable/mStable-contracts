@@ -11,9 +11,9 @@ import { MassetStructs } from "../shared/MassetStructs.sol";
  * @dev     Abstract ForgeValidator contract for interacting with the Forge Validator implementation
  */
 contract IForgeValidator is MassetStructs {
-    function validateMint(uint256 _totalVault, uint256 _grace, Basset calldata _basset, uint256 _bassetQuantity)
+    function validateMint(uint256 _totalVault, uint256 _grace, Basset calldata _basset, uint256 _bAssetQuantity)
         external pure returns (bool, string memory);
-    function validateMintMulti(uint256 _totalVault, uint256 _grace, Basset[] calldata _bassets, uint256[] calldata _bassetQuantity)
+    function validateMintMulti(uint256 _totalVault, uint256 _grace, Basset[] calldata _bassets, uint256[] calldata _bAssetQuantities)
         external pure returns (bool, string memory);
     function validateRedemption(
         bool basketIsFailed,

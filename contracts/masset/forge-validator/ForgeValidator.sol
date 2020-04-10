@@ -57,7 +57,7 @@ contract ForgeValidator is IForgeValidator {
      * @param _totalVault       Current sum of basket collateral
      * @param _grace            Unit based deviation allowance, where 1 == 1e18
      * @param _bAssets          Array of Struct containing relevant data on the bAssets
-     * @param _bAssetQuantity   Number of bAsset units that will be used to mint (aligned with above)
+     * @param _bAssetQuantities Number of bAsset units that will be used to mint (aligned with above)
      * @return isValid          Bool to signify that the mint does not move our weightings the wrong way
      * @return reason           If the mint is invalid, this is the reason
      */
@@ -65,14 +65,14 @@ contract ForgeValidator is IForgeValidator {
         uint256 _totalVault,
         uint256 _grace,
         Basset[] calldata _bAssets,
-        uint256[] calldata _bAssetQuantity
+        uint256[] calldata _bAssetQuantities
     )
         external
         pure
         returns (bool isValid, string memory reason)
     {
         uint256 bAssetCount = _bAssets.length;
-        if(bAssetCount != _bAssetQuantity.length) return (false, "Input length should be equal");
+        if(bAssetCount != _bAssetQuantities.length) return (false, "Input length should be equal");
 
         uint256[] memory newBalances = new uint256[](bAssetCount);
         uint256 newTotalVault = _totalVault;
@@ -86,8 +86,8 @@ contract ForgeValidator is IForgeValidator {
                 || bAssetStatus == BassetStatus.Blacklisted)
                 return (false, "bAsset not allowed in mint");
 
-            // How much mAsset is this _bAssetQuantity worth?
-            uint256 mintAmountInMasset = _bAssetQuantity[j].mulRatioTruncate(b.ratio);
+            // How much mAsset is this bassetquantity worth?
+            uint256 mintAmountInMasset = _bAssetQuantities[j].mulRatioTruncate(b.ratio);
             // How much of this bAsset do we have in the vault, in terms of mAsset?
             newBalances[j] = b.vaultBalance.mulRatioTruncate(b.ratio).add(mintAmountInMasset);
 
