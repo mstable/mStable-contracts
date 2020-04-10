@@ -1115,8 +1115,9 @@ contract("BasketManager", async (accounts) => {
             );
         });
         it("should update the weights even with affected bAsset", async () => {
+            const { aTokens } = integrationDetails;
             await Promise.all(
-                integrationDetails.aTokens.map(async (a) => {
+                aTokens.map(async (a) => {
                     const bAsset: Basset = await mockBasketManager.getBasset(a.bAsset);
                     expect(percentToWeight(50)).to.bignumber.equal(bAsset.targetWeight);
                 }),
@@ -1125,9 +1126,10 @@ contract("BasketManager", async (accounts) => {
             await mockBasketManager.addBasset(mockERC20.address, mockAaveIntegrationAddr, false, {
                 from: sa.governor,
             });
+            await mockBasketManager.setBassetStatus(aTokens[1].bAsset, BassetStatus.BrokenBelowPeg);
 
             await mockBasketManager.setBasketWeights(
-                [...integrationDetails.aTokens.map((a) => a.bAsset), mockERC20.address],
+                [...aTokens.map((a) => a.bAsset), mockERC20.address],
                 [percentToWeight(30), percentToWeight(50), percentToWeight(20)],
                 { from: sa.governor },
             );
