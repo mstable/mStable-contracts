@@ -388,11 +388,8 @@ export class MassetMachine {
             ),
         );
 
-        const bitmap = await massetDetails.basketManager.getBitmapFor(
-            basketDetails.map((b) => b.addr),
-        );
         await massetDetails.mAsset.mintMulti(
-            bitmap.toNumber(),
+            basketDetails.map((b) => b.addr),
             mintAmounts,
             this.system.sa.default,
             { from: this.system.sa.default },

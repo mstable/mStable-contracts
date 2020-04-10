@@ -75,8 +75,7 @@ contract MockBasketManager1 is BasketManager {
     }
 
     function prepareForgeBassets(
-        uint32 /*_amts*/,
-        uint8 /*_amts*/,
+        address[] calldata /*_amts*/,
         uint256[] calldata /*_amts*/,
         bool /* _isMint */
     )
@@ -133,8 +132,7 @@ contract MockBasketManager2 is MassetStructs {
     }
 
     function prepareForgeBassets(
-        uint32 /*bitmap*/,
-        uint8 /*_size*/,
+        address[] calldata /*bassets*/,
         uint256[] calldata /*_amts*/,
         bool /* _isMint */
     )

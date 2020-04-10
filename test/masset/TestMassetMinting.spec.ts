@@ -751,8 +751,11 @@ contract("Masset", async (accounts) => {
                     massetMachine.approveMasset(b, mAsset, new BN(mAssetMintAmounts[i])),
                 ),
             );
-            const bitmap = await basketManager.getBitmapFor(bAssetBefore.map((b) => b.addr));
-            const tx = await mAsset.mintMulti(bitmap, approvals, recipient);
+            const tx = await mAsset.mintMulti(
+                bAssetBefore.map((b) => b.addr),
+                approvals,
+                recipient,
+            );
 
             const mAssetQuantity = simpleToExactAmount(
                 mAssetMintAmounts.reduce((p, c, i) => new BN(p).add(new BN(c)), new BN(0)),
@@ -765,7 +768,6 @@ contract("Masset", async (accounts) => {
             expectEvent(tx.receipt, "MintedMulti", {
                 account: recipient,
                 mAssetQuantity,
-                bitmap,
             });
 
             // Recipient should have mAsset quantity after
@@ -803,7 +805,7 @@ contract("Masset", async (accounts) => {
                     await assertMintMulti(
                         massetDetails,
                         [5, 10],
-                        [massetDetails.bAssets[0], massetDetails.bAssets[2]],
+                        [massetDetails.bAssets[2], massetDetails.bAssets[0]],
                     );
                     const compAfter = await massetMachine.getBasketComposition(massetDetails);
                     expect(comp.bAssets[1].vaultBalance).bignumber.eq(
@@ -814,9 +816,9 @@ contract("Masset", async (accounts) => {
                     );
                 });
                 it("should fail if recipient is 0x0", async () => {
-                    const { mAsset } = massetDetails;
+                    const { mAsset, bAssets } = massetDetails;
                     await expectRevert(
-                        mAsset.mintMulti(1, [new BN(1)], ZERO_ADDRESS),
+                        mAsset.mintMulti([bAssets[0].address], [new BN(1)], ZERO_ADDRESS),
                         "Must be a valid recipient",
                     );
                 });
@@ -847,7 +849,7 @@ contract("Masset", async (accounts) => {
                     const minterBassetBalBefore = await bAsset.balanceOf(sa.default);
                     const recipientBalBefore = await mAsset.balanceOf(sa.default);
 
-                    const tx = await mAsset.mintMulti(1, [new BN(1)], sa.default);
+                    const tx = await mAsset.mintMulti([bAsset.address], [new BN(1)], sa.default);
                     const expectedMasset = new BN(10).pow(new BN(18).sub(decimals));
                     await expectEvent(tx.receipt, "MintedMulti", {
                         account: sa.default,
@@ -888,7 +890,7 @@ contract("Masset", async (accounts) => {
                         new BN(mAssetMintAmount),
                     );
                     // 3.0 Do the mint
-                    const tx = await mAsset.mintMulti(8, [approval0], recipient);
+                    const tx = await mAsset.mintMulti([bAsset.address], [approval0], recipient);
 
                     const mAssetQuantity = simpleToExactAmount(mAssetMintAmount, 18);
                     const bAssetQuantity = simpleToExactAmount(
@@ -946,7 +948,7 @@ contract("Masset", async (accounts) => {
                     );
                     // 3.0 Do the mint
                     await expectRevert(
-                        mAsset.mintMulti(8, [approval0], sa.default),
+                        mAsset.mintMulti([bAsset.address], [approval0], sa.default),
                         "SafeERC20: low-level call failed",
                     );
                 });
@@ -964,7 +966,7 @@ contract("Masset", async (accounts) => {
                     expect(newBasset.status).to.eq(BassetStatus.BrokenBelowPeg.toString());
                     await massetMachine.approveMasset(bAsset, mAsset, new BN(1));
                     await expectRevert(
-                        mAsset.mintMulti(1, [new BN(1)], sa.default),
+                        mAsset.mintMulti([newBasset.addr], [new BN(1)], sa.default),
                         "bAsset not allowed in mint",
                     );
                 });
@@ -973,36 +975,52 @@ contract("Masset", async (accounts) => {
                 before(async () => {
                     await runSetup();
                 });
-                describe("passing an incorrect bitmap", async () => {
-                    it("should error if the bitmap is 0", async () => {
+                describe("passing an incorrect bAsset array", async () => {
+                    it("should error if the array is empty", async () => {
                         const { mAsset } = massetDetails;
                         await expectRevert(
-                            mAsset.mintMulti(0, [new BN(1)], sa.default),
-                            "Found incorrect elements",
+                            mAsset.mintMulti([], [new BN(1)], sa.default),
+                            "Input array mismatch",
                         );
                     });
                     it("should error if both inputs are null", async () => {
                         const { mAsset } = massetDetails;
                         await expectRevert(
-                            mAsset.mintMulti(0, [], sa.default),
-                            "No masset quantity to mint",
+                            mAsset.mintMulti([], [], sa.default),
+                            "Input array mismatch",
                         );
                     });
                     it("should error if there is a length mismatch", async () => {
-                        const { mAsset } = massetDetails;
-                        await expectRevert.unspecified(
-                            mAsset.mintMulti(7, [new BN(1), new BN(1)], sa.default),
-                        );
-                    });
-                    it("should error if there is a length mismatch", async () => {
-                        const { mAsset } = massetDetails;
+                        const { mAsset, bAssets } = massetDetails;
                         await expectRevert(
                             mAsset.mintMulti(
-                                7,
+                                [bAssets[0].address],
+                                [new BN(1), new BN(1)],
+                                sa.default,
+                            ),
+                            "Input array mismatch",
+                        );
+                    });
+                    it("should error if there is a length mismatch", async () => {
+                        const { mAsset, bAssets } = massetDetails;
+                        await expectRevert(
+                            mAsset.mintMulti(
+                                [bAssets[0].address],
                                 [new BN(1), new BN(1), new BN(1), new BN(1)],
                                 sa.default,
                             ),
-                            "Found incorrect elements",
+                            "Input array mismatch",
+                        );
+                    });
+                    it("should fail if there are duplicate bAsset addresses", async () => {
+                        const { mAsset, bAssets } = massetDetails;
+                        await expectRevert(
+                            mAsset.mintMulti(
+                                [bAssets[0].address, bAssets[0].address],
+                                [new BN(1), new BN(1)],
+                                sa.default,
+                            ),
+                            "Must have no duplicates",
                         );
                     });
                 });
@@ -1029,13 +1047,10 @@ contract("Masset", async (accounts) => {
                                 massetMachine.approveMasset(b, mAsset, new BN(1)),
                             ),
                         );
-                        const bitmap = await basketManager.getBitmapFor(
-                            bAssetBefore.map((b) => b.addr),
-                        );
                         // Pass all 0's
                         await expectRevert(
                             mAsset.mintMulti(
-                                bitmap,
+                                bAssetBefore.map((b) => b.addr),
                                 [new BN(0), new BN(0), new BN(0), new BN(0)],
                                 sa.default,
                             ),
@@ -1050,7 +1065,9 @@ contract("Masset", async (accounts) => {
                     expect(await bAsset.balanceOf(sender)).bignumber.eq(new BN(0));
                     await massetMachine.approveMasset(bAsset, mAsset, new BN(100), sender);
                     await expectRevert(
-                        mAsset.mintMulti(1, [new BN(100)], sa.default, { from: sender }),
+                        mAsset.mintMulti([bAsset.address], [new BN(100)], sa.default, {
+                            from: sender,
+                        }),
                         "SafeERC20: low-level call failed",
                     );
                 });
@@ -1062,14 +1079,17 @@ contract("Masset", async (accounts) => {
                     expect(await bAsset.allowance(sender, mAsset.address)).bignumber.eq(new BN(0));
                     expect(await bAsset.balanceOf(sender)).bignumber.eq(new BN(10000));
                     await expectRevert(
-                        mAsset.mintMulti(1, [new BN(100)], sa.default, { from: sender }),
+                        mAsset.mintMulti([bAsset.address], [new BN(100)], sa.default, {
+                            from: sender,
+                        }),
                         "SafeERC20: low-level call failed",
                     );
                 });
                 it("should fail if the bAsset does not exist", async () => {
                     const { mAsset } = massetDetails;
-                    await expectRevert.unspecified(
-                        mAsset.mintMulti(12345, [new BN(100)], sa.default),
+                    await expectRevert(
+                        mAsset.mintMulti([sa.dummy1], [new BN(100)], sa.default),
+                        "Must exist",
                     );
                 });
             });
@@ -1111,7 +1131,7 @@ contract("Masset", async (accounts) => {
                         new BN(2),
                     );
                     await expectRevert(
-                        mAsset.mintMulti(1, [approval], sa.default),
+                        mAsset.mintMulti([bAsset.address], [approval], sa.default),
                         "Must be below implicit max weighting",
                     );
                     // Set sufficient grace allowance
@@ -1122,7 +1142,7 @@ contract("Masset", async (accounts) => {
                     await assertMintMulti(massetDetails, [new BN(2)], [bAsset]);
                 });
             });
-            describe("minting with various bitmaps", async () => {
+            describe("minting with various orders", async () => {
                 before(async () => {
                     await runSetup();
                 });
@@ -1134,7 +1154,11 @@ contract("Masset", async (accounts) => {
                     await massetMachine.approveMasset(bAssets[1], mAsset, new BN(100));
 
                     // Minting with 2 and 1.. they should correspond to lowest index first
-                    await mAsset.mintMulti(3, [new BN(2), new BN(1)], sa.default);
+                    await mAsset.mintMulti(
+                        [bAssets[0].address, bAssets[1].address],
+                        [new BN(2), new BN(1)],
+                        sa.default,
+                    );
                     const compAfter = await massetMachine.getBasketComposition(massetDetails);
                     expect(compAfter.bAssets[0].vaultBalance).bignumber.eq(
                         new BN(compBefore.bAssets[0].vaultBalance).add(new BN(2)),
@@ -1156,7 +1180,11 @@ contract("Masset", async (accounts) => {
                         1,
                         sa.default,
                     );
-                    await mAsset.mintMulti(7, approvals, sa.default);
+                    await mAsset.mintMulti(
+                        [bAssets[0].address, bAssets[1].address, bAssets[2].address],
+                        approvals,
+                        sa.default,
+                    );
 
                     const approvals2 = await massetMachine.approveMassetMulti(
                         [bAssets[0], bAssets[1], bAssets[2], bAssets[3]],
@@ -1165,7 +1193,16 @@ contract("Masset", async (accounts) => {
                         sa.default,
                     );
                     const mUSD_balBefore = await mAsset.balanceOf(sa.default);
-                    await mAsset.mintMulti(15, approvals2, sa.default);
+                    await mAsset.mintMulti(
+                        [
+                            bAssets[0].address,
+                            bAssets[1].address,
+                            bAssets[2].address,
+                            bAssets[3].address,
+                        ],
+                        approvals2,
+                        sa.default,
+                    );
                     const mUSD_balAfter = await mAsset.balanceOf(sa.default);
                     expect(mUSD_balAfter, "Must mint 4 full units of mUSD").bignumber.eq(
                         mUSD_balBefore.add(simpleToExactAmount(4, 18)),
@@ -1179,10 +1216,14 @@ contract("Masset", async (accounts) => {
                         1,
                         sa.default,
                     );
-                    const bitmap = 5; // 0101 = 5
-                    await mAsset.mintMulti(bitmap, approvals, sa.default, {
-                        from: sa.default,
-                    });
+                    await mAsset.mintMulti(
+                        [bAssets[0].address, bAssets[2].address],
+                        approvals,
+                        sa.default,
+                        {
+                            from: sa.default,
+                        },
+                    );
                 });
             });
         });
@@ -1204,8 +1245,8 @@ contract("Masset", async (accounts) => {
                     let removedBassetBalBefore = await bAssets[1].balanceOf(sa.default);
                     await assertMintMulti(
                         massetDetails,
-                        [new BN(1), new BN(1), new BN(1)],
-                        [bAssets[0], bAssets[2], bAssets[3]],
+                        [new BN(1), new BN(2), new BN(3)],
+                        [bAssets[3], bAssets[0], bAssets[2]],
                         sa.default,
                         sa.default,
                     );
@@ -1213,10 +1254,10 @@ contract("Masset", async (accounts) => {
                     expect(removedBassetBalBefore).bignumber.eq(removedBassetBalAfter);
                 });
                 it("should not be possible to mint with the last bAsset", async () => {
-                    const { mAsset } = massetDetails;
+                    const { mAsset, bAssets } = massetDetails;
                     await expectRevert(
-                        mAsset.mintMulti(8, [new BN(1)], sa.default),
-                        "Found incorrect elements",
+                        mAsset.mintMulti([bAssets[1].address], [new BN(1)], sa.default),
+                        "Must exist",
                     );
                 });
             });
@@ -1269,7 +1310,7 @@ contract("Masset", async (accounts) => {
                 await massetMachine.approveMasset(bAsset2, mAsset, new BN(2));
                 await expectRevert(
                     mAsset.mintMulti(
-                        4,
+                        [bAsset2.address],
                         [simpleToExactAmount(2, await bAsset2.decimals())],
                         sa.default,
                     ),
@@ -1351,7 +1392,7 @@ contract("Masset", async (accounts) => {
                 const mAssetSupplyBefore = await mockMasset.totalSupply();
 
                 // Should mint nothing due to the forge preparation being invalid
-                await mockMasset.mintMulti(1, [new BN(1)], sa.default);
+                await mockMasset.mintMulti([bAsset.address], [new BN(1)], sa.default);
 
                 const bAssetBalAfter = await bAsset.balanceOf(sa.default);
                 expect(bAssetBalBefore).bignumber.eq(bAssetBalAfter);
@@ -1381,7 +1422,7 @@ contract("Masset", async (accounts) => {
 
                 // Should revert since we can't just call an invalid integrator
                 await expectRevert(
-                    mockMasset.mintMulti(1, [new BN(1)], sa.default),
+                    mockMasset.mintMulti([bAsset.address], [new BN(1)], sa.default),
                     "SafeERC20: low-level call failed",
                 );
 
@@ -1393,11 +1434,11 @@ contract("Masset", async (accounts) => {
                 expect(mAssetSupplyBefore).bignumber.eq(mAssetSupplyAfter);
             });
             it("reverts if the BasketManager is paused", async () => {
-                const { mAsset, basketManager } = massetDetails;
+                const { mAsset, basketManager, bAssets } = massetDetails;
                 await basketManager.pause({ from: sa.governor });
                 expect(await basketManager.paused()).eq(true);
                 await expectRevert(
-                    mAsset.mintMulti(1, [new BN(1)], sa.default),
+                    mAsset.mintMulti([bAssets[0].address], [new BN(1)], sa.default),
                     "Pausable: paused",
                 );
             });
@@ -1414,7 +1455,7 @@ contract("Masset", async (accounts) => {
 
                 await massetMachine.approveMasset(bAsset0, mAsset, new BN(2));
                 await expectRevert(
-                    mAsset.mintMulti(1, [new BN(1)], sa.default),
+                    mAsset.mintMulti([bAsset0.address], [new BN(1)], sa.default),
                     "Basket must be alive",
                 );
             });

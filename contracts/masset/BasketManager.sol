@@ -207,20 +207,18 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
      * @dev Called by mAsset to calculate how much interest has been generated in the basket
      *      and withdraw it. Cycles through the connected platforms to check the balances.
      * @return interestCollected   Total amount of interest collected, in mAsset terms
-     * @return bitmap              Bitmap to correspond to the gains
      * @return gains               Array of bAsset units gained
      */
     function collectInterest()
         external
         onlyMasset
         whenNotPaused
-        returns (uint256 interestCollected, uint32 bitmap, uint256[] memory gains)
+        returns (uint256 interestCollected, uint256[] memory gains)
     {
         // Get basket details
-        (Basset[] memory allBassets, uint32 bitmapLocal, uint256 count) = _getBassets();
+        (Basset[] memory allBassets, uint256 count) = _getBassets();
         gains = new uint256[](count);
         interestCollected = 0;
-        bitmap = bitmapLocal;
 
         // foreach bAsset
         for(uint8 i = 0; i < count; i++) {
@@ -524,15 +522,13 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     }
 
     /**
-     * @dev Prepare given bAsset bitmap for Forging. Currently returns integrator
+     * @dev Prepare given bAsset addresses for Forging. Currently returns integrator
      *      and essential minting info for each bAsset
-     * @param _bitmap    Bits set in bitmap represents which bAssets to use
-     * @param _size      Size of bAssets array
+     * @param _bAssets   Array of bAsset addresses with which to forge
      * @return props     Struct of all relevant Forge information
      */
     function prepareForgeBassets(
-        uint32 _bitmap,
-        uint8 _size,
+        address[] calldata _bAssets,
         uint256[] calldata /*_amts*/,
         bool /* _isMint */
     )
@@ -540,13 +536,8 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         whenNotPaused
         returns (ForgePropsMulti memory props)
     {
-        Basset[] memory bAssets = new Basset[](_size);
-        address[] memory integrators = new address[](_size);
-        uint8[] memory indexes = _convertBitmapToIndexArr(_bitmap, _size);
-        for(uint8 i = 0; i < indexes.length; i++) {
-            bAssets[i] = basket.bassets[indexes[i]];
-            integrators[i] = integrations[indexes[i]];
-        }
+        // Pass the fetching logic to the internal view func to reduce SLOAD cost
+        (Basset[] memory bAssets, uint8[] memory indexes, address[] memory integrators) = _prepForgeBassets(_bAssets);
         props = ForgePropsMulti({
             isValid: true,
             bAssets: bAssets,
@@ -557,9 +548,49 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     }
 
     /**
+     * @dev Internal func to fetch an array of bAssets and their integrators from storage
+     * @param _bAssets   Array of non-duplicate bAsset addresses with which to forge
+     * @return bAssets       Array of bAsset structs for the given addresses
+     * @return indexes       Array of indexes for the given addresses
+     * @return integrators   Array of integrators for the given addresses
+     */
+    function _prepForgeBassets(address[] memory _bAssets)
+        internal
+        view
+        returns (
+            Basset[] memory bAssets,
+            uint8[] memory indexes,
+            address[] memory integrators
+        )
+    {
+        uint8 len = uint8(_bAssets.length);
+
+        bAssets = new Basset[](len);
+        integrators = new address[](len);
+        indexes = new uint8[](len);
+
+        // Iterate through the input
+        for(uint8 i = 0; i < len; i++) {
+            address current = _bAssets[i];
+
+            // If there is a duplicate here, throw
+            // Gas costs do not incur SLOAD
+            for(uint8 j = i+1; j < len; j++){
+                require(current != _bAssets[j], "Must have no duplicates");
+            }
+
+            // Fetch and log all the relevant data
+            (bool exists, uint8 index) = _isAssetInBasket(current);
+            require(exists, "Must exist");
+            indexes[i] = index;
+            bAssets[i] = basket.bassets[index];
+            integrators[i] = integrations[index];
+        }
+    }
+
+    /**
      * @dev Get data for a all bAssets in basket
      * @return bAssets  Struct[] with full bAsset data
-     * @return bitmap   Bitmap for all bAssets
      * @return len      Number of bAssets in the Basket
      */
     function getBassets()
@@ -567,7 +598,6 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         view
         returns (
             Basset[] memory bAssets,
-            uint32 bitmap,
             uint256 len
         )
     {
@@ -609,17 +639,11 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         view
         returns (
             Basset[] memory bAssets,
-            uint32 bitmap,
             uint256 len
         )
     {
+        bAssets = basket.bassets;
         len = basket.bassets.length;
-        bAssets = new Basset[](len);
-
-        for(uint8 i = 0; i < len; i++) {
-            bitmap |= uint32(2)**uint8(i);
-            bAssets[i] = _getBasset(i);
-        }
     }
 
     function _getBasset(uint8 _bAssetIndex)
@@ -634,50 +658,6 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     /***************************************
                     HELPERS
     ****************************************/
-
-    /**
-     * @dev Returns the bitmap for given bAssets addresses
-     * @param _bAssets  bAsset addresses for which bitmap is needed
-     * @return bitmap   Bits set according to bAsset address position
-     */
-    function getBitmapFor(address[] calldata _bAssets) external view returns (uint32 bitmap) {
-        for(uint32 i = 0; i < _bAssets.length; i++) {
-            (bool exist, uint256 idx) = _isAssetInBasket(_bAssets[i]);
-            if(exist) bitmap |= uint32(2)**uint8(idx);
-        }
-    }
-
-    /**
-     * @dev Convert the given bitmap into an array representing bAssets index location in the array
-     * @param _bitmap   Bits set in bitmap represents which bAssets to use
-     * @param _size     Size of the bAssetsQuantity array
-     * @return array having indexes of each bAssets
-     */
-    function _convertBitmapToIndexArr(
-        uint32 _bitmap,
-        uint8 _size
-    )
-        internal
-        view
-        returns (uint8[] memory)
-    {
-        uint8[] memory indexes = new uint8[](_size);
-        uint8 idx = 0;
-        // Assume there are 4 bAssets in array
-        // size = 2
-        // bitmap   = 00000000 00000000 00000000 00001010
-        // mask     = 00000000 00000000 00000000 00001000 //mask for 4th pos
-        // isBitSet = 00000000 00000000 00000000 00001000 //checking 4th pos
-        // indexes  = [1, 3]
-        uint256 len = basket.bassets.length;
-        for(uint8 i = 0; i < len; i++) {
-            uint32 mask = uint32(2)**i;
-            uint32 isBitSet = _bitmap & mask;
-            if(isBitSet >= 1) indexes[idx++] = i;
-        }
-        require(idx == _size, "Found incorrect elements");
-        return indexes;
-    }
 
     /**
      * @dev Checks if a particular asset is in the basket

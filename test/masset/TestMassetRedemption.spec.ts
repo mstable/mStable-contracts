@@ -53,11 +53,15 @@ contract("Masset", async (accounts) => {
 
     const seedWithWeightings = async (md: MassetDetails, weights: Array<BN>) => {
         const { mAsset, bAssets, basketManager } = md;
-        const bitmap = await basketManager.getBitmapFor(bAssets.map((b) => b.address));
         const approvals = await Promise.all(
             bAssets.map((b, i) => massetMachine.approveMasset(b, mAsset, weights[i], sa.default)),
         );
-        await mAsset.mintMulti(bitmap, approvals, sa.default, { from: sa.default });
+        await mAsset.mintMulti(
+            bAssets.map((b) => b.address),
+            approvals,
+            sa.default,
+            { from: sa.default },
+        );
     };
     const assertFailedRedemption = async (
         mAsset: t.MassetInstance,
@@ -736,13 +740,17 @@ contract("Masset", async (accounts) => {
                     { from: sa.governor },
                 );
                 // Mint 6.25 of each bAsset, taking total to 100%
-                const bitmap = await basketManager.getBitmapFor(onChainBassets.map((b) => b.addr));
                 const approvals = await Promise.all(
                     onChainBassets.map((b, i) =>
                         massetMachine.approveMasset(b.contract, mAsset, new BN("6.25"), sa.default),
                     ),
                 );
-                await mAsset.mintMulti(bitmap, approvals, sa.default, { from: sa.default });
+                await mAsset.mintMulti(
+                    onChainBassets.map((b) => b.addr),
+                    approvals,
+                    sa.default,
+                    { from: sa.default },
+                );
                 // Do the redemption
                 for (let i = 0; i < onChainBassets.length; i += 1) {
                     await assertBasicRedemption(
@@ -831,14 +839,16 @@ contract("Masset", async (accounts) => {
             );
             const bAsset_balBefore = await Promise.all(bAssets.map((b) => b.balanceOf(sa.default)));
             const mUSD_supplyBefore = await massetDetails.mAsset.totalSupply();
-            // Get bitmap
-            const bitmap = await massetDetails.basketManager.getBitmapFor(
-                bAssets.map((b) => b.address),
-            );
+
             // Redeem
-            await massetDetails.mAsset.redeemMulti(bitmap, bAsset_redemption, sa.default, {
-                from: sa.default,
-            });
+            await massetDetails.mAsset.redeemMulti(
+                bAssets.map((b) => b.address),
+                bAsset_redemption,
+                sa.default,
+                {
+                    from: sa.default,
+                },
+            );
             // Assert balances
             const mUSD_supplyAfter = await massetDetails.mAsset.totalSupply();
             const bAsset_balAfter = await Promise.all(bAssets.map((b) => b.balanceOf(sa.default)));
