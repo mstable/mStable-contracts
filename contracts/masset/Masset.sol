@@ -392,8 +392,8 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         uint256 colRatio = basket.collateralisationRatio;
 
         // Load only needed bAssets in array
-        ForgePropsMulti memory props
-            = basketManager.prepareForgeBassets(_bAssets, _bAssetQuantities, false);
+        ForgePropsMulti memory props =
+            basketManager.prepareForgeBassets(_bAssets, _bAssetQuantities, false);
         if(!props.isValid) return 0;
 
         // Validate redemption
@@ -412,6 +412,8 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
                 mAssetQuantity = mAssetQuantity.add(ratioedBasset);
             }
         }
+        require(mAssetQuantity > 0, "Must redeem some bAssets");
+
         basketManager.decreaseVaultBalances(props.indexes, props.integrators, _bAssetQuantities);
 
         // Pay the redemption fee

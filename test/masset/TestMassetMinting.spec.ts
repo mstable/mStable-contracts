@@ -38,6 +38,13 @@ contract("Masset", async (accounts) => {
     let massetMachine: MassetMachine;
     let massetDetails: MassetDetails;
 
+    const runSetup = async (seedBasket = true, enableUSDTFee = false): Promise<void> => {
+        massetDetails = seedBasket
+            ? await massetMachine.deployMassetAndSeedBasket(enableUSDTFee)
+            : await massetMachine.deployMasset(enableUSDTFee);
+        await assertBasketIsHealthy(massetMachine, massetDetails);
+    };
+
     before("Init contract", async () => {
         systemMachine = new SystemMachine(sa.all);
         massetMachine = new MassetMachine(systemMachine);
@@ -45,34 +52,12 @@ contract("Masset", async (accounts) => {
         await runSetup();
     });
 
-    const runSetup = async (seedBasket = true, enableUSDTFee = false) => {
-        massetDetails = seedBasket
-            ? await massetMachine.deployMassetAndSeedBasket(enableUSDTFee)
-            : await massetMachine.deployMasset(enableUSDTFee);
-        await assertBasketIsHealthy(massetMachine, massetDetails);
-    };
-
-    const seedWithWeightings = async (md: MassetDetails, weights: Array<BN>) => {
-        for (let i = 0; i < md.bAssets.length; i += 1) {
-            if (weights[i].gt(new BN(0))) {
-                await assertBasicMint(
-                    md,
-                    weights[i],
-                    md.bAssets[i],
-                    false,
-                    undefined,
-                    undefined,
-                    true,
-                );
-            }
-        }
-    };
     const assertFailedMint = async (
         mAsset: t.MassetInstance,
         bAsset: t.MockERC20Instance,
         amount: BN,
         reason: string,
-    ) => {
+    ): Promise<void> => {
         const approval: BN = await massetMachine.approveMasset(bAsset, mAsset, amount);
         await expectRevert(mAsset.mint(bAsset.address, approval), reason);
     };
@@ -101,8 +86,8 @@ contract("Masset", async (accounts) => {
             new BN(mAssetMintAmount),
         );
         const tx = useMintTo
-            ? await mAsset.mintTo(bAsset.address, approval0, derivedRecipient)
-            : await mAsset.mint(bAsset.address, approval0);
+            ? await mAsset.mintTo(bAsset.address, approval0, derivedRecipient, { from: sender })
+            : await mAsset.mint(bAsset.address, approval0, { from: sender });
 
         const mAssetQuantity = simpleToExactAmount(mAssetMintAmount, 18);
         const bAssetQuantity = simpleToExactAmount(mAssetMintAmount, await bAsset.decimals());
@@ -144,6 +129,22 @@ contract("Masset", async (accounts) => {
             recipientBalBefore,
             recipientBalAfter,
         };
+    };
+
+    const seedWithWeightings = async (md: MassetDetails, weights: Array<BN>): Promise<void> => {
+        for (let i = 0; i < md.bAssets.length; i += 1) {
+            if (weights[i].gt(new BN(0))) {
+                await assertBasicMint(
+                    md,
+                    weights[i],
+                    md.bAssets[i],
+                    false,
+                    undefined,
+                    undefined,
+                    true,
+                );
+            }
+        }
     };
 
     describe("minting with a single bAsset", () => {
@@ -478,7 +479,7 @@ contract("Masset", async (accounts) => {
             describe("minting when a bAsset has just been removed from the basket", async () => {
                 before(async () => {
                     await runSetup(false);
-                    const { bAssets, mAsset, basketManager } = massetDetails;
+                    const { bAssets, basketManager } = massetDetails;
                     // From [A, B, C, D], remove B, replacing it with D
                     await basketManager.setBasketWeights(
                         [bAssets[0].address, bAssets[1].address],
@@ -490,9 +491,9 @@ contract("Masset", async (accounts) => {
                 it("should still deposit to the right lending platform", async () => {
                     const { bAssets } = massetDetails;
 
-                    let removedBassetBalBefore = await bAssets[1].balanceOf(sa.default);
+                    const removedBassetBalBefore = await bAssets[1].balanceOf(sa.default);
                     await assertBasicMint(massetDetails, new BN(1), bAssets[3], false);
-                    let removedBassetBalAfter = await bAssets[1].balanceOf(sa.default);
+                    const removedBassetBalAfter = await bAssets[1].balanceOf(sa.default);
                     expect(removedBassetBalBefore).bignumber.eq(removedBassetBalAfter);
                 });
                 it("should not be possible to mint with the removed bAsset", async () => {
@@ -733,7 +734,7 @@ contract("Masset", async (accounts) => {
             recipient: string = sa.default,
             sender: string = sa.default,
             ignoreHealthAssertions = false,
-        ) => {
+        ): Promise<void> => {
             const { mAsset, basketManager } = md;
             if (!ignoreHealthAssertions) await assertBasketIsHealthy(massetMachine, md);
 
@@ -755,6 +756,7 @@ contract("Masset", async (accounts) => {
                 bAssetBefore.map((b) => b.addr),
                 approvals,
                 recipient,
+                { from: sender },
             );
 
             const mAssetQuantity = simpleToExactAmount(
@@ -1242,7 +1244,7 @@ contract("Masset", async (accounts) => {
                 });
                 it("should still deposit to the right lending platform", async () => {
                     const { bAssets } = massetDetails;
-                    let removedBassetBalBefore = await bAssets[1].balanceOf(sa.default);
+                    const removedBassetBalBefore = await bAssets[1].balanceOf(sa.default);
                     await assertMintMulti(
                         massetDetails,
                         [new BN(1), new BN(2), new BN(3)],
@@ -1250,7 +1252,7 @@ contract("Masset", async (accounts) => {
                         sa.default,
                         sa.default,
                     );
-                    let removedBassetBalAfter = await bAssets[1].balanceOf(sa.default);
+                    const removedBassetBalAfter = await bAssets[1].balanceOf(sa.default);
                     expect(removedBassetBalBefore).bignumber.eq(removedBassetBalAfter);
                 });
                 it("should not be possible to mint with the removed bAsset", async () => {
