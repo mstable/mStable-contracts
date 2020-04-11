@@ -33,6 +33,7 @@ contract CompoundIntegration is InitializableAbstractIntegration {
     )
         external
         onlyWhitelisted
+        nonReentrant
         returns (uint256 quantityDeposited)
     {
         require(_amount > 0, "Must deposit something");
@@ -72,6 +73,7 @@ contract CompoundIntegration is InitializableAbstractIntegration {
     )
         external
         onlyWhitelisted
+        nonReentrant
     {
         require(_amount > 0, "Must withdraw something");
         // Get the Target token

@@ -16,6 +16,7 @@ import { CommonHelpers } from "../shared/CommonHelpers.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 import { StableMath } from "../shared/StableMath.sol";
+import { InitializableReentrancyGuard } from "../shared/InitializableReentrancyGuard.sol";
 
 /**
  * @title   BasketManager
@@ -26,7 +27,12 @@ import { StableMath } from "../shared/StableMath.sol";
  * @dev     VERSION: 1.0
  *          DATE:    2020-03-26
  */
-contract BasketManager is Initializable, IBasketManager, InitializablePausableModule {
+contract BasketManager is
+    Initializable,
+    IBasketManager,
+    InitializablePausableModule,
+    InitializableReentrancyGuard
+{
 
     using SafeMath for uint256;
     using StableMath for uint256;
@@ -75,7 +81,9 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         external
         initializer
     {
+        InitializableReentrancyGuard._initialize();
         InitializablePausableModule._initialize(_nexus);
+
         require(_mAsset != address(0), "mAsset address is zero");
         require(_bAssets.length > 0, "Must initialise with some bAssets");
         mAsset = _mAsset;
@@ -140,6 +148,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         external
         onlyMasset
         basketIsHealthy
+        nonReentrant
     {
         basket.bassets[_bAssetIndex].vaultBalance =
             basket.bassets[_bAssetIndex].vaultBalance.add(_increaseAmount);
@@ -159,6 +168,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         external
         onlyMasset
         basketIsHealthy
+        nonReentrant
     {
         uint256 len = _bAssetIndices.length;
         for(uint i = 0; i < len; i++) {
@@ -179,6 +189,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     )
         external
         onlyMasset
+        nonReentrant
     {
         basket.bassets[_bAssetIndex].vaultBalance =
             basket.bassets[_bAssetIndex].vaultBalance.sub(_decreaseAmount);
@@ -196,6 +207,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
     )
         external
         onlyMasset
+        nonReentrant
     {
         uint256 len = _bAssetIndices.length;
         for(uint i = 0; i < len; i++) {
@@ -214,6 +226,7 @@ contract BasketManager is Initializable, IBasketManager, InitializablePausableMo
         external
         onlyMasset
         whenNotPaused
+        nonReentrant
         returns (uint256 interestCollected, uint256[] memory gains)
     {
         // Get basket details
