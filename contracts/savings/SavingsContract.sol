@@ -53,6 +53,7 @@ contract SavingsContract is ISavingsContract, Module {
         public
         Module(_nexus)
     {
+        require(address(_mUSD) != address(0), "mAsset address is zero");
         mUSD = _mUSD;
     }
 
@@ -200,5 +201,4 @@ contract SavingsContract is ISavingsContract, Module {
         // e.g. (1e20 * 14e17) / 1e18 = 1.4e20
         massetAmount = _credits.mulTruncate(exchangeRate);
     }
-
 }

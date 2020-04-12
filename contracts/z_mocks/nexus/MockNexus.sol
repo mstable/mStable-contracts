@@ -34,4 +34,8 @@ contract MockNexus is Nexus, ModuleKeys {
         modules[Key_ProxyAdmin] = Module({addr: _proxyAdmin, isLocked: true});
     }
 
+    function setSavingsManager(address _savingsManager) external {
+        modules[Key_SavingsManager] = Module({addr: _savingsManager, isLocked: true});
+    }
+
 }

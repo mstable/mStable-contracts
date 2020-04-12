@@ -29,7 +29,6 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
 
     using StableMath for uint256;
-    using SafeERC20 for IERC20;
 
     // Forging Events
     event Minted(address indexed account, uint256 mAssetQuantity, address bAsset, uint256 bAssetQuantity);

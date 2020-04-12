@@ -19,32 +19,43 @@ const { expect, assert } = envSetup.configure();
 
 const SavingsManager: t.SavingsManagerContract = artifacts.require("SavingsManager");
 const MockNexus: t.MockNexusContract = artifacts.require("MockNexus");
-const MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
+const MockMasset: t.MockMassetContract = artifacts.require("MockMasset");
 const MockSavingsContract: t.MockSavingsContractContract = artifacts.require("MockSavingsContract");
 
 contract("SavingsManager", async (accounts) => {
+    const TEN = new BN(10);
+    const ONE_MINUTE = new BN(60).mul(new BN(60));
+    const THIRTY_MINUTES = ONE_MINUTE.mul(new BN(30));
+    const INITIAL_MINT = new BN(1000);
     const sa = new StandardAccounts(accounts);
     const governance = sa.dummy1;
     const manager = sa.dummy2;
-
     const ctx: { module?: t.PausableModuleInstance } = {};
+
     let nexus: t.MockNexusInstance;
     let savingsContract: t.MockSavingsContractInstance;
     let savingsManager: t.SavingsManagerInstance;
-    let mUSD: t.MockERC20Instance;
+    let mUSD: t.MockMassetInstance;
 
     before(async () => {
         nexus = await MockNexus.new(sa.governor, governance, manager);
-        mUSD = await MockERC20.new("mUSD", "mUSD", 18, sa.default, new BN(10000));
+        mUSD = await MockMasset.new("mUSD", "mUSD", 18, sa.default, INITIAL_MINT);
         savingsContract = await MockSavingsContract.new(nexus.address, mUSD.address);
         savingsManager = await createNewSavingsManager();
     });
 
     async function createNewSavingsManager(): Promise<t.SavingsManagerInstance> {
-        return SavingsManager.new(nexus.address, mUSD.address, savingsContract.address);
+        savingsManager = await SavingsManager.new(
+            nexus.address,
+            mUSD.address,
+            savingsContract.address,
+        );
+        // Set new SavingsManager address in Nexus
+        nexus.setSavingsManager(savingsManager.address);
+        return savingsManager;
     }
 
-    describe("behaviours", async () => {
+    describe("behaviors", async () => {
         describe("should behave like a Module", async () => {
             beforeEach(async () => {
                 savingsManager = await createNewSavingsManager();
@@ -87,16 +98,16 @@ contract("SavingsManager", async (accounts) => {
     });
 
     describe("addSavingsContract()", async () => {
-        let mockERC20: t.MockERC20Instance;
+        let mockMasset: t.MockERC20Instance;
         const mockSavingsContract = sa.dummy4;
 
         before(async () => {
-            mockERC20 = await MockERC20.new("MOCK", "MOCK", 18, sa.default, new BN(10000));
+            mockMasset = await MockMasset.new("MOCK", "MOCK", 18, sa.default, new BN(10000));
         });
 
         it("should fail when not called by governor", async () => {
             await expectRevert(
-                savingsManager.addSavingsContract(mockERC20.address, mockSavingsContract, {
+                savingsManager.addSavingsContract(mockMasset.address, mockSavingsContract, {
                     from: sa.other,
                 }),
                 "Only governor can execute",
@@ -114,7 +125,7 @@ contract("SavingsManager", async (accounts) => {
 
         it("should fail when savingsContract address is zero", async () => {
             await expectRevert(
-                savingsManager.addSavingsContract(mockERC20.address, ZERO_ADDRESS, {
+                savingsManager.addSavingsContract(mockMasset.address, ZERO_ADDRESS, {
                     from: sa.governor,
                 }),
                 "Must be valid address",
@@ -134,17 +145,25 @@ contract("SavingsManager", async (accounts) => {
             let savingsContractAddr = await savingsManager.savingsContracts(mUSD.address);
             expect(savingsContractAddr).to.equal(savingsContract.address);
 
-            savingsContractAddr = await savingsManager.savingsContracts(mockERC20.address);
+            savingsContractAddr = await savingsManager.savingsContracts(mockMasset.address);
             expect(ZERO_ADDRESS).to.equal(savingsContractAddr);
 
-            await savingsManager.addSavingsContract(mockERC20.address, mockSavingsContract, {
-                from: sa.governor,
+            const tx = await savingsManager.addSavingsContract(
+                mockMasset.address,
+                mockSavingsContract,
+                {
+                    from: sa.governor,
+                },
+            );
+            expectEvent.inLogs(tx.logs, "SavingsContractAdded", {
+                mAsset: mockMasset.address,
+                savingsContract: mockSavingsContract,
             });
 
             savingsContractAddr = await savingsManager.savingsContracts(mUSD.address);
             expect(savingsContractAddr).to.equal(savingsContract.address);
 
-            savingsContractAddr = await savingsManager.savingsContracts(mockERC20.address);
+            savingsContractAddr = await savingsManager.savingsContracts(mockMasset.address);
             expect(mockSavingsContract).to.equal(savingsContractAddr);
         });
     });
@@ -190,8 +209,13 @@ contract("SavingsManager", async (accounts) => {
             let savingsContractAddr = await savingsManager.savingsContracts(mUSD.address);
             expect(savingsContractAddr).to.equal(savingsContract.address);
 
-            await savingsManager.updateSavingsContract(mUSD.address, sa.other, {
+            const tx = await savingsManager.updateSavingsContract(mUSD.address, sa.other, {
                 from: sa.governor,
+            });
+
+            expectEvent.inLogs(tx.logs, "SavingsContractUpdated", {
+                mAsset: mUSD.address,
+                savingsContract: sa.other,
             });
 
             savingsContractAddr = await savingsManager.savingsContracts(mUSD.address);
@@ -222,17 +246,29 @@ contract("SavingsManager", async (accounts) => {
         });
 
         it("should succeed when in valid range (min value)", async () => {
-            savingsManager.setSavingsRate(new BN(10).pow(new BN(17).add(new BN(1))), {
+            const newRate = new BN("9").mul(new BN(10).pow(new BN(17))).add(new BN(1));
+            const tx = await savingsManager.setSavingsRate(newRate, {
                 from: sa.governor,
             });
+
+            expectEvent.inLogs(tx.logs, "SavingsRateChanged", { newSavingsRate: newRate });
         });
 
         it("should succeed when in valid range (max value)", async () => {
-            savingsManager.setSavingsRate(new BN(10).pow(new BN(18)), { from: sa.governor });
+            const newRate = new BN(10).pow(new BN(18));
+            const tx = await savingsManager.setSavingsRate(newRate, {
+                from: sa.governor,
+            });
+
+            expectEvent.inLogs(tx.logs, "SavingsRateChanged", { newSavingsRate: newRate });
         });
     });
 
     describe("collectAndDistributeInterest()", async () => {
+        beforeEach(async () => {
+            savingsManager = await createNewSavingsManager();
+        });
+
         it("should fail when contract is paused", async () => {
             // Pause contract
             await savingsManager.pause({ from: sa.governor });
@@ -243,13 +279,54 @@ contract("SavingsManager", async (accounts) => {
             );
         });
 
-        it("should fail when mAsset not exist");
+        it("should fail when mAsset not exist", async () => {
+            await expectRevert(
+                savingsManager.collectAndDistributeInterest(sa.other),
+                "Must have a valid savings contract",
+            );
+        });
+    });
 
-        it("should fail when function called again before 30 minutes");
+    describe("when there is some interest to collect", async () => {
+        before(async () => {
+            savingsManager = await createNewSavingsManager();
+        });
 
-        it("should succeed when interest collected is zero");
+        it("should succeed when interest collected is zero", async () => {
+            const tx = await savingsManager.collectAndDistributeInterest(mUSD.address);
+            expectEvent.inLogs(tx.logs, "InterestCollected", {
+                mAsset: mUSD.address,
+                interest: new BN(0),
+                newTotalSupply: INITIAL_MINT.mul(new BN(10).pow(new BN(18))),
+                apy: new BN(0),
+            });
+        });
 
-        it("should succeed when interest is collected");
+        it("should collect the interest first time", async () => {
+            // const balanceBefore = await mUSD.balanceOf(savingsContract.address);
+            // expect(ZERO).to.bignumber.equal(balanceBefore);
+            // const newInterest = TEN.mul(new BN(10).pow(new BN(18)));
+            // await mUSD.setAmountForCollectInterest(newInterest);
+            // // should move 30 mins in future
+            // await time.increase(THIRTY_MINUTES);
+            // const tx = await savingsManager.collectAndDistributeInterest(mUSD.address);
+            // console.log(tx.logs[0].args);
+            // console.log(tx.logs[0].args[1].toString());
+            // console.log(tx.logs[0].args[2].toString());
+            // console.log(tx.logs[0].args[3].toString());
+            // // expectEvent.inLogs(tx.logs, "InterestCollected", {
+            // //     mAsset: mUSD.address,
+            // //     interest: new BN(0),
+            // //     newTotalSupply: INITIAL_MINT.mul(new BN(10).pow(new BN(18))),
+            // //     apy: new BN(0),
+            // // });
+            // const balanceAfter = await mUSD.balanceOf(savingsContract.address);
+            // expect(newInterest).to.bignumber.equal(balanceAfter);
+        });
+
+        it("should skip interest collection before 30 mins");
+
+        it("should allow interest collection again after 30 mins");
     });
 
     describe("withdrawUnallocatedInterest()", async () => {
