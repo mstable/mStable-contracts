@@ -36,6 +36,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
     event InterestCollected(address indexed mAsset, uint256 interest, uint256 newTotalSupply, uint256 apy);
     event InterestDistributed(address indexed mAsset, uint256 amountSent);
     event InterestWithdrawnByGovernor(address indexed mAsset, address recipient, uint256 amount);
+    event WaitFor(uint256 timeRemaining);
 
     // Locations of each mAsset savings contract
     mapping(address => ISavingsContract) public savingsContracts;
@@ -47,7 +48,8 @@ contract SavingsManager is ISavingsManager, PausableModule {
     // Utils to help keep interest under check
     uint256 constant private secondsInYear = 365 days;
     // Theoretical cap on APY at 50% to avoid excess inflation
-    uint256 constant private maxAPY = 50e16;
+    uint256 constant private MAX_APY = 5e17;
+    uint256 constant private THIRTY_MINUTES = 30 minutes;
 
     constructor(
         address _nexus,
@@ -123,7 +125,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
     /**
      * @dev Collects interest from a target mAsset and distributes to the SavingsContract.
      *      Applies constraints such that the max APY since the last fee collection cannot
-     *      exceed the "maxAPY" variable.
+     *      exceed the "MAX_APY" variable.
      * @param _mAsset       mAsset for which the interest should be collected
      */
     function collectAndDistributeInterest(address _mAsset)
@@ -137,7 +139,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
 
         // 1. Only collect interest if it has been 30 mins
         uint256 timeSinceLastCollection = now.sub(previousCollection);
-        if(timeSinceLastCollection > 30 minutes) {
+        if(timeSinceLastCollection > THIRTY_MINUTES) {
 
             lastCollection[_mAsset] = now;
 
@@ -164,7 +166,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
                 // e.g. 0.01% (1e14 * 1e18) / 2.74..e15 = 3.65e16 or 3.65% apr
                 uint256 extrapolatedAPY = percentageIncrease.divPrecisely(yearsSinceLastCollection);
 
-                require(extrapolatedAPY < maxAPY, "Interest protected from inflating past maxAPY");
+                require(extrapolatedAPY < MAX_APY, "Interest protected from inflating past maxAPY");
 
                 emit InterestCollected(_mAsset, interestCollected, totalSupply, extrapolatedAPY);
 
@@ -179,6 +181,8 @@ contract SavingsManager is ISavingsManager, PausableModule {
             } else {
                 emit InterestCollected(_mAsset, 0, totalSupply, 0);
             }
+        } else {
+            emit WaitFor(THIRTY_MINUTES.sub(timeSinceLastCollection));
         }
     }
 
