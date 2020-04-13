@@ -1,7 +1,6 @@
 import * as t from "types/generated";
 
 import { simpleToExactAmount } from "@utils/math";
-import { BN } from "@utils/tools";
 import { createBasset, BassetStatus } from "@utils/mstable-objects";
 
 import envSetup from "@utils/env_setup";
@@ -79,7 +78,7 @@ contract("ForgeValidator", async (accounts) => {
         args: Args,
         result: Result,
         sender: string = accounts[0],
-    ) => {
+    ): Promise<void> => {
         const invalidIndex = args.indexToRedeem >= bAssets.length;
         const [isValid, reason] = await forgeValidator.validateRedemption(
             basket.failed,
@@ -253,7 +252,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasket(false, 100, 0),
                         [setBasset(50, 50), setBasset(50, 50)],
                         setArgs(0, 1),
-                        setResult(false, "bAssets must remain under max weight"),
+                        setResult(false, "bAssets must remain above implicit min weight"),
                     );
                 });
                 it("should allow anything at a high grace", async () => {
@@ -294,7 +293,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasket(false, 100, 1),
                         [setBasset(50, 50, 6), setBasset(50, 50, 12)],
                         setArgs(0, 3),
-                        setResult(false, "bAssets must remain under max weight"),
+                        setResult(false, "bAssets must remain above implicit min weight"),
                     );
                 });
             });
@@ -335,7 +334,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasket(false, 138, 1),
                         [setBasset(50, 69), setBasset(50, 69)],
                         setArgs(0, 3),
-                        setResult(false, "bAssets must remain under max weight"),
+                        setResult(false, "bAssets must remain above implicit min weight"),
                     );
                 });
             });
@@ -547,7 +546,7 @@ contract("ForgeValidator", async (accounts) => {
             });
         });
         context("in a basket with bAssets nearing threshold", async () => {
-            it("returns inValid if redemption pushes some other bAsset overweight", async () => {
+            it("returns valid if redemption pushes some other bAsset overweight", async () => {
                 /**
                  * TotalSupply:     100e18
                  * Grace:           5e18
@@ -561,13 +560,6 @@ contract("ForgeValidator", async (accounts) => {
                     setBasket(false, 100, 5),
                     [setBasset(25, 25), setBasset(25, 21), setBasset(25, 29), setBasset(25, 25)],
                     setArgs(3, 5),
-                    setResult(false, "bAssets must remain under max weight"),
-                );
-                // Changing q to 3 allows the redemption to pass
-                await assertSingleRedeem(
-                    setBasket(false, 100, 5),
-                    [setBasset(25, 25), setBasset(25, 21), setBasset(25, 29), setBasset(25, 25)],
-                    setArgs(3, 3),
                     setResult(true),
                 );
             });
@@ -583,13 +575,6 @@ contract("ForgeValidator", async (accounts) => {
                  */
                 await assertSingleRedeem(
                     setBasket(false, 100, 5),
-                    [setBasset(25, 25), setBasset(25, 21), setBasset(25, 29), setBasset(25, 25)],
-                    setArgs(3, 5),
-                    setResult(false, "bAssets must remain under max weight"),
-                );
-                // Changing grace to 7 allows passage
-                await assertSingleRedeem(
-                    setBasket(false, 100, 7),
                     [setBasset(25, 25), setBasset(25, 21), setBasset(25, 29), setBasset(25, 25)],
                     setArgs(3, 5),
                     setResult(true),

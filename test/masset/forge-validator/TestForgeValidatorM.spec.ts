@@ -1,7 +1,6 @@
 import * as t from "types/generated";
 
 import { simpleToExactAmount } from "@utils/math";
-import { BN } from "@utils/tools";
 import { createBasset, BassetStatus } from "@utils/mstable-objects";
 
 import envSetup from "@utils/env_setup";
@@ -583,7 +582,7 @@ contract("ForgeValidator", async (accounts) => {
                      * Grace:           1e18
                      * BassetTargets:   [25, 25, 25]
                      * BassetVaults:    [25, 25, 25]
-                     * MintAmts:        []
+                     * MintAmts:        [ 4,  4,  4]
                      * Mints cause total supply to go up, causing what would have been
                      * over weight exceptions to now be valid
                      */
@@ -593,372 +592,483 @@ contract("ForgeValidator", async (accounts) => {
                         [4, 4, 4],
                         setResult(true),
                     );
+                });
+                it("should fail if the inputs are of unequal length", async () => {
+                    await assertMintMulti(
+                        setBasket(100, 1),
+                        [setBasset(25, 25), setBasset(25, 25), setBasset(25, 25)],
+                        [4, 4],
+                        setResult(false, "Input length should be equal"),
+                    );
+                    await assertMintMulti(
+                        setBasket(100, 1),
+                        [setBasset(25, 25), setBasset(25, 25)],
+                        [4, 4, 4],
+                        setResult(false, "Input length should be equal"),
+                    );
+                });
+                it("should fail if any bAsset goes above max weight", async () => {
                     /**
                      * TotalSupply:     100e18
-                     * Grace:           10e18
+                     * Grace:           1e18
                      * BassetTargets:   [25, 25, 25]
                      * BassetVaults:    [25, 25, 25]
-                     * MintAmts:        []
-                     * Mints cause total supply to go up, causing what would have been
-                     * over weight exceptions to now be valid
+                     * MintAmts:        [ 2,  6,  2]
+                     * Mints cause total supply to go up, causing B to go overweight
                      */
-                    // await assertMintMulti(
-                    //     setBasket(100, 1),
-                    //     [setBasset(25, 25), setBasset(25, 25), setBasset(25, 25)],
-                    //     [20, 10, 10],
-                    //     setResult(true),
-                    // );
+                    await assertMintMulti(
+                        setBasket(100, 1),
+                        [setBasset(25, 25), setBasset(25, 25), setBasset(25, 25)],
+                        [2, 6, 2],
+                        setResult(false, "Must be below implicit max weighting"),
+                    );
                 });
-                it("should fail if the inputs are of unequal length", async () => {});
-                it("should fail if any bAsset goes above max weight", async () => {});
             });
             describe("with large basket supply", async () => {
                 it("should succeed with sufficient grace", async () => {
-                    // 10,000,000 total supply
-                    //    250,000 vaultBalance, 2.5% targetWeighting
-                    // new weighting now 260k/1010k
-                    // target weight = 250250, so 9750 grace is needed
-                    // const graceUnits = 9750;
-                    // await assertMintMulti(
-                    //     setBasket(10000000, graceUnits),
-                    //     setBasset("2.5", 250000, 12),
-                    //     10000,
-                    //     setResult(true),
-                    // );
+                    /**
+                     * TotalSupply:     1e25
+                     * Grace:           1e18
+                     * BassetTargets:   [2.5]
+                     * BassetVaults:    [250k]
+                     * MintAmts:        [ 10k]
+                     * Target weight = 250250, so 9750 grace is needed
+                     */
+                    const graceUnits = 9750;
+                    await assertMintMulti(
+                        setBasket(10000000, graceUnits),
+                        [setBasset("2.5", 250000, 12)],
+                        [10000],
+                        setResult(true),
+                    );
                 });
                 it("should fail if we exceed the grace threshold", async () => {
-                    // 10,000,000 total supply
-                    //    250,000 vaultBalance, 2.5% targetWeighting
-                    // new weighting now 260k/1010k (roughly 2.51%)
-                    // target weight = 250250, so 9750 grace is needed
-                    // const graceUnits = 9749;
-                    // await assertMintMulti(
-                    //     setBasket(10000000, graceUnits),
-                    //     setBasset("2.5", 250000, 12),
-                    //     10000,
-                    //     setResult(false, "Must be below implicit max weighting"),
-                    // );
+                    /**
+                     * TotalSupply:     1e25
+                     * Grace:           1e18
+                     * BassetTargets:   [2.5]
+                     * BassetVaults:    [250k]
+                     * MintAmts:        [ 10k]
+                     * Target weight = 250250, so 9750 grace is needed
+                     */
+                    const graceUnits = 9749;
+                    await assertMintMulti(
+                        setBasket(10000000, graceUnits),
+                        [setBasset("2.5", 250000, 12)],
+                        [10000],
+                        setResult(false, "Must be below implicit max weighting"),
+                    );
                 });
             });
             describe("with a variable grace", async () => {
                 it("should succeed with sufficient grace", async () => {
-                    // 1000 total supply
-                    //  150 vaultBalance, 15% targetWeighting
-                    // new weighting now 250/1100
-                    // target weight in units = 165, so 85 grace needed
-                    // let graceUnits = 100;
-                    // await assertMintMulti(
-                    //     setBasket(1000, graceUnits),
-                    //     setBasset(15, 150),
-                    //     100,
-                    //     setResult(true),
-                    // );
-                    // graceUnits = 85;
-                    // await assertMintMulti(
-                    //     setBasket(1000, graceUnits),
-                    //     setBasset(15, 150),
-                    //     100,
-                    //     setResult(true),
-                    // );
-                    // graceUnits = 70;
-                    // await assertMintMulti(
-                    //     setBasket(1000, graceUnits),
-                    //     setBasset(15, 150),
-                    //     100,
-                    //     setResult(false, "Must be below implicit max weighting"),
-                    // );
+                    /**
+                     * TotalSupply:     1000e18
+                     * Grace:           100e18
+                     * BassetTargets:   [15]
+                     * BassetVaults:    [150]
+                     * MintAmts:        [100]
+                     * New weighting now 250/1100
+                     * target weight in units = 165, so 85 grace needed
+                     */
+                    let graceUnits = 100;
+                    await assertMintMulti(
+                        setBasket(1000, graceUnits),
+                        [setBasset(15, 150)],
+                        [100],
+                        setResult(true),
+                    );
+                    graceUnits = 85;
+                    await assertMintMulti(
+                        setBasket(1000, graceUnits),
+                        [setBasset(15, 150)],
+                        [100],
+                        setResult(true),
+                    );
+                    graceUnits = 70;
+                    await assertMintMulti(
+                        setBasket(1000, graceUnits),
+                        [setBasset(15, 150)],
+                        [100],
+                        setResult(false, "Must be below implicit max weighting"),
+                    );
                 });
                 it("should always fail with 0 grace", async () => {
-                    // let graceUnits = 0;
-                    // await assertMintMulti(
-                    //     setBasket(100, graceUnits),
-                    //     setBasset(25, 25),
-                    //     1,
-                    //     setResult(false, "Must be below implicit max weighting"),
-                    // );
-                    // graceUnits = 1;
-                    // await assertMintMulti(
-                    //     setBasket(100, graceUnits),
-                    //     setBasset(25, 25),
-                    //     1,
-                    //     setResult(true),
-                    // );
+                    /**
+                     * Grace:           0
+                     * BassetTargets:   [15]
+                     * BassetVaults:    [150]
+                     * MintAmts:        [100]
+                     */
+                    let graceUnits = 0;
+                    await assertMintMulti(
+                        setBasket(100, graceUnits),
+                        [setBasset(25, 25)],
+                        [1],
+                        setResult(false, "Must be below implicit max weighting"),
+                    );
+                    graceUnits = 1;
+                    await assertMintMulti(
+                        setBasket(100, graceUnits),
+                        [setBasset(25, 25)],
+                        [1],
+                        setResult(true),
+                    );
                 });
                 it("should allow anything at a high grace", async () => {
-                    // // 1m
-                    // let graceUnits = 1000000;
-                    // await assertMintMulti(
-                    //     setBasket(1000000, graceUnits),
-                    //     setBasset(25, 250000),
-                    //     1000000,
-                    //     setResult(true),
-                    // );
-                    // await assertMintMulti(
-                    //     setBasket(1000000, graceUnits),
-                    //     setBasset(25, 250000),
-                    //     1500000,
-                    //     setResult(false, "Must be below implicit max weighting"),
-                    // );
-                    // // 10m
-                    // graceUnits = 10000000;
-                    // await assertMintMulti(
-                    //     setBasket(1000000, graceUnits),
-                    //     setBasset(25, 250000),
-                    //     1500000,
-                    //     setResult(true),
-                    // );
-                    // await assertMintMulti(
-                    //     setBasket(1000000, graceUnits),
-                    //     setBasset(25, 250000),
-                    //     12500000,
-                    //     setResult(true),
-                    // );
-                    // await assertMintMulti(
-                    //     setBasket(1000000, graceUnits),
-                    //     setBasset(25, 250000),
-                    //     14000001,
-                    //     setResult(false, "Must be below implicit max weighting"),
-                    // );
+                    /**
+                     * Grace:           1e24
+                     * BassetTargets:   [25]
+                     * BassetVaults:    [250k]
+                     * MintAmts:        [1m]
+                     */
+                    let graceUnits = 1000000;
+                    await assertMintMulti(
+                        setBasket(1000000, graceUnits),
+                        [setBasset(25, 250000)],
+                        [1000000],
+                        setResult(true),
+                    );
+                    await assertMintMulti(
+                        setBasket(1000000, graceUnits),
+                        [setBasset(25, 250000)],
+                        [1500000],
+                        setResult(false, "Must be below implicit max weighting"),
+                    );
+                    // 10m
+                    graceUnits = 10000000;
+                    await assertMintMulti(
+                        setBasket(1000000, graceUnits),
+                        [setBasset(25, 250000)],
+                        [1500000],
+                        setResult(true),
+                    );
+                    await assertMintMulti(
+                        setBasket(1000000, graceUnits),
+                        [setBasset(25, 250000)],
+                        [12500000],
+                        setResult(true),
+                    );
+                    await assertMintMulti(
+                        setBasket(1000000, graceUnits),
+                        [setBasset(25, 250000)],
+                        [14000001],
+                        setResult(false, "Must be below implicit max weighting"),
+                    );
                 });
             });
             describe("and various decimals", async () => {
                 it("returns valid with custom ratio", async () => {
-                    // 100 total supply
-                    // bAsset 25 vaultBalance, 25 targetWeighting, 6 decimals
-                    // await assertMintMulti(
-                    //     setBasket(100, 1),
-                    //     setBasset(25, 25, 6),
-                    //     1,
-                    //     setResult(true),
-                    // );
+                    /**
+                     * TotalSupply:     100e18
+                     * Grace:           1e18
+                     * BassetTargets:   [25]
+                     * BassetVaults:    [25]
+                     * MintAmts:        [1]
+                     */
+                    await assertMintMulti(
+                        setBasket(100, 1),
+                        [setBasset(25, 25, 6)],
+                        [1],
+                        setResult(true),
+                    );
                 });
             });
             describe("and various mint volumes", async () => {
                 // should be ok with 0
                 it("should be ok with 0 at all times", async () => {
-                    // // 100 total supply
-                    // // 10 grace; bAsset 25 vaultBalance, 25 targetWeighting, 18 decimals
-                    // await assertMintMulti(
-                    //     setBasket(100, 10),
-                    //     setBasset(25, 25, 6),
-                    //     0,
-                    //     setResult(true),
-                    // );
-                    // // 0 grace; bAsset 25 vaultBalance, 25 targetWeighting, 6 decimals
-                    // await assertMintMulti(
-                    //     setBasket(100, 0),
-                    //     setBasset(25, 25, 6),
-                    //     0,
-                    //     setResult(true),
-                    // );
-                    // // 0 grace; bAsset 25 vaultBalance, 25 targetWeighting, 18 decimals
-                    // await assertMintMulti(
-                    //     setBasket(100, 0),
-                    //     setBasset(25, 25, 18),
-                    //     0,
-                    //     setResult(true),
-                    // );
+                    /**
+                     * TotalSupply:     100e18
+                     * Grace:           10e18
+                     * BassetTargets:   [25]
+                     * BassetVaults:    [25]
+                     * MintAmts:        [0]
+                     */
+                    await assertMintMulti(
+                        setBasket(100, 10),
+                        [setBasset(25, 35, 6)],
+                        [0],
+                        setResult(true),
+                    );
+                    // 0 grace; bAsset 25 vaultBalance, 25 targetWeighting, 6 decimals
+                    await assertMintMulti(
+                        setBasket(100, 0),
+                        [setBasset(25, 25, 6)],
+                        [0],
+                        setResult(true),
+                    );
+                    // 0 grace; bAsset 25 vaultBalance, 25 targetWeighting, 18 decimals
+                    await assertMintMulti(
+                        setBasket(100, 0),
+                        [setBasset(45, 45, 18)],
+                        [0],
+                        setResult(true),
+                    );
                 });
                 it("should fail once mint volume triggers grace", async () => {
-                    // // 100 total supply
-                    // // 10 grace; bAsset 25 vaultBalance, 25 targetWeighting, 6 decimals
-                    // await assertMintMulti(
-                    //     setBasket(100, 10),
-                    //     setBasset(25, 25, 6),
-                    //     13,
-                    //     setResult(true),
-                    // );
-                    // // 10 grace; bAsset 25 vaultBalance, 25 targetWeighting, 6 decimals
-                    // await assertMintMulti(
-                    //     setBasket(100, 10),
-                    //     setBasset(25, 25, 6),
-                    //     14,
-                    //     setResult(false, "Must be below implicit max weighting"),
-                    // );
+                    /**
+                     * TotalSupply:     100e18
+                     * Grace:           10e18
+                     * BassetTargets:   [25]
+                     * BassetVaults:    [25]
+                     * MintAmts:        [0]
+                     */
+                    await assertMintMulti(
+                        setBasket(100, 10),
+                        [setBasset(25, 25, 6)],
+                        [13],
+                        setResult(true),
+                    );
+                    // 10 grace; bAsset 25 vaultBalance, 25 targetWeighting, 6 decimals
+                    await assertMintMulti(
+                        setBasket(100, 10),
+                        [setBasset(25, 25, 6)],
+                        [14],
+                        setResult(false, "Must be below implicit max weighting"),
+                    );
                 });
             });
         });
         // Overweight is defined when bAssetVaultUnits > (totalSupply * bAssetTarget) + deviationAllowance
         context("with a basset overweight", async () => {
             it("returns inValid for a simple validation", async () => {
-                // // 100 total supply
-                // // bAsset 40 vaultBalance, 25 targetWeighting, 18 decimals
-                // await assertMintMulti(
-                //     setBasket(100, 1),
-                //     setBasset(25, 40),
-                //     1,
-                //     setResult(false, "Must be below implicit max weighting"),
-                // );
+                /**
+                 * TotalSupply:     100e18
+                 * Grace:           1e18
+                 * BassetTargets:   [25]
+                 * BassetVaults:    [40]
+                 * MintAmts:        [1]
+                 */
+                await assertMintMulti(
+                    setBasket(100, 1),
+                    [setBasset(25, 40)],
+                    [1],
+                    setResult(false, "Must be below implicit max weighting"),
+                );
             });
             describe("with large basket supply", async () => {
                 it("always returns invalid until grace is increased", async () => {
-                    // // 1,000,000 total supply
-                    // // bAsset 120,000 vaultBalance, 10% targetWeighting, 18 decimals
-                    // await assertMintMulti(
-                    //     setBasket(1000000, 100),
-                    //     setBasset(10, 120000),
-                    //     1,
-                    //     setResult(false, "Must be below implicit max weighting"),
-                    // );
-                    // // 5,000,000 total supply
-                    // // bAsset 2,000,000 vaultBalance, 25% targetWeighting, 18 decimals
-                    // await assertMintMulti(
-                    //     setBasket(5000000, 10000),
-                    //     setBasset(25, 2000000),
-                    //     100,
-                    //     setResult(false, "Must be below implicit max weighting"),
-                    // );
-                    // // 5,000,000 total supply
-                    // // bAsset 2,000,000 vaultBalance, 25% targetWeighting, 18 decimals
-                    // await assertMintMulti(
-                    //     setBasket(5000000, 900000),
-                    //     setBasset(25, 2000000),
-                    //     100,
-                    //     setResult(true),
-                    // );
+                    /**
+                     * TotalSupply:     1e24
+                     * Grace:           100e18
+                     * BassetTargets:   [10]
+                     * BassetVaults:    [120k]
+                     * MintAmts:        [1]
+                     * Basset is already 20k units overweight
+                     */
+                    await assertMintMulti(
+                        setBasket(1000000, 100),
+                        [setBasset(10, 120000)],
+                        [1],
+                        setResult(false, "Must be below implicit max weighting"),
+                    );
+                    // 5,000,000 total supply
+                    // bAsset 2,000,000 vaultBalance, 25% targetWeighting, 18 decimals
+                    await assertMintMulti(
+                        setBasket(5000000, 10000),
+                        [setBasset(25, 2000000)],
+                        [100],
+                        setResult(false, "Must be below implicit max weighting"),
+                    );
+                    // 5,000,000 total supply
+                    // bAsset 2,000,000 vaultBalance, 25% targetWeighting, 18 decimals
+                    // passed now due to 900k grace allowance
+                    await assertMintMulti(
+                        setBasket(5000000, 900000),
+                        [setBasset(25, 2000000)],
+                        [100],
+                        setResult(true),
+                    );
                 });
             });
             describe("with a variable grace", async () => {
                 it("always returns invalid until grace is increased", async () => {
-                    // // 100 total supply
-                    // // bAsset 26.1 vaultBalance, 25% targetWeighting, 18 decimals
-                    // // making it 1.1 units gt target, with 1 grace
-                    // await assertMintMulti(
-                    //     setBasket(100, 1),
-                    //     setBasset(25, "26.1"),
-                    //     1,
-                    //     setResult(false, "Must be below implicit max weighting"),
-                    // );
-                    // await assertMintMulti(
-                    //     setBasket(100, 2),
-                    //     setBasset(25, "26.1"),
-                    //     1,
-                    //     setResult(true),
-                    // );
+                    /**
+                     * TotalSupply:     100e18
+                     * Grace:           100e18
+                     * BassetTargets:   [25]
+                     * BassetVaults:    [26.1]
+                     * MintAmts:        [1]
+                     * Basset is 1.1 units gt target, with 1 grace
+                     */
+                    await assertMintMulti(
+                        setBasket(100, 1),
+                        [setBasset(25, "26.1")],
+                        [1],
+                        setResult(false, "Must be below implicit max weighting"),
+                    );
+                    await assertMintMulti(
+                        setBasket(100, 2),
+                        [setBasset(25, "26.1")],
+                        [1],
+                        setResult(true),
+                    );
                 });
             });
             describe("and various mint volumes", async () => {
                 // should be ok with 0
                 // should fail with lots
                 it("returns invalid with a 0 quantity input", async () => {
-                    // // 100 total supply
-                    // // bAsset 26.1 vaultBalance, 25% targetWeighting, 18 decimals
-                    // // making it 1.1 units gt target, with 1 grace
-                    // await assertMintMulti(
-                    //     setBasket(100, 1),
-                    //     setBasset(25, "26.1"),
-                    //     0,
-                    //     setResult(false, "Must be below implicit max weighting"),
-                    // );
+                    /**
+                     * TotalSupply:     100e18
+                     * Grace:           1e18
+                     * BassetTargets:   [25]
+                     * BassetVaults:    [26.1]
+                     * MintAmts:        [0]
+                     * Basset is already overweight
+                     */
+                    await assertMintMulti(
+                        setBasket(100, 1),
+                        [setBasset(25, "26.1")],
+                        [0],
+                        setResult(false, "Must be below implicit max weighting"),
+                    );
                 });
                 it("returns invalid with a all quantities", async () => {
-                    // // 100 total supply
-                    // // bAsset 26.1 vaultBalance, 25% targetWeighting, 18 decimals
-                    // // making it 1.1 units gt target, with 1 grace
-                    // await assertMintMulti(
-                    //     setBasket(100, 1),
-                    //     setBasset(25, "26.1"),
-                    //     2,
-                    //     setResult(false, "Must be below implicit max weighting"),
-                    // );
-                    // await assertMintMulti(
-                    //     setBasket(100, 1),
-                    //     setBasset(25, "26.1"),
-                    //     10,
-                    //     setResult(false, "Must be below implicit max weighting"),
-                    // );
-                    // await assertMintMulti(
-                    //     setBasket(100, 1),
-                    //     setBasset(25, "26.1"),
-                    //     10000000,
-                    //     setResult(false, "Must be below implicit max weighting"),
-                    // );
+                    /**
+                     * TotalSupply:     100e18
+                     * Grace:           1e18
+                     * BassetTargets:   [25]
+                     * BassetVaults:    [26.1]
+                     * MintAmts:        [0]
+                     * Basset is already overweight
+                     */
+                    await assertMintMulti(
+                        setBasket(100, 1),
+                        [setBasset(25, "26.1")],
+                        [2],
+                        setResult(false, "Must be below implicit max weighting"),
+                    );
+                    await assertMintMulti(
+                        setBasket(100, 1),
+                        [setBasset(25, "26.1")],
+                        [10],
+                        setResult(false, "Must be below implicit max weighting"),
+                    );
+                    await assertMintMulti(
+                        setBasket(100, 1),
+                        [setBasset(25, "26.1")],
+                        [10000000],
+                        setResult(false, "Must be below implicit max weighting"),
+                    );
                 });
             });
         });
         // Underweight is defined when (totalSupply * bassetTarget) - deviationAllowance > bAssetVaultUnits
         context("with a basset underweight", async () => {
             it("returns valid for a simple validation", async () => {
-                // 100 total supply
-                // bAsset 10 vaultBalance, 25 targetWeighting
-                // new weighting now 11/101, within grace boundary
-                // await assertMintMulti(setBasket(100, 1), setBasset(25, 10), 1, setResult(true));
+                /**
+                 * TotalSupply:     100e18
+                 * Grace:           1e18
+                 * BassetTargets:   [25]
+                 * BassetVaults:    [10]
+                 * MintAmts:        [0]
+                 * New weighting now 11/101, well within grace boundary
+                 */
+                await assertMintMulti(setBasket(100, 1), [setBasset(25, 10)], [1], setResult(true));
             });
             it("returns inValid if mint pushes bAsset overweight", async () => {
-                // 100 total supply
-                // bAsset 10 vaultBalance, 25 targetWeighting
-                // new weighting now 31/121, within grace boundary
-                // await assertMintMulti(
-                //     setBasket(100, 0),
-                //     setBasset(25, 10),
-                //     21,
-                //     setResult(false, "Must be below implicit max weighting"),
-                // );
+                /**
+                 * TotalSupply:     100e18
+                 * Grace:           1e18
+                 * BassetTargets:   [25]
+                 * BassetVaults:    [10]
+                 * MintAmts:        [0]
+                 * New weighting now 33/122, slightly above max weight
+                 */
+                await assertMintMulti(
+                    setBasket(100, 1),
+                    [setBasset(25, 10)],
+                    [22],
+                    setResult(false, "Must be below implicit max weighting"),
+                );
+                await assertMintMulti(
+                    setBasket(100, 1),
+                    [setBasset(25, 10)],
+                    [21],
+                    setResult(true),
+                );
             });
             describe("with large basket supply", async () => {
                 it("should succeed with any grace, so long as we are still below target", async () => {
-                    // 10,000,000 total supply
-                    //    250,000 vaultBalance, 10% targetWeighting
-                    // let graceUnits = 0;
-                    // await assertMintMulti(
-                    //     setBasket(10000000, graceUnits),
-                    //     setBasset(10, 250000, 12),
-                    //     600000,
-                    //     setResult(true),
-                    // );
-                    // graceUnits = 10000;
-                    // await assertMintMulti(
-                    //     setBasket(10000000, graceUnits),
-                    //     setBasset(10, 250000, 12),
-                    //     600000,
-                    //     setResult(true),
-                    // );
+                    /**
+                     * TotalSupply:     1e25
+                     * Grace:           variable
+                     * BassetTargets:   [10]
+                     * BassetVaults:    [250k]
+                     * MintAmts:        [600k]
+                     * Target is 1m units, so it is still well below limit
+                     */
+                    let graceUnits = 0;
+                    await assertMintMulti(
+                        setBasket(10000000, graceUnits),
+                        [setBasset(10, 250000, 12)],
+                        [600000],
+                        setResult(true),
+                    );
+                    graceUnits = 10000;
+                    await assertMintMulti(
+                        setBasket(10000000, graceUnits),
+                        [setBasset(10, 250000, 12)],
+                        [600000],
+                        setResult(true),
+                    );
                 });
                 it("should fail if we exceed the grace threshold", async () => {
-                    // 10,000,000 total supply
-                    //    250,000 vaultBalance, 10% targetWeighting
-                    // fails since resulting is around 1.25m/11m, above boundary
-                    // let graceUnits = 0;
-                    // await assertMintMulti(
-                    //     setBasket(10000000, graceUnits),
-                    //     setBasset(10, 250000, 12),
-                    //     1000000,
-                    //     setResult(false, "Must be below implicit max weighting"),
-                    // );
-                    // graceUnits = 200000;
-                    // await assertMintMulti(
-                    //     setBasket(10000000, graceUnits),
-                    //     setBasset(10, 250000, 12),
-                    //     1000000,
-                    //     setResult(true),
-                    // );
+                    /**
+                     * TotalSupply:     1e25
+                     * Grace:           variable
+                     * BassetTargets:   [10]
+                     * BassetVaults:    [250k]
+                     * MintAmts:        [600k]
+                     * Fails since resulting is around 1.25m/11m, above boundary
+                     */
+                    let graceUnits = 0;
+                    await assertMintMulti(
+                        setBasket(10000000, graceUnits),
+                        [setBasset(10, 250000, 12)],
+                        [1000000],
+                        setResult(false, "Must be below implicit max weighting"),
+                    );
+                    graceUnits = 200000;
+                    await assertMintMulti(
+                        setBasket(10000000, graceUnits),
+                        [setBasset(10, 250000, 12)],
+                        [1000000],
+                        setResult(true),
+                    );
                 });
             });
         });
         // Affected bAssets have been excluded from the basket temporarily or permanently due to circumstance
         context("with an affected bAsset", async () => {
             it("returns inValid for a simple validation", async () => {
-                // 100 total supply
-                // 10 grace; bAsset 25 vaultBalance, 25 targetWeighting, 18 decimals
-                // Assert normal mint works
-                // await assertMintMulti(
-                //     setBasket(100, 10),
-                //     setBasset(25, 25, 18, BassetStatus.BrokenBelowPeg),
-                //     0,
-                //     setResult(false, "bAsset not allowed in mint"),
-                // );
-                // await assertMintMulti(
-                //     setBasket(100, 10),
-                //     setBasset(25, 25, 18, BassetStatus.Blacklisted),
-                //     0,
-                //     setResult(false, "bAsset not allowed in mint"),
-                // );
-                // await assertMintMulti(
-                //     setBasket(100, 10),
-                //     setBasset(25, 25, 18, BassetStatus.Liquidating),
-                //     0,
-                //     setResult(false, "bAsset not allowed in mint"),
-                // );
+                /**
+                 * TotalSupply:     100e18
+                 * Grace:           10e18
+                 * BassetTargets:   [25]
+                 * BassetVaults:    [25]
+                 * MintAmts:        [0]
+                 * Fails since bAssets used are invalid
+                 */
+                await assertMintMulti(
+                    setBasket(100, 10),
+                    [setBasset(25, 25, 18, BassetStatus.BrokenBelowPeg)],
+                    [0],
+                    setResult(false, "bAsset not allowed in mint"),
+                );
+                await assertMintMulti(
+                    setBasket(100, 10),
+                    [setBasset(25, 25, 18, BassetStatus.Blacklisted)],
+                    [0],
+                    setResult(false, "bAsset not allowed in mint"),
+                );
+                await assertMintMulti(
+                    setBasket(100, 10),
+                    [setBasset(25, 25, 18, BassetStatus.Liquidating)],
+                    [0],
+                    setResult(false, "bAsset not allowed in mint"),
+                );
             });
         });
     });

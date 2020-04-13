@@ -167,21 +167,12 @@ contract ForgeValidator is IForgeValidator {
         data.ratioedBassetVaults[_indexToRedeem]
             = data.ratioedBassetVaults[_indexToRedeem].sub(ratioedRedemptionAmount);
 
-        (bool atLeastOneOverweightAfter, bool[] memory underWeight) =
-            _getOverweightBassetsAfter(
-                _totalVault.sub(ratioedRedemptionAmount),
-                _grace,
-                _allBassets,
-                data.ratioedBassetVaults
-            );
+        (, bool[] memory underWeight) =
+            _getOverweightBassetsAfter(_totalVault.sub(ratioedRedemptionAmount), _grace, _allBassets, data.ratioedBassetVaults);
 
         // If there is at least one overweight bAsset before, we must redeem it
         if(data.atLeastOneOverweight) {
             if(!data.isOverWeight[_indexToRedeem]) return (false, "Must redeem overweight bAssets");
-        }
-        // Else, redemption is valid so long as no bAssets end up overweight
-        else {
-            if(atLeastOneOverweightAfter) return (false, "bAssets must remain under max weight");
         }
 
         // No bAssets must go under their implicit minimum
@@ -237,23 +228,13 @@ contract ForgeValidator is IForgeValidator {
             newTotalVault = newTotalVault.sub(ratioedRedemptionAmount);
         }
 
-        (bool atLeastOneOverweightAfter, bool[] memory underWeight) =
-            _getOverweightBassetsAfter(
-                newTotalVault,
-                _grace,
-                _allBassets,
-                data.ratioedBassetVaults
-            );
+        (, bool[] memory underWeight) = _getOverweightBassetsAfter(newTotalVault, _grace, _allBassets, data.ratioedBassetVaults);
 
         // If any bAssets are overweight before, all bAssets we redeem must be overweight
         if(data.atLeastOneOverweight) {
             for(uint256 j = 0; j < idxCount; j++) {
                 if(!data.isOverWeight[_idxs[j]]) return (false, "Must redeem overweight bAssets");
             }
-        }
-        // Else, redemption is valid so long as no bAssets end up overweight
-        else {
-            if(atLeastOneOverweightAfter) return (false, "bAssets must remain under max weight");
         }
 
         // No redeemed bAssets must go under their implicit minimum
