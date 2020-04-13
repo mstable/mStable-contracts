@@ -7,7 +7,7 @@ const NexusArtifact = artifacts.require("Nexus");
 export default function shouldBehaveLikeModule(
     ctx: { module: ModuleInstance },
     sa: StandardAccounts,
-) {
+): void {
     it("should have all ModuleKeys initialized", async () => {
         let key: string;
         key = await ctx.module.KEY_GOVERNANCE();

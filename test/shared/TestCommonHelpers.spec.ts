@@ -1,4 +1,4 @@
-import { constants, expectEvent, expectRevert } from "@openzeppelin/test-helpers";
+import { expectRevert } from "@openzeppelin/test-helpers";
 
 import { StandardAccounts } from "@utils/machines";
 import { BN } from "@utils/tools";
@@ -6,7 +6,7 @@ import { ZERO_ADDRESS } from "@utils/constants";
 import envSetup from "@utils/env_setup";
 import { MockCommonHelpersInstance, MockERC20Instance } from "types/generated";
 
-const { expect, assert } = envSetup.configure();
+const { expect } = envSetup.configure();
 
 const MockCommonHelpers = artifacts.require("MockCommonHelpers");
 const MockERC20 = artifacts.require("MockERC20");

@@ -2,9 +2,8 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import * as t from "types/generated";
-import { expectRevert, expectEvent, time } from "@openzeppelin/test-helpers";
+import { expectRevert, time } from "@openzeppelin/test-helpers";
 import { StandardAccounts } from "@utils/machines";
-import { ZERO_ADDRESS } from "@utils/constants";
 import { BN } from "@utils/tools";
 import envSetup from "@utils/env_setup";
 
@@ -12,12 +11,6 @@ const { expect } = envSetup.configure();
 const DelayedProxyAdmin: t.DelayedProxyAdminContract = artifacts.require("DelayedProxyAdmin");
 const InitializableProxy: t.InitializableAdminUpgradeabilityProxyContract = artifacts.require(
     "@openzeppelin/upgrades/InitializableAdminUpgradeabilityProxy",
-);
-const MockImplementationV1: t.MockImplementationV1Contract = artifacts.require(
-    "MockImplementationV1",
-);
-const MockImplementationV2: t.MockImplementationV2Contract = artifacts.require(
-    "MockImplementationV2",
 );
 const c_MockNexus: t.MockNexusContract = artifacts.require("MockNexus");
 const c_AaveIntegration: t.AaveIntegrationContract = artifacts.require("AaveIntegration");

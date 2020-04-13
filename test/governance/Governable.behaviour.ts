@@ -7,7 +7,7 @@ export default function shouldBehaveLikeGovernable(
     ctx: { governable: GovernableInstance },
     owner: string,
     [other]: string[],
-) {
+): void {
     describe("as a Governable", () => {
         it("should have a Governor", async () => {
             (await ctx.governable.governor()).should.equal(owner);

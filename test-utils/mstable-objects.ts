@@ -53,7 +53,7 @@ export const createBasket = (bassets: Basset[], failed = false): Basket => {
 export const createBasset = (
     targetWeight: BN | number | string,
     vaultBalance: BN | number | string,
-    decimals: number = 18,
+    decimals = 18,
     status = BassetStatus.Normal,
     isTransferFeeCharged = false,
 ): Basset => {
@@ -63,16 +63,8 @@ export const createBasset = (
         ratio: createMultiple(decimals).toString(),
         targetWeight: percentToWeight(targetWeight).toString(),
         vaultBalance: simpleToExactAmount(vaultBalance, decimals).toString(),
-        status: status,
+        status,
     };
-};
-
-export const equalBassets = (bAssetArr1: Array<Basset>, bAssetArr2: Array<Basset>): void => {
-    expect(bAssetArr1.length).to.equal(bAssetArr2.length);
-    bAssetArr1.map((a, index) => {
-        equalBasset(bAssetArr1[index], bAssetArr2[index]);
-        return null;
-    });
 };
 
 export const equalBasset = (bAsset1: Basset, bAsset2: Basset): void => {
@@ -83,6 +75,14 @@ export const equalBasset = (bAsset1: Basset, bAsset2: Basset): void => {
     expect(bAsset1.targetWeight).to.bignumber.equal(bAsset2.targetWeight);
     expect(bAsset1.vaultBalance).to.bignumber.equal(bAsset2.vaultBalance);
     return null;
+};
+
+export const equalBassets = (bAssetArr1: Array<Basset>, bAssetArr2: Array<Basset>): void => {
+    expect(bAssetArr1.length).to.equal(bAssetArr2.length);
+    bAssetArr1.map((a, index) => {
+        equalBasset(bAssetArr1[index], bAssetArr2[index]);
+        return null;
+    });
 };
 
 export const buildBasset = (

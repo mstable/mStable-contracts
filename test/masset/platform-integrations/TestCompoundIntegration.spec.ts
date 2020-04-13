@@ -2,16 +2,15 @@
 /* eslint-disable consistent-return */
 
 import * as t from "types/generated";
-import { constants, expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
+import { expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
 import { BN } from "@utils/tools";
-import { assertBNClose, assertBNSlightlyGT, assertBNSlightlyGTPercent } from "@utils/assertions";
+import { assertBNSlightlyGTPercent } from "@utils/assertions";
 import { StandardAccounts, SystemMachine, MassetMachine } from "@utils/machines";
 import {
     MainnetAccounts,
     ZERO_ADDRESS,
     MAX_UINT256,
     fullScale,
-    transferFeeScale,
     ZERO,
     ONE_WEEK,
 } from "@utils/constants";
@@ -20,14 +19,10 @@ import envSetup from "@utils/env_setup";
 import { simpleToExactAmount } from "@utils/math";
 import {
     BassetIntegrationDetails,
-    Platform,
-    CTokenDetails,
-    ATokenDetails,
-    Address,
 } from "../../../types";
 import shouldBehaveLikeModule from "../../shared/behaviours/Module.behaviour";
 
-const { expect, assert } = envSetup.configure();
+const { expect } = envSetup.configure();
 
 const c_ERC20: t.ERC20DetailedContract = artifacts.require("ERC20Detailed");
 const c_CERC20: t.ICERC20Contract = artifacts.require("ICERC20");

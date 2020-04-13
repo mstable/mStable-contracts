@@ -1,18 +1,15 @@
 import { StandardAccounts } from "@utils/machines";
 import { BN } from "@utils/tools";
 import envSetup from "@utils/env_setup";
-import { constants, expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
+import { expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
 import { DelayedClaimableGovernorInstance } from "types/generated";
 
-const { ZERO_ADDRESS } = constants;
-const { expect, assert } = envSetup.configure();
-
-const DelayedClaimableGovernor = artifacts.require("DelayedClaimableGovernor");
+const { expect } = envSetup.configure();
 
 export default function shouldBehaveLikeDelayedClaimable(
     ctx: { claimable: DelayedClaimableGovernorInstance },
     sa: StandardAccounts,
-) {
+): void {
     it("should have delay set", async () => {
         const delay = await ctx.claimable.delay();
         expect(delay, "wrong delay").bignumber.gt(new BN(0) as any);
@@ -27,10 +24,7 @@ export default function shouldBehaveLikeDelayedClaimable(
 
     it("prevent newGovernor to claim ownership before delay over", async () => {
         const newOwner = sa.other;
-        await expectRevert(
-            ctx.claimable.claimGovernorChange({ from: newOwner }),
-            "Delay not over",
-        );
+        await expectRevert(ctx.claimable.claimGovernorChange({ from: newOwner }), "Delay not over");
         const owner = await ctx.claimable.governor();
 
         expect(owner, "wrong owner").to.not.equal(newOwner);
@@ -42,10 +36,7 @@ export default function shouldBehaveLikeDelayedClaimable(
         await time.increase(delay.sub(new BN(10)));
 
         const newOwner = sa.other;
-        await expectRevert(
-            ctx.claimable.claimGovernorChange({ from: newOwner }),
-            "Delay not over",
-        );
+        await expectRevert(ctx.claimable.claimGovernorChange({ from: newOwner }), "Delay not over");
         const owner = await ctx.claimable.governor();
         const requestTime = await ctx.claimable.requestTime();
 

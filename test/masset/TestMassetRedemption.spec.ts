@@ -16,7 +16,6 @@ import envSetup from "@utils/env_setup";
 const { expect } = envSetup.configure();
 
 const MockBasketManager1: t.MockBasketManager1Contract = artifacts.require("MockBasketManager1");
-const MockBasketManager2: t.MockBasketManager2Contract = artifacts.require("MockBasketManager2");
 const MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
 const MockAToken: t.MockATokenContract = artifacts.require("MockAToken");
 const MockAave: t.MockAaveContract = artifacts.require("MockAave");
@@ -37,6 +36,13 @@ contract("Masset", async (accounts) => {
     let massetMachine: MassetMachine;
     let massetDetails: MassetDetails;
 
+    const runSetup = async (seedBasket = true, enableUSDTFee = false): Promise<void> => {
+        massetDetails = seedBasket
+            ? await massetMachine.deployMassetAndSeedBasket(enableUSDTFee)
+            : await massetMachine.deployMasset(enableUSDTFee);
+        await assertBasketIsHealthy(massetMachine, massetDetails);
+    };
+
     before("Init contract", async () => {
         systemMachine = new SystemMachine(sa.all);
         massetMachine = new MassetMachine(systemMachine);
@@ -44,15 +50,8 @@ contract("Masset", async (accounts) => {
         await runSetup();
     });
 
-    const runSetup = async (seedBasket = true, enableUSDTFee = false) => {
-        massetDetails = seedBasket
-            ? await massetMachine.deployMassetAndSeedBasket(enableUSDTFee)
-            : await massetMachine.deployMasset(enableUSDTFee);
-        await assertBasketIsHealthy(massetMachine, massetDetails);
-    };
-
-    const seedWithWeightings = async (md: MassetDetails, weights: Array<BN>) => {
-        const { mAsset, bAssets, basketManager } = md;
+    const seedWithWeightings = async (md: MassetDetails, weights: Array<BN>): Promise<void> => {
+        const { mAsset, bAssets } = md;
         const approvals = await Promise.all(
             bAssets.map((b, i) => massetMachine.approveMasset(b, mAsset, weights[i], sa.default)),
         );
@@ -767,7 +766,7 @@ contract("Masset", async (accounts) => {
                 await runSetup();
             });
             it("should redeem nothing if the preparation returns invalid from manager", async () => {
-                const { forgeValidator, mAsset } = massetDetails;
+                const { forgeValidator } = massetDetails;
                 // mintSingle
                 const bAsset = await MockERC20.new("Mock", "MKK", 18, sa.default, 1000);
                 const newManager = await MockBasketManager1.new(bAsset.address);
@@ -796,14 +795,14 @@ contract("Masset", async (accounts) => {
         context("when the mAsset has failed", () => {
             beforeEach(async () => {
                 await runSetup(true);
-                const { bAssets, mAsset, basketManager } = massetDetails;
+                const { basketManager } = massetDetails;
                 // Set the colRatio to 80%, which means that the mAsset is undercollateralised
                 // by 20%. TO compensate, redemption burns higher amount of mAsset, and totalSupply
                 // passed to the forgevalidator is affected to maintain accurate weightings
                 await basketManager.setBasket(true, simpleToExactAmount(8, 17));
             });
             it("should still allow redemption, apply the colRatio effectively", async () => {
-                const { bAssets, mAsset, basketManager } = massetDetails;
+                const { bAssets, mAsset } = massetDetails;
                 // should burn more than is necessary
                 const bAsset = bAssets[0];
                 const bAssetDecimals = await bAsset.decimals();

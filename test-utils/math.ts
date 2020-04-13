@@ -1,10 +1,6 @@
 import { BN } from "./tools";
 import { ratioScale } from "./constants";
 
-export const percentToWeight = (percent: number | string | BN): BN => {
-    return simpleToExactAmount(percent, 16);
-};
-
 export const simpleToExactAmount = (amount: number | string | BN, decimals: number | BN): BN => {
     // Code is largely lifted from the guts of web3 toWei here:
     // https://github.com/ethjs/ethjs-unit/blob/master/src/index.js
@@ -19,7 +15,7 @@ export const simpleToExactAmount = (amount: number | string | BN, decimals: numb
     const scaleString = scale.toString();
 
     // Is it negative?
-    var negative = amountString.substring(0, 1) === "-";
+    const negative = amountString.substring(0, 1) === "-";
     if (negative) {
         amountString = amountString.substring(1);
     }
@@ -63,6 +59,10 @@ export const simpleToExactAmount = (amount: number | string | BN, decimals: numb
     }
 
     return result;
+};
+
+export const percentToWeight = (percent: number | string | BN): BN => {
+    return simpleToExactAmount(percent, 16);
 };
 
 export const exactToSimpleAmount = (amount: BN, decimals: number | BN): BN => {
@@ -113,6 +113,6 @@ export const applyRatioCeil = (bAssetQ: BN | string, ratio: BN | string): BN => 
 };
 
 export const createMultiple = (decimals: number): BN => {
-    let ratio = new BN(10).pow(new BN(18 - decimals));
+    const ratio = new BN(10).pow(new BN(18 - decimals));
     return new BN(ratio).mul(ratioScale);
 };

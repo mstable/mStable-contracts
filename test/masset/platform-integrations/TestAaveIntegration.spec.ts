@@ -2,7 +2,7 @@
 /* eslint-disable consistent-return */
 
 import * as t from "types/generated";
-import { constants, expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
+import { expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
 import { BN } from "@utils/tools";
 import { assertBNClose, assertBNSlightlyGT, assertBNSlightlyGTPercent } from "@utils/assertions";
 import { StandardAccounts, SystemMachine, MassetMachine } from "@utils/machines";
@@ -13,24 +13,18 @@ import {
     fullScale,
     ONE_WEEK,
     TEN_MINS,
-    percentScale,
 } from "@utils/constants";
 import { simpleToExactAmount } from "@utils/math";
 
 import envSetup from "@utils/env_setup";
 import {
     BassetIntegrationDetails,
-    Platform,
-    CTokenDetails,
-    ATokenDetails,
-    Address,
 } from "../../../types";
 import shouldBehaveLikeModule from "../../shared/behaviours/Module.behaviour";
 
-const { expect, assert } = envSetup.configure();
+const { expect } = envSetup.configure();
 
 const c_MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
-const c_MockERC20WithFee: t.MockERC20WithFeeContract = artifacts.require("MockERC20WithFee");
 const c_MockAaveAToken: t.MockATokenContract = artifacts.require("MockAToken");
 const c_MockAave: t.MockAaveContract = artifacts.require("MockAave");
 const c_Nexus: t.NexusContract = artifacts.require("Nexus");

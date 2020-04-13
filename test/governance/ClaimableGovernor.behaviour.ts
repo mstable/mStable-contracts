@@ -1,15 +1,13 @@
 import { StandardAccounts } from "@utils/machines";
-import { constants, expectEvent, expectRevert } from "@openzeppelin/test-helpers";
+import { constants, expectRevert } from "@openzeppelin/test-helpers";
 import { ClaimableGovernorInstance } from "types/generated";
 
 const { ZERO_ADDRESS } = constants;
 
-const ClaimableGovernor = artifacts.require("ClaimableGovernor");
-
 export default function shouldBehaveLikeClaimable(
     ctx: { claimable: ClaimableGovernorInstance },
     sa: StandardAccounts,
-) {
+): void {
     it("should have a governor", async () => {
         const governor = await ctx.claimable.governor();
         assert.isTrue(governor !== ZERO_ADDRESS);
