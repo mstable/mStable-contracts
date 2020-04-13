@@ -117,7 +117,7 @@ contract("CompoundIntegration", async (accounts) => {
         );
 
         await nexus.initialize(
-            [await d_DelayedProxyAdmin.Key_ProxyAdmin()],
+            [await d_DelayedProxyAdmin.KEY_PROXY_ADMIN()],
             [d_DelayedProxyAdmin.address],
             [true],
             sa.governor,
@@ -667,17 +667,15 @@ contract("CompoundIntegration", async (accounts) => {
             const amountScaled = amount.mul(scale);
             const expectedAmount = amountScaled.div(fullScale);
             // Step 2. Validate recipient
-            expect(bAssetRecipient_balAfter).bignumber.gte(
-                bAssetRecipient_balBefore.add(expectedAmount) as any,
-            );
-            expect(bAssetRecipient_balAfter).bignumber.lte(
-                bAssetRecipient_balBefore.add(amount) as any,
-            );
-            expect(compoundIntegration_balAfter).bignumber.eq(
-                compoundIntegration_balBefore.sub(
-                    await convertUnderlyingToCToken(cToken, amount),
-                ) as any,
-            );
+            expect(bAssetRecipient_balAfter).bignumber.gte(bAssetRecipient_balBefore.add(
+                expectedAmount,
+            ) as any);
+            expect(bAssetRecipient_balAfter).bignumber.lte(bAssetRecipient_balBefore.add(
+                amount,
+            ) as any);
+            expect(compoundIntegration_balAfter).bignumber.eq(compoundIntegration_balBefore.sub(
+                await convertUnderlyingToCToken(cToken, amount),
+            ) as any);
             const expectedBalance = compoundIntegration_balBefore.sub(amount);
             assertBNSlightlyGTPercent(compoundIntegration_balAfter, expectedBalance, "0.1");
             const underlyingBalance = await convertCTokenToUnderlying(

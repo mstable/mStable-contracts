@@ -10,30 +10,30 @@ pragma solidity 0.5.16;
 contract InitializableModuleKeys {
 
     // Governance                           // Phases
-    bytes32 public Key_Governance;          // 2.x
-    bytes32 public Key_Staking;             // 1.2
-    bytes32 public Key_ProxyAdmin;          // 1.0
+    bytes32 public KEY_GOVERNANCE;          // 2.x
+    bytes32 public KEY_STAKING;             // 1.2
+    bytes32 public KEY_PROXY_ADMIN;         // 1.0
 
     // mStable
-    bytes32 public Key_OracleHub;           // 1.2
-    bytes32 public Key_Manager;             // 1.2
-    bytes32 public Key_Recollateraliser;    // 2.x
-    bytes32 public Key_MetaToken;           // 1.1
-    bytes32 public Key_SavingsManager;      // 1.0
+    bytes32 public KEY_ORACLE_HUB;          // 1.2
+    bytes32 public KEY_MANAGER;             // 1.2
+    bytes32 public KEY_RECOLLATERALISER;    // 2.x
+    bytes32 public KEY_META_TOKEN;          // 1.1
+    bytes32 public KEY_SAVINGS_MANAGER;     // 1.0
 
     /**
      * @dev Initialize function for upgradable proxy contracts. This function should be called
      *      via Proxy to initialize constants in the Proxy contract.
      */
     function _initialize() internal {
-        Key_Governance = keccak256("Governance");
-        Key_Staking = keccak256("Staking");
-        Key_ProxyAdmin = keccak256("ProxyAdmin");
+        KEY_GOVERNANCE = keccak256("Governance");
+        KEY_STAKING = keccak256("Staking");
+        KEY_PROXY_ADMIN = keccak256("ProxyAdmin");
 
-        Key_OracleHub = keccak256("OracleHub");
-        Key_Manager = keccak256("Manager");
-        Key_Recollateraliser = keccak256("Recollateraliser");
-        Key_MetaToken = keccak256("MetaToken");
-        Key_SavingsManager = keccak256("SavingsManager");
+        KEY_ORACLE_HUB = keccak256("OracleHub");
+        KEY_MANAGER = keccak256("Manager");
+        KEY_RECOLLATERALISER = keccak256("Recollateraliser");
+        KEY_META_TOKEN = keccak256("MetaToken");
+        KEY_SAVINGS_MANAGER = keccak256("SavingsManager");
     }
 }
