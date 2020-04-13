@@ -8,7 +8,7 @@ import { ISavingsContract } from "../interfaces/ISavingsContract.sol";
 import { ISavingsManager } from "../interfaces/ISavingsManager.sol";
 import { PausableModule } from "../shared/PausableModule.sol";
 
-//Libs
+// Libs
 import { IERC20 }     from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 }  from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";

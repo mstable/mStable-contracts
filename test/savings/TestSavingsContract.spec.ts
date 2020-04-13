@@ -108,14 +108,16 @@ contract("SavingsContract", async (accounts) => {
 
     describe("depositing savings", async () => {
         context("when there is some interest to collect from the manager", async () => {
-            it("should collect the interest and update the exchange rate before issuance", async () => {});
+            // todo
+            it("should collect the interest and update the exchange rate before issuance");
         });
 
         context("with invalid args", async () => {
             it("should fail when amount is zero", async () => {
                 await expectRevert(savingsContract.depositSavings(ZERO), "Must deposit something");
             });
-            it("should fail if the user has no balance", async () => {});
+            // todo
+            it("should fail if the user has no balance");
         });
 
         context("when user has balance", async () => {
@@ -218,15 +220,13 @@ contract("SavingsContract", async (accounts) => {
                     "Must deposit something",
                 );
             });
-            it("should fail if sender does not have balance", async () => {
-                // "Must receive tokens"
-            });
+            // "Must receive tokens"
+            it("should fail if sender does not have balance");
         });
 
         context("in a valid situation", async () => {
-            it("should correctly update the exchange rate", async () => {
-                // effects on multiple calls
-            });
+            // effects on multiple calls
+            it("should correctly update the exchange rate");
             it("should deposit interest when no credits", async () => {
                 const balanceBefore = await masset.balanceOf(savingsContract.address);
                 const exchangeRateBefore = await savingsContract.exchangeRate();
@@ -355,14 +355,13 @@ contract("SavingsContract", async (accounts) => {
 
     context("performing multiple operations from multiple addresses in sequence", async () => {
         describe("depositing, collecting interest and then depositing/withdrawing", async () => {
-            it("should give existing savers the benefit of the icnreased exchange rate", async () => {
-                // user 1 deposits
-                // interest remains unassigned and exchange rate unmoved
-                // user 2 deposits
-                // interest rate benefits user 1 and they can withraw all the interest
-                // user 2 withdraws what he has
-                // balances are zeroed out but user 1 walks away happy
-            });
+            // user 1 deposits
+            // interest remains unassigned and exchange rate unmoved
+            // user 2 deposits
+            // interest rate benefits user 1 and they can withraw all the interest
+            // user 2 withdraws what he has
+            // balances are zeroed out but user 1 walks away happy
+            it("should give existing savers the benefit of the increased exchange rate");
         });
     });
 
@@ -377,9 +376,6 @@ contract("SavingsContract", async (accounts) => {
             it("Should deposit the mUSD and assign credits to the saver", async () => {
                 const depositAmount = simpleToExactAmount(1, 18);
                 // const exchangeRate_before = await systemMachine.savingsContract.exchangeRate();
-                const credits_balBefore = await systemMachine.savingsContract.creditBalances(
-                    sa.default,
-                );
                 const credits_totalBefore = await systemMachine.savingsContract.totalCredits();
                 const mUSD_balBefore = await massetDetails.mAsset.balanceOf(sa.default);
                 const mUSD_totalBefore = await systemMachine.savingsContract.totalSavings();

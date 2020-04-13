@@ -1,5 +1,5 @@
-import { assertBNClose } from "@utils/assertions";
 import * as t from "types/generated";
+import { assertBNClose } from "@utils/assertions";
 import { expectEvent, time, expectRevert } from "@openzeppelin/test-helpers";
 import { StandardAccounts } from "@utils/machines";
 import { simpleToExactAmount } from "@utils/math";
@@ -14,6 +14,7 @@ const { expect, assert } = envSetup.configure();
 const SavingsManager: t.SavingsManagerContract = artifacts.require("SavingsManager");
 const MockNexus: t.MockNexusContract = artifacts.require("MockNexus");
 const MockMasset: t.MockMassetContract = artifacts.require("MockMasset");
+const MockMasset1: t.MockMasset1Contract = artifacts.require("MockMasset1");
 const MockSavingsContract: t.MockSavingsContractContract = artifacts.require("MockSavingsContract");
 
 contract("SavingsManager", async (accounts) => {
@@ -297,6 +298,30 @@ contract("SavingsManager", async (accounts) => {
                     newTotalSupply: INITIAL_MINT.mul(new BN(10).pow(new BN(18))),
                     apy: new BN(0),
                 });
+            });
+        });
+
+        context("with a broken mAsset", async () => {
+            it("fails if the mAsset does not send required mAsset", async () => {
+                mUSD = await MockMasset1.new("mUSD", "mUSD", 18, sa.default, INITIAL_MINT);
+                savingsContract = await MockSavingsContract.new(nexus.address, mUSD.address);
+                savingsManager = await SavingsManager.new(
+                    nexus.address,
+                    mUSD.address,
+                    savingsContract.address,
+                );
+                // Set new SavingsManager address in Nexus
+                nexus.setSavingsManager(savingsManager.address);
+
+                const newInterest = new BN(10).mul(fullScale);
+                await mUSD.setAmountForCollectInterest(newInterest);
+
+                // should move 1 day in future
+                await time.increase(THIRTY_MINUTES);
+                await expectRevert(
+                    savingsManager.collectAndDistributeInterest(mUSD.address),
+                    "Must receive mUSD",
+                );
             });
         });
         context("when there is some interest to collect", async () => {
