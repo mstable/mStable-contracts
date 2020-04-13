@@ -1,9 +1,5 @@
 import { BN } from "./tools";
-import { percentScale, ratioScale } from "./constants";
-
-export const percentToWeight = (percent: number): BN => {
-    return new BN(percent).mul(percentScale);
-};
+import { ratioScale } from "./constants";
 
 export const simpleToExactAmount = (amount: number | string | BN, decimals: number | BN): BN => {
     // Code is largely lifted from the guts of web3 toWei here:
@@ -19,7 +15,7 @@ export const simpleToExactAmount = (amount: number | string | BN, decimals: numb
     const scaleString = scale.toString();
 
     // Is it negative?
-    var negative = amountString.substring(0, 1) === "-";
+    const negative = amountString.substring(0, 1) === "-";
     if (negative) {
         amountString = amountString.substring(1);
     }
@@ -65,6 +61,10 @@ export const simpleToExactAmount = (amount: number | string | BN, decimals: numb
     return result;
 };
 
+export const percentToWeight = (percent: number | string | BN): BN => {
+    return simpleToExactAmount(percent, 16);
+};
+
 export const exactToSimpleAmount = (amount: BN, decimals: number | BN): BN => {
     // Code is largely lifted from the guts of web3 fromWei here:
     // https://github.com/ethjs/ethjs-unit/blob/master/src/index.js
@@ -95,15 +95,24 @@ export const exactToSimpleAmount = (amount: BN, decimals: number | BN): BN => {
     return new BN(value);
 };
 
-export const applyRatioMassetToBasset = (input: BN, ratio: BN): BN => {
+// How many bAssets is this mAsset worth
+export const applyRatioMassetToBasset = (input: BN, ratio: BN | string): BN => {
     return input.mul(ratioScale).div(new BN(ratio));
 };
 
-export const applyRatio = (bAssetQ: BN, ratio: BN): BN => {
-    return bAssetQ.mul(ratio).div(ratioScale);
+// How many mAssets is this bAsset worth
+export const applyRatio = (bAssetQ: BN | string, ratio: BN | string): BN => {
+    return new BN(bAssetQ).mul(new BN(ratio)).div(ratioScale);
 };
 
-// TODO - new BN does not handle fractions.. ensure only passing integers
-export const createMultiple = (ratio: number): BN => {
+// How many mAssets is this bAsset worth
+export const applyRatioCeil = (bAssetQ: BN | string, ratio: BN | string): BN => {
+    const scaled = new BN(bAssetQ).mul(new BN(ratio));
+    const ceil = new BN(scaled).add(ratioScale.sub(new BN(1)));
+    return ceil.div(ratioScale);
+};
+
+export const createMultiple = (decimals: number): BN => {
+    const ratio = new BN(10).pow(new BN(18 - decimals));
     return new BN(ratio).mul(ratioScale);
 };

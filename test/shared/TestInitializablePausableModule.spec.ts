@@ -1,11 +1,10 @@
 import {
     MockInitializablePausableModuleInstance,
-    PausableModuleInstance,
     MockNexusInstance,
 } from "types/generated";
-import { StandardAccounts, SystemMachine } from "@utils/machines";
+import { StandardAccounts } from "@utils/machines";
 import { BN } from "@utils/tools";
-import { constants, expectEvent, expectRevert } from "@openzeppelin/test-helpers";
+import { expectRevert } from "@openzeppelin/test-helpers";
 import envSetup from "@utils/env_setup";
 import { ZERO_ADDRESS } from "@utils/constants";
 import shouldBehaveLikeModule from "./behaviours/Module.behaviour";
@@ -14,7 +13,7 @@ import shouldBehaveLikePausableModule from "./behaviours/PausableModule.behaviou
 const MockInitializablePausableModule = artifacts.require("MockInitializablePausableModule");
 const MockNexus = artifacts.require("MockNexus");
 
-const { expect, assert } = envSetup.configure();
+const { expect } = envSetup.configure();
 
 contract("InitializablePausableModule", async (accounts) => {
     const ctx: { module?: MockInitializablePausableModuleInstance } = {};

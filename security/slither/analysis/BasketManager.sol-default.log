@@ -13,6 +13,7 @@ Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentra
 
 ## README ##
 Masset has nonRentrant modifier to protect.
+A - Is there some reason *not* to add `nonReentrant` here too?
 
 
 INFO:Detectors:[92m

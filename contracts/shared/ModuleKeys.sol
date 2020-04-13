@@ -2,7 +2,7 @@ pragma solidity 0.5.16;
 
 /**
   * @title  ModuleKeys
-  * @author Stability Labs Pty. Lte.
+  * @author Stability Labs Pty. Ltd.
   * @dev    Provides system wide access to the byte32 represntations of system modules
   *         This allows each system module to be able to reference and update one another in a
   *         friendly way

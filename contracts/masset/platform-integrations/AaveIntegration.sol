@@ -6,7 +6,7 @@ import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "./Initi
 
 /**
  * @title   AaveIntegration
- * @author  Stability Labs Pty. Lte.
+ * @author  Stability Labs Pty. Ltd.
  * @notice  A simple connection to deposit and withdraw bAssets from Aave
  * @dev     VERSION: 1.0
  *          DATE:    2020-03-26
@@ -33,6 +33,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
     )
         external
         onlyWhitelisted
+        nonReentrant
         returns (uint256 quantityDeposited)
     {
         require(_amount > 0, "Must deposit something");
@@ -73,6 +74,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
     )
         external
         onlyWhitelisted
+        nonReentrant
     {
         require(_amount > 0, "Must withdraw something");
         // Get the Target token

@@ -2,7 +2,7 @@ pragma solidity 0.5.16;
 
 /**
  * @title   MassetStructs
- * @author  Stability Labs Pty. Lte.
+ * @author  Stability Labs Pty. Ltd.
  * @notice  Structs used in the Masset contract and associated Libs
  */
 interface MassetStructs {

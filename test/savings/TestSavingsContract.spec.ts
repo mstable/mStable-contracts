@@ -1,9 +1,9 @@
-import { assertBNClose } from "./../../test-utils/assertions";
 /* eslint-disable @typescript-eslint/camelcase */
 import * as t from "types/generated";
 import { expectRevert, expectEvent, time } from "@openzeppelin/test-helpers";
 
 import { simpleToExactAmount } from "@utils/math";
+import { assertBNClose } from "@utils/assertions";
 import { StandardAccounts, SystemMachine, MassetDetails } from "@utils/machines";
 import { BN } from "@utils/tools";
 import { fullScale, ZERO_ADDRESS, ZERO, MAX_UINT256, ONE_DAY } from "@utils/constants";

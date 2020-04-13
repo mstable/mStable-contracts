@@ -21,7 +21,7 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 
 /**
  * @title   Masset
- * @author  Stability Labs Pty. Lte.
+ * @author  Stability Labs Pty. Ltd.
  * @notice  The Masset is a token that allows minting and redemption at a 1:1 ratio
  *          for underlying basket assets (bAssets) of the same peg (i.e. USD,
  *          EUR, gGold). Composition and validation is enforced via the BasketManager.
@@ -32,9 +32,9 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
 
     // Forging Events
     event Minted(address indexed account, uint256 mAssetQuantity, address bAsset, uint256 bAssetQuantity);
-    event MintedMulti(address indexed account, uint256 mAssetQuantity, uint256 bitmap, uint256[] bAssetQuantities);
+    event MintedMulti(address indexed account, uint256 mAssetQuantity, address[] bAssets, uint256[] bAssetQuantities);
     event Redeemed(address indexed recipient, address redeemer, uint256 mAssetQuantity, address bAsset, uint256 bAssetQuantity);
-    event RedeemedMulti(address indexed recipient, address redeemer, uint256 mAssetQuantity, uint256 bitmap, uint256[] bAssetQuantities);
+    event RedeemedMulti(address indexed recipient, address redeemer, uint256 mAssetQuantity, address[] bAssets, uint256[] bAssetQuantities);
     event PaidFee(address payer, uint256 feeQuantity, uint256 feeRate);
 
     // State Events
@@ -137,20 +137,21 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
     /**
      * @dev Mint with multiple bAssets, at a 1:1 ratio to mAsset. This contract
      *      must have approval to spend the senders bAssets
-     * @param _bAssetsBitmap    Indexes that we should mint with in a bitmap
-     * @param _bAssetQuantity   Quantity of each bAsset to mint
+     * @param _bAssets          Non-duplicate address array of bAssets with which to mint
+     * @param _bAssetQuantity   Quantity of each bAsset to mint. Order of array
+     *                          should mirror the above
      * @param _recipient        Address to receive the newly minted mAsset tokens
      * @return massetMinted     Number of newly minted mAssets
      */
     function mintMulti(
-        uint32 _bAssetsBitmap,
+        address[] calldata _bAssets,
         uint256[] calldata _bAssetQuantity,
         address _recipient
     )
         external
         returns(uint256 massetMinted)
     {
-        return _mintTo(_bAssetsBitmap, _bAssetQuantity, _recipient);
+        return _mintTo(_bAssets, _bAssetQuantity, _recipient);
     }
 
     /***************************************
@@ -194,8 +195,8 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
 
     /** @dev Mint Multi */
     function _mintTo(
-        uint32 _bAssetsBitmap,
-        uint256[] memory _bAssetQuantity,
+        address[] memory _bAssets,
+        uint256[] memory _bAssetQuantities,
         address _recipient
     )
         internal
@@ -203,11 +204,12 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         returns (uint256 massetMinted)
     {
         require(_recipient != address(0), "Must be a valid recipient");
-        uint256 len = _bAssetQuantity.length;
+        uint256 len = _bAssetQuantities.length;
+        require(len > 0 && len == _bAssets.length, "Input array mismatch");
 
         // Load only needed bAssets in array
         ForgePropsMulti memory props
-            = basketManager.prepareForgeBassets(_bAssetsBitmap, uint8(len), _bAssetQuantity, true);
+            = basketManager.prepareForgeBassets(_bAssets, _bAssetQuantities, true);
         if(!props.isValid) return 0;
 
         uint256 mAssetQuantity = 0;
@@ -215,7 +217,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
 
         // Transfer the Bassets to the integrator, update storage and calc MassetQ
         for(uint256 i = 0; i < len; i++){
-            uint256 bAssetQuantity = _bAssetQuantity[i];
+            uint256 bAssetQuantity = _bAssetQuantities[i];
             if(bAssetQuantity > 0){
                 // bAsset == bAssets[i] == basket.bassets[indexes[i]]
                 Basset memory bAsset = props.bAssets[i];
@@ -232,12 +234,12 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         basketManager.increaseVaultBalances(props.indexes, props.integrators, receivedQty);
 
         // Validate the proposed mint, after token transfer
-        (bool mintValid, string memory reason) = forgeValidator.validateMint(totalSupply(), props.grace, props.bAssets, receivedQty);
+        (bool mintValid, string memory reason) = forgeValidator.validateMintMulti(totalSupply(), props.grace, props.bAssets, receivedQty);
         require(mintValid, reason);
 
         // Mint the Masset
         _mint(_recipient, mAssetQuantity);
-        emit MintedMulti(_recipient, mAssetQuantity, _bAssetsBitmap, _bAssetQuantity);
+        emit MintedMulti(_recipient, mAssetQuantity, _bAssets, _bAssetQuantities);
 
         return mAssetQuantity;
     }
@@ -254,8 +256,8 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         returns (uint256 quantityDeposited, uint256 ratioedDeposit)
     {
         uint256 quantityTransferred = MassetHelpers.transferTokens(msg.sender, _integrator, _bAsset, _xferCharged, _quantity);
-        quantityDeposited = IPlatformIntegration(_integrator).deposit(_bAsset, quantityTransferred, _xferCharged);
-        require(quantityDeposited <= _quantity, "Must not return invalid mint quantity");
+        uint256 deposited = IPlatformIntegration(_integrator).deposit(_bAsset, quantityTransferred, _xferCharged);
+        quantityDeposited = StableMath.min(deposited, _quantity);
         ratioedDeposit = quantityDeposited.mulRatioTruncate(_bAssetRatio);
     }
 
@@ -303,20 +305,20 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
     /**
      * @dev Credits a recipient with a certain quantity of bAssets, in exchange for burning the
      *      relative mAsset quantity from the sender. Sender also incurs a small Masset fee, if any.
-     * @param _bAssetsBitmap    Indexes that we should withdraw in a bitmap form
+     * @param _bAssets          Array of bAsset addresses with which to mint (Cannot contain duplicates)
      * @param _bAssetQuantities Quantity of each bAsset to withraw
      * @param _recipient        Address to credit the withdrawn bAssets
      * @return massetMinted     Relative number of mAsset units burned to pay for the bAssets
      */
     function redeemMulti(
-        uint32 _bAssetsBitmap,
+        address[] calldata _bAssets,
         uint256[] calldata _bAssetQuantities,
         address _recipient
     )
         external
         returns (uint256 massetRedeemed)
     {
-        return _redeemTo(_bAssetsBitmap, _bAssetQuantities, _recipient);
+        return _redeemTo(_bAssets, _bAssetQuantities, _recipient);
     }
 
     /***************************************
@@ -372,7 +374,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
 
     /** @dev Redeem mAsset for a multiple bAssets */
     function _redeemTo(
-        uint32 _bAssetsBitmap,
+        address[] memory _bAssets,
         uint256[] memory _bAssetQuantities,
         address _recipient
     )
@@ -381,26 +383,27 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         returns (uint256 massetRedeemed)
     {
         require(_recipient != address(0), "Must be a valid recipient");
-        uint256 redemptionAssetCount = _bAssetQuantities.length;
+        uint256 bAssetCount = _bAssetQuantities.length;
+        require(bAssetCount > 0 && bAssetCount == _bAssets.length, "Input array mismatch");
 
         // Fetch high level details
         Basket memory basket = basketManager.getBasket();
         uint256 colRatio = basket.collateralisationRatio;
 
         // Load only needed bAssets in array
-        ForgePropsMulti memory props
-            = basketManager.prepareForgeBassets(_bAssetsBitmap, uint8(redemptionAssetCount), _bAssetQuantities, false);
+        ForgePropsMulti memory props =
+            basketManager.prepareForgeBassets(_bAssets, _bAssetQuantities, false);
         if(!props.isValid) return 0;
 
         // Validate redemption
         (bool redemptionValid, string memory reason) =
-            forgeValidator.validateRedemption(basket.failed, totalSupply().mulTruncate(colRatio), props.grace, props.indexes, _bAssetQuantities, basket.bassets);
+            forgeValidator.validateRedemptionMulti(basket.failed, totalSupply().mulTruncate(colRatio), props.grace, props.indexes, _bAssetQuantities, basket.bassets);
         require(redemptionValid, reason);
 
         uint256 mAssetQuantity = 0;
 
         // Calc MassetQ and update the Vault
-        for(uint256 i = 0; i < redemptionAssetCount; i++){
+        for(uint256 i = 0; i < bAssetCount; i++){
             uint256 bAssetQuantity = _bAssetQuantities[i];
             if(bAssetQuantity > 0){
                 // Calc equivalent mAsset amount
@@ -408,6 +411,8 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
                 mAssetQuantity = mAssetQuantity.add(ratioedBasset);
             }
         }
+        require(mAssetQuantity > 0, "Must redeem some bAssets");
+
         basketManager.decreaseVaultBalances(props.indexes, props.integrators, _bAssetQuantities);
 
         // Pay the redemption fee
@@ -420,13 +425,14 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         _burn(msg.sender, mAssetQuantity);
 
         // Transfer the Bassets to the user
-        for(uint256 i = 0; i < redemptionAssetCount; i++){
-            if(_bAssetQuantities[i] > 0){
-                IPlatformIntegration(props.integrators[i]).withdraw(_recipient, props.bAssets[i].addr, _bAssetQuantities[i], props.bAssets[i].isTransferFeeCharged);
+        for(uint256 i = 0; i < bAssetCount; i++){
+            uint256 q = _bAssetQuantities[i];
+            if(q > 0){
+                IPlatformIntegration(props.integrators[i]).withdraw(_recipient, props.bAssets[i].addr, q, props.bAssets[i].isTransferFeeCharged);
             }
         }
 
-        emit RedeemedMulti(_recipient, msg.sender, mAssetQuantity, _bAssetsBitmap, _bAssetQuantities);
+        emit RedeemedMulti(_recipient, msg.sender, mAssetQuantity, _bAssets, _bAssetQuantities);
         return mAssetQuantity;
     }
 
@@ -536,11 +542,11 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         nonReentrant
         returns (uint256 totalInterestGained, uint256 newSupply)
     {
-        (uint256 interestCollected, uint32 bitmap, uint256[] memory gains) = basketManager.collectInterest();
+        (uint256 interestCollected, uint256[] memory gains) = basketManager.collectInterest();
 
         // mint new mAsset to sender
         _mint(msg.sender, interestCollected);
-        emit MintedMulti(address(this), interestCollected, bitmap, gains);
+        emit MintedMulti(address(this), interestCollected, new address[](0), gains);
 
         return (interestCollected, totalSupply());
     }

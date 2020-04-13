@@ -1,17 +1,15 @@
-import { constants, expectEvent, expectRevert } from "@openzeppelin/test-helpers";
+import { expectRevert } from "@openzeppelin/test-helpers";
 
-import { StandardAccounts } from "@utils/machines";
 import { exactToSimpleAmount, simpleToExactAmount } from "@utils/math";
 import { BN } from "@utils/tools";
 import { fullScale, ratioScale } from "@utils/constants";
 import envSetup from "@utils/env_setup";
 import { PublicStableMathInstance } from "types/generated";
 
-const { expect, assert } = envSetup.configure();
+const { expect } = envSetup.configure();
 const PublicStableMath = artifacts.require("PublicStableMath");
 
-contract("StableMath", async (accounts) => {
-    const sa = new StandardAccounts(accounts);
+contract("StableMath", async () => {
     let math: PublicStableMathInstance;
 
     before(async () => {
@@ -217,10 +215,7 @@ contract("StableMath", async (accounts) => {
         });
         it("should fail if the divisor is 0", async () => {
             const sampleInput = simpleToExactAmount(1, 18);
-            await expectRevert(
-                math.divPrecisely(sampleInput, 0),
-                "SafeMath: division by zero",
-            );
+            await expectRevert(math.divPrecisely(sampleInput, 0), "SafeMath: division by zero");
         });
         it("should fail if the left operand is too large", async () => {
             const sampleInput = simpleToExactAmount(1, 65);

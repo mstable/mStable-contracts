@@ -15,7 +15,7 @@ import { StableMath } from "../shared/StableMath.sol";
 
 /**
  * @title   SavingsContract
- * @author  Stability Labs Pty. Lte.
+ * @author  Stability Labs Pty. Ltd.
  * @notice  Savings contract uses the ever increasing "exchangeRate" to increase
  *          the value of the Savers "credits" relative to the amount of additional
  *          underlying collateral that has been deposited into this contract ("interest")

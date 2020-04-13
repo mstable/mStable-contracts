@@ -5,7 +5,7 @@ import { INexus } from "../interfaces/INexus.sol";
 
 /**
  * @title   Module
- * @author  Stability Labs Pty. Lte.
+ * @author  Stability Labs Pty. Ltd.
  * @dev     Subscribes to module updates from a given publisher by reading from its registry
  */
 contract Module is ModuleKeys {

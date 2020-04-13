@@ -1,15 +1,14 @@
 {
   "name": "mstable-contracts",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "private": true,
-  "license": "None",
   "description": "mStable Contracts",
-  "author": "Stability Labs Pty. Lte.",
+  "author": "Stability Labs Pty. Ltd.",
   "scripts": {
     "migrate": "truffle migrate --network development --reset",
     "migrate:rinkeby": "truffle migrate --network rinkeby --reset",
     "lint": "yarn run lint-ts; yarn run lint-sol",
-    "lint-ts": "yarn eslint ./test --ext .ts,.js --fix",
+    "lint-ts": "yarn eslint ./test --ext .ts,.js --fix --quiet",
     "lint-sol": "solium -d contracts/ --fix ",
     "coverage": "node --max_old_space_size=6144 node_modules/truffle/build/cli.bundled.js run coverage --network coverage --solcoverjs './.solcover.js'",
     "script": "yarn truffle exec ./scripts/main.js",
@@ -27,7 +26,7 @@
   },
   "devDependencies": {
     "@openzeppelin/contracts": "2.5.0",
-    "@openzeppelin/test-helpers": "0.5.5",
+    "@openzeppelin/test-helpers": "git+https://git@github.com/alsco77/openzeppelin-test-helpers.git",
     "@openzeppelin/upgrades": "2.7.2",
     "@truffle/hdwallet-provider": "^1.0.18",
     "@typechain/truffle-v5": "^0.9.0",

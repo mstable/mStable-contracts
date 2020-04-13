@@ -3,12 +3,39 @@ pragma experimental ABIEncoderV2;
 
 import { BasketManager } from "../../masset/BasketManager.sol";
 import { MassetStructs } from "../../masset/shared/MassetStructs.sol";
+import { BasketManager } from "../../masset/BasketManager.sol";
 import { StableMath } from "../../shared/StableMath.sol";
 
+// This mock allows the direct setting of basket properties
+contract MockBasketManager is BasketManager {
+
+    function setBasket(bool failed, uint256 colRatio)
+        external
+    {
+        basket.failed = failed;
+        basket.collateralisationRatio = colRatio;
+    }
+    function setBassetStatus(address bAsset, BassetStatus newStatus)
+        external
+    {
+        (, uint8 index) = _isAssetInBasket(bAsset);
+        basket.bassets[index].status = newStatus;
+    }
+    function setBassetRatio(address bAsset, uint256 _newRatio)
+        external
+    {
+        (, uint8 index) = _isAssetInBasket(bAsset);
+        basket.bassets[index].ratio = _newRatio;
+    }
+}
+
+
+
 // This mock returns an invalid forge from the prepareForgeBasset call
-contract MockBasketManager1 is MassetStructs {
+contract MockBasketManager1 is BasketManager {
 
     Basset private testBasset;
+    Basket private testBasket;
 
     constructor(address _bAsset) public {
         testBasset = Basset({
@@ -19,9 +46,20 @@ contract MockBasketManager1 is MassetStructs {
             status: BassetStatus.Normal,
             isTransferFeeCharged: false
         });
+        basket.collateralisationRatio = 1e18;
     }
 
-    function prepareForgeBasset(address /*bitmap*/, uint256 /*_amt*/, bool /*_mint*/)
+    function getBasket()
+        external
+        view
+        returns (
+            Basket memory b
+        )
+    {
+        return basket;
+    }
+
+    function prepareForgeBasset(address /*_amts*/, uint256 /*_amt*/, bool /*_mint*/)
         external
         returns (
             ForgeProps memory props
@@ -37,8 +75,7 @@ contract MockBasketManager1 is MassetStructs {
     }
 
     function prepareForgeBassets(
-        uint32 /*bitmap*/,
-        uint8 /*bitmap*/,
+        address[] calldata /*_amts*/,
         uint256[] calldata /*_amts*/,
         bool /* _isMint */
     )
@@ -95,8 +132,7 @@ contract MockBasketManager2 is MassetStructs {
     }
 
     function prepareForgeBassets(
-        uint32 /*bitmap*/,
-        uint8 /*_size*/,
+        address[] calldata /*bassets*/,
         uint256[] calldata /*_amts*/,
         bool /* _isMint */
     )

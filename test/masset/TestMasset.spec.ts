@@ -163,7 +163,7 @@ contract("Masset", async (accounts) => {
                 sa.default,
             );
             await massetDetails.mAsset.mintMulti(
-                await massetDetails.basketManager.getBitmapFor(bAssets.map((b) => b.address)),
+                bAssets.map((b) => b.address),
                 approvals,
                 sa.default,
             );
