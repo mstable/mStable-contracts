@@ -147,25 +147,25 @@ contract("UpgradedAaveIntegration", async (accounts) => {
             expect(true).to.equals(whitelisted);
 
             let key: string;
-            key = await proxyToImplV2.Key_Governance();
+            key = await proxyToImplV2.KEY_GOVERNANCE();
             expect(key).to.equal(web3.utils.keccak256("Governance"));
 
-            key = await proxyToImplV2.Key_Staking();
+            key = await proxyToImplV2.KEY_STAKING();
             expect(key).to.equal(web3.utils.keccak256("Staking"));
 
-            key = await proxyToImplV2.Key_OracleHub();
+            key = await proxyToImplV2.KEY_ORACLE_HUB();
             expect(key).to.equal(web3.utils.keccak256("OracleHub"));
 
-            key = await proxyToImplV2.Key_Manager();
+            key = await proxyToImplV2.KEY_MANAGER();
             expect(key).to.equal(web3.utils.keccak256("Manager"));
 
-            key = await proxyToImplV2.Key_Recollateraliser();
+            key = await proxyToImplV2.KEY_RECOLLATERALISER();
             expect(key).to.equal(web3.utils.keccak256("Recollateraliser"));
 
-            key = await proxyToImplV2.Key_MetaToken();
+            key = await proxyToImplV2.KEY_META_TOKEN();
             expect(key).to.equal(web3.utils.keccak256("MetaToken"));
 
-            key = await proxyToImplV2.Key_SavingsManager();
+            key = await proxyToImplV2.KEY_SAVINGS_MANAGER();
             expect(key).to.equal(web3.utils.keccak256("SavingsManager"));
         });
 

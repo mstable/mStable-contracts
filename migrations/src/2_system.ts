@@ -361,8 +361,8 @@ export default async ({ artifacts }, deployer, network, accounts) => {
   ****************************************/
 
     const module_keys = [
-        await d_SavingsManager.Key_SavingsManager(),
-        await d_DelayedProxyAdmin.Key_ProxyAdmin(),
+        await d_SavingsManager.KEY_SAVINGS_MANAGER(),
+        await d_DelayedProxyAdmin.KEY_PROXY_ADMIN(),
     ];
     const module_addresses = [d_SavingsManager.address, d_DelayedProxyAdmin.address];
     const module_isLocked = [false, true];

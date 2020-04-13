@@ -89,8 +89,8 @@ export class SystemMachine {
         ****************************************/
         await this.nexus.initialize(
             [
-                await this.savingsManager.Key_SavingsManager(),
-                await this.mUSD.proxyAdmin.Key_ProxyAdmin(),
+                await this.savingsManager.KEY_SAVINGS_MANAGER(),
+                await this.mUSD.proxyAdmin.KEY_PROXY_ADMIN(),
             ],
             [
                 dummySavingsManager ? this.sa.dummy1 : this.savingsManager.address,
