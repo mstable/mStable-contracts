@@ -1,17 +1,11 @@
+import { assertBNClose } from "@utils/assertions";
 import * as t from "types/generated";
 import { expectEvent, time, expectRevert } from "@openzeppelin/test-helpers";
-import { MassetMachine, StandardAccounts, SystemMachine, MassetDetails } from "@utils/machines";
+import { StandardAccounts } from "@utils/machines";
+import { simpleToExactAmount } from "@utils/math";
 import envSetup from "@utils/env_setup";
 import { BN } from "@utils/tools";
-import {
-    ZERO_ADDRESS,
-    MAX_UINT256,
-    ZERO,
-    ratioScale,
-    fullScale,
-    MIN_GRACE,
-    MAX_GRACE,
-} from "@utils/constants";
+import { ZERO_ADDRESS, MAX_UINT256, ZERO, fullScale, TEN_MINS, ONE_DAY } from "@utils/constants";
 import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
 import shouldBehaveLikePausableModule from "../shared/behaviours/PausableModule.behaviour";
 
@@ -24,10 +18,9 @@ const MockSavingsContract: t.MockSavingsContractContract = artifacts.require("Mo
 
 contract("SavingsManager", async (accounts) => {
     const TEN = new BN(10);
-    const TEN_TOKENS = TEN.mul(new BN(10).pow(new BN(18)));
+    const TEN_TOKENS = TEN.mul(fullScale);
     const FIVE_TOKENS = TEN_TOKENS.div(new BN(2));
-    const ONE_MINUTE = new BN(60).mul(new BN(60));
-    const THIRTY_MINUTES = ONE_MINUTE.mul(new BN(30));
+    const THIRTY_MINUTES = TEN_MINS.mul(new BN(3)).add(new BN(1));
     // 1.2 million tokens
     const INITIAL_MINT = new BN(1200000);
     const sa = new StandardAccounts(accounts);
@@ -39,12 +32,6 @@ contract("SavingsManager", async (accounts) => {
     let savingsContract: t.MockSavingsContractInstance;
     let savingsManager: t.SavingsManagerInstance;
     let mUSD: t.MockMassetInstance;
-
-    before(async () => {
-        nexus = await MockNexus.new(sa.governor, governance, manager);
-
-        savingsManager = await createNewSavingsManager();
-    });
 
     async function createNewSavingsManager(): Promise<t.SavingsManagerInstance> {
         mUSD = await MockMasset.new("mUSD", "mUSD", 18, sa.default, INITIAL_MINT);
@@ -59,7 +46,13 @@ contract("SavingsManager", async (accounts) => {
         return savingsManager;
     }
 
-    describe("behaviors", async () => {
+    before(async () => {
+        nexus = await MockNexus.new(sa.governor, governance, manager);
+
+        savingsManager = await createNewSavingsManager();
+    });
+
+    describe("behaviours", async () => {
         describe("should behave like a Module", async () => {
             beforeEach(async () => {
                 savingsManager = await createNewSavingsManager();
@@ -101,7 +94,7 @@ contract("SavingsManager", async (accounts) => {
         });
     });
 
-    describe("addSavingsContract()", async () => {
+    describe("adding a SavingsContract", async () => {
         let mockMasset: t.MockERC20Instance;
         const mockSavingsContract = sa.dummy4;
 
@@ -172,7 +165,7 @@ contract("SavingsManager", async (accounts) => {
         });
     });
 
-    describe("updateSavingsContract()", async () => {
+    describe("updating a SavingsContract", async () => {
         it("should fail when not called by governor", async () => {
             await expectRevert(
                 savingsManager.updateSavingsContract(mUSD.address, savingsContract.address, {
@@ -227,7 +220,7 @@ contract("SavingsManager", async (accounts) => {
         });
     });
 
-    describe("setSavingsRate()", async () => {
+    describe("modifying the savings rate", async () => {
         it("should fail when not called by governor", async () => {
             expectRevert(
                 savingsManager.setSavingsRate(fullScale, { from: sa.other }),
@@ -268,97 +261,136 @@ contract("SavingsManager", async (accounts) => {
         });
     });
 
-    describe("collectAndDistributeInterest()", async () => {
+    describe("collecting and distributing Interest", async () => {
         beforeEach(async () => {
             savingsManager = await createNewSavingsManager();
         });
-
-        it("should fail when contract is paused", async () => {
-            // Pause contract
-            await savingsManager.pause({ from: sa.governor });
-
-            await expectRevert(
-                savingsManager.collectAndDistributeInterest(mUSD.address),
-                "Pausable: paused",
-            );
+        context("with invalid arguments", async () => {
+            it("should fail when mAsset not exist", async () => {
+                await expectRevert(
+                    savingsManager.collectAndDistributeInterest(sa.other),
+                    "Must have a valid savings contract",
+                );
+            });
         });
+        context("when the contract is paused", async () => {
+            it("should fail", async () => {
+                // Pause contract
+                await savingsManager.pause({ from: sa.governor });
 
-        it("should fail when mAsset not exist", async () => {
-            await expectRevert(
-                savingsManager.collectAndDistributeInterest(sa.other),
-                "Must have a valid savings contract",
-            );
+                await expectRevert(
+                    savingsManager.collectAndDistributeInterest(mUSD.address),
+                    "Pausable: paused",
+                );
+            });
+        });
+        context("when there is no interest to collect", async () => {
+            before(async () => {
+                savingsManager = await createNewSavingsManager();
+            });
+
+            it("should succeed when interest collected is zero", async () => {
+                const tx = await savingsManager.collectAndDistributeInterest(mUSD.address);
+                expectEvent.inLogs(tx.logs, "InterestCollected", {
+                    mAsset: mUSD.address,
+                    interest: new BN(0),
+                    newTotalSupply: INITIAL_MINT.mul(new BN(10).pow(new BN(18))),
+                    apy: new BN(0),
+                });
+            });
+        });
+        context("when there is some interest to collect", async () => {
+            before(async () => {
+                savingsManager = await createNewSavingsManager();
+            });
+
+            it("should collect the interest first time", async () => {
+                // Refresh the collection timer
+                await savingsManager.collectAndDistributeInterest(mUSD.address);
+
+                // Total supply is 1.2 million
+                // For 7.3% APY following is the calculation
+                // 1.2million * 7.3% = 87600 Yearly
+                // 87600 / 365 = 240 per day
+                // 240 / 24 = 10 per hour
+                // 10 / 2 = 5 per half hour
+                const balanceBefore = await mUSD.balanceOf(savingsContract.address);
+                expect(ZERO).to.bignumber.equal(balanceBefore);
+
+                const newInterest = FIVE_TOKENS;
+                await mUSD.setAmountForCollectInterest(newInterest);
+
+                // should move 30 mins in future
+                await time.increase(THIRTY_MINUTES);
+                const tx = await savingsManager.collectAndDistributeInterest(mUSD.address);
+
+                const expectedTotalSupply = INITIAL_MINT.mul(fullScale).add(FIVE_TOKENS);
+                // expectedAPY = 7.3%
+                const expectedAPY = simpleToExactAmount("7.3", 16);
+                expectEvent.inLogs(tx.logs, "InterestCollected", {
+                    mAsset: mUSD.address,
+                    interest: FIVE_TOKENS,
+                    newTotalSupply: expectedTotalSupply,
+                });
+                const interectCollectedEvent = tx.logs[0];
+                assertBNClose(
+                    interectCollectedEvent.args[3],
+                    expectedAPY,
+                    simpleToExactAmount(1, 14), // allow for a 0.01% deviation in the percentage
+                );
+
+                const balanceAfter = await mUSD.balanceOf(savingsContract.address);
+                expect(newInterest).to.bignumber.equal(balanceAfter);
+            });
+
+            it("should throw if the APY is too high", async () => {
+                // Refresh the collection timer
+                await savingsManager.collectAndDistributeInterest(mUSD.address);
+
+                // >= 50% APY with a 1.2m cap is equal to
+                // 1643.8 tokens per day
+                const balanceBefore = await mUSD.balanceOf(savingsContract.address);
+                expect(ZERO).to.bignumber.equal(balanceBefore);
+
+                const newInterest = new BN(1650).mul(fullScale);
+                await mUSD.setAmountForCollectInterest(newInterest);
+
+                // should move 1 day in future
+                await time.increase(ONE_DAY);
+                await expectRevert(
+                    savingsManager.collectAndDistributeInterest(mUSD.address),
+                    "Interest protected from inflating past maxAPY",
+                );
+
+                await time.increase(THIRTY_MINUTES.mul(new BN(10)));
+                await savingsManager.collectAndDistributeInterest(mUSD.address);
+
+                const balanceAfter = await mUSD.balanceOf(savingsContract.address);
+                expect(newInterest).to.bignumber.equal(balanceAfter);
+            });
+
+            it("should skip interest collection before 30 mins", async () => {
+                await savingsManager.collectAndDistributeInterest(mUSD.address);
+                const tx = await savingsManager.collectAndDistributeInterest(mUSD.address);
+                expectEvent.inLogs(tx.logs, "WaitFor");
+                const timeRemaining: BN = tx.logs[0].args[0];
+                assert.ok(timeRemaining.gt(ZERO));
+            });
+
+            it("should allow interest collection again after 30 mins", async () => {
+                await time.increase(THIRTY_MINUTES);
+                const tx = await savingsManager.collectAndDistributeInterest(mUSD.address);
+                expectEvent.inLogs(tx.logs, "InterestCollected", {
+                    mAsset: mUSD.address,
+                    interest: new BN(0),
+                    newTotalSupply: INITIAL_MINT.mul(fullScale),
+                    apy: new BN(0),
+                });
+            });
         });
     });
 
-    describe("when there is some interest to collect", async () => {
-        before(async () => {
-            savingsManager = await createNewSavingsManager();
-        });
-
-        it("should succeed when interest collected is zero", async () => {
-            const tx = await savingsManager.collectAndDistributeInterest(mUSD.address);
-            expectEvent.inLogs(tx.logs, "InterestCollected", {
-                mAsset: mUSD.address,
-                interest: new BN(0),
-                newTotalSupply: INITIAL_MINT.mul(new BN(10).pow(new BN(18))),
-                apy: new BN(0),
-            });
-        });
-
-        it("should collect the interest first time", async () => {
-            // Total supply is 1.2 million
-            // For 7.3% APY following is the calculation
-            // 1.2million * 7.3% = 87600 Yearly
-            // 87600 / 365 = 240 per day
-            // 240 / 24 = 10 per hour
-            // 10 / 2 = 5 per half hour
-            const balanceBefore = await mUSD.balanceOf(savingsContract.address);
-            expect(ZERO).to.bignumber.equal(balanceBefore);
-
-            const newInterest = FIVE_TOKENS;
-            await mUSD.setAmountForCollectInterest(newInterest);
-
-            // should move 30 mins in future
-            await time.increase(THIRTY_MINUTES);
-            const tx = await savingsManager.collectAndDistributeInterest(mUSD.address);
-
-            const expectedTotalSupply = INITIAL_MINT.mul(new BN(10).pow(new BN(18))).add(
-                FIVE_TOKENS,
-            );
-            // expectedAPY = 7.3%
-            const expectedAPY = new BN(73).mul(new BN(10).pow(new BN(15)));
-            expectEvent.inLogs(tx.logs, "InterestCollected", {
-                mAsset: mUSD.address,
-                interest: FIVE_TOKENS,
-                newTotalSupply: expectedTotalSupply,
-                apy: expectedAPY,
-            });
-
-            const balanceAfter = await mUSD.balanceOf(savingsContract.address);
-            expect(newInterest).to.bignumber.equal(balanceAfter);
-        });
-
-        it("should skip interest collection before 30 mins", async () => {
-            const tx = await savingsManager.collectAndDistributeInterest(mUSD.address);
-            expectEvent.inLogs(tx.logs, "WaitFor");
-            const timeRemaining: BN = tx.logs[0].args[0];
-            assert.ok(timeRemaining.gt(ZERO));
-        });
-
-        it("should allow interest collection again after 30 mins", async () => {
-            await time.increase(THIRTY_MINUTES);
-            const tx = await savingsManager.collectAndDistributeInterest(mUSD.address);
-            expectEvent.inLogs(tx.logs, "InterestCollected", {
-                mAsset: mUSD.address,
-                interest: new BN(0),
-                newTotalSupply: INITIAL_MINT.mul(new BN(10).pow(new BN(18))).add(FIVE_TOKENS),
-                apy: new BN(0),
-            });
-        });
-    });
-
-    describe("withdrawUnallocatedInterest()", async () => {
+    describe("withdrawing unallocated Interest", async () => {
         it("should fail when not called by governor", async () => {
             await expectRevert(
                 savingsManager.withdrawUnallocatedInterest(mUSD.address, sa.other, {

@@ -27,10 +27,12 @@ export const ADDRESS_3 = "0xc257274276a4e539741ca11b590b9447b26a8051";
 export const MAX_UINT256 = new BN(2).pow(new BN(256)).sub(new BN(1));
 
 export const ZERO = new BN(0);
+export const ONE_MIN = new BN(60);
 export const TEN_MINS = new BN(60 * 10);
 export const ONE_DAY = new BN(60 * 60 * 24);
 export const TEN_DAYS = new BN(60 * 60 * 24 * 10);
 export const ONE_WEEK = new BN(60 * 60 * 24 * 7);
+export const ONE_YEAR = new BN(60 * 60 * 24 * 7 * 52);
 
 export class MainnetAccounts {
     // Exchange Accounts
