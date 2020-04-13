@@ -1044,7 +1044,7 @@ contract("BasketManager", async (accounts) => {
                 );
             });
 
-            it("when bAsset not exist", async () => {
+            it("when bAsset does not exist", async () => {
                 await expectRevert(
                     mockBasketManager.setBasketWeights([sa.other], [percentToWeight(100)], {
                         from: sa.governor,
@@ -1138,7 +1138,7 @@ contract("BasketManager", async (accounts) => {
                 percentToWeight(50),
                 percentToWeight(20),
             ];
-            let [bassets] = await mockBasketManager.getBassets();
+            const [bassets] = await mockBasketManager.getBassets();
             await Promise.all(
                 bassets.map(async (b, index) => {
                     expect(expectedWeight[index]).to.bignumber.equal(new BN(b.targetWeight));

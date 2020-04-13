@@ -10,25 +10,25 @@ export default function shouldBehaveLikeModule(
 ) {
     it("should have all ModuleKeys initialized", async () => {
         let key: string;
-        key = await ctx.module.Key_Governance();
+        key = await ctx.module.KEY_GOVERNANCE();
         expect(key).to.equal(web3.utils.keccak256("Governance"));
 
-        key = await ctx.module.Key_Staking();
+        key = await ctx.module.KEY_STAKING();
         expect(key).to.equal(web3.utils.keccak256("Staking"));
 
-        key = await ctx.module.Key_OracleHub();
+        key = await ctx.module.KEY_ORACLE_HUB();
         expect(key).to.equal(web3.utils.keccak256("OracleHub"));
 
-        key = await ctx.module.Key_Manager();
+        key = await ctx.module.KEY_MANAGER();
         expect(key).to.equal(web3.utils.keccak256("Manager"));
 
-        key = await ctx.module.Key_Recollateraliser();
+        key = await ctx.module.KEY_RECOLLATERALISER();
         expect(key).to.equal(web3.utils.keccak256("Recollateraliser"));
 
-        key = await ctx.module.Key_MetaToken();
+        key = await ctx.module.KEY_META_TOKEN();
         expect(key).to.equal(web3.utils.keccak256("MetaToken"));
 
-        key = await ctx.module.Key_SavingsManager();
+        key = await ctx.module.KEY_SAVINGS_MANAGER();
         expect(key).to.equal(web3.utils.keccak256("SavingsManager"));
     });
 

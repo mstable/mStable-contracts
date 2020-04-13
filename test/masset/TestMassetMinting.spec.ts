@@ -3,18 +3,16 @@
 import * as t from "types/generated";
 import { expectEvent, expectRevert } from "@openzeppelin/test-helpers";
 
-import { assertBasketIsHealthy, assertBnGte, assertBNSlightlyGTPercent } from "@utils/assertions";
-import { createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math";
+import { assertBasketIsHealthy, assertBNSlightlyGTPercent } from "@utils/assertions";
+import { simpleToExactAmount } from "@utils/math";
 import { MassetDetails, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
-import { aToH, BN } from "@utils/tools";
+import { BN } from "@utils/tools";
 import { BassetStatus } from "@utils/mstable-objects";
-import { ZERO_ADDRESS, fullScale } from "@utils/constants";
+import { ZERO_ADDRESS } from "@utils/constants";
 
 import envSetup from "@utils/env_setup";
-import * as chai from "chai";
-import { BasketComposition, BassetDetails } from "../../types";
 
-const { expect, assert } = envSetup.configure();
+const { expect } = envSetup.configure();
 
 const MockBasketManager1: t.MockBasketManager1Contract = artifacts.require("MockBasketManager1");
 const MockBasketManager2: t.MockBasketManager2Contract = artifacts.require("MockBasketManager2");

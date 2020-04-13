@@ -4,7 +4,7 @@
 import * as t from "types/generated";
 import { constants, expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
 import { BN } from "@utils/tools";
-import { assertBNClose, assertBNSlightlyGT, assertBNSlightlyGTPercent  } from "@utils/assertions";
+import { assertBNClose, assertBNSlightlyGT, assertBNSlightlyGTPercent } from "@utils/assertions";
 import { StandardAccounts, SystemMachine, MassetMachine } from "@utils/machines";
 import {
     MainnetAccounts,
@@ -101,7 +101,7 @@ contract("AaveIntegration", async (accounts) => {
         );
 
         await nexus.initialize(
-            [await d_DelayedProxyAdmin.Key_ProxyAdmin()],
+            [await d_DelayedProxyAdmin.KEY_PROXY_ADMIN()],
             [d_DelayedProxyAdmin.address],
             [true],
             sa.governor,
@@ -296,7 +296,7 @@ contract("AaveIntegration", async (accounts) => {
                     integrationDetails.aavePlatformAddress,
                     [sa.default],
                     [aTokenMock.address],
-                )
+                ),
             );
         });
     });
@@ -684,15 +684,15 @@ contract("AaveIntegration", async (accounts) => {
             const amountScaled = amount.mul(scale);
             const expectedAmount = amountScaled.div(fullScale);
             // Step 2. Validate recipient
-            expect(bAssetRecipient_balAfter).bignumber.gte(
-                bAssetRecipient_balBefore.add(expectedAmount) as any,
-            );
-            expect(bAssetRecipient_balAfter).bignumber.lte(
-                bAssetRecipient_balBefore.add(amount) as any,
-            );
-            expect(aaveIntegration_balAfter).bignumber.eq(
-                aaveIntegration_balBefore.sub(amount) as any,
-            );
+            expect(bAssetRecipient_balAfter).bignumber.gte(bAssetRecipient_balBefore.add(
+                expectedAmount,
+            ) as any);
+            expect(bAssetRecipient_balAfter).bignumber.lte(bAssetRecipient_balBefore.add(
+                amount,
+            ) as any);
+            expect(aaveIntegration_balAfter).bignumber.eq(aaveIntegration_balBefore.sub(
+                amount,
+            ) as any);
             const expectedBalance = aaveIntegration_balBefore.sub(amount);
             assertBNSlightlyGT(aaveIntegration_balAfter, expectedBalance, new BN("100"));
             // Cross that match with the `checkBalance` call
