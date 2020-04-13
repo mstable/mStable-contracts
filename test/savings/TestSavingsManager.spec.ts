@@ -15,7 +15,7 @@ const SavingsManager: t.SavingsManagerContract = artifacts.require("SavingsManag
 const MockNexus: t.MockNexusContract = artifacts.require("MockNexus");
 const MockMasset: t.MockMassetContract = artifacts.require("MockMasset");
 const MockMasset1: t.MockMasset1Contract = artifacts.require("MockMasset1");
-const MockSavingsContract: t.MockSavingsContractContract = artifacts.require("MockSavingsContract");
+const SavingsContract: t.SavingsContractContract = artifacts.require("SavingsContract");
 
 contract("SavingsManager", async (accounts) => {
     const TEN = new BN(10);
@@ -30,13 +30,13 @@ contract("SavingsManager", async (accounts) => {
     const ctx: { module?: t.PausableModuleInstance } = {};
 
     let nexus: t.MockNexusInstance;
-    let savingsContract: t.MockSavingsContractInstance;
+    let savingsContract: t.SavingsContractInstance;
     let savingsManager: t.SavingsManagerInstance;
     let mUSD: t.MockMassetInstance;
 
     async function createNewSavingsManager(): Promise<t.SavingsManagerInstance> {
         mUSD = await MockMasset.new("mUSD", "mUSD", 18, sa.default, INITIAL_MINT);
-        savingsContract = await MockSavingsContract.new(nexus.address, mUSD.address);
+        savingsContract = await SavingsContract.new(nexus.address, mUSD.address);
         savingsManager = await SavingsManager.new(
             nexus.address,
             mUSD.address,
@@ -304,7 +304,7 @@ contract("SavingsManager", async (accounts) => {
         context("with a broken mAsset", async () => {
             it("fails if the mAsset does not send required mAsset", async () => {
                 mUSD = await MockMasset1.new("mUSD", "mUSD", 18, sa.default, INITIAL_MINT);
-                savingsContract = await MockSavingsContract.new(nexus.address, mUSD.address);
+                savingsContract = await SavingsContract.new(nexus.address, mUSD.address);
                 savingsManager = await SavingsManager.new(
                     nexus.address,
                     mUSD.address,

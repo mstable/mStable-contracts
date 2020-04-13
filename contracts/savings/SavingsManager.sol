@@ -75,7 +75,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
         external
         onlyGovernor
     {
-        require(address(savingsContracts[_mAsset]) == address(0), "Savings contract exist");
+        require(address(savingsContracts[_mAsset]) == address(0), "Savings contract already exists");
         _updateSavingsContract(_mAsset, _savingsContract);
         emit SavingsContractAdded(_mAsset, _savingsContract);
     }
@@ -89,7 +89,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
         external
         onlyGovernor
     {
-        require(address(savingsContracts[_mAsset]) != address(0), "Savings contract not exist");
+        require(address(savingsContracts[_mAsset]) != address(0), "Savings contract does not exist");
         _updateSavingsContract(_mAsset, _savingsContract);
         emit SavingsContractUpdated(_mAsset, _savingsContract);
     }

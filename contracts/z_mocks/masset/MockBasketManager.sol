@@ -126,7 +126,7 @@ contract MockBasketManager3 is BasketManager {
 
     function setBassetStatus(address _bAsset, BassetStatus _status) public {
         (bool exists, uint8 index) = _isAssetInBasket(_bAsset);
-        require(exists, "bAsset not exist");
+        require(exists, "bAsset does not exist");
         basket.bassets[index].status = _status;
     }
 
