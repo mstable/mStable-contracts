@@ -18,7 +18,7 @@ library StableMath {
      * @dev Scaling unit for use in specific calculations,
      * where 1 * 10**18, or 1e18 represents a unit '1'
      */
-    uint256 private constant fullScale = 1e18;
+    uint256 private constant FULL_SCALE = 1e18;
 
     /**
      * @notice Token Ratios are used when converting between units of bAsset, mAsset and MTA
@@ -26,14 +26,14 @@ library StableMath {
      * @dev bAsset ratio unit for use in exact calculations,
      * where (1 bAsset unit * bAsset.ratio) / ratioScale == x mAsset unit
      */
-    uint256 private constant ratioScale = 1e8;
+    uint256 private constant RATIO_SCALE = 1e8;
 
     /**
      * @dev Provides an interface to the scaling unit
      * @return Scaling unit (1e18 or 1 * 10**18)
      */
     function getFullScale() internal pure returns (uint256) {
-        return fullScale;
+        return FULL_SCALE;
     }
 
     /**
@@ -41,7 +41,7 @@ library StableMath {
      * @return Ratio scale unit (1e8 or 1 * 10**8)
      */
     function getRatioScale() internal pure returns (uint256) {
-        return ratioScale;
+        return RATIO_SCALE;
     }
 
     /**
@@ -54,7 +54,7 @@ library StableMath {
         pure
         returns (uint256)
     {
-        return x.mul(fullScale);
+        return x.mul(FULL_SCALE);
     }
 
     /***************************************
@@ -73,7 +73,7 @@ library StableMath {
         pure
         returns (uint256)
     {
-        return mulTruncateScale(x, y, fullScale);
+        return mulTruncateScale(x, y, FULL_SCALE);
     }
 
     /**
@@ -112,9 +112,9 @@ library StableMath {
         // e.g. 8e17 * 17268172638 = 138145381104e17
         uint256 scaled = x.mul(y);
         // e.g. 138145381104e17 + 9.99...e17 = 138145381113.99...e17
-        uint256 ceil = scaled.add(fullScale.sub(1));
+        uint256 ceil = scaled.add(FULL_SCALE.sub(1));
         // e.g. 13814538111.399...e18 / 1e18 = 13814538111
-        return ceil.div(fullScale);
+        return ceil.div(FULL_SCALE);
     }
 
     /**
@@ -131,7 +131,7 @@ library StableMath {
         returns (uint256)
     {
         // e.g. 8e18 * 1e18 = 8e36
-        uint256 z = x.mul(fullScale);
+        uint256 z = x.mul(FULL_SCALE);
         // e.g. 8e36 / 10e18 = 8e17
         return z.div(y);
     }
@@ -153,7 +153,7 @@ library StableMath {
         pure
         returns (uint256 c)
     {
-        return mulTruncateScale(x, ratio, ratioScale);
+        return mulTruncateScale(x, ratio, RATIO_SCALE);
     }
 
     /**
@@ -173,9 +173,9 @@ library StableMath {
         // 1e18 * 1e8 = 1e26
         uint256 scaled = x.mul(ratio);
         // 1e26 + 9.99e7 = 100..00.999e8
-        uint256 ceil = scaled.add(ratioScale.sub(1));
+        uint256 ceil = scaled.add(RATIO_SCALE.sub(1));
         // return 100..00.999e8 / 1e8 = 1e18
-        return ceil.div(ratioScale);
+        return ceil.div(RATIO_SCALE);
     }
 
 
@@ -193,7 +193,7 @@ library StableMath {
         returns (uint256 c)
     {
         // e.g. 1e14 * 1e8 = 1e22
-        uint256 y = x.mul(ratioScale);
+        uint256 y = x.mul(RATIO_SCALE);
         // return 1e22 / 1e12 = 1e10
         return y.div(ratio);
     }

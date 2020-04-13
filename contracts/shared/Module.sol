@@ -72,7 +72,7 @@ contract Module is ModuleKeys {
      * @return Address of the Governance (Phase 2)
      */
     function _governance() internal view returns (address) {
-        return nexus.getModule(Key_Governance);
+        return nexus.getModule(KEY_GOVERNANCE);
     }
 
     /**
@@ -80,7 +80,7 @@ contract Module is ModuleKeys {
      * @return Address of the Staking Module contract
      */
     function _staking() internal view returns (address) {
-        return nexus.getModule(Key_Staking);
+        return nexus.getModule(KEY_STAKING);
     }
 
     /**
@@ -88,7 +88,7 @@ contract Module is ModuleKeys {
      * @return Address of the ProxyAdmin Module contract
      */
     function _proxyAdmin() internal view returns (address) {
-        return nexus.getModule(Key_ProxyAdmin);
+        return nexus.getModule(KEY_PROXY_ADMIN);
     }
 
     /**
@@ -96,7 +96,7 @@ contract Module is ModuleKeys {
      * @return Address of the MetaToken Module contract
      */
     function _metaToken() internal view returns (address) {
-        return nexus.getModule(Key_MetaToken);
+        return nexus.getModule(KEY_META_TOKEN);
     }
 
     /**
@@ -104,7 +104,7 @@ contract Module is ModuleKeys {
      * @return Address of the OracleHub Module contract
      */
     function _oracleHub() internal view returns (address) {
-        return nexus.getModule(Key_OracleHub);
+        return nexus.getModule(KEY_ORACLE_HUB);
     }
 
     /**
@@ -112,7 +112,7 @@ contract Module is ModuleKeys {
      * @return Address of the Manager Module contract
      */
     function _manager() internal view returns (address) {
-        return nexus.getModule(Key_Manager);
+        return nexus.getModule(KEY_MANAGER);
     }
 
     /**
@@ -120,7 +120,7 @@ contract Module is ModuleKeys {
      * @return Address of the SavingsManager Module contract
      */
     function _savingsManager() internal view returns (address) {
-        return nexus.getModule(Key_SavingsManager);
+        return nexus.getModule(KEY_SAVINGS_MANAGER);
     }
 
     /**
@@ -128,6 +128,6 @@ contract Module is ModuleKeys {
      * @return  Address of the Recollateraliser Module contract (Phase 2)
      */
     function _recollateraliser() internal view returns (address) {
-        return nexus.getModule(Key_Recollateraliser);
+        return nexus.getModule(KEY_RECOLLATERALISER);
     }
 }

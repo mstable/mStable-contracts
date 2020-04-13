@@ -1,0 +1,189 @@
+[0;31mSeverity:    LOW
+Pattern:     External Calls of Functions
+Description: A public function that is never called within the
+             contract should be marked as external
+Type:        Violation
+Contract:    Governable
+Line:        22
+Source: 
+>      */
+>     function governor() public view returns (address) {
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         return _governor;
+
+
+## README ##
+- Wrong report, its being used in ClaimableGovernor contract.
+
+
+[0m
+[0;31mSeverity:    LOW
+Pattern:     External Calls of Functions
+Description: A public function that is never called within the
+             contract should be marked as external
+Type:        Violation
+Contract:    ClaimableGovernor
+Line:        90
+Source: 
+>      */
+>     function requestGovernorChange(address _proposedGovernor) public onlyGovernor {
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         require(_proposedGovernor != address(0), "Proposed governor is address(0)");
+
+
+## README ##
+- Its being used in DelayedClaimableGovernor contract.
+
+
+[0m
+[0;31mSeverity:    LOW
+Pattern:     External Calls of Functions
+Description: A public function that is never called within the
+             contract should be marked as external
+Type:        Violation
+Contract:    ClaimableGovernor
+Line:        101
+Source: 
+>      */
+>     function cancelGovernorChange() public onlyGovernor {
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         require(proposedGovernor != address(0), "Proposed Governor not set");
+
+
+## README ##
+- Its being used in DelayedClaimableGovernor contract.
+
+
+[0m
+[0;31mSeverity:    LOW
+Pattern:     External Calls of Functions
+Description: A public function that is never called within the
+             contract should be marked as external
+Type:        Violation
+Contract:    ClaimableGovernor
+Line:        111
+Source: 
+>      */
+>     function claimGovernorChange() public onlyProposedGovernor {
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         _changeGovernor(proposedGovernor);
+
+
+## README ##
+- Its being used in DelayedClaimableGovernor contract.
+
+
+
+[0m
+[0;33mSeverity:    MEDIUM
+Pattern:     Missing Input Validation
+Description: Method arguments must be sanitized before they are used
+             in computations.
+Type:        Warning
+Contract:    Governable
+Line:        46
+Source: 
+>      */
+>     function changeGovernor(address _newGovernor) external onlyGovernor {
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         _changeGovernor(_newGovernor);
+
+
+## README ##
+- In ClaimableGovernor contract, this function always reverts.
+
+
+[0m
+[0;31mSeverity:    MEDIUM
+Pattern:     Missing Input Validation
+Description: Method arguments must be sanitized before they are used
+             in computations.
+Type:        Violation
+Contract:    ClaimableGovernor
+Line:        82
+Source: 
+>     //@override
+>     function changeGovernor(address) external onlyGovernor {
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         revert("Direct change not allowed");
+
+
+## README ##
+- In ClaimableGovernor contract, this function always reverts.
+
+
+[0m
+[0;31mSeverity:    MEDIUM
+Pattern:     Shadowed Local Variable
+Description: Reports local variable declarations that shadow
+             declarations from outer scopes.
+Type:        Violation
+Contract:    ClaimableGovernor
+Line:        77
+Source: 
+> 
+>     constructor(address _governor) public {
+>                 ^^^^^^^^^^^^^^^^^
+>         _changeGovernor(_governor);
+
+
+## README ##
+- ## FIXED ##
+
+[0m
+[0;33mSeverity:    HIGH
+Pattern:     Uninitialized State Variable
+Description: State variables should be explicitly initialized.
+Type:        Warning
+Contract:    ClaimableGovernor
+Line:        67
+Source: 
+> 
+>     address public proposedGovernor;
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 
+
+
+## README ##
+- No security issue, however, added a default value as `address(0)` explicitly.
+
+
+
+[0m
+[0;31mSeverity:    MEDIUM
+Pattern:     Unused Return Pattern
+Description: The value returned by an external function call is never
+             used
+Type:        Violation
+Contract:    ClaimableGovernor
+Line:        95
+Source: 
+>         proposedGovernor = _proposedGovernor;
+>         emit GovernorChangeRequested(governor(), _proposedGovernor);
+>                                      ^^^^^^^^^^
+>     }
+
+
+## README ##
+- Its being used to write the data to the event.
+
+
+[0m
+[0;31mSeverity:    MEDIUM
+Pattern:     Unused Return Pattern
+Description: The value returned by an external function call is never
+             used
+Type:        Violation
+Contract:    ClaimableGovernor
+Line:        104
+Source: 
+> 
+>         emit GovernorChangeCancelled(governor(), proposedGovernor);
+>                                      ^^^^^^^^^^
+>         proposedGovernor = address(0);
+
+[0m
+
+
+## README ##
+- Its being used to write the data to the event.

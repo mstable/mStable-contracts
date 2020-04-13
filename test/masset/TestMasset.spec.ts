@@ -5,18 +5,15 @@ import { keccak256 } from "web3-utils";
 import { MassetMachine, StandardAccounts, SystemMachine, MassetDetails } from "@utils/machines";
 import { simpleToExactAmount, applyRatio } from "@utils/math";
 import { assertBNSlightlyGTPercent } from "@utils/assertions";
-import { ZERO_ADDRESS, ONE_WEEK, TEN_MINS } from "@utils/constants";
-import { aToH, BN } from "@utils/tools";
+import { ZERO_ADDRESS, TEN_MINS } from "@utils/constants";
+import { BN } from "@utils/tools";
 
 import envSetup from "@utils/env_setup";
-import * as chai from "chai";
 import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
-import shouldBehaveLikePausableModule from "../shared/behaviours/PausableModule.behaviour";
 
-const Masset: t.MassetContract = artifacts.require("Masset");
 const Nexus: t.NexusContract = artifacts.require("Nexus");
 
-const { expect, assert } = envSetup.configure();
+const { expect } = envSetup.configure();
 
 contract("Masset", async (accounts) => {
     const ctx: { module?: t.ModuleInstance } = {};
@@ -25,19 +22,19 @@ contract("Masset", async (accounts) => {
     let massetMachine: MassetMachine;
     let massetDetails: MassetDetails;
 
+    const runSetup = async (initBasket = false): Promise<void> => {
+        massetDetails = initBasket
+            ? await massetMachine.deployMassetAndSeedBasket()
+            : await massetMachine.deployMasset();
+        ctx.module = massetDetails.mAsset;
+    };
+
     before("Init contract", async () => {
         systemMachine = new SystemMachine(sa.all);
         await systemMachine.initialiseMocks(false, true);
         massetMachine = systemMachine.massetMachine;
         await runSetup();
     });
-
-    const runSetup = async (initBasket = false) => {
-        massetDetails = initBasket
-            ? await massetMachine.deployMassetAndSeedBasket()
-            : await massetMachine.deployMasset();
-        ctx.module = massetDetails.mAsset;
-    };
 
     describe("initializing mAsset", async () => {
         describe("verifying Module initialization", async () => {
@@ -175,7 +172,7 @@ contract("Masset", async (accounts) => {
             const mUSDBalBefore = await massetDetails.mAsset.balanceOf(sa.dummy1);
             const bassetsBefore = await massetMachine.getBassetsInMasset(massetDetails);
             const sumOfVaultsBefore = bassetsBefore.reduce(
-                (p, c, i) => p.add(applyRatio(c.vaultBalance, c.ratio)),
+                (p, c) => p.add(applyRatio(c.vaultBalance, c.ratio)),
                 new BN(0),
             );
             const totalSupplyBefore = await massetDetails.mAsset.totalSupply();
@@ -190,7 +187,7 @@ contract("Masset", async (accounts) => {
             const mUSDBalAfter = await massetDetails.mAsset.balanceOf(sa.dummy1);
             const bassetsAfter = await massetMachine.getBassetsInMasset(massetDetails);
             const sumOfVaultsAfter = bassetsAfter.reduce(
-                (p, c, i) => p.add(applyRatio(c.vaultBalance, c.ratio)),
+                (p, c) => p.add(applyRatio(c.vaultBalance, c.ratio)),
                 new BN(0),
             );
             const totalSupplyAfter = await massetDetails.mAsset.totalSupply();

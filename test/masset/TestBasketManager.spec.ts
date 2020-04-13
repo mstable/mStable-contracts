@@ -1043,7 +1043,7 @@ contract("BasketManager", async (accounts) => {
                 );
             });
 
-            it("when bAsset not exist", async () => {
+            it("when bAsset does not exist", async () => {
                 await expectRevert(
                     mockBasketManager.setBasketWeights([sa.other], [percentToWeight(100)], {
                         from: sa.governor,

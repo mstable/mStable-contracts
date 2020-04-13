@@ -14,17 +14,17 @@ contract DelayedClaimableGovernor is ClaimableGovernor {
 
     using SafeMath for uint256;
 
-    uint256 public delay;
-    uint256 public requestTime;
+    uint256 public delay = 0;
+    uint256 public requestTime = 0;
 
     /**
      * @dev Initializes the contract with given delay
-     * @param _governor Initial governor
+     * @param _governorAddr Initial governor
      * @param _delay    Delay in seconds for 2 way handshake
      */
-    constructor(address _governor, uint256 _delay)
+    constructor(address _governorAddr, uint256 _delay)
         public
-        ClaimableGovernor(_governor)
+        ClaimableGovernor(_governorAddr)
     {
         require(_delay > 0, "Delay must be greater than zero");
         delay = _delay;

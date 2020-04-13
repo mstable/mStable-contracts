@@ -1,0 +1,199 @@
+[0;31mSeverity:    MEDIUM
+Pattern:     Missing Input Validation
+Description: Method arguments must be sanitized before they are used
+             in computations.
+Type:        Violation
+Contract:    ForgeValidator
+Line:        497
+Source: 
+>      */
+>     function validateMint(uint256 _totalVault, uint256 _grace, Basset calldata _bAsset, uint256 _bAssetQuantity)
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         external
+
+
+## README ##
+- This contract is used as a library to other contracts.
+- This function is `pure` function.
+- Arguments passed to this function are already validated from the calling functions.
+
+
+
+[0m
+[0;31mSeverity:    MEDIUM
+Pattern:     Missing Input Validation
+Description: Method arguments must be sanitized before they are used
+             in computations.
+Type:        Violation
+Contract:    ForgeValidator
+Line:        529
+Source: 
+>      */
+>     function validateMint(
+>     ^^^^^^^^^^^^^^^^^^^^^^
+>         uint256 _totalVault,
+
+
+## README ##
+- This contract is used as a library to other contracts.
+- This function is `pure` function.
+- Arguments passed to this function are already validated from the calling functions.
+
+
+
+[0m
+[0;31mSeverity:    MEDIUM
+Pattern:     Missing Input Validation
+Description: Method arguments must be sanitized before they are used
+             in computations.
+Type:        Violation
+Contract:    ForgeValidator
+Line:        587
+Source: 
+>      */
+>     function validateRedemption(
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         bool _basketIsFailed,
+
+
+## README ##
+- This contract is used as a library to other contracts.
+- This function is `pure` function.
+- Arguments passed to this function are already validated from the calling functions.
+
+
+
+[0m
+[0;31mSeverity:    MEDIUM
+Pattern:     Missing Input Validation
+Description: Method arguments must be sanitized before they are used
+             in computations.
+Type:        Violation
+Contract:    ForgeValidator
+Line:        643
+Source: 
+>      */
+>     function validateRedemption(
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         bool _basketIsFailed,
+
+
+## README ##
+- This contract is used as a library to other contracts.
+- This function is `pure` function.
+- Arguments passed to this function are already validated from the calling functions.
+
+
+[0m
+[0;35mSeverity:    HIGH
+Pattern:     Uninitialized State Variable
+Description: State variables should be explicitly initialized.
+Type:        Conflict
+Contract:    StableMath
+Line:        254
+Source: 
+>      */
+>     uint256 private constant FULL_SCALE = 1e18;
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 
+
+
+## README ##
+- Wrong report, This is initialized and defined as constant.
+
+
+
+[0m
+[0;35mSeverity:    HIGH
+Pattern:     Uninitialized State Variable
+Description: State variables should be explicitly initialized.
+Type:        Conflict
+Contract:    StableMath
+Line:        262
+Source: 
+>      */
+>     uint256 private constant RATIO_SCALE = 1e8;
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 
+
+
+## README ##
+- Wrong report, This is initialized and defined as constant.
+
+
+
+[0m
+[0;35mSeverity:    HIGH
+Pattern:     Uninitialized State Variable
+Description: State variables should be explicitly initialized.
+Type:        Conflict
+Contract:    StableMath
+Line:        254
+Source: 
+>      */
+>     uint256 private constant FULL_SCALE = 1e18;
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 
+
+
+## README ##
+- Wrong report, This is initialized and defined as constant.
+
+
+
+[0m
+[0;35mSeverity:    HIGH
+Pattern:     Uninitialized State Variable
+Description: State variables should be explicitly initialized.
+Type:        Conflict
+Contract:    StableMath
+Line:        262
+Source: 
+>      */
+>     uint256 private constant RATIO_SCALE = 1e8;
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 
+
+
+## README ##
+- Wrong report, This is initialized and defined as constant.
+
+
+
+[0m
+[0;31mSeverity:    INFO
+Pattern:     Unused State Variable
+Description: Unused state variables should be removed.
+Type:        Violation
+Contract:    StableMath
+Line:        254
+Source: 
+>      */
+>     uint256 private constant FULL_SCALE = 1e18;
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 
+
+
+## README ##
+- Wrong report, This is initialized and defined as constant.
+- Its being used in some contracts via function.
+
+
+[0m
+[0;31mSeverity:    INFO
+Pattern:     Unused State Variable
+Description: Unused state variables should be removed.
+Type:        Violation
+Contract:    StableMath
+Line:        262
+Source: 
+>      */
+>     uint256 private constant RATIO_SCALE = 1e8;
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 
+
+[0m
+
+## README ##
+- Wrong report, This is initialized and defined as constant.
+- Its being used in some contracts via function.

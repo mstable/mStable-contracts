@@ -29,7 +29,6 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
 
     using StableMath for uint256;
-    using SafeERC20 for IERC20;
 
     // Forging Events
     event Minted(address indexed account, uint256 mAssetQuantity, address bAsset, uint256 bAssetQuantity);
@@ -51,7 +50,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
     // Basic redemption fee information
     address public feeRecipient;
     uint256 public redemptionFee;
-    uint256 private constant maxFee = 1e17;
+    uint256 private constant MAX_FEE = 1e17;
 
     constructor (
         string memory _name,
@@ -509,7 +508,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         external
         managerOrGovernor
     {
-        require(_redemptionFee >= 0 &&_redemptionFee <= maxFee, "Rate must be within bounds");
+        require(_redemptionFee >= 0 &&_redemptionFee <= MAX_FEE, "Rate must be within bounds");
         redemptionFee = _redemptionFee;
 
         emit RedemptionFeeChanged(_redemptionFee);
