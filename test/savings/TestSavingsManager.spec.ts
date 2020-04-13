@@ -135,7 +135,7 @@ contract("SavingsManager", async (accounts) => {
                 savingsManager.addSavingsContract(mUSD.address, savingsContract.address, {
                     from: sa.governor,
                 }),
-                "Savings contract exist",
+                "Savings contract already exists",
             );
         });
 
@@ -181,7 +181,7 @@ contract("SavingsManager", async (accounts) => {
                 savingsManager.updateSavingsContract(ZERO_ADDRESS, savingsContract.address, {
                     from: sa.governor,
                 }),
-                "Savings contract not exist",
+                "Savings contract does not exist",
             );
         });
 
@@ -199,7 +199,7 @@ contract("SavingsManager", async (accounts) => {
                 savingsManager.updateSavingsContract(sa.other, savingsContract.address, {
                     from: sa.governor,
                 }),
-                "Savings contract not exist",
+                "Savings contract does not exist",
             );
         });
 
