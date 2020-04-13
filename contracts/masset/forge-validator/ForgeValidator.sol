@@ -50,11 +50,9 @@ contract ForgeValidator is IForgeValidator {
         // How much mAsset is this _bAssetQuantity worth?
         uint256 mintAmountInMasset = _bAssetQuantity.mulRatioTruncate(_bAsset.ratio);
         // How much of this bAsset do we have in the vault, in terms of mAsset?
-        uint256 newBalanceInMasset =
-            _bAsset.vaultBalance.mulRatioTruncate(_bAsset.ratio).add(mintAmountInMasset);
+        uint256 newBalanceInMasset = _bAsset.vaultBalance.mulRatioTruncate(_bAsset.ratio).add(mintAmountInMasset);
         // What is the target weight of this bAsset in the basket?
-        uint256 targetWeightInUnits =
-            (_totalVault.add(mintAmountInMasset)).mulTruncate(_bAsset.targetWeight);
+        uint256 targetWeightInUnits = (_totalVault.add(mintAmountInMasset)).mulTruncate(_bAsset.targetWeight);
 
         if(newBalanceInMasset > targetWeightInUnits.add(_grace)) {
             return (false, "Must be below implicit max weighting");
@@ -158,12 +156,8 @@ contract ForgeValidator is IForgeValidator {
         }
 
         // Get current weightings, and cache some outputs from the loop to avoid unecessary recursion
-        OverWeightBassetsResponse memory data =
-            _getOverweightBassets(_totalVault, _grace, _allBassets);
-
-        if(!data.isValid) {
-            return (false, data.reason);
-        }
+        OverWeightBassetsResponse memory data = _getOverweightBassets(_totalVault, _grace, _allBassets);
+        if(!data.isValid) return (false, data.reason);
 
         // Calculate ratioed redemption amount in mAsset terms
         uint256 ratioedRedemptionAmount = _bAssetQuantity.mulRatioTruncate(bAsset.ratio);
@@ -181,21 +175,15 @@ contract ForgeValidator is IForgeValidator {
 
         // If there is at least one overweight bAsset before, we must redeem it
         if(data.atLeastOneOverweight) {
-            if(!data.isOverWeight[_indexToRedeem]) {
-                return (false, "Must redeem overweight bAssets");
-            }
+            if(!data.isOverWeight[_indexToRedeem]) return (false, "Must redeem overweight bAssets");
         }
         // Else, redemption is valid so long as no bAssets end up overweight
         else {
-            if(atLeastOneOverweightAfter) {
-                return(false, "bAssets must remain under max weight");
-            }
+            if(atLeastOneOverweightAfter) return (false, "bAssets must remain under max weight");
         }
 
         // No bAssets must go under their implicit minimum
-        if(underWeight[_indexToRedeem]) {
-            return(false, "bAssets must remain above implicit min weight");
-        }
+        if(underWeight[_indexToRedeem]) return (false, "bAssets must remain above implicit min weight");
 
         return (true, "");
     }
@@ -229,12 +217,9 @@ contract ForgeValidator is IForgeValidator {
         uint256 idxCount = _idxs.length;
         require(idxCount == _bAssetQuantities.length, "Input arrays should be equal");
 
-        OverWeightBassetsResponse memory data =
-            _getOverweightBassets(_totalVault, _grace, _allBassets);
+        OverWeightBassetsResponse memory data = _getOverweightBassets(_totalVault, _grace, _allBassets);
 
-        if(!data.isValid) {
-            return (false, data.reason);
-        }
+        if(!data.isValid) return (false, data.reason);
 
         uint256 newTotalVault = _totalVault;
 
@@ -243,10 +228,8 @@ contract ForgeValidator is IForgeValidator {
                 return (false, "Cannot redeem depegged bAsset");
             }
 
-            uint256 ratioedRedemptionAmount =
-                _bAssetQuantities[i].mulRatioTruncate(_allBassets[_idxs[i]].ratio);
-            data.ratioedBassetVaults[_idxs[i]] =
-                data.ratioedBassetVaults[_idxs[i]].sub(ratioedRedemptionAmount);
+            uint256 ratioedRedemptionAmount = _bAssetQuantities[i].mulRatioTruncate(_allBassets[_idxs[i]].ratio);
+            data.ratioedBassetVaults[_idxs[i]] = data.ratioedBassetVaults[_idxs[i]].sub(ratioedRedemptionAmount);
             newTotalVault = newTotalVault.sub(ratioedRedemptionAmount);
         }
 
@@ -260,27 +243,18 @@ contract ForgeValidator is IForgeValidator {
 
         // If any bAssets are overweight before, all bAssets we redeem must be overweight
         if(data.atLeastOneOverweight) {
-            // Note, there is an edge case where redeeming these Bassets may push others above
-            // weightings, however
-            // it is a side effect of simplicity
             for(uint256 j = 0; j < idxCount; j++) {
-                if(!data.isOverWeight[_idxs[j]]) {
-                    return (false, "Must redeem overweight bAssets");
-                }
+                if(!data.isOverWeight[_idxs[j]]) return (false, "Must redeem overweight bAssets");
             }
         }
         // Else, redemption is valid so long as no bAssets end up overweight
         else {
-            if(atLeastOneOverweightAfter) {
-                return (false, "bAssets must remain under max weight");
-            }
+            if(atLeastOneOverweightAfter) return (false, "bAssets must remain under max weight");
         }
 
         // No redeemed bAssets must go under their implicit minimum
         for(uint256 k = 0; k < idxCount; k++) {
-            if(underWeight[_idxs[k]]) {
-                return (false, "bAssets must remain above implicit min weight");
-            }
+            if(underWeight[_idxs[k]]) return (false, "bAssets must remain above implicit min weight");
         }
 
         return (true, "");
@@ -333,8 +307,7 @@ contract ForgeValidator is IForgeValidator {
                 return response;
             }
 
-            response.ratioedBassetVaults[i] =
-                _bAssets[i].vaultBalance.mulRatioTruncate(_bAssets[i].ratio);
+            response.ratioedBassetVaults[i] = _bAssets[i].vaultBalance.mulRatioTruncate(_bAssets[i].ratio);
             uint256 targetWeightInUnits = _total.mulTruncate(_bAssets[i].targetWeight);
 
             // If the bAsset is de-pegged on the up-side, it doesn't matter if it goes above max
@@ -377,10 +350,10 @@ contract ForgeValidator is IForgeValidator {
             bool bAssetOverWeight =
                 _ratioedBassetVaultsAfter[i] > targetWeightInUnits.add(_grace) &&
                 _bAssets[i].status != BassetStatus.BrokenAbovePeg;
-            underWeight[i] =
-                _grace > targetWeightInUnits ?
-                false :
-                _ratioedBassetVaultsAfter[i] < targetWeightInUnits.sub(_grace);
+
+            underWeight[i] = _grace > targetWeightInUnits
+                ? false
+                : _ratioedBassetVaultsAfter[i] < targetWeightInUnits.sub(_grace);
 
             atLeastOneOverweight = atLeastOneOverweight || bAssetOverWeight;
         }
