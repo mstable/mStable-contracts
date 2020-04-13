@@ -46,7 +46,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
     // Amount of collected interest that will be sent to Savings Contract (100%)
     uint256 private savingsRate = 1e18;
     // Utils to help keep interest under check
-    uint256 constant private secondsInYear = 365 days;
+    uint256 constant private SECONDS_IN_YEAR = 365 days;
     // Theoretical cap on APY at 50% to avoid excess inflation
     uint256 constant private MAX_APY = 5e17;
     uint256 constant private THIRTY_MINUTES = 30 minutes;
@@ -159,7 +159,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
                 uint256 secondsSinceLastCollection = now.sub(previousCollection);
                 // e.g. day: (86400 * 1e18) / 3.154e7 = 2.74..e15
                 uint256 yearsSinceLastCollection =
-                    secondsSinceLastCollection.divPrecisely(secondsInYear);
+                    secondsSinceLastCollection.divPrecisely(SECONDS_IN_YEAR);
                 // Percentage increase in total supply
                 // e.g. (1e20 * 1e18) / 1e24 = 1e14 (or a 0.01% increase)
                 uint256 percentageIncrease = interestCollected.divPrecisely(totalSupply);

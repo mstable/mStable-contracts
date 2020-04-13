@@ -1,0 +1,101 @@
+INFO:Detectors:[92m
+Reentrancy in SavingsManager.addSavingsContract(address,address) (../flat/SavingsManager.sol#971-978):
+	External calls:
+	- _updateSavingsContract(_mAsset,_savingsContract) (../flat/SavingsManager.sol#976)
+	Event emitted after the call(s):
+	- SavingsContractAdded(_mAsset,_savingsContract) (../flat/SavingsManager.sol#977)
+
+## README ##
+- mAsset addresses are trusted contracts.
+
+
+Reentrancy in SavingsManager.collectAndDistributeInterest(address) (../flat/SavingsManager.sol#1028-1084):
+	External calls:
+	- (interestCollected,totalSupply) = mAsset.collectInterest() (../flat/SavingsManager.sol#1045)
+	Event emitted after the call(s):
+	- InterestCollected(_mAsset,interestCollected,totalSupply,extrapolatedAPY) (../flat/SavingsManager.sol#1068)
+	- InterestCollected(_mAsset,0,totalSupply,0) (../flat/SavingsManager.sol#1079)
+
+
+## README ##
+- mAsset and SavingsContract contracts are trusted contracts.
+
+
+
+Reentrancy in SavingsManager.collectAndDistributeInterest(address) (../flat/SavingsManager.sol#1028-1084):
+	External calls:
+	- (interestCollected,totalSupply) = mAsset.collectInterest() (../flat/SavingsManager.sol#1045)
+	- savingsContract.depositInterest(saversShare) (../flat/SavingsManager.sol#1075)
+	Event emitted after the call(s):
+	- InterestDistributed(_mAsset,saversShare) (../flat/SavingsManager.sol#1077)
+
+
+## README ##
+- Same as above
+
+Reentrancy in SavingsManager.updateSavingsContract(address,address) (../flat/SavingsManager.sol#985-992):
+	External calls:
+	- _updateSavingsContract(_mAsset,_savingsContract) (../flat/SavingsManager.sol#990)
+	Event emitted after the call(s):
+	- SavingsContractUpdated(_mAsset,_savingsContract) (../flat/SavingsManager.sol#991)
+
+
+## README ##
+- mAsset addresses are trusted contracts.
+
+
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-3[0m
+INFO:Detectors:[92m
+Address.isContract(address) (../flat/SavingsManager.sol#578-587) uses assembly
+	- INLINE ASM None (../flat/SavingsManager.sol#585)
+
+## README ##
+- OpenZeppelin library contract
+
+
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#assembly-usage[0m
+INFO:Detectors:[92m
+Pragma version0.5.16 (../flat/SavingsManager.sol#1) necessitates versions too recent to be trusted. Consider deploying with 0.5.11
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#incorrect-versions-of-solidity[0m
+INFO:Detectors:[92m
+Low level call in Address.sendValue(address,uint256) (../flat/SavingsManager.sol#617-623):
+	- (success) = recipient.call.value(amount)() (../flat/SavingsManager.sol#621)
+Low level call in SafeERC20.callOptionalReturn(IERC20,bytes) (../flat/SavingsManager.sol#665-684):
+	- (success,returndata) = address(token).call(data) (../flat/SavingsManager.sol#677)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#low-level-calls[0m
+
+
+## README ##
+- Using OpenZeppelin SafeERC20 contract, which is battle-tested contract.
+
+INFO:Detectors:[92m
+Constant ModuleKeys.Key_Governance (../flat/SavingsManager.sol#133) is not in UPPER_CASE_WITH_UNDERSCORES
+Constant ModuleKeys.Key_Staking (../flat/SavingsManager.sol#134) is not in UPPER_CASE_WITH_UNDERSCORES
+Constant ModuleKeys.Key_ProxyAdmin (../flat/SavingsManager.sol#135) is not in UPPER_CASE_WITH_UNDERSCORES
+Constant ModuleKeys.Key_OracleHub (../flat/SavingsManager.sol#138) is not in UPPER_CASE_WITH_UNDERSCORES
+Constant ModuleKeys.Key_Manager (../flat/SavingsManager.sol#139) is not in UPPER_CASE_WITH_UNDERSCORES
+Constant ModuleKeys.Key_Recollateraliser (../flat/SavingsManager.sol#140) is not in UPPER_CASE_WITH_UNDERSCORES
+Constant ModuleKeys.Key_MetaToken (../flat/SavingsManager.sol#141) is not in UPPER_CASE_WITH_UNDERSCORES
+Constant ModuleKeys.Key_SavingsManager (../flat/SavingsManager.sol#142) is not in UPPER_CASE_WITH_UNDERSCORES
+Constant StableMath.fullScale (../flat/SavingsManager.sol#695) is not in UPPER_CASE_WITH_UNDERSCORES
+Constant StableMath.ratioScale (../flat/SavingsManager.sol#703) is not in UPPER_CASE_WITH_UNDERSCORES
+
+## README ##
+- Not a security issue
+
+Parameter SavingsManager.addSavingsContract(address,address)._mAsset (../flat/SavingsManager.sol#971) is not in mixedCase
+Parameter SavingsManager.addSavingsContract(address,address)._savingsContract (../flat/SavingsManager.sol#971) is not in mixedCase
+Parameter SavingsManager.updateSavingsContract(address,address)._mAsset (../flat/SavingsManager.sol#985) is not in mixedCase
+Parameter SavingsManager.updateSavingsContract(address,address)._savingsContract (../flat/SavingsManager.sol#985) is not in mixedCase
+Parameter SavingsManager.setSavingsRate(uint256)._savingsRate (../flat/SavingsManager.sol#1008) is not in mixedCase
+Parameter SavingsManager.collectAndDistributeInterest(address)._mAsset (../flat/SavingsManager.sol#1028) is not in mixedCase
+Parameter SavingsManager.withdrawUnallocatedInterest(address,address)._mAsset (../flat/SavingsManager.sol#1096) is not in mixedCase
+Parameter SavingsManager.withdrawUnallocatedInterest(address,address)._recipient (../flat/SavingsManager.sol#1096) is not in mixedCase
+Constant SavingsManager.secondsInYear (../flat/SavingsManager.sol#946) is not in UPPER_CASE_WITH_UNDERSCORES
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#conformance-to-solidity-naming-conventions[0m
+INFO:Slither:../flat/SavingsManager.sol analyzed (14 contracts with 46 detectors), 27 result(s) found
+INFO:Slither:[94mUse https://crytic.io/ to get access to additional detectors and Github integration[0m
+
+
+## README ##
+- Not a security issue.

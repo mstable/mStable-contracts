@@ -1,0 +1,88 @@
+INFO:Detectors:[92m
+Reentrancy in SavingsContract.depositInterest(uint256) (../flat/SavingsContract.sol#687-708):
+	External calls:
+	- require(bool,string)(mUSD.transferFrom(msg.sender,address(this),_amount),Must receive tokens) (../flat/SavingsContract.sol#694)
+	State variables written after the call(s):
+	- SavingsContract.exchangeRate (../flat/SavingsContract.sol#648) in exchangeRate = totalSavings.divPrecisely(totalCredits) (../flat/SavingsContract.sol#704)
+	- SavingsContract.totalSavings (../flat/SavingsContract.sol#641) in totalSavings = totalSavings.add(_amount) (../flat/SavingsContract.sol#695)
+
+
+## README ##
+- Only SavingsManager contract can call this function
+- SavingsManager and mUSD contracts are trusted contracts.
+
+
+Reentrancy in SavingsContract.depositSavings(uint256) (../flat/SavingsContract.sol#724-747):
+	External calls:
+	- ISavingsManager(_savingsManager()).collectAndDistributeInterest(address(mUSD)) (../flat/SavingsContract.sol#732)
+	- require(bool,string)(mUSD.transferFrom(msg.sender,address(this),_amount),Must receive tokens) (../flat/SavingsContract.sol#736)
+	State variables written after the call(s):
+	- SavingsContract.creditBalances (../flat/SavingsContract.sol#650) in creditBalances[msg.sender] = creditBalances[msg.sender].add(creditsIssued) (../flat/SavingsContract.sol#744)
+	- SavingsContract.totalCredits (../flat/SavingsContract.sol#643) in totalCredits = totalCredits.add(creditsIssued) (../flat/SavingsContract.sol#741)
+	- SavingsContract.totalSavings (../flat/SavingsContract.sol#641) in totalSavings = totalSavings.add(_amount) (../flat/SavingsContract.sol#737)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-2[0m
+
+
+## README ##
+- SavingsManager and mUSD contracts are trusted contracts.
+
+
+
+INFO:Detectors:[92m
+Reentrancy in SavingsContract.depositInterest(uint256) (../flat/SavingsContract.sol#687-708):
+	External calls:
+	- require(bool,string)(mUSD.transferFrom(msg.sender,address(this),_amount),Must receive tokens) (../flat/SavingsContract.sol#694)
+	Event emitted after the call(s):
+	- ExchangeRateUpdated(exchangeRate,_amount) (../flat/SavingsContract.sol#706)
+Reentrancy in SavingsContract.depositSavings(uint256) (../flat/SavingsContract.sol#724-747):
+	External calls:
+	- ISavingsManager(_savingsManager()).collectAndDistributeInterest(address(mUSD)) (../flat/SavingsContract.sol#732)
+	- require(bool,string)(mUSD.transferFrom(msg.sender,address(this),_amount),Must receive tokens) (../flat/SavingsContract.sol#736)
+	Event emitted after the call(s):
+	- SavingsDeposited(msg.sender,_amount,creditsIssued) (../flat/SavingsContract.sol#746)
+
+
+## README ##
+- Same as above
+
+Reentrancy in SavingsContract.redeem(uint256) (../flat/SavingsContract.sol#756-776):
+	External calls:
+	- require(bool,string)(mUSD.transfer(msg.sender,massetReturned),Must send tokens) (../flat/SavingsContract.sol#773)
+	Event emitted after the call(s):
+	- CreditsRedeemed(msg.sender,_credits,massetReturned) (../flat/SavingsContract.sol#775)
+
+## README ##
+- mUSD contract is a trusted contract
+
+
+
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-3[0m
+INFO:Detectors:[92m
+Pragma version0.5.16 (../flat/SavingsContract.sol#1) necessitates versions too recent to be trusted. Consider deploying with 0.5.11
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#incorrect-versions-of-solidity[0m
+INFO:Detectors:[92m
+Constant ModuleKeys.Key_Governance (../flat/SavingsContract.sol#28) is not in UPPER_CASE_WITH_UNDERSCORES
+Constant ModuleKeys.Key_Staking (../flat/SavingsContract.sol#29) is not in UPPER_CASE_WITH_UNDERSCORES
+Constant ModuleKeys.Key_ProxyAdmin (../flat/SavingsContract.sol#30) is not in UPPER_CASE_WITH_UNDERSCORES
+Constant ModuleKeys.Key_OracleHub (../flat/SavingsContract.sol#33) is not in UPPER_CASE_WITH_UNDERSCORES
+Constant ModuleKeys.Key_Manager (../flat/SavingsContract.sol#34) is not in UPPER_CASE_WITH_UNDERSCORES
+Constant ModuleKeys.Key_Recollateraliser (../flat/SavingsContract.sol#35) is not in UPPER_CASE_WITH_UNDERSCORES
+Constant ModuleKeys.Key_MetaToken (../flat/SavingsContract.sol#36) is not in UPPER_CASE_WITH_UNDERSCORES
+Constant ModuleKeys.Key_SavingsManager (../flat/SavingsContract.sol#37) is not in UPPER_CASE_WITH_UNDERSCORES
+
+Constant StableMath.fullScale (../flat/SavingsContract.sol#399) is not in UPPER_CASE_WITH_UNDERSCORES
+Constant StableMath.ratioScale (../flat/SavingsContract.sol#407) is not in UPPER_CASE_WITH_UNDERSCORES
+
+## README ##
+- Not a security issue
+
+Parameter SavingsContract.automateInterestCollectionFlag(bool)._enabled (../flat/SavingsContract.sol#668) is not in mixedCase
+Parameter SavingsContract.depositInterest(uint256)._amount (../flat/SavingsContract.sol#687) is not in mixedCase
+Parameter SavingsContract.depositSavings(uint256)._amount (../flat/SavingsContract.sol#724) is not in mixedCase
+Parameter SavingsContract.redeem(uint256)._credits (../flat/SavingsContract.sol#756) is not in mixedCase
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#conformance-to-solidity-naming-conventions[0m
+INFO:Slither:../flat/SavingsContract.sol analyzed (9 contracts with 46 detectors), 20 result(s) found
+INFO:Slither:[94mUse https://crytic.io/ to get access to additional detectors and Github integration[0m
+
+## README ##
+- Not a security issue
