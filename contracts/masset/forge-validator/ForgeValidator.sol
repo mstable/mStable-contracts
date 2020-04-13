@@ -83,9 +83,7 @@ contract ForgeValidator is IForgeValidator {
         returns (bool isValid, string memory reason)
     {
         uint256 bAssetCount = _bAssets.length;
-        if(bAssetCount != _bAssetQuantity.length) {
-            return (false, "Input length should be equal");
-        }
+        if(bAssetCount != _bAssetQuantity.length) return (false, "Input length should be equal");
 
         uint256[] memory newBalances = new uint256[](bAssetCount);
         uint256 newTotalVault = _totalVault;
@@ -215,7 +213,7 @@ contract ForgeValidator is IForgeValidator {
         returns (bool, string memory)
     {
         uint256 idxCount = _idxs.length;
-        require(idxCount == _bAssetQuantities.length, "Input arrays should be equal");
+        if(idxCount != _bAssetQuantities.length) return (false, "Input arrays should be equal");
 
         OverWeightBassetsResponse memory data = _getOverweightBassets(_totalVault, _grace, _allBassets);
 
