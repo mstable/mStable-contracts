@@ -9,6 +9,10 @@ pragma solidity 0.5.16;
  */
 contract InitializableModuleKeys {
 
+    // The contract is a replica of ModuleKeys.sol
+    // The following variables are to be assigned only once from initialize() function.
+    // Hence, the variable names are decleared in UPPER_CASE to indicate constants.
+
     // Governance                           // Phases
     bytes32 public KEY_GOVERNANCE;          // 2.x
     bytes32 public KEY_STAKING;             // 1.2
@@ -26,6 +30,8 @@ contract InitializableModuleKeys {
      *      via Proxy to initialize constants in the Proxy contract.
      */
     function _initialize() internal {
+        // keccak256() values are evaluated only once at the time of this function call.
+        // Hence, no need to assign hard-coded values to these variables.
         KEY_GOVERNANCE = keccak256("Governance");
         KEY_STAKING = keccak256("Staking");
         KEY_PROXY_ADMIN = keccak256("ProxyAdmin");
