@@ -13,7 +13,7 @@ contract ClaimableGovernor is Governable {
     event GovernorChangeCancelled(address indexed governor, address indexed proposed);
     event GovernorChangeRequested(address indexed governor, address indexed proposed);
 
-    address public proposedGovernor;
+    address public proposedGovernor = address(0);
 
     /**
      * @dev Throws if called by any account other than the Proposed Governor.
@@ -23,8 +23,8 @@ contract ClaimableGovernor is Governable {
         _;
     }
 
-    constructor(address _governor) public {
-        _changeGovernor(_governor);
+    constructor(address _governorAddr) public {
+        _changeGovernor(_governorAddr);
     }
 
     //@override
