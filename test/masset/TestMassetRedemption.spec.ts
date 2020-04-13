@@ -587,7 +587,7 @@ contract("Masset", async (accounts) => {
                     const bAssetDecimals = await bAsset.decimals();
                     await expectRevert(
                         mAsset.redeem(bAsset.address, simpleToExactAmount(5, bAssetDecimals)),
-                        "bAssets must remain under max weight",
+                        "bAssets must remain above implicit min weight",
                     );
                 });
                 it("should fail if we go below implicit min", async () => {
@@ -1464,7 +1464,7 @@ contract("Masset", async (accounts) => {
                 beforeEach(async () => {
                     await runSetup(false, false);
                 });
-                it("should fail if we push something else above max", async () => {
+                it("should fail if we push go below min weight", async () => {
                     const { bAssets, mAsset, basketManager } = massetDetails;
                     const composition = await massetMachine.getBasketComposition(massetDetails);
                     // Expect 4 bAssets with 25, 25, 25, 25 weightings
@@ -1494,7 +1494,7 @@ contract("Masset", async (accounts) => {
                             [simpleToExactAmount(5, bAssetDecimals)],
                             sa.default,
                         ),
-                        "bAssets must remain under max weight",
+                        "bAssets must remain above implicit min weight",
                     );
                 });
                 it("should fail if we go below implicit min", async () => {

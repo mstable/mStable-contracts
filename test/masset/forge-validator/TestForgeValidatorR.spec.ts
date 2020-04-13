@@ -394,7 +394,7 @@ contract("ForgeValidator", async (accounts) => {
             });
         });
         context("in a basket with some bAssets underweight", async () => {
-            describe("and redeeming underweight bAsset", async () => {
+            describe("and redeeming any underweight bAsset", async () => {
                 it("always returns invalid", async () => {
                     /**
                      * TotalSupply:     100e18
@@ -571,12 +571,17 @@ contract("ForgeValidator", async (accounts) => {
                  * BassetVaults:    [25, 21, 29, 25]
                  * RedeemIndex:     3
                  * RedeemAmt:       5
-                 * Index 2 will go over weight
                  */
                 await assertSingleRedeem(
                     setBasket(false, 100, 5),
                     [setBasset(25, 25), setBasset(25, 21), setBasset(25, 29), setBasset(25, 25)],
-                    setArgs(3, 5),
+                    setArgs(3, 7),
+                    setResult(false, "bAssets must remain above implicit min weight"),
+                );
+                await assertSingleRedeem(
+                    setBasket(false, 100, 6),
+                    [setBasset(25, 25), setBasset(25, 21), setBasset(25, 29), setBasset(25, 25)],
+                    setArgs(3, 7),
                     setResult(true),
                 );
             });
@@ -700,11 +705,13 @@ contract("ForgeValidator", async (accounts) => {
                 basket.failed,
                 simpleToExactAmount(basket.totalSupply, 18),
                 simpleToExactAmount(basket.deviationAllowanceUnits, 18),
-                args.map((a) => a.indexToRedeem),
+                args.filter((a) => a.indexToRedeem !== undefined).map((a) => a.indexToRedeem),
                 args.map((a) =>
                     simpleToExactAmount(
                         a.redeemAmountUnits,
-                        a.indexToRedeem >= bAssets.length ? 18 : bAssets[a.indexToRedeem].decimals,
+                        a.indexToRedeem === undefined || a.indexToRedeem >= bAssets.length
+                            ? 18
+                            : bAssets[a.indexToRedeem].decimals,
                     ),
                 ),
                 bAssets.map((b) =>
@@ -747,13 +754,13 @@ contract("ForgeValidator", async (accounts) => {
                  * RedeemIndex:     0
                  * RedeemAmt:       10e18
                  */
-                // await assertSingleRedeem(
-                //     setBasket(false, 100, 1),
-                //     [setBasset(100, 100)],
-                //     setArgs(0, 10),
-                //     setResult(true),
-                //     accounts[4],
-                // );
+                await assertRedeemMulti(
+                    setBasket(false, 100, 1),
+                    [setBasset(100, 100)],
+                    [setArgs(0, 10)],
+                    setResult(true),
+                    accounts[4],
+                );
             });
             it("returns inValid if the bAsset does not exist", async () => {
                 /**
@@ -764,12 +771,12 @@ contract("ForgeValidator", async (accounts) => {
                  * RedeemIndex:     0
                  * RedeemAmt:       10e18
                  */
-                // await assertSingleRedeem(
-                //     setBasket(false, 100, 1),
-                //     [setBasset(100, 100)],
-                //     setArgs(1, 10),
-                //     setResult(false, "Basset does not exist"),
-                // );
+                await assertRedeemMulti(
+                    setBasket(false, 100, 1),
+                    [setBasset(100, 100)],
+                    [setArgs(1, 10)],
+                    setResult(false, "Basset does not exist"),
+                );
             });
             it("returns inValid if the bAsset vaultBalance is 0", async () => {
                 /**
@@ -780,12 +787,12 @@ contract("ForgeValidator", async (accounts) => {
                  * RedeemIndex:     0
                  * RedeemAmt:       1
                  */
-                // await assertSingleRedeem(
-                //     setBasket(false, 100, 10),
-                //     [setBasset(50, 0), setBasset(50, 0)],
-                //     setArgs(0, 1),
-                //     setResult(false, "Cannot redeem more bAssets than are in the vault"),
-                // );
+                await assertRedeemMulti(
+                    setBasket(false, 100, 10),
+                    [setBasset(50, 0), setBasset(50, 0)],
+                    [setArgs(0, 1)],
+                    setResult(false, "Cannot redeem more bAssets than are in the vault"),
+                );
             });
 
             describe("redeeming relatively largely amount of a bAsset", async () => {
@@ -800,17 +807,17 @@ contract("ForgeValidator", async (accounts) => {
                      * Failed: Because resulting weighting is 23/98, where target is 24.5
                      * and grace = 1, so implicit min = 23.5
                      */
-                    // await assertSingleRedeem(
-                    //     setBasket(false, 100, 1),
-                    //     [
-                    //         setBasset(25, 25),
-                    //         setBasset(25, 25),
-                    //         setBasset(25, 25),
-                    //         setBasset(25, 25),
-                    //     ],
-                    //     setArgs(0, 2),
-                    //     setResult(false, "bAssets must remain above implicit min weight"),
-                    // );
+                    await assertRedeemMulti(
+                        setBasket(false, 100, 1),
+                        [
+                            setBasset(25, 25),
+                            setBasset(25, 25),
+                            setBasset(25, 25),
+                            setBasset(25, 25),
+                        ],
+                        [setArgs(0, 2)],
+                        setResult(false, "bAssets must remain above implicit min weight"),
+                    );
                 });
                 it("returns inValid if the bAsset quantity is greater than vault balance", async () => {
                     /**
@@ -821,32 +828,38 @@ contract("ForgeValidator", async (accounts) => {
                      * RedeemIndex:     1
                      * RedeemAmt:       6
                      */
-                    // await assertSingleRedeem(
-                    //     setBasket(false, 100, 10),
-                    //     [setBasset(95, 95), setBasset(5, 5)],
-                    //     setArgs(1, 6),
-                    //     setResult(false, "Cannot redeem more bAssets than are in the vault"),
-                    // );
+                    await assertRedeemMulti(
+                        setBasket(false, 100, 10),
+                        [setBasset(95, 95), setBasset(5, 5)],
+                        [setArgs(1, 6)],
+                        setResult(false, "Cannot redeem more bAssets than are in the vault"),
+                    );
                 });
             });
 
             describe("using unexpected arguments", async () => {
                 it("should return valid if there are no bAssets passed", async () => {
-                    // await assertMintMulti(setBasket(100, 1), [], [], setResult(true));
+                    await assertRedeemMulti(
+                        setBasket(false, 100, 1),
+                        [setBasset(95, 95), setBasset(5, 5)],
+                        [],
+                        setResult(true),
+                    );
                 });
                 it("should fail if inputs are of unequal length", async () => {
-                    // await assertMintMulti(
-                    //     setBasket(100, 1),
-                    //     [setBasset(25, 25), setBasset(25, 25)],
-                    //     [5],
-                    //     setResult(false, "Input length should be equal"),
-                    // );
-                    // await assertMintMulti(
-                    //     setBasket(100, 1),
-                    //     [setBasset(25, 25)],
-                    //     [5, 5],
-                    //     setResult(false, "Input length should be equal"),
-                    // );
+                    await assertRedeemMulti(
+                        setBasket(false, 100, 1),
+                        [
+                            setBasset(25, 25),
+                            setBasset(25, 25),
+                            setBasset(25, 25),
+                            setBasset(25, 25),
+                            setBasset(25, 25),
+                            setBasset(25, 25),
+                        ],
+                        [setArgs(undefined, 5), setArgs(1, 5)],
+                        setResult(false, "Input arrays should be equal"),
+                    );
                 });
             });
 
@@ -857,26 +870,37 @@ contract("ForgeValidator", async (accounts) => {
                      * Grace:           1e18
                      * BassetTargets:   [10, 10, 10, 10...]
                      * BassetVaults:    [10, 10, 10, 10...]
-                     * MintAmts:        [5, 6, 5, 5, 4,...]
-                     * Mints cause weights to deviate *within* the allowance
+                     * RedeemAmts:        [5, 6, 5, 5, 4,...]
+                     * Redemption cause weights to deviate *within* the allowance
                      */
-                    // await assertMintMulti(
-                    //     setBasket(100, 1),
-                    //     [
-                    //         setBasset(10, 10),
-                    //         setBasset(10, 10),
-                    //         setBasset(10, 10),
-                    //         setBasset(10, 10),
-                    //         setBasset(10, 10),
-                    //         setBasset(10, 10),
-                    //         setBasset(10, 10),
-                    //         setBasset(10, 10),
-                    //         setBasset(10, 10),
-                    //         setBasset(10, 10),
-                    //     ],
-                    //     [5, 6, 5, 4, 6, 5, 5, 5, 6, 5],
-                    //     setResult(true),
-                    // );
+                    await assertRedeemMulti(
+                        setBasket(false, 100, 1),
+                        [
+                            setBasset(10, 10),
+                            setBasset(10, 10),
+                            setBasset(10, 10),
+                            setBasset(10, 10),
+                            setBasset(10, 10),
+                            setBasset(10, 10),
+                            setBasset(10, 10),
+                            setBasset(10, 10),
+                            setBasset(10, 10),
+                            setBasset(10, 10),
+                        ],
+                        [
+                            setArgs(0, 5),
+                            setArgs(1, 6),
+                            setArgs(2, 5),
+                            setArgs(3, 4),
+                            setArgs(4, 6),
+                            setArgs(5, 5),
+                            setArgs(6, 5),
+                            setArgs(7, 5),
+                            setArgs(8, 5),
+                            setArgs(9, 5),
+                        ],
+                        setResult(true),
+                    );
                 });
                 it("should calculate the new total supply correctly and apply conditions", async () => {
                     /**
@@ -884,19 +908,51 @@ contract("ForgeValidator", async (accounts) => {
                      * Grace:           1e18
                      * BassetTargets:   [25, 25, 25]
                      * BassetVaults:    [25, 25, 25]
-                     * MintAmts:        []
-                     * Mints cause total supply to go up, causing what would have been
+                     * RedeemAmts:      []
+                     * Redeem causes total supply to go down, causing what would have been
                      * over weight exceptions to now be valid
                      */
-                    // await assertMintMulti(
-                    //     setBasket(100, 1),
-                    //     [setBasset(25, 25), setBasset(25, 25), setBasset(25, 25)],
-                    //     [4, 4, 4],
-                    //     setResult(true),
-                    // );
+                    await assertRedeemMulti(
+                        setBasket(false, 100, 1),
+                        [setBasset(25, 25), setBasset(25, 25), setBasset(25, 25)],
+                        [setArgs(0, 4), setArgs(1, 4), setArgs(2, 4)],
+                        setResult(true),
+                    );
                 });
-                it("should fail if the inputs are of unequal length", async () => {});
-                it("should fail if any bAsset goes above max weight", async () => {});
+                it("should fail if any bAsset goes below min weight", async () => {
+                    /**
+                     * TotalSupply:     100e18
+                     * Grace:           4e18
+                     * BassetTargets:   [25, 25, 25, 25]
+                     * BassetVaults:    [25, 25, 25, 25]
+                     * RedeemIndex:     [0, 1]
+                     * RedeemAmt:       [1, 6]
+                     */
+                    await assertRedeemMulti(
+                        setBasket(false, 100, 4),
+                        [
+                            setBasset(25, 25),
+                            setBasset(25, 25),
+                            setBasset(25, 25),
+                            setBasset(25, 25),
+                        ],
+                        [setArgs(0, 1), setArgs(1, 6)],
+                        setResult(false, "bAssets must remain above implicit min weight"),
+                    );
+                });
+                it("should fail if the inputs are of unequal length", async () => {
+                    await assertRedeemMulti(
+                        setBasket(false, 100, 4),
+                        [
+                            setBasset(25, 25),
+                            setBasset(25, 25),
+                            setBasset(25, 25),
+                            setBasset(25, 25),
+                        ],
+                        [setArgs(0, 1), setArgs(undefined, 6)],
+                        setResult(false, "Input arrays should be equal"),
+                    );
+                });
             });
 
             describe("with a variable grace", async () => {
@@ -910,24 +966,24 @@ contract("ForgeValidator", async (accounts) => {
                      * RedeemAmt:       7
                      * ResultingWeight: 17/93, where new target is 23.25
                      */
-                    // await assertSingleRedeem(
-                    //     setBasket(false, 100, 4),
-                    //     [
-                    //         setBasset(25, 25),
-                    //         setBasset(25, 25),
-                    //         setBasset(25, 25),
-                    //         setBasset(25, 25),
-                    //     ],
-                    //     setArgs(0, 7),
-                    //     setResult(false, "bAssets must remain above implicit min weight"),
-                    // );
+                    await assertRedeemMulti(
+                        setBasket(false, 100, 4),
+                        [
+                            setBasset(25, 25),
+                            setBasset(25, 25),
+                            setBasset(25, 25),
+                            setBasset(25, 25),
+                        ],
+                        [setArgs(0, 7)],
+                        setResult(false, "bAssets must remain above implicit min weight"),
+                    );
                     // Change grace to 5
-                    // await assertSingleRedeem(
-                    //     setBasket(false, 100, 5),
-                    //     [setBasset(50, 50), setBasset(50, 50)],
-                    //     setArgs(0, 10),
-                    //     setResult(true),
-                    // );
+                    await assertRedeemMulti(
+                        setBasket(false, 100, 5),
+                        [setBasset(50, 50), setBasset(50, 50)],
+                        [setArgs(0, 10)],
+                        setResult(true),
+                    );
                 });
                 it("should always fail with 0 grace", async () => {
                     /**
@@ -938,12 +994,12 @@ contract("ForgeValidator", async (accounts) => {
                      * RedeemIndex:     0
                      * RedeemAmt:       1
                      */
-                    // await assertSingleRedeem(
-                    //     setBasket(false, 100, 0),
-                    //     [setBasset(50, 50), setBasset(50, 50)],
-                    //     setArgs(0, 1),
-                    //     setResult(false, "bAssets must remain under max weight"),
-                    // );
+                    await assertRedeemMulti(
+                        setBasket(false, 100, 0),
+                        [setBasset(50, 50), setBasset(50, 50)],
+                        [setArgs(0, 1)],
+                        setResult(false, "bAssets must remain above implicit min weight"),
+                    );
                 });
                 it("should allow anything at a high grace", async () => {
                     /**
@@ -954,12 +1010,12 @@ contract("ForgeValidator", async (accounts) => {
                      * RedeemIndex:     0
                      * RedeemAmt:       500
                      */
-                    // await assertSingleRedeem(
-                    //     setBasket(false, 1000, 5000),
-                    //     [setBasset(50, 500), setBasset(50, 500)],
-                    //     setArgs(0, 500),
-                    //     setResult(true),
-                    // );
+                    await assertRedeemMulti(
+                        setBasket(false, 1000, 5000),
+                        [setBasset(50, 500), setBasset(50, 500)],
+                        [setArgs(0, 500)],
+                        setResult(true),
+                    );
                 });
             });
             describe("and various decimals", async () => {
@@ -970,21 +1026,21 @@ contract("ForgeValidator", async (accounts) => {
                      * BassetTargets:   [ 50,  50]
                      * BassetVaults:    [ 50,  50]
                      * RedeemIndex:     0
-                     * RedeemAmt:       1
+                     * RedeemAmt:       2
                      */
-                    // await assertSingleRedeem(
-                    //     setBasket(false, 100, 1),
-                    //     [setBasset(50, 50, 6), setBasset(50, 50, 12)],
-                    //     setArgs(0, 2),
-                    //     setResult(true),
-                    // );
-                    // // Pushes index 1 over it's implicit max
-                    // await assertSingleRedeem(
-                    //     setBasket(false, 100, 1),
-                    //     [setBasset(50, 50, 6), setBasset(50, 50, 12)],
-                    //     setArgs(0, 3),
-                    //     setResult(false, "bAssets must remain under max weight"),
-                    // );
+                    await assertRedeemMulti(
+                        setBasket(false, 100, 1),
+                        [setBasset(50, 50, 6), setBasset(50, 50, 12)],
+                        [setArgs(0, 2)],
+                        setResult(true),
+                    );
+                    // Pushes index 1 over it's implicit max
+                    await assertRedeemMulti(
+                        setBasket(false, 100, 1),
+                        [setBasset(50, 50, 6), setBasset(50, 50, 12)],
+                        [setArgs(0, 3)],
+                        setResult(false, "bAssets must remain above implicit min weight"),
+                    );
                 });
             });
             describe("and various redemption volumes", async () => {
@@ -998,12 +1054,12 @@ contract("ForgeValidator", async (accounts) => {
                      * RedeemAmt:       0
                      * Doesn't change the basket composition at all
                      */
-                    // await assertSingleRedeem(
-                    //     setBasket(false, 138, 0),
-                    //     [setBasset(50, 69), setBasset(50, 69)],
-                    //     setArgs(0, 0),
-                    //     setResult(true),
-                    // );
+                    await assertRedeemMulti(
+                        setBasket(false, 138, 0),
+                        [setBasset(50, 69), setBasset(50, 69)],
+                        [setArgs(0, 0)],
+                        setResult(true),
+                    );
                 });
                 it("should fail once redemption volume triggers grace", async () => {
                     /**
@@ -1014,18 +1070,18 @@ contract("ForgeValidator", async (accounts) => {
                      * RedeemIndex:     0
                      * RedeemAmt:       0
                      */
-                    // await assertSingleRedeem(
-                    //     setBasket(false, 138, 1),
-                    //     [setBasset(50, 69), setBasset(50, 69)],
-                    //     setArgs(0, 1),
-                    //     setResult(true),
-                    // );
-                    // await assertSingleRedeem(
-                    //     setBasket(false, 138, 1),
-                    //     [setBasset(50, 69), setBasset(50, 69)],
-                    //     setArgs(0, 3),
-                    //     setResult(false, "bAssets must remain under max weight"),
-                    // );
+                    await assertRedeemMulti(
+                        setBasket(false, 138, 1),
+                        [setBasset(50, 69), setBasset(50, 69)],
+                        [setArgs(0, 1)],
+                        setResult(true),
+                    );
+                    await assertRedeemMulti(
+                        setBasket(false, 138, 1),
+                        [setBasset(50, 69), setBasset(50, 69)],
+                        [setArgs(0, 3)],
+                        setResult(false, "bAssets must remain above implicit min weight"),
+                    );
                 });
             });
         });
@@ -1039,52 +1095,53 @@ contract("ForgeValidator", async (accounts) => {
                  * RedeemIndex:     9
                  * RedeemAmt:       10
                  */
-                // await assertSingleRedeem(
-                //     setBasket(false, 4000, 10),
-                //     [
-                //         setBasset(20, 800),
-                //         setBasset(20, 800),
-                //         setBasset(10, 400),
-                //         setBasset(10, 400),
-                //         setBasset(10, 400),
-                //         setBasset(10, 400),
-                //         setBasset(5, 200),
-                //         setBasset(5, 200),
-                //         setBasset(2, 80),
-                //         setBasset(2, 80),
-                //         setBasset(2, 80),
-                //         setBasset(2, 80),
-                //         setBasset(1, 40),
-                //         setBasset(1, 40),
-                //     ],
-                //     setArgs(9, 10),
-                //     setResult(true),
-                // );
-                // await assertSingleRedeem(
-                //     setBasket(false, 4000, 10),
-                //     [
-                //         setBasset(20, 800),
-                //         setBasset(20, 800),
-                //         setBasset(10, 400),
-                //         setBasset(10, 400),
-                //         setBasset(10, 400),
-                //         setBasset(10, 400),
-                //         setBasset(5, 200),
-                //         setBasset(5, 200),
-                //         setBasset(2, 80),
-                //         setBasset(2, 80),
-                //         setBasset(2, 80),
-                //         setBasset(2, 80),
-                //         setBasset(1, 40),
-                //         setBasset(1, 40),
-                //     ],
-                //     setArgs(9, 15),
-                //     setResult(false, "bAssets must remain above implicit min weight"),
-                // );
+                await assertRedeemMulti(
+                    setBasket(false, 4000, 10),
+                    [
+                        setBasset(20, 800),
+                        setBasset(20, 800),
+                        setBasset(10, 400),
+                        setBasset(10, 400),
+                        setBasset(10, 400),
+                        setBasset(10, 400),
+                        setBasset(5, 200),
+                        setBasset(5, 200),
+                        setBasset(2, 80),
+                        setBasset(2, 80),
+                        setBasset(2, 80),
+                        setBasset(2, 80),
+                        setBasset(1, 40),
+                        setBasset(1, 40),
+                    ],
+                    [setArgs(9, 10)],
+                    setResult(true),
+                );
+                await assertRedeemMulti(
+                    setBasket(false, 4000, 10),
+                    [
+                        setBasset(20, 800),
+                        setBasset(20, 800),
+                        setBasset(10, 400),
+                        setBasset(10, 400),
+                        setBasset(10, 400),
+                        setBasset(10, 400),
+                        setBasset(5, 200),
+                        setBasset(5, 200),
+                        setBasset(2, 80),
+                        setBasset(2, 80),
+                        setBasset(2, 80),
+                        setBasset(2, 80),
+                        setBasset(1, 40),
+                        setBasset(1, 40),
+                    ],
+                    [setArgs(9, 15)],
+                    setResult(false, "bAssets must remain above implicit min weight"),
+                );
             });
         });
         context("in a basket with some bAssets underweight", async () => {
             describe("and redeeming underweight bAsset", async () => {
+                it("always returns invalid if any bAsset is underweight", async () => {});
                 it("always returns invalid", async () => {
                     /**
                      * TotalSupply:     100e18
@@ -1094,17 +1151,17 @@ contract("ForgeValidator", async (accounts) => {
                      * RedeemIndex:     0
                      * RedeemAmt:       0
                      */
-                    // await assertSingleRedeem(
-                    //     setBasket(false, 100, 3),
-                    //     [
-                    //         setBasset(25, 19),
-                    //         setBasset(25, 27),
-                    //         setBasset(25, 27),
-                    //         setBasset(25, 27),
-                    //     ],
-                    //     setArgs(0, 1),
-                    //     setResult(false, "bAssets must remain above implicit min weight"),
-                    // );
+                    await assertRedeemMulti(
+                        setBasket(false, 100, 3),
+                        [
+                            setBasset(25, 19),
+                            setBasset(25, 27),
+                            setBasset(25, 27),
+                            setBasset(25, 27),
+                        ],
+                        [setArgs(0, 1)],
+                        setResult(false, "bAssets must remain above implicit min weight"),
+                    );
                 });
                 it("returns invalid with a 0 quantity input", async () => {
                     /**
@@ -1115,17 +1172,17 @@ contract("ForgeValidator", async (accounts) => {
                      * RedeemIndex:     0
                      * RedeemAmt:       0
                      */
-                    // await assertSingleRedeem(
-                    //     setBasket(false, 100, 3),
-                    //     [
-                    //         setBasset(25, 19),
-                    //         setBasset(25, 27),
-                    //         setBasset(25, 27),
-                    //         setBasset(25, 27),
-                    //     ],
-                    //     setArgs(0, 0),
-                    //     setResult(false, "bAssets must remain above implicit min weight"),
-                    // );
+                    await assertRedeemMulti(
+                        setBasket(false, 100, 3),
+                        [
+                            setBasset(25, 19),
+                            setBasset(25, 27),
+                            setBasset(25, 27),
+                            setBasset(25, 27),
+                        ],
+                        [setArgs(0, 0)],
+                        setResult(false, "bAssets must remain above implicit min weight"),
+                    );
                 });
             });
             describe("and redeeming a non-underweight bAsset", async () => {
@@ -1138,34 +1195,34 @@ contract("ForgeValidator", async (accounts) => {
                      * RedeemIndex:     1
                      * RedeemAmt:       1
                      */
-                    // await assertSingleRedeem(
-                    //     setBasket(false, 100, 10),
-                    //     [
-                    //         setBasset(25, 13),
-                    //         setBasset(25, 25),
-                    //         setBasset(25, 31),
-                    //         setBasset(25, 31),
-                    //     ],
-                    //     setArgs(1, 1),
-                    //     setResult(true),
-                    // );
-                    // // Redeeming 14 puts target to 21.5 units, and vaultBalance to 21
-                    // await assertSingleRedeem(
-                    //     setBasket(false, 100, 10),
-                    //     [
-                    //         setBasset(25, 13),
-                    //         setBasset(25, 25),
-                    //         setBasset(25, 31),
-                    //         setBasset(25, 31),
-                    //     ],
-                    //     setArgs(1, 14),
-                    //     setResult(false, "bAssets must remain above implicit min weight"),
-                    // );
+                    await assertRedeemMulti(
+                        setBasket(false, 100, 10),
+                        [
+                            setBasset(25, 13),
+                            setBasset(25, 25),
+                            setBasset(25, 31),
+                            setBasset(25, 31),
+                        ],
+                        [setArgs(1, 1)],
+                        setResult(true),
+                    );
+                    // Redeeming 14 puts target to 21.5 units, and vaultBalance to 21
+                    await assertRedeemMulti(
+                        setBasket(false, 100, 10),
+                        [
+                            setBasset(25, 13),
+                            setBasset(25, 25),
+                            setBasset(25, 31),
+                            setBasset(25, 31),
+                        ],
+                        [setArgs(1, 14)],
+                        setResult(false, "bAssets must remain above implicit min weight"),
+                    );
                 });
             });
         });
         context("in a basket with some bAssets overweight", async () => {
-            describe("redeeming a non overweight bAsset", async () => {
+            describe("redeeming non overweight bAssets", async () => {
                 it("should always return invalid", async () => {
                     /**
                      * TotalSupply:     100e18
@@ -1175,31 +1232,32 @@ contract("ForgeValidator", async (accounts) => {
                      * RedeemIndex:     0
                      * RedeemAmt:       10
                      */
-                    // await assertSingleRedeem(
-                    //     setBasket(false, 100, 10),
-                    //     [
-                    //         setBasset(25, 37),
-                    //         setBasset(25, 21),
-                    //         setBasset(25, 21),
-                    //         setBasset(25, 21),
-                    //     ],
-                    //     setArgs(1, 1),
-                    //     setResult(false, "Must redeem overweight bAssets"),
-                    // );
-                    // await assertSingleRedeem(
-                    //     setBasket(false, 100, 10),
-                    //     [
-                    //         setBasset(25, 37),
-                    //         setBasset(25, 21),
-                    //         setBasset(25, 21),
-                    //         setBasset(25, 21),
-                    //     ],
-                    //     setArgs(2, 1),
-                    //     setResult(false, "Must redeem overweight bAssets"),
-                    // );
+                    await assertRedeemMulti(
+                        setBasket(false, 100, 10),
+                        [
+                            setBasset(25, 37),
+                            setBasset(25, 21),
+                            setBasset(25, 21),
+                            setBasset(25, 21),
+                        ],
+                        [setArgs(1, 1)],
+                        setResult(false, "Must redeem overweight bAssets"),
+                    );
+                    await assertRedeemMulti(
+                        setBasket(false, 100, 10),
+                        [
+                            setBasset(25, 37),
+                            setBasset(25, 21),
+                            setBasset(25, 21),
+                            setBasset(25, 21),
+                        ],
+                        [setArgs(2, 1)],
+                        setResult(false, "Must redeem overweight bAssets"),
+                    );
                 });
             });
             describe("redeeming an overweight bAsset", async () => {
+                it("should return valid if all redeemed bAssets are overweight", async () => {});
                 it("should return valid, so long as we don't go underweight", async () => {
                     /**
                      * TotalSupply:     100e18
@@ -1209,29 +1267,29 @@ contract("ForgeValidator", async (accounts) => {
                      * RedeemIndex:     0
                      * RedeemAmt:       10
                      */
-                    // await assertSingleRedeem(
-                    //     setBasket(false, 100, 10),
-                    //     [
-                    //         setBasset(25, 37),
-                    //         setBasset(25, 21),
-                    //         setBasset(25, 21),
-                    //         setBasset(25, 21),
-                    //     ],
-                    //     setArgs(0, 29),
-                    //     setResult(true),
-                    // );
-                    // // Redeeming more should push us under
-                    // await assertSingleRedeem(
-                    //     setBasket(false, 100, 10),
-                    //     [
-                    //         setBasset(25, 37),
-                    //         setBasset(25, 21),
-                    //         setBasset(25, 21),
-                    //         setBasset(25, 21),
-                    //     ],
-                    //     setArgs(0, 30),
-                    //     setResult(false, "bAssets must remain above implicit min weight"),
-                    // );
+                    await assertRedeemMulti(
+                        setBasket(false, 100, 10),
+                        [
+                            setBasset(25, 37),
+                            setBasset(25, 21),
+                            setBasset(25, 21),
+                            setBasset(25, 21),
+                        ],
+                        [setArgs(0, 29)],
+                        setResult(true),
+                    );
+                    // Redeeming more should push us under
+                    await assertRedeemMulti(
+                        setBasket(false, 100, 10),
+                        [
+                            setBasset(25, 37),
+                            setBasset(25, 21),
+                            setBasset(25, 21),
+                            setBasset(25, 21),
+                        ],
+                        [setArgs(0, 30)],
+                        setResult(false, "bAssets must remain above implicit min weight"),
+                    );
                 });
             });
         });
@@ -1244,21 +1302,20 @@ contract("ForgeValidator", async (accounts) => {
                  * BassetVaults:    [25, 21, 29, 25]
                  * RedeemIndex:     3
                  * RedeemAmt:       5
-                 * Index 2 will go over weight
                  */
-                // await assertSingleRedeem(
-                //     setBasket(false, 100, 5),
-                //     [setBasset(25, 25), setBasset(25, 21), setBasset(25, 29), setBasset(25, 25)],
-                //     setArgs(3, 5),
-                //     setResult(false, "bAssets must remain under max weight"),
-                // );
-                // // Changing q to 3 allows the redemption to pass
-                // await assertSingleRedeem(
-                //     setBasket(false, 100, 5),
-                //     [setBasset(25, 25), setBasset(25, 21), setBasset(25, 29), setBasset(25, 25)],
-                //     setArgs(3, 3),
-                //     setResult(true),
-                // );
+                await assertRedeemMulti(
+                    setBasket(false, 100, 4),
+                    [setBasset(25, 25), setBasset(25, 21), setBasset(25, 29), setBasset(25, 25)],
+                    [setArgs(3, 6)],
+                    setResult(false, "bAssets must remain above implicit min weight"),
+                );
+                // Changing q to 3 allows the redemption to pass
+                await assertRedeemMulti(
+                    setBasket(false, 100, 4),
+                    [setBasset(25, 25), setBasset(25, 21), setBasset(25, 29), setBasset(25, 25)],
+                    [setArgs(3, 5)],
+                    setResult(true),
+                );
             });
             it("always returns invalid until grace is increased", async () => {
                 /**
@@ -1270,19 +1327,19 @@ contract("ForgeValidator", async (accounts) => {
                  * RedeemAmt:       5
                  * Index 2 will go over weight
                  */
-                // await assertSingleRedeem(
-                //     setBasket(false, 100, 5),
-                //     [setBasset(25, 25), setBasset(25, 21), setBasset(25, 29), setBasset(25, 25)],
-                //     setArgs(3, 5),
-                //     setResult(false, "bAssets must remain under max weight"),
-                // );
-                // // Changing grace to 7 allows passage
-                // await assertSingleRedeem(
-                //     setBasket(false, 100, 7),
-                //     [setBasset(25, 25), setBasset(25, 21), setBasset(25, 29), setBasset(25, 25)],
-                //     setArgs(3, 5),
-                //     setResult(true),
-                // );
+                await assertRedeemMulti(
+                    setBasket(false, 100, 5),
+                    [setBasset(25, 25), setBasset(25, 21), setBasset(25, 29), setBasset(25, 25)],
+                    [setArgs(3, 7)],
+                    setResult(false, "bAssets must remain above implicit min weight"),
+                );
+                // Changing grace to 7 allows passage
+                await assertRedeemMulti(
+                    setBasket(false, 100, 6),
+                    [setBasset(25, 25), setBasset(25, 21), setBasset(25, 29), setBasset(25, 25)],
+                    [setArgs(3, 7)],
+                    setResult(true),
+                );
             });
         });
         context("in a basket with some affected bAssets", async () => {
@@ -1297,28 +1354,28 @@ contract("ForgeValidator", async (accounts) => {
                      * RedeemIndex:     0
                      * RedeemAmt:       1
                      */
-                    // await assertSingleRedeem(
-                    //     setBasket(false, 100, 5),
-                    //     [
-                    //         setBasset(25, 25),
-                    //         setBasset(25, 25, 18, BassetStatus.Liquidating),
-                    //         setBasset(25, 25),
-                    //         setBasset(25, 25),
-                    //     ],
-                    //     setArgs(0, 1),
-                    //     setResult(false, "bAssets undergoing liquidation"),
-                    // );
-                    // await assertSingleRedeem(
-                    //     setBasket(false, 100, 5),
-                    //     [
-                    //         setBasset(25, 25),
-                    //         setBasset(25, 25, 18, BassetStatus.BrokenBelowPeg),
-                    //         setBasset(25, 25),
-                    //         setBasset(25, 25),
-                    //     ],
-                    //     setArgs(0, 1),
-                    //     setResult(false, "bAssets undergoing liquidation"),
-                    // );
+                    await assertRedeemMulti(
+                        setBasket(false, 100, 5),
+                        [
+                            setBasset(25, 25),
+                            setBasset(25, 25, 18, BassetStatus.Liquidating),
+                            setBasset(25, 25),
+                            setBasset(25, 25),
+                        ],
+                        [setArgs(0, 1)],
+                        setResult(false, "bAssets undergoing liquidation"),
+                    );
+                    await assertRedeemMulti(
+                        setBasket(false, 100, 5),
+                        [
+                            setBasset(25, 25),
+                            setBasset(25, 25, 18, BassetStatus.BrokenBelowPeg),
+                            setBasset(25, 25),
+                            setBasset(25, 25),
+                        ],
+                        [setArgs(0, 1)],
+                        setResult(false, "bAssets undergoing liquidation"),
+                    );
                 });
             });
             context("with some bAssets broken above peg", async () => {
@@ -1332,17 +1389,17 @@ contract("ForgeValidator", async (accounts) => {
                      * RedeemIndex:     0
                      * RedeemAmt:       1
                      */
-                    // await assertSingleRedeem(
-                    //     setBasket(false, 100, 5),
-                    //     [
-                    //         setBasset(25, 25),
-                    //         setBasset(25, 25, 18, BassetStatus.BrokenAbovePeg),
-                    //         setBasset(25, 25),
-                    //         setBasset(25, 25),
-                    //     ],
-                    //     setArgs(0, 1),
-                    //     setResult(true),
-                    // );
+                    await assertRedeemMulti(
+                        setBasket(false, 100, 5),
+                        [
+                            setBasset(25, 25),
+                            setBasset(25, 25, 18, BassetStatus.BrokenAbovePeg),
+                            setBasset(25, 25),
+                            setBasset(25, 25),
+                        ],
+                        [setArgs(0, 1)],
+                        setResult(true),
+                    );
                 });
                 it("fails if we try to redeem it", async () => {
                     /**
@@ -1354,17 +1411,17 @@ contract("ForgeValidator", async (accounts) => {
                      * RedeemIndex:     1
                      * RedeemAmt:       1
                      */
-                    // await assertSingleRedeem(
-                    //     setBasket(false, 100, 5),
-                    //     [
-                    //         setBasset(25, 25),
-                    //         setBasset(25, 25, 18, BassetStatus.BrokenAbovePeg),
-                    //         setBasset(25, 25),
-                    //         setBasset(25, 25),
-                    //     ],
-                    //     setArgs(1, 1),
-                    //     setResult(false, "Cannot redeem depegged bAsset"),
-                    // );
+                    await assertRedeemMulti(
+                        setBasket(false, 100, 5),
+                        [
+                            setBasset(25, 25),
+                            setBasset(25, 25, 18, BassetStatus.BrokenAbovePeg),
+                            setBasset(25, 25),
+                            setBasset(25, 25),
+                        ],
+                        [setArgs(1, 1)],
+                        setResult(false, "Cannot redeem depegged bAsset"),
+                    );
                 });
                 it("succeeds with redemption if the basket has failed", async () => {
                     /**
@@ -1376,17 +1433,17 @@ contract("ForgeValidator", async (accounts) => {
                      * RedeemIndex:     1
                      * RedeemAmt:       1
                      */
-                    // await assertSingleRedeem(
-                    //     setBasket(true, 100, 5),
-                    //     [
-                    //         setBasset(25, 25),
-                    //         setBasset(25, 25, 18, BassetStatus.BrokenAbovePeg),
-                    //         setBasset(25, 25),
-                    //         setBasset(25, 25),
-                    //     ],
-                    //     setArgs(1, 1),
-                    //     setResult(true),
-                    // );
+                    await assertRedeemMulti(
+                        setBasket(true, 100, 5),
+                        [
+                            setBasset(25, 25),
+                            setBasset(25, 25, 18, BassetStatus.BrokenAbovePeg),
+                            setBasset(25, 25),
+                            setBasset(25, 25),
+                        ],
+                        [setArgs(1, 1)],
+                        setResult(true),
+                    );
                 });
             });
         });

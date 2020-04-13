@@ -164,10 +164,9 @@ contract ForgeValidator is IForgeValidator {
         // Calculate ratioed redemption amount in mAsset terms
         uint256 ratioedRedemptionAmount = _bAssetQuantity.mulRatioTruncate(bAsset.ratio);
         // Subtract ratioed redemption amount from both vault and total supply
-        data.ratioedBassetVaults[_indexToRedeem]
-            = data.ratioedBassetVaults[_indexToRedeem].sub(ratioedRedemptionAmount);
+        data.ratioedBassetVaults[_indexToRedeem] = data.ratioedBassetVaults[_indexToRedeem].sub(ratioedRedemptionAmount);
 
-        (, bool[] memory underWeight) =
+        bool[] memory underWeight =
             _getOverweightBassetsAfter(_totalVault.sub(ratioedRedemptionAmount), _grace, _allBassets, data.ratioedBassetVaults);
 
         // If there is at least one overweight bAsset before, we must redeem it
@@ -216,6 +215,8 @@ contract ForgeValidator is IForgeValidator {
         uint256 newTotalVault = _totalVault;
 
         for(uint256 i = 0; i < idxCount; i++){
+            if(_idxs[i] >= _allBassets.length) return (false, "Basset does not exist");
+
             if(_allBassets[_idxs[i]].status == BassetStatus.BrokenAbovePeg && !_basketIsFailed) {
                 return (false, "Cannot redeem depegged bAsset");
             }
@@ -228,7 +229,7 @@ contract ForgeValidator is IForgeValidator {
             newTotalVault = newTotalVault.sub(ratioedRedemptionAmount);
         }
 
-        (, bool[] memory underWeight) = _getOverweightBassetsAfter(newTotalVault, _grace, _allBassets, data.ratioedBassetVaults);
+        bool[] memory underWeight = _getOverweightBassetsAfter(newTotalVault, _grace, _allBassets, data.ratioedBassetVaults);
 
         // If any bAssets are overweight before, all bAssets we redeem must be overweight
         if(data.atLeastOneOverweight) {
@@ -312,7 +313,6 @@ contract ForgeValidator is IForgeValidator {
      * @param _grace                    Deviation allowance in units
      * @param _bAssets                  Array of all bAsset information
      * @param _ratioedBassetVaultsAfter Array of all new bAsset vaults
-     * @return atLeastOneOverweight     Is there a single bAsset overweight?
      * @return underWeight              Array of bools - is this bAsset now under min weight
      */
     function _getOverweightBassetsAfter(
@@ -323,24 +323,17 @@ contract ForgeValidator is IForgeValidator {
     )
         private
         pure
-        returns (bool atLeastOneOverweight, bool[] memory underWeight)
+        returns (bool[] memory underWeight)
     {
         uint256 len = _ratioedBassetVaultsAfter.length;
-        atLeastOneOverweight = false;
         underWeight = new bool[](len);
 
         for(uint256 i = 0; i < len; i++) {
             uint256 targetWeightInUnits = _newTotal.mulTruncate(_bAssets[i].targetWeight);
-            // If the bAsset is de-pegged on the up-side, it doesn't matter if it goes above max
-            bool bAssetOverWeight =
-                _ratioedBassetVaultsAfter[i] > targetWeightInUnits.add(_grace) &&
-                _bAssets[i].status != BassetStatus.BrokenAbovePeg;
 
             underWeight[i] = _grace > targetWeightInUnits
                 ? false
                 : _ratioedBassetVaultsAfter[i] < targetWeightInUnits.sub(_grace);
-
-            atLeastOneOverweight = atLeastOneOverweight || bAssetOverWeight;
         }
     }
 }
