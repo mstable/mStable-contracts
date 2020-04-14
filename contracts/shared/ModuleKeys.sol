@@ -3,12 +3,12 @@ pragma solidity 0.5.16;
 /**
   * @title  ModuleKeys
   * @author Stability Labs Pty. Ltd.
-  * @dev    Provides system wide access to the byte32 represntations of system modules
+  * @notice Provides system wide access to the byte32 represntations of system modules
   *         This allows each system module to be able to reference and update one another in a
   *         friendly way
+  * @dev    keccak256() values are hardcoded to avoid re-evaluation of the constants at runtime.
   */
 contract ModuleKeys {
-    // keccak256() values are hardcoded to avoid re-evaluation of the constants at runtime.
 
     // Governance
     // ===========

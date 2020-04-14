@@ -53,16 +53,16 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
     uint256 private constant MAX_FEE = 1e17;
 
     constructor (
-        string memory _nameArg,
-        string memory _symbolArg,
+        string memory _name,
+        string memory _symbol,
         address _nexus,
         address _feeRecipient,
         address _forgeValidator,
         address _basketManager
     )
         MassetToken(
-            _nameArg,
-            _symbolArg
+            _name,
+            _symbol
         )
         Module(
             _nexus

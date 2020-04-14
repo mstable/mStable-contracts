@@ -3,15 +3,14 @@ pragma solidity 0.5.16;
 /**
  * @title  InitializableModuleKeys
  * @author Stability Labs Pty. Ltd.
- * @dev    Provides system wide access to the byte32 represntations of system modules
+ * @notice Provides system wide access to the byte32 represntations of system modules
  *         This allows each system module to be able to reference and update one another in a
  *         friendly way. Contract is used for upgradable proxy contracts.
+ * @dev    The contract is a replica of ModuleKeys.sol
+ *         The following variables are to be assigned only once from initialize() function.
+ *         Hence, the variable names are decleared in UPPER_CASE to indicate constants.
  */
 contract InitializableModuleKeys {
-
-    // The contract is a replica of ModuleKeys.sol
-    // The following variables are to be assigned only once from initialize() function.
-    // Hence, the variable names are decleared in UPPER_CASE to indicate constants.
 
     // Governance                           // Phases
     bytes32 public KEY_GOVERNANCE;          // 2.x
