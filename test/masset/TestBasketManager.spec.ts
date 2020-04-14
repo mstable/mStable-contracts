@@ -82,10 +82,9 @@ contract("BasketManager", async (accounts) => {
         return [b1, b2];
     }
 
-    async function expectBassets(bAssetsArr: Array<Basset>, bitmap: BN, len: BN): Promise<void> {
-        const [receivedBassets, receivedBitmap, receivedLen] = await basketManager.getBassets();
+    async function expectBassets(bAssetsArr: Array<Basset>, len: BN): Promise<void> {
+        const [receivedBassets, receivedLen] = await basketManager.getBassets();
         equalBassets(bAssetsArr, receivedBassets);
-        expect(bitmap).to.bignumber.equal(receivedBitmap);
         expect(len).to.bignumber.equal(receivedLen);
     }
 
@@ -345,7 +344,7 @@ contract("BasketManager", async (accounts) => {
                 expect(masset).to.equal(await basketManager.mAsset());
 
                 // should have default basket configurations
-                await expectBassets(createDefaultBassets(), new BN(3), new BN(2));
+                await expectBassets(createDefaultBassets(), new BN(2));
 
                 // should have all bAsset's integrations addresses
                 await Promise.all(
@@ -1116,8 +1115,9 @@ contract("BasketManager", async (accounts) => {
             );
         });
         it("should update the weights even with affected bAsset", async () => {
+            const { aTokens } = integrationDetails;
             await Promise.all(
-                integrationDetails.aTokens.map(async (a) => {
+                aTokens.map(async (a) => {
                     const bAsset: Basset = await mockBasketManager.getBasset(a.bAsset);
                     expect(percentToWeight(50)).to.bignumber.equal(bAsset.targetWeight);
                 }),
@@ -1126,9 +1126,10 @@ contract("BasketManager", async (accounts) => {
             await mockBasketManager.addBasset(mockERC20.address, mockAaveIntegrationAddr, false, {
                 from: sa.governor,
             });
+            await mockBasketManager.setBassetStatus(aTokens[1].bAsset, BassetStatus.BrokenBelowPeg);
 
             await mockBasketManager.setBasketWeights(
-                [...integrationDetails.aTokens.map((a) => a.bAsset), mockERC20.address],
+                [...aTokens.map((a) => a.bAsset), mockERC20.address],
                 [percentToWeight(30), percentToWeight(50), percentToWeight(20)],
                 { from: sa.governor },
             );
@@ -1677,18 +1678,36 @@ contract("BasketManager", async (accounts) => {
 
         it("should fail when contract is Paused", async () => {
             await basketManager.pause({ from: sa.governor });
-            const bitmap = new BN(3);
+
             await expectRevert(
-                basketManager.prepareForgeBassets(bitmap, 2, [], false),
+                basketManager.prepareForgeBassets(
+                    [integrationDetails.aTokens[0].bAsset],
+                    [],
+                    false,
+                ),
                 "Pausable: paused",
             );
         });
 
-        it("should fail when wrong bitmap is passed", async () => {
-            const bitmap = new BN(7);
+        it("should fail when passed duplicate items", async () => {
             await expectRevert(
-                basketManager.prepareForgeBassets(bitmap, 3, [], false),
-                "Found incorrect elements",
+                basketManager.prepareForgeBassets(
+                    [
+                        integrationDetails.aTokens[0].bAsset,
+                        integrationDetails.aTokens[1].bAsset,
+                        integrationDetails.aTokens[0].bAsset,
+                    ],
+                    [],
+                    false,
+                ),
+                "Must have no duplicates",
+            );
+        });
+
+        it("should fail when passed incorrect bAsset address", async () => {
+            await expectRevert(
+                basketManager.prepareForgeBassets([sa.dummy1], [], false),
+                "Must exist",
             );
         });
 
@@ -1699,7 +1718,7 @@ contract("BasketManager", async (accounts) => {
 
     describe("getBassets()", async () => {
         it("should get all bAssets", async () => {
-            await expectBassets(createDefaultBassets(), new BN(3), new BN(2));
+            await expectBassets(createDefaultBassets(), new BN(2));
         });
     });
 
@@ -1738,48 +1757,6 @@ contract("BasketManager", async (accounts) => {
                     expect(mockAaveIntegrationAddr).to.equal(integrator);
                 }),
             );
-        });
-    });
-
-    describe("getBitmapFor()", async () => {
-        it("should return bitmap for 0 bAssets", async () => {
-            const bitmap = await basketManager.getBitmapFor([]);
-
-            expect(new BN(0)).to.bignumber.equal(bitmap);
-        });
-
-        it("should return bitmap for 2 bAssets", async () => {
-            const bitmap = await basketManager.getBitmapFor(
-                integrationDetails.aTokens.map((a) => a.bAsset),
-            );
-            expect(new BN(3)).to.bignumber.equal(bitmap);
-        });
-
-        it("should return bitmap even for non-existing bAsset", async () => {
-            const bAssetArr: Array<string> = integrationDetails.aTokens.map((a) => a.bAsset);
-            bAssetArr.push(sa.other);
-            const bitmap = await basketManager.getBitmapFor(bAssetArr);
-            expect(new BN(3)).to.bignumber.equal(bitmap);
-        });
-
-        it("should return bitmap for 16 bAssets", async () => {
-            const mockERC20s: Array<t.MockERC20Instance> = new Array(14);
-            for (let index = 0; index < 14; index += 1) {
-                const mock = await MockERC20.new("Mock", "MKT", 18, sa.default, new BN(10000));
-                mockERC20s.push(mock);
-            }
-
-            await Promise.all(
-                mockERC20s.map(async (a) => {
-                    basketManager.addBasset(a.address, mockAaveIntegrationAddr, false, {
-                        from: sa.governor,
-                    });
-                }),
-            );
-
-            const bAssets = await basketManager.getBassets();
-            const bitmap = await basketManager.getBitmapFor(bAssets[0].map((a) => a.addr));
-            expect(new BN(65535)).to.bignumber.equal(bitmap);
         });
     });
 

@@ -5,7 +5,7 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 /**
  * @title  MassetToken
- * @author Stability Labs Pty. Lte.
+ * @author Stability Labs Pty. Ltd.
  * @dev    Basic ERC20Detailed Token functionality for Masset
  */
 contract MassetToken is ERC20, ERC20Detailed {

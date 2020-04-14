@@ -1,7 +1,7 @@
 import { MockModuleInstance, MockNexusInstance } from "types/generated";
-import { StandardAccounts, SystemMachine } from "@utils/machines";
+import { StandardAccounts } from "@utils/machines";
 import { BN } from "@utils/tools";
-import { constants, expectEvent, expectRevert } from "@openzeppelin/test-helpers";
+import {  expectRevert } from "@openzeppelin/test-helpers";
 import envSetup from "@utils/env_setup";
 import { ZERO_ADDRESS } from "@utils/constants";
 import shouldBehaveLikeModule from "./behaviours/Module.behaviour";
@@ -9,7 +9,7 @@ import shouldBehaveLikeModule from "./behaviours/Module.behaviour";
 const MockModule = artifacts.require("MockModule");
 const MockNexus = artifacts.require("MockNexus");
 
-const { expect, assert } = envSetup.configure();
+const { expect } = envSetup.configure();
 
 contract("Module", async (accounts) => {
     const ctx: { module?: MockModuleInstance } = {};

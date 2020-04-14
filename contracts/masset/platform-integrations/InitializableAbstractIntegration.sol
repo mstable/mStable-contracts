@@ -10,16 +10,22 @@ import { MassetHelpers } from "../shared/MassetHelpers.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
+import { InitializableReentrancyGuard } from "../../shared/InitializableReentrancyGuard.sol";
 
 /**
  * @title   AbstractIntegration
- * @author  Stability Labs Pty. Lte.
+ * @author  Stability Labs Pty. Ltd.
  * @notice  A generalised platform integration contract from which to inherit
  * @dev     Contains functionality for managing access to a specific lending
  *          platform. pTokens are the generic name given to platform tokens e.g. cDai
  *          Governance are responsible for setting platform and pToken addresses.
  */
-contract InitializableAbstractIntegration is Initializable, IPlatformIntegration, InitializableGovernableWhitelist {
+contract InitializableAbstractIntegration is
+    Initializable,
+    IPlatformIntegration,
+    InitializableGovernableWhitelist,
+    InitializableReentrancyGuard
+{
 
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
@@ -56,6 +62,7 @@ contract InitializableAbstractIntegration is Initializable, IPlatformIntegration
         external
         initializer
     {
+        InitializableReentrancyGuard._initialize();
         InitializableGovernableWhitelist._initialize(_nexus, _whitelisted);
         InitializableAbstractIntegration._initialize(_platformAddress, _bAssets, _pTokens);
     }

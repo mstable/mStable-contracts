@@ -1,21 +1,63 @@
-import { constants, expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
+import { expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
 import { StandardAccounts, SystemMachine } from "@utils/machines";
 import { padRight, BN } from "@utils/tools";
-import { ZERO_ADDRESS, ZERO, ONE_DAY, TEN_DAYS, ONE_WEEK } from "@utils/constants";
+import { ZERO_ADDRESS, ZERO, ONE_DAY, ONE_WEEK } from "@utils/constants";
 import { keccak256 } from "web3-utils";
-import {
-    ClaimableGovernorInstance,
-    DelayedClaimableGovernorInstance,
-    NexusInstance,
-} from "types/generated";
+import { DelayedClaimableGovernorInstance, NexusInstance } from "types/generated";
 
 import envSetup from "@utils/env_setup";
 import shouldBehaveLikeClaimable from "../governance/ClaimableGovernor.behaviour";
 import shouldBehaveLikeDelayedClaimable from "../governance/DelayedClaimableGovernor.behaviour";
 
-const { expect, assert } = envSetup.configure();
+const { expect } = envSetup.configure();
 
-const Nexus = artifacts.require("Nexus");
+/** @dev Uses generic module getter to validate that a module exists with the specified properties */
+async function expectInModules(
+    nexus: NexusInstance,
+    _key: string,
+    _addr: string,
+    _isLocked: boolean,
+): Promise<void> {
+    /* eslint-disable prefer-const */
+    let addr: string;
+    let isLocked: boolean;
+    [addr, isLocked] = await nexus.modules(keccak256(_key));
+    expect(addr, "Module address not matched").to.equal(_addr);
+    expect(isLocked, "Module isLocked not matched").to.equal(_isLocked);
+    const exists = await nexus.moduleExists(keccak256(_key));
+    if (addr !== ZERO_ADDRESS) {
+        expect(exists).to.equal(true);
+    } else {
+        expect(exists).to.equal(false);
+    }
+}
+
+async function expectInProposedModules(
+    nexus: NexusInstance,
+    _key: string,
+    _newAddress: string,
+    _timestamp: BN,
+): Promise<void> {
+    let newAddress: string;
+    let timestamp: BN;
+    [newAddress, timestamp] = await nexus.proposedModules(keccak256(_key));
+    /* eslint-enable prefer-const */
+    expect(newAddress, "New address not matched in proposed modules").to.equal(_newAddress);
+    expect(timestamp, "The timestamp not matched in proposed modules").to.bignumber.equal(
+        _timestamp,
+    );
+}
+
+async function expectInProposedLockModules(
+    nexus: NexusInstance,
+    _key: string,
+    _timestamp: BN,
+): Promise<void> {
+    const timestamp: BN = await nexus.proposedLockModules(keccak256(_key));
+    expect(timestamp, "The timestamp not matched in proposed lock modules").to.bignumber.equal(
+        _timestamp,
+    );
+}
 
 contract("Nexus", async (accounts) => {
     const sa = new StandardAccounts(accounts);
@@ -247,8 +289,6 @@ contract("Nexus", async (accounts) => {
                 await expectInProposedModules(nexus, "dummy1", sa.dummy1, lastTimestamp);
             });
             it("when an existing module address is updated", async () => {
-                let prevAddr: string;
-                let prevIsLocked: boolean;
                 await expectInModules(nexus, "dummy4", sa.dummy4, false);
 
                 // propose new address
@@ -799,47 +839,3 @@ contract("Nexus", async (accounts) => {
         });
     });
 });
-
-/** @dev Uses generic module getter to validate that a module exists with the specified properties */
-async function expectInModules(
-    nexus: NexusInstance,
-    _key: string,
-    _addr: string,
-    _isLocked: boolean,
-) {
-    /* eslint-disable prefer-const */
-    let addr: string;
-    let isLocked: boolean;
-    [addr, isLocked] = await nexus.modules(keccak256(_key));
-    expect(addr, "Module address not matched").to.equal(_addr);
-    expect(isLocked, "Module isLocked not matched").to.equal(_isLocked);
-    const exists = await nexus.moduleExists(keccak256(_key));
-    if (addr !== ZERO_ADDRESS) {
-        expect(exists).to.equal(true);
-    } else {
-        expect(exists).to.equal(false);
-    }
-}
-
-async function expectInProposedModules(
-    nexus: NexusInstance,
-    _key: string,
-    _newAddress: string,
-    _timestamp: BN,
-) {
-    let newAddress: string;
-    let timestamp: BN;
-    [newAddress, timestamp] = await nexus.proposedModules(keccak256(_key));
-    /* eslint-enable prefer-const */
-    expect(newAddress, "New address not matched in proposed modules").to.equal(_newAddress);
-    expect(timestamp, "The timestamp not matched in proposed modules").to.bignumber.equal(
-        _timestamp,
-    );
-}
-
-async function expectInProposedLockModules(nexus: NexusInstance, _key: string, _timestamp: BN) {
-    const timestamp: BN = await nexus.proposedLockModules(keccak256(_key));
-    expect(timestamp, "The timestamp not matched in proposed lock modules").to.bignumber.equal(
-        _timestamp,
-    );
-}

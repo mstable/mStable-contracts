@@ -2,7 +2,6 @@ import { MassetDetails, MassetMachine } from "@utils/machines";
 import { BN } from "./tools";
 import { simpleToExactAmount } from "./math";
 import { fullScale } from "./constants";
-import { BasketComposition } from "../types/machines";
 import envSetup from "./env_setup";
 
 const { expect, assert } = envSetup.configure();
@@ -12,7 +11,7 @@ const { expect, assert } = envSetup.configure();
  *  @param actual The BN.js instance you received
  *  @param expected The BN.js amount you expected to receive, allowing a varience of +/- 10 units
  */
-export const assertBNClose = (actual: BN, expected: BN, variance = new BN(10)) => {
+export const assertBNClose = (actual: BN, expected: BN, variance = new BN(10)): void => {
     const actualDelta = actual.gt(expected) ? actual.sub(expected) : expected.sub(actual);
 
     assert.ok(
@@ -30,7 +29,7 @@ export const assertBNClose = (actual: BN, expected: BN, variance = new BN(10)) =
  *  @param actual The BN.js instance you received
  *  @param expected The operant to compare against
  */
-export const assertBnGte = (actual: BN, comparison: BN) => {
+export const assertBnGte = (actual: BN, comparison: BN): void => {
     assert.ok(
         actual.gte(comparison),
         `Number must be GTE comparitor, got: ${actual.toString()}; comparitor: ${comparison.toString()}`,
@@ -49,7 +48,7 @@ export const assertBNSlightlyGT = (
     equator: BN,
     maxActualShouldExceedExpected = new BN(100),
     mustBeGreater = false,
-) => {
+): void => {
     const actualDelta = actual.gt(equator) ? actual.sub(equator) : equator.sub(actual);
 
     assert.ok(
@@ -74,9 +73,9 @@ export const assertBNSlightlyGTPercent = (
     equator: BN,
     maxPercentIncrease = "0.1",
     mustBeGreater = false,
-) => {
-    let maxIncreaseBN = simpleToExactAmount(maxPercentIncrease, 16);
-    let maxIncreaseUnits = equator.mul(maxIncreaseBN).div(fullScale);
+): void => {
+    const maxIncreaseBN = simpleToExactAmount(maxPercentIncrease, 16);
+    const maxIncreaseUnits = equator.mul(maxIncreaseBN).div(fullScale);
     // const actualDelta = actual.gt(equator) ? actual.sub(equator) : equator.sub(actual);
 
     assert.ok(
@@ -89,7 +88,10 @@ export const assertBNSlightlyGTPercent = (
     );
 };
 
-export const assertBasketIsHealthy = async (machine: MassetMachine, md: MassetDetails) => {
+export const assertBasketIsHealthy = async (
+    machine: MassetMachine,
+    md: MassetDetails,
+): Promise<void> => {
     // Read full basket composition
     const composition = await machine.getBasketComposition(md);
     // Assert sum of bAssets in vault storage is gte to total supply of mAsset

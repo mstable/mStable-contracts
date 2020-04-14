@@ -1,13 +1,13 @@
 import { StandardAccounts } from "@utils/machines";
 import { PausableModuleInstance } from "types/generated";
-import { constants, expectEvent, expectRevert } from "@openzeppelin/test-helpers";
+import { expectEvent, expectRevert } from "@openzeppelin/test-helpers";
 
 import { ZERO_ADDRESS } from "@utils/constants";
 
 export default function shouldBehaveLikePausableModule(
     ctx: { module: PausableModuleInstance },
     sa: StandardAccounts,
-) {
+): void {
     describe("pausableModule constructor", async () => {
         it("should be in unpaused by default", async () => {
             await this.shouldBePaused(ctx.module, false);

@@ -5,7 +5,7 @@ import { Masset } from "./Masset.sol";
 
 /**
   * @title  mUSD
-  * @author Stability Labs Pty. Lte.
+  * @author Stability Labs Pty. Ltd.
   * @dev    mUSD is an mAsset backed 1:1 by a number of USD stablecoins
   */
 contract MUSD is Masset {

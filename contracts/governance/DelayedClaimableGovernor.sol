@@ -5,7 +5,7 @@ import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 
 /**
  * @title   DelayedClaimableGovernor
- * @author  Stability Labs Pty. Lte.
+ * @author  Stability Labs Pty. Ltd.
  * @notice  Current Governor can initiate governance change request.
  *          After a defined delay, proposed Governor can claim governance
  *          ownership.
