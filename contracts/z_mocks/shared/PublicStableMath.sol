@@ -7,7 +7,7 @@ contract PublicStableMath {
     using StableMath for uint256;
 
     function getFullScale()
-        public
+        external
         pure
         returns (uint256)
     {
@@ -15,7 +15,7 @@ contract PublicStableMath {
     }
 
     function getRatioScale()
-        public
+        external
         pure
         returns (uint256)
     {
@@ -23,7 +23,7 @@ contract PublicStableMath {
     }
 
     function scaleInteger(uint256 x)
-        public
+        external
         pure
         returns (uint256)
     {
@@ -31,7 +31,7 @@ contract PublicStableMath {
     }
 
     function mulTruncateScale(uint256 x, uint256 y, uint256 scale)
-        public
+        external
         pure
         returns (uint256)
     {
@@ -39,7 +39,7 @@ contract PublicStableMath {
     }
 
     function mulTruncate(uint256 x, uint256 y)
-        public
+        external
         pure
         returns (uint256)
     {
@@ -47,7 +47,7 @@ contract PublicStableMath {
     }
 
     function mulTruncateCeil(uint256 x, uint256 y)
-        public
+        external
         pure
         returns (uint256)
     {
@@ -55,7 +55,7 @@ contract PublicStableMath {
     }
 
     function divPrecisely(uint256 x, uint256 y)
-        public
+        external
         pure
         returns (uint256)
     {
@@ -63,7 +63,7 @@ contract PublicStableMath {
     }
 
     function mulRatioTruncate(uint256 x, uint256 ratio)
-        public
+        external
         pure
         returns (uint256)
     {
@@ -71,7 +71,7 @@ contract PublicStableMath {
     }
 
     function mulRatioTruncateCeil(uint256 x, uint256 ratio)
-        public
+        external
         pure
         returns (uint256)
     {
@@ -79,7 +79,7 @@ contract PublicStableMath {
     }
 
     function divRatioPrecisely(uint256 x, uint256 ratio)
-        public
+        external
         pure
         returns (uint256)
     {
@@ -87,7 +87,7 @@ contract PublicStableMath {
     }
 
     function min(uint256 x, uint256 y)
-        public
+        external
         pure
         returns (uint256)
     {
@@ -95,7 +95,7 @@ contract PublicStableMath {
     }
 
     function max(uint256 x, uint256 y)
-        public
+        external
         pure
         returns (uint256)
     {
@@ -103,7 +103,7 @@ contract PublicStableMath {
     }
 
     function clamp(uint256 x, uint256 upperBound)
-        public
+        external
         pure
         returns (uint256)
     {

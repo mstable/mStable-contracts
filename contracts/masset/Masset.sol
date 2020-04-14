@@ -508,7 +508,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         external
         managerOrGovernor
     {
-        require(_redemptionFee >= 0 &&_redemptionFee <= MAX_FEE, "Rate must be within bounds");
+        require(_redemptionFee <= MAX_FEE, "Rate must be within bounds");
         redemptionFee = _redemptionFee;
 
         emit RedemptionFeeChanged(_redemptionFee);

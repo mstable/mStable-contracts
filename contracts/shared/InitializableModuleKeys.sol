@@ -3,9 +3,12 @@ pragma solidity 0.5.16;
 /**
  * @title  InitializableModuleKeys
  * @author Stability Labs Pty. Ltd.
- * @dev    Provides system wide access to the byte32 represntations of system modules
+ * @notice Provides system wide access to the byte32 represntations of system modules
  *         This allows each system module to be able to reference and update one another in a
  *         friendly way. Contract is used for upgradable proxy contracts.
+ * @dev    The contract is a replica of ModuleKeys.sol
+ *         The following variables are to be assigned only once from initialize() function.
+ *         Hence, the variable names are decleared in UPPER_CASE to indicate constants.
  */
 contract InitializableModuleKeys {
 
@@ -26,6 +29,8 @@ contract InitializableModuleKeys {
      *      via Proxy to initialize constants in the Proxy contract.
      */
     function _initialize() internal {
+        // keccak256() values are evaluated only once at the time of this function call.
+        // Hence, no need to assign hard-coded values to these variables.
         KEY_GOVERNANCE = keccak256("Governance");
         KEY_STAKING = keccak256("Staking");
         KEY_PROXY_ADMIN = keccak256("ProxyAdmin");
