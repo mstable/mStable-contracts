@@ -1,0 +1,354 @@
+## README ##
+- Although this file is used for Mock contracts. However, fixed the issues reported below.
+- Converted all `public` functions to `external` functions.
+- There is no need to sanitize the function arguments as these functions must accept all possible values.
+
+
+[0;31mSeverity:    LOW
+Pattern:     External Calls of Functions
+Description: A public function that is never called within the
+             contract should be marked as external
+Type:        Violation
+Contract:    PublicStableMath
+Line:        385
+Source: 
+> 
+>     function getFullScale()
+>     ^^^^^^^^^^^^^^^^^^^^^^^
+>         public
+
+[0m
+[0;31mSeverity:    LOW
+Pattern:     External Calls of Functions
+Description: A public function that is never called within the
+             contract should be marked as external
+Type:        Violation
+Contract:    PublicStableMath
+Line:        393
+Source: 
+> 
+>     function getRatioScale()
+>     ^^^^^^^^^^^^^^^^^^^^^^^^
+>         public
+
+[0m
+[0;31mSeverity:    LOW
+Pattern:     External Calls of Functions
+Description: A public function that is never called within the
+             contract should be marked as external
+Type:        Violation
+Contract:    PublicStableMath
+Line:        401
+Source: 
+> 
+>     function scaleInteger(uint256 x)
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         public
+
+[0m
+[0;31mSeverity:    LOW
+Pattern:     External Calls of Functions
+Description: A public function that is never called within the
+             contract should be marked as external
+Type:        Violation
+Contract:    PublicStableMath
+Line:        417
+Source: 
+> 
+>     function mulTruncate(uint256 x, uint256 y)
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         public
+
+[0m
+[0;31mSeverity:    LOW
+Pattern:     External Calls of Functions
+Description: A public function that is never called within the
+             contract should be marked as external
+Type:        Violation
+Contract:    PublicStableMath
+Line:        425
+Source: 
+> 
+>     function mulTruncateCeil(uint256 x, uint256 y)
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         public
+
+[0m
+[0;31mSeverity:    LOW
+Pattern:     External Calls of Functions
+Description: A public function that is never called within the
+             contract should be marked as external
+Type:        Violation
+Contract:    PublicStableMath
+Line:        433
+Source: 
+> 
+>     function divPrecisely(uint256 x, uint256 y)
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         public
+
+[0m
+[0;31mSeverity:    LOW
+Pattern:     External Calls of Functions
+Description: A public function that is never called within the
+             contract should be marked as external
+Type:        Violation
+Contract:    PublicStableMath
+Line:        441
+Source: 
+> 
+>     function mulRatioTruncate(uint256 x, uint256 ratio)
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         public
+
+[0m
+[0;31mSeverity:    LOW
+Pattern:     External Calls of Functions
+Description: A public function that is never called within the
+             contract should be marked as external
+Type:        Violation
+Contract:    PublicStableMath
+Line:        449
+Source: 
+> 
+>     function mulRatioTruncateCeil(uint256 x, uint256 ratio)
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         public
+
+[0m
+[0;31mSeverity:    LOW
+Pattern:     External Calls of Functions
+Description: A public function that is never called within the
+             contract should be marked as external
+Type:        Violation
+Contract:    PublicStableMath
+Line:        457
+Source: 
+> 
+>     function divRatioPrecisely(uint256 x, uint256 ratio)
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         public
+
+[0m
+[0;31mSeverity:    LOW
+Pattern:     External Calls of Functions
+Description: A public function that is never called within the
+             contract should be marked as external
+Type:        Violation
+Contract:    PublicStableMath
+Line:        465
+Source: 
+> 
+>     function min(uint256 x, uint256 y)
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         public
+
+[0m
+[0;31mSeverity:    LOW
+Pattern:     External Calls of Functions
+Description: A public function that is never called within the
+             contract should be marked as external
+Type:        Violation
+Contract:    PublicStableMath
+Line:        473
+Source: 
+> 
+>     function max(uint256 x, uint256 y)
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         public
+
+[0m
+[0;31mSeverity:    LOW
+Pattern:     External Calls of Functions
+Description: A public function that is never called within the
+             contract should be marked as external
+Type:        Violation
+Contract:    PublicStableMath
+Line:        481
+Source: 
+> 
+>     function clamp(uint256 x, uint256 upperBound)
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         public
+
+[0m
+[0;33mSeverity:    MEDIUM
+Pattern:     Missing Input Validation
+Description: Method arguments must be sanitized before they are used
+             in computations.
+Type:        Warning
+Contract:    PublicStableMath
+Line:        401
+Source: 
+> 
+>     function scaleInteger(uint256 x)
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         public
+
+[0m
+[0;33mSeverity:    MEDIUM
+Pattern:     Missing Input Validation
+Description: Method arguments must be sanitized before they are used
+             in computations.
+Type:        Warning
+Contract:    PublicStableMath
+Line:        465
+Source: 
+> 
+>     function min(uint256 x, uint256 y)
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         public
+
+[0m
+[0;33mSeverity:    MEDIUM
+Pattern:     Missing Input Validation
+Description: Method arguments must be sanitized before they are used
+             in computations.
+Type:        Warning
+Contract:    PublicStableMath
+Line:        473
+Source: 
+> 
+>     function max(uint256 x, uint256 y)
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         public
+
+[0m
+[0;33mSeverity:    MEDIUM
+Pattern:     Missing Input Validation
+Description: Method arguments must be sanitized before they are used
+             in computations.
+Type:        Warning
+Contract:    PublicStableMath
+Line:        481
+Source: 
+> 
+>     function clamp(uint256 x, uint256 upperBound)
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         public
+
+[0m
+[0;31mSeverity:    MEDIUM
+Pattern:     Missing Input Validation
+Description: Method arguments must be sanitized before they are used
+             in computations.
+Type:        Violation
+Contract:    PublicStableMath
+Line:        409
+Source: 
+> 
+>     function mulTruncateScale(uint256 x, uint256 y, uint256 scale)
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         public
+
+[0m
+[0;31mSeverity:    MEDIUM
+Pattern:     Missing Input Validation
+Description: Method arguments must be sanitized before they are used
+             in computations.
+Type:        Violation
+Contract:    PublicStableMath
+Line:        417
+Source: 
+> 
+>     function mulTruncate(uint256 x, uint256 y)
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         public
+
+[0m
+[0;31mSeverity:    MEDIUM
+Pattern:     Missing Input Validation
+Description: Method arguments must be sanitized before they are used
+             in computations.
+Type:        Violation
+Contract:    PublicStableMath
+Line:        425
+Source: 
+> 
+>     function mulTruncateCeil(uint256 x, uint256 y)
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         public
+
+[0m
+[0;31mSeverity:    MEDIUM
+Pattern:     Missing Input Validation
+Description: Method arguments must be sanitized before they are used
+             in computations.
+Type:        Violation
+Contract:    PublicStableMath
+Line:        433
+Source: 
+> 
+>     function divPrecisely(uint256 x, uint256 y)
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         public
+
+[0m
+[0;31mSeverity:    MEDIUM
+Pattern:     Missing Input Validation
+Description: Method arguments must be sanitized before they are used
+             in computations.
+Type:        Violation
+Contract:    PublicStableMath
+Line:        441
+Source: 
+> 
+>     function mulRatioTruncate(uint256 x, uint256 ratio)
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         public
+
+[0m
+[0;31mSeverity:    MEDIUM
+Pattern:     Missing Input Validation
+Description: Method arguments must be sanitized before they are used
+             in computations.
+Type:        Violation
+Contract:    PublicStableMath
+Line:        449
+Source: 
+> 
+>     function mulRatioTruncateCeil(uint256 x, uint256 ratio)
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         public
+
+[0m
+[0;31mSeverity:    MEDIUM
+Pattern:     Missing Input Validation
+Description: Method arguments must be sanitized before they are used
+             in computations.
+Type:        Violation
+Contract:    PublicStableMath
+Line:        457
+Source: 
+> 
+>     function divRatioPrecisely(uint256 x, uint256 ratio)
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>         public
+
+[0m
+[0;35mSeverity:    HIGH
+Pattern:     Uninitialized State Variable
+Description: State variables should be explicitly initialized.
+Type:        Conflict
+Contract:    StableMath
+Line:        154
+Source: 
+>      */
+>     uint256 private constant FULL_SCALE = 1e18;
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 
+
+[0m
+[0;35mSeverity:    HIGH
+Pattern:     Uninitialized State Variable
+Description: State variables should be explicitly initialized.
+Type:        Conflict
+Contract:    StableMath
+Line:        162
+Source: 
+>      */
+>     uint256 private constant RATIO_SCALE = 1e8;
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 
+
+[0m

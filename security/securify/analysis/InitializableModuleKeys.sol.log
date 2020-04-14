@@ -1,0 +1,328 @@
+[0;31mSeverity:    INFO
+Pattern:     Solidity Naming Convention
+Description: Reports declarations that do not adhere to Solidity's
+             naming convention.
+Type:        Violation
+Contract:    InitializableModuleKeys
+Line:        7
+Source: 
+>     // Governance                           // Phases
+>     bytes32 public KEY_GOVERNANCE;          // 2.x
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>     bytes32 public KEY_STAKING;             // 1.2
+
+
+## README ##
+- The variables are defined in UPPER_CASE because the values to these variables will be initialized only once.
+- This is to remain consistent with ModuleKeys.sol
+- These variables are initialized upon `initialize` function call. As this contract is used for upgradability.
+- Ignoring rest of this report.
+
+
+[0m
+[0;31mSeverity:    INFO
+Pattern:     Solidity Naming Convention
+Description: Reports declarations that do not adhere to Solidity's
+             naming convention.
+Type:        Violation
+Contract:    InitializableModuleKeys
+Line:        8
+Source: 
+>     bytes32 public KEY_GOVERNANCE;          // 2.x
+>     bytes32 public KEY_STAKING;             // 1.2
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+>     bytes32 public KEY_PROXY_ADMIN;         // 1.0
+
+[0m
+[0;31mSeverity:    INFO
+Pattern:     Solidity Naming Convention
+Description: Reports declarations that do not adhere to Solidity's
+             naming convention.
+Type:        Violation
+Contract:    InitializableModuleKeys
+Line:        9
+Source: 
+>     bytes32 public KEY_STAKING;             // 1.2
+>     bytes32 public KEY_PROXY_ADMIN;         // 1.0
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 
+
+[0m
+[0;31mSeverity:    INFO
+Pattern:     Solidity Naming Convention
+Description: Reports declarations that do not adhere to Solidity's
+             naming convention.
+Type:        Violation
+Contract:    InitializableModuleKeys
+Line:        12
+Source: 
+>     // mStable
+>     bytes32 public KEY_ORACLE_HUB;          // 1.2
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>     bytes32 public KEY_MANAGER;             // 1.2
+
+[0m
+[0;31mSeverity:    INFO
+Pattern:     Solidity Naming Convention
+Description: Reports declarations that do not adhere to Solidity's
+             naming convention.
+Type:        Violation
+Contract:    InitializableModuleKeys
+Line:        13
+Source: 
+>     bytes32 public KEY_ORACLE_HUB;          // 1.2
+>     bytes32 public KEY_MANAGER;             // 1.2
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+>     bytes32 public KEY_RECOLLATERALISER;    // 2.x
+
+[0m
+[0;31mSeverity:    INFO
+Pattern:     Solidity Naming Convention
+Description: Reports declarations that do not adhere to Solidity's
+             naming convention.
+Type:        Violation
+Contract:    InitializableModuleKeys
+Line:        14
+Source: 
+>     bytes32 public KEY_MANAGER;             // 1.2
+>     bytes32 public KEY_RECOLLATERALISER;    // 2.x
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>     bytes32 public KEY_META_TOKEN;          // 1.1
+
+[0m
+[0;31mSeverity:    INFO
+Pattern:     Solidity Naming Convention
+Description: Reports declarations that do not adhere to Solidity's
+             naming convention.
+Type:        Violation
+Contract:    InitializableModuleKeys
+Line:        15
+Source: 
+>     bytes32 public KEY_RECOLLATERALISER;    // 2.x
+>     bytes32 public KEY_META_TOKEN;          // 1.1
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>     bytes32 public KEY_SAVINGS_MANAGER;     // 1.0
+
+[0m
+[0;31mSeverity:    INFO
+Pattern:     Solidity Naming Convention
+Description: Reports declarations that do not adhere to Solidity's
+             naming convention.
+Type:        Violation
+Contract:    InitializableModuleKeys
+Line:        16
+Source: 
+>     bytes32 public KEY_META_TOKEN;          // 1.1
+>     bytes32 public KEY_SAVINGS_MANAGER;     // 1.0
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 
+
+[0m
+[0;31mSeverity:    HIGH
+Pattern:     Uninitialized State Variable
+Description: State variables should be explicitly initialized.
+Type:        Violation
+Contract:    InitializableModuleKeys
+Line:        7
+Source: 
+>     // Governance                           // Phases
+>     bytes32 public KEY_GOVERNANCE;          // 2.x
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>     bytes32 public KEY_STAKING;             // 1.2
+
+[0m
+[0;31mSeverity:    HIGH
+Pattern:     Uninitialized State Variable
+Description: State variables should be explicitly initialized.
+Type:        Violation
+Contract:    InitializableModuleKeys
+Line:        8
+Source: 
+>     bytes32 public KEY_GOVERNANCE;          // 2.x
+>     bytes32 public KEY_STAKING;             // 1.2
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+>     bytes32 public KEY_PROXY_ADMIN;         // 1.0
+
+[0m
+[0;31mSeverity:    HIGH
+Pattern:     Uninitialized State Variable
+Description: State variables should be explicitly initialized.
+Type:        Violation
+Contract:    InitializableModuleKeys
+Line:        9
+Source: 
+>     bytes32 public KEY_STAKING;             // 1.2
+>     bytes32 public KEY_PROXY_ADMIN;         // 1.0
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 
+
+[0m
+[0;31mSeverity:    HIGH
+Pattern:     Uninitialized State Variable
+Description: State variables should be explicitly initialized.
+Type:        Violation
+Contract:    InitializableModuleKeys
+Line:        12
+Source: 
+>     // mStable
+>     bytes32 public KEY_ORACLE_HUB;          // 1.2
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>     bytes32 public KEY_MANAGER;             // 1.2
+
+[0m
+[0;31mSeverity:    HIGH
+Pattern:     Uninitialized State Variable
+Description: State variables should be explicitly initialized.
+Type:        Violation
+Contract:    InitializableModuleKeys
+Line:        13
+Source: 
+>     bytes32 public KEY_ORACLE_HUB;          // 1.2
+>     bytes32 public KEY_MANAGER;             // 1.2
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+>     bytes32 public KEY_RECOLLATERALISER;    // 2.x
+
+[0m
+[0;31mSeverity:    HIGH
+Pattern:     Uninitialized State Variable
+Description: State variables should be explicitly initialized.
+Type:        Violation
+Contract:    InitializableModuleKeys
+Line:        14
+Source: 
+>     bytes32 public KEY_MANAGER;             // 1.2
+>     bytes32 public KEY_RECOLLATERALISER;    // 2.x
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>     bytes32 public KEY_META_TOKEN;          // 1.1
+
+[0m
+[0;31mSeverity:    HIGH
+Pattern:     Uninitialized State Variable
+Description: State variables should be explicitly initialized.
+Type:        Violation
+Contract:    InitializableModuleKeys
+Line:        15
+Source: 
+>     bytes32 public KEY_RECOLLATERALISER;    // 2.x
+>     bytes32 public KEY_META_TOKEN;          // 1.1
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>     bytes32 public KEY_SAVINGS_MANAGER;     // 1.0
+
+[0m
+[0;31mSeverity:    HIGH
+Pattern:     Uninitialized State Variable
+Description: State variables should be explicitly initialized.
+Type:        Violation
+Contract:    InitializableModuleKeys
+Line:        16
+Source: 
+>     bytes32 public KEY_META_TOKEN;          // 1.1
+>     bytes32 public KEY_SAVINGS_MANAGER;     // 1.0
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 
+
+[0m
+[0;31mSeverity:    INFO
+Pattern:     Unused State Variable
+Description: Unused state variables should be removed.
+Type:        Violation
+Contract:    InitializableModuleKeys
+Line:        7
+Source: 
+>     // Governance                           // Phases
+>     bytes32 public KEY_GOVERNANCE;          // 2.x
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>     bytes32 public KEY_STAKING;             // 1.2
+
+[0m
+[0;31mSeverity:    INFO
+Pattern:     Unused State Variable
+Description: Unused state variables should be removed.
+Type:        Violation
+Contract:    InitializableModuleKeys
+Line:        8
+Source: 
+>     bytes32 public KEY_GOVERNANCE;          // 2.x
+>     bytes32 public KEY_STAKING;             // 1.2
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+>     bytes32 public KEY_PROXY_ADMIN;         // 1.0
+
+[0m
+[0;31mSeverity:    INFO
+Pattern:     Unused State Variable
+Description: Unused state variables should be removed.
+Type:        Violation
+Contract:    InitializableModuleKeys
+Line:        9
+Source: 
+>     bytes32 public KEY_STAKING;             // 1.2
+>     bytes32 public KEY_PROXY_ADMIN;         // 1.0
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 
+
+[0m
+[0;31mSeverity:    INFO
+Pattern:     Unused State Variable
+Description: Unused state variables should be removed.
+Type:        Violation
+Contract:    InitializableModuleKeys
+Line:        12
+Source: 
+>     // mStable
+>     bytes32 public KEY_ORACLE_HUB;          // 1.2
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>     bytes32 public KEY_MANAGER;             // 1.2
+
+[0m
+[0;31mSeverity:    INFO
+Pattern:     Unused State Variable
+Description: Unused state variables should be removed.
+Type:        Violation
+Contract:    InitializableModuleKeys
+Line:        13
+Source: 
+>     bytes32 public KEY_ORACLE_HUB;          // 1.2
+>     bytes32 public KEY_MANAGER;             // 1.2
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+>     bytes32 public KEY_RECOLLATERALISER;    // 2.x
+
+[0m
+[0;31mSeverity:    INFO
+Pattern:     Unused State Variable
+Description: Unused state variables should be removed.
+Type:        Violation
+Contract:    InitializableModuleKeys
+Line:        14
+Source: 
+>     bytes32 public KEY_MANAGER;             // 1.2
+>     bytes32 public KEY_RECOLLATERALISER;    // 2.x
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>     bytes32 public KEY_META_TOKEN;          // 1.1
+
+[0m
+[0;31mSeverity:    INFO
+Pattern:     Unused State Variable
+Description: Unused state variables should be removed.
+Type:        Violation
+Contract:    InitializableModuleKeys
+Line:        15
+Source: 
+>     bytes32 public KEY_RECOLLATERALISER;    // 2.x
+>     bytes32 public KEY_META_TOKEN;          // 1.1
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>     bytes32 public KEY_SAVINGS_MANAGER;     // 1.0
+
+[0m
+[0;31mSeverity:    INFO
+Pattern:     Unused State Variable
+Description: Unused state variables should be removed.
+Type:        Violation
+Contract:    InitializableModuleKeys
+Line:        16
+Source: 
+>     bytes32 public KEY_META_TOKEN;          // 1.1
+>     bytes32 public KEY_SAVINGS_MANAGER;     // 1.0
+>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 
+
+[0m

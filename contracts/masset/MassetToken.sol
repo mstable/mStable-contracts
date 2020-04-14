@@ -11,12 +11,12 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 contract MassetToken is ERC20, ERC20Detailed {
 
     constructor (
-        string memory _name,
-        string memory _symbol
+        string memory _nameArg,
+        string memory _symbolArg
     )
         ERC20Detailed(
-            _name,
-            _symbol,
+            _nameArg,
+            _symbolArg,
             18
         )
         internal

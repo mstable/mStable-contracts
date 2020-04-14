@@ -56,11 +56,11 @@ contract Nexus is INexus, DelayedClaimableGovernor {
 
     /**
      * @dev Initialises the Nexus and adds the core data to the Kernel (itself and governor)
-     * @param _governor Governor address
+     * @param _governorAddr Governor address
      */
-    constructor(address _governor)
+    constructor(address _governorAddr)
         public
-        DelayedClaimableGovernor(_governor, UPGRADE_DELAY)
+        DelayedClaimableGovernor(_governorAddr, UPGRADE_DELAY)
     {}
 
     /**

@@ -19,7 +19,7 @@ contract PausableModule is Module {
      */
     event Unpaused(address account);
 
-    bool private _paused;
+    bool private _paused = false;
 
     /**
      * @dev Modifier to make a function callable only when the contract is not paused.
