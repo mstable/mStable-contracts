@@ -67,17 +67,17 @@ contract Nexus is INexus, DelayedClaimableGovernor {
      * @dev Adds multiple new modules to the system to initialize the
      *      Nexus contract with default modules. This should be called first
      *      after deploying Nexus contract.
-     * @param _keys       Keys of the new modules in bytes32 form
-     * @param _addresses  Contract addresses of the new modules
-     * @param _isLocked   IsLocked flag for the new modules
-     * @param _governor   New Governor address
-     * @return bool       Success of publishing new Modules
+     * @param _keys         Keys of the new modules in bytes32 form
+     * @param _addresses    Contract addresses of the new modules
+     * @param _isLocked     IsLocked flag for the new modules
+     * @param _governorAddr New Governor address
+     * @return bool         Success of publishing new Modules
      */
     function initialize(
         bytes32[] calldata _keys,
         address[] calldata _addresses,
         bool[] calldata _isLocked,
-        address _governor
+        address _governorAddr
     )
         external
         onlyGovernor
@@ -93,7 +93,7 @@ contract Nexus is INexus, DelayedClaimableGovernor {
             _publishModule(_keys[i], _addresses[i], _isLocked[i]);
         }
 
-        if(_governor != governor()) _changeGovernor(_governor);
+        if(_governorAddr != governor()) _changeGovernor(_governorAddr);
 
         initialized = true;
         return true;

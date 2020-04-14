@@ -6,12 +6,12 @@ import { ModuleKeys } from "../../shared/ModuleKeys.sol";
 contract MockNexus is Nexus, ModuleKeys {
 
     constructor(
-        address _governor,
+        address _governorAddr,
         address _governance,
         address _manager
     )
         public
-        Nexus(_governor)
+        Nexus(_governorAddr)
     {
         // Initialize Nexus with Mock addresses for Modules
         // Directly adding Mock modules

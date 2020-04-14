@@ -53,16 +53,16 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
     uint256 private constant MAX_FEE = 1e17;
 
     constructor (
-        string memory _name,
-        string memory _symbol,
+        string memory _nameArg,
+        string memory _symbolArg,
         address _nexus,
         address _feeRecipient,
         address _forgeValidator,
         address _basketManager
     )
         MassetToken(
-            _name,
-            _symbol
+            _nameArg,
+            _symbolArg
         )
         Module(
             _nexus
@@ -508,7 +508,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         external
         managerOrGovernor
     {
-        require(_redemptionFee >= 0 &&_redemptionFee <= MAX_FEE, "Rate must be within bounds");
+        require(_redemptionFee <= MAX_FEE, "Rate must be within bounds");
         redemptionFee = _redemptionFee;
 
         emit RedemptionFeeChanged(_redemptionFee);
