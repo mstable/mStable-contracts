@@ -44,13 +44,12 @@ export class MUSDMinter {
             throw new Error("Expected the same number of bassets and quantities");
         }
 
-        const bitmap = await this.getBitmap(bassets);
         const data = await this.getBassetsData(bassets);
         const decimalQuantities = quantities.map((amount, index) =>
             simpleToExactAmount(amount, data[index].decimals),
         );
 
-        return this.mUSD.mintMulti(bitmap, decimalQuantities, musdRecipient, txDetails);
+        return this.mUSD.mintMulti(bassets, decimalQuantities, musdRecipient, txDetails);
     }
 
     public async mintAllBassets(
@@ -58,11 +57,8 @@ export class MUSDMinter {
         musdRecipient: string,
         txDetails: TransactionDetails,
     ) {
-        const bitmap = await this.getBitmap(this.bassetAddresses);
-        console.log(bitmap);
         const quantities = await this.calcOptimalBassetQuantitiesForMint(mintInput);
-        console.log(quantities);
-        return this.mUSD.mintMulti(bitmap, quantities, musdRecipient, txDetails);
+        return this.mUSD.mintMulti(this.bassetAddresses, quantities, musdRecipient, txDetails);
     }
 
     public async getMUSDBalance(account: string) {
@@ -72,10 +68,10 @@ export class MUSDMinter {
     }
 
     private async getBassetsData(bassets = this.bassetAddresses) {
-        let data = await Promise.all(
+        const data = await Promise.all(
             bassets.map(async (b) => {
-                let x = await this.basketManager.getBasset(b);
-                let d = await this.getBassetByAddress(b).decimals();
+                const x = await this.basketManager.getBasset(b);
+                const d = await this.getBassetByAddress(b).decimals();
                 return {
                     ...x,
                     status: parseInt(x.status.toString(), 10) as BassetStatus,
@@ -99,19 +95,12 @@ export class MUSDMinter {
             // maxWeight == 40% == 40e16
             // convertExactToSimple divides by 1e18
             // this creates an exact percentage amount
-            console.log("1", mintInputExact, new BN(targetWeight));
             const relativeUnitsToMint = exactToSimpleAmount(
                 mintInputExact.mul(new BN(targetWeight)),
                 18,
             );
-            console.log("2");
             return applyRatioMassetToBasset(relativeUnitsToMint, ratio);
         });
-    }
-
-    private async getBitmap(bassets = this.bassetAddresses): Promise<number> {
-        const bitmap = await this.basketManager.getBitmapFor(bassets);
-        return bitmap.toNumber();
     }
 
     private async getDecimals(bassets = this.bassetAddresses): Promise<number[]> {
