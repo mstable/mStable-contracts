@@ -107,7 +107,7 @@ contract BasketManager is
     /**
      * @dev Requires the overall basket composition to be healthy
      */
-    modifier basketIsHealthy() {
+    modifier whenBasketIsHealthy() {
         require(!basket.failed, "Basket must be alive");
         _;
     }
@@ -147,7 +147,7 @@ contract BasketManager is
     )
         external
         onlyMasset
-        basketIsHealthy
+        whenBasketIsHealthy
         nonReentrant
     {
         basket.bassets[_bAssetIndex].vaultBalance =
@@ -167,7 +167,7 @@ contract BasketManager is
     )
         external
         onlyMasset
-        basketIsHealthy
+        whenBasketIsHealthy
         nonReentrant
     {
         uint256 len = _bAssetIndices.length;
@@ -273,7 +273,7 @@ contract BasketManager is
     function addBasset(address _bAsset, address _integration, bool _isTransferFeeCharged)
         external
         onlyGovernor
-        basketIsHealthy
+        whenBasketIsHealthy
         returns (uint8 index)
     {
         index = _addBasset(
@@ -349,7 +349,7 @@ contract BasketManager is
     )
         external
         onlyGovernor
-        basketIsHealthy
+        whenBasketIsHealthy
     {
         _setBasketWeights(_bAssets, _weights);
     }
@@ -453,7 +453,7 @@ contract BasketManager is
      */
     function removeBasset(address _assetToRemove)
         external
-        basketIsHealthy
+        whenBasketIsHealthy
         managerOrGovernor
     {
         _removeBasset(_assetToRemove);
@@ -727,7 +727,7 @@ contract BasketManager is
     function handlePegLoss(address _bAsset, bool _belowPeg)
         external
         managerOrGovernor
-        basketIsHealthy
+        whenBasketIsHealthy
         returns (bool alreadyActioned)
     {
         (bool exists, uint256 i) = _isAssetInBasket(_bAsset);
