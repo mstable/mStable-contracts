@@ -60,6 +60,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
         PausableModule(_nexus)
     {
         _updateSavingsContract(_mUSD, _savingsContract);
+        emit SavingsContractAdded(_mUSD, _savingsContract);
     }
 
     /***************************************
