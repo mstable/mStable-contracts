@@ -1,9 +1,12 @@
 /* eslint-disable @typescript-eslint/camelcase */
+/* eslint-disable spaced-comment */
+
 import * as t from "types/generated";
-import { Address } from "types/common";
 
 import { percentToWeight, simpleToExactAmount } from "@utils/math";
 import { ZERO_ADDRESS, RopstenAccounts } from "@utils/constants";
+
+import { Address } from "../../types/common";
 
 export interface ATokenDetails {
     bAsset: Address;
@@ -30,7 +33,7 @@ export interface BassetIntegrationDetails {
 async function loadBassetsRopsten(artifacts): Promise<BassetIntegrationDetails> {
     const c_MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
 
-    let ra = new RopstenAccounts();
+    const ra = new RopstenAccounts();
     // load all the REAL bAssets from Ropsten
     const bAsset_DAI = await c_MockERC20.at(ra.DAI);
     const bAsset_USDC = await c_MockERC20.at(ra.USDC);
@@ -151,8 +154,8 @@ async function loadBassetsLocal(artifacts, deployer): Promise<BassetIntegrationD
     };
 }
 
-export default async ({ artifacts }, deployer, network, accounts) => {
-    if (deployer.network == "fork") {
+export default async ({ artifacts }, deployer, network, accounts): Promise<void> => {
+    if (deployer.network === "fork") {
         // Don't bother running these migrations -- speed up the testing
         return;
     }
@@ -199,15 +202,12 @@ export default async ({ artifacts }, deployer, network, accounts) => {
     Dependencies: []
     ****************************************/
 
-    let default_, governor, feeRecipient;
+    const [default_, governor, feeRecipient] = accounts;
     let bassetDetails: BassetIntegrationDetails;
-    if (deployer.network == "ropsten") {
-        [default_, governor] = accounts;
-        feeRecipient = accounts[2];
+    if (deployer.network === "ropsten") {
         console.log("Loading Ropsten bAssets and lending platforms");
         bassetDetails = await loadBassetsRopsten(artifacts);
     } else {
-        [default_, governor, feeRecipient] = accounts;
         console.log(
             `==============================================\n` +
                 `Generating mock bAssets and lending platforms\n` +
@@ -285,7 +285,7 @@ export default async ({ artifacts }, deployer, network, accounts) => {
             simpleToExactAmount(1, 24).toString(),
             bassetDetails.bAssets.map((b) => b.address),
             bassetDetails.platforms.map((p) =>
-                p == Platform.aave
+                p === Platform.aave
                     ? d_AaveIntegrationProxy.address
                     : d_CompoundIntegrationProxy.address,
             ),
