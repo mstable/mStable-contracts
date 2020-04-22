@@ -8,7 +8,7 @@ pragma solidity 0.5.16;
  *         friendly way. Contract is used for upgradable proxy contracts.
  * @dev    The contract is a replica of ModuleKeys.sol
  *         The following variables are to be assigned only once from initialize() function.
- *         Hence, the variable names are decleared in UPPER_CASE to indicate constants.
+ *         Hence, the variable names are declared in UPPER_CASE to indicate constants.
  */
 contract InitializableModuleKeys {
 

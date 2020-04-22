@@ -162,7 +162,7 @@ contract DelayedProxyAdmin is Module {
         return abi.decode(returndata, (address));
     }
 
-    // TODO this can be removed. However, kept it for us to remind that we are not calling this fn.
+    // NOTICE: This can be removed. However, kept it for us to remind that we are not calling this fn.
     // We are not allowing this function call from Governor or Governance.
     /**
     * @dev Changes the admin of a proxy.
