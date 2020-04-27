@@ -69,7 +69,6 @@ contract("ForgeValidator", async (accounts) => {
         ): Promise<void> => {
             const [isValid, reason] = await forgeValidator.validateMint(
                 simpleToExactAmount(basket.totalSupply, 18),
-                simpleToExactAmount(basket.deviationAllowanceUnits, 18),
                 createBasset(basset.target, basset.vaultUnits, basset.decimals, basset.status),
                 simpleToExactAmount(quantity, basset.decimals),
                 { from: sender },
@@ -473,7 +472,6 @@ contract("ForgeValidator", async (accounts) => {
         ): Promise<void> => {
             const [isValid, reason] = await forgeValidator.validateMintMulti(
                 simpleToExactAmount(basket.totalSupply, 18),
-                simpleToExactAmount(basket.deviationAllowanceUnits, 18),
                 bassets.map((b) => createBasset(b.target, b.vaultUnits, b.decimals, b.status)),
                 quantities.map((q, i) =>
                     simpleToExactAmount(q, bassets[i] ? bassets[i].decimals : 18),

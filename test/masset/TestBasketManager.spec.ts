@@ -23,6 +23,7 @@ import shouldBehaveLikePausableModule from "../shared/behaviours/PausableModule.
 const { expect } = envSetup.configure();
 
 const BasketManager: t.BasketManagerContract = artifacts.require("BasketManager");
+const AaveIntegration: t.AaveIntegrationContract = artifacts.require("AaveIntegration");
 const MockNexus: t.MockNexusContract = artifacts.require("MockNexus");
 const MockBasketManager: t.MockBasketManager3Contract = artifacts.require("MockBasketManager3");
 const MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
@@ -42,6 +43,7 @@ contract("BasketManager", async (accounts) => {
     const mockAaveIntegrationAddr = sa.dummy4;
 
     let integrationDetails: BassetIntegrationDetails;
+    let aaveIntegration: t.AaveIntegrationInstance;
     let basketManager: t.BasketManagerInstance;
     let nexus: t.MockNexusInstance;
 
@@ -51,7 +53,7 @@ contract("BasketManager", async (accounts) => {
             nexus.address,
             masset,
             integrationDetails.aTokens.map((a) => a.bAsset),
-            [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
+            [aaveIntegration.address, aaveIntegration.address],
             [percentToWeight(50), percentToWeight(50)],
             [false, false],
         );
@@ -92,7 +94,7 @@ contract("BasketManager", async (accounts) => {
             nexus.address,
             masset,
             integrationDetails.aTokens.map((a) => a.bAsset),
-            [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
+            [aaveIntegration.address, aaveIntegration.address],
             [percentToWeight(50), percentToWeight(50)],
             [false, false],
         );
@@ -104,10 +106,17 @@ contract("BasketManager", async (accounts) => {
         systemMachine = new SystemMachine(sa.all);
         massetMachine = systemMachine.massetMachine;
         integrationDetails = await massetMachine.loadBassets();
-        // await systemMachine.initialiseMocks(false, true);
 
         nexus = await MockNexus.new(sa.governor, governance, manager);
-        // systemMachine.
+
+        aaveIntegration = await AaveIntegration.new();
+        await aaveIntegration.initialize(
+            nexus.address,
+            [masset, governance],
+            integrationDetails.aavePlatformAddress,
+            integrationDetails.aTokens.map((a) => a.bAsset),
+            integrationDetails.aTokens.map((a) => a.aToken),
+        );
         await createNewBasketManager();
 
         ctx.module = basketManager;

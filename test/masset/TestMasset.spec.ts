@@ -78,7 +78,7 @@ contract("Masset", async (accounts) => {
             // rejected if not governor
             await expectRevert(
                 massetDetails.mAsset.upgradeForgeValidator(sa.dummy2, { from: sa.default }),
-                "Must be manager or governance",
+                "Only governor can execute",
             );
             // rejected if invalid params
             await expectRevert(
@@ -109,7 +109,7 @@ contract("Masset", async (accounts) => {
             // rejected if not governor
             await expectRevert(
                 massetDetails.mAsset.setFeeRecipient(sa.dummy1, { from: sa.default }),
-                "Must be manager or governance",
+                "Only governor can execute",
             );
             // no zero
             await expectRevert(
@@ -127,7 +127,7 @@ contract("Masset", async (accounts) => {
             // rejected if not governor
             await expectRevert(
                 massetDetails.mAsset.setRedemptionFee(newfee, { from: sa.default }),
-                "Must be manager or governance",
+                "Only governor can execute",
             );
             // cannot exceed cap
             const feeExceedingCap = simpleToExactAmount(11, 16); // 11%

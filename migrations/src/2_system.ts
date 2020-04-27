@@ -277,7 +277,39 @@ export default async ({ artifacts }, deployer, network, accounts): Promise<void>
     );
     const d_MUSD: t.MUSDInstance = await c_MUSD.deployed();
 
-    // 2.5. Init BasketManager
+    // 2.5. Init AaveIntegration
+    const initializationData_AaveIntegration: string = d_AaveIntegration.contract.methods
+        .initialize(
+            d_Nexus.address,
+            [d_MUSD.address, d_BasketManagerProxy.address],
+            bassetDetails.aavePlatformAddress,
+            bassetDetails.aTokens.map((a) => a.bAsset),
+            bassetDetails.aTokens.map((a) => a.aToken),
+        )
+        .encodeABI();
+    await d_AaveIntegrationProxy.initialize(
+        d_AaveIntegration.address,
+        d_DelayedProxyAdmin.address,
+        initializationData_AaveIntegration,
+    );
+
+    // 2.6. Init CompoundIntegration
+    const initializationData_CompoundIntegration: string = d_CompoundIntegration.contract.methods
+        .initialize(
+            d_Nexus.address,
+            [d_MUSD.address, d_BasketManagerProxy.address],
+            ZERO_ADDRESS, // We don't need Compound sys addr
+            bassetDetails.cTokens.map((c) => c.bAsset),
+            bassetDetails.cTokens.map((c) => c.cToken),
+        )
+        .encodeABI();
+    await d_CompoundIntegrationProxy.initialize(
+        d_CompoundIntegration.address,
+        d_DelayedProxyAdmin.address,
+        initializationData_CompoundIntegration,
+    );
+
+    // 2.7. Init BasketManager
     const initializationData_BasketManager: string = d_BasketManager.contract.methods
         .initialize(
             d_Nexus.address,
@@ -296,38 +328,6 @@ export default async ({ artifacts }, deployer, network, accounts): Promise<void>
         d_BasketManager.address,
         d_DelayedProxyAdmin.address,
         initializationData_BasketManager,
-    );
-
-    // 2.6. Init AaveIntegration
-    const initializationData_AaveIntegration: string = d_AaveIntegration.contract.methods
-        .initialize(
-            d_Nexus.address,
-            [d_MUSD.address, d_BasketManagerProxy.address],
-            bassetDetails.aavePlatformAddress,
-            bassetDetails.aTokens.map((a) => a.bAsset),
-            bassetDetails.aTokens.map((a) => a.aToken),
-        )
-        .encodeABI();
-    await d_AaveIntegrationProxy.initialize(
-        d_AaveIntegration.address,
-        d_DelayedProxyAdmin.address,
-        initializationData_AaveIntegration,
-    );
-
-    // 2.7. Init CompoundIntegration
-    const initializationData_CompoundIntegration: string = d_CompoundIntegration.contract.methods
-        .initialize(
-            d_Nexus.address,
-            [d_MUSD.address, d_BasketManagerProxy.address],
-            ZERO_ADDRESS, // We don't need Compound sys addr
-            bassetDetails.cTokens.map((c) => c.bAsset),
-            bassetDetails.cTokens.map((c) => c.cToken),
-        )
-        .encodeABI();
-    await d_CompoundIntegrationProxy.initialize(
-        d_CompoundIntegration.address,
-        d_DelayedProxyAdmin.address,
-        initializationData_CompoundIntegration,
     );
 
     /***************************************

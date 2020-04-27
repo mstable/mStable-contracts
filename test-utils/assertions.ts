@@ -100,10 +100,6 @@ export const assertBasketIsHealthy = async (
     composition.bAssets.forEach((b) => {
         expect(b.overweight).to.eq(false);
     });
-    // no basket weight should be below min
-    composition.bAssets.forEach((b) => {
-        expect(b.underweight).to.eq(false);
-    });
     // should be unpaused
     expect(await md.basketManager.paused()).to.eq(false);
     // not failed
