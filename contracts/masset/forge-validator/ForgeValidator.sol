@@ -50,9 +50,9 @@ contract ForgeValidator is IForgeValidator {
         // How much of this bAsset do we have in the vault, in terms of mAsset?
         uint256 newBalanceInMasset = _bAsset.vaultBalance.mulRatioTruncate(_bAsset.ratio).add(mintAmountInMasset);
         // What is the target weight of this bAsset in the basket?
-        uint256 targetWeightInUnits = (_totalVault.add(mintAmountInMasset)).mulTruncate(_bAsset.targetWeight);
+        uint256 maxWeightInUnits = (_totalVault.add(mintAmountInMasset)).mulTruncate(_bAsset.maxWeight);
 
-        if(newBalanceInMasset > targetWeightInUnits) {
+        if(newBalanceInMasset > maxWeightInUnits) {
             return (false, "Must be below implicit max weighting");
         }
 
@@ -107,9 +107,9 @@ contract ForgeValidator is IForgeValidator {
 
         for(uint256 k = 0; k < bAssetCount; k++){
             // What is the target weight of this bAsset in the basket?
-            uint256 targetWeightInUnits = newTotalVault.mulTruncate(_bAssets[k].targetWeight);
+            uint256 maxWeightInUnits = newTotalVault.mulTruncate(_bAssets[k].maxWeight);
 
-            if(newBalances[k] > targetWeightInUnits) {
+            if(newBalances[k] > maxWeightInUnits) {
                 return (false, "Must be below implicit max weighting");
             }
         }
@@ -285,11 +285,11 @@ contract ForgeValidator is IForgeValidator {
             }
 
             response.ratioedBassetVaults[i] = _bAssets[i].vaultBalance.mulRatioTruncate(_bAssets[i].ratio);
-            uint256 targetWeightInUnits = _total.mulTruncate(_bAssets[i].targetWeight);
+            uint256 maxWeightInUnits = _total.mulTruncate(_bAssets[i].maxWeight);
 
             // If the bAsset is de-pegged on the up-side, it doesn't matter if it goes above max
             bool bAssetOverWeight =
-                response.ratioedBassetVaults[i] > targetWeightInUnits &&
+                response.ratioedBassetVaults[i] > maxWeightInUnits &&
                 status != BassetStatus.BrokenAbovePeg;
             response.isOverWeight[i] = bAssetOverWeight;
 
@@ -318,9 +318,9 @@ contract ForgeValidator is IForgeValidator {
         underWeight = new bool[](len);
 
         for(uint256 i = 0; i < len; i++) {
-            uint256 targetWeightInUnits = _newTotal.mulTruncate(_bAssets[i].targetWeight);
+            uint256 maxWeightInUnits = _newTotal.mulTruncate(_bAssets[i].maxWeight);
 
-            underWeight[i] = _ratioedBassetVaultsAfter[i] < targetWeightInUnits;
+            underWeight[i] = _ratioedBassetVaultsAfter[i] < maxWeightInUnits;
         }
     }
 }

@@ -1046,7 +1046,7 @@ contract("BasketManager", async (accounts) => {
             await Promise.all(
                 integrationDetails.aTokens.map(async (a) => {
                     const bAsset: Basset = await mockBasketManager.getBasset(a.bAsset);
-                    expect(percentToWeight(50)).to.bignumber.equal(bAsset.targetWeight);
+                    expect(percentToWeight(50)).to.bignumber.equal(bAsset.maxWeight);
                 }),
             );
 
@@ -1060,7 +1060,7 @@ contract("BasketManager", async (accounts) => {
             await Promise.all(
                 integrationDetails.aTokens.map(async (a, index) => {
                     const bAsset: Basset = await mockBasketManager.getBasset(a.bAsset);
-                    expect(expectedWeight[index]).to.bignumber.equal(bAsset.targetWeight);
+                    expect(expectedWeight[index]).to.bignumber.equal(bAsset.maxWeight);
                 }),
             );
         });
@@ -1069,7 +1069,7 @@ contract("BasketManager", async (accounts) => {
             await Promise.all(
                 aTokens.map(async (a) => {
                     const bAsset: Basset = await mockBasketManager.getBasset(a.bAsset);
-                    expect(percentToWeight(50)).to.bignumber.equal(bAsset.targetWeight);
+                    expect(percentToWeight(50)).to.bignumber.equal(bAsset.maxWeight);
                 }),
             );
             const mockERC20 = await MockERC20.new("Mock", "MKT", 18, sa.default, new BN(10000));
@@ -1092,7 +1092,7 @@ contract("BasketManager", async (accounts) => {
             const [bassets] = await mockBasketManager.getBassets();
             await Promise.all(
                 bassets.map(async (b, index) => {
-                    expect(expectedWeight[index]).to.bignumber.equal(new BN(b.targetWeight));
+                    expect(expectedWeight[index]).to.bignumber.equal(new BN(b.maxWeight));
                 }),
             );
         });
@@ -1300,7 +1300,7 @@ contract("BasketManager", async (accounts) => {
                 expect(lengthBefore).to.equal(lengthAfter);
             });
 
-            it("when bAsset targetWeight is non zero (by governor)", async () => {
+            it("when bAsset maxWeight is non zero (by governor)", async () => {
                 await Promise.all(
                     integrationDetails.aTokens.map(async (a) => {
                         const lengthBefore = (await basketManager.getBassets())[0].length;

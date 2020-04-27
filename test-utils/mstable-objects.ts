@@ -35,7 +35,7 @@ export interface Basset {
     status: BN | BassetStatus;
     isTransferFeeCharged: boolean;
     ratio: BN | string;
-    targetWeight: BN | string;
+    maxWeight: BN | string;
     vaultBalance: BN | string;
     contract?: MockERC20Instance;
 }
@@ -51,7 +51,7 @@ export const createBasket = (bassets: Basset[], failed = false): Basket => {
 };
 
 export const createBasset = (
-    targetWeight: BN | number | string,
+    maxWeight: BN | number | string,
     vaultBalance: BN | number | string,
     decimals = 18,
     status = BassetStatus.Normal,
@@ -61,7 +61,7 @@ export const createBasset = (
         addr: ZERO_ADDRESS,
         isTransferFeeCharged,
         ratio: createMultiple(decimals).toString(),
-        targetWeight: percentToWeight(targetWeight).toString(),
+        maxWeight: percentToWeight(maxWeight).toString(),
         vaultBalance: simpleToExactAmount(vaultBalance, decimals).toString(),
         status,
     };
@@ -72,7 +72,7 @@ export const equalBasset = (bAsset1: Basset, bAsset2: Basset): void => {
     expect(bAsset1.status).to.bignumber.equal(bAsset2.status);
     expect(bAsset1.isTransferFeeCharged).to.equal(bAsset2.isTransferFeeCharged);
     expect(bAsset1.ratio).to.bignumber.equal(bAsset2.ratio);
-    expect(bAsset1.targetWeight).to.bignumber.equal(bAsset2.targetWeight);
+    expect(bAsset1.maxWeight).to.bignumber.equal(bAsset2.maxWeight);
     expect(bAsset1.vaultBalance).to.bignumber.equal(bAsset2.vaultBalance);
     return null;
 };
@@ -90,7 +90,7 @@ export const buildBasset = (
     _status: number,
     _isTransferFeeCharged: boolean,
     _ratio: BN,
-    _targetWeight: BN,
+    _maxWeight: BN,
     _vaultBalance: BN,
 ): Basset => {
     return {
@@ -98,7 +98,7 @@ export const buildBasset = (
         status: new BN(_status),
         isTransferFeeCharged: _isTransferFeeCharged,
         ratio: _ratio,
-        targetWeight: _targetWeight,
+        maxWeight: _maxWeight,
         vaultBalance: _vaultBalance,
     };
 };

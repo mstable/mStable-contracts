@@ -380,7 +380,7 @@ contract("Masset", async (accounts) => {
                     // Expect 4 bAssets with 25, 25, 25, 25 weightings
                     composition.bAssets.forEach((b) => {
                         expect(b.vaultBalance).bignumber.eq(new BN(0));
-                        expect(b.targetWeight).bignumber.eq(simpleToExactAmount(25, 16));
+                        expect(b.maxWeight).bignumber.eq(simpleToExactAmount(25, 16));
                     });
                     // Mint 25 of each bAsset, taking total to 100%
                     for (let i = 0; i < composition.bAssets.length; i += 1) {
@@ -518,7 +518,7 @@ contract("Masset", async (accounts) => {
                 // Expect 4 bAssets with 25, 25, 25, 25 weightings
                 composition.bAssets.forEach((b) => {
                     expect(b.vaultBalance).bignumber.eq(new BN(0));
-                    expect(b.targetWeight).bignumber.eq(simpleToExactAmount(25, 16));
+                    expect(b.maxWeight).bignumber.eq(simpleToExactAmount(25, 16));
                 });
             });
             // minting should work as long as the thing we mint with doesnt exceed max
@@ -1107,7 +1107,7 @@ contract("Masset", async (accounts) => {
                     // Expect 4 bAssets with 25, 25, 25, 25 weightings
                     composition.bAssets.forEach((b) => {
                         expect(b.vaultBalance).bignumber.eq(new BN(0));
-                        expect(b.targetWeight).bignumber.eq(simpleToExactAmount(25, 16));
+                        expect(b.maxWeight).bignumber.eq(simpleToExactAmount(25, 16));
                     });
                     // Mint 25 of each bAsset, taking total to 100%
                     for (let i = 0; i < composition.bAssets.length; i += 1) {
@@ -1276,7 +1276,7 @@ contract("Masset", async (accounts) => {
                 // Expect 4 bAssets with 25, 25, 25, 25 weightings
                 composition.bAssets.forEach((b) => {
                     expect(b.vaultBalance).bignumber.eq(new BN(0));
-                    expect(b.targetWeight).bignumber.eq(simpleToExactAmount(25, 16));
+                    expect(b.maxWeight).bignumber.eq(simpleToExactAmount(25, 16));
                 });
             });
             // minting should work as long as the thing we mint with doesnt exceed max

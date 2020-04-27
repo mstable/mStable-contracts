@@ -41,7 +41,7 @@ contract MockBasketManager1 is BasketManager {
         testBasset = Basset({
             addr: _bAsset,
             ratio: StableMath.getRatioScale(),
-            targetWeight: 0,
+            maxWeight: 0,
             vaultBalance: 0,
             status: BassetStatus.Normal,
             isTransferFeeCharged: false
@@ -107,7 +107,7 @@ contract MockBasketManager2 is MassetStructs {
         testBasset = Basset({
             addr: _bAsset,
             ratio: StableMath.getRatioScale(),
-            targetWeight: 0,
+            maxWeight: 0,
             vaultBalance: 0,
             status: BassetStatus.Normal,
             isTransferFeeCharged: false

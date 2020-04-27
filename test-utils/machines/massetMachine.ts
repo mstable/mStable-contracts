@@ -356,13 +356,13 @@ export class MassetMachine {
 
         // Calc optimal weightings
         const totalWeighting = basketDetails.reduce((p, c) => {
-            return p.add(new BN(c.targetWeight));
+            return p.add(new BN(c.maxWeight));
         }, new BN(0));
         const totalMintAmount = simpleToExactAmount(initialSupply, 18);
         const mintAmounts = await Promise.all(
             basketDetails.map(async (b) => {
                 // e.g. 5e35 / 2e18 = 2.5e17
-                const relativeWeighting = new BN(b.targetWeight).mul(fullScale).div(totalWeighting);
+                const relativeWeighting = new BN(b.maxWeight).mul(fullScale).div(totalWeighting);
                 // e.g. 1e20 * 25e16 / 1e18 = 25e18
                 const mintAmount = totalMintAmount.mul(relativeWeighting).div(fullScale);
                 // const bAssetDecimals: BN = await b.decimals();
@@ -398,7 +398,7 @@ export class MassetMachine {
                 status: b.status,
                 isTransferFeeCharged: b.isTransferFeeCharged,
                 ratio: new BN(b.ratio),
-                targetWeight: new BN(b.targetWeight),
+                maxWeight: new BN(b.maxWeight),
                 vaultBalance: new BN(b.vaultBalance),
             };
         });
@@ -419,19 +419,15 @@ export class MassetMachine {
         const totalSupply = await massetDetails.mAsset.totalSupply();
         // get weights (relative to totalSupply)
         // apply ratios, then find proportion of totalSupply all in BN
-        const targetWeightInUnits = bAssets.map((b) =>
-            totalSupply.mul(new BN(b.targetWeight)).div(fullScale),
+        const maxWeightInUnits = bAssets.map((b) =>
+            totalSupply.mul(new BN(b.maxWeight)).div(fullScale),
         );
         // get overweight
         const currentVaultUnits = bAssets.map((b) =>
             new BN(b.vaultBalance).mul(new BN(b.ratio)).div(ratioScale),
         );
         const overweightBassets = bAssets.map((b, i) =>
-            currentVaultUnits[i].gte(targetWeightInUnits[i]),
-        );
-        // get underweight
-        const underweightBassets = bAssets.map((b, i) =>
-            currentVaultUnits[i].lt(targetWeightInUnits[i]),
+            currentVaultUnits[i].gte(maxWeightInUnits[i]),
         );
         // get total amount
         const sumOfBassets = currentVaultUnits.reduce((p, c, i) => p.add(c), new BN(0));
@@ -442,7 +438,6 @@ export class MassetMachine {
                     address: b.addr,
                     mAssetUnits: currentVaultUnits[i],
                     overweight: overweightBassets[i],
-                    underweight: underweightBassets[i],
                 };
             }),
             totalSupply,

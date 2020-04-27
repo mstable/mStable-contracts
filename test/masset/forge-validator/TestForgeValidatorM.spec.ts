@@ -82,7 +82,7 @@ contract("ForgeValidator", async (accounts) => {
         context("with a basset at its target weight", async () => {
             it("returns valid for a simple validation that remains within the grace threshold", async () => {
                 // 100 total supply
-                // bAsset 25 vaultBalance, 25 targetWeighting
+                // bAsset 25 vaultBalance, 25 maxWeighting
                 // new weighting now 26/101, within grace boundary
                 await assertSingleMint(setBasket(100, 1), setBasset(25, 25), 1, setResult(true));
             });
@@ -104,7 +104,7 @@ contract("ForgeValidator", async (accounts) => {
             });
             it("returns inValid if mint pushes bAsset overweight", async () => {
                 // 100 total supply
-                // bAsset 25 vaultBalance, 25 targetWeighting
+                // bAsset 25 vaultBalance, 25 maxWeighting
                 // 1 deviation allowance but 2 mint units - pushing above threshold
                 await assertSingleMint(
                     setBasket(100, 1),
@@ -116,7 +116,7 @@ contract("ForgeValidator", async (accounts) => {
             describe("with large basket supply", async () => {
                 it("should succeed with sufficient grace", async () => {
                     // 10,000,000 total supply
-                    //    250,000 vaultBalance, 2.5% targetWeighting
+                    //    250,000 vaultBalance, 2.5% maxWeighting
                     // new weighting now 260k/1010k
                     // target weight = 250250, so 9750 grace is needed
                     const graceUnits = 9750;
@@ -129,7 +129,7 @@ contract("ForgeValidator", async (accounts) => {
                 });
                 it("should fail if we exceed the grace threshold", async () => {
                     // 10,000,000 total supply
-                    //    250,000 vaultBalance, 2.5% targetWeighting
+                    //    250,000 vaultBalance, 2.5% maxWeighting
                     // new weighting now 260k/1010k (roughly 2.51%)
                     // target weight = 250250, so 9750 grace is needed
                     const graceUnits = 9749;
@@ -144,7 +144,7 @@ contract("ForgeValidator", async (accounts) => {
             describe("with a variable grace", async () => {
                 it("should succeed with sufficient grace", async () => {
                     // 1000 total supply
-                    //  150 vaultBalance, 15% targetWeighting
+                    //  150 vaultBalance, 15% maxWeighting
                     // new weighting now 250/1100
                     // target weight in units = 165, so 85 grace needed
                     let graceUnits = 100;
@@ -225,7 +225,7 @@ contract("ForgeValidator", async (accounts) => {
             describe("and various decimals", async () => {
                 it("returns valid with custom ratio", async () => {
                     // 100 total supply
-                    // bAsset 25 vaultBalance, 25 targetWeighting, 6 decimals
+                    // bAsset 25 vaultBalance, 25 maxWeighting, 6 decimals
                     await assertSingleMint(
                         setBasket(100, 1),
                         setBasset(25, 25, 6),
@@ -238,21 +238,21 @@ contract("ForgeValidator", async (accounts) => {
                 // should be ok with 0
                 it("should be ok with 0 at all times", async () => {
                     // 100 total supply
-                    // 10 grace; bAsset 25 vaultBalance, 25 targetWeighting, 18 decimals
+                    // 10 grace; bAsset 25 vaultBalance, 25 maxWeighting, 18 decimals
                     await assertSingleMint(
                         setBasket(100, 10),
                         setBasset(25, 25, 6),
                         0,
                         setResult(true),
                     );
-                    // 0 grace; bAsset 25 vaultBalance, 25 targetWeighting, 6 decimals
+                    // 0 grace; bAsset 25 vaultBalance, 25 maxWeighting, 6 decimals
                     await assertSingleMint(
                         setBasket(100, 0),
                         setBasset(25, 25, 6),
                         0,
                         setResult(true),
                     );
-                    // 0 grace; bAsset 25 vaultBalance, 25 targetWeighting, 18 decimals
+                    // 0 grace; bAsset 25 vaultBalance, 25 maxWeighting, 18 decimals
                     await assertSingleMint(
                         setBasket(100, 0),
                         setBasset(25, 25, 18),
@@ -262,14 +262,14 @@ contract("ForgeValidator", async (accounts) => {
                 });
                 it("should fail once mint volume triggers grace", async () => {
                     // 100 total supply
-                    // 10 grace; bAsset 25 vaultBalance, 25 targetWeighting, 6 decimals
+                    // 10 grace; bAsset 25 vaultBalance, 25 maxWeighting, 6 decimals
                     await assertSingleMint(
                         setBasket(100, 10),
                         setBasset(25, 25, 6),
                         13,
                         setResult(true),
                     );
-                    // 10 grace; bAsset 25 vaultBalance, 25 targetWeighting, 6 decimals
+                    // 10 grace; bAsset 25 vaultBalance, 25 maxWeighting, 6 decimals
                     await assertSingleMint(
                         setBasket(100, 10),
                         setBasset(25, 25, 6),
@@ -283,7 +283,7 @@ contract("ForgeValidator", async (accounts) => {
         context("with a basset overweight", async () => {
             it("returns inValid for a simple validation", async () => {
                 // 100 total supply
-                // bAsset 40 vaultBalance, 25 targetWeighting, 18 decimals
+                // bAsset 40 vaultBalance, 25 maxWeighting, 18 decimals
                 await assertSingleMint(
                     setBasket(100, 1),
                     setBasset(25, 40),
@@ -294,7 +294,7 @@ contract("ForgeValidator", async (accounts) => {
             describe("with large basket supply", async () => {
                 it("always returns invalid until grace is increased", async () => {
                     // 1,000,000 total supply
-                    // bAsset 120,000 vaultBalance, 10% targetWeighting, 18 decimals
+                    // bAsset 120,000 vaultBalance, 10% maxWeighting, 18 decimals
                     await assertSingleMint(
                         setBasket(1000000, 100),
                         setBasset(10, 120000),
@@ -302,7 +302,7 @@ contract("ForgeValidator", async (accounts) => {
                         setResult(false, "Must be below implicit max weighting"),
                     );
                     // 5,000,000 total supply
-                    // bAsset 2,000,000 vaultBalance, 25% targetWeighting, 18 decimals
+                    // bAsset 2,000,000 vaultBalance, 25% maxWeighting, 18 decimals
                     await assertSingleMint(
                         setBasket(5000000, 10000),
                         setBasset(25, 2000000),
@@ -310,7 +310,7 @@ contract("ForgeValidator", async (accounts) => {
                         setResult(false, "Must be below implicit max weighting"),
                     );
                     // 5,000,000 total supply
-                    // bAsset 2,000,000 vaultBalance, 25% targetWeighting, 18 decimals
+                    // bAsset 2,000,000 vaultBalance, 25% maxWeighting, 18 decimals
                     await assertSingleMint(
                         setBasket(5000000, 900000),
                         setBasset(25, 2000000),
@@ -322,7 +322,7 @@ contract("ForgeValidator", async (accounts) => {
             describe("with a variable grace", async () => {
                 it("always returns invalid until grace is increased", async () => {
                     // 100 total supply
-                    // bAsset 26.1 vaultBalance, 25% targetWeighting, 18 decimals
+                    // bAsset 26.1 vaultBalance, 25% maxWeighting, 18 decimals
                     // making it 1.1 units gt target, with 1 grace
                     await assertSingleMint(
                         setBasket(100, 1),
@@ -343,7 +343,7 @@ contract("ForgeValidator", async (accounts) => {
                 // should fail with lots
                 it("returns invalid with a 0 quantity input", async () => {
                     // 100 total supply
-                    // bAsset 26.1 vaultBalance, 25% targetWeighting, 18 decimals
+                    // bAsset 26.1 vaultBalance, 25% maxWeighting, 18 decimals
                     // making it 1.1 units gt target, with 1 grace
                     await assertSingleMint(
                         setBasket(100, 1),
@@ -354,7 +354,7 @@ contract("ForgeValidator", async (accounts) => {
                 });
                 it("returns invalid with a all quantities", async () => {
                     // 100 total supply
-                    // bAsset 26.1 vaultBalance, 25% targetWeighting, 18 decimals
+                    // bAsset 26.1 vaultBalance, 25% maxWeighting, 18 decimals
                     // making it 1.1 units gt target, with 1 grace
                     await assertSingleMint(
                         setBasket(100, 1),
@@ -381,13 +381,13 @@ contract("ForgeValidator", async (accounts) => {
         context("with a basset underweight", async () => {
             it("returns valid for a simple validation", async () => {
                 // 100 total supply
-                // bAsset 10 vaultBalance, 25 targetWeighting
+                // bAsset 10 vaultBalance, 25 maxWeighting
                 // new weighting now 11/101, within grace boundary
                 await assertSingleMint(setBasket(100, 1), setBasset(25, 10), 1, setResult(true));
             });
             it("returns inValid if mint pushes bAsset overweight", async () => {
                 // 100 total supply
-                // bAsset 10 vaultBalance, 25 targetWeighting
+                // bAsset 10 vaultBalance, 25 maxWeighting
                 // new weighting now 31/121, within grace boundary
                 await assertSingleMint(
                     setBasket(100, 0),
@@ -399,7 +399,7 @@ contract("ForgeValidator", async (accounts) => {
             describe("with large basket supply", async () => {
                 it("should succeed with any grace, so long as we are still below target", async () => {
                     // 10,000,000 total supply
-                    //    250,000 vaultBalance, 10% targetWeighting
+                    //    250,000 vaultBalance, 10% maxWeighting
                     let graceUnits = 0;
                     await assertSingleMint(
                         setBasket(10000000, graceUnits),
@@ -417,7 +417,7 @@ contract("ForgeValidator", async (accounts) => {
                 });
                 it("should fail if we exceed the grace threshold", async () => {
                     // 10,000,000 total supply
-                    //    250,000 vaultBalance, 10% targetWeighting
+                    //    250,000 vaultBalance, 10% maxWeighting
                     // fails since resulting is around 1.25m/11m, above boundary
                     let graceUnits = 0;
                     await assertSingleMint(
@@ -440,7 +440,7 @@ contract("ForgeValidator", async (accounts) => {
         context("with an affected bAsset", async () => {
             it("returns inValid for a simple validation", async () => {
                 // 100 total supply
-                // 10 grace; bAsset 25 vaultBalance, 25 targetWeighting, 18 decimals
+                // 10 grace; bAsset 25 vaultBalance, 25 maxWeighting, 18 decimals
                 // Assert normal mint works
                 await assertSingleMint(
                     setBasket(100, 10),
@@ -790,14 +790,14 @@ contract("ForgeValidator", async (accounts) => {
                         [0],
                         setResult(true),
                     );
-                    // 0 grace; bAsset 25 vaultBalance, 25 targetWeighting, 6 decimals
+                    // 0 grace; bAsset 25 vaultBalance, 25 maxWeighting, 6 decimals
                     await assertMintMulti(
                         setBasket(100, 0),
                         [setBasset(25, 25, 6)],
                         [0],
                         setResult(true),
                     );
-                    // 0 grace; bAsset 25 vaultBalance, 25 targetWeighting, 18 decimals
+                    // 0 grace; bAsset 25 vaultBalance, 25 maxWeighting, 18 decimals
                     await assertMintMulti(
                         setBasket(100, 0),
                         [setBasset(45, 45, 18)],
@@ -819,7 +819,7 @@ contract("ForgeValidator", async (accounts) => {
                         [13],
                         setResult(true),
                     );
-                    // 10 grace; bAsset 25 vaultBalance, 25 targetWeighting, 6 decimals
+                    // 10 grace; bAsset 25 vaultBalance, 25 maxWeighting, 6 decimals
                     await assertMintMulti(
                         setBasket(100, 10),
                         [setBasset(25, 25, 6)],
@@ -863,7 +863,7 @@ contract("ForgeValidator", async (accounts) => {
                         setResult(false, "Must be below implicit max weighting"),
                     );
                     // 5,000,000 total supply
-                    // bAsset 2,000,000 vaultBalance, 25% targetWeighting, 18 decimals
+                    // bAsset 2,000,000 vaultBalance, 25% maxWeighting, 18 decimals
                     await assertMintMulti(
                         setBasket(5000000, 10000),
                         [setBasset(25, 2000000)],
@@ -871,7 +871,7 @@ contract("ForgeValidator", async (accounts) => {
                         setResult(false, "Must be below implicit max weighting"),
                     );
                     // 5,000,000 total supply
-                    // bAsset 2,000,000 vaultBalance, 25% targetWeighting, 18 decimals
+                    // bAsset 2,000,000 vaultBalance, 25% maxWeighting, 18 decimals
                     // passed now due to 900k grace allowance
                     await assertMintMulti(
                         setBasket(5000000, 900000),

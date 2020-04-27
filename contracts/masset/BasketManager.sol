@@ -41,7 +41,7 @@ contract BasketManager is
     // Events for Basket composition changes
     event BassetAdded(address indexed bAsset, address integrator);
     event BassetRemoved(address indexed bAsset);
-    event BasketWeightsUpdated(address[] bAssets, uint256[] targetWeights);
+    event BasketWeightsUpdated(address[] bAssets, uint256[] maxWeights);
     event BassetStatusChanged(address indexed bAsset, BassetStatus status);
     event TransferFeeEnabled(address indexed bAsset, bool enabled);
 
@@ -95,7 +95,7 @@ contract BasketManager is
                 _hasTransferFees[i]
             );
         }
-        _setBasketWeights(_bAssets, _weights);
+        _setBasketWeights(_bAssets, _weights, true);
     }
 
     /**
@@ -303,6 +303,9 @@ contract BasketManager is
         (bool alreadyInBasket, ) = _isAssetInBasket(_bAsset);
         require(!alreadyInBasket, "bAsset already exists in Basket");
 
+        // Should fail if bAsset is not added to integration
+        IPlatformIntegration(_integration).checkBalance(_bAsset);
+
         // Programmatic enforcement of bAsset validity should service through oracle
 
         uint256 bAsset_decimals = CommonHelpers.getDecimals(_bAsset);
@@ -319,12 +322,11 @@ contract BasketManager is
         basket.bassets.push(Basset({
             addr: _bAsset,
             ratio: ratio,
-            targetWeight: 0,
+            maxWeight: 0,
             vaultBalance: 0,
             status: BassetStatus.Normal,
             isTransferFeeCharged: _isTransferFeeCharged
         }));
-
 
         emit BassetAdded(_bAsset, _integration);
 
@@ -345,7 +347,7 @@ contract BasketManager is
         onlyGovernor
         whenBasketIsHealthy
     {
-        _setBasketWeights(_bAssets, _weights);
+        _setBasketWeights(_bAssets, _weights, false);
     }
 
     /**
@@ -356,7 +358,8 @@ contract BasketManager is
      */
     function _setBasketWeights(
         address[] memory _bAssets,
-        uint256[] memory _weights
+        uint256[] memory _weights,
+        bool isBootstrap
     )
         internal
     {
@@ -373,20 +376,24 @@ contract BasketManager is
             uint256 bAssetWeight = _weights[i];
 
             if(bAsset.status == BassetStatus.Normal) {
-                require(
-                    bAssetWeight <= StableMath.getFullScale(),
-                    "Asset weight must be <= 1e18"
-                );
-                basket.bassets[index].targetWeight = bAssetWeight;
+                if(!isBootstrap){
+                    require(
+                        bAssetWeight <= 5e17,
+                        "Asset weight must be <= 50%"
+                    );
+                }
+                basket.bassets[index].maxWeight = bAssetWeight;
             } else {
                 require(
-                    bAssetWeight == basket.bassets[index].targetWeight,
+                    bAssetWeight == basket.bassets[index].maxWeight,
                     "Affected bAssets must be static"
                 );
             }
         }
 
-        _validateBasketWeight();
+        if(!isBootstrap){
+            _validateBasketWeight();
+        }
 
         emit BasketWeightsUpdated(_bAssets, _weights);
     }
@@ -398,9 +405,9 @@ contract BasketManager is
         uint256 len = basket.bassets.length;
         uint256 weightSum = 0;
         for(uint256 i = 0; i < len; i++) {
-            weightSum = weightSum.add(basket.bassets[i].targetWeight);
+            weightSum = weightSum.add(basket.bassets[i].maxWeight);
         }
-        require(weightSum == StableMath.getFullScale(), "Basket weight must be = 1e18");
+        require(weightSum <= 2e18, "Basket weight must be <= 200%");
     }
 
     /**
@@ -445,7 +452,7 @@ contract BasketManager is
         uint256 len = basket.bassets.length;
         Basset memory bAsset = basket.bassets[index];
 
-        require(bAsset.targetWeight == 0, "bAsset must have a target weight of 0");
+        require(bAsset.maxWeight == 0, "bAsset must have a target weight of 0");
         require(bAsset.vaultBalance == 0, "bAsset vault must be empty");
         require(bAsset.status != BassetStatus.Liquidating, "bAsset must be active");
 

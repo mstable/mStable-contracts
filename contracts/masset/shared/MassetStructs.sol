@@ -47,7 +47,7 @@ interface MassetStructs {
         uint256 ratio;
 
         /** @dev Target weights of the Basset (100% == 1e18) */
-        uint256 targetWeight;
+        uint256 maxWeight;
 
         /** @dev Amount of the Basset that is held in Collateral */
         uint256 vaultBalance;
