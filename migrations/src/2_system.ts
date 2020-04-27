@@ -282,7 +282,6 @@ export default async ({ artifacts }, deployer, network, accounts): Promise<void>
         .initialize(
             d_Nexus.address,
             d_MUSD.address,
-            simpleToExactAmount(1, 24).toString(),
             bassetDetails.bAssets.map((b) => b.address),
             bassetDetails.platforms.map((p) =>
                 p === Platform.aave

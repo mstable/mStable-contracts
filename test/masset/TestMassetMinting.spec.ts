@@ -392,13 +392,15 @@ contract("Masset", async (accounts) => {
                         );
                     }
                     // Set no grace allowance
-                    await basketManager.setGrace(simpleToExactAmount(1, 18), {
-                        from: sa.governor,
-                    });
+                    // await basketManager.setGrace(simpleToExactAmount(1, 18), {
+                    //     from: sa.governor,
+                    // });
+                    // TODO - change max weights
+
                     // Assert basket is still healthy with 0 grace
                     await assertBasketIsHealthy(massetMachine, massetDetails);
 
-                    // Should revert since we would be pushing above target + grace
+                    // Should revert since we would be pushing above target
                     const bAsset = bAssets[0];
                     const approval: BN = await massetMachine.approveMasset(
                         bAsset,
@@ -410,9 +412,11 @@ contract("Masset", async (accounts) => {
                         "Must be below implicit max weighting",
                     );
                     // Set sufficient grace allowance
-                    await basketManager.setGrace(simpleToExactAmount(2, 18), {
-                        from: sa.governor,
-                    });
+                    // await basketManager.setGrace(simpleToExactAmount(2, 18), {
+                    //     from: sa.governor,
+                    // });
+                    // TODO - set max weights
+
                     // Mint should pass now
                     await assertBasicMint(massetDetails, new BN(2), bAsset, false);
                 });
@@ -519,7 +523,7 @@ contract("Masset", async (accounts) => {
             });
             // minting should work as long as the thing we mint with doesnt exceed max
             it("should succeed if bAsset is underweight", async () => {
-                const { bAssets, mAsset, basketManager } = massetDetails;
+                const { bAssets, mAsset } = massetDetails;
                 // Mint 0, 50, 25, 25 of each bAsset, taking total to 100
                 await seedWithWeightings(massetDetails, [
                     new BN(0),
@@ -528,9 +532,9 @@ contract("Masset", async (accounts) => {
                     new BN(25),
                 ]);
                 // Set no grace allowance
-                await basketManager.setGrace(simpleToExactAmount(1, 18), {
-                    from: sa.governor,
-                });
+                // await basketManager.setGrace(simpleToExactAmount(1, 18), {
+                //     from: sa.governor,
+                // });
                 // Assert bAssets are now classed as overweight/underweight
                 composition = await massetMachine.getBasketComposition(massetDetails);
                 expect(composition.bAssets[0].underweight).to.eq(true);
@@ -559,17 +563,13 @@ contract("Masset", async (accounts) => {
                 );
             });
             it("should fail if bAsset already exceeds max", async () => {
-                const { bAssets, mAsset, basketManager } = massetDetails;
+                const { bAssets, mAsset } = massetDetails;
                 await seedWithWeightings(massetDetails, [
                     new BN(0),
                     new BN(50),
                     new BN(25),
                     new BN(25),
                 ]);
-                // Set no grace allowance
-                await basketManager.setGrace(simpleToExactAmount(1, 18), {
-                    from: sa.governor,
-                });
                 // Assert bAssets are now classed as overweight/underweight
                 composition = await massetMachine.getBasketComposition(massetDetails);
                 expect(composition.bAssets[0].underweight).to.eq(true);
@@ -1119,9 +1119,11 @@ contract("Masset", async (accounts) => {
                         );
                     }
                     // Set no grace allowance
-                    await basketManager.setGrace(simpleToExactAmount(1, 18), {
-                        from: sa.governor,
-                    });
+                    // await basketManager.setGrace(simpleToExactAmount(1, 18), {
+                    //     from: sa.governor,
+                    // });
+                    // TODO - set max weights
+
                     // Assert basket is still healthy with 0 grace
                     await assertBasketIsHealthy(massetMachine, massetDetails);
 
@@ -1137,9 +1139,10 @@ contract("Masset", async (accounts) => {
                         "Must be below implicit max weighting",
                     );
                     // Set sufficient grace allowance
-                    await basketManager.setGrace(simpleToExactAmount(2, 18), {
-                        from: sa.governor,
-                    });
+                    // await basketManager.setGrace(simpleToExactAmount(2, 18), {
+                    //     from: sa.governor,
+                    // });
+                    // TODO - set max weights
                     // Mint should pass now
                     await assertMintMulti(massetDetails, [new BN(2)], [bAsset]);
                 });
@@ -1278,7 +1281,7 @@ contract("Masset", async (accounts) => {
             });
             // minting should work as long as the thing we mint with doesnt exceed max
             it("should succeed if bAsset is underweight", async () => {
-                const { bAssets, mAsset, basketManager } = massetDetails;
+                const { bAssets, mAsset } = massetDetails;
                 // Mint 0, 50, 25, 25 of each bAsset, taking total to 100
                 await seedWithWeightings(massetDetails, [
                     new BN(0),
@@ -1286,10 +1289,6 @@ contract("Masset", async (accounts) => {
                     new BN(25),
                     new BN(25),
                 ]);
-                // Set no grace allowance
-                await basketManager.setGrace(simpleToExactAmount(1, 18), {
-                    from: sa.governor,
-                });
                 // Assert bAssets are now classed as overweight/underweight
                 composition = await massetMachine.getBasketComposition(massetDetails);
                 expect(composition.bAssets[0].underweight).to.eq(true);

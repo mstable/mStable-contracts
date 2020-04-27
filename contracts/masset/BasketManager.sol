@@ -42,7 +42,6 @@ contract BasketManager is
     event BassetAdded(address indexed bAsset, address integrator);
     event BassetRemoved(address indexed bAsset);
     event BasketWeightsUpdated(address[] bAssets, uint256[] targetWeights);
-    event GraceUpdated(uint256 newGrace);
     event BassetStatusChanged(address indexed bAsset, BassetStatus status);
     event TransferFeeEnabled(address indexed bAsset, bool enabled);
 
@@ -51,8 +50,6 @@ contract BasketManager is
 
     // Struct holding Basket details
     Basket public basket;
-    // Variable used to determine deviation threshold in ForgeValidator
-    uint256 public grace;
     // Mapping holds bAsset token address => array index
     mapping(address => uint8) private bAssetsMap;
     // Holds relative addresses of the integration platforms
@@ -63,7 +60,6 @@ contract BasketManager is
      *      This function should be called via Proxy just after contract deployment.
      * @param _nexus            Address of system Nexus
      * @param _mAsset           Address of the mAsset whose Basket to manage
-     * @param _grace            Deviation allowance for ForgeValidator
      * @param _bAssets          Array of erc20 bAsset addresses
      * @param _integrators      Matching array of the platform intergations for bAssets
      * @param _weights          Weightings of each bAsset, summing to 1e18
@@ -72,7 +68,6 @@ contract BasketManager is
     function initialize(
         address _nexus,
         address _mAsset,
-        uint256 _grace,
         address[] calldata _bAssets,
         address[] calldata _integrators,
         uint256[] calldata _weights,
@@ -87,7 +82,6 @@ contract BasketManager is
         require(_mAsset != address(0), "mAsset address is zero");
         require(_bAssets.length > 0, "Must initialise with some bAssets");
         mAsset = _mAsset;
-        _updateGrace(_grace);
 
         // Defaults
         basket.maxBassets = 16;               // 16
@@ -425,26 +419,6 @@ contract BasketManager is
         emit TransferFeeEnabled(_bAsset, _flag);
     }
 
-    /**
-     * @dev Update Grace allowance for use in the Forge Validation
-     * @param _newGrace Exact amount of units
-     */
-    function setGrace(uint256 _newGrace)
-        external
-        managerOrGovernor
-    {
-        _updateGrace(_newGrace);
-    }
-
-    /**
-     * @dev Update Grace allowance for use in the Forge Validation
-     * @param _newGrace Exact amount of units
-     */
-    function _updateGrace(uint256 _newGrace) private {
-        require(_newGrace >= 1e18 && _newGrace <= 1e25, "Must be within valid grace range");
-        grace = _newGrace;
-        emit GraceUpdated(_newGrace);
-    }
 
     /**
      * @dev Removes a specific Asset from the Basket, given that its target/collateral
@@ -530,8 +504,7 @@ contract BasketManager is
             isValid: true,
             bAsset: basket.bassets[idx],
             integrator: integrations[idx],
-            index: idx,
-            grace: grace
+            index: idx
         });
     }
 
@@ -556,8 +529,7 @@ contract BasketManager is
             isValid: true,
             bAssets: bAssets,
             integrators: integrators,
-            indexes: indexes,
-            grace: grace
+            indexes: indexes
         });
     }
 

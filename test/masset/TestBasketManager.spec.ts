@@ -14,7 +14,7 @@ import {
 import { percentToWeight } from "@utils/math";
 import { expectEvent, expectRevert } from "@openzeppelin/test-helpers";
 import { MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
-import { ZERO_ADDRESS, ZERO, ratioScale, fullScale, MIN_GRACE, MAX_GRACE } from "@utils/constants";
+import { ZERO_ADDRESS, ZERO, ratioScale, fullScale } from "@utils/constants";
 import { BassetIntegrationDetails } from "../../types";
 
 import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
@@ -35,7 +35,6 @@ contract("BasketManager", async (accounts) => {
     let massetMachine: MassetMachine;
 
     const sa = new StandardAccounts(accounts);
-    const grace: BN = new BN(10).pow(new BN(24));
     const ctx: { module?: t.InitializablePausableModuleInstance } = {};
     const masset = sa.dummy1;
     const governance = sa.dummy2;
@@ -51,7 +50,6 @@ contract("BasketManager", async (accounts) => {
         await mockBasketManager.initialize(
             nexus.address,
             masset,
-            grace,
             integrationDetails.aTokens.map((a) => a.bAsset),
             [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
             [percentToWeight(50), percentToWeight(50)],
@@ -93,7 +91,6 @@ contract("BasketManager", async (accounts) => {
         await basketManager.initialize(
             nexus.address,
             masset,
-            grace,
             integrationDetails.aTokens.map((a) => a.bAsset),
             [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
             [percentToWeight(50), percentToWeight(50)],
@@ -134,7 +131,6 @@ contract("BasketManager", async (accounts) => {
                     basketManager.initialize(
                         nexus.address,
                         masset,
-                        grace,
                         integrationDetails.aTokens.map((a) => a.bAsset),
                         [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
                         [percentToWeight(50), percentToWeight(50)],
@@ -150,7 +146,6 @@ contract("BasketManager", async (accounts) => {
                     bm.initialize(
                         ZERO_ADDRESS,
                         masset,
-                        grace,
                         integrationDetails.aTokens.map((a) => a.bAsset),
                         [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
                         [percentToWeight(50), percentToWeight(50)],
@@ -166,7 +161,6 @@ contract("BasketManager", async (accounts) => {
                     bm.initialize(
                         nexus.address,
                         ZERO_ADDRESS,
-                        grace,
                         integrationDetails.aTokens.map((a) => a.bAsset),
                         [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
                         [percentToWeight(50), percentToWeight(50)],
@@ -176,46 +170,12 @@ contract("BasketManager", async (accounts) => {
                 );
             });
 
-            it("when grace value is zero", async () => {
-                const bm = await BasketManager.new();
-                await expectRevert(
-                    bm.initialize(
-                        nexus.address,
-                        masset,
-                        ZERO,
-                        integrationDetails.aTokens.map((a) => a.bAsset),
-                        [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
-                        [percentToWeight(50), percentToWeight(50)],
-                        [false, false],
-                    ),
-                    "Must be within valid grace range",
-                );
-            });
-
-            it("when grace value is greater than max limit", async () => {
-                const bm = await BasketManager.new();
-                const graceVal = new BN(10).pow(new BN(28));
-                await expectRevert(
-                    bm.initialize(
-                        nexus.address,
-                        masset,
-                        graceVal,
-                        integrationDetails.aTokens.map((a) => a.bAsset),
-                        [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
-                        [percentToWeight(50), percentToWeight(50)],
-                        [false, false],
-                    ),
-                    "Must be within valid grace range",
-                );
-            });
-
             it("when bAsset array is empty", async () => {
                 const bm = await BasketManager.new();
                 await expectRevert(
                     bm.initialize(
                         nexus.address,
                         masset,
-                        grace,
                         [],
                         [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
                         [percentToWeight(50), percentToWeight(50)],
@@ -231,7 +191,6 @@ contract("BasketManager", async (accounts) => {
                     bm.initialize(
                         nexus.address,
                         masset,
-                        grace,
                         integrationDetails.aTokens.map((a) => a.bAsset),
                         [],
                         [percentToWeight(50), percentToWeight(50)],
@@ -246,7 +205,6 @@ contract("BasketManager", async (accounts) => {
                     bm.initialize(
                         nexus.address,
                         masset,
-                        grace,
                         integrationDetails.aTokens.map((a) => a.bAsset),
                         [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
                         [],
@@ -262,7 +220,6 @@ contract("BasketManager", async (accounts) => {
                     bm.initialize(
                         nexus.address,
                         masset,
-                        grace,
                         integrationDetails.aTokens.map((a) => a.bAsset),
                         [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
                         [percentToWeight(50), percentToWeight(50)],
@@ -277,7 +234,6 @@ contract("BasketManager", async (accounts) => {
                     bm.initialize(
                         nexus.address,
                         masset,
-                        grace,
                         [sa.dummy1, sa.dummy1],
                         [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
                         [percentToWeight(50), percentToWeight(50)],
@@ -292,7 +248,6 @@ contract("BasketManager", async (accounts) => {
                     bm.initialize(
                         nexus.address,
                         masset,
-                        grace,
                         [sa.dummy1, sa.dummy2, sa.dummy3],
                         [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
                         [percentToWeight(50), percentToWeight(50)],
@@ -308,7 +263,6 @@ contract("BasketManager", async (accounts) => {
                 const tx = await bm.initialize(
                     nexus.address,
                     masset,
-                    grace,
                     integrationDetails.aTokens.map((a) => a.bAsset),
                     [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
                     [percentToWeight(50), percentToWeight(50)],
@@ -324,9 +278,6 @@ contract("BasketManager", async (accounts) => {
                     bAsset: integrationDetails.aTokens[1].bAsset,
                     integrator: mockAaveIntegrationAddr,
                 });
-
-                // event GraceUpdated(uint256 newGrace)
-                expectEvent.inLogs(tx.logs, "GraceUpdated", { newGrace: grace });
 
                 // test-helpers not supports `deep` array compare. Hence, need to test like below
                 expectEvent.inLogs(tx.logs, "BasketWeightsUpdated");
@@ -743,7 +694,6 @@ contract("BasketManager", async (accounts) => {
             await basketManager.initialize(
                 nexus.address,
                 masset,
-                grace,
                 integrationDetails.aTokens.map((a) => a.bAsset),
                 [mockCompound.address, mockCompound.address],
                 [percentToWeight(50), percentToWeight(50)],
@@ -1282,150 +1232,6 @@ contract("BasketManager", async (accounts) => {
                     expect(false).to.equal(bAsset.isTransferFeeCharged);
                 }),
             );
-        });
-    });
-
-    describe("setGrace()", async () => {
-        const NEW_GRACE = new BN(10).pow(new BN(20));
-        const NEW_GRACE2 = new BN(10).pow(new BN(21));
-
-        beforeEach(async () => {
-            await createNewBasketManager();
-        });
-
-        it("should fail when not called by manager or governor", async () => {
-            const graceBefore = await basketManager.grace();
-
-            await expectRevert(
-                basketManager.setGrace(MIN_GRACE, { from: sa.other }),
-                "Must be manager or governor",
-            );
-
-            const graceAfter = await basketManager.grace();
-            expect(graceBefore).to.bignumber.equal(graceAfter);
-        });
-
-        it("should update when called by manager", async () => {
-            const graceBefore = await basketManager.grace();
-            expect(graceBefore).to.bignumber.not.equal(NEW_GRACE);
-
-            const tx = await basketManager.setGrace(NEW_GRACE, { from: manager });
-            expectEvent.inLogs(tx.logs, "GraceUpdated", { newGrace: NEW_GRACE });
-
-            const graceAfter = await basketManager.grace();
-            expect(NEW_GRACE).to.bignumber.equal(graceAfter);
-        });
-
-        it("should update when called by governor", async () => {
-            const graceBefore = await basketManager.grace();
-            expect(graceBefore).to.bignumber.not.equal(NEW_GRACE);
-
-            const tx = await basketManager.setGrace(NEW_GRACE, { from: sa.governor });
-            expectEvent.inLogs(tx.logs, "GraceUpdated", { newGrace: NEW_GRACE });
-
-            const graceAfter = await basketManager.grace();
-            expect(NEW_GRACE).to.bignumber.equal(graceAfter);
-        });
-
-        it("should fail when grace is lower than min range", async () => {
-            const graceBefore = await basketManager.grace();
-
-            await expectRevert(
-                basketManager.setGrace(MIN_GRACE.sub(new BN(10)), { from: manager }),
-                "Must be within valid grace range",
-            );
-
-            const graceAfter = await basketManager.grace();
-            expect(graceBefore).to.bignumber.equal(graceAfter);
-
-            await expectRevert(
-                basketManager.setGrace(MIN_GRACE.sub(new BN(10)), { from: sa.governor }),
-                "Must be within valid grace range",
-            );
-
-            const graceAfter2 = await basketManager.grace();
-            expect(graceAfter).to.bignumber.equal(graceAfter2);
-        });
-
-        it("should fail when grace is grater than max range", async () => {
-            const graceBefore = await basketManager.grace();
-
-            await expectRevert(
-                basketManager.setGrace(MAX_GRACE.add(new BN(10)), { from: manager }),
-                "Must be within valid grace range",
-            );
-
-            const graceAfter = await basketManager.grace();
-            expect(graceBefore).to.bignumber.equal(graceAfter);
-
-            await expectRevert(
-                basketManager.setGrace(MAX_GRACE.add(new BN(10)), { from: sa.governor }),
-                "Must be within valid grace range",
-            );
-
-            const graceAfter2 = await basketManager.grace();
-            expect(graceAfter).to.bignumber.equal(graceAfter2);
-        });
-
-        it("should update when in range", async () => {
-            const graceBefore = await basketManager.grace();
-            expect(graceBefore).to.bignumber.not.equal(NEW_GRACE);
-
-            let tx = await basketManager.setGrace(NEW_GRACE, { from: manager });
-            expectEvent.inLogs(tx.logs, "GraceUpdated", { newGrace: NEW_GRACE });
-
-            const graceAfter = await basketManager.grace();
-            expect(NEW_GRACE).to.bignumber.equal(graceAfter);
-
-            tx = await basketManager.setGrace(NEW_GRACE2, { from: sa.governor });
-            expectEvent.inLogs(tx.logs, "GraceUpdated", { newGrace: NEW_GRACE2 });
-
-            const graceAfter2 = await basketManager.grace();
-            expect(NEW_GRACE2).to.bignumber.equal(graceAfter2);
-        });
-
-        it("should update when equal to min range (by manager)", async () => {
-            const graceBefore = await basketManager.grace();
-            expect(graceBefore).to.bignumber.not.equal(MIN_GRACE);
-
-            const tx = await basketManager.setGrace(MIN_GRACE, { from: manager });
-            expectEvent.inLogs(tx.logs, "GraceUpdated", { newGrace: MIN_GRACE });
-
-            const graceAfter = await basketManager.grace();
-            expect(MIN_GRACE).to.bignumber.equal(graceAfter);
-        });
-
-        it("should update when equal to min range (by governor)", async () => {
-            const graceBefore = await basketManager.grace();
-            expect(graceBefore).to.bignumber.not.equal(MIN_GRACE);
-
-            const tx = await basketManager.setGrace(MIN_GRACE, { from: sa.governor });
-            expectEvent.inLogs(tx.logs, "GraceUpdated", { newGrace: MIN_GRACE });
-
-            const graceAfter = await basketManager.grace();
-            expect(MIN_GRACE).to.bignumber.equal(graceAfter);
-        });
-
-        it("should update when equal to max range (by manager)", async () => {
-            const graceBefore = await basketManager.grace();
-            expect(graceBefore).to.bignumber.not.equal(MAX_GRACE);
-
-            const tx = await basketManager.setGrace(MAX_GRACE, { from: manager });
-            expectEvent.inLogs(tx.logs, "GraceUpdated", { newGrace: MAX_GRACE });
-
-            const graceAfter = await basketManager.grace();
-            expect(MAX_GRACE).to.bignumber.equal(graceAfter);
-        });
-
-        it("should update when equal to max range (by governor)", async () => {
-            const graceBefore = await basketManager.grace();
-            expect(graceBefore).to.bignumber.not.equal(MAX_GRACE);
-
-            const tx = await basketManager.setGrace(MAX_GRACE, { from: sa.governor });
-            expectEvent.inLogs(tx.logs, "GraceUpdated", { newGrace: MAX_GRACE });
-
-            const graceAfter = await basketManager.grace();
-            expect(MAX_GRACE).to.bignumber.equal(graceAfter);
         });
     });
 

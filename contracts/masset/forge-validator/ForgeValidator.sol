@@ -21,9 +21,8 @@ contract ForgeValidator is IForgeValidator {
     /**
      * @notice Checks whether a given mint is valid and returns the result
      * @dev Is the resulting weighting of the target bAsset beyond it's implicit max weight?
-     * Max weight is determined as target weight (in units) + grace
+     * Max weight is determined as target weight (in units)
      * @param _totalVault       Current sum of basket collateral
-     * @param _grace            Unit based deviation allowance, where 1 == 1e18
      * @param _bAsset           Struct containing relevant data on the bAsset
      * @param _bAssetQuantity   Number of bAsset units that will be used to mint
      * @return isValid          Bool to signify that the mint does not move our weightings the wrong way
@@ -31,7 +30,6 @@ contract ForgeValidator is IForgeValidator {
      */
     function validateMint(
         uint256 _totalVault,
-        uint256 _grace,
         Basset calldata _bAsset,
         uint256 _bAssetQuantity
     )
@@ -54,7 +52,7 @@ contract ForgeValidator is IForgeValidator {
         // What is the target weight of this bAsset in the basket?
         uint256 targetWeightInUnits = (_totalVault.add(mintAmountInMasset)).mulTruncate(_bAsset.targetWeight);
 
-        if(newBalanceInMasset > targetWeightInUnits.add(_grace)) {
+        if(newBalanceInMasset > targetWeightInUnits) {
             return (false, "Must be below implicit max weighting");
         }
 
@@ -64,9 +62,8 @@ contract ForgeValidator is IForgeValidator {
     /**
      * @notice Checks whether a given mint using more than one asset is valid and returns the result
      * @dev Is the resulting weighting of the target bAssets beyond their implicit max weight?
-     * Max weight is determined as target weight (in units) + grace
+     * Max weight is determined as target weight (in units)
      * @param _totalVault       Current sum of basket collateral
-     * @param _grace            Unit based deviation allowance, where 1 == 1e18
      * @param _bAssets          Array of Struct containing relevant data on the bAssets
      * @param _bAssetQuantities Number of bAsset units that will be used to mint (aligned with above)
      * @return isValid          Bool to signify that the mint does not move our weightings the wrong way
@@ -74,7 +71,6 @@ contract ForgeValidator is IForgeValidator {
      */
     function validateMintMulti(
         uint256 _totalVault,
-        uint256 _grace,
         Basset[] calldata _bAssets,
         uint256[] calldata _bAssetQuantities
     )
@@ -113,7 +109,7 @@ contract ForgeValidator is IForgeValidator {
             // What is the target weight of this bAsset in the basket?
             uint256 targetWeightInUnits = newTotalVault.mulTruncate(_bAssets[k].targetWeight);
 
-            if(newBalances[k] > targetWeightInUnits.add(_grace)) {
+            if(newBalances[k] > targetWeightInUnits) {
                 return (false, "Must be below implicit max weighting");
             }
         }
@@ -130,7 +126,6 @@ contract ForgeValidator is IForgeValidator {
      * @param _basketIsFailed   Bool to suggest that the basket has failed a recollateralisation attempt
      * @param _totalVault       Sum of collateral units in the basket
      * @param _allBassets       Array of all bAsset information
-     * @param _grace            Deviation allowance in units
      * @param _indexToRedeem    Index of the bAsset to redeem
      * @param _bAssetQuantity   Quantity of bAsset to redeem
      * @return isValid          Bool to signify that the redemption is allowed
@@ -140,7 +135,6 @@ contract ForgeValidator is IForgeValidator {
         bool _basketIsFailed,
         uint256 _totalVault,
         Basset[] calldata _allBassets,
-        uint256 _grace,
         uint256 _indexToRedeem,
         uint256 _bAssetQuantity
     )
@@ -156,7 +150,7 @@ contract ForgeValidator is IForgeValidator {
         }
 
         // Get current weightings, and cache some outputs from the loop to avoid unecessary recursion
-        OverWeightBassetsResponse memory data = _getOverweightBassets(_totalVault, _grace, _allBassets);
+        OverWeightBassetsResponse memory data = _getOverweightBassets(_totalVault, _allBassets);
         if(!data.isValid) return (false, data.reason);
 
         if(_bAssetQuantity > bAsset.vaultBalance) return (false, "Cannot redeem more bAssets than are in the vault");
@@ -167,7 +161,7 @@ contract ForgeValidator is IForgeValidator {
         data.ratioedBassetVaults[_indexToRedeem] = data.ratioedBassetVaults[_indexToRedeem].sub(ratioedRedemptionAmount);
 
         bool[] memory underWeight =
-            _getOverweightBassetsAfter(_totalVault.sub(ratioedRedemptionAmount), _grace, _allBassets, data.ratioedBassetVaults);
+            _getOverweightBassetsAfter(_totalVault.sub(ratioedRedemptionAmount), _allBassets, data.ratioedBassetVaults);
 
         // If there is at least one overweight bAsset before, we must redeem it
         if(data.atLeastOneOverweight) {
@@ -187,7 +181,6 @@ contract ForgeValidator is IForgeValidator {
      * (i.e. during basket composition changes) they must be redeemed
      * @param _basketIsFailed   Bool to suggest that the basket has failed a recollateralisation attempt
      * @param _totalVault       Sum of collateral units in the basket
-     * @param _grace            Deviation allowance in units
      * @param _idxs             Indexes of the bAssets to redeem
      * @param _bAssetQuantities Quantities of bAssets to redeem
      * @param _allBassets       Array of all bAsset information
@@ -197,7 +190,6 @@ contract ForgeValidator is IForgeValidator {
     function validateRedemptionMulti(
         bool _basketIsFailed,
         uint256 _totalVault,
-        uint256 _grace,
         uint8[] calldata _idxs,
         uint256[] calldata _bAssetQuantities,
         Basset[] calldata _allBassets
@@ -209,7 +201,7 @@ contract ForgeValidator is IForgeValidator {
         uint256 idxCount = _idxs.length;
         if(idxCount != _bAssetQuantities.length) return (false, "Input arrays should be equal");
 
-        OverWeightBassetsResponse memory data = _getOverweightBassets(_totalVault, _grace, _allBassets);
+        OverWeightBassetsResponse memory data = _getOverweightBassets(_totalVault, _allBassets);
         if(!data.isValid) return (false, data.reason);
 
         uint256 newTotalVault = _totalVault;
@@ -229,7 +221,7 @@ contract ForgeValidator is IForgeValidator {
             newTotalVault = newTotalVault.sub(ratioedRedemptionAmount);
         }
 
-        bool[] memory underWeight = _getOverweightBassetsAfter(newTotalVault, _grace, _allBassets, data.ratioedBassetVaults);
+        bool[] memory underWeight = _getOverweightBassetsAfter(newTotalVault, _allBassets, data.ratioedBassetVaults);
 
         // If any bAssets are overweight before, all bAssets we redeem must be overweight
         if(data.atLeastOneOverweight) {
@@ -263,11 +255,10 @@ contract ForgeValidator is IForgeValidator {
      * produce some other useful data. Loops through, validating the bAsset, and determining
      * if it is overweight, returning the ratioed bAsset.
      * @param _total         Sum of collateral units in the basket
-     * @param _grace         Deviation allowance in units
      * @param _bAssets       Array of all bAsset information
      * @return response      Struct containing calculated data
      */
-    function _getOverweightBassets(uint256 _total, uint256 _grace, Basset[] memory _bAssets)
+    function _getOverweightBassets(uint256 _total, Basset[] memory _bAssets)
         private
         pure
         returns (OverWeightBassetsResponse memory response)
@@ -298,7 +289,7 @@ contract ForgeValidator is IForgeValidator {
 
             // If the bAsset is de-pegged on the up-side, it doesn't matter if it goes above max
             bool bAssetOverWeight =
-                response.ratioedBassetVaults[i] > targetWeightInUnits.add(_grace) &&
+                response.ratioedBassetVaults[i] > targetWeightInUnits &&
                 status != BassetStatus.BrokenAbovePeg;
             response.isOverWeight[i] = bAssetOverWeight;
 
@@ -310,14 +301,12 @@ contract ForgeValidator is IForgeValidator {
      * @dev After the redeemed bAssets have been removed from the basket, determine
      * if there are any resulting overweight, or underweight
      * @param _newTotal                 Sum of collateral units in the basket
-     * @param _grace                    Deviation allowance in units
      * @param _bAssets                  Array of all bAsset information
      * @param _ratioedBassetVaultsAfter Array of all new bAsset vaults
      * @return underWeight              Array of bools - is this bAsset now under min weight
      */
     function _getOverweightBassetsAfter(
         uint256 _newTotal,
-        uint256 _grace,
         Basset[] memory _bAssets,
         uint256[] memory _ratioedBassetVaultsAfter
     )
@@ -331,9 +320,7 @@ contract ForgeValidator is IForgeValidator {
         for(uint256 i = 0; i < len; i++) {
             uint256 targetWeightInUnits = _newTotal.mulTruncate(_bAssets[i].targetWeight);
 
-            underWeight[i] = _grace > targetWeightInUnits
-                ? false
-                : _ratioedBassetVaultsAfter[i] < targetWeightInUnits.sub(_grace);
+            underWeight[i] = _ratioedBassetVaultsAfter[i] < targetWeightInUnits;
         }
     }
 }

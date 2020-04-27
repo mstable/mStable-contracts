@@ -12,9 +12,6 @@ export const ratioScale = new BN(10).pow(new BN(8));
 export const fullScale: BN = new BN(10).pow(new BN(18));
 export const transferFeeScale: BN = new BN(10).pow(new BN(15));
 
-export const MIN_GRACE: BN = new BN(10).pow(new BN(18));
-export const MAX_GRACE: BN = new BN(10).pow(new BN(25));
-
 export const DEFAULT_DECIMALS = new BN("18");
 export const DEFAULT_SUPPLY = new BN(10).pow(new BN(29));
 

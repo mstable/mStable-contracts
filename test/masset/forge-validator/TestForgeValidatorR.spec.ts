@@ -1426,7 +1426,6 @@ contract("ForgeValidator", async (accounts) => {
                 it("succeeds with redemption if the basket has failed", async () => {
                     /**
                      * TotalSupply:     100e18
-                     * Grace:           5e18
                      * BassetTargets:   [25, 25, 25, 25]
                      * BassetVaults:    [25, 25, 25, 25]
                      * Statuses:        [N, A, N, N]
@@ -1434,7 +1433,7 @@ contract("ForgeValidator", async (accounts) => {
                      * RedeemAmt:       1
                      */
                     await assertRedeemMulti(
-                        setBasket(true, 100, 5),
+                        setBasket(true, 100),
                         [
                             setBasset(25, 25),
                             setBasset(25, 25, 18, BassetStatus.BrokenAbovePeg),

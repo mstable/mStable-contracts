@@ -78,14 +78,6 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
     }
 
     /**
-      * @dev Verifies that the caller either Manager or Gov
-      */
-    modifier managerOrGovernor() {
-        require(_manager() == msg.sender || _governor() == msg.sender, "Must be manager or governance");
-        _;
-    }
-
-    /**
       * @dev Verifies that the caller is the Savings Manager contract
       */
     modifier onlySavingsManager() {
@@ -174,13 +166,13 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         ForgeProps memory props = basketManager.prepareForgeBasset(_bAsset, _bAssetQuantity, true);
         if(!props.isValid) return 0;
 
-        // Transfer collateral to the platform integration address and call deposit\
+        // Transfer collateral to the platform integration address and call deposit
         address integrator = props.integrator;
         (uint256 quantityDeposited, uint256 ratioedDeposit) =
             _depositTokens(_bAsset, props.bAsset.ratio, integrator, props.bAsset.isTransferFeeCharged, _bAssetQuantity);
 
         // Validation should be after token transfer, as bAssetQty is unknown before
-        (bool mintValid, string memory reason) = forgeValidator.validateMint(totalSupply(), props.grace, props.bAsset, quantityDeposited);
+        (bool mintValid, string memory reason) = forgeValidator.validateMint(totalSupply(), props.bAsset, quantityDeposited);
         require(mintValid, reason);
 
         // Log the Vault increase - can only be done when basket is healthy
@@ -234,7 +226,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         basketManager.increaseVaultBalances(props.indexes, props.integrators, receivedQty);
 
         // Validate the proposed mint, after token transfer
-        (bool mintValid, string memory reason) = forgeValidator.validateMintMulti(totalSupply(), props.grace, props.bAssets, receivedQty);
+        (bool mintValid, string memory reason) = forgeValidator.validateMintMulti(totalSupply(), props.bAssets, receivedQty);
         require(mintValid, reason);
 
         // Mint the Masset
@@ -346,7 +338,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
 
         // Validate redemption
         (bool redemptionValid, string memory reason) =
-            forgeValidator.validateRedemption(basket.failed, totalSupply().mulTruncate(colRatio), basket.bassets, props.grace, props.index, _bAssetQuantity);
+            forgeValidator.validateRedemption(basket.failed, totalSupply().mulTruncate(colRatio), basket.bassets, props.index, _bAssetQuantity);
         require(redemptionValid, reason);
 
         // Calc equivalent mAsset amount
@@ -397,7 +389,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
 
         // Validate redemption
         (bool redemptionValid, string memory reason) =
-            forgeValidator.validateRedemptionMulti(basket.failed, totalSupply().mulTruncate(colRatio), props.grace, props.indexes, _bAssetQuantities, basket.bassets);
+            forgeValidator.validateRedemptionMulti(basket.failed, totalSupply().mulTruncate(colRatio), props.indexes, _bAssetQuantities, basket.bassets);
         require(redemptionValid, reason);
 
         uint256 mAssetQuantity = 0;
@@ -468,7 +460,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
       */
     function upgradeForgeValidator(address _newForgeValidator)
         external
-        managerOrGovernor
+        onlyGovernor
     {
         require(!forgeValidatorLocked, "Must be allowed to upgrade");
         require(_newForgeValidator != address(0), "Must be non null address");
@@ -492,7 +484,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
       */
     function setFeeRecipient(address _feeRecipient)
         external
-        managerOrGovernor
+        onlyGovernor
     {
         require(_feeRecipient != address(0), "Must be valid address");
         feeRecipient = _feeRecipient;
@@ -506,7 +498,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
       */
     function setRedemptionFee(uint256 _redemptionFee)
         external
-        managerOrGovernor
+        onlyGovernor
     {
         require(_redemptionFee <= MAX_FEE, "Rate must be within bounds");
         redemptionFee = _redemptionFee;

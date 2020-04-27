@@ -1,20 +1,14 @@
 /* eslint-disable @typescript-eslint/camelcase */
+/* eslint-disable class-methods-use-this */
+
 import * as t from "types/generated";
-import { Address } from "types/common";
-import {
-    BassetIntegrationDetails,
-    Platform,
-    ATokenDetails,
-    CTokenDetails,
-    BasketComposition,
-    BassetDetails,
-} from "../../types/machines";
-import { SystemMachine, StandardAccounts } from ".";
 import { simpleToExactAmount, percentToWeight } from "@utils/math";
-import { BN, aToH } from "@utils/tools";
-import { fullScale, MainnetAccounts, ratioScale } from "@utils/constants";
-import { Basset, BassetStatus } from "@utils/mstable-objects";
-import { ZERO_ADDRESS } from "@utils/constants";
+import { BN } from "@utils/tools";
+import { fullScale, MainnetAccounts, ratioScale, ZERO_ADDRESS } from "@utils/constants";
+import { Basset } from "@utils/mstable-objects";
+import { SystemMachine, StandardAccounts } from ".";
+import { Address } from "../../types/common";
+import { BassetIntegrationDetails, Platform, BasketComposition } from "../../types/machines";
 
 // ForgeValidator
 const c_ForgeValidator: t.ForgeValidatorContract = artifacts.require("ForgeValidator");
@@ -56,6 +50,7 @@ export interface MassetDetails {
 
 export class MassetMachine {
     public system: SystemMachine;
+
     public sa: StandardAccounts;
 
     public ma: MainnetAccounts;
@@ -69,18 +64,18 @@ export class MassetMachine {
     /**
      * @dev Deploys an mAsset with default parameters, modelled on original mUSD
      * @return Interface will all deployed information
-     **/
-    public async deployMasset(enableUSDTFee: boolean = false): Promise<MassetDetails> {
-        let md: MassetDetails = {};
+     */
+    public async deployMasset(enableUSDTFee = false): Promise<MassetDetails> {
+        const md: MassetDetails = {};
 
-        /***************************************
+        /** *************************************
         0. Mock platforms and bAssets
         Dependencies: []
-        ****************************************/
+        *************************************** */
         const bassetDetails = await this.loadBassets(enableUSDTFee);
         md.bAssets = bassetDetails.bAssets;
 
-        /***************************************
+        /** *************************************
         2. mUSD
             Dependencies: [
                 BasketManager [
@@ -90,7 +85,7 @@ export class MassetMachine {
                     ]
                 ]
             ]
-        ****************************************/
+        *************************************** */
 
         // 2.0. Deploy ProxyAdmin
         const d_DelayedProxyAdmin: t.DelayedProxyAdminInstance = await c_DelayedProxyAdmin.new(
@@ -146,10 +141,9 @@ export class MassetMachine {
             .initialize(
                 this.system.nexus.address,
                 d_MUSD.address,
-                simpleToExactAmount(1, 24).toString(),
                 bassetDetails.bAssets.map((b) => b.address),
                 bassetDetails.platforms.map((p) =>
-                    p == Platform.aave
+                    p === Platform.aave
                         ? d_AaveIntegrationProxy.address
                         : d_CompoundIntegrationProxy.address,
                 ),
@@ -352,22 +346,20 @@ export class MassetMachine {
      *      1. Mint with optimal weightings
      */
     public async deployMassetAndSeedBasket(
-        enableUSDTFee: boolean = false,
-        initialSupply: number = 100,
-        bAssetCount: number = 4,
-        sender: Address = this.system.sa.governor,
+        enableUSDTFee = false,
+        initialSupply = 100,
     ): Promise<MassetDetails> {
-        let massetDetails = await this.deployMasset(enableUSDTFee);
+        const massetDetails = await this.deployMasset(enableUSDTFee);
 
         // Mint initialSupply with shared weightings
-        let basketDetails = await this.getBassetsInMasset(massetDetails);
+        const basketDetails = await this.getBassetsInMasset(massetDetails);
 
         // Calc optimal weightings
-        let totalWeighting = basketDetails.reduce((p, c) => {
+        const totalWeighting = basketDetails.reduce((p, c) => {
             return p.add(new BN(c.targetWeight));
         }, new BN(0));
-        let totalMintAmount = simpleToExactAmount(initialSupply, 18);
-        let mintAmounts = await Promise.all(
+        const totalMintAmount = simpleToExactAmount(initialSupply, 18);
+        const mintAmounts = await Promise.all(
             basketDetails.map(async (b) => {
                 // e.g. 5e35 / 2e18 = 2.5e17
                 const relativeWeighting = new BN(b.targetWeight).mul(fullScale).div(totalWeighting);
@@ -421,31 +413,28 @@ export class MassetMachine {
 
     public async getBasketComposition(massetDetails: MassetDetails): Promise<BasketComposition> {
         // raw bAsset data
-        let bAssets = await this.getBassetsInMasset(massetDetails);
-        let basket = await massetDetails.basketManager.getBasket();
-        let grace = await massetDetails.basketManager.grace();
+        const bAssets = await this.getBassetsInMasset(massetDetails);
+        const basket = await massetDetails.basketManager.getBasket();
         // total supply of mAsset
-        let totalSupply = await massetDetails.mAsset.totalSupply();
+        const totalSupply = await massetDetails.mAsset.totalSupply();
         // get weights (relative to totalSupply)
         // apply ratios, then find proportion of totalSupply all in BN
-        let targetWeightInUnits = bAssets.map((b) =>
+        const targetWeightInUnits = bAssets.map((b) =>
             totalSupply.mul(new BN(b.targetWeight)).div(fullScale),
         );
         // get overweight
-        let currentVaultUnits = bAssets.map((b) =>
+        const currentVaultUnits = bAssets.map((b) =>
             new BN(b.vaultBalance).mul(new BN(b.ratio)).div(ratioScale),
         );
-        let overweightBassets = bAssets.map((b, i) =>
-            currentVaultUnits[i].gte(targetWeightInUnits[i].add(grace)),
+        const overweightBassets = bAssets.map((b, i) =>
+            currentVaultUnits[i].gte(targetWeightInUnits[i]),
         );
         // get underweight
-        let underweightBassets = bAssets.map((b, i) =>
-            currentVaultUnits[i].lt(
-                targetWeightInUnits[i].gte(grace) ? targetWeightInUnits[i].sub(grace) : new BN(0),
-            ),
+        const underweightBassets = bAssets.map((b, i) =>
+            currentVaultUnits[i].lt(targetWeightInUnits[i]),
         );
         // get total amount
-        let sumOfBassets = currentVaultUnits.reduce((p, c, i) => p.add(c), new BN(0));
+        const sumOfBassets = currentVaultUnits.reduce((p, c, i) => p.add(c), new BN(0));
         return {
             bAssets: bAssets.map((b, i) => {
                 return {
@@ -457,7 +446,6 @@ export class MassetMachine {
                 };
             }),
             totalSupply,
-            grace,
             sumOfBassets,
             failed: basket.failed,
             colRatio: basket.collateralisationRatio,
@@ -483,7 +471,7 @@ export class MassetMachine {
         fullMassetUnits: number,
         sender: string,
     ): Promise<Array<BN>> {
-        let result = Promise.all(
+        const result = Promise.all(
             bAssets.map((b) => this.approveMasset(b, mAsset, fullMassetUnits, sender)),
         );
         return result;

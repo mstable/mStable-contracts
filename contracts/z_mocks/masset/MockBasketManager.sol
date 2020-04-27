@@ -69,8 +69,7 @@ contract MockBasketManager1 is BasketManager {
             isValid: false,
             bAsset: testBasset,
             integrator: address(0),
-            index: 0,
-            grace: 0
+            index: 0
         });
     }
 
@@ -92,8 +91,7 @@ contract MockBasketManager1 is BasketManager {
             isValid: false,
             bAssets: bAssets,
             integrators: integrators,
-            indexes: indexes,
-            grace: 0
+            indexes: indexes
         });
     }
 
@@ -126,8 +124,7 @@ contract MockBasketManager2 is MassetStructs {
             isValid: true,
             bAsset: testBasset,
             integrator: address(0),
-            index: 0,
-            grace: 0
+            index: 0
         });
     }
 
@@ -149,8 +146,7 @@ contract MockBasketManager2 is MassetStructs {
             isValid: true,
             bAssets: bAssets,
             integrators: integrators,
-            indexes: indexes,
-            grace: 0
+            indexes: indexes
         });
     }
 }

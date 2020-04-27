@@ -71,7 +71,6 @@ interface MassetStructs {
         Basset bAsset;
         address integrator;
         uint8 index;
-        uint256 grace;
     }
 
     struct ForgePropsMulti {
@@ -79,6 +78,5 @@ interface MassetStructs {
         Basset[] bAssets;
         address[] integrators;
         uint8[] indexes;
-        uint256 grace;
     }
 }

@@ -227,8 +227,5 @@ contract("Masset", async (accounts) => {
                 "Pausable: paused",
             );
         });
-        it("should increase at <=10% APY");
-        it("should set all the vars on the basket composition");
-        it("should have a minimal increase if called in quick succession");
     });
 });
