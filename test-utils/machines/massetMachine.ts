@@ -168,7 +168,7 @@ export class MassetMachine {
         );
 
         // 2.7. Init BasketManager
-        const weight = 100 / bassetDetails.bAssets.length;
+        const weight = 100;
         const initializationData_BasketManager: string = d_BasketManager.contract.methods
             .initialize(
                 this.system.nexus.address,
@@ -426,8 +426,8 @@ export class MassetMachine {
         const currentVaultUnits = bAssets.map((b) =>
             new BN(b.vaultBalance).mul(new BN(b.ratio)).div(ratioScale),
         );
-        const overweightBassets = bAssets.map((b, i) =>
-            currentVaultUnits[i].gte(maxWeightInUnits[i]),
+        const overweightBassets = bAssets.map(
+            (b, i) => totalSupply.gt(new BN(0)) && currentVaultUnits[i].gt(maxWeightInUnits[i]),
         );
         // get total amount
         const sumOfBassets = currentVaultUnits.reduce((p, c, i) => p.add(c), new BN(0));

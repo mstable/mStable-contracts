@@ -100,7 +100,7 @@ contract ForgeValidator is IForgeValidator {
             // How much mAsset is this bassetquantity worth?
             uint256 mintAmountInMasset = _bAssetQuantities[j].mulRatioTruncate(b.ratio);
             // How much of this bAsset do we have in the vault, in terms of mAsset?
-            newBalances[j] = b.vaultBalance.mulRatioTruncate(b.ratio).add(mintAmountInMasset);z
+            newBalances[j] = b.vaultBalance.mulRatioTruncate(b.ratio).add(mintAmountInMasset);
 
             newTotalVault = newTotalVault.add(mintAmountInMasset);
         }

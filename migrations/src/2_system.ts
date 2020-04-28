@@ -211,7 +211,7 @@ export default async ({ artifacts }, deployer, network, accounts): Promise<void>
         console.log(
             `==============================================\n` +
                 `Generating mock bAssets and lending platforms\n` +
-                `==============================================\n\n`,
+                `==============================================\n`,
         );
         bassetDetails = await loadBassetsLocal(artifacts, default_);
     }
