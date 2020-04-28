@@ -416,7 +416,7 @@ contract BasketManager is
         for(uint256 i = 0; i < len; i++) {
             weightSum = weightSum.add(basket.bassets[i].maxWeight);
         }
-        require(weightSum >= 1e18 && weightSum <= 2e18, "Basket weight must be <= 200%");
+        require(weightSum >= 1e18 && weightSum <= 2e18, "Basket weight must be >= 100 && <= 200%");
     }
 
     /**

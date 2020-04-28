@@ -11,11 +11,11 @@ import {
     equalBasset,
     calculateRatio,
 } from "@utils/mstable-objects.ts";
-import { percentToWeight } from "@utils/math";
+import { percentToWeight, simpleToExactAmount } from "@utils/math";
 import { expectEvent, expectRevert } from "@openzeppelin/test-helpers";
 import { MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import { ZERO_ADDRESS, ZERO, ratioScale, fullScale } from "@utils/constants";
-import { BassetIntegrationDetails } from "../../types";
+import { BassetIntegrationDetails, Platform } from "../../types/machines";
 
 import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
 import shouldBehaveLikePausableModule from "../shared/behaviours/PausableModule.behaviour";
@@ -24,6 +24,7 @@ const { expect } = envSetup.configure();
 
 const BasketManager: t.BasketManagerContract = artifacts.require("BasketManager");
 const AaveIntegration: t.AaveIntegrationContract = artifacts.require("AaveIntegration");
+const CompoundIntegration: t.CompoundIntegrationContract = artifacts.require("CompoundIntegration");
 const MockNexus: t.MockNexusContract = artifacts.require("MockNexus");
 const MockBasketManager: t.MockBasketManager3Contract = artifacts.require("MockBasketManager3");
 const MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
@@ -40,10 +41,10 @@ contract("BasketManager", async (accounts) => {
     const masset = sa.dummy1;
     const governance = sa.dummy2;
     const manager = sa.dummy3;
-    const mockAaveIntegrationAddr = sa.dummy4;
 
     let integrationDetails: BassetIntegrationDetails;
     let aaveIntegration: t.AaveIntegrationInstance;
+    let compoundIntegration: t.CompoundIntegrationInstance;
     let basketManager: t.BasketManagerInstance;
     let nexus: t.MockNexusInstance;
 
@@ -52,34 +53,41 @@ contract("BasketManager", async (accounts) => {
         await mockBasketManager.initialize(
             nexus.address,
             masset,
-            integrationDetails.aTokens.map((a) => a.bAsset),
-            [aaveIntegration.address, aaveIntegration.address],
-            [percentToWeight(50), percentToWeight(50)],
-            [false, false],
+            integrationDetails.bAssets.map((b) => b.address),
+            integrationDetails.platforms.map((p) =>
+                p === Platform.aave ? aaveIntegration.address : compoundIntegration.address,
+            ),
+            integrationDetails.bAssets.map(() => simpleToExactAmount(50, 16)),
+            [false, false, false, false],
         );
         return mockBasketManager;
     }
 
-    function createDefaultBassets(): Array<Basset> {
-        const weight = new BN(10).pow(new BN(18)).div(new BN(2));
-        const b1: Basset = buildBasset(
-            integrationDetails.aTokens[0].bAsset,
-            BassetStatus.Normal,
-            false,
-            ratioScale,
-            weight,
-            ZERO,
+    const createMockERC20 = async (decimals = 18): Promise<t.MockERC20Instance> => {
+        const mockERC20 = await MockERC20.new("Mock", "MKT", decimals, sa.default, new BN(10000));
+        await aaveIntegration.setPTokenAddress(
+            mockERC20.address,
+            integrationDetails.aTokens[0].aToken,
+            {
+                from: sa.governor,
+            },
         );
+        return mockERC20;
+    };
 
-        const b2: Basset = buildBasset(
-            integrationDetails.aTokens[1].bAsset,
-            BassetStatus.Normal,
-            false,
-            ratioScale,
-            weight,
-            ZERO,
+    async function createDefaultBassets(): Promise<Array<Basset>> {
+        const weight = simpleToExactAmount(50, 16);
+        const decimals = await Promise.all(integrationDetails.bAssets.map((b) => b.decimals()));
+        return integrationDetails.bAssets.map((b, i) =>
+            buildBasset(
+                b.address,
+                BassetStatus.Normal,
+                false,
+                ratioScale.mul(new BN(10).pow(decimals[i].sub(new BN(18)))),
+                weight,
+                ZERO,
+            ),
         );
-        return [b1, b2];
     }
 
     async function expectBassets(bAssetsArr: Array<Basset>, len: BN): Promise<void> {
@@ -93,10 +101,12 @@ contract("BasketManager", async (accounts) => {
         await basketManager.initialize(
             nexus.address,
             masset,
-            integrationDetails.aTokens.map((a) => a.bAsset),
-            [aaveIntegration.address, aaveIntegration.address],
-            [percentToWeight(50), percentToWeight(50)],
-            [false, false],
+            integrationDetails.bAssets.map((b) => b.address),
+            integrationDetails.platforms.map((p) =>
+                p === Platform.aave ? aaveIntegration.address : compoundIntegration.address,
+            ),
+            integrationDetails.bAssets.map(() => simpleToExactAmount(50, 16)),
+            [false, false, false, false],
         );
 
         return basketManager;
@@ -116,6 +126,14 @@ contract("BasketManager", async (accounts) => {
             integrationDetails.aavePlatformAddress,
             integrationDetails.aTokens.map((a) => a.bAsset),
             integrationDetails.aTokens.map((a) => a.aToken),
+        );
+        compoundIntegration = await CompoundIntegration.new();
+        await compoundIntegration.initialize(
+            nexus.address,
+            [masset, governance],
+            sa.dummy1,
+            integrationDetails.cTokens.map((c) => c.bAsset),
+            integrationDetails.cTokens.map((c) => c.cToken),
         );
         await createNewBasketManager();
 
@@ -141,7 +159,7 @@ contract("BasketManager", async (accounts) => {
                         nexus.address,
                         masset,
                         integrationDetails.aTokens.map((a) => a.bAsset),
-                        [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
+                        [aaveIntegration.address, aaveIntegration.address],
                         [percentToWeight(50), percentToWeight(50)],
                         [false, false],
                     ),
@@ -156,7 +174,7 @@ contract("BasketManager", async (accounts) => {
                         ZERO_ADDRESS,
                         masset,
                         integrationDetails.aTokens.map((a) => a.bAsset),
-                        [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
+                        [aaveIntegration.address, aaveIntegration.address],
                         [percentToWeight(50), percentToWeight(50)],
                         [false, false],
                     ),
@@ -171,7 +189,7 @@ contract("BasketManager", async (accounts) => {
                         nexus.address,
                         ZERO_ADDRESS,
                         integrationDetails.aTokens.map((a) => a.bAsset),
-                        [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
+                        [aaveIntegration.address, aaveIntegration.address],
                         [percentToWeight(50), percentToWeight(50)],
                         [false, false],
                     ),
@@ -186,7 +204,7 @@ contract("BasketManager", async (accounts) => {
                         nexus.address,
                         masset,
                         [],
-                        [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
+                        [aaveIntegration.address, aaveIntegration.address],
                         [percentToWeight(50), percentToWeight(50)],
                         [false, false],
                     ),
@@ -208,14 +226,14 @@ contract("BasketManager", async (accounts) => {
                 );
             });
 
-            it("when weigh array is empty", async () => {
+            it("when weight array is empty", async () => {
                 const bm = await BasketManager.new();
                 await expectRevert(
                     bm.initialize(
                         nexus.address,
                         masset,
                         integrationDetails.aTokens.map((a) => a.bAsset),
-                        [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
+                        [aaveIntegration.address, aaveIntegration.address],
                         [],
                         [false, false],
                     ),
@@ -230,7 +248,7 @@ contract("BasketManager", async (accounts) => {
                         nexus.address,
                         masset,
                         integrationDetails.aTokens.map((a) => a.bAsset),
-                        [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
+                        [aaveIntegration.address, aaveIntegration.address],
                         [percentToWeight(50), percentToWeight(50)],
                         [],
                     ),
@@ -244,7 +262,7 @@ contract("BasketManager", async (accounts) => {
                         nexus.address,
                         masset,
                         [sa.dummy1, sa.dummy1],
-                        [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
+                        [aaveIntegration.address, aaveIntegration.address],
                         [percentToWeight(50), percentToWeight(50)],
                         [false, false],
                     ),
@@ -258,7 +276,7 @@ contract("BasketManager", async (accounts) => {
                         nexus.address,
                         masset,
                         [sa.dummy1, sa.dummy2, sa.dummy3],
-                        [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
+                        [aaveIntegration.address, aaveIntegration.address],
                         [percentToWeight(50), percentToWeight(50)],
                         [false, false],
                     ),
@@ -273,24 +291,24 @@ contract("BasketManager", async (accounts) => {
                     nexus.address,
                     masset,
                     integrationDetails.aTokens.map((a) => a.bAsset),
-                    [mockAaveIntegrationAddr, mockAaveIntegrationAddr],
+                    [aaveIntegration.address, aaveIntegration.address],
                     [percentToWeight(50), percentToWeight(50)],
                     [false, false],
                 );
 
                 expectEvent.inLogs(tx.logs, "BassetAdded", {
                     bAsset: integrationDetails.aTokens[0].bAsset,
-                    integrator: mockAaveIntegrationAddr,
+                    integrator: aaveIntegration.address,
                 });
 
                 expectEvent.inLogs(tx.logs, "BassetAdded", {
                     bAsset: integrationDetails.aTokens[1].bAsset,
-                    integrator: mockAaveIntegrationAddr,
+                    integrator: aaveIntegration.address,
                 });
 
                 // test-helpers not supports `deep` array compare. Hence, need to test like below
                 expectEvent.inLogs(tx.logs, "BasketWeightsUpdated");
-                const basketWeightUpdatedEvent = tx.logs[3];
+                const basketWeightUpdatedEvent = tx.logs[2];
                 expect(integrationDetails.aTokens.map((a) => a.bAsset)).to.deep.equal(
                     basketWeightUpdatedEvent.args[0],
                 );
@@ -304,13 +322,13 @@ contract("BasketManager", async (accounts) => {
                 expect(masset).to.equal(await basketManager.mAsset());
 
                 // should have default basket configurations
-                await expectBassets(createDefaultBassets(), new BN(2));
+                await expectBassets(await createDefaultBassets(), new BN(4));
 
                 // should have all bAsset's integrations addresses
                 await Promise.all(
                     integrationDetails.aTokens.map(async (a) => {
                         const aTokenAddr = await basketManager.getBassetIntegrator(a.bAsset);
-                        expect(mockAaveIntegrationAddr).to.equal(aTokenAddr);
+                        expect(aaveIntegration.address).to.equal(aTokenAddr);
                         return null;
                     }),
                 );
@@ -321,20 +339,15 @@ contract("BasketManager", async (accounts) => {
     describe("increaseVaultBalance()", async () => {
         it("should fail when called by other than masset contract", async () => {
             await Promise.all(
-                integrationDetails.aTokens.map(async (a, index) => {
-                    const bAssetBefore = await basketManager.getBasset(a.bAsset);
+                integrationDetails.bAssets.map(async (b, index) => {
+                    const bAssetBefore = await basketManager.getBasset(b.address);
                     await expectRevert(
-                        basketManager.increaseVaultBalance(
-                            index,
-                            mockAaveIntegrationAddr,
-                            new BN(100),
-                            {
-                                from: sa.other,
-                            },
-                        ),
+                        basketManager.increaseVaultBalance(index, sa.dummy1, new BN(100), {
+                            from: sa.other,
+                        }),
                         "Must be called by mAsset",
                     );
-                    const bAssetAfter = await basketManager.getBasset(a.bAsset);
+                    const bAssetAfter = await basketManager.getBasset(b.address);
                     expect(bAssetBefore.vaultBalance).to.bignumber.equal(bAssetAfter.vaultBalance);
                     return null;
                 }),
@@ -350,7 +363,7 @@ contract("BasketManager", async (accounts) => {
                     await expectRevert(
                         mockBasketManager.increaseVaultBalance(
                             index,
-                            mockAaveIntegrationAddr,
+                            aaveIntegration.address,
                             new BN(100),
                             {
                                 from: masset,
@@ -373,7 +386,7 @@ contract("BasketManager", async (accounts) => {
                     await expectRevert.assertion(
                         basketManager.increaseVaultBalance(
                             invalidIndex,
-                            mockAaveIntegrationAddr,
+                            aaveIntegration.address,
                             new BN(100),
                             {
                                 from: masset,
@@ -389,17 +402,17 @@ contract("BasketManager", async (accounts) => {
 
         it("should succeed for a valid bAsset", async () => {
             await Promise.all(
-                integrationDetails.aTokens.map(async (a, index) => {
-                    const bAssetBefore: Basset = await basketManager.getBasset(a.bAsset);
+                integrationDetails.bAssets.map(async (b, index) => {
+                    const bAssetBefore: Basset = await basketManager.getBasset(b.address);
                     await basketManager.increaseVaultBalance(
                         index,
-                        mockAaveIntegrationAddr,
+                        aaveIntegration.address,
                         new BN(100),
                         {
                             from: masset,
                         },
                     );
-                    const bAssetAfter = await basketManager.getBasset(a.bAsset);
+                    const bAssetAfter = await basketManager.getBasset(b.address);
                     expect(new BN(bAssetBefore.vaultBalance).add(new BN(100))).to.bignumber.equal(
                         bAssetAfter.vaultBalance,
                     );
@@ -411,15 +424,11 @@ contract("BasketManager", async (accounts) => {
 
     describe("increaseVaultBalances()", () => {
         it("should fail when called by other than masset contract", async () => {
-            const indexes: Array<number> = [0, 1];
-            const integrators: Array<string> = [mockAaveIntegrationAddr, mockAaveIntegrationAddr];
-            const increaseAmounts: Array<BN> = [new BN(100), new BN(100)];
-
-            const bAssetBeforeArr: Array<Basset> = new Array(indexes.length);
-            await Promise.all(
-                integrationDetails.aTokens.map(async (a, index) => {
-                    bAssetBeforeArr[index] = await basketManager.getBasset(a.bAsset);
-                }),
+            const indexes: Array<number> = [0, 1, 2, 3];
+            const increaseAmounts: Array<BN> = indexes.map(() => new BN(100));
+            const integrators: Array<string> = indexes.map(() => sa.dummy1);
+            const bAssetBeforeArr: Array<Basset> = await Promise.all(
+                integrationDetails.aTokens.map((a) => basketManager.getBasset(a.bAsset)),
             );
 
             await expectRevert(
@@ -429,30 +438,24 @@ contract("BasketManager", async (accounts) => {
                 "Must be called by mAsset",
             );
 
-            const bAssetAfterArr: Array<Basset> = new Array(indexes.length);
             await Promise.all(
                 integrationDetails.aTokens.map(async (a, index) => {
-                    bAssetAfterArr[index] = await basketManager.getBasset(a.bAsset);
-
                     expect(bAssetBeforeArr[index].vaultBalance).to.bignumber.equal(
-                        bAssetAfterArr[index].vaultBalance,
+                        (await basketManager.getBasset(a.bAsset)).vaultBalance,
                     );
                 }),
             );
         });
 
         it("should fail when basket is failed", async () => {
-            const indexes: Array<number> = [0, 1];
-            const integrators: Array<string> = [mockAaveIntegrationAddr, mockAaveIntegrationAddr];
-            const increaseAmounts: Array<BN> = [new BN(100), new BN(100)];
+            const indexes: Array<number> = [0, 1, 2, 3];
+            const increaseAmounts: Array<BN> = indexes.map(() => new BN(100));
+            const integrators: Array<string> = indexes.map(() => sa.dummy1);
 
             const mockBasketManager = await createMockBasketManger();
 
-            const bAssetBeforeArr: Array<Basset> = new Array(indexes.length);
-            await Promise.all(
-                integrationDetails.aTokens.map(async (a, index) => {
-                    bAssetBeforeArr[index] = await mockBasketManager.getBasset(a.bAsset);
-                }),
+            const bAssetBeforeArr: Array<Basset> = await Promise.all(
+                integrationDetails.aTokens.map((a) => basketManager.getBasset(a.bAsset)),
             );
 
             await mockBasketManager.failBasket();
@@ -464,42 +467,31 @@ contract("BasketManager", async (accounts) => {
                 "Basket must be alive",
             );
 
-            const bAssetAfterArr: Array<Basset> = new Array(indexes.length);
             await Promise.all(
                 integrationDetails.aTokens.map(async (a, index) => {
-                    bAssetAfterArr[index] = await mockBasketManager.getBasset(a.bAsset);
-
                     expect(bAssetBeforeArr[index].vaultBalance).to.bignumber.equal(
-                        bAssetAfterArr[index].vaultBalance,
+                        (await basketManager.getBasset(a.bAsset)).vaultBalance,
                     );
                 }),
             );
         });
 
         it("should succeed and increase vault balance", async () => {
-            const indexes: Array<number> = [0, 1];
-            const integrators: Array<string> = [mockAaveIntegrationAddr, mockAaveIntegrationAddr];
-            const increaseAmounts: Array<BN> = [new BN(100), new BN(100)];
+            const indexes: Array<number> = [0, 1, 2, 3];
+            const increaseAmounts: Array<BN> = indexes.map(() => new BN(100));
+            const integrators: Array<string> = indexes.map(() => sa.dummy1);
 
-            const bAssetBeforeArr: Array<Basset> = new Array(indexes.length);
-            await Promise.all(
-                integrationDetails.aTokens.map(async (a, index) => {
-                    bAssetBeforeArr[index] = await basketManager.getBasset(a.bAsset);
-                }),
+            const bAssetBeforeArr: Array<Basset> = await Promise.all(
+                integrationDetails.aTokens.map((a) => basketManager.getBasset(a.bAsset)),
             );
-
             await basketManager.increaseVaultBalances(indexes, integrators, increaseAmounts, {
                 from: masset,
             });
-
-            const bAssetAfterArr: Array<Basset> = new Array(indexes.length);
             await Promise.all(
                 integrationDetails.aTokens.map(async (a, index) => {
-                    bAssetAfterArr[index] = await basketManager.getBasset(a.bAsset);
-
                     expect(
                         new BN(bAssetBeforeArr[index].vaultBalance).add(new BN(100)),
-                    ).to.bignumber.equal(bAssetAfterArr[index].vaultBalance);
+                    ).to.bignumber.equal((await basketManager.getBasset(a.bAsset)).vaultBalance);
                 }),
             );
         });
@@ -513,7 +505,7 @@ contract("BasketManager", async (accounts) => {
                     await expectRevert(
                         basketManager.decreaseVaultBalance(
                             index,
-                            mockAaveIntegrationAddr,
+                            aaveIntegration.address,
                             new BN(100),
                             {
                                 from: sa.other,
@@ -536,7 +528,7 @@ contract("BasketManager", async (accounts) => {
                     await expectRevert.assertion(
                         basketManager.decreaseVaultBalance(
                             invalidIndex,
-                            mockAaveIntegrationAddr,
+                            aaveIntegration.address,
                             new BN(100),
                             {
                                 from: masset,
@@ -552,30 +544,20 @@ contract("BasketManager", async (accounts) => {
 
         it("should succeed for a valid basket index", async () => {
             await Promise.all(
-                integrationDetails.aTokens.map(async (a, index) => {
-                    const bAssetBefore: Basset = await basketManager.getBasset(a.bAsset);
-                    await basketManager.increaseVaultBalance(
-                        index,
-                        mockAaveIntegrationAddr,
-                        new BN(100),
-                        {
-                            from: masset,
-                        },
-                    );
-                    const bAssetAfter: Basset = await basketManager.getBasset(a.bAsset);
+                integrationDetails.bAssets.map(async (b, index) => {
+                    const bAssetBefore: Basset = await basketManager.getBasset(b.address);
+                    await basketManager.increaseVaultBalance(index, sa.dummy1, new BN(100), {
+                        from: masset,
+                    });
+                    const bAssetAfter: Basset = await basketManager.getBasset(b.address);
                     expect(new BN(bAssetBefore.vaultBalance).add(new BN(100))).to.bignumber.equal(
                         bAssetAfter.vaultBalance,
                     );
 
-                    await basketManager.decreaseVaultBalance(
-                        index,
-                        mockAaveIntegrationAddr,
-                        new BN(10),
-                        {
-                            from: masset,
-                        },
-                    );
-                    const bAssetAfterDecrease: Basset = await basketManager.getBasset(a.bAsset);
+                    await basketManager.decreaseVaultBalance(index, sa.dummy1, new BN(10), {
+                        from: masset,
+                    });
+                    const bAssetAfterDecrease: Basset = await basketManager.getBasset(b.address);
                     expect(new BN(bAssetAfter.vaultBalance).sub(new BN(10))).to.bignumber.equal(
                         bAssetAfterDecrease.vaultBalance,
                     );
@@ -587,22 +569,19 @@ contract("BasketManager", async (accounts) => {
 
     describe("decreaseVaultBalances()", async () => {
         it("should fail when called by other than masset contract", async () => {
-            const indexes: Array<number> = [0, 1];
-            const integrators: Array<string> = [mockAaveIntegrationAddr, mockAaveIntegrationAddr];
-            const increaseAmounts: Array<BN> = [new BN(100), new BN(100)];
-            const decreaseAmounts: Array<BN> = [new BN(100), new BN(100)];
+            const indexes: Array<number> = [0, 1, 2, 3];
+            const integrators: Array<string> = indexes.map(() => sa.dummy1);
+            const increaseAmounts: Array<BN> = indexes.map(() => new BN(100));
+            const decreaseAmounts: Array<BN> = indexes.map(() => new BN(100));
 
             await basketManager.increaseVaultBalances(indexes, integrators, increaseAmounts, {
                 from: masset,
             });
 
-            const bAssetBeforeArr: Array<Basset> = new Array(indexes.length);
-            await Promise.all(
-                integrationDetails.aTokens.map(async (a, index) => {
-                    bAssetBeforeArr[index] = await basketManager.getBasset(a.bAsset);
-                }),
+            const bAssetBeforeArr: Array<Basset> = await Promise.all(
+                integrationDetails.aTokens.map((a) => basketManager.getBasset(a.bAsset)),
             );
-
+            console.log(bAssetBeforeArr[0].vaultBalance);
             await expectRevert(
                 basketManager.decreaseVaultBalances(indexes, integrators, decreaseAmounts, {
                     from: sa.other,
@@ -610,13 +589,10 @@ contract("BasketManager", async (accounts) => {
                 "Must be called by mAsset",
             );
 
-            const bAssetAfterArr: Array<Basset> = new Array(indexes.length);
             await Promise.all(
                 integrationDetails.aTokens.map(async (a, index) => {
-                    bAssetAfterArr[index] = await basketManager.getBasset(a.bAsset);
-
                     expect(bAssetBeforeArr[index].vaultBalance).to.bignumber.equal(
-                        bAssetAfterArr[index].vaultBalance,
+                        (await basketManager.getBasset(a.bAsset)).vaultBalance,
                     );
                 }),
             );
@@ -625,7 +601,7 @@ contract("BasketManager", async (accounts) => {
         it("should fail when invalid bAsset index", async () => {
             const indexes: Array<number> = [0, 1];
             const invalidIndexes: Array<number> = [5, 6];
-            const integrators: Array<string> = [mockAaveIntegrationAddr, mockAaveIntegrationAddr];
+            const integrators: Array<string> = [aaveIntegration.address, aaveIntegration.address];
             const increaseAmounts: Array<BN> = [new BN(100), new BN(100)];
             const decreaseAmounts: Array<BN> = [new BN(100), new BN(100)];
 
@@ -660,12 +636,12 @@ contract("BasketManager", async (accounts) => {
         });
 
         it("should succeed and decrease vault balance", async () => {
-            const indexes: Array<number> = [0, 1];
-            const integrators: Array<string> = [mockAaveIntegrationAddr, mockAaveIntegrationAddr];
-            const increaseAmounts: Array<BN> = [new BN(100), new BN(100)];
-            const decreaseAmounts: Array<BN> = [new BN(100), new BN(100)];
+            const indexes: Array<number> = [0, 1, 2, 3];
+            const integrators: Array<string> = indexes.map(() => sa.dummy1);
+            const increaseAmounts: Array<BN> = indexes.map(() => new BN(100));
+            const decreaseAmounts: Array<BN> = indexes.map(() => new BN(100));
 
-            await basketManager.decreaseVaultBalances(indexes, integrators, increaseAmounts, {
+            await basketManager.increaseVaultBalances(indexes, integrators, increaseAmounts, {
                 from: masset,
             });
 
@@ -790,13 +766,13 @@ contract("BasketManager", async (accounts) => {
         let mockERC20: t.MockERC20Instance;
         beforeEach(async () => {
             await createNewBasketManager();
-            mockERC20 = await MockERC20.new("Mock", "MKT", 18, sa.default, new BN(10000));
+            mockERC20 = await createMockERC20();
         });
 
         describe("should fail", async () => {
             it("when called by other than governor", async () => {
                 await expectRevert(
-                    basketManager.addBasset(mockERC20.address, mockAaveIntegrationAddr, false, {
+                    basketManager.addBasset(mockERC20.address, aaveIntegration.address, false, {
                         from: sa.other,
                     }),
                     "Only governor can execute",
@@ -807,7 +783,7 @@ contract("BasketManager", async (accounts) => {
                 const mockBasketManager = await createMockBasketManger();
                 await mockBasketManager.failBasket();
                 await expectRevert(
-                    mockBasketManager.addBasset(mockERC20.address, mockAaveIntegrationAddr, false, {
+                    mockBasketManager.addBasset(mockERC20.address, aaveIntegration.address, false, {
                         from: sa.governor,
                     }),
                     "Basket must be alive",
@@ -816,7 +792,7 @@ contract("BasketManager", async (accounts) => {
 
             it("when bAsset address is zero", async () => {
                 await expectRevert(
-                    basketManager.addBasset(ZERO_ADDRESS, mockAaveIntegrationAddr, false, {
+                    basketManager.addBasset(ZERO_ADDRESS, aaveIntegration.address, false, {
                         from: sa.governor,
                     }),
                     "Asset address must be valid",
@@ -836,7 +812,7 @@ contract("BasketManager", async (accounts) => {
                 await Promise.all(
                     integrationDetails.aTokens.map(async (a) => {
                         await expectRevert(
-                            basketManager.addBasset(a.bAsset, mockAaveIntegrationAddr, false, {
+                            basketManager.addBasset(a.bAsset, aaveIntegration.address, false, {
                                 from: sa.governor,
                             }),
                             "bAsset already exists in Basket",
@@ -847,21 +823,21 @@ contract("BasketManager", async (accounts) => {
 
             it("when max bAssets reached", async () => {
                 const mockERC20s: Array<t.MockERC20Instance> = new Array(13);
-                for (let index = 0; index < 14; index += 1) {
-                    const mock = await MockERC20.new("Mock", "MKT", 18, sa.default, new BN(10000));
+                for (let index = 0; index < 12; index += 1) {
+                    const mock = await createMockERC20();
                     mockERC20s.push(mock);
                 }
 
                 let bAssets = await basketManager.getBassets();
                 const lengthBefore = bAssets[0].length;
-                expect(2).to.equal(lengthBefore);
+                expect(4).to.equal(lengthBefore);
 
                 await Promise.all(
-                    mockERC20s.map(async (a) => {
-                        await basketManager.addBasset(a.address, mockAaveIntegrationAddr, false, {
+                    mockERC20s.map((a) =>
+                        basketManager.addBasset(a.address, aaveIntegration.address, false, {
                             from: sa.governor,
-                        });
-                    }),
+                        }),
+                    ),
                 );
 
                 bAssets = await basketManager.getBassets();
@@ -869,7 +845,7 @@ contract("BasketManager", async (accounts) => {
                 expect(16).to.equal(lengthAfter);
 
                 await expectRevert(
-                    basketManager.addBasset(mockERC20.address, mockAaveIntegrationAddr, false, {
+                    basketManager.addBasset(mockERC20.address, aaveIntegration.address, false, {
                         from: sa.governor,
                     }),
                     "Max bAssets in Basket",
@@ -880,11 +856,11 @@ contract("BasketManager", async (accounts) => {
         it("should add a new bAsset with 18 decimals", async () => {
             let bAssets = await basketManager.getBassets();
             const lengthBefore = bAssets[0].length;
-            expect(2).to.equal(lengthBefore);
+            expect(4).to.equal(lengthBefore);
 
             const tx = await basketManager.addBasset(
                 mockERC20.address,
-                mockAaveIntegrationAddr,
+                aaveIntegration.address,
                 false,
                 {
                     from: sa.governor,
@@ -892,12 +868,12 @@ contract("BasketManager", async (accounts) => {
             );
             expectEvent.inLogs(tx.logs, "BassetAdded", {
                 bAsset: mockERC20.address,
-                integrator: mockAaveIntegrationAddr,
+                integrator: aaveIntegration.address,
             });
 
             bAssets = await basketManager.getBassets();
             const lengthAfter = bAssets[0].length;
-            expect(3).to.equal(lengthAfter);
+            expect(5).to.equal(lengthAfter);
 
             const bAsset = await basketManager.getBasset(mockERC20.address);
             const ratio = calculateRatio(ratioScale, await mockERC20.decimals());
@@ -911,18 +887,18 @@ contract("BasketManager", async (accounts) => {
             );
             equalBasset(expectedBasset, bAsset);
             const integrator = await basketManager.getBassetIntegrator(mockERC20.address);
-            expect(integrator).eq(mockAaveIntegrationAddr);
+            expect(integrator).eq(aaveIntegration.address);
         });
 
         it("should add a new bAsset with 10 decimals", async () => {
-            mockERC20 = await MockERC20.new("Mock", "MKT", 10, sa.default, new BN(10000));
+            mockERC20 = await createMockERC20(10);
             let bAssets = await basketManager.getBassets();
             const lengthBefore = bAssets[0].length;
-            expect(2).to.equal(lengthBefore);
+            expect(4).to.equal(lengthBefore);
 
             const tx = await basketManager.addBasset(
                 mockERC20.address,
-                mockAaveIntegrationAddr,
+                aaveIntegration.address,
                 false,
                 {
                     from: sa.governor,
@@ -930,12 +906,12 @@ contract("BasketManager", async (accounts) => {
             );
             expectEvent.inLogs(tx.logs, "BassetAdded", {
                 bAsset: mockERC20.address,
-                integrator: mockAaveIntegrationAddr,
+                integrator: aaveIntegration.address,
             });
 
             bAssets = await basketManager.getBassets();
             const lengthAfter = bAssets[0].length;
-            expect(3).to.equal(lengthAfter);
+            expect(5).to.equal(lengthAfter);
 
             const bAsset = await basketManager.getBasset(mockERC20.address);
             const ratio = calculateRatio(ratioScale, await mockERC20.decimals());
@@ -949,7 +925,7 @@ contract("BasketManager", async (accounts) => {
             );
             equalBasset(expectedBasset, bAsset);
             const integrator = await basketManager.getBassetIntegrator(mockERC20.address);
-            expect(integrator).eq(mockAaveIntegrationAddr);
+            expect(integrator).eq(aaveIntegration.address);
         });
     });
 
@@ -1011,14 +987,14 @@ contract("BasketManager", async (accounts) => {
                 );
             });
 
-            it("when bAssetWeight is greater than 1e18", async () => {
+            it("when bAssetWeight is greater than 50%", async () => {
                 await expectRevert(
                     mockBasketManager.setBasketWeights(
                         integrationDetails.aTokens.map((a) => a.bAsset),
                         [percentToWeight(101), percentToWeight(100)],
                         { from: sa.governor },
                     ),
-                    "Asset weight must be <= 1e18",
+                    "Asset weight must be <= 50%",
                 );
             });
 
@@ -1042,11 +1018,16 @@ contract("BasketManager", async (accounts) => {
             it("when total weight is not valid", async () => {
                 await expectRevert(
                     mockBasketManager.setBasketWeights(
-                        integrationDetails.aTokens.map((a) => a.bAsset),
-                        [percentToWeight(60), percentToWeight(50)],
+                        integrationDetails.bAssets.map((b) => b.address),
+                        [
+                            percentToWeight(30),
+                            percentToWeight(20),
+                            percentToWeight(20),
+                            percentToWeight(20),
+                        ],
                         { from: sa.governor },
                     ),
-                    "Basket weight must be = 1e18",
+                    "Basket weight must be >= 100 && <= 200%",
                 );
             });
         });
@@ -1061,11 +1042,11 @@ contract("BasketManager", async (accounts) => {
 
             await mockBasketManager.setBasketWeights(
                 integrationDetails.aTokens.map((a) => a.bAsset),
-                [percentToWeight(60), percentToWeight(40)],
+                [percentToWeight(50), percentToWeight(40)],
                 { from: sa.governor },
             );
 
-            const expectedWeight: Array<BN> = [percentToWeight(60), percentToWeight(40)];
+            const expectedWeight: Array<BN> = [percentToWeight(50), percentToWeight(40)];
             await Promise.all(
                 integrationDetails.aTokens.map(async (a, index) => {
                     const bAsset: Basset = await mockBasketManager.getBasset(a.bAsset);
@@ -1074,28 +1055,39 @@ contract("BasketManager", async (accounts) => {
             );
         });
         it("should update the weights even with affected bAsset", async () => {
-            const { aTokens } = integrationDetails;
+            const { bAssets } = integrationDetails;
             await Promise.all(
-                aTokens.map(async (a) => {
-                    const bAsset: Basset = await mockBasketManager.getBasset(a.bAsset);
+                bAssets.map(async (b) => {
+                    const bAsset: Basset = await mockBasketManager.getBasset(b.address);
                     expect(percentToWeight(50)).to.bignumber.equal(bAsset.maxWeight);
                 }),
             );
-            const mockERC20 = await MockERC20.new("Mock", "MKT", 18, sa.default, new BN(10000));
-            await mockBasketManager.addBasset(mockERC20.address, mockAaveIntegrationAddr, false, {
+            const mockERC20 = await createMockERC20();
+            await mockBasketManager.addBasset(mockERC20.address, aaveIntegration.address, false, {
                 from: sa.governor,
             });
-            await mockBasketManager.setBassetStatus(aTokens[1].bAsset, BassetStatus.BrokenBelowPeg);
+            await mockBasketManager.setBassetStatus(
+                bAssets[1].address,
+                BassetStatus.BrokenBelowPeg,
+            );
 
             await mockBasketManager.setBasketWeights(
-                [...aTokens.map((a) => a.bAsset), mockERC20.address],
-                [percentToWeight(30), percentToWeight(50), percentToWeight(20)],
+                [...bAssets.map((b) => b.address), mockERC20.address],
+                [
+                    percentToWeight(30),
+                    percentToWeight(50),
+                    percentToWeight(20),
+                    percentToWeight(20),
+                    percentToWeight(20),
+                ],
                 { from: sa.governor },
             );
 
             const expectedWeight: Array<BN> = [
                 percentToWeight(30),
                 percentToWeight(50),
+                percentToWeight(20),
+                percentToWeight(20),
                 percentToWeight(20),
             ];
             const [bassets] = await mockBasketManager.getBassets();
@@ -1326,18 +1318,26 @@ contract("BasketManager", async (accounts) => {
             });
 
             it("when bAsset vault balance is non zero (by governor)", async () => {
-                const bAssetToRemove = integrationDetails.aTokens[0].bAsset;
+                const { bAssets } = integrationDetails;
+                const bAssetToRemove = bAssets[0].address;
 
                 const lengthBefore = (await basketManager.getBassets())[0].length;
 
-                await basketManager.increaseVaultBalance(0, mockAaveIntegrationAddr, new BN(100), {
+                await basketManager.increaseVaultBalance(0, aaveIntegration.address, new BN(100), {
                     from: masset,
                 });
 
-                const bAssets = integrationDetails.aTokens.map((a) => a.bAsset);
-                const newWeights = [percentToWeight(0), percentToWeight(100)];
-                await basketManager.setBasketWeights(bAssets, newWeights, { from: sa.governor });
-
+                const newWeights = [
+                    percentToWeight(0),
+                    percentToWeight(50),
+                    percentToWeight(50),
+                    percentToWeight(50),
+                ];
+                await basketManager.setBasketWeights(
+                    bAssets.map((b) => b.address),
+                    newWeights,
+                    { from: sa.governor },
+                );
                 await expectRevert(
                     basketManager.removeBasset(bAssetToRemove, { from: sa.governor }),
                     "bAsset vault must be empty",
@@ -1354,7 +1354,7 @@ contract("BasketManager", async (accounts) => {
                 const lengthBefore = (await mockBasketManager.getBassets())[0].length;
 
                 const bAssets = integrationDetails.aTokens.map((a) => a.bAsset);
-                const newWeights = [percentToWeight(0), percentToWeight(100)];
+                const newWeights = [percentToWeight(0), percentToWeight(50)];
                 await mockBasketManager.setBasketWeights(bAssets, newWeights, {
                     from: sa.governor,
                 });
@@ -1379,7 +1379,7 @@ contract("BasketManager", async (accounts) => {
             const lengthBefore = (await mockBasketManager.getBassets())[0].length;
 
             const bAssets = integrationDetails.aTokens.map((a) => a.bAsset);
-            const newWeights = [percentToWeight(0), percentToWeight(100)];
+            const newWeights = [percentToWeight(0), percentToWeight(50)];
             await mockBasketManager.setBasketWeights(bAssets, newWeights, {
                 from: sa.governor,
             });
@@ -1397,43 +1397,9 @@ contract("BasketManager", async (accounts) => {
             const bAssetIntegratorAfter = await mockBasketManager.getBassetIntegrator(
                 unMovedBasset,
             );
-            await expectRevert(mockBasketManager.integrations(1), "invalid opcode");
+            await expectRevert(mockBasketManager.integrations(3), "invalid opcode");
 
             expect(bAssetIntegratorBefore).eq(bAssetIntegratorAfter);
-            const lengthAfter = (await mockBasketManager.getBassets())[0].length;
-            expect(lengthBefore - 1).to.equal(lengthAfter);
-
-            await expectRevert(mockBasketManager.getBasset(bAssetToRemove), "bAsset must exist");
-        });
-
-        it("should succeed when request is valid (by governor)", async () => {
-            const mockBasketManager = await createMockBasketManger();
-            const bAssetToRemove = integrationDetails.aTokens[1].bAsset;
-            const unMovedBasset = integrationDetails.aTokens[0].bAsset;
-
-            const lengthBefore = (await mockBasketManager.getBassets())[0].length;
-
-            const bAssets = integrationDetails.aTokens.map((a) => a.bAsset);
-            const newWeights = [percentToWeight(100), percentToWeight(0)];
-            await mockBasketManager.setBasketWeights(bAssets, newWeights, {
-                from: sa.governor,
-            });
-
-            const bAssetBefore = await mockBasketManager.getBasset(unMovedBasset);
-            const bAssetIntegratorBefore = await mockBasketManager.getBassetIntegrator(
-                unMovedBasset,
-            );
-            const tx = await mockBasketManager.removeBasset(bAssetToRemove, { from: sa.governor });
-            expectEvent.inLogs(tx.logs, "BassetRemoved", { bAsset: bAssetToRemove });
-
-            // Basket should still behave as normal, getting the desired details and integrator
-            const bAssetAfter = await mockBasketManager.getBasset(unMovedBasset);
-            equalBasset(bAssetBefore, bAssetAfter);
-            const bAssetIntegratorAfter = await mockBasketManager.getBassetIntegrator(
-                unMovedBasset,
-            );
-            expect(bAssetIntegratorBefore).eq(bAssetIntegratorAfter);
-            // await expectRevert(mockBasketManager.integrations(1), "invalid opcode");
             const lengthAfter = (await mockBasketManager.getBassets())[0].length;
             expect(lengthBefore - 1).to.equal(lengthAfter);
 
@@ -1445,7 +1411,7 @@ contract("BasketManager", async (accounts) => {
         it("gets the full basket with all parameters", async () => {
             const basket = await basketManager.getBasket();
             const bAssets = basket.bassets;
-            equalBassets(bAssets, createDefaultBassets());
+            equalBassets(bAssets, await createDefaultBassets());
             expect(false).to.equal(basket.failed);
             expect(new BN(16)).to.bignumber.equal(basket.maxBassets);
             expect(fullScale).to.bignumber.equal(basket.collateralisationRatio);
@@ -1533,7 +1499,7 @@ contract("BasketManager", async (accounts) => {
 
     describe("getBassets()", async () => {
         it("should get all bAssets", async () => {
-            await expectBassets(createDefaultBassets(), new BN(2));
+            await expectBassets(await createDefaultBassets(), new BN(4));
         });
     });
 
@@ -1569,7 +1535,7 @@ contract("BasketManager", async (accounts) => {
             await Promise.all(
                 integrationDetails.aTokens.map(async (a) => {
                     const integrator = await basketManager.getBassetIntegrator(a.bAsset);
-                    expect(mockAaveIntegrationAddr).to.equal(integrator);
+                    expect(aaveIntegration.address).to.equal(integrator);
                 }),
             );
         });
@@ -1708,44 +1674,6 @@ contract("BasketManager", async (accounts) => {
             );
         });
 
-        it("should not change status when bAsset has recolled - Liquidating (by governor)", async () => {
-            const belowPegBools: Array<boolean> = [true, false];
-            await Promise.all(
-                belowPegBools.map(async (flag) => {
-                    await Promise.all(
-                        integrationDetails.aTokens.map(async (a) => {
-                            const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
-                            expect(bAssetBefore.status).to.bignumber.equal(
-                                new BN(BassetStatus.Normal),
-                            );
-
-                            await mockBasketManager.setBassetStatus(
-                                a.bAsset,
-                                BassetStatus.Liquidating,
-                            );
-                            const bAssetAfterStatusChange = await mockBasketManager.getBasset(
-                                a.bAsset,
-                            );
-                            expect(bAssetAfterStatusChange.status).to.bignumber.equal(
-                                new BN(BassetStatus.Liquidating),
-                            );
-
-                            await mockBasketManager.handlePegLoss(a.bAsset, flag, {
-                                from: sa.governor,
-                            });
-                            const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(
-                                a.bAsset,
-                            );
-                            expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
-                                new BN(BassetStatus.Liquidating),
-                            );
-                        }),
-                    );
-                    return null;
-                }),
-            );
-        });
-
         it("should not change status when bAsset has recolled - Liquidated (by governor)", async () => {
             const belowPegBools: Array<boolean> = [true, false];
             await Promise.all(
@@ -1784,40 +1712,6 @@ contract("BasketManager", async (accounts) => {
             );
         });
 
-        it("should not change status when bAsset has recolled - Failed (by governor)", async () => {
-            const belowPegBools: Array<boolean> = [true, false];
-            await Promise.all(
-                belowPegBools.map(async (flag) => {
-                    await Promise.all(
-                        integrationDetails.aTokens.map(async (a) => {
-                            const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
-                            expect(bAssetBefore.status).to.bignumber.equal(
-                                new BN(BassetStatus.Normal),
-                            );
-
-                            await mockBasketManager.setBassetStatus(a.bAsset, BassetStatus.Failed);
-                            const bAssetAfterStatusChange = await mockBasketManager.getBasset(
-                                a.bAsset,
-                            );
-                            expect(bAssetAfterStatusChange.status).to.bignumber.equal(
-                                new BN(BassetStatus.Failed),
-                            );
-
-                            await mockBasketManager.handlePegLoss(a.bAsset, flag, {
-                                from: sa.governor,
-                            });
-                            const bAssetAfterHandlePegLoss = await mockBasketManager.getBasset(
-                                a.bAsset,
-                            );
-                            expect(bAssetAfterHandlePegLoss.status).to.bignumber.equal(
-                                new BN(BassetStatus.Failed),
-                            );
-                        }),
-                    );
-                    return null;
-                }),
-            );
-        });
         it("should change status when (Normal, belowPeg) (by governor)", async () => {
             await Promise.all(
                 integrationDetails.aTokens.map(async (a) => {
@@ -1928,39 +1822,34 @@ contract("BasketManager", async (accounts) => {
 
         it("should skip when Normal (by manager)", async () => {
             await Promise.all(
-                integrationDetails.aTokens.map(async (a) => {
-                    await mockBasketManager.negateIsolation(a.bAsset, { from: manager });
-                }),
+                integrationDetails.aTokens.map((a) =>
+                    mockBasketManager.negateIsolation(a.bAsset, { from: manager }),
+                ),
             );
         });
 
         it("should skip when Normal (by governor)", async () => {
             await Promise.all(
-                integrationDetails.aTokens.map(async (a) => {
-                    await mockBasketManager.negateIsolation(a.bAsset, { from: sa.governor });
-                }),
+                integrationDetails.aTokens.map((a) =>
+                    mockBasketManager.negateIsolation(a.bAsset, { from: sa.governor }),
+                ),
             );
         });
 
         it("should fail when not called by manager or governor", async () => {
             await Promise.all(
-                integrationDetails.aTokens.map(async (a) => {
-                    await expectRevert(
+                integrationDetails.aTokens.map((a) =>
+                    expectRevert(
                         mockBasketManager.negateIsolation(a.bAsset, { from: sa.other }),
                         "Must be manager or governor",
-                    );
-                }),
+                    ),
+                ),
             );
         });
 
         it("should fail when wrong bAsset address passed", async () => {
             await expectRevert(
                 mockBasketManager.negateIsolation(sa.other, { from: manager }),
-                "bAsset must exist",
-            );
-
-            await expectRevert(
-                mockBasketManager.negateIsolation(sa.other, { from: sa.governor }),
                 "bAsset must exist",
             );
         });
@@ -1978,81 +1867,6 @@ contract("BasketManager", async (accounts) => {
                     );
 
                     const tx = await mockBasketManager.negateIsolation(a.bAsset, { from: manager });
-                    expectEvent.inLogs(tx.logs, "BassetStatusChanged", {
-                        bAsset: a.bAsset,
-                        status: new BN(BassetStatus.Normal),
-                    });
-                    const bAssetAfterNegate = await mockBasketManager.getBasset(a.bAsset);
-                    expect(new BN(BassetStatus.Normal)).to.bignumber.equal(
-                        bAssetAfterNegate.status,
-                    );
-                }),
-            );
-        });
-
-        it("should succeed when status is 'BrokenAbovePeg' (by manager)", async () => {
-            await Promise.all(
-                integrationDetails.aTokens.map(async (a) => {
-                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
-                    expect(new BN(BassetStatus.Normal)).to.bignumber.equal(bAssetBefore.status);
-
-                    await mockBasketManager.setBassetStatus(a.bAsset, BassetStatus.BrokenAbovePeg);
-                    const bAssetAfter = await mockBasketManager.getBasset(a.bAsset);
-                    expect(new BN(BassetStatus.BrokenAbovePeg)).to.bignumber.equal(
-                        bAssetAfter.status,
-                    );
-
-                    const tx = await mockBasketManager.negateIsolation(a.bAsset, { from: manager });
-                    expectEvent.inLogs(tx.logs, "BassetStatusChanged", {
-                        bAsset: a.bAsset,
-                        status: new BN(BassetStatus.Normal),
-                    });
-                    const bAssetAfterNegate = await mockBasketManager.getBasset(a.bAsset);
-                    expect(new BN(BassetStatus.Normal)).to.bignumber.equal(
-                        bAssetAfterNegate.status,
-                    );
-                }),
-            );
-        });
-
-        it("should succeed when status is 'Blacklisted' (by manager)", async () => {
-            await Promise.all(
-                integrationDetails.aTokens.map(async (a) => {
-                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
-                    expect(new BN(BassetStatus.Normal)).to.bignumber.equal(bAssetBefore.status);
-
-                    await mockBasketManager.setBassetStatus(a.bAsset, BassetStatus.Blacklisted);
-                    const bAssetAfter = await mockBasketManager.getBasset(a.bAsset);
-                    expect(new BN(BassetStatus.Blacklisted)).to.bignumber.equal(bAssetAfter.status);
-
-                    const tx = await mockBasketManager.negateIsolation(a.bAsset, { from: manager });
-                    expectEvent.inLogs(tx.logs, "BassetStatusChanged", {
-                        bAsset: a.bAsset,
-                        status: new BN(BassetStatus.Normal),
-                    });
-                    const bAssetAfterNegate = await mockBasketManager.getBasset(a.bAsset);
-                    expect(new BN(BassetStatus.Normal)).to.bignumber.equal(
-                        bAssetAfterNegate.status,
-                    );
-                }),
-            );
-        });
-
-        it("should succeed when status is 'BrokenBelowPeg' (by governor)", async () => {
-            await Promise.all(
-                integrationDetails.aTokens.map(async (a) => {
-                    const bAssetBefore = await mockBasketManager.getBasset(a.bAsset);
-                    expect(new BN(BassetStatus.Normal)).to.bignumber.equal(bAssetBefore.status);
-
-                    await mockBasketManager.setBassetStatus(a.bAsset, BassetStatus.BrokenBelowPeg);
-                    const bAssetAfter = await mockBasketManager.getBasset(a.bAsset);
-                    expect(new BN(BassetStatus.BrokenBelowPeg)).to.bignumber.equal(
-                        bAssetAfter.status,
-                    );
-
-                    const tx = await mockBasketManager.negateIsolation(a.bAsset, {
-                        from: sa.governor,
-                    });
                     expectEvent.inLogs(tx.logs, "BassetStatusChanged", {
                         bAsset: a.bAsset,
                         status: new BN(BassetStatus.Normal),

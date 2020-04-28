@@ -36,7 +36,6 @@ const c_MUSD: t.MUSDContract = artifacts.require("MUSD");
 const c_MockERC20WithFee: t.MockERC20WithFeeContract = artifacts.require("MockERC20WithFee");
 const c_MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
 const c_MockUSDT: t.MockUSDTContract = artifacts.require("MockUSDT");
-const c_ERC20: t.ERC20Contract = artifacts.require("ERC20");
 
 export interface MassetDetails {
     mAsset?: t.MassetInstance;
