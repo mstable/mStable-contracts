@@ -17,6 +17,9 @@ interface MassetStructs {
         /** @dev Max number of bAssets that can be present in any Basket */
         uint8 maxBassets;
 
+        /** @dev Some bAsset is undergoing re-collateralisation */
+        bool undergoingRecol;
+
         /**
          * @dev In the event that we do not raise enough funds from the auctioning of a failed Basset,
          * The Basket is deemed as failed, and is undercollateralised to a certain degree.

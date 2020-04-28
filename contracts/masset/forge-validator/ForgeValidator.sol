@@ -20,8 +20,8 @@ contract ForgeValidator is IForgeValidator {
 
     /**
      * @notice Checks whether a given mint is valid and returns the result
-     * @dev Is the resulting weighting of the target bAsset beyond it's implicit max weight?
-     * Max weight is determined as target weight (in units)
+     * @dev Is the resulting weighting of the max bAsset beyond it's implicit max weight?
+     * Max weight is determined as max weight (in units)
      * @param _totalVault       Current sum of basket collateral
      * @param _bAsset           Struct containing relevant data on the bAsset
      * @param _bAssetQuantity   Number of bAsset units that will be used to mint
@@ -49,11 +49,11 @@ contract ForgeValidator is IForgeValidator {
         uint256 mintAmountInMasset = _bAssetQuantity.mulRatioTruncate(_bAsset.ratio);
         // How much of this bAsset do we have in the vault, in terms of mAsset?
         uint256 newBalanceInMasset = _bAsset.vaultBalance.mulRatioTruncate(_bAsset.ratio).add(mintAmountInMasset);
-        // What is the target weight of this bAsset in the basket?
+        // What is the max weight of this bAsset in the basket?
         uint256 maxWeightInUnits = (_totalVault.add(mintAmountInMasset)).mulTruncate(_bAsset.maxWeight);
 
         if(newBalanceInMasset > maxWeightInUnits) {
-            return (false, "Must be below implicit max weighting");
+            return (false, "Must be below max weighting");
         }
 
         return (true, "");
@@ -61,8 +61,8 @@ contract ForgeValidator is IForgeValidator {
 
     /**
      * @notice Checks whether a given mint using more than one asset is valid and returns the result
-     * @dev Is the resulting weighting of the target bAssets beyond their implicit max weight?
-     * Max weight is determined as target weight (in units)
+     * @dev Is the resulting weighting of the max bAssets beyond their implicit max weight?
+     * Max weight is determined as max weight (in units)
      * @param _totalVault       Current sum of basket collateral
      * @param _bAssets          Array of Struct containing relevant data on the bAssets
      * @param _bAssetQuantities Number of bAsset units that will be used to mint (aligned with above)
@@ -100,17 +100,17 @@ contract ForgeValidator is IForgeValidator {
             // How much mAsset is this bassetquantity worth?
             uint256 mintAmountInMasset = _bAssetQuantities[j].mulRatioTruncate(b.ratio);
             // How much of this bAsset do we have in the vault, in terms of mAsset?
-            newBalances[j] = b.vaultBalance.mulRatioTruncate(b.ratio).add(mintAmountInMasset);
+            newBalances[j] = b.vaultBalance.mulRatioTruncate(b.ratio).add(mintAmountInMasset);z
 
             newTotalVault = newTotalVault.add(mintAmountInMasset);
         }
 
         for(uint256 k = 0; k < bAssetCount; k++){
-            // What is the target weight of this bAsset in the basket?
+            // What is the max weight of this bAsset in the basket?
             uint256 maxWeightInUnits = newTotalVault.mulTruncate(_bAssets[k].maxWeight);
 
             if(newBalances[k] > maxWeightInUnits) {
-                return (false, "Must be below implicit max weighting");
+                return (false, "Must be below max weighting");
             }
         }
 

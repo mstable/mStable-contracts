@@ -50,6 +50,7 @@ contract BasketManager is
 
     // Struct holding Basket details
     Basket public basket;
+    bool private undergoingRecol;
     // Mapping holds bAsset token address => array index
     mapping(address => uint8) private bAssetsMap;
     // Holds relative addresses of the integration platforms
@@ -103,6 +104,14 @@ contract BasketManager is
      */
     modifier whenBasketIsHealthy() {
         require(!basket.failed, "Basket must be alive");
+        _;
+    }
+
+    /**
+     * @dev Requires the overall basket composition to be healthy
+     */
+    modifier whenNotRecolling() {
+        require(!basket.undergoingRecol, "No bAssets can be undergoing recol");
         _;
     }
 
@@ -503,6 +512,7 @@ contract BasketManager is
     function prepareForgeBasset(address _bAsset, uint256 /*_amt*/, bool /*_mint*/)
         external
         whenNotPaused
+        whenNotRecolling
         returns (ForgeProps memory props)
     {
         (bool exists, uint8 idx) = _isAssetInBasket(_bAsset);
@@ -528,6 +538,7 @@ contract BasketManager is
     )
         external
         whenNotPaused
+        whenNotRecolling
         returns (ForgePropsMulti memory props)
     {
         // Pass the fetching logic to the internal view func to reduce SLOAD cost

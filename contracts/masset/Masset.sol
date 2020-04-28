@@ -50,7 +50,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
     // Basic redemption fee information
     address public feeRecipient;
     uint256 public redemptionFee;
-    uint256 private constant MAX_FEE = 1e17;
+    uint256 private constant MAX_FEE = 2e16;
 
     constructor (
         string memory _name,
