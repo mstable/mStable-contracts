@@ -756,4 +756,24 @@ contract BasketManager is
             emit BassetStatusChanged(_bAsset, BassetStatus.Normal);
         }
     }
+
+    /**
+     * @dev Marks a bAsset as permanently deviated from peg
+     * @param _bAsset Address of the bAsset
+     */
+    function failBasset(address _bAsset)
+        external
+        onlyGovernor
+    {
+        (bool exists, uint256 i) = _isAssetInBasket(_bAsset);
+        require(exists, "bAsset must exist");
+
+        BassetStatus currentStatus = basket.bassets[i].status;
+        require(
+            currentStatus == BassetStatus.BrokenBelowPeg ||
+            currentStatus == BassetStatus.BrokenAbovePeg,
+            "bAsset must be affected"
+        );
+        basket.failed = true;
+    }
 }

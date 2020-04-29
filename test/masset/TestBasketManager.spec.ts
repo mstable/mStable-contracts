@@ -1373,18 +1373,73 @@ contract("BasketManager", async (accounts) => {
 
         it("should succeed when request is valid (by manager)", async () => {
             const mockBasketManager = await createMockBasketManger();
-            const bAssetToRemove = integrationDetails.aTokens[0].bAsset;
-            const unMovedBasset = integrationDetails.aTokens[1].bAsset;
+            const bAssetToRemove = integrationDetails.bAssets[0].address;
+            const unMovedBasset = integrationDetails.bAssets[1].address;
+            const movedBasset = integrationDetails.bAssets[3].address;
 
             const lengthBefore = (await mockBasketManager.getBassets())[0].length;
 
-            const bAssets = integrationDetails.aTokens.map((a) => a.bAsset);
-            const newWeights = [percentToWeight(0), percentToWeight(50)];
+            const bAssets = integrationDetails.bAssets.map((b) => b.address);
+            const newWeights = [
+                percentToWeight(0),
+                percentToWeight(50),
+                percentToWeight(40),
+                percentToWeight(30),
+            ];
             await mockBasketManager.setBasketWeights(bAssets, newWeights, {
                 from: sa.governor,
             });
-            const bAssetBefore = await mockBasketManager.getBasset(unMovedBasset);
-            const bAssetIntegratorBefore = await mockBasketManager.getBassetIntegrator(
+            const unmovedBassetBefore = await mockBasketManager.getBasset(unMovedBasset);
+            const movedBassetBefore = await mockBasketManager.getBasset(movedBasset);
+            const unmovedBassetIntegratorBefore = await mockBasketManager.getBassetIntegrator(
+                unMovedBasset,
+            );
+            const movedBassetIntegratorBefore = await mockBasketManager.getBassetIntegrator(
+                movedBasset,
+            );
+
+            const tx = await mockBasketManager.removeBasset(bAssetToRemove, { from: manager });
+            expectEvent.inLogs(tx.logs, "BassetRemoved", { bAsset: bAssetToRemove });
+
+            // Basket should still behave as normal, getting the desired details and integrator
+            const unmovedBassetAfter = await mockBasketManager.getBasset(unMovedBasset);
+            const movedBassetAfter = await mockBasketManager.getBasset(movedBasset);
+            const unmovedBassetIntegratorAfter = await mockBasketManager.getBassetIntegrator(
+                unMovedBasset,
+            );
+            const movedBassetIntegratorAfter = await mockBasketManager.getBassetIntegrator(
+                movedBasset,
+            );
+            await expectRevert(mockBasketManager.integrations(3), "invalid opcode");
+
+            expect(unmovedBassetIntegratorBefore).eq(unmovedBassetIntegratorAfter);
+            expect(movedBassetIntegratorBefore).eq(movedBassetIntegratorAfter);
+            expect(unmovedBassetBefore.maxWeight).eq(unmovedBassetAfter.maxWeight);
+            expect(movedBassetBefore.maxWeight).eq(movedBassetAfter.maxWeight);
+            const lengthAfter = (await mockBasketManager.getBassets())[0].length;
+            expect(lengthBefore - 1).to.equal(lengthAfter);
+
+            await expectRevert(mockBasketManager.getBasset(bAssetToRemove), "bAsset must exist");
+        });
+        it("should remove the last bAsset in the array", async () => {
+            const mockBasketManager = await createMockBasketManger();
+            const bAssetToRemove = integrationDetails.bAssets[3].address;
+            const unMovedBasset = integrationDetails.bAssets[1].address;
+
+            const lengthBefore = (await mockBasketManager.getBassets())[0].length;
+
+            const bAssets = integrationDetails.bAssets.map((b) => b.address);
+            const newWeights = [
+                percentToWeight(30),
+                percentToWeight(50),
+                percentToWeight(40),
+                percentToWeight(0),
+            ];
+            await mockBasketManager.setBasketWeights(bAssets, newWeights, {
+                from: sa.governor,
+            });
+            const unmovedBassetBefore = await mockBasketManager.getBasset(unMovedBasset);
+            const unmovedBassetIntegratorBefore = await mockBasketManager.getBassetIntegrator(
                 unMovedBasset,
             );
 
@@ -1392,14 +1447,14 @@ contract("BasketManager", async (accounts) => {
             expectEvent.inLogs(tx.logs, "BassetRemoved", { bAsset: bAssetToRemove });
 
             // Basket should still behave as normal, getting the desired details and integrator
-            const bAssetAfter = await mockBasketManager.getBasset(unMovedBasset);
-            equalBasset(bAssetBefore, bAssetAfter);
-            const bAssetIntegratorAfter = await mockBasketManager.getBassetIntegrator(
+            const unmovedBassetAfter = await mockBasketManager.getBasset(unMovedBasset);
+            const unmovedBassetIntegratorAfter = await mockBasketManager.getBassetIntegrator(
                 unMovedBasset,
             );
             await expectRevert(mockBasketManager.integrations(3), "invalid opcode");
 
-            expect(bAssetIntegratorBefore).eq(bAssetIntegratorAfter);
+            expect(unmovedBassetIntegratorBefore).eq(unmovedBassetIntegratorAfter);
+            expect(unmovedBassetBefore.maxWeight).eq(unmovedBassetAfter.maxWeight);
             const lengthAfter = (await mockBasketManager.getBassets())[0].length;
             expect(lengthBefore - 1).to.equal(lengthAfter);
 
@@ -1929,6 +1984,68 @@ contract("BasketManager", async (accounts) => {
                     );
                 }),
             );
+        });
+    });
+    describe("failBasset()", async () => {
+        beforeEach(async () => {
+            await createNewBasketManager();
+        });
+        context("when the bAsset doesn't exist", async () => {
+            it("should always fail", async () => {
+                expectRevert(
+                    basketManager.failBasset(sa.dummy1, { from: sa.governor }),
+                    "bAsset must exist",
+                );
+            });
+        });
+        context("when there are no affected bAssets", async () => {
+            it("should always fail", async () => {
+                const { bAssets } = integrationDetails;
+                await Promise.all(
+                    bAssets.map(async (b) => {
+                        const bAsset = await basketManager.getBasset(b.address);
+                        expect(bAsset.status).eq(BassetStatus.Normal);
+                        return expectRevert(
+                            basketManager.failBasset(bAsset.addr, { from: sa.governor }),
+                            "bAsset must be affected",
+                        );
+                    }),
+                );
+            });
+        });
+
+        context("when called by invalid account", async () => {
+            it("should always fail", async () => {
+                const { bAssets } = integrationDetails;
+                const bAsset = await basketManager.getBasset(bAssets[0].address);
+                expect(bAsset.status).eq(BassetStatus.Normal);
+                return expectRevert(
+                    basketManager.failBasset(bAsset.addr, { from: sa.default }),
+                    "Only governor can execute",
+                );
+            });
+        });
+        context("when a bAsset has completely failed", async () => {
+            it("should set the failed prop on the basket", async () => {
+                const { bAssets } = integrationDetails;
+
+                // Get current failed status
+                let basket = await basketManager.getBasket();
+                expect(basket.failed).eq(false);
+
+                // Prepare the bAsset
+                const targetBasset = bAssets[0].address;
+                await basketManager.handlePegLoss(targetBasset, true, { from: sa.governor });
+                const bAsset = await basketManager.getBasset(targetBasset);
+                expect(bAsset.status).eq(BassetStatus.BrokenBelowPeg);
+
+                // Failed
+                await basketManager.failBasset(targetBasset, { from: sa.governor });
+
+                // Assert props set
+                basket = await basketManager.getBasket();
+                expect(basket.failed).eq(true);
+            });
         });
     });
 });
