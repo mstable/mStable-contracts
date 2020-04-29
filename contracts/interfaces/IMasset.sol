@@ -27,7 +27,7 @@ contract IMasset is MassetStructs {
     function upgradeForgeValidator(address _newForgeValidator) external;
 
     /** @dev Setters for Gov to set system params */
-    function setRedemptionFee(uint256 _redemptionFee) external;
+    function setSwapFee(uint256 _swapFee) external;
     function setFeeRecipient(address _feeRecipient) external;
 
     /** @dev Getters */

@@ -96,21 +96,15 @@ export const assertBasketIsHealthy = async (
     const composition = await machine.getBasketComposition(md);
     // Assert sum of bAssets in vault storage is gte to total supplay of mAsset
     assertBnGte(composition.sumOfBassets, composition.totalSupply);
-    console.log("1");
-
     // No basket weight should be above max
     composition.bAssets.forEach((b) => {
         expect(b.overweight).to.eq(false);
     });
-    console.log("2");
     // should be unpaused
     expect(await md.basketManager.paused()).to.eq(false);
-    console.log("3");
     // not failed
     expect(composition.failed).to.eq(false);
-    console.log("4");
     expect(composition.colRatio).bignumber.eq(fullScale);
-    console.log("5");
     // prepareForgeBasset works
     // Potentially wrap in mock and check event
     await md.basketManager.prepareForgeBasset(md.bAssets[0].address, "1", false);

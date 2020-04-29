@@ -61,8 +61,8 @@ contract("Masset", async (accounts) => {
                 expect(await massetDetails.mAsset.getBasketManager()).eq(
                     massetDetails.basketManager.address,
                 );
-                expect(await massetDetails.mAsset.redemptionFee()).bignumber.eq(
-                    simpleToExactAmount(2, 16),
+                expect(await massetDetails.mAsset.swapFee()).bignumber.eq(
+                    simpleToExactAmount(4, 15),
                 );
                 expect(await massetDetails.mAsset.decimals()).bignumber.eq(new BN(18));
                 expect(await massetDetails.mAsset.balanceOf(sa.dummy1)).bignumber.eq(new BN(0));
@@ -119,26 +119,26 @@ contract("Masset", async (accounts) => {
         });
         it("should allow the fee rate to be changed", async () => {
             // update by the governor
-            const oldFee = await massetDetails.mAsset.redemptionFee();
+            const oldFee = await massetDetails.mAsset.swapFee();
             const newfee = simpleToExactAmount(1, 16); // 1%
             expect(oldFee).bignumber.not.eq(newfee);
-            await massetDetails.mAsset.setRedemptionFee(newfee, { from: sa.governor });
-            expect(await massetDetails.mAsset.redemptionFee()).bignumber.eq(newfee);
+            await massetDetails.mAsset.setSwapFee(newfee, { from: sa.governor });
+            expect(await massetDetails.mAsset.swapFee()).bignumber.eq(newfee);
             // rejected if not governor
             await expectRevert(
-                massetDetails.mAsset.setRedemptionFee(newfee, { from: sa.default }),
+                massetDetails.mAsset.setSwapFee(newfee, { from: sa.default }),
                 "Only governor can execute",
             );
             // cannot exceed cap
             const feeExceedingCap = simpleToExactAmount(11, 16); // 11%
             await expectRevert(
-                massetDetails.mAsset.setRedemptionFee(feeExceedingCap, { from: sa.governor }),
+                massetDetails.mAsset.setSwapFee(feeExceedingCap, { from: sa.governor }),
                 "Rate must be within bounds",
             );
             // cannot exceed min
             const feeExceedingMin = new BN(-1); // 11%
             await expectRevert(
-                massetDetails.mAsset.setRedemptionFee(feeExceedingMin, { from: sa.governor }),
+                massetDetails.mAsset.setSwapFee(feeExceedingMin, { from: sa.governor }),
                 "Rate must be within bounds",
             );
         });

@@ -47,8 +47,8 @@ contract SavingsManager is ISavingsManager, PausableModule {
     uint256 private savingsRate = 1e18;
     // Utils to help keep interest under check
     uint256 constant private SECONDS_IN_YEAR = 365 days;
-    // Theoretical cap on APY at 50% to avoid excess inflation
-    uint256 constant private MAX_APY = 5e17;
+    // Theoretical cap on APY to avoid excess inflation
+    uint256 constant private MAX_APY = 1e19;
     uint256 constant private THIRTY_MINUTES = 30 minutes;
 
     constructor(
@@ -165,7 +165,8 @@ contract SavingsManager is ISavingsManager, PausableModule {
                 // Percentage increase in total supply
                 // e.g. (1e20 * 1e18) / 1e24 = 1e14 (or a 0.01% increase)
                 // e.g. (5e18 * 1e18) / 1.2e24 = 4.1667e12
-                uint256 percentageIncrease = interestCollected.divPrecisely(totalSupply);
+                uint256 oldSupply = totalSupply.sub(interestCollected);
+                uint256 percentageIncrease = interestCollected.divPrecisely(oldSupply);
                 // e.g. 0.01% (1e14 * 1e18) / 2.74..e15 = 3.65e16 or 3.65% apr
                 // e.g. (4.1667e12 * 1e18) / 5.7..e13 = 7.1e16 or 7.1% apr
                 uint256 extrapolatedAPY = percentageIncrease.divPrecisely(yearsSinceLastCollection);

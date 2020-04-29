@@ -748,7 +748,7 @@ contract("Masset", async (accounts) => {
             ignoreHealthAssertions = false,
         ): Promise<void> => {
             const { mAsset, basketManager } = md;
-            console.log("x");
+
             if (!ignoreHealthAssertions) await assertBasketIsHealthy(massetMachine, md);
 
             const minterBassetBalBefore = await Promise.all(
@@ -784,7 +784,7 @@ contract("Masset", async (accounts) => {
                 account: recipient,
                 mAssetQuantity,
             });
-            console.log("y");
+
             // Recipient should have mAsset quantity after
             const recipientBalAfter = await mAsset.balanceOf(recipient);
             expect(recipientBalAfter).bignumber.eq(recipientBalBefore.add(mAssetQuantity));
@@ -804,7 +804,6 @@ contract("Masset", async (accounts) => {
             );
 
             // Complete basket should remain in healthy state
-            console.log("x");
             if (!ignoreHealthAssertions) await assertBasketIsHealthy(massetMachine, md);
         };
 

@@ -2004,7 +2004,7 @@ contract("BasketManager", async (accounts) => {
                 await Promise.all(
                     bAssets.map(async (b) => {
                         const bAsset = await basketManager.getBasset(b.address);
-                        expect(bAsset.status).eq(BassetStatus.Normal);
+                        expect(bAsset.status.toString()).eq(BassetStatus.Normal.toString());
                         return expectRevert(
                             basketManager.failBasset(bAsset.addr, { from: sa.governor }),
                             "bAsset must be affected",
@@ -2018,7 +2018,7 @@ contract("BasketManager", async (accounts) => {
             it("should always fail", async () => {
                 const { bAssets } = integrationDetails;
                 const bAsset = await basketManager.getBasset(bAssets[0].address);
-                expect(bAsset.status).eq(BassetStatus.Normal);
+                expect(bAsset.status.toString()).eq(BassetStatus.Normal.toString());
                 return expectRevert(
                     basketManager.failBasset(bAsset.addr, { from: sa.default }),
                     "Only governor can execute",
@@ -2037,7 +2037,7 @@ contract("BasketManager", async (accounts) => {
                 const targetBasset = bAssets[0].address;
                 await basketManager.handlePegLoss(targetBasset, true, { from: sa.governor });
                 const bAsset = await basketManager.getBasset(targetBasset);
-                expect(bAsset.status).eq(BassetStatus.BrokenBelowPeg);
+                expect(bAsset.status.toString()).eq(BassetStatus.BrokenBelowPeg.toString());
 
                 // Failed
                 await basketManager.failBasset(targetBasset, { from: sa.governor });
