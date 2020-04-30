@@ -30,6 +30,11 @@ contract MintWithKyber is AbstractBuyAndMint {
 
     KyberNetworkProxyInterface public kyberNetworkProxy;
 
+    /**
+     * @dev Constructor
+     * @param _kyberNetworkProxy Kyeber Network Proxy contract address
+     * @param _mAssets Array of mAssets addresses
+     */
     constructor(address _kyberNetworkProxy, address[] memory _mAssets)
         public
         AbstractBuyAndMint(_mAssets)
@@ -51,13 +56,13 @@ contract MintWithKyber is AbstractBuyAndMint {
     )
         external
         payable
-        returns (uint256 qtyMinted)
+        returns (uint256 mAssetQtyMinted)
     {
         require(msg.value > 0, "ETH not sent");
         require(_isMassetExist(_destMasset), "Not a valid mAsset");
         require(kyberNetworkProxy.enabled(), "KyberNetworkProxy disabled");
 
-        qtyMinted = _buyAndMint(_srcBasset, _destMasset, msg.value, _msgSender());
+        mAssetQtyMinted = _buyAndMint(_srcBasset, _destMasset, msg.value, _msgSender());
     }
 
     // @override
@@ -68,16 +73,16 @@ contract MintWithKyber is AbstractBuyAndMint {
     )
         external
         payable
-        returns (uint256 qtyMinted)
+        returns (uint256 mAssetQtyMinted)
     {
         require(kyberNetworkProxy.enabled(), "KyberNetworkProxy disabled");
         require(_isMassetExist(_destMasset), "Not a valid mAsset");
 
         // Get the rate from Kyber for `_amountOfMasset` of mAsset into ETH
-        (uint256 expectedRate,) = kyberNetworkProxy.getExpectedRate(ETH_TOKEN_ADDRESS, _destMasset, _amountOfMasset);
+        (uint256 expectedRateInEth,) = kyberNetworkProxy.getExpectedRate(_destMasset, ETH_TOKEN_ADDRESS, _amountOfMasset);
 
         // Pass the `expectedRate` ETH to Kyber
-        qtyMinted = _buyAndMint(_srcBasset, _destMasset, expectedRate, _msgSender());
+        mAssetQtyMinted = _buyAndMint(_srcBasset, _destMasset, expectedRateInEth, _msgSender());
     }
 
     // @override
@@ -88,7 +93,7 @@ contract MintWithKyber is AbstractBuyAndMint {
     )
         external
         payable
-        returns (uint256 qtyMinted)
+        returns (uint256 mAssetQtyMinted)
     {
         uint256 bAssetsLen = _srcBassets.length;
         require(bAssetsLen > 0, "No array data sent");
@@ -97,16 +102,16 @@ contract MintWithKyber is AbstractBuyAndMint {
         require(kyberNetworkProxy.enabled(), "KyberNetworkProxy disabled");
         // Assuming DApp validated that the `sum(_ethAmount[]) == msg.value`, otherwise tx will fail
 
-        qtyMinted = _buyAndMintMulti(_srcBassets, _ethAmount, _destMasset, _msgSender());
+        mAssetQtyMinted = _buyAndMintMulti(_srcBassets, _ethAmount, _destMasset, _msgSender());
     }
 
     /**
-     * @dev Buy bAssets with ETH and Mint mAsset from mStable. Send to the user.
+     * @dev Buy bAssets with ETH and Mint mAsset from mStable. Send mAssets to the user.
      * @param _srcBasset Source bAsset to buy from Kyber
      * @param _destMasset mAsset to mint from mStable
      * @param _ethAmount Amount of ETH to user to buy bAssets
      * @param _recipient Recipient of the mStable tokens
-     * @return qtyMinted Returns the total quantity of mAssets minted
+     * @return mAssetQtyMinted Returns the total quantity of mAssets minted
      */
     function _buyAndMint(
         address _srcBasset,
@@ -115,17 +120,15 @@ contract MintWithKyber is AbstractBuyAndMint {
         address _recipient
     )
         internal
-        returns (uint256 qtyMinted)
+        returns (uint256 mAssetQtyMinted)
     {
         // 1. Buy bAsset of worth `_ethAmount` ETH from Kyber
-        uint256 bAssetQtyMinted = _buyFromKyber(_srcBasset, _destMasset, _ethAmount);
+        uint256 bAssetQtyMinted = _buyBassetsFromKyberWithETH(_srcBasset, _ethAmount);
 
         // 2. Mint mAsset with all bAsset
-        uint256 mAssetQtyMinted = IMasset(_destMasset).mintTo(address(_srcBasset), bAssetQtyMinted, _recipient);
+        mAssetQtyMinted = IMasset(_destMasset).mintTo(address(_srcBasset), bAssetQtyMinted, _recipient);
         require(mAssetQtyMinted > 0, "No mAsset minted");
         require(IERC20(_destMasset).balanceOf(address(this)) >= mAssetQtyMinted, "mAsset token not received");
-
-        qtyMinted = mAssetQtyMinted;
     }
 
     /**
@@ -135,7 +138,7 @@ contract MintWithKyber is AbstractBuyAndMint {
      * @param _ethAmounts Array of eth amount to use corrosponding bAssets
      * @param _destMasset mAsset address to mint
      * @param _recipient Recipient of the mStable tokens
-     * @return qtyMinted Returns the total quantity of mAssets minted
+     * @return mAssetQtyMinted Returns the total quantity of mAssets minted
      */
     function _buyAndMintMulti(
         address[] memory _srcBassets,
@@ -144,45 +147,43 @@ contract MintWithKyber is AbstractBuyAndMint {
         address _recipient
     )
         internal
-        returns (uint256 qtyMinted)
+        returns (uint256 mAssetQtyMinted)
     {
         uint256[] memory bAssetsQtyMinted = new uint256[](_srcBassets.length);
 
         for(uint256 i = 0; i < _srcBassets.length; i++) {
-            bAssetsQtyMinted[i] = _buyFromKyber(_srcBassets[i], _destMasset, _ethAmounts[i]);
+            bAssetsQtyMinted[i] = _buyBassetsFromKyberWithETH(_srcBassets[i], _ethAmounts[i]);
         }
 
-        qtyMinted = IMasset(_destMasset).mintMulti(_srcBassets, bAssetsQtyMinted, _recipient);
+        mAssetQtyMinted = IMasset(_destMasset).mintMulti(_srcBassets, bAssetsQtyMinted, _recipient);
     }
 
     /**
      * @dev Buy bAsset tokens worth of ETH amount sent from Kyber
      * @param _srcBasset Source bAsset to buy from Kyber
-     * @param _destMasset mAsset to mint from mStable
      * @param _ethAmount Amount of ETH to user to buy bAssets
-     * @return qtyMinted Returns the total quantity of bAssets minted from Kyber
+     * @return bAssetsQtyMinted Returns the total quantity of bAssets minted from Kyber
      */
-    function _buyFromKyber(
+    function _buyBassetsFromKyberWithETH(
         address _srcBasset,
-        address _destMasset,
         uint256 _ethAmount
     )
         internal
-        returns (uint256 qtyMinted)
+        returns (uint256 bAssetsQtyMinted)
     {
-        qtyMinted =
+        bAssetsQtyMinted =
             kyberNetworkProxy.tradeWithHint.value(_ethAmount)(
                 ETH_TOKEN_ADDRESS,
                 _ethAmount,
-                _destMasset,
+                _srcBasset,
                 address(this),
                 1 << 255,
                 0,
                 FEE_COLLECTION_ADDRESS,
                 ""
             );
-        require(qtyMinted > 0, "No bAsset minted");
-        require(IERC20(_srcBasset).balanceOf(address(this)) >= qtyMinted, "bAsset token not received");
+        require(bAssetsQtyMinted > 0, "No bAsset minted");
+        require(IERC20(_srcBasset).balanceOf(address(this)) >= bAssetsQtyMinted, "bAsset token not received");
     }
 }
 
