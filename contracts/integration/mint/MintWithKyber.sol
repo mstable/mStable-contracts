@@ -51,7 +51,7 @@ contract MintWithKyber is AbstractBuyAndMint, IBuyAndMint {
     }
 
     // @override
-    function buyAndMint(
+    function buyAndMintMaxMasset(
         address _srcBasset,
         address _destMasset
     )
@@ -67,7 +67,7 @@ contract MintWithKyber is AbstractBuyAndMint, IBuyAndMint {
     }
 
     // @override
-    function buyAndMint(
+    function buyAndMintGivenMasset(
         address _srcBasset,
         address _destMasset,
         uint256 _amountOfMasset
@@ -76,8 +76,9 @@ contract MintWithKyber is AbstractBuyAndMint, IBuyAndMint {
         payable
         returns (uint256 mAssetQtyMinted)
     {
-        require(kyberNetworkProxy.enabled(), "KyberNetworkProxy disabled");
+        require(msg.value > 0, "ETH not sent");
         require(_isMassetExist(_destMasset), "Not a valid mAsset");
+        require(kyberNetworkProxy.enabled(), "KyberNetworkProxy disabled");
 
         // Get the rate from Kyber for `_amountOfMasset` of mAsset into ETH
         (uint256 expectedRateInEth,) = kyberNetworkProxy.getExpectedRate(_destMasset, ETH_TOKEN_ADDRESS, _amountOfMasset);
@@ -87,7 +88,7 @@ contract MintWithKyber is AbstractBuyAndMint, IBuyAndMint {
     }
 
     // @override
-    function buyAndMint(
+    function buyAndMintMulti(
         address[] calldata _srcBassets,
         uint256[] calldata _ethAmount,
         address _destMasset
@@ -96,6 +97,7 @@ contract MintWithKyber is AbstractBuyAndMint, IBuyAndMint {
         payable
         returns (uint256 mAssetQtyMinted)
     {
+        require(msg.value > 0, "ETH not sent");
         uint256 bAssetsLen = _srcBassets.length;
         require(bAssetsLen > 0, "No array data sent");
         require(bAssetsLen == _ethAmount.length, "Array length not matched");

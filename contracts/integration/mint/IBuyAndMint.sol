@@ -13,7 +13,7 @@ interface IBuyAndMint {
      * @param _destMasset mAsset token address to mint
      * @return mAssetQtyMinted Returns the quantity of mAsset minted from mStable
      */
-    function buyAndMint(address _srcBasset, address _destMasset)
+    function buyAndMintMaxMasset(address _srcBasset, address _destMasset)
         external payable returns (uint256 mAssetQtyMinted);
 
     /**
@@ -24,7 +24,7 @@ interface IBuyAndMint {
      * @param _amountOfMasset Expected amount of mAssets to mint from mStable
      * @return mAssetQtyMinted Returns the quantity of mAsset minted from mStable
      */
-    function buyAndMint(address _srcBasset, address _destMasset, uint256 _amountOfMasset)
+    function buyAndMintGivenMasset(address _srcBasset, address _destMasset, uint256 _amountOfMasset)
         external payable returns (uint256 mAssetQtyMinted);
 
     /**
@@ -35,7 +35,7 @@ interface IBuyAndMint {
      * @param _destMAsset mAsset token address to mint
      * @return mAssetQtyMinted Returns the quantity of mAsset minted from mStable
      */
-    function buyAndMint(
+    function buyAndMintMulti(
         address[] calldata _srcBassets,
         uint256[] calldata _ethAmount,
         address _destMAsset
