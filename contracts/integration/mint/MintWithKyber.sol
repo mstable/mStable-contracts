@@ -2,6 +2,7 @@ pragma solidity 0.5.16;
 
 // External
 import { AbstractBuyAndMint } from "./AbstractBuyAndMint.sol";
+import { IBuyAndMint } from "./IBuyAndMint.sol";
 
 // Internal
 import { IMasset } from "../../interfaces/IMasset.sol";
@@ -17,7 +18,7 @@ import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
  * @notice  Contract integrates with Kyber Network Proxy contract and allows anyone to buy
  *          bAsset tokens using ETH from the Kyber platform and mint mAsset tokens from mStable.
  */
-contract MintWithKyber is AbstractBuyAndMint {
+contract MintWithKyber is AbstractBuyAndMint, IBuyAndMint {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
@@ -127,8 +128,6 @@ contract MintWithKyber is AbstractBuyAndMint {
 
         // 2. Mint mAsset with all bAsset
         mAssetQtyMinted = IMasset(_destMasset).mintTo(address(_srcBasset), bAssetQtyMinted, _recipient);
-        require(mAssetQtyMinted > 0, "No mAsset minted");
-        require(IERC20(_destMasset).balanceOf(address(this)) >= mAssetQtyMinted, "mAsset token not received");
     }
 
     /**

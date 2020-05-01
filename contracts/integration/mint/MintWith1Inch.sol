@@ -2,12 +2,13 @@ pragma solidity 0.5.16;
 
 // External
 import { AbstractBuyAndMint } from "./AbstractBuyAndMint.sol";
+import { IBuyAndMintWithOneSplit } from "./IBuyAndMintWithOneSplit.sol";
 
 // Internal
 import { IMasset } from "../../interfaces/IMasset.sol";
 
 // Libs
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 
 /**
@@ -16,7 +17,7 @@ import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
  * @notice  Contract integrates with 1inch (OneSplit) contract and allows anyone to buy
  *          bAsset tokens using ETH from the 1inch and mint mAsset tokens from mStable.
  */
-contract MintWith1Inch is AbstractBuyAndMint {
+contract MintWith1Inch is AbstractBuyAndMint, IBuyAndMintWithOneSplit {
     using SafeMath for uint256;
 
     // 1inch Exchange 1Split contract address
@@ -46,7 +47,8 @@ contract MintWith1Inch is AbstractBuyAndMint {
     // @override
     function buyAndMint(
         address _srcBasset,
-        address _destMasset
+        address _destMasset,
+        uint256[] calldata _distribution
     )
         external
         payable
@@ -55,8 +57,15 @@ contract MintWith1Inch is AbstractBuyAndMint {
         require(msg.value > 0, "ETH not sent");
         require(_isMassetExist(_destMasset), "Not a valid mAsset");
 
-        // Parts = 1 (to avoid loop, so that 100% bAssets will be bought from single DEX)
-        uint256 parts = 1;
+        // NOTICE: Make the following function call off-chain to get the `distribution` and
+        // pass to this function. This is to reduce gas consumption.
+
+        // ============================================================================
+        // Offchain: To calculate the distribution to mint max mAssets with ETH amount
+        // ============================================================================
+        /*
+        // Parts = 20 (Suggested by 1inch to provide best rates)
+        uint256 parts = 20;
         // Not disable any exchange
         uint256 disableFlags = 0;
 
@@ -68,29 +77,13 @@ contract MintWith1Inch is AbstractBuyAndMint {
                 parts,              //parts
                 disableFlags        //disableFlags
             );
+        */
 
-        mAssetQtyMinted = _buyAndMint(_srcBasset, _destMasset, msg.value, distribution, _msgSender());
-    }
-
-    // @override
-    function buyAndMint(
-        address _srcBasset,
-        address _destMasset,
-        uint256 _amountOfMasset
-    )
-        external
-        payable
-        returns (uint256 mAssetQtyMinted)
-    {
-        require(_isMassetExist(_destMasset), "Not a valid mAsset");
-
-        // Get the rate from OneSplit for `_amountOfMasset` of mAsset into ETH
-        // Parts = 1 (to avoid loop, so that 100% bAssets will be bought from single DEX)
-        uint256 parts = 1;
-        // Not disable any exchange
-        uint256 disableFlags = 0;
-
+        // =======================================================================
+        // Offchain: To calculate the distribution using expected mAssets to mint
+        // =======================================================================
         // Get amount in ETH to buy _amountOfMasset
+        /*
         (uint256 ethAmount, uint256[] memory distribution) =
             oneSplit.getExpectedReturn(
                 IERC20(_destMasset),    //fromToken
@@ -99,21 +92,9 @@ contract MintWith1Inch is AbstractBuyAndMint {
                 parts,                  //parts
                 disableFlags            //disableFlags
             );
+        */
 
-        mAssetQtyMinted = _buyAndMint(_srcBasset, _destMasset, ethAmount, distribution, _msgSender());
-    }
-
-    // @override
-    function buyAndMint(
-        address[] calldata /*_srcBassets*/,
-        uint256[] calldata /*_ethAmount*/,
-        address /*_destMAsset*/
-    )
-        external
-        payable
-        returns (uint256 /*mAssetQtyMinted*/)
-    {
-        revert("buyAndMint for mintMulti not implemented");
+        mAssetQtyMinted = _buyAndMint(_srcBasset, _destMasset, msg.value, _distribution, _msgSender());
     }
 
     /**
@@ -145,8 +126,6 @@ contract MintWith1Inch is AbstractBuyAndMint {
 
         // 2. Mint mAsset with all bAsset
         mAssetQtyMinted = IMasset(_destMasset).mintTo(address(_srcBasset), bAssetQtyMinted, _recipient);
-        require(mAssetQtyMinted > 0, "No mAsset minted");
-        require(IERC20(_destMasset).balanceOf(address(this)) >= mAssetQtyMinted, "mAsset token not received");
     }
 
     /**
@@ -186,6 +165,8 @@ contract MintWith1Inch is AbstractBuyAndMint {
  * @dev OneSplit Exchange interface
  */
 contract IOneSplit {
+    // Below function only called offchain, to reduce gas consumtion
+    /*
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
@@ -199,6 +180,7 @@ contract IOneSplit {
             uint256 returnAmount,
             uint256[] memory distribution
         );
+    */
 
     function swap(
         IERC20 fromToken,

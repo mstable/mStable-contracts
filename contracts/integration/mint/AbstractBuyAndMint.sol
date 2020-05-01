@@ -1,7 +1,6 @@
 pragma solidity 0.5.16;
 
 // Internal
-import { IBuyAndMint } from "./IBuyAndMint.sol";
 import { MassetHelpers } from "../../masset/shared/MassetHelpers.sol";
 
 // Library
@@ -13,7 +12,7 @@ import { Ownable } from "@openzeppelin/contracts/ownership/Ownable.sol";
  * @notice  Abstract contract to allow buy bAsset tokens with ETH and mint mAssets tokens
  *          from mStable.
  */
-contract AbstractBuyAndMint is IBuyAndMint, Ownable {
+contract AbstractBuyAndMint is Ownable {
     using MassetHelpers for address;
 
     event MassetAdded(address indexed mAsset);
