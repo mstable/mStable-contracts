@@ -34,7 +34,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
     event Minted(address indexed account, uint256 mAssetQuantity, address bAsset, uint256 bAssetQuantity);
     event MintedMulti(address indexed account, uint256 mAssetQuantity, address[] bAssets, uint256[] bAssetQuantities);
     event Redeemed(address indexed recipient, address redeemer, uint256 mAssetQuantity, address bAsset, uint256 bAssetQuantity);
-    event RedeemedMulti(address indexed recipient, address redeemer, uint256 mAssetQuantity, address[] bAssets, uint256[] bAssetQuantities);
+    event RedeemedMulti(address indexed recipient, address redeemer, uint256 mAssetQuantity);
     event PaidFee(address payer, address asset, uint256 feeQuantity);
 
     // State Events
@@ -297,20 +297,16 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
     /**
      * @dev Credits a recipient with a certain quantity of bAssets, in exchange for burning the
      *      relative mAsset quantity from the sender. Sender also incurs a small Masset fee, if any.
-     * @param _bAssets          Array of bAsset addresses with which to mint (Cannot contain duplicates)
-     * @param _bAssetQuantities Quantity of each bAsset to withraw
+     * @param _mAssetQuantity   Quantity of mAsset to redeem
      * @param _recipient        Address to credit the withdrawn bAssets
-     * @return massetMinted     Relative number of mAsset units burned to pay for the bAssets
      */
     function redeemMulti(
-        address[] calldata _bAssets,
-        uint256[] calldata _bAssetQuantities,
+        uint256 _mAssetQuantity,
         address _recipient
     )
         external
-        returns (uint256 massetRedeemed)
     {
-        return _redeemTo(_bAssets, _bAssetQuantities, _recipient);
+        _redeemMulti(_mAssetQuantity, _recipient);
     }
 
     /***************************************
@@ -332,7 +328,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         uint256 bAssetQuantity = _bAssetQuantity;
 
         Basket memory basket = basketManager.getBasket();
-        uint256 colRatio = basket.collateralisationRatio;
+        uint256 colRatio = StableMath.min(basket.collateralisationRatio, StableMath.getFullScale());
 
         ForgeProps memory props = basketManager.prepareForgeBasset(_bAsset, bAssetQuantity, false);
         if(!props.isValid) return 0;
@@ -368,69 +364,42 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
 
 
     /** @dev Redeem mAsset for a multiple bAssets */
-    function _redeemTo(
-        address[] memory _bAssets,
-        uint256[] memory _bAssetQuantities,
+    function _redeemMulti(
+        uint256 _mAssetQuantity,
         address _recipient
     )
         internal
         nonReentrant
-        returns (uint256 massetRedeemed)
     {
         require(_recipient != address(0), "Must be a valid recipient");
-        uint256 bAssetCount = _bAssetQuantities.length;
-        require(bAssetCount > 0 && bAssetCount == _bAssets.length, "Input array mismatch");
+        require(_mAssetQuantity > 0, "Must redeem some mAsset");
 
         // Fetch high level details
-        Basket memory basket = basketManager.getBasket();
-        uint256 colRatio = basket.collateralisationRatio;
+        RedeemPropsMulti memory props = basketManager.prepareRedeemMulti();
+        uint256 colRatio = StableMath.min(props.colRatio, StableMath.getFullScale());
+        uint256 collateralisedMassetQuantity = _mAssetQuantity.mulTruncate(colRatio);
 
-        // Load only needed bAssets in array
-        ForgePropsMulti memory props =
-            basketManager.prepareForgeBassets(_bAssets, _bAssetQuantities, false);
-        if(!props.isValid) return 0;
+        // Burn the full amount of Masset
+        _burn(msg.sender, _mAssetQuantity);
 
-        // Validate redemption
-        (bool redemptionValid, string memory reason, bool applyFee) =
-            forgeValidator.validateRedemptionMulti(basket.failed, totalSupply().mulTruncate(colRatio), props.indexes, _bAssetQuantities, basket.bassets);
+        // Calculate redemption quantities
+        (bool redemptionValid, string memory reason, uint256[] memory bAssetQuantities) =
+            forgeValidator.calculateRedemptionMulti(collateralisedMassetQuantity, props.bAssets);
         require(redemptionValid, reason);
 
-        uint256 mAssetQuantity = 0;
+        basketManager.decreaseVaultBalances(props.indexes, props.integrators, bAssetQuantities);
 
-        // Calc MassetQ and update the Vault
+        // Transfer the Bassets to the recipient
+        uint256 bAssetCount = props.bAssets.length;
         for(uint256 i = 0; i < bAssetCount; i++){
-            uint256 bAssetQuantity = _bAssetQuantities[i];
-            if(bAssetQuantity > 0){
-                // Calc equivalent mAsset amount
-                uint256 ratioedBasset = bAssetQuantity.mulRatioTruncateCeil(props.bAssets[i].ratio);
-                mAssetQuantity = mAssetQuantity.add(ratioedBasset);
-            }
-        }
-        require(mAssetQuantity > 0, "Must redeem some bAssets");
-
-        basketManager.decreaseVaultBalances(props.indexes, props.integrators, _bAssetQuantities);
-
-        // Ensure payout is relevant to collateralisation ratio (if ratio is 90%, we burn more)
-        mAssetQuantity = mAssetQuantity.divPrecisely(colRatio);
-
-        // Burn the Masset
-        _burn(msg.sender, mAssetQuantity);
-
-        // Transfer the Bassets to the user
-        for(uint256 i = 0; i < bAssetCount; i++){
-            uint256 q = _bAssetQuantities[i];
+            uint256 q = bAssetQuantities[i];
             if(q > 0){
-                // Calc the redemption fee, if any
-                if(applyFee){
-                    q = _deductSwapFee(_bAssets[i], q);
-                }
                 // Withdraw
                 IPlatformIntegration(props.integrators[i]).withdraw(_recipient, props.bAssets[i].addr, q, props.bAssets[i].isTransferFeeCharged);
             }
         }
 
-        emit RedeemedMulti(_recipient, msg.sender, mAssetQuantity, _bAssets, _bAssetQuantities);
-        return mAssetQuantity;
+        emit RedeemedMulti(_recipient, msg.sender, _mAssetQuantity);
     }
 
 

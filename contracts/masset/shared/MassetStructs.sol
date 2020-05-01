@@ -82,4 +82,11 @@ interface MassetStructs {
         address[] integrators;
         uint8[] indexes;
     }
+
+    struct RedeemPropsMulti {
+        uint256 colRatio;
+        Basset[] bAssets;
+        address[] integrators;
+        uint8[] indexes;
+    }
 }

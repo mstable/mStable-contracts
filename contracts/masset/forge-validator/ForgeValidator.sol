@@ -146,9 +146,9 @@ contract ForgeValidator is IForgeValidator {
 
         // Any bAsset blacklisted - Invalid
         // Failed                 - Invalid (Force multi)
-        // Max weight breached    - Invalid (Force multi)
         // Any bAsset Broken      - Invalid (Force multi)
-        // BasketAdjustment       - must redeem overweight (no fee)
+        // BasketAdjustment       - must redeem overweight (no fee) // TODO - remove this? invalid?
+        // Max weight breached    - Invalid (Force multi)
         // Normal                 - Nothing goes above max (   fee)
 
         if(_indexToRedeem >= _allBassets.length) return (false, "Basset does not exist", false);
@@ -156,10 +156,15 @@ contract ForgeValidator is IForgeValidator {
         Basset memory bAsset = _allBassets[_indexToRedeem];
 
         // Get current weightings, and cache some outputs from the loop to avoid unecessary recursion
-        OverWeightBassetsResponse memory data = _getBasketState(_totalVault, _allBassets);
+        BasketStateResponse memory data = _getBasketState(_totalVault, _allBassets);
         if(!data.isValid) return (false, data.reason, false);
 
-        if(data.enforceMulti || _basketIsFailed) {
+        if(
+            _basketIsFailed ||
+            data.atLeastOneBroken ||
+            data.overWeightCount > 1 ||
+            (data.overWeightCount == 0 && data.atLeastOneBreached)
+        ) {
             return (false, "Must redeem multi", false);
         }
 
@@ -170,98 +175,147 @@ contract ForgeValidator is IForgeValidator {
         // Subtract ratioed redemption amount from both vault and total supply
         data.ratioedBassetVaults[_indexToRedeem] = data.ratioedBassetVaults[_indexToRedeem].sub(ratioedRedemptionAmount);
 
-        // TODO - get overweight/breached after
-        bool[] memory underWeight =
-            _getOverweightBassetsAfter(_totalVault.sub(ratioedRedemptionAmount), _allBassets, data.ratioedBassetVaults);
+        // Get overweight/breached after
+        bool atLeastOneBecameOverweight =
+            _getOverweightBassetsAfter(_totalVault.sub(ratioedRedemptionAmount), _allBassets, data.ratioedBassetVaults, data.isOverWeight);
 
-        bool applySwapFee = true;
         // If there is at least one overweight bAsset before, we must redeem it
-        if(data.atLeastOneOverweight) {
+        //      must redeem this overweight asset
+        //      no other bAssets can go overweight
+        if(data.overWeightCount == 1) {
             if(!data.isOverWeight[_indexToRedeem]) return (false, "Must redeem overweight bAssets", false);
-            applySwapFee = false;
+            if(atLeastOneBecameOverweight) return (false, "bAssets must remain below max weight", false);
+            return (true, "", false);
         }
+        // Since no bAssets were overweight before, if one becomes overweight, throw
+        if(atLeastOneBecameOverweight) return (false, "bAssets must remain below max weight", false);
 
-        // No bAssets must go under their implicit minimum
-        if(underWeight[_indexToRedeem]) return (false, "bAssets must remain above implicit min weight", false);
-
-        return (true, "", applySwapFee);
+        return (true, "", true);
     }
 
-    /**
-     * @notice Checks whether a given redemption is valid and returns the result
-     * @dev A redemption is valid if it does not push any bAssets above their max weightings, or
-     * under their minimum weightings. In addition, if bAssets are currently above their max weight
-     * (i.e. during basket composition changes) they must be redeemed
-     * @param _basketIsFailed   Bool to suggest that the basket has failed a recollateralisation attempt
-     * @param _totalVault       Sum of collateral units in the basket
-     * @param _idxs             Indexes of the bAssets to redeem
-     * @param _bAssetQuantities Quantities of bAssets to redeem
-     * @param _allBassets       Array of all bAsset information
-     * @return isValid          Bool to signify that the redemption is allowed
-     * @return reason           If the redemption is invalid, this is the reason
-     * @return feeRequired      Does this redemption require the swap fee to be applied
-     */
-    function validateRedemptionMulti(
-        bool _basketIsFailed,
-        uint256 _totalVault,
-        uint8[] calldata _idxs,
-        uint256[] calldata _bAssetQuantities,
+    function calculateRedemptionMulti(
+        uint256 _mAssetQuantity,
         Basset[] calldata _allBassets
     )
         external
         pure
-        returns (bool, string memory, bool)
+        returns (bool, string memory, uint256[] memory)
     {
-        // uint256 idxCount = _idxs.length;
-        // if(idxCount != _bAssetQuantities.length) return (false, "Input arrays should be equal", false);
-
-        // OverWeightBassetsResponse memory data = _getOverweightBassets(_totalVault, _allBassets);
-        // if(!data.isValid) return (false, data.reason, false);
-
-        // uint256 newTotalVault = _totalVault;
-
-        // for(uint256 i = 0; i < idxCount; i++){
-        //     if(_idxs[i] >= _allBassets.length) return (false, "Basset does not exist", false);
-
-        //     if(_allBassets[_idxs[i]].status == BassetStatus.BrokenAbovePeg && !_basketIsFailed) {
-        //         return (false, "Cannot redeem depegged bAsset", false);
-        //     }
-        //     if(_bAssetQuantities[i] > _allBassets[_idxs[i]].vaultBalance) {
-        //         return (false, "Cannot redeem more bAssets than are in the vault", false);
-        //     }
-
-        //     uint256 ratioedRedemptionAmount = _bAssetQuantities[i].mulRatioTruncate(_allBassets[_idxs[i]].ratio);
-        //     data.ratioedBassetVaults[_idxs[i]] = data.ratioedBassetVaults[_idxs[i]].sub(ratioedRedemptionAmount);
-        //     newTotalVault = newTotalVault.sub(ratioedRedemptionAmount);
-        // }
-
-        // bool[] memory underWeight = _getOverweightBassetsAfter(newTotalVault, _allBassets, data.ratioedBassetVaults);
-
-        // // If any bAssets are overweight before, all bAssets we redeem must be overweight
-        // if(data.atLeastOneOverweight) {
-        //     for(uint256 j = 0; j < idxCount; j++) {
-        //         if(!data.isOverWeight[_idxs[j]]) return (false, "Must redeem overweight bAssets", false);
-        //     }
-        // }
-
-        // // No redeemed bAssets must go under their implicit minimum
-        // for(uint256 k = 0; k < idxCount; k++) {
-        //     if(underWeight[_idxs[k]]) return (false, "bAssets must remain above implicit min weight", false);
-        // }
-
-        return (true, "", false);
+        // e.g. mAsset = 1e20 (100)
+        // e.g. bAsset: [   A,   B,    C,    D]
+        // e.g. vaults: [  80,  60,   60,    0]
+        // e.g. ratio:  [1e12, 1e8, 1e20, 1e18]
+        // expectedM:    4e19 3e19  3e19     0
+        // expectedB:    4e15 3e19   3e7     0
+        uint256 len = _allBassets.length;
+        uint256[] memory redeemQuantities = new uint256[](len);
+        uint256[] memory ratioedBassetVaults = new uint256[](len);
+        uint256 totalBassetVault = 0;
+        // 1. Add up total vault & ratioedBassets, fail if blacklisted
+        for(uint256 i = 0; i < len; i++) {
+            if(_allBassets[i].status == BassetStatus.Blacklisted) {
+                return (false, "Basket contains blacklisted bAsset", redeemQuantities);
+            } else if(_allBassets[i].status == BassetStatus.Liquidating) {
+                return (false, "Basket contains liquidating bAsset", redeemQuantities);
+            }
+            // e.g. (80e14 * 1e12) / 1e8 = 80e18
+            // e.g. (60e18 * 1e8) / 1e8 = 60e18
+            uint256 ratioedBasset = _allBassets[i].vaultBalance.mulRatioTruncate(_allBassets[i].ratio);
+            ratioedBassetVaults[i] = ratioedBasset;
+            totalBassetVault = totalBassetVault.add(ratioedBasset);
+        }
+        if(totalBassetVault == 0) return (false, "Nothing in the basket to redeem", redeemQuantities);
+        // 2. Calculate proportional weighting & non-ratioed amount
+        for(uint256 i = 0; i < len; i++) {
+            // proportional weighting
+            // e.g. (8e19 * 1e18) / 2e20 = 8e37 / 2e20 = 4e17 (40%)
+            uint256 percentageOfVault = ratioedBassetVaults[i].divPrecisely(totalBassetVault);
+            // e.g. (1e20 * 4e17) / 1e18 = 4e37 / 1e18 = 4e19 (40)
+            uint256 ratioedProportionalBasset = _mAssetQuantity.mulTruncate(percentageOfVault);
+            // convert back to bAsset amount
+            // e.g. (4e19 * 1e8) / 1e12 = 4e27 / 1e12 = 4e15
+            redeemQuantities[i] = ratioedProportionalBasset.divRatioPrecisely(_allBassets[i].ratio);
+        }
+        // 3. Return
+        return (true, "", redeemQuantities);
     }
+
+    // /**
+    //  * @notice Checks whether a given redemption is valid and returns the result
+    //  * @dev A redemption is valid if it does not push any bAssets above their max weightings, or
+    //  * under their minimum weightings. In addition, if bAssets are currently above their max weight
+    //  * (i.e. during basket composition changes) they must be redeemed
+    //  * @param _basketIsFailed   Bool to suggest that the basket has failed a recollateralisation attempt
+    //  * @param _totalVault       Sum of collateral units in the basket
+    //  * @param _idxs             Indexes of the bAssets to redeem
+    //  * @param _bAssetQuantities Quantities of bAssets to redeem
+    //  * @param _allBassets       Array of all bAsset information
+    //  * @return isValid          Bool to signify that the redemption is allowed
+    //  * @return reason           If the redemption is invalid, this is the reason
+    //  * @return feeRequired      Does this redemption require the swap fee to be applied
+    //  */
+    // function validateRedemptionMulti(
+    //     bool _basketIsFailed,
+    //     uint256 _totalVault,
+    //     uint8[] calldata _idxs,
+    //     uint256[] calldata _bAssetQuantities,
+    //     Basset[] calldata _allBassets
+    // )
+    //     external
+    //     pure
+    //     returns (bool, string memory, bool)
+    // {
+    //     uint256 idxCount = _idxs.length;
+    //     if(idxCount != _bAssetQuantities.length) return (false, "Input arrays should be equal", false);
+
+    //     BasketStateResponse memory data = _getBasketState(_totalVault, _allBassets);
+    //     if(!data.isValid) return (false, data.reason, false);
+
+    //     uint256 newTotalVault = _totalVault;
+
+    //     for(uint256 i = 0; i < idxCount; i++){
+    //         if(_idxs[i] >= _allBassets.length) return (false, "Basset does not exist", false);
+
+    //         if(_allBassets[_idxs[i]].status == BassetStatus.BrokenAbovePeg && !_basketIsFailed) {
+    //             return (false, "Cannot redeem depegged bAsset", false);
+    //         }
+    //         if(_bAssetQuantities[i] > _allBassets[_idxs[i]].vaultBalance) {
+    //             return (false, "Cannot redeem more bAssets than are in the vault", false);
+    //         }
+
+    //         uint256 ratioedRedemptionAmount = _bAssetQuantities[i].mulRatioTruncate(_allBassets[_idxs[i]].ratio);
+    //         data.ratioedBassetVaults[_idxs[i]] = data.ratioedBassetVaults[_idxs[i]].sub(ratioedRedemptionAmount);
+    //         newTotalVault = newTotalVault.sub(ratioedRedemptionAmount);
+    //     }
+
+    //     bool[] memory underWeight = _getOverweightBassetsAfter(newTotalVault, _allBassets, data.ratioedBassetVaults);
+
+    //     // If any bAssets are overweight before, all bAssets we redeem must be overweight
+    //     if(data.atLeastOneOverweight) {
+    //         for(uint256 j = 0; j < idxCount; j++) {
+    //             if(!data.isOverWeight[_idxs[j]]) return (false, "Must redeem overweight bAssets", false);
+    //         }
+    //     }
+
+    //     // No redeemed bAssets must go under their implicit minimum
+    //     for(uint256 k = 0; k < idxCount; k++) {
+    //         if(underWeight[_idxs[k]]) return (false, "bAssets must remain above implicit min weight", false);
+    //     }
+
+    //     return (true, "", false);
+    // }
 
     /***************************************
                     HELPERS
     ****************************************/
 
-    struct OverWeightBassetsResponse {
+    struct BasketStateResponse {
         bool isValid;
         string reason;
-        bool enforceMulti;
+        bool atLeastOneBroken;
+        bool atLeastOneBreached;
+        uint256 overWeightCount;
         bool[] isOverWeight;
-        bool atLeastOneOverweight;
         uint256[] ratioedBassetVaults;
     }
 
@@ -276,17 +330,22 @@ contract ForgeValidator is IForgeValidator {
     function _getBasketState(uint256 _total, Basset[] memory _bAssets)
         private
         pure
-        returns (OverWeightBassetsResponse memory response)
+        returns (BasketStateResponse memory response)
     {
         uint256 len = _bAssets.length;
-        response = OverWeightBassetsResponse({
+        response = BasketStateResponse({
             isValid: true,
             reason: "",
-            enforceMulti: false,
+            atLeastOneBroken: false,
+            atLeastOneBreached: false,
+            overWeightCount: 0,
             isOverWeight: new bool[](len),
-            ratioedBassetVaults: new uint256[](len),
-            atLeastOneOverweight: false
+            ratioedBassetVaults: new uint256[](len)
         });
+
+        uint256 onePercentOfTotal = _total.mulTruncate(1e16);
+        // Number of units below max a bAsset can be before deemed as breached
+        uint256 weightBreachThreshold = StableMath.min(onePercentOfTotal, 5e22);
 
         for(uint256 i = 0; i < len; i++) {
             BassetStatus status = _bAssets[i].status;
@@ -299,17 +358,25 @@ contract ForgeValidator is IForgeValidator {
                 status == BassetStatus.BrokenBelowPeg ||
                 status == BassetStatus.BrokenAbovePeg
             ) {
-                response.enforceMulti = true;
+                response.atLeastOneBroken = true;
             }
 
-            response.ratioedBassetVaults[i] = _bAssets[i].vaultBalance.mulRatioTruncate(_bAssets[i].ratio);
+            uint256 ratioedBasset = _bAssets[i].vaultBalance.mulRatioTruncate(_bAssets[i].ratio);
+            response.ratioedBassetVaults[i] = ratioedBasset;
             uint256 maxWeightInUnits = _total.mulTruncate(_bAssets[i].maxWeight);
 
-            // If the bAsset is de-pegged on the up-side, it doesn't matter if it goes above max
-            bool bAssetOverWeight = response.ratioedBassetVaults[i] > maxWeightInUnits;
-            response.isOverWeight[i] = bAssetOverWeight;
+            bool bAssetOverWeight = ratioedBasset > maxWeightInUnits;
+            if(bAssetOverWeight){
+                response.isOverWeight[i] = true;
+                response.overWeightCount += 1;
+            }
 
-            response.atLeastOneOverweight = response.atLeastOneOverweight || bAssetOverWeight;
+            // if the bAsset isn't overweight, check if it's within the bound
+            if(!bAssetOverWeight) {
+                uint256 lowerBound = weightBreachThreshold > maxWeightInUnits ? 0 : maxWeightInUnits.sub(weightBreachThreshold);
+                bool isInBound = ratioedBasset > lowerBound && ratioedBasset < maxWeightInUnits;
+                response.atLeastOneBreached = response.atLeastOneBreached || isInBound;
+            }
         }
     }
 
@@ -324,19 +391,22 @@ contract ForgeValidator is IForgeValidator {
     function _getOverweightBassetsAfter(
         uint256 _newTotal,
         Basset[] memory _bAssets,
-        uint256[] memory _ratioedBassetVaultsAfter
+        uint256[] memory _ratioedBassetVaultsAfter,
+        bool[] memory _previouslyOverWeight
     )
         private
         pure
-        returns (bool[] memory underWeight)
+        returns (bool atLeastOneBecameOverweight)
     {
         uint256 len = _ratioedBassetVaultsAfter.length;
-        underWeight = new bool[](len);
 
         for(uint256 i = 0; i < len; i++) {
             uint256 maxWeightInUnits = _newTotal.mulTruncate(_bAssets[i].maxWeight);
 
-            underWeight[i] = _ratioedBassetVaultsAfter[i] < maxWeightInUnits;
+            bool isOverweight = _ratioedBassetVaultsAfter[i] > maxWeightInUnits;
+            // If it was not previously overweight, and now it, then it became overweight
+            bool becameOverweight = !_previouslyOverWeight[i] && isOverweight;
+            atLeastOneBecameOverweight = atLeastOneBecameOverweight || becameOverweight;
         }
     }
 }

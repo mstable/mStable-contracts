@@ -21,10 +21,7 @@ contract IForgeValidator is MassetStructs {
         Basset[] calldata _allBassets,
         uint256 _indexToRedeem,
         uint256 _bassetQuantity) external pure returns (bool, string memory, bool);
-    function validateRedemptionMulti(
-        bool basketIsFailed,
-        uint256 _totalVault,
-        uint8[] calldata _idxs,
-        uint256[] calldata _bassetQuantity,
-        Basset[] calldata _allBassets) external pure returns (bool, string memory, bool);
+    function calculateRedemptionMulti(
+        uint256 _mAssetQuantity,
+        Basset[] calldata _allBassets) external pure returns (bool, string memory, uint256[] memory);
 }
