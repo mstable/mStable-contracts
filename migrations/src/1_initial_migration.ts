@@ -1,8 +1,8 @@
-import { MigrationsContract } from "types/generated/Migrations.d";
+import { MigrationsContract } from "types/generated";
 
 export default async ({ artifacts }, deployer) => {
     process.env.NETWORK = deployer.network;
-    if (deployer.network == "fork") {
+    if (deployer.network === "fork") {
         return;
     }
 

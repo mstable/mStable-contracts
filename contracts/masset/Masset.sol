@@ -33,7 +33,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
     // Forging Events
     event Minted(address indexed account, uint256 mAssetQuantity, address bAsset, uint256 bAssetQuantity);
     event MintedMulti(address indexed account, uint256 mAssetQuantity, address[] bAssets, uint256[] bAssetQuantities);
-    event Redeemed(address indexed recipient, address redeemer, uint256 mAssetQuantity, address bAsset, uint256 bAssetQuantity);
+    event Redeemed(address indexed recipient, address redeemer, uint256 mAssetQuantity, address[] bAssets, uint256[] bAssetQuantit);
     event RedeemedMulti(address indexed recipient, address redeemer, uint256 mAssetQuantity);
     event PaidFee(address payer, address asset, uint256 feeQuantity);
 
@@ -272,13 +272,12 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         external
         returns (uint256 massetRedeemed)
     {
-        // here
         return _redeemTo(_bAsset, _bAssetQuantity, msg.sender);
     }
 
     /**
      * @dev Credits a recipient with a certain quantity of selected bAsset, in exchange for burning the
-     *      relative Masset quantity from the sender. Sender also incurs a small mAsset fee, if any.
+     *      relative Masset quantity from the sender. Sender also incurs a small fee, if any.
      * @param _bAsset           Address of the bAsset to redeem
      * @param _bAssetQuantity   Units of the bAsset to redeem
      * @param _recipient        Address to credit with withdrawn bAssets
@@ -292,8 +291,26 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         external
         returns (uint256 massetRedeemed)
     {
-        // here
         return _redeemTo(_bAsset, _bAssetQuantity, _recipient);
+    }
+
+    /**
+     * @dev Credits a recipient with a certain quantity of selected bAssets, in exchange for burning the
+     *      relative Masset quantity from the sender. Sender also incurs a small fee, if any.
+     * @param _bAssets          Address of the bAssets to redeem
+     * @param _bAssetQuantities Units of the bAssets to redeem
+     * @param _recipient        Address to credit with withdrawn bAssets
+     * @return massetMinted     Relative number of mAsset units burned to pay for the bAssets
+     */
+    function redeemTo(
+        address[] calldata _bAssets,
+        uint256[] calldata _bAssetQuantities,
+        address _recipient
+    )
+        external
+        returns (uint256 massetRedeemed)
+    {
+        return _redeemTo(_bAssets, _bAssetQuantities, _recipient);
     }
 
     /**
@@ -315,10 +332,26 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
               REDEMPTION (INTERNAL)
     ****************************************/
 
-    /** @dev Redeem mAsset for a single bAsset */
+    /** @dev Casting to arrays for use in redeemMulti func */
     function _redeemTo(
         address _bAsset,
         uint256 _bAssetQuantity,
+        address _recipient
+    )
+        internal
+        returns (uint256 massetRedeemed)
+    {
+        address[] memory bAssets = new address[](1);
+        uint256[] memory quantities = new uint256[](1);
+        bAssets[0] = _bAsset;
+        quantities[0] = _bAssetQuantity;
+        return _redeemTo(bAssets, quantities, _recipient);
+    }
+
+    /** @dev Redeem mAsset for one or more bAssets */
+    function _redeemTo(
+        address[] memory _bAssets,
+        uint256[] memory _bAssetQuantities,
         address _recipient
     )
         internal
@@ -326,41 +359,42 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         returns (uint256 massetRedeemed)
     {
         require(_recipient != address(0), "Must be a valid recipient");
-        require(_bAssetQuantity > 0, "Quantity must not be 0");
-        uint256 bAssetQuantity = _bAssetQuantity;
+        uint256 bAssetCount = _bAssetQuantities.length;
+        require(bAssetCount > 0 && bAssetCount == _bAssets.length, "Input array mismatch");
 
+        // Get high level basket info
         Basket memory basket = basketManager.getBasket();
         uint256 colRatio = StableMath.min(basket.collateralisationRatio, StableMath.getFullScale());
 
-        ForgeProps memory props = basketManager.prepareForgeBasset(_bAsset, bAssetQuantity, false);
+        // Prepare relevant data
+        ForgePropsMulti memory props = basketManager.prepareForgeBassets(_bAssets, _bAssetQuantities, false);
         if(!props.isValid) return 0;
 
         // Validate redemption
         (bool redemptionValid, string memory reason, bool applyFee) =
-            forgeValidator.validateRedemption(basket.failed, totalSupply().mulTruncate(colRatio), basket.bassets, arr, q);
+            forgeValidator.validateRedemption(basket.failed, totalSupply().mulTruncate(colRatio), basket.bassets, props.indexes, _bAssetQuantities);
         require(redemptionValid, reason);
 
-        // Calc equivalent mAsset amount
-        uint256 mAssetQuantity = bAssetQuantity.mulRatioTruncateCeil(props.bAsset.ratio);
+        uint256 mAssetQuantity = 0;
 
-        // Decrease balance in storage
-        basketManager.decreaseVaultBalance(props.index, props.integrator, bAssetQuantity);
+        // Calc total redeemed mAsset quantity
+        for(uint256 i = 0; i < bAssetCount; i++){
+            uint256 bAssetQuantity = _bAssetQuantities[i];
+            if(bAssetQuantity > 0){
+                // Calc equivalent mAsset amount
+                uint256 ratioedBasset = bAssetQuantity.mulRatioTruncateCeil(props.bAssets[i].ratio);
+                mAssetQuantity = mAssetQuantity.add(ratioedBasset);
+            }
+        }
+        require(mAssetQuantity > 0, "Must redeem some bAssets");
 
         // Ensure payout is relevant to collateralisation ratio (if ratio is 90%, we burn more)
         mAssetQuantity = mAssetQuantity.divPrecisely(colRatio);
 
-        // Burn the Masset
-        _burn(msg.sender, mAssetQuantity);
+        // Apply fees, burn mAsset and return bAsset to recipient
+        _settleRedemption(mAssetQuantity, props.bAssets, props.indexes, props.integrators, _bAssetQuantities, applyFee, _recipient);
 
-        // Calc the redemption fee, if any
-        if(applyFee){
-            bAssetQuantity = _deductSwapFee(_bAsset, bAssetQuantity);
-        }
-
-        // Transfer the Bassets to the user
-        IPlatformIntegration(props.integrator).withdraw(_recipient, props.bAsset.addr, bAssetQuantity, props.bAsset.isTransferFeeCharged);
-
-        emit Redeemed(_recipient, msg.sender, mAssetQuantity, _bAsset, bAssetQuantity);
+        emit Redeemed(_recipient, msg.sender, mAssetQuantity, _bAssets, _bAssetQuantities);
         return mAssetQuantity;
     }
 
@@ -381,44 +415,71 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         uint256 colRatio = StableMath.min(props.colRatio, StableMath.getFullScale());
         uint256 collateralisedMassetQuantity = _mAssetQuantity.mulTruncate(colRatio);
 
-        // Burn the full amount of Masset
-        _burn(msg.sender, _mAssetQuantity);
-
         // Calculate redemption quantities
         (bool redemptionValid, string memory reason, uint256[] memory bAssetQuantities) =
             forgeValidator.calculateRedemptionMulti(collateralisedMassetQuantity, props.bAssets);
         require(redemptionValid, reason);
 
-        basketManager.decreaseVaultBalances(props.indexes, props.integrators, bAssetQuantities);
-
-        // Transfer the Bassets to the recipient
-        uint256 bAssetCount = props.bAssets.length;
-        for(uint256 i = 0; i < bAssetCount; i++){
-            uint256 q = bAssetQuantities[i];
-            if(q > 0){
-                // Withdraw
-                IPlatformIntegration(props.integrators[i]).withdraw(_recipient, props.bAssets[i].addr, q, props.bAssets[i].isTransferFeeCharged);
-            }
-        }
+        // Apply fees, burn mAsset and return bAsset to recipient
+        _settleRedemption(_mAssetQuantity, props.bAssets, props.indexes, props.integrators, bAssetQuantities, false, _recipient);
 
         emit RedeemedMulti(_recipient, msg.sender, _mAssetQuantity);
     }
 
+    /**
+     * @dev Internal func to update contract state post-redemption
+     * @param _mAssetQuantity   Total amount of mAsset to burn from sender
+     * @param _bAssets          Array of bAssets to redeem
+     * @param _indices          Matching indices for the bAsset array
+     * @param _integrators      Matching integrators for the bAsset array
+     * @param _bAssetQuantities Array of bAsset quantities
+     * @param _applyFee         Apply a fee to this redemption?
+     * @param _recipient        Recipient of the bAssets
+     */
+    function _settleRedemption(
+        uint256 _mAssetQuantity,
+        Basset[] memory _bAssets,
+        uint8[] memory _indices,
+        address[] memory _integrators,
+        uint256[] memory _bAssetQuantities,
+        bool _applyFee,
+        address _recipient
+    ) internal {
+        // Burn the full amount of Masset
+        _burn(msg.sender, _mAssetQuantity);
+
+        // Reduce the amount of bAssets marked in the vault
+        basketManager.decreaseVaultBalances(_indices, _integrators, _bAssetQuantities);
+
+        // Redemption has fee? Fetch the rate
+        uint256 fee = _applyFee ? swapFee : 0;
+
+        // Transfer the Bassets to the recipient
+        uint256 bAssetCount = _bAssets.length;
+        for(uint256 i = 0; i < bAssetCount; i++){
+            address bAsset = _bAssets[i].addr;
+            uint256 q = _bAssetQuantities[i];
+            if(q > 0){
+                // Deduct the redemption fee, if any
+                q = _deductSwapFee(bAsset, q, fee);
+                // Transfer the Bassets to the user
+                IPlatformIntegration(_integrators[i]).withdraw(_recipient, bAsset, q, _bAssets[i].isTransferFeeCharged);
+            }
+        }
+    }
 
     /**
      * @dev Pay the forging fee by burning relative amount of mAsset
      * @param _bAssetQuantity     Exact amount of bAsset being swapped out
      */
-    function _deductSwapFee(address _asset, uint256 _bAssetQuantity)
+    function _deductSwapFee(address _asset, uint256 _bAssetQuantity, uint256 _feeRate)
     private
     returns (uint256 outputMinusFee) {
-        uint256 feeRate = swapFee;
-
-        if(feeRate > 0){
+        if(_feeRate > 0){
             // e.g. for 500 massets.
             // feeRate == 1% == 1e16. _quantity == 5e20.
             // (5e20 * 1e16) / 1e18 = 5e18
-            uint256 feeAmount = _bAssetQuantity.mulTruncate(feeRate);
+            uint256 feeAmount = _bAssetQuantity.mulTruncate(_feeRate);
             outputMinusFee = _bAssetQuantity.sub(feeAmount);
             emit PaidFee(msg.sender, _asset, feeAmount);
         }
