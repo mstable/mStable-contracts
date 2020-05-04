@@ -1,5 +1,5 @@
-import { MockNexusInstance, PausableModuleInstance } from "types/generated";
 import { StandardAccounts } from "@utils/machines";
+import * as t from "types/generated";
 
 import shouldBehaveLikeModule from "./behaviours/Module.behaviour";
 import shouldBehaveLikePausableModule from "./behaviours/PausableModule.behaviour";
@@ -8,9 +8,9 @@ const MockPausableModule = artifacts.require("MockPausableModule");
 const MockNexus = artifacts.require("MockNexus");
 
 contract("PausableModule", async (accounts) => {
-    const ctx: { module?: PausableModuleInstance } = {};
+    const ctx: { module?: t.PausableModuleInstance } = {};
     const sa = new StandardAccounts(accounts);
-    let nexus: MockNexusInstance;
+    let nexus: t.MockNexusInstance;
     const governanceAddr = sa.dummy1;
     const managerAddr = sa.dummy2;
 

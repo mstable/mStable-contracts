@@ -1,6 +1,6 @@
 import { StandardAccounts } from "@utils/machines";
 import envSetup from "@utils/env_setup";
-import { ClaimableGovernorInstance } from "types/generated";
+import { ClaimableGovernorInstance } from "../../types/generated/ClaimableGovernor";
 import shouldBehaveLikeClaimable from "./ClaimableGovernor.behaviour";
 
 const ClaimableGovernor = artifacts.require("ClaimableGovernor");

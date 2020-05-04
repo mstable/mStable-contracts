@@ -1,17 +1,14 @@
+// eslint-disable-next-line import/no-extraneous-dependencies
 import * as Web3 from "web3";
+
 import { Address } from "./common";
 
 declare type ContractTest = (accounts: Address[]) => void;
 declare type ExecutionBlock = () => void;
 declare type AsyncExecutionBlock = (done: () => void) => void;
 
-interface Artifacts {
-    require(name: string): Web3.ContractInstance;
-}
-
 declare global {
-    function contract(name: string, test: ContractTest): void;
+    const web3: Web3;
 
-    var artifacts: Artifacts;
-    var web3: Web3;
+    function contract(name: string, test: ContractTest): void;
 }

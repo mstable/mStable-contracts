@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/camelcase */
 /* eslint-disable no-await-in-loop */
 
-import * as t from "types/generated";
 import { expectEvent, expectRevert } from "@openzeppelin/test-helpers";
 
 import { assertBasketIsHealthy, assertBNSlightlyGTPercent } from "@utils/assertions";
@@ -10,20 +9,19 @@ import { MassetDetails, MassetMachine, StandardAccounts, SystemMachine } from "@
 import { BN } from "@utils/tools";
 import { BassetStatus } from "@utils/mstable-objects";
 import { ZERO_ADDRESS, fullScale } from "@utils/constants";
-
 import envSetup from "@utils/env_setup";
+import * as t from "types/generated";
 import { BasketComposition } from "../../types";
 
 const { expect } = envSetup.configure();
 
-const MockBasketManager1: t.MockBasketManager1Contract = artifacts.require("MockBasketManager1");
-const MockBasketManager2: t.MockBasketManager2Contract = artifacts.require("MockBasketManager2");
-const MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
-const MockAToken: t.MockATokenContract = artifacts.require("MockAToken");
-const MockAave: t.MockAaveContract = artifacts.require("MockAave");
-const AaveIntegration: t.AaveIntegrationContract = artifacts.require("AaveIntegration");
-
-const Masset: t.MassetContract = artifacts.require("Masset");
+const MockBasketManager1 = artifacts.require("MockBasketManager1");
+const MockBasketManager2 = artifacts.require("MockBasketManager2");
+const MockERC20 = artifacts.require("MockERC20");
+const MockAToken = artifacts.require("MockAToken");
+const MockAave = artifacts.require("MockAave");
+const AaveIntegration = artifacts.require("AaveIntegration");
+const Masset = artifacts.require("Masset");
 
 interface MintOutput {
     minterBassetBalBefore: BN;
@@ -54,7 +52,7 @@ contract("Masset", async (accounts) => {
 
     const assertFailedMint = async (
         mAsset: t.MassetInstance,
-        bAsset: t.MockERC20Instance,
+        bAsset: t.MockErc20Instance,
         amount: BN,
         reason: string,
     ): Promise<void> => {
@@ -66,7 +64,7 @@ contract("Masset", async (accounts) => {
     const assertBasicMint = async (
         md: MassetDetails,
         mAssetMintAmount: BN | number,
-        bAsset: t.MockERC20Instance,
+        bAsset: t.MockErc20Instance,
         useMintTo = false,
         recipient: string = sa.default,
         sender: string = sa.default,
@@ -730,7 +728,7 @@ contract("Masset", async (accounts) => {
         const assertMintMulti = async (
             md: MassetDetails,
             mAssetMintAmounts: Array<BN | number>,
-            bAssets: Array<t.MockERC20Instance>,
+            bAssets: Array<t.MockErc20Instance>,
             recipient: string = sa.default,
             sender: string = sa.default,
             ignoreHealthAssertions = false,

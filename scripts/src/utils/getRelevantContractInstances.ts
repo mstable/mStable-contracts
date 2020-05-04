@@ -1,11 +1,13 @@
-import * as t from "types/generated";
-
-export const getRelevantContractInstances = async ({ artifacts }: any) => {
-    const cERC20: t.ERC20DetailedContract = artifacts.require("ERC20Detailed");
-
-    const cMUSD: t.MUSDContract = artifacts.require("MUSD");
-    const cBasketManager: t.BasketManagerContract = artifacts.require("BasketManager");
-    const cSavingsContract: t.SavingsContractContract = artifacts.require("SavingsContract");
+// eslint-disable-next-line import/prefer-default-export
+export const getRelevantContractInstances = async ({
+    artifacts,
+}: {
+    artifacts: Truffle.Artifacts;
+}) => {
+    const cErc20 = artifacts.require("ERC20Detailed");
+    const cMUSD = artifacts.require("MUSD");
+    const cBasketManager = artifacts.require("BasketManager");
+    const cSavingsContract = artifacts.require("SavingsContract");
 
     const mUSD = await cMUSD.deployed();
     const basketManager = await cBasketManager.at(await mUSD.getBasketManager());
@@ -13,9 +15,7 @@ export const getRelevantContractInstances = async ({ artifacts }: any) => {
 
     const bAssets = (await basketManager.getBassets())[0];
 
-    const bassets: Array<t.ERC20DetailedInstance> = await Promise.all(
-        bAssets.map((b, i) => cERC20.at(b.addr)),
-    );
+    const bassets = await Promise.all(bAssets.map((b) => cErc20.at(b.addr)));
 
     return {
         mUSD,

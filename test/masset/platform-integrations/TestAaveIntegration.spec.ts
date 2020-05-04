@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/camelcase */
 /* eslint-disable consistent-return */
 
-import * as t from "types/generated";
 import { expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
 import { BN } from "@utils/tools";
 import { assertBNClose, assertBNSlightlyGT, assertBNSlightlyGTPercent } from "@utils/assertions";
@@ -17,29 +16,27 @@ import {
 import { simpleToExactAmount } from "@utils/math";
 
 import envSetup from "@utils/env_setup";
-import {
-    BassetIntegrationDetails,
-} from "../../../types";
+import * as t from "types/generated";
+import { BassetIntegrationDetails } from "../../../types";
 import shouldBehaveLikeModule from "../../shared/behaviours/Module.behaviour";
 
 const { expect } = envSetup.configure();
 
-const c_MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
-const c_MockAaveAToken: t.MockATokenContract = artifacts.require("MockAToken");
-const c_MockAave: t.MockAaveContract = artifacts.require("MockAave");
-const c_Nexus: t.NexusContract = artifacts.require("Nexus");
-const c_AaveLendingPoolAddressProvider: t.ILendingPoolAddressesProviderContract = artifacts.require(
-    "ILendingPoolAddressesProvider",
-);
-const c_AaveLendingPool: t.IAaveLendingPoolContract = artifacts.require("IAaveLendingPool");
-const c_ERC20: t.ERC20DetailedContract = artifacts.require("ERC20Detailed");
-const c_AaveAToken: t.IAaveATokenContract = artifacts.require("IAaveAToken");
-const c_DelayedProxyAdmin: t.DelayedProxyAdminContract = artifacts.require("DelayedProxyAdmin");
-
-const c_InitializableProxy: t.InitializableAdminUpgradeabilityProxyContract = artifacts.require(
+const c_MockERC20 = artifacts.require("MockERC20");
+const c_MockAaveAToken = artifacts.require("MockAToken");
+const c_MockAave = artifacts.require("MockAave");
+const c_Nexus = artifacts.require("Nexus");
+const c_AaveLendingPoolAddressProvider = artifacts.require("ILendingPoolAddressesProvider");
+const c_AaveLendingPool = artifacts.require("IAaveLendingPool");
+const c_ERC20 = artifacts.require("ERC20Detailed");
+const c_AaveAToken = artifacts.require("IAaveAToken");
+const c_DelayedProxyAdmin = artifacts.require("DelayedProxyAdmin");
+const c_InitializableProxy = artifacts.require(
+    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+    // @ts-ignore
     "@openzeppelin/upgrades/InitializableAdminUpgradeabilityProxy",
-);
-const c_AaveIntegration: t.MockAaveIntegrationContract = artifacts.require("MockAaveIntegration");
+) as t.InitializableAdminUpgradeabilityProxyContract
+const c_AaveIntegration = artifacts.require("MockAaveIntegration");
 
 contract("AaveIntegration", async (accounts) => {
     const sa = new StandardAccounts(accounts);
@@ -88,7 +85,7 @@ contract("AaveIntegration", async (accounts) => {
                 integrationDetails.aTokens.map((a) => a.aToken),
             )
             .encodeABI();
-        await d_AaveIntegrationProxy.initialize(
+        await d_AaveIntegrationProxy.methods["initialize(address,address,bytes)"](
             aaveImplementation.address,
             d_DelayedProxyAdmin.address,
             initializationData_AaveIntegration,
@@ -296,7 +293,7 @@ contract("AaveIntegration", async (accounts) => {
     });
 
     describe("setting P Token Address", async () => {
-        let erc20Mock: t.MockERC20Instance;
+        let erc20Mock: t.MockErc20Instance;
         let aTokenMock: t.MockATokenInstance;
         beforeEach("init mocks", async () => {
             erc20Mock = await c_MockERC20.new("TMP", "TMP", 18, sa.default, "1000000");

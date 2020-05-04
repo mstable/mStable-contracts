@@ -1,5 +1,5 @@
 /* eslint-disable no-await-in-loop */
-import * as t from "types/generated";
+
 import envSetup from "@utils/env_setup";
 
 import { BN } from "@utils/tools";
@@ -15,6 +15,7 @@ import { percentToWeight } from "@utils/math";
 import { expectEvent, expectRevert } from "@openzeppelin/test-helpers";
 import { MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import { ZERO_ADDRESS, ZERO, ratioScale, fullScale, MIN_GRACE, MAX_GRACE } from "@utils/constants";
+import * as t from "types/generated";
 import { BassetIntegrationDetails } from "../../types";
 
 import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
@@ -22,13 +23,11 @@ import shouldBehaveLikePausableModule from "../shared/behaviours/PausableModule.
 
 const { expect } = envSetup.configure();
 
-const BasketManager: t.BasketManagerContract = artifacts.require("BasketManager");
-const MockNexus: t.MockNexusContract = artifacts.require("MockNexus");
-const MockBasketManager: t.MockBasketManager3Contract = artifacts.require("MockBasketManager3");
-const MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
-const MockCompoundIntegration: t.MockCompoundIntegration2Contract = artifacts.require(
-    "MockCompoundIntegration2",
-);
+const BasketManager = artifacts.require("BasketManager");
+const MockNexus = artifacts.require("MockNexus");
+const MockBasketManager = artifacts.require("MockBasketManager3");
+const MockERC20 = artifacts.require("MockERC20");
+const MockCompoundIntegration = artifacts.require("MockCompoundIntegration2");
 
 contract("BasketManager", async (accounts) => {
     let systemMachine: SystemMachine;
@@ -36,7 +35,7 @@ contract("BasketManager", async (accounts) => {
 
     const sa = new StandardAccounts(accounts);
     const grace: BN = new BN(10).pow(new BN(24));
-    const ctx: { module?: t.InitializablePausableModuleInstance } = {};
+    const ctx: { module?: t.BasketManagerInstance } = {};
     const masset = sa.dummy1;
     const governance = sa.dummy2;
     const manager = sa.dummy3;
@@ -123,7 +122,7 @@ contract("BasketManager", async (accounts) => {
                 ctx.module = basketManager;
             });
             shouldBehaveLikeModule(ctx as Required<typeof ctx>, sa);
-            shouldBehaveLikePausableModule(ctx as Required<typeof ctx>, sa);
+            shouldBehaveLikePausableModule(ctx as { module: t.PausableModuleInstance }, sa);
         });
     });
 
@@ -828,7 +827,7 @@ contract("BasketManager", async (accounts) => {
     });
 
     describe("addBasset()", async () => {
-        let mockERC20: t.MockERC20Instance;
+        let mockERC20: t.MockErc20Instance;
         beforeEach(async () => {
             await createNewBasketManager();
             mockERC20 = await MockERC20.new("Mock", "MKT", 18, sa.default, new BN(10000));
@@ -887,7 +886,7 @@ contract("BasketManager", async (accounts) => {
             });
 
             it("when max bAssets reached", async () => {
-                const mockERC20s: Array<t.MockERC20Instance> = new Array(13);
+                const mockERC20s: Array<t.MockErc20Instance> = new Array(13);
                 for (let index = 0; index < 14; index += 1) {
                     const mock = await MockERC20.new("Mock", "MKT", 18, sa.default, new BN(10000));
                     mockERC20s.push(mock);

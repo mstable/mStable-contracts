@@ -1,10 +1,10 @@
 import { constants, expectEvent, expectRevert } from "@openzeppelin/test-helpers";
-import { GovernableInstance } from "types/generated";
+import * as t from "types/generated";
 
 const { ZERO_ADDRESS } = constants;
 
 export default function shouldBehaveLikeGovernable(
-    ctx: { governable: GovernableInstance },
+    ctx: { governable: t.GovernableInstance },
     owner: string,
     [other]: string[],
 ): void {
