@@ -8,6 +8,9 @@ import { MockERC20Instance } from "types/generated";
 import { ZERO } from "@utils/constants";
 
 const MintWithKyber: t.MintWithKyberContract = artifacts.require("MintWithKyber");
+const MockKyberNetworkProxy: t.MockKyberNetworkProxyContract = artifacts.require(
+    "MockKyberNetworkProxy",
+);
 
 contract("MintWithKyber", async (accounts) => {
     const sa = new StandardAccounts(accounts);
@@ -15,6 +18,7 @@ contract("MintWithKyber", async (accounts) => {
     let massetMachine: MassetMachine;
     let massetDetails: MassetDetails;
     let mintWithKyber: t.MintWithKyberInstance;
+    let mockKyberNetworkProxy: t.MockKyberNetworkProxyInstance;
 
     const runSetup = async (seedBasket = true, enableUSDTFee = false): Promise<void> => {
         massetDetails = seedBasket
@@ -28,14 +32,21 @@ contract("MintWithKyber", async (accounts) => {
         massetMachine = new MassetMachine(systemMachine);
 
         await runSetup();
-        // TODO Change the correct address
-        const kyberProxyAddress = accounts[9];
+        let kyberProxyAddress;
+        if (systemMachine.isGanacheFork) {
+            // KyberNetworkProxy mainnet address
+            kyberProxyAddress = "0x818E6FECD516Ecc3849DAf6845e3EC868087B755";
+        } else {
+            mockKyberNetworkProxy = await MockKyberNetworkProxy.new();
+            kyberProxyAddress = mockKyberNetworkProxy.address;
+        }
+
         mintWithKyber = await MintWithKyber.new(kyberProxyAddress, [massetDetails.mAsset.address]);
     });
 
     describe("minting max mAssets with all ETH", () => {
         it("should fail when zero ETH sent", async () => {
-            Promise.all(
+            await Promise.all(
                 massetDetails.bAssets.map(async (bAsset) => {
                     await expectRevert(
                         mintWithKyber.buyAndMintMaxMasset(
@@ -49,30 +60,13 @@ contract("MintWithKyber", async (accounts) => {
         });
 
         it("should fail when invalid mAsset address sent", async () => {
-            Promise.all(
+            await Promise.all(
                 massetDetails.bAssets.map(async (bAsset) => {
                     await expectRevert(
                         mintWithKyber.buyAndMintMaxMasset(bAsset.address, sa.dummy1, {
                             value: toWei(new BN(1), "ether"),
                         }),
                         "Not a valid mAsset",
-                    );
-                }),
-            );
-        });
-
-        it("should fail when KyberNetwork contract is disabled", async () => {
-            if (!systemMachine.isGanacheFork) return;
-
-            Promise.all(
-                massetDetails.bAssets.map(async (bAsset) => {
-                    await expectRevert(
-                        mintWithKyber.buyAndMintMaxMasset(
-                            bAsset.address,
-                            massetDetails.mAsset.address,
-                            { value: toWei(new BN(1), "ether") },
-                        ),
-                        "KyberNetworkProxy disabled",
                     );
                 }),
             );
@@ -109,10 +103,10 @@ contract("MintWithKyber", async (accounts) => {
     });
 
     describe("minting given number of mAssets", () => {
-        const mAssetAmount = new BN(1000);
+        const mAssetAmount = new BN(100);
 
         it("should fail when zero ETH sent", async () => {
-            Promise.all(
+            await Promise.all(
                 massetDetails.bAssets.map(async (bAsset) => {
                     await expectRevert(
                         mintWithKyber.buyAndMintGivenMasset(
@@ -127,7 +121,7 @@ contract("MintWithKyber", async (accounts) => {
         });
 
         it("should fail when invalid mAsset address sent", async () => {
-            Promise.all(
+            await Promise.all(
                 massetDetails.bAssets.map(async (bAsset) => {
                     await expectRevert(
                         mintWithKyber.buyAndMintGivenMasset(
@@ -144,34 +138,43 @@ contract("MintWithKyber", async (accounts) => {
             );
         });
 
-        it("should fail when KyberNetwork contract is disabled", async () => {
+        it("should mint given number of mAssets for the user", async () => {
+            // Executes only in forked Ganache network
             if (!systemMachine.isGanacheFork) return;
 
-            Promise.all(
+            await Promise.all(
                 massetDetails.bAssets.map(async (bAsset) => {
-                    await expectRevert(
-                        mintWithKyber.buyAndMintGivenMasset(
-                            bAsset.address,
-                            massetDetails.mAsset.address,
-                            mAssetAmount,
-                            { value: toWei(new BN(1), "ether") },
-                        ),
-                        "KyberNetworkProxy disabled",
+                    const mAssetBalOfUserBefore = await massetDetails.mAsset.balanceOf(sa.default);
+
+                    await mintWithKyber.buyAndMintGivenMasset(
+                        bAsset.address,
+                        massetDetails.mAsset.address,
+                        mAssetAmount,
+                        {
+                            value: toWei(new BN(1), "ether"),
+                        },
                     );
+
+                    const mAssetBalOfUserAfter = await massetDetails.mAsset.balanceOf(sa.default);
+                    const mAssetsMinted = mAssetBalOfUserAfter.sub(mAssetBalOfUserBefore);
+                    expect(mAssetAmount).to.bignumber.equal(mAssetsMinted);
                 }),
             );
         });
-
-        it("should mint given number of mAssets for the user");
     });
 
     describe("minting mAssets using multiple bAssets", async () => {
         const ONE_ETH = new BN(toWei("1", "ether"));
+        let bAssetsArray: Array<string>;
+        let ethAmountArray: Array<BN>;
+
+        beforeEach(async () => {
+            bAssetsArray = massetDetails.bAssets.map((a) => a.address);
+            const ethAmountToSend = ONE_ETH.div(new BN(bAssetsArray.length));
+            ethAmountArray = massetDetails.bAssets.map(() => ethAmountToSend);
+        });
 
         it("should fail when zero ETH sent", async () => {
-            const bAssetsArray: Array<string> = massetDetails.bAssets.map((a) => a.address);
-            const ethAmountToSend = ONE_ETH.div(new BN(bAssetsArray.length));
-            const ethAmountArray: Array<BN> = massetDetails.bAssets.map(() => ethAmountToSend);
             await expectRevert(
                 mintWithKyber.buyAndMintMulti(
                     bAssetsArray,
@@ -182,14 +185,50 @@ contract("MintWithKyber", async (accounts) => {
             );
         });
 
-        it("should fail when invalid mAsset address sent");
+        it("should fail when invalid mAsset address sent", async () => {
+            await expectRevert(
+                mintWithKyber.buyAndMintMulti(bAssetsArray, ethAmountArray, sa.dummy3, {
+                    value: ONE_ETH,
+                }),
+                "Not a valid mAsset",
+            );
+        });
 
-        it("should fail when empty array passed");
+        it("should fail when empty array passed", async () => {
+            await expectRevert(
+                mintWithKyber.buyAndMintMulti([], [], massetDetails.mAsset.address, {
+                    value: ONE_ETH,
+                }),
+                "No array data sent",
+            );
+        });
 
-        it("should fail when array length not matched");
+        it("should fail when array length not matched", async () => {
+            await expectRevert(
+                mintWithKyber.buyAndMintMulti(bAssetsArray, [], massetDetails.mAsset.address, {
+                    value: ONE_ETH,
+                }),
+                "Array length not matched",
+            );
+        });
 
-        it("should fail when KyberNetwork is disabled");
+        it("should mint mAssets using multiMint", async () => {
+            // Executes only in forked Ganache network
+            if (!systemMachine.isGanacheFork) return;
 
-        it("should mint mAssets using multiMint");
+            const mAssetBalanceOfUserBefore = await massetDetails.mAsset.balanceOf(sa.default);
+            await mintWithKyber.buyAndMintMulti(
+                bAssetsArray,
+                ethAmountArray,
+                massetDetails.mAsset.address,
+                {
+                    value: ONE_ETH,
+                },
+            );
+
+            const mAssetBalanceOfUserAfter = await massetDetails.mAsset.balanceOf(sa.default);
+            const mAssetsMinted = mAssetBalanceOfUserAfter.sub(mAssetBalanceOfUserBefore);
+            expect(mAssetsMinted).bignumber.gt(ZERO as any);
+        });
     });
 });

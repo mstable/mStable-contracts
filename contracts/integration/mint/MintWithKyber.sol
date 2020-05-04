@@ -11,6 +11,8 @@ import { IMasset } from "../../interfaces/IMasset.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title   MintWithKyber
@@ -18,9 +20,10 @@ import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
  * @notice  Contract integrates with Kyber Network Proxy contract and allows anyone to buy
  *          bAsset tokens using ETH from the Kyber platform and mint mAsset tokens from mStable.
  */
-contract MintWithKyber is AbstractBuyAndMint, IBuyAndMint {
+contract MintWithKyber is AbstractBuyAndMint, IBuyAndMint, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
+    using Address for address payable;
 
     address constant internal ETH_TOKEN_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
@@ -57,11 +60,11 @@ contract MintWithKyber is AbstractBuyAndMint, IBuyAndMint {
     )
         external
         payable
+        nonReentrant
         returns (uint256 mAssetQtyMinted)
     {
         require(msg.value > 0, "ETH not sent");
         require(_isMassetExist(_destMasset), "Not a valid mAsset");
-        require(kyberNetworkProxy.enabled(), "KyberNetworkProxy disabled");
 
         mAssetQtyMinted = _buyAndMint(_srcBasset, _destMasset, msg.value, _msgSender());
     }
@@ -74,17 +77,22 @@ contract MintWithKyber is AbstractBuyAndMint, IBuyAndMint {
     )
         external
         payable
+        nonReentrant
         returns (uint256 mAssetQtyMinted)
     {
         require(msg.value > 0, "ETH not sent");
         require(_isMassetExist(_destMasset), "Not a valid mAsset");
-        require(kyberNetworkProxy.enabled(), "KyberNetworkProxy disabled");
 
         // Get the rate from Kyber for `_amountOfMasset` of mAsset into ETH
-        (uint256 expectedRateInEth,) = kyberNetworkProxy.getExpectedRate(_destMasset, ETH_TOKEN_ADDRESS, _amountOfMasset);
+        // Example rate to convert DAI => ETH
+        (uint256 expectedRateInEth,) = kyberNetworkProxy.getExpectedRate(_srcBasset, ETH_TOKEN_ADDRESS, _amountOfMasset);
 
         // Pass the `expectedRate` ETH to Kyber
         mAssetQtyMinted = _buyAndMint(_srcBasset, _destMasset, expectedRateInEth, _msgSender());
+
+        // Return remaining ETH balance to the user
+        // WANRING: Reentrancy Guard used for external functions
+        msg.sender.sendValue(msg.value.sub(expectedRateInEth));
     }
 
     // @override
@@ -95,6 +103,7 @@ contract MintWithKyber is AbstractBuyAndMint, IBuyAndMint {
     )
         external
         payable
+        nonReentrant
         returns (uint256 mAssetQtyMinted)
     {
         require(msg.value > 0, "ETH not sent");
@@ -102,8 +111,8 @@ contract MintWithKyber is AbstractBuyAndMint, IBuyAndMint {
         require(bAssetsLen > 0, "No array data sent");
         require(bAssetsLen == _ethAmount.length, "Array length not matched");
         require(_isMassetExist(_destMasset), "Not a valid mAsset");
-        require(kyberNetworkProxy.enabled(), "KyberNetworkProxy disabled");
-        // Assuming DApp validated that the `sum(_ethAmount[]) == msg.value`, otherwise tx will fail
+        // NOTICE: Assuming DApp validated that the `sum(_ethAmount[]) == msg.value`,
+        // otherwise tx will fail
 
         mAssetQtyMinted = _buyAndMintMulti(_srcBassets, _ethAmount, _destMasset, _msgSender());
     }
@@ -198,7 +207,7 @@ interface KyberNetworkProxyInterface {
     //function getUserCapInTokenWei(address user, ERC20 token) public view returns(uint);
     //function info(bytes32 id) public view returns(uint);
 
-    function enabled() external view returns(bool);
+    //function enabled() external view returns(bool);
 
     function getExpectedRate(
         address src,
