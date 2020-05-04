@@ -86,7 +86,7 @@ contract MintWith1Inch is AbstractBuyAndMint, IBuyAndMintWithOneSplit {
         /*
         (uint256 ethAmount, uint256[] memory distribution) =
             oneSplit.getExpectedReturn(
-                IERC20(_destMasset),    //fromToken
+                IERC20(_srcBasset),    //fromToken
                 ETH_ADDRESS,            //toToken
                 _amountOfMasset,        //fromAmount
                 parts,                  //parts

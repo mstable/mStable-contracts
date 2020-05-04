@@ -1,16 +1,12 @@
 import * as t from "types/generated";
 import { MassetDetails, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
-import { assertBasketIsHealthy, assertBNSlightlyGTPercent } from "@utils/assertions";
+import { assertBasketIsHealthy } from "@utils/assertions";
 import { expectEvent, expectRevert } from "@openzeppelin/test-helpers";
 import { toWei } from "web3-utils";
 import { BN } from "@utils/tools";
-import { MockERC20Instance } from "types/generated";
 import { ZERO } from "@utils/constants";
 
 const MintWithKyber: t.MintWithKyberContract = artifacts.require("MintWithKyber");
-const MockKyberNetworkProxy: t.MockKyberNetworkProxyContract = artifacts.require(
-    "MockKyberNetworkProxy",
-);
 
 contract("MintWithKyber", async (accounts) => {
     const sa = new StandardAccounts(accounts);
@@ -18,7 +14,6 @@ contract("MintWithKyber", async (accounts) => {
     let massetMachine: MassetMachine;
     let massetDetails: MassetDetails;
     let mintWithKyber: t.MintWithKyberInstance;
-    let mockKyberNetworkProxy: t.MockKyberNetworkProxyInstance;
 
     const runSetup = async (seedBasket = true, enableUSDTFee = false): Promise<void> => {
         massetDetails = seedBasket
@@ -37,8 +32,7 @@ contract("MintWithKyber", async (accounts) => {
             // KyberNetworkProxy mainnet address
             kyberProxyAddress = "0x818E6FECD516Ecc3849DAf6845e3EC868087B755";
         } else {
-            mockKyberNetworkProxy = await MockKyberNetworkProxy.new();
-            kyberProxyAddress = mockKyberNetworkProxy.address;
+            kyberProxyAddress = sa.dummy4;
         }
 
         mintWithKyber = await MintWithKyber.new(kyberProxyAddress, [massetDetails.mAsset.address]);
@@ -73,6 +67,7 @@ contract("MintWithKyber", async (accounts) => {
         });
 
         it("should mint mAssets for the user", async () => {
+            // Executes only in forked Ganache network
             if (!systemMachine.isGanacheFork) return;
 
             await Promise.all(
