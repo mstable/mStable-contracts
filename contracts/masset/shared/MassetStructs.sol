@@ -69,8 +69,7 @@ interface MassetStructs {
         Failed
     }
 
-    struct ForgeProps {
-        bool isValid;
+    struct BassetDetails {
         Basset bAsset;
         address integrator;
         uint8 index;

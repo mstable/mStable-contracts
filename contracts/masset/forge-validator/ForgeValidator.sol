@@ -18,6 +18,10 @@ contract ForgeValidator is IForgeValidator {
     using SafeMath for uint256;
     using StableMath for uint256;
 
+    /***************************************
+                    MINT
+    ****************************************/
+
     /**
      * @notice Checks whether a given mint is valid and returns the result
      * @dev Is the resulting weighting of the max bAsset beyond it's implicit max weight?
@@ -117,6 +121,65 @@ contract ForgeValidator is IForgeValidator {
         return (true, "");
     }
 
+    /***************************************
+                    SWAP
+    ****************************************/
+
+    /**
+     * @notice Checks whether a given swap is valid and calculates the output
+     * @dev Input bAsset must not exceed max weight, output bAsset must have sufficient liquidity
+     * @param _totalVault       Current sum of basket collateral
+     * @param _inputBasset      Input bAsset details
+     * @param _outputBasset     Output bAsset details
+     * @param _quantity         Number of bAsset units on the input side
+     * @return isValid          Bool to signify that the mint does not move our weightings the wrong way
+     * @return reason           If the swap is invalid, this is the reason
+     * @return output           Units of output bAsset, before fee is applied
+     */
+    function validateSwap(
+        uint256 _totalVault,
+        Basset calldata _inputBasset,
+        Basset calldata _outputBasset,
+        uint256 _quantity
+    )
+        external
+        pure
+        returns (bool isValid, string memory reason, uint256 output)
+    {
+
+        if(
+            _inputBasset.status != BassetStatus.Normal ||
+            _outputBasset.status != BassetStatus.Normal
+        ) {
+            return (false, "bAsset not allowed in mint", 0);
+        }
+
+        // 1. Determine input bAsset valid
+        //  - If incoming basket goes above weight, then fail
+        // 2. Determine output bAsset valid
+        //  - If it is currently overweight, then no fee
+        //  - Enough units in the bank
+        // 3. Calculate output units
+        //  - should be simple
+
+        // How much mAsset is this _bAssetQuantity worth?
+        // uint256 mintAmountInMasset = _bAssetQuantity.mulRatioTruncate(_bAsset.ratio);
+        // // How much of this bAsset do we have in the vault, in terms of mAsset?
+        // uint256 newBalanceInMasset = _bAsset.vaultBalance.mulRatioTruncate(_bAsset.ratio).add(mintAmountInMasset);
+        // // What is the max weight of this bAsset in the basket?
+        // uint256 maxWeightInUnits = (_totalVault.add(mintAmountInMasset)).mulTruncate(_bAsset.maxWeight);
+
+        // if(newBalanceInMasset > maxWeightInUnits) {
+        //     return (false, "Must be below max weighting");
+        // }
+
+        return (true, "", 0);
+    }
+
+
+    /***************************************
+                    REDEEM
+    ****************************************/
 
     /**
      * @notice Checks whether a given redemption is valid and returns the result

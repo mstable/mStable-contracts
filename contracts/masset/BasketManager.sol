@@ -513,16 +513,53 @@ contract BasketManager is
         external
         whenNotPaused
         whenNotRecolling
-        returns (ForgeProps memory props)
+        returns (bool isValid, BassetDetails memory bInfo)
     {
         (bool exists, uint8 idx) = _isAssetInBasket(_bAsset);
         require(exists, "bAsset does not exist");
-        props = ForgeProps({
-            isValid: true,
+        isValid = true;
+        bInfo = BassetDetails({
             bAsset: basket.bassets[idx],
             integrator: integrations[idx],
             index: idx
         });
+    }
+
+    /**
+     * @dev Prepare given bAssets for swapping
+     * @param _input     Address of the input bAsset
+     * @param _output    Address of the output bAsset
+     * @return props     Struct of all relevant Forge information
+     */
+    function prepareSwapBassets(address _input, address _output)
+        external
+        returns (bool, string memory, BassetDetails memory, BassetDetails memory)
+    {
+        BassetDetails memory input = BassetDetails({
+            bAsset: basket.bassets[0],
+            integrator: address(0),
+            index: 0
+        });
+        BassetDetails memory output = input;
+        if(basket.failed || basket.undergoingRecol){
+            return (false, "Basket is undergoing change", input, output);
+        }
+        (bool inputExists, uint8 inputIdx) = _isAssetInBasket(_input);
+        (bool outputExists, uint8 outputIdx) = _isAssetInBasket(_output);
+        if(!inputExists || !outputExists) {
+            return (false, "One of the assets does not exist", input, output);
+        }
+        input = BassetDetails({
+            bAsset: basket.bassets[inputIdx],
+            integrator: integrations[inputIdx],
+            index: inputIdx
+        });
+        output = BassetDetails({
+            bAsset: basket.bassets[outputIdx],
+            integrator: integrations[outputIdx],
+            index: outputIdx
+        });
+        return (true, "", input, output);
     }
 
     /**
