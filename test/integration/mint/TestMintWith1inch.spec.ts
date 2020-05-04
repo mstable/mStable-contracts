@@ -4,11 +4,13 @@ import { assertBasketIsHealthy } from "@utils/assertions";
 import { expectEvent, expectRevert } from "@openzeppelin/test-helpers";
 import { toWei } from "web3-utils";
 import { BN } from "@utils/tools";
-import { ZERO } from "@utils/constants";
+import { ZERO, ZERO_ADDRESS } from "@utils/constants";
+import shouldBehaveLikeAbstractBuyAndMint from "./AbstractBuyAndMint.behaviour";
 
 const MintWith1Inch: t.MintWith1InchContract = artifacts.require("MintWith1Inch");
 
 contract("MintWith1inch", async (accounts) => {
+    const ctx: { abstractBuyAndMint?: t.AbstractBuyAndMintInstance } = {};
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
     let massetMachine: MassetMachine;
@@ -36,6 +38,43 @@ contract("MintWith1inch", async (accounts) => {
         }
 
         mintWith1Inch = await MintWith1Inch.new(oneSplitAddress, [massetDetails.mAsset.address]);
+    });
+
+    describe("should behave like AbstractBuyAndMint", async () => {
+        beforeEach("reset contracts", async () => {
+            ctx.abstractBuyAndMint = await MintWith1Inch.new(sa.dummy4, [
+                massetDetails.mAsset.address,
+            ]);
+        });
+
+        shouldBehaveLikeAbstractBuyAndMint(ctx as Required<typeof ctx>, sa, sa.dummy4);
+
+        context("AbstractBuyAndMint.constructor", async () => {
+            it("should fail when no mAsset address provided", async () => {
+                await expectRevert(MintWith1Inch.new(sa.dummy4, []), "No mAssets provided");
+            });
+
+            it("should fail when mAsset address already exist", async () => {
+                await expectRevert(
+                    MintWith1Inch.new(sa.dummy4, [sa.dummy1, sa.dummy1]),
+                    "mAsset already exists",
+                );
+            });
+
+            it("should fail when mAsset address is zero", async () => {
+                await expectRevert(
+                    MintWith1Inch.new(sa.dummy4, [ZERO_ADDRESS]),
+                    "mAsset address is zero",
+                );
+            });
+
+            it("should fail when dex address is zero", async () => {
+                await expectRevert(
+                    MintWith1Inch.new(ZERO_ADDRESS, [sa.dummy1]),
+                    "1inch address is zero",
+                );
+            });
+        });
     });
 
     describe("minting mAssets with all ETH", () => {

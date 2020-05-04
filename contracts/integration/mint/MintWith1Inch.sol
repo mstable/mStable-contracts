@@ -40,7 +40,7 @@ contract MintWith1Inch is AbstractBuyAndMint, IBuyAndMintWithOneSplit {
     }
 
     // @override
-    function _exteranlDexAddress() internal returns(address) {
+    function _exteranlDexAddress() internal view returns(address) {
         return address(oneSplit);
     }
 

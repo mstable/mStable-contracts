@@ -49,7 +49,7 @@ contract MintWithKyber is AbstractBuyAndMint, IBuyAndMint, ReentrancyGuard {
     }
 
     // @override
-    function _exteranlDexAddress() internal returns(address) {
+    function _exteranlDexAddress() internal view returns(address) {
         return address(kyberNetworkProxy);
     }
 

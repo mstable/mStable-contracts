@@ -18,7 +18,7 @@ contract AbstractBuyAndMint is Ownable {
     event MassetAdded(address indexed mAsset);
 
     // mAsset address => exists
-    mapping(address => bool) mAssets;
+    mapping(address => bool) public mAssets;
 
     /**
      * @dev Abstarct constructor
@@ -72,5 +72,5 @@ contract AbstractBuyAndMint is Ownable {
     /**
      * @dev Abstract function to get the external DEX contract address
      */
-    function _exteranlDexAddress() internal returns(address);
+    function _exteranlDexAddress() internal view returns(address);
 }

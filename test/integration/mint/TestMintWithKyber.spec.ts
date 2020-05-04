@@ -4,16 +4,19 @@ import { assertBasketIsHealthy } from "@utils/assertions";
 import { expectEvent, expectRevert } from "@openzeppelin/test-helpers";
 import { toWei } from "web3-utils";
 import { BN } from "@utils/tools";
-import { ZERO } from "@utils/constants";
+import { ZERO, ZERO_ADDRESS } from "@utils/constants";
+import shouldBehaveLikeAbstractBuyAndMint from "./AbstractBuyAndMint.behaviour";
 
 const MintWithKyber: t.MintWithKyberContract = artifacts.require("MintWithKyber");
 
 contract("MintWithKyber", async (accounts) => {
+    const ctx: { abstractBuyAndMint?: t.AbstractBuyAndMintInstance } = {};
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
     let massetMachine: MassetMachine;
     let massetDetails: MassetDetails;
     let mintWithKyber: t.MintWithKyberInstance;
+    let kyberProxyAddress: string;
 
     const runSetup = async (seedBasket = true, enableUSDTFee = false): Promise<void> => {
         massetDetails = seedBasket
@@ -27,7 +30,7 @@ contract("MintWithKyber", async (accounts) => {
         massetMachine = new MassetMachine(systemMachine);
 
         await runSetup();
-        let kyberProxyAddress;
+
         if (systemMachine.isGanacheFork) {
             // KyberNetworkProxy mainnet address
             kyberProxyAddress = "0x818E6FECD516Ecc3849DAf6845e3EC868087B755";
@@ -36,6 +39,43 @@ contract("MintWithKyber", async (accounts) => {
         }
 
         mintWithKyber = await MintWithKyber.new(kyberProxyAddress, [massetDetails.mAsset.address]);
+    });
+
+    describe("should behave like AbstractBuyAndMint", async () => {
+        beforeEach("reset contracts", async () => {
+            ctx.abstractBuyAndMint = await MintWithKyber.new(sa.dummy4, [
+                massetDetails.mAsset.address,
+            ]);
+        });
+
+        shouldBehaveLikeAbstractBuyAndMint(ctx as Required<typeof ctx>, sa, sa.dummy4);
+
+        context("AbstractBuyAndMint.constructor", async () => {
+            it("should fail when no mAsset address provided", async () => {
+                await expectRevert(MintWithKyber.new(sa.dummy4, []), "No mAssets provided");
+            });
+
+            it("should fail when mAsset address already exist", async () => {
+                await expectRevert(
+                    MintWithKyber.new(sa.dummy4, [sa.dummy1, sa.dummy1]),
+                    "mAsset already exists",
+                );
+            });
+
+            it("should fail when mAsset address is zero", async () => {
+                await expectRevert(
+                    MintWithKyber.new(sa.dummy4, [ZERO_ADDRESS]),
+                    "mAsset address is zero",
+                );
+            });
+
+            it("should fail when dex address is zero", async () => {
+                await expectRevert(
+                    MintWithKyber.new(ZERO_ADDRESS, [sa.dummy1]),
+                    "Kyber proxy address is zero",
+                );
+            });
+        });
     });
 
     describe("minting max mAssets with all ETH", () => {
