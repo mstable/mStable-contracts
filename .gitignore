@@ -45,6 +45,7 @@ contracts-output/
 package-lock.json
 
 # .vscode
+.vscode/
 
 # solcover
 .coverage_artifacts/

@@ -120,8 +120,8 @@ contract ForgeValidator is IForgeValidator {
 
     /**
      * @notice Checks whether a given redemption is valid and returns the result
-     * @dev A redemption is valid if it does not push any bAssets above their max weightings, or
-     * under their minimum weightings. In addition, if bAssets are currently above their max weight
+     * @dev A redemption is valid if it does not push any untouched bAssets above their
+     * max weightings. In addition, if bAssets are currently above their max weight
      * (i.e. during basket composition changes) they must be redeemed
      * @param _basketIsFailed   Bool to suggest that the basket has failed a recollateralisation attempt
      * @param _totalVault       Sum of collateral units in the basket
@@ -162,6 +162,7 @@ contract ForgeValidator is IForgeValidator {
 
         uint256 newTotalVault = _totalVault;
 
+        // Simulate the redempion on the ratioedBassetVaults and totalSupply
         for(uint256 i = 0; i < idxCount; i++){
             uint8 idx = _indices[i];
             if(idx >= _allBassets.length) return (false, "Basset does not exist", false);
@@ -183,9 +184,8 @@ contract ForgeValidator is IForgeValidator {
             _getOverweightBassetsAfter(newTotalVault, _allBassets, data.ratioedBassetVaults, data.isOverWeight);
 
         bool applySwapFee = true;
-        // If there is at least one overweight bAsset before, we must redeem it
-        // If there is more than one, then multi redeem must be applied
-        if(data.overWeightCount == 1) {
+        // If there are any bAssets overweight, we must redeem them all
+        if(data.overWeightCount > 0) {
             for(uint256 j = 0; j < idxCount; j++) {
                 if(!data.isOverWeight[_indices[j]]) return (false, "Must redeem overweight bAssets", false);
             }
@@ -335,6 +335,7 @@ contract ForgeValidator is IForgeValidator {
      * @param _newTotal                 Sum of collateral units in the basket
      * @param _bAssets                  Array of all bAsset information
      * @param _ratioedBassetVaultsAfter Array of all new bAsset vaults
+     * @param _previouslyOverWeight     Array of bools - was this bAsset already overweight
      * @return underWeight              Array of bools - is this bAsset now under min weight
      */
     function _getOverweightBassetsAfter(

@@ -314,8 +314,8 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
     }
 
     /**
-     * @dev Credits a recipient with a certain quantity of bAssets, in exchange for burning the
-     *      relative mAsset quantity from the sender. Sender also incurs a small Masset fee, if any.
+     * @dev Credits a recipient with a proportionate amount of bAssets, relative to current vault
+     * balance levels and desired mAsset quantity. Burns the mAsset as payment.
      * @param _mAssetQuantity   Quantity of mAsset to redeem
      * @param _recipient        Address to credit the withdrawn bAssets
      */
@@ -413,6 +413,8 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         // Fetch high level details
         RedeemPropsMulti memory props = basketManager.prepareRedeemMulti();
         uint256 colRatio = StableMath.min(props.colRatio, StableMath.getFullScale());
+
+        // Ensure payout is related to the collateralised mAsset quantity
         uint256 collateralisedMassetQuantity = _mAssetQuantity.mulTruncate(colRatio);
 
         // Calculate redemption quantities
