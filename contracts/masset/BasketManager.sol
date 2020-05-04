@@ -554,7 +554,6 @@ contract BasketManager is
     /**
      * @dev Prepare given bAsset addresses for RedeemMulti. Currently returns integrator
      *      and essential minting info for each bAsset
-     * @param _bAssets   Array of bAsset addresses with which to forge
      * @return props     Struct of all relevant Forge information
      */
     function prepareRedeemMulti()
@@ -564,10 +563,9 @@ contract BasketManager is
         whenNotRecolling
         returns (RedeemPropsMulti memory props)
     {
-        // Pass the fetching logic to the internal view func to reduce SLOAD cost
-        (Basset[] memory bAssets, uint8 len) = _getBassets();
+        (Basset[] memory bAssets, uint256 len) = _getBassets();
         address[] memory integrators = new address[](len);
-        address[] memory indexes = new address[](len);
+        uint8[] memory indexes = new uint8[](len);
         for(uint8 i = 0; i < len; i++){
             integrators[i] = integrations[i];
             indexes[i] = i;
@@ -575,7 +573,8 @@ contract BasketManager is
         props = RedeemPropsMulti({
             colRatio: basket.collateralisationRatio,
             bAssets: bAssets,
-            integrators: integrators
+            integrators: integrators,
+            indexes: indexes
         });
     }
 

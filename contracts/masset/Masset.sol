@@ -272,6 +272,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         external
         returns (uint256 massetRedeemed)
     {
+        // here
         return _redeemTo(_bAsset, _bAssetQuantity, msg.sender);
     }
 
@@ -291,6 +292,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         external
         returns (uint256 massetRedeemed)
     {
+        // here
         return _redeemTo(_bAsset, _bAssetQuantity, _recipient);
     }
 
@@ -335,7 +337,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
 
         // Validate redemption
         (bool redemptionValid, string memory reason, bool applyFee) =
-            forgeValidator.validateRedemption(basket.failed, totalSupply().mulTruncate(colRatio), basket.bassets, props.index, bAssetQuantity);
+            forgeValidator.validateRedemption(basket.failed, totalSupply().mulTruncate(colRatio), basket.bassets, arr, q);
         require(redemptionValid, reason);
 
         // Calc equivalent mAsset amount

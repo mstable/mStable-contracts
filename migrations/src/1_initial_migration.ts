@@ -1,4 +1,4 @@
-import { MigrationsContract } from "types/generated";
+import { MigrationsContract } from "types/generated/Migrations.d";
 
 export default async ({ artifacts }, deployer) => {
     process.env.NETWORK = deployer.network;
