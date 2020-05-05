@@ -81,10 +81,6 @@ contract("MintWith1inch", async (accounts) => {
         // mock distribution
         const distribution: Array<BN> = [new BN(1)];
 
-        beforeEach(async () => {
-            // mintWith1Inch.;
-        });
-
         it("should fail when zero ETH sent", async () => {
             await Promise.all(
                 massetDetails.bAssets.map(async (bAsset) => {
