@@ -4,10 +4,9 @@
 /// <reference path="../../types/generated/index.d.ts" />
 /// <reference path="../../types/generated/types.d.ts" />
 
-/* eslint-disable @typescript-eslint/camelcase */
-import { percentToWeight, simpleToExactAmount } from "@utils/math";
+import { percentToWeight } from "@utils/math";
 import { ZERO_ADDRESS, RopstenAccounts } from "@utils/constants";
-import * as t from "types/generated";
+import * as t from "../../types/generated";
 import { Address } from "../../types";
 
 export interface ATokenDetails {
@@ -131,7 +130,7 @@ export default async (
     deployer,
     network,
     accounts,
-) => {
+): Promise<void> => {
     if (deployer.network === "fork") {
         // Don't bother running these migrations -- speed up the testing
         return;
@@ -153,7 +152,7 @@ export default async (
     // - BasketManager (u)
     const c_BasketManager = artifacts.require("BasketManager");
     // - mUSD
-    const c_MUSD = artifacts.require("MUSD");
+    const c_Masset = artifacts.require("Masset");
 
     // Nexus
     const c_Nexus = artifacts.require("Nexus");
@@ -244,21 +243,30 @@ export default async (
     await deployer.deploy(c_ForgeValidator, { from: default_ });
     const d_ForgeValidator = await c_ForgeValidator.deployed();
     // 2.4.2. Deploy mUSD
-    await deployer.deploy(
-        c_MUSD,
-        d_Nexus.address,
-        feeRecipient,
-        d_ForgeValidator.address,
-        d_BasketManagerProxy.address,
-        { from: default_ },
+    await deployer.deploy(c_Masset, { from: default_ });
+    const d_mUSD = await c_Masset.deployed();
+    const d_mUSDProxy = await c_InitializableProxy.new();
+    const initializationData_mUSD: string = d_mUSD.contract.methods
+        .initialize(
+            "mStable USD",
+            "mUSD",
+            d_Nexus.address,
+            feeRecipient,
+            d_ForgeValidator.address,
+            d_BasketManagerProxy.address,
+        )
+        .encodeABI();
+    await d_mUSDProxy.methods["initialize(address,address,bytes)"](
+        d_mUSD.address,
+        d_DelayedProxyAdmin.address,
+        initializationData_mUSD,
     );
-    const d_MUSD = await c_MUSD.deployed();
 
     // 2.5. Init AaveIntegration
     const initializationData_AaveIntegration: string = d_AaveIntegration.contract.methods
         .initialize(
             d_Nexus.address,
-            [d_MUSD.address, d_BasketManagerProxy.address],
+            [d_mUSDProxy.address, d_BasketManagerProxy.address],
             bassetDetails.aavePlatformAddress,
             bassetDetails.aTokens.map((a) => a.bAsset),
             bassetDetails.aTokens.map((a) => a.aToken),
@@ -274,7 +282,7 @@ export default async (
     const initializationData_CompoundIntegration: string = d_CompoundIntegration.contract.methods
         .initialize(
             d_Nexus.address,
-            [d_MUSD.address, d_BasketManagerProxy.address],
+            [d_mUSDProxy.address, d_BasketManagerProxy.address],
             ZERO_ADDRESS, // We don't need Compound sys addr
             bassetDetails.cTokens.map((c) => c.bAsset),
             bassetDetails.cTokens.map((c) => c.cToken),
@@ -290,7 +298,7 @@ export default async (
     const initializationData_BasketManager: string = d_BasketManager.contract.methods
         .initialize(
             d_Nexus.address,
-            d_MUSD.address,
+            d_mUSDProxy.address,
             bassetDetails.bAssets.map((b) => b.address),
             bassetDetails.platforms.map((p) =>
                 p === Platform.aave
@@ -315,14 +323,16 @@ export default async (
     ****************************************/
 
     // Savings Contract
-    await deployer.deploy(c_SavingsContract, d_Nexus.address, d_MUSD.address, { from: default_ });
+    await deployer.deploy(c_SavingsContract, d_Nexus.address, d_mUSDProxy.address, {
+        from: default_,
+    });
     const d_SavingsContract = await c_SavingsContract.deployed();
 
     // Savings Manager
     await deployer.deploy(
         c_SavingsManager,
         d_Nexus.address,
-        d_MUSD.address,
+        d_mUSDProxy.address,
         d_SavingsContract.address,
         { from: default_ },
     );
@@ -346,7 +356,12 @@ export default async (
         from: governor,
     });
 
-    console.log(`[mUSD]: '${d_MUSD.address}'`);
+    console.log(`[mUSD]: '${d_mUSDProxy.address}'`);
+    console.log(`[mUSD impl]: '${d_mUSD.address}'`);
+    console.log(`[BasketManager]: '${d_BasketManagerProxy.address}'`);
+    console.log(`[BasketManager impl]: '${d_BasketManager.address}'`);
+    console.log(`[AaveIntegration]: '${d_AaveIntegrationProxy.address}'`);
+    console.log(`[CompoundIntegration]: '${d_CompoundIntegrationProxy.address}'`);
     console.log(`[SavingsManager]: '${d_SavingsManager.address}'`);
     console.log(`[SavingsContract]: '${d_SavingsContract.address}'`);
 };

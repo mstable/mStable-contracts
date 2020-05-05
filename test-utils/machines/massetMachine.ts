@@ -32,7 +32,7 @@ const c_MockCToken = artifacts.require("MockCToken");
 const c_BasketManager = artifacts.require("MockBasketManager");
 
 // Masset
-const c_MUSD = artifacts.require("MUSD");
+const c_Masset = artifacts.require("Masset");
 const c_MockERC20WithFee = artifacts.require("MockERC20WithFee");
 const c_MockERC20 = artifacts.require("MockERC20");
 const c_MockUSDT = artifacts.require("MockUSDT");
@@ -125,20 +125,30 @@ export class MassetMachine {
         });
         md.forgeValidator = d_ForgeValidator;
         // 2.4.2. Deploy mUSD
-        const d_MUSD: t.MusdInstance = await c_MUSD.new(
-            this.system.nexus.address,
-            this.sa.feeRecipient,
-            d_ForgeValidator.address,
-            d_BasketManagerProxy.address,
-            { from: this.sa.default },
+        const d_mUSD = await c_Masset.new();
+        const d_mUSDProxy = await c_InitializableProxy.new();
+        const initializationData_mUSD: string = d_mUSD.contract.methods
+            .initialize(
+                "mStable USD",
+                "mUSD",
+                this.system.nexus.address,
+                this.sa.feeRecipient,
+                d_ForgeValidator.address,
+                d_BasketManagerProxy.address,
+            )
+            .encodeABI();
+        await d_mUSDProxy.methods["initialize(address,address,bytes)"](
+            d_mUSD.address,
+            d_DelayedProxyAdmin.address,
+            initializationData_mUSD,
         );
-        md.mAsset = d_MUSD;
+        md.mAsset = await c_Masset.at(d_mUSDProxy.address);
 
         // 2.5. Init AaveIntegration
         const initializationData_AaveIntegration: string = d_AaveIntegration.contract.methods
             .initialize(
                 this.system.nexus.address,
-                [d_MUSD.address, d_BasketManagerProxy.address],
+                [d_mUSDProxy.address, d_BasketManagerProxy.address],
                 bassetDetails.aavePlatformAddress,
                 bassetDetails.aTokens.map((a) => a.bAsset),
                 bassetDetails.aTokens.map((a) => a.aToken),
@@ -156,7 +166,7 @@ export class MassetMachine {
         const initializationData_CompoundIntegration: string = d_CompoundIntegration.contract.methods
             .initialize(
                 this.system.nexus.address,
-                [d_MUSD.address, d_BasketManagerProxy.address],
+                [d_mUSDProxy.address, d_BasketManagerProxy.address],
                 ZERO_ADDRESS, // We don't need Compound sys addr
                 bassetDetails.cTokens.map((c) => c.bAsset),
                 bassetDetails.cTokens.map((c) => c.cToken),
@@ -175,7 +185,7 @@ export class MassetMachine {
         const initializationData_BasketManager: string = d_BasketManager.contract.methods
             .initialize(
                 this.system.nexus.address,
-                d_MUSD.address,
+                d_mUSDProxy.address,
                 bassetDetails.bAssets.map((b) => b.address),
                 bassetDetails.platforms.map((p) =>
                     p === Platform.aave

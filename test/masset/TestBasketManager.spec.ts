@@ -62,7 +62,7 @@ contract("BasketManager", async (accounts) => {
         return mockBasketManager;
     }
 
-    const createMockERC20 = async (decimals = 18): Promise<t.MockERC20Instance> => {
+    const createMockERC20 = async (decimals = 18): Promise<t.MockErc20Instance> => {
         const mockERC20 = await MockERC20.new("Mock", "MKT", decimals, sa.default, new BN(10000));
         await aaveIntegration.setPTokenAddress(
             mockERC20.address,
@@ -821,7 +821,7 @@ contract("BasketManager", async (accounts) => {
             });
 
             it("when max bAssets reached", async () => {
-                const mockERC20s: Array<t.MockERC20Instance> = new Array(13);
+                const mockERC20s: Array<t.MockErc20Instance> = new Array(13);
                 for (let index = 0; index < 12; index += 1) {
                     const mock = await createMockERC20();
                     mockERC20s.push(mock);

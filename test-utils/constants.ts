@@ -1,6 +1,6 @@
 /* eslint-disable max-classes-per-file */
-import { Address } from "types/common";
-import { aToH, BN } from "./tools";
+import { Address } from "../types/common";
+import { BN } from "./tools";
 
 /**
  * @notice This file contains constants relevant across the mStable test suite
@@ -14,8 +14,6 @@ export const transferFeeScale: BN = new BN(10).pow(new BN(15));
 
 export const DEFAULT_DECIMALS = new BN("18");
 export const DEFAULT_SUPPLY = new BN(10).pow(new BN(29));
-
-export const MASSET_FACTORY_BYTES = aToH("MassetFactoryV1");
 
 export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 export const ADDRESS_1 = "0xcd959e71449425f6e4ac814b7f5aebde93012e24";

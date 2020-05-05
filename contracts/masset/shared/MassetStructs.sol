@@ -7,11 +7,10 @@ pragma solidity 0.5.16;
  */
 interface MassetStructs {
 
+    /** @dev Stores high level basket info */
     struct Basket {
 
-        /**
-         * @dev Array of Bassets currently active
-         */
+        /** @dev Array of Bassets currently active */
         Basset[] bassets;
 
         /** @dev Max number of bAssets that can be present in any Basket */
@@ -69,19 +68,22 @@ interface MassetStructs {
         Failed
     }
 
+    /** @dev Internal details on Basset */
     struct BassetDetails {
         Basset bAsset;
         address integrator;
         uint8 index;
     }
 
+    /** @dev All details needed to Forge with multiple bAssets */
     struct ForgePropsMulti {
-        bool isValid;
+        bool isValid; // Flag to signify that forge bAssets have passed validity check
         Basset[] bAssets;
         address[] integrators;
         uint8[] indexes;
     }
 
+    /** @dev All details needed for proportionate Redemption */
     struct RedeemPropsMulti {
         uint256 colRatio;
         Basset[] bAssets;

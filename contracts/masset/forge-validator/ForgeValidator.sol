@@ -146,10 +146,7 @@ contract ForgeValidator is IForgeValidator {
         pure
         returns (bool isValid, string memory reason, uint256 output, bool applySwapFee)
     {
-        if(
-            _inputBasset.status != BassetStatus.Normal ||
-            _outputBasset.status != BassetStatus.Normal
-        ) {
+        if(_inputBasset.status != BassetStatus.Normal || _outputBasset.status != BassetStatus.Normal) {
             return (false, "bAsset not allowed in mint", 0, false);
         }
 

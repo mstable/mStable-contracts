@@ -22,8 +22,7 @@
   },
   "repository": "gitlab:mstable/mstable-contracts",
   "dependencies": {
-    "sol-merger": "^2.0.1",
-    "bn.js": "^5.1.1"
+    "sol-merger": "^2.0.1"
   },
   "devDependencies": {
     "@openzeppelin/contracts": "2.5.0",

@@ -1,5 +1,5 @@
 import * as t from "types/generated";
-import BN from "bn.js";
+import { BN } from "../test-utils/tools";
 import { Address } from "./common";
 import { Basset } from "../test-utils/mstable-objects";
 

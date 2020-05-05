@@ -8,8 +8,10 @@ import { IBasketManager } from "../interfaces/IBasketManager.sol";
 
 // Internal
 import { IMasset } from "../interfaces/IMasset.sol";
-import { MassetToken } from "./MassetToken.sol";
-import { Module } from "../shared/Module.sol";
+import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
+import { InitializableToken } from "../shared/InitializableToken.sol";
+import { InitializableModule } from "../shared/InitializableModule.sol";
+import { InitializableReentrancyGuard } from "../shared/InitializableReentrancyGuard.sol";
 import { MassetStructs } from "./shared/MassetStructs.sol";
 
 // Libs
@@ -17,7 +19,6 @@ import { StableMath } from "../shared/StableMath.sol";
 import { MassetHelpers } from "./shared/MassetHelpers.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title   Masset
@@ -28,14 +29,20 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
  * @dev     VERSION: 1.0
  *          DATE:    2020-05-05
  */
-contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
+contract Masset is
+    Initializable,
+    IMasset,
+    InitializableToken,
+    InitializableModule,
+    InitializableReentrancyGuard
+{
 
     using StableMath for uint256;
 
     // Forging Events
     event Minted(address indexed account, uint256 mAssetQuantity, address bAsset, uint256 bAssetQuantity);
     event MintedMulti(address indexed account, uint256 mAssetQuantity, address[] bAssets, uint256[] bAssetQuantities);
-    event Swapped(address indexed account, address recipient, address input, address output, uint256 outputAmount);
+    event Swapped(address indexed account, address input, address output, uint256 outputAmount, address recipient);
     event Redeemed(address indexed recipient, address redeemer, uint256 mAssetQuantity, address[] bAssets, uint256[] bAssetQuantit);
     event RedeemedMulti(address indexed recipient, address redeemer, uint256 mAssetQuantity);
     event PaidFee(address payer, address asset, uint256 feeQuantity);
@@ -55,23 +62,22 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
     uint256 public swapFee;
     uint256 private constant MAX_FEE = 2e16;
 
-    constructor (
-        string memory _name,
-        string memory _symbol,
+    /** @dev Constructor */
+    function initialize(
+        string calldata _name,
+        string calldata _symbol,
         address _nexus,
         address _feeRecipient,
         address _forgeValidator,
         address _basketManager
     )
-        MassetToken(
-            _name,
-            _symbol
-        )
-        Module(
-            _nexus
-        )
-        public
+        external
+        initializer
     {
+        InitializableToken._initialize(_name, _symbol);
+        InitializableModule._initialize(_nexus);
+        InitializableReentrancyGuard._initialize();
+
         feeRecipient = _feeRecipient;
         forgeValidator = IForgeValidator(_forgeValidator);
 
@@ -275,13 +281,14 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
     ****************************************/
 
     /**
-     * @dev Swaps one bAsset for another
+     * @dev Simply swaps one bAsset for another bAsset or this mAsset at a 1:1 ratio.
+     * bAsset <> bAsset swaps will incur a small fee (swapFee()). Swap
+     * is valid if it does not result in the input asset exceeding its maximum weight.
      * @param _input        bAsset to deposit
-     * @param _output       bAsset to receive
+     * @param _output       Asset to receive - either a bAsset or mAsset(this)
      * @param _quantity     Units of input bAsset to swap
-     * @param _recipient    Recipient of output asset
-     * @return output       Units of output bAsset
-     * @return fee          Fee collected (in output bAsset units)
+     * @param _recipient    Address to credit output asset
+     * @return output       Units of output asset returned
      */
     function swap(
         address _input,
@@ -326,17 +333,18 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         // 5.3. Withdraw to recipient
         IPlatformIntegration(outputDetails.integrator).withdraw(_recipient, _output, swapOutput, outputDetails.bAsset.isTransferFeeCharged);
 
-        emit Swapped(msg.sender, _recipient, _input, _output, swapOutput);
+        emit Swapped(msg.sender, _input, _output, swapOutput, _recipient);
     }
 
     /**
-     * @dev Determines both if a trade is valid, and the expected fee or output
+     * @dev Determines both if a trade is valid, and the expected fee or output.
+     * Swap is valid if it does not result in the input asset exceeding its maximum weight.
      * @param _input        bAsset to deposit
-     * @param _output       bAsset to receive
+     * @param _output       Asset to receive - bAsset or mAsset(this)
      * @param _quantity     Units of input bAsset to swap
      * @return valid        Bool to signify that swap is current valid
      * @return reason       If swap is invalid, this is the reason
-     * @return output       Units of output bAsset
+     * @return output       Units of _output asset the trade would return
      */
     function getSwapOutput(
         address _input,
@@ -350,6 +358,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         require(_input != address(0) && _output != address(0), "Invalid inputs");
 
         bool isMint = _output == address(this);
+        uint256 quantity = _quantity;
 
         // 1. Get relevant asset data
         (bool isValid, string memory reason, BassetDetails memory inputDetails, BassetDetails memory outputDetails) =
@@ -362,25 +371,26 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         // 2.1. If output is mAsset(this), then calculate a simple mint
         if(isMint){
             // Validate mint
-            (isValid, reason) = forgeValidator.validateMint(totalSupply(), inputDetails.bAsset, _quantity);
+            (isValid, reason) = forgeValidator.validateMint(totalSupply(), inputDetails.bAsset, quantity);
             if(!isValid) return (false, reason, 0);
             // Simply cast the quantity to mAsset
-            output = _quantity.mulRatioTruncate(inputDetails.bAsset.ratio);
+            output = quantity.mulRatioTruncate(inputDetails.bAsset.ratio);
             return(true, "", output);
         }
-
         // 2.2. If a bAsset swap, calculate the validity, output and fee
-        (bool swapValid, string memory swapValidityReason, uint256 swapOutput, bool applySwapFee) =
-            forgeValidator.validateSwap(totalSupply(), inputDetails.bAsset, outputDetails.bAsset, _quantity);
-        if(!swapValid){
-            return (false, swapValidityReason, 0);
-        }
+        else {
+            (bool swapValid, string memory swapValidityReason, uint256 swapOutput, bool applySwapFee) =
+                forgeValidator.validateSwap(totalSupply(), inputDetails.bAsset, outputDetails.bAsset, quantity);
+            if(!swapValid){
+                return (false, swapValidityReason, 0);
+            }
 
-        // 3. Return output and fee, if any
-        if(applySwapFee){
-            (, swapOutput) = _calcSwapFee(swapOutput, swapFee);
+            // 3. Return output and fee, if any
+            if(applySwapFee){
+                (, swapOutput) = _calcSwapFee(swapOutput, swapFee);
+            }
+            return (true, "", swapOutput);
         }
-        return (true, "", swapOutput);
     }
 
 
@@ -522,7 +532,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         mAssetQuantity = mAssetQuantity.divPrecisely(colRatio);
 
         // Apply fees, burn mAsset and return bAsset to recipient
-        _settleRedemption(mAssetQuantity, props.bAssets, props.indexes, props.integrators, _bAssetQuantities, applyFee, _recipient);
+        _settleRedemption(_recipient, mAssetQuantity, props.bAssets, _bAssetQuantities, props.indexes, props.integrators, applyFee);
 
         emit Redeemed(_recipient, msg.sender, mAssetQuantity, _bAssets, _bAssetQuantities);
         return mAssetQuantity;
@@ -553,29 +563,29 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         require(redemptionValid, reason);
 
         // Apply fees, burn mAsset and return bAsset to recipient
-        _settleRedemption(_mAssetQuantity, props.bAssets, props.indexes, props.integrators, bAssetQuantities, false, _recipient);
+        _settleRedemption(_recipient, _mAssetQuantity, props.bAssets, bAssetQuantities, props.indexes, props.integrators, false);
 
         emit RedeemedMulti(_recipient, msg.sender, _mAssetQuantity);
     }
 
     /**
      * @dev Internal func to update contract state post-redemption
+     * @param _recipient        Recipient of the bAssets
      * @param _mAssetQuantity   Total amount of mAsset to burn from sender
      * @param _bAssets          Array of bAssets to redeem
+     * @param _bAssetQuantities Array of bAsset quantities
      * @param _indices          Matching indices for the bAsset array
      * @param _integrators      Matching integrators for the bAsset array
-     * @param _bAssetQuantities Array of bAsset quantities
      * @param _applyFee         Apply a fee to this redemption?
-     * @param _recipient        Recipient of the bAssets
      */
     function _settleRedemption(
+        address _recipient,
         uint256 _mAssetQuantity,
         Basset[] memory _bAssets,
+        uint256[] memory _bAssetQuantities,
         uint8[] memory _indices,
         address[] memory _integrators,
-        uint256[] memory _bAssetQuantities,
-        bool _applyFee,
-        address _recipient
+        bool _applyFee
     ) internal {
         // Burn the full amount of Masset
         _burn(msg.sender, _mAssetQuantity);

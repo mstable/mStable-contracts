@@ -657,7 +657,8 @@ contract("Masset", async (accounts) => {
                 // mintSingle
                 const bAsset = await MockERC20.new("Mock", "MKK", 18, sa.default, 1000);
                 const newManager = await MockBasketManager1.new(bAsset.address);
-                const mockMasset = await Masset.new(
+                const mockMasset = await Masset.new();
+                await mockMasset.initialize(
                     "mMock",
                     "MK",
                     systemMachine.nexus.address,
@@ -686,7 +687,8 @@ contract("Masset", async (accounts) => {
                 // mintSingle
                 const bAsset = await MockERC20.new("Mock2", "MKK", 18, sa.default, 1000);
                 const newManager = await MockBasketManager2.new(bAsset.address);
-                const mockMasset = await Masset.new(
+                const mockMasset = await Masset.new();
+                await mockMasset.initialize(
                     "mMock",
                     "MK",
                     systemMachine.nexus.address,
@@ -1411,7 +1413,8 @@ contract("Masset", async (accounts) => {
                 // mintSingle
                 const bAsset = await MockERC20.new("Mock", "MKK", 18, sa.default, 1000);
                 const newManager = await MockBasketManager1.new(bAsset.address);
-                const mockMasset = await Masset.new(
+                const mockMasset = await Masset.new();
+                await mockMasset.initialize(
                     "mMock",
                     "MK",
                     systemMachine.nexus.address,
@@ -1440,7 +1443,8 @@ contract("Masset", async (accounts) => {
                 // mintSingle
                 const bAsset = await MockERC20.new("Mock2", "MKK", 18, sa.default, 1000);
                 const newManager = await MockBasketManager2.new(bAsset.address);
-                const mockMasset = await Masset.new(
+                const mockMasset = await Masset.new();
+                await mockMasset.initialize(
                     "mMock",
                     "MK",
                     systemMachine.nexus.address,
