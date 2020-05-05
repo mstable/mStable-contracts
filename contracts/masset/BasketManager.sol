@@ -33,7 +33,6 @@ contract BasketManager is
     InitializablePausableModule,
     InitializableReentrancyGuard
 {
-
     using SafeMath for uint256;
     using StableMath for uint256;
     using SafeERC20 for IERC20;
@@ -535,6 +534,7 @@ contract BasketManager is
     function prepareSwapBassets(address _input, address _output, bool _isMint)
         external
         view
+        whenNotPaused
         returns (bool, string memory, BassetDetails memory, BassetDetails memory)
     {
         BassetDetails memory input = BassetDetails({

@@ -384,24 +384,6 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
     }
 
 
-    // /**
-    //  * @dev Gets the maximum amount of units that can be swapped in a given pair
-    //  * @param _input        bAsset to deposit
-    //  * @param _output       bAsset to receive
-    //  * @return maximumInput Maximum units that can be swapped, in terms of input
-    //  */
-    // function getMaxSwap(
-    //     address _input,
-    //     address _output
-    // )
-    //     external
-    //     returns (uint256 maximumInput)
-    // {
-    //     return 0;
-    // }
-
-
-
     /***************************************
               REDEMPTION (PUBLIC)
     ****************************************/

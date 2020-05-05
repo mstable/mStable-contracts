@@ -20,7 +20,7 @@ const c_SavingsManager = artifacts.require("SavingsManager");
  * Since we will need to generate usable, customisable contracts throughout our test
  * framework, this will act as a Machine to generate these various mocks
  */
-export default class SystemMachine {
+export class SystemMachine {
     /** @dev Default accounts as per system Migrations */
     public sa: StandardAccounts;
 
@@ -121,3 +121,5 @@ export default class SystemMachine {
         return true;
     }
 }
+
+export default SystemMachine;

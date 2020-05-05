@@ -4,7 +4,7 @@ import { exactToSimpleAmount, simpleToExactAmount } from "@utils/math";
 import { BN } from "@utils/tools";
 import { fullScale, ratioScale } from "@utils/constants";
 import envSetup from "@utils/env_setup";
-import { PublicStableMathInstance } from "../../types/generated/PublicStableMath";
+import { PublicStableMathInstance } from "../../types/generated";
 
 const { expect } = envSetup.configure();
 const PublicStableMath = artifacts.require("PublicStableMath");
