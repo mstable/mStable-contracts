@@ -1,8 +1,7 @@
 import * as t from "types/generated";
+import BN from "bn.js";
 import { Address } from "./common";
 import { Basset } from "../test-utils/mstable-objects";
-
-import BN from "bn.js";
 
 export interface ATokenDetails {
     bAsset: Address;
