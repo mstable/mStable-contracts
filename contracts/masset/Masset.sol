@@ -25,6 +25,8 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
  * @notice  The Masset is a token that allows minting and redemption at a 1:1 ratio
  *          for underlying basket assets (bAssets) of the same peg (i.e. USD,
  *          EUR, gGold). Composition and validation is enforced via the BasketManager.
+ * @dev     VERSION: 1.0
+ *          DATE:    2020-05-05
  */
 contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
 
@@ -33,6 +35,7 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
     // Forging Events
     event Minted(address indexed account, uint256 mAssetQuantity, address bAsset, uint256 bAssetQuantity);
     event MintedMulti(address indexed account, uint256 mAssetQuantity, address[] bAssets, uint256[] bAssetQuantities);
+    event Swapped(address indexed account, address recipient, address input, address output, uint256 outputAmount);
     event Redeemed(address indexed recipient, address redeemer, uint256 mAssetQuantity, address[] bAssets, uint256[] bAssetQuantit);
     event RedeemedMulti(address indexed recipient, address redeemer, uint256 mAssetQuantity);
     event PaidFee(address payer, address asset, uint256 feeQuantity);
@@ -247,11 +250,156 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
         internal
         returns (uint256 quantityDeposited, uint256 ratioedDeposit)
     {
+        quantityDeposited = _depositTokens(_bAsset, _integrator, _xferCharged, _quantity);
+        ratioedDeposit = quantityDeposited.mulRatioTruncate(_bAssetRatio);
+    }
+
+    /** @dev Deposits tokens into the platform integration and returns the deposited amount */
+    function _depositTokens(
+        address _bAsset,
+        address _integrator,
+        bool _xferCharged,
+        uint256 _quantity
+    )
+        internal
+        returns (uint256 quantityDeposited)
+    {
         uint256 quantityTransferred = MassetHelpers.transferTokens(msg.sender, _integrator, _bAsset, _xferCharged, _quantity);
         uint256 deposited = IPlatformIntegration(_integrator).deposit(_bAsset, quantityTransferred, _xferCharged);
         quantityDeposited = StableMath.min(deposited, _quantity);
-        ratioedDeposit = quantityDeposited.mulRatioTruncate(_bAssetRatio);
     }
+
+
+    /***************************************
+                SWAP (PUBLIC)
+    ****************************************/
+
+    /**
+     * @dev Swaps one bAsset for another
+     * @param _input        bAsset to deposit
+     * @param _output       bAsset to receive
+     * @param _quantity     Units of input bAsset to swap
+     * @param _recipient    Recipient of output asset
+     * @return output       Units of output bAsset
+     * @return fee          Fee collected (in output bAsset units)
+     */
+    function swap(
+        address _input,
+        address _output,
+        uint256 _quantity,
+        address _recipient
+    )
+        external
+        returns (uint256 output)
+    {
+        require(_input != address(0) && _output != address(0), "Invalid inputs");
+        require(_recipient != address(0), "Invalid recipient");
+        require(_quantity > 0, "Invalid quantity");
+
+        // 1. If the output is this mAsset, just mint
+        if(_output == address(this)){
+            return _mintTo(_input, _quantity, _recipient);
+        }
+
+        // 2. Grab all relevant info from the Manager
+        (bool isValid, string memory reason, BassetDetails memory inputDetails, BassetDetails memory outputDetails) =
+            basketManager.prepareSwapBassets(_input, _output, false);
+        require(isValid, reason);
+
+        // 3. Deposit the input tokens
+        uint256 quantitySwappedIn = _depositTokens(_input, inputDetails.integrator, inputDetails.bAsset.isTransferFeeCharged, _quantity);
+        // 3.1. Update the input balance
+        basketManager.increaseVaultBalance(inputDetails.index, inputDetails.integrator, quantitySwappedIn);
+
+        // 4. Validate the swap
+        (bool swapValid, string memory swapValidityReason, uint256 swapOutput, bool applySwapFee) =
+            forgeValidator.validateSwap(totalSupply(), inputDetails.bAsset, outputDetails.bAsset, quantitySwappedIn);
+        require(swapValid, swapValidityReason);
+
+        // 5. Settle the swap
+        // 5.1. Decrease output bal
+        basketManager.decreaseVaultBalance(outputDetails.index, outputDetails.integrator, swapOutput);
+        // 5.2. Calc fee, if any
+        if(applySwapFee){
+            swapOutput = _deductSwapFee(_output, swapOutput, swapFee);
+        }
+        // 5.3. Withdraw to recipient
+        IPlatformIntegration(outputDetails.integrator).withdraw(_recipient, _output, swapOutput, outputDetails.bAsset.isTransferFeeCharged);
+
+        emit Swapped(msg.sender, _recipient, _input, _output, swapOutput);
+    }
+
+    /**
+     * @dev Determines both if a trade is valid, and the expected fee or output
+     * @param _input        bAsset to deposit
+     * @param _output       bAsset to receive
+     * @param _quantity     Units of input bAsset to swap
+     * @return valid        Bool to signify that swap is current valid
+     * @return reason       If swap is invalid, this is the reason
+     * @return output       Units of output bAsset
+     */
+    function getSwapOutput(
+        address _input,
+        address _output,
+        uint256 _quantity
+    )
+        external
+        view
+        returns (bool, string memory, uint256 output)
+    {
+        require(_input != address(0) && _output != address(0), "Invalid inputs");
+
+        bool isMint = _output == address(this);
+
+        // 1. Get relevant asset data
+        (bool isValid, string memory reason, BassetDetails memory inputDetails, BassetDetails memory outputDetails) =
+            basketManager.prepareSwapBassets(_input, _output, isMint);
+        if(!isValid){
+            return (false, reason, 0);
+        }
+
+        // 2. check if trade is valid
+        // 2.1. If output is mAsset(this), then calculate a simple mint
+        if(isMint){
+            // Validate mint
+            (isValid, reason) = forgeValidator.validateMint(totalSupply(), inputDetails.bAsset, _quantity);
+            if(!isValid) return (false, reason, 0);
+            // Simply cast the quantity to mAsset
+            output = _quantity.mulRatioTruncate(inputDetails.bAsset.ratio);
+            return(true, "", output);
+        }
+
+        // 2.2. If a bAsset swap, calculate the validity, output and fee
+        (bool swapValid, string memory swapValidityReason, uint256 swapOutput, bool applySwapFee) =
+            forgeValidator.validateSwap(totalSupply(), inputDetails.bAsset, outputDetails.bAsset, _quantity);
+        if(!swapValid){
+            return (false, swapValidityReason, 0);
+        }
+
+        // 3. Return output and fee, if any
+        if(applySwapFee){
+            (, swapOutput) = _calcSwapFee(swapOutput, swapFee);
+        }
+        return (true, "", swapOutput);
+    }
+
+
+    // /**
+    //  * @dev Gets the maximum amount of units that can be swapped in a given pair
+    //  * @param _input        bAsset to deposit
+    //  * @param _output       bAsset to receive
+    //  * @return maximumInput Maximum units that can be swapped, in terms of input
+    //  */
+    // function getMaxSwap(
+    //     address _input,
+    //     address _output
+    // )
+    //     external
+    //     returns (uint256 maximumInput)
+    // {
+    //     return 0;
+    // }
+
 
 
     /***************************************
@@ -472,110 +620,8 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
 
 
     /***************************************
-                SWAP (EXTERNAL)
+                    INTERNAL
     ****************************************/
-
-    /**
-     * @dev Swaps one bAsset for another
-     * @param _input        bAsset to deposit
-     * @param _output       bAsset to receive
-     * @param _quantity     Units of input bAsset to swap
-     * @param _recipient    Recipient of output asset
-     * @return output       Units of output bAsset
-     * @return fee          Fee collected (in output bAsset units)
-     */
-    function swap(
-        address _input,
-        address _output,
-        uint256 _quantity,
-        address _recipient
-    )
-        external
-        returns (uint256 output, uint256 fee)
-    {
-        // 0 - if output = address(this) then call mint
-        (bool isValid, string memory reason, BassetDetails memory input, BassetDetails memory output) =
-            basketManager.prepareSwapBassets(_input, _output);
-        require(isValid, reason);
-        // 1. get the relevant data
-        // - call shared 'prepareswap data' which returns invalid if failed/recol (revert)
-        // 2. call _getSwapOutput
-        // 3. settle the swap
-        return (0, 0);
-    }
-
-    /**
-     * @dev Determines both if a trade is valid, and the expected fee or output
-     * @param _input        bAsset to deposit
-     * @param _output       bAsset to receive
-     * @param _quantity     Units of input bAsset to swap
-     * @return valid        Bool to signify that swap is current valid
-     * @return reason       If swap is invalid, this is the reason
-     * @return output       Units of output bAsset
-     */
-    function getSwapOutput(
-        address _input,
-        address _output,
-        uint256 _quantity
-    )
-        external
-        returns (bool valid, string memory, uint256 output)
-    {
-        // 1. get relevant data
-        //  - If Basket is faled or undergoing re-col then return
-        (bool isValid, string memory reason, BassetDetails memory input, BassetDetails memory output) =
-            basketManager.prepareSwapBassets(_input, _output);
-        if(!isValid){
-            return (false, reason, 0);
-        }
-        // 2. check if trade is valid
-        (bool swapValid, string memory swapValidityReason, uint256 swapOutput) =
-            forgeValidator.validateSwap(totalSupply(), input.bAsset, output.bAsset, _quantity);
-        // 3. return output and fee, if any
-        if(!swapValid){
-            return (false, swapValidityReason, 0);
-        }
-        return (true, "", swapOutput);
-    }
-
-
-    function _getSwapOutput(
-        address _input,
-        address _output,
-        uint256 _quantity
-    )
-        internal
-        returns (bool valid, string memory reason, uint256 output, uint256 feeRate)
-    {
-        // validateSwap(
-        // uint256 _totalVault,
-        // Basset calldata _inputBasset,
-        // Basset calldata _outputBasset,
-        // uint256 _quantity)
-        return (true, "", 0, 0);
-    }
-
-    // /**
-    //  * @dev Gets the maximum amount of units that can be swapped in a given pair
-    //  * @param _input        bAsset to deposit
-    //  * @param _output       bAsset to receive
-    //  * @return maximumInput Maximum units that can be swapped, in terms of input
-    //  */
-    // function getMaxSwap(
-    //     address _input,
-    //     address _output
-    // )
-    //     external
-    //     returns (uint256 maximumInput)
-    // {
-    //     return 0;
-    // }
-
-
-    /***************************************
-                SWAP (INTERNAL)
-    ****************************************/
-
 
     /**
      * @dev Pay the forging fee by burning relative amount of mAsset
@@ -585,13 +631,25 @@ contract Masset is IMasset, MassetToken, Module, ReentrancyGuard {
     private
     returns (uint256 outputMinusFee) {
         if(_feeRate > 0){
-            // e.g. for 500 massets.
-            // feeRate == 1% == 1e16. _quantity == 5e20.
-            // (5e20 * 1e16) / 1e18 = 5e18
-            uint256 feeAmount = _bAssetQuantity.mulTruncate(_feeRate);
-            outputMinusFee = _bAssetQuantity.sub(feeAmount);
-            emit PaidFee(msg.sender, _asset, feeAmount);
+            (uint256 fee, uint256 output) = _calcSwapFee(_bAssetQuantity, _feeRate);
+            outputMinusFee = output;
+            emit PaidFee(msg.sender, _asset, fee);
         }
+    }
+
+    /**
+     * @dev Pay the forging fee by burning relative amount of mAsset
+     * @param _bAssetQuantity     Exact amount of bAsset being swapped out
+     */
+    function _calcSwapFee(uint256 _bAssetQuantity, uint256 _feeRate)
+    private
+    pure
+    returns (uint256 feeAmount, uint256 outputMinusFee) {
+        // e.g. for 500 massets.
+        // feeRate == 1% == 1e16. _quantity == 5e20.
+        // (5e20 * 1e16) / 1e18 = 5e18
+        feeAmount = _bAssetQuantity.mulTruncate(_feeRate);
+        outputMinusFee = _bAssetQuantity.sub(feeAmount);
     }
 
     /***************************************

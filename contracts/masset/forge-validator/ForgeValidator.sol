@@ -11,7 +11,7 @@ import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
  * @notice  Calculates whether or not minting or redemption is valid, based
  *          on how it affects the underlying basket collateral weightings
  * @dev     VERSION: 1.0
- *          DATE:    2020-03-28
+ *          DATE:    2020-05-05
  */
 contract ForgeValidator is IForgeValidator {
 
@@ -144,36 +144,41 @@ contract ForgeValidator is IForgeValidator {
     )
         external
         pure
-        returns (bool isValid, string memory reason, uint256 output)
+        returns (bool isValid, string memory reason, uint256 output, bool applySwapFee)
     {
-
         if(
             _inputBasset.status != BassetStatus.Normal ||
             _outputBasset.status != BassetStatus.Normal
         ) {
-            return (false, "bAsset not allowed in mint", 0);
+            return (false, "bAsset not allowed in mint", 0, false);
         }
 
-        // 1. Determine input bAsset valid
-        //  - If incoming basket goes above weight, then fail
-        // 2. Determine output bAsset valid
-        //  - If it is currently overweight, then no fee
-        //  - Enough units in the bank
-        // 3. Calculate output units
-        //  - should be simple
-
+        // 1. Determine input bAsset valid - If incoming basket goes above weight, then fail
         // How much mAsset is this _bAssetQuantity worth?
-        // uint256 mintAmountInMasset = _bAssetQuantity.mulRatioTruncate(_bAsset.ratio);
-        // // How much of this bAsset do we have in the vault, in terms of mAsset?
-        // uint256 newBalanceInMasset = _bAsset.vaultBalance.mulRatioTruncate(_bAsset.ratio).add(mintAmountInMasset);
-        // // What is the max weight of this bAsset in the basket?
-        // uint256 maxWeightInUnits = (_totalVault.add(mintAmountInMasset)).mulTruncate(_bAsset.maxWeight);
+        uint256 inputAmountInMasset = _quantity.mulRatioTruncate(_inputBasset.ratio);
+        // How much of this bAsset do we have in the vault, in terms of mAsset?
+        uint256 newBalanceInMasset = _inputBasset.vaultBalance.mulRatioTruncate(_inputBasset.ratio).add(inputAmountInMasset);
+        // What is the max weight of this bAsset in the basket?
+        uint256 maxWeightInUnits = _totalVault.mulTruncate(_inputBasset.maxWeight);
 
-        // if(newBalanceInMasset > maxWeightInUnits) {
-        //     return (false, "Must be below max weighting");
-        // }
-
-        return (true, "", 0);
+        if(newBalanceInMasset > maxWeightInUnits) {
+            return (false, "Must be below max weighting", 0, false);
+        }
+        // 2. Determine output bAsset valid
+        //  - Enough units in the bank
+        uint256 outputAmount = inputAmountInMasset.divRatioPrecisely(_outputBasset.ratio);
+        if(outputAmount > _outputBasset.vaultBalance) {
+            return (false, "Cannot redeem more bAssets than are in the vault", 0, false);
+        }
+        // 2.1. If it is currently overweight, then no fee
+        applySwapFee = true;
+        uint256 outputBalanceMasset = _outputBasset.vaultBalance.mulRatioTruncate(_outputBasset.ratio);
+        uint256 outputMaxWeightUnits = _totalVault.mulTruncate(_outputBasset.maxWeight);
+        if(outputBalanceMasset > outputMaxWeightUnits) {
+            applySwapFee = false;
+        }
+        // 3. Return swap output
+        return (true, "", outputAmount, applySwapFee);
     }
 
 

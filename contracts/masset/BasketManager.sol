@@ -25,7 +25,7 @@ import { InitializableReentrancyGuard } from "../shared/InitializableReentrancyG
  *          BasketManager can also optimise lending pool integrations and perform
  *          re-collateralisation on failed bAssets.
  * @dev     VERSION: 1.0
- *          DATE:    2020-03-26
+ *          DATE:    2020-05-05
  */
 contract BasketManager is
     Initializable,
@@ -315,7 +315,7 @@ contract BasketManager is
         // Should fail if bAsset is not added to integration
         IPlatformIntegration(_integration).checkBalance(_bAsset);
 
-        // Programmatic enforcement of bAsset validity should service through oracle
+        // Programmatic enforcement of bAsset validity should service through decentralised feed
 
         uint256 bAsset_decimals = CommonHelpers.getDecimals(_bAsset);
         uint256 delta = uint256(18).sub(bAsset_decimals);
@@ -529,10 +529,12 @@ contract BasketManager is
      * @dev Prepare given bAssets for swapping
      * @param _input     Address of the input bAsset
      * @param _output    Address of the output bAsset
+     * @param _isMint    Is this swap actually a mint? i.e. output == address(mAsset)
      * @return props     Struct of all relevant Forge information
      */
-    function prepareSwapBassets(address _input, address _output)
+    function prepareSwapBassets(address _input, address _output, bool _isMint)
         external
+        view
         returns (bool, string memory, BassetDetails memory, BassetDetails memory)
     {
         BassetDetails memory input = BassetDetails({
@@ -541,12 +543,15 @@ contract BasketManager is
             index: 0
         });
         BassetDetails memory output = input;
+
+        // Check that basket state is healthy
         if(basket.failed || basket.undergoingRecol){
             return (false, "Basket is undergoing change", input, output);
         }
+
+        // Fetch input bAsset
         (bool inputExists, uint8 inputIdx) = _isAssetInBasket(_input);
-        (bool outputExists, uint8 outputIdx) = _isAssetInBasket(_output);
-        if(!inputExists || !outputExists) {
+        if(!inputExists) {
             return (false, "One of the assets does not exist", input, output);
         }
         input = BassetDetails({
@@ -554,6 +559,17 @@ contract BasketManager is
             integrator: integrations[inputIdx],
             index: inputIdx
         });
+
+        // If this is a mint, we don't need output bAsset
+        if(_isMint) {
+            return (true, "", input, output);
+        }
+
+        // Fetch output bAsset
+        (bool outputExists, uint8 outputIdx) = _isAssetInBasket(_output);
+        if(!outputExists) {
+            return (false, "One of the assets does not exist", input, output);
+        }
         output = BassetDetails({
             bAsset: basket.bassets[outputIdx],
             integrator: integrations[outputIdx],
