@@ -1,29 +1,26 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import * as t from "types/generated";
 import { expectRevert, expectEvent, time } from "@openzeppelin/test-helpers";
 import { StandardAccounts } from "@utils/machines";
 import { ZERO_ADDRESS, ZERO } from "@utils/constants";
 import { BN } from "@utils/tools";
-
 import envSetup from "@utils/env_setup";
+import * as t from "types/generated";
 import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
 
+;
+
 const { expect } = envSetup.configure();
-const DelayedProxyAdmin: t.DelayedProxyAdminContract = artifacts.require("DelayedProxyAdmin");
-const InitializableProxy: t.InitializableAdminUpgradeabilityProxyContract = artifacts.require(
+const DelayedProxyAdmin = artifacts.require("DelayedProxyAdmin");
+const InitializableProxy = artifacts.require(
+    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+    // @ts-ignore
     "@openzeppelin/upgrades/InitializableAdminUpgradeabilityProxy",
-);
-const MockImplementationV1: t.MockImplementationV1Contract = artifacts.require(
-    "MockImplementationV1",
-);
-const MockImplementationV2: t.MockImplementationV2Contract = artifacts.require(
-    "MockImplementationV2",
-);
-const MockImplementationV3: t.MockImplementationV3Contract = artifacts.require(
-    "MockImplementationV3",
-);
-const MockNexus: t.MockNexusContract = artifacts.require("MockNexus");
+) as t.InitializableAdminUpgradeabilityProxyContract;
+const MockImplementationV1 = artifacts.require("MockImplementationV1");
+const MockImplementationV2 = artifacts.require("MockImplementationV2");
+const MockImplementationV3 = artifacts.require("MockImplementationV3");
+const MockNexus = artifacts.require("MockNexus");
 
 contract("DelayedProxyAdmin", async (accounts) => {
     let nexus: t.MockNexusInstance;
@@ -83,7 +80,11 @@ contract("DelayedProxyAdmin", async (accounts) => {
         proxy = await InitializableProxy.new();
         // 2.2 Initialize Proxy contract of MockImplementation
         const data = mockImplV1.contract.methods.initialize(delayedProxyAdmin.address).encodeABI();
-        await proxy.initialize(mockImplV1.address, delayedProxyAdmin.address, data);
+        await proxy.methods["initialize(address,address,bytes)"](
+            mockImplV1.address,
+            delayedProxyAdmin.address,
+            data,
+        );
 
         // Validate Setup
         // ===============
@@ -200,7 +201,11 @@ contract("DelayedProxyAdmin", async (accounts) => {
                 // Deploy a Proxy with implementation
                 const initProxy: t.InitializableAdminUpgradeabilityProxyInstance = await InitializableProxy.new();
                 const mockImpl = await MockImplementationV2.new();
-                await initProxy.initialize(mockImpl.address, sa.other, "0x");
+                await initProxy.methods["initialize(address,address,bytes)"](
+                    mockImpl.address,
+                    sa.other,
+                    "0x",
+                );
 
                 mockImplV3 = await MockImplementationV3.new();
 

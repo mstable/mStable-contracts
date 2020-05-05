@@ -1,14 +1,15 @@
 import { applyRatioMassetToBasset, exactToSimpleAmount, simpleToExactAmount } from "@utils/math";
 import { BN } from "@utils/tools";
 import { BassetStatus } from "@utils/mstable-objects";
-import * as t from "types/generated";
+import * as t from "types/generated";;
 import { BassetInstance, BassetWithDecimals } from "./types";
 
 import TransactionDetails = Truffle.TransactionDetails;
 
+// eslint-disable-next-line import/prefer-default-export
 export class MUSDMinter {
     constructor(
-        public readonly mUSD: t.MUSDInstance,
+        public readonly mUSD: t.MusdInstance,
         public readonly basketManager: t.BasketManagerInstance,
         public readonly bassets: Array<BassetInstance>,
     ) {}

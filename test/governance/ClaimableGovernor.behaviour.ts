@@ -1,11 +1,11 @@
 import { StandardAccounts } from "@utils/machines";
 import { constants, expectRevert } from "@openzeppelin/test-helpers";
-import { ClaimableGovernorInstance } from "types/generated";
+import * as t from "types/generated";
 
 const { ZERO_ADDRESS } = constants;
 
 export default function shouldBehaveLikeClaimable(
-    ctx: { claimable: ClaimableGovernorInstance },
+    ctx: { claimable: t.ClaimableGovernorInstance },
     sa: StandardAccounts,
 ): void {
     it("should have a governor", async () => {
