@@ -1,4 +1,3 @@
-import * as t from "types/generated";
 import { assertBNClose } from "@utils/assertions";
 import { expectEvent, time, expectRevert } from "@openzeppelin/test-helpers";
 import { StandardAccounts } from "@utils/machines";
@@ -6,16 +5,17 @@ import { simpleToExactAmount } from "@utils/math";
 import envSetup from "@utils/env_setup";
 import { BN } from "@utils/tools";
 import { ZERO_ADDRESS, MAX_UINT256, ZERO, fullScale, TEN_MINS, ONE_DAY } from "@utils/constants";
+import * as t from "types/generated";
 import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
 import shouldBehaveLikePausableModule from "../shared/behaviours/PausableModule.behaviour";
 
 const { expect, assert } = envSetup.configure();
 
-const SavingsManager: t.SavingsManagerContract = artifacts.require("SavingsManager");
-const MockNexus: t.MockNexusContract = artifacts.require("MockNexus");
-const MockMasset: t.MockMassetContract = artifacts.require("MockMasset");
-const MockMasset1: t.MockMasset1Contract = artifacts.require("MockMasset1");
-const SavingsContract: t.SavingsContractContract = artifacts.require("SavingsContract");
+const SavingsManager = artifacts.require("SavingsManager");
+const MockNexus = artifacts.require("MockNexus");
+const MockMasset = artifacts.require("MockMasset");
+const MockMasset1 = artifacts.require("MockMasset1");
+const SavingsContract = artifacts.require("SavingsContract");
 
 contract("SavingsManager", async (accounts) => {
     const TEN = new BN(10);
@@ -43,7 +43,7 @@ contract("SavingsManager", async (accounts) => {
             savingsContract.address,
         );
         // Set new SavingsManager address in Nexus
-        nexus.setSavingsManager(savingsManager.address);
+        await nexus.setSavingsManager(savingsManager.address);
         return savingsManager;
     }
 
@@ -57,10 +57,12 @@ contract("SavingsManager", async (accounts) => {
         describe("should behave like a Module", async () => {
             beforeEach(async () => {
                 savingsManager = await createNewSavingsManager();
-                ctx.module = savingsManager;
+                ctx.module = savingsManager as t.PausableModuleInstance;
             });
             shouldBehaveLikeModule(ctx as Required<typeof ctx>, sa);
-            shouldBehaveLikePausableModule(ctx as Required<typeof ctx>, sa);
+            // SavingsManager is PausableModule, but the extensions mean the
+            // types don't match :-(
+            shouldBehaveLikePausableModule(ctx as { module: t.PausableModuleInstance }, sa);
         });
     });
 
@@ -96,7 +98,7 @@ contract("SavingsManager", async (accounts) => {
     });
 
     describe("adding a SavingsContract", async () => {
-        let mockMasset: t.MockERC20Instance;
+        let mockMasset: t.MockErc20Instance;
         const mockSavingsContract = sa.dummy4;
 
         before(async () => {
@@ -398,7 +400,7 @@ contract("SavingsManager", async (accounts) => {
                 await savingsManager.collectAndDistributeInterest(mUSD.address);
                 const tx = await savingsManager.collectAndDistributeInterest(mUSD.address);
                 expectEvent.inLogs(tx.logs, "WaitFor");
-                const timeRemaining: BN = tx.logs[0].args[0];
+                const timeRemaining: BN = tx.logs[0].args[0] as BN;
                 assert.ok(timeRemaining.gt(ZERO));
             });
 

@@ -1,5 +1,5 @@
 /* eslint-disable no-await-in-loop */
-import * as t from "types/generated";
+
 import envSetup from "@utils/env_setup";
 
 import { BN } from "@utils/tools";
@@ -13,6 +13,7 @@ import {
 } from "@utils/mstable-objects.ts";
 import { percentToWeight, simpleToExactAmount } from "@utils/math";
 import { expectEvent, expectRevert } from "@openzeppelin/test-helpers";
+import * as t from "types/generated";
 import { MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import { ZERO_ADDRESS, ZERO, ratioScale, fullScale } from "@utils/constants";
 import { BassetIntegrationDetails, Platform } from "../../types/machines";
@@ -22,22 +23,20 @@ import shouldBehaveLikePausableModule from "../shared/behaviours/PausableModule.
 
 const { expect } = envSetup.configure();
 
-const BasketManager: t.BasketManagerContract = artifacts.require("BasketManager");
-const AaveIntegration: t.AaveIntegrationContract = artifacts.require("AaveIntegration");
-const CompoundIntegration: t.CompoundIntegrationContract = artifacts.require("CompoundIntegration");
-const MockNexus: t.MockNexusContract = artifacts.require("MockNexus");
-const MockBasketManager: t.MockBasketManager3Contract = artifacts.require("MockBasketManager3");
-const MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
-const MockCompoundIntegration: t.MockCompoundIntegration2Contract = artifacts.require(
-    "MockCompoundIntegration2",
-);
+const BasketManager = artifacts.require("BasketManager");
+const AaveIntegration = artifacts.require("AaveIntegration");
+const CompoundIntegration = artifacts.require("CompoundIntegration");
+const MockNexus = artifacts.require("MockNexus");
+const MockBasketManager = artifacts.require("MockBasketManager3");
+const MockERC20 = artifacts.require("MockERC20");
+const MockCompoundIntegration = artifacts.require("MockCompoundIntegration2");
 
 contract("BasketManager", async (accounts) => {
     let systemMachine: SystemMachine;
     let massetMachine: MassetMachine;
 
     const sa = new StandardAccounts(accounts);
-    const ctx: { module?: t.InitializablePausableModuleInstance } = {};
+    const ctx: { module?: t.BasketManagerInstance } = {};
     const masset = sa.dummy1;
     const governance = sa.dummy2;
     const manager = sa.dummy3;
@@ -147,7 +146,7 @@ contract("BasketManager", async (accounts) => {
                 ctx.module = basketManager;
             });
             shouldBehaveLikeModule(ctx as Required<typeof ctx>, sa);
-            shouldBehaveLikePausableModule(ctx as Required<typeof ctx>, sa);
+            shouldBehaveLikePausableModule(ctx as { module: t.PausableModuleInstance }, sa);
         });
     });
 
@@ -763,7 +762,7 @@ contract("BasketManager", async (accounts) => {
     });
 
     describe("addBasset()", async () => {
-        let mockERC20: t.MockERC20Instance;
+        let mockERC20: t.MockErc20Instance;
         beforeEach(async () => {
             await createNewBasketManager();
             mockERC20 = await createMockERC20();

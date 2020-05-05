@@ -1,8 +1,8 @@
-import * as t from "./generated";
+import * as t from "types/generated";
 import { Address } from "./common";
 import { Basset } from "../test-utils/mstable-objects";
 
-const BN = require("bn.js");
+import BN from "bn.js";
 
 export interface ATokenDetails {
     bAsset: Address;
@@ -19,7 +19,7 @@ export enum Platform {
 }
 
 export interface BassetIntegrationDetails {
-    bAssets: Array<t.MockERC20Instance>;
+    bAssets: Array<t.MockErc20Instance>;
     fees: Array<boolean>;
     platforms: Array<Platform>;
     aavePlatformAddress: Address;

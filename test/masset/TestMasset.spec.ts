@@ -1,4 +1,4 @@
-import * as t from "types/generated";
+
 import { expectEvent, time, expectRevert } from "@openzeppelin/test-helpers";
 import { keccak256 } from "web3-utils";
 
@@ -9,9 +9,10 @@ import { ZERO_ADDRESS, TEN_MINS } from "@utils/constants";
 import { BN } from "@utils/tools";
 
 import envSetup from "@utils/env_setup";
+import * as t from "types/generated";
 import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
 
-const Nexus: t.NexusContract = artifacts.require("Nexus");
+const Nexus = artifacts.require("Nexus");
 
 const { expect } = envSetup.configure();
 

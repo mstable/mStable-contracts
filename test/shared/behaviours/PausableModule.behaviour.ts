@@ -1,11 +1,10 @@
 import { StandardAccounts } from "@utils/machines";
-import { PausableModuleInstance } from "types/generated";
 import { expectEvent, expectRevert } from "@openzeppelin/test-helpers";
-
 import { ZERO_ADDRESS } from "@utils/constants";
+import * as t from "types/generated";
 
 export default function shouldBehaveLikePausableModule(
-    ctx: { module: PausableModuleInstance },
+    ctx: { module: t.PausableModuleInstance },
     sa: StandardAccounts,
 ): void {
     describe("pausableModule constructor", async () => {
@@ -104,7 +103,7 @@ export default function shouldBehaveLikePausableModule(
     });
 }
 
-export async function shouldBePaused(module: PausableModuleInstance, flag: boolean) {
+export async function shouldBePaused(module: t.PausableModuleInstance, flag: boolean) {
     const paused = await module.paused();
     expect(flag, "Expected paused status not matched").to.equal(paused);
 }

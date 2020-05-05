@@ -4,30 +4,30 @@ import { StandardAccounts } from "@utils/machines";
 import { BN } from "@utils/tools";
 import { ZERO_ADDRESS } from "@utils/constants";
 import envSetup from "@utils/env_setup";
-import { MockCommonHelpersInstance, MockERC20Instance } from "types/generated";
+import * as t from "types/generated";
 
 const { expect } = envSetup.configure();
 
 const MockCommonHelpers = artifacts.require("MockCommonHelpers");
-const MockERC20 = artifacts.require("MockERC20");
+const MockErc20 = artifacts.require("MockERC20");
 
 contract("CommonHelpers", async (accounts) => {
     const sa = new StandardAccounts(accounts);
-    let commonHelpers: MockCommonHelpersInstance;
+    let commonHelpers: t.MockCommonHelpersInstance;
 
     before(async () => {
         commonHelpers = await MockCommonHelpers.new();
     });
 
     describe("getting decimals of valid ERC20 token", async () => {
-        let validToken1: MockERC20Instance;
-        let validToken2: MockERC20Instance;
-        let validToken3: MockERC20Instance;
+        let validToken1: t.MockErc20Instance;
+        let validToken2: t.MockErc20Instance;
+        let validToken3: t.MockErc20Instance;
 
         before(async () => {
-            validToken1 = await MockERC20.new("Mock", "MK1", 4, sa.default, 1);
-            validToken2 = await MockERC20.new("Mock", "MK2", 14, sa.default, 1);
-            validToken3 = await MockERC20.new("Mock", "MK3", 18, sa.default, 1);
+            validToken1 = await MockErc20.new("Mock", "MK1", 4, sa.default, 1);
+            validToken2 = await MockErc20.new("Mock", "MK2", 14, sa.default, 1);
+            validToken3 = await MockErc20.new("Mock", "MK3", 18, sa.default, 1);
         });
 
         it("should return the correct decimals from `getDecimals`", async () => {
@@ -40,16 +40,16 @@ contract("CommonHelpers", async (accounts) => {
         });
     });
     describe("getting decimals of invalid ERC20 tokens", async () => {
-        let tokenWith0: MockERC20Instance;
-        let tokenWith2: MockERC20Instance;
-        let tokenWith19: MockERC20Instance;
-        let tokenWithXX: MockERC20Instance;
+        let tokenWith0: t.MockErc20Instance;
+        let tokenWith2: t.MockErc20Instance;
+        let tokenWith19: t.MockErc20Instance;
+        let tokenWithXX: t.MockErc20Instance;
 
         before(async () => {
-            tokenWith0 = await MockERC20.new("Mock", "MK0", new BN(0), sa.default, 1);
-            tokenWith2 = await MockERC20.new("Mock", "MK2", new BN(2), sa.default, 1);
-            tokenWith19 = await MockERC20.new("Mock", "MK4", new BN(19), sa.default, 1);
-            tokenWithXX = await MockERC20.new("Mock", "MK6", new BN(128), sa.default, 1);
+            tokenWith0 = await MockErc20.new("Mock", "MK0", new BN(0), sa.default, 1);
+            tokenWith2 = await MockErc20.new("Mock", "MK2", new BN(2), sa.default, 1);
+            tokenWith19 = await MockErc20.new("Mock", "MK4", new BN(19), sa.default, 1);
+            tokenWithXX = await MockErc20.new("Mock", "MK6", new BN(128), sa.default, 1);
         });
         it("should be set up", async () => {
             expect(await tokenWith0.decimals()).bignumber.eq(new BN(0));

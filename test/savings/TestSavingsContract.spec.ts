@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/camelcase */
-import * as t from "types/generated";
+
 import { expectRevert, expectEvent, time } from "@openzeppelin/test-helpers";
 
 import { simpleToExactAmount } from "@utils/math";
@@ -8,15 +8,16 @@ import { StandardAccounts, SystemMachine, MassetDetails } from "@utils/machines"
 import { BN } from "@utils/tools";
 import { fullScale, ZERO_ADDRESS, ZERO, MAX_UINT256, ONE_DAY } from "@utils/constants";
 import envSetup from "@utils/env_setup";
+import * as t from "types/generated";
 import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
 
 const { expect } = envSetup.configure();
 
-const SavingsContract: t.SavingsContractContract = artifacts.require("SavingsContract");
-const MockNexus: t.MockNexusContract = artifacts.require("MockNexus");
-const MockMasset: t.MockMassetContract = artifacts.require("MockMasset");
-const MockSavingsManager: t.MockSavingsManagerContract = artifacts.require("MockSavingsManager");
-const SavingsManager: t.SavingsManagerContract = artifacts.require("SavingsManager");
+const SavingsContract = artifacts.require("SavingsContract");
+const MockNexus = artifacts.require("MockNexus");
+const MockMasset = artifacts.require("MockMasset");
+const MockSavingsManager = artifacts.require("MockSavingsManager");
+const SavingsManager = artifacts.require("SavingsManager");
 
 interface SavingsBalances {
     totalSavings: BN;
@@ -205,7 +206,7 @@ contract("SavingsContract", async (accounts) => {
             before(async () => {
                 await createNewSavingsContract();
             });
-            it("should deposit some amount and issue credits", async () => {
+            it("should deposit some amount and issue cr", async () => {
                 // Approve first
                 await masset.approve(savingsContract.address, TEN_TOKENS);
 
@@ -307,7 +308,7 @@ contract("SavingsContract", async (accounts) => {
         });
 
         context("in a valid situation", async () => {
-            it("should deposit interest when no credits", async () => {
+            it("should deposit interest when no cr", async () => {
                 const balanceBefore = await masset.balanceOf(savingsContract.address);
                 const exchangeRateBefore = await savingsContract.exchangeRate();
 
@@ -352,7 +353,7 @@ contract("SavingsContract", async (accounts) => {
         });
     });
 
-    describe("redeeming credits", async () => {
+    describe("redeeming cr", async () => {
         beforeEach(async () => {
             await createNewSavingsContract();
         });
@@ -362,9 +363,9 @@ contract("SavingsContract", async (accounts) => {
                 await expectRevert(savingsContract.redeem(ZERO), "Must withdraw something");
             });
 
-            it("should fail when user doesn't have credits", async () => {
+            it("should fail when user doesn't have cr", async () => {
                 const credits = new BN(10);
-                await expectRevert(savingsContract.redeem(credits), "Saver has no credits", {
+                await expectRevert(savingsContract.redeem(credits), "Saver has no cr", {
                     from: sa.other,
                 });
             });
@@ -542,7 +543,7 @@ contract("SavingsContract", async (accounts) => {
                 const credits_balAfter = await systemMachine.savingsContract.creditBalances(
                     sa.default,
                 );
-                expect(credits_balAfter, "Must receive some savings credits").bignumber.eq(
+                expect(credits_balAfter, "Must receive some savings cr").bignumber.eq(
                     simpleToExactAmount(1, 18),
                 );
                 const credits_totalAfter = await systemMachine.savingsContract.totalCredits();
@@ -560,7 +561,7 @@ contract("SavingsContract", async (accounts) => {
             });
         });
         describe("Withdrawing mUSD from savings", () => {
-            it("Should withdraw the mUSD and burn the credits", async () => {
+            it("Should withdraw the mUSD and burn the cr", async () => {
                 const redemptionAmount = simpleToExactAmount(1, 18);
                 const credits_balBefore = await systemMachine.savingsContract.creditBalances(
                     sa.default,
@@ -573,7 +574,7 @@ contract("SavingsContract", async (accounts) => {
                     sa.default,
                 );
                 const mUSD_balAfter = await massetDetails.mAsset.balanceOf(sa.default);
-                expect(credits_balAfter, "Must burn all the credits").bignumber.eq(new BN(0));
+                expect(credits_balAfter, "Must burn all the cr").bignumber.eq(new BN(0));
                 expect(mUSD_balAfter, "Must receive back mUSD").bignumber.eq(
                     mUSD_balBefore.add(redemptionAmount),
                 );

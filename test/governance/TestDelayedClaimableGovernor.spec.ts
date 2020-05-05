@@ -1,7 +1,7 @@
 import { MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import envSetup from "@utils/env_setup";
 import { constants, expectEvent, expectRevert } from "@openzeppelin/test-helpers";
-import { DelayedClaimableGovernorInstance } from "types/generated";
+import * as t from "types/generated";
 import shouldBehaveLikeClaimable from "./ClaimableGovernor.behaviour";
 import shouldBehaveLikeDelayedClaimable from "./DelayedClaimableGovernor.behaviour";
 
@@ -9,7 +9,7 @@ const DelayedClaimableGovernor = artifacts.require("DelayedClaimableGovernor");
 const { expect, assert } = envSetup.configure();
 
 contract("DelayedClaimableGovernance", async (accounts) => {
-    const ctx: { claimable?: DelayedClaimableGovernorInstance } = {};
+    const ctx: { claimable?: t.DelayedClaimableGovernorInstance } = {};
     const sa = new StandardAccounts(accounts);
     const GOVERNANCE_DELAY = 60 * 60 * 24 * 7; // 1 week
 

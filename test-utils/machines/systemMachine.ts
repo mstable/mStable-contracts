@@ -1,6 +1,6 @@
 import { MassetMachine, MassetDetails } from "@utils/machines";
 import * as t from "types/generated";
-import { Address } from "types/common";
+import { Address } from "../../types";
 
 import { StandardAccounts } from "./standardAccounts";
 
@@ -9,13 +9,13 @@ import { simpleToExactAmount } from "@utils/math";
 import { aToH, BN } from "@utils/tools";
 
 // Nexus
-const c_Nexus: t.NexusContract = artifacts.require("Nexus");
+const c_Nexus = artifacts.require("Nexus");
 
 // Savings
-const c_SavingsContract: t.SavingsContractContract = artifacts.require("SavingsContract");
-const c_SavingsManager: t.SavingsManagerContract = artifacts.require("SavingsManager");
+const c_SavingsContract = artifacts.require("SavingsContract");
+const c_SavingsManager = artifacts.require("SavingsManager");
 
-const c_DelayedProxyAdmin: t.DelayedProxyAdminContract = artifacts.require("DelayedProxyAdmin");
+const c_DelayedProxyAdmin = artifacts.require("DelayedProxyAdmin");
 
 /**
  * @dev The SystemMachine is responsible for creating mock versions of our contracts

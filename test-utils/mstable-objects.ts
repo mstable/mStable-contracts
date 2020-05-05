@@ -1,6 +1,6 @@
-import { MockERC20Instance } from "types/generated";
 import envSetup from "@utils/env_setup";
 import { BN } from "@utils/tools";
+import * as t from "types/generated";;
 import { ZERO_ADDRESS } from "./constants";
 import { createMultiple, percentToWeight, simpleToExactAmount } from "./math";
 
@@ -37,7 +37,7 @@ export interface Basset {
     ratio: BN | string;
     maxWeight: BN | string;
     vaultBalance: BN | string;
-    contract?: MockERC20Instance;
+    contract?: t.MockErc20Instance;
 }
 
 export const createBasket = (bassets: Basset[], failed = false): Basket => {
