@@ -21,10 +21,10 @@ interface IBuyAndMint {
      *      mAssets from mStable. ETH sent to the function used to buy bAsset tokens from DEX.
      * @param _srcBasset Source bAsset token address
      * @param _destMasset mAsset token address to mint
-     * @param _amountOfMasset Expected amount of mAssets to mint from mStable
+     * @param _amountOfBassets Expected amount of bAssets to mint from DEX and mint 1:1 from mStable
      * @return mAssetQtyMinted Returns the quantity of mAsset minted from mStable
      */
-    function buyAndMintGivenMasset(address _srcBasset, address _destMasset, uint256 _amountOfMasset)
+    function buyAndMintGivenMasset(address _srcBasset, address _destMasset, uint256 _amountOfBassets)
         external payable returns (uint256 mAssetQtyMinted);
 
     /**

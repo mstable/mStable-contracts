@@ -13,6 +13,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { StableMath } from "../../shared/StableMath.sol";
 
 /**
  * @title   MintWithKyber
@@ -24,6 +25,7 @@ contract MintWithKyber is AbstractBuyAndMint, IBuyAndMint, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using Address for address payable;
+    using StableMath for uint256;
 
     address constant internal ETH_TOKEN_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
@@ -73,7 +75,7 @@ contract MintWithKyber is AbstractBuyAndMint, IBuyAndMint, ReentrancyGuard {
     function buyAndMintGivenMasset(
         address _srcBasset,
         address _destMasset,
-        uint256 _amountOfMasset
+        uint256 _amountOfBasset
     )
         external
         payable
@@ -83,16 +85,19 @@ contract MintWithKyber is AbstractBuyAndMint, IBuyAndMint, ReentrancyGuard {
         require(msg.value > 0, "ETH not sent");
         require(_isMassetExist(_destMasset), "Not a valid mAsset");
 
-        // Get the rate from Kyber for `_amountOfMasset` of mAsset into ETH
-        // Example rate to convert DAI => ETH
-        (uint256 expectedRateInEth,) = kyberNetworkProxy.getExpectedRate(_srcBasset, ETH_TOKEN_ADDRESS, _amountOfMasset);
+        // Get the rate from Kyber for `_amountOfBasset`
+        // Example rate to convert from DAI => ETH
+        (uint256 expectedRate,) = kyberNetworkProxy.getExpectedRate(_srcBasset, ETH_TOKEN_ADDRESS, _amountOfBasset);
+
+        // amountOfBassets * expectedRate / 1e18
+        uint256 amountInETH = _amountOfBasset.mulTruncate(expectedRate);
 
         // Pass the `expectedRate` ETH to Kyber
-        mAssetQtyMinted = _buyAndMint(_srcBasset, _destMasset, expectedRateInEth, _msgSender());
+        mAssetQtyMinted = _buyAndMint(_srcBasset, _destMasset, amountInETH, _msgSender());
 
         // Return remaining ETH balance to the user
         // WANRING: Reentrancy Guard used for external functions
-        msg.sender.sendValue(msg.value.sub(expectedRateInEth));
+        msg.sender.sendValue(msg.value.sub(amountInETH));
     }
 
     // @override
