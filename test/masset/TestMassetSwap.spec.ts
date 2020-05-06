@@ -23,6 +23,11 @@ const MockAave = artifacts.require("MockAave");
 const AaveIntegration = artifacts.require("AaveIntegration");
 const Masset = artifacts.require("Masset");
 
+interface SwapDetails {
+    swapOutput: BN;
+    feeRate: BN;
+}
+
 contract("Masset", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
@@ -55,12 +60,20 @@ contract("Masset", async (accounts) => {
         mAsset: t.MassetInstance,
         inputBasset: t.MockErc20Instance,
         outputAsset: t.MockErc20Instance,
-        amount: BN,
+        amount: string | BN | number,
         expectedReason: string,
         recipient = sa.default,
+        callSwapOutput = true,
         swapOutputRevertExpected = false,
+        inputAmountIsExact = false,
     ): Promise<void> => {
-        const approval: BN = await massetMachine.approveMasset(inputBasset, mAsset, amount);
+        const approval: BN = await massetMachine.approveMasset(
+            inputBasset,
+            mAsset,
+            amount,
+            sa.default,
+            inputAmountIsExact,
+        );
 
         // Expect the swap to revert
         await expectRevert(
@@ -70,21 +83,23 @@ contract("Masset", async (accounts) => {
 
         // If swap fails, then we would expect swap output to fail for the same reason,
         // instead of reverting, it generally returns a response
-        if (swapOutputRevertExpected) {
-            await expectRevert(
-                mAsset.getSwapOutput(inputBasset.address, outputAsset.address, approval),
-                expectedReason,
-            );
-        } else {
-            const swapOutputResponse = await mAsset.getSwapOutput(
-                inputBasset.address,
-                outputAsset.address,
-                approval,
-            );
-            const [valid, actualReason, output] = swapOutputResponse;
-            expect(valid).eq(false);
-            expect(actualReason).eq(expectedReason);
-            expect(output).bignumber.eq(new BN(0));
+        if (callSwapOutput) {
+            if (swapOutputRevertExpected) {
+                await expectRevert(
+                    mAsset.getSwapOutput(inputBasset.address, outputAsset.address, approval),
+                    expectedReason,
+                );
+            } else {
+                const swapOutputResponse = await mAsset.getSwapOutput(
+                    inputBasset.address,
+                    outputAsset.address,
+                    approval,
+                );
+                const [valid, actualReason, output] = swapOutputResponse;
+                expect(valid).eq(false);
+                expect(actualReason).eq(expectedReason);
+                expect(output).bignumber.eq(new BN(0));
+            }
         }
     };
 
@@ -109,31 +124,35 @@ contract("Masset", async (accounts) => {
         recipient: string = sa.default,
         sender: string = sa.default,
         ignoreHealthAssertions = false,
-    ): Promise<boolean> => {
+        swapQuantityIsBaseUnits = false,
+    ): Promise<SwapDetails> => {
         const { mAsset, basketManager } = md;
 
         // 1. Assert all state is currently valid and prepare objects
         //    Assert that the basket is in a healthy state
         if (!ignoreHealthAssertions) await assertBasketIsHealthy(massetMachine, md);
-
+        console.log("1");
         //    Is this swap actually a single bAsset mint?
         const isMint = mAsset.address === outputAsset.address;
 
         //    Get basic before data about the actors balances
         const swapperInputBalBefore = await inputBasset.balanceOf(sender);
         const recipientOutputBalBefore = await outputAsset.balanceOf(recipient);
+        console.log("2");
 
         //    Get basic before data on the swap assets
         const inputBassetBefore = await basketManager.getBasset(inputBasset.address);
         const outputBassetBefore = isMint
             ? null
-            : await basketManager.getBasset(inputBasset.address);
+            : await basketManager.getBasset(outputAsset.address);
 
         // 2. Do the necessary approvals and make the calls
         const approval0: BN = await massetMachine.approveMasset(
             inputBasset,
             mAsset,
             new BN(swapQuantity),
+            sender,
+            swapQuantityIsBaseUnits,
         );
         const swapTx = await mAsset.swap(
             inputBasset.address,
@@ -149,21 +168,32 @@ contract("Masset", async (accounts) => {
             approval0,
             { from: sender },
         );
+        console.log("3");
 
         // 3. Calculate expected responses
-        const inputQuantityExact = simpleToExactAmount(swapQuantity, await inputBasset.decimals());
-        const scaledInputQuantity = simpleToExactAmount(swapQuantity, 18);
+        const inputQuantityExact = swapQuantityIsBaseUnits
+            ? new BN(swapQuantity)
+            : simpleToExactAmount(swapQuantity, await inputBasset.decimals());
+        console.log("4");
+        const scaledInputQuantity = swapQuantityIsBaseUnits
+            ? new BN(swapQuantity).mul(new BN(inputBassetBefore.ratio)).div(ratioScale)
+            : simpleToExactAmount(swapQuantity, 18);
+        console.log("5", scaledInputQuantity, isMint);
         const expectedOutputValue = isMint
             ? scaledInputQuantity
-            : scaledInputQuantity.mul(outputBassetBefore.ratio).div(ratioScale);
+            : scaledInputQuantity.mul(ratioScale).div(new BN(outputBassetBefore.ratio));
+        console.log("6");
         let fee = new BN(0);
+        let feeRate = new BN(0);
         //    If there is a fee expected, then deduct it from output
         if (expectSwapFee && !isMint) {
-            const feeRate = await mAsset.swapFee();
-            expect(feeRate).bignumber.gt(new BN(0));
+            feeRate = await mAsset.swapFee();
+            expect(feeRate).bignumber.gt(new BN(0) as any);
+            console.log("6.5");
             expect(feeRate).bignumber.lt(fullScale.div(new BN(50)) as any);
             fee = expectedOutputValue.mul(feeRate).div(fullScale);
         }
+        console.log("7");
 
         // 4. Validate any basic events that should occur
         if (isMint) {
@@ -199,7 +229,7 @@ contract("Masset", async (accounts) => {
         const [swapValid, swapReason, swapOutput] = swapOutputResponse;
         expect(swapValid).eq(true);
         expect(swapReason).eq("");
-        expect(swapOutput).eq(expectedOutputValue.sub(fee));
+        expect(swapOutput).bignumber.eq(expectedOutputValue.sub(fee));
 
         //  Input
         //    Deposits into lending platform
@@ -234,7 +264,10 @@ contract("Masset", async (accounts) => {
 
         // Complete basket should remain in healthy state
         if (!ignoreHealthAssertions) await assertBasketIsHealthy(massetMachine, md);
-        return true;
+        return {
+            swapOutput,
+            feeRate,
+        };
     };
 
     /**
@@ -255,42 +288,118 @@ contract("Masset", async (accounts) => {
         );
     };
 
-    before("Init contract", async () => {
+    before("Init mock machines", async () => {
         systemMachine = new SystemMachine(sa.all);
         massetMachine = new MassetMachine(systemMachine);
-
-        await runSetup();
     });
 
     describe("swapping assets", () => {
         context("when the weights are within the ForgeValidator limit", () => {
-            before("reset", async () => {
-                await runSetup();
-            });
             context("and sending to a specific recipient", async () => {
                 before(async () => {
                     await runSetup();
                 });
-                it("should fail if recipient is 0x0", async () => {});
-                it("should send mUSD when recipient is a contract", async () => {});
-                it("should send mUSD when the recipient is an EOA", async () => {});
+                it("should swap two bAssets", async () => {
+                    const { bAssets } = massetDetails;
+                    await assertSwap(massetDetails, bAssets[0], bAssets[1], 1, true, sa.dummy1);
+                });
+                it("should fail if recipient is 0x0", async () => {
+                    const { bAssets, mAsset } = massetDetails;
+                    await assertFailedSwap(
+                        mAsset,
+                        bAssets[0],
+                        bAssets[1],
+                        1,
+                        "Invalid recipient",
+                        ZERO_ADDRESS,
+                        false,
+                    );
+                });
+                it("should swap out asset when recipient is a contract", async () => {
+                    const { bAssets, basketManager } = massetDetails;
+                    await assertSwap(
+                        massetDetails,
+                        bAssets[0],
+                        bAssets[1],
+                        1,
+                        true,
+                        basketManager.address,
+                    );
+                });
             });
             context("and specifying one bAsset base unit", async () => {
                 before(async () => {
                     await runSetup();
                 });
-                it("should mint a higher q of mAsset base units when using bAsset with 12", async () => {});
-            });
-            context("and not defining recipient", async () => {
-                before(async () => {
-                    await runSetup();
+                it("should fail if output has less decimals", async () => {
+                    const { bAssets, mAsset } = massetDetails;
+                    const input = bAssets[0];
+                    const output = bAssets[1];
+                    expect(await input.decimals()).bignumber.eq(new BN(12));
+                    expect(await output.decimals()).bignumber.eq(new BN(6));
+                    await assertFailedSwap(
+                        mAsset,
+                        input,
+                        output,
+                        1,
+                        "Must withdraw something",
+                        undefined,
+                        false,
+                        false,
+                        true,
+                    );
                 });
-                it("should mint to sender in basic mint func", async () => {});
+                it("should swap a higher q of bAsset base units if output has more decimals", async () => {
+                    const { bAssets } = massetDetails;
+                    const input = bAssets[1];
+                    const output = bAssets[0];
+                    expect(await input.decimals()).bignumber.eq(new BN(6));
+                    expect(await output.decimals()).bignumber.eq(new BN(12));
+                    const swapDetails = await assertSwap(
+                        massetDetails,
+                        input,
+                        output,
+                        1,
+                        true,
+                        undefined,
+                        undefined,
+                        false,
+                        true,
+                    );
+                    expect(swapDetails.swapOutput).bignumber.eq(
+                        simpleToExactAmount(1, 6)
+                            .mul(fullScale.sub(swapDetails.feeRate))
+                            .div(fullScale),
+                    );
+                });
             });
-            context("and using the mAsset as the output asset", async () => {});
+            context("and using the mAsset as the output asset", async () => {
+                it("should mint mAssets instead of swapping", async () => {
+                    const { bAssets, mAsset } = massetDetails;
+                    await assertSwap(
+                        massetDetails,
+                        bAssets[0],
+                        await MockERC20.at(mAsset.address),
+                        1,
+                        true,
+                    );
+                });
+            });
+            context("and using the mAsset as the input asset", async () => {
+                it("should fail", async () => {
+                    const { bAssets, mAsset } = massetDetails;
+                    await assertFailedSwap(
+                        mAsset,
+                        await MockERC20.at(mAsset.address),
+                        bAssets[0],
+                        1,
+                        "One of the assets does not exist",
+                    );
+                });
+            });
             context("using bAssets with transfer fees", async () => {
                 before(async () => {
-                    await runSetup(false, true);
+                    // await runSetup(false, true);
                 });
                 it("should handle tokens with transfer fees", async () => {});
                 it("should fail if the token charges a fee but we dont know about it", async () => {});
@@ -300,32 +409,31 @@ contract("Masset", async (accounts) => {
             });
             context("passing invalid arguments", async () => {
                 before(async () => {
-                    await runSetup();
+                    // await runSetup();
                 });
-                it("should revert when 0 quantities", async () => {});
+                it("should revert when 0 quantity", async () => {});
                 it("should fail if sender doesn't have balance", async () => {});
                 it("should fail if sender doesn't give approval", async () => {});
                 it("should fail if *either* bAsset does not exist", async () => {});
             });
             context("pushing the weighting beyond the maximum limit", async () => {
                 before(async () => {
-                    await runSetup(false, false);
+                    // await runSetup(false, false);
                 });
                 it("should succeed so long as we don't exceed the max weight", async () => {});
             });
-            it("should mint with single bAsset", async () => {});
         });
         context("when there are no active bAssets", async () => {});
         context("when there is 0 liquidity", async () => {});
         context("with a fluctuating basket", async () => {
             describe("minting when a bAsset has just been removed from the basket", async () => {
-                before(async () => {});
+                // before(async () => {});
                 it("should still deposit to the right lending platform", async () => {});
                 it("should not be possible to mint with the removed bAsset", async () => {});
             });
         });
         context("when the weights exceeds the ForgeValidator limit", async () => {
-            beforeEach(async () => {});
+            // beforeEach(async () => {});
             // minting should work as long as the thing we mint with doesnt exceed max
             it("should succeed if bAsset is underweight", async () => {});
             it("should fail if bAsset already exceeds max", async () => {});
@@ -337,7 +445,7 @@ contract("Masset", async (accounts) => {
         });
         context("when the basket manager returns invalid response", async () => {
             before(async () => {
-                await runSetup();
+                // await runSetup();
             });
             it("should mint nothing if the preparation returns invalid from manager", async () => {});
             it("should fail if given an invalid integrator", async () => {});
@@ -345,7 +453,7 @@ contract("Masset", async (accounts) => {
         });
         context("when the mAsset is undergoing change", () => {
             before(async () => {
-                await runSetup(true);
+                // await runSetup(true);
             });
             it("when failed", async () => {});
             it("when undergoing recol", async () => {});

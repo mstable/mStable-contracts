@@ -192,7 +192,7 @@ contract("Masset", async (accounts) => {
                     const tx = await mAsset.mint(bAsset.address, new BN(1));
                     const expectedMasset = new BN(10).pow(new BN(18).sub(decimals));
                     await expectEvent(tx.receipt, "Minted", {
-                        minter: sa.defaultr,
+                        minter: sa.default,
                         recipient: sa.default,
                         mAssetQuantity: expectedMasset,
                         bAsset: bAsset.address,

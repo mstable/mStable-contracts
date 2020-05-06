@@ -462,16 +462,20 @@ export class MassetMachine {
      * @param mAsset Masset that gets permission to spend
      * @param fullMassetUnits Whole number or fraction to approve
      * @param sender Set if needed, else fall back to default
+     * @param inputIsBaseUnits Override the scaling up to MassetQ
      */
     public async approveMasset(
         bAsset: t.MockErc20Instance,
         mAsset: t.MassetInstance,
         fullMassetUnits: number | BN | string,
         sender: string = this.sa.default,
+        inputIsBaseUnits = false,
     ): Promise<BN> {
         const bAssetDecimals: BN = await bAsset.decimals();
         // let decimalDifference: BN = bAssetDecimals.sub(new BN(18));
-        const approvalAmount: BN = simpleToExactAmount(fullMassetUnits, bAssetDecimals.toNumber());
+        const approvalAmount: BN = inputIsBaseUnits
+            ? new BN(fullMassetUnits)
+            : simpleToExactAmount(fullMassetUnits, bAssetDecimals.toNumber());
         await bAsset.approve(mAsset.address, approvalAmount, { from: sender });
         return approvalAmount;
     }

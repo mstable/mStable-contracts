@@ -733,7 +733,7 @@ contract Masset is
 
         // mint new mAsset to sender
         _mint(msg.sender, interestCollected);
-        emit MintedMulti(address(this), interestCollected, new address[](0), gains);
+        emit MintedMulti(address(this), address(this), interestCollected, new address[](0), gains);
 
         return (interestCollected, totalSupply());
     }
