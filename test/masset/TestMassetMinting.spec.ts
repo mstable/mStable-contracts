@@ -90,7 +90,8 @@ contract("Masset", async (accounts) => {
         const mAssetQuantity = simpleToExactAmount(mAssetMintAmount, 18);
         const bAssetQuantity = simpleToExactAmount(mAssetMintAmount, await bAsset.decimals());
         await expectEvent(tx.receipt, "Minted", {
-            account: derivedRecipient,
+            minter: sender,
+            recipient: derivedRecipient,
             mAssetQuantity,
             bAsset: bAsset.address,
             bAssetQuantity,
@@ -191,7 +192,8 @@ contract("Masset", async (accounts) => {
                     const tx = await mAsset.mint(bAsset.address, new BN(1));
                     const expectedMasset = new BN(10).pow(new BN(18).sub(decimals));
                     await expectEvent(tx.receipt, "Minted", {
-                        account: sa.default,
+                        minter: sa.defaultr,
+                        recipient: sa.default,
                         mAssetQuantity: expectedMasset,
                         bAsset: bAsset.address,
                         bAssetQuantity: new BN(1),
@@ -781,7 +783,7 @@ contract("Masset", async (accounts) => {
             );
 
             expectEvent(tx.receipt, "MintedMulti", {
-                account: recipient,
+                recipient,
                 mAssetQuantity,
             });
 
@@ -867,7 +869,7 @@ contract("Masset", async (accounts) => {
                     const tx = await mAsset.mintMulti([bAsset.address], [new BN(1)], sa.default);
                     const expectedMasset = new BN(10).pow(new BN(18).sub(decimals));
                     await expectEvent(tx.receipt, "MintedMulti", {
-                        account: sa.default,
+                        recipient: sa.default,
                         mAssetQuantity: expectedMasset,
                     });
                     // Recipient should have mAsset quantity after

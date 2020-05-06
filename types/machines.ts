@@ -37,5 +37,6 @@ export interface BasketComposition {
     totalSupply: BN;
     sumOfBassets: BN;
     failed: boolean;
+    undergoingRecol: boolean;
     colRatio: BN;
 }

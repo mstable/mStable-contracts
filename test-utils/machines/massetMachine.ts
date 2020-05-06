@@ -129,8 +129,8 @@ export class MassetMachine {
         const d_mUSDProxy = await c_InitializableProxy.new();
         const initializationData_mUSD: string = d_mUSD.contract.methods
             .initialize(
-                "mStable USD",
-                "mUSD",
+                "mStable Mock",
+                "mMOCK",
                 this.system.nexus.address,
                 this.sa.feeRecipient,
                 d_ForgeValidator.address,
@@ -450,14 +450,23 @@ export class MassetMachine {
             totalSupply,
             sumOfBassets,
             failed: basket.failed,
+            undergoingRecol: basket.undergoingRecol,
             colRatio: basket.collateralisationRatio,
         };
     }
 
+    /**
+     * @dev Takes a whole unit approval amount, and converts it to the equivalent
+     * base asset amount, before approving and returning the exact approval
+     * @param bAsset Asset to approve spending of
+     * @param mAsset Masset that gets permission to spend
+     * @param fullMassetUnits Whole number or fraction to approve
+     * @param sender Set if needed, else fall back to default
+     */
     public async approveMasset(
         bAsset: t.MockErc20Instance,
         mAsset: t.MassetInstance,
-        fullMassetUnits: number | BN,
+        fullMassetUnits: number | BN | string,
         sender: string = this.sa.default,
     ): Promise<BN> {
         const bAssetDecimals: BN = await bAsset.decimals();

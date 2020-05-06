@@ -40,11 +40,11 @@ contract Masset is
     using StableMath for uint256;
 
     // Forging Events
-    event Minted(address indexed account, uint256 mAssetQuantity, address bAsset, uint256 bAssetQuantity);
-    event MintedMulti(address indexed account, uint256 mAssetQuantity, address[] bAssets, uint256[] bAssetQuantities);
-    event Swapped(address indexed account, address input, address output, uint256 outputAmount, address recipient);
-    event Redeemed(address indexed recipient, address redeemer, uint256 mAssetQuantity, address[] bAssets, uint256[] bAssetQuantit);
-    event RedeemedMulti(address indexed recipient, address redeemer, uint256 mAssetQuantity);
+    event Minted(address indexed minter, address recipient, uint256 mAssetQuantity, address bAsset, uint256 bAssetQuantity);
+    event MintedMulti(address indexed minter, address recipient, uint256 mAssetQuantity, address[] bAssets, uint256[] bAssetQuantities);
+    event Swapped(address indexed swapper, address input, address output, uint256 outputAmount, address recipient);
+    event Redeemed(address indexed redeemer, address recipient, uint256 mAssetQuantity, address[] bAssets, uint256[] bAssetQuantit);
+    event RedeemedMulti(address indexed redeemer, address recipient, uint256 mAssetQuantity);
     event PaidFee(address payer, address asset, uint256 feeQuantity);
 
     // State Events
@@ -189,7 +189,7 @@ contract Masset is
 
         // Mint the Masset
         _mint(_recipient, ratioedDeposit);
-        emit Minted(_recipient, ratioedDeposit, _bAsset, quantityDeposited);
+        emit Minted(msg.sender, _recipient, ratioedDeposit, _bAsset, quantityDeposited);
 
         return ratioedDeposit;
     }
@@ -240,7 +240,7 @@ contract Masset is
 
         // Mint the Masset
         _mint(_recipient, mAssetQuantity);
-        emit MintedMulti(_recipient, mAssetQuantity, _bAssets, _bAssetQuantities);
+        emit MintedMulti(msg.sender, _recipient, mAssetQuantity, _bAssets, _bAssetQuantities);
 
         return mAssetQuantity;
     }
@@ -534,7 +534,7 @@ contract Masset is
         // Apply fees, burn mAsset and return bAsset to recipient
         _settleRedemption(_recipient, mAssetQuantity, props.bAssets, _bAssetQuantities, props.indexes, props.integrators, applyFee);
 
-        emit Redeemed(_recipient, msg.sender, mAssetQuantity, _bAssets, _bAssetQuantities);
+        emit Redeemed(msg.sender, _recipient, mAssetQuantity, _bAssets, _bAssetQuantities);
         return mAssetQuantity;
     }
 
@@ -565,7 +565,7 @@ contract Masset is
         // Apply fees, burn mAsset and return bAsset to recipient
         _settleRedemption(_recipient, _mAssetQuantity, props.bAssets, bAssetQuantities, props.indexes, props.integrators, false);
 
-        emit RedeemedMulti(_recipient, msg.sender, _mAssetQuantity);
+        emit RedeemedMulti(msg.sender, _recipient, _mAssetQuantity);
     }
 
     /**

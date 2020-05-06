@@ -105,8 +105,8 @@ contract("Masset", async (accounts) => {
 
         // Listen for the events
         await expectEvent(tx.receipt, "Redeemed", {
-            recipient: derivedRecipient,
             redeemer: sender,
+            recipient: derivedRecipient,
             mAssetQuantity,
             bAsset: bAsset.address,
             bAssetQuantity: bAssetExact,
@@ -874,8 +874,8 @@ contract("Masset", async (accounts) => {
 
             // Listen for the events
             await expectEvent(tx.receipt, "RedeemedMulti", {
-                recipient,
                 redeemer: sender,
+                recipient,
                 mAssetQuantity,
                 bAssets: bAssets.map((b) => b.address),
             });

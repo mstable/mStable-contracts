@@ -1,7 +1,5 @@
  <br/>
   <img src="https://mstable.org/assets/img/email/mstable_logo_horizontal_black.png" width="300" >
- <br/>
-
 [![CircleCI](https://circleci.com/gh/mstable/mStable-contracts.svg?style=svg&circle-token=a8bb29a97a0a0949a15cc28bd9b2245960287bc2)](https://circleci.com/gh/mstable/mStable-contracts)
 [![Coverage Status](https://coveralls.io/repos/github/mstable/mStable-contracts/badge.svg?t=7A5XxE)](https://coveralls.io/github/mstable/mStable-contracts)
 [![Discord](https://img.shields.io/discord/525087739801239552?color=7289DA&label=discord%20)](https://discordapp.com/channels/525087739801239552/)

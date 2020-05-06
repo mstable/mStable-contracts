@@ -1,4 +1,3 @@
-
 import { expectEvent, time, expectRevert } from "@openzeppelin/test-helpers";
 import { keccak256 } from "web3-utils";
 
@@ -67,6 +66,8 @@ contract("Masset", async (accounts) => {
                 );
                 expect(await massetDetails.mAsset.decimals()).bignumber.eq(new BN(18));
                 expect(await massetDetails.mAsset.balanceOf(sa.dummy1)).bignumber.eq(new BN(0));
+                expect(await massetDetails.mAsset.name()).eq("mStable Mock");
+                expect(await massetDetails.mAsset.symbol()).eq("mMOCK");
             });
         });
     });
