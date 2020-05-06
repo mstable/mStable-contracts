@@ -300,6 +300,7 @@ contract Masset is
         returns (uint256 output)
     {
         require(_input != address(0) && _output != address(0), "Invalid inputs");
+        require(_input != _output, "Invalid pair");
         require(_recipient != address(0), "Invalid recipient");
         require(_quantity > 0, "Invalid quantity");
 
@@ -331,7 +332,7 @@ contract Masset is
             swapOutput = _deductSwapFee(_output, swapOutput, swapFee);
         }
         // 5.3. Withdraw to recipient
-        IPlatformIntegration(outputDetails.integrator).withdraw(_recipient, _output, swapOutput, outputDetails.bAsset.isTransferFeeCharged);
+            IPlatformIntegration(outputDetails.integrator).withdraw(_recipient, _output, swapOutput, outputDetails.bAsset.isTransferFeeCharged);
 
         emit Swapped(msg.sender, _input, _output, swapOutput, _recipient);
     }
@@ -356,6 +357,7 @@ contract Masset is
         returns (bool, string memory, uint256 output)
     {
         require(_input != address(0) && _output != address(0), "Invalid inputs");
+        require(_input != _output, "Invalid pair");
 
         bool isMint = _output == address(this);
         uint256 quantity = _quantity;

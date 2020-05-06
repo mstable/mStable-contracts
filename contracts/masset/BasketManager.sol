@@ -543,7 +543,6 @@ contract BasketManager is
             index: 0
         });
         BassetDetails memory output = input;
-
         // Check that basket state is healthy
         if(basket.failed || basket.undergoingRecol){
             return (false, "Basket is undergoing change", input, output);

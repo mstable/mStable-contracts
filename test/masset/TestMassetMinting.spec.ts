@@ -266,6 +266,7 @@ contract("Masset", async (accounts) => {
                         recipientBalBefore.add(mAssetQuantity),
                         recipientBalAfter,
                         "0.3",
+                        true,
                     );
                     // Sender should have less bAsset after
                     const minterBassetBalAfter = await bAsset.balanceOf(sa.default);

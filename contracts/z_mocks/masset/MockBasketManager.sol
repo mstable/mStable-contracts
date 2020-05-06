@@ -27,6 +27,11 @@ contract MockBasketManager is BasketManager {
         (, uint8 index) = _isAssetInBasket(bAsset);
         basket.bassets[index].ratio = _newRatio;
     }
+    function setRecol(bool undergoingRecol)
+        external
+    {
+        basket.undergoingRecol = undergoingRecol;
+    }
 }
 
 
