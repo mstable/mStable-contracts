@@ -36,7 +36,6 @@ contract Masset is
     InitializableModule,
     InitializableReentrancyGuard
 {
-
     using StableMath for uint256;
 
     // Forging Events

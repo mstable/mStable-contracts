@@ -736,6 +736,23 @@ contract("Masset", async (accounts) => {
                 await assertFailedMint(mAsset, bAsset0, new BN(1), "Basket must be alive");
             });
         });
+        context("when the mAsset is undergoing recol", () => {
+            before(async () => {
+                await runSetup(true);
+            });
+            it("should revert any mints", async () => {
+                const { bAssets, mAsset, basketManager } = massetDetails;
+                await assertBasketIsHealthy(massetMachine, massetDetails);
+                await basketManager.setRecol(true);
+                const bAsset0 = bAssets[0];
+                await assertFailedMint(
+                    mAsset,
+                    bAsset0,
+                    new BN(1),
+                    "No bAssets can be undergoing recol",
+                );
+            });
+        });
     });
 
     describe("minting with multiple bAssets", () => {
@@ -1494,6 +1511,23 @@ contract("Masset", async (accounts) => {
                 await expectRevert(
                     mAsset.mintMulti([bAsset0.address], [new BN(1)], sa.default),
                     "Basket must be alive",
+                );
+            });
+        });
+        context("when the mAsset is undergoing recol", () => {
+            before(async () => {
+                await runSetup(true);
+            });
+            it("should revert any mints", async () => {
+                const { bAssets, mAsset, basketManager } = massetDetails;
+                await assertBasketIsHealthy(massetMachine, massetDetails);
+                await basketManager.setRecol(true);
+                const bAsset0 = bAssets[0];
+
+                await massetMachine.approveMasset(bAsset0, mAsset, new BN(2));
+                await expectRevert(
+                    mAsset.mintMulti([bAsset0.address], [new BN(1)], sa.default),
+                    "No bAssets can be undergoing recol",
                 );
             });
         });

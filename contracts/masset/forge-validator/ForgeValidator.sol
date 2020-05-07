@@ -231,7 +231,7 @@ contract ForgeValidator is IForgeValidator {
 
         uint256 newTotalVault = _totalVault;
 
-        // Simulate the redempion on the ratioedBassetVaults and totalSupply
+        // Simulate the redemption on the ratioedBassetVaults and totalSupply
         for(uint256 i = 0; i < idxCount; i++){
             uint8 idx = _indices[i];
             if(idx >= _allBassets.length) return (false, "Basset does not exist", false);
@@ -392,7 +392,7 @@ contract ForgeValidator is IForgeValidator {
             // if the bAsset isn't overweight, check if it's within the bound
             if(!bAssetOverWeight) {
                 uint256 lowerBound = weightBreachThreshold > maxWeightInUnits ? 0 : maxWeightInUnits.sub(weightBreachThreshold);
-                bool isInBound = ratioedBasset > lowerBound && ratioedBasset < maxWeightInUnits;
+                bool isInBound = ratioedBasset > lowerBound && ratioedBasset <= maxWeightInUnits;
                 response.atLeastOneBreached = response.atLeastOneBreached || isInBound;
             }
         }
