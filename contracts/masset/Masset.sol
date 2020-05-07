@@ -332,7 +332,7 @@ contract Masset is
             swapOutput = _deductSwapFee(_output, swapOutput, swapFee);
         }
         // 5.3. Withdraw to recipient
-            IPlatformIntegration(outputDetails.integrator).withdraw(_recipient, _output, swapOutput, outputDetails.bAsset.isTransferFeeCharged);
+        IPlatformIntegration(outputDetails.integrator).withdraw(_recipient, _output, swapOutput, outputDetails.bAsset.isTransferFeeCharged);
 
         emit Swapped(msg.sender, _input, _output, swapOutput, _recipient);
     }

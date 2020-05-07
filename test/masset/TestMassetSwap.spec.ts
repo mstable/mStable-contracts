@@ -475,6 +475,20 @@ contract("Masset", async (accounts) => {
                         "One of the assets does not exist",
                     );
                 });
+                it("should fail if *either* bAsset is ZERO", async () => {
+                    const { bAssets, mAsset } = massetDetails;
+                    const realBasset = bAssets[0].address;
+                    const fakeBasset = ZERO_ADDRESS;
+                    const recipient = sa.dummy1;
+                    await expectRevert(
+                        mAsset.swap(realBasset, fakeBasset, new BN(1), recipient),
+                        "Invalid inputs",
+                    );
+                    await expectRevert(
+                        mAsset.swap(realBasset, fakeBasset, new BN(1), recipient),
+                        "Invalid inputs",
+                    );
+                });
                 it("should fail if given identical bAssets", async () => {
                     const { bAssets, mAsset } = massetDetails;
                     const input = bAssets[0];
@@ -767,6 +781,13 @@ contract("Masset", async (accounts) => {
                     const input = bAssets[0];
                     const output = bAssets[1];
                     await assertFailedSwap(mAsset, input, output, 1, "Must be below max weighting");
+                    await assertFailedSwap(
+                        mAsset,
+                        input,
+                        mAsset as any,
+                        1,
+                        "Must be below max weighting",
+                    );
                     // Set sufficient weightings allowance
                     await basketManager.setBasketWeights(
                         [input.address],
