@@ -178,7 +178,7 @@ export default async (
     Dependencies: []
     ****************************************/
 
-    const [default_, governor, feeRecipient] = accounts;
+    const [default_, governor] = accounts;
     let bassetDetails: BassetIntegrationDetails;
     if (deployer.network === "ropsten") {
         console.log("Loading Ropsten bAssets and lending platforms");
@@ -251,7 +251,6 @@ export default async (
             "mStable USD",
             "mUSD",
             d_Nexus.address,
-            feeRecipient,
             d_ForgeValidator.address,
             d_BasketManagerProxy.address,
         )

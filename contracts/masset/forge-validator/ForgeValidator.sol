@@ -222,10 +222,11 @@ contract ForgeValidator is IForgeValidator {
         if(
             _basketIsFailed ||
             data.atLeastOneBroken ||
-            data.overWeightCount > idxCount ||
             (data.overWeightCount == 0 && data.atLeastOneBreached)
         ) {
-            return (false, "Must redeem multi", false);
+            return (false, "Must redeem proportionately", false);
+        } else if (data.overWeightCount > idxCount) {
+            return (false, "Redemption must contain all overweight bAssets", false);
         }
 
         uint256 newTotalVault = _totalVault;

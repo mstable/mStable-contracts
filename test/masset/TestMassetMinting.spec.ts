@@ -665,7 +665,6 @@ contract("Masset", async (accounts) => {
                     "mMock",
                     "MK",
                     systemMachine.nexus.address,
-                    sa.dummy1,
                     forgeValidator.address,
                     newManager.address,
                 );
@@ -695,7 +694,6 @@ contract("Masset", async (accounts) => {
                     "mMock",
                     "MK",
                     systemMachine.nexus.address,
-                    sa.dummy1,
                     forgeValidator.address,
                     newManager.address,
                 );
@@ -1107,7 +1105,7 @@ contract("Masset", async (accounts) => {
                     const { mAsset } = massetDetails;
                     await expectRevert(
                         mAsset.mintMulti([sa.dummy1], [new BN(100)], sa.default),
-                        "Must exist",
+                        "bAsset must exist",
                     );
                 });
             });
@@ -1294,7 +1292,7 @@ contract("Masset", async (accounts) => {
                     const { mAsset, bAssets } = massetDetails;
                     await expectRevert(
                         mAsset.mintMulti([bAssets[1].address], [new BN(1)], sa.default),
-                        "Must exist",
+                        "bAsset must exist",
                     );
                 });
             });
@@ -1421,7 +1419,6 @@ contract("Masset", async (accounts) => {
                     "mMock",
                     "MK",
                     systemMachine.nexus.address,
-                    sa.dummy1,
                     forgeValidator.address,
                     newManager.address,
                 );
@@ -1451,7 +1448,6 @@ contract("Masset", async (accounts) => {
                     "mMock",
                     "MK",
                     systemMachine.nexus.address,
-                    sa.dummy1,
                     forgeValidator.address,
                     newManager.address,
                 );

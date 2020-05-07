@@ -132,7 +132,6 @@ export class MassetMachine {
                 "mStable Mock",
                 "mMOCK",
                 this.system.nexus.address,
-                this.sa.feeRecipient,
                 d_ForgeValidator.address,
                 d_BasketManagerProxy.address,
             )

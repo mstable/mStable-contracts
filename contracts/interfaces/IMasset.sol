@@ -32,16 +32,15 @@ contract IMasset is MassetStructs {
         external returns (uint256 massetRedeemed);
     function redeemTo(address _basset, uint256 _bassetQuantity, address _recipient)
         external returns (uint256 massetRedeemed);
-    function redeemTo(address[] calldata _bAssets, uint256[] calldata _bassetQuantities, address _recipient)
+    function redeemMulti(address[] calldata _bAssets, uint256[] calldata _bassetQuantities, address _recipient)
         external returns (uint256 massetRedeemed);
-    function redeemMulti(uint256 _mAssetQuantity, address _recipient) external;
+    function redeemMasset(uint256 _mAssetQuantity, address _recipient) external;
 
     /** @dev Setters for the Manager or Gov to update module info */
     function upgradeForgeValidator(address _newForgeValidator) external;
 
     /** @dev Setters for Gov to set system params */
     function setSwapFee(uint256 _swapFee) external;
-    function setFeeRecipient(address _feeRecipient) external;
 
     /** @dev Getters */
     function getBasketManager() external view returns(address);

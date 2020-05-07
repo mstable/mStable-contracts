@@ -43,13 +43,12 @@ contract Masset is
     event Minted(address indexed minter, address recipient, uint256 mAssetQuantity, address bAsset, uint256 bAssetQuantity);
     event MintedMulti(address indexed minter, address recipient, uint256 mAssetQuantity, address[] bAssets, uint256[] bAssetQuantities);
     event Swapped(address indexed swapper, address input, address output, uint256 outputAmount, address recipient);
-    event Redeemed(address indexed redeemer, address recipient, uint256 mAssetQuantity, address[] bAssets, uint256[] bAssetQuantit);
-    event RedeemedMulti(address indexed redeemer, address recipient, uint256 mAssetQuantity);
+    event Redeemed(address indexed redeemer, address recipient, uint256 mAssetQuantity, address[] bAssets, uint256[] bAssetQuantities);
+    event RedeemedMasset(address indexed redeemer, address recipient, uint256 mAssetQuantity);
     event PaidFee(address payer, address asset, uint256 feeQuantity);
 
     // State Events
     event SwapFeeChanged(uint256 fee);
-    event FeeRecipientChanged(address feePool);
     event ForgeValidatorChanged(address forgeValidator);
 
     // Modules and connectors
@@ -58,7 +57,6 @@ contract Masset is
     IBasketManager private basketManager;
 
     // Basic redemption fee information
-    address public feeRecipient;
     uint256 public swapFee;
     uint256 private constant MAX_FEE = 2e16;
 
@@ -67,7 +65,6 @@ contract Masset is
         string calldata _name,
         string calldata _symbol,
         address _nexus,
-        address _feeRecipient,
         address _forgeValidator,
         address _basketManager
     )
@@ -78,7 +75,6 @@ contract Masset is
         InitializableModule._initialize(_nexus);
         InitializableReentrancyGuard._initialize();
 
-        feeRecipient = _feeRecipient;
         forgeValidator = IForgeValidator(_forgeValidator);
 
         basketManager = IBasketManager(_basketManager);
@@ -444,7 +440,7 @@ contract Masset is
      * @param _recipient        Address to credit with withdrawn bAssets
      * @return massetMinted     Relative number of mAsset units burned to pay for the bAssets
      */
-    function redeemTo(
+    function redeemMulti(
         address[] calldata _bAssets,
         uint256[] calldata _bAssetQuantities,
         address _recipient
@@ -461,7 +457,7 @@ contract Masset is
      * @param _mAssetQuantity   Quantity of mAsset to redeem
      * @param _recipient        Address to credit the withdrawn bAssets
      */
-    function redeemMulti(
+    function redeemMasset(
         uint256 _mAssetQuantity,
         address _recipient
     )
@@ -567,7 +563,7 @@ contract Masset is
         // Apply fees, burn mAsset and return bAsset to recipient
         _settleRedemption(_recipient, _mAssetQuantity, props.bAssets, bAssetQuantities, props.indexes, props.integrators, false);
 
-        emit RedeemedMulti(msg.sender, _recipient, _mAssetQuantity);
+        emit RedeemedMasset(msg.sender, _recipient, _mAssetQuantity);
     }
 
     /**
@@ -624,6 +620,9 @@ contract Masset is
     function _deductSwapFee(address _asset, uint256 _bAssetQuantity, uint256 _feeRate)
     private
     returns (uint256 outputMinusFee) {
+
+        outputMinusFee = _bAssetQuantity;
+
         if(_feeRate > 0){
             (uint256 fee, uint256 output) = _calcSwapFee(_bAssetQuantity, _feeRate);
             outputMinusFee = output;
@@ -673,20 +672,6 @@ contract Masset is
         onlyGovernor
     {
         forgeValidatorLocked = true;
-    }
-
-    /**
-      * @dev Set the recipient address of redemption fees
-      * @param _feeRecipient Address of the fee recipient
-      */
-    function setFeeRecipient(address _feeRecipient)
-        external
-        onlyGovernor
-    {
-        require(_feeRecipient != address(0), "Must be valid address");
-        feeRecipient = _feeRecipient;
-
-        emit FeeRecipientChanged(_feeRecipient);
     }
 
     /**

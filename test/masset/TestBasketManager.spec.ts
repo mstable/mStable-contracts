@@ -1542,7 +1542,7 @@ contract("BasketManager", async (accounts) => {
         it("should fail when passed incorrect bAsset address", async () => {
             await expectRevert(
                 basketManager.prepareForgeBassets([sa.dummy1], [], false),
-                "Must exist",
+                "bAsset must exist",
             );
         });
 

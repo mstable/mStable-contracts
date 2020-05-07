@@ -54,7 +54,6 @@ contract("Masset", async (accounts) => {
                 await runSetup();
             });
             it("should set valid arguments", async () => {
-                expect(await massetDetails.mAsset.feeRecipient()).eq(sa.feeRecipient);
                 expect(await massetDetails.mAsset.forgeValidator()).eq(
                     massetDetails.forgeValidator.address,
                 );
@@ -100,23 +99,6 @@ contract("Masset", async (accounts) => {
             await expectRevert(
                 massetDetails.mAsset.upgradeForgeValidator(sa.dummy2, { from: sa.governor }),
                 "Must be allowed to upgrade",
-            );
-        });
-        it("should allow the fee recipient to be changed by governor", async () => {
-            // update by the governor
-            const oldFeeRecipient = await massetDetails.mAsset.feeRecipient();
-            expect(oldFeeRecipient).not.eq(sa.other);
-            await massetDetails.mAsset.setFeeRecipient(sa.other, { from: sa.governor });
-            expect(await massetDetails.mAsset.feeRecipient()).eq(sa.other);
-            // rejected if not governor
-            await expectRevert(
-                massetDetails.mAsset.setFeeRecipient(sa.dummy1, { from: sa.default }),
-                "Only governor can execute",
-            );
-            // no zero
-            await expectRevert(
-                massetDetails.mAsset.setFeeRecipient(ZERO_ADDRESS, { from: sa.governor }),
-                "Must be valid address",
             );
         });
         it("should allow the fee rate to be changed", async () => {

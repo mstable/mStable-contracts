@@ -664,7 +664,7 @@ contract BasketManager is
 
             // Fetch and log all the relevant data
             (bool exists, uint8 index) = _isAssetInBasket(current);
-            require(exists, "Must exist");
+            require(exists, "bAsset must exist");
             indexes[i] = index;
             bAssets[i] = basket.bassets[index];
             integrators[i] = integrations[index];
