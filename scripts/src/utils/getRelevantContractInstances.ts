@@ -5,11 +5,11 @@ export const getRelevantContractInstances = async ({
     artifacts: Truffle.Artifacts;
 }) => {
     const cErc20 = artifacts.require("ERC20Detailed");
-    const cMUSD = artifacts.require("MUSD");
+    const cMasset = artifacts.require("Masset");
     const cBasketManager = artifacts.require("BasketManager");
     const cSavingsContract = artifacts.require("SavingsContract");
 
-    const mUSD = await cMUSD.deployed();
+    const mUSD = await cMasset.deployed();
     const basketManager = await cBasketManager.at(await mUSD.getBasketManager());
     const savings = await cSavingsContract.deployed();
 

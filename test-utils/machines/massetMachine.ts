@@ -1,20 +1,14 @@
 /* eslint-disable @typescript-eslint/camelcase */
+/* eslint-disable class-methods-use-this */
 
+import * as t from "types/generated";
 import { simpleToExactAmount, percentToWeight } from "@utils/math";
-import { BN, aToH } from "@utils/tools";
+import { BN } from "@utils/tools";
 import { fullScale, MainnetAccounts, ratioScale, ZERO_ADDRESS } from "@utils/constants";
-import { Basset, BassetStatus } from "@utils/mstable-objects";
-import {
-    BassetIntegrationDetails,
-    Platform,
-    ATokenDetails,
-    CTokenDetails,
-    BasketComposition,
-    BassetDetails,
-} from "../../types/machines";
+import { Basset } from "@utils/mstable-objects";
 import { SystemMachine, StandardAccounts } from ".";
-import { Address } from "../../types";
-import * as t from "types/generated";;
+import { Address } from "../../types/common";
+import { BassetIntegrationDetails, Platform, BasketComposition } from "../../types/machines";
 
 // ForgeValidator
 const c_ForgeValidator = artifacts.require("ForgeValidator");
@@ -38,11 +32,10 @@ const c_MockCToken = artifacts.require("MockCToken");
 const c_BasketManager = artifacts.require("MockBasketManager");
 
 // Masset
-const c_MUSD = artifacts.require("MUSD");
-const c_MockERC20WithFee = artifacts.require( "MockERC20WithFee");
+const c_Masset = artifacts.require("Masset");
+const c_MockERC20WithFee = artifacts.require("MockERC20WithFee");
 const c_MockERC20 = artifacts.require("MockERC20");
 const c_MockUSDT = artifacts.require("MockUSDT");
-const c_ERC20 = artifacts.require("ERC20");
 
 export interface MassetDetails {
     mAsset?: t.MassetInstance;
@@ -70,18 +63,18 @@ export class MassetMachine {
     /**
      * @dev Deploys an mAsset with default parameters, modelled on original mUSD
      * @return Interface will all deployed information
-     **/
-    public async deployMasset(enableUSDTFee: boolean = false): Promise<MassetDetails> {
-        let md: MassetDetails = {};
+     */
+    public async deployMasset(enableUSDTFee = false): Promise<MassetDetails> {
+        const md: MassetDetails = {};
 
-        /***************************************
+        /** *************************************
         0. Mock platforms and bAssets
         Dependencies: []
-        ****************************************/
+        *************************************** */
         const bassetDetails = await this.loadBassets(enableUSDTFee);
         md.bAssets = bassetDetails.bAssets;
 
-        /***************************************
+        /** *************************************
         2. mUSD
             Dependencies: [
                 BasketManager [
@@ -91,7 +84,7 @@ export class MassetMachine {
                     ]
                 ]
             ]
-        ****************************************/
+        *************************************** */
 
         // 2.0. Deploy ProxyAdmin
         const d_DelayedProxyAdmin: t.DelayedProxyAdminInstance = await c_DelayedProxyAdmin.new(
@@ -132,43 +125,29 @@ export class MassetMachine {
         });
         md.forgeValidator = d_ForgeValidator;
         // 2.4.2. Deploy mUSD
-        const d_MUSD: t.MusdInstance = await c_MUSD.new(
-            this.system.nexus.address,
-            this.sa.feeRecipient,
-            d_ForgeValidator.address,
-            d_BasketManagerProxy.address,
-            { from: this.sa.default },
-        );
-        md.mAsset = d_MUSD;
-
-        // 2.5. Init BasketManager
-        const weight = 100 / bassetDetails.bAssets.length;
-        const initializationData_BasketManager: string = d_BasketManager.contract.methods
+        const d_mUSD = await c_Masset.new();
+        const d_mUSDProxy = await c_InitializableProxy.new();
+        const initializationData_mUSD: string = d_mUSD.contract.methods
             .initialize(
+                "mStable Mock",
+                "mMOCK",
                 this.system.nexus.address,
-                d_MUSD.address,
-                simpleToExactAmount(1, 24).toString(),
-                bassetDetails.bAssets.map((b) => b.address),
-                bassetDetails.platforms.map((p) =>
-                    p == Platform.aave
-                        ? d_AaveIntegrationProxy.address
-                        : d_CompoundIntegrationProxy.address,
-                ),
-                bassetDetails.bAssets.map(() => percentToWeight(weight).toString()),
-                bassetDetails.fees,
+                d_ForgeValidator.address,
+                d_BasketManagerProxy.address,
             )
             .encodeABI();
-        await d_BasketManagerProxy.methods["initialize(address,address,bytes)"](
-            d_BasketManager.address,
+        await d_mUSDProxy.methods["initialize(address,address,bytes)"](
+            d_mUSD.address,
             d_DelayedProxyAdmin.address,
-            initializationData_BasketManager,
+            initializationData_mUSD,
         );
+        md.mAsset = await c_Masset.at(d_mUSDProxy.address);
 
-        // 2.6. Init AaveIntegration
+        // 2.5. Init AaveIntegration
         const initializationData_AaveIntegration: string = d_AaveIntegration.contract.methods
             .initialize(
                 this.system.nexus.address,
-                [d_MUSD.address, d_BasketManagerProxy.address],
+                [d_mUSDProxy.address, d_BasketManagerProxy.address],
                 bassetDetails.aavePlatformAddress,
                 bassetDetails.aTokens.map((a) => a.bAsset),
                 bassetDetails.aTokens.map((a) => a.aToken),
@@ -182,11 +161,11 @@ export class MassetMachine {
             initializationData_AaveIntegration,
         );
 
-        // 2.7. Init CompoundIntegration
+        // 2.6. Init CompoundIntegration
         const initializationData_CompoundIntegration: string = d_CompoundIntegration.contract.methods
             .initialize(
                 this.system.nexus.address,
-                [d_MUSD.address, d_BasketManagerProxy.address],
+                [d_mUSDProxy.address, d_BasketManagerProxy.address],
                 ZERO_ADDRESS, // We don't need Compound sys addr
                 bassetDetails.cTokens.map((c) => c.bAsset),
                 bassetDetails.cTokens.map((c) => c.cToken),
@@ -198,6 +177,28 @@ export class MassetMachine {
             d_CompoundIntegration.address,
             d_DelayedProxyAdmin.address,
             initializationData_CompoundIntegration,
+        );
+
+        // 2.7. Init BasketManager
+        const weight = 100;
+        const initializationData_BasketManager: string = d_BasketManager.contract.methods
+            .initialize(
+                this.system.nexus.address,
+                d_mUSDProxy.address,
+                bassetDetails.bAssets.map((b) => b.address),
+                bassetDetails.platforms.map((p) =>
+                    p === Platform.aave
+                        ? d_AaveIntegrationProxy.address
+                        : d_CompoundIntegrationProxy.address,
+                ),
+                bassetDetails.bAssets.map(() => percentToWeight(weight).toString()),
+                bassetDetails.fees,
+            )
+            .encodeABI();
+        await d_BasketManagerProxy.methods["initialize(address,address,bytes)"](
+            d_BasketManager.address,
+            d_DelayedProxyAdmin.address,
+            initializationData_BasketManager,
         );
 
         return md;
@@ -351,25 +352,23 @@ export class MassetMachine {
      *      1. Mint with optimal weightings
      */
     public async deployMassetAndSeedBasket(
-        enableUSDTFee: boolean = false,
-        initialSupply: number = 100,
-        bAssetCount: number = 4,
-        sender: Address = this.system.sa.governor,
+        enableUSDTFee = false,
+        initialSupply = 100,
     ): Promise<MassetDetails> {
-        let massetDetails = await this.deployMasset(enableUSDTFee);
+        const massetDetails = await this.deployMasset(enableUSDTFee);
 
         // Mint initialSupply with shared weightings
-        let basketDetails = await this.getBassetsInMasset(massetDetails);
+        const basketDetails = await this.getBassetsInMasset(massetDetails);
 
         // Calc optimal weightings
-        let totalWeighting = basketDetails.reduce((p, c) => {
-            return p.add(new BN(c.targetWeight));
+        const totalWeighting = basketDetails.reduce((p, c) => {
+            return p.add(new BN(c.maxWeight));
         }, new BN(0));
-        let totalMintAmount = simpleToExactAmount(initialSupply, 18);
-        let mintAmounts = await Promise.all(
+        const totalMintAmount = simpleToExactAmount(initialSupply, 18);
+        const mintAmounts = await Promise.all(
             basketDetails.map(async (b) => {
                 // e.g. 5e35 / 2e18 = 2.5e17
-                const relativeWeighting = new BN(b.targetWeight).mul(fullScale).div(totalWeighting);
+                const relativeWeighting = new BN(b.maxWeight).mul(fullScale).div(totalWeighting);
                 // e.g. 1e20 * 25e16 / 1e18 = 25e18
                 const mintAmount = totalMintAmount.mul(relativeWeighting).div(fullScale);
                 // const bAssetDecimals: BN = await b.decimals();
@@ -405,7 +404,7 @@ export class MassetMachine {
                 status: b.status,
                 isTransferFeeCharged: b.isTransferFeeCharged,
                 ratio: new BN(b.ratio),
-                targetWeight: new BN(b.targetWeight),
+                maxWeight: new BN(b.maxWeight),
                 vaultBalance: new BN(b.vaultBalance),
             };
         });
@@ -420,31 +419,24 @@ export class MassetMachine {
 
     public async getBasketComposition(massetDetails: MassetDetails): Promise<BasketComposition> {
         // raw bAsset data
-        let bAssets = await this.getBassetsInMasset(massetDetails);
-        let basket = await massetDetails.basketManager.getBasket();
-        let grace = await massetDetails.basketManager.grace();
+        const bAssets = await this.getBassetsInMasset(massetDetails);
+        const basket = await massetDetails.basketManager.getBasket();
         // total supply of mAsset
-        let totalSupply = await massetDetails.mAsset.totalSupply();
+        const totalSupply = await massetDetails.mAsset.totalSupply();
         // get weights (relative to totalSupply)
         // apply ratios, then find proportion of totalSupply all in BN
-        let targetWeightInUnits = bAssets.map((b) =>
-            totalSupply.mul(new BN(b.targetWeight)).div(fullScale),
+        const maxWeightInUnits = bAssets.map((b) =>
+            totalSupply.mul(new BN(b.maxWeight)).div(fullScale),
         );
         // get overweight
-        let currentVaultUnits = bAssets.map((b) =>
+        const currentVaultUnits = bAssets.map((b) =>
             new BN(b.vaultBalance).mul(new BN(b.ratio)).div(ratioScale),
         );
-        let overweightBassets = bAssets.map((b, i) =>
-            currentVaultUnits[i].gte(targetWeightInUnits[i].add(grace)),
-        );
-        // get underweight
-        let underweightBassets = bAssets.map((b, i) =>
-            currentVaultUnits[i].lt(
-                targetWeightInUnits[i].gte(grace) ? targetWeightInUnits[i].sub(grace) : new BN(0),
-            ),
+        const overweightBassets = bAssets.map(
+            (b, i) => totalSupply.gt(new BN(0)) && currentVaultUnits[i].gt(maxWeightInUnits[i]),
         );
         // get total amount
-        let sumOfBassets = currentVaultUnits.reduce((p, c, i) => p.add(c), new BN(0));
+        const sumOfBassets = currentVaultUnits.reduce((p, c, i) => p.add(c), new BN(0));
         return {
             bAssets: bAssets.map((b, i) => {
                 return {
@@ -452,26 +444,37 @@ export class MassetMachine {
                     address: b.addr,
                     mAssetUnits: currentVaultUnits[i],
                     overweight: overweightBassets[i],
-                    underweight: underweightBassets[i],
                 };
             }),
             totalSupply,
-            grace,
             sumOfBassets,
             failed: basket.failed,
+            undergoingRecol: basket.undergoingRecol,
             colRatio: basket.collateralisationRatio,
         };
     }
 
+    /**
+     * @dev Takes a whole unit approval amount, and converts it to the equivalent
+     * base asset amount, before approving and returning the exact approval
+     * @param bAsset Asset to approve spending of
+     * @param mAsset Masset that gets permission to spend
+     * @param fullMassetUnits Whole number or fraction to approve
+     * @param sender Set if needed, else fall back to default
+     * @param inputIsBaseUnits Override the scaling up to MassetQ
+     */
     public async approveMasset(
         bAsset: t.MockErc20Instance,
         mAsset: t.MassetInstance,
-        fullMassetUnits: number | BN,
+        fullMassetUnits: number | BN | string,
         sender: string = this.sa.default,
+        inputIsBaseUnits = false,
     ): Promise<BN> {
         const bAssetDecimals: BN = await bAsset.decimals();
         // let decimalDifference: BN = bAssetDecimals.sub(new BN(18));
-        const approvalAmount: BN = simpleToExactAmount(fullMassetUnits, bAssetDecimals.toNumber());
+        const approvalAmount: BN = inputIsBaseUnits
+            ? new BN(fullMassetUnits)
+            : simpleToExactAmount(fullMassetUnits, bAssetDecimals.toNumber());
         await bAsset.approve(mAsset.address, approvalAmount, { from: sender });
         return approvalAmount;
     }
@@ -482,7 +485,7 @@ export class MassetMachine {
         fullMassetUnits: number,
         sender: string,
     ): Promise<Array<BN>> {
-        let result = Promise.all(
+        const result = Promise.all(
             bAssets.map((b) => this.approveMasset(b, mAsset, fullMassetUnits, sender)),
         );
         return result;

@@ -1,8 +1,7 @@
 import * as t from "types/generated";
+import { BN } from "../test-utils/tools";
 import { Address } from "./common";
 import { Basset } from "../test-utils/mstable-objects";
-
-import BN = require("bn.js");
 
 export interface ATokenDetails {
     bAsset: Address;
@@ -31,14 +30,13 @@ export interface BassetDetails extends Basset {
     address: Address;
     mAssetUnits: BN;
     overweight: boolean;
-    underweight: boolean;
 }
 
 export interface BasketComposition {
     bAssets: Array<BassetDetails>;
     totalSupply: BN;
-    grace: BN;
     sumOfBassets: BN;
     failed: boolean;
+    undergoingRecol: boolean;
     colRatio: BN;
 }

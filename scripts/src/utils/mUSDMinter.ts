@@ -88,7 +88,7 @@ export class MUSDMinter {
         const massetDecimals = await this.mUSD.decimals();
         const mintInputExact = simpleToExactAmount(mintInput, massetDecimals.toNumber());
         const data = await this.getBassetsData(this.bassetAddresses);
-        return data.map(({ targetWeight, ratio }) => {
+        return data.map(({ maxWeight, ratio }) => {
             // 1e18 Massets
             // 1e18 * ratioScale = 1e26
             // if Ratio == 1e8 then its straight up
@@ -97,7 +97,7 @@ export class MUSDMinter {
             // convertExactToSimple divides by 1e18
             // this creates an exact percentage amount
             const relativeUnitsToMint = exactToSimpleAmount(
-                mintInputExact.mul(new BN(targetWeight)),
+                mintInputExact.mul(new BN(maxWeight)),
                 18,
             );
             return applyRatioMassetToBasset(relativeUnitsToMint, ratio);

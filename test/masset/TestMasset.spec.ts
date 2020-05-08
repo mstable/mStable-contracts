@@ -1,4 +1,3 @@
-
 import { expectEvent, time, expectRevert } from "@openzeppelin/test-helpers";
 import { keccak256 } from "web3-utils";
 
@@ -55,18 +54,19 @@ contract("Masset", async (accounts) => {
                 await runSetup();
             });
             it("should set valid arguments", async () => {
-                expect(await massetDetails.mAsset.feeRecipient()).eq(sa.feeRecipient);
                 expect(await massetDetails.mAsset.forgeValidator()).eq(
                     massetDetails.forgeValidator.address,
                 );
                 expect(await massetDetails.mAsset.getBasketManager()).eq(
                     massetDetails.basketManager.address,
                 );
-                expect(await massetDetails.mAsset.redemptionFee()).bignumber.eq(
-                    simpleToExactAmount(2, 16),
+                expect(await massetDetails.mAsset.swapFee()).bignumber.eq(
+                    simpleToExactAmount(4, 15),
                 );
                 expect(await massetDetails.mAsset.decimals()).bignumber.eq(new BN(18));
                 expect(await massetDetails.mAsset.balanceOf(sa.dummy1)).bignumber.eq(new BN(0));
+                expect(await massetDetails.mAsset.name()).eq("mStable Mock");
+                expect(await massetDetails.mAsset.symbol()).eq("mMOCK");
             });
         });
     });
@@ -79,7 +79,7 @@ contract("Masset", async (accounts) => {
             // rejected if not governor
             await expectRevert(
                 massetDetails.mAsset.upgradeForgeValidator(sa.dummy2, { from: sa.default }),
-                "Must be manager or governance",
+                "Only governor can execute",
             );
             // rejected if invalid params
             await expectRevert(
@@ -101,45 +101,28 @@ contract("Masset", async (accounts) => {
                 "Must be allowed to upgrade",
             );
         });
-        it("should allow the fee recipient to be changed by governor", async () => {
-            // update by the governor
-            const oldFeeRecipient = await massetDetails.mAsset.feeRecipient();
-            expect(oldFeeRecipient).not.eq(sa.other);
-            await massetDetails.mAsset.setFeeRecipient(sa.other, { from: sa.governor });
-            expect(await massetDetails.mAsset.feeRecipient()).eq(sa.other);
-            // rejected if not governor
-            await expectRevert(
-                massetDetails.mAsset.setFeeRecipient(sa.dummy1, { from: sa.default }),
-                "Must be manager or governance",
-            );
-            // no zero
-            await expectRevert(
-                massetDetails.mAsset.setFeeRecipient(ZERO_ADDRESS, { from: sa.governor }),
-                "Must be valid address",
-            );
-        });
         it("should allow the fee rate to be changed", async () => {
             // update by the governor
-            const oldFee = await massetDetails.mAsset.redemptionFee();
+            const oldFee = await massetDetails.mAsset.swapFee();
             const newfee = simpleToExactAmount(1, 16); // 1%
             expect(oldFee).bignumber.not.eq(newfee);
-            await massetDetails.mAsset.setRedemptionFee(newfee, { from: sa.governor });
-            expect(await massetDetails.mAsset.redemptionFee()).bignumber.eq(newfee);
+            await massetDetails.mAsset.setSwapFee(newfee, { from: sa.governor });
+            expect(await massetDetails.mAsset.swapFee()).bignumber.eq(newfee);
             // rejected if not governor
             await expectRevert(
-                massetDetails.mAsset.setRedemptionFee(newfee, { from: sa.default }),
-                "Must be manager or governance",
+                massetDetails.mAsset.setSwapFee(newfee, { from: sa.default }),
+                "Only governor can execute",
             );
             // cannot exceed cap
             const feeExceedingCap = simpleToExactAmount(11, 16); // 11%
             await expectRevert(
-                massetDetails.mAsset.setRedemptionFee(feeExceedingCap, { from: sa.governor }),
+                massetDetails.mAsset.setSwapFee(feeExceedingCap, { from: sa.governor }),
                 "Rate must be within bounds",
             );
             // cannot exceed min
             const feeExceedingMin = new BN(-1); // 11%
             await expectRevert(
-                massetDetails.mAsset.setRedemptionFee(feeExceedingMin, { from: sa.governor }),
+                massetDetails.mAsset.setSwapFee(feeExceedingMin, { from: sa.governor }),
                 "Rate must be within bounds",
             );
         });
@@ -228,8 +211,5 @@ contract("Masset", async (accounts) => {
                 "Pausable: paused",
             );
         });
-        it("should increase at <=10% APY");
-        it("should set all the vars on the basket composition");
-        it("should have a minimal increase if called in quick succession");
     });
 });
