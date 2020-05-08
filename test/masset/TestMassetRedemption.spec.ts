@@ -21,7 +21,7 @@ const AaveIntegration = artifacts.require("AaveIntegration");
 
 const Masset = artifacts.require("Masset");
 
-contract("Masset", async (accounts) => {
+contract("Masset - Redeem", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
     let massetMachine: MassetMachine;
@@ -66,8 +66,10 @@ contract("Masset", async (accounts) => {
         amount: BN,
         reason: string,
     ): Promise<void> => {
-        const approval: BN = await massetMachine.approveMasset(bAsset, mAsset, amount);
-        await expectRevert(mAsset.redeem(bAsset.address, approval), reason);
+        const bAssetDecimals: BN = await bAsset.decimals();
+        // let decimalDifference: BN = bAssetDecimals.sub(new BN(18));
+        const exactAmount = simpleToExactAmount(amount, bAssetDecimals.toNumber());
+        await expectRevert(mAsset.redeem(bAsset.address, exactAmount), reason);
     };
 
     // Helper to assert basic redemption conditions, e.g. balance before and after
@@ -949,7 +951,7 @@ contract("Masset", async (accounts) => {
             beforeEach(async () => {
                 await runSetup(true);
             });
-            it("should still allow redemption, apply the colRatio effectively", async () => {
+            it("should block redemption", async () => {
                 const { bAssets, mAsset, basketManager } = massetDetails;
                 await assertBasketIsHealthy(massetMachine, massetDetails);
                 await basketManager.setRecol(true);
@@ -1684,7 +1686,7 @@ contract("Masset", async (accounts) => {
             beforeEach(async () => {
                 await runSetup(true);
             });
-            it("should still allow redemption, apply the colRatio effectively", async () => {
+            it("should block redemption", async () => {
                 const { bAssets, mAsset, basketManager } = massetDetails;
                 await assertBasketIsHealthy(massetMachine, massetDetails);
                 await basketManager.setRecol(true);

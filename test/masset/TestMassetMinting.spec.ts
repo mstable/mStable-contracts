@@ -30,7 +30,7 @@ interface MintOutput {
     recipientBalAfter: BN;
 }
 
-contract("Masset", async (accounts) => {
+contract("Masset - Mint", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
     let massetMachine: MassetMachine;

@@ -25,7 +25,7 @@ interface SwapDetails {
     feeRate: BN;
 }
 
-contract("Masset", async (accounts) => {
+contract("Masset - Swap", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
     let massetMachine: MassetMachine;

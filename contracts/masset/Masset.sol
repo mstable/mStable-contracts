@@ -462,7 +462,7 @@ contract Masset is
     )
         external
     {
-        _redeemMulti(_mAssetQuantity, _recipient);
+        _redeemMasset(_mAssetQuantity, _recipient);
     }
 
     /***************************************
@@ -537,7 +537,7 @@ contract Masset is
 
 
     /** @dev Redeem mAsset for a multiple bAssets */
-    function _redeemMulti(
+    function _redeemMasset(
         uint256 _mAssetQuantity,
         address _recipient
     )
