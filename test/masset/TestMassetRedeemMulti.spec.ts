@@ -199,12 +199,12 @@ contract("Masset - RedeemMasset", async (accounts) => {
                     await runSetup();
                 });
                 it("should redeem no bAssets due to rounding down", async () => {
-                    const { bAssets } = massetDetails;
+                    const { bAssets, mAsset } = massetDetails;
                     const recipient = sa.dummy2;
                     const recipientBassetBalsBefore = await Promise.all(
                         bAssets.map((b) => b.balanceOf(recipient)),
                     );
-                    await assertRedemption(massetDetails, new BN(1), recipient);
+                    await mAsset.redeemMasset(new BN(1), recipient);
                     const recipientBassetBalsAfter = await Promise.all(
                         bAssets.map((b) => b.balanceOf(recipient)),
                     );
