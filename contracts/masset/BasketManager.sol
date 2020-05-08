@@ -276,6 +276,7 @@ contract BasketManager is
         external
         onlyGovernor
         whenBasketIsHealthy
+        whenNotRecolling
         returns (uint8 index)
     {
         index = _addBasset(
@@ -443,6 +444,7 @@ contract BasketManager is
     function removeBasset(address _assetToRemove)
         external
         whenBasketIsHealthy
+        whenNotRecolling
         managerOrGovernor
     {
         _removeBasset(_assetToRemove);

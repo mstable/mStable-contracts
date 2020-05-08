@@ -501,7 +501,6 @@ contract Masset is
 
         // Get high level basket info
         Basket memory basket = basketManager.getBasket();
-        uint256 colRatio = StableMath.min(basket.collateralisationRatio, StableMath.getFullScale());
 
         // Prepare relevant data
         ForgePropsMulti memory props = basketManager.prepareForgeBassets(_bAssets, _bAssetQuantities, false);
@@ -509,7 +508,7 @@ contract Masset is
 
         // Validate redemption
         (bool redemptionValid, string memory reason, bool applyFee) =
-            forgeValidator.validateRedemption(basket.failed, totalSupply().mulTruncate(colRatio), basket.bassets, props.indexes, _bAssetQuantities);
+            forgeValidator.validateRedemption(basket.failed, totalSupply(), basket.bassets, props.indexes, _bAssetQuantities);
         require(redemptionValid, reason);
 
         uint256 mAssetQuantity = 0;
@@ -524,9 +523,6 @@ contract Masset is
             }
         }
         require(mAssetQuantity > 0, "Must redeem some bAssets");
-
-        // Ensure payout is relevant to collateralisation ratio (if ratio is 90%, we burn more)
-        mAssetQuantity = mAssetQuantity.divPrecisely(colRatio);
 
         // Apply fees, burn mAsset and return bAsset to recipient
         _settleRedemption(_recipient, mAssetQuantity, props.bAssets, _bAssetQuantities, props.indexes, props.integrators, applyFee);

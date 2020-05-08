@@ -930,12 +930,9 @@ contract("Masset - Redeem", async (accounts) => {
             beforeEach(async () => {
                 await runSetup(true);
                 const { basketManager } = massetDetails;
-                // Set the colRatio to 80%, which means that the mAsset is undercollateralised
-                // by 20%. TO compensate, redemption burns higher amount of mAsset, and totalSupply
-                // passed to the forgevalidator is affected to maintain accurate weightings
                 await basketManager.setBasket(true, simpleToExactAmount(8, 17));
             });
-            it("should still allow redemption, apply the colRatio effectively", async () => {
+            it("should force proportional redemption", async () => {
                 const { bAssets, mAsset, basketManager } = massetDetails;
                 // should burn more than is necessary
                 const bAsset = bAssets[0];
@@ -1665,12 +1662,9 @@ contract("Masset - Redeem", async (accounts) => {
             beforeEach(async () => {
                 await runSetup(true);
                 const { basketManager } = massetDetails;
-                // Set the colRatio to 80%, which means that the mAsset is undercollateralised
-                // by 20%. TO compensate, redemption burns higher amount of mAsset, and totalSupply
-                // passed to the forgevalidator is affected to maintain accurate weightings
                 await basketManager.setBasket(true, simpleToExactAmount(8, 17));
             });
-            it("should still allow redemption, apply the colRatio effectively", async () => {
+            it("should force proportional redemption", async () => {
                 const { bAssets, mAsset, basketManager } = massetDetails;
                 // should burn more than is necessary
                 const bAsset = bAssets[0];

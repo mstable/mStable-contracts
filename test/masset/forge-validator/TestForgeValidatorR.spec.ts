@@ -1,4 +1,5 @@
 import { simpleToExactAmount } from "@utils/math";
+import { BN } from "@utils/tools";
 import { createBasset, BassetStatus } from "@utils/mstable-objects";
 import envSetup from "@utils/env_setup";
 import * as t from "types/generated";
@@ -46,6 +47,23 @@ const setArgs = (indexToRedeem: number, redeemAmountUnits: number | string): Arg
     return {
         indexToRedeem,
         redeemAmountUnits,
+    };
+};
+
+interface CalcResult {
+    expectedValidity: boolean;
+    expectedReason: string;
+    expectedQs: Array<BN>;
+}
+const setCalcResult = (
+    expectedValidity: boolean,
+    expectedReason = "",
+    expectedQs: Array<BN> = [],
+): CalcResult => {
+    return {
+        expectedValidity,
+        expectedReason,
+        expectedQs,
     };
 };
 
@@ -106,8 +124,6 @@ contract("ForgeValidator", async (accounts) => {
         expect(result.expectedReason).to.eq(reason);
         expect(result.expectFee).to.eq(applyFee);
     };
-
-    it("forces proportional using multiple bAssets", async () => {});
 
     context("validating a single redeem", async () => {
         // At target weight is defined when bAssetVaultUnits == (totalSupply * bAssetTarget)
@@ -631,4 +647,33 @@ contract("ForgeValidator", async (accounts) => {
             });
         });
     });
+
+    const assertRedeemCalc = async (
+        exactMassetQ: BN,
+        bAssets: BassetDeets[],
+        result: CalcResult,
+        sender: string = accounts[0],
+    ): Promise<void> => {
+        const [isValid, reason, bassetQs] = await forgeValidator.calculateRedemptionMulti(
+            exactMassetQ,
+            bAssets.map((b) =>
+                createBasset(
+                    b.maxWeight,
+                    b.vaultUnits,
+                    b.decimals,
+                    b.status || BassetStatus.Normal,
+                ),
+            ),
+            { from: sender },
+        );
+        expect(result.expectedValidity).to.eq(isValid);
+        expect(result.expectedReason).to.eq(reason);
+        const expectedLen = result.expectedQs.length;
+        expect(expectedLen).to.eq(bassetQs.length);
+        if (expectedLen > 0) {
+            result.expectedQs.map((q, i) => expect(q).bignumber.eq(new BN(bassetQs[i])));
+        }
+    };
+
+    context("calculating a multi redeem", async () => {});
 });
