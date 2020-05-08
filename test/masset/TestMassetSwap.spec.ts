@@ -479,12 +479,22 @@ contract("Masset", async (accounts) => {
                     const { bAssets, mAsset } = massetDetails;
                     const realBasset = bAssets[0];
                     const fakeBasset = ZERO_ADDRESS;
-                    await assertFailedSwap(
-                        mAsset,
-                        realBasset,
-                        await MockERC20.at(fakeBasset),
-                        new BN(1),
-                        "Invalid inputs",
+                    const expectedReason = "Invalid inputs";
+                    await expectRevert(
+                        mAsset.swap(realBasset.address, fakeBasset, new BN(1), sa.default),
+                        expectedReason,
+                    );
+                    await expectRevert(
+                        mAsset.getSwapOutput(realBasset.address, fakeBasset, new BN(1)),
+                        expectedReason,
+                    );
+                    await expectRevert(
+                        mAsset.swap(fakeBasset, realBasset.address, new BN(1), sa.default),
+                        expectedReason,
+                    );
+                    await expectRevert(
+                        mAsset.getSwapOutput(fakeBasset, realBasset.address, new BN(1)),
+                        expectedReason,
                     );
                 });
                 it("should fail if given identical bAssets", async () => {

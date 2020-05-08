@@ -17,6 +17,7 @@ const setBasket = (failed: boolean, totalSupply: number | string): BasketDeets =
         totalSupply,
     };
 };
+
 interface BassetDeets {
     maxWeight: number | string;
     vaultUnits: number | string;
@@ -36,6 +37,7 @@ const setBasset = (
         status,
     };
 };
+
 interface Args {
     indexToRedeem: number;
     redeemAmountUnits: number | string;
@@ -46,6 +48,7 @@ const setArgs = (indexToRedeem: number, redeemAmountUnits: number | string): Arg
         redeemAmountUnits,
     };
 };
+
 interface Result {
     expectedValidity: boolean;
     expectedReason: string;
@@ -171,7 +174,21 @@ contract("ForgeValidator", async (accounts) => {
                 );
             });
             describe("and the redemption causes other bAssets to go overweight", async () => {
-                it("should fail");
+                it("should fail", async () => {
+                    /**
+                     * TotalSupply:     100e18
+                     * MaxWeights:      [50, 50, 50, 50]
+                     * BassetVaults:    [48, 30, 20,  2]
+                     * RedeemIndex:     [ 1]
+                     * RedeemAmt:       [ 15]
+                     */
+                    await assertRedeem(
+                        setBasket(false, 100),
+                        [setBasset(50, 48), setBasset(50, 30), setBasset(50, 20), setBasset(50, 2)],
+                        [setArgs(1, 15)],
+                        setResult(false, "bAssets must remain below max weight"),
+                    );
+                });
             });
             describe("using unexpected arguments", async () => {
                 it("should return valid if there are no bAssets passed", async () => {
@@ -405,83 +422,212 @@ contract("ForgeValidator", async (accounts) => {
                 });
             });
             describe("redeeming some overweight bAssets", async () => {
-                it("should fail if we don't redeem all overweight");
-                it("should fail if we don't redeem the same count");
-                it("should fail if we redeem the same count but some aren't overweight");
+                it("should fail if we don't redeem all overweight", async () => {
+                    /**
+                     * TotalSupply:     100e18
+                     * MaxWeights:      [40, 40, 40, 40]
+                     * BassetVaults:    [48, 45, 5,  2]
+                     * RedeemIndex:     [ 0]
+                     * RedeemAmt:       [ 5]
+                     */
+                    await assertRedeem(
+                        setBasket(false, 100),
+                        [setBasset(40, 48), setBasset(40, 45), setBasset(40, 5), setBasset(40, 2)],
+                        [setArgs(0, 5)],
+                        setResult(false, "Redemption must contain all overweight bAssets"),
+                    );
+                });
+                it("should fail if we redeem the same count but some aren't overweight", async () => {
+                    /**
+                     * TotalSupply:     100e18
+                     * MaxWeights:      [40, 40, 40, 40]
+                     * BassetVaults:    [48, 45, 5,  2]
+                     * RedeemIndex:     [ 0]
+                     * RedeemAmt:       [ 5]
+                     */
+                    await assertRedeem(
+                        setBasket(false, 100),
+                        [setBasset(40, 48), setBasset(40, 45), setBasset(40, 5), setBasset(40, 2)],
+                        [setArgs(0, 5), setArgs(2, 1)],
+                        setResult(false, "Must redeem overweight bAssets"),
+                    );
+                });
             });
             describe("redeeming ALL overweight bAssets", async () => {
-                it("should return valid, so long as others don't go overweight");
-                describe("and some bAssets have their max weight breached", async () => {
-                    it("should still allow the redemption if all overweights are redeemed");
+                it("should return valid, so long as others don't go overweight", async () => {
+                    /**
+                     * TotalSupply:     100e18
+                     * MaxWeights:      [40, 40, 40, 40]
+                     * BassetVaults:    [48, 45, 5,  2]
+                     * RedeemIndex:     [ 0, 1]
+                     * RedeemAmt:       [ 2, 3]
+                     */
+                    await assertRedeem(
+                        setBasket(false, 100),
+                        [setBasset(40, 48), setBasset(40, 45), setBasset(40, 5), setBasset(40, 2)],
+                        [setArgs(0, 2), setArgs(1, 3)],
+                        setResult(true, "", false),
+                    );
+                    await assertRedeem(
+                        setBasket(false, 100),
+                        [setBasset(40, 48), setBasset(20, 21), setBasset(30, 29), setBasset(40, 2)],
+                        [setArgs(0, 20), setArgs(1, 10)],
+                        setResult(false, "bAssets must remain below max weight"),
+                    );
+                });
+                it("should still allow the redemption if some other bAsset is breached", async () => {
+                    /**
+                     * TotalSupply:     100e18
+                     * MaxWeights:      [40, 20, 30, 40]
+                     * BassetVaults:    [48, 21, 29,  2]
+                     * RedeemIndex:     [    0,    1]
+                     * RedeemAmt:       [ .001, .001]
+                     */
+                    await assertRedeem(
+                        setBasket(false, 100),
+                        [setBasset(40, 48), setBasset(20, 21), setBasset(30, 29), setBasset(40, 2)],
+                        [setArgs(0, "0.001"), setArgs(1, "0.001")],
+                        setResult(true, "", false),
+                    );
                 });
             });
         });
         context("in a basket with bAssets nearing threshold (max weight breached)", async () => {
-            // NONE overweight!
-            it("enforces proportional redemption");
-            describe("and using multiple inputs", async () => {
-                it("still fails");
+            it("enforces proportional redemption", async () => {
+                /**
+                 * TotalSupply:     100e18
+                 * MaxWeights:      [  40, 40,   40, 40]
+                 * BassetVaults:    [39.5, 30, 10.5, 20]
+                 * RedeemIndex:     [ 0]
+                 * RedeemAmt:       [ 1]
+                 * bAsset 0 is breached as it is within 1% of max
+                 */
+                await assertRedeem(
+                    setBasket(false, 100),
+                    [
+                        setBasset(40, "39.5"),
+                        setBasset(40, 30),
+                        setBasset(40, "10.5"),
+                        setBasset(40, 20),
+                    ],
+                    [setArgs(0, 1)],
+                    setResult(false, "Must redeem proportionately"),
+                );
             });
-            // it("returns valid if redemption pushes some other bAsset overweight", async () => {
-            //     /**
-            //      * TotalSupply:     100e18
-            //      * MaxWeights:      [25, 25, 25, 25]
-            //      * BassetVaults:    [25, 21, 29, 25]
-            //      * RedeemIndex:     3
-            //      * RedeemAmt:       5
-            //      * Index 2 will go over weight
-            //      */
-            //     await assertRedeem(
-            //         setBasket(false, 100),
-            //         [setBasset(25, 25), setBasset(25, 21), setBasset(25, 29), setBasset(25, 25)],
-            //         [setArgs(3, 5)],
-            //         setResult(true),
-            //     );
-            // });
+            describe("and using multiple inputs", async () => {
+                it("still fails", async () => {
+                    /**
+                     * TotalSupply:     100e18
+                     * MaxWeights:      [  40, 40,   40, 40]
+                     * BassetVaults:    [39.5, 30, 10.5, 20]
+                     * RedeemIndex:     [ 0, 3]
+                     * RedeemAmt:       [ 1, 3]
+                     * bAsset 0 is breached as it is within 1% of max
+                     */
+                    await assertRedeem(
+                        setBasket(false, 100),
+                        [
+                            setBasset(40, "39.5"),
+                            setBasset(40, 30),
+                            setBasset(40, "10.5"),
+                            setBasset(40, 20),
+                        ],
+                        [setArgs(0, 1), setArgs(3, 3)],
+                        setResult(false, "Must redeem proportionately"),
+                    );
+                });
+            });
         });
         context("in a basket with some affected bAssets", async () => {
             context("where some bAssets are liquidating, above or below peg", async () => {
-                it("forces proportional using multiple bAssets");
-                it("always forces proportional redemption", async () => {
-                    //     /**
-                    //      * TotalSupply:     100e18
-                    //      * MaxWeights:      [25, 25, 25, 25]
-                    //      * BassetVaults:    [25, 25, 25, 25]
-                    //      * Statuses:        [N, L, N, N]
-                    //      * RedeemIndex:     0
-                    //      * RedeemAmt:       1
-                    //      */
-                    //     await assertRedeem(
-                    //         setBasket(false, 100),
-                    //         [
-                    //             setBasset(25, 25),
-                    //             setBasset(25, 25, 18, BassetStatus.Liquidating),
-                    //             setBasset(25, 25),
-                    //             setBasset(25, 25),
-                    //         ],
-                    //         [setArgs(0, 1)],
-                    //         setResult(false, "bAssets undergoing liquidation"),
-                    //     );
-                    //     await assertRedeem(
-                    //         setBasket(false, 100),
-                    //         [
-                    //             setBasset(25, 25),
-                    //             setBasset(25, 25, 18, BassetStatus.BrokenBelowPeg),
-                    //             setBasset(25, 25),
-                    //             setBasset(25, 25),
-                    //         ],
-                    //         [setArgs(0, 1)],
-                    //         setResult(false, "bAssets undergoing liquidation"),
-                    //     );
+                it("forces proportional using multiple bAssets", async () => {
+                    /**
+                     * TotalSupply:     100
+                     * MaxWeights:      [ 40, 40, 40, 40]
+                     * BassetVaults:    [ 30, 30, 20, 20]
+                     * RedeemIndex:     [ 0]
+                     * RedeemAmt:       [ 1]
+                     */
+                    await assertRedeem(
+                        setBasket(false, 100),
+                        [
+                            setBasset(40, 30),
+                            setBasset(40, 30, 18, BassetStatus.Liquidating),
+                            setBasset(40, 20),
+                            setBasset(40, 20),
+                        ],
+                        [setArgs(0, 1)],
+                        setResult(false, "Must redeem proportionately"),
+                    );
+                    await assertRedeem(
+                        setBasket(false, 100),
+                        [
+                            setBasset(40, 30, 12, BassetStatus.BrokenAbovePeg),
+                            setBasset(40, 30, 6),
+                            setBasset(40, 20),
+                            setBasset(40, 20),
+                        ],
+                        [setArgs(0, 1)],
+                        setResult(false, "Must redeem proportionately"),
+                    );
+                    await assertRedeem(
+                        setBasket(false, 100),
+                        [
+                            setBasset(40, 30),
+                            setBasset(40, 30, 6),
+                            setBasset(40, 20),
+                            setBasset(40, 20, 12, BassetStatus.BrokenBelowPeg),
+                        ],
+                        [setArgs(0, 1)],
+                        setResult(false, "Must redeem proportionately"),
+                    );
                 });
             });
             context("where some bAsset is blacklisted", async () => {
-                it("fails if we try to redeem anything");
+                it("fails if we try to redeem anything", async () => {
+                    /**
+                     * TotalSupply:     100
+                     * MaxWeights:      [ 40, 40, 40, 40]
+                     * BassetVaults:    [ 30, 30, 20, 20]
+                     * RedeemIndex:     [ 0]
+                     * RedeemAmt:       [ 1]
+                     */
+                    await assertRedeem(
+                        setBasket(false, 100),
+                        [
+                            setBasset(40, 30),
+                            setBasset(40, 30, 18, BassetStatus.Blacklisted),
+                            setBasset(40, 20),
+                            setBasset(40, 20),
+                        ],
+                        [setArgs(0, 1)],
+                        setResult(false, "Basket contains blacklisted bAsset"),
+                    );
+                });
             });
         });
         context("in an affected basket", async () => {
             describe("when the basket has failed", async () => {
-                it("always enforces proportional redemption");
+                it("always enforces proportional redemption", async () => {
+                    /**
+                     * TotalSupply:     100
+                     * MaxWeights:      [ 40, 40, 40, 40]
+                     * BassetVaults:    [ 30, 30, 20, 20]
+                     * RedeemIndex:     [ 0]
+                     * RedeemAmt:       [ 1]
+                     */
+                    await assertRedeem(
+                        setBasket(true, 100),
+                        [
+                            setBasset(40, 30),
+                            setBasset(40, 30),
+                            setBasset(40, 20),
+                            setBasset(40, 20),
+                        ],
+                        [setArgs(0, 1)],
+                        setResult(false, "Must redeem proportionately"),
+                    );
+                });
             });
         });
     });
