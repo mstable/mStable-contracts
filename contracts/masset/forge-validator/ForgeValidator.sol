@@ -135,6 +135,7 @@ contract ForgeValidator is IForgeValidator {
      * @return isValid          Bool to signify that the mint does not move our weightings the wrong way
      * @return reason           If the swap is invalid, this is the reason
      * @return output           Units of output bAsset, before fee is applied
+     * @return applySwapFee     Bool to signify that the swap fee is applied
      */
     function validateSwap(
         uint256 _totalVault,

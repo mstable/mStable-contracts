@@ -17,10 +17,10 @@ contract InitializableERC20Detailed is IERC20 {
      * these values are immutable: they can only be set once during
      * construction.
      */
-    function _initialize(string memory name, string memory symbol, uint8 decimals) internal {
-        _name = name;
-        _symbol = symbol;
-        _decimals = decimals;
+    function _initialize(string memory nameArg, string memory symbolArg, uint8 decimalsArg) internal {
+        _name = nameArg;
+        _symbol = symbolArg;
+        _decimals = decimalsArg;
     }
 
     /**
@@ -66,7 +66,7 @@ contract InitializableToken is ERC20, InitializableERC20Detailed {
     /**
      * @dev Initialization function for implementing contract
      */
-    function _initialize(string memory _name, string memory _symbol) internal {
-        InitializableERC20Detailed._initialize(_name, _symbol, 18);
+    function _initialize(string memory _nameArg, string memory _symbolArg) internal {
+        InitializableERC20Detailed._initialize(_nameArg, _symbolArg, 18);
     }
 }
