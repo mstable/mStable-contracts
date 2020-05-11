@@ -59,10 +59,13 @@ contract Masset is
     uint256 public swapFee;
     uint256 private constant MAX_FEE = 2e16;
 
-    /** @dev Constructor */
+    /**
+     * @dev Constructor
+     * @notice To avoid variable shadowing appended `Arg` after arguments name.
+     */
     function initialize(
-        string calldata _name,
-        string calldata _symbol,
+        string calldata _nameArg,
+        string calldata _symbolArg,
         address _nexus,
         address _forgeValidator,
         address _basketManager
@@ -70,7 +73,7 @@ contract Masset is
         external
         initializer
     {
-        InitializableToken._initialize(_name, _symbol);
+        InitializableToken._initialize(_nameArg, _symbolArg);
         InitializableModule._initialize(_nexus);
         InitializableReentrancyGuard._initialize();
 
@@ -292,6 +295,7 @@ contract Masset is
         address _recipient
     )
         external
+        nonReentrant
         returns (uint256 output)
     {
         require(_input != address(0) && _output != address(0), "Invalid inputs");
