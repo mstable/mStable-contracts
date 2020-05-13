@@ -44,7 +44,7 @@ contract Masset is
     event Swapped(address indexed swapper, address input, address output, uint256 outputAmount, address recipient);
     event Redeemed(address indexed redeemer, address recipient, uint256 mAssetQuantity, address[] bAssets, uint256[] bAssetQuantities);
     event RedeemedMasset(address indexed redeemer, address recipient, uint256 mAssetQuantity);
-    event PaidFee(address payer, address asset, uint256 feeQuantity);
+    event PaidFee(address indexed payer, address asset, uint256 feeQuantity);
 
     // State Events
     event SwapFeeChanged(uint256 fee);
@@ -59,10 +59,13 @@ contract Masset is
     uint256 public swapFee;
     uint256 private constant MAX_FEE = 2e16;
 
-    /** @dev Constructor */
+    /**
+     * @dev Constructor
+     * @notice To avoid variable shadowing appended `Arg` after arguments name.
+     */
     function initialize(
-        string calldata _name,
-        string calldata _symbol,
+        string calldata _nameArg,
+        string calldata _symbolArg,
         address _nexus,
         address _forgeValidator,
         address _basketManager
@@ -70,7 +73,7 @@ contract Masset is
         external
         initializer
     {
-        InitializableToken._initialize(_name, _symbol);
+        InitializableToken._initialize(_nameArg, _symbolArg);
         InitializableModule._initialize(_nexus);
         InitializableReentrancyGuard._initialize();
 
@@ -106,6 +109,7 @@ contract Masset is
         uint256 _bAssetQuantity
     )
         external
+        nonReentrant
         returns (uint256 massetMinted)
     {
         return _mintTo(_bAsset, _bAssetQuantity, msg.sender);
@@ -125,6 +129,7 @@ contract Masset is
         address _recipient
     )
         external
+        nonReentrant
         returns (uint256 massetMinted)
     {
         return _mintTo(_bAsset, _bAssetQuantity, _recipient);
@@ -145,6 +150,7 @@ contract Masset is
         address _recipient
     )
         external
+        nonReentrant
         returns(uint256 massetMinted)
     {
         return _mintTo(_bAssets, _bAssetQuantity, _recipient);
@@ -161,7 +167,6 @@ contract Masset is
         address _recipient
     )
         internal
-        nonReentrant
         returns (uint256 massetMinted)
     {
         require(_recipient != address(0), "Must be a valid recipient");
@@ -196,7 +201,6 @@ contract Masset is
         address _recipient
     )
         internal
-        nonReentrant
         returns (uint256 massetMinted)
     {
         require(_recipient != address(0), "Must be a valid recipient");
@@ -292,6 +296,7 @@ contract Masset is
         address _recipient
     )
         external
+        nonReentrant
         returns (uint256 output)
     {
         require(_input != address(0) && _output != address(0), "Invalid inputs");
@@ -407,6 +412,7 @@ contract Masset is
         uint256 _bAssetQuantity
     )
         external
+        nonReentrant
         returns (uint256 massetRedeemed)
     {
         return _redeemTo(_bAsset, _bAssetQuantity, msg.sender);
@@ -426,6 +432,7 @@ contract Masset is
         address _recipient
     )
         external
+        nonReentrant
         returns (uint256 massetRedeemed)
     {
         return _redeemTo(_bAsset, _bAssetQuantity, _recipient);
@@ -445,6 +452,7 @@ contract Masset is
         address _recipient
     )
         external
+        nonReentrant
         returns (uint256 massetRedeemed)
     {
         return _redeemTo(_bAssets, _bAssetQuantities, _recipient);
@@ -461,6 +469,7 @@ contract Masset is
         address _recipient
     )
         external
+        nonReentrant
     {
         _redeemMasset(_mAssetQuantity, _recipient);
     }
@@ -492,7 +501,6 @@ contract Masset is
         address _recipient
     )
         internal
-        nonReentrant
         returns (uint256 massetRedeemed)
     {
         require(_recipient != address(0), "Must be a valid recipient");
@@ -538,7 +546,6 @@ contract Masset is
         address _recipient
     )
         internal
-        nonReentrant
     {
         require(_recipient != address(0), "Must be a valid recipient");
         require(_mAssetQuantity > 0, "Must redeem some mAsset");
@@ -613,8 +620,9 @@ contract Masset is
      * @param _bAssetQuantity     Exact amount of bAsset being swapped out
      */
     function _deductSwapFee(address _asset, uint256 _bAssetQuantity, uint256 _feeRate)
-    private
-    returns (uint256 outputMinusFee) {
+        private
+        returns (uint256 outputMinusFee)
+    {
 
         outputMinusFee = _bAssetQuantity;
 
@@ -630,9 +638,10 @@ contract Masset is
      * @param _bAssetQuantity     Exact amount of bAsset being swapped out
      */
     function _calcSwapFee(uint256 _bAssetQuantity, uint256 _feeRate)
-    private
-    pure
-    returns (uint256 feeAmount, uint256 outputMinusFee) {
+        private
+        pure
+        returns (uint256 feeAmount, uint256 outputMinusFee)
+    {
         // e.g. for 500 massets.
         // feeRate == 1% == 1e16. _quantity == 5e20.
         // (5e20 * 1e16) / 1e18 = 5e18

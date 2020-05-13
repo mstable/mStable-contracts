@@ -262,7 +262,7 @@ contract BasketManager is
 
 
     /***************************************
-                BASKET MNGMENT
+                BASKET MANAGEMENT
     ****************************************/
 
     /**
