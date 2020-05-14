@@ -4,6 +4,8 @@ import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "../../.
 
 import { IAaveAToken, IAaveLendingPool, ILendingPoolAddressesProvider } from "../../../masset/platform-integrations/IAave.sol";
 
+import { AaveIntegration } from "../../../masset/platform-integrations/AaveIntegration.sol";
+
 contract AaveIntegrationV2 is InitializableAbstractIntegration {
 
     // new variable
@@ -350,5 +352,30 @@ contract AaveIntegrationV3 is InitializableAbstractIntegration {
         revert("Not allowed to add more pTokens");
     }
 
+
+}
+
+contract UpgradableAaveIntegration is AaveIntegration {
+    uint256 public newUint = 0;
+
+    // NEW FUNCTIONS
+    // ===============
+    function initializeNewUint() external onlyProxyAdmin {
+        newUint = 1;
+    }
+
+    function newMethod() public pure returns (bool) {
+        return true;
+    }
+
+    // MODIFIED FUNCTIONS
+    // ==================
+    function setPTokenAddress(address /*_bAsset*/, address /*_pToken*/)
+        external
+        onlyGovernor
+    {
+        // This is just to test upgradibility
+        revert("Not allowed to add more pTokens");
+    }
 
 }
