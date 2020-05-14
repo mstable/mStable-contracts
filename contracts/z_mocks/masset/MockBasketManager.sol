@@ -171,6 +171,7 @@ contract MockBasketManager3 is BasketManager {
 
 }
 
+// Upgradable Basket Manager contract to use in manual beta-testing
 contract UpgradedBasketManagerV2 is BasketManager {
 
     string public version = "";
