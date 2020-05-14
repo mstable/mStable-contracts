@@ -4,7 +4,13 @@
 import * as t from "types/generated";
 import { simpleToExactAmount, percentToWeight } from "@utils/math";
 import { BN } from "@utils/tools";
-import { fullScale, MainnetAccounts, ratioScale, ZERO_ADDRESS } from "@utils/constants";
+import {
+    fullScale,
+    MainnetAccounts,
+    ratioScale,
+    ZERO_ADDRESS,
+    DEAD_ADDRESS,
+} from "@utils/constants";
 import { Basset } from "@utils/mstable-objects";
 import { SystemMachine, StandardAccounts } from ".";
 import { Address } from "../../types/common";
@@ -15,11 +21,10 @@ const c_ForgeValidator = artifacts.require("ForgeValidator");
 
 // Proxy
 const c_DelayedProxyAdmin = artifacts.require("DelayedProxyAdmin");
-const c_InitializableProxy = artifacts.require(
-    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-    // @ts-ignore
-    "@openzeppelin/upgrades/InitializableAdminUpgradeabilityProxy",
-) as t.InitializableUpgradeabilityProxyContract;
+const c_MassetProxy = artifacts.require("MassetProxy");
+const c_BasketManagerProxy = artifacts.require("BasketManagerProxy");
+const c_DeadIntegration = artifacts.require("DeadIntegration");
+const c_VaultProxy = artifacts.require("VaultProxy");
 
 // Integrations
 const c_AaveIntegration = artifacts.require("AaveIntegration");
@@ -98,21 +103,34 @@ export class MassetMachine {
         // 2.1. Deploy no Init BasketManager
         //  - Deploy Implementation
         const d_BasketManager = await c_BasketManager.new();
+        //  - Initialize the BasketManager implementation to avoid someone else doing it
+        const d_DeadIntegration = await c_DeadIntegration.new();
+        const d_DeadErc20 = await c_MockERC20.new("DEAD", "D34", 18, DEAD_ADDRESS, 1);
+        await d_BasketManager.initialize(
+            DEAD_ADDRESS,
+            DEAD_ADDRESS,
+            [d_DeadErc20.address],
+            [d_DeadIntegration.address],
+            [percentToWeight(100).toString()],
+            [false],
+        );
         //  - Deploy Initializable Proxy
-        const d_BasketManagerProxy = await c_InitializableProxy.new();
+        const d_BasketManagerProxy = await c_BasketManagerProxy.new();
 
         // 2.2. Deploy no Init AaveIntegration
         //  - Deploy Implementation with dummy params (this storage doesn't get used)
         const d_AaveIntegration = await c_AaveIntegration.new();
+        await d_AaveIntegration.initialize(DEAD_ADDRESS, [DEAD_ADDRESS], DEAD_ADDRESS, [], []);
         //  - Deploy Initializable Proxy
-        const d_AaveIntegrationProxy = await c_InitializableProxy.new();
+        const d_AaveIntegrationProxy = await c_VaultProxy.new();
 
         // 2.3. Deploy no Init CompoundIntegration
         //  - Deploy Implementation
         // We do not need platform address for compound
         const d_CompoundIntegration: t.CompoundIntegrationInstance = await c_CompoundIntegration.new();
+        await d_CompoundIntegration.initialize(DEAD_ADDRESS, [DEAD_ADDRESS], DEAD_ADDRESS, [], []);
         //  - Deploy Initializable Proxy
-        const d_CompoundIntegrationProxy = await c_InitializableProxy.new();
+        const d_CompoundIntegrationProxy = await c_VaultProxy.new();
 
         md.basketManager = await c_BasketManager.at(d_BasketManagerProxy.address);
         md.aaveIntegration = await c_AaveIntegration.at(d_AaveIntegrationProxy.address);
@@ -125,8 +143,12 @@ export class MassetMachine {
         });
         md.forgeValidator = d_ForgeValidator;
         // 2.4.2. Deploy mUSD
+        // Deploy implementation
         const d_mUSD = await c_Masset.new();
-        const d_mUSDProxy = await c_InitializableProxy.new();
+        await d_mUSD.initialize("", "", DEAD_ADDRESS, DEAD_ADDRESS, DEAD_ADDRESS);
+        // Deploy proxy
+        const d_mUSDProxy = await c_MassetProxy.new();
+        // Initialize proxy
         const initializationData_mUSD: string = d_mUSD.contract.methods
             .initialize(
                 "mStable Mock",
@@ -153,9 +175,7 @@ export class MassetMachine {
                 bassetDetails.aTokens.map((a) => a.aToken),
             )
             .encodeABI();
-        await ((d_AaveIntegrationProxy as unknown) as t.MockProxyInstance).methods[
-            "initialize(address,address,bytes)"
-        ](
+        await d_AaveIntegrationProxy.methods["initialize(address,address,bytes)"](
             d_AaveIntegration.address,
             d_DelayedProxyAdmin.address,
             initializationData_AaveIntegration,
@@ -171,9 +191,7 @@ export class MassetMachine {
                 bassetDetails.cTokens.map((c) => c.cToken),
             )
             .encodeABI();
-        await ((d_CompoundIntegrationProxy as unknown) as t.MockProxyInstance).methods[
-            "initialize(address,address,bytes)"
-        ](
+        await d_CompoundIntegrationProxy.methods["initialize(address,address,bytes)"](
             d_CompoundIntegration.address,
             d_DelayedProxyAdmin.address,
             initializationData_CompoundIntegration,

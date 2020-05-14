@@ -110,7 +110,7 @@ contract("CompoundIntegration", async (accounts) => {
         );
 
         await nexus.initialize(
-            [await d_DelayedProxyAdmin.KEY_PROXY_ADMIN()],
+            [web3.utils.keccak256("ProxyAdmin")],
             [d_DelayedProxyAdmin.address],
             [true],
             sa.governor,

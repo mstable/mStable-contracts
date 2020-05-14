@@ -13,12 +13,13 @@
     "coverage": "node --max_old_space_size=6144 node_modules/truffle/build/cli.bundled.js run coverage --network coverage --solcoverjs './.solcover.js'",
     "script": "yarn truffle exec ./scripts/main.js",
     "test": "yarn run test-prep; truffle test;",
+    "test:fork": "yarn run test-prep; truffle test --network fork;",
     "test-prep": "yarn run compile; yarn run generate-typings;",
     "test-lite": " truffle test",
     "compile": "truffle compile --all",
     "generate-typings": "rimraf ./types/generated && typechain --target 'truffle-v5' --outDir types/generated './build/contracts/*.json'",
     "prettify": "prettier --write test/*.ts test/**/*.ts types/generated/*.ts types/*.ts artifacts/*.ts",
-    "flatten": "sol-merger \"./contracts/**/*.sol\" ./flat"
+    "flatten": "sol-merger \"./contracts/**/*.sol\" ./_flat"
   },
   "repository": "gitlab:mstable/mstable-contracts",
   "dependencies": {
@@ -58,6 +59,7 @@
     "solc": "0.5.16",
     "solidity-coverage": "^0.7.1",
     "truffle": "5.1.22",
+    "truffle-plugin-verify": "^0.3.10",
     "truffle-typings": "^1.0.8",
     "ts-node": "^8.4.1",
     "tsconfig-paths": "^3.9.0",

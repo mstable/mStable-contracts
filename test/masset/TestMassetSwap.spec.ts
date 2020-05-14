@@ -334,7 +334,7 @@ contract("Masset - Swap", async (accounts) => {
                         bAssets[0],
                         bAssets[1],
                         1000,
-                        "Cannot redeem more bAssets than are in the vault",
+                        "Not enough liquidity",
                     );
                 });
             });

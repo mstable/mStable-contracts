@@ -35,7 +35,7 @@ const c_InitializableProxy = artifacts.require(
     // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
     // @ts-ignore
     "@openzeppelin/upgrades/InitializableAdminUpgradeabilityProxy",
-) as t.InitializableAdminUpgradeabilityProxyContract
+) as t.InitializableAdminUpgradeabilityProxyContract;
 const c_AaveIntegration = artifacts.require("MockAaveIntegration");
 
 contract("AaveIntegration", async (accounts) => {
@@ -92,7 +92,7 @@ contract("AaveIntegration", async (accounts) => {
         );
 
         await nexus.initialize(
-            [await d_DelayedProxyAdmin.KEY_PROXY_ADMIN()],
+            [web3.utils.keccak256("ProxyAdmin")],
             [d_DelayedProxyAdmin.address],
             [true],
             sa.governor,
@@ -675,15 +675,15 @@ contract("AaveIntegration", async (accounts) => {
             const amountScaled = amount.mul(scale);
             const expectedAmount = amountScaled.div(fullScale);
             // Step 2. Validate recipient
-            expect(bAssetRecipient_balAfter).bignumber.gte(bAssetRecipient_balBefore.add(
-                expectedAmount,
-            ) as any);
-            expect(bAssetRecipient_balAfter).bignumber.lte(bAssetRecipient_balBefore.add(
-                amount,
-            ) as any);
-            expect(aaveIntegration_balAfter).bignumber.eq(aaveIntegration_balBefore.sub(
-                amount,
-            ) as any);
+            expect(bAssetRecipient_balAfter).bignumber.gte(
+                bAssetRecipient_balBefore.add(expectedAmount) as any,
+            );
+            expect(bAssetRecipient_balAfter).bignumber.lte(
+                bAssetRecipient_balBefore.add(amount) as any,
+            );
+            expect(aaveIntegration_balAfter).bignumber.eq(
+                aaveIntegration_balBefore.sub(amount) as any,
+            );
             const expectedBalance = aaveIntegration_balBefore.sub(amount);
             assertBNSlightlyGT(aaveIntegration_balAfter, expectedBalance, new BN("100"));
             // Cross that match with the `checkBalance` call
