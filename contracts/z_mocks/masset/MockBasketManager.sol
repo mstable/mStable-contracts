@@ -171,3 +171,40 @@ contract MockBasketManager3 is BasketManager {
 
 }
 
+contract UpgradedBasketManagerV2 is BasketManager {
+
+    string public version = "";
+    event NewEvent(address _bAsset);
+
+    function init() public {
+        version = "v2";
+    }
+
+    function newFunction() public view returns (bool) {
+        return true;
+    }
+
+    function failBasset(address _bAsset)
+        external
+        onlyGovernor
+    {
+        emit NewEvent(_bAsset);
+    }
+
+    function failBassetOriginal(address _bAsset)
+        external
+        onlyGovernor
+    {
+        (bool exists, uint256 i) = _isAssetInBasket(_bAsset);
+        require(exists, "bAsset must exist");
+
+        BassetStatus currentStatus = basket.bassets[i].status;
+        require(
+            currentStatus == BassetStatus.BrokenBelowPeg ||
+            currentStatus == BassetStatus.BrokenAbovePeg,
+            "bAsset must be affected"
+        );
+        basket.failed = true;
+    }
+}
+
