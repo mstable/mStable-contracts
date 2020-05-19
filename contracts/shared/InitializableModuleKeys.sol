@@ -12,7 +12,7 @@ pragma solidity 0.5.16;
  */
 contract InitializableModuleKeys {
 
-    // Governance                           // Phases
+    // Governance                             // Phases
     bytes32 internal KEY_GOVERNANCE;          // 2.x
     bytes32 internal KEY_STAKING;             // 1.2
     bytes32 internal KEY_PROXY_ADMIN;         // 1.0

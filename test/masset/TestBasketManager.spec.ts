@@ -822,7 +822,7 @@ contract("BasketManager", async (accounts) => {
 
             it("when max bAssets reached", async () => {
                 const mockERC20s: Array<t.MockErc20Instance> = new Array(13);
-                for (let index = 0; index < 12; index += 1) {
+                for (let index = 0; index < 6; index += 1) {
                     const mock = await createMockERC20();
                     mockERC20s.push(mock);
                 }
@@ -841,7 +841,7 @@ contract("BasketManager", async (accounts) => {
 
                 bAssets = await basketManager.getBassets();
                 const lengthAfter = bAssets[0].length;
-                expect(16).to.equal(lengthAfter);
+                expect(10).to.equal(lengthAfter);
 
                 await expectRevert(
                     basketManager.addBasset(mockERC20.address, aaveIntegration.address, false, {

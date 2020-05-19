@@ -869,7 +869,7 @@ contract("Masset - Redeem", async (accounts) => {
                 // Set equal basket weightings
                 await basketManager.setBasketWeights(
                     onChainBassets.map((b) => b.addr),
-                    onChainBassets.map(() => simpleToExactAmount(10, 16)),
+                    onChainBassets.map(() => simpleToExactAmount(20, 16)),
                     { from: sa.governor },
                 );
                 // Mint 6.25 of each bAsset, taking total to 100%
@@ -1601,7 +1601,7 @@ contract("Masset - Redeem", async (accounts) => {
                 // Set equal basket weightings
                 await basketManager.setBasketWeights(
                     onChainBassets.map((b) => b.addr),
-                    onChainBassets.map(() => simpleToExactAmount(10, 16)),
+                    onChainBassets.map(() => simpleToExactAmount(20, 16)),
                     { from: sa.governor },
                 );
                 // Mint 6.25 of each bAsset, taking total to 100%
