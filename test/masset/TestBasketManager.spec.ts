@@ -1467,7 +1467,7 @@ contract("BasketManager", async (accounts) => {
             const bAssets = basket.bassets;
             equalBassets(bAssets, await createDefaultBassets());
             expect(false).to.equal(basket.failed);
-            expect(new BN(16)).to.bignumber.equal(basket.maxBassets);
+            expect(new BN(10)).to.bignumber.equal(basket.maxBassets);
             expect(fullScale).to.bignumber.equal(basket.collateralisationRatio);
         });
     });

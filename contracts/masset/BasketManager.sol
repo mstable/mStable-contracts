@@ -84,7 +84,7 @@ contract BasketManager is
         mAsset = _mAsset;
 
         // Defaults
-        basket.maxBassets = 16;               // 16
+        basket.maxBassets = 10;               // 10
         basket.collateralisationRatio = 1e18; // 100%
 
         for (uint256 i = 0; i < _bAssets.length; i++) {

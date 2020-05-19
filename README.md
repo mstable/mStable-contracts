@@ -8,15 +8,14 @@
 
 <br />
 
-This repo contains all contracts and tests relevant to the core mStable protocol. The mStable Standard is a protocol that makes stablecoins and other tokenized assets easy, robust and profitable.
-This is what mAssets are
-This is upgradability / delayed proxy admin
-This is what minting/redemption is
-This is what the gov token is
-This is what saving is
+This repo contains all contracts and tests relevant to the core mStable protocol. mStable is built to make tokenized assets easy, safe and profitable.
 
+mStable Assets ([mAssets](./contracts/masset/Masset.sol)) are tokens that allows minting and redemption at a 1:1 ratio for underlying Basket Assets (bAssets) of the same peg (i.e. USD, BTC, Gold). The first products are `mUSD` and the `mUSD Savings Contract`; mAssets can be deposited to earn interest through their respective Savings Contract, just like you would with a savings account, with each mAsset balance accruing interest earned across the DeFi ecosystem. `bAssets` within an `mAsset` can also be swapped 1:1 (provided they remain within their [forge validator](./contracts/masset/forge-validator) limits), with a small swapFee paid to Savers.
 
-mStable is built by Stability Labs, a software development company that is driven to make finance safe, secure and transparent.
+Core mAsset contracts utilise OpenZeppelin's [InitializableAdminUpgradeabilityProxy](https://github.com/OpenZeppelin/openzeppelin-sdk/blob/master/packages/lib/contracts/upgradeability/InitializableAdminUpgradeabilityProxy.sol) to facilitate future upgrades, bug fixes or feature additions. The upgrades are governed by mStable Governors (with current governor address stored in the [Nexus](./contracts/nexus/Nexus.sol) - the system kernel) and executed via the [DelayedProxyAdmin](./contracts/upgradability/DelayedProxyAdmin.sol). Both changes to the `governor`, and contract upgrades have a one week delay built in to execution. This allows mStable users a one week opt out window if they do not agree with the given update.
+
+mStable rewards those who contribute to its utility and growth. Whether that’s by swapping stablecoins for mStable assets in release 1.0, or post release 1.1 with staking mStable's system token MTA to participate in the system’s governance, or contributing to mStable liquidity pools on Uniswap.
+
 
 <br />
 

@@ -25,7 +25,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @author  Stability Labs Pty. Ltd.
  * @notice  The Masset is a token that allows minting and redemption at a 1:1 ratio
  *          for underlying basket assets (bAssets) of the same peg (i.e. USD,
- *          EUR, gGold). Composition and validation is enforced via the BasketManager.
+ *          EUR, Gold). Composition and validation is enforced via the BasketManager.
  * @dev     VERSION: 1.0
  *          DATE:    2020-05-05
  */
@@ -52,12 +52,12 @@ contract Masset is
 
     // Modules and connectors
     IForgeValidator public forgeValidator;
-    bool private forgeValidatorLocked = false;
+    bool private forgeValidatorLocked;
     IBasketManager private basketManager;
 
     // Basic redemption fee information
     uint256 public swapFee;
-    uint256 private constant MAX_FEE = 2e16;
+    uint256 private MAX_FEE;
 
     /** @dev Constructor */
     function initialize(
@@ -78,6 +78,7 @@ contract Masset is
 
         basketManager = IBasketManager(_basketManager);
 
+        MAX_FEE = 2e16;
         swapFee = 4e15;
     }
 
