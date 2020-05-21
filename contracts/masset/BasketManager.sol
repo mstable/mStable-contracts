@@ -228,6 +228,7 @@ contract BasketManager is
         external
         onlyMasset
         whenNotPaused
+        whenBasketIsHealthy
         nonReentrant
         returns (uint256 interestCollected, uint256[] memory gains)
     {
@@ -244,7 +245,7 @@ contract BasketManager is
             uint256 oldVaultBalance = b.vaultBalance;
 
             // accumulate interest (ratioed bAsset)
-            if(balance > oldVaultBalance) {
+            if(balance > oldVaultBalance && b.status == BassetStatus.Normal) {
                 // Update balance
                 basket.bassets[i].vaultBalance = balance;
 

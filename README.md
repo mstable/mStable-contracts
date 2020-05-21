@@ -16,6 +16,7 @@ Core mAsset contracts utilise OpenZeppelin's [InitializableAdminUpgradeabilityPr
 
 mStable rewards those who contribute to its utility and growth. Whether that’s by swapping stablecoins for mStable assets in release 1.0, or post release 1.1 with staking mStable's system token MTA to participate in the system’s governance, or contributing to mStable liquidity pools on Uniswap.
 
+For security concerns, please visit https://docs.mstable.org/protocol/ or email security@mstable.org.
 
 <br />
 
