@@ -327,7 +327,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasset(30, 25),
                         setBasset(25, 0),
                         1,
-                        setResult(false, "Cannot redeem more bAssets than are in the vault"),
+                        setResult(false, "Not enough liquidity"),
                     );
                 });
                 it("should throw if there is not enough to redeem", async () => {
@@ -342,7 +342,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasset(30, 25),
                         setBasset(25, 9),
                         10,
-                        setResult(false, "Cannot redeem more bAssets than are in the vault"),
+                        setResult(false, "Not enough liquidity"),
                     );
                 });
             });
@@ -466,7 +466,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasset(75, 50000, 6),
                         setBasset(10, 100000, 18),
                         x,
-                        setResult(false, "Cannot redeem more bAssets than are in the vault"),
+                        setResult(false, "Not enough liquidity"),
                     );
                 });
                 it("should throw if input bAsset ends up overweight", async () => {

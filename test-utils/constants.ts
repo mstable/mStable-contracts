@@ -1,6 +1,7 @@
 /* eslint-disable max-classes-per-file */
 import { Address } from "../types/common";
 import { BN } from "./tools";
+import utils from "web3-utils";
 
 /**
  * @notice This file contains constants relevant across the mStable test suite
@@ -15,6 +16,7 @@ export const transferFeeScale: BN = new BN(10).pow(new BN(15));
 export const DEFAULT_DECIMALS = new BN("18");
 export const DEFAULT_SUPPLY = new BN(10).pow(new BN(29));
 
+export const DEAD_ADDRESS = "0x0000000000000000000000000000000000000001";
 export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 export const ADDRESS_1 = "0xcd959e71449425f6e4ac814b7f5aebde93012e24";
 export const ADDRESS_2 = "0xcd959e71449425f6e4ac814b7f5aebde93012e24";
@@ -29,6 +31,9 @@ export const ONE_DAY = new BN(60 * 60 * 24);
 export const TEN_DAYS = new BN(60 * 60 * 24 * 10);
 export const ONE_WEEK = new BN(60 * 60 * 24 * 7);
 export const ONE_YEAR = new BN(60 * 60 * 24 * 7 * 52);
+
+export const KEY_SAVINGS_MANAGER = utils.keccak256("SavingsManager");
+export const KEY_PROXY_ADMIN = utils.keccak256("ProxyAdmin");
 
 export class MainnetAccounts {
     // Exchange Accounts

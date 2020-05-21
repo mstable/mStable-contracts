@@ -836,8 +836,8 @@ contract("Masset - Redeem", async (accounts) => {
                 const { basketManager, aaveIntegration } = massetDetails;
                 const aaveAddress = await aaveIntegration.platformAddress();
                 const mockAave = await MockAave.at(aaveAddress);
-                // Create 12 new bAssets
-                for (let i = 0; i < 12; i += 1) {
+                // Create 6 new bAssets
+                for (let i = 0; i < 6; i += 1) {
                     const mockBasset = await MockERC20.new(
                         `MKI${i}`,
                         `MI${i}`,
@@ -861,15 +861,15 @@ contract("Masset - Redeem", async (accounts) => {
                     );
                 }
             });
-            it("should still perform with 12-16 bAssets in the basket", async () => {
-                // Assert that we have indeed 16 bAssets
+            it("should still perform with 10 bAssets in the basket", async () => {
+                // Assert that we have indeed 10 bAssets
                 const { basketManager, mAsset } = massetDetails;
                 const onChainBassets = await massetMachine.getBassetsInMasset(massetDetails);
-                expect(onChainBassets.length).to.eq(16);
+                expect(onChainBassets.length).to.eq(10);
                 // Set equal basket weightings
                 await basketManager.setBasketWeights(
                     onChainBassets.map((b) => b.addr),
-                    onChainBassets.map(() => simpleToExactAmount(10, 16)),
+                    onChainBassets.map(() => simpleToExactAmount(20, 16)),
                     { from: sa.governor },
                 );
                 // Mint 6.25 of each bAsset, taking total to 100%
@@ -1568,8 +1568,8 @@ contract("Masset - Redeem", async (accounts) => {
                 const { basketManager, aaveIntegration } = massetDetails;
                 const aaveAddress = await aaveIntegration.platformAddress();
                 const mockAave = await MockAave.at(aaveAddress);
-                // Create 12 new bAssets
-                for (let i = 0; i < 12; i += 1) {
+                // Create 6 new bAssets
+                for (let i = 0; i < 6; i += 1) {
                     const mockBasset = await MockERC20.new(
                         `MKI${i}`,
                         `MI${i}`,
@@ -1593,15 +1593,15 @@ contract("Masset - Redeem", async (accounts) => {
                     );
                 }
             });
-            it("should still perform with 12-16 bAssets in the basket", async () => {
-                // Assert that we have indeed 16 bAssets
+            it("should still perform with 10 bAssets in the basket", async () => {
+                // Assert that we have indeed 10 bAssets
                 const { basketManager, mAsset } = massetDetails;
                 const onChainBassets = await massetMachine.getBassetsInMasset(massetDetails);
-                expect(onChainBassets.length).to.eq(16);
+                expect(onChainBassets.length).to.eq(10);
                 // Set equal basket weightings
                 await basketManager.setBasketWeights(
                     onChainBassets.map((b) => b.addr),
-                    onChainBassets.map(() => simpleToExactAmount(10, 16)),
+                    onChainBassets.map(() => simpleToExactAmount(20, 16)),
                     { from: sa.governor },
                 );
                 // Mint 6.25 of each bAsset, taking total to 100%

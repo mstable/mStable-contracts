@@ -48,7 +48,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
     // Utils to help keep interest under check
     uint256 constant private SECONDS_IN_YEAR = 365 days;
     // Theoretical cap on APY to avoid excess inflation
-    uint256 constant private MAX_APY = 1e19;
+    uint256 constant private MAX_APY = 15e18;
     uint256 constant private THIRTY_MINUTES = 30 minutes;
 
     constructor(

@@ -5,7 +5,13 @@
 /// <reference path="../../types/generated/types.d.ts" />
 
 import { percentToWeight } from "@utils/math";
-import { ZERO_ADDRESS, RopstenAccounts } from "@utils/constants";
+import {
+    ZERO_ADDRESS,
+    DEAD_ADDRESS,
+    RopstenAccounts,
+    KEY_PROXY_ADMIN,
+    KEY_SAVINGS_MANAGER,
+} from "@utils/constants";
 import * as t from "../../types/generated";
 import { Address } from "../../types";
 
@@ -151,6 +157,8 @@ export default async (
     const c_CompoundIntegration = artifacts.require("CompoundIntegration");
     // - BasketManager (u)
     const c_BasketManager = artifacts.require("BasketManager");
+    const c_DeadIntegration = artifacts.require("DeadIntegration"); // Merely used to initialize BM
+    const c_MockERC20 = artifacts.require("MockERC20"); // Merely used to initialize BM
     // - mUSD
     const c_Masset = artifacts.require("Masset");
 
@@ -161,11 +169,9 @@ export default async (
     // - Admin
     const c_DelayedProxyAdmin = artifacts.require("DelayedProxyAdmin");
     // - BaseProxies
-    const c_InitializableProxy = artifacts.require(
-        // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-        // @ts-ignore
-        "@openzeppelin/upgrades/InitializableAdminUpgradeabilityProxy",
-    ) as t.InitializableAdminUpgradeabilityProxyContract;
+    const c_MassetProxy = artifacts.require("MassetProxy");
+    const c_BasketManagerProxy = artifacts.require("BasketManagerProxy");
+    const c_VaultProxy = artifacts.require("VaultProxy");
 
     // Savings
     // - Contract
@@ -179,6 +185,7 @@ export default async (
     ****************************************/
 
     const [default_, governor] = accounts;
+    const newGovernor = governor; // This should be an external multisig
     let bassetDetails: BassetIntegrationDetails;
     if (deployer.network === "ropsten") {
         console.log("Loading Ropsten bAssets and lending platforms");
@@ -220,23 +227,37 @@ export default async (
     //  - Deploy Implementation
     await deployer.deploy(c_BasketManager);
     const d_BasketManager = await c_BasketManager.deployed();
+    //  - Initialize the BasketManager implementation to avoid someone else doing it
+    const d_DeadIntegration = await c_DeadIntegration.new();
+    const d_DeadErc20 = await c_MockERC20.new("DEAD", "D34", 18, DEAD_ADDRESS, 1);
+    await d_BasketManager.initialize(
+        DEAD_ADDRESS,
+        DEAD_ADDRESS,
+        [d_DeadErc20.address],
+        [d_DeadIntegration.address],
+        [percentToWeight(100).toString()],
+        [false],
+    );
     //  - Deploy Initializable Proxy
-    const d_BasketManagerProxy = await c_InitializableProxy.new();
+    await deployer.deploy(c_BasketManagerProxy);
+    const d_BasketManagerProxy = await c_BasketManagerProxy.deployed();
 
     // 2.2. Deploy no Init AaveIntegration
     //  - Deploy Implementation with dummy params (this storage doesn't get used)
     await deployer.deploy(c_AaveIntegration);
     const d_AaveIntegration = await c_AaveIntegration.deployed();
+    await d_AaveIntegration.initialize(DEAD_ADDRESS, [DEAD_ADDRESS], DEAD_ADDRESS, [], []);
     //  - Deploy Initializable Proxy
-    const d_AaveIntegrationProxy = await c_InitializableProxy.new();
+    const d_AaveIntegrationProxy = await c_VaultProxy.new();
 
     // 2.3. Deploy no Init CompoundIntegration
     //  - Deploy Implementation
     // We do not need platform address for compound
     await deployer.deploy(c_CompoundIntegration);
     const d_CompoundIntegration = await c_CompoundIntegration.deployed();
+    await d_CompoundIntegration.initialize(DEAD_ADDRESS, [DEAD_ADDRESS], DEAD_ADDRESS, [], []);
     //  - Deploy Initializable Proxy
-    const d_CompoundIntegrationProxy = await c_InitializableProxy.new();
+    const d_CompoundIntegrationProxy = await c_VaultProxy.new();
 
     // 2.4. Deploy mUSD (w/ BasketManager addr)
     // 2.4.1. Deploy ForgeValidator
@@ -245,7 +266,12 @@ export default async (
     // 2.4.2. Deploy mUSD
     await deployer.deploy(c_Masset, { from: default_ });
     const d_mUSD = await c_Masset.deployed();
-    const d_mUSDProxy = await c_InitializableProxy.new();
+    // Initialize mUSD implementation to avoid external party doing so
+    await d_mUSD.initialize("", "", DEAD_ADDRESS, DEAD_ADDRESS, DEAD_ADDRESS);
+    // Deploy mUSD proxy
+    await deployer.deploy(c_MassetProxy);
+    const d_mUSDProxy = await c_MassetProxy.deployed();
+    // Initialize proxy data
     const initializationData_mUSD: string = d_mUSD.contract.methods
         .initialize(
             "mStable USD",
@@ -304,7 +330,7 @@ export default async (
                     ? d_AaveIntegrationProxy.address
                     : d_CompoundIntegrationProxy.address,
             ),
-            bassetDetails.bAssets.map(() => percentToWeight(25).toString()),
+            bassetDetails.bAssets.map(() => percentToWeight(100).toString()),
             bassetDetails.bAssets.map(() => false),
         )
         .encodeABI();
@@ -345,13 +371,10 @@ export default async (
     ]
   ****************************************/
 
-    const module_keys = [
-        await d_SavingsManager.KEY_SAVINGS_MANAGER(),
-        await d_DelayedProxyAdmin.KEY_PROXY_ADMIN(),
-    ];
+    const module_keys = [KEY_SAVINGS_MANAGER, KEY_PROXY_ADMIN];
     const module_addresses = [d_SavingsManager.address, d_DelayedProxyAdmin.address];
     const module_isLocked = [false, true];
-    await d_Nexus.initialize(module_keys, module_addresses, module_isLocked, governor, {
+    await d_Nexus.initialize(module_keys, module_addresses, module_isLocked, newGovernor, {
         from: governor,
     });
 

@@ -158,7 +158,7 @@ contract ForgeValidator is IForgeValidator {
         //  - Enough units in the bank
         uint256 outputAmount = inputAmountInMasset.divRatioPrecisely(_outputBasset.ratio);
         if(outputAmount > _outputBasset.vaultBalance) {
-            return (false, "Cannot redeem more bAssets than are in the vault", 0, false);
+            return (false, "Not enough liquidity", 0, false);
         }
 
         // 1.1. If it is currently overweight, then no fee
@@ -309,6 +309,7 @@ contract ForgeValidator is IForgeValidator {
             totalBassetVault = totalBassetVault.add(ratioedBasset);
         }
         if(totalBassetVault == 0) return (false, "Nothing in the basket to redeem", redeemQuantities);
+        if(_mAssetQuantity > totalBassetVault) return (false, "Not enough liquidity", redeemQuantities);
         // 2. Calculate proportional weighting & non-ratioed amount
         for(uint256 i = 0; i < len; i++) {
             // proportional weighting
@@ -317,7 +318,7 @@ contract ForgeValidator is IForgeValidator {
             // e.g. (1e20 * 4e17) / 1e18 = 4e37 / 1e18 = 4e19 (40)
             uint256 ratioedProportionalBasset = _mAssetQuantity.mulTruncate(percentageOfVault);
             // convert back to bAsset amount
-            // e.g. (4e19 * 1e8) / 1e12 = 4e27 / 1e12 = 4e15
+             // e.g. (4e19 * 1e8) / 1e12 = 4e27 / 1e12 = 4e15
             redeemQuantities[i] = ratioedProportionalBasset.divRatioPrecisely(_allBassets[i].ratio);
         }
         // 3. Return

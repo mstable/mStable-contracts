@@ -42,6 +42,7 @@ contract BasketManager is
     event BassetRemoved(address indexed bAsset);
     event BasketWeightsUpdated(address[] bAssets, uint256[] maxWeights);
     event BassetStatusChanged(address indexed bAsset, BassetStatus status);
+    event BasketStatusChanged();
     event TransferFeeEnabled(address indexed bAsset, bool enabled);
 
     // mAsset linked to the manager (const)
@@ -49,7 +50,6 @@ contract BasketManager is
 
     // Struct holding Basket details
     Basket public basket;
-    bool private undergoingRecol;
     // Mapping holds bAsset token address => array index
     mapping(address => uint8) private bAssetsMap;
     // Holds relative addresses of the integration platforms
@@ -84,7 +84,7 @@ contract BasketManager is
         mAsset = _mAsset;
 
         // Defaults
-        basket.maxBassets = 16;               // 16
+        basket.maxBassets = 10;               // 10
         basket.collateralisationRatio = 1e18; // 100%
 
         for (uint256 i = 0; i < _bAssets.length; i++) {
@@ -228,6 +228,7 @@ contract BasketManager is
         external
         onlyMasset
         whenNotPaused
+        whenBasketIsHealthy
         nonReentrant
         returns (uint256 interestCollected, uint256[] memory gains)
     {
@@ -244,7 +245,7 @@ contract BasketManager is
             uint256 oldVaultBalance = b.vaultBalance;
 
             // accumulate interest (ratioed bAsset)
-            if(balance > oldVaultBalance) {
+            if(balance > oldVaultBalance && b.status == BassetStatus.Normal) {
                 // Update balance
                 basket.bassets[i].vaultBalance = balance;
 
@@ -364,11 +365,12 @@ contract BasketManager is
      * @dev Requires the modified bAssets to be in a Normal state
      * @param _bAssets Array of bAsset addresses
      * @param _weights Array of bAsset weights - summing 100% where 100% == 1e18
+     * @param _isBootstrap True only on the first occurence of weight setting
      */
     function _setBasketWeights(
         address[] memory _bAssets,
         uint256[] memory _weights,
-        bool isBootstrap
+        bool _isBootstrap
     )
         internal
     {
@@ -385,7 +387,7 @@ contract BasketManager is
             uint256 bAssetWeight = _weights[i];
 
             if(bAsset.status == BassetStatus.Normal) {
-                if(!isBootstrap){
+                if(!_isBootstrap){
                     require(
                         bAssetWeight <= 5e17,
                         "Asset weight must be <= 50%"
@@ -400,7 +402,7 @@ contract BasketManager is
             }
         }
 
-        if(!isBootstrap){
+        if(!_isBootstrap){
             _validateBasketWeight();
         }
 

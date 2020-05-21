@@ -2,7 +2,7 @@ import { StandardAccounts } from "@utils/machines";
 import { BN } from "@utils/tools";
 import { expectRevert } from "@openzeppelin/test-helpers";
 import envSetup from "@utils/env_setup";
-import { ZERO_ADDRESS } from "@utils/constants";
+import { ZERO_ADDRESS, KEY_SAVINGS_MANAGER, KEY_PROXY_ADMIN } from "@utils/constants";
 import * as t from "types/generated";
 import shouldBehaveLikeModule from "./behaviours/Module.behaviour";
 
@@ -76,9 +76,7 @@ contract("Module", async (accounts) => {
         it("and return SavingsManager address", async () => {
             const savingsManager = await ctx.module.savingsManager();
             expect(savingsManager).to.not.equal(ZERO_ADDRESS);
-            const nexusSavingsManager = await nexus.getModule(
-                web3.utils.keccak256("SavingsManager"),
-            );
+            const nexusSavingsManager = await nexus.getModule(KEY_SAVINGS_MANAGER);
             expect(nexusSavingsManager).to.equal(savingsManager);
         });
 
@@ -94,7 +92,7 @@ contract("Module", async (accounts) => {
         it("and return proxyadmin address", async () => {
             const proxyAdminAddr = await ctx.module.proxyAdmin();
             expect(proxyAdminAddr).to.not.equal(ZERO_ADDRESS);
-            const nexusProxyAdmin = await nexus.getModule(web3.utils.keccak256("ProxyAdmin"));
+            const nexusProxyAdmin = await nexus.getModule(KEY_PROXY_ADMIN);
             expect(nexusProxyAdmin).to.equal(proxyAdminAddr);
         });
 

@@ -11,7 +11,10 @@ module.exports = {
 
   migrations_directory: './migrations',
   contracts_build_directory: './build/contracts',
-  plugins: ["solidity-coverage"],
+  plugins: ['solidity-coverage', 'truffle-plugin-verify'],
+  api_keys: {
+    etherscan: ''
+  },
   networks: {
     development: {
       host: '127.0.0.1',
@@ -37,7 +40,7 @@ module.exports = {
         return new HDWalletProvider("", `https://ropsten.infura.io/v3/`, 0, 3)
       },
       network_id: 3,
-      gasPrice: 10000000000, // 10 GWei,
+      gasPrice: 100000000001, // 100 GWei,
       skipDryRun: true,
       gas: 8000000
     }

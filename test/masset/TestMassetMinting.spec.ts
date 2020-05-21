@@ -602,8 +602,8 @@ contract("Masset - Mint", async (accounts) => {
                     new BN(0),
                     new BN(0),
                 ]);
-                // Create 12 new bAssets
-                for (let i = 0; i < 12; i += 1) {
+                // Create 6 new bAssets
+                for (let i = 0; i < 6; i += 1) {
                     const mockBasset = await MockERC20.new(
                         `MKI${i}`,
                         `MI${i}`,
@@ -627,11 +627,11 @@ contract("Masset - Mint", async (accounts) => {
                     );
                 }
             });
-            it("should still perform with 12-16 bAssets in the basket", async () => {
+            it("should still perform with 10 bAssets in the basket", async () => {
                 const { basketManager } = massetDetails;
-                // Assert that we have indeed 16 bAssets
+                // Assert that we have indeed 10 bAssets
                 const onChainBassets = await massetMachine.getBassetsInMasset(massetDetails);
-                expect(onChainBassets.length).to.eq(16);
+                expect(onChainBassets.length).to.eq(10);
                 // Set equal basket weightings
                 await basketManager.setBasketWeights(
                     onChainBassets.map((b) => b.addr),
@@ -1379,8 +1379,8 @@ contract("Masset - Mint", async (accounts) => {
                 const { aaveIntegration, basketManager } = massetDetails;
                 const aaveAddress = await aaveIntegration.platformAddress();
                 const mockAave = await MockAave.at(aaveAddress);
-                // Create 12 new bAssets
-                for (let i = 0; i < 12; i += 1) {
+                // Create 6 new bAssets
+                for (let i = 0; i < 6; i += 1) {
                     const mockBasset = await MockERC20.new(
                         `MKI${i}`,
                         `MI${i}`,
@@ -1404,11 +1404,11 @@ contract("Masset - Mint", async (accounts) => {
                     );
                 }
             });
-            it("should still perform with 12-16 bAssets in the basket", async () => {
+            it("should still perform with 10 bAssets in the basket", async () => {
                 const { basketManager } = massetDetails;
-                // Assert that we have indeed 16 bAssets
+                // Assert that we have indeed 10 bAssets
                 const onChainBassets = await massetMachine.getBassetsInMasset(massetDetails);
-                expect(onChainBassets.length).to.eq(16);
+                expect(onChainBassets.length).to.eq(10);
                 // Set equal basket weightings
                 await basketManager.setBasketWeights(
                     onChainBassets.map((b) => b.addr),
