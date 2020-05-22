@@ -413,7 +413,7 @@ contract("Masset - Mint", async (accounts) => {
                     );
                     await expectRevert(
                         mAsset.mint(bAsset.address, approval),
-                        "Must be below max weighting",
+                        "bAssets used in mint cannot exceed their max weight",
                     );
                     // Set sufficient weightings allowance
                     await basketManager.setBasketWeights(
@@ -576,7 +576,12 @@ contract("Masset - Mint", async (accounts) => {
                 // Should fail if we mint with something else that will go over
                 expect(composition.bAssets[2].overweight).to.eq(false);
                 const bAsset2 = bAssets[2];
-                await assertFailedMint(mAsset, bAsset2, new BN(2), "Must be below max weighting");
+                await assertFailedMint(
+                    mAsset,
+                    bAsset2,
+                    new BN(2),
+                    "bAssets used in mint cannot exceed their max weight",
+                );
             });
             it("should fail if bAsset already exceeds max", async () => {
                 const { bAssets, mAsset } = massetDetails;
@@ -586,7 +591,12 @@ contract("Masset - Mint", async (accounts) => {
 
                 // Should fail if we mint with something already overweight
                 const bAsset1 = bAssets[1];
-                await assertFailedMint(mAsset, bAsset1, new BN(1), "Must be below max weighting");
+                await assertFailedMint(
+                    mAsset,
+                    bAsset1,
+                    new BN(1),
+                    "bAssets used in mint cannot exceed their max weight",
+                );
             });
         });
         context("when there are a large number of bAssets in the basket", async () => {
@@ -1170,7 +1180,7 @@ contract("Masset - Mint", async (accounts) => {
                     );
                     await expectRevert(
                         mAsset.mintMulti([bAsset.address], [approval], sa.default),
-                        "Must be below max weighting",
+                        "bAssets used in mint cannot exceed their max weight",
                     );
                     // Set sufficient weightings allowance
                     await basketManager.setBasketWeights(
@@ -1368,7 +1378,7 @@ contract("Masset - Mint", async (accounts) => {
                         [simpleToExactAmount(2, await bAsset2.decimals())],
                         sa.default,
                     ),
-                    "Must be below max weighting",
+                    "bAssets used in mint cannot exceed their max weight",
                 );
             });
         });

@@ -102,7 +102,7 @@ contract("ForgeValidator", async (accounts) => {
                     setBasket(100),
                     setBasset(25, 24, 6),
                     2,
-                    setResult(false, "Must be below max weighting"),
+                    setResult(false, "bAssets used in mint cannot exceed their max weight"),
                 );
             });
             describe("with large basket supply", async () => {
@@ -127,7 +127,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasket(10000000),
                         setBasset("2.55", 250000, 12),
                         10000,
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "bAssets used in mint cannot exceed their max weight"),
                     );
                 });
             });
@@ -153,7 +153,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasket(1000),
                         setBasset(20, 150),
                         100,
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "bAssets used in mint cannot exceed their max weight"),
                     );
                 });
                 it("should always fail with 0 max weight", async () => {
@@ -161,7 +161,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasket(100),
                         setBasset(0, 0),
                         1,
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "bAssets used in mint cannot exceed their max weight"),
                     );
                 });
                 it("should allow anything at a high max weight", async () => {
@@ -177,7 +177,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasket(1000000),
                         setBasset(maxWeight, 250000),
                         1500001,
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "bAssets used in mint cannot exceed their max weight"),
                     );
                     // 95%
                     maxWeight = 95;
@@ -197,7 +197,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasket(1000000),
                         setBasset(maxWeight, 250000),
                         14000001,
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "bAssets used in mint cannot exceed their max weight"),
                     );
                 });
             });
@@ -253,7 +253,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasket(100),
                         setBasset(30, 25, 6),
                         14,
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "bAssets used in mint cannot exceed their max weight"),
                     );
                 });
             });
@@ -267,7 +267,7 @@ contract("ForgeValidator", async (accounts) => {
                     setBasket(100),
                     setBasset(25, 40),
                     1,
-                    setResult(false, "Must be below max weighting"),
+                    setResult(false, "bAssets used in mint cannot exceed their max weight"),
                 );
             });
             describe("with large basket supply", async () => {
@@ -278,7 +278,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasket(1000000),
                         setBasset(10, 120000),
                         1,
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "bAssets used in mint cannot exceed their max weight"),
                     );
                     // 5,000,000 total supply
                     // bAsset 2,000,000 vaultBalance, 25% maxWeighting, 18 decimals
@@ -286,7 +286,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasket(5000000),
                         setBasset(35, 2000000),
                         100,
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "bAssets used in mint cannot exceed their max weight"),
                     );
                     // 5,000,000 total supply
                     // bAsset 2,000,000 vaultBalance, 40% maxWeighting, 18 decimals
@@ -309,7 +309,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasket(100),
                         setBasset(25, "26.1"),
                         0,
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "bAssets used in mint cannot exceed their max weight"),
                     );
                 });
                 it("returns invalid with a all quantities", async () => {
@@ -320,19 +320,19 @@ contract("ForgeValidator", async (accounts) => {
                         setBasket(100),
                         setBasset(25, "26.1"),
                         2,
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "bAssets used in mint cannot exceed their max weight"),
                     );
                     await assertSingleMint(
                         setBasket(100),
                         setBasset(25, "26.1"),
                         10,
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "bAssets used in mint cannot exceed their max weight"),
                     );
                     await assertSingleMint(
                         setBasket(100),
                         setBasset(25, "26.1"),
                         10000000,
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "bAssets used in mint cannot exceed their max weight"),
                     );
                 });
             });
@@ -425,7 +425,7 @@ contract("ForgeValidator", async (accounts) => {
                     setBasket(100),
                     [setBasset(25, 24, 6)],
                     [2],
-                    setResult(false, "Must be below max weighting"),
+                    setResult(false, "bAssets used in mint cannot exceed their max weight"),
                 );
             });
             describe("using unexpected arguments", async () => {
@@ -517,7 +517,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasket(100),
                         [setBasset(25, 24), setBasset(25, 24), setBasset(25, 24)],
                         [2, 6, 2],
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "bAssets used in mint cannot exceed their max weight"),
                     );
                 });
             });
@@ -547,7 +547,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasket(10000000),
                         [setBasset("2.55", 250000, 12)],
                         [10000],
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "bAssets used in mint cannot exceed their max weight"),
                     );
                 });
             });
@@ -580,7 +580,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasket(1000),
                         [setBasset(maxWeight, 150)],
                         [100],
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "bAssets used in mint cannot exceed their max weight"),
                     );
                 });
                 it("should always fail with 0 max weight", async () => {
@@ -593,7 +593,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasket(100),
                         [setBasset(0, 25)],
                         [1],
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "bAssets used in mint cannot exceed their max weight"),
                     );
                 });
                 it("should allow anything at a high weight", async () => {
@@ -613,7 +613,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasket(1000000),
                         [setBasset(maxWeight, 250000)],
                         [1500000],
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "bAssets used in mint cannot exceed their max weight"),
                     );
                     maxWeight = 95;
                     await assertMintMulti(
@@ -632,7 +632,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasket(1000000),
                         [setBasset(maxWeight, 250000)],
                         [14000001],
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "bAssets used in mint cannot exceed their max weight"),
                     );
                 });
             });
@@ -700,7 +700,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasket(100),
                         [setBasset(35, 25, 6)],
                         [16],
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "bAssets used in mint cannot exceed their max weight"),
                     );
                 });
             });
@@ -718,7 +718,7 @@ contract("ForgeValidator", async (accounts) => {
                     setBasket(100),
                     [setBasset(25, 40)],
                     [1],
-                    setResult(false, "Must be below max weighting"),
+                    setResult(false, "bAssets used in mint cannot exceed their max weight"),
                 );
             });
             describe("with large basket supply", async () => {
@@ -734,7 +734,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasket(1000000),
                         [setBasset(10, 120000)],
                         [1],
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "bAssets used in mint cannot exceed their max weight"),
                     );
                     // 5,000,000 total supply
                     // bAsset 2,000,000 vaultBalance, 40% maxWeighting, 18 decimals
@@ -742,7 +742,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasket(5000000),
                         [setBasset(40, 2000000)],
                         [100],
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "bAssets used in mint cannot exceed their max weight"),
                     );
                     // 5,000,000 total supply
                     // bAsset 2,000,000 vaultBalance, 41% maxWeighting, 18 decimals
@@ -770,7 +770,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasket(100),
                         [setBasset(25, 26)],
                         [0],
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "bAssets used in mint cannot exceed their max weight"),
                     );
                 });
                 it("returns invalid with a all quantities", async () => {
@@ -785,19 +785,19 @@ contract("ForgeValidator", async (accounts) => {
                         setBasket(100),
                         [setBasset(25, 25)],
                         [2],
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "bAssets used in mint cannot exceed their max weight"),
                     );
                     await assertMintMulti(
                         setBasket(100),
                         [setBasset(25, 25)],
                         [10],
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "bAssets used in mint cannot exceed their max weight"),
                     );
                     await assertMintMulti(
                         setBasket(100),
                         [setBasset(40, 25)],
                         [10000000],
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "bAssets used in mint cannot exceed their max weight"),
                     );
                 });
             });

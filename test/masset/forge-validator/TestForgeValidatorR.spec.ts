@@ -236,7 +236,7 @@ contract("ForgeValidator", async (accounts) => {
                             setBasset(25, 25),
                         ],
                         [setArgs(undefined, 5), setArgs(1, 5)],
-                        setResult(false, "Input arrays should be equal"),
+                        setResult(false, "Input arrays must have equal length"),
                     );
                 });
             });
@@ -311,7 +311,7 @@ contract("ForgeValidator", async (accounts) => {
                             setBasset(25, 25),
                         ],
                         [setArgs(0, 1), setArgs(undefined, 6)],
-                        setResult(false, "Input arrays should be equal"),
+                        setResult(false, "Input arrays must have equal length"),
                     );
                 });
             });

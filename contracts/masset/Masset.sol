@@ -250,13 +250,13 @@ contract Masset is
         address _bAsset,
         uint256 _bAssetRatio,
         address _integrator,
-        bool _xferCharged,
+        bool _erc20TransferFeeCharged,
         uint256 _quantity
     )
         internal
         returns (uint256 quantityDeposited, uint256 ratioedDeposit)
     {
-        quantityDeposited = _depositTokens(_bAsset, _integrator, _xferCharged, _quantity);
+        quantityDeposited = _depositTokens(_bAsset, _integrator, _erc20TransferFeeCharged, _quantity);
         ratioedDeposit = quantityDeposited.mulRatioTruncate(_bAssetRatio);
     }
 
@@ -264,14 +264,14 @@ contract Masset is
     function _depositTokens(
         address _bAsset,
         address _integrator,
-        bool _xferCharged,
+        bool _erc20TransferFeeCharged,
         uint256 _quantity
     )
         internal
         returns (uint256 quantityDeposited)
     {
-        uint256 quantityTransferred = MassetHelpers.transferTokens(msg.sender, _integrator, _bAsset, _xferCharged, _quantity);
-        uint256 deposited = IPlatformIntegration(_integrator).deposit(_bAsset, quantityTransferred, _xferCharged);
+        uint256 quantityTransferred = MassetHelpers.transferTokens(msg.sender, _integrator, _bAsset, _erc20TransferFeeCharged, _quantity);
+        uint256 deposited = IPlatformIntegration(_integrator).deposit(_bAsset, quantityTransferred, _erc20TransferFeeCharged);
         quantityDeposited = StableMath.min(deposited, _quantity);
     }
 
@@ -300,9 +300,9 @@ contract Masset is
         nonReentrant
         returns (uint256 output)
     {
-        require(_input != address(0) && _output != address(0), "Invalid inputs");
-        require(_input != _output, "Invalid pair");
-        require(_recipient != address(0), "Invalid recipient");
+        require(_input != address(0) && _output != address(0), "Invalid swap asset addresses");
+        require(_input != _output, "Cannot swap the same asset");
+        require(_recipient != address(0), "Missing recipient address");
         require(_quantity > 0, "Invalid quantity");
 
         // 1. If the output is this mAsset, just mint
@@ -359,8 +359,8 @@ contract Masset is
         view
         returns (bool, string memory, uint256 output)
     {
-        require(_input != address(0) && _output != address(0), "Invalid inputs");
-        require(_input != _output, "Invalid pair");
+        require(_input != address(0) && _output != address(0), "Invalid swap asset addresses");
+        require(_input != _output, "Cannot swap the same asset");
 
         bool isMint = _output == address(this);
         uint256 quantity = _quantity;
@@ -551,7 +551,7 @@ contract Masset is
         internal
     {
         require(_recipient != address(0), "Must be a valid recipient");
-        require(_mAssetQuantity > 0, "Must redeem some mAsset");
+        require(_mAssetQuantity > 0, "Invalid redemption quantity");
 
         // Fetch high level details
         RedeemPropsMulti memory props = basketManager.prepareRedeemMulti();

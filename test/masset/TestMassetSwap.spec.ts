@@ -310,7 +310,7 @@ contract("Masset - Swap", async (accounts) => {
                         bAssets[0],
                         bAssets[1],
                         1,
-                        "Invalid recipient",
+                        "Missing recipient address",
                         sa.default,
                         ZERO_ADDRESS,
                         false,
@@ -405,7 +405,7 @@ contract("Masset - Swap", async (accounts) => {
                         await MockERC20.at(mAsset.address),
                         bAssets[0],
                         1,
-                        "One of the assets does not exist",
+                        "Input asset does not exist",
                     );
                 });
             });
@@ -467,19 +467,19 @@ contract("Masset - Swap", async (accounts) => {
                     const fakeBasset = sa.dummy1;
                     const recipient = sa.dummy1;
                     await expectRevert(
-                        mAsset.swap(realBasset, fakeBasset, new BN(1), recipient),
-                        "One of the assets does not exist",
+                        mAsset.swap(fakeBasset, realBasset, new BN(1), recipient),
+                        "Input asset does not exist",
                     );
                     await expectRevert(
                         mAsset.swap(realBasset, fakeBasset, new BN(1), recipient),
-                        "One of the assets does not exist",
+                        "Output asset does not exist",
                     );
                 });
                 it("should fail if *either* bAsset is ZERO", async () => {
                     const { bAssets, mAsset } = massetDetails;
                     const realBasset = bAssets[0];
                     const fakeBasset = ZERO_ADDRESS;
-                    const expectedReason = "Invalid inputs";
+                    const expectedReason = "Invalid swap asset addresses";
                     await expectRevert(
                         mAsset.swap(realBasset.address, fakeBasset, new BN(1), sa.default),
                         expectedReason,
@@ -506,7 +506,7 @@ contract("Masset - Swap", async (accounts) => {
                         input,
                         output,
                         1,
-                        "Invalid pair",
+                        "Cannot swap the same asset",
                         sa.default,
                         sa.default,
                         true,
@@ -788,13 +788,13 @@ contract("Masset - Swap", async (accounts) => {
                     // Should revert since we would be pushing above target
                     const input = bAssets[0];
                     const output = bAssets[1];
-                    await assertFailedSwap(mAsset, input, output, 1, "Must be below max weighting");
+                    await assertFailedSwap(mAsset, input, output, 1, "Input must remain below max weighting");
                     await assertFailedSwap(
                         mAsset,
                         input,
                         mAsset as any,
                         1,
-                        "Must be below max weighting",
+                        "Input must remain below max weighting",
                     );
                     // Set sufficient weightings allowance
                     await basketManager.setBasketWeights(
@@ -851,7 +851,7 @@ contract("Masset - Swap", async (accounts) => {
                         bAssets[1],
                         bAssets[0],
                         1,
-                        "One of the assets does not exist",
+                        "Input asset does not exist",
                     );
                 });
             });
@@ -909,7 +909,7 @@ contract("Masset - Swap", async (accounts) => {
                     borderlineAsset,
                     output,
                     1,
-                    "Must be below max weighting",
+                    "Input must remain below max weighting",
                 );
             });
             it("should charge no swap fee if output asset is overweight", async () => {
@@ -943,7 +943,7 @@ contract("Masset - Swap", async (accounts) => {
                     bAsset1,
                     bAssets[2],
                     1,
-                    "Must be below max weighting",
+                    "Input must remain below max weighting",
                 );
             });
         });
