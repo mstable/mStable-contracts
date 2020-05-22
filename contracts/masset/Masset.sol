@@ -335,6 +335,8 @@ contract Masset is
         // 5.3. Withdraw to recipient
         IPlatformIntegration(outputDetails.integrator).withdraw(_recipient, _output, swapOutput, outputDetails.bAsset.isTransferFeeCharged);
 
+        output = swapOutput;
+
         emit Swapped(msg.sender, _input, _output, swapOutput, _recipient);
     }
 

@@ -52,7 +52,6 @@
     "eth-gas-reporter": "^0.2.14",
     "ethlint": "^1.2.5",
     "humanize-duration": "^3.21.0",
-    "minimetoken": "ssh://git@github.com/mstable/minime.git#6348055a0a8f73d65d86a3a6845621bd4a8d6b15",
     "mocha": "^7.0.1",
     "parse-duration": "^0.1.2",
     "prettier": "^1.18.2",
