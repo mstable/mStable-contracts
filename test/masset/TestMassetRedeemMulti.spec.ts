@@ -292,7 +292,7 @@ contract("Masset - RedeemMasset", async (accounts) => {
                 it("should revert when 0 quantity", async () => {
                     await expectRevert(
                         massetDetails.mAsset.redeemMasset(new BN(0), sa.default),
-                        "Must redeem some mAsset",
+                        "Invalid redemption quantity",
                     );
                 });
                 it("should fail if sender doesn't have mAsset balance", async () => {

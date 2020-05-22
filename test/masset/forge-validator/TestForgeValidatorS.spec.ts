@@ -154,7 +154,7 @@ contract("ForgeValidator", async (accounts) => {
                     setBasset(25, 24),
                     setBasset(25, 25),
                     2,
-                    setResult(false, "Must be below max weighting"),
+                    setResult(false, "Input must remain below max weighting"),
                 );
             });
             describe("with large basket supply", async () => {
@@ -187,7 +187,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasset("2.55", 250000, 12),
                         setBasset(10, 1000000, 16),
                         10000,
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "Input must remain below max weighting"),
                     );
                 });
             });
@@ -213,7 +213,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasset(x, 150),
                         setBasset(25, 200),
                         100,
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "Input must remain below max weighting"),
                     );
                 });
                 it("should always fail with 0 max weight", async () => {
@@ -229,7 +229,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasset(0, x),
                         setBasset(25, 200),
                         1,
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "Input must remain below max weighting"),
                     );
                     x = 5;
                     await assertSwap(
@@ -237,7 +237,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasset(0, x),
                         setBasset(25, 200),
                         1,
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "Input must remain below max weighting"),
                     );
                 });
             });
@@ -308,7 +308,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasset(30, 25),
                         setBasset(25, 20),
                         6,
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "Input must remain below max weighting"),
                     );
                 });
             });
@@ -361,7 +361,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasset(50, 51),
                         setBasset(50, 30),
                         1,
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "Input must remain below max weighting"),
                     );
                 });
                 it("returns invalid with a 0 quantity input", async () => {
@@ -376,7 +376,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasset(50, 51),
                         setBasset(50, 30),
                         0,
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "Input must remain below max weighting"),
                     );
                 });
                 it("always returns invalid until weight is increased", async () => {
@@ -392,7 +392,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasset(x, 120000),
                         setBasset(40, 300000),
                         1,
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "Input must remain below max weighting"),
                     );
                     x = 12;
                     await assertSwap(
@@ -400,7 +400,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasset(x, 120000),
                         setBasset(40, 300000),
                         1,
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "Input must remain below max weighting"),
                     );
                     x = 13;
                     await assertSwap(
@@ -490,7 +490,7 @@ contract("ForgeValidator", async (accounts) => {
                         setBasset(30, 50000),
                         setBasset(10, 100000, 12),
                         x,
-                        setResult(false, "Must be below max weighting"),
+                        setResult(false, "Input must remain below max weighting"),
                     );
                 });
             });

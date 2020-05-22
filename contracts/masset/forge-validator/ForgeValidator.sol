@@ -57,7 +57,7 @@ contract ForgeValidator is IForgeValidator {
         uint256 maxWeightInUnits = (_totalVault.add(mintAmountInMasset)).mulTruncate(_bAsset.maxWeight);
 
         if(newBalanceInMasset > maxWeightInUnits) {
-            return (false, "Must be below max weighting");
+            return (false, "bAssets used in mint cannot exceed their max weight");
         }
 
         return (true, "");
@@ -114,7 +114,7 @@ contract ForgeValidator is IForgeValidator {
             uint256 maxWeightInUnits = newTotalVault.mulTruncate(_bAssets[k].maxWeight);
 
             if(newBalances[k] > maxWeightInUnits) {
-                return (false, "Must be below max weighting");
+                return (false, "bAssets used in mint cannot exceed their max weight");
             }
         }
 
@@ -175,7 +175,7 @@ contract ForgeValidator is IForgeValidator {
         // What is the max weight of this bAsset in the basket?
         uint256 inputMaxWeightInUnits = _totalVault.mulTruncate(_inputBasset.maxWeight);
         if(newInputBalanceInMasset > inputMaxWeightInUnits) {
-            return (false, "Must be below max weighting", 0, false);
+            return (false, "Input must remain below max weighting", 0, false);
         }
 
         // 3. Return swap output
@@ -213,7 +213,7 @@ contract ForgeValidator is IForgeValidator {
         returns (bool, string memory, bool)
     {
         uint256 idxCount = _indices.length;
-        if(idxCount != _bAssetQuantities.length) return (false, "Input arrays should be equal", false);
+        if(idxCount != _bAssetQuantities.length) return (false, "Input arrays must have equal length", false);
 
         // Get current weightings, and cache some outputs from the loop to avoid unecessary recursion
         BasketStateResponse memory data = _getBasketState(_totalVault, _allBassets);

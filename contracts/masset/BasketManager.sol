@@ -555,7 +555,7 @@ contract BasketManager is
         // Fetch input bAsset
         (bool inputExists, uint8 inputIdx) = _isAssetInBasket(_input);
         if(!inputExists) {
-            return (false, "One of the assets does not exist", input, output);
+            return (false, "Input asset does not exist", input, output);
         }
         input = BassetDetails({
             bAsset: basket.bassets[inputIdx],
@@ -571,7 +571,7 @@ contract BasketManager is
         // Fetch output bAsset
         (bool outputExists, uint8 outputIdx) = _isAssetInBasket(_output);
         if(!outputExists) {
-            return (false, "One of the assets does not exist", input, output);
+            return (false, "Output asset does not exist", input, output);
         }
         output = BassetDetails({
             bAsset: basket.bassets[outputIdx],
@@ -620,16 +620,16 @@ contract BasketManager is
         returns (RedeemPropsMulti memory props)
     {
         (Basset[] memory bAssets, uint256 len) = _getBassets();
-        address[] memory integrators = new address[](len);
+        address[] memory orderedIntegrators = new address[](len);
         uint8[] memory indexes = new uint8[](len);
         for(uint8 i = 0; i < len; i++){
-            integrators[i] = integrations[i];
+            orderedIntegrators[i] = integrations[i];
             indexes[i] = i;
         }
         props = RedeemPropsMulti({
             colRatio: basket.collateralisationRatio,
             bAssets: bAssets,
-            integrators: integrators,
+            integrators: orderedIntegrators,
             indexes: indexes
         });
     }
