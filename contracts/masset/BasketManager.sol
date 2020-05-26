@@ -314,9 +314,8 @@ contract BasketManager is
         require(!alreadyInBasket, "bAsset already exists in Basket");
 
         // Should fail if bAsset is not added to integration
-        IPlatformIntegration(_integration).checkBalance(_bAsset);
-
         // Programmatic enforcement of bAsset validity should service through decentralised feed
+        IPlatformIntegration(_integration).checkBalance(_bAsset);
 
         uint256 bAsset_decimals = CommonHelpers.getDecimals(_bAsset);
         uint256 delta = uint256(18).sub(bAsset_decimals);
@@ -387,12 +386,10 @@ contract BasketManager is
             uint256 bAssetWeight = _weights[i];
 
             if(bAsset.status == BassetStatus.Normal) {
-                if(!_isBootstrap){
-                    require(
-                        bAssetWeight <= 5e17,
-                        "Asset weight must be <= 50%"
-                    );
-                }
+                require(
+                    bAssetWeight <= 1e18,
+                    "Asset weight must be <= 100%"
+                );
                 basket.bassets[index].maxWeight = bAssetWeight;
             } else {
                 require(
@@ -418,7 +415,7 @@ contract BasketManager is
         for(uint256 i = 0; i < len; i++) {
             weightSum = weightSum.add(basket.bassets[i].maxWeight);
         }
-        require(weightSum >= 1e18 && weightSum <= 2e18, "Basket weight must be >= 100 && <= 200%");
+        require(weightSum >= 1e18 && weightSum <= 4e18, "Basket weight must be >= 100 && <= 400%");
     }
 
     /**

@@ -986,14 +986,14 @@ contract("BasketManager", async (accounts) => {
                 );
             });
 
-            it("when bAssetWeight is greater than 50%", async () => {
+            it("when bAssetWeight is greater than 100%", async () => {
                 await expectRevert(
                     mockBasketManager.setBasketWeights(
                         integrationDetails.aTokens.map((a) => a.bAsset),
-                        [percentToWeight(101), percentToWeight(100)],
+                        [percentToWeight(101), percentToWeight(45)],
                         { from: sa.governor },
                     ),
-                    "Asset weight must be <= 50%",
+                    "Asset weight must be <= 100%",
                 );
             });
 
@@ -1015,18 +1015,28 @@ contract("BasketManager", async (accounts) => {
             });
 
             it("when total weight is not valid", async () => {
+                const mockERC20 = await createMockERC20();
+                await mockBasketManager.addBasset(
+                    mockERC20.address,
+                    aaveIntegration.address,
+                    false,
+                    {
+                        from: sa.governor,
+                    },
+                );
                 await expectRevert(
                     mockBasketManager.setBasketWeights(
-                        integrationDetails.bAssets.map((b) => b.address),
+                        [...integrationDetails.bAssets.map((b) => b.address), mockERC20.address],
                         [
-                            percentToWeight(30),
-                            percentToWeight(20),
-                            percentToWeight(20),
-                            percentToWeight(20),
+                            percentToWeight(80),
+                            percentToWeight(70),
+                            percentToWeight(80),
+                            percentToWeight(90),
+                            percentToWeight(90),
                         ],
                         { from: sa.governor },
                     ),
-                    "Basket weight must be >= 100 && <= 200%",
+                    "Basket weight must be >= 100 && <= 400%",
                 );
             });
         });
