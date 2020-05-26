@@ -788,13 +788,19 @@ contract("Masset - Swap", async (accounts) => {
                     // Should revert since we would be pushing above target
                     const input = bAssets[0];
                     const output = bAssets[1];
-                    await assertFailedSwap(mAsset, input, output, 1, "Input must remain below max weighting");
+                    await assertFailedSwap(
+                        mAsset,
+                        input,
+                        output,
+                        1,
+                        "Input must remain below max weighting",
+                    );
                     await assertFailedSwap(
                         mAsset,
                         input,
                         mAsset as any,
                         1,
-                        "Input must remain below max weighting",
+                        "bAssets used in mint cannot exceed their max weight",
                     );
                     // Set sufficient weightings allowance
                     await basketManager.setBasketWeights(

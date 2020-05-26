@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "description": "mStable Contracts",
-  "author": "Stability Labs Pty. Ltd.",
+  "author": "Stability Labs Pty. Ltd. <hello@stabilitylabs.co>",
+  "license": "AGPL-3.0-or-later",
   "scripts": {
     "migrate": "truffle migrate --network development --reset",
     "migrate:ropsten": "truffle migrate --network ropsten --reset",
