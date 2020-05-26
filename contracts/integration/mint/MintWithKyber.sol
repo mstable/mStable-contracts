@@ -51,7 +51,7 @@ contract MintWithKyber is AbstractBuyAndMint, IBuyAndMint, ReentrancyGuard {
     }
 
     // @override
-    function _exteranlDexAddress() internal view returns(address) {
+    function _externalDexAddress() internal view returns(address) {
         return address(kyberNetworkProxy);
     }
 
@@ -66,7 +66,7 @@ contract MintWithKyber is AbstractBuyAndMint, IBuyAndMint, ReentrancyGuard {
         returns (uint256 mAssetQtyMinted)
     {
         require(msg.value > 0, "ETH not sent");
-        require(_isMassetExist(_destMasset), "Not a valid mAsset");
+        require(_massetExists(_destMasset), "Not a valid mAsset");
 
         mAssetQtyMinted = _buyAndMint(_srcBasset, _destMasset, msg.value, _msgSender());
     }
@@ -82,8 +82,7 @@ contract MintWithKyber is AbstractBuyAndMint, IBuyAndMint, ReentrancyGuard {
         nonReentrant
         returns (uint256 mAssetQtyMinted)
     {
-        require(msg.value > 0, "ETH not sent");
-        require(_isMassetExist(_destMasset), "Not a valid mAsset");
+        require(_massetExists(_destMasset), "Not a valid mAsset");
 
         // Get the rate from Kyber for `_amountOfBasset`
         // Example rate to convert from DAI => ETH
@@ -91,12 +90,13 @@ contract MintWithKyber is AbstractBuyAndMint, IBuyAndMint, ReentrancyGuard {
 
         // amountOfBassets * expectedRate / 1e18
         uint256 amountInETH = _amountOfBasset.mulTruncate(expectedRate);
+        require(msg.value >= amountInETH, "Not enough ETH sent");
 
         // Pass the `expectedRate` ETH to Kyber
         mAssetQtyMinted = _buyAndMint(_srcBasset, _destMasset, amountInETH, _msgSender());
 
         // Return remaining ETH balance to the user
-        // WANRING: Reentrancy Guard used for external functions
+        // WARNING: Reentrancy Guard used for external functions
         msg.sender.sendValue(msg.value.sub(amountInETH));
     }
 
@@ -115,7 +115,7 @@ contract MintWithKyber is AbstractBuyAndMint, IBuyAndMint, ReentrancyGuard {
         uint256 bAssetsLen = _srcBassets.length;
         require(bAssetsLen > 0, "No array data sent");
         require(bAssetsLen == _ethAmount.length, "Array length not matched");
-        require(_isMassetExist(_destMasset), "Not a valid mAsset");
+        require(_massetExists(_destMasset), "Not a valid mAsset");
         // NOTICE: Assuming DApp validated that the `sum(_ethAmount[]) == msg.value`,
         // otherwise tx will fail
 

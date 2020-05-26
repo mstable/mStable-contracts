@@ -37,7 +37,7 @@ contract AbstractBuyAndMint is Ownable {
      */
     function infiniteApprove(address[] calldata _bAssets) external {
         for(uint256 i = 0; i < _bAssets.length; i++) {
-            _bAssets[i].safeInfiniteApprove(_exteranlDexAddress());
+            _bAssets[i].safeInfiniteApprove(_externalDexAddress());
         }
     }
 
@@ -55,7 +55,7 @@ contract AbstractBuyAndMint is Ownable {
      */
     function _addMasset(address _mAsset) internal {
         require(_mAsset != address(0), "mAsset address is zero");
-        require(!_isMassetExist(_mAsset), "mAsset already exists");
+        require(!_massetExists(_mAsset), "mAsset already exists");
         mAssets[_mAsset] = true;
         emit MassetAdded(_mAsset);
     }
@@ -65,12 +65,12 @@ contract AbstractBuyAndMint is Ownable {
      * @notice  Only validate mAsset address. As bAsset gets validated during minting process.
      * @param _mAsset mAsset address to validate
      */
-    function _isMassetExist(address _mAsset) internal view returns (bool) {
+    function _massetExists(address _mAsset) internal view returns (bool) {
         return mAssets[_mAsset];
     }
 
     /**
      * @dev Abstract function to get the external DEX contract address
      */
-    function _exteranlDexAddress() internal view returns(address);
+    function _externalDexAddress() internal view returns(address);
 }

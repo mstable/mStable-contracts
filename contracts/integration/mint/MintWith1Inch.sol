@@ -40,7 +40,7 @@ contract MintWith1Inch is AbstractBuyAndMint, IBuyAndMintWithOneSplit {
     }
 
     // @override
-    function _exteranlDexAddress() internal view returns(address) {
+    function _externalDexAddress() internal view returns(address) {
         return address(oneSplit);
     }
 
@@ -55,7 +55,7 @@ contract MintWith1Inch is AbstractBuyAndMint, IBuyAndMintWithOneSplit {
         returns (uint256 mAssetQtyMinted)
     {
         require(msg.value > 0, "ETH not sent");
-        require(_isMassetExist(_destMasset), "Not a valid mAsset");
+        require(_massetExists(_destMasset), "Not a valid mAsset");
 
         // NOTICE: Make the following function call off-chain to get the `distribution` and
         // pass to this function. This is to reduce gas consumption.
@@ -86,8 +86,8 @@ contract MintWith1Inch is AbstractBuyAndMint, IBuyAndMintWithOneSplit {
         /*
         (uint256 ethAmount, uint256[] memory distribution) =
             oneSplit.getExpectedReturn(
-                IERC20(_srcBasset),    //fromToken
-                ETH_ADDRESS,            //toToken
+                ETH_ADDRESS,            //fromToken
+                IERC20(_srcBasset),     //toToken
                 _amountOfMasset,        //fromAmount
                 parts,                  //parts
                 disableFlags            //disableFlags
@@ -117,7 +117,7 @@ contract MintWith1Inch is AbstractBuyAndMint, IBuyAndMintWithOneSplit {
         returns (uint256 mAssetQtyMinted)
     {
         // 1. Buy bAsset of worth `_ethAmount` ETH from OneSplit
-        uint256 bAssetQtyMinted =
+        uint256 bAssetQty =
             _buyBassetFromOneSplitWithETH(
                 IERC20(_srcBasset),
                 _ethAmount,
@@ -125,7 +125,7 @@ contract MintWith1Inch is AbstractBuyAndMint, IBuyAndMintWithOneSplit {
             );
 
         // 2. Mint mAsset with all bAsset
-        mAssetQtyMinted = IMasset(_destMasset).mintTo(address(_srcBasset), bAssetQtyMinted, _recipient);
+        mAssetQtyMinted = IMasset(_destMasset).mintTo(address(_srcBasset), bAssetQty, _recipient);
     }
 
     /**
@@ -133,7 +133,7 @@ contract MintWith1Inch is AbstractBuyAndMint, IBuyAndMintWithOneSplit {
      * @param _toBasset bAsset address to buy from exchange
      * @param _ethAmount ETH amount to buy bAssets
      * @param _distribution Exchange distribution details
-     * @return bAssetQtyMinted bAssets quantity minted from OneSplit exchange
+     * @return bAssetQtyPurchased bAssets quantity minted from OneSplit exchange
      */
     function _buyBassetFromOneSplitWithETH(
         IERC20 _toBasset,
@@ -141,7 +141,7 @@ contract MintWith1Inch is AbstractBuyAndMint, IBuyAndMintWithOneSplit {
         uint256[] memory _distribution
     )
         internal
-        returns (uint256 bAssetQtyMinted)
+        returns (uint256 bAssetQtyPurchased)
     {
         uint256 bAssetBalBefore = _toBasset.balanceOf(address(this));
 
@@ -156,8 +156,8 @@ contract MintWith1Inch is AbstractBuyAndMint, IBuyAndMintWithOneSplit {
         );
 
         uint256 bAssetBalAfter = _toBasset.balanceOf(address(this));
-        bAssetQtyMinted = bAssetBalAfter.sub(bAssetBalBefore);
-        require(bAssetQtyMinted > 0, "No bAsset minted");
+        bAssetQtyPurchased = bAssetBalAfter.sub(bAssetBalBefore);
+        require(bAssetQtyPurchased > 0, "No bAsset minted");
     }
 }
 
