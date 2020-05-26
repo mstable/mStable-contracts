@@ -1,0 +1,5 @@
+crytic-compile==0.1.4
+pkg-resources==0.0.0
+prettytable==0.7.2
+pysha3==1.0.2
+slither-analyzer==0.6.7

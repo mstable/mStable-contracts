@@ -22,7 +22,7 @@ contract MockMasset is MockERC20 {
 
     {}
 
-    uint256 private amountToMint = 0;
+    uint256 public amountToMint = 0;
 
     // Inject amount of tokens to mint
     function setAmountForCollectInterest(uint256 _amount) public {
@@ -38,6 +38,11 @@ contract MockMasset is MockERC20 {
         newSupply = totalSupply();
         // Set back to zero
         amountToMint = 0;
+    }
+
+    // This function is used by Echidna
+    function approveInfinite(address owner, address spender) public {
+        _approve(owner, spender, uint256(-1));
     }
 
 }
@@ -61,7 +66,7 @@ contract MockMasset1 is MockERC20 {
 
     {}
 
-    uint256 private amountToMint = 0;
+    uint256 public amountToMint = 0;
 
     // Inject amount of tokens to mint
     function setAmountForCollectInterest(uint256 _amount) public {
@@ -78,4 +83,8 @@ contract MockMasset1 is MockERC20 {
         amountToMint = 0;
     }
 
+    // This function is used by Echidna
+    function approveInfinite(address owner, address spender) public {
+        _approve(owner, spender, uint256(-1));
+    }
 }

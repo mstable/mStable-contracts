@@ -34,7 +34,7 @@ contract SavingsContract is ISavingsContract, Module {
     event AutomaticInterestCollectionSwitched(bool automationEnabled);
 
     // Underlying asset is mUSD
-    IERC20 private mUSD;
+    IERC20 internal mUSD;
 
     // Amount of underlying savings in the contract
     uint256 public totalSavings;
@@ -47,7 +47,7 @@ contract SavingsContract is ISavingsContract, Module {
     uint256 public exchangeRate = 1e18;
     // Amount of credits for each saver
     mapping(address => uint256) public creditBalances;
-    bool private automateInterestCollection = true;
+    bool internal automateInterestCollection = true;
 
     constructor(address _nexus, IERC20 _mUSD)
         public

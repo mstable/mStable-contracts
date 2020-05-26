@@ -26,11 +26,11 @@
     "sol-merger": "^3.0.1"
   },
   "devDependencies": {
-    "@openzeppelin/contracts": "2.5.0",
+    "@openzeppelin/contracts": "^2.5.0",
     "@openzeppelin/test-helpers": "git+https://git@github.com/alsco77/openzeppelin-test-helpers.git",
-    "@openzeppelin/upgrades": "2.7.2",
+    "@openzeppelin/upgrades": "^2.7.2",
     "@truffle/hdwallet-provider": "^1.0.34",
-    "@typechain/truffle-v5": "^2.0.0",
+    "@typechain/truffle-v5": "^0.9.0",
     "@types/bn.js": "^4.11.6",
     "@types/chai": "^4.2.2",
     "@types/lodash": "^4.14.138",
@@ -61,11 +61,11 @@
     "truffle": "5.1.22",
     "truffle-plugin-verify": "^0.3.10",
     "truffle-typings": "^1.0.8",
-    "ts-node": "^8.4.1",
+    "ts-node": "^8.9.1",
     "tsconfig-paths": "^3.9.0",
     "typechain": "^2.0.0",
     "types-ethereumjs-util": "^0.0.8",
-    "typescript": "^3.6.3",
+    "typescript": "^3.8.3",
     "web3": "^1.2.6",
     "web3-utils": "1.2.6"
   },
