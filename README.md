@@ -8,7 +8,7 @@
 
 <br />
 
-This repo contains all contracts and tests relevant to the core mStable protocol. mStable is a protocol built to make stablecoins assets easy, robust and profitable.
+This repo contains all contracts and tests relevant to the core mStable protocol. mStable is a protocol built to make stablecoins easy, robust and profitable.
 
 mStable Assets ([mAssets](./contracts/masset/Masset.sol)) are tokens that allow minting and redemption at a 1:1 ratio for underlying Basket Assets (`bAssets`) of the same peg (i.e. USD, BTC, Gold), with composition managed by the [BasketManager](./contracts/masset/BasketManager.sol). `bAssets` are integrated with lending protocols (initially Aave, Compound) to generate interest which is accrued in `mAsset` terms. mAssets can be deposited to earn native interest through their respective Savings Contract, just like you would with a savings account. `bAssets` within an `mAsset` can also be swapped 1:1 (provided they remain within their [forge validator](./contracts/masset/forge-validator) limits), with a small `swapFee` credited additionally to Savers.
 

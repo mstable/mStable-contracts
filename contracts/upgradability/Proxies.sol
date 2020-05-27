@@ -1,3 +1,5 @@
+pragma solidity 0.5.16;
+
 import { InitializableAdminUpgradeabilityProxy } from "@openzeppelin/upgrades/contracts/upgradeability/InitializableAdminUpgradeabilityProxy.sol";
 
 /**
@@ -21,7 +23,7 @@ contract BasketManagerProxy is InitializableAdminUpgradeabilityProxy {
 }
 
 /**
- * @notice VaultProxy delegates calls to a Masset implementation
+ * @notice VaultProxy delegates calls to a Vault implementation
  * @dev    Extending on OpenZeppelin's InitializableAdminUpgradabilityProxy
  * means that the proxy is upgradable through a ProxyAdmin. VaultProxy upgrades
  * are implemented by a DelayedProxyAdmin, which enforces a 1 week opt-out period.
