@@ -84,7 +84,7 @@ export class RopstenAccounts {
 
     public USDC: Address = "0x8a9447df1fb47209d36204e6d56767a33bf20f9f";
 
-    public TUSD: Address = "0xa51EE1845C13Cb03FcA998304b00EcC407fc1F92";
+    public TUSD: Address = "0xb36938c51c4f67e5e1112eb11916ed70a772bd75";
 
     public USDT: Address = "0xB404c51BBC10dcBE948077F18a4B8E553D160084";
 
@@ -93,7 +93,7 @@ export class RopstenAccounts {
     // AAVE
     public aavePlatform: Address = "0x1c8756FD2B28e9426CDBDcC7E3c4d64fa9A54728";
 
-    public aTUSD: Address = "0x82F01c5694f36690a985F01dC0aD46e1B20E7a1a";
+    public aTUSD: Address = "0x3de3f55afdb0cf2753fae759f36d892126a06c81";
 
     public aUSDT: Address = "0x790744bC4257B4a0519a3C5649Ac1d16DDaFAE0D";
 
