@@ -630,9 +630,9 @@ acorn-jsx@^5.1.0:
   integrity sha512-tMUqwBWfLFbJbizRmEcWSLw6HnFzfdJs2sOJEOwwtVPMoH/0Ay+E703oZz78VSXZiiDcZrQ5XKjPIUQixhmgVw==
 
 acorn@^7.1.0:
-  version "7.1.0"
-  resolved "https://registry.yarnpkg.com/acorn/-/acorn-7.1.0.tgz#949d36f2c292535da602283586c2477c57eb2d6c"
-  integrity sha512-kL5CuoXA/dgxlBbVrflsflzQ3PAas7RYZB52NOm/6839iVYJgKMJ3cQJD+t2i5+qFa8h3MDpEOJiS64E8JLnSQ==
+  version "7.2.0"
+  resolved "https://registry.yarnpkg.com/acorn/-/acorn-7.2.0.tgz#17ea7e40d7c8640ff54a694c889c26f31704effe"
+  integrity sha512-apwXVmYVpQ34m/i71vrApRrRKCWQnZZF1+npOD0WV5xZFfwWOmKGQ2RWlfdy9vWITsenisM8M0Qeq8agcFHNiQ==
 
 address@^1.0.1:
   version "1.1.2"
@@ -3356,13 +3356,6 @@ eth-block-tracker@^3.0.0:
     json-rpc-engine "^3.6.0"
     pify "^2.3.0"
     tape "^4.6.3"
-
-eth-contract-class@0.0.6:
-  version "0.0.6"
-  resolved "https://registry.yarnpkg.com/eth-contract-class/-/eth-contract-class-0.0.6.tgz#398b8952149cc747cb959fa8b5d480288c7a8bce"
-  integrity sha1-OYuJUhScx0fLlZ+otdSAKIx6i84=
-  dependencies:
-    web3-core-promievent "^1.0.0-beta.21"
 
 eth-ens-namehash@2.0.8, eth-ens-namehash@^2.0.0:
   version "2.0.8"
@@ -6263,12 +6256,6 @@ minimalistic-crypto-utils@^1.0.0, minimalistic-crypto-utils@^1.0.1:
   integrity sha512-yJHVQEhyqPLUTgt9B83PXu6W3rx4MvvHvSUvToogpwoGDOUQ+yDrR0HRot+yOCdCO7u4hX3pWft6kWBBcqh0UA==
   dependencies:
     brace-expansion "^1.1.7"
-
-"minimetoken@ssh://git@github.com/mstable/minime.git#6348055a0a8f73d65d86a3a6845621bd4a8d6b15":
-  version "0.2.0"
-  resolved "ssh://git@github.com/mstable/minime.git#6348055a0a8f73d65d86a3a6845621bd4a8d6b15"
-  dependencies:
-    eth-contract-class "0.0.6"
 
 minimist@0.0.5:
   version "0.0.5"
@@ -9701,7 +9688,7 @@ web3-core-promievent@1.2.2:
     any-promise "1.3.0"
     eventemitter3 "3.1.2"
 
-web3-core-promievent@1.2.6, web3-core-promievent@^1.0.0-beta.21:
+web3-core-promievent@1.2.6:
   version "1.2.6"
   resolved "https://registry.yarnpkg.com/web3-core-promievent/-/web3-core-promievent-1.2.6.tgz#b1550a3a4163e48b8b704c1fe4b0084fc2dad8f5"
   integrity sha512-km72kJef/qtQNiSjDJJVHIZvoVOm6ytW3FCYnOcCs7RIkviAb5JYlPiye0o4pJOLzCXYID7DK7Q9bhY8qWb1lw==
