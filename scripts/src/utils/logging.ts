@@ -1,4 +1,4 @@
-import { BN } from "@utils/tools";
+// eslint-disable-next-line import/no-extraneous-dependencies
 import chalk from "chalk";
 import { blockTimestampSimple } from "./time";
 
@@ -35,7 +35,7 @@ const sanitizeArgs = (args: object) => {
         .reduce((acc, key) => ({ ...acc, [key]: args[key] }), {});
 };
 
-const logTxResponse = ({ logs }: Truffle.TransactionResponse) => {
+const logTxResponse = ({ logs }: Truffle.TransactionResponse<any>) => {
     logs.forEach(({ event, args }) => {
         console.log(chalk.gray("Event ") + chalk.italic(event));
         logAndSanitizeArgs(args);
@@ -43,7 +43,7 @@ const logTxResponse = ({ logs }: Truffle.TransactionResponse) => {
 };
 
 export const logTx = async (
-    txPromise: Promise<Truffle.TransactionResponse | Truffle.TransactionResponse[]>,
+    txPromise: Promise<Truffle.TransactionResponse<any> | Truffle.TransactionResponse<any>[]>,
     description: string,
 ) => {
     logSeparator();

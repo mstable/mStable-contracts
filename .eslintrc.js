@@ -18,7 +18,7 @@ module.exports = {
             "alias": {
                 map: [
                     ['@utils', './test-utils'],
-                    ['types/generated', './types/generated/index']
+                    ['types/generated', './types/generated/index', 'types/contracts']
                 ],
                 extensions: ['.ts', '.d.ts', '.js', '.jsx', '.json']
             }
@@ -31,6 +31,7 @@ module.exports = {
         {
             "files": [
                 "./types/*.ts",
+                "./types/contracts.ts",
                 "./types/chai.d.ts",
                 "./types/interfaces.d.ts",
                 "./types/**/*.ts",

@@ -12,17 +12,17 @@ pragma solidity 0.5.16;
  */
 contract InitializableModuleKeys {
 
-    // Governance                           // Phases
-    bytes32 public KEY_GOVERNANCE;          // 2.x
-    bytes32 public KEY_STAKING;             // 1.2
-    bytes32 public KEY_PROXY_ADMIN;         // 1.0
+    // Governance                             // Phases
+    bytes32 internal KEY_GOVERNANCE;          // 2.x
+    bytes32 internal KEY_STAKING;             // 1.2
+    bytes32 internal KEY_PROXY_ADMIN;         // 1.0
 
     // mStable
-    bytes32 public KEY_ORACLE_HUB;          // 1.2
-    bytes32 public KEY_MANAGER;             // 1.2
-    bytes32 public KEY_RECOLLATERALISER;    // 2.x
-    bytes32 public KEY_META_TOKEN;          // 1.1
-    bytes32 public KEY_SAVINGS_MANAGER;     // 1.0
+    bytes32 internal KEY_ORACLE_HUB;          // 1.2
+    bytes32 internal KEY_MANAGER;             // 1.2
+    bytes32 internal KEY_RECOLLATERALISER;    // 2.x
+    bytes32 internal KEY_META_TOKEN;          // 1.1
+    bytes32 internal KEY_SAVINGS_MANAGER;     // 1.0
 
     /**
      * @dev Initialize function for upgradable proxy contracts. This function should be called

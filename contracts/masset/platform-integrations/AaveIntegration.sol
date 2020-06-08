@@ -43,7 +43,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
         // We should have been sent this amount, if not, the deposit will fail
         quantityDeposited = _amount;
 
-        uint16 referralCode = 9999; // temp code
+        uint16 referralCode = 36; // temp code
 
         if(_isTokenFeeCharged) {
             // If we charge a fee, account for it

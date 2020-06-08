@@ -3,33 +3,35 @@
   "version": "1.0.0",
   "private": true,
   "description": "mStable Contracts",
-  "author": "Stability Labs Pty. Ltd.",
+  "author": "Stability Labs Pty. Ltd. <hello@stabilitylabs.co>",
+  "license": "AGPL-3.0-or-later",
   "scripts": {
     "migrate": "truffle migrate --network development --reset",
-    "migrate:rinkeby": "truffle migrate --network rinkeby --reset",
+    "migrate:ropsten": "truffle migrate --network ropsten --reset",
     "lint": "yarn run lint-ts; yarn run lint-sol",
     "lint-ts": "yarn eslint ./test --ext .ts,.js --fix --quiet",
     "lint-sol": "solium -d contracts/ --fix ",
     "coverage": "node --max_old_space_size=6144 node_modules/truffle/build/cli.bundled.js run coverage --network coverage --solcoverjs './.solcover.js'",
     "script": "yarn truffle exec ./scripts/main.js",
     "test": "yarn run test-prep; truffle test;",
+    "test:fork": "yarn run test-prep; truffle test --network fork;",
     "test-prep": "yarn run compile; yarn run generate-typings;",
     "test-lite": " truffle test",
     "compile": "truffle compile --all",
     "generate-typings": "rimraf ./types/generated && typechain --target 'truffle-v5' --outDir types/generated './build/contracts/*.json'",
     "prettify": "prettier --write test/*.ts test/**/*.ts types/generated/*.ts types/*.ts artifacts/*.ts",
-    "flatten": "sol-merger \"./contracts/**/*.sol\" ./flat"
+    "flatten": "sol-merger \"./contracts/**/*.sol\" ./_flat"
   },
-  "repository": "gitlab:mstable/mstable-contracts",
-  "dependencies": {
-    "sol-merger": "^2.0.1"
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/mstable/mstable-contracts.git"
   },
   "devDependencies": {
     "@openzeppelin/contracts": "2.5.0",
     "@openzeppelin/test-helpers": "git+https://git@github.com/alsco77/openzeppelin-test-helpers.git",
     "@openzeppelin/upgrades": "2.7.2",
-    "@truffle/hdwallet-provider": "^1.0.18",
-    "@typechain/truffle-v5": "^0.9.0",
+    "@truffle/hdwallet-provider": "^1.0.34",
+    "@typechain/truffle-v5": "^2.0.0",
     "@types/bn.js": "^4.11.6",
     "@types/chai": "^4.2.2",
     "@types/lodash": "^4.14.138",
@@ -51,21 +53,24 @@
     "eth-gas-reporter": "^0.2.14",
     "ethlint": "^1.2.5",
     "humanize-duration": "^3.21.0",
-    "minimetoken": "ssh://git@github.com/mstable/minime.git#6348055a0a8f73d65d86a3a6845621bd4a8d6b15",
     "mocha": "^7.0.1",
     "parse-duration": "^0.1.2",
     "prettier": "^1.18.2",
     "solc": "0.5.16",
     "solidity-coverage": "^0.7.1",
-    "truffle": "5.1.19",
+    "truffle": "5.1.22",
+    "truffle-plugin-verify": "^0.3.10",
     "truffle-typings": "^1.0.8",
     "ts-node": "^8.4.1",
     "tsconfig-paths": "^3.9.0",
-    "typechain": "1.0.4",
+    "typechain": "^2.0.0",
     "types-ethereumjs-util": "^0.0.8",
     "typescript": "^3.6.3",
     "web3": "^1.2.6",
     "web3-utils": "1.2.6"
+  },
+  "dependencies": {
+    "sol-merger": "^3.0.1"
   },
   "_moduleAliases": {
     "@utils": "transpiled/test-utils"

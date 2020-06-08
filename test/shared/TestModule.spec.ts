@@ -1,9 +1,9 @@
-import { MockModuleInstance, MockNexusInstance } from "types/generated";
 import { StandardAccounts } from "@utils/machines";
 import { BN } from "@utils/tools";
-import {  expectRevert } from "@openzeppelin/test-helpers";
+import { expectRevert } from "@openzeppelin/test-helpers";
 import envSetup from "@utils/env_setup";
-import { ZERO_ADDRESS } from "@utils/constants";
+import { ZERO_ADDRESS, KEY_SAVINGS_MANAGER, KEY_PROXY_ADMIN } from "@utils/constants";
+import * as t from "types/generated";
 import shouldBehaveLikeModule from "./behaviours/Module.behaviour";
 
 const MockModule = artifacts.require("MockModule");
@@ -12,9 +12,9 @@ const MockNexus = artifacts.require("MockNexus");
 const { expect } = envSetup.configure();
 
 contract("Module", async (accounts) => {
-    const ctx: { module?: MockModuleInstance } = {};
+    const ctx: { module?: t.MockModuleInstance } = {};
     const sa = new StandardAccounts(accounts);
-    let nexus: MockNexusInstance;
+    let nexus: t.MockNexusInstance;
     const proxyAdmin = sa.dummy1;
     const governanceAddr = sa.dummy2;
     const managerAddr = sa.dummy3;
@@ -22,7 +22,7 @@ contract("Module", async (accounts) => {
     before("before all", async () => {
         // create New Nexus
         nexus = await MockNexus.new(sa.governor, governanceAddr, managerAddr);
-        nexus.setProxyAdmin(proxyAdmin);
+        await nexus.setProxyAdmin(proxyAdmin);
     });
     beforeEach("before each", async () => {
         ctx.module = await MockModule.new(nexus.address);
@@ -76,9 +76,7 @@ contract("Module", async (accounts) => {
         it("and return SavingsManager address", async () => {
             const savingsManager = await ctx.module.savingsManager();
             expect(savingsManager).to.not.equal(ZERO_ADDRESS);
-            const nexusSavingsManager = await nexus.getModule(
-                web3.utils.keccak256("SavingsManager"),
-            );
+            const nexusSavingsManager = await nexus.getModule(KEY_SAVINGS_MANAGER);
             expect(nexusSavingsManager).to.equal(savingsManager);
         });
 
@@ -94,7 +92,7 @@ contract("Module", async (accounts) => {
         it("and return proxyadmin address", async () => {
             const proxyAdminAddr = await ctx.module.proxyAdmin();
             expect(proxyAdminAddr).to.not.equal(ZERO_ADDRESS);
-            const nexusProxyAdmin = await nexus.getModule(web3.utils.keccak256("ProxyAdmin"));
+            const nexusProxyAdmin = await nexus.getModule(KEY_PROXY_ADMIN);
             expect(nexusProxyAdmin).to.equal(proxyAdminAddr);
         });
 

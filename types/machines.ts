@@ -1,7 +1,7 @@
-import * as t from "./generated";
+import * as t from "types/generated";
+import { BN } from "../test-utils/tools";
 import { Address } from "./common";
 import { Basset } from "../test-utils/mstable-objects";
-import BN = require("bn.js");
 
 export interface ATokenDetails {
     bAsset: Address;
@@ -18,7 +18,7 @@ export enum Platform {
 }
 
 export interface BassetIntegrationDetails {
-    bAssets: Array<t.MockERC20Instance>;
+    bAssets: Array<t.MockErc20Instance>;
     fees: Array<boolean>;
     platforms: Array<Platform>;
     aavePlatformAddress: Address;
@@ -30,14 +30,13 @@ export interface BassetDetails extends Basset {
     address: Address;
     mAssetUnits: BN;
     overweight: boolean;
-    underweight: boolean;
 }
 
 export interface BasketComposition {
     bAssets: Array<BassetDetails>;
     totalSupply: BN;
-    grace: BN;
     sumOfBassets: BN;
     failed: boolean;
+    undergoingRecol: boolean;
     colRatio: BN;
 }

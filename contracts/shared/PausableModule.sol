@@ -5,7 +5,7 @@ import { Module } from "./Module.sol";
 /**
  * @title   PausableModule
  * @author  Stability Labs Pty. Ltd.
- * @dev     Forked from Openzeppelin-contracts/lifecycle/pausable
+ * @dev     Forked from openzeppelin-contracts/lifecycle/pausable
  */
 contract PausableModule is Module {
 

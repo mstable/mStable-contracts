@@ -1,13 +1,13 @@
 import { StandardAccounts } from "@utils/machines";
 import envSetup from "@utils/env_setup";
-import { GovernableInstance } from "types/generated";
+import * as t from "types/generated";
 import shouldBehaveLikeGovernable from "./Governable.behaviour";
 
 const MockGovernable = artifacts.require("MockGovernable");
 const { expect, assert } = envSetup.configure();
 
 contract("Governable", async (accounts) => {
-    const ctx: { governable?: GovernableInstance } = {};
+    const ctx: { governable?: t.GovernableInstance } = {};
     const sa = new StandardAccounts(accounts);
 
     beforeEach("Create Contract", async () => {

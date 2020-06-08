@@ -3,9 +3,10 @@ import { StandardAccounts, SystemMachine } from "@utils/machines";
 import { padRight, BN } from "@utils/tools";
 import { ZERO_ADDRESS, ZERO, ONE_DAY, ONE_WEEK } from "@utils/constants";
 import { keccak256 } from "web3-utils";
-import { DelayedClaimableGovernorInstance, NexusInstance } from "types/generated";
 
 import envSetup from "@utils/env_setup";
+import * as t from "types/generated";
+
 import shouldBehaveLikeClaimable from "../governance/ClaimableGovernor.behaviour";
 import shouldBehaveLikeDelayedClaimable from "../governance/DelayedClaimableGovernor.behaviour";
 
@@ -13,7 +14,7 @@ const { expect } = envSetup.configure();
 
 /** @dev Uses generic module getter to validate that a module exists with the specified properties */
 async function expectInModules(
-    nexus: NexusInstance,
+    nexus: t.NexusInstance,
     _key: string,
     _addr: string,
     _isLocked: boolean,
@@ -33,7 +34,7 @@ async function expectInModules(
 }
 
 async function expectInProposedModules(
-    nexus: NexusInstance,
+    nexus: t.NexusInstance,
     _key: string,
     _newAddress: string,
     _timestamp: BN,
@@ -49,7 +50,7 @@ async function expectInProposedModules(
 }
 
 async function expectInProposedLockModules(
-    nexus: NexusInstance,
+    nexus: t.NexusInstance,
     _key: string,
     _timestamp: BN,
 ): Promise<void> {
@@ -62,15 +63,15 @@ async function expectInProposedLockModules(
 contract("Nexus", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
-    let nexus: NexusInstance;
+    let nexus: t.NexusInstance;
 
     describe("Behavior like...", () => {
-        const ctx: { claimable?: DelayedClaimableGovernorInstance } = {};
+        const ctx: { claimable?: t.DelayedClaimableGovernorInstance } = {};
         before("", async () => {
             systemMachine = new SystemMachine(sa.all);
         });
         beforeEach("Init contract", async () => {
-            ctx.claimable = await systemMachine.deployNexus();
+            ctx.claimable = await systemMachine.deployNexus() as t.DelayedClaimableGovernorInstance;
         });
         context("should behave like ClaimableGovernor", () => {
             shouldBehaveLikeClaimable(ctx as Required<typeof ctx>, sa);

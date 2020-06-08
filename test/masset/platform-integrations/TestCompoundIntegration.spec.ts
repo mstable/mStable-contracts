@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/camelcase */
 /* eslint-disable consistent-return */
 
-import * as t from "types/generated";
 import { expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
 import { BN } from "@utils/tools";
 import { assertBNSlightlyGTPercent } from "@utils/assertions";
@@ -17,38 +16,37 @@ import {
 
 import envSetup from "@utils/env_setup";
 import { simpleToExactAmount } from "@utils/math";
-import {
-    BassetIntegrationDetails,
-} from "../../../types";
+import * as t from "types/generated";
+import { BassetIntegrationDetails } from "../../../types";
 import shouldBehaveLikeModule from "../../shared/behaviours/Module.behaviour";
 
 const { expect } = envSetup.configure();
 
-const c_ERC20: t.ERC20DetailedContract = artifacts.require("ERC20Detailed");
-const c_CERC20: t.ICERC20Contract = artifacts.require("ICERC20");
+const c_ERC20 = artifacts.require("ERC20Detailed");
+const c_CERC20 = artifacts.require("ICERC20");
 
-const c_MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
-const c_MockCToken: t.MockCTokenContract = artifacts.require("MockCToken");
+const c_MockERC20 = artifacts.require("MockERC20");
+const c_MockCToken = artifacts.require("MockCToken");
 
-const c_Nexus: t.NexusContract = artifacts.require("Nexus");
-const c_DelayedProxyAdmin: t.DelayedProxyAdminContract = artifacts.require("DelayedProxyAdmin");
+const c_Nexus = artifacts.require("Nexus");
+const c_DelayedProxyAdmin = artifacts.require("DelayedProxyAdmin");
 
-const c_InitializableProxy: t.InitializableAdminUpgradeabilityProxyContract = artifacts.require(
+const c_InitializableProxy = artifacts.require(
+    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+    // @ts-ignore
     "@openzeppelin/upgrades/InitializableAdminUpgradeabilityProxy",
 );
-const c_CompoundIntegration: t.MockCompoundIntegrationContract = artifacts.require(
-    "MockCompoundIntegration",
-);
+const c_CompoundIntegration = artifacts.require("MockCompoundIntegration");
 
 const convertUnderlyingToCToken = async (
-    cToken: t.ICERC20Instance,
+    cToken: t.Icerc20Instance,
     underlyingAmount: BN,
 ): Promise<BN> => {
     const exchangeRate = await cToken.exchangeRateStored();
     return underlyingAmount.mul(fullScale).div(exchangeRate);
 };
 const convertCTokenToUnderlying = async (
-    cToken: t.ICERC20Instance,
+    cToken: t.Icerc20Instance,
     cTokenAmount: BN,
 ): Promise<BN> => {
     const exchangeRate = await cToken.exchangeRateStored();
@@ -105,14 +103,14 @@ contract("CompoundIntegration", async (accounts) => {
                 integrationDetails.cTokens.map((c) => c.cToken),
             )
             .encodeABI();
-        await d_CompoundIntegrationProxy.initialize(
+        await d_CompoundIntegrationProxy.methods["initialize(address,address,bytes)"](
             compoundImplementation.address,
             d_DelayedProxyAdmin.address,
             initializationData_CompoundIntegration,
         );
 
         await nexus.initialize(
-            [await d_DelayedProxyAdmin.KEY_PROXY_ADMIN()],
+            [web3.utils.keccak256("ProxyAdmin")],
             [d_DelayedProxyAdmin.address],
             [true],
             sa.governor,
@@ -307,7 +305,7 @@ contract("CompoundIntegration", async (accounts) => {
     });
 
     describe("setting P Token Address", async () => {
-        let erc20Mock: t.MockERC20Instance;
+        let erc20Mock: t.MockErc20Instance;
         let cTokenMock: t.MockCTokenInstance;
         beforeEach("init mocks", async () => {
             erc20Mock = await c_MockERC20.new("TMP", "TMP", 18, sa.default, "1000000");
@@ -431,7 +429,7 @@ contract("CompoundIntegration", async (accounts) => {
 
             // Step 1. xfer tokens to integration
             const bal1 = await bAsset.balanceOf(d_CompoundIntegration.address);
-            let tx = await bAsset.transfer(d_CompoundIntegration.address, amount);
+            const transferTx = await bAsset.transfer(d_CompoundIntegration.address, amount);
 
             const bal2 = await bAsset.balanceOf(d_CompoundIntegration.address);
             const receivedAmount = bal2.sub(bal1);
@@ -445,7 +443,11 @@ contract("CompoundIntegration", async (accounts) => {
             const expectedDeposit = receivedAmount.sub(receivedAmount.mul(feeRate).div(fullScale));
 
             // Step 2. call deposit
-            tx = await d_CompoundIntegration.deposit(bAsset.address, receivedAmount, true);
+            const depositTx = await d_CompoundIntegration.deposit(
+                bAsset.address,
+                receivedAmount,
+                true,
+            );
 
             // Step 3. Check for things:
             // 3.1 Check that cToken has bAssets
@@ -466,7 +468,7 @@ contract("CompoundIntegration", async (accounts) => {
             );
 
             const min = receivedAmount.lt(receivedUnderlying) ? receivedAmount : receivedUnderlying;
-            expectEvent(tx.receipt, "Deposit", { _amount: min });
+            expectEvent(depositTx.receipt, "Deposit", { _amount: min });
         });
 
         it("should only allow a whitelisted user to call function", async () => {

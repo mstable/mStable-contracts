@@ -7,15 +7,17 @@ pragma solidity 0.5.16;
  */
 interface MassetStructs {
 
+    /** @dev Stores high level basket info */
     struct Basket {
 
-        /**
-         * @dev Array of Bassets currently active
-         */
+        /** @dev Array of Bassets currently active */
         Basset[] bassets;
 
         /** @dev Max number of bAssets that can be present in any Basket */
         uint8 maxBassets;
+
+        /** @dev Some bAsset is undergoing re-collateralisation */
+        bool undergoingRecol;
 
         /**
          * @dev In the event that we do not raise enough funds from the auctioning of a failed Basset,
@@ -47,7 +49,7 @@ interface MassetStructs {
         uint256 ratio;
 
         /** @dev Target weights of the Basset (100% == 1e18) */
-        uint256 targetWeight;
+        uint256 maxWeight;
 
         /** @dev Amount of the Basset that is held in Collateral */
         uint256 vaultBalance;
@@ -66,19 +68,26 @@ interface MassetStructs {
         Failed
     }
 
-    struct ForgeProps {
-        bool isValid;
+    /** @dev Internal details on Basset */
+    struct BassetDetails {
         Basset bAsset;
         address integrator;
         uint8 index;
-        uint256 grace;
     }
 
+    /** @dev All details needed to Forge with multiple bAssets */
     struct ForgePropsMulti {
-        bool isValid;
+        bool isValid; // Flag to signify that forge bAssets have passed validity check
         Basset[] bAssets;
         address[] integrators;
         uint8[] indexes;
-        uint256 grace;
+    }
+
+    /** @dev All details needed for proportionate Redemption */
+    struct RedeemPropsMulti {
+        uint256 colRatio;
+        Basset[] bAssets;
+        address[] integrators;
+        uint8[] indexes;
     }
 }

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/camelcase */
-import * as t from "types/generated";
+
 import { expectRevert, expectEvent, time } from "@openzeppelin/test-helpers";
 
 import { simpleToExactAmount } from "@utils/math";
@@ -8,15 +8,16 @@ import { StandardAccounts, SystemMachine, MassetDetails } from "@utils/machines"
 import { BN } from "@utils/tools";
 import { fullScale, ZERO_ADDRESS, ZERO, MAX_UINT256, ONE_DAY } from "@utils/constants";
 import envSetup from "@utils/env_setup";
+import * as t from "types/generated";
 import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
 
 const { expect } = envSetup.configure();
 
-const SavingsContract: t.SavingsContractContract = artifacts.require("SavingsContract");
-const MockNexus: t.MockNexusContract = artifacts.require("MockNexus");
-const MockMasset: t.MockMassetContract = artifacts.require("MockMasset");
-const MockSavingsManager: t.MockSavingsManagerContract = artifacts.require("MockSavingsManager");
-const SavingsManager: t.SavingsManagerContract = artifacts.require("SavingsManager");
+const SavingsContract = artifacts.require("SavingsContract");
+const MockNexus = artifacts.require("MockNexus");
+const MockMasset = artifacts.require("MockMasset");
+const MockSavingsManager = artifacts.require("MockSavingsManager");
+const SavingsManager = artifacts.require("SavingsManager");
 
 interface SavingsBalances {
     totalSavings: BN;

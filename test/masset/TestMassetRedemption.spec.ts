@@ -1,41 +1,37 @@
 /* eslint-disable @typescript-eslint/camelcase */
 /* eslint-disable no-await-in-loop */
 
-import * as t from "types/generated";
 import { expectEvent, expectRevert } from "@openzeppelin/test-helpers";
-
 import { assertBasketIsHealthy, assertBNSlightlyGTPercent } from "@utils/assertions";
 import { simpleToExactAmount, applyRatio, applyRatioCeil } from "@utils/math";
 import { MassetDetails, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import { BN } from "@utils/tools";
 import { BassetStatus } from "@utils/mstable-objects";
 import { ZERO_ADDRESS, fullScale } from "@utils/constants";
-
 import envSetup from "@utils/env_setup";
+import * as t from "types/generated";
 
 const { expect } = envSetup.configure();
 
-const MockBasketManager1: t.MockBasketManager1Contract = artifacts.require("MockBasketManager1");
-const MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
-const MockAToken: t.MockATokenContract = artifacts.require("MockAToken");
-const MockAave: t.MockAaveContract = artifacts.require("MockAave");
-const AaveIntegration: t.AaveIntegrationContract = artifacts.require("AaveIntegration");
+const MockBasketManager1 = artifacts.require("MockBasketManager1");
+const MockERC20 = artifacts.require("MockERC20");
+const MockAToken = artifacts.require("MockAToken");
+const MockAave = artifacts.require("MockAave");
+const AaveIntegration = artifacts.require("AaveIntegration");
 
-const Masset: t.MassetContract = artifacts.require("Masset");
+const Masset = artifacts.require("Masset");
 
-interface RedemptionOutput {
-    senderMassetBalBefore: BN;
-    senderMassetBalAfter: BN;
-    recipientBassetBalBefore: BN;
-    recipientBassetBalAfter: BN;
-}
-
-contract("Masset", async (accounts) => {
+contract("Masset - Redeem", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
     let massetMachine: MassetMachine;
     let massetDetails: MassetDetails;
 
+    /**
+     * @dev (Re)Sets the local variables for this test file
+     * @param seedBasket Should we add base layer liquidity to the vault?
+     * @param enableUSDTFee Enable the bAssets with transfer fees?
+     */
     const runSetup = async (seedBasket = true, enableUSDTFee = false): Promise<void> => {
         massetDetails = seedBasket
             ? await massetMachine.deployMassetAndSeedBasket(enableUSDTFee)
@@ -43,14 +39,15 @@ contract("Masset", async (accounts) => {
         await assertBasketIsHealthy(massetMachine, massetDetails);
     };
 
-    before("Init contract", async () => {
-        systemMachine = new SystemMachine(sa.all);
-        massetMachine = new MassetMachine(systemMachine);
-
-        await runSetup();
-    });
-
-    const seedWithWeightings = async (md: MassetDetails, weights: Array<BN>): Promise<void> => {
+    /**
+     * @dev Seeds the mAsset basket with custom weightings
+     * @param md Masset details object containing all deployed contracts
+     * @param weights Whole numbers of mAsset to mint for each given bAsset
+     */
+    const seedWithWeightings = async (
+        md: MassetDetails,
+        weights: Array<BN | string | number>,
+    ): Promise<void> => {
         const { mAsset, bAssets } = md;
         const approvals = await Promise.all(
             bAssets.map((b, i) => massetMachine.approveMasset(b, mAsset, weights[i], sa.default)),
@@ -62,99 +59,225 @@ contract("Masset", async (accounts) => {
             { from: sa.default },
         );
     };
+
     const assertFailedRedemption = async (
         mAsset: t.MassetInstance,
-        bAsset: t.MockERC20Instance,
+        bAsset: t.MockErc20Instance,
         amount: BN,
         reason: string,
     ): Promise<void> => {
-        const approval: BN = await massetMachine.approveMasset(bAsset, mAsset, amount);
-        await expectRevert(mAsset.redeem(bAsset.address, approval), reason);
+        const bAssetDecimals: BN = await bAsset.decimals();
+        // let decimalDifference: BN = bAssetDecimals.sub(new BN(18));
+        const exactAmount = simpleToExactAmount(amount, bAssetDecimals.toNumber());
+        await expectRevert(mAsset.redeem(bAsset.address, exactAmount), reason);
     };
 
-    // Helper to assert basic redemption conditions, i.e. balance before and after
+    // Helper to assert basic redemption conditions, e.g. balance before and after
     const assertBasicRedemption = async (
         md: MassetDetails,
         bAssetRedeemAmount: BN | number,
-        bAsset: t.MockERC20Instance,
+        bAsset: t.MockErc20Instance,
+        expectFee = true,
         useRedeemTo = false,
         recipient: string = sa.default,
         sender: string = sa.default,
         ignoreHealthAssertions = false,
-    ): Promise<RedemptionOutput> => {
+    ): Promise<void> => {
+        const { mAsset, basketManager } = md;
         if (!ignoreHealthAssertions) await assertBasketIsHealthy(massetMachine, md);
 
         // Get balances before
-        const senderMassetBalBefore = await md.mAsset.balanceOf(sender);
-        const mUSDSupplyBefore = await md.mAsset.totalSupply();
-        const feeRecipient = await md.mAsset.feeRecipient();
-        const feeRecipientBalBefore = await md.mAsset.balanceOf(feeRecipient);
+        const senderMassetBalBefore = await mAsset.balanceOf(sender);
+        const mUSDSupplyBefore = await mAsset.totalSupply();
         const derivedRecipient = useRedeemTo ? recipient : sender;
         const recipientBassetBalBefore = await bAsset.balanceOf(derivedRecipient);
-        const bAssetBefore = await md.basketManager.getBasset(bAsset.address);
+        const bAssetBefore = await basketManager.getBasset(bAsset.address);
         const bAssetDecimals = await bAsset.decimals();
         const bAssetExact = simpleToExactAmount(bAssetRedeemAmount, bAssetDecimals);
 
         // Execute the redemption
         const tx = useRedeemTo
-            ? await md.mAsset.redeemTo(bAsset.address, bAssetExact, derivedRecipient)
-            : await md.mAsset.redeem(bAsset.address, bAssetExact);
+            ? await mAsset.redeemTo(bAsset.address, bAssetExact, derivedRecipient)
+            : await mAsset.redeem(bAsset.address, bAssetExact);
 
         // Calc mAsset burn amounts based on bAsset quantities
         const mAssetQuantity = applyRatio(bAssetExact, bAssetBefore.ratio);
-        const feeRate = await md.mAsset.redemptionFee();
-        const mAssetFee = mAssetQuantity.mul(feeRate).div(fullScale);
+        let fee = new BN(0);
+        let feeRate = new BN(0);
+        //    If there is a fee expected, then deduct it from output
+        if (expectFee) {
+            feeRate = await mAsset.swapFee();
+            expect(feeRate).bignumber.gt(new BN(0) as any);
+            expect(feeRate).bignumber.lt(fullScale.div(new BN(50)) as any);
+            fee = bAssetExact.mul(feeRate).div(fullScale);
+            expect(fee).bignumber.gt(new BN(0) as any);
+        }
 
         // Listen for the events
         await expectEvent(tx.receipt, "Redeemed", {
-            recipient: derivedRecipient,
             redeemer: sender,
+            recipient: derivedRecipient,
             mAssetQuantity,
-            bAsset: bAsset.address,
-            bAssetQuantity: bAssetExact,
+            bAssets: [bAsset.address],
         });
-        // - Transfers to lending platform
-        await expectEvent(tx.receipt, "Transfer", {
-            from: await md.basketManager.getBassetIntegrator(bAsset.address),
-            to: recipient,
-            value: bAssetExact,
-        });
-        // - Withdraws into lending platform
+        if (expectFee) {
+            expectEvent(tx.receipt, "PaidFee", {
+                payer: sender,
+                asset: bAsset.address,
+                feeQuantity: fee,
+            });
+        }
+        // - Withdraws from lending platform
         const emitter = await AaveIntegration.new();
         await expectEvent.inTransaction(tx.tx, emitter, "Withdrawal", {
             _bAsset: bAsset.address,
-            _amount: bAssetExact,
+            _amount: bAssetExact.sub(fee),
         });
         // Sender should have less mAsset
-        const senderMassetBalAfter = await md.mAsset.balanceOf(sender);
-        expect(senderMassetBalAfter).bignumber.eq(
-            senderMassetBalBefore.sub(mAssetQuantity).sub(mAssetFee),
-        );
+        const senderMassetBalAfter = await mAsset.balanceOf(sender);
+        expect(senderMassetBalAfter).bignumber.eq(senderMassetBalBefore.sub(mAssetQuantity));
         // Total mUSD supply should be less
-        const mUSDSupplyAfter = await md.mAsset.totalSupply();
+        const mUSDSupplyAfter = await mAsset.totalSupply();
         expect(mUSDSupplyAfter).bignumber.eq(mUSDSupplyBefore.sub(mAssetQuantity));
-        // FeeRecipient should receive fees
-        const feeRecipientBalAfter = await md.mAsset.balanceOf(feeRecipient);
-        expect(feeRecipientBalAfter).bignumber.eq(feeRecipientBalBefore.add(mAssetFee));
-        // Recipient should have more bAsset
+        // Recipient should have more bAsset, minus fee
         const recipientBassetBalAfter = await bAsset.balanceOf(derivedRecipient);
-        expect(recipientBassetBalAfter).bignumber.eq(recipientBassetBalBefore.add(bAssetExact));
-        // VaultBalance should update for this bAsset
-        const bAssetAfter = await md.basketManager.getBasset(bAsset.address);
+        expect(recipientBassetBalAfter).bignumber.eq(
+            recipientBassetBalBefore.add(bAssetExact).sub(fee),
+        );
+        // VaultBalance should update for this bAsset, including fee
+        const bAssetAfter = await basketManager.getBasset(bAsset.address);
         expect(new BN(bAssetAfter.vaultBalance)).bignumber.eq(
             new BN(bAssetBefore.vaultBalance).sub(bAssetExact),
         );
 
         // Complete basket should remain in healthy state
         if (!ignoreHealthAssertions) await assertBasketIsHealthy(massetMachine, md);
-
-        return {
-            senderMassetBalBefore,
-            senderMassetBalAfter,
-            recipientBassetBalBefore,
-            recipientBassetBalAfter,
-        };
     };
+
+    // Helper to assert basic redemption conditions, i.e. balance before and after
+    const assertRedeemMulti = async (
+        md: MassetDetails,
+        bAssetRedeemAmounts: Array<BN | number>,
+        bAssets: Array<t.MockErc20Instance>,
+        expectFee = true,
+        recipient: string = sa.default,
+        sender: string = sa.default,
+        ignoreHealthAssertions = false,
+    ): Promise<void> => {
+        const { mAsset, basketManager } = md;
+        if (!ignoreHealthAssertions) await assertBasketIsHealthy(massetMachine, md);
+
+        // Get balances before
+        const senderMassetBalBefore = await mAsset.balanceOf(sender);
+        const mUSDSupplyBefore = await mAsset.totalSupply();
+        // Get arrays of bAsset balances and bAssets
+        const recipientBassetBalsBefore = await Promise.all(
+            bAssets.map((b) => b.balanceOf(recipient)),
+        );
+        const bAssetsBefore = await Promise.all(
+            bAssets.map((b) => basketManager.getBasset(b.address)),
+        );
+        const bAssetsDecimals = await Promise.all(bAssets.map((b) => b.decimals()));
+        const bAssetsExact = await Promise.all(
+            bAssets.map((_, i) => simpleToExactAmount(bAssetRedeemAmounts[i], bAssetsDecimals[i])),
+        );
+
+        // Execute the redemption
+        const tx = await mAsset.redeemMulti(
+            bAssets.map((b) => b.address),
+            bAssetsExact,
+            recipient,
+            { from: sender },
+        );
+
+        // Calc mAsset burn amounts based on bAsset quantities
+        const mAssetQuantity = bAssetsExact.reduce(
+            (p, c, i) => p.add(applyRatio(c, bAssetsBefore[i].ratio)),
+            new BN(0),
+        );
+        let fees = bAssets.map(() => new BN(0));
+        let feeRate = new BN(0);
+        //    If there is a fee expected, then deduct it from output
+        if (expectFee) {
+            feeRate = await mAsset.swapFee();
+            expect(feeRate).bignumber.gt(new BN(0) as any);
+            expect(feeRate).bignumber.lt(fullScale.div(new BN(50)) as any);
+            fees = bAssetsExact.map((b) => b.mul(feeRate).div(fullScale));
+            fees.map((f, i) =>
+                bAssetsExact[i].gt(new BN(0) as any)
+                    ? expect(f).bignumber.gt(new BN(0) as any)
+                    : null,
+            );
+        }
+
+        // Listen for the events
+        await expectEvent(tx.receipt, "Redeemed", {
+            redeemer: sender,
+            recipient,
+            mAssetQuantity,
+            bAssets: bAssets.map((b) => b.address),
+        });
+        // - Transfers from lending platform
+        await Promise.all(
+            bAssets.map(async (b, i) =>
+                bAssetsExact[i].gt(new BN(0))
+                    ? expectEvent(tx.receipt, "Transfer", {
+                          from: await basketManager.getBassetIntegrator(b.address),
+                          to: recipient,
+                          value: bAssetsExact[i].sub(fees[i]),
+                      })
+                    : null,
+            ),
+        );
+        if (expectFee) {
+            bAssets.map((b, i) =>
+                fees[i].gt(new BN(0))
+                    ? expectEvent(tx.receipt, "PaidFee", {
+                          payer: sender,
+                          asset: b.address,
+                          feeQuantity: fees[i],
+                      })
+                    : null,
+            );
+        }
+        // Sender should have less mAsset
+        const senderMassetBalAfter = await mAsset.balanceOf(sender);
+        expect(senderMassetBalAfter).bignumber.eq(senderMassetBalBefore.sub(mAssetQuantity));
+        // Total mUSD supply should be less
+        const mUSDSupplyAfter = await mAsset.totalSupply();
+        expect(mUSDSupplyAfter).bignumber.eq(mUSDSupplyBefore.sub(mAssetQuantity));
+        // Recipient should have more bAsset
+        const recipientBassetBalsAfter = await Promise.all(
+            bAssets.map((b) => b.balanceOf(recipient)),
+        );
+        recipientBassetBalsAfter.map((b, i) =>
+            expect(b).bignumber.eq(recipientBassetBalsBefore[i].add(bAssetsExact[i]).sub(fees[i])),
+        );
+        // VaultBalance should update for this bAsset
+        const bAssetsAfter = await Promise.all(
+            bAssets.map((b) => basketManager.getBasset(b.address)),
+        );
+        bAssetsAfter.map((b, i) =>
+            expect(new BN(b.vaultBalance)).bignumber.eq(
+                new BN(bAssetsBefore[i].vaultBalance).sub(bAssetsExact[i]),
+            ),
+        );
+
+        // Complete basket should remain in healthy state
+        if (!ignoreHealthAssertions) await assertBasketIsHealthy(massetMachine, md);
+    };
+
+    /**
+     * @dev (Re)Sets the local variables for this test file
+     * @param seedBasket Should we add base layer liquidity to the vault?
+     * @param enableUSDTFee Enable the bAssets with transfer fees?
+     */
+    before("Init contract", async () => {
+        systemMachine = new SystemMachine(sa.all);
+        massetMachine = new MassetMachine(systemMachine);
+
+        await runSetup();
+    });
 
     describe("redeeming with a single bAsset", () => {
         context("when the weights are within the ForgeValidator limit", () => {
@@ -180,6 +303,7 @@ contract("Masset", async (accounts) => {
                         new BN(1),
                         bAssets[0],
                         true,
+                        true,
                         recipient,
                     );
                 });
@@ -191,6 +315,7 @@ contract("Masset", async (accounts) => {
                         new BN(1),
                         bAssets[1],
                         true,
+                        true,
                         recipient,
                     );
                 });
@@ -201,7 +326,7 @@ contract("Masset", async (accounts) => {
                 });
                 it("should redeem to sender in basic redeem func", async () => {
                     const { bAssets } = massetDetails;
-                    await assertBasicRedemption(massetDetails, new BN(1), bAssets[1], false);
+                    await assertBasicRedemption(massetDetails, new BN(1), bAssets[1], true);
                 });
             });
             context("and specifying one bAsset base unit", async () => {
@@ -222,8 +347,7 @@ contract("Masset", async (accounts) => {
                     const expectedMasset = new BN(1000000);
                     await expectEvent(tx.receipt, "Redeemed", {
                         mAssetQuantity: expectedMasset,
-                        bAsset: bAsset.address,
-                        bAssetQuantity: new BN(1),
+                        bAssets: [bAsset.address],
                     });
                     // Recipient should have bAsset quantity after
                     const recipientBassetBalAfter = await bAsset.balanceOf(sa.default);
@@ -238,36 +362,6 @@ contract("Masset", async (accounts) => {
                 });
             });
 
-            context("and the feeRecipient changes", async () => {
-                before(async () => {
-                    await runSetup();
-                });
-                it("should send the fee to the new recipient", async () => {
-                    const { bAssets, mAsset } = massetDetails;
-                    const bAsset = bAssets[0];
-                    const bAssetBefore = await massetDetails.basketManager.getBasset(
-                        bAsset.address,
-                    );
-                    // Do a basic redemption
-                    await assertBasicRedemption(massetDetails, new BN(1), bAsset);
-                    // Set a new fee recipient
-                    await mAsset.setFeeRecipient(sa.dummy1, { from: sa.governor });
-                    // Cal expected payout
-                    const feeRate = await mAsset.redemptionFee();
-                    // Calc mAsset burn amounts based on bAsset quantities
-                    const mAssetQuantity = applyRatio(
-                        simpleToExactAmount(new BN(1), await bAsset.decimals()),
-                        bAssetBefore.ratio,
-                    );
-                    const mAssetFee = mAssetQuantity.mul(feeRate).div(fullScale);
-                    const balBefore = await mAsset.balanceOf(sa.dummy1);
-                    // Run the redemption
-                    await assertBasicRedemption(massetDetails, new BN(1), bAsset);
-                    const balAfter = await mAsset.balanceOf(sa.dummy1);
-                    // Assert balance increase
-                    expect(balAfter).bignumber.eq(balBefore.add(mAssetFee));
-                });
-            });
             context("and the feeRate changes", async () => {
                 before(async () => {
                     await runSetup();
@@ -277,38 +371,45 @@ contract("Masset", async (accounts) => {
                     const bAsset = bAssets[0];
                     const bAssetBefore = await basketManager.getBasset(bAsset.address);
                     // Set a new fee recipient
-                    await mAsset.setFeeRecipient(sa.dummy1, { from: sa.governor });
-                    const newFee = simpleToExactAmount("5.234234", 16);
-                    await mAsset.setRedemptionFee(newFee, { from: sa.governor });
+                    const newFee = simpleToExactAmount("5.234234", 15);
+                    await mAsset.setSwapFee(newFee, { from: sa.governor });
 
                     // Calc mAsset burn amounts based on bAsset quantities
-                    const mAssetQuantity = applyRatio(
-                        simpleToExactAmount(new BN(1), await bAsset.decimals()),
-                        bAssetBefore.ratio,
-                    );
-                    const mAssetFee = mAssetQuantity.mul(newFee).div(fullScale);
-                    const balBefore = await mAsset.balanceOf(sa.dummy1);
+                    const bAssetQuantity = simpleToExactAmount(new BN(1), await bAsset.decimals());
+                    const mAssetQuantity = applyRatio(bAssetQuantity, bAssetBefore.ratio);
+                    const bAssetFee = bAssetQuantity.mul(newFee).div(fullScale);
+                    const massetBalBefore = await mAsset.balanceOf(sa.default);
+                    const bassetBalBefore = await bAsset.balanceOf(sa.default);
                     // Run the redemption
                     await assertBasicRedemption(massetDetails, new BN(1), bAsset);
-                    const balAfter = await mAsset.balanceOf(sa.dummy1);
+                    const massetBalAfter = await mAsset.balanceOf(sa.default);
+                    const bassetBalAfter = await bAsset.balanceOf(sa.default);
                     // Assert balance increase
-                    expect(balAfter).bignumber.eq(balBefore.add(mAssetFee));
+                    expect(massetBalAfter).bignumber.eq(massetBalBefore.sub(mAssetQuantity));
+                    expect(bassetBalAfter).bignumber.eq(
+                        bassetBalBefore.add(bAssetQuantity).sub(bAssetFee),
+                    );
                 });
                 it("should deduct nothing if the fee is 0", async () => {
-                    const { bAssets, mAsset } = massetDetails;
+                    const { bAssets, mAsset, basketManager } = massetDetails;
                     const bAsset = bAssets[0];
+                    const bAssetBefore = await basketManager.getBasset(bAsset.address);
                     // Set a new fee recipient
-                    await mAsset.setFeeRecipient(sa.dummy1, { from: sa.governor });
                     const newFee = new BN(0);
-                    await mAsset.setRedemptionFee(newFee, { from: sa.governor });
+                    await mAsset.setSwapFee(newFee, { from: sa.governor });
 
                     // Calc mAsset burn amounts based on bAsset quantities
-                    const balBefore = await mAsset.balanceOf(sa.dummy1);
+                    const bAssetQuantity = simpleToExactAmount(new BN(1), await bAsset.decimals());
+                    const mAssetQuantity = applyRatio(bAssetQuantity, bAssetBefore.ratio);
+                    const massetBalBefore = await mAsset.balanceOf(sa.default);
+                    const bassetBalBefore = await bAsset.balanceOf(sa.default);
                     // Run the redemption
-                    await assertBasicRedemption(massetDetails, new BN(1), bAsset);
-                    const balAfter = await mAsset.balanceOf(sa.dummy1);
+                    await assertBasicRedemption(massetDetails, new BN(1), bAsset, false);
+                    const massetBalAfter = await mAsset.balanceOf(sa.default);
+                    const bassetBalAfter = await bAsset.balanceOf(sa.default);
                     // Assert balance increase
-                    expect(balAfter).bignumber.eq(balBefore);
+                    expect(massetBalAfter).bignumber.eq(massetBalBefore.sub(mAssetQuantity));
+                    expect(bassetBalAfter).bignumber.eq(bassetBalBefore.add(bAssetQuantity));
                 });
             });
             context("and there is insufficient bAsset in the basket", async () => {
@@ -355,15 +456,17 @@ contract("Masset", async (accounts) => {
                     // 3.0 Do the redemption
                     const tx = await mAsset.redeemTo(bAsset.address, oneBasset, recipient);
                     const expectedMassetQuantity = applyRatio(oneBasset, bAssetBefore.ratio);
+                    const feeRate = await mAsset.swapFee();
+                    const bAssetFee = oneBasset.mul(feeRate).div(fullScale);
                     expectEvent(tx.receipt, "Redeemed", {
                         mAssetQuantity: expectedMassetQuantity,
-                        bAsset: bAsset.address,
+                        bAssets: [bAsset.address],
                     });
                     // 4.0 Total supply goes down, and recipient bAsset goes up slightly
                     const recipientBassetBalAfter = await bAsset.balanceOf(recipient);
                     // Assert that we redeemed gt 99% of the bAsset
                     assertBNSlightlyGTPercent(
-                        recipientBassetBalBefore.add(oneBasset),
+                        recipientBassetBalBefore.add(oneBasset.sub(bAssetFee)),
                         recipientBassetBalAfter,
                         "0.4",
                         true,
@@ -407,7 +510,7 @@ contract("Masset", async (accounts) => {
                     const bAsset = massetDetails.bAssets[0];
                     await expectRevert(
                         massetDetails.mAsset.redeem(bAsset.address, new BN(0)),
-                        "Quantity must not be 0",
+                        "Must redeem some bAssets",
                     );
                 });
                 it("should fail if sender doesn't have mAsset balance", async () => {
@@ -417,26 +520,6 @@ contract("Masset", async (accounts) => {
                     expect(await mAsset.balanceOf(sender)).bignumber.eq(new BN(0));
                     await expectRevert(
                         mAsset.redeem(bAsset.address, new BN(1), { from: sender }),
-                        "ERC20: transfer amount exceeds balance",
-                    );
-                });
-                it("should fail if sender doesn't have mAsset balance to cover fee", async () => {
-                    const { bAssets, mAsset, basketManager } = massetDetails;
-                    const bAsset = bAssets[0];
-                    const sender = sa.dummy1;
-                    const bAssetDecimals = await bAsset.decimals();
-                    const bAssetExact = simpleToExactAmount(new BN(1), bAssetDecimals);
-                    const bAssetBefore = await basketManager.getBasset(bAsset.address);
-
-                    // Execute the redemption
-                    await mAsset.redeem(bAsset.address, bAssetExact);
-
-                    // Transfer sufficient balance to do the redemption, but not enough for the fee
-                    const mAssetQuantity = applyRatio(bAssetExact, bAssetBefore.ratio);
-                    await mAsset.transfer(sender, mAssetQuantity, { from: sa.default });
-                    expect(await mAsset.balanceOf(sender)).bignumber.eq(mAssetQuantity);
-                    await expectRevert(
-                        mAsset.redeem(bAsset.address, bAssetExact, { from: sender }),
                         "ERC20: burn amount exceeds balance",
                     );
                 });
@@ -444,7 +527,7 @@ contract("Masset", async (accounts) => {
                     const bAsset = await MockERC20.new("Mock", "MKK", 18, sa.default, 1000);
                     await expectRevert(
                         massetDetails.mAsset.redeem(bAsset.address, new BN(100)),
-                        "bAsset does not exist",
+                        "bAsset must exist",
                     );
                 });
             });
@@ -463,7 +546,7 @@ contract("Masset", async (accounts) => {
                     expect(newBasset.status).to.eq(BassetStatus.BrokenAbovePeg.toString());
                     await expectRevert(
                         mAsset.redeem(bAsset.address, new BN(1)),
-                        "Cannot redeem depegged bAsset",
+                        "Must redeem proportionately",
                     );
                 });
                 it("should fail if any bAsset in basket is broken below peg", async () => {
@@ -478,7 +561,7 @@ contract("Masset", async (accounts) => {
                     expect(newBasset.status).to.eq(BassetStatus.BrokenBelowPeg.toString());
                     await expectRevert(
                         mAsset.redeem(bAsset.address, new BN(1)),
-                        "bAssets undergoing liquidation",
+                        "Must redeem proportionately",
                     );
                 });
                 it("should fail if any bAsset in basket is liquidating or blacklisted", async () => {
@@ -490,7 +573,7 @@ contract("Masset", async (accounts) => {
                     expect(newBasset.status).to.eq(BassetStatus.Liquidating.toString());
                     await expectRevert(
                         mAsset.redeem(bAsset.address, new BN(1)),
-                        "bAssets undergoing liquidation",
+                        "Must redeem proportionately",
                     );
                 });
             });
@@ -519,8 +602,7 @@ contract("Masset", async (accounts) => {
                     // Listen for the events
                     await expectEvent(tx.receipt, "Redeemed", {
                         mAssetQuantity: mAssetQuantityCeil,
-                        bAsset: bAsset.address,
-                        bAssetQuantity: oneBaseUnit,
+                        bAssets: [bAsset.address],
                     });
                     // Total mUSD supply should be less
                     const mUSDSupplyAfter = await mAsset.totalSupply();
@@ -556,93 +638,33 @@ contract("Masset", async (accounts) => {
         });
 
         context("when the basket weights are out of sync", async () => {
-            context("when some are close to their threshold...", async () => {
-                beforeEach(async () => {
-                    await runSetup(false, false);
-                });
-                it("should fail if we push something else above max", async () => {
-                    const { bAssets, mAsset, basketManager } = massetDetails;
-                    const composition = await massetMachine.getBasketComposition(massetDetails);
-                    // Expect 4 bAssets with 25, 25, 25, 25 weightings
-                    composition.bAssets.forEach((b) => {
-                        expect(b.vaultBalance).bignumber.eq(new BN(0));
-                        expect(b.targetWeight).bignumber.eq(simpleToExactAmount(25, 16));
-                    });
-                    // Mint 25 of each bAsset, taking total to 100%
-                    await seedWithWeightings(massetDetails, [
-                        new BN(25),
-                        new BN(25),
-                        new BN(25),
-                        new BN(25),
-                    ]);
-                    // Set no grace allowance
-                    await basketManager.setGrace(simpleToExactAmount(1, 18), {
-                        from: sa.governor,
-                    });
-                    // Assert basket is still healthy with 0 grace
-                    await assertBasketIsHealthy(massetMachine, massetDetails);
-                    // Should revert since we would be pushing above target + grace
-                    const bAsset = bAssets[0];
-                    const bAssetDecimals = await bAsset.decimals();
-                    await expectRevert(
-                        mAsset.redeem(bAsset.address, simpleToExactAmount(5, bAssetDecimals)),
-                        "bAssets must remain above implicit min weight",
-                    );
-                });
-                it("should fail if we go below implicit min", async () => {
-                    const { bAssets, mAsset, basketManager } = massetDetails;
-                    const composition = await massetMachine.getBasketComposition(massetDetails);
-                    // Expect 4 bAssets with 25, 25, 25, 25 weightings
-                    composition.bAssets.forEach((b) => {
-                        expect(b.vaultBalance).bignumber.eq(new BN(0));
-                        expect(b.targetWeight).bignumber.eq(simpleToExactAmount(25, 16));
-                    });
-                    // Mint 25 of each bAsset, taking total to 100%
-                    await seedWithWeightings(massetDetails, [
-                        new BN(25),
-                        new BN(25),
-                        new BN(25),
-                        new BN(25),
-                    ]);
-                    // Set no grace allowance
-                    await basketManager.setGrace(simpleToExactAmount(1, 18), {
-                        from: sa.governor,
-                    });
-                    // Assert basket is still healthy with 0 grace
-                    await assertBasketIsHealthy(massetMachine, massetDetails);
-                    // Should revert since we would be pushing above target + grace
-                    const bAsset = bAssets[0];
-                    const bAssetDecimals = await bAsset.decimals();
-                    // Resulting weighting: 23/98. Min weighting = 24.5 -1 = 23.5
-                    await expectRevert(
-                        mAsset.redeem(bAsset.address, simpleToExactAmount(2, bAssetDecimals)),
-                        "bAssets must remain above implicit min weight",
-                    );
-                });
-            });
             context("when some are above", async () => {
                 beforeEach(async () => {
                     await runSetup(false);
                 });
-                it("should succeed if we redeem the overweight bAsset, and fail otherwise", async () => {
+                it("should succeed if we redeem all overweight bAssets, and fail otherwise", async () => {
                     const { bAssets, mAsset, basketManager } = massetDetails;
                     let composition = await massetMachine.getBasketComposition(massetDetails);
-                    // Expect 4 bAssets with 25, 25, 25, 25 weightings
+                    // Expect 4 bAssets with 100 weightings
                     composition.bAssets.forEach((b) => {
                         expect(b.vaultBalance).bignumber.eq(new BN(0));
-                        expect(b.targetWeight).bignumber.eq(simpleToExactAmount(25, 16));
+                        expect(b.maxWeight).bignumber.eq(simpleToExactAmount(100, 16));
                     });
                     // Mint 25 of each bAsset, taking total to 100%
                     await seedWithWeightings(massetDetails, [
-                        new BN(30),
+                        new BN(40),
                         new BN(20),
                         new BN(20),
-                        new BN(30),
+                        new BN(20),
                     ]);
-                    // Set no grace allowance
-                    await basketManager.setGrace(simpleToExactAmount(1, 18), {
-                        from: sa.governor,
-                    });
+                    // Set updated weightings
+                    await basketManager.setBasketWeights(
+                        bAssets.map((b) => b.address),
+                        bAssets.map(() => simpleToExactAmount(30, 16)),
+                        {
+                            from: sa.governor,
+                        },
+                    );
                     composition = await massetMachine.getBasketComposition(massetDetails);
                     expect(composition.bAssets[0].overweight).to.eq(true);
                     // Should succeed if we redeem this
@@ -663,34 +685,146 @@ contract("Masset", async (accounts) => {
                         "Must redeem overweight bAssets",
                     );
                 });
-                it("should fail if we redeem so much that it goes underweight", async () => {
+                it("should fail if there are multiple bAssets over", async () => {
                     const { bAssets, mAsset, basketManager } = massetDetails;
                     let composition = await massetMachine.getBasketComposition(massetDetails);
-                    // Expect 4 bAssets with 25, 25, 25, 25 weightings
+                    // Expect 4 bAssets with 100 weightings
                     composition.bAssets.forEach((b) => {
                         expect(b.vaultBalance).bignumber.eq(new BN(0));
-                        expect(b.targetWeight).bignumber.eq(simpleToExactAmount(25, 16));
+                        expect(b.maxWeight).bignumber.eq(simpleToExactAmount(100, 16));
                     });
                     // Mint 25 of each bAsset, taking total to 100%
                     await seedWithWeightings(massetDetails, [
-                        new BN(30),
+                        new BN(40),
                         new BN(20),
                         new BN(20),
-                        new BN(30),
+                        new BN(40),
                     ]);
-                    // Set no grace allowance
-                    await basketManager.setGrace(simpleToExactAmount(1, 18), {
-                        from: sa.governor,
-                    });
+                    // Set updated weightings
+                    await basketManager.setBasketWeights(
+                        bAssets.map((b) => b.address),
+                        bAssets.map(() => simpleToExactAmount(30, 16)),
+                        {
+                            from: sa.governor,
+                        },
+                    );
                     composition = await massetMachine.getBasketComposition(massetDetails);
                     expect(composition.bAssets[0].overweight).to.eq(true);
-                    // Should fail if we redeem anything but the overweight bAsset
+                    // Should succeed if we redeem this
                     const bAsset = bAssets[0];
                     const bAssetDecimals = await bAsset.decimals();
                     await expectRevert(
-                        mAsset.redeem(bAsset.address, simpleToExactAmount(20, bAssetDecimals)),
-                        "bAssets must remain above implicit min weight",
+                        mAsset.redeem(bAsset.address, simpleToExactAmount(1, bAssetDecimals)),
+                        "Redemption must contain all overweight bAssets",
                     );
+                });
+                it("should fail if redeeming overweight bAsset causes another to go overweight", async () => {
+                    const { bAssets, mAsset, basketManager } = massetDetails;
+                    let composition = await massetMachine.getBasketComposition(massetDetails);
+                    // Expect 4 bAssets with 100 weightings
+                    composition.bAssets.forEach((b) => {
+                        expect(b.vaultBalance).bignumber.eq(new BN(0));
+                        expect(b.maxWeight).bignumber.eq(simpleToExactAmount(100, 16));
+                    });
+                    // Mint 25 of each bAsset, taking total to 100%
+                    await seedWithWeightings(massetDetails, [
+                        new BN(31),
+                        new BN(28),
+                        new BN(21),
+                        new BN(22),
+                    ]);
+                    // Set updated weightings
+                    await basketManager.setBasketWeights(
+                        bAssets.map((b) => b.address),
+                        bAssets.map(() => simpleToExactAmount(30, 16)),
+                        {
+                            from: sa.governor,
+                        },
+                    );
+                    composition = await massetMachine.getBasketComposition(massetDetails);
+                    expect(composition.bAssets[0].overweight).to.eq(true);
+                    // Should succeed if we redeem this
+                    const bAsset = bAssets[0];
+                    const bAssetDecimals = await bAsset.decimals();
+                    await expectRevert(
+                        mAsset.redeem(bAsset.address, simpleToExactAmount(10, bAssetDecimals)),
+                        "bAssets must remain below max weight",
+                    );
+                });
+            });
+            context("when there is one breached", async () => {
+                beforeEach(async () => {
+                    await runSetup(false);
+                });
+                it("should force proportional redemption no matter what", async () => {
+                    const { bAssets, mAsset, basketManager } = massetDetails;
+                    const composition = await massetMachine.getBasketComposition(massetDetails);
+                    // Expect 4 bAssets with 100 weightings
+                    composition.bAssets.forEach((b) => {
+                        expect(b.vaultBalance).bignumber.eq(new BN(0));
+                        expect(b.maxWeight).bignumber.eq(simpleToExactAmount(100, 16));
+                    });
+                    // Mint some of each bAsset, taking total to 100%
+                    await seedWithWeightings(massetDetails, [
+                        "29.5", // breached given that it's within 1%
+                        new BN(28),
+                        new BN(23),
+                        "19.5",
+                    ]);
+                    // Set updated weightings
+                    await basketManager.setBasketWeights(
+                        bAssets.map((b) => b.address),
+                        bAssets.map(() => simpleToExactAmount(30, 16)),
+                        {
+                            from: sa.governor,
+                        },
+                    );
+                    // Should succeed if we redeem this
+                    const bAsset = bAssets[0];
+                    const bAssetDecimals = await bAsset.decimals();
+                    await expectRevert(
+                        mAsset.redeem(bAsset.address, simpleToExactAmount(10, bAssetDecimals)),
+                        "Must redeem proportionately",
+                    );
+                });
+            });
+            context("if the redemption would push another overweight", async () => {
+                beforeEach(async () => {
+                    await runSetup(false);
+                });
+                it("should fail if any bAsset goes over", async () => {
+                    const { bAssets, mAsset, basketManager } = massetDetails;
+                    let composition = await massetMachine.getBasketComposition(massetDetails);
+                    // Expect 4 bAssets with 100 weightings
+                    composition.bAssets.forEach((b) => {
+                        expect(b.vaultBalance).bignumber.eq(new BN(0));
+                        expect(b.maxWeight).bignumber.eq(simpleToExactAmount(100, 16));
+                    });
+                    // Mint some of each bAsset, taking total to 100%
+                    await seedWithWeightings(massetDetails, [
+                        new BN(28),
+                        new BN(28),
+                        new BN(23),
+                        new BN(23),
+                    ]);
+                    // Set updated weightings
+                    await basketManager.setBasketWeights(
+                        bAssets.map((b) => b.address),
+                        bAssets.map(() => simpleToExactAmount(30, 16)),
+                        {
+                            from: sa.governor,
+                        },
+                    );
+                    composition = await massetMachine.getBasketComposition(massetDetails);
+                    // Should succeed if we redeem this
+                    const bAsset = bAssets[0];
+                    const bAssetDecimals = await bAsset.decimals();
+                    await expectRevert(
+                        mAsset.redeem(bAsset.address, simpleToExactAmount(10, bAssetDecimals)),
+                        "bAssets must remain below max weight",
+                    );
+                    // then do accepted one
+                    await assertBasicRedemption(massetDetails, 6, bAsset, true);
                 });
             });
         });
@@ -702,8 +836,8 @@ contract("Masset", async (accounts) => {
                 const { basketManager, aaveIntegration } = massetDetails;
                 const aaveAddress = await aaveIntegration.platformAddress();
                 const mockAave = await MockAave.at(aaveAddress);
-                // Create 12 new bAssets
-                for (let i = 0; i < 12; i += 1) {
+                // Create 6 new bAssets
+                for (let i = 0; i < 6; i += 1) {
                     const mockBasset = await MockERC20.new(
                         `MKI${i}`,
                         `MI${i}`,
@@ -727,21 +861,21 @@ contract("Masset", async (accounts) => {
                     );
                 }
             });
-            it("should still perform with 12-16 bAssets in the basket", async () => {
-                // Assert that we have indeed 16 bAssets
+            it("should still perform with 10 bAssets in the basket", async () => {
+                // Assert that we have indeed 10 bAssets
                 const { basketManager, mAsset } = massetDetails;
                 const onChainBassets = await massetMachine.getBassetsInMasset(massetDetails);
-                expect(onChainBassets.length).to.eq(16);
+                expect(onChainBassets.length).to.eq(10);
                 // Set equal basket weightings
                 await basketManager.setBasketWeights(
                     onChainBassets.map((b) => b.addr),
-                    onChainBassets.map(() => simpleToExactAmount("6.25", 16)),
+                    onChainBassets.map(() => simpleToExactAmount(20, 16)),
                     { from: sa.governor },
                 );
                 // Mint 6.25 of each bAsset, taking total to 100%
                 const approvals = await Promise.all(
                     onChainBassets.map((b, i) =>
-                        massetMachine.approveMasset(b.contract, mAsset, new BN("6.25"), sa.default),
+                        massetMachine.approveMasset(b.contract, mAsset, new BN(10), sa.default),
                     ),
                 );
                 await mAsset.mintMulti(
@@ -756,7 +890,7 @@ contract("Masset", async (accounts) => {
                         massetDetails,
                         new BN(1),
                         onChainBassets[i].contract,
-                        false,
+                        true,
                     );
                 }
             });
@@ -770,11 +904,11 @@ contract("Masset", async (accounts) => {
                 // mintSingle
                 const bAsset = await MockERC20.new("Mock", "MKK", 18, sa.default, 1000);
                 const newManager = await MockBasketManager1.new(bAsset.address);
-                const mockMasset = await Masset.new(
+                const mockMasset = await Masset.new();
+                await mockMasset.initialize(
                     "mMock",
                     "MK",
                     systemMachine.nexus.address,
-                    sa.dummy1,
                     forgeValidator.address,
                     newManager.address,
                 );
@@ -796,135 +930,37 @@ contract("Masset", async (accounts) => {
             beforeEach(async () => {
                 await runSetup(true);
                 const { basketManager } = massetDetails;
-                // Set the colRatio to 80%, which means that the mAsset is undercollateralised
-                // by 20%. TO compensate, redemption burns higher amount of mAsset, and totalSupply
-                // passed to the forgevalidator is affected to maintain accurate weightings
                 await basketManager.setBasket(true, simpleToExactAmount(8, 17));
             });
-            it("should still allow redemption, apply the colRatio effectively", async () => {
-                const { bAssets, mAsset } = massetDetails;
+            it("should force proportional redemption", async () => {
+                const { bAssets, mAsset, basketManager } = massetDetails;
                 // should burn more than is necessary
                 const bAsset = bAssets[0];
-                const bAssetDecimals = await bAsset.decimals();
-                const bAssetWhole = simpleToExactAmount(new BN(1), bAssetDecimals);
-                const mUSDSupplyBefore = await mAsset.totalSupply();
-                // Calc mAsset burn amounts based on bAsset quantities
-                const mAssetQuantityScaled = simpleToExactAmount("1.25", 18);
-
-                // Send the TX
-                const tx = await mAsset.redeem(bAsset.address, bAssetWhole);
-
-                // Listen for the events
-                await expectEvent(tx.receipt, "Redeemed", {
-                    mAssetQuantity: mAssetQuantityScaled,
-                    bAsset: bAsset.address,
-                    bAssetQuantity: bAssetWhole,
-                });
-                // Total mUSD supply should be less
-                const mUSDSupplyAfter = await mAsset.totalSupply();
-                expect(mUSDSupplyAfter).bignumber.eq(mUSDSupplyBefore.sub(mAssetQuantityScaled));
+                const basket = await basketManager.getBasket();
+                expect(basket.failed).eq(true);
+                await expectRevert(
+                    mAsset.redeem(bAsset.address, new BN(1)),
+                    "Must redeem proportionately",
+                );
+            });
+        });
+        context("when the mAsset is undergoing recol", () => {
+            beforeEach(async () => {
+                await runSetup(true);
+            });
+            it("should block redemption", async () => {
+                const { bAssets, mAsset, basketManager } = massetDetails;
+                await assertBasketIsHealthy(massetMachine, massetDetails);
+                await basketManager.setRecol(true);
+                const bAsset = bAssets[0];
+                await expectRevert(
+                    mAsset.redeem(bAsset.address, new BN(1)),
+                    "No bAssets can be undergoing recol",
+                );
             });
         });
     });
     context("redeeming multiple bAssets", async () => {
-        // Helper to assert basic redemption conditions, i.e. balance before and after
-        const assertRedeemMulti = async (
-            md: MassetDetails,
-            bAssetRedeemAmounts: Array<BN | number>,
-            bAssets: Array<t.MockERC20Instance>,
-            recipient: string = sa.default,
-            sender: string = sa.default,
-            ignoreHealthAssertions = false,
-        ): Promise<void> => {
-            const { mAsset, basketManager } = md;
-            if (!ignoreHealthAssertions) await assertBasketIsHealthy(massetMachine, md);
-
-            // Get balances before
-            const senderMassetBalBefore = await mAsset.balanceOf(sender);
-            const mUSDSupplyBefore = await mAsset.totalSupply();
-            const feeRecipient = await mAsset.feeRecipient();
-            const feeRecipientBalBefore = await mAsset.balanceOf(feeRecipient);
-            // Get arrays of bAsset balances and bAssets
-            const recipientBassetBalsBefore = await Promise.all(
-                bAssets.map((b) => b.balanceOf(recipient)),
-            );
-            const bAssetsBefore = await Promise.all(
-                bAssets.map((b) => basketManager.getBasset(b.address)),
-            );
-            const bAssetsDecimals = await Promise.all(bAssets.map((b) => b.decimals()));
-            const bAssetsExact = await Promise.all(
-                bAssets.map((_, i) =>
-                    simpleToExactAmount(bAssetRedeemAmounts[i], bAssetsDecimals[i]),
-                ),
-            );
-
-            // Execute the redemption
-            const tx = await mAsset.redeemMulti(
-                bAssets.map((b) => b.address),
-                bAssetsExact,
-                recipient,
-                { from: sender },
-            );
-
-            // Calc mAsset burn amounts based on bAsset quantities
-            const mAssetQuantity = bAssetsExact.reduce(
-                (p, c, i) => p.add(applyRatio(c, bAssetsBefore[i].ratio)),
-                new BN(0),
-            );
-            const feeRate = await mAsset.redemptionFee();
-            const mAssetFee = mAssetQuantity.mul(feeRate).div(fullScale);
-
-            // Listen for the events
-            await expectEvent(tx.receipt, "RedeemedMulti", {
-                recipient,
-                redeemer: sender,
-                mAssetQuantity,
-                bAssets: bAssets.map((b) => b.address),
-            });
-            // - Transfers to lending platform
-            await Promise.all(
-                bAssets.map(async (b, i) =>
-                    bAssetsExact[i].gt(new BN(0))
-                        ? expectEvent(tx.receipt, "Transfer", {
-                              from: await basketManager.getBassetIntegrator(b.address),
-                              to: recipient,
-                              value: bAssetsExact[i],
-                          })
-                        : null,
-                ),
-            );
-            // Sender should have less mAsset
-            const senderMassetBalAfter = await mAsset.balanceOf(sender);
-            expect(senderMassetBalAfter).bignumber.eq(
-                senderMassetBalBefore.sub(mAssetQuantity).sub(mAssetFee),
-            );
-            // Total mUSD supply should be less
-            const mUSDSupplyAfter = await mAsset.totalSupply();
-            expect(mUSDSupplyAfter).bignumber.eq(mUSDSupplyBefore.sub(mAssetQuantity));
-            // FeeRecipient should receive fees
-            const feeRecipientBalAfter = await mAsset.balanceOf(feeRecipient);
-            expect(feeRecipientBalAfter).bignumber.eq(feeRecipientBalBefore.add(mAssetFee));
-            // Recipient should have more bAsset
-            const recipientBassetBalsAfter = await Promise.all(
-                bAssets.map((b) => b.balanceOf(recipient)),
-            );
-            recipientBassetBalsAfter.map((b, i) =>
-                expect(b).bignumber.eq(recipientBassetBalsBefore[i].add(bAssetsExact[i])),
-            );
-            // VaultBalance should update for this bAsset
-            const bAssetsAfter = await Promise.all(
-                bAssets.map((b) => basketManager.getBasset(b.address)),
-            );
-            bAssetsAfter.map((b, i) =>
-                expect(new BN(b.vaultBalance)).bignumber.eq(
-                    new BN(bAssetsBefore[i].vaultBalance).sub(bAssetsExact[i]),
-                ),
-            );
-
-            // Complete basket should remain in healthy state
-            if (!ignoreHealthAssertions) await assertBasketIsHealthy(massetMachine, md);
-        };
-
         before(async () => {
             await runSetup();
         });
@@ -953,17 +989,22 @@ contract("Masset", async (accounts) => {
                 });
                 it("Should redeem multiple bAssets", async () => {
                     // Calc bAsset redemption amounts
-                    const bAssets = massetDetails.bAssets.slice(0, 2);
+                    const { mAsset, bAssets } = massetDetails;
+                    const chosenBassets = bAssets.slice(0, 2);
+                    const fee = await mAsset.swapFee();
                     const bAsset_redemption = await Promise.all(
-                        bAssets.map(async (b) => simpleToExactAmount(1, await b.decimals())),
+                        chosenBassets.map(async (b) => simpleToExactAmount(1, await b.decimals())),
+                    );
+                    const bAsset_fees = await Promise.all(
+                        bAsset_redemption.map(async (b) => b.mul(fee).div(fullScale)),
                     );
                     const bAsset_balBefore = await Promise.all(
-                        bAssets.map((b) => b.balanceOf(sa.default)),
+                        chosenBassets.map((b) => b.balanceOf(sa.default)),
                     );
-                    const mUSD_supplyBefore = await massetDetails.mAsset.totalSupply();
+                    const mUSD_supplyBefore = await mAsset.totalSupply();
                     // Redeem
-                    await massetDetails.mAsset.redeemMulti(
-                        bAssets.map((b) => b.address),
+                    await mAsset.redeemMulti(
+                        chosenBassets.map((b) => b.address),
                         bAsset_redemption,
                         sa.default,
                         {
@@ -971,9 +1012,9 @@ contract("Masset", async (accounts) => {
                         },
                     );
                     // Assert balances
-                    const mUSD_supplyAfter = await massetDetails.mAsset.totalSupply();
+                    const mUSD_supplyAfter = await mAsset.totalSupply();
                     const bAsset_balAfter = await Promise.all(
-                        bAssets.map((b) => b.balanceOf(sa.default)),
+                        chosenBassets.map((b) => b.balanceOf(sa.default)),
                     );
                     expect(mUSD_supplyAfter, "Must burn 2 full units of mUSD").bignumber.eq(
                         mUSD_supplyBefore.sub(simpleToExactAmount(2, 18)),
@@ -981,15 +1022,14 @@ contract("Masset", async (accounts) => {
                     expect(
                         bAsset_balAfter[0],
                         "Must redeem 1 full units of each bAsset",
-                    ).bignumber.eq(bAsset_balBefore[0].add(bAsset_redemption[0]));
+                    ).bignumber.eq(
+                        bAsset_balBefore[0].add(bAsset_redemption[0]).sub(bAsset_fees[0]),
+                    );
                 });
                 it("should redeem selected bAssets only", async () => {
+                    const { bAssets } = massetDetails;
                     const comp = await massetMachine.getBasketComposition(massetDetails);
-                    await assertRedeemMulti(
-                        massetDetails,
-                        [5, 10],
-                        [massetDetails.bAssets[2], massetDetails.bAssets[0]],
-                    );
+                    await assertRedeemMulti(massetDetails, [5, 10], [bAssets[2], bAssets[0]]);
                     const compAfter = await massetMachine.getBasketComposition(massetDetails);
                     expect(comp.bAssets[1].vaultBalance).bignumber.eq(
                         compAfter.bAssets[1].vaultBalance,
@@ -1016,12 +1056,24 @@ contract("Masset", async (accounts) => {
                 it("should send mUSD when recipient is a contract", async () => {
                     const { bAssets } = massetDetails;
                     const recipient = massetDetails.forgeValidator.address;
-                    await assertRedeemMulti(massetDetails, [new BN(1)], [bAssets[0]], recipient);
+                    await assertRedeemMulti(
+                        massetDetails,
+                        [new BN(1)],
+                        [bAssets[0]],
+                        true,
+                        recipient,
+                    );
                 });
                 it("should send mUSD when the recipient is an EOA", async () => {
                     const { bAssets } = massetDetails;
                     const recipient = sa.dummy1;
-                    await assertRedeemMulti(massetDetails, [new BN(1)], [bAssets[1]], recipient);
+                    await assertRedeemMulti(
+                        massetDetails,
+                        [new BN(1)],
+                        [bAssets[1]],
+                        true,
+                        recipient,
+                    );
                 });
             });
             context("and not defining recipient", async () => {
@@ -1046,8 +1098,10 @@ contract("Masset", async (accounts) => {
                     const totalSupplyBefore = await mAsset.totalSupply();
                     const recipientBassetBalBefore = await bAsset.balanceOf(sa.default);
                     const tx = await mAsset.redeemMulti([bAsset.address], [new BN(1)], sa.default);
+
+                    const swapFee = await mAsset.swapFee();
                     const expectedMasset = new BN(1000000);
-                    await expectEvent(tx.receipt, "RedeemedMulti", {
+                    await expectEvent(tx.receipt, "Redeemed", {
                         mAssetQuantity: expectedMasset,
                         bAssets: [bAsset.address],
                     });
@@ -1056,7 +1110,7 @@ contract("Masset", async (accounts) => {
                     expect(recipientBassetBalAfter).bignumber.eq(
                         recipientBassetBalBefore.add(new BN(1)),
                     );
-                    // Sender should have less mASset after
+                    // Sender should have less mAsset after
                     const totalSupplyAfter = await mAsset.totalSupply();
                     expect(totalSupplyAfter).bignumber.eq(totalSupplyBefore.sub(new BN(1000000)));
                     // Complete basket should remain in healthy state
@@ -1064,36 +1118,6 @@ contract("Masset", async (accounts) => {
                 });
             });
 
-            context("and the feeRecipient changes", async () => {
-                before(async () => {
-                    await runSetup();
-                });
-                it("should send the fee to the new recipient", async () => {
-                    const { bAssets, mAsset } = massetDetails;
-                    const bAsset = bAssets[0];
-                    const bAssetBefore = await massetDetails.basketManager.getBasset(
-                        bAsset.address,
-                    );
-                    // Do a basic redemption
-                    await assertRedeemMulti(massetDetails, [new BN(1)], [bAsset]);
-                    // Set a new fee recipient
-                    await mAsset.setFeeRecipient(sa.dummy1, { from: sa.governor });
-                    // Cal expected payout
-                    const feeRate = await mAsset.redemptionFee();
-                    // Calc mAsset burn amounts based on bAsset quantities
-                    const mAssetQuantity = applyRatio(
-                        simpleToExactAmount(new BN(1), await bAsset.decimals()),
-                        bAssetBefore.ratio,
-                    );
-                    const mAssetFee = mAssetQuantity.mul(feeRate).div(fullScale);
-                    const balBefore = await mAsset.balanceOf(sa.dummy1);
-                    // Run the redemption
-                    await assertRedeemMulti(massetDetails, [new BN(1)], [bAsset]);
-                    const balAfter = await mAsset.balanceOf(sa.dummy1);
-                    // Assert balance increase
-                    expect(balAfter).bignumber.eq(balBefore.add(mAssetFee));
-                });
-            });
             context("and the feeRate changes", async () => {
                 before(async () => {
                     await runSetup();
@@ -1102,37 +1126,39 @@ contract("Masset", async (accounts) => {
                     const { bAssets, mAsset, basketManager } = massetDetails;
                     const bAsset = bAssets[0];
                     const bAssetBefore = await basketManager.getBasset(bAsset.address);
-                    // Set a new fee recipient
-                    await mAsset.setFeeRecipient(sa.dummy1, { from: sa.governor });
-                    const newFee = simpleToExactAmount("5.234234", 16);
-                    await mAsset.setRedemptionFee(newFee, { from: sa.governor });
+                    // Sets a new Fee rate
+                    const newFee = simpleToExactAmount("5.234234", 15);
+                    await mAsset.setSwapFee(newFee, { from: sa.governor });
                     // Calc mAsset burn amounts based on bAsset quantities
-                    const mAssetQuantity = applyRatio(
-                        simpleToExactAmount(new BN(1), await bAsset.decimals()),
-                        bAssetBefore.ratio,
-                    );
-                    const mAssetFee = mAssetQuantity.mul(newFee).div(fullScale);
-                    const balBefore = await mAsset.balanceOf(sa.dummy1);
+                    const bAssetQuantity = simpleToExactAmount(new BN(1), await bAsset.decimals());
+                    const mAssetQuantity = applyRatio(bAssetQuantity, bAssetBefore.ratio);
+                    const bAssetFee = bAssetQuantity.mul(newFee).div(fullScale);
+                    const massetBalBefore = await mAsset.balanceOf(sa.default);
+                    const bassetBalBefore = await bAsset.balanceOf(sa.default);
                     // Run the redemption
                     await assertRedeemMulti(massetDetails, [new BN(1)], [bAsset]);
-                    const balAfter = await mAsset.balanceOf(sa.dummy1);
+                    const massetBalAfter = await mAsset.balanceOf(sa.default);
+                    const bassetBalAfter = await bAsset.balanceOf(sa.default);
                     // Assert balance increase
-                    expect(balAfter).bignumber.eq(balBefore.add(mAssetFee));
+                    expect(massetBalAfter).bignumber.eq(massetBalBefore.sub(mAssetQuantity));
+                    expect(bassetBalAfter).bignumber.eq(
+                        bassetBalBefore.add(bAssetQuantity).sub(bAssetFee),
+                    );
                 });
                 it("should deduct nothing if the fee is 0", async () => {
                     const { bAssets, mAsset } = massetDetails;
                     const bAsset = bAssets[0];
-                    // Set a new fee recipient
-                    await mAsset.setFeeRecipient(sa.dummy1, { from: sa.governor });
+                    // Set a new fee rate
                     const newFee = new BN(0);
-                    await mAsset.setRedemptionFee(newFee, { from: sa.governor });
+                    await mAsset.setSwapFee(newFee, { from: sa.governor });
                     // Calc mAsset burn amounts based on bAsset quantities
-                    const balBefore = await mAsset.balanceOf(sa.dummy1);
+                    const bAssetQuantity = simpleToExactAmount(new BN(1), await bAsset.decimals());
+                    const bassetBalBefore = await bAsset.balanceOf(sa.default);
                     // Run the redemption
-                    await assertRedeemMulti(massetDetails, [new BN(1)], [bAsset]);
-                    const balAfter = await mAsset.balanceOf(sa.dummy1);
+                    await assertRedeemMulti(massetDetails, [new BN(1)], [bAsset], false);
+                    const bassetBalAfter = await bAsset.balanceOf(sa.default);
                     // Assert balance increase
-                    expect(balAfter).bignumber.eq(balBefore);
+                    expect(bassetBalAfter).bignumber.eq(bassetBalBefore.add(bAssetQuantity));
                 });
             });
             context("and there is insufficient bAsset in the basket", async () => {
@@ -1167,6 +1193,8 @@ contract("Masset", async (accounts) => {
                     const bAssetDecimals = await bAsset.decimals();
                     const oneBasset = simpleToExactAmount(1, bAssetDecimals);
                     const bAssetBefore = await basketManager.getBasset(bAsset.address);
+                    const feeRate = await mAsset.swapFee();
+                    const bAssetFee = oneBasset.mul(feeRate).div(fullScale);
                     expect(bAssetBefore.isTransferFeeCharged).to.eq(true);
                     // 2.0 Get balances
                     const totalSupplyBefore = await mAsset.totalSupply();
@@ -1175,7 +1203,7 @@ contract("Masset", async (accounts) => {
                     // 3.0 Do the redemption
                     const tx = await mAsset.redeemMulti([bAsset.address], [oneBasset], recipient);
                     const expectedMassetQuantity = applyRatio(oneBasset, bAssetBefore.ratio);
-                    expectEvent(tx.receipt, "RedeemedMulti", {
+                    expectEvent(tx.receipt, "Redeemed", {
                         mAssetQuantity: expectedMassetQuantity,
                         bAssets: [bAsset.address],
                     });
@@ -1183,7 +1211,7 @@ contract("Masset", async (accounts) => {
                     const recipientBassetBalAfter = await bAsset.balanceOf(recipient);
                     // Assert that we redeemed gt 99% of the bAsset
                     assertBNSlightlyGTPercent(
-                        recipientBassetBalBefore.add(oneBasset),
+                        recipientBassetBalBefore.add(oneBasset.sub(bAssetFee)),
                         recipientBassetBalAfter,
                         "0.4",
                         true,
@@ -1231,6 +1259,7 @@ contract("Masset", async (accounts) => {
                             massetDetails,
                             [new BN(1), new BN(0)],
                             [bAssets[0], bAssets[1]],
+                            true,
                             recipient,
                         );
                     });
@@ -1318,25 +1347,6 @@ contract("Masset", async (accounts) => {
                             sa.default,
                             { from: sender },
                         ),
-                        "ERC20: transfer amount exceeds balance",
-                    );
-                });
-                it("should fail if sender doesn't have mAsset balance to cover fee", async () => {
-                    const { bAssets, mAsset, basketManager } = massetDetails;
-                    const bAsset = bAssets[0];
-                    const sender = sa.dummy1;
-                    const bAssetDecimals = await bAsset.decimals();
-                    const bAssetExact = simpleToExactAmount(new BN(1), bAssetDecimals);
-                    const bAssetBefore = await basketManager.getBasset(bAsset.address);
-
-                    // Transfer sufficient balance to do the redemption, but not enough for the fee
-                    const mAssetQuantity = applyRatio(bAssetExact, bAssetBefore.ratio);
-                    await mAsset.transfer(sender, mAssetQuantity, { from: sa.default });
-                    expect(await mAsset.balanceOf(sender)).bignumber.eq(mAssetQuantity);
-                    await expectRevert(
-                        mAsset.redeemMulti([bAsset.address], [bAssetExact], sender, {
-                            from: sender,
-                        }),
                         "ERC20: burn amount exceeds balance",
                     );
                 });
@@ -1349,7 +1359,7 @@ contract("Masset", async (accounts) => {
                             [new BN(100), new BN(100)],
                             sa.default,
                         ),
-                        "Must exist",
+                        "bAsset must exist",
                     );
                 });
             });
@@ -1368,7 +1378,25 @@ contract("Masset", async (accounts) => {
                     expect(newBasset.status).to.eq(BassetStatus.BrokenAbovePeg.toString());
                     await expectRevert(
                         mAsset.redeemMulti([bAsset.address], [new BN(1)], sa.default),
-                        "Cannot redeem depegged bAsset",
+                        "Must redeem proportionately",
+                    );
+                });
+                it("should fail if any bAsset is blacklisted", async () => {
+                    const { bAssets, mAsset, basketManager } = massetDetails;
+                    await assertBasketIsHealthy(massetMachine, massetDetails);
+                    const bAsset = bAssets[0];
+                    await basketManager.setBassetStatus(
+                        bAssets[1].address,
+                        BassetStatus.Blacklisted,
+                        {
+                            from: sa.governor,
+                        },
+                    );
+                    const newBasset = await basketManager.getBasset(bAssets[1].address);
+                    expect(newBasset.status).to.eq(BassetStatus.Blacklisted.toString());
+                    await expectRevert(
+                        mAsset.redeemMulti([bAsset.address], [new BN(1)], sa.default),
+                        "Basket contains blacklisted bAsset",
                     );
                 });
                 it("should fail if any bAsset in basket is broken below peg", async () => {
@@ -1383,7 +1411,7 @@ contract("Masset", async (accounts) => {
                     expect(newBasset.status).to.eq(BassetStatus.BrokenBelowPeg.toString());
                     await expectRevert(
                         mAsset.redeemMulti([bAsset.address], [new BN(1)], sa.default),
-                        "bAssets undergoing liquidation",
+                        "Must redeem proportionately",
                     );
                 });
                 it("should fail if any bAsset in basket is liquidating or blacklisted", async () => {
@@ -1395,7 +1423,7 @@ contract("Masset", async (accounts) => {
                     expect(newBasset.status).to.eq(BassetStatus.Liquidating.toString());
                     await expectRevert(
                         mAsset.redeemMulti([bAsset.address], [new BN(1)], sa.default),
-                        "bAssets undergoing liquidation",
+                        "Must redeem proportionately",
                     );
                 });
             });
@@ -1424,7 +1452,7 @@ contract("Masset", async (accounts) => {
                         sa.default,
                     );
                     // Listen for the events
-                    await expectEvent(tx.receipt, "RedeemedMulti", {
+                    await expectEvent(tx.receipt, "Redeemed", {
                         mAssetQuantity: mAssetQuantityCeil,
                         bAssets: [bAsset.address],
                     });
@@ -1459,165 +1487,75 @@ contract("Masset", async (accounts) => {
         });
 
         context("when the basket weights are out of sync", async () => {
-            context("when some are close to their threshold...", async () => {
-                beforeEach(async () => {
-                    await runSetup(false, false);
-                });
-                it("should fail if we push go below min weight", async () => {
-                    const { bAssets, mAsset, basketManager } = massetDetails;
-                    const composition = await massetMachine.getBasketComposition(massetDetails);
-                    // Expect 4 bAssets with 25, 25, 25, 25 weightings
-                    composition.bAssets.forEach((b) => {
-                        expect(b.vaultBalance).bignumber.eq(new BN(0));
-                        expect(b.targetWeight).bignumber.eq(simpleToExactAmount(25, 16));
-                    });
-                    // Mint 25 of each bAsset, taking total to 100%
-                    await seedWithWeightings(massetDetails, [
-                        new BN(25),
-                        new BN(25),
-                        new BN(25),
-                        new BN(25),
-                    ]);
-                    // Set no grace allowance
-                    await basketManager.setGrace(simpleToExactAmount(1, 18), {
-                        from: sa.governor,
-                    });
-                    // Assert basket is still healthy with 0 grace
-                    await assertBasketIsHealthy(massetMachine, massetDetails);
-                    // Should revert since we would be pushing above target + grace
-                    const bAsset = bAssets[0];
-                    const bAssetDecimals = await bAsset.decimals();
-                    await expectRevert(
-                        mAsset.redeemMulti(
-                            [bAsset.address],
-                            [simpleToExactAmount(5, bAssetDecimals)],
-                            sa.default,
-                        ),
-                        "bAssets must remain above implicit min weight",
-                    );
-                });
-                it("should fail if we go below implicit min", async () => {
-                    const { bAssets, mAsset, basketManager } = massetDetails;
-                    const composition = await massetMachine.getBasketComposition(massetDetails);
-                    // Expect 4 bAssets with 25, 25, 25, 25 weightings
-                    composition.bAssets.forEach((b) => {
-                        expect(b.vaultBalance).bignumber.eq(new BN(0));
-                        expect(b.targetWeight).bignumber.eq(simpleToExactAmount(25, 16));
-                    });
-                    // Mint 25 of each bAsset, taking total to 100%
-                    await seedWithWeightings(massetDetails, [
-                        new BN(25),
-                        new BN(25),
-                        new BN(25),
-                        new BN(25),
-                    ]);
-                    // Set no grace allowance
-                    await basketManager.setGrace(simpleToExactAmount(1, 18), {
-                        from: sa.governor,
-                    });
-                    // Assert basket is still healthy with 0 grace
-                    await assertBasketIsHealthy(massetMachine, massetDetails);
-                    // Should revert since we would be pushing above target + grace
-                    const bAsset = bAssets[0];
-                    const bAsset2 = bAssets[1];
-                    const bAssetDecimals = await bAsset.decimals();
-                    const bAssetDecimals2 = await bAsset2.decimals();
-                    // Resulting weighting: 23/98. Min weighting = 24.5 -1 = 23.5
-                    await expectRevert(
-                        mAsset.redeemMulti(
-                            [bAsset.address, bAsset2.address],
-                            [
-                                simpleToExactAmount(1, bAssetDecimals),
-                                simpleToExactAmount(3, bAssetDecimals2),
-                            ],
-                            sa.default,
-                        ),
-                        "bAssets must remain above implicit min weight",
-                    );
-                });
-            });
             context("when some are above", async () => {
                 beforeEach(async () => {
                     await runSetup(false);
                 });
-                it("should succeed if we redeem the overweight bAsset, and fail otherwise", async () => {
+                it("should succeed if we redeem all the overweight bAssets, and fail otherwise", async () => {
                     const { bAssets, mAsset, basketManager } = massetDetails;
                     let composition = await massetMachine.getBasketComposition(massetDetails);
-                    // Expect 4 bAssets with 25, 25, 25, 25 weightings
+                    // Expect 4 bAssets with 100
                     composition.bAssets.forEach((b) => {
                         expect(b.vaultBalance).bignumber.eq(new BN(0));
-                        expect(b.targetWeight).bignumber.eq(simpleToExactAmount(25, 16));
+                        expect(b.maxWeight).bignumber.eq(simpleToExactAmount(100, 16));
                     });
                     // Mint 25 of each bAsset, taking total to 100%
                     await seedWithWeightings(massetDetails, [
-                        new BN(30),
+                        new BN(40),
                         new BN(20),
                         new BN(20),
-                        new BN(30),
+                        new BN(40),
                     ]);
-                    // Set no grace allowance
-                    await basketManager.setGrace(simpleToExactAmount(1, 18), {
-                        from: sa.governor,
-                    });
+                    // Set updated weightings
+                    await basketManager.setBasketWeights(
+                        bAssets.map((b) => b.address),
+                        bAssets.map(() => simpleToExactAmount(25, 16)),
+                        {
+                            from: sa.governor,
+                        },
+                    );
                     composition = await massetMachine.getBasketComposition(massetDetails);
                     expect(composition.bAssets[0].overweight).to.eq(true);
                     // Should succeed if we redeem this
-                    let bAsset = bAssets[0];
-                    let bAssetDecimals = await bAsset.decimals();
+                    const bAsset = bAssets[0];
+                    const bAsset2 = bAssets[2];
+                    const bAsset3 = bAssets[3];
+                    const bAssetDecimals = await bAsset.decimals();
+                    const bAsset2Decimals = await bAsset2.decimals();
+                    const bAsset3Decimals = await bAsset3.decimals();
                     const totalSupplyBefore = await mAsset.totalSupply();
                     await mAsset.redeemMulti(
-                        [bAsset.address],
-                        [simpleToExactAmount(2, bAssetDecimals)],
+                        [bAsset.address, bAsset3.address],
+                        [
+                            simpleToExactAmount(2, bAssetDecimals),
+                            simpleToExactAmount(2, bAsset3Decimals),
+                        ],
                         sa.default,
                     );
                     const totalSupplyAfter = await mAsset.totalSupply();
                     expect(totalSupplyAfter).bignumber.eq(
-                        totalSupplyBefore.sub(simpleToExactAmount(2, 18)),
+                        totalSupplyBefore.sub(simpleToExactAmount(4, 18)),
                     );
                     // Should fail if we redeem anything but the overweight bAsset
                     /* eslint-disable-next-line prefer-destructuring */
-                    bAsset = bAssets[1];
-                    bAssetDecimals = await bAsset.decimals();
                     await expectRevert(
                         mAsset.redeemMulti(
                             [bAsset.address],
                             [simpleToExactAmount(1, bAssetDecimals)],
                             sa.default,
                         ),
-                        "Must redeem overweight bAssets",
+                        "Redemption must contain all overweight bAssets",
                     );
-                });
-                it("should fail if we redeem so much that it goes underweight", async () => {
-                    const { bAssets, mAsset, basketManager } = massetDetails;
-                    let composition = await massetMachine.getBasketComposition(massetDetails);
-                    // Expect 4 bAssets with 25, 25, 25, 25 weightings
-                    composition.bAssets.forEach((b) => {
-                        expect(b.vaultBalance).bignumber.eq(new BN(0));
-                        expect(b.targetWeight).bignumber.eq(simpleToExactAmount(25, 16));
-                    });
-                    // Mint 25 of each bAsset, taking total to 100%
-                    await seedWithWeightings(massetDetails, [
-                        new BN(30),
-                        new BN(20),
-                        new BN(20),
-                        new BN(30),
-                    ]);
-                    // Set no grace allowance
-                    await basketManager.setGrace(simpleToExactAmount(1, 18), {
-                        from: sa.governor,
-                    });
-                    composition = await massetMachine.getBasketComposition(massetDetails);
-                    expect(composition.bAssets[0].overweight).to.eq(true);
-                    // Should fail if we redeem anything but the overweight bAsset
-                    const bAsset = bAssets[0];
-                    const bAssetDecimals = await bAsset.decimals();
                     await expectRevert(
                         mAsset.redeemMulti(
-                            [bAsset.address],
-                            [simpleToExactAmount(20, bAssetDecimals)],
+                            [bAsset3.address, bAsset2.address],
+                            [
+                                simpleToExactAmount(15, bAsset3Decimals),
+                                simpleToExactAmount(1, bAsset2Decimals),
+                            ],
                             sa.default,
                         ),
-                        "bAssets must remain above implicit min weight",
+                        "Must redeem overweight bAssets",
                     );
                 });
             });
@@ -1630,8 +1568,8 @@ contract("Masset", async (accounts) => {
                 const { basketManager, aaveIntegration } = massetDetails;
                 const aaveAddress = await aaveIntegration.platformAddress();
                 const mockAave = await MockAave.at(aaveAddress);
-                // Create 12 new bAssets
-                for (let i = 0; i < 12; i += 1) {
+                // Create 6 new bAssets
+                for (let i = 0; i < 6; i += 1) {
                     const mockBasset = await MockERC20.new(
                         `MKI${i}`,
                         `MI${i}`,
@@ -1655,15 +1593,15 @@ contract("Masset", async (accounts) => {
                     );
                 }
             });
-            it("should still perform with 12-16 bAssets in the basket", async () => {
-                // Assert that we have indeed 16 bAssets
+            it("should still perform with 10 bAssets in the basket", async () => {
+                // Assert that we have indeed 10 bAssets
                 const { basketManager, mAsset } = massetDetails;
                 const onChainBassets = await massetMachine.getBassetsInMasset(massetDetails);
-                expect(onChainBassets.length).to.eq(16);
+                expect(onChainBassets.length).to.eq(10);
                 // Set equal basket weightings
                 await basketManager.setBasketWeights(
                     onChainBassets.map((b) => b.addr),
-                    onChainBassets.map(() => simpleToExactAmount("6.25", 16)),
+                    onChainBassets.map(() => simpleToExactAmount(20, 16)),
                     { from: sa.governor },
                 );
                 // Mint 6.25 of each bAsset, taking total to 100%
@@ -1695,11 +1633,11 @@ contract("Masset", async (accounts) => {
                 // mintSingle
                 const bAsset = await MockERC20.new("Mock", "MKK", 18, sa.default, 1000);
                 const newManager = await MockBasketManager1.new(bAsset.address);
-                const mockMasset = await Masset.new(
+                const mockMasset = await Masset.new();
+                await mockMasset.initialize(
                     "mMock",
                     "MK",
                     systemMachine.nexus.address,
-                    sa.dummy1,
                     forgeValidator.address,
                     newManager.address,
                 );
@@ -1724,31 +1662,33 @@ contract("Masset", async (accounts) => {
             beforeEach(async () => {
                 await runSetup(true);
                 const { basketManager } = massetDetails;
-                // Set the colRatio to 80%, which means that the mAsset is undercollateralised
-                // by 20%. TO compensate, redemption burns higher amount of mAsset, and totalSupply
-                // passed to the forgevalidator is affected to maintain accurate weightings
                 await basketManager.setBasket(true, simpleToExactAmount(8, 17));
             });
-            it("should still allow redemption, apply the colRatio effectively", async () => {
+            it("should force proportional redemption", async () => {
                 const { bAssets, mAsset, basketManager } = massetDetails;
                 // should burn more than is necessary
                 const bAsset = bAssets[0];
-                const bAssetDecimals = await bAsset.decimals();
-                const bAssetWhole = simpleToExactAmount(new BN(1), bAssetDecimals);
-                const mUSDSupplyBefore = await mAsset.totalSupply();
-                // Calc mAsset burn amounts based on bAsset quantities
-                const mAssetQuantityScaled = simpleToExactAmount("1.25", 18);
-                // Send the TX
-                const tx = await mAsset.redeem(bAsset.address, bAssetWhole);
-                // Listen for the events
-                await expectEvent(tx.receipt, "Redeemed", {
-                    mAssetQuantity: mAssetQuantityScaled,
-                    bAsset: bAsset.address,
-                    bAssetQuantity: bAssetWhole,
-                });
-                // Total mUSD supply should be less
-                const mUSDSupplyAfter = await mAsset.totalSupply();
-                expect(mUSDSupplyAfter).bignumber.eq(mUSDSupplyBefore.sub(mAssetQuantityScaled));
+                const basket = await basketManager.getBasket();
+                expect(basket.failed).eq(true);
+                await expectRevert(
+                    mAsset.redeemMulti([bAsset.address], [new BN(1)], sa.default),
+                    "Must redeem proportionately",
+                );
+            });
+        });
+        context("when the mAsset is undergoing recol", () => {
+            beforeEach(async () => {
+                await runSetup(true);
+            });
+            it("should block redemption", async () => {
+                const { bAssets, mAsset, basketManager } = massetDetails;
+                await assertBasketIsHealthy(massetMachine, massetDetails);
+                await basketManager.setRecol(true);
+                const bAsset = bAssets[0];
+                await expectRevert(
+                    mAsset.redeemMulti([bAsset.address], [new BN(1)], sa.default),
+                    "No bAssets can be undergoing recol",
+                );
             });
         });
     });

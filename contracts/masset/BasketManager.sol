@@ -25,7 +25,7 @@ import { InitializableReentrancyGuard } from "../shared/InitializableReentrancyG
  *          BasketManager can also optimise lending pool integrations and perform
  *          re-collateralisation on failed bAssets.
  * @dev     VERSION: 1.0
- *          DATE:    2020-03-26
+ *          DATE:    2020-05-05
  */
 contract BasketManager is
     Initializable,
@@ -33,7 +33,6 @@ contract BasketManager is
     InitializablePausableModule,
     InitializableReentrancyGuard
 {
-
     using SafeMath for uint256;
     using StableMath for uint256;
     using SafeERC20 for IERC20;
@@ -41,9 +40,9 @@ contract BasketManager is
     // Events for Basket composition changes
     event BassetAdded(address indexed bAsset, address integrator);
     event BassetRemoved(address indexed bAsset);
-    event BasketWeightsUpdated(address[] bAssets, uint256[] targetWeights);
-    event GraceUpdated(uint256 newGrace);
+    event BasketWeightsUpdated(address[] bAssets, uint256[] maxWeights);
     event BassetStatusChanged(address indexed bAsset, BassetStatus status);
+    event BasketStatusChanged();
     event TransferFeeEnabled(address indexed bAsset, bool enabled);
 
     // mAsset linked to the manager (const)
@@ -51,8 +50,6 @@ contract BasketManager is
 
     // Struct holding Basket details
     Basket public basket;
-    // Variable used to determine deviation threshold in ForgeValidator
-    uint256 public grace;
     // Mapping holds bAsset token address => array index
     mapping(address => uint8) private bAssetsMap;
     // Holds relative addresses of the integration platforms
@@ -63,7 +60,6 @@ contract BasketManager is
      *      This function should be called via Proxy just after contract deployment.
      * @param _nexus            Address of system Nexus
      * @param _mAsset           Address of the mAsset whose Basket to manage
-     * @param _grace            Deviation allowance for ForgeValidator
      * @param _bAssets          Array of erc20 bAsset addresses
      * @param _integrators      Matching array of the platform intergations for bAssets
      * @param _weights          Weightings of each bAsset, summing to 1e18
@@ -72,7 +68,6 @@ contract BasketManager is
     function initialize(
         address _nexus,
         address _mAsset,
-        uint256 _grace,
         address[] calldata _bAssets,
         address[] calldata _integrators,
         uint256[] calldata _weights,
@@ -87,10 +82,9 @@ contract BasketManager is
         require(_mAsset != address(0), "mAsset address is zero");
         require(_bAssets.length > 0, "Must initialise with some bAssets");
         mAsset = _mAsset;
-        _updateGrace(_grace);
 
         // Defaults
-        basket.maxBassets = 16;               // 16
+        basket.maxBassets = 10;               // 10
         basket.collateralisationRatio = 1e18; // 100%
 
         for (uint256 i = 0; i < _bAssets.length; i++) {
@@ -101,7 +95,7 @@ contract BasketManager is
                 _hasTransferFees[i]
             );
         }
-        _setBasketWeights(_bAssets, _weights);
+        _setBasketWeights(_bAssets, _weights, true);
     }
 
     /**
@@ -109,6 +103,14 @@ contract BasketManager is
      */
     modifier whenBasketIsHealthy() {
         require(!basket.failed, "Basket must be alive");
+        _;
+    }
+
+    /**
+     * @dev Requires the overall basket composition to be healthy
+     */
+    modifier whenNotRecolling() {
+        require(!basket.undergoingRecol, "No bAssets can be undergoing recol");
         _;
     }
 
@@ -226,6 +228,7 @@ contract BasketManager is
         external
         onlyMasset
         whenNotPaused
+        whenBasketIsHealthy
         nonReentrant
         returns (uint256 interestCollected, uint256[] memory gains)
     {
@@ -242,7 +245,7 @@ contract BasketManager is
             uint256 oldVaultBalance = b.vaultBalance;
 
             // accumulate interest (ratioed bAsset)
-            if(balance > oldVaultBalance) {
+            if(balance > oldVaultBalance && b.status == BassetStatus.Normal) {
                 // Update balance
                 basket.bassets[i].vaultBalance = balance;
 
@@ -260,7 +263,7 @@ contract BasketManager is
 
 
     /***************************************
-                BASKET MNGMENT
+                BASKET MANAGEMENT
     ****************************************/
 
     /**
@@ -274,6 +277,7 @@ contract BasketManager is
         external
         onlyGovernor
         whenBasketIsHealthy
+        whenNotRecolling
         returns (uint8 index)
     {
         index = _addBasset(
@@ -309,7 +313,9 @@ contract BasketManager is
         (bool alreadyInBasket, ) = _isAssetInBasket(_bAsset);
         require(!alreadyInBasket, "bAsset already exists in Basket");
 
-        // Programmatic enforcement of bAsset validity should service through oracle
+        // Should fail if bAsset is not added to integration
+        // Programmatic enforcement of bAsset validity should service through decentralised feed
+        IPlatformIntegration(_integration).checkBalance(_bAsset);
 
         uint256 bAsset_decimals = CommonHelpers.getDecimals(_bAsset);
         uint256 delta = uint256(18).sub(bAsset_decimals);
@@ -325,12 +331,11 @@ contract BasketManager is
         basket.bassets.push(Basset({
             addr: _bAsset,
             ratio: ratio,
-            targetWeight: 0,
+            maxWeight: 0,
             vaultBalance: 0,
             status: BassetStatus.Normal,
             isTransferFeeCharged: _isTransferFeeCharged
         }));
-
 
         emit BassetAdded(_bAsset, _integration);
 
@@ -351,7 +356,7 @@ contract BasketManager is
         onlyGovernor
         whenBasketIsHealthy
     {
-        _setBasketWeights(_bAssets, _weights);
+        _setBasketWeights(_bAssets, _weights, false);
     }
 
     /**
@@ -359,10 +364,12 @@ contract BasketManager is
      * @dev Requires the modified bAssets to be in a Normal state
      * @param _bAssets Array of bAsset addresses
      * @param _weights Array of bAsset weights - summing 100% where 100% == 1e18
+     * @param _isBootstrap True only on the first occurence of weight setting
      */
     function _setBasketWeights(
         address[] memory _bAssets,
-        uint256[] memory _weights
+        uint256[] memory _weights,
+        bool _isBootstrap
     )
         internal
     {
@@ -380,19 +387,21 @@ contract BasketManager is
 
             if(bAsset.status == BassetStatus.Normal) {
                 require(
-                    bAssetWeight <= StableMath.getFullScale(),
-                    "Asset weight must be <= 1e18"
+                    bAssetWeight <= 1e18,
+                    "Asset weight must be <= 100%"
                 );
-                basket.bassets[index].targetWeight = bAssetWeight;
+                basket.bassets[index].maxWeight = bAssetWeight;
             } else {
                 require(
-                    bAssetWeight == basket.bassets[index].targetWeight,
+                    bAssetWeight == basket.bassets[index].maxWeight,
                     "Affected bAssets must be static"
                 );
             }
         }
 
-        _validateBasketWeight();
+        if(!_isBootstrap){
+            _validateBasketWeight();
+        }
 
         emit BasketWeightsUpdated(_bAssets, _weights);
     }
@@ -404,9 +413,9 @@ contract BasketManager is
         uint256 len = basket.bassets.length;
         uint256 weightSum = 0;
         for(uint256 i = 0; i < len; i++) {
-            weightSum = weightSum.add(basket.bassets[i].targetWeight);
+            weightSum = weightSum.add(basket.bassets[i].maxWeight);
         }
-        require(weightSum == StableMath.getFullScale(), "Basket weight must be = 1e18");
+        require(weightSum >= 1e18 && weightSum <= 4e18, "Basket weight must be >= 100 && <= 400%");
     }
 
     /**
@@ -425,26 +434,6 @@ contract BasketManager is
         emit TransferFeeEnabled(_bAsset, _flag);
     }
 
-    /**
-     * @dev Update Grace allowance for use in the Forge Validation
-     * @param _newGrace Exact amount of units
-     */
-    function setGrace(uint256 _newGrace)
-        external
-        managerOrGovernor
-    {
-        _updateGrace(_newGrace);
-    }
-
-    /**
-     * @dev Update Grace allowance for use in the Forge Validation
-     * @param _newGrace Exact amount of units
-     */
-    function _updateGrace(uint256 _newGrace) private {
-        require(_newGrace >= 1e18 && _newGrace <= 1e25, "Must be within valid grace range");
-        grace = _newGrace;
-        emit GraceUpdated(_newGrace);
-    }
 
     /**
      * @dev Removes a specific Asset from the Basket, given that its target/collateral
@@ -454,6 +443,7 @@ contract BasketManager is
     function removeBasset(address _assetToRemove)
         external
         whenBasketIsHealthy
+        whenNotRecolling
         managerOrGovernor
     {
         _removeBasset(_assetToRemove);
@@ -471,7 +461,7 @@ contract BasketManager is
         uint256 len = basket.bassets.length;
         Basset memory bAsset = basket.bassets[index];
 
-        require(bAsset.targetWeight == 0, "bAsset must have a target weight of 0");
+        require(bAsset.maxWeight == 0, "bAsset must have a target weight of 0");
         require(bAsset.vaultBalance == 0, "bAsset vault must be empty");
         require(bAsset.status != BassetStatus.Liquidating, "bAsset must be active");
 
@@ -522,17 +512,70 @@ contract BasketManager is
     function prepareForgeBasset(address _bAsset, uint256 /*_amt*/, bool /*_mint*/)
         external
         whenNotPaused
-        returns (ForgeProps memory props)
+        whenNotRecolling
+        returns (bool isValid, BassetDetails memory bInfo)
     {
         (bool exists, uint8 idx) = _isAssetInBasket(_bAsset);
         require(exists, "bAsset does not exist");
-        props = ForgeProps({
-            isValid: true,
+        isValid = true;
+        bInfo = BassetDetails({
             bAsset: basket.bassets[idx],
             integrator: integrations[idx],
-            index: idx,
-            grace: grace
+            index: idx
         });
+    }
+
+    /**
+     * @dev Prepare given bAssets for swapping
+     * @param _input     Address of the input bAsset
+     * @param _output    Address of the output bAsset
+     * @param _isMint    Is this swap actually a mint? i.e. output == address(mAsset)
+     * @return props     Struct of all relevant Forge information
+     */
+    function prepareSwapBassets(address _input, address _output, bool _isMint)
+        external
+        view
+        whenNotPaused
+        returns (bool, string memory, BassetDetails memory, BassetDetails memory)
+    {
+        BassetDetails memory input = BassetDetails({
+            bAsset: basket.bassets[0],
+            integrator: address(0),
+            index: 0
+        });
+        BassetDetails memory output = input;
+        // Check that basket state is healthy
+        if(basket.failed || basket.undergoingRecol){
+            return (false, "Basket is undergoing change", input, output);
+        }
+
+        // Fetch input bAsset
+        (bool inputExists, uint8 inputIdx) = _isAssetInBasket(_input);
+        if(!inputExists) {
+            return (false, "Input asset does not exist", input, output);
+        }
+        input = BassetDetails({
+            bAsset: basket.bassets[inputIdx],
+            integrator: integrations[inputIdx],
+            index: inputIdx
+        });
+
+        // If this is a mint, we don't need output bAsset
+        if(_isMint) {
+            return (true, "", input, output);
+        }
+
+        // Fetch output bAsset
+        (bool outputExists, uint8 outputIdx) = _isAssetInBasket(_output);
+        if(!outputExists) {
+            return (false, "Output asset does not exist", input, output);
+        }
+        output = BassetDetails({
+            bAsset: basket.bassets[outputIdx],
+            integrator: integrations[outputIdx],
+            index: outputIdx
+        });
+        return (true, "", input, output);
     }
 
     /**
@@ -548,6 +591,7 @@ contract BasketManager is
     )
         external
         whenNotPaused
+        whenNotRecolling
         returns (ForgePropsMulti memory props)
     {
         // Pass the fetching logic to the internal view func to reduce SLOAD cost
@@ -556,8 +600,34 @@ contract BasketManager is
             isValid: true,
             bAssets: bAssets,
             integrators: integrators,
-            indexes: indexes,
-            grace: grace
+            indexes: indexes
+        });
+    }
+
+    /**
+     * @dev Prepare given bAsset addresses for RedeemMulti. Currently returns integrator
+     *      and essential minting info for each bAsset
+     * @return props     Struct of all relevant Forge information
+     */
+    function prepareRedeemMulti()
+        external
+        view
+        whenNotPaused
+        whenNotRecolling
+        returns (RedeemPropsMulti memory props)
+    {
+        (Basset[] memory bAssets, uint256 len) = _getBassets();
+        address[] memory orderedIntegrators = new address[](len);
+        uint8[] memory indexes = new uint8[](len);
+        for(uint8 i = 0; i < len; i++){
+            orderedIntegrators[i] = integrations[i];
+            indexes[i] = i;
+        }
+        props = RedeemPropsMulti({
+            colRatio: basket.collateralisationRatio,
+            bAssets: bAssets,
+            integrators: orderedIntegrators,
+            indexes: indexes
         });
     }
 
@@ -595,7 +665,7 @@ contract BasketManager is
 
             // Fetch and log all the relevant data
             (bool exists, uint8 index) = _isAssetInBasket(current);
-            require(exists, "Must exist");
+            require(exists, "bAsset must exist");
             indexes[i] = index;
             bAssets[i] = basket.bassets[index];
             integrators[i] = integrations[index];
@@ -765,5 +835,25 @@ contract BasketManager is
             basket.bassets[i].status = BassetStatus.Normal;
             emit BassetStatusChanged(_bAsset, BassetStatus.Normal);
         }
+    }
+
+    /**
+     * @dev Marks a bAsset as permanently deviated from peg
+     * @param _bAsset Address of the bAsset
+     */
+    function failBasset(address _bAsset)
+        external
+        onlyGovernor
+    {
+        (bool exists, uint256 i) = _isAssetInBasket(_bAsset);
+        require(exists, "bAsset must exist");
+
+        BassetStatus currentStatus = basket.bassets[i].status;
+        require(
+            currentStatus == BassetStatus.BrokenBelowPeg ||
+            currentStatus == BassetStatus.BrokenAbovePeg,
+            "bAsset must be affected"
+        );
+        basket.failed = true;
     }
 }

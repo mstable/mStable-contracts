@@ -1,21 +1,19 @@
+/* eslint-disable class-methods-use-this */
+/* eslint-disable @typescript-eslint/camelcase */
+
 import { MassetMachine, MassetDetails } from "@utils/machines";
 import * as t from "types/generated";
-import { Address } from "types/common";
 
+import { MainnetAccounts } from "@utils/constants";
 import { StandardAccounts } from "./standardAccounts";
-
-import { MASSET_FACTORY_BYTES, MainnetAccounts } from "@utils/constants";
-import { simpleToExactAmount } from "@utils/math";
-import { aToH, BN } from "@utils/tools";
+import { Address } from "../../types";
 
 // Nexus
-const c_Nexus: t.NexusContract = artifacts.require("Nexus");
+const c_Nexus = artifacts.require("Nexus");
 
 // Savings
-const c_SavingsContract: t.SavingsContractContract = artifacts.require("SavingsContract");
-const c_SavingsManager: t.SavingsManagerContract = artifacts.require("SavingsManager");
-
-const c_DelayedProxyAdmin: t.DelayedProxyAdminContract = artifacts.require("DelayedProxyAdmin");
+const c_SavingsContract = artifacts.require("SavingsContract");
+const c_SavingsManager = artifacts.require("SavingsManager");
 
 /**
  * @dev The SystemMachine is responsible for creating mock versions of our contracts
@@ -25,29 +23,35 @@ const c_DelayedProxyAdmin: t.DelayedProxyAdminContract = artifacts.require("Dela
 export class SystemMachine {
     /** @dev Default accounts as per system Migrations */
     public sa: StandardAccounts;
+
     public massetMachine: MassetMachine;
+
     public isGanacheFork = false;
 
     public nexus: t.NexusInstance;
+
     public mUSD: MassetDetails;
+
     public savingsContract: t.SavingsContractInstance;
+
     public savingsManager: t.SavingsManagerInstance;
+
     public delayedProxyAdmin: t.DelayedProxyAdminInstance;
 
     constructor(accounts: Address[]) {
         this.sa = new StandardAccounts(accounts);
         this.massetMachine = new MassetMachine(this);
-        if (process.env.NETWORK == "fork") {
+        if (process.env.NETWORK === "fork") {
             this.isGanacheFork = true;
             this.isRunningValidFork().then((valid: boolean) => {
                 if (!valid) {
-                    throw "Must run on a valid fork";
+                    throw Error("Must run on a valid fork");
                 }
             });
         }
-        /***************************************
+        /* **************************************
         Deploy Nexus at minimum, to allow MassetMachine access
-        ****************************************/
+        *************************************** */
         this.deployNexus().then((nexus: t.NexusInstance) => {
             this.nexus = nexus;
         });
@@ -56,22 +60,22 @@ export class SystemMachine {
     /**
      * @dev Initialises the system to replicate current migration scripts
      */
-    public async initialiseMocks(seedMasset = false, dummySavingsManager = false) {
-        /***************************************
+    public async initialiseMocks(seedMasset = false, dummySavingsManager = false): Promise<void> {
+        /* **************************************
             1. Nexus (Redeploy)
-        ****************************************/
+        *************************************** */
         this.nexus = await this.deployNexus();
 
-        /***************************************
+        /* **************************************
             2. mUSD
-        ****************************************/
+        *************************************** */
         this.mUSD = seedMasset
             ? await this.massetMachine.deployMassetAndSeedBasket()
             : await this.massetMachine.deployMasset();
 
-        /***************************************
+        /* **************************************
             3. Savings
-        ****************************************/
+        *************************************** */
         this.savingsContract = await c_SavingsContract.new(
             this.nexus.address,
             this.mUSD.mAsset.address,
@@ -84,14 +88,11 @@ export class SystemMachine {
             { from: this.sa.default },
         );
 
-        /***************************************
+        /* **************************************
             4. Init
-        ****************************************/
+        *************************************** */
         await this.nexus.initialize(
-            [
-                await this.savingsManager.KEY_SAVINGS_MANAGER(),
-                await this.mUSD.proxyAdmin.KEY_PROXY_ADMIN(),
-            ],
+            [web3.utils.keccak256("SavingsManager"), web3.utils.keccak256("ProxyAdmin")],
             [
                 dummySavingsManager ? this.sa.dummy1 : this.savingsManager.address,
                 this.mUSD.proxyAdmin.address,
@@ -100,29 +101,22 @@ export class SystemMachine {
             this.sa.governor,
             { from: this.sa.governor },
         );
-        return Promise.resolve(true);
     }
 
     /**
      * @dev Deploy the Nexus
      */
     public async deployNexus(deployer: Address = this.sa.default): Promise<t.NexusInstance> {
-        try {
-            const nexus = await c_Nexus.new(this.sa.governor, { from: deployer });
-            return nexus;
-        } catch (e) {
-            throw e;
-        }
+        const nexus = await c_Nexus.new(this.sa.governor, { from: deployer });
+        return nexus;
     }
 
     public async isRunningValidFork(): Promise<boolean> {
-        try {
-            const testContract = new MainnetAccounts().DAI;
-            const code: string = await web3.eth.getCode(testContract);
-            if (code === "0x") return false;
-            return true;
-        } catch (e) {
-            return false;
-        }
+        const testContract = new MainnetAccounts().DAI;
+        const code: string = await web3.eth.getCode(testContract);
+        if (code === "0x") return false;
+        return true;
     }
 }
+
+export default SystemMachine;

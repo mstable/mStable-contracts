@@ -1,9 +1,19 @@
 /* eslint-disable @typescript-eslint/camelcase */
-import * as t from "types/generated";
-import { Address } from "types/common";
+/* eslint-disable spaced-comment */
+/* eslint-disable @typescript-eslint/triple-slash-reference,spaced-comment */
+/// <reference path="../../types/generated/index.d.ts" />
+/// <reference path="../../types/generated/types.d.ts" />
 
-import { percentToWeight, simpleToExactAmount } from "@utils/math";
-import { ZERO_ADDRESS, RopstenAccounts } from "@utils/constants";
+import { percentToWeight } from "@utils/math";
+import {
+    ZERO_ADDRESS,
+    DEAD_ADDRESS,
+    RopstenAccounts,
+    KEY_PROXY_ADMIN,
+    KEY_SAVINGS_MANAGER,
+} from "@utils/constants";
+import * as t from "../../types/generated";
+import { Address } from "../../types";
 
 export interface ATokenDetails {
     bAsset: Address;
@@ -20,17 +30,17 @@ export enum Platform {
 }
 
 export interface BassetIntegrationDetails {
-    bAssets: Array<t.MockERC20Instance>;
+    bAssets: Array<t.MockErc20Instance>;
     platforms: Array<Platform>;
     aavePlatformAddress: Address;
     aTokens: Array<ATokenDetails>;
     cTokens: Array<CTokenDetails>;
 }
 
-async function loadBassetsRopsten(artifacts): Promise<BassetIntegrationDetails> {
-    const c_MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
+async function loadBassetsRopsten(artifacts: Truffle.Artifacts): Promise<BassetIntegrationDetails> {
+    const c_MockERC20 = artifacts.require("MockERC20");
 
-    let ra = new RopstenAccounts();
+    const ra = new RopstenAccounts();
     // load all the REAL bAssets from Ropsten
     const bAsset_DAI = await c_MockERC20.at(ra.DAI);
     const bAsset_USDC = await c_MockERC20.at(ra.USDC);
@@ -65,57 +75,27 @@ async function loadBassetsRopsten(artifacts): Promise<BassetIntegrationDetails> 
     };
 }
 
-async function loadBassetsLocal(artifacts, deployer): Promise<BassetIntegrationDetails> {
-    const c_MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
-    const c_MockAave: t.MockAaveContract = artifacts.require("MockAave");
-    const c_MockAToken: t.MockATokenContract = artifacts.require("MockAToken");
-    const c_MockCToken: t.MockCTokenContract = artifacts.require("MockCToken");
+async function loadBassetsLocal(
+    artifacts: Truffle.Artifacts,
+    deployer,
+): Promise<BassetIntegrationDetails> {
+    const c_MockERC20 = artifacts.require("MockERC20");
+    const c_MockAave = artifacts.require("MockAave");
+    const c_MockAToken = artifacts.require("MockAToken");
+    const c_MockCToken = artifacts.require("MockCToken");
     //  - Mock bAssets
-    const mockBasset1: t.MockERC20Instance = await c_MockERC20.new(
-        "Mock1",
-        "MK1",
-        12,
-        deployer,
-        100000000,
-    );
-    const mockBasset2: t.MockERC20Instance = await c_MockERC20.new(
-        "Mock2",
-        "MK2",
-        18,
-        deployer,
-        100000000,
-    );
-    const mockBasset3: t.MockERC20Instance = await c_MockERC20.new(
-        "Mock3",
-        "MK3",
-        6,
-        deployer,
-        100000000,
-    );
-    const mockBasset4: t.MockERC20Instance = await c_MockERC20.new(
-        "Mock4",
-        "MK4",
-        18,
-        deployer,
-        100000000,
-    );
+    const mockBasset1 = await c_MockERC20.new("Mock1", "MK1", 12, deployer, 100000000);
+    const mockBasset2 = await c_MockERC20.new("Mock2", "MK2", 18, deployer, 100000000);
+    const mockBasset3 = await c_MockERC20.new("Mock3", "MK3", 6, deployer, 100000000);
+    const mockBasset4 = await c_MockERC20.new("Mock4", "MK4", 18, deployer, 100000000);
 
     //  - Mock Aave integration
-    const d_MockAave: t.MockAaveInstance = await c_MockAave.new({ from: deployer });
+    const d_MockAave = await c_MockAave.new({ from: deployer });
 
     //  - Mock aTokens
-    const mockAToken1: t.IAaveATokenInstance = await c_MockAToken.new(
-        d_MockAave.address,
-        mockBasset1.address,
-    );
-    const mockAToken2: t.IAaveATokenInstance = await c_MockAToken.new(
-        d_MockAave.address,
-        mockBasset2.address,
-    );
-    const mockAToken3: t.IAaveATokenInstance = await c_MockAToken.new(
-        d_MockAave.address,
-        mockBasset3.address,
-    );
+    const mockAToken1 = await c_MockAToken.new(d_MockAave.address, mockBasset1.address);
+    const mockAToken2 = await c_MockAToken.new(d_MockAave.address, mockBasset2.address);
+    const mockAToken3 = await c_MockAToken.new(d_MockAave.address, mockBasset3.address);
 
     //  - Add to the Platform
     await d_MockAave.addAToken(mockAToken1.address, mockBasset1.address);
@@ -123,7 +103,7 @@ async function loadBassetsLocal(artifacts, deployer): Promise<BassetIntegrationD
     await d_MockAave.addAToken(mockAToken3.address, mockBasset3.address);
 
     // Mock C Token
-    const mockCToken4: t.MockCTokenInstance = await c_MockCToken.new(mockBasset4.address);
+    const mockCToken4 = await c_MockCToken.new(mockBasset4.address);
     return {
         bAssets: [mockBasset1, mockBasset2, mockBasset3, mockBasset4],
         platforms: [Platform.aave, Platform.aave, Platform.aave, Platform.compound],
@@ -151,8 +131,13 @@ async function loadBassetsLocal(artifacts, deployer): Promise<BassetIntegrationD
     };
 }
 
-export default async ({ artifacts }, deployer, network, accounts) => {
-    if (deployer.network == "fork") {
+export default async (
+    { artifacts }: { artifacts: Truffle.Artifacts },
+    deployer,
+    network,
+    accounts,
+): Promise<void> => {
+    if (deployer.network === "fork") {
         // Don't bother running these migrations -- speed up the testing
         return;
     }
@@ -164,54 +149,52 @@ export default async ({ artifacts }, deployer, network, accounts) => {
 
     // Masset
     // - ForgeValidator
-    const c_ForgeValidator: t.ForgeValidatorContract = artifacts.require("ForgeValidator");
+    const c_ForgeValidator = artifacts.require("ForgeValidator");
     // - Platforms (u)
     //    - Aave
-    const c_AaveIntegration: t.AaveIntegrationContract = artifacts.require("AaveIntegration");
+    const c_AaveIntegration = artifacts.require("AaveIntegration");
     //    - Compound
-    const c_CompoundIntegration: t.CompoundIntegrationContract = artifacts.require(
-        "CompoundIntegration",
-    );
+    const c_CompoundIntegration = artifacts.require("CompoundIntegration");
     // - BasketManager (u)
-    const c_BasketManager: t.BasketManagerContract = artifacts.require("BasketManager");
+    const c_BasketManager = artifacts.require("BasketManager");
+    const c_DeadIntegration = artifacts.require("DeadIntegration"); // Merely used to initialize BM
+    const c_MockERC20 = artifacts.require("MockERC20"); // Merely used to initialize BM
     // - mUSD
-    const c_MUSD: t.MUSDContract = artifacts.require("MUSD");
+    const c_Masset = artifacts.require("Masset");
 
     // Nexus
-    const c_Nexus: t.NexusContract = artifacts.require("Nexus");
+    const c_Nexus = artifacts.require("Nexus");
 
     // Proxy
     // - Admin
-    const c_DelayedProxyAdmin: t.DelayedProxyAdminContract = artifacts.require("DelayedProxyAdmin");
+    const c_DelayedProxyAdmin = artifacts.require("DelayedProxyAdmin");
     // - BaseProxies
-    const c_InitializableProxy: t.InitializableAdminUpgradeabilityProxyContract = artifacts.require(
-        "@openzeppelin/upgrades/InitializableAdminUpgradeabilityProxy",
-    );
+    const c_MassetProxy = artifacts.require("MassetProxy");
+    const c_BasketManagerProxy = artifacts.require("BasketManagerProxy");
+    const c_VaultProxy = artifacts.require("VaultProxy");
 
     // Savings
     // - Contract
-    const c_SavingsContract: t.SavingsContractContract = artifacts.require("SavingsContract");
+    const c_SavingsContract = artifacts.require("SavingsContract");
     // - Manager
-    const c_SavingsManager: t.SavingsManagerContract = artifacts.require("SavingsManager");
+    const c_SavingsManager = artifacts.require("SavingsManager");
 
     /***************************************
     0. Mock platforms and bAssets
     Dependencies: []
     ****************************************/
 
-    let default_, governor, feeRecipient;
+    const [default_, governor] = accounts;
+    const newGovernor = governor; // This should be an external multisig
     let bassetDetails: BassetIntegrationDetails;
-    if (deployer.network == "ropsten") {
-        [default_, governor] = accounts;
-        feeRecipient = accounts[2];
+    if (deployer.network === "ropsten") {
         console.log("Loading Ropsten bAssets and lending platforms");
         bassetDetails = await loadBassetsRopsten(artifacts);
     } else {
-        [default_, governor, feeRecipient] = accounts;
         console.log(
             `==============================================\n` +
                 `Generating mock bAssets and lending platforms\n` +
-                `==============================================\n\n`,
+                `==============================================\n`,
         );
         bassetDetails = await loadBassetsLocal(artifacts, default_);
     }
@@ -222,7 +205,7 @@ export default async ({ artifacts }, deployer, network, accounts) => {
     ****************************************/
 
     await deployer.deploy(c_Nexus, governor, { from: default_ });
-    const d_Nexus: t.NexusInstance = await c_Nexus.deployed();
+    const d_Nexus = await c_Nexus.deployed();
 
     /***************************************
     2. mUSD
@@ -238,97 +221,123 @@ export default async ({ artifacts }, deployer, network, accounts) => {
 
     // 2.0. Deploy ProxyAdmin
     await deployer.deploy(c_DelayedProxyAdmin, d_Nexus.address, { from: default_ });
-    const d_DelayedProxyAdmin: t.DelayedProxyAdminInstance = await c_DelayedProxyAdmin.deployed();
+    const d_DelayedProxyAdmin = await c_DelayedProxyAdmin.deployed();
 
     // 2.1. Deploy no Init BasketManager
     //  - Deploy Implementation
     await deployer.deploy(c_BasketManager);
-    const d_BasketManager: t.BasketManagerInstance = await c_BasketManager.deployed();
+    const d_BasketManager = await c_BasketManager.deployed();
+    //  - Initialize the BasketManager implementation to avoid someone else doing it
+    const d_DeadIntegration = await c_DeadIntegration.new();
+    const d_DeadErc20 = await c_MockERC20.new("DEAD", "D34", 18, DEAD_ADDRESS, 1);
+    await d_BasketManager.initialize(
+        DEAD_ADDRESS,
+        DEAD_ADDRESS,
+        [d_DeadErc20.address],
+        [d_DeadIntegration.address],
+        [percentToWeight(100).toString()],
+        [false],
+    );
     //  - Deploy Initializable Proxy
-    const d_BasketManagerProxy: t.InitializableAdminUpgradeabilityProxyInstance = await c_InitializableProxy.new();
+    await deployer.deploy(c_BasketManagerProxy);
+    const d_BasketManagerProxy = await c_BasketManagerProxy.deployed();
 
     // 2.2. Deploy no Init AaveIntegration
     //  - Deploy Implementation with dummy params (this storage doesn't get used)
     await deployer.deploy(c_AaveIntegration);
-    const d_AaveIntegration: t.AaveIntegrationInstance = await c_AaveIntegration.deployed();
+    const d_AaveIntegration = await c_AaveIntegration.deployed();
+    await d_AaveIntegration.initialize(DEAD_ADDRESS, [DEAD_ADDRESS], DEAD_ADDRESS, [], []);
     //  - Deploy Initializable Proxy
-    const d_AaveIntegrationProxy: t.InitializableAdminUpgradeabilityProxyInstance = await c_InitializableProxy.new();
+    const d_AaveIntegrationProxy = await c_VaultProxy.new();
 
     // 2.3. Deploy no Init CompoundIntegration
     //  - Deploy Implementation
     // We do not need platform address for compound
     await deployer.deploy(c_CompoundIntegration);
-    const d_CompoundIntegration: t.CompoundIntegrationInstance = await c_CompoundIntegration.deployed();
+    const d_CompoundIntegration = await c_CompoundIntegration.deployed();
+    await d_CompoundIntegration.initialize(DEAD_ADDRESS, [DEAD_ADDRESS], DEAD_ADDRESS, [], []);
     //  - Deploy Initializable Proxy
-    const d_CompoundIntegrationProxy: t.InitializableAdminUpgradeabilityProxyInstance = await c_InitializableProxy.new();
+    const d_CompoundIntegrationProxy = await c_VaultProxy.new();
 
     // 2.4. Deploy mUSD (w/ BasketManager addr)
     // 2.4.1. Deploy ForgeValidator
     await deployer.deploy(c_ForgeValidator, { from: default_ });
-    const d_ForgeValidator: t.ForgeValidatorInstance = await c_ForgeValidator.deployed();
+    const d_ForgeValidator = await c_ForgeValidator.deployed();
     // 2.4.2. Deploy mUSD
-    await deployer.deploy(
-        c_MUSD,
-        d_Nexus.address,
-        feeRecipient,
-        d_ForgeValidator.address,
-        d_BasketManagerProxy.address,
-        { from: default_ },
-    );
-    const d_MUSD: t.MUSDInstance = await c_MUSD.deployed();
-
-    // 2.5. Init BasketManager
-    const initializationData_BasketManager: string = d_BasketManager.contract.methods
+    await deployer.deploy(c_Masset, { from: default_ });
+    const d_mUSD = await c_Masset.deployed();
+    // Initialize mUSD implementation to avoid external party doing so
+    await d_mUSD.initialize("", "", DEAD_ADDRESS, DEAD_ADDRESS, DEAD_ADDRESS);
+    // Deploy mUSD proxy
+    await deployer.deploy(c_MassetProxy);
+    const d_mUSDProxy = await c_MassetProxy.deployed();
+    // Initialize proxy data
+    const initializationData_mUSD: string = d_mUSD.contract.methods
         .initialize(
+            "mStable USD",
+            "mUSD",
             d_Nexus.address,
-            d_MUSD.address,
-            simpleToExactAmount(1, 24).toString(),
-            bassetDetails.bAssets.map((b) => b.address),
-            bassetDetails.platforms.map((p) =>
-                p == Platform.aave
-                    ? d_AaveIntegrationProxy.address
-                    : d_CompoundIntegrationProxy.address,
-            ),
-            bassetDetails.bAssets.map(() => percentToWeight(25).toString()),
-            bassetDetails.bAssets.map(() => false),
+            d_ForgeValidator.address,
+            d_BasketManagerProxy.address,
         )
         .encodeABI();
-    await d_BasketManagerProxy.initialize(
-        d_BasketManager.address,
+    await d_mUSDProxy.methods["initialize(address,address,bytes)"](
+        d_mUSD.address,
         d_DelayedProxyAdmin.address,
-        initializationData_BasketManager,
+        initializationData_mUSD,
     );
 
-    // 2.6. Init AaveIntegration
+    // 2.5. Init AaveIntegration
     const initializationData_AaveIntegration: string = d_AaveIntegration.contract.methods
         .initialize(
             d_Nexus.address,
-            [d_MUSD.address, d_BasketManagerProxy.address],
+            [d_mUSDProxy.address, d_BasketManagerProxy.address],
             bassetDetails.aavePlatformAddress,
             bassetDetails.aTokens.map((a) => a.bAsset),
             bassetDetails.aTokens.map((a) => a.aToken),
         )
         .encodeABI();
-    await d_AaveIntegrationProxy.initialize(
+    await d_AaveIntegrationProxy.methods["initialize(address,address,bytes)"](
         d_AaveIntegration.address,
         d_DelayedProxyAdmin.address,
         initializationData_AaveIntegration,
     );
 
-    // 2.7. Init CompoundIntegration
+    // 2.6. Init CompoundIntegration
     const initializationData_CompoundIntegration: string = d_CompoundIntegration.contract.methods
         .initialize(
             d_Nexus.address,
-            [d_MUSD.address, d_BasketManagerProxy.address],
+            [d_mUSDProxy.address, d_BasketManagerProxy.address],
             ZERO_ADDRESS, // We don't need Compound sys addr
             bassetDetails.cTokens.map((c) => c.bAsset),
             bassetDetails.cTokens.map((c) => c.cToken),
         )
         .encodeABI();
-    await d_CompoundIntegrationProxy.initialize(
+    await d_CompoundIntegrationProxy.methods["initialize(address,address,bytes)"](
         d_CompoundIntegration.address,
         d_DelayedProxyAdmin.address,
         initializationData_CompoundIntegration,
+    );
+
+    // 2.7. Init BasketManager
+    const initializationData_BasketManager: string = d_BasketManager.contract.methods
+        .initialize(
+            d_Nexus.address,
+            d_mUSDProxy.address,
+            bassetDetails.bAssets.map((b) => b.address),
+            bassetDetails.platforms.map((p) =>
+                p === Platform.aave
+                    ? d_AaveIntegrationProxy.address
+                    : d_CompoundIntegrationProxy.address,
+            ),
+            bassetDetails.bAssets.map(() => percentToWeight(100).toString()),
+            bassetDetails.bAssets.map(() => false),
+        )
+        .encodeABI();
+    await d_BasketManagerProxy.methods["initialize(address,address,bytes)"](
+        d_BasketManager.address,
+        d_DelayedProxyAdmin.address,
+        initializationData_BasketManager,
     );
 
     /***************************************
@@ -339,18 +348,20 @@ export default async ({ artifacts }, deployer, network, accounts) => {
     ****************************************/
 
     // Savings Contract
-    await deployer.deploy(c_SavingsContract, d_Nexus.address, d_MUSD.address, { from: default_ });
-    const d_SavingsContract: t.SavingsContractInstance = await c_SavingsContract.deployed();
+    await deployer.deploy(c_SavingsContract, d_Nexus.address, d_mUSDProxy.address, {
+        from: default_,
+    });
+    const d_SavingsContract = await c_SavingsContract.deployed();
 
     // Savings Manager
     await deployer.deploy(
         c_SavingsManager,
         d_Nexus.address,
-        d_MUSD.address,
+        d_mUSDProxy.address,
         d_SavingsContract.address,
         { from: default_ },
     );
-    const d_SavingsManager: t.SavingsManagerInstance = await c_SavingsManager.deployed();
+    const d_SavingsManager = await c_SavingsManager.deployed();
 
     /***************************************
     4. Initialize Nexus Modules
@@ -360,17 +371,19 @@ export default async ({ artifacts }, deployer, network, accounts) => {
     ]
   ****************************************/
 
-    const module_keys = [
-        await d_SavingsManager.KEY_SAVINGS_MANAGER(),
-        await d_DelayedProxyAdmin.KEY_PROXY_ADMIN(),
-    ];
+    const module_keys = [KEY_SAVINGS_MANAGER, KEY_PROXY_ADMIN];
     const module_addresses = [d_SavingsManager.address, d_DelayedProxyAdmin.address];
     const module_isLocked = [false, true];
-    await d_Nexus.initialize(module_keys, module_addresses, module_isLocked, governor, {
+    await d_Nexus.initialize(module_keys, module_addresses, module_isLocked, newGovernor, {
         from: governor,
     });
 
-    console.log(`[mUSD]: '${d_MUSD.address}'`);
+    console.log(`[mUSD]: '${d_mUSDProxy.address}'`);
+    console.log(`[mUSD impl]: '${d_mUSD.address}'`);
+    console.log(`[BasketManager]: '${d_BasketManagerProxy.address}'`);
+    console.log(`[BasketManager impl]: '${d_BasketManager.address}'`);
+    console.log(`[AaveIntegration]: '${d_AaveIntegrationProxy.address}'`);
+    console.log(`[CompoundIntegration]: '${d_CompoundIntegrationProxy.address}'`);
     console.log(`[SavingsManager]: '${d_SavingsManager.address}'`);
     console.log(`[SavingsContract]: '${d_SavingsContract.address}'`);
 };

@@ -2,12 +2,12 @@ import { StandardAccounts } from "@utils/machines";
 import { BN } from "@utils/tools";
 import envSetup from "@utils/env_setup";
 import { expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
-import { DelayedClaimableGovernorInstance } from "types/generated";
+import * as t from "types/generated";
 
 const { expect } = envSetup.configure();
 
 export default function shouldBehaveLikeDelayedClaimable(
-    ctx: { claimable: DelayedClaimableGovernorInstance },
+    ctx: { claimable: t.DelayedClaimableGovernorInstance },
     sa: StandardAccounts,
 ): void {
     it("should have delay set", async () => {

@@ -27,6 +27,11 @@ contract MockBasketManager is BasketManager {
         (, uint8 index) = _isAssetInBasket(bAsset);
         basket.bassets[index].ratio = _newRatio;
     }
+    function setRecol(bool undergoingRecol)
+        external
+    {
+        basket.undergoingRecol = undergoingRecol;
+    }
 }
 
 
@@ -41,7 +46,7 @@ contract MockBasketManager1 is BasketManager {
         testBasset = Basset({
             addr: _bAsset,
             ratio: StableMath.getRatioScale(),
-            targetWeight: 0,
+            maxWeight: 0,
             vaultBalance: 0,
             status: BassetStatus.Normal,
             isTransferFeeCharged: false
@@ -62,16 +67,16 @@ contract MockBasketManager1 is BasketManager {
     function prepareForgeBasset(address /*_amts*/, uint256 /*_amt*/, bool /*_mint*/)
         external
         returns (
-            ForgeProps memory props
+            bool isValid,
+            BassetDetails memory bInfo
         )
     {
-        return ForgeProps({
-            isValid: false,
+        bInfo = BassetDetails({
             bAsset: testBasset,
             integrator: address(0),
-            index: 0,
-            grace: 0
+            index: 0
         });
+        isValid = false;
     }
 
     function prepareForgeBassets(
@@ -92,8 +97,7 @@ contract MockBasketManager1 is BasketManager {
             isValid: false,
             bAssets: bAssets,
             integrators: integrators,
-            indexes: indexes,
-            grace: 0
+            indexes: indexes
         });
     }
 
@@ -109,7 +113,7 @@ contract MockBasketManager2 is MassetStructs {
         testBasset = Basset({
             addr: _bAsset,
             ratio: StableMath.getRatioScale(),
-            targetWeight: 0,
+            maxWeight: 0,
             vaultBalance: 0,
             status: BassetStatus.Normal,
             isTransferFeeCharged: false
@@ -119,16 +123,16 @@ contract MockBasketManager2 is MassetStructs {
     function prepareForgeBasset(address /*_token*/, uint256 /*_amt*/, bool /*_mint*/)
         external
         returns (
-            ForgeProps memory props
+            bool isValid,
+            BassetDetails memory bInfo
         )
     {
-        return ForgeProps({
-            isValid: true,
+        bInfo = BassetDetails({
             bAsset: testBasset,
             integrator: address(0),
-            index: 0,
-            grace: 0
+            index: 0
         });
+        isValid = true;
     }
 
     function prepareForgeBassets(
@@ -149,8 +153,7 @@ contract MockBasketManager2 is MassetStructs {
             isValid: true,
             bAssets: bAssets,
             integrators: integrators,
-            indexes: indexes,
-            grace: 0
+            indexes: indexes
         });
     }
 }

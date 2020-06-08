@@ -1,14 +1,15 @@
 import { applyRatioMassetToBasset, exactToSimpleAmount, simpleToExactAmount } from "@utils/math";
 import { BN } from "@utils/tools";
 import { BassetStatus } from "@utils/mstable-objects";
-import * as t from "types/generated";
+import * as t from "types/generated";;
 import { BassetInstance, BassetWithDecimals } from "./types";
 
 import TransactionDetails = Truffle.TransactionDetails;
 
+// eslint-disable-next-line import/prefer-default-export
 export class MUSDMinter {
     constructor(
-        public readonly mUSD: t.MUSDInstance,
+        public readonly mUSD: t.MusdInstance,
         public readonly basketManager: t.BasketManagerInstance,
         public readonly bassets: Array<BassetInstance>,
     ) {}
@@ -87,7 +88,7 @@ export class MUSDMinter {
         const massetDecimals = await this.mUSD.decimals();
         const mintInputExact = simpleToExactAmount(mintInput, massetDecimals.toNumber());
         const data = await this.getBassetsData(this.bassetAddresses);
-        return data.map(({ targetWeight, ratio }) => {
+        return data.map(({ maxWeight, ratio }) => {
             // 1e18 Massets
             // 1e18 * ratioScale = 1e26
             // if Ratio == 1e8 then its straight up
@@ -96,7 +97,7 @@ export class MUSDMinter {
             // convertExactToSimple divides by 1e18
             // this creates an exact percentage amount
             const relativeUnitsToMint = exactToSimpleAmount(
-                mintInputExact.mul(new BN(targetWeight)),
+                mintInputExact.mul(new BN(maxWeight)),
                 18,
             );
             return applyRatioMassetToBasset(relativeUnitsToMint, ratio);

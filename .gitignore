@@ -45,10 +45,13 @@ contracts-output/
 package-lock.json
 
 # .vscode
+.vscode/
 
 # solcover
 .coverage_artifacts/
 .coverage_contracts/
+coverage.json
 
 # sol-merger
 flat/
+_flat/
