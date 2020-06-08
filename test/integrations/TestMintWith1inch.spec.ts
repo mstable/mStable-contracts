@@ -87,8 +87,8 @@ contract("MintWith1inch", async (accounts) => {
                     await expectRevert(
                         mintWith1Inch.buyAndMint(
                             bAsset.address,
-                            1,
                             massetDetails.mAsset.address,
+                            1,
                             distribution,
                         ),
                         "ETH not sent",
@@ -101,7 +101,7 @@ contract("MintWith1inch", async (accounts) => {
             await Promise.all(
                 massetDetails.bAssets.map(async (bAsset) => {
                     await expectRevert(
-                        mintWith1Inch.buyAndMint(bAsset.address, 1, sa.dummy1, let, {
+                        mintWith1Inch.buyAndMint(bAsset.address, sa.dummy1, 1, distribution, {
                             value: toWei(new BN(1), "ether"),
                         }),
                         "Not a valid mAsset",
@@ -120,8 +120,8 @@ contract("MintWith1inch", async (accounts) => {
                 massetDetails.bAssets.map(async (bAsset) => {
                     await mintWith1Inch.buyAndMint(
                         bAsset.address,
-                        1,
                         massetDetails.mAsset.address,
+                        1,
                         distribution,
                     );
                 }),

@@ -31,15 +31,15 @@ export default function shouldBehaveLikeAbstractBuyAndMint(
                 1000,
             );
             const mockERC20s: Array<string> = [mockERC1.address, mockERC2.address];
-
+            const approvalTarget = sa.dummy1;
             // 2. Get allowance from the contract to DexContract
             const mock1AllowanceBefore: BN = await mockERC1.allowance(
                 ctx.abstractBuyAndMint.address,
-                externalDexAddress,
+                approvalTarget,
             );
             const mock2AllowanceBefore: BN = await mockERC2.allowance(
                 ctx.abstractBuyAndMint.address,
-                externalDexAddress,
+                approvalTarget,
             );
 
             // 3. Allowance must be ZERO
@@ -47,16 +47,16 @@ export default function shouldBehaveLikeAbstractBuyAndMint(
             expect(mock2AllowanceBefore).to.bignumber.equal(ZERO as any);
 
             // 4. Perform the infiniteApproval for the two tokens
-            await ctx.abstractBuyAndMint.infiniteApprove(mockERC20s);
+            await ctx.abstractBuyAndMint.infiniteApprove(approvalTarget, mockERC20s);
 
             // 5. Get allowance
             const mock1AllowanceAfter: BN = await mockERC1.allowance(
                 ctx.abstractBuyAndMint.address,
-                externalDexAddress,
+                approvalTarget,
             );
             const mock2AllowanceAfter: BN = await mockERC2.allowance(
                 ctx.abstractBuyAndMint.address,
-                externalDexAddress,
+                approvalTarget,
             );
 
             // 6. Validate allowance after, must be MAX_UINT256
