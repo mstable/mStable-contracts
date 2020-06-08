@@ -1,7 +1,7 @@
 pragma solidity 0.5.16;
 
 // External
-import { AbstractBuyAndMint } from "./AbstractBuyAndMint.sol";
+import { AbstractBuyAndMint } from "../../integrations/AbstractBuyAndMint.sol";
 import { IBuyAndMint } from "./IBuyAndMint.sol";
 
 // Internal

@@ -6,7 +6,7 @@ import { expectEvent, expectRevert } from "@openzeppelin/test-helpers";
 import envSetup from "@utils/env_setup";
 
 const { expect } = envSetup.configure();
-const MockERC20: t.MockERC20Contract = artifacts.require("MockERC20");
+const MockERC20: t.MockErc20Contract = artifacts.require("MockERC20");
 
 export default function shouldBehaveLikeAbstractBuyAndMint(
     ctx: { abstractBuyAndMint: AbstractBuyAndMintInstance },
@@ -16,14 +16,14 @@ export default function shouldBehaveLikeAbstractBuyAndMint(
     context("AbstractBuyAndMint.infiniteApprove", async () => {
         it("should allow infinite approvals", async () => {
             // 1. Create two mock ERC20 tokens
-            const mockERC1: t.MockERC20Instance = await MockERC20.new(
+            const mockERC1: t.MockErc20Instance = await MockERC20.new(
                 "Mock1",
                 "MKT1",
                 18,
                 sa.default,
                 1000,
             );
-            const mockERC2: t.MockERC20Instance = await MockERC20.new(
+            const mockERC2: t.MockErc20Instance = await MockERC20.new(
                 "Mock2",
                 "MKT2",
                 18,

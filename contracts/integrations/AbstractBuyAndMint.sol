@@ -1,7 +1,7 @@
 pragma solidity 0.5.16;
 
 // Internal
-import { MassetHelpers } from "../../masset/shared/MassetHelpers.sol";
+import { MassetHelpers } from "../masset/shared/MassetHelpers.sol";
 
 // Library
 import { Ownable } from "@openzeppelin/contracts/ownership/Ownable.sol";
@@ -13,6 +13,7 @@ import { Ownable } from "@openzeppelin/contracts/ownership/Ownable.sol";
  *          from mStable.
  */
 contract AbstractBuyAndMint is Ownable {
+
     using MassetHelpers for address;
 
     event MassetAdded(address indexed mAsset);
@@ -35,9 +36,9 @@ contract AbstractBuyAndMint is Ownable {
      * @dev Anyone can call and perform infinite approval for bAssets
      * @param _bAssets An array containing bAssets addresses
      */
-    function infiniteApprove(address[] calldata _bAssets) external {
+    function infiniteApprove(address _mAsset, address[] calldata _bAssets) external {
         for(uint256 i = 0; i < _bAssets.length; i++) {
-            _bAssets[i].safeInfiniteApprove(_externalDexAddress());
+            _bAssets[i].safeInfiniteApprove(_mAsset);
         }
     }
 

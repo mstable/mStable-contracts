@@ -17,7 +17,7 @@ contract("MintWith1inch", async (accounts) => {
     let massetDetails: MassetDetails;
     let mintWith1Inch: t.MintWith1InchInstance;
 
-    const runSetup = async (seedBasket = true, enableUSDTFee = false): Promise<void> => {
+    const runSetup = async (seedBasket = false, enableUSDTFee = false): Promise<void> => {
         massetDetails = seedBasket
             ? await massetMachine.deployMassetAndSeedBasket(enableUSDTFee)
             : await massetMachine.deployMasset(enableUSDTFee);
@@ -87,6 +87,7 @@ contract("MintWith1inch", async (accounts) => {
                     await expectRevert(
                         mintWith1Inch.buyAndMint(
                             bAsset.address,
+                            1,
                             massetDetails.mAsset.address,
                             distribution,
                         ),
@@ -100,7 +101,7 @@ contract("MintWith1inch", async (accounts) => {
             await Promise.all(
                 massetDetails.bAssets.map(async (bAsset) => {
                     await expectRevert(
-                        mintWith1Inch.buyAndMint(bAsset.address, sa.dummy1, distribution, {
+                        mintWith1Inch.buyAndMint(bAsset.address, 1, sa.dummy1, let, {
                             value: toWei(new BN(1), "ether"),
                         }),
                         "Not a valid mAsset",
@@ -119,6 +120,7 @@ contract("MintWith1inch", async (accounts) => {
                 massetDetails.bAssets.map(async (bAsset) => {
                     await mintWith1Inch.buyAndMint(
                         bAsset.address,
+                        1,
                         massetDetails.mAsset.address,
                         distribution,
                     );
