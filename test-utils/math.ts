@@ -1,7 +1,10 @@
 import { BN } from "./tools";
 import { ratioScale } from "./constants";
 
-export const simpleToExactAmount = (amount: number | string | BN, decimals: number | BN): BN => {
+export const simpleToExactAmount = (
+    amount: number | string | BN,
+    decimals: number | BN = 18,
+): BN => {
     // Code is largely lifted from the guts of web3 toWei here:
     // https://github.com/ethjs/ethjs-unit/blob/master/src/index.js
     let amountString = amount.toString();

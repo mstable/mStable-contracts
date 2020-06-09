@@ -162,6 +162,11 @@
   resolved "https://registry.yarnpkg.com/@openzeppelin/contracts/-/contracts-2.5.0.tgz#e327a98ba1d26b7756ff62885a0aa0967a375449"
   integrity sha512-t3jm8FrhL9tkkJTofkznTqo/XXdHi21w5yXwalEnaMOp22ZwZ0f/mmKdlgMMLPFa6bSVHbY88mKESwJT/7m5Lg==
 
+"@openzeppelin/contracts@^2.5.0":
+  version "2.5.1"
+  resolved "https://registry.yarnpkg.com/@openzeppelin/contracts/-/contracts-2.5.1.tgz#c76e3fc57aa224da3718ec351812a4251289db31"
+  integrity sha512-qIy6tLx8rtybEsIOAlrM4J/85s2q2nPkDqj/Rx46VakBZ0LwtFhXIVub96LXHczQX0vaqmAueDqNPXtbSXSaYQ==
+
 "@openzeppelin/test-helpers@git+https://git@github.com/alsco77/openzeppelin-test-helpers.git":
   version "0.5.5"
   resolved "git+https://git@github.com/alsco77/openzeppelin-test-helpers.git#ab4b86771431ce17592d5fb9f0a22ce913127517"
@@ -6264,10 +6269,11 @@ minimalistic-crypto-utils@^1.0.0, minimalistic-crypto-utils@^1.0.1:
   dependencies:
     brace-expansion "^1.1.7"
 
-"minimetoken@ssh://git@github.com/mstable/minime.git#6348055a0a8f73d65d86a3a6845621bd4a8d6b15":
+"minimetoken@ssh://git@github.com/mstable/minime.git#f9d2130e18c29b38939a0ebe1d801ffda41540de":
   version "0.2.0"
-  resolved "ssh://git@github.com/mstable/minime.git#6348055a0a8f73d65d86a3a6845621bd4a8d6b15"
+  resolved "ssh://git@github.com/mstable/minime.git#f9d2130e18c29b38939a0ebe1d801ffda41540de"
   dependencies:
+    "@openzeppelin/contracts" "^2.5.0"
     eth-contract-class "0.0.6"
 
 minimist@0.0.5:
