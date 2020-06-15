@@ -7,9 +7,11 @@ import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 
 /**
  * @title  StakingTokenWrapper
- * @notice Basic wrapper to facilitate tracking of staked balances
  * @author Synthetix (forked from /Synthetixio/synthetix/contracts/StakingRewards.sol)
  *         Audit: https://github.com/sigp/public-audits/blob/master/synthetix/unipool/review.pdf
+ *         Changes by: Stability Labs Pty. Ltd.
+ * @notice Basic wrapper to facilitate tracking of staked balances
+ * @dev    Changes: Entirely cosmetic (comments, readability)
  */
 contract StakingTokenWrapper is ReentrancyGuard {
 

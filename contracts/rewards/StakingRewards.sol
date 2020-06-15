@@ -12,14 +12,16 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 import { StableMath } from "../shared/StableMath.sol";
 
+
 /**
  * @title  StakingRewards
- * @notice Rewards stakers of a given LP token with RewardsToken, on a pro-rata basis
- * @dev    Uses an ever increasing 'rewardPerTokenStored' variable to distribute rewards
- * each time a write action is called in the contract. This allows for passive reward accrual.
  * @author Originally: Synthetix (forked from /Synthetixio/synthetix/contracts/StakingRewards.sol)
  *         Audit: https://github.com/sigp/public-audits/blob/master/synthetix/unipool/review.pdf
  *         Changes by: Stability Labs Pty. Ltd.
+ * @notice Rewards stakers of a given LP token (a.k.a StakingToken) with RewardsToken, on a pro-rata basis
+ * @dev    Uses an ever increasing 'rewardPerTokenStored' variable to distribute rewards
+ * each time a write action is called in the contract. This allows for passive reward accrual.
+ *         Changes: Entirely cosmetic (comments, readability)
  */
 contract StakingRewards is StakingTokenWrapper, RewardsDistributionRecipient {
 

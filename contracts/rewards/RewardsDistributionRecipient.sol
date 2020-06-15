@@ -9,9 +9,7 @@ interface IRewardsDistributionRecipient {
 /**
  * @title  RewardsDistributionRecipient
  * @notice RewardsDistributionRecipient gets notified of additional rewards by the rewardsDistributor
- * @author Originally: Synthetix (forked from /Synthetixio/synthetix/contracts/RewardsDistributionRecipient.sol)
- *         Audit: https://github.com/sigp/public-audits/blob/master/synthetix/unipool/review.pdf
- *         Changes by: Stability Labs Pty. Ltd.
+ * @author Stability Labs Pty. Ltd.
  */
 contract RewardsDistributionRecipient is IRewardsDistributionRecipient, Module {
 
