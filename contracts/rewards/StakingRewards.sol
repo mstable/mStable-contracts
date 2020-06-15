@@ -4,7 +4,7 @@ pragma solidity 0.5.16;
 import { RewardsDistributionRecipient } from "./RewardsDistributionRecipient.sol";
 
 // Internal
-import { Ownable } from "@openzeppelin/contracts/ownership/Ownable.sol";
+import { StakingTokenWrapper } from "./StakingTokenWrapper.sol";
 
 // Libs
 import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
@@ -13,88 +13,15 @@ import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 import { StableMath } from "../shared/StableMath.sol";
 
 /**
- * @title  TokenWrapper
- * @notice Basic wrapper to facilitate tracking of staked balances
- * @author Synthetix (forked from /Synthetixio/synthetix/contracts/StakingRewards.sol)
- */
-contract TokenWrapper is ReentrancyGuard {
-
-    using SafeMath for uint256;
-    using SafeERC20 for IERC20;
-
-    IERC20 public stakingToken;
-
-    uint256 private _totalSupply;
-    mapping(address => uint256) private _balances;
-
-    /**
-     * @dev TokenWrapper constructor
-     * @param _stakingToken Wrapped token to be staked
-     */
-    constructor(address _stakingToken) public {
-        stakingToken = IERC20(_stakingToken);
-    }
-
-    /**
-     * @dev Get the total amount of the staked token
-     * @return uint256 total supply
-     */
-    function totalSupply()
-        public
-        view
-        returns (uint256)
-    {
-        return _totalSupply;
-    }
-
-    /**
-     * @dev Get the balance of a given account
-     * @param _account User for which to retrieve balance
-     */
-    function balanceOf(address _account)
-        public
-        view
-        returns (uint256)
-    {
-        return _balances[_account];
-    }
-
-    /**
-     * @dev Deposits a given amount of StakingToken from sender
-     * @param _amount Units of StakingToken
-     */
-    function _stake(uint256 _amount)
-        internal
-        nonReentrant
-    {
-        _totalSupply = _totalSupply.add(_amount);
-        _balances[msg.sender] = _balances[msg.sender].add(_amount);
-        stakingToken.safeTransferFrom(msg.sender, address(this), _amount);
-    }
-
-    /**
-     * @dev Withdraws a given stake from sender
-     * @param _amount Units of StakingToken
-     */
-    function _withdraw(uint256 _amount)
-        internal
-        nonReentrant
-    {
-        _totalSupply = _totalSupply.sub(_amount);
-        _balances[msg.sender] = _balances[msg.sender].sub(_amount);
-        stakingToken.safeTransfer(msg.sender, _amount);
-    }
-}
-
-/**
  * @title  StakingRewards
  * @notice Rewards stakers of a given LP token with RewardsToken, on a pro-rata basis
  * @dev    Uses an ever increasing 'rewardPerTokenStored' variable to distribute rewards
  * each time a write action is called in the contract. This allows for passive reward accrual.
  * @author Originally: Synthetix (forked from /Synthetixio/synthetix/contracts/StakingRewards.sol)
+ *         Audit: https://github.com/sigp/public-audits/blob/master/synthetix/unipool/review.pdf
  *         Changes by: Stability Labs Pty. Ltd.
  */
-contract StakingRewards is TokenWrapper, RewardsDistributionRecipient {
+contract StakingRewards is StakingTokenWrapper, RewardsDistributionRecipient {
 
     using StableMath for uint256;
 
@@ -121,13 +48,12 @@ contract StakingRewards is TokenWrapper, RewardsDistributionRecipient {
     /** @dev StakingRewards is a TokenWrapper and RewardRecipient */
     constructor(
         address _nexus,
-        address _rewardsDistributor,
         address _rewardsToken,
         address _stakingToken
     )
         public
-        TokenWrapper(_stakingToken)
-        RewardsDistributionRecipient(_nexus, _rewardsDistributor)
+        StakingTokenWrapper(_stakingToken)
+        RewardsDistributionRecipient(_nexus)
     {
         rewardsToken = IERC20(_rewardsToken);
     }

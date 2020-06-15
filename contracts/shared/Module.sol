@@ -7,6 +7,8 @@ import { INexus } from "../interfaces/INexus.sol";
  * @title   Module
  * @author  Stability Labs Pty. Ltd.
  * @dev     Subscribes to module updates from a given publisher by reading from its registry
+ * VERSION: 1.1
+ * DATE:    2020-06-12
  */
 contract Module is ModuleKeys {
 
@@ -121,6 +123,14 @@ contract Module is ModuleKeys {
      */
     function _savingsManager() internal view returns (address) {
         return nexus.getModule(KEY_SAVINGS_MANAGER);
+    }
+
+    /**
+     * @dev Return RewardsDistributor Module address from the Nexus
+     * @return Address of the RewardsDistributor Module contract
+     */
+    function _rewardsDistributor() internal view returns (address) {
+        return nexus.getModule(KEY_REWARDS_DISTRIBUTOR);
     }
 
     /**
