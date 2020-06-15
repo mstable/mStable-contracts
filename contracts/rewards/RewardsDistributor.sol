@@ -5,8 +5,8 @@ import { IRewardsDistributionRecipient } from "./RewardsDistributionRecipient.so
 
 /**
  * @title  RewardsDistributor
- * @notice RewardsDistributor
  * @author Stability Labs Pty. Ltd.
+ * @notice RewardsDistributor
  */
 contract RewardsDistributor is Module {
 
@@ -18,4 +18,8 @@ contract RewardsDistributor is Module {
         Module(_nexus)
     {
     }
+
+    // Add/remove rewards things
+
+    // Distribute rewards
 }

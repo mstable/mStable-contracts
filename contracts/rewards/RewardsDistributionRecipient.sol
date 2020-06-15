@@ -8,8 +8,8 @@ interface IRewardsDistributionRecipient {
 
 /**
  * @title  RewardsDistributionRecipient
- * @notice RewardsDistributionRecipient gets notified of additional rewards by the rewardsDistributor
  * @author Stability Labs Pty. Ltd.
+ * @notice RewardsDistributionRecipient gets notified of additional rewards by the rewardsDistributor
  */
 contract RewardsDistributionRecipient is IRewardsDistributionRecipient, Module {
 

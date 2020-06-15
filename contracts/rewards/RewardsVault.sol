@@ -16,8 +16,8 @@ interface IRewardsVault {
 
 /**
  * @title  RewardsVault
- * @notice Locks up tokens sent to it for X periods before they can be claimed
  * @author Stability Labs Pty. Ltd.
+ * @notice Locks up tokens sent to it for X periods before they can be claimed
  */
 contract RewardsVault is ReentrancyGuard {
 
