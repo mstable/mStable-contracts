@@ -1,9 +1,11 @@
 pragma solidity 0.5.16;
 
 import { Module } from "../shared/Module.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface IRewardsDistributionRecipient {
     function notifyRewardAmount(uint256 reward) external;
+    function getRewardToken() external returns (IERC20);
 }
 
 /**
@@ -15,6 +17,7 @@ contract RewardsDistributionRecipient is IRewardsDistributionRecipient, Module {
 
     // @abstract
     function notifyRewardAmount(uint256 reward) external;
+    function getRewardToken() external returns (IERC20);
 
     /** @dev Recipient is a module, governed by mStable governance */
     constructor(address _nexus)

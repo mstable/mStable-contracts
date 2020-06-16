@@ -1,6 +1,6 @@
 pragma solidity 0.5.16;
 
-import { StakingRewards } from "./StakingRewards.sol";
+import { StakingRewards, IERC20 } from "./StakingRewards.sol";
 import { IRewardsVault } from "./RewardsVault.sol";
 import { MassetHelpers } from "../masset/shared/MassetHelpers.sol";
 
@@ -30,8 +30,8 @@ contract StakingRewardsWithLockup is StakingRewards {
         _setRewardsVault(_rewardsVault);
     }
 
+    //@override
     /**
-     * @override
      * @dev Sends senders outstanding rewards to the vault for lockup
      */
     function claimReward()
@@ -43,7 +43,7 @@ contract StakingRewardsWithLockup is StakingRewards {
             rewards[msg.sender] = 0;
             // @override - send to the vault instead
             // rewardsToken.safeTransfer(msg.sender, reward);
-            IRewardsVault.lockupRewards(msg.sender, reward);
+            rewardsVault.lockupRewards(msg.sender, reward);
             emit RewardPaid(msg.sender, reward);
         }
     }
@@ -80,7 +80,7 @@ contract StakingRewardsWithLockup is StakingRewards {
         onlyGovernor
     {
         // Set the old rewards contract allowance to 0
-        IERC20(_rewardsToken).safeApprove(address(rewardsVault), 0);
+        rewardsToken.safeApprove(address(rewardsVault), 0);
         // Initialise the new vault
         _setRewardsVault(_newVault);
     }
@@ -109,7 +109,7 @@ contract StakingRewardsWithLockup is StakingRewards {
         require(address(_vault) != address(rewardsVault), "Vault update not required");
         rewardsVault = _vault;
         _approveVault();
-        emit RewardsVaultSet(_vault);
+        emit RewardsVaultSet(address(_vault));
     }
 
     /**

@@ -133,6 +133,15 @@ contract StakingRewards is StakingTokenWrapper, RewardsDistributionRecipient {
                     GETTERS
     ****************************************/
 
+    /**
+     * @dev Gets the RewardsToken
+     */
+    function getRewardToken()
+        external
+        returns (IERC20)
+    {
+        return rewardsToken;
+    }
 
     /**
      * @dev Gets the last applicable timestamp for this reward period
