@@ -6,10 +6,10 @@ import { Roles } from "@openzeppelin/contracts/access/Roles.sol";
 
 /**
  * @title  GovernedMinterRole
+ * @author OpenZeppelin (forked from @openzeppelin/contracts/access/roles/MinterRole.sol)
  * @dev    Forked from OpenZeppelin 'MinterRole' with changes:
  *          - `addMinter` modified from `onlyMinter` to `onlyGovernor`
  *          - `removeMinter` function added, callable by `onlyGovernor`
- * @author OpenZeppelin (forked from @openzeppelin/contracts/access/roles/MinterRole.sol)
  */
 contract GovernedMinterRole is Module {
 

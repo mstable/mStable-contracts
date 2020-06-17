@@ -11,7 +11,9 @@ import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
  *         Audit: https://github.com/sigp/public-audits/blob/master/synthetix/unipool/review.pdf
  *         Changes by: Stability Labs Pty. Ltd.
  * @notice Basic wrapper to facilitate tracking of staked balances
- * @dev    Changes: Entirely cosmetic (comments, readability)
+ * @dev    Changes:
+ *          - Cosmetic (comments, readability)
+ *          - Changing 'stake' and 'withdraw' to internal funcs
  */
 contract StakingTokenWrapper is ReentrancyGuard {
 

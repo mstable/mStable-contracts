@@ -1,13 +1,15 @@
 pragma solidity 0.5.16;
 
+import { IRewardsDistributionRecipient } from "../interfaces/IRewardsDistributionRecipient.sol";
+
 import { InitializableGovernableWhitelist } from "../governance/InitializableGovernableWhitelist.sol";
-import { IRewardsDistributionRecipient } from "./RewardsDistributionRecipient.sol";
 import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 /**
  * @title  RewardsDistributor
  * @author Stability Labs Pty. Ltd.
- * @notice RewardsDistributor
+ * @notice RewardsDistributor allows Fund Managers to send rewards (usually in MTA)
+ * to specified Reward Recipients.
  */
 contract RewardsDistributor is InitializableGovernableWhitelist {
 
@@ -25,6 +27,10 @@ contract RewardsDistributor is InitializableGovernableWhitelist {
         InitializableGovernableWhitelist._initialize(_nexus, _fundManagers);
     }
 
+    /**
+     * @dev Allows the mStable governance to add a new FundManager
+     * @param _address  FundManager to add
+     */
     function addFundManager(address _address)
         internal
         onlyGovernor
@@ -32,6 +38,10 @@ contract RewardsDistributor is InitializableGovernableWhitelist {
         _addWhitelist(_address);
     }
 
+    /**
+     * @dev Allows the mStable governance to remove inactive FundManagers
+     * @param _address  FundManager to remove
+     */
     function removeFundManager(address _address)
         internal
         onlyGovernor
@@ -44,6 +54,12 @@ contract RewardsDistributor is InitializableGovernableWhitelist {
         emit RemovedFundManager(_address);
     }
 
+    /**
+     * @dev Distributes reward tokens to list of recipients and notifies them
+     * of the transfer. Only callable by FundManagers
+     * @param _recipients  Array of Reward recipients to credit
+     * @param _amounts     Amounts of reward tokens to distribute
+     */
     function distributeRewards(
         IRewardsDistributionRecipient[] calldata _recipients,
         uint256[] calldata _amounts

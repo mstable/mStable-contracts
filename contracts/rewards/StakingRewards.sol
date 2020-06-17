@@ -21,7 +21,10 @@ import { StableMath } from "../shared/StableMath.sol";
  * @notice Rewards stakers of a given LP token (a.k.a StakingToken) with RewardsToken, on a pro-rata basis
  * @dev    Uses an ever increasing 'rewardPerTokenStored' variable to distribute rewards
  * each time a write action is called in the contract. This allows for passive reward accrual.
- *         Changes: Entirely cosmetic (comments, readability)
+ *         Changes:
+ *           - Cosmetic (comments, readability)
+ *           - Addition of getRewardToken()
+ *           - Changing of `StakingTokenWrapper` funcs from `super.stake` to `_stake`
  */
 contract StakingRewards is StakingTokenWrapper, RewardsDistributionRecipient {
 

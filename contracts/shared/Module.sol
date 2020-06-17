@@ -126,14 +126,6 @@ contract Module is ModuleKeys {
     }
 
     /**
-     * @dev Return RewardsDistributor Module address from the Nexus
-     * @return Address of the RewardsDistributor Module contract
-     */
-    function _rewardsDistributor() internal view returns (address) {
-        return nexus.getModule(KEY_REWARDS_DISTRIBUTOR);
-    }
-
-    /**
      * @dev Return Recollateraliser Module address from the Nexus
      * @return  Address of the Recollateraliser Module contract (Phase 2)
      */

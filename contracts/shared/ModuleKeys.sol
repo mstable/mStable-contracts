@@ -32,6 +32,4 @@ contract ModuleKeys {
     bytes32 internal constant KEY_META_TOKEN = 0xea7469b14936af748ee93c53b2fe510b9928edbdccac3963321efca7eb1a57a2;
     // keccak256("SavingsManager");             // 1.0
     bytes32 internal constant KEY_SAVINGS_MANAGER = 0x12fe936c77a1e196473c4314f3bed8eeac1d757b319abb85bdda70df35511bf1;
-    // keccak256("RewardsDistributor");         // 1.1
-    bytes32 internal constant KEY_REWARDS_DISTRIBUTOR = 0x213061a95012d7c02e6c383a475e0516841d6448f7dd4f80868bcedc94ad7d1b;
 }

@@ -8,7 +8,7 @@ import { MassetHelpers } from "../masset/shared/MassetHelpers.sol";
  * @title  StakingRewardsWithLockup
  * @author Stability Labs Pty. Ltd.
  * @notice Locks up the rewards gained from the StakingRewards mechanism
- * @dev    See StakingRewards.sol
+ * @dev    See StakingRewards.sol for functional description
  */
 contract StakingRewardsWithLockup is StakingRewards {
 
@@ -68,7 +68,7 @@ contract StakingRewardsWithLockup is StakingRewards {
     // }
 
     /***************************************
-                  VAULT
+                    VAULT
     ****************************************/
 
     /**
@@ -97,7 +97,7 @@ contract StakingRewardsWithLockup is StakingRewards {
 
 
     /***************************************
-                  INTERNAL
+                    INTERNAL
     ****************************************/
 
     /**
