@@ -20,5 +20,6 @@ interface IMetaToken {
     function burn(uint256 amount) external;
     function burnFrom(address account, uint256 amount) external;
 
-    
+    /** @dev Mintable */
+    function mint(address account, uint256 amount) external returns (bool);
 }
