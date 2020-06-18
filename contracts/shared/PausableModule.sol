@@ -5,7 +5,8 @@ import { Module } from "./Module.sol";
 /**
  * @title   PausableModule
  * @author  Stability Labs Pty. Ltd.
- * @dev     Forked from openzeppelin-contracts/lifecycle/pausable
+ * @dev     Forked from @openzeppelin/contracts/lifecycle/pausable
+ *          Changes: `onlyGovernor` can pause
  */
 contract PausableModule is Module {
 
