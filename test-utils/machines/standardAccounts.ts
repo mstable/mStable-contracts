@@ -25,6 +25,8 @@ export class StandardAccounts {
 
     public fundManager: Address;
 
+    public fundManager2: Address;
+
     constructor(accounts: Address[]) {
         this.all = accounts;
 
@@ -37,6 +39,7 @@ export class StandardAccounts {
             this.dummy3,
             this.dummy4,
             this.fundManager,
+            this.fundManager2,
         ] = accounts;
     }
 }

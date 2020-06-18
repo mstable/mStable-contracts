@@ -16,6 +16,7 @@ contract RewardsDistributor is InitializableGovernableWhitelist {
     using SafeERC20 for IERC20;
 
     event RemovedFundManager(address indexed _address);
+    event DistributedReward(address funder, address recipient, address rewardToken, uint256 amount);
 
     /** @dev Recipient is a module, governed by mStable governance */
     constructor(
@@ -32,7 +33,7 @@ contract RewardsDistributor is InitializableGovernableWhitelist {
      * @param _address  FundManager to add
      */
     function addFundManager(address _address)
-        internal
+        external
         onlyGovernor
     {
         _addWhitelist(_address);
@@ -43,7 +44,7 @@ contract RewardsDistributor is InitializableGovernableWhitelist {
      * @param _address  FundManager to remove
      */
     function removeFundManager(address _address)
-        internal
+        external
         onlyGovernor
     {
         require(_address != address(0), "Address is zero");
@@ -77,8 +78,10 @@ contract RewardsDistributor is InitializableGovernableWhitelist {
             // Send the RewardToken to recipient
             IERC20 rewardToken = recipient.getRewardToken();
             rewardToken.safeTransferFrom(msg.sender, address(recipient), amount);
-            // Notify the contract of the new funds
+            // Only after successfull tx - notify the contract of the new funds
             recipient.notifyRewardAmount(amount);
+
+            emit DistributedReward(msg.sender, address(recipient), address(rewardToken), amount);
         }
     }
 }

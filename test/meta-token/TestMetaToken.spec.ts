@@ -1,4 +1,4 @@
-import { expectRevert } from "@openzeppelin/test-helpers";
+import { expectEvent, expectRevert } from "@openzeppelin/test-helpers";
 
 import { StandardAccounts, SystemMachine } from "@utils/machines";
 import { simpleToExactAmount } from "@utils/math";
@@ -97,7 +97,10 @@ contract("MetaToken", async (accounts) => {
             });
             it("should allow the governor to add a minter", async () => {
                 expect(await meta.isMinter(sa.dummy1)).eq(false);
-                await meta.addMinter(sa.dummy1, { from: sa.governor });
+                const tx = await meta.addMinter(sa.dummy1, { from: sa.governor });
+                expectEvent(tx.receipt, "MinterAdded", {
+                    account: sa.dummy1,
+                });
                 expect(await meta.isMinter(sa.dummy1)).eq(true);
             });
             it("should not allow minters to remove minters", async () => {
@@ -121,7 +124,10 @@ contract("MetaToken", async (accounts) => {
                 await meta.addMinter(sa.dummy1, { from: sa.governor });
                 expect(await meta.isMinter(sa.dummy1)).eq(true);
                 // Minter or other cannot remove role
-                await meta.removeMinter(sa.dummy1, { from: sa.governor });
+                const tx = await meta.removeMinter(sa.dummy1, { from: sa.governor });
+                expectEvent(tx.receipt, "MinterRemoved", {
+                    account: sa.dummy1,
+                });
                 expect(await meta.isMinter(sa.dummy1)).eq(false);
             });
             it("should allow a minter to renounce their minting ability", async () => {
