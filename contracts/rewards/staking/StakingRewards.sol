@@ -1,16 +1,14 @@
 pragma solidity 0.5.16;
 
-// External
-import { RewardsDistributionRecipient } from "./RewardsDistributionRecipient.sol";
-
 // Internal
 import { StakingTokenWrapper } from "./StakingTokenWrapper.sol";
+import { IRewardsVault, LockedUpRewards } from "./LockedUpRewards.sol";
 
 // Libs
 import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
-import { StableMath } from "../shared/StableMath.sol";
+import { StableMath } from "../../shared/StableMath.sol";
 
 
 /**
@@ -25,12 +23,12 @@ import { StableMath } from "../shared/StableMath.sol";
  *           - Cosmetic (comments, readability)
  *           - Addition of getRewardToken()
  *           - Changing of `StakingTokenWrapper` funcs from `super.stake` to `_stake`
+ *           - Implementing 'LockedUpRewards' and calling `_lockupRewards` in "claimReward"
+ *           - Introduced a `stake(_beneficiary)` function to enable contract wrappers to stake on behalf
  */
-contract StakingRewards is StakingTokenWrapper, RewardsDistributionRecipient {
+contract StakingRewards is StakingTokenWrapper, LockedUpRewards {
 
     using StableMath for uint256;
-
-    IERC20 public rewardsToken;
 
     uint256 public constant DURATION = 7 days;
 
@@ -46,33 +44,34 @@ contract StakingRewards is StakingTokenWrapper, RewardsDistributionRecipient {
     mapping(address => uint256) public rewards;
 
     event RewardAdded(uint256 reward);
-    event Staked(address indexed user, uint256 amount);
+    event Staked(address indexed user, uint256 amount, address payer);
     event Withdrawn(address indexed user, uint256 amount);
     event RewardPaid(address indexed user, uint256 reward);
 
     /** @dev StakingRewards is a TokenWrapper and RewardRecipient */
     constructor(
         address _nexus,
+        address _stakingToken,
         address _rewardsToken,
-        address _stakingToken
+        IRewardsVault _rewardsVault
     )
         public
         StakingTokenWrapper(_stakingToken)
-        RewardsDistributionRecipient(_nexus)
+        LockedUpRewards(_nexus, _rewardsToken, _rewardsVault)
     {
-        rewardsToken = IERC20(_rewardsToken);
     }
 
     /** @dev Updates the reward for a given address, before executing function */
     modifier updateReward(address _account) {
         // Setting of global vars
-        rewardPerTokenStored = rewardPerToken();
+        uint256 newRewardPerToken = rewardPerToken();
+        rewardPerTokenStored = newRewardPerToken;
         lastUpdateTime = lastTimeRewardApplicable();
 
         // Setting of personal vars based on new globals
         if (_account != address(0)) {
             rewards[_account] = earned(_account);
-            userRewardPerTokenPaid[_account] = rewardPerTokenStored;
+            userRewardPerTokenPaid[_account] = newRewardPerToken;
         }
         _;
     }
@@ -82,16 +81,39 @@ contract StakingRewards is StakingTokenWrapper, RewardsDistributionRecipient {
     ****************************************/
 
     /**
-     * @dev Stakes a given amount of the StakingToken
+     * @dev Stakes a given amount of the StakingToken for a given beneficiary
+     * @param _beneficiary Staked tokens are credited to this address
+     * @param _amount      Units of StakingToken
+     */
+    function stake(address _beneficiary, uint256 _amount)
+        external
+    {
+        _stake(_beneficiary, _amount);
+    }
+
+    /**
+     * @dev Stakes a given amount of the StakingToken for the sender
      * @param _amount Units of StakingToken
      */
     function stake(uint256 _amount)
         external
-        updateReward(msg.sender)
+    {
+        _stake(msg.sender, _amount);
+    }
+
+    /**
+     * @dev Internally stakes an amount by depositing from sender,
+     * and crediting to the specified beneficiary
+     * @param _beneficiary Staked tokens are credited to this address
+     * @param _amount      Units of StakingToken
+     */
+    function _stake(address _beneficiary, uint256 _amount)
+        internal
+        updateReward(_beneficiary)
     {
         require(_amount > 0, "Cannot stake 0");
-        _stake(_amount);
-        emit Staked(msg.sender, _amount);
+        super._stake(_beneficiary, _amount);
+        emit Staked(_beneficiary, _amount, msg.sender);
     }
 
     /**
@@ -123,10 +145,10 @@ contract StakingRewards is StakingTokenWrapper, RewardsDistributionRecipient {
         public
         updateReward(msg.sender)
     {
-        uint256 reward = earned(msg.sender);
+        uint256 reward = rewards[msg.sender];
         if (reward > 0) {
             rewards[msg.sender] = 0;
-            rewardsToken.safeTransfer(msg.sender, reward);
+            _lockupRewards(reward);
             emit RewardPaid(msg.sender, reward);
         }
     }
@@ -212,19 +234,20 @@ contract StakingRewards is StakingTokenWrapper, RewardsDistributionRecipient {
         onlyRewardsDistributor
         updateReward(address(0))
     {
+        uint256 currentTime = block.timestamp;
         // If previous period over, reset rewardRate
-        if (block.timestamp >= periodFinish) {
+        if (currentTime >= periodFinish) {
             rewardRate = _reward.div(DURATION);
         }
         // If additional reward to existing period, calc sum
         else {
-            uint256 remaining = periodFinish.sub(block.timestamp);
+            uint256 remaining = periodFinish.sub(currentTime);
             uint256 leftover = remaining.mul(rewardRate);
             rewardRate = _reward.add(leftover).div(DURATION);
         }
 
-        lastUpdateTime = block.timestamp;
-        periodFinish = block.timestamp.add(DURATION);
+        lastUpdateTime = currentTime;
+        periodFinish = currentTime.add(DURATION);
 
         emit RewardAdded(_reward);
     }

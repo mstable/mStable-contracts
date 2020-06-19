@@ -1,71 +1,47 @@
 pragma solidity 0.5.16;
 
-import { StakingRewards, IERC20 } from "./StakingRewards.sol";
-import { IRewardsVault } from "./RewardsVault.sol";
-import { MassetHelpers } from "../masset/shared/MassetHelpers.sol";
+import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import { IRewardsVault } from "../RewardsVault.sol";
+import { RewardsDistributionRecipient } from "../RewardsDistributionRecipient.sol";
+import { MassetHelpers } from "../../masset/shared/MassetHelpers.sol";
 
 /**
- * @title  StakingRewardsWithLockup
+ * @title  LockedUpRewards
  * @author Stability Labs Pty. Ltd.
  * @notice Locks up the rewards gained from the StakingRewards mechanism
  * @dev    See StakingRewards.sol for functional description
  */
-contract StakingRewardsWithLockup is StakingRewards {
+contract LockedUpRewards is RewardsDistributionRecipient {
+
+    using SafeERC20 for IERC20;
 
     event RewardsVaultSet(address newVault);
 
     // Address to which the locked up tokens should be sent
     IRewardsVault private rewardsVault;
+    IERC20 public rewardsToken;
 
     /** @dev StakingRewardsWithLockup is a locked up version of StakingRewards */
     constructor(
         address _nexus,
         address _rewardsToken,
-        address _stakingToken,
         IRewardsVault _rewardsVault
     )
-        public
-        StakingRewards(_nexus, _rewardsToken, _stakingToken)
+        internal
+        RewardsDistributionRecipient(_nexus)
     {
+        rewardsToken = IERC20(_rewardsToken);
         _setRewardsVault(_rewardsVault);
     }
 
-    //@override
     /**
      * @dev Sends senders outstanding rewards to the vault for lockup
      */
-    function claimReward()
-        public
-        updateReward(msg.sender)
+    function _lockupRewards(uint256 _rewardAmount)
+        internal
     {
-        uint256 reward = earned(msg.sender);
-        if (reward > 0) {
-            rewards[msg.sender] = 0;
-            // @override - send to the vault instead
-            // rewardsToken.safeTransfer(msg.sender, reward);
-            rewardsVault.lockupRewards(msg.sender, reward);
-            emit RewardPaid(msg.sender, reward);
-        }
+        rewardsVault.lockupRewards(msg.sender, _rewardAmount);
     }
-
-    // TODO - Need to check this works
-    // /**
-    //  * @dev Claims reward on behalf of another rewardee
-    //  * @param _rewardee Address of the rewardee to claim
-    //  */
-    // function claimReward(address _rewardee)
-    //     external
-    //     updateReward(_rewardee)
-    // {
-    //     uint256 reward = earned(_rewardee);
-    //     if (reward > 0) {
-    //         rewards[_rewardee] = 0;
-    //         // @override - send to the vault instead
-    //         // rewardsToken.safeTransfer(msg.sender, reward);
-    //         IRewardsVault.lockupRewards(_rewardee, reward);
-    //         emit RewardPaid(_rewardee, reward);
-    //     }
-    // }
 
     /***************************************
                     VAULT

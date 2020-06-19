@@ -14,6 +14,7 @@ import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
  * @dev    Changes:
  *          - Cosmetic (comments, readability)
  *          - Changing 'stake' and 'withdraw' to internal funcs
+ *          - Changing '_stake' to accept a `beneficiary` address to enable wrapper integrations
  */
 contract StakingTokenWrapper is ReentrancyGuard {
 
@@ -61,12 +62,12 @@ contract StakingTokenWrapper is ReentrancyGuard {
      * @dev Deposits a given amount of StakingToken from sender
      * @param _amount Units of StakingToken
      */
-    function _stake(uint256 _amount)
+    function _stake(address _beneficiary, uint256 _amount)
         internal
         nonReentrant
     {
         _totalSupply = _totalSupply.add(_amount);
-        _balances[msg.sender] = _balances[msg.sender].add(_amount);
+        _balances[_beneficiary] = _balances[_beneficiary].add(_amount);
         stakingToken.safeTransferFrom(msg.sender, address(this), _amount);
     }
 

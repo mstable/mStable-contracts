@@ -10,14 +10,22 @@ Actually only 3 are base contracts
 
 Allows reward allocators ("FundManagers") to distribute rewards.
 
-### StakingRewardsWithLockup
+### StakingRewards
 
-`StakingRewardsWithLockup` is `StakingRewards` is `RewardsDistributionRecipient` is `StakingTokenWrapper`
+`StakingRewards` is `LockedUpRewards` is `RewardsDistributionRecipient`
+-------------->  is `StakingTokenWrapper`
 
 This preserves the code written, tested, audited and deployed by `Synthetix` (StakingRewards & StakingTokenWrapper).
 
 Originally: Synthetix (forked from /Synthetixio/synthetix/contracts/StakingRewards.sol)
 Audit: https://github.com/sigp/public-audits/blob/master/synthetix/unipool/review.pdf`
+
+### StakingRewardsWithPlatformToken
+
+`StakingRewardsWithPlatformToken` is `LockedUpRewards` is `RewardsDistributionRecipient`
+------------------------------->  is `StakingTokenWrapper`
+
+`StakingRewardsWithPlatformToken` deploys `PlatformTokenVendor` during its constructor
 
 ### RewardsVault
 
