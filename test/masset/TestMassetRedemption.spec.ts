@@ -756,7 +756,7 @@ contract("Masset - Redeem", async (accounts) => {
                 beforeEach(async () => {
                     await runSetup(false);
                 });
-                it("should force proportional redemption no matter what", async () => {
+                it("should allow redemption as long as nothing goes overweight", async () => {
                     const { bAssets, mAsset, basketManager } = massetDetails;
                     const composition = await massetMachine.getBasketComposition(massetDetails);
                     // Expect 4 bAssets with 100 weightings
@@ -782,9 +782,11 @@ contract("Masset - Redeem", async (accounts) => {
                     // Should succeed if we redeem this
                     const bAsset = bAssets[0];
                     const bAssetDecimals = await bAsset.decimals();
+                    await assertBasicRedemption(massetDetails, 2, bAsset, true);
+                    // 30% * 93 = 27.8, meaning bAssets[1] is now overweight
                     await expectRevert(
-                        mAsset.redeem(bAsset.address, simpleToExactAmount(10, bAssetDecimals)),
-                        "Must redeem proportionately",
+                        mAsset.redeem(bAsset.address, simpleToExactAmount(5, bAssetDecimals)),
+                        "bAssets must remain below max weight",
                     );
                 });
             });
