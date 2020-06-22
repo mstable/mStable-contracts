@@ -38,7 +38,7 @@ contract StakingRewards is StakingTokenWrapper, LockedUpRewards {
     uint256 public rewardRate = 0;
     // Last time any user took action
     uint256 public lastUpdateTime;
-    // Every increasing rewardPerToken rate, based on % of total supply
+    // Ever increasing rewardPerToken rate, based on % of total supply
     uint256 public rewardPerTokenStored;
     mapping(address => uint256) public userRewardPerTokenPaid;
     mapping(address => uint256) public rewards;

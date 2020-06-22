@@ -36,7 +36,7 @@ contract StakingRewardsWithPlatformToken is StakingTokenWrapper, LockedUpRewards
     uint256 public platformRewardRate = 0;
     // Last time any user took action
     uint256 public lastUpdateTime;
-    // Every increasing rewardPerToken rate, based on % of total supply
+    // Ever increasing rewardPerToken rate, based on % of total supply
     uint256 public rewardPerTokenStored;
     uint256 public platformRewardPerTokenStored;
 
@@ -47,7 +47,7 @@ contract StakingRewardsWithPlatformToken is StakingTokenWrapper, LockedUpRewards
     mapping(address => uint256) public platformRewards;
 
     event RewardAdded(uint256 reward, uint256 platformReward);
-    event Staked(address indexed user, uint256 amount);
+    event Staked(address indexed user, uint256 amount, address payer);
     event Withdrawn(address indexed user, uint256 amount);
     event RewardPaid(address indexed user, uint256 reward, uint256 platformReward);
 
