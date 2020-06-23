@@ -53,11 +53,12 @@ contract StakingRewards is StakingTokenWrapper, LockedUpRewards {
         address _nexus,
         address _stakingToken,
         address _rewardsToken,
-        IRewardsVault _rewardsVault
+        IRewardsVault _rewardsVault,
+        address _rewardsDistributor
     )
         public
         StakingTokenWrapper(_stakingToken)
-        LockedUpRewards(_nexus, _rewardsToken, _rewardsVault)
+        LockedUpRewards(_nexus, _rewardsToken, _rewardsVault, _rewardsDistributor)
     {
     }
 
@@ -81,6 +82,16 @@ contract StakingRewards is StakingTokenWrapper, LockedUpRewards {
     ****************************************/
 
     /**
+     * @dev Stakes a given amount of the StakingToken for the sender
+     * @param _amount Units of StakingToken
+     */
+    function stake(uint256 _amount)
+        external
+    {
+        _stake(msg.sender, _amount);
+    }
+
+    /**
      * @dev Stakes a given amount of the StakingToken for a given beneficiary
      * @param _beneficiary Staked tokens are credited to this address
      * @param _amount      Units of StakingToken
@@ -89,16 +100,6 @@ contract StakingRewards is StakingTokenWrapper, LockedUpRewards {
         external
     {
         _stake(_beneficiary, _amount);
-    }
-
-    /**
-     * @dev Stakes a given amount of the StakingToken for the sender
-     * @param _amount Units of StakingToken
-     */
-    function stake(uint256 _amount)
-        external
-    {
-        _stake(msg.sender, _amount);
     }
 
     /**
@@ -180,7 +181,8 @@ contract StakingRewards is StakingTokenWrapper, LockedUpRewards {
     }
 
     /**
-     * @dev Calculates the amount of unclaimed rewards a user has earned
+     * @dev Calculates the amount of unclaimed rewards per token since last update,
+     * and sums with stored to give the new cumulative reward per token
      * @return 'Reward' per staked token
      */
     function rewardPerToken()

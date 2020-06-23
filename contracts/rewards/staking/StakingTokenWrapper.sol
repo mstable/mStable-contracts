@@ -30,7 +30,7 @@ contract StakingTokenWrapper is ReentrancyGuard {
      * @dev TokenWrapper constructor
      * @param _stakingToken Wrapped token to be staked
      */
-    constructor(address _stakingToken) public {
+    constructor(address _stakingToken) internal {
         stakingToken = IERC20(_stakingToken);
     }
 

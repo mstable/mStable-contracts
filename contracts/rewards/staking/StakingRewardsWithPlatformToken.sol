@@ -57,11 +57,12 @@ contract StakingRewardsWithPlatformToken is StakingTokenWrapper, LockedUpRewards
         address _stakingToken,
         address _rewardsToken,
         address _platformToken,
-        IRewardsVault _rewardsVault
+        IRewardsVault _rewardsVault,
+        address _rewardsDistributor
     )
         public
         StakingTokenWrapper(_stakingToken)
-        LockedUpRewards(_nexus, _rewardsToken, _rewardsVault)
+        LockedUpRewards(_nexus, _rewardsToken, _rewardsVault, _rewardsDistributor)
     {
         platformToken = IERC20(_platformToken);
         platformTokenVendor = new PlatformTokenVendor(platformToken);

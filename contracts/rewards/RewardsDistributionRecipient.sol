@@ -21,10 +21,11 @@ contract RewardsDistributionRecipient is IRewardsDistributionRecipient, Module {
     address public rewardsDistributor;
 
     /** @dev Recipient is a module, governed by mStable governance */
-    constructor(address _nexus)
-        public
+    constructor(address _nexus, address _rewardsDistributor)
+        internal
         Module(_nexus)
     {
+        rewardsDistributor = _rewardsDistributor;
     }
 
     /**

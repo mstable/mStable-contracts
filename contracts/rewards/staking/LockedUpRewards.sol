@@ -18,17 +18,18 @@ contract LockedUpRewards is RewardsDistributionRecipient {
     event RewardsVaultSet(address newVault);
 
     // Address to which the locked up tokens should be sent
-    IRewardsVault private rewardsVault;
+    IRewardsVault public rewardsVault;
     IERC20 public rewardsToken;
 
     /** @dev StakingRewardsWithLockup is a locked up version of StakingRewards */
     constructor(
         address _nexus,
         address _rewardsToken,
-        IRewardsVault _rewardsVault
+        IRewardsVault _rewardsVault,
+        address _rewardsDistributor
     )
         internal
-        RewardsDistributionRecipient(_nexus)
+        RewardsDistributionRecipient(_nexus ,_rewardsDistributor)
     {
         rewardsToken = IERC20(_rewardsToken);
         _setRewardsVault(_rewardsVault);
