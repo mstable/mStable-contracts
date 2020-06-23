@@ -511,6 +511,16 @@ contract MassetValidationHelper is MassetStructs {
     using StableMath for uint256;
     using SafeMath for uint256;
 
+    /**
+     * @dev Determines if a given Redemption is valid
+     * @param _mAsset Address of the given mAsset (e.g. mUSD)
+     * @param _mAssetQuantity Amount of mAsset to redeem (in mUSD units)
+     * @param _outputBasset Desired output bAsset
+     * @return valid
+     * @return validity reason
+     * @return output in bAsset units
+     * @return bAssetQuantityArg - required input argument to the 'redeem' call
+     */
     function getRedeemValidity(
         address _mAsset,
         uint256 _mAssetQuantity,
