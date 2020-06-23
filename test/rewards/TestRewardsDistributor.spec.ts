@@ -8,8 +8,6 @@ import { ZERO_ADDRESS } from "@utils/constants";
 import envSetup from "@utils/env_setup";
 import * as t from "types/generated";
 import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
-import shouldBehaveLikeERC20 from "../shared/behaviours/ERC20.behaviour";
-import shouldBehaveLikeERC20Burnable from "../shared/behaviours/ERC20Burnable.behaviour";
 
 const MockERC20 = artifacts.require("MockERC20");
 const MockRewardsDistributionRecipient = artifacts.require("MockRewardsDistributionRecipient");
@@ -210,6 +208,12 @@ contract("RewardsDistributor", async (accounts) => {
                         }),
                         "Mismatching inputs",
                     );
+                    await expectRevert(
+                        rewardsDistributor.distributeRewards([sa.dummy1], [1, 2], {
+                            from: sa.fundManager,
+                        }),
+                        "Mismatching inputs",
+                    );
                 });
             });
             context("and passed expected args", async () => {
@@ -247,16 +251,111 @@ contract("RewardsDistributor", async (accounts) => {
                 });
                 it("should transfer the rewardToken to all recipients", async () => {
                     const oneToken = simpleToExactAmount(1, 18);
+                    const twoToken = simpleToExactAmount(2, 18);
+                    await rewardToken1.approve(rewardsDistributor.address, twoToken, {
+                        from: sa.fundManager,
+                    });
+                    const funderBalBefore = await rewardToken1.balanceOf(sa.fundManager);
+                    const recipient1BalBefore = await rewardToken1.balanceOf(
+                        rewardRecipient1.address,
+                    );
+                    const recipient2BalBefore = await rewardToken1.balanceOf(
+                        rewardRecipient2.address,
+                    );
+                    const tx = await rewardsDistributor.distributeRewards(
+                        [rewardRecipient1.address, rewardRecipient2.address],
+                        [oneToken, oneToken],
+                        { from: sa.fundManager },
+                    );
+                    expectEvent(tx.receipt, "DistributedReward", {
+                        funder: sa.fundManager,
+                        recipient: rewardRecipient1.address,
+                        rewardToken: rewardToken1.address,
+                        amount: oneToken,
+                    });
+                    expectEvent(tx.receipt, "DistributedReward", {
+                        funder: sa.fundManager,
+                        recipient: rewardRecipient2.address,
+                        rewardToken: rewardToken1.address,
+                        amount: oneToken,
+                    });
+                    const funderBalAfter = await rewardToken1.balanceOf(sa.fundManager);
+                    const recipient1BalAfter = await rewardToken1.balanceOf(
+                        rewardRecipient1.address,
+                    );
+                    const recipient2BalAfter = await rewardToken1.balanceOf(
+                        rewardRecipient2.address,
+                    );
+                    expect(funderBalAfter).bignumber.eq(funderBalBefore.sub(twoToken));
+                    expect(recipient1BalAfter).bignumber.eq(recipient1BalBefore.add(oneToken));
+                    expect(recipient2BalAfter).bignumber.eq(recipient2BalBefore.add(oneToken));
+                });
+                it("should fail if funder has insufficient rewardToken balance", async () => {
+                    const oneToken = simpleToExactAmount(1, 18);
+                    await rewardToken2.approve(rewardsDistributor.address, oneToken, {
+                        from: sa.fundManager,
+                    });
+                    const funderBalBefore = await rewardToken2.balanceOf(sa.fundManager);
+                    expect(funderBalBefore).bignumber.eq(new BN(0));
+                    await expectRevert(
+                        rewardsDistributor.distributeRewards(
+                            [rewardRecipient3.address],
+                            [oneToken],
+                            { from: sa.fundManager },
+                        ),
+                        "SafeERC20: low-level call failed",
+                    );
+                });
+                it("should fail if sender doesn't give approval", async () => {
+                    const oneToken = simpleToExactAmount(1, 18);
+                    const funderBalBefore = await rewardToken1.balanceOf(sa.fundManager);
+                    expect(funderBalBefore).bignumber.gte(oneToken as any);
+                    await expectRevert(
+                        rewardsDistributor.distributeRewards(
+                            [rewardRecipient1.address, rewardRecipient2.address],
+                            [oneToken, oneToken],
+                            { from: sa.fundManager },
+                        ),
+                        "SafeERC20: low-level call failed",
+                    );
+                });
+                it("should fail if recipient doesn't implement IRewardsDistributionRecipient interface", async () => {
+                    const oneToken = simpleToExactAmount(1, 18);
                     await rewardToken1.approve(rewardsDistributor.address, oneToken, {
                         from: sa.fundManager,
                     });
                     const funderBalBefore = await rewardToken1.balanceOf(sa.fundManager);
-                    const recipientBalBefore = await rewardToken1.balanceOf(
+                    expect(funderBalBefore).bignumber.gte(oneToken as any);
+                    await expectRevert.unspecified(
+                        rewardsDistributor.distributeRewards([sa.dummy1], [oneToken], {
+                            from: sa.fundManager,
+                        }),
+                    );
+                });
+            });
+            context("and passed valid array with duplicate address", async () => {
+                let rewardToken1: t.MockErc20Instance;
+                let rewardRecipient1: t.MockRewardsDistributionRecipientInstance;
+                beforeEach(async () => {
+                    rewardToken1 = await MockERC20.new("R1", "R1", 18, sa.fundManager, 1000000);
+                    rewardRecipient1 = await MockRewardsDistributionRecipient.new(
+                        rewardToken1.address,
+                    );
+                    rewardsDistributor = await redeployRewards();
+                });
+                it("should send out reward to duplicate address", async () => {
+                    const oneToken = simpleToExactAmount(1, 18);
+                    const twoToken = simpleToExactAmount(2, 18);
+                    await rewardToken1.approve(rewardsDistributor.address, twoToken, {
+                        from: sa.fundManager,
+                    });
+                    const funderBalBefore = await rewardToken1.balanceOf(sa.fundManager);
+                    const recipient1BalBefore = await rewardToken1.balanceOf(
                         rewardRecipient1.address,
                     );
                     const tx = await rewardsDistributor.distributeRewards(
-                        [rewardRecipient1.address],
-                        [oneToken],
+                        [rewardRecipient1.address, rewardRecipient1.address],
+                        [oneToken, oneToken],
                         { from: sa.fundManager },
                     );
                     expectEvent(tx.receipt, "DistributedReward", {
@@ -266,19 +365,40 @@ contract("RewardsDistributor", async (accounts) => {
                         amount: oneToken,
                     });
                     const funderBalAfter = await rewardToken1.balanceOf(sa.fundManager);
-                    const recipientBalAfter = await rewardToken1.balanceOf(
+                    const recipient1BalAfter = await rewardToken1.balanceOf(
                         rewardRecipient1.address,
                     );
-                    expect(funderBalAfter).bignumber.eq(funderBalBefore.sub(oneToken));
-                    expect(recipientBalAfter).bignumber.eq(recipientBalBefore.add(oneToken));
+                    expect(funderBalAfter).bignumber.eq(funderBalBefore.sub(twoToken));
+                    expect(recipient1BalAfter).bignumber.eq(recipient1BalBefore.add(twoToken));
                 });
-                it("should fail if funder has no rewardToken balance");
-                it("should fail if sender doesn't give approval");
-                it(
-                    "should fail if recipient doesn't implement IRewardsDistributionRecipient interface",
-                );
             });
-            context("and passed valid array with duplicate address", async () => {});
+            context("and passed some null addresses", async () => {
+                let rewardToken1: t.MockErc20Instance;
+                let rewardRecipient1: t.MockRewardsDistributionRecipientInstance;
+                beforeEach(async () => {
+                    rewardToken1 = await MockERC20.new("R1", "R1", 18, sa.fundManager, 1000000);
+                    rewardRecipient1 = await MockRewardsDistributionRecipient.new(
+                        rewardToken1.address,
+                    );
+                    rewardsDistributor = await redeployRewards();
+                });
+                it("should fail", async () => {
+                    const oneToken = simpleToExactAmount(1, 18);
+                    const twoToken = simpleToExactAmount(2, 18);
+                    await rewardToken1.approve(rewardsDistributor.address, twoToken, {
+                        from: sa.fundManager,
+                    });
+                    const funderBalBefore = await rewardToken1.balanceOf(sa.fundManager);
+                    expect(funderBalBefore).bignumber.gte(simpleToExactAmount(2, 18) as any);
+                    await expectRevert.unspecified(
+                        rewardsDistributor.distributeRewards(
+                            [rewardRecipient1.address, ZERO_ADDRESS],
+                            [oneToken, oneToken],
+                            { from: sa.fundManager },
+                        ),
+                    );
+                });
+            });
         });
         context("when called by other", async () => {
             it("should not allow governor to distribute", async () => {
