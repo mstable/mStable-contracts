@@ -10,8 +10,8 @@ import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
  * @author  Stability Labs Pty. Ltd.
  * @notice  Calculates whether or not minting or redemption is valid, based
  *          on how it affects the underlying basket collateral weightings
- * @dev     VERSION: 1.0
- *          DATE:    2020-05-05
+ * @dev     VERSION: 1.1
+ *          DATE:    2020-06-22
  */
 contract ForgeValidator is IForgeValidator {
 
@@ -222,8 +222,7 @@ contract ForgeValidator is IForgeValidator {
         // If the basket is in an affected state, enforce proportional redemption
         if(
             _basketIsFailed ||
-            data.atLeastOneBroken ||
-            (data.overWeightCount == 0 && data.atLeastOneBreached)
+            data.atLeastOneBroken
         ) {
             return (false, "Must redeem proportionately", false);
         } else if (data.overWeightCount > idxCount) {
@@ -249,7 +248,7 @@ contract ForgeValidator is IForgeValidator {
             newTotalVault = newTotalVault.sub(ratioedRedemptionAmount);
         }
 
-        // Get overweight/breached after
+        // Get overweight after
         bool atLeastOneBecameOverweight =
             _getOverweightBassetsAfter(newTotalVault, _allBassets, data.ratioedBassetVaults, data.isOverWeight);
 
@@ -333,7 +332,6 @@ contract ForgeValidator is IForgeValidator {
         bool isValid;
         string reason;
         bool atLeastOneBroken;
-        bool atLeastOneBreached;
         uint256 overWeightCount;
         bool[] isOverWeight;
         uint256[] ratioedBassetVaults;
@@ -357,15 +355,10 @@ contract ForgeValidator is IForgeValidator {
             isValid: true,
             reason: "",
             atLeastOneBroken: false,
-            atLeastOneBreached: false,
             overWeightCount: 0,
             isOverWeight: new bool[](len),
             ratioedBassetVaults: new uint256[](len)
         });
-
-        uint256 onePercentOfTotal = _total.mulTruncate(1e16);
-        // Number of units below max a bAsset can be before deemed as breached
-        uint256 weightBreachThreshold = StableMath.min(onePercentOfTotal, 5e22);
 
         for(uint256 i = 0; i < len; i++) {
             BassetStatus status = _bAssets[i].status;
@@ -389,13 +382,6 @@ contract ForgeValidator is IForgeValidator {
             if(bAssetOverWeight){
                 response.isOverWeight[i] = true;
                 response.overWeightCount += 1;
-            }
-
-            // if the bAsset isn't overweight, check if it's within the bound
-            if(!bAssetOverWeight) {
-                uint256 lowerBound = weightBreachThreshold > maxWeightInUnits ? 0 : maxWeightInUnits.sub(weightBreachThreshold);
-                bool isInBound = ratioedBasset > lowerBound && ratioedBasset <= maxWeightInUnits;
-                response.atLeastOneBreached = response.atLeastOneBreached || isInBound;
             }
         }
     }
