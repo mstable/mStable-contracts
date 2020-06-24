@@ -28,6 +28,7 @@ export const ZERO = new BN(0);
 export const ONE_MIN = new BN(60);
 export const TEN_MINS = new BN(60 * 10);
 export const ONE_DAY = new BN(60 * 60 * 24);
+export const FIVE_DAYS = new BN(60 * 60 * 24 * 5);
 export const TEN_DAYS = new BN(60 * 60 * 24 * 10);
 export const ONE_WEEK = new BN(60 * 60 * 24 * 7);
 export const ONE_YEAR = new BN(60 * 60 * 24 * 7 * 52);

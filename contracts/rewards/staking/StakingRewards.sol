@@ -37,9 +37,9 @@ contract StakingRewards is StakingTokenWrapper, LockedUpRewards {
     // RewardRate for the rest of the PERIOD
     uint256 public rewardRate = 0;
     // Last time any user took action
-    uint256 public lastUpdateTime;
+    uint256 public lastUpdateTime = 0;
     // Ever increasing rewardPerToken rate, based on % of total supply
-    uint256 public rewardPerTokenStored;
+    uint256 public rewardPerTokenStored = 0;
     mapping(address => uint256) public userRewardPerTokenPaid;
     mapping(address => uint256) public rewards;
 
@@ -66,13 +66,15 @@ contract StakingRewards is StakingTokenWrapper, LockedUpRewards {
     modifier updateReward(address _account) {
         // Setting of global vars
         uint256 newRewardPerToken = rewardPerToken();
-        rewardPerTokenStored = newRewardPerToken;
-        lastUpdateTime = lastTimeRewardApplicable();
-
-        // Setting of personal vars based on new globals
-        if (_account != address(0)) {
-            rewards[_account] = earned(_account);
-            userRewardPerTokenPaid[_account] = newRewardPerToken;
+        // If statement protects against loss in initialisation case
+        if(newRewardPerToken > 0) {
+            rewardPerTokenStored = newRewardPerToken;
+            lastUpdateTime = lastTimeRewardApplicable();
+            // Setting of personal vars based on new globals
+            if (_account != address(0)) {
+                rewards[_account] = earned(_account);
+                userRewardPerTokenPaid[_account] = newRewardPerToken;
+            }
         }
         _;
     }
