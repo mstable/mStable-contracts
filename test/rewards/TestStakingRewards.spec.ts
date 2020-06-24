@@ -1,7 +1,7 @@
 /* eslint-disable no-nested-ternary */
 
 import * as t from "types/generated";
-import { expectEvent, time } from "@openzeppelin/test-helpers";
+import { expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
 import { StandardAccounts, SystemMachine } from "@utils/machines";
 import { assertBNClose, assertBNSlightlyGT } from "@utils/assertions";
 import { simpleToExactAmount } from "@utils/math";
@@ -220,12 +220,19 @@ contract("StakingRewards", async (accounts) => {
     };
 
     const expectSuccesfulFunding = async (rewardUnits: BN): Promise<void> => {
+        const rewardRateBefore = await stakingRewards.rewardRate();
+        const lastTimeRewardApplicableBefore = await stakingRewards.lastTimeRewardApplicable();
+        const periodFinishTimeBefore = await stakingRewards.periodFinish();
+
         const tx = await stakingRewards.notifyRewardAmount(rewardUnits, {
             from: rewardsDistributor,
         });
         expectEvent(tx.receipt, "RewardAdded", { reward: rewardUnits });
 
         const cur = new BN(await time.latest());
+        const leftOverRewards = rewardRateBefore.mul(
+            periodFinishTimeBefore.sub(lastTimeRewardApplicableBefore),
+        );
 
         // Sets lastTimeRewardApplicable to latest
         const lastTimeReward = await stakingRewards.lastTimeRewardApplicable();
@@ -241,7 +248,7 @@ contract("StakingRewards", async (accounts) => {
 
         // Sets rewardRate to rewardUnits / ONE_WEEK
         const rewardRate = await stakingRewards.rewardRate();
-        expect(rewardUnits.div(ONE_WEEK)).bignumber.eq(rewardRate);
+        expect(rewardUnits.add(leftOverRewards).div(ONE_WEEK)).bignumber.eq(rewardRate);
     };
 
     context("initialising and staking in a new pool", () => {
@@ -475,13 +482,13 @@ contract("StakingRewards", async (accounts) => {
             const earnedAfterWeek = await stakingRewards.earned(sa.default);
 
             await time.increase(ONE_WEEK.addn(1));
+            const now = await time.latest();
 
             const earnedAfterTwoWeeks = await stakingRewards.earned(sa.default);
 
             expect(earnedAfterWeek).bignumber.eq(earnedAfterTwoWeeks);
 
             const lastTimeRewardApplicable = await stakingRewards.lastTimeRewardApplicable();
-            const now = await time.latest();
             expect(lastTimeRewardApplicable).bignumber.eq(now.sub(ONE_WEEK).subn(2));
         });
     });
@@ -511,45 +518,185 @@ contract("StakingRewards", async (accounts) => {
             expect(balance).bignumber.eq(new BN(0));
         });
     });
+    context("using staking / reward tokens with diff decimals", () => {
+        before(async () => {
+            rewardToken = await MockERC20.new("Reward", "RWD", 12, rewardsDistributor, 1000000);
+            stakingToken = await MockERC20.new("Staking", "ST8k", 16, sa.default, 1000000);
+            rewardsVault = await RewardsVault.new(rewardToken.address);
+            stakingRewards = await StakingRewards.new(
+                systemMachine.nexus.address,
+                stakingToken.address,
+                rewardToken.address,
+                rewardsVault.address,
+                rewardsDistributor,
+            );
+        });
+        it("should not affect the pro rata payouts", async () => {
+            // Add 100 reward tokens
+            await expectSuccesfulFunding(simpleToExactAmount(100, 12));
+            const rewardRate = await stakingRewards.rewardRate();
+
+            // Do the stake
+            const stakeAmount = simpleToExactAmount(100, 16);
+            await expectSuccessfulStake(stakeAmount);
+
+            await time.increase(ONE_WEEK.addn(1));
+
+            // This is the total reward per staked token, since the last update
+            const rewardPerToken = await stakingRewards.rewardPerToken();
+            assertBNClose(
+                rewardPerToken,
+                ONE_WEEK.mul(rewardRate)
+                    .mul(fullScale)
+                    .div(stakeAmount),
+                new BN(1)
+                    .mul(rewardRate)
+                    .mul(fullScale)
+                    .div(stakeAmount),
+            );
+
+            // Calc estimated unclaimed reward for the user
+            // earned == balance * (rewardPerToken-userExistingReward)
+            const earnedAfterConsequentStake = await stakingRewards.earned(sa.default);
+            assertBNSlightlyGT(
+                simpleToExactAmount(100, 12),
+                earnedAfterConsequentStake,
+                simpleToExactAmount(1, 9),
+            );
+        });
+    });
+
+    context("getting the reward token", () => {
+        before(async () => {
+            stakingRewards = await redeployRewards();
+        });
+        it("should simply return the rewards Token", async () => {
+            const readToken = await stakingRewards.getRewardToken();
+            expect(readToken).eq(rewardToken.address);
+            expect(readToken).eq(await stakingRewards.rewardsToken());
+        });
+    });
+
+    context("notifying new reward amount", () => {
+        context("from someone other than the distributor", () => {
+            before(async () => {
+                stakingRewards = await redeployRewards();
+            });
+            it("should fail", async () => {
+                await expectRevert(
+                    stakingRewards.notifyRewardAmount(1, { from: sa.default }),
+                    "Caller is not reward distributor",
+                );
+                await expectRevert(
+                    stakingRewards.notifyRewardAmount(1, { from: sa.dummy1 }),
+                    "Caller is not reward distributor",
+                );
+                await expectRevert(
+                    stakingRewards.notifyRewardAmount(1, { from: sa.governor }),
+                    "Caller is not reward distributor",
+                );
+            });
+        });
+        context("before current period finish", async () => {
+            const funding1 = simpleToExactAmount(100, 18);
+            const funding2 = simpleToExactAmount(200, 18);
+            before(async () => {
+                stakingRewards = await redeployRewards();
+            });
+            it("should factor in unspent units to the new rewardRate", async () => {
+                // Do the initial funding
+                await expectSuccesfulFunding(funding1);
+                const actualRewardRate = await stakingRewards.rewardRate();
+                const expectedRewardRate = funding1.div(ONE_WEEK);
+                expect(expectedRewardRate).bignumber.eq(actualRewardRate);
+
+                // Zoom forward half a week
+                await time.increase(ONE_WEEK.divn(2));
+
+                // Do the second funding, and factor in the unspent units
+                const expectedLeftoverReward = funding1.divn(2);
+                await expectSuccesfulFunding(funding2);
+                const actualRewardRateAfter = await stakingRewards.rewardRate();
+                const totalRewardsForWeek = funding2.add(expectedLeftoverReward);
+                const expectedRewardRateAfter = totalRewardsForWeek.div(ONE_WEEK);
+                expect(expectedRewardRateAfter).bignumber.eq(actualRewardRateAfter);
+            });
+        });
+
+        context("after current period finish", () => {
+            const funding1 = simpleToExactAmount(100, 18);
+            before(async () => {
+                stakingRewards = await redeployRewards();
+            });
+            it("should start a new period with the correct rewardRate", async () => {
+                // Do the initial funding
+                await expectSuccesfulFunding(funding1);
+                const actualRewardRate = await stakingRewards.rewardRate();
+                const expectedRewardRate = funding1.div(ONE_WEEK);
+                expect(expectedRewardRate).bignumber.eq(actualRewardRate);
+
+                // Zoom forward half a week
+                await time.increase(ONE_WEEK.addn(1));
+
+                // Do the second funding, and factor in the unspent units
+                await expectSuccesfulFunding(funding1.muln(2));
+                const actualRewardRateAfter = await stakingRewards.rewardRate();
+                const expectedRewardRateAfter = expectedRewardRate.muln(2);
+                expect(expectedRewardRateAfter).bignumber.eq(actualRewardRateAfter);
+            });
+        });
+    });
     context("withdrawing stake or rewards", () => {
-        context("completely 'exiting' the system", () => {
-            it("should retrieve all earned and increase rewards bal");
-            it("should withdraw all senders stake");
-            it("should send any outstanding rewards to the vault");
-            it("should fail if the sender has no stake");
-        });
         context("withdrawing a stake amount", () => {
-            it("should do nothing for a non-staker");
-            it("should update the existing reward accrual");
+            const fundAmount = simpleToExactAmount(100, 21);
+            const stakeAmount = simpleToExactAmount(100, 18);
+
+            before(async () => {
+                stakingRewards = await redeployRewards();
+                await expectSuccesfulFunding(fundAmount);
+                await expectSuccessfulStake(stakeAmount);
+                await time.increase(10);
+            });
+            it("should revert for a non-staker", async () => {
+                await expectRevert(
+                    stakingRewards.withdraw(1, { from: sa.dummy1 }),
+                    "SafeMath: subtraction overflow",
+                );
+            });
+            it("should revert if insufficient balance", async () => {
+                await expectRevert(
+                    stakingRewards.withdraw(stakeAmount.addn(1), { from: sa.default }),
+                    "SafeMath: subtraction overflow",
+                );
+            });
+            it("should fail if trying to withdraw 0", async () => {
+                await expectRevert(
+                    stakingRewards.withdraw(0, { from: sa.default }),
+                    "Cannot withdraw 0",
+                );
+            });
+            it("should update the existing reward accrual", async () => {});
             it("should withdraw the stake");
-            it("should fail if insufficient balance");
-            it("should fail if trying to withdraw 0");
         });
+        // TODO - actually send tokens in the notify
         context("claiming rewards", async () => {
             it("should do nothing for a non-staker");
             it("should send all accrued rewards to the vault");
             it("should update all the stored data");
             it("should do nothing if the outstanding rewards are 0");
         });
-    });
-    context("using staking / reward tokens with diff decimals", () => {
-        it("should not affect the pro rata payouts");
-    });
-    context("getting the reward token", () => {
-        it("should simply return the rewards Token");
-    });
-    context("notifying new reward amount", () => {
-        context("before current period finish", async () => {
-            it("rewardRate should factor in the unspent units");
-        });
-        context("after current period finish", () => {
-            it("should start a new period with the correct rewardRate");
+        // TODO - actually send tokens in the notify
+        context("completely 'exiting' the system", () => {
+            it("should retrieve all earned and increase rewards bal");
+            it("should withdraw all senders stake");
+            it("should send any outstanding rewards to the vault");
+            it("should fail if the sender has no stake");
         });
     });
-    context("running integration tests", () => {
-        it("should allow the rewardsDistributor to fund the pool");
-        it("should allow stakers to stake and earn rewards");
-        it("should deposit earnings into the rewardsVault");
-        it("should allow users to vest after the vesting period");
+    context("running a full integration test", () => {
+        it("1. should allow the rewardsDistributor to fund the pool");
+        it("2. should allow stakers to stake and earn rewards");
+        it("3. should deposit earnings into the rewardsVault");
+        it("4. should allow users to vest after the vesting period");
     });
 });
