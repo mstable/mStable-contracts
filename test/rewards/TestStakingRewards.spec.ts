@@ -41,7 +41,7 @@ contract("StakingRewards", async (accounts) => {
     ): Promise<t.StakingRewardsInstance> => {
         rewardToken = await MockERC20.new("Reward", "RWD", 18, rewardsDistributor, 1000000);
         stakingToken = await MockERC20.new("Staking", "ST8k", 18, sa.default, 1000000);
-        rewardsVault = await RewardsVault.new(rewardToken.address);
+        rewardsVault = await RewardsVault.new(nexusAddress, rewardToken.address);
         return StakingRewards.new(
             nexusAddress,
             stakingToken.address,
@@ -274,7 +274,16 @@ contract("StakingRewards", async (accounts) => {
         // Sets periodFinish to 1 week from now
         expect(cur.add(ONE_WEEK)).bignumber.eq(afterData.periodFinishTime);
         // Sets rewardRate to rewardUnits / ONE_WEEK
-        expect(rewardUnits.add(leftOverRewards).div(ONE_WEEK)).bignumber.eq(afterData.rewardRate);
+        if (leftOverRewards.gtn(0)) {
+            const total = rewardUnits.add(leftOverRewards);
+            assertBNClose(
+                total.div(ONE_WEEK),
+                afterData.rewardRate,
+                beforeData.rewardRate.div(ONE_WEEK), // the effect of 1 second on the future scale
+            );
+        } else {
+            expect(rewardUnits.div(ONE_WEEK)).bignumber.eq(afterData.rewardRate);
+        }
     };
 
     /**
@@ -357,6 +366,21 @@ contract("StakingRewards", async (accounts) => {
                 const stakeAmount = simpleToExactAmount(100, 18);
                 // This checks resulting state after second stake
                 await expectSuccessfulStake(stakeAmount, sa.default, sa.default, true);
+            });
+
+            it("should fail if stake amount is 0", async () => {
+                await expectRevert(
+                    stakingRewards.methods["stake(uint256)"](0, { from: sa.default }),
+                    "Cannot stake 0",
+                );
+            });
+
+            it("should fail if staker has insufficient balance", async () => {
+                await stakingToken.approve(stakingRewards.address, 1, { from: sa.dummy2 });
+                await expectRevert(
+                    stakingRewards.methods["stake(uint256)"](1, { from: sa.dummy2 }),
+                    "SafeERC20: low-level call failed",
+                );
             });
         });
     });
@@ -577,7 +601,7 @@ contract("StakingRewards", async (accounts) => {
         before(async () => {
             rewardToken = await MockERC20.new("Reward", "RWD", 12, rewardsDistributor, 1000000);
             stakingToken = await MockERC20.new("Staking", "ST8k", 16, sa.default, 1000000);
-            rewardsVault = await RewardsVault.new(rewardToken.address);
+            rewardsVault = await RewardsVault.new(systemMachine.nexus.address, rewardToken.address);
             stakingRewards = await StakingRewards.new(
                 systemMachine.nexus.address,
                 stakingToken.address,
@@ -655,7 +679,7 @@ contract("StakingRewards", async (accounts) => {
         context("before current period finish", async () => {
             const funding1 = simpleToExactAmount(100, 18);
             const funding2 = simpleToExactAmount(200, 18);
-            before(async () => {
+            beforeEach(async () => {
                 stakingRewards = await redeployRewards();
             });
             it("should factor in unspent units to the new rewardRate", async () => {
@@ -678,6 +702,26 @@ contract("StakingRewards", async (accounts) => {
                     actualRewardRateAfter,
                     expectedRewardRateAfter,
                     funding1.div(ONE_WEEK),
+                );
+            });
+            it("should factor in unspent units to the new rewardRate if instant", async () => {
+                // Do the initial funding
+                await expectSuccesfulFunding(funding1);
+                const actualRewardRate = await stakingRewards.rewardRate();
+                const expectedRewardRate = funding1.div(ONE_WEEK);
+                expect(expectedRewardRate).bignumber.eq(actualRewardRate);
+
+                // Zoom forward half a week
+                await time.increase(1);
+
+                // Do the second funding, and factor in the unspent units
+                await expectSuccesfulFunding(funding2);
+                const actualRewardRateAfter = await stakingRewards.rewardRate();
+                const expectedRewardRateAfter = funding1.add(funding2).div(ONE_WEEK);
+                assertBNClose(
+                    actualRewardRateAfter,
+                    expectedRewardRateAfter,
+                    funding1.add(funding2).div(ONE_WEEK.subn(1)),
                 );
             });
         });
@@ -920,7 +964,7 @@ contract("StakingRewards", async (accounts) => {
         it("4. should allow users to vest after the vesting period", async () => {
             await time.increase(ONE_WEEK.muln(27));
             const balBefore = await rewardToken.balanceOf(sa.default);
-            await rewardsVault.vestReward(period);
+            await rewardsVault.vestRewards([period]);
 
             const balAfter = await rewardToken.balanceOf(sa.default);
             assertBNClose(balAfter.sub(balBefore), fundAmount, simpleToExactAmount(1, 16));
