@@ -23,7 +23,6 @@ contract StakingRewardsWithPlatformToken is StakingTokenWrapper, LockedUpRewards
 
     using StableMath for uint256;
 
-    IERC20 public rewardsToken;
     IERC20 public platformToken;
     PlatformTokenVendor public platformTokenVendor;
 
@@ -72,17 +71,21 @@ contract StakingRewardsWithPlatformToken is StakingTokenWrapper, LockedUpRewards
     modifier updateReward(address _account) {
         // Setting of global vars
         (uint256 newRewardPerTokenStored, uint256 newPlatformRewardPerTokenStored) = rewardPerToken();
-        rewardPerTokenStored = newRewardPerTokenStored;
-        platformRewardPerTokenStored = newPlatformRewardPerTokenStored;
 
-        lastUpdateTime = lastTimeRewardApplicable();
+        // If statement protects against loss in initialisation case
+        if(newRewardPerTokenStored > 0 || newPlatformRewardPerTokenStored > 0) {
+            rewardPerTokenStored = newRewardPerTokenStored;
+            platformRewardPerTokenStored = newPlatformRewardPerTokenStored;
 
-        // Setting of personal vars based on new globals
-        if (_account != address(0)) {
-            (rewards[_account], platformRewards[_account]) = earned(_account);
+            lastUpdateTime = lastTimeRewardApplicable();
 
-            userRewardPerTokenPaid[_account] = newRewardPerTokenStored;
-            userPlatformRewardPerTokenPaid[_account] = newPlatformRewardPerTokenStored;
+            // Setting of personal vars based on new globals
+            if (_account != address(0)) {
+                (rewards[_account], platformRewards[_account]) = earned(_account);
+
+                userRewardPerTokenPaid[_account] = newRewardPerTokenStored;
+                userPlatformRewardPerTokenPaid[_account] = newPlatformRewardPerTokenStored;
+            }
         }
         _;
     }
@@ -90,6 +93,16 @@ contract StakingRewardsWithPlatformToken is StakingTokenWrapper, LockedUpRewards
     /***************************************
                     ACTIONS
     ****************************************/
+
+    /**
+     * @dev Stakes a given amount of the StakingToken for the sender
+     * @param _amount Units of StakingToken
+     */
+    function stake(uint256 _amount)
+        external
+    {
+        _stake(msg.sender, _amount);
+    }
 
     /**
      * @dev Stakes a given amount of the StakingToken for a given beneficiary
@@ -100,16 +113,6 @@ contract StakingRewardsWithPlatformToken is StakingTokenWrapper, LockedUpRewards
         external
     {
         _stake(_beneficiary, _amount);
-    }
-
-    /**
-     * @dev Stakes a given amount of the StakingToken for the sender
-     * @param _amount Units of StakingToken
-     */
-    function stake(uint256 _amount)
-        external
-    {
-        _stake(msg.sender, _amount);
     }
 
     /**
@@ -149,7 +152,7 @@ contract StakingRewardsWithPlatformToken is StakingTokenWrapper, LockedUpRewards
     }
 
     /**
-     * @dev Claims outstanding rewards for the sender.
+     * @dev Claims outstanding rewards (both platform and native) for the sender.
      * First updates outstanding reward allocation and then transfers.
      */
     function claimReward()
@@ -161,6 +164,10 @@ contract StakingRewardsWithPlatformToken is StakingTokenWrapper, LockedUpRewards
         emit RewardPaid(msg.sender, reward, platformReward);
     }
 
+    /**
+     * @dev Claims outstanding rewards for the sender. Only the native
+     * rewards token, and not the platform rewards
+     */
     function claimRewardOnly()
         public
         updateReward(msg.sender)
@@ -169,6 +176,9 @@ contract StakingRewardsWithPlatformToken is StakingTokenWrapper, LockedUpRewards
         emit RewardPaid(msg.sender, reward, 0);
     }
 
+    /**
+     * @dev Locks any outstanding rewards into the vault.
+     */
     function _claimReward() internal returns (uint256) {
         uint256 reward = rewards[msg.sender];
         if (reward > 0) {
@@ -178,6 +188,9 @@ contract StakingRewardsWithPlatformToken is StakingTokenWrapper, LockedUpRewards
         return reward;
     }
 
+    /**
+     * @dev Claims any outstanding platform reward tokens
+     */
     function _claimPlatformReward() internal returns (uint256)  {
         uint256 platformReward = platformRewards[msg.sender];
         if(platformReward > 0) {

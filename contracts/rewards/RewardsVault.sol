@@ -1,8 +1,8 @@
 pragma solidity 0.5.16;
 
-import { StableMath } from "../shared/StableMath.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { Module } from "../shared/Module.sol";
 
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
@@ -10,7 +10,6 @@ import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 
 interface IRewardsVault {
     function lockupRewards(address rewardee, uint256 amount) external;
-    function vestReward(uint256 period) external returns (uint256);
     function vestRewards(uint256[] calldata periods) external returns (uint256);
 }
 
@@ -19,19 +18,18 @@ interface IRewardsVault {
  * @author Stability Labs Pty. Ltd.
  * @notice Locks up tokens sent to it for X periods before they can be claimed
  */
-contract RewardsVault is ReentrancyGuard {
+contract RewardsVault is ReentrancyGuard, Module {
 
     using SafeMath for uint256;
-    using StableMath for uint256;
     using SafeERC20 for IERC20;
 
     event Deposited(address indexed rewardee, uint256 amount, uint256 period);
-    event Vested(address indexed user, uint256 cumulative, uint256 period);
-    event VestedMulti(address indexed user, uint256 cumulative, uint256[] periods);
+    event Vested(address indexed user, uint256 cumulative, uint256[] period);
 
-    uint256 private constant LOCKUP_PERIODS = 26;
-    uint256 private constant PERIOD = 1 weeks;
+    uint256 public constant LOCKUP_PERIODS = 26;
+    uint256 public constant PERIOD = 1 weeks;
     uint256 public vaultStartTime;
+    bool private allRewardsUnlocked = false;
 
     IERC20 private vestingToken;
 
@@ -40,8 +38,9 @@ contract RewardsVault is ReentrancyGuard {
 
 
     /** @dev RewardsVault is a module, governed by mStable governance */
-    constructor(IERC20 _vestingToken)
+    constructor(address _nexus, IERC20 _vestingToken)
         public
+        Module(_nexus)
     {
         vestingToken = _vestingToken;
         vaultStartTime = now;
@@ -53,18 +52,6 @@ contract RewardsVault is ReentrancyGuard {
 
     /**
      * @dev Adds an amount of vestingTokens to the lockup
-     * @param _amount        Amount of token to transfer
-     */
-    function lockupRewards(
-        uint256 _amount
-    )
-        external
-    {
-        _lockupRewards(msg.sender, _amount);
-    }
-
-    /**
-     * @dev Adds an amount of vestingTokens to the lockup
      * @param _rewardee      To whom should these tokens be credited?
      * @param _amount        Amount of token to transfer
      */
@@ -73,56 +60,29 @@ contract RewardsVault is ReentrancyGuard {
         uint256 _amount
     )
         external
-    {
-        _lockupRewards(_rewardee, _amount);
-    }
-
-    /**
-     * @dev Adds an amount of vestingTokens to the lockup
-     * @param _rewardee      To whom should these tokens be credited?
-     * @param _amount        Amount of token to transfer
-     */
-    function _lockupRewards(
-        address _rewardee,
-        uint256 _amount
-    )
-        internal
         nonReentrant
     {
-        vestingToken.safeTransferFrom(msg.sender, address(this), _amount);
-
         uint256 currentPeriod = _getCurrentPeriod();
-        vestingBalances[currentPeriod][_rewardee] = vestingBalances[currentPeriod][_rewardee].add(_amount);
 
-        emit Deposited(_rewardee, _amount, currentPeriod);
+        if(allRewardsUnlocked) {
+            vestingToken.safeTransferFrom(msg.sender, _rewardee, _amount);
+
+            uint256[] memory periods = new uint256[](1);
+            periods[0] = currentPeriod;
+
+            emit Vested(_rewardee, _amount, periods);
+        } else {
+            vestingToken.safeTransferFrom(msg.sender, address(this), _amount);
+
+            vestingBalances[currentPeriod][_rewardee] = vestingBalances[currentPeriod][_rewardee].add(_amount);
+
+            emit Deposited(_rewardee, _amount, currentPeriod);
+        }
     }
 
     /***************************************
                     VESTING
     ****************************************/
-
-    /**
-     * @dev Vests specified periods rewards and resets data. Transfers
-     * vestingToken to the sender.
-     * @param _period        Period ID to vest
-     * @return vestedAmount  Vest amount from this period
-     */
-    function vestReward(uint256 _period)
-        external
-        nonReentrant
-        returns (uint256)
-    {
-        uint256 currentPeriod = _getCurrentPeriod();
-
-        uint256 vested = _vestReward(currentPeriod, _period);
-        require(vested > 0, "Nothing in this period to vest");
-
-        vestingToken.safeTransfer(msg.sender, vested);
-
-        emit Vested(msg.sender, vested, _period);
-
-        return vested;
-    }
 
     /**
      * @dev Vests specified periods rewards and resets data. Transfers
@@ -139,41 +99,42 @@ contract RewardsVault is ReentrancyGuard {
         uint256 currentPeriod = _getCurrentPeriod();
 
         uint256 cumulativeVested = 0;
+
         for(uint256 i = 0; i < len; i++){
-            uint256 vestedInPeriod = _vestReward(currentPeriod, _periods[i]);
-            cumulativeVested = cumulativeVested.add(vestedInPeriod);
+            uint256 periodToVest = _periods[i];
+            require(_periodIsUnlocked(currentPeriod, periodToVest), "Period must be unlocked to vest");
+
+            uint256 periodBal = vestingBalances[periodToVest][msg.sender];
+            if(periodBal > 0){
+                vestingBalances[periodToVest][msg.sender] = 0;
+                cumulativeVested = cumulativeVested.add(periodBal);
+            }
         }
 
         require(cumulativeVested > 0, "Nothing in these periods to vest");
 
         vestingToken.safeTransfer(msg.sender, cumulativeVested);
 
-        emit VestedMulti(msg.sender, cumulativeVested, _periods);
+        emit Vested(msg.sender, cumulativeVested, _periods);
 
         return cumulativeVested;
     }
 
-    /**
-     * @dev Internally vests an unlocked periods rewards and resets data
-     * @param _currentPeriod  Current active period (save gas by reading here)
-     * @param _period         Period to vest
-     * @return periodAmount   Uint signalling newly unlocked balance from period
-     */
-    function _vestReward(
-        uint256 _currentPeriod,
-        uint256 _period
-    )
-        internal
-        returns (uint256 periodAmount)
-    {
-        require(_periodIsUnlocked(_currentPeriod, _period), "Period must be unlocked to vest");
+    /***************************************
+                    ADMIN
+    ****************************************/
 
-        uint256 bal = vestingBalances[_period][msg.sender];
-        if(bal > 0){
-            vestingBalances[_period][msg.sender] = 0;
-        }
-        return bal;
+    /**
+     * @dev Sets the flag to unlock all rewards
+     */
+    function unlockAllRewards()
+        external
+        onlyGovernor
+    {
+        require(!allRewardsUnlocked, "Flag already set");
+        allRewardsUnlocked = true;
     }
+
 
     /***************************************
                     GETTERS
@@ -189,7 +150,7 @@ contract RewardsVault is ReentrancyGuard {
         address _rewardee,
         uint256 _period
     )
-        public
+        external
         view
         returns (uint256)
     {
@@ -207,10 +168,10 @@ contract RewardsVault is ReentrancyGuard {
         uint256 _period
     )
         internal
-        pure
+        view
         returns (bool)
     {
-        return _currentPeriod > _period.add(LOCKUP_PERIODS);
+        return _currentPeriod > _period.add(LOCKUP_PERIODS) || allRewardsUnlocked;
     }
 
     /**
