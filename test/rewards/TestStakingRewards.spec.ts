@@ -51,6 +51,39 @@ contract("StakingRewards", async (accounts) => {
         );
     };
 
+    interface StakingData {
+        totalSupply: BN;
+        userStakingBalance: BN;
+        senderStakingTokenBalance: BN;
+        contractStakingTokenBalance: BN;
+        userRewardPerTokenPaid: BN;
+        beneficiaryRewardsEarned: BN;
+        rewardPerTokenStored: BN;
+        rewardRate: BN;
+        lastUpdateTime: BN;
+        lastTimeRewardApplicable: BN;
+        periodFinishTime: BN;
+    }
+
+    const snapshotStakingData = async (
+        sender = sa.default,
+        beneficiary = sa.default,
+    ): Promise<StakingData> => {
+        return {
+            totalSupply: await stakingRewards.totalSupply(),
+            userStakingBalance: await stakingRewards.balanceOf(beneficiary),
+            userRewardPerTokenPaid: await stakingRewards.userRewardPerTokenPaid(beneficiary),
+            senderStakingTokenBalance: await stakingToken.balanceOf(sender),
+            contractStakingTokenBalance: await stakingToken.balanceOf(stakingRewards.address),
+            beneficiaryRewardsEarned: await stakingRewards.rewards(beneficiary),
+            rewardPerTokenStored: await stakingRewards.rewardPerTokenStored(),
+            rewardRate: await stakingRewards.rewardRate(),
+            lastUpdateTime: await stakingRewards.lastUpdateTime(),
+            lastTimeRewardApplicable: await stakingRewards.lastTimeRewardApplicable(),
+            periodFinishTime: await stakingRewards.periodFinish(),
+        };
+    };
+
     before(async () => {
         systemMachine = new SystemMachine(sa.all);
         await systemMachine.initialiseMocks(false, false);
@@ -92,6 +125,83 @@ contract("StakingRewards", async (accounts) => {
         });
     });
 
+    /**
+     * @dev Ensures the reward units are assigned correctly, based on the last update time, etc
+     * @param beforeData Snapshot after the tx
+     * @param afterData Snapshot after the tx
+     * @param isExistingStaker Expect the staker to be existing?
+     */
+    const assertRewardsAssigned = async (
+        beforeData: StakingData,
+        afterData: StakingData,
+        isExistingStaker: boolean,
+        shouldResetRewards = false,
+    ): Promise<void> => {
+        const timeAfter = await time.latest();
+        const periodIsFinished = new BN(timeAfter).gt(beforeData.periodFinishTime);
+
+        //    LastUpdateTime
+        expect(
+            periodIsFinished
+                ? beforeData.periodFinishTime
+                : beforeData.rewardPerTokenStored.eqn(0) && beforeData.totalSupply.eqn(0)
+                ? beforeData.lastUpdateTime
+                : timeAfter,
+        ).bignumber.eq(afterData.lastUpdateTime);
+        //    RewardRate doesnt change
+        expect(beforeData.rewardRate).bignumber.eq(afterData.rewardRate);
+        //    RewardPerTokenStored goes up
+        expect(afterData.rewardPerTokenStored).bignumber.gte(
+            beforeData.rewardPerTokenStored as any,
+        );
+        //      Calculate exact expected 'rewardPerToken' increase since last update
+        const timeApplicableToRewards = periodIsFinished
+            ? beforeData.periodFinishTime.sub(beforeData.lastUpdateTime)
+            : timeAfter.sub(beforeData.lastUpdateTime);
+        const increaseInRewardPerToken = beforeData.totalSupply.eq(new BN(0))
+            ? new BN(0)
+            : beforeData.rewardRate
+                  .mul(timeApplicableToRewards)
+                  .mul(fullScale)
+                  .div(beforeData.totalSupply);
+        expect(beforeData.rewardPerTokenStored.add(increaseInRewardPerToken)).bignumber.eq(
+            afterData.rewardPerTokenStored,
+        );
+
+        // Expect updated personal state
+        //    userRewardPerTokenPaid(beneficiary) should update
+        expect(afterData.userRewardPerTokenPaid).bignumber.eq(afterData.rewardPerTokenStored);
+
+        //    If existing staker, then rewards Should increase
+        if (shouldResetRewards) {
+            expect(afterData.beneficiaryRewardsEarned).bignumber.eq(new BN(0));
+        } else if (isExistingStaker) {
+            // rewards(beneficiary) should update with previously accrued tokens
+            const increaseInUserRewardPerToken = afterData.rewardPerTokenStored.sub(
+                beforeData.userRewardPerTokenPaid,
+            );
+            const assignment = beforeData.userStakingBalance
+                .mul(increaseInUserRewardPerToken)
+                .div(fullScale);
+            expect(beforeData.beneficiaryRewardsEarned.add(assignment)).bignumber.eq(
+                afterData.beneficiaryRewardsEarned,
+            );
+        } else {
+            // else `rewards` should stay the same
+            expect(beforeData.beneficiaryRewardsEarned).bignumber.eq(
+                afterData.beneficiaryRewardsEarned,
+            );
+        }
+    };
+
+    /**
+     * @dev Ensures a stake is successful, updates the rewards for the beneficiary and
+     * collects the stake
+     * @param stakeAmount Exact units to stake
+     * @param sender Sender of the tx
+     * @param beneficiary Beneficiary of the stake
+     * @param confirmExistingStaker Expect the staker to be existing?
+     */
     const expectSuccessfulStake = async (
         stakeAmount: BN,
         sender = sa.default,
@@ -100,24 +210,12 @@ contract("StakingRewards", async (accounts) => {
     ): Promise<void> => {
         // 1. Get data from the contract
         const senderIsBeneficiary = sender === beneficiary;
-        const totalSupplyBefore = await stakingRewards.totalSupply();
-        const stakeBalBefore = await stakingRewards.balanceOf(beneficiary);
-        const userRewardPerTokenPaidBefore = await stakingRewards.userRewardPerTokenPaid(
-            beneficiary,
-        );
-        const stakeTokenBalBefore = await stakingToken.balanceOf(sender);
-        const beneficiaryRewardsEarnedBefore = await stakingRewards.rewards(beneficiary);
-        const stakeTokenBalContractBefore = await stakingToken.balanceOf(stakingRewards.address);
-        const rewardPerTokenStoredBefore = await stakingRewards.rewardPerTokenStored();
-        const rewardRateBefore = await stakingRewards.rewardRate();
-        const lastUpdateTimeBefore = await stakingRewards.lastUpdateTime();
-        const periodFinishTime = await stakingRewards.periodFinish();
+        const beforeData = await snapshotStakingData(sender, beneficiary);
 
-        const isExistingStaker = stakeBalBefore.gt(new BN(0));
+        const isExistingStaker = beforeData.userStakingBalance.gt(new BN(0));
         if (confirmExistingStaker) {
             expect(isExistingStaker).eq(true);
         }
-        console.log("1");
         // 2. Approve staking token spending and send the TX
         await stakingToken.approve(stakingRewards.address, stakeAmount, {
             from: sender,
@@ -129,126 +227,97 @@ contract("StakingRewards", async (accounts) => {
             : stakingRewards.methods["stake(address,uint256)"](beneficiary, stakeAmount, {
                   from: sender,
               }));
-        const timeAfter = await time.latest();
-        const periodIsFinished = new BN(timeAfter).gt(periodFinishTime);
         expectEvent(tx.receipt, "Staked", {
             user: beneficiary,
             amount: stakeAmount,
             payer: sender,
         });
 
-        console.log("2");
-        // 3. Expect token transfer
+        // 3. Ensure rewards are accrued to the beneficiary
+        const afterData = await snapshotStakingData(sender, beneficiary);
+        await assertRewardsAssigned(beforeData, afterData, isExistingStaker);
+
+        // 4. Expect token transfer
         //    StakingToken balance of sender
-        const stakeTokenBalAfter = await stakingToken.balanceOf(sender);
-        expect(stakeTokenBalBefore.sub(stakeAmount)).bignumber.eq(stakeTokenBalAfter);
+        expect(beforeData.senderStakingTokenBalance.sub(stakeAmount)).bignumber.eq(
+            afterData.senderStakingTokenBalance,
+        );
         //    StakingToken balance of StakingRewards
-        const stakeTokenBalContractAfter = await stakingToken.balanceOf(stakingRewards.address);
-        expect(stakeTokenBalContractBefore.add(stakeAmount)).bignumber.eq(
-            stakeTokenBalContractAfter,
+        expect(beforeData.contractStakingTokenBalance.add(stakeAmount)).bignumber.eq(
+            afterData.contractStakingTokenBalance,
         );
-
-        console.log("3");
-        // 4. Expect updated global state
         //    TotalSupply of StakingRewards
-        const totalSupplyAfter = await stakingRewards.totalSupply();
-        expect(totalSupplyBefore.add(stakeAmount)).bignumber.eq(totalSupplyAfter);
-        console.log("3.1");
-        //    LastUpdateTime
-        const lastUpdateTimeAfter = await stakingRewards.lastUpdateTime();
-        expect(
-            periodIsFinished
-                ? periodFinishTime
-                : rewardPerTokenStoredBefore.eqn(0) && totalSupplyBefore.eqn(0)
-                ? lastUpdateTimeBefore
-                : timeAfter,
-        ).bignumber.eq(lastUpdateTimeAfter);
-        console.log("3.2");
-        //    RewardRate doesnt change
-        const rewardRateAfter = await stakingRewards.rewardRate();
-        expect(rewardRateBefore).bignumber.eq(rewardRateAfter);
-        console.log("3.3");
-        //    RewardPerTokenStored goes up
-        const rewardPerTokenStoredAfter = await stakingRewards.rewardPerTokenStored();
-        expect(rewardPerTokenStoredAfter).bignumber.gte(rewardPerTokenStoredBefore as any);
-        console.log("3.4");
-        //      Calculate exact expected 'rewardPerToken' increase since last update
-        const timeApplicableToRewards = periodIsFinished
-            ? periodFinishTime.sub(lastUpdateTimeBefore)
-            : timeAfter.sub(lastUpdateTimeBefore);
-        const increaseInRewardPerToken = totalSupplyBefore.eq(new BN(0))
-            ? new BN(0)
-            : rewardRateBefore
-                  .mul(timeApplicableToRewards)
-                  .mul(fullScale)
-                  .div(totalSupplyBefore);
-        console.log("3.5");
-        expect(rewardPerTokenStoredBefore.add(increaseInRewardPerToken)).bignumber.eq(
-            rewardPerTokenStoredAfter,
-        );
-
-        console.log("4");
-        // 5. Expect updated personal state
-        //    StakingRewards balance of beneficiary
-        const stakeBalAfter = await stakingRewards.balanceOf(beneficiary);
-        expect(stakeBalBefore.add(stakeAmount)).bignumber.eq(stakeBalAfter);
-        console.log("4.1");
-        //    userRewardPerTokenPaid(beneficiary) should update
-        const beneficiaryRewardPerTokenPaidAfter = await stakingRewards.userRewardPerTokenPaid(
-            beneficiary,
-        );
-        expect(beneficiaryRewardPerTokenPaidAfter).bignumber.eq(rewardPerTokenStoredAfter);
-
-        console.log("4.2");
-        const beneficiaryRewardsEarnedAfter = await stakingRewards.rewards(beneficiary);
-        //    If existing staker, then rewards Should increase
-        if (isExistingStaker) {
-            console.log("4.2.1");
-            // rewards(beneficiary) should update with previously accrued tokens
-            const increaseInUserRewardPerToken = rewardPerTokenStoredAfter.sub(
-                userRewardPerTokenPaidBefore,
-            );
-            const assignment = stakeBalBefore.mul(increaseInUserRewardPerToken).div(fullScale);
-            expect(beneficiaryRewardsEarnedBefore.add(assignment)).bignumber.eq(
-                beneficiaryRewardsEarnedAfter,
-            );
-        } else {
-            console.log("4.2.2");
-            // else `rewards` should stay the same
-            expect(beneficiaryRewardsEarnedBefore).bignumber.eq(beneficiaryRewardsEarnedAfter);
-        }
+        expect(beforeData.totalSupply.add(stakeAmount)).bignumber.eq(afterData.totalSupply);
     };
 
+    /**
+     * @dev Ensures a funding is successful, checking that it updates the rewardRate etc
+     * @param rewardUnits Number of units to stake
+     */
     const expectSuccesfulFunding = async (rewardUnits: BN): Promise<void> => {
-        const rewardRateBefore = await stakingRewards.rewardRate();
-        const lastTimeRewardApplicableBefore = await stakingRewards.lastTimeRewardApplicable();
-        const periodFinishTimeBefore = await stakingRewards.periodFinish();
-
+        const beforeData = await snapshotStakingData();
         const tx = await stakingRewards.notifyRewardAmount(rewardUnits, {
             from: rewardsDistributor,
         });
         expectEvent(tx.receipt, "RewardAdded", { reward: rewardUnits });
 
         const cur = new BN(await time.latest());
-        const leftOverRewards = rewardRateBefore.mul(
-            periodFinishTimeBefore.sub(lastTimeRewardApplicableBefore),
+        const leftOverRewards = beforeData.rewardRate.mul(
+            beforeData.periodFinishTime.sub(beforeData.lastTimeRewardApplicable),
         );
+        const afterData = await snapshotStakingData();
 
         // Sets lastTimeRewardApplicable to latest
-        const lastTimeReward = await stakingRewards.lastTimeRewardApplicable();
-        expect(cur).bignumber.eq(lastTimeReward);
-
+        expect(cur).bignumber.eq(afterData.lastTimeRewardApplicable);
         // Sets lastUpdateTime to latest
-        const lastUpdateTime = await stakingRewards.lastUpdateTime();
-        expect(cur).bignumber.eq(lastUpdateTime);
-
+        expect(cur).bignumber.eq(afterData.lastUpdateTime);
         // Sets periodFinish to 1 week from now
-        const periodFinish = await stakingRewards.periodFinish();
-        expect(cur.add(ONE_WEEK)).bignumber.eq(periodFinish);
-
+        expect(cur.add(ONE_WEEK)).bignumber.eq(afterData.periodFinishTime);
         // Sets rewardRate to rewardUnits / ONE_WEEK
-        const rewardRate = await stakingRewards.rewardRate();
-        expect(rewardUnits.add(leftOverRewards).div(ONE_WEEK)).bignumber.eq(rewardRate);
+        expect(rewardUnits.add(leftOverRewards).div(ONE_WEEK)).bignumber.eq(afterData.rewardRate);
+    };
+
+    /**
+     * @dev Makes a withdrawal from the contract, and ensures that resulting state is correct
+     * and the rewards have been applied
+     * @param withdrawAmount Exact amount to withdraw
+     * @param sender User to execute the tx
+     */
+    const expectStakingWithdrawal = async (
+        withdrawAmount: BN,
+        sender = sa.default,
+    ): Promise<void> => {
+        // 1. Get data from the contract
+        const beforeData = await snapshotStakingData(sender);
+        const isExistingStaker = beforeData.userStakingBalance.gt(new BN(0));
+        expect(isExistingStaker).eq(true);
+        expect(withdrawAmount).bignumber.gte(beforeData.userStakingBalance as any);
+
+        // 2. Send withdrawal tx
+        const tx = await stakingRewards.withdraw(withdrawAmount, {
+            from: sender,
+        });
+        expectEvent(tx.receipt, "Withdrawn", {
+            user: sender,
+            amount: withdrawAmount,
+        });
+
+        // 3. Expect Rewards to accrue to the beneficiary
+        //    StakingToken balance of sender
+        const afterData = await snapshotStakingData(sender);
+        await assertRewardsAssigned(beforeData, afterData, isExistingStaker);
+
+        // 4. Expect token transfer
+        //    StakingToken balance of sender
+        expect(beforeData.senderStakingTokenBalance.add(withdrawAmount)).bignumber.eq(
+            afterData.senderStakingTokenBalance,
+        );
+        //    Withdraws from the actual rewards wrapper token
+        expect(beforeData.userStakingBalance.sub(withdrawAmount)).bignumber.eq(
+            afterData.userStakingBalance,
+        );
+        //    Updates total supply
+        expect(beforeData.totalSupply.sub(withdrawAmount)).bignumber.eq(afterData.totalSupply);
     };
 
     context("initialising and staking in a new pool", () => {
@@ -269,15 +338,14 @@ contract("StakingRewards", async (accounts) => {
 
                 // This is the total reward per staked token, since the last update
                 const rewardPerToken = await stakingRewards.rewardPerToken();
+                const rewardPerSecond = new BN(1)
+                    .mul(rewardRate)
+                    .mul(fullScale)
+                    .div(stakeAmount);
                 assertBNClose(
                     rewardPerToken,
-                    ONE_DAY.mul(rewardRate)
-                        .mul(fullScale)
-                        .div(stakeAmount),
-                    new BN(1)
-                        .mul(rewardRate)
-                        .mul(fullScale)
-                        .div(stakeAmount),
+                    ONE_DAY.mul(rewardPerSecond),
+                    rewardPerSecond.muln(2),
                 );
 
                 // Calc estimated unclaimed reward for the user
@@ -299,17 +367,12 @@ contract("StakingRewards", async (accounts) => {
         it("should assign no rewards", async () => {
             // Get data before
             const stakeAmount = simpleToExactAmount(100, 18);
-            const sender = sa.default;
-            const rewardRateBefore = await stakingRewards.rewardRate();
-            expect(rewardRateBefore).bignumber.eq(new BN(0));
-            const rewardPerTokenBefore = await stakingRewards.rewardRate();
-            expect(rewardPerTokenBefore).bignumber.eq(new BN(0));
-            const earnedBefore = await stakingRewards.earned(sender);
-            expect(earnedBefore).bignumber.eq(new BN(0));
-            const totalSupplyBefore = await stakingRewards.earned(sender);
-            expect(totalSupplyBefore).bignumber.eq(new BN(0));
-            const rewardApplicableBefore = await stakingRewards.lastTimeRewardApplicable();
-            expect(rewardApplicableBefore).bignumber.eq(new BN(0));
+            const beforeData = await snapshotStakingData();
+            expect(beforeData.rewardRate).bignumber.eq(new BN(0));
+            expect(beforeData.rewardPerTokenStored).bignumber.eq(new BN(0));
+            expect(beforeData.beneficiaryRewardsEarned).bignumber.eq(new BN(0));
+            expect(beforeData.totalSupply).bignumber.eq(new BN(0));
+            expect(beforeData.lastTimeRewardApplicable).bignumber.eq(new BN(0));
 
             // Do the stake
             await expectSuccessfulStake(stakeAmount);
@@ -321,16 +384,12 @@ contract("StakingRewards", async (accounts) => {
             await expectSuccessfulStake(stakeAmount);
 
             // Get end results
-            const rewardRateAfter = await stakingRewards.rewardRate();
-            expect(rewardRateAfter).bignumber.eq(new BN(0));
-            const rewardPerTokenAfter = await stakingRewards.rewardRate();
-            expect(rewardPerTokenAfter).bignumber.eq(new BN(0));
-            const earnedAfter = await stakingRewards.earned(sender);
-            expect(earnedAfter).bignumber.eq(new BN(0));
-            const totalSupplyAfter = await stakingRewards.totalSupply();
-            expect(totalSupplyAfter).bignumber.eq(stakeAmount.muln(2));
-            const rewardApplicableAfter = await stakingRewards.lastTimeRewardApplicable();
-            expect(rewardApplicableAfter).bignumber.eq(new BN(0));
+            const afterData = await snapshotStakingData();
+            expect(afterData.rewardRate).bignumber.eq(new BN(0));
+            expect(afterData.rewardPerTokenStored).bignumber.eq(new BN(0));
+            expect(afterData.beneficiaryRewardsEarned).bignumber.eq(new BN(0));
+            expect(afterData.totalSupply).bignumber.eq(stakeAmount.muln(2));
+            expect(afterData.lastTimeRewardApplicable).bignumber.eq(new BN(0));
         });
     });
     context("adding first stake days after funding", () => {
@@ -350,16 +409,12 @@ contract("StakingRewards", async (accounts) => {
 
             // This is the total reward per staked token, since the last update
             const rewardPerToken = await stakingRewards.rewardPerToken();
-            assertBNClose(
-                rewardPerToken,
-                FIVE_DAYS.mul(rewardRate)
-                    .mul(fullScale)
-                    .div(stakeAmount),
-                new BN(1)
-                    .mul(rewardRate)
-                    .mul(fullScale)
-                    .div(stakeAmount),
-            );
+
+            const rewardPerSecond = new BN(1)
+                .mul(rewardRate)
+                .mul(fullScale)
+                .div(stakeAmount);
+            assertBNClose(rewardPerToken, FIVE_DAYS.mul(rewardPerSecond), rewardPerSecond.muln(2));
 
             // Calc estimated unclaimed reward for the user
             // earned == balance * (rewardPerToken-userExistingReward)
@@ -489,7 +544,7 @@ contract("StakingRewards", async (accounts) => {
             expect(earnedAfterWeek).bignumber.eq(earnedAfterTwoWeeks);
 
             const lastTimeRewardApplicable = await stakingRewards.lastTimeRewardApplicable();
-            expect(lastTimeRewardApplicable).bignumber.eq(now.sub(ONE_WEEK).subn(2));
+            assertBNClose(lastTimeRewardApplicable, now.sub(ONE_WEEK).subn(2), new BN(2));
         });
     });
     context("staking on behalf of a beneficiary", () => {
@@ -610,6 +665,7 @@ contract("StakingRewards", async (accounts) => {
                 const expectedRewardRate = funding1.div(ONE_WEEK);
                 expect(expectedRewardRate).bignumber.eq(actualRewardRate);
 
+                console.log("0.1");
                 // Zoom forward half a week
                 await time.increase(ONE_WEEK.divn(2));
 
@@ -619,7 +675,12 @@ contract("StakingRewards", async (accounts) => {
                 const actualRewardRateAfter = await stakingRewards.rewardRate();
                 const totalRewardsForWeek = funding2.add(expectedLeftoverReward);
                 const expectedRewardRateAfter = totalRewardsForWeek.div(ONE_WEEK);
-                expect(expectedRewardRateAfter).bignumber.eq(actualRewardRateAfter);
+                console.log("0.2");
+                assertBNClose(
+                    actualRewardRateAfter,
+                    expectedRewardRateAfter,
+                    funding1.div(ONE_WEEK),
+                );
             });
         });
 
@@ -642,10 +703,11 @@ contract("StakingRewards", async (accounts) => {
                 await expectSuccesfulFunding(funding1.muln(2));
                 const actualRewardRateAfter = await stakingRewards.rewardRate();
                 const expectedRewardRateAfter = expectedRewardRate.muln(2);
-                expect(expectedRewardRateAfter).bignumber.eq(actualRewardRateAfter);
+                expect(actualRewardRateAfter).bignumber.eq(expectedRewardRateAfter);
             });
         });
     });
+
     context("withdrawing stake or rewards", () => {
         context("withdrawing a stake amount", () => {
             const fundAmount = simpleToExactAmount(100, 21);
@@ -675,28 +737,195 @@ contract("StakingRewards", async (accounts) => {
                     "Cannot withdraw 0",
                 );
             });
-            it("should update the existing reward accrual", async () => {});
-            it("should withdraw the stake");
+            it("should withdraw the stake and update the existing reward accrual", async () => {
+                // Check that the user has earned something
+                const earnedBefore = await stakingRewards.earned(sa.default);
+                expect(earnedBefore).bignumber.gt(new BN(0) as any);
+                const rewardsBefore = await stakingRewards.rewards(sa.default);
+                expect(rewardsBefore).bignumber.eq(new BN(0));
+
+                // Execute the withdrawal
+                await expectStakingWithdrawal(stakeAmount);
+
+                // Ensure that the new awards are added + assigned to user
+                const earnedAfter = await stakingRewards.earned(sa.default);
+                expect(earnedAfter).bignumber.gte(earnedBefore as any);
+                const rewardsAfter = await stakingRewards.rewards(sa.default);
+                expect(rewardsAfter).bignumber.eq(earnedAfter);
+
+                // Zoom forward now
+                await time.increase(10);
+
+                // Check that the user does not earn anything else
+                const earnedEnd = await stakingRewards.earned(sa.default);
+                expect(earnedEnd).bignumber.eq(earnedAfter);
+                const rewardsEnd = await stakingRewards.rewards(sa.default);
+                expect(rewardsEnd).bignumber.eq(rewardsAfter);
+
+                // Cannot withdraw anything else
+                await expectRevert(
+                    stakingRewards.withdraw(stakeAmount.addn(1), { from: sa.default }),
+                    "SafeMath: subtraction overflow",
+                );
+            });
         });
-        // TODO - actually send tokens in the notify
         context("claiming rewards", async () => {
-            it("should do nothing for a non-staker");
-            it("should send all accrued rewards to the vault");
-            it("should update all the stored data");
-            it("should do nothing if the outstanding rewards are 0");
+            const fundAmount = simpleToExactAmount(100, 21);
+            const stakeAmount = simpleToExactAmount(100, 18);
+
+            before(async () => {
+                stakingRewards = await redeployRewards();
+                await expectSuccesfulFunding(fundAmount);
+                await rewardToken.transfer(stakingRewards.address, fundAmount, {
+                    from: rewardsDistributor,
+                });
+                await expectSuccessfulStake(stakeAmount);
+                await time.increase(ONE_WEEK.addn(1));
+            });
+            it("should do nothing for a non-staker", async () => {
+                const beforeData = await snapshotStakingData(sa.dummy1, sa.dummy1);
+                await stakingRewards.claimReward({ from: sa.dummy1 });
+
+                const afterData = await snapshotStakingData(sa.dummy1, sa.dummy1);
+                expect(beforeData.beneficiaryRewardsEarned).bignumber.eq(new BN(0));
+                expect(afterData.beneficiaryRewardsEarned).bignumber.eq(new BN(0));
+                expect(afterData.senderStakingTokenBalance).bignumber.eq(new BN(0));
+                expect(afterData.userRewardPerTokenPaid).bignumber.eq(
+                    afterData.rewardPerTokenStored,
+                );
+            });
+            it("should send all accrued rewards to the vault", async () => {
+                const beforeData = await snapshotStakingData();
+                const lockupBalanceBefore = await rewardsVault.getBalance(
+                    sa.default,
+                    await rewardsVault.getCurrentPeriod(),
+                );
+                expect(lockupBalanceBefore).bignumber.eq(new BN(0));
+                const tx = await stakingRewards.claimReward();
+                expectEvent(tx.receipt, "RewardPaid", {
+                    user: sa.default,
+                });
+                const afterData = await snapshotStakingData();
+                await assertRewardsAssigned(beforeData, afterData, false, true);
+                // Balance transferred to the vault
+                const lockupBalanceAfter = await rewardsVault.getBalance(
+                    sa.default,
+                    await rewardsVault.getCurrentPeriod(),
+                );
+                assertBNClose(lockupBalanceAfter, fundAmount, simpleToExactAmount(1, 16));
+
+                // 'rewards' reset to 0
+                expect(afterData.beneficiaryRewardsEarned).bignumber.eq(new BN(0));
+                // Paid up until the last block
+                expect(afterData.userRewardPerTokenPaid).bignumber.eq(
+                    afterData.rewardPerTokenStored,
+                );
+                // Token balances dont change
+                expect(afterData.senderStakingTokenBalance).bignumber.eq(
+                    beforeData.senderStakingTokenBalance,
+                );
+                expect(beforeData.userStakingBalance).bignumber.eq(afterData.userStakingBalance);
+            });
         });
-        // TODO - actually send tokens in the notify
         context("completely 'exiting' the system", () => {
-            it("should retrieve all earned and increase rewards bal");
-            it("should withdraw all senders stake");
-            it("should send any outstanding rewards to the vault");
-            it("should fail if the sender has no stake");
+            const fundAmount = simpleToExactAmount(100, 21);
+            const stakeAmount = simpleToExactAmount(100, 18);
+
+            before(async () => {
+                stakingRewards = await redeployRewards();
+                await expectSuccesfulFunding(fundAmount);
+                await rewardToken.transfer(stakingRewards.address, fundAmount, {
+                    from: rewardsDistributor,
+                });
+                await expectSuccessfulStake(stakeAmount);
+                await time.increase(ONE_WEEK.addn(1));
+            });
+            it("should fail if the sender has no stake", async () => {
+                await expectRevert(stakingRewards.exit({ from: sa.dummy1 }), "Cannot withdraw 0");
+            });
+            it("should withdraw all senders stake and send rewards to the vault", async () => {
+                const beforeData = await snapshotStakingData();
+                const lockupBalanceBefore = await rewardsVault.getBalance(
+                    sa.default,
+                    await rewardsVault.getCurrentPeriod(),
+                );
+                expect(lockupBalanceBefore).bignumber.eq(new BN(0));
+
+                const tx = await stakingRewards.exit();
+                expectEvent(tx.receipt, "Withdrawn", {
+                    user: sa.default,
+                    amount: stakeAmount,
+                });
+                expectEvent(tx.receipt, "RewardPaid", {
+                    user: sa.default,
+                });
+
+                const afterData = await snapshotStakingData();
+                // Balance transferred to the vault
+                const lockupBalanceAfter = await rewardsVault.getBalance(
+                    sa.default,
+                    await rewardsVault.getCurrentPeriod(),
+                );
+                assertBNClose(lockupBalanceAfter, fundAmount, simpleToExactAmount(1, 16));
+
+                // Expect Rewards to accrue to the beneficiary
+                //    StakingToken balance of sender
+                await assertRewardsAssigned(beforeData, afterData, false, true);
+
+                // Expect token transfer
+                //    StakingToken balance of sender
+                expect(beforeData.senderStakingTokenBalance.add(stakeAmount)).bignumber.eq(
+                    afterData.senderStakingTokenBalance,
+                );
+                //    Withdraws from the actual rewards wrapper token
+                expect(beforeData.userStakingBalance.sub(stakeAmount)).bignumber.eq(
+                    afterData.userStakingBalance,
+                );
+                //    Updates total supply
+                expect(beforeData.totalSupply.sub(stakeAmount)).bignumber.eq(afterData.totalSupply);
+
+                await expectRevert(stakingRewards.exit(), "Cannot withdraw 0");
+            });
         });
     });
     context("running a full integration test", () => {
-        it("1. should allow the rewardsDistributor to fund the pool");
-        it("2. should allow stakers to stake and earn rewards");
-        it("3. should deposit earnings into the rewardsVault");
-        it("4. should allow users to vest after the vesting period");
+        const fundAmount = simpleToExactAmount(100, 21);
+        const stakeAmount = simpleToExactAmount(100, 18);
+        let period;
+
+        before(async () => {
+            stakingRewards = await redeployRewards();
+        });
+        it("1. should allow the rewardsDistributor to fund the pool", async () => {
+            await rewardToken.transfer(stakingRewards.address, fundAmount, {
+                from: rewardsDistributor,
+            });
+            await expectSuccesfulFunding(fundAmount);
+        });
+        it("2. should allow stakers to stake and earn rewards", async () => {
+            await expectSuccessfulStake(stakeAmount);
+            await time.increase(ONE_WEEK.addn(1));
+        });
+        it("3. should deposit earnings into the rewardsVault", async () => {
+            const beforeData = await snapshotStakingData();
+
+            period = await rewardsVault.getCurrentPeriod();
+            await stakingRewards.exit();
+
+            const afterData = await snapshotStakingData();
+            // Balance transferred to the vault
+            const lockupBalanceAfter = await rewardsVault.getBalance(sa.default, period);
+            assertBNClose(lockupBalanceAfter, fundAmount, simpleToExactAmount(1, 16));
+
+            await assertRewardsAssigned(beforeData, afterData, false, true);
+        });
+        it("4. should allow users to vest after the vesting period", async () => {
+            await time.increase(ONE_WEEK.muln(27));
+            const balBefore = await rewardToken.balanceOf(sa.default);
+            await rewardsVault.vestReward(period);
+
+            const balAfter = await rewardToken.balanceOf(sa.default);
+            assertBNClose(balAfter.sub(balBefore), fundAmount, simpleToExactAmount(1, 16));
+        });
     });
 });

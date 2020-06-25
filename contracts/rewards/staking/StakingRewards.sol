@@ -166,6 +166,7 @@ contract StakingRewards is StakingTokenWrapper, LockedUpRewards {
      */
     function getRewardToken()
         external
+        view
         returns (IERC20)
     {
         return rewardsToken;

@@ -29,7 +29,7 @@ contract LockedUpRewards is RewardsDistributionRecipient {
         address _rewardsDistributor
     )
         internal
-        RewardsDistributionRecipient(_nexus ,_rewardsDistributor)
+        RewardsDistributionRecipient(_nexus , _rewardsDistributor)
     {
         rewardsToken = IERC20(_rewardsToken);
         _setRewardsVault(_rewardsVault);

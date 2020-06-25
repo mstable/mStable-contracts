@@ -17,7 +17,7 @@ contract MockRewardsDistributionRecipient is IRewardsDistributionRecipient {
       // do nothing
     }
 
-    function getRewardToken() external returns (IERC20) {
+    function getRewardToken() external view returns (IERC20) {
         return rewardToken;
     }
 }

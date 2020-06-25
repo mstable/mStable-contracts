@@ -217,6 +217,18 @@ contract RewardsVault is ReentrancyGuard {
      * @dev Gets the current period ID of the Vault (starts at 0)
      * @return currentPeriod  Uint with period ID
      */
+    function getCurrentPeriod()
+        external
+        view
+        returns (uint256 currentPeriod)
+    {
+        return _getCurrentPeriod();
+    }
+
+    /**
+     * @dev Gets the current period ID of the Vault (starts at 0)
+     * @return currentPeriod  Uint with period ID
+     */
     function _getCurrentPeriod()
         internal
         view
