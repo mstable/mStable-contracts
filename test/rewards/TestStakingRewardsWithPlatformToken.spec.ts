@@ -6,13 +6,21 @@ import { StandardAccounts, SystemMachine } from "@utils/machines";
 import { assertBNClose, assertBNSlightlyGT } from "@utils/assertions";
 import { simpleToExactAmount } from "@utils/math";
 import { BN } from "@utils/tools";
-import { ONE_WEEK, ONE_DAY, FIVE_DAYS, fullScale } from "@utils/constants";
+import {
+    ONE_WEEK,
+    ONE_DAY,
+    FIVE_DAYS,
+    fullScale,
+    MAX_UINT256,
+    ZERO_ADDRESS,
+} from "@utils/constants";
 import envSetup from "@utils/env_setup";
 
 import shouldBehaveLikeLockedUpRewards from "./LockedUpRewards.behaviour";
 
 const MockERC20 = artifacts.require("MockERC20");
 const StakingRewardsWithPlatformToken = artifacts.require("StakingRewardsWithPlatformToken");
+const PlatformTokenVendor = artifacts.require("PlatformTokenVendor");
 const RewardsVault = artifacts.require("RewardsVault");
 
 const { expect } = envSetup.configure();
@@ -60,30 +68,49 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
         senderStakingTokenBalance: BN;
         contractStakingTokenBalance: BN;
         userRewardPerTokenPaid: BN;
+        userPlatformRewardPerTokenPaid: BN;
         beneficiaryRewardsEarned: BN;
+        beneficiaryPlatformRewardsEarned: BN;
         rewardPerTokenStored: BN;
+        platformRewardPerTokenStored: BN;
         rewardRate: BN;
+        platformRewardRate: BN;
         lastUpdateTime: BN;
         lastTimeRewardApplicable: BN;
         periodFinishTime: BN;
+        platformTokenVendor: string;
+        platformTokenBalanceVendor: BN;
+        platformTokenBalanceStakingRewards: BN;
     }
 
     const snapshotStakingData = async (
         sender = sa.default,
         beneficiary = sa.default,
     ): Promise<StakingData> => {
+        const platformTokenVendor = await stakingRewards.platformTokenVendor();
         return {
             totalSupply: await stakingRewards.totalSupply(),
             userStakingBalance: await stakingRewards.balanceOf(beneficiary),
-            userRewardPerTokenPaid: await stakingRewards.userRewardPerTokenPaid(beneficiary),
             senderStakingTokenBalance: await stakingToken.balanceOf(sender),
             contractStakingTokenBalance: await stakingToken.balanceOf(stakingRewards.address),
+            userRewardPerTokenPaid: await stakingRewards.userRewardPerTokenPaid(beneficiary),
+            userPlatformRewardPerTokenPaid: await stakingRewards.userPlatformRewardPerTokenPaid(
+                beneficiary,
+            ),
             beneficiaryRewardsEarned: await stakingRewards.rewards(beneficiary),
+            beneficiaryPlatformRewardsEarned: await stakingRewards.platformRewards(beneficiary),
             rewardPerTokenStored: await stakingRewards.rewardPerTokenStored(),
+            platformRewardPerTokenStored: await stakingRewards.platformRewardPerTokenStored(),
             rewardRate: await stakingRewards.rewardRate(),
+            platformRewardRate: await stakingRewards.platformRewardRate(),
             lastUpdateTime: await stakingRewards.lastUpdateTime(),
             lastTimeRewardApplicable: await stakingRewards.lastTimeRewardApplicable(),
             periodFinishTime: await stakingRewards.periodFinish(),
+            platformTokenVendor,
+            platformTokenBalanceVendor: await platformToken.balanceOf(platformTokenVendor),
+            platformTokenBalanceStakingRewards: await platformToken.balanceOf(
+                stakingRewards.address,
+            ),
         };
     };
 
@@ -114,17 +141,22 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
             expect(await stakingRewards.nexus(), systemMachine.nexus.address);
             expect(await stakingRewards.stakingToken(), stakingToken.address);
             expect(await stakingRewards.rewardsToken(), rewardToken.address);
+            expect(await stakingRewards.platformToken(), platformToken.address);
             expect(await stakingRewards.rewardsVault(), rewardsVault.address);
+            expect(await stakingRewards.platformTokenVendor()).not.eq(ZERO_ADDRESS);
             expect(await stakingRewards.rewardsDistributor(), rewardsDistributor);
 
             // Basic storage
             expect(await stakingRewards.totalSupply()).bignumber.eq(new BN(0));
             expect(await stakingRewards.periodFinish()).bignumber.eq(new BN(0));
             expect(await stakingRewards.rewardRate()).bignumber.eq(new BN(0));
+            expect(await stakingRewards.platformRewardRate()).bignumber.eq(new BN(0));
             expect(await stakingRewards.lastUpdateTime()).bignumber.eq(new BN(0));
             expect(await stakingRewards.rewardPerTokenStored()).bignumber.eq(new BN(0));
+            expect(await stakingRewards.platformRewardPerTokenStored()).bignumber.eq(new BN(0));
             expect(await stakingRewards.lastTimeRewardApplicable()).bignumber.eq(new BN(0));
             expect((await stakingRewards.rewardPerToken())[0]).bignumber.eq(new BN(0));
+            expect((await stakingRewards.rewardPerToken())[1]).bignumber.eq(new BN(0));
         });
     });
 
@@ -139,6 +171,7 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
         afterData: StakingData,
         isExistingStaker: boolean,
         shouldResetRewards = false,
+        shouldResetPlatformRewards = false,
     ): Promise<void> => {
         const timeAfter = await time.latest();
         const periodIsFinished = new BN(timeAfter).gt(beforeData.periodFinishTime);
@@ -155,9 +188,13 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
         console.log("0.3.2");
         //    RewardRate doesnt change
         expect(beforeData.rewardRate).bignumber.eq(afterData.rewardRate);
+        expect(beforeData.platformRewardRate).bignumber.eq(afterData.platformRewardRate);
         //    RewardPerTokenStored goes up
         expect(afterData.rewardPerTokenStored).bignumber.gte(
             beforeData.rewardPerTokenStored as any,
+        );
+        expect(afterData.platformRewardPerTokenStored).bignumber.gte(
+            beforeData.platformRewardPerTokenStored as any,
         );
         console.log("0.3.3");
         //      Calculate exact expected 'rewardPerToken' increase since last update
@@ -170,15 +207,27 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                   .mul(timeApplicableToRewards)
                   .mul(fullScale)
                   .div(beforeData.totalSupply);
+        const increaseInPlatformRewardPerToken = beforeData.totalSupply.eq(new BN(0))
+            ? new BN(0)
+            : beforeData.platformRewardRate
+                  .mul(timeApplicableToRewards)
+                  .mul(fullScale)
+                  .div(beforeData.totalSupply);
         console.log("0.3.4");
         expect(beforeData.rewardPerTokenStored.add(increaseInRewardPerToken)).bignumber.eq(
             afterData.rewardPerTokenStored,
         );
+        expect(
+            beforeData.platformRewardPerTokenStored.add(increaseInPlatformRewardPerToken),
+        ).bignumber.eq(afterData.platformRewardPerTokenStored);
         console.log("0.3.5");
 
         // Expect updated personal state
         //    userRewardPerTokenPaid(beneficiary) should update
         expect(afterData.userRewardPerTokenPaid).bignumber.eq(afterData.rewardPerTokenStored);
+        expect(afterData.userPlatformRewardPerTokenPaid).bignumber.eq(
+            afterData.platformRewardPerTokenStored,
+        );
 
         console.log("0.3.6");
         //    If existing staker, then rewards Should increase
@@ -199,6 +248,28 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
             // else `rewards` should stay the same
             expect(beforeData.beneficiaryRewardsEarned).bignumber.eq(
                 afterData.beneficiaryRewardsEarned,
+            );
+        }
+
+        console.log("0.3.7");
+        //    If existing staker, then platform rewards Should increase
+        if (shouldResetPlatformRewards) {
+            expect(afterData.beneficiaryPlatformRewardsEarned).bignumber.eq(new BN(0));
+        } else if (isExistingStaker) {
+            // rewards(beneficiary) should update with previously accrued tokens
+            const increaseInUserPlatformRewardPerToken = afterData.platformRewardPerTokenStored.sub(
+                beforeData.userPlatformRewardPerTokenPaid,
+            );
+            const assignment = beforeData.userStakingBalance
+                .mul(increaseInUserPlatformRewardPerToken)
+                .div(fullScale);
+            expect(beforeData.beneficiaryPlatformRewardsEarned.add(assignment)).bignumber.eq(
+                afterData.beneficiaryPlatformRewardsEarned,
+            );
+        } else {
+            // else `rewards` should stay the same
+            expect(beforeData.beneficiaryPlatformRewardsEarned).bignumber.eq(
+                afterData.beneficiaryPlatformRewardsEarned,
             );
         }
     };
@@ -268,18 +339,40 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
      * @dev Ensures a funding is successful, checking that it updates the rewardRate etc
      * @param rewardUnits Number of units to stake
      */
-    const expectSuccesfulFunding = async (rewardUnits: BN): Promise<void> => {
+    const expectSuccesfulFunding = async (
+        rewardUnits: BN,
+        platformUnitsExpected = new BN(0),
+    ): Promise<void> => {
         const beforeData = await snapshotStakingData();
+        expect(beforeData.platformTokenBalanceStakingRewards).bignumber.gte(
+            platformUnitsExpected as any,
+        );
+
         const tx = await stakingRewards.notifyRewardAmount(rewardUnits, {
             from: rewardsDistributor,
         });
-        expectEvent(tx.receipt, "RewardAdded", { reward: rewardUnits });
+        expectEvent(tx.receipt, "RewardAdded", {
+            reward: rewardUnits,
+            platformReward: platformUnitsExpected,
+        });
 
         const cur = new BN(await time.latest());
         const leftOverRewards = beforeData.rewardRate.mul(
             beforeData.periodFinishTime.sub(beforeData.lastTimeRewardApplicable),
         );
+        const leftOverPlatformRewards = beforeData.platformRewardRate.mul(
+            beforeData.periodFinishTime.sub(beforeData.lastTimeRewardApplicable),
+        );
+
         const afterData = await snapshotStakingData();
+        console.log("000");
+        // Expect the tokens to be transferred to the vendor
+        expect(afterData.platformTokenBalanceStakingRewards).bignumber.eq(new BN(0));
+        expect(afterData.platformTokenBalanceVendor).bignumber.eq(
+            beforeData.platformTokenBalanceVendor.add(
+                beforeData.platformTokenBalanceStakingRewards,
+            ),
+        );
         console.log("001");
         // Sets lastTimeRewardApplicable to latest
         expect(cur).bignumber.eq(afterData.lastTimeRewardApplicable);
@@ -296,10 +389,22 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
             assertBNClose(
                 total.div(ONE_WEEK),
                 afterData.rewardRate,
-                beforeData.rewardRate.div(ONE_WEEK), // the effect of 1 second on the future scale
+                beforeData.rewardRate.div(ONE_WEEK.subn(1)), // the effect of 1 second on the future scale
             );
         } else {
             expect(rewardUnits.div(ONE_WEEK)).bignumber.eq(afterData.rewardRate);
+        }
+        console.log("005");
+        // Sets platformRewardRate to rewardUnits / ONE_WEEK
+        if (leftOverPlatformRewards.gtn(0)) {
+            const total = platformUnitsExpected.add(leftOverRewards);
+            assertBNClose(
+                total.div(ONE_WEEK),
+                afterData.platformRewardRate,
+                beforeData.platformRewardRate.div(ONE_WEEK), // the effect of 1 second on the future scale
+            );
+        } else {
+            expect(platformUnitsExpected.div(ONE_WEEK)).bignumber.eq(afterData.platformRewardRate);
         }
     };
 
@@ -350,20 +455,30 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
         describe("notifying the pool of reward", () => {
             it("should begin a new period through", async () => {
                 const rewardUnits = simpleToExactAmount(1, 18);
-                await expectSuccesfulFunding(rewardUnits);
+                const airdropAmount = simpleToExactAmount(100, 18);
+                await platformToken.transfer(stakingRewards.address, airdropAmount, {
+                    from: rewardsDistributor,
+                });
+                await expectSuccesfulFunding(rewardUnits, airdropAmount);
             });
         });
         describe("staking in the new period", () => {
             it("should assign rewards to the staker", async () => {
                 // Do the stake
                 const rewardRate = await stakingRewards.rewardRate();
+                const platformRewardRate = await stakingRewards.platformRewardRate();
                 const stakeAmount = simpleToExactAmount(100, 18);
                 await expectSuccessfulStake(stakeAmount);
 
                 await time.increase(ONE_DAY);
 
                 // This is the total reward per staked token, since the last update
-                const [rewardPerToken] = await stakingRewards.rewardPerToken();
+                const [
+                    rewardPerToken,
+                    platformRewardPerToken,
+                ] = await stakingRewards.rewardPerToken();
+                expect(rewardPerToken).bignumber.gt(new BN(0) as any);
+                expect(platformRewardPerToken).bignumber.gt(new BN(0) as any);
                 const rewardPerSecond = new BN(1)
                     .mul(rewardRate)
                     .mul(fullScale)
@@ -371,13 +486,24 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                 assertBNClose(
                     rewardPerToken,
                     ONE_DAY.mul(rewardPerSecond),
-                    rewardPerSecond.muln(2),
+                    rewardPerSecond.muln(3),
                 );
-
+                const platformRewardPerSecond = new BN(1)
+                    .mul(platformRewardRate)
+                    .mul(fullScale)
+                    .div(stakeAmount);
+                assertBNClose(
+                    platformRewardPerToken,
+                    ONE_DAY.mul(platformRewardPerSecond),
+                    platformRewardPerSecond.muln(3),
+                );
                 // Calc estimated unclaimed reward for the user
                 // earned == balance * (rewardPerToken-userExistingReward)
-                const earned = await stakingRewards.earned(sa.default);
-                expect(stakeAmount.mul(rewardPerToken).div(fullScale)).bignumber.eq(earned[0]);
+                const [earned, platformEarned] = await stakingRewards.earned(sa.default);
+                expect(stakeAmount.mul(rewardPerToken).div(fullScale)).bignumber.eq(earned);
+                expect(stakeAmount.mul(platformRewardPerToken).div(fullScale)).bignumber.eq(
+                    platformEarned,
+                );
             });
             it("should update stakers rewards after consequent stake", async () => {
                 const stakeAmount = simpleToExactAmount(100, 18);
@@ -409,7 +535,10 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
             const beforeData = await snapshotStakingData();
             expect(beforeData.rewardRate).bignumber.eq(new BN(0));
             expect(beforeData.rewardPerTokenStored).bignumber.eq(new BN(0));
+            expect(beforeData.platformRewardRate).bignumber.eq(new BN(0));
+            expect(beforeData.platformRewardPerTokenStored).bignumber.eq(new BN(0));
             expect(beforeData.beneficiaryRewardsEarned).bignumber.eq(new BN(0));
+            expect(beforeData.beneficiaryPlatformRewardsEarned).bignumber.eq(new BN(0));
             expect(beforeData.totalSupply).bignumber.eq(new BN(0));
             expect(beforeData.lastTimeRewardApplicable).bignumber.eq(new BN(0));
 
@@ -426,7 +555,9 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
             const afterData = await snapshotStakingData();
             expect(afterData.rewardRate).bignumber.eq(new BN(0));
             expect(afterData.rewardPerTokenStored).bignumber.eq(new BN(0));
-            expect(afterData.beneficiaryRewardsEarned).bignumber.eq(new BN(0));
+            expect(afterData.platformRewardRate).bignumber.eq(new BN(0));
+            expect(afterData.platformRewardPerTokenStored).bignumber.eq(new BN(0));
+            expect(afterData.beneficiaryPlatformRewardsEarned).bignumber.eq(new BN(0));
             expect(afterData.totalSupply).bignumber.eq(stakeAmount.muln(2));
             expect(afterData.lastTimeRewardApplicable).bignumber.eq(new BN(0));
         });
@@ -436,10 +567,15 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
             stakingRewards = await redeployRewards();
         });
         it("should retrospectively assign rewards to the first staker", async () => {
-            await expectSuccesfulFunding(simpleToExactAmount(100, 18));
+            const airdropAmount = simpleToExactAmount(100, 18);
+            await platformToken.transfer(stakingRewards.address, airdropAmount, {
+                from: rewardsDistributor,
+            });
+            await expectSuccesfulFunding(simpleToExactAmount(100, 18), airdropAmount);
 
             // Do the stake
             const rewardRate = await stakingRewards.rewardRate();
+            const platformRewardRate = await stakingRewards.platformRewardRate();
 
             await time.increase(FIVE_DAYS);
 
@@ -447,23 +583,35 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
             await expectSuccessfulStake(stakeAmount);
 
             // This is the total reward per staked token, since the last update
-            const rewardPerToken = await stakingRewards.rewardPerToken();
+            const [rewardPerToken, platformRewardPerToken] = await stakingRewards.rewardPerToken();
 
             const rewardPerSecond = new BN(1)
                 .mul(rewardRate)
                 .mul(fullScale)
                 .div(stakeAmount);
+            assertBNClose(rewardPerToken, FIVE_DAYS.mul(rewardPerSecond), rewardPerSecond.muln(2));
+
+            const platformRewardPerSecond = new BN(1)
+                .mul(platformRewardRate)
+                .mul(fullScale)
+                .div(stakeAmount);
             assertBNClose(
-                rewardPerToken[0],
-                FIVE_DAYS.mul(rewardPerSecond),
-                rewardPerSecond.muln(2),
+                platformRewardPerToken,
+                FIVE_DAYS.mul(platformRewardPerSecond),
+                platformRewardPerSecond.muln(2),
             );
 
             // Calc estimated unclaimed reward for the user
             // earned == balance * (rewardPerToken-userExistingReward)
-            const earnedAfterConsequentStake = await stakingRewards.earned(sa.default);
-            expect(stakeAmount.mul(rewardPerToken[0]).div(fullScale)).bignumber.eq(
-                earnedAfterConsequentStake[0],
+            const [
+                earnedAfterConsequentStake,
+                platformEarnedAfterConsequentStake,
+            ] = await stakingRewards.earned(sa.default);
+            expect(stakeAmount.mul(rewardPerToken).div(fullScale)).bignumber.eq(
+                earnedAfterConsequentStake,
+            );
+            expect(stakeAmount.mul(platformRewardPerToken).div(fullScale)).bignumber.eq(
+                platformEarnedAfterConsequentStake,
             );
         });
     });
@@ -473,6 +621,7 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                 stakingRewards = await redeployRewards();
             });
             it("should assign all the rewards from the periods", async () => {
+                const airdropAmount1 = simpleToExactAmount(100, 18);
                 const fundAmount1 = simpleToExactAmount(100, 18);
                 const fundAmount2 = simpleToExactAmount(200, 18);
                 await expectSuccesfulFunding(fundAmount1);
@@ -482,41 +631,51 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
 
                 await time.increase(ONE_WEEK.muln(2));
 
-                await expectSuccesfulFunding(fundAmount2);
+                await platformToken.transfer(stakingRewards.address, airdropAmount1, {
+                    from: rewardsDistributor,
+                });
+                await expectSuccesfulFunding(fundAmount2, airdropAmount1);
 
                 await time.increase(ONE_WEEK.muln(2));
 
-                const earned = await stakingRewards.earned(sa.default);
-                assertBNSlightlyGT(fundAmount1.add(fundAmount2), earned[0], new BN(1000000), false);
+                const [earned, platformEarned] = await stakingRewards.earned(sa.default);
+                assertBNSlightlyGT(fundAmount1.add(fundAmount2), earned, new BN(1000000), false);
+                assertBNSlightlyGT(airdropAmount1, platformEarned, new BN(1000000), false);
             });
         });
         context("with multiple stakers coming in and out", () => {
-            const fundAmount1 = simpleToExactAmount(100, 21);
-            const fundAmount2 = simpleToExactAmount(200, 21);
-            const staker2 = sa.dummy1;
-            const staker3 = sa.dummy2;
-            const staker1Stake1 = simpleToExactAmount(100, 18);
-            const staker1Stake2 = simpleToExactAmount(200, 18);
-            const staker2Stake = simpleToExactAmount(100, 18);
-            const staker3Stake = simpleToExactAmount(100, 18);
-
-            before(async () => {
+            beforeEach(async () => {
                 stakingRewards = await redeployRewards();
-                await stakingToken.transfer(staker2, staker2Stake);
-                await stakingToken.transfer(staker3, staker3Stake);
             });
             it("should accrue rewards on a pro rata basis", async () => {
+                const airdropAmount = simpleToExactAmount(100, 21);
+                const fundAmount1 = simpleToExactAmount(100, 21);
+                const fundAmount2 = simpleToExactAmount(200, 21);
+                const staker2 = sa.dummy1;
+                const staker3 = sa.dummy2;
+                const staker1Stake1 = simpleToExactAmount(100, 18);
+                const staker1Stake2 = simpleToExactAmount(200, 18);
+                const staker2Stake = simpleToExactAmount(100, 18);
+                const staker3Stake = simpleToExactAmount(100, 18);
+
+                await stakingToken.transfer(staker2, staker2Stake);
+                await stakingToken.transfer(staker3, staker3Stake);
+
                 /*
                  *  0               1               2   <-- Weeks
                  *   [ - - - - - - ] [ - - - - - - ]
                  * 100k            200k                 <-- Funding
+                 *                 100k                 <-- Airdrop
                  * +100            +200                 <-- Staker 1
                  *        +100                          <-- Staker 2
                  * +100            -100                 <-- Staker 3
                  *
-                 * Staker 1 gets 25k + 16.66k from week 1 + 150k from week 2 = 191.66k
-                 * Staker 2 gets 16.66k from week 1 + 50k from week 2 = 66.66k
-                 * Staker 3 gets 25k + 16.66k from week 1 + 0 from week 2 = 41.66k
+                 * Staker 1 gets 25k + 16.66k from week 1 n 150k = 191.66k
+                 *          gets 75k
+                 * Staker 2 gets 16.66k from week 1 n 50k from week 2 = 66.66k
+                 *          gets 25k
+                 * Staker 3 gets 25k + 16.66k from week 1 n 0 from week 2 = 41.66k
+                 *          gets 0
                  */
 
                 // WEEK 0-1 START
@@ -532,40 +691,156 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                 await time.increase(ONE_WEEK.divn(2).addn(1));
 
                 // WEEK 1-2 START
-                await expectSuccesfulFunding(fundAmount2);
-
                 await stakingRewards.withdraw(staker3Stake, { from: staker3 });
                 await expectSuccessfulStake(staker1Stake2, sa.default, sa.default, true);
+                await platformToken.transfer(stakingRewards.address, airdropAmount, {
+                    from: rewardsDistributor,
+                });
+                await expectSuccesfulFunding(fundAmount2, airdropAmount);
 
                 await time.increase(ONE_WEEK);
 
                 // WEEK 2 FINISH
-                const earned1 = await stakingRewards.earned(sa.default);
+                const [earned1, platformEarned1] = await stakingRewards.earned(sa.default);
                 assertBNClose(
-                    earned1[0],
+                    earned1,
                     simpleToExactAmount("191.66", 21),
                     simpleToExactAmount(1, 19),
                 );
-                const earned2 = await stakingRewards.earned(staker2);
                 assertBNClose(
-                    earned2[0],
+                    platformEarned1,
+                    simpleToExactAmount(75, 21),
+                    simpleToExactAmount(1, 19),
+                );
+                const [earned2, platformEarned2] = await stakingRewards.earned(staker2);
+                assertBNClose(
+                    earned2,
                     simpleToExactAmount("66.66", 21),
                     simpleToExactAmount(1, 19),
                 );
-                const earned3 = await stakingRewards.earned(staker3);
                 assertBNClose(
-                    earned3[0],
+                    platformEarned2,
+                    simpleToExactAmount(25, 21),
+                    simpleToExactAmount(1, 19),
+                );
+                const [earned3, platformEarned3] = await stakingRewards.earned(staker3);
+                assertBNClose(
+                    earned3,
                     simpleToExactAmount("41.66", 21),
+                    simpleToExactAmount(1, 19),
+                );
+                expect(platformEarned3).bignumber.eq(new BN(0));
+                // Ensure that sum of earned rewards does not exceed funcing amount
+                expect(fundAmount1.add(fundAmount2)).bignumber.gte(
+                    earned1.add(earned2).add(earned3) as any,
+                );
+                expect(airdropAmount).bignumber.gte(
+                    platformEarned1.add(platformEarned2).add(platformEarned3) as any,
+                );
+            });
+            it("should accrue rewards on a pro rata basis 2", async () => {
+                const airdropAmount1 = simpleToExactAmount(50, 21);
+                const airdropAmount2 = simpleToExactAmount(100, 21);
+                const fundAmount1 = simpleToExactAmount(50, 21);
+                const fundAmount2 = simpleToExactAmount(200, 21);
+                const staker2 = sa.dummy1;
+                const staker3 = sa.dummy2;
+                const staker1Stake1 = simpleToExactAmount(100, 18);
+                const staker1Stake2 = simpleToExactAmount(100, 18);
+                const staker2Stake = simpleToExactAmount(100, 18);
+                const staker3Stake = simpleToExactAmount(100, 18);
+
+                await stakingToken.transfer(staker2, staker2Stake);
+                await stakingToken.transfer(staker3, staker3Stake);
+
+                /*
+                 *  0               1               2   <-- Weeks
+                 *   [ - - - - - - ] [ - - - - - - ]
+                 *  50k            200k                 <-- Funding
+                 *  50k            100k                 <-- Airdrop
+                 * +100            +100                 <-- Staker 1
+                 *        +100                          <-- Staker 2
+                 *        +100            -100          <-- Staker 3
+                 *
+                 * Staker 1 gets 25k + 8.33 from week 1 n 50k + 66.66 = 150k
+                 *          gets 25k + 8.33 from week 1 n 25k + 33.33 = 91.66k
+                 * Staker 2 gets 8.33 from week 1 n 25k + 33.33 = 66.66k
+                 *          gets 8.33 from week 1 n 12.5 + 16.67 = 37.5k
+                 * Staker 3 gets 8.33 from week 1 n 25k = 33.33
+                 *          gets 8.33 from week 1 n 12.5k = 20.83
+                 */
+
+                // WEEK 0-1 START
+                await expectSuccessfulStake(staker1Stake1);
+
+                await platformToken.transfer(stakingRewards.address, airdropAmount1, {
+                    from: rewardsDistributor,
+                });
+                await expectSuccesfulFunding(fundAmount1, airdropAmount1);
+
+                await time.increase(ONE_WEEK.divn(2).addn(1));
+
+                await expectSuccessfulStake(staker2Stake, staker2, staker2);
+                await expectSuccessfulStake(staker3Stake, staker3, staker3);
+
+                await time.increase(ONE_WEEK.divn(2).addn(1));
+
+                // WEEK 1-2 START
+                await platformToken.transfer(stakingRewards.address, airdropAmount2, {
+                    from: rewardsDistributor,
+                });
+                await expectSuccesfulFunding(fundAmount2, airdropAmount2);
+
+                await expectSuccessfulStake(staker1Stake2, sa.default, sa.default, true);
+
+                await time.increase(ONE_WEEK.divn(2).addn(1));
+
+                await stakingRewards.withdraw(staker3Stake, { from: staker3 });
+
+                await time.increase(ONE_WEEK.divn(2).addn(1));
+
+                // WEEK 2 FINISH
+                const [earned1, platformEarned1] = await stakingRewards.earned(sa.default);
+                assertBNClose(earned1, simpleToExactAmount(150, 21), simpleToExactAmount(1, 19));
+                assertBNClose(
+                    platformEarned1,
+                    simpleToExactAmount("91.66", 21),
+                    simpleToExactAmount(1, 19),
+                );
+                const [earned2, platformEarned2] = await stakingRewards.earned(staker2);
+                assertBNClose(
+                    earned2,
+                    simpleToExactAmount("66.66", 21),
+                    simpleToExactAmount(1, 19),
+                );
+                assertBNClose(
+                    platformEarned2,
+                    simpleToExactAmount("37.5", 21),
+                    simpleToExactAmount(1, 19),
+                );
+                const [earned3, platformEarned3] = await stakingRewards.earned(staker3);
+                assertBNClose(
+                    earned3,
+                    simpleToExactAmount("33.33", 21),
+                    simpleToExactAmount(1, 19),
+                );
+                assertBNClose(
+                    platformEarned3,
+                    simpleToExactAmount("20.83", 21),
                     simpleToExactAmount(1, 19),
                 );
                 // Ensure that sum of earned rewards does not exceed funcing amount
                 expect(fundAmount1.add(fundAmount2)).bignumber.gte(
-                    earned1[0].add(earned2[0]).add(earned3[0]) as any,
+                    earned1.add(earned2).add(earned3) as any,
+                );
+                expect(airdropAmount1.add(airdropAmount2)).bignumber.gte(
+                    platformEarned1.add(platformEarned2).add(platformEarned3) as any,
                 );
             });
         });
     });
     context("staking after period finish", () => {
+        const airdropAmount1 = simpleToExactAmount(100, 21);
         const fundAmount1 = simpleToExactAmount(100, 21);
 
         before(async () => {
@@ -573,18 +848,26 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
         });
         it("should stop accruing rewards after the period is over", async () => {
             await expectSuccessfulStake(simpleToExactAmount(1, 18));
-            await expectSuccesfulFunding(fundAmount1);
+            await platformToken.transfer(stakingRewards.address, airdropAmount1, {
+                from: rewardsDistributor,
+            });
+            await expectSuccesfulFunding(fundAmount1, airdropAmount1);
 
             await time.increase(ONE_WEEK.addn(1));
 
-            const earnedAfterWeek = await stakingRewards.earned(sa.default);
+            const [earnedAfterWeek, platformEarnedAfterWeek] = await stakingRewards.earned(
+                sa.default,
+            );
 
             await time.increase(ONE_WEEK.addn(1));
             const now = await time.latest();
 
-            const earnedAfterTwoWeeks = await stakingRewards.earned(sa.default);
+            const [earnedAfterTwoWeeks, platformEarnedAfterTwoWeeks] = await stakingRewards.earned(
+                sa.default,
+            );
 
-            expect(earnedAfterWeek[0]).bignumber.eq(earnedAfterTwoWeeks[0]);
+            expect(earnedAfterWeek).bignumber.eq(earnedAfterTwoWeeks);
+            expect(platformEarnedAfterWeek).bignumber.eq(platformEarnedAfterTwoWeeks);
 
             const lastTimeRewardApplicable = await stakingRewards.lastTimeRewardApplicable();
             assertBNClose(lastTimeRewardApplicable, now.sub(ONE_WEEK).subn(2), new BN(2));
@@ -643,9 +926,9 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
             await time.increase(ONE_WEEK.addn(1));
 
             // This is the total reward per staked token, since the last update
-            const rewardPerToken = await stakingRewards.rewardPerToken();
+            const [rewardPerToken, platformRewardPerToken] = await stakingRewards.rewardPerToken();
             assertBNClose(
-                rewardPerToken[0],
+                rewardPerToken,
                 ONE_WEEK.mul(rewardRate)
                     .mul(fullScale)
                     .div(stakeAmount),
@@ -654,15 +937,19 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                     .mul(fullScale)
                     .div(stakeAmount),
             );
+            expect(platformRewardPerToken).bignumber.eq(new BN(0));
 
             // Calc estimated unclaimed reward for the user
             // earned == balance * (rewardPerToken-userExistingReward)
-            const earnedAfterConsequentStake = await stakingRewards.earned(sa.default);
+            const [earnedAfterConsequentStake, platformEarned] = await stakingRewards.earned(
+                sa.default,
+            );
             assertBNSlightlyGT(
                 simpleToExactAmount(100, 12),
-                earnedAfterConsequentStake[0],
+                earnedAfterConsequentStake,
                 simpleToExactAmount(1, 9),
             );
+            expect(platformEarned).bignumber.eq(new BN(0));
         });
     });
 
@@ -674,6 +961,7 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
             const readToken = await stakingRewards.getRewardToken();
             expect(readToken).eq(rewardToken.address);
             expect(readToken).eq(await stakingRewards.rewardsToken());
+            expect(platformToken.address).eq(await stakingRewards.platformToken());
         });
     });
 
@@ -698,6 +986,8 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
             });
         });
         context("before current period finish", async () => {
+            const airdrop1 = simpleToExactAmount(100, 18);
+            const airdrop2 = simpleToExactAmount(200, 18);
             const funding1 = simpleToExactAmount(100, 18);
             const funding2 = simpleToExactAmount(200, 18);
             beforeEach(async () => {
@@ -705,33 +995,53 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
             });
             it("should factor in unspent units to the new rewardRate", async () => {
                 // Do the initial funding
-                await expectSuccesfulFunding(funding1);
+                await platformToken.transfer(stakingRewards.address, airdrop1, {
+                    from: rewardsDistributor,
+                });
+                await expectSuccesfulFunding(funding1, airdrop1);
                 const actualRewardRate = await stakingRewards.rewardRate();
+                const actualPlatformRewardRate = await stakingRewards.platformRewardRate();
                 const expectedRewardRate = funding1.div(ONE_WEEK);
                 expect(expectedRewardRate).bignumber.eq(actualRewardRate);
+                expect(expectedRewardRate).bignumber.eq(actualPlatformRewardRate);
 
                 // Zoom forward half a week
                 await time.increase(ONE_WEEK.divn(2));
 
                 // Do the second funding, and factor in the unspent units
                 const expectedLeftoverReward = funding1.divn(2);
-                await expectSuccesfulFunding(funding2);
+                await platformToken.transfer(stakingRewards.address, airdrop2, {
+                    from: rewardsDistributor,
+                });
+                await expectSuccesfulFunding(funding2, airdrop2);
                 const actualRewardRateAfter = await stakingRewards.rewardRate();
+                const actualPlatformRewardRateAfter = await stakingRewards.platformRewardRate();
                 const totalRewardsForWeek = funding2.add(expectedLeftoverReward);
                 const expectedRewardRateAfter = totalRewardsForWeek.div(ONE_WEEK);
                 assertBNClose(
                     actualRewardRateAfter,
                     expectedRewardRateAfter,
-                    funding1.div(ONE_WEEK),
+                    actualRewardRate.div(ONE_WEEK.subn(2)), // effect of 1 second on the week
+                );
+                assertBNClose(
+                    actualPlatformRewardRateAfter,
+                    expectedRewardRateAfter,
+                    actualRewardRate.div(ONE_WEEK.subn(2)), // effect of 1 second on the week
                 );
             });
 
             it("should factor in unspent units to the new rewardRate if instant", async () => {
                 // Do the initial funding
-                await expectSuccesfulFunding(funding1);
+                await platformToken.transfer(stakingRewards.address, airdrop1, {
+                    from: rewardsDistributor,
+                });
+                await expectSuccesfulFunding(funding1, airdrop1);
                 const actualRewardRate = await stakingRewards.rewardRate();
                 const expectedRewardRate = funding1.div(ONE_WEEK);
                 expect(expectedRewardRate).bignumber.eq(actualRewardRate);
+                const actualPlatformRewardRate = await stakingRewards.platformRewardRate();
+                const expectedPlatformRewardRate = airdrop1.div(ONE_WEEK);
+                expect(expectedPlatformRewardRate).bignumber.eq(actualPlatformRewardRate);
 
                 // Zoom forward 1 second
                 await time.increase(1);
@@ -743,19 +1053,30 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                 assertBNClose(
                     actualRewardRateAfter,
                     expectedRewardRateAfter,
-                    funding1.add(funding2).div(ONE_WEEK.subn(1)),
+                    actualRewardRate.div(ONE_WEEK.subn(1)),
+                );
+
+                const actualPlatformRewardRateAfter = await stakingRewards.platformRewardRate();
+                assertBNClose(
+                    actualPlatformRewardRateAfter,
+                    actualPlatformRewardRate,
+                    actualPlatformRewardRate.div(ONE_WEEK.subn(1)),
                 );
             });
         });
 
         context("after current period finish", () => {
+            const airdrop1 = simpleToExactAmount(1, 18);
             const funding1 = simpleToExactAmount(100, 18);
             before(async () => {
                 stakingRewards = await redeployRewards();
             });
             it("should start a new period with the correct rewardRate", async () => {
                 // Do the initial funding
-                await expectSuccesfulFunding(funding1);
+                await platformToken.transfer(stakingRewards.address, airdrop1, {
+                    from: rewardsDistributor,
+                });
+                await expectSuccesfulFunding(funding1, airdrop1);
                 const actualRewardRate = await stakingRewards.rewardRate();
                 const expectedRewardRate = funding1.div(ONE_WEEK);
                 expect(expectedRewardRate).bignumber.eq(actualRewardRate);
@@ -768,6 +1089,9 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                 const actualRewardRateAfter = await stakingRewards.rewardRate();
                 const expectedRewardRateAfter = expectedRewardRate.muln(2);
                 expect(actualRewardRateAfter).bignumber.eq(expectedRewardRateAfter);
+
+                const actualPlatformRewardRateAfter = await stakingRewards.platformRewardRate();
+                expect(actualPlatformRewardRateAfter).bignumber.eq(new BN(0));
             });
         });
     });
@@ -779,7 +1103,10 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
 
             before(async () => {
                 stakingRewards = await redeployRewards();
-                await expectSuccesfulFunding(fundAmount);
+                await platformToken.transfer(stakingRewards.address, fundAmount, {
+                    from: rewardsDistributor,
+                });
+                await expectSuccesfulFunding(fundAmount, fundAmount);
                 await expectSuccessfulStake(stakeAmount);
                 await time.increase(10);
             });
@@ -805,6 +1132,7 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                 // Check that the user has earned something
                 const earnedBefore = await stakingRewards.earned(sa.default);
                 expect(earnedBefore[0]).bignumber.gt(new BN(0) as any);
+                expect(earnedBefore[1]).bignumber.gt(new BN(0) as any);
                 const rewardsBefore = await stakingRewards.rewards(sa.default);
                 expect(rewardsBefore).bignumber.eq(new BN(0));
 
@@ -814,6 +1142,7 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                 // Ensure that the new awards are added + assigned to user
                 const earnedAfter = await stakingRewards.earned(sa.default);
                 expect(earnedAfter[0]).bignumber.gte(earnedBefore[0] as any);
+                expect(earnedAfter[1]).bignumber.gte(earnedBefore[1] as any);
                 const rewardsAfter = await stakingRewards.rewards(sa.default);
                 expect(rewardsAfter).bignumber.eq(earnedAfter[0]);
 
@@ -823,6 +1152,7 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                 // Check that the user does not earn anything else
                 const earnedEnd = await stakingRewards.earned(sa.default);
                 expect(earnedEnd[0]).bignumber.eq(earnedAfter[0]);
+                expect(earnedEnd[1]).bignumber.eq(earnedAfter[1]);
                 const rewardsEnd = await stakingRewards.rewards(sa.default);
                 expect(rewardsEnd).bignumber.eq(rewardsAfter);
 
@@ -834,6 +1164,92 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
             });
         });
         context("claiming rewards", async () => {
+            const airdropAmount = simpleToExactAmount(100, 21);
+            const fundAmount = simpleToExactAmount(100, 21);
+            const stakeAmount = simpleToExactAmount(100, 18);
+
+            before(async () => {
+                stakingRewards = await redeployRewards();
+                await platformToken.transfer(stakingRewards.address, airdropAmount, {
+                    from: rewardsDistributor,
+                });
+                await rewardToken.transfer(stakingRewards.address, fundAmount, {
+                    from: rewardsDistributor,
+                });
+                await expectSuccesfulFunding(fundAmount, airdropAmount);
+                await expectSuccessfulStake(stakeAmount);
+                await time.increase(ONE_WEEK.addn(1));
+            });
+            it("should do nothing for a non-staker", async () => {
+                const beforeData = await snapshotStakingData(sa.dummy1, sa.dummy1);
+                await stakingRewards.claimReward({ from: sa.dummy1 });
+
+                const afterData = await snapshotStakingData(sa.dummy1, sa.dummy1);
+                expect(beforeData.beneficiaryRewardsEarned).bignumber.eq(new BN(0));
+                expect(afterData.beneficiaryRewardsEarned).bignumber.eq(new BN(0));
+                expect(afterData.beneficiaryPlatformRewardsEarned).bignumber.eq(new BN(0));
+                expect(afterData.senderStakingTokenBalance).bignumber.eq(new BN(0));
+                expect(afterData.userRewardPerTokenPaid).bignumber.eq(
+                    afterData.rewardPerTokenStored,
+                );
+                expect(afterData.userPlatformRewardPerTokenPaid).bignumber.eq(
+                    afterData.platformRewardPerTokenStored,
+                );
+            });
+            it("should send all accrued rewards to the vault and withdraw platform token", async () => {
+                const beforeData = await snapshotStakingData();
+                const lockupBalanceBefore = await rewardsVault.getBalance(
+                    sa.default,
+                    await rewardsVault.getCurrentPeriod(),
+                );
+                expect(lockupBalanceBefore).bignumber.eq(new BN(0));
+                // Expect no platform rewards before
+                const platformBalanceBefore = await platformToken.balanceOf(sa.default);
+                expect(platformBalanceBefore).bignumber.eq(new BN(0));
+
+                const tx = await stakingRewards.claimReward();
+                const afterData = await snapshotStakingData();
+
+                await assertRewardsAssigned(beforeData, afterData, false, true, true);
+
+                // Balance transferred to the vault
+                const lockupBalanceAfter = await rewardsVault.getBalance(
+                    sa.default,
+                    await rewardsVault.getCurrentPeriod(),
+                );
+                assertBNClose(lockupBalanceAfter, fundAmount, simpleToExactAmount(1, 16));
+                // Expect the platform rewards to send out
+                const platformBalanceAfter = await platformToken.balanceOf(sa.default);
+                assertBNClose(platformBalanceAfter, airdropAmount, simpleToExactAmount(1, 16));
+                expect(afterData.platformTokenBalanceVendor).bignumber.eq(
+                    beforeData.platformTokenBalanceVendor.sub(platformBalanceAfter),
+                );
+
+                expectEvent(tx.receipt, "RewardPaid", {
+                    user: sa.default,
+                    reward: lockupBalanceAfter.sub(lockupBalanceBefore),
+                    platformReward: beforeData.platformTokenBalanceVendor.sub(
+                        afterData.platformTokenBalanceVendor,
+                    ),
+                });
+                // 'rewards' reset to 0
+                expect(afterData.beneficiaryRewardsEarned).bignumber.eq(new BN(0));
+                expect(afterData.beneficiaryPlatformRewardsEarned).bignumber.eq(new BN(0));
+                // Paid up until the last block
+                expect(afterData.userRewardPerTokenPaid).bignumber.eq(
+                    afterData.rewardPerTokenStored,
+                );
+                expect(afterData.userPlatformRewardPerTokenPaid).bignumber.eq(
+                    afterData.platformRewardPerTokenStored,
+                );
+                // Token balances dont change
+                expect(afterData.senderStakingTokenBalance).bignumber.eq(
+                    beforeData.senderStakingTokenBalance,
+                );
+                expect(beforeData.userStakingBalance).bignumber.eq(afterData.userStakingBalance);
+            });
+        });
+        context("claiming rewards only", async () => {
             const fundAmount = simpleToExactAmount(100, 21);
             const stakeAmount = simpleToExactAmount(100, 18);
 
@@ -848,7 +1264,7 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
             });
             it("should do nothing for a non-staker", async () => {
                 const beforeData = await snapshotStakingData(sa.dummy1, sa.dummy1);
-                await stakingRewards.claimReward({ from: sa.dummy1 });
+                await stakingRewards.claimRewardOnly({ from: sa.dummy1 });
 
                 const afterData = await snapshotStakingData(sa.dummy1, sa.dummy1);
                 expect(beforeData.beneficiaryRewardsEarned).bignumber.eq(new BN(0));
@@ -865,10 +1281,7 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                     await rewardsVault.getCurrentPeriod(),
                 );
                 expect(lockupBalanceBefore).bignumber.eq(new BN(0));
-                const tx = await stakingRewards.claimReward();
-                expectEvent(tx.receipt, "RewardPaid", {
-                    user: sa.default,
-                });
+                const tx = await stakingRewards.claimRewardOnly();
                 const afterData = await snapshotStakingData();
                 await assertRewardsAssigned(beforeData, afterData, false, true);
                 // Balance transferred to the vault
@@ -876,6 +1289,11 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                     sa.default,
                     await rewardsVault.getCurrentPeriod(),
                 );
+                expectEvent(tx.receipt, "RewardPaid", {
+                    user: sa.default,
+                    reward: lockupBalanceAfter.sub(lockupBalanceBefore),
+                    platformReward: new BN(0),
+                });
                 assertBNClose(lockupBalanceAfter, fundAmount, simpleToExactAmount(1, 16));
 
                 // 'rewards' reset to 0
@@ -953,9 +1371,47 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
         });
     });
     context("testing platformTokenVendor", () => {
-        it("should re-approve spending of the platformToken");
+        before(async () => {
+            stakingRewards = await redeployRewards();
+        });
+        it("should re-approve spending of the platformToken", async () => {
+            const beforeData = await snapshotStakingData();
+            const maxApproval = await platformToken.allowance(
+                beforeData.platformTokenVendor,
+                stakingRewards.address,
+            );
+            expect(maxApproval).bignumber.eq(MAX_UINT256);
+
+            const fundAmount = simpleToExactAmount(1, 18);
+            await rewardToken.transfer(stakingRewards.address, fundAmount, {
+                from: rewardsDistributor,
+            });
+            await platformToken.transfer(stakingRewards.address, fundAmount, {
+                from: rewardsDistributor,
+            });
+            await expectSuccesfulFunding(fundAmount, fundAmount);
+            await expectSuccessfulStake(fundAmount);
+            await time.increase(ONE_WEEK.addn(1));
+            await stakingRewards.exit();
+
+            const approvalAfter = await platformToken.allowance(
+                beforeData.platformTokenVendor,
+                stakingRewards.address,
+            );
+            expect(approvalAfter).bignumber.lt(MAX_UINT256 as any);
+
+            const vendor = await PlatformTokenVendor.at(beforeData.platformTokenVendor);
+            await vendor.reApproveOwner();
+
+            const approvalEnd = await platformToken.allowance(
+                beforeData.platformTokenVendor,
+                stakingRewards.address,
+            );
+            expect(approvalEnd).bignumber.eq(MAX_UINT256);
+        });
     });
     context("running a full integration test", () => {
+        const airdropAmount = simpleToExactAmount(200, 21);
         const fundAmount = simpleToExactAmount(100, 21);
         const stakeAmount = simpleToExactAmount(100, 18);
         let period;
@@ -964,10 +1420,13 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
             stakingRewards = await redeployRewards();
         });
         it("1. should allow the rewardsDistributor to fund the pool", async () => {
+            await platformToken.transfer(stakingRewards.address, airdropAmount, {
+                from: rewardsDistributor,
+            });
             await rewardToken.transfer(stakingRewards.address, fundAmount, {
                 from: rewardsDistributor,
             });
-            await expectSuccesfulFunding(fundAmount);
+            await expectSuccesfulFunding(fundAmount, airdropAmount);
         });
         it("2. should allow stakers to stake and earn rewards", async () => {
             await expectSuccessfulStake(stakeAmount);
@@ -984,7 +1443,10 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
             const lockupBalanceAfter = await rewardsVault.getBalance(sa.default, period);
             assertBNClose(lockupBalanceAfter, fundAmount, simpleToExactAmount(1, 16));
 
-            await assertRewardsAssigned(beforeData, afterData, false, true);
+            const platformBalanceAfter = await platformToken.balanceOf(sa.default);
+            assertBNClose(platformBalanceAfter, airdropAmount, simpleToExactAmount(1, 16));
+
+            await assertRewardsAssigned(beforeData, afterData, false, true, true);
         });
         it("4. should allow users to vest after the vesting period", async () => {
             await time.increase(ONE_WEEK.muln(27));

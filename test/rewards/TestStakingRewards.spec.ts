@@ -279,7 +279,7 @@ contract("StakingRewards", async (accounts) => {
             assertBNClose(
                 total.div(ONE_WEEK),
                 afterData.rewardRate,
-                beforeData.rewardRate.div(ONE_WEEK), // the effect of 1 second on the future scale
+                beforeData.rewardRate.div(ONE_WEEK.subn(1)), // the effect of 1 second on the future scale
             );
         } else {
             expect(rewardUnits.div(ONE_WEEK)).bignumber.eq(afterData.rewardRate);
@@ -701,7 +701,7 @@ contract("StakingRewards", async (accounts) => {
                 assertBNClose(
                     actualRewardRateAfter,
                     expectedRewardRateAfter,
-                    funding1.div(ONE_WEEK),
+                    actualRewardRate.div(ONE_WEEK.subn(1)),
                 );
             });
             it("should factor in unspent units to the new rewardRate if instant", async () => {
@@ -721,7 +721,7 @@ contract("StakingRewards", async (accounts) => {
                 assertBNClose(
                     actualRewardRateAfter,
                     expectedRewardRateAfter,
-                    funding1.add(funding2).div(ONE_WEEK.subn(1)),
+                    actualRewardRate.div(ONE_WEEK.subn(1)),
                 );
             });
         });
