@@ -14,6 +14,7 @@
     "coverage": "node --max_old_space_size=6144 node_modules/truffle/build/cli.bundled.js run coverage --network coverage --solcoverjs './.solcover.js'",
     "script": "yarn truffle exec ./scripts/main.js",
     "test": "yarn run test-prep; truffle test;",
+    "test-file": "truffle test",
     "test:fork": "yarn run test-prep; truffle test --network fork;",
     "test-prep": "yarn run compile; yarn run generate-typings;",
     "test-lite": " truffle test",
@@ -22,9 +23,9 @@
     "prettify": "prettier --write test/*.ts test/**/*.ts types/generated/*.ts types/*.ts artifacts/*.ts",
     "flatten": "sol-merger \"./contracts/**/*.sol\" ./_flat"
   },
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/mstable/mstable-contracts.git"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mstable/mstable-contracts.git"
   },
   "devDependencies": {
     "@openzeppelin/contracts": "2.5.0",
