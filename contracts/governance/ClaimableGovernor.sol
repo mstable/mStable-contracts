@@ -6,6 +6,8 @@ import { Governable } from "./Governable.sol";
  * @title   ClaimableGovernor
  * @author  Stability Labs Pty. Ltd.
  * @notice  2 way handshake for Governance transfer
+ * @dev     Overrides the public functions in Governable to provide
+ * a second step of validation.
  */
 contract ClaimableGovernor is Governable {
 

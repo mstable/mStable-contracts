@@ -17,8 +17,8 @@ mkdir -p ./securify/securify-report
 
 # Loop each file present in `flat` folder and run slither on it
 # Slither report of each file will be created under `slither-report` folder
-for filename in ../flat/*.sol; do
+for filename in ../_flat/*.sol; do
 	
 	name=${filename##*/}
-   	docker run -it -v $PWD/../flat:/share securify /share/$name 2>&1 | sed 's/\x1B\[[0-9;]\+[A-Za-z]//g' | tee ./securify/securify-report/$name.log
+   	docker run -it -v $PWD/../_flat:/share securify /share/$name 2>&1 | sed 's/\x1B\[[0-9;]\+[A-Za-z]//g' | tee ./securify/securify-report/$name.log
 done
