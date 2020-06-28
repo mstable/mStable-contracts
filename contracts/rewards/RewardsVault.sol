@@ -33,7 +33,7 @@ contract RewardsVault is ReentrancyGuard, Module {
     uint256 public vaultStartTime;
     bool private allRewardsUnlocked = false;
 
-    IERC20 private vestingToken;
+    IERC20 public vestingToken;
 
     /** @dev All data for keeping track of rewards. Tranche ID starts at 0 (see _currentTrancheNumber) */
     mapping(uint256 => mapping(address => uint256)) internal vestingBalances;
@@ -64,6 +64,7 @@ contract RewardsVault is ReentrancyGuard, Module {
         external
         nonReentrant
     {
+        require(_rewardee != address(0), "Rewardee cannot be null");
         uint256 currentPeriod = _getCurrentPeriod();
 
         if(allRewardsUnlocked) {
