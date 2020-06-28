@@ -9,7 +9,6 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { InitializablePausableModule } from "../shared/InitializablePausableModule.sol";
 import { IBasketManager } from "../interfaces/IBasketManager.sol";
 import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
-import { PausableModule } from "../shared/PausableModule.sol";
 
 // Libs
 import { CommonHelpers } from "../shared/CommonHelpers.sol";

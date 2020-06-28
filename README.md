@@ -16,13 +16,19 @@ Core mAsset contracts utilise OpenZeppelin's [InitializableAdminUpgradeabilityPr
 
 mStable rewards those who contribute to its utility and growth - for more information see [MTA rewards](https://docs.mstable.org/meta-rewards-1/).
 
-For security concerns, visit https://docs.mstable.org/protocol/ or email security@mstable.org.
 
 <br />
 
 🏠 https://mstable.org  
 📀 https://app.mstable.org  
 📄 https://docs.mstable.org  
+
+
+<br />
+
+## Bug bounty
+
+Found a bug? Claim a reward from our open [Bug Bounty](https://docs.mstable.org/protocol/security/mstable-bug-bounty) by reporting it to mStable (following the [responsible disclosure](https://docs.mstable.org/protocol/security/mstable-bug-bounty#responsible-disclosure) policy)
 
 
 <br />
