@@ -176,7 +176,6 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
         const timeAfter = await time.latest();
         const periodIsFinished = new BN(timeAfter).gt(beforeData.periodFinishTime);
 
-        console.log("0.3.1");
         //    LastUpdateTime
         expect(
             periodIsFinished
@@ -185,7 +184,7 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                 ? beforeData.lastUpdateTime
                 : timeAfter,
         ).bignumber.eq(afterData.lastUpdateTime);
-        console.log("0.3.2");
+
         //    RewardRate doesnt change
         expect(beforeData.rewardRate).bignumber.eq(afterData.rewardRate);
         expect(beforeData.platformRewardRate).bignumber.eq(afterData.platformRewardRate);
@@ -196,7 +195,7 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
         expect(afterData.platformRewardPerTokenStored).bignumber.gte(
             beforeData.platformRewardPerTokenStored as any,
         );
-        console.log("0.3.3");
+
         //      Calculate exact expected 'rewardPerToken' increase since last update
         const timeApplicableToRewards = periodIsFinished
             ? beforeData.periodFinishTime.sub(beforeData.lastUpdateTime)
@@ -213,14 +212,13 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                   .mul(timeApplicableToRewards)
                   .mul(fullScale)
                   .div(beforeData.totalSupply);
-        console.log("0.3.4");
+
         expect(beforeData.rewardPerTokenStored.add(increaseInRewardPerToken)).bignumber.eq(
             afterData.rewardPerTokenStored,
         );
         expect(
             beforeData.platformRewardPerTokenStored.add(increaseInPlatformRewardPerToken),
         ).bignumber.eq(afterData.platformRewardPerTokenStored);
-        console.log("0.3.5");
 
         // Expect updated personal state
         //    userRewardPerTokenPaid(beneficiary) should update
@@ -229,7 +227,6 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
             afterData.platformRewardPerTokenStored,
         );
 
-        console.log("0.3.6");
         //    If existing staker, then rewards Should increase
         if (shouldResetRewards) {
             expect(afterData.beneficiaryRewardsEarned).bignumber.eq(new BN(0));
@@ -251,7 +248,6 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
             );
         }
 
-        console.log("0.3.7");
         //    If existing staker, then platform rewards Should increase
         if (shouldResetPlatformRewards) {
             expect(afterData.beneficiaryPlatformRewardsEarned).bignumber.eq(new BN(0));
@@ -291,7 +287,7 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
         // 1. Get data from the contract
         const senderIsBeneficiary = sender === beneficiary;
         const beforeData = await snapshotStakingData(sender, beneficiary);
-        console.log("0.1");
+
         const isExistingStaker = beforeData.userStakingBalance.gt(new BN(0));
         if (confirmExistingStaker) {
             expect(isExistingStaker).eq(true);
@@ -300,7 +296,7 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
         await stakingToken.approve(stakingRewards.address, stakeAmount, {
             from: sender,
         });
-        console.log("0.2");
+
         const tx = await (senderIsBeneficiary
             ? stakingRewards.methods["stake(uint256)"](stakeAmount, {
                   from: sender,
@@ -314,23 +310,21 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
             payer: sender,
         });
 
-        console.log("0.3");
         // 3. Ensure rewards are accrued to the beneficiary
         const afterData = await snapshotStakingData(sender, beneficiary);
         await assertRewardsAssigned(beforeData, afterData, isExistingStaker);
 
-        console.log("0.4");
         // 4. Expect token transfer
         //    StakingToken balance of sender
         expect(beforeData.senderStakingTokenBalance.sub(stakeAmount)).bignumber.eq(
             afterData.senderStakingTokenBalance,
         );
-        console.log("0.5");
+
         //    StakingToken balance of StakingRewardsWithPlatformToken
         expect(beforeData.contractStakingTokenBalance.add(stakeAmount)).bignumber.eq(
             afterData.contractStakingTokenBalance,
         );
-        console.log("0.6");
+
         //    TotalSupply of StakingRewardsWithPlatformToken
         expect(beforeData.totalSupply.add(stakeAmount)).bignumber.eq(afterData.totalSupply);
     };
@@ -365,7 +359,7 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
         );
 
         const afterData = await snapshotStakingData();
-        console.log("000");
+
         // Expect the tokens to be transferred to the vendor
         expect(afterData.platformTokenBalanceStakingRewards).bignumber.eq(new BN(0));
         expect(afterData.platformTokenBalanceVendor).bignumber.eq(
@@ -373,16 +367,16 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                 beforeData.platformTokenBalanceStakingRewards,
             ),
         );
-        console.log("001");
+
         // Sets lastTimeRewardApplicable to latest
         expect(cur).bignumber.eq(afterData.lastTimeRewardApplicable);
-        console.log("002");
+
         // Sets lastUpdateTime to latest
         expect(cur).bignumber.eq(afterData.lastUpdateTime);
-        console.log("003");
+
         // Sets periodFinish to 1 week from now
         expect(cur.add(ONE_WEEK)).bignumber.eq(afterData.periodFinishTime);
-        console.log("004");
+
         // Sets rewardRate to rewardUnits / ONE_WEEK
         if (leftOverRewards.gtn(0)) {
             const total = rewardUnits.add(leftOverRewards);
@@ -394,7 +388,7 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
         } else {
             expect(rewardUnits.div(ONE_WEEK)).bignumber.eq(afterData.rewardRate);
         }
-        console.log("005");
+
         // Sets platformRewardRate to rewardUnits / ONE_WEEK
         if (leftOverPlatformRewards.gtn(0)) {
             const total = platformUnitsExpected.add(leftOverRewards);
@@ -1053,14 +1047,14 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                 assertBNClose(
                     actualRewardRateAfter,
                     expectedRewardRateAfter,
-                    actualRewardRate.div(ONE_WEEK.subn(4)),
+                    actualRewardRate.div(ONE_WEEK).muln(3),
                 );
 
                 const actualPlatformRewardRateAfter = await stakingRewards.platformRewardRate();
                 assertBNClose(
                     actualPlatformRewardRateAfter,
                     actualPlatformRewardRate,
-                    actualPlatformRewardRate.div(ONE_WEEK.subn(4)),
+                    actualPlatformRewardRate.div(ONE_WEEK).muln(3),
                 );
             });
         });
