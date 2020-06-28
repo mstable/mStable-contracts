@@ -383,7 +383,7 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
             assertBNClose(
                 total.div(ONE_WEEK),
                 afterData.rewardRate,
-                beforeData.rewardRate.div(ONE_WEEK.subn(1)), // the effect of 1 second on the future scale
+                beforeData.rewardRate.div(ONE_WEEK).muln(5), // the effect of 1 second on the future scale
             );
         } else {
             expect(rewardUnits.div(ONE_WEEK)).bignumber.eq(afterData.rewardRate);
@@ -480,7 +480,7 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                 assertBNClose(
                     rewardPerToken,
                     ONE_DAY.mul(rewardPerSecond),
-                    rewardPerSecond.muln(3),
+                    rewardPerSecond.muln(10),
                 );
                 const platformRewardPerSecond = new BN(1)
                     .mul(platformRewardRate)
@@ -489,7 +489,7 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                 assertBNClose(
                     platformRewardPerToken,
                     ONE_DAY.mul(platformRewardPerSecond),
-                    platformRewardPerSecond.muln(3),
+                    platformRewardPerSecond.muln(10),
                 );
                 // Calc estimated unclaimed reward for the user
                 // earned == balance * (rewardPerToken-userExistingReward)
@@ -1015,12 +1015,12 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                 assertBNClose(
                     actualRewardRateAfter,
                     expectedRewardRateAfter,
-                    actualRewardRate.div(ONE_WEEK.subn(2)), // effect of 1 second on the week
+                    actualRewardRate.div(ONE_WEEK).muln(5), // effect of 5 seconds on the week
                 );
                 assertBNClose(
                     actualPlatformRewardRateAfter,
                     expectedRewardRateAfter,
-                    actualRewardRate.div(ONE_WEEK.subn(2)), // effect of 1 second on the week
+                    actualRewardRate.div(ONE_WEEK).muln(5), // effect of 5 seconds on the week
                 );
             });
 

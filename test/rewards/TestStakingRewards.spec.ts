@@ -279,7 +279,7 @@ contract("StakingRewards", async (accounts) => {
             assertBNClose(
                 total.div(ONE_WEEK),
                 afterData.rewardRate,
-                beforeData.rewardRate.div(ONE_WEEK.subn(1)), // the effect of 1 second on the future scale
+                beforeData.rewardRate.div(ONE_WEEK).muln(5), // the effect of 1 second on the future scale
             );
         } else {
             expect(rewardUnits.div(ONE_WEEK)).bignumber.eq(afterData.rewardRate);
@@ -354,7 +354,7 @@ contract("StakingRewards", async (accounts) => {
                 assertBNClose(
                     rewardPerToken,
                     ONE_DAY.mul(rewardPerSecond),
-                    rewardPerSecond.muln(2),
+                    rewardPerSecond.muln(10),
                 );
 
                 // Calc estimated unclaimed reward for the user
@@ -701,7 +701,7 @@ contract("StakingRewards", async (accounts) => {
                 assertBNClose(
                     actualRewardRateAfter,
                     expectedRewardRateAfter,
-                    actualRewardRate.div(ONE_WEEK.subn(1)),
+                    actualRewardRate.div(ONE_WEEK).muln(5),
                 );
             });
             it("should factor in unspent units to the new rewardRate if instant", async () => {
