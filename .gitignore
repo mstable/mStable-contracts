@@ -32,7 +32,9 @@ typings/
 .next
 
 # truffle
+cache/
 build/
+artifacts/
 contracts-output/
 
 # TSC
