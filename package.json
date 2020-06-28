@@ -13,7 +13,7 @@
     "lint-sol": "solium -d contracts/ --fix ",
     "coverage": "node --max_old_space_size=6144 node_modules/truffle/build/cli.bundled.js run coverage --network coverage --solcoverjs './.solcover.js'",
     "script": "yarn truffle exec ./scripts/main.js",
-    "test": "yarn run test-prep; budiler test;",
+    "test": "yarn run test-prep; buidler test;",
     "test:fork": "yarn run test-prep; truffle test --network fork;",
     "test-prep": "yarn run compile; yarn run generate-typings;",
     "test-lite": " truffle test",
