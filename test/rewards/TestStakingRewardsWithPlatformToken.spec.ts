@@ -1053,14 +1053,14 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                 assertBNClose(
                     actualRewardRateAfter,
                     expectedRewardRateAfter,
-                    actualRewardRate.div(ONE_WEEK.subn(1)),
+                    actualRewardRate.div(ONE_WEEK.subn(2)),
                 );
 
                 const actualPlatformRewardRateAfter = await stakingRewards.platformRewardRate();
                 assertBNClose(
                     actualPlatformRewardRateAfter,
                     actualPlatformRewardRate,
-                    actualPlatformRewardRate.div(ONE_WEEK.subn(1)),
+                    actualPlatformRewardRate.div(ONE_WEEK.subn(2)),
                 );
             });
         });

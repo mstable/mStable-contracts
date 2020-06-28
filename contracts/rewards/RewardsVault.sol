@@ -9,6 +9,7 @@ import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 
 
 interface IRewardsVault {
+    function airdropRewards(address[] calldata rewardees, uint256[] calldata amounts) external;
     function lockupRewards(address rewardee, uint256 amount) external;
     function vestRewards(uint256[] calldata periods) external returns (uint256);
 }
@@ -25,6 +26,7 @@ contract RewardsVault is ReentrancyGuard, Module {
 
     event Deposited(address indexed rewardee, uint256 amount, uint256 period);
     event Vested(address indexed user, uint256 cumulative, uint256[] period);
+    event AllRewardsUnlocked();
 
     uint256 public constant LOCKUP_PERIODS = 26;
     uint256 public constant PERIOD = 1 weeks;
@@ -80,6 +82,39 @@ contract RewardsVault is ReentrancyGuard, Module {
         }
     }
 
+    /**
+     * @dev Airdrops an amount of vestingTokens to the lockup
+     * @param _rewardees    To whom should these tokens be credited?
+     * @param _amounts      Amount of token to transfer
+     */
+    function airdropRewards(
+        address[] calldata _rewardees,
+        uint256[] calldata _amounts
+    )
+        external
+        nonReentrant
+    {
+        uint256 len = _rewardees.length;
+        require(len > 0 && len == _amounts.length, "Invalid input data");
+
+        uint256 sumOfAmounts = 0;
+        for(uint256 i = 0; i < len; i++){
+            sumOfAmounts = sumOfAmounts.add(_amounts[i]);
+        }
+
+        vestingToken.safeTransferFrom(msg.sender, address(this), sumOfAmounts);
+
+        uint256 currentPeriod = _getCurrentPeriod();
+
+        for(uint256 i = 0; i < len; i++){
+            address rewardee = _rewardees[i];
+            uint256 amount = _amounts[i];
+            vestingBalances[currentPeriod][rewardee] = vestingBalances[currentPeriod][rewardee].add(amount);
+            emit Deposited(rewardee, amount, currentPeriod);
+        }
+    }
+
+
     /***************************************
                     VESTING
     ****************************************/
@@ -96,10 +131,11 @@ contract RewardsVault is ReentrancyGuard, Module {
         returns (uint256)
     {
         uint256 len = _periods.length;
+        require(len > 0, "Must vest some periods");
+
         uint256 currentPeriod = _getCurrentPeriod();
 
         uint256 cumulativeVested = 0;
-
         for(uint256 i = 0; i < len; i++){
             uint256 periodToVest = _periods[i];
             require(_periodIsUnlocked(currentPeriod, periodToVest), "Period must be unlocked to vest");
@@ -133,8 +169,8 @@ contract RewardsVault is ReentrancyGuard, Module {
     {
         require(!allRewardsUnlocked, "Flag already set");
         allRewardsUnlocked = true;
+        emit AllRewardsUnlocked();
     }
-
 
     /***************************************
                     GETTERS
