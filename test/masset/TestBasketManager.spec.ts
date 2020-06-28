@@ -213,7 +213,7 @@ contract("BasketManager", async (accounts) => {
 
             it("when integration array is empty", async () => {
                 const bm = await BasketManager.new();
-                await expectRevert.assertion(
+                await expectRevert.unspecified(
                     bm.initialize(
                         nexus.address,
                         masset,
@@ -242,7 +242,7 @@ contract("BasketManager", async (accounts) => {
 
             it("when tokenFee array is empty", async () => {
                 const bm = await BasketManager.new();
-                await expectRevert.assertion(
+                await expectRevert.unspecified(
                     bm.initialize(
                         nexus.address,
                         masset,
@@ -382,7 +382,7 @@ contract("BasketManager", async (accounts) => {
                 integrationDetails.aTokens.map(async (a, index) => {
                     const invalidIndex = index + 5;
                     const bAssetBefore = await basketManager.getBasset(a.bAsset);
-                    await expectRevert.assertion(
+                    await expectRevert.unspecified(
                         basketManager.increaseVaultBalance(
                             invalidIndex,
                             aaveIntegration.address,
@@ -524,7 +524,7 @@ contract("BasketManager", async (accounts) => {
                 integrationDetails.aTokens.map(async (a, index) => {
                     const invalidIndex = index + 5;
                     const bAssetBefore = await basketManager.getBasset(a.bAsset);
-                    await expectRevert.assertion(
+                    await expectRevert.unspecified(
                         basketManager.decreaseVaultBalance(
                             invalidIndex,
                             aaveIntegration.address,
@@ -1419,7 +1419,7 @@ contract("BasketManager", async (accounts) => {
             const movedBassetIntegratorAfter = await mockBasketManager.getBassetIntegrator(
                 movedBasset,
             );
-            await expectRevert(mockBasketManager.integrations(3), "invalid opcode");
+            await expectRevert.unspecified(mockBasketManager.integrations(3));
 
             expect(unmovedBassetIntegratorBefore).eq(unmovedBassetIntegratorAfter);
             expect(movedBassetIntegratorBefore).eq(movedBassetIntegratorAfter);
@@ -1460,7 +1460,7 @@ contract("BasketManager", async (accounts) => {
             const unmovedBassetIntegratorAfter = await mockBasketManager.getBassetIntegrator(
                 unMovedBasset,
             );
-            await expectRevert(mockBasketManager.integrations(3), "invalid opcode");
+            await expectRevert.unspecified(mockBasketManager.integrations(3));
 
             expect(unmovedBassetIntegratorBefore).eq(unmovedBassetIntegratorAfter);
             expect(unmovedBassetBefore.maxWeight).eq(unmovedBassetAfter.maxWeight);

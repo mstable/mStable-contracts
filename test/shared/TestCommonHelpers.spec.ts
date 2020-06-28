@@ -59,14 +59,8 @@ contract("CommonHelpers", async (accounts) => {
         });
 
         it("should fail if passed dud addresses", async () => {
-            await expectRevert(
-                commonHelpers.getDecimals(ZERO_ADDRESS),
-                "Returned error: VM Exception while processing transaction: revert",
-            );
-            await expectRevert(
-                commonHelpers.getDecimals(sa.default),
-                "Returned error: VM Exception while processing transaction: revert",
-            );
+            await expectRevert.unspecified(commonHelpers.getDecimals(ZERO_ADDRESS));
+            await expectRevert.unspecified(commonHelpers.getDecimals(sa.default));
         });
         it("should fail if the token has lt 4 or gt 18 decimals", async () => {
             await expectRevert(
