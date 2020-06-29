@@ -11,7 +11,7 @@
     "lint": "yarn run lint-ts; yarn run lint-sol",
     "lint-ts": "yarn eslint ./test --ext .ts,.js --fix --quiet",
     "lint-sol": "solium -d contracts/ --fix ",
-    "coverage": "yarn buidler coverage --network coverage --solcoverjs ./.solcover.js --testfiles 'test/**/Test*.ts' --show-stack-traces",
+    "coverage": "node --max_old_space_size=6144 node_modules/.bin/buidler coverage --network coverage --solcoverjs ./.solcover.js --testfiles 'test/**/Test*.ts' --show-stack-traces",
     "script": "yarn truffle exec ./scripts/main.js",
     "test": "yarn run test-prep; export REPORT_GAS=false && yarn buidler test;",
     "test:fork": "yarn run test-prep; yarn buidler test --network fork;",
