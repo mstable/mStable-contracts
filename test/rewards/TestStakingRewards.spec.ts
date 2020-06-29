@@ -701,7 +701,7 @@ contract("StakingRewards", async (accounts) => {
                 assertBNClose(
                     actualRewardRateAfter,
                     expectedRewardRateAfter,
-                    actualRewardRate.div(ONE_WEEK).muln(5),
+                    actualRewardRate.div(ONE_WEEK).muln(10),
                 );
             });
             it("should factor in unspent units to the new rewardRate if instant", async () => {
@@ -721,7 +721,7 @@ contract("StakingRewards", async (accounts) => {
                 assertBNClose(
                     actualRewardRateAfter,
                     expectedRewardRateAfter,
-                    actualRewardRate.div(ONE_WEEK).muln(3),
+                    actualRewardRate.div(ONE_WEEK).muln(5),
                 );
             });
         });
