@@ -13,7 +13,7 @@
     "lint-sol": "solium -d contracts/ --fix ",
     "coverage": "node --max_old_space_size=6144 node_modules/truffle/build/cli.bundled.js run coverage --network coverage --solcoverjs './.solcover.js'",
     "script": "yarn truffle exec ./scripts/main.js",
-    "test": "yarn run test-prep; buidler test;",
+    "test": "yarn run test-prep; yarn buidler test;",
     "test:fork": "yarn run test-prep; truffle test --network fork;",
     "test-prep": "yarn run compile; yarn run generate-typings;",
     "test-lite": " truffle test",
@@ -22,9 +22,9 @@
     "prettify": "prettier --write test/*.ts test/**/*.ts types/generated/*.ts types/*.ts artifacts/*.ts",
     "flatten": "sol-merger \"./contracts/**/*.sol\" ./_flat"
   },
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/mstable/mstable-contracts.git"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mstable/mstable-contracts.git"
   },
   "devDependencies": {
     "@nomiclabs/buidler-truffle5": "^1.3.4",
@@ -59,7 +59,7 @@
     "parse-duration": "^0.1.2",
     "prettier": "^1.18.2",
     "solc": "0.5.16",
-    "solidity-coverage": "^0.7.1",
+    "solidity-coverage": "^0.7.9",
     "truffle": "5.1.22",
     "truffle-plugin-verify": "^0.3.10",
     "truffle-typings": "^1.0.8",
