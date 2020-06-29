@@ -511,6 +511,132 @@ contract MassetValidationHelper is MassetStructs {
     using StableMath for uint256;
     using SafeMath for uint256;
 
+
+    /**
+     * @dev Returns a valid bAsset with which to mint
+     * @param _mAsset Masset addr
+     * @return valid bool
+     * @return string message
+     * @return address of bAsset to mint
+     */
+    function suggestMintAsset(
+        address _mAsset
+    )
+        external
+        view
+        returns (
+            bool,
+            string memory,
+            address
+        )
+    {
+        require(_mAsset != address(0), "Invalid mAsset");
+        // Get the data
+        IBasketManager basketManager = IBasketManager(
+            IMasset(_mAsset).getBasketManager()
+        );
+        Basket memory basket = basketManager.getBasket();
+        uint256 totalSupply = IMasset(_mAsset).totalSupply();
+
+        // Calc the max weight delta (i.e is X% away from Max weight)
+        uint256 len = basket.bassets.length;
+        uint256[] memory maxWeightDelta = new uint256[](len);
+        for(uint256 i = 0; i < len; i++){
+            Basset memory bAsset = basket.bassets[i];
+            uint256 scaledBasset = bAsset.vaultBalance.mulRatioTruncate(bAsset.ratio);
+            // e.g. (1e21 * 1e18) / 1e23 = 1e16 or 1%
+            uint256 weight = scaledBasset.divPrecisely(totalSupply);
+            maxWeightDelta[i] = weight > bAsset.maxWeight ? 0 : bAsset.maxWeight.sub(weight);
+            if(bAsset.status != BassetStatus.Normal){
+                return (false, "No assets available", address(0));
+            }
+        }
+        // Ideal delta is the bAsset > 10 but closest
+        uint256 idealMaxWeight = 0;
+        address selected = address(0);
+        for(uint256 j = 0; j < len; j++){
+            uint256 bAssetDelta = maxWeightDelta[j];
+            if(bAssetDelta >= 1e17){
+                if(selected == address(0) || bAssetDelta < idealMaxWeight){
+                    idealMaxWeight = bAssetDelta;
+                    selected = basket.bassets[j].addr;
+                }
+            }
+        }
+        if(selected == address(0)){
+            return (false, "No assets available", address(0));
+        }
+        return (true, "", selected);
+    }
+
+    /**
+     * @dev Returns a valid bAsset to redeem
+     * @param _mAsset Masset addr
+     * @return valid bool
+     * @return string message
+     * @return address of bAsset to redeem
+     */
+    function suggestRedeemAsset(
+        address _mAsset
+    )
+        external
+        view
+        returns (
+            bool,
+            string memory,
+            address
+        )
+    {
+        require(_mAsset != address(0), "Invalid mAsset");
+        // Get the data
+        IBasketManager basketManager = IBasketManager(
+            IMasset(_mAsset).getBasketManager()
+        );
+        Basket memory basket = basketManager.getBasket();
+        uint256 totalSupply = IMasset(_mAsset).totalSupply();
+
+        // Calc the max weight delta (i.e is X% away from Max weight)
+        uint256 len = basket.bassets.length;
+        uint256 overweightCount = 0;
+        uint256[] memory maxWeightDelta = new uint256[](len);
+        
+        for(uint256 i = 0; i < len; i++){
+            Basset memory bAsset = basket.bassets[i];
+            uint256 scaledBasset = bAsset.vaultBalance.mulRatioTruncate(bAsset.ratio);
+            // e.g. (1e21 * 1e18) / 1e23 = 1e16 or 1%
+            uint256 weight = scaledBasset.divPrecisely(totalSupply);
+            if(weight > bAsset.maxWeight) {
+                overweightCount++;
+            }
+            maxWeightDelta[i] = weight > bAsset.maxWeight ? uint256(-1) : bAsset.maxWeight.sub(weight);
+            if(bAsset.status != BassetStatus.Normal){
+                return (false, "No assets available", address(0));
+            }
+        }
+
+        // if > 1 overweight, fail
+        if(overweightCount > 1) {
+            return (false, "No assets available", address(0));
+        } else if(overweightCount == 1){
+            // if 1 overweight, choose asset
+            for(uint256 j = 0; j < len; j++){
+                if(maxWeightDelta[j] == uint256(-1)){
+                    return (true, "", basket.bassets[j].addr);
+                }
+            }
+        }
+        // else choose highest %
+        uint256 lowestDelta = uint256(-1);
+        address selected = address(0);
+        for(uint256 k = 0; k < len; k++){
+            if(maxWeightDelta[k] < lowestDelta) {
+                selected = basket.bassets[k].addr;
+                lowestDelta = maxWeightDelta[k];
+            }
+        }
+        return (true, "", selected);
+    }
+
     /**
      * @dev Determines if a given Redemption is valid
      * @param _mAsset Address of the given mAsset (e.g. mUSD)
