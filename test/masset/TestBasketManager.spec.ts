@@ -524,7 +524,7 @@ contract("BasketManager", async (accounts) => {
                 integrationDetails.aTokens.map(async (a, index) => {
                     const invalidIndex = index + 5;
                     const bAssetBefore = await basketManager.getBasset(a.bAsset);
-                    await expectRevert.unspecified(
+                    await expectRevert.assertion(
                         basketManager.decreaseVaultBalance(
                             invalidIndex,
                             aaveIntegration.address,
@@ -1460,7 +1460,7 @@ contract("BasketManager", async (accounts) => {
             const unmovedBassetIntegratorAfter = await mockBasketManager.getBassetIntegrator(
                 unMovedBasset,
             );
-            await expectRevert.unspecified(mockBasketManager.integrations(3));
+            await expectRevert.assertion(mockBasketManager.integrations(3));
 
             expect(unmovedBassetIntegratorBefore).eq(unmovedBassetIntegratorAfter);
             expect(unmovedBassetBefore.maxWeight).eq(unmovedBassetAfter.maxWeight);
