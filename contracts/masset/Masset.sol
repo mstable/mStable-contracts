@@ -60,10 +60,6 @@ contract Masset is
     uint256 public swapFee;
     uint256 private MAX_FEE;
 
-    // RELEASE 1.1 VARS
-    uint256 public redemptionFee;
-
-
     /**
      * @dev Constructor
      * @notice To avoid variable shadowing appended `Arg` after arguments name.
@@ -749,4 +745,8 @@ contract Masset is
 
         return (interestCollected, totalSupply());
     }
+
+    // RELEASE 1.1 VARS
+    uint256 public redemptionFee;
+
 }
