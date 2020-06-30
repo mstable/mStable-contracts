@@ -34,11 +34,11 @@ jobs:
       - run:
           name: Produce Coverage Report
           command: yarn coverage
-      - coveralls/upload
+    #   - coveralls/upload
       - store_artifacts:
-          path: /coverage
+          path: ./coverage
       - store_artifacts:
-          path: /.coverage.json
+          path: ./.coverage.json
       - save_cache:
           key: dependency-cache-{{ checksum "package.json" }}
           paths:
