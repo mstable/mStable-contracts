@@ -536,6 +536,7 @@ contract Masset is
         }
         require(mAssetQuantity > 0, "Must redeem some bAssets");
 
+        // Redemption has fee? Fetch the rate
         uint256 fee = applyFee ? swapFee : 0;
 
         // Apply fees, burn mAsset and return bAsset to recipient
