@@ -58,8 +58,8 @@ contract Masset is
 
     // Basic redemption fee information
     uint256 public swapFee;
-    uint256 private MAX_FEE;
     uint256 public redemptionFee;
+    uint256 private MAX_FEE;
 
     /**
      * @dev Constructor
@@ -538,6 +538,7 @@ contract Masset is
         require(mAssetQuantity > 0, "Must redeem some bAssets");
 
         uint256 fee = applyFee ? swapFee : 0;
+
         // Apply fees, burn mAsset and return bAsset to recipient
         _settleRedemption(_recipient, mAssetQuantity, props.bAssets, _bAssetQuantities, props.indexes, props.integrators, fee);
 
