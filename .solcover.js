@@ -15,6 +15,7 @@ module.exports = {
     'Migrations.sol',
     'interfaces',
     'z_mocks',
-    'shared/InitializableReentrancyGuard.sol'
+    'shared/InitializableReentrancyGuard.sol',
+    'integrations'
   ]
 };

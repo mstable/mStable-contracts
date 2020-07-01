@@ -1419,7 +1419,7 @@ contract("BasketManager", async (accounts) => {
             const movedBassetIntegratorAfter = await mockBasketManager.getBassetIntegrator(
                 movedBasset,
             );
-            await expectRevert(mockBasketManager.integrations(3), "invalid opcode");
+            await expectRevert.assertion(mockBasketManager.integrations(3));
 
             expect(unmovedBassetIntegratorBefore).eq(unmovedBassetIntegratorAfter);
             expect(movedBassetIntegratorBefore).eq(movedBassetIntegratorAfter);
@@ -1460,7 +1460,7 @@ contract("BasketManager", async (accounts) => {
             const unmovedBassetIntegratorAfter = await mockBasketManager.getBassetIntegrator(
                 unMovedBasset,
             );
-            await expectRevert(mockBasketManager.integrations(3), "invalid opcode");
+            await expectRevert.assertion(mockBasketManager.integrations(3));
 
             expect(unmovedBassetIntegratorBefore).eq(unmovedBassetIntegratorAfter);
             expect(unmovedBassetBefore.maxWeight).eq(unmovedBassetAfter.maxWeight);
