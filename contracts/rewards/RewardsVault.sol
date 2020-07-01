@@ -35,7 +35,8 @@ contract RewardsVault is ReentrancyGuard, Module {
 
     IERC20 public vestingToken;
 
-    /** @dev All data for keeping track of rewards. Tranche ID starts at 0 (see _currentTrancheNumber) */
+    // All data for keeping track of rewards. Period ID starts at 0 (see getCurrentPeriod)
+    // period => rewardee => amount
     mapping(uint256 => mapping(address => uint256)) internal vestingBalances;
 
 
