@@ -36,9 +36,7 @@ jobs:
           command: yarn coverage
       - coveralls/upload
       - store_artifacts:
-          path: /coverage
-      - store_artifacts:
-          path: /.coverage.json
+          path: ./coverage
       - save_cache:
           key: dependency-cache-{{ checksum "package.json" }}
           paths:
