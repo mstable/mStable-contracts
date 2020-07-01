@@ -2032,12 +2032,12 @@ buffer@^5.6.0:
     base64-js "^1.0.2"
     ieee754 "^1.1.4"
 
-buidler-gas-reporter@^0.1.4-beta.3:
-  version "0.1.4-beta.3"
-  resolved "https://registry.yarnpkg.com/buidler-gas-reporter/-/buidler-gas-reporter-0.1.4-beta.3.tgz#377d63878d8005cdb8455436dd8fb327aeb261fd"
-  integrity sha512-mv9XZ92oy+MG7ZsjjlOfUVnG3z1L8lwUsLMQ214Bhj8cJx9pouJqHkGXfRUXvQzP7HKgJTkvmKaJn3MoZ1ZH8g==
+buidler-gas-reporter@0.1.4-beta.4:
+  version "0.1.4-beta.4"
+  resolved "https://registry.yarnpkg.com/buidler-gas-reporter/-/buidler-gas-reporter-0.1.4-beta.4.tgz#c136dac9aa93f79e56f4c85afb765ed18f87549c"
+  integrity sha512-NQdwBrPnfdpefnLkuc7EYTPGujh8uJCJxR/SOI3IdADEMS0pGyVOuWBbmbY4n5EOXZqXN3bWy9jDMF3qS6wZRw==
   dependencies:
-    eth-gas-reporter "^0.2.18-beta.3"
+    eth-gas-reporter "^0.2.18-beta.4"
 
 bytes@3.1.0:
   version "3.1.0"
@@ -3535,10 +3535,10 @@ eth-ens-namehash@2.0.8, eth-ens-namehash@^2.0.0:
     idna-uts46-hx "^2.3.1"
     js-sha3 "^0.5.7"
 
-eth-gas-reporter@^0.2.18-beta.3:
-  version "0.2.18-beta.3"
-  resolved "https://registry.yarnpkg.com/eth-gas-reporter/-/eth-gas-reporter-0.2.18-beta.3.tgz#1a18c7df4ae90c3863c8962aaa096bc5ecec2c87"
-  integrity sha512-waotdlBpyEczT/qGpLBUz6WWKaLg7P0N5ZhqX3DpRj6CoUHLoe0QX+iJIjTDLlXyAFlHfmmR8vXBXgKL4Li1Ww==
+eth-gas-reporter@^0.2.18-beta.4:
+  version "0.2.18-beta.4"
+  resolved "https://registry.yarnpkg.com/eth-gas-reporter/-/eth-gas-reporter-0.2.18-beta.4.tgz#222329e5aa17d84e4b772e2890bbaf775cbb0358"
+  integrity sha512-MGvwZsxo1ASzE3qG2WJXqYGgssGwOfUXmOQ3YXulP9kN0AhR0OOQaIaYvFlU15JExk1dQT1YZB38obb8xp37xw==
   dependencies:
     "@ethersproject/abi" "^5.0.0-beta.146"
     "@solidity-parser/parser" "^0.5.2"
