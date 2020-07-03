@@ -583,7 +583,7 @@ contract Masset is
      * @param _bAssetQuantities Array of bAsset quantities
      * @param _indices          Matching indices for the bAsset array
      * @param _integrators      Matching integrators for the bAsset array
-     * @param _feeRate          Apply a fee to this redemption?
+     * @param _feeRate          Fee rate to be applied to this redemption
      */
     function _settleRedemption(
         address _recipient,
