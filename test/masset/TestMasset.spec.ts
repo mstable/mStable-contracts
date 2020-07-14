@@ -63,6 +63,7 @@ contract("Masset", async (accounts) => {
                 expect(await massetDetails.mAsset.swapFee()).bignumber.eq(
                     simpleToExactAmount(4, 15),
                 );
+                expect(await massetDetails.mAsset.redemptionFee()).bignumber.eq(new BN(0));
                 expect(await massetDetails.mAsset.decimals()).bignumber.eq(new BN(18));
                 expect(await massetDetails.mAsset.balanceOf(sa.dummy1)).bignumber.eq(new BN(0));
                 expect(await massetDetails.mAsset.name()).eq("mStable Mock");
@@ -123,6 +124,31 @@ contract("Masset", async (accounts) => {
             const feeExceedingMin = new BN(-1); // 11%
             await expectRevert(
                 massetDetails.mAsset.setSwapFee(feeExceedingMin, { from: sa.governor }),
+                "Rate must be within bounds",
+            );
+        });
+        it("should allow the redemption fee rate to be changed", async () => {
+            // update by the governor
+            const oldFee = await massetDetails.mAsset.redemptionFee();
+            const newfee = simpleToExactAmount(1, 16); // 1%
+            expect(oldFee).bignumber.not.eq(newfee);
+            await massetDetails.mAsset.setRedemptionFee(newfee, { from: sa.governor });
+            expect(await massetDetails.mAsset.redemptionFee()).bignumber.eq(newfee);
+            // rejected if not governor
+            await expectRevert(
+                massetDetails.mAsset.setRedemptionFee(newfee, { from: sa.default }),
+                "Only governor can execute",
+            );
+            // cannot exceed cap
+            const feeExceedingCap = simpleToExactAmount(11, 16); // 11%
+            await expectRevert(
+                massetDetails.mAsset.setRedemptionFee(feeExceedingCap, { from: sa.governor }),
+                "Rate must be within bounds",
+            );
+            // cannot exceed min
+            const feeExceedingMin = new BN(-1); // 11%
+            await expectRevert(
+                massetDetails.mAsset.setRedemptionFee(feeExceedingMin, { from: sa.governor }),
                 "Rate must be within bounds",
             );
         });
