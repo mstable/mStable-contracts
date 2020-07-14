@@ -330,7 +330,6 @@ contract("SavingsManager", async (accounts) => {
             before(async () => {
                 savingsManager = await createNewSavingsManager();
             });
-
             it("should collect the interest first time", async () => {
                 // Refresh the collection timer
                 await savingsManager.collectAndDistributeInterest(mUSD.address);
@@ -363,7 +362,7 @@ contract("SavingsManager", async (accounts) => {
                 assertBNClose(
                     interectCollectedEvent.args[3],
                     expectedAPY,
-                    simpleToExactAmount(1, 14), // allow for a 0.01% deviation in the percentage
+                    simpleToExactAmount(2, 14), // allow for a 0.02% deviation in the percentage
                 );
 
                 const balanceAfter = await mUSD.balanceOf(savingsContract.address);

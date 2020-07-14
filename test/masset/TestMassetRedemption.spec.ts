@@ -887,7 +887,7 @@ contract("Masset - Redeem", async (accounts) => {
                     { from: sa.default },
                 );
                 // Do the redemption
-                for (let i = 0; i < onChainBassets.length; i += 1) {
+                for (let i = 0; i < 5; i += 1) {
                     await assertBasicRedemption(
                         massetDetails,
                         new BN(1),

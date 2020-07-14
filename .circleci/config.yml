@@ -4,11 +4,7 @@ orbs:
 jobs:
   build:
     docker:
-      - image: circleci/node:10.15.3 
-    # The secondary container is an instance of the second listed image which is run in a common network
-    # where ports exposed on the primary container are available on localhost.
-      - image: trufflesuite/ganache-cli
-        command: ganache-cli -p 7545 --gasLimit 9000000
+      - image: circleci/node:10.15.3
     resource_class: medium+
     steps:
       - checkout
@@ -34,11 +30,9 @@ jobs:
       - run:
           name: Produce Coverage Report
           command: yarn coverage
-    #   - coveralls/upload
+      - coveralls/upload
       - store_artifacts:
           path: ./coverage
-      - store_artifacts:
-          path: ./.coverage.json
       - save_cache:
           key: dependency-cache-{{ checksum "package.json" }}
           paths:
