@@ -1,7 +1,7 @@
 pragma solidity 0.5.16;
 
 // Internal
-import { IRewardsVault, LockedUpRewards } from "./LockedUpRewards.sol";
+import { RewardsDistributionRecipient } from "../RewardsDistributionRecipient.sol";
 import { StakingTokenWrapper } from "./StakingTokenWrapper.sol";
 import { PlatformTokenVendor } from "./PlatformTokenVendor.sol";
 
@@ -19,10 +19,11 @@ import { StableMath } from "../../shared/StableMath.sol";
  * additionally, distributes the Platform token airdropped by the platform
  * @dev    Derives from ./StakingRewards.sol and implements a secondary token into the core logic
  */
-contract StakingRewardsWithPlatformToken is StakingTokenWrapper, LockedUpRewards {
+contract StakingRewardsWithPlatformToken is StakingTokenWrapper, RewardsDistributionRecipient {
 
     using StableMath for uint256;
 
+    IERC20 public rewardsToken;
     IERC20 public platformToken;
     PlatformTokenVendor public platformTokenVendor;
 
@@ -56,13 +57,13 @@ contract StakingRewardsWithPlatformToken is StakingTokenWrapper, LockedUpRewards
         address _stakingToken,
         address _rewardsToken,
         address _platformToken,
-        IRewardsVault _rewardsVault,
         address _rewardsDistributor
     )
         public
         StakingTokenWrapper(_stakingToken)
-        LockedUpRewards(_nexus, _rewardsToken, _rewardsVault, _rewardsDistributor)
+        RewardsDistributionRecipient(_nexus, _rewardsDistributor)
     {
+        rewardsToken = IERC20(_rewardsToken);
         platformToken = IERC20(_platformToken);
         platformTokenVendor = new PlatformTokenVendor(platformToken);
     }
@@ -183,7 +184,7 @@ contract StakingRewardsWithPlatformToken is StakingTokenWrapper, LockedUpRewards
         uint256 reward = rewards[msg.sender];
         if (reward > 0) {
             rewards[msg.sender] = 0;
-            _lockupRewards(reward);
+            rewardsToken.transfer(msg.sender, reward);
         }
         return reward;
     }
