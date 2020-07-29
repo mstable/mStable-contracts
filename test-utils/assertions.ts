@@ -11,15 +11,15 @@ const { expect, assert } = envSetup.configure();
  *  @param actual The BN.js instance you received
  *  @param expected The BN.js amount you expected to receive, allowing a varience of +/- 10 units
  */
-export const assertBNClose = (actual: BN, expected: BN, variance = new BN(10)): void => {
+export const assertBNClose = (actual: BN, expected: BN, variance: BN | number = new BN(10)): void => {
     const actualDelta = actual.gt(expected) ? actual.sub(expected) : expected.sub(actual);
 
     assert.ok(
-        actual.gte(expected.sub(variance)),
+        actual.gte(expected.sub(new BN(variance))),
         `Number is too small to be close (Delta between actual and expected is ${actualDelta.toString()}, but variance was only ${variance.toString()}`,
     );
     assert.ok(
-        actual.lte(expected.add(variance)),
+        actual.lte(expected.add(new BN(variance))),
         `Number is too large to be close (Delta between actual and expected is ${actualDelta.toString()}, but variance was only ${variance.toString()})`,
     );
 };
