@@ -406,7 +406,7 @@ contract BasketManager is
     }
 
     /**
-     * @dev Throws if the total Basket weight does not sum to 100
+     * @dev Throws if the sum of all bAsset maxWeights is not in range 100-400%
      */
     function _validateBasketWeight() internal view {
         uint256 len = basket.bassets.length;
