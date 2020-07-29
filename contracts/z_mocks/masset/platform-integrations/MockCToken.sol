@@ -3,6 +3,7 @@ pragma solidity 0.5.16;
 import { ICERC20 } from "../../../masset/platform-integrations/ICompound.sol";
 
 import { IERC20, ERC20, ERC20Mintable } from "@openzeppelin/contracts/token/ERC20/ERC20Mintable.sol";
+import { ERC20Detailed } from "@openzeppelin/contracts/token/ERC20/ERC20Detailed.sol";
 import { StableMath } from "../../../shared/StableMath.sol";
 
 
@@ -14,16 +15,27 @@ import { StableMath } from "../../../shared/StableMath.sol";
 //  - Retrieve their aToken
 //  - Return equal amount of underlying
 
-contract MockCToken is ICERC20, ERC20Mintable {
+contract MockCToken is ICERC20, ERC20, ERC20Detailed, ERC20Mintable {
 
     using StableMath for uint;
 
-    ERC20 public underlyingToken;
+    IERC20 public underlyingToken;
     // underlying = cToken * exchangeRate
     // cToken = underlying / exchangeRate
-    uint256 exchangeRate = 1e18;
+    uint256 exchangeRate;
 
-    constructor(ERC20 _underlyingToken) public {
+    constructor(ERC20Detailed _underlyingToken) public ERC20Detailed("cMock", "cMK", 8) {
+        uint8 underlyingDecimals = _underlyingToken.decimals();
+        // if has 18 dp, exchange rate should be 1e26
+        // if has 8 dp, echange rate should be 1e18
+        if(underlyingDecimals > 8) {
+            exchangeRate = 10 ** uint256(18 + underlyingDecimals - 10);
+        } else if(underlyingDecimals < 8) {
+            // e.g. 18-8+6 = 16
+            exchangeRate = 10 ** uint256(18 - 8 + underlyingDecimals);
+        } else {
+            exchangeRate = 1e18;
+        }
         underlyingToken = _underlyingToken;
     }
 
@@ -57,7 +69,8 @@ contract MockCToken is ICERC20, ERC20Mintable {
     }
 
     function updateExchangeRate() internal returns (uint256){
-        exchangeRate = exchangeRate.add(1e14);
+        uint256 factor = 100002 * (10**13); // 0.002%
+        exchangeRate = exchangeRate.mulTruncate(factor);
     }
 
     function exchangeRateStored() external view returns (uint) {

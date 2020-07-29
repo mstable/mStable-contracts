@@ -170,6 +170,9 @@ contract("Masset", async (accounts) => {
             // 4.0 Check outputs
             const mUSDBalAfter = await massetDetails.mAsset.balanceOf(sa.dummy1);
             const bassetsAfter = await massetMachine.getBassetsInMasset(massetDetails);
+
+            bassetsAfter.map((b, i) => expect(b.vaultBalance).bignumber.gt(new BN(bassetsBefore[i].vaultBalance)))
+
             const sumOfVaultsAfter = bassetsAfter.reduce(
                 (p, c) => p.add(applyRatio(c.vaultBalance, c.ratio)),
                 new BN(0),
@@ -189,7 +192,7 @@ contract("Masset", async (accounts) => {
             // 4.3 Ensure that the SavingsManager received the mAsset
             expect(mUSDBalAfter).bignumber.eq(mUSDBalBefore.add(increasedTotalSupply));
             // 4.4 Event emits correct unit
-            expectEvent.inLogs(tx.logs, "MintedMulti", { mAssetQuantity: increasedTotalSupply });
+            expectEvent(tx.receipt, "MintedMulti", { mAssetQuantity: increasedTotalSupply });
         });
         it("should only allow the SavingsManager to collect interest when BasketManager unpaused", async () => {
             const nexus = await Nexus.at(await massetDetails.mAsset.nexus());
