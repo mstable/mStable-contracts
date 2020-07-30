@@ -573,7 +573,7 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                 .mul(rewardRate)
                 .mul(fullScale)
                 .div(stakeAmount);
-            assertBNClose(rewardPerToken, FIVE_DAYS.mul(rewardPerSecond), rewardPerSecond.muln(3));
+            assertBNClose(rewardPerToken, FIVE_DAYS.mul(rewardPerSecond), rewardPerSecond.muln(4));
 
             const platformRewardPerSecond = new BN(1)
                 .mul(platformRewardRate)
@@ -582,7 +582,7 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
             assertBNClose(
                 platformRewardPerToken,
                 FIVE_DAYS.mul(platformRewardPerSecond),
-                platformRewardPerSecond.muln(3),
+                platformRewardPerSecond.muln(4),
             );
 
             // Calc estimated unclaimed reward for the user
@@ -1035,14 +1035,14 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                 assertBNClose(
                     actualRewardRateAfter,
                     expectedRewardRateAfter,
-                    actualRewardRate.div(ONE_WEEK).muln(5),
+                    actualRewardRate.div(ONE_WEEK).muln(8),
                 );
 
                 const actualPlatformRewardRateAfter = await stakingRewards.platformRewardRate();
                 assertBNClose(
                     actualPlatformRewardRateAfter,
                     actualPlatformRewardRate,
-                    actualPlatformRewardRate.div(ONE_WEEK).muln(5),
+                    actualPlatformRewardRate.div(ONE_WEEK).muln(8),
                 );
             });
         });

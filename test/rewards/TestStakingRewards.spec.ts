@@ -709,7 +709,7 @@ contract("StakingRewards", async (accounts) => {
                 assertBNClose(
                     actualRewardRateAfter,
                     expectedRewardRateAfter,
-                    actualRewardRate.div(ONE_WEEK).muln(5),
+                    actualRewardRate.div(ONE_WEEK).muln(8),
                 );
             });
         });
