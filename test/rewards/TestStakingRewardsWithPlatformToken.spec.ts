@@ -373,7 +373,7 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
             assertBNClose(
                 total.div(ONE_WEEK),
                 afterData.rewardRate,
-                beforeData.rewardRate.div(ONE_WEEK).muln(5), // the effect of 1 second on the future scale
+                beforeData.rewardRate.div(ONE_WEEK).muln(10), // the effect of 10 second on the future scale
             );
         } else {
             expect(rewardUnits.div(ONE_WEEK)).bignumber.eq(afterData.rewardRate);
@@ -385,7 +385,7 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
             assertBNClose(
                 total.div(ONE_WEEK),
                 afterData.platformRewardRate,
-                beforeData.platformRewardRate.div(ONE_WEEK), // the effect of 1 second on the future scale
+                beforeData.platformRewardRate.div(ONE_WEEK).muln(10), // the effect of 10 second on the future scale
             );
         } else {
             expect(platformUnitsExpected.div(ONE_WEEK)).bignumber.eq(afterData.platformRewardRate);
