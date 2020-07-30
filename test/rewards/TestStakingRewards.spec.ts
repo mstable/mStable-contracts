@@ -428,7 +428,7 @@ contract("StakingRewards", async (accounts) => {
                 .mul(rewardRate)
                 .mul(fullScale)
                 .div(stakeAmount);
-            assertBNClose(rewardPerToken, FIVE_DAYS.mul(rewardPerSecond), rewardPerSecond.muln(3));
+            assertBNClose(rewardPerToken, FIVE_DAYS.mul(rewardPerSecond), rewardPerSecond.muln(4));
 
             // Calc estimated unclaimed reward for the user
             // earned == balance * (rewardPerToken-userExistingReward)
