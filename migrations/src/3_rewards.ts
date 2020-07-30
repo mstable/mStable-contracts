@@ -24,7 +24,6 @@ export default async (
     const c_MetaToken = artifacts.require("MetaToken");
     // Rewards contracts
     const c_RewardsDistributor = artifacts.require("RewardsDistributor");
-    const c_RewardsVault = artifacts.require("RewardsVault");
     const c_StakingRewards = artifacts.require("StakingRewards");
     const c_StakingRewardsWithPlatformToken = artifacts.require("StakingRewardsWithPlatformToken");
     // Mock ERC20
@@ -44,7 +43,6 @@ export default async (
     ****************************************/
 
     const rewardsDistributor = await c_RewardsDistributor.new(d_Nexus.address, [default_]);
-    const rewardsVault = await c_RewardsVault.new(d_Nexus.address, d_MetaToken.address);
 
     if (network === "development") {
         const stakingToken1 = await c_MockERC20.new("STAKE", "ST8", 18, default_, 1000000);
@@ -52,7 +50,6 @@ export default async (
             d_Nexus.address,
             stakingToken1.address,
             d_MetaToken.address,
-            rewardsVault.address,
             rewardsDistributor.address,
         );
 
@@ -63,7 +60,6 @@ export default async (
             stakingToken2.address,
             d_MetaToken.address,
             platformToken.address,
-            rewardsVault.address,
             rewardsDistributor.address,
         );
 
@@ -77,6 +73,5 @@ export default async (
     }
 
     console.log(`[Meta]: '${d_MetaToken.address}'`);
-    console.log(`[RewardsVault]: '${rewardsVault.address}'`);
     console.log(`[RewardsDistributor]: '${rewardsDistributor.address}'`);
 };

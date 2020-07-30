@@ -2,7 +2,7 @@ pragma solidity 0.5.16;
 
 // Internal
 import { StakingTokenWrapper } from "./StakingTokenWrapper.sol";
-import { IRewardsVault, LockedUpRewards } from "./LockedUpRewards.sol";
+import { RewardsDistributionRecipient } from "../RewardsDistributionRecipient.sol";
 
 // Libs
 import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
@@ -23,12 +23,13 @@ import { StableMath } from "../../shared/StableMath.sol";
  *           - Cosmetic (comments, readability)
  *           - Addition of getRewardToken()
  *           - Changing of `StakingTokenWrapper` funcs from `super.stake` to `_stake`
- *           - Implementing 'LockedUpRewards' and calling `_lockupRewards` in "claimReward"
  *           - Introduced a `stake(_beneficiary)` function to enable contract wrappers to stake on behalf
  */
-contract StakingRewards is StakingTokenWrapper, LockedUpRewards {
+contract StakingRewards is StakingTokenWrapper, RewardsDistributionRecipient {
 
     using StableMath for uint256;
+
+    IERC20 public rewardsToken;
 
     uint256 public constant DURATION = 7 days;
 
@@ -53,13 +54,13 @@ contract StakingRewards is StakingTokenWrapper, LockedUpRewards {
         address _nexus,
         address _stakingToken,
         address _rewardsToken,
-        IRewardsVault _rewardsVault,
         address _rewardsDistributor
     )
         public
         StakingTokenWrapper(_stakingToken)
-        LockedUpRewards(_nexus, _rewardsToken, _rewardsVault, _rewardsDistributor)
+        RewardsDistributionRecipient(_nexus, _rewardsDistributor)
     {
+        rewardsToken = IERC20(_rewardsToken);
     }
 
     /** @dev Updates the reward for a given address, before executing function */
@@ -151,7 +152,7 @@ contract StakingRewards is StakingTokenWrapper, LockedUpRewards {
         uint256 reward = rewards[msg.sender];
         if (reward > 0) {
             rewards[msg.sender] = 0;
-            _lockupRewards(reward);
+            rewardsToken.transfer(msg.sender, reward);
             emit RewardPaid(msg.sender, reward);
         }
     }
