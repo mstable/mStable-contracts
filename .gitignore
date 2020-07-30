@@ -54,6 +54,7 @@ package-lock.json
 .coverage_artifacts/
 .coverage_contracts/
 coverage.json
+cache
 
 # sol-merger
 flat/
