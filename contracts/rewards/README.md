@@ -12,7 +12,7 @@ Allows reward allocators ("FundManagers") to distribute rewards.
 
 ### StakingRewards
 
-`StakingRewards` is `LockedUpRewards` is `RewardsDistributionRecipient`
+`StakingRewards` is `RewardsDistributionRecipient`
 -------------->  is `StakingTokenWrapper`
 
 This preserves the code written, tested, audited and deployed by `Synthetix` (StakingRewards & StakingTokenWrapper).
@@ -22,11 +22,7 @@ Audit: https://github.com/sigp/public-audits/blob/master/synthetix/unipool/revie
 
 ### StakingRewardsWithPlatformToken
 
-`StakingRewardsWithPlatformToken` is `LockedUpRewards` is `RewardsDistributionRecipient`
+`StakingRewardsWithPlatformToken` is `RewardsDistributionRecipient`
 ------------------------------->  is `StakingTokenWrapper`
 
 `StakingRewardsWithPlatformToken` deploys `PlatformTokenVendor` during its constructor
-
-### RewardsVault
-
-All earned tokens from `StakingRewardsWithLockup` will be credited to this `RewardsVault` for a 6 month lockup, after which time they are redeemable

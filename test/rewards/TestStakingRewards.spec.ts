@@ -9,18 +9,14 @@ import { BN } from "@utils/tools";
 import { ONE_WEEK, ONE_DAY, FIVE_DAYS, fullScale } from "@utils/constants";
 import envSetup from "@utils/env_setup";
 
-import shouldBehaveLikeLockedUpRewards from "./LockedUpRewards.behaviour";
+import shouldBehaveLikeRecipient from "./RewardsDistributionRecipient.behaviour";
 
 const MockERC20 = artifacts.require("MockERC20");
 const StakingRewards = artifacts.require("StakingRewards");
-const RewardsVault = artifacts.require("RewardsVault");
 
 const { expect } = envSetup.configure();
 
 contract("StakingRewards", async (accounts) => {
-    const ctx: {
-        lockup?: t.LockedUpRewardsInstance;
-    } = {};
     const recipientCtx: {
         recipient?: t.RewardsDistributionRecipientInstance;
     } = {};
@@ -33,7 +29,6 @@ contract("StakingRewards", async (accounts) => {
     const rewardsDistributor = sa.fundManager;
     let rewardToken: t.MockErc20Instance;
     let stakingToken: t.MockErc20Instance;
-    let rewardsVault: t.RewardsVaultInstance;
     let stakingRewards: t.StakingRewardsInstance;
 
     const redeployRewards = async (
@@ -41,12 +36,10 @@ contract("StakingRewards", async (accounts) => {
     ): Promise<t.StakingRewardsInstance> => {
         rewardToken = await MockERC20.new("Reward", "RWD", 18, rewardsDistributor, 1000000);
         stakingToken = await MockERC20.new("Staking", "ST8k", 18, sa.default, 1000000);
-        rewardsVault = await RewardsVault.new(nexusAddress, rewardToken.address);
         return StakingRewards.new(
             nexusAddress,
             stakingToken.address,
             rewardToken.address,
-            rewardsVault.address,
             rewardsDistributor,
         );
     };
@@ -88,14 +81,12 @@ contract("StakingRewards", async (accounts) => {
         systemMachine = new SystemMachine(sa.all);
         await systemMachine.initialiseMocks(false, false);
         stakingRewards = await redeployRewards();
-        ctx.lockup = stakingRewards as t.LockedUpRewardsInstance;
         recipientCtx.recipient = (stakingRewards as unknown) as t.RewardsDistributionRecipientInstance;
         moduleCtx.module = stakingRewards as t.ModuleInstance;
     });
 
-    describe("implementing lockedUpRewards, rewardDistributionRecipient and Module", async () => {
-        shouldBehaveLikeLockedUpRewards(
-            ctx as Required<typeof ctx>,
+    describe("implementing rewardDistributionRecipient and Module", async () => {
+        shouldBehaveLikeRecipient(
             recipientCtx as Required<typeof recipientCtx>,
             moduleCtx as Required<typeof moduleCtx>,
             sa,
@@ -111,7 +102,6 @@ contract("StakingRewards", async (accounts) => {
             expect(await stakingRewards.nexus(), systemMachine.nexus.address);
             expect(await stakingRewards.stakingToken(), stakingToken.address);
             expect(await stakingRewards.rewardsToken(), rewardToken.address);
-            expect(await stakingRewards.rewardsVault(), rewardsVault.address);
             expect(await stakingRewards.rewardsDistributor(), rewardsDistributor);
 
             // Basic storage
@@ -438,7 +428,7 @@ contract("StakingRewards", async (accounts) => {
                 .mul(rewardRate)
                 .mul(fullScale)
                 .div(stakeAmount);
-            assertBNClose(rewardPerToken, FIVE_DAYS.mul(rewardPerSecond), rewardPerSecond.muln(2));
+            assertBNClose(rewardPerToken, FIVE_DAYS.mul(rewardPerSecond), rewardPerSecond.muln(3));
 
             // Calc estimated unclaimed reward for the user
             // earned == balance * (rewardPerToken-userExistingReward)
@@ -601,12 +591,10 @@ contract("StakingRewards", async (accounts) => {
         before(async () => {
             rewardToken = await MockERC20.new("Reward", "RWD", 12, rewardsDistributor, 1000000);
             stakingToken = await MockERC20.new("Staking", "ST8k", 16, sa.default, 1000000);
-            rewardsVault = await RewardsVault.new(systemMachine.nexus.address, rewardToken.address);
             stakingRewards = await StakingRewards.new(
                 systemMachine.nexus.address,
                 stakingToken.address,
                 rewardToken.address,
-                rewardsVault.address,
                 rewardsDistributor,
             );
         });
@@ -821,7 +809,7 @@ contract("StakingRewards", async (accounts) => {
                 await rewardToken.transfer(stakingRewards.address, fundAmount, {
                     from: rewardsDistributor,
                 });
-                await expectSuccessfulStake(stakeAmount);
+                await expectSuccessfulStake(stakeAmount, sa.default, sa.dummy2);
                 await time.increase(ONE_WEEK.addn(1));
             });
             it("should do nothing for a non-staker", async () => {
@@ -836,25 +824,19 @@ contract("StakingRewards", async (accounts) => {
                     afterData.rewardPerTokenStored,
                 );
             });
-            it("should send all accrued rewards to the vault", async () => {
-                const beforeData = await snapshotStakingData();
-                const lockupBalanceBefore = await rewardsVault.getBalance(
-                    sa.default,
-                    await rewardsVault.getCurrentPeriod(),
-                );
-                expect(lockupBalanceBefore).bignumber.eq(new BN(0));
-                const tx = await stakingRewards.claimReward();
+            it("should send all accrued rewards to the rewardee", async () => {
+                const beforeData = await snapshotStakingData(sa.dummy2, sa.dummy2);
+                const rewardeeBalanceBefore = await rewardToken.balanceOf(sa.dummy2);
+                expect(rewardeeBalanceBefore).bignumber.eq(new BN(0));
+                const tx = await stakingRewards.claimReward({ from: sa.dummy2 });
                 expectEvent(tx.receipt, "RewardPaid", {
-                    user: sa.default,
+                    user: sa.dummy2,
                 });
-                const afterData = await snapshotStakingData();
+                const afterData = await snapshotStakingData(sa.dummy2, sa.dummy2);
                 await assertRewardsAssigned(beforeData, afterData, false, true);
-                // Balance transferred to the vault
-                const lockupBalanceAfter = await rewardsVault.getBalance(
-                    sa.default,
-                    await rewardsVault.getCurrentPeriod(),
-                );
-                assertBNClose(lockupBalanceAfter, fundAmount, simpleToExactAmount(1, 16));
+                // Balance transferred to the rewardee
+                const rewardeeBalanceAfter = await rewardToken.balanceOf(sa.dummy2);
+                assertBNClose(rewardeeBalanceAfter, fundAmount, simpleToExactAmount(1, 16));
 
                 // 'rewards' reset to 0
                 expect(afterData.beneficiaryRewardsEarned).bignumber.eq(new BN(0));
@@ -885,13 +867,9 @@ contract("StakingRewards", async (accounts) => {
             it("should fail if the sender has no stake", async () => {
                 await expectRevert(stakingRewards.exit({ from: sa.dummy1 }), "Cannot withdraw 0");
             });
-            it("should withdraw all senders stake and send rewards to the vault", async () => {
+            it("should withdraw all senders stake and send outstanding rewards to the staker", async () => {
                 const beforeData = await snapshotStakingData();
-                const lockupBalanceBefore = await rewardsVault.getBalance(
-                    sa.default,
-                    await rewardsVault.getCurrentPeriod(),
-                );
-                expect(lockupBalanceBefore).bignumber.eq(new BN(0));
+                const rewardeeBalanceBefore = await rewardToken.balanceOf(sa.default);
 
                 const tx = await stakingRewards.exit();
                 expectEvent(tx.receipt, "Withdrawn", {
@@ -903,12 +881,13 @@ contract("StakingRewards", async (accounts) => {
                 });
 
                 const afterData = await snapshotStakingData();
-                // Balance transferred to the vault
-                const lockupBalanceAfter = await rewardsVault.getBalance(
-                    sa.default,
-                    await rewardsVault.getCurrentPeriod(),
+                // Balance transferred to the rewardee
+                const rewardeeBalanceAfter = await rewardToken.balanceOf(sa.default);
+                assertBNClose(
+                    rewardeeBalanceAfter.sub(rewardeeBalanceBefore),
+                    fundAmount,
+                    simpleToExactAmount(1, 16),
                 );
-                assertBNClose(lockupBalanceAfter, fundAmount, simpleToExactAmount(1, 16));
 
                 // Expect Rewards to accrue to the beneficiary
                 //    StakingToken balance of sender
@@ -948,26 +927,22 @@ contract("StakingRewards", async (accounts) => {
             await expectSuccessfulStake(stakeAmount);
             await time.increase(ONE_WEEK.addn(1));
         });
-        it("3. should deposit earnings into the rewardsVault", async () => {
+        it("3. should credit earnings directly to beneficiary", async () => {
             const beforeData = await snapshotStakingData();
+            const beneficiaryBalanceBefore = await rewardToken.balanceOf(sa.default);
 
-            period = await rewardsVault.getCurrentPeriod();
             await stakingRewards.exit();
 
             const afterData = await snapshotStakingData();
-            // Balance transferred to the vault
-            const lockupBalanceAfter = await rewardsVault.getBalance(sa.default, period);
-            assertBNClose(lockupBalanceAfter, fundAmount, simpleToExactAmount(1, 16));
+            // Balance transferred to the rewardee
+            const beneficiaryBalanceAfter = await rewardToken.balanceOf(sa.default);
+            assertBNClose(
+                beneficiaryBalanceAfter.sub(beneficiaryBalanceBefore),
+                fundAmount,
+                simpleToExactAmount(1, 16),
+            );
 
             await assertRewardsAssigned(beforeData, afterData, false, true);
-        });
-        it("4. should allow users to vest after the vesting period", async () => {
-            await time.increase(ONE_WEEK.muln(27));
-            const balBefore = await rewardToken.balanceOf(sa.default);
-            await rewardsVault.vestRewards([period]);
-
-            const balAfter = await rewardToken.balanceOf(sa.default);
-            assertBNClose(balAfter.sub(balBefore), fundAmount, simpleToExactAmount(1, 16));
         });
     });
 });
