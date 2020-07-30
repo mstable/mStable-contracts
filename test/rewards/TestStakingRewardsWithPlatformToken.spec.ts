@@ -1003,12 +1003,12 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                 assertBNClose(
                     actualRewardRateAfter,
                     expectedRewardRateAfter,
-                    actualRewardRate.div(ONE_WEEK).muln(10), // effect of 10 seconds on the week
+                    actualRewardRate.div(ONE_WEEK).muln(15), // effect of 15 seconds on the week
                 );
                 assertBNClose(
                     actualPlatformRewardRateAfter,
                     expectedRewardRateAfter,
-                    actualRewardRate.div(ONE_WEEK).muln(10), // effect of 10 seconds on the week
+                    actualRewardRate.div(ONE_WEEK).muln(15), // effect of 15 seconds on the week
                 );
             });
 
@@ -1035,14 +1035,14 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                 assertBNClose(
                     actualRewardRateAfter,
                     expectedRewardRateAfter,
-                    actualRewardRate.div(ONE_WEEK).muln(8),
+                    actualRewardRate.div(ONE_WEEK).muln(15),
                 );
 
                 const actualPlatformRewardRateAfter = await stakingRewards.platformRewardRate();
                 assertBNClose(
                     actualPlatformRewardRateAfter,
                     actualPlatformRewardRate,
-                    actualPlatformRewardRate.div(ONE_WEEK).muln(8),
+                    actualPlatformRewardRate.div(ONE_WEEK).muln(15),
                 );
             });
         });
