@@ -980,18 +980,12 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                 await platformToken.transfer(stakingRewards.address, airdrop1, {
                     from: rewardsDistributor,
                 });
-                console.log("pre");
+
                 await expectSuccesfulFunding(funding1, airdrop1);
                 const actualRewardRate = await stakingRewards.rewardRate();
                 const actualPlatformRewardRate = await stakingRewards.platformRewardRate();
                 const expectedRewardRate = funding1.div(ONE_WEEK);
-                console.log("i", expectedRewardRate.toString(), actualRewardRate.toString());
                 expect(expectedRewardRate).bignumber.eq(actualRewardRate);
-                console.log(
-                    "ii",
-                    expectedRewardRate.toString(),
-                    actualPlatformRewardRate.toString(),
-                );
                 expect(expectedRewardRate).bignumber.eq(actualPlatformRewardRate);
 
                 // Zoom forward half a week
@@ -1002,41 +996,22 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                 await platformToken.transfer(stakingRewards.address, airdrop2, {
                     from: rewardsDistributor,
                 });
-                console.log("iii");
                 await expectSuccesfulFunding(funding2, airdrop2);
-                console.log("iv");
                 const actualRewardRateAfter = await stakingRewards.rewardRate();
                 const actualPlatformRewardRateAfter = await stakingRewards.platformRewardRate();
                 const totalRewardsForWeek = funding2.add(expectedLeftoverReward);
                 const expectedRewardRateAfter = totalRewardsForWeek.div(ONE_WEEK);
-                console.log(
-                    "v",
-                    actualRewardRateAfter.toString(),
-                    expectedRewardRateAfter.toString(),
-                    actualRewardRate
-                        .div(ONE_WEEK)
-                        .muln(20)
-                        .toString(),
-                );
+
                 assertBNClose(
                     actualRewardRateAfter,
                     expectedRewardRateAfter,
-                    actualRewardRate.div(ONE_WEEK).muln(20), // effect of 15 seconds on the week
+                    actualRewardRate.divn(1000),
                 );
 
-                console.log(
-                    "vi",
-                    actualPlatformRewardRateAfter.toString(),
-                    expectedRewardRateAfter.toString(),
-                    actualRewardRate
-                        .div(ONE_WEEK)
-                        .muln(20)
-                        .toString(),
-                );
                 assertBNClose(
                     actualPlatformRewardRateAfter,
                     expectedRewardRateAfter,
-                    actualRewardRate.div(ONE_WEEK).muln(20), // effect of 15 seconds on the week
+                    actualRewardRate.divn(1000),
                 );
             });
 
@@ -1063,14 +1038,14 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                 assertBNClose(
                     actualRewardRateAfter,
                     expectedRewardRateAfter,
-                    actualRewardRate.div(ONE_WEEK).muln(20),
+                    actualRewardRate.divn(1000),
                 );
 
                 const actualPlatformRewardRateAfter = await stakingRewards.platformRewardRate();
                 assertBNClose(
                     actualPlatformRewardRateAfter,
                     actualPlatformRewardRate,
-                    actualPlatformRewardRate.div(ONE_WEEK).muln(20),
+                    actualPlatformRewardRate.divn(1000),
                 );
             });
         });
