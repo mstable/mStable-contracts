@@ -1000,15 +1000,32 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                 const actualPlatformRewardRateAfter = await stakingRewards.platformRewardRate();
                 const totalRewardsForWeek = funding2.add(expectedLeftoverReward);
                 const expectedRewardRateAfter = totalRewardsForWeek.div(ONE_WEEK);
+                console.log(
+                    actualRewardRateAfter.toString(),
+                    expectedRewardRateAfter.toString(),
+                    actualRewardRate
+                        .div(ONE_WEEK)
+                        .muln(20)
+                        .toString(),
+                );
                 assertBNClose(
                     actualRewardRateAfter,
                     expectedRewardRateAfter,
-                    actualRewardRate.div(ONE_WEEK).muln(15), // effect of 15 seconds on the week
+                    actualRewardRate.div(ONE_WEEK).muln(20), // effect of 15 seconds on the week
+                );
+
+                console.log(
+                    actualPlatformRewardRateAfter.toString(),
+                    expectedRewardRateAfter.toString(),
+                    actualRewardRate
+                        .div(ONE_WEEK)
+                        .muln(20)
+                        .toString(),
                 );
                 assertBNClose(
                     actualPlatformRewardRateAfter,
                     expectedRewardRateAfter,
-                    actualRewardRate.div(ONE_WEEK).muln(15), // effect of 15 seconds on the week
+                    actualRewardRate.div(ONE_WEEK).muln(20), // effect of 15 seconds on the week
                 );
             });
 
