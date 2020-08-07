@@ -349,10 +349,10 @@ contract("Masset - Redeem", async (accounts) => {
                         mAssetQuantity: expectedMasset,
                         bAssets: [bAsset.address],
                     });
-                    // Recipient should have bAsset quantity after
+                    // Recipient should not receive the bAsset because it equates to redeeming 0 cTokens
                     const recipientBassetBalAfter = await bAsset.balanceOf(sa.default);
                     expect(recipientBassetBalAfter).bignumber.eq(
-                        recipientBassetBalBefore.add(new BN(1)),
+                        recipientBassetBalBefore,
                     );
                     // Sender should have less mASset after
                     const totalSupplyAfter = await mAsset.totalSupply();
@@ -1101,16 +1101,15 @@ contract("Masset - Redeem", async (accounts) => {
                     const recipientBassetBalBefore = await bAsset.balanceOf(sa.default);
                     const tx = await mAsset.redeemMulti([bAsset.address], [new BN(1)], sa.default);
 
-                    const swapFee = await mAsset.swapFee();
                     const expectedMasset = new BN(1000000);
                     await expectEvent(tx.receipt, "Redeemed", {
                         mAssetQuantity: expectedMasset,
                         bAssets: [bAsset.address],
                     });
-                    // Recipient should have bAsset quantity after
+                    // Recipient should not receive the bAsset because it equates to redeeming 0 cTokens
                     const recipientBassetBalAfter = await bAsset.balanceOf(sa.default);
                     expect(recipientBassetBalAfter).bignumber.eq(
-                        recipientBassetBalBefore.add(new BN(1)),
+                        recipientBassetBalBefore
                     );
                     // Sender should have less mAsset after
                     const totalSupplyAfter = await mAsset.totalSupply();

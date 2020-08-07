@@ -8,10 +8,39 @@ import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "./Initi
  * @title   CompoundIntegration
  * @author  Stability Labs Pty. Ltd.
  * @notice  A simple connection to deposit and withdraw bAssets from Compound
- * @dev     VERSION: 1.0
- *          DATE:    2020-03-26
+ * @dev     VERSION: 1.1
+ *          DATE:    2020-07-29
  */
 contract CompoundIntegration is InitializableAbstractIntegration {
+
+    event RewardTokenCollected(address recipient, uint256 amount);
+    event SkippedWithdrawal(address bAsset, uint256 amount);
+
+    /***************************************
+                    ADMIN
+    ****************************************/
+
+    /**
+     * @dev Collects the accumulated COMP token from the contract
+     * @param _recipient Recipient to credit
+     */
+    function collectRewardToken(
+        address _recipient
+    )
+        external
+        onlyGovernor
+    {
+        // Official checksummed COMP token address
+        // https://ethplorer.io/address/0xc00e94cb662c3520282e6f5717214004a7f26888
+        IERC20 compToken = IERC20(0xc00e94Cb662C3520282E6f5717214004A7f26888);
+
+        uint256 balance = compToken.balanceOf(address(this));
+
+        require(compToken.transfer(_recipient, balance), "Collection transfer failed");
+
+        emit RewardTokenCollected(_recipient, balance);
+    }
+
 
     /***************************************
                     CORE
@@ -76,8 +105,18 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         nonReentrant
     {
         require(_amount > 0, "Must withdraw something");
+        require(_receiver != address(0), "Must specify recipient");
+
         // Get the Target token
         ICERC20 cToken = _getCTokenFor(_bAsset);
+
+        // If redeeming 0 cTokens, just skip, else COMP will revert
+        // Reason for skipping: to ensure that redeemMasset is always able to execute
+        uint256 cTokensToRedeem = _convertUnderlyingToCToken(cToken, _amount);
+        if(cTokensToRedeem == 0) {
+            emit SkippedWithdrawal(_bAsset, _amount);
+            return;
+        }
 
         uint256 quantityWithdrawn = _amount;
 
@@ -170,13 +209,36 @@ contract CompoundIntegration is InitializableAbstractIntegration {
 
     /**
      * @dev Get the total bAsset value held in the platform
+     *          underlying = (cTokenAmt * exchangeRate) / 1e18
      * @param _cToken     cToken for which to check balance
      * @return balance    Total value of the bAsset in the platform
      */
     function _checkBalance(ICERC20 _cToken)
         internal
+        view
         returns (uint256 balance)
     {
-        balance = _cToken.balanceOfUnderlying(address(this));
+        uint256 cTokenBalance = _cToken.balanceOf(address(this));
+        uint256 exchangeRate = _cToken.exchangeRateStored();
+        // e.g. 50e8*205316390724364402565641705 / 1e18 = 1.0265..e18
+        balance = cTokenBalance.mul(exchangeRate).div(1e18);
+    }
+
+    /**
+     * @dev Converts an underlying amount into cToken amount
+     *          cTokenAmt = (underlying * 1e18) / exchangeRate
+     * @param _cToken     cToken for which to change
+     * @param _underlying Amount of underlying to convert
+     * @return amount     Equivalent amount of cTokens
+     */
+    function _convertUnderlyingToCToken(ICERC20 _cToken, uint256 _underlying)
+        internal
+        view
+        returns (uint256 amount)
+    {
+        uint256 exchangeRate = _cToken.exchangeRateStored();
+        // e.g. 1e18*1e18 / 205316390724364402565641705 = 50e8
+        // e.g. 1e8*1e18 / 205316390724364402565641705 = 0.45 or 0
+        amount = _underlying.mul(1e18).div(exchangeRate);
     }
 }

@@ -42,6 +42,8 @@ export class MainnetAccounts {
     };
     public USDT_OWNER: Address = "0xc6cde7c39eb2f0f0095f41570af89efc2c1ea828";
 
+    public COMP: Address = "0xc00e94Cb662C3520282E6f5717214004A7f26888";
+
     // All Native Tokens
     public DAI: Address = "0x6b175474e89094c44da98b954eedeac495271d0f";
     public TUSD: Address = "0x0000000000085d4780B73119b644AE5ecd22b376";

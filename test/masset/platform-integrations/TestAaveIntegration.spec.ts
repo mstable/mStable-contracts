@@ -374,7 +374,7 @@ contract("AaveIntegration", async (accounts) => {
             const bAssetRecipient_balBefore = await bAsset.balanceOf(bAssetRecipient);
             const aaveIntegration_balBefore = await aToken.balanceOf(d_AaveIntegration.address);
             // Cross that match with the `checkBalance` call
-            let directBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            let directBalance = await d_AaveIntegration.checkBalance.call(bAsset.address);
             expect(directBalance).bignumber.eq(aaveIntegration_balBefore);
 
             // Step 1. xfer tokens to integration
@@ -393,11 +393,11 @@ contract("AaveIntegration", async (accounts) => {
             const actualBalance = await aToken.balanceOf(d_AaveIntegration.address);
             assertBNSlightlyGTPercent(actualBalance, expectedBalance);
             // Cross that match with the `checkBalance` call
-            directBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            directBalance = await d_AaveIntegration.checkBalance.call(bAsset.address);
             expect(directBalance).bignumber.eq(actualBalance);
             // Assert that Balance goes up over time
             await time.increase(TEN_MINS);
-            const newBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            const newBalance = await d_AaveIntegration.checkBalance.call(bAsset.address);
             assertBNSlightlyGTPercent(
                 newBalance,
                 directBalance,
@@ -425,7 +425,7 @@ contract("AaveIntegration", async (accounts) => {
             const bAssetRecipient_balBefore = await bAsset.balanceOf(bAssetRecipient);
             const aaveIntegration_balBefore = await aToken.balanceOf(d_AaveIntegration.address);
             // Cross that match with the `checkBalance` call
-            let directBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            let directBalance = await d_AaveIntegration.checkBalance.call(bAsset.address);
             expect(directBalance).bignumber.eq(aaveIntegration_balBefore);
 
             // Step 1. xfer tokens to integration
@@ -463,7 +463,7 @@ contract("AaveIntegration", async (accounts) => {
                 fee,
             );
             // Cross that match with the `checkBalance` call
-            directBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            directBalance = await d_AaveIntegration.checkBalance.call(bAsset.address);
             expect(directBalance).bignumber.eq(aaveIntegration_balAfter);
 
             // 3.3 Check that return value is cool (via event)
@@ -568,7 +568,7 @@ contract("AaveIntegration", async (accounts) => {
             const newBal = await aToken.balanceOf(d_AaveIntegration.address);
             assertBNSlightlyGT(newBal, aaveIntegration_balBefore.add(amount), new BN("1000"));
             // Cross that match with the `checkBalance` call
-            const directBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            const directBalance = await d_AaveIntegration.checkBalance.call(bAsset.address);
             expect(directBalance).bignumber.eq(newBal);
 
             // 3.3 Check that return value is cool (via event)
@@ -632,11 +632,11 @@ contract("AaveIntegration", async (accounts) => {
                 systemMachine.isGanacheFork,
             );
             // Cross that match with the `checkBalance` call
-            const directBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            const directBalance = await d_AaveIntegration.checkBalance.call(bAsset.address);
             expect(directBalance).bignumber.eq(actualBalance);
             // Assert that Balance goes up over time
             await time.increase(TEN_MINS);
-            const newBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            const newBalance = await d_AaveIntegration.checkBalance.call(bAsset.address);
             assertBNSlightlyGTPercent(
                 newBalance,
                 directBalance,
@@ -687,7 +687,7 @@ contract("AaveIntegration", async (accounts) => {
             const expectedBalance = aaveIntegration_balBefore.sub(amount);
             assertBNSlightlyGT(aaveIntegration_balAfter, expectedBalance, new BN("100"));
             // Cross that match with the `checkBalance` call
-            const directBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            const directBalance = await d_AaveIntegration.checkBalance.call(bAsset.address);
             expect(directBalance).bignumber.eq(expectedBalance);
         });
 
@@ -789,7 +789,7 @@ contract("AaveIntegration", async (accounts) => {
 
             const aaveIntegration_bal = await aToken.balanceOf(d_AaveIntegration.address);
             // Cross that match with the `checkBalance` call
-            const directBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            const directBalance = await d_AaveIntegration.checkBalance.call(bAsset.address);
             expect(directBalance).bignumber.eq(aaveIntegration_bal);
         });
 
@@ -816,7 +816,7 @@ contract("AaveIntegration", async (accounts) => {
             const aaveIntegration_balBefore = await aToken.balanceOf(d_AaveIntegration.address);
             expect(aaveIntegration_balBefore).bignumber.gt(new BN(0) as any);
             // Cross that match with the `checkBalance` call
-            let directBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            let directBalance = await d_AaveIntegration.checkBalance.call(bAsset.address);
             expect(directBalance).bignumber.eq(aaveIntegration_balBefore);
 
             // 2. Simulate some external activity by depositing or redeeming
@@ -844,7 +844,7 @@ contract("AaveIntegration", async (accounts) => {
                 true,
             );
             // Cross that match with the `checkBalance` call
-            directBalance = await d_AaveIntegration.logBalance(bAsset.address);
+            directBalance = await d_AaveIntegration.checkBalance.call(bAsset.address);
             expect(directBalance).bignumber.eq(aaveIntegration_balAfter);
 
             // 4. Withdraw our new interested - we worked hard for it!
@@ -859,7 +859,7 @@ contract("AaveIntegration", async (accounts) => {
             const bAsset = await c_ERC20.at(integrationDetails.cTokens[0].bAsset);
 
             await expectRevert(
-                d_AaveIntegration.logBalance(bAsset.address),
+                d_AaveIntegration.checkBalance(bAsset.address),
                 "aToken does not exist",
             );
         });
