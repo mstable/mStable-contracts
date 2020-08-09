@@ -30,7 +30,7 @@ jobs:
       - run:
           name: Produce Coverage Report
           command: yarn coverage
-    #   - coveralls/upload
+      - coveralls/upload
       - store_artifacts:
           path: ./coverage
       - save_cache:
