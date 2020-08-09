@@ -126,9 +126,7 @@ contract("CompoundIntegration", async (accounts) => {
                     const amount = new BN(enableUSDTFee ? 101 : 100).mul(
                         new BN(10).pow(bAsset_decimals.sub(new BN(1))),
                     );
-                    const amount_dep = new BN(10).mul(
-                        new BN(10).pow(bAsset_decimals),
-                    );
+                    const amount_dep = new BN(10).mul(new BN(10).pow(bAsset_decimals));
 
                     // Step 1. xfer tokens to integration
                     await d_bAsset.transfer(d_CompoundIntegration.address, amount);
@@ -639,25 +637,34 @@ contract("CompoundIntegration", async (accounts) => {
                 const bAsset = await c_ERC20.at(integrationDetails.cTokens[0].bAsset);
                 const amount = new BN(1);
                 const cToken = await c_CERC20.at(integrationDetails.cTokens[0].cToken);
-    
+
                 const recipientBassetBalBefore = await bAsset.balanceOf(sa.default);
-                const integrationCTokenBalanceBefore = await cToken.balanceOf(d_CompoundIntegration.address);
-                
+                const integrationCTokenBalanceBefore = await cToken.balanceOf(
+                    d_CompoundIntegration.address,
+                );
+
                 const cTokenAmount = await convertUnderlyingToCToken(cToken, amount);
                 expect(cTokenAmount).bignumber.eq(new BN(0), "cToken amount is not 0");
-        
-                const tx = await d_CompoundIntegration.withdraw(sa.default, bAsset.address, amount, false);
-                
+
+                const tx = await d_CompoundIntegration.withdraw(
+                    sa.default,
+                    bAsset.address,
+                    amount,
+                    false,
+                );
+
                 expectEvent(tx.receipt, "SkippedWithdrawal", {
                     bAsset: bAsset.address,
-                    amount
-                })
+                    amount,
+                });
 
                 // recipient bAsset bal is the same
                 const recipientBassetBalAfter = await bAsset.balanceOf(sa.default);
                 expect(recipientBassetBalBefore).bignumber.eq(recipientBassetBalAfter);
                 // compoundIntegration cTokenBal is the same
-                const integrationCTokenBalanceAfter = await cToken.balanceOf(d_CompoundIntegration.address);
+                const integrationCTokenBalanceAfter = await cToken.balanceOf(
+                    d_CompoundIntegration.address,
+                );
                 expect(integrationCTokenBalanceBefore).bignumber.eq(integrationCTokenBalanceAfter);
             });
             it("should function normally if bAsset decimals are low", async () => {
@@ -666,32 +673,42 @@ contract("CompoundIntegration", async (accounts) => {
                 const amount = new BN(1);
                 const cToken = await c_CERC20.at(integrationDetails.cTokens[1].cToken);
 
-                expect(await bAsset.decimals()).bignumber.eq(new BN(6))
+                expect(await bAsset.decimals()).bignumber.eq(new BN(6));
 
                 const recipientBassetBalBefore = await bAsset.balanceOf(sa.default);
-                const integrationCTokenBalanceBefore = await cToken.balanceOf(d_CompoundIntegration.address);
+                const integrationCTokenBalanceBefore = await cToken.balanceOf(
+                    d_CompoundIntegration.address,
+                );
 
                 const cTokenAmount = await convertUnderlyingToCToken(cToken, amount);
-                expect(cTokenAmount).bignumber.gt(new BN(0), "cToken amount is 0");
+                expect(cTokenAmount).bignumber.gt(new BN(0) as any, "cToken amount is 0");
 
-                const tx = await d_CompoundIntegration.withdraw(sa.default, bAsset.address, amount, false);
+                const tx = await d_CompoundIntegration.withdraw(
+                    sa.default,
+                    bAsset.address,
+                    amount,
+                    false,
+                );
 
                 expectEvent(tx.receipt, "Withdrawal", {
                     _bAsset: bAsset.address,
                     _pToken: cToken.address,
-                    _amount: amount
-                })
+                    _amount: amount,
+                });
 
                 // recipient bAsset bal is the same
                 const recipientBassetBalAfter = await bAsset.balanceOf(sa.default);
                 expect(recipientBassetBalAfter).bignumber.eq(recipientBassetBalBefore.addn(1));
                 // compoundIntegration cTokenBal is the same
-                const integrationCTokenBalanceAfter = await cToken.balanceOf(d_CompoundIntegration.address);
-                expect(integrationCTokenBalanceAfter).bignumber.eq(integrationCTokenBalanceBefore.sub(cTokenAmount));
-
+                const integrationCTokenBalanceAfter = await cToken.balanceOf(
+                    d_CompoundIntegration.address,
+                );
+                expect(integrationCTokenBalanceAfter).bignumber.eq(
+                    integrationCTokenBalanceBefore.sub(cTokenAmount),
+                );
             });
-        })
-        
+        });
+
         it("should handle the fee calculations", async () => {
             await runSetup(true, true);
 
@@ -725,16 +742,20 @@ contract("CompoundIntegration", async (accounts) => {
             const amountScaled = amount.mul(scale);
             const expectedAmount = amountScaled.div(fullScale);
             // Step 2. Validate recipient
-            expect(bAssetRecipient_balAfter).bignumber.gte(bAssetRecipient_balBefore.add(
-                expectedAmount,
-            ) as any);
-            expect(bAssetRecipient_balAfter).bignumber.lte(bAssetRecipient_balBefore.add(
-                amount,
-            ) as any);
-            expect(compoundIntegration_balAfter).bignumber.eq(compoundIntegration_balBefore.sub(
+            expect(bAssetRecipient_balAfter).bignumber.gte(
+                bAssetRecipient_balBefore.add(expectedAmount) as any,
+            );
+            expect(bAssetRecipient_balAfter).bignumber.lte(
+                bAssetRecipient_balBefore.add(amount) as any,
+            );
+            expect(compoundIntegration_balAfter).bignumber.eq(
+                compoundIntegration_balBefore.sub(
+                    await convertUnderlyingToCToken(cToken, amount),
+                ) as any,
+            );
+            const expectedBalance = compoundIntegration_balBefore.sub(
                 await convertUnderlyingToCToken(cToken, amount),
-            ) as any);
-            const expectedBalance = compoundIntegration_balBefore.sub(await convertUnderlyingToCToken(cToken, amount));
+            );
             assertBNSlightlyGTPercent(compoundIntegration_balAfter, expectedBalance, "0.1");
             const underlyingBalance = await convertCTokenToUnderlying(
                 cToken,
@@ -782,7 +803,6 @@ contract("CompoundIntegration", async (accounts) => {
             // 0.1 Get balance before
             const bAssetRecipient = sa.dummy1;
 
-
             // Fails with ZERO bAsset Address
             await expectRevert(
                 d_CompoundIntegration.withdraw(sa.dummy1, ZERO_ADDRESS, amount, false),
@@ -792,7 +812,7 @@ contract("CompoundIntegration", async (accounts) => {
             // Fails with ZERO recipient address
             await expectRevert(
                 d_CompoundIntegration.withdraw(ZERO_ADDRESS, bAsset.address, new BN(1), false),
-                "Must specify recipient"
+                "Must specify recipient",
             );
 
             // Fails with ZERO Amount
@@ -827,22 +847,21 @@ contract("CompoundIntegration", async (accounts) => {
         // This needs to be tested on a mainnet fork instead, as the address is hardcoded.
         // To test here, one would need to override the function and supply a dummy address
         it("should allow the governor to collect any outstanding COMP", async () => {
-            if(!systemMachine.isGanacheFork) return;
-
-            const mintAmt = new BN(10).pow(await integrationDetails.bAssets[0].decimals());
-            await d_CompoundIntegration.deposit(integrationDetails.cTokens[0].bAsset, mintAmt, false);
+            if (!systemMachine.isGanacheFork) return;
 
             const COMP = await c_MockERC20.at(ma.COMP);
 
             const bal = await COMP.balanceOf(d_CompoundIntegration.address);
             expect(bal.gtn(0), "Must have non zero COMP bal");
 
-            const tx = await d_CompoundIntegration.collectRewardToken(sa.dummy1, {from:sa.governor});
+            const tx = await d_CompoundIntegration.collectRewardToken(sa.dummy1, {
+                from: sa.governor,
+            });
 
             expectEvent(tx.receipt, "RewardTokenCollected", {
                 recipient: sa.dummy1,
-                amount: 0
-            })
+                amount: bal,
+            });
         });
         it("should fail if not called by the governor", async () => {
             await expectRevert(
@@ -851,7 +870,6 @@ contract("CompoundIntegration", async (accounts) => {
                 }),
                 "Only governor can execute",
             );
-
         });
     });
 
@@ -891,7 +909,9 @@ contract("CompoundIntegration", async (accounts) => {
                 compoundIntegration_balBefore,
             );
             // Cross that match with the `checkBalance` call
-            const fetchedBalanceBefore = await d_CompoundIntegration.checkBalance.call(bAsset.address);
+            const fetchedBalanceBefore = await d_CompoundIntegration.checkBalance.call(
+                bAsset.address,
+            );
             expect(fetchedBalanceBefore).bignumber.eq(underlyingBalanceBefore);
 
             // 2. Simulate some external activity by depositing or redeeming
@@ -920,7 +940,7 @@ contract("CompoundIntegration", async (accounts) => {
             // Cross that match with the `checkBalance` call
             const fetchedBalance = await d_CompoundIntegration.checkBalance.call(bAsset.address);
             expect(fetchedBalance).bignumber.eq(underlyingBalanceAfter);
-            expect(fetchedBalance).bignumber.gt(fetchedBalanceBefore);
+            expect(fetchedBalance).bignumber.gt(fetchedBalanceBefore as any);
 
             // 4. Withdraw our new interested - we worked hard for it!
             await d_CompoundIntegration.withdraw(
@@ -944,7 +964,7 @@ contract("CompoundIntegration", async (accounts) => {
     describe("reApproveAllTokens", async () => {
         before(async () => {
             await runSetup();
-        })
+        });
         it("should re-approve ALL bAssets with aTokens", async () => {
             const bAsset1 = await c_ERC20.at(integrationDetails.cTokens[0].bAsset);
             const cToken1 = await c_CERC20.at(integrationDetails.cTokens[0].cToken);
