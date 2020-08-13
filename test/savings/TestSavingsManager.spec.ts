@@ -376,7 +376,7 @@ contract("SavingsManager", async (accounts) => {
                 assertBNClose(
                     interectCollectedEvent.args[3],
                     expectedAPY,
-                    simpleToExactAmount(5, 10), // allow for a 0.000005% deviation in the percentage
+                    simpleToExactAmount(5, 11), // allow for a 0.000005% deviation in the percentage
                 );
                 const lastCollectionAfter = await savingsManager.lastCollection(mUSD.address);
                 assertBNClose(lastCollectionAfter, curTime, new BN(2));
@@ -510,8 +510,10 @@ contract("SavingsManager", async (accounts) => {
                 const failingInterest = simpleToExactAmount(10, 18);
                 await mUSD.setAmountForCollectInterest(failingInterest);
 
-                await expectRevert(savingsManager.collectAndDistributeInterest(mUSD.address), 
-                "Interest protected from inflating past 10 Bps");
+                await expectRevert(
+                    savingsManager.collectAndDistributeInterest(mUSD.address),
+                    "Interest protected from inflating past 10 Bps",
+                );
             });
             it("should pass if over 30 minutes and less than 15e18", async () => {
                 // Pass 1st
@@ -541,7 +543,7 @@ contract("SavingsManager", async (accounts) => {
             });
 
             it("should updated period information correctly across sequence", async () => {
-                //   0        30        60        90        120       
+                //   0        30        60        90        120
                 //   | - - - - | - - - - | - - - - | - - - - |
                 //   ^            ^   ^    ^    ^            ^
                 //  start        40   50  65    80          120
@@ -554,7 +556,7 @@ contract("SavingsManager", async (accounts) => {
 
                 // @0
                 const lastCollection_0 = await savingsManager.lastCollection(mUSD.address);
-                expect(lastCollection_0).bignumber.eq(new BN(0))
+                expect(lastCollection_0).bignumber.eq(new BN(0));
                 const lastPeriodStart_0 = await savingsManager.lastPeriodStart(mUSD.address);
                 expect(lastPeriodStart_0).bignumber.eq(new BN(0));
                 const periodYield_0 = await savingsManager.periodYield(mUSD.address);
