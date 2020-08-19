@@ -15,7 +15,9 @@ contract MerkleDrop is Initializable, InitializableGovernableWhitelist {
     using SafeMath for uint256;
 
     event Claimed(address claimant, uint256 week, uint256 balance);
-    event RemovedFundManager(address indexed _address);
+    event TrancheAdded(uint256 tranche, bytes32 merkleRoot, uint256 totalAmount);
+    event TrancheExpired(uint256 tranche);
+    event RemovedFunder(address indexed _address);
 
     IERC20 public token;
 
@@ -25,13 +27,13 @@ contract MerkleDrop is Initializable, InitializableGovernableWhitelist {
 
     function initialize(
         address _nexus,
-        address[] calldata _fundManagers,
+        address[] calldata _funders,
         IERC20 _token
     )
         external
         initializer
     {
-        InitializableGovernableWhitelist._initialize(_nexus, _fundManagers);
+        InitializableGovernableWhitelist._initialize(_nexus, _funders);
         token = _token;
     }
 
@@ -44,21 +46,30 @@ contract MerkleDrop is Initializable, InitializableGovernableWhitelist {
         onlyWhitelisted
         returns (uint256 trancheId)
     {
-        require(token.transferFrom(msg.sender, address(this), _totalAllocation), "Must receive token from sender");
+        token.safeTransferFrom(msg.sender, address(this), _totalAllocation);
 
         trancheId = tranches;
         merkleRoots[trancheId] = _merkleRoot;
 
         tranches = tranches.add(1);
+
+        emit TrancheAdded(trancheId, _merkleRoot, _totalAllocation);
     }
 
-    // TODO - override or delete tranche
+    function expireTranche(uint256 _trancheId)
+        public
+        onlyWhitelisted
+    {
+        merkleRoots[_trancheId] = bytes32(0);
+
+        emit TrancheExpired(_trancheId);
+    }
 
     /**
-     * @dev Allows the mStable governance to add a new FundManager
-     * @param _address  FundManager to add
+     * @dev Allows the mStable governance to add a new Funder
+     * @param _address  Funder to add
      */
-    function addFundManager(address _address)
+    function addFunder(address _address)
         external
         onlyGovernor
     {
@@ -66,10 +77,10 @@ contract MerkleDrop is Initializable, InitializableGovernableWhitelist {
     }
 
     /**
-     * @dev Allows the mStable governance to remove inactive FundManagers
-     * @param _address  FundManager to remove
+     * @dev Allows the mStable governance to remove inactive Funder
+     * @param _address  Funder to remove
      */
-    function removeFundManager(address _address)
+    function removeFunder(address _address)
         external
         onlyGovernor
     {
@@ -78,7 +89,7 @@ contract MerkleDrop is Initializable, InitializableGovernableWhitelist {
 
         whitelist[_address] = false;
 
-        emit RemovedFundManager(_address);
+        emit RemovedFunder(_address);
     }
 
 
@@ -109,7 +120,7 @@ contract MerkleDrop is Initializable, InitializableGovernableWhitelist {
         public
     {
         uint256 len = _tranches.length;
-        require(len == _balances.length && len == _merkleProofs.length, "");
+        require(len == _balances.length && len == _merkleProofs.length, "Mismatching inputs");
 
         uint256 totalBalance = 0;
         for(uint256 i = 0; i < len; i++) {
@@ -118,6 +129,26 @@ contract MerkleDrop is Initializable, InitializableGovernableWhitelist {
         }
         _disburse(_liquidityProvider, totalBalance);
     }
+
+
+    function verifyClaim(
+        address _liquidityProvider,
+        uint256 _tranche,
+        uint256 _balance,
+        bytes32[] memory _merkleProof
+    )
+        public
+        view
+        returns (bool valid)
+    {
+        return _verifyClaim(_liquidityProvider, _tranche, _balance, _merkleProof);
+    }
+
+
+    /***************************************
+              CLAIMING - INTERNAL
+    ****************************************/
+
 
     function _claimWeek(
         address _liquidityProvider,
@@ -137,18 +168,6 @@ contract MerkleDrop is Initializable, InitializableGovernableWhitelist {
         emit Claimed(_liquidityProvider, _tranche, _balance);
     }
 
-    function verifyClaim(
-        address _liquidityProvider,
-        uint256 _tranche,
-        uint256 _balance,
-        bytes32[] memory _merkleProof
-    )
-        public
-        view
-        returns (bool valid)
-    {
-        return _verifyClaim(_liquidityProvider, _tranche, _balance, _merkleProof);
-    }
 
     function _verifyClaim(
         address _liquidityProvider,
@@ -164,6 +183,7 @@ contract MerkleDrop is Initializable, InitializableGovernableWhitelist {
         return MerkleProof.verify(_merkleProof, merkleRoots[_tranche], leaf);
     }
 
+
     function _disburse(address _liquidityProvider, uint256 _balance) private {
         if (_balance > 0) {
             token.transfer(_liquidityProvider, _balance);
@@ -172,26 +192,3 @@ contract MerkleDrop is Initializable, InitializableGovernableWhitelist {
         }
     }
 }
-
-
-    // function claimStatus(address _liquidityProvider, uint256 _begin, uint256 _end)
-    //     view
-    //     public
-    //     returns (bool[] memory)
-    // {
-    //     uint256 size = 1 + _end - _begin;
-    //     bool[] memory arr = new bool[](size);
-    //     for(uint256 i = 0; i < size; i++) {
-    //       arr[i] = claimed[_begin + i][_liquidityProvider];
-    //     }
-    //     return arr;
-    // }
-
-    // function merkleRoots(uint256 _begin, uint256 _end) view public returns (bytes32[] memory) {
-    //     uint256 size = 1 + _end - _begin;
-    //     bytes32[] memory arr = new bytes32[](size);
-    //     for(uint256 i = 0; i < size; i++) {
-    //       arr[i] = merkleRoots[_begin + i];
-    //     }
-    //     return arr;
-    // }
