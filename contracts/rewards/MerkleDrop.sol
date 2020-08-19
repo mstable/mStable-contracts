@@ -6,9 +6,10 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 
+import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
 import { InitializableGovernableWhitelist } from "../governance/InitializableGovernableWhitelist.sol";
 
-contract MerkleDrop is InitializableGovernableWhitelist {
+contract MerkleDrop is Initializable, InitializableGovernableWhitelist {
 
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
@@ -20,20 +21,15 @@ contract MerkleDrop is InitializableGovernableWhitelist {
 
     mapping(uint256 => bytes32) public merkleRoots;
     mapping(uint256 => mapping(address => bool)) public claimed;
-    uint256 latestTranche;
+    uint256 tranches;
 
-    struct Claim {
-        uint256 tranche;
-        uint256 balance;
-        bytes32[] merkleProof;
-    }
-
-    constructor(
-      address _nexus,
-      address[] memory _fundManagers,
-      IERC20 _token
+    function initialize(
+        address _nexus,
+        address[] calldata _fundManagers,
+        IERC20 _token
     )
-        public
+        external
+        initializer
     {
         InitializableGovernableWhitelist._initialize(_nexus, _fundManagers);
         token = _token;
@@ -44,17 +40,19 @@ contract MerkleDrop is InitializableGovernableWhitelist {
     ****************************************/
 
     function seedNewAllocations(bytes32 _merkleRoot, uint256 _totalAllocation)
-        external
+        public
         onlyWhitelisted
-        returns (uint256 weekId)
+        returns (uint256 trancheId)
     {
         require(token.transferFrom(msg.sender, address(this), _totalAllocation), "Must receive token from sender");
 
-        latestTranche += 1;
-        merkleRoots[latestTranche] = _merkleRoot;
+        trancheId = tranches;
+        merkleRoots[trancheId] = _merkleRoot;
 
-        return latestTranche;
+        tranches = tranches.add(1);
     }
+
+    // TODO - override or delete tranche
 
     /**
      * @dev Allows the mStable governance to add a new FundManager
@@ -91,64 +89,79 @@ contract MerkleDrop is InitializableGovernableWhitelist {
 
     function claimWeek(
         address _liquidityProvider,
-        Claim calldata _claim
+        uint256 _tranche,
+        uint256 _balance,
+        bytes32[] memory _merkleProof
     )
-        external
+        public
     {
-        _claimWeek(_liquidityProvider, _claim);
-        _disburse(_liquidityProvider, _claim.balance);
+        _claimWeek(_liquidityProvider, _tranche, _balance, _merkleProof);
+        _disburse(_liquidityProvider, _balance);
     }
 
 
     function claimWeeks(
         address _liquidityProvider,
-        Claim[] calldata claims
+        uint256[] memory _tranches,
+        uint256[] memory _balances,
+        bytes32[][] memory _merkleProofs
     )
-        external
+        public
     {
+        uint256 len = _tranches.length;
+        require(len == _balances.length && len == _merkleProofs.length, "");
+
         uint256 totalBalance = 0;
-        for(uint256 i = 0; i < claims.length; i++) {
-            Claim memory claim = claims[i];
-            _claimWeek(_liquidityProvider, claim);
-            totalBalance = totalBalance.add(claim.balance);
+        for(uint256 i = 0; i < len; i++) {
+            _claimWeek(_liquidityProvider, _tranches[i], _balances[i], _merkleProofs[i]);
+            totalBalance = totalBalance.add(_balances[i]);
         }
         _disburse(_liquidityProvider, totalBalance);
     }
 
-    function _claimWeek(address _liquidityProvider, Claim memory _claim)
+    function _claimWeek(
+        address _liquidityProvider,
+        uint256 _tranche,
+        uint256 _balance,
+        bytes32[] memory _merkleProof
+    )
         private
     {
-        require(_claim.tranche <= latestTranche, "Week cannot be in the future");
+        require(_tranche < tranches, "Week cannot be in the future");
 
-        require(!claimed[_claim.tranche][_liquidityProvider], "LP has already claimed");
-        require(_verifyClaim(_liquidityProvider, _claim), "Incorrect merkle proof");
+        require(!claimed[_tranche][_liquidityProvider], "LP has already claimed");
+        require(_verifyClaim(_liquidityProvider, _tranche, _balance, _merkleProof), "Incorrect merkle proof");
 
-        claimed[_claim.tranche][_liquidityProvider] = true;
+        claimed[_tranche][_liquidityProvider] = true;
 
-        emit Claimed(_liquidityProvider, _claim.tranche, _claim.balance);
+        emit Claimed(_liquidityProvider, _tranche, _balance);
     }
 
     function verifyClaim(
         address _liquidityProvider,
-        Claim calldata _claim
+        uint256 _tranche,
+        uint256 _balance,
+        bytes32[] memory _merkleProof
     )
-        external
+        public
         view
         returns (bool valid)
     {
-        return _verifyClaim(_liquidityProvider, _claim);
+        return _verifyClaim(_liquidityProvider, _tranche, _balance, _merkleProof);
     }
 
     function _verifyClaim(
         address _liquidityProvider,
-        Claim memory _claim
+        uint256 _tranche,
+        uint256 _balance,
+        bytes32[] memory _merkleProof
     )
         private
         view
         returns (bool valid)
     {
-        bytes32 leaf = keccak256(abi.encodePacked(_liquidityProvider, _claim.balance));
-        return MerkleProof.verify(_claim.merkleProof, merkleRoots[_claim.tranche], leaf);
+        bytes32 leaf = keccak256(abi.encodePacked(_liquidityProvider, _balance));
+        return MerkleProof.verify(_merkleProof, merkleRoots[_tranche], leaf);
     }
 
     function _disburse(address _liquidityProvider, uint256 _balance) private {
@@ -158,7 +171,6 @@ contract MerkleDrop is InitializableGovernableWhitelist {
             revert("No balance would be transfered - not gonna waste your gas");
         }
     }
-
 }
 
 
