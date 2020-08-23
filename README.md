@@ -46,6 +46,11 @@ Found a bug? Claim a reward from our open [Bug Bounty](https://docs.mstable.org/
 
 ## Dev notes
 
+### Prerequisites
+
+* Node.js v10.22.0 (you may wish to use [nvm][1])
+* [ganache-cli][2]
+
 ### Installing dependencies
 
 ```
@@ -59,7 +64,7 @@ Deployment scripts are located in `migrations/src`. To run, start `ganache` or `
 *NB: You should locally use the latest version of `ganache-cli`, as contracts rely on recent opcodes*
 
 ```
-$ ganache-cli -p 7545
+$ ganache-cli -p 7545 -l 2000000
 $ yarn migrate
 ```
 
@@ -134,3 +139,5 @@ Codebase rules are enforced through a passing [CI](https://circleci.com) (visibl
 
 <br />
 
+[1]: https://github.com/nvm-sh/nvm
+[2]: https://github.com/trufflesuite/ganache-cli
