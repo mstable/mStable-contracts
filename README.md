@@ -59,7 +59,8 @@ Deployment scripts are located in `migrations/src`. To run, start `ganache` or `
 *NB: You should locally use the latest version of `ganache-cli`, as contracts rely on recent opcodes*
 
 ```
-$ ganache-cli -p 7545
+$ ganache-cli -p 7545 -l 8000000
+$ yarn test-prep
 $ yarn migrate
 ```
 
