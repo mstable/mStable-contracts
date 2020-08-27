@@ -46,6 +46,11 @@ Found a bug? Claim a reward from our open [Bug Bounty](https://docs.mstable.org/
 
 ## Dev notes
 
+### Prerequisites
+
+* Node.js v10.22.0 (you may wish to use [nvm][1])
+* [ganache-cli][2]
+
 ### Installing dependencies
 
 ```
@@ -135,3 +140,5 @@ Codebase rules are enforced through a passing [CI](https://circleci.com) (visibl
 
 <br />
 
+[1]: https://github.com/nvm-sh/nvm
+[2]: https://github.com/trufflesuite/ganache-cli
