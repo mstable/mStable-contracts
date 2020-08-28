@@ -1,10 +1,16 @@
 {
-  "name": "mstable-contracts",
-  "version": "1.0.0",
-  "private": true,
+  "name": "@mstable/contracts",
+  "version": "1.1.2",
   "description": "mStable Contracts",
   "author": "Stability Labs Pty. Ltd. <hello@stabilitylabs.co>",
   "license": "AGPL-3.0-or-later",
+  "files": [
+    "/contracts/**/*.sol",
+    "!/contracts/z_mocks"
+  ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/"
+  },
   "scripts": {
     "migrate": "truffle migrate --network development --reset",
     "migrate:ropsten": "truffle migrate --network ropsten --reset",
@@ -78,5 +84,12 @@
   },
   "_moduleAliases": {
     "@utils": "transpiled/test-utils"
+  },
+  "bugs": {
+    "url": "https://github.com/mstable/mstable-contracts/issues"
+  },
+  "homepage": "https://github.com/mstable/mstable-contracts#readme",
+  "directories": {
+    "test": "test"
   }
 }
