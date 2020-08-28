@@ -1,5 +1,5 @@
 {
-  "name": "@mstable/contracts",
+  "name": "@mstable/protocol",
   "version": "1.1.2",
   "description": "mStable Contracts",
   "author": "Stability Labs Pty. Ltd. <hello@stabilitylabs.co>",
@@ -8,9 +8,6 @@
     "/contracts/**/*.sol",
     "!/contracts/z_mocks"
   ],
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com/"
-  },
   "scripts": {
     "migrate": "truffle migrate --network development --reset",
     "migrate:ropsten": "truffle migrate --network ropsten --reset",
