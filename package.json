@@ -6,7 +6,8 @@
   "license": "AGPL-3.0-or-later",
   "files": [
     "/contracts/**/*.sol",
-    "!/contracts/z_mocks"
+    "!/contracts/z_mocks",
+    "/artifacts/*.json"
   ],
   "scripts": {
     "migrate": "truffle migrate --network development --reset",
