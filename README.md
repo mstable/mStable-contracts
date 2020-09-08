@@ -61,7 +61,8 @@ $ yarn
 
 Deployment scripts are located in `migrations/src`. To run, start `ganache` or `ganache-cli` and run the migration script.
 
-*NB: You should locally use the latest version of `ganache-cli`, as contracts rely on recent opcodes*
+*NB: You should locally use the latest version of `ganache-cli`, as contracts rely on recent opcodes.*
+*In case you are using `ganache` GUI you should go to the settings/gear icon -> chain -> update the gas limit property to 8000000*
 
 ```
 $ ganache-cli -p 7545 -l 8000000
