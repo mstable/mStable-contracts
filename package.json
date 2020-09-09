@@ -12,6 +12,7 @@
   "scripts": {
     "migrate": "truffle migrate --network development --reset",
     "migrate:ropsten": "truffle migrate --network ropsten --reset",
+    "migrate:kovan": "truffle migrate --network kovan --reset",
     "lint": "yarn run lint-ts; yarn run lint-sol",
     "lint-ts": "yarn eslint ./test --ext .ts,.js --fix --quiet",
     "lint-sol": "solium -d contracts/ --fix ",
