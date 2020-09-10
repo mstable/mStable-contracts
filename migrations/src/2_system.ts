@@ -9,6 +9,7 @@ import {
     ZERO_ADDRESS,
     DEAD_ADDRESS,
     RopstenAccounts,
+    KovanAccounts,
     KEY_PROXY_ADMIN,
     KEY_SAVINGS_MANAGER,
 } from "@utils/constants";
@@ -41,6 +42,44 @@ async function loadBassetsRopsten(artifacts: Truffle.Artifacts): Promise<BassetI
     const c_MockERC20 = artifacts.require("MockERC20");
 
     const ra = new RopstenAccounts();
+    // load all the REAL bAssets from Ropsten
+    const bAsset_DAI = await c_MockERC20.at(ra.DAI);
+    const bAsset_USDC = await c_MockERC20.at(ra.USDC);
+    const bAsset_TUSD = await c_MockERC20.at(ra.TUSD);
+    const bAsset_USDT = await c_MockERC20.at(ra.USDT);
+    const bAssets = [bAsset_DAI, bAsset_USDC, bAsset_TUSD, bAsset_USDT];
+    // return all the addresses
+    return {
+        bAssets,
+        platforms: [Platform.compound, Platform.compound, Platform.aave, Platform.aave],
+        aavePlatformAddress: ra.aavePlatform,
+        cTokens: [
+            {
+                bAsset: bAsset_DAI.address,
+                cToken: ra.cDAI,
+            },
+            {
+                bAsset: bAsset_USDC.address,
+                cToken: ra.cUSDC,
+            },
+        ],
+        aTokens: [
+            {
+                bAsset: bAsset_TUSD.address,
+                aToken: ra.aTUSD,
+            },
+            {
+                bAsset: bAsset_USDT.address,
+                aToken: ra.aUSDT,
+            },
+        ],
+    };
+}
+
+async function loadBassetsKovan(artifacts: Truffle.Artifacts): Promise<BassetIntegrationDetails> {
+    const c_MockERC20 = artifacts.require("MockERC20");
+
+    const ra = new KovanAccounts();
     // load all the REAL bAssets from Ropsten
     const bAsset_DAI = await c_MockERC20.at(ra.DAI);
     const bAsset_USDC = await c_MockERC20.at(ra.USDC);
@@ -190,6 +229,10 @@ export default async (
     if (deployer.network === "ropsten") {
         console.log("Loading Ropsten bAssets and lending platforms");
         bassetDetails = await loadBassetsRopsten(artifacts);
+    }
+    else if (deployer.network === "kovan") {
+        console.log("Loading Kovan bAssets and lending platforms");
+        bassetDetails = await loadBassetsKovan(artifacts);
     } else {
         console.log(
             `==============================================\n` +

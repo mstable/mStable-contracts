@@ -84,3 +84,25 @@ export class RopstenAccounts {
     public cUSDC: Address = "0x20572e4c090f15667cf7378e16fad2ea0e2f3eff";
     public allCTokens: Address[] = [this.cDAI, this.cUSDC];
 }
+
+export class KovanAccounts {
+    // All Native Tokens
+    public DAI: Address = "0xff795577d9ac8bd7d90ee22b6c1703490b6512fd";
+    public USDC: Address = "0xe22da380ee6B445bb8273C81944ADEB6E8450422";
+
+    public TUSD: Address = "0x1c4a937d171752e1313D70fb16Ae2ea02f86303e";
+
+    public USDT: Address = "0x13512979ade267ab5100878e2e0f485b568328a4";
+    public allNativeTokens: Address[] = [this.DAI, this.TUSD, this.USDC, this.USDT];
+
+    // AAVE
+    public aavePlatform: Address = "0x506B0B2CF20FAA8f38a4E2B524EE43e1f4458Cc5";
+    public aTUSD: Address = "0xA79383e0d2925527ba5Ec1c1bcaA13c28EE00314";
+    public aUSDT: Address = "0xA01bA9fB493b851F4Ac5093A324CB081A909C34B";
+    public allATokens: Address[] = [this.aTUSD, this.aUSDT];
+
+    // Compound cTokens
+    public cDAI: Address = "0x5d3a536e4d6dbd6114cc1ead35777bab948e3643";
+    public cUSDC: Address = "0x39aa39c021dfbae8fac545936693ac917d5e7563";
+    public allCTokens: Address[] = [this.cDAI, this.cUSDC];
+}
