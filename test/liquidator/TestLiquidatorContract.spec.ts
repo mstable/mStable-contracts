@@ -78,4 +78,72 @@ contract("Liquidator", async (accounts) => {
             await expectEvent(tx.receipt, "LiquidationAdded");
         });
     });
+
+    describe("getLiquidation()", () => {
+        it("should revert if not called by the Governor", async () => {
+            await expectRevert(
+                liquidator.getLiquidation(ZERO_ADDRESS, {
+                    from: sa.default,
+                }),
+                "Only governor can execute",
+            );
+        });
+        it("should revert if the liquidation does not exist", async () => {
+            await expectRevert(
+                liquidator.getLiquidation.call(sa.dummy3, {
+                    from: sa.governor,
+                }),
+                "No liquidation for this bAsset",
+            );
+        });
+        it("should return a liquidation", async () => {
+            await liquidator.addLiquidation(sa.dummy1, sa.dummy2, new BN(1), {
+                from: sa.governor,
+            });
+            const liquidation = await liquidator.getLiquidation.call(sa.dummy1, {
+                from: sa.governor,
+            });
+            expect(liquidation.basset).to.eq(sa.dummy1);
+        });
+    });
+
+    describe("removeLiquidation()", () => {
+        it("should revert if not called by the Governor", async () => {
+            await expectRevert(
+                liquidator.removeLiquidation(ZERO_ADDRESS, {
+                    from: sa.default,
+                }),
+                "Only governor can execute",
+            );
+        });
+        it("should revert if the liquidation does not exist", async () => {
+            await expectRevert(
+                liquidator.removeLiquidation.call(sa.dummy3, {
+                    from: sa.governor,
+                }),
+                "No liquidation for this bAsset",
+            );
+        });
+        it("should remove a liquidation", async () => {
+            await liquidator.addLiquidation(sa.dummy1, sa.dummy2, new BN(1), {
+                from: sa.governor,
+            });
+            const liquidation = await liquidator.getLiquidation.call(sa.dummy1, {
+                from: sa.governor,
+            });
+            expect(liquidation.basset).to.eq(sa.dummy1);
+
+            const tx = await liquidator.removeLiquidation(sa.dummy1, {
+                from: sa.governor,
+            });
+
+            await expectEvent(tx.receipt, "LiquidationRemoved");
+            await expectRevert(
+                liquidator.getLiquidation.call(sa.dummy1, {
+                    from: sa.governor,
+                }),
+                "No liquidation for this bAsset",
+            );
+        });
+    });
 });

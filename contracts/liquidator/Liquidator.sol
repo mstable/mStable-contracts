@@ -84,8 +84,39 @@ contract Liquidator is
         emit LiquidationAdded(_bAsset);
     }
 
+    /**
+     * @dev Get the liquidation for a bAsset
+     * @param   _bAsset Address for the underlying bAsset
+     * @return  liquidation The liquidation data
+     */
+    function getLiquidation(address _bAsset)
+        external
+        onlyGovernor
+        returns (Liquidation memory liquidation)
+    {
+        require(liquidations[_bAsset].basset != address(0), "No liquidation for this bAsset");
+        liquidation = liquidations[_bAsset];
+        return liquidation;
+    }
 
-    //function getLiquidation(address _bAsset) external view returns (Liquidation memory liquidation);
+
+    /**
+    * @dev Remove a liquidation
+    * @param _bAsset The _bAsset for the liquidation
+    */
+    function removeLiquidation(address _bAsset)
+        external
+        onlyGovernor
+    {
+        require(liquidations[_bAsset].basset != address(0), "No liquidation for this bAsset");
+
+        delete liquidations[_bAsset];
+        emit LiquidationRemoved(_bAsset);
+    }
+
+
+    // Governor only
+    //function removeLiquidation(address _bAsset) external;
 
     // Restricted to the `integrationContract` given in addLiquidation
     //function collect() external;
