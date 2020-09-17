@@ -22,20 +22,20 @@ contract("Liquidator", async (accounts) => {
     const redeployLiquidator = async (
         nexusAddress = systemMachine.nexus.address,
     ): Promise<t.LiquidatorInstance> => {
-        console.log(nexusAddress);
-        return Liquidator.new(nexusAddress);
+        liquidator = await Liquidator.new();
+        liquidator.initialize(systemMachine.nexus.address);
+        return liquidator;
     };
 
     before(async () => {
         systemMachine = new SystemMachine(sa.all);
         await systemMachine.initialiseMocks(false, false);
-        await Liquidator.new(systemMachine.nexus.address);
     });
 
     describe("verifying Module initialization", async () => {
         before("reset contracts", async () => {
             liquidator = await redeployLiquidator();
-            ctx.module = liquidator as t.ModuleInstance;
+            ctx.module = liquidator as t.InitializableModuleInstance;
         });
 
         shouldBehaveLikeModule(ctx as Required<typeof ctx>, sa);
