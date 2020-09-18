@@ -60,7 +60,7 @@ contract Liquidator is
     }
 
     /**
-    * @dev Propose a new or update existing module
+    * @dev Add a liquidation
     * @param _bAsset The _bAsset 
     * @param _integration The integration contract address for the _bAsset
     * @param _amount The amount to be sold
@@ -85,7 +85,7 @@ contract Liquidator is
     }
 
     /**
-     * @dev Get the liquidation for a bAsset
+     * @dev Get a liquidation
      * @param   _bAsset Address for the underlying bAsset
      * @return  liquidation The liquidation data
      */
