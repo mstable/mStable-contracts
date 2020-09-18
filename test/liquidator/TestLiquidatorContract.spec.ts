@@ -146,4 +146,34 @@ contract("Liquidator", async (accounts) => {
             );
         });
     });
+    describe("pauseLiquidation()", () => {
+        it("should revert if not called by the Governor", async () => {
+            await expectRevert(
+                liquidator.pauseLiquidation(ZERO_ADDRESS, {
+                    from: sa.default,
+                }),
+                "Only governor can execute",
+            );
+        });
+        it("should revert if the liquidation does not exist", async () => {
+            await expectRevert(
+                liquidator.removeLiquidation.call(sa.dummy3, {
+                    from: sa.governor,
+                }),
+                "No liquidation for this bAsset",
+            );
+        });
+        it("should pause a liquidiation", async () => {
+            await liquidator.addLiquidation(sa.dummy1, sa.dummy2, new BN(1), {
+                from: sa.governor,
+            });
+            await liquidator.pauseLiquidation(sa.dummy1, {
+                from: sa.governor,
+            });
+            const liquidation = await liquidator.getLiquidation.call(sa.dummy1, {
+                from: sa.governor,
+            });
+            expect(liquidation.paused).to.eq(true);
+        });
+    });
 });

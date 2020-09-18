@@ -42,7 +42,7 @@ contract Liquidator is
         bool    paused;
     }
 
-    // Module-key => Liquidation
+    // bAsset key => Liquidation
     mapping(address => Liquidation) public liquidations;
 
     /**
@@ -59,7 +59,6 @@ contract Liquidator is
         InitializableReentrancyGuard._initialize();
     }
 
-    //function addLiquidation(address _bAsset, address _integration, uint _amount ) external;
     /**
     * @dev Propose a new or update existing module
     * @param _bAsset The _bAsset 
@@ -81,6 +80,7 @@ contract Liquidator is
 
         liq.basset = _bAsset;
         liq.integration = _integration;
+        liq.amount = _amount;
         emit LiquidationAdded(_bAsset);
     }
 
@@ -114,19 +114,42 @@ contract Liquidator is
         emit LiquidationRemoved(_bAsset);
     }
 
+    /**
+    * @dev Pause a liquidation
+    * @param _bAsset The _bAsset liquidation to be paused
+    */
+    function pauseLiquidation(address _bAsset)
+        external
+        onlyGovernor
+    {
+        require(liquidations[_bAsset].basset != address(0), "No liquidation for this bAsset");
+
+        liquidations[_bAsset].amount = 10;
+        liquidations[_bAsset].paused = true;
+        emit LiquidationPaused(_bAsset);
+    }
+
+    /**
+    * @dev Collect assets from the Liquidator
+    */
+    function collect(address _bAsset)
+        external
+    {
+        // TODO
+    }
+
+    /**
+    * @dev Collect assets from the Liquidator
+    * @param _bAsset The _bAsset liquidation to be triggered
+    */
+    function triggerLiquidation(address _bAsset)
+        external
+    {
+        // TODO
+    }
+
 
     // Governor only
-    //function removeLiquidation(address _bAsset) external;
-
-    // Restricted to the `integrationContract` given in addLiquidation
-    //function collect() external;
-
-    // Callable by anyone to trigger a selling event 
-    //function triggerLiquidation(address _bAsset) external;
-
-    // Governor only
-    //function removeLiquidation(address _bAsset) external;
-    //function pauseLiquidation(address _bAsset) external;
     //function setCollectDrip(address _bAsset) external;
 
 }
