@@ -22,7 +22,7 @@ interface ILiquidator {
     // Restricted to the `integrationContract` given in addLiquidation
     function collect() external;
 
-    // Callable by anyone to trigger a selling event 
+    // Callable by anyone to trigger a selling event
     function triggerLiquidation(address _bAsset) external;
 
     // Governor only

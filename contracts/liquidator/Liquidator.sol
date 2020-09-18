@@ -15,7 +15,7 @@ import { StableMath } from "../shared/StableMath.sol";
 /**
  * @title   Liquidator
  * @author  Stability Labs Pty. Ltd.
- * @notice  The Liquidator allows rewards to be swapped for another token 
+ * @notice  The Liquidator allows rewards to be swapped for another token
  *          and returned to a calling contract
  * @dev     VERSION: 1.0
  *          DATE:    2020-09-17
@@ -61,13 +61,13 @@ contract Liquidator is
 
     /**
     * @dev Add a liquidation
-    * @param _bAsset The _bAsset 
+    * @param _bAsset The _bAsset
     * @param _integration The integration contract address for the _bAsset
     * @param _amount The amount to be sold
     */
     function addLiquidation(
-        address _bAsset, 
-        address _integration, 
+        address _bAsset,
+        address _integration,
         uint _amount
     )
         external

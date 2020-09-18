@@ -4,8 +4,8 @@ import { simpleToExactAmount } from "@utils/math";
 import { BN } from "@utils/tools";
 import envSetup from "@utils/env_setup";
 import * as t from "types/generated";
-import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
 import { ZERO_ADDRESS } from "@utils/constants";
+import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
 
 const Liquidator = artifacts.require("Liquidator");
 const MockNexus = artifacts.require("MockNexus");
