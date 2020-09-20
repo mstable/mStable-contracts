@@ -11,7 +11,11 @@ const { expect, assert } = envSetup.configure();
  *  @param actual The BN.js instance you received
  *  @param expected The BN.js amount you expected to receive, allowing a varience of +/- 10 units
  */
-export const assertBNClose = (actual: BN, expected: BN, variance: BN | number = new BN(10)): void => {
+export const assertBNClose = (
+    actual: BN,
+    expected: BN,
+    variance: BN | number = new BN(10),
+): void => {
     const actualDelta = actual.gt(expected) ? actual.sub(expected) : expected.sub(actual);
 
     assert.ok(
@@ -21,6 +25,27 @@ export const assertBNClose = (actual: BN, expected: BN, variance: BN | number = 
     assert.ok(
         actual.lte(expected.add(new BN(variance))),
         `Number is too large to be close (Delta between actual and expected is ${actualDelta.toString()}, but variance was only ${variance.toString()})`,
+    );
+};
+
+/**
+ *  Convenience method to assert that two BN.js instances are within 100 units of each other.
+ *  @param actual The BN.js instance you received
+ *  @param expected The BN.js amount you expected to receive, allowing a varience of +/- 10 units
+ */
+export const assertBNClosePercent = (a: BN, b: BN, variance = "0.02"): void => {
+    if (a.eq(b)) return;
+    const varianceBN = simpleToExactAmount(variance.substr(0, 6), 16);
+    const diff = a
+        .sub(b)
+        .abs()
+        .muln(2)
+        .mul(fullScale)
+        .div(a.add(b));
+    // console.log(diff.toString(), a.toString(), b.toString());
+    assert.ok(
+        diff.lte(varianceBN),
+        `Numbers exceed ${variance}% diff (Delta between a and b is ${diff.toString()}, but variance was only ${varianceBN.toString()})`,
     );
 };
 

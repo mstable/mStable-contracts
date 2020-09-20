@@ -17,15 +17,18 @@ export const DEAD_ADDRESS = "0x0000000000000000000000000000000000000001";
 export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 export const MAX_UINT256 = new BN(2).pow(new BN(256)).sub(new BN(1));
+export const MAX_INT128 = new BN(2).pow(new BN(127)).sub(new BN(1));
+export const MIN_INT128 = new BN(2).pow(new BN(127)).mul(new BN(-1));
 
 export const ZERO = new BN(0);
 export const ONE_MIN = new BN(60);
 export const TEN_MINS = new BN(60 * 10);
+export const ONE_HOUR = new BN(60 * 60);
 export const ONE_DAY = new BN(60 * 60 * 24);
 export const FIVE_DAYS = new BN(60 * 60 * 24 * 5);
 export const TEN_DAYS = new BN(60 * 60 * 24 * 10);
 export const ONE_WEEK = new BN(60 * 60 * 24 * 7);
-export const ONE_YEAR = new BN(60 * 60 * 24 * 7 * 52);
+export const ONE_YEAR = new BN(60 * 60 * 24 * 365);
 
 export const KEY_SAVINGS_MANAGER = utils.keccak256("SavingsManager");
 export const KEY_PROXY_ADMIN = utils.keccak256("ProxyAdmin");
@@ -91,7 +94,6 @@ export class KovanAccounts {
     public USDC: Address = "0xe22da380ee6B445bb8273C81944ADEB6E8450422";
 
     public TUSD: Address = "0x1c4a937d171752e1313D70fb16Ae2ea02f86303e";
-
     public USDT: Address = "0x13512979ade267ab5100878e2e0f485b568328a4";
     public allNativeTokens: Address[] = [this.DAI, this.TUSD, this.USDC, this.USDT];
 
@@ -102,7 +104,7 @@ export class KovanAccounts {
     public allATokens: Address[] = [this.aTUSD, this.aUSDT];
 
     // Compound cTokens
-    public cDAI: Address = "0x5d3a536e4d6dbd6114cc1ead35777bab948e3643";
-    public cUSDC: Address = "0x39aa39c021dfbae8fac545936693ac917d5e7563";
+    public cDAI: Address = "0xf0d0eb522cfa50b716b3b1604c4f0fa6f04376ad";
+    public cUSDC: Address = "0x4a92e71227d294f041bd82dd8f78591b75140d63";
     public allCTokens: Address[] = [this.cDAI, this.cUSDC];
 }
