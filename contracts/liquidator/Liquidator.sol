@@ -220,7 +220,7 @@ contract Liquidator is
     {
         Liquidation memory liquidation = liquidations[_bAsset];
 
-        require(liquidation.lastCalled + 1 days < now, "Trigger liquidation only callable every 24 hours");
+        require(liquidation.lastCalled + 1 days > now, "Trigger liquidation only callable every 24 hours");
 
         address asset = liquidation.sellToken;
         uint256 balance = IERC20(asset).balanceOf(address(this));
