@@ -112,14 +112,6 @@ contract("Liquidator", async (accounts) => {
     });
 
     describe("readLiqudation()", () => {
-        it("should revert if not called by the Governor", async () => {
-            await expectRevert(
-                liquidator.readLiquidation(ZERO_ADDRESS, {
-                    from: sa.default,
-                }),
-                "Only governor can execute",
-            );
-        });
         it("should revert if the liquidation does not exist", async () => {
             await expectRevert(
                 liquidator.readLiquidation.call(sa.dummy3, {

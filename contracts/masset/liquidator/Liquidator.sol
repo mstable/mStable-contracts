@@ -2,18 +2,24 @@ pragma solidity 0.5.16;
 pragma experimental ABIEncoderV2;
 
 // External
-//import { ILiquidator } from "../interfaces/ILiquidator.sol";
 import { IUniswapV2Router02 } from '../platform-integrations/IUniswapV2Router02.sol';
+import { ICERC20 } from '../platform-integrations/ICompound.sol';
+import { IPlatformIntegration } from '../../interfaces/IPlatformIntegration.sol';
 
 // Internal
 import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
 import { InitializableModule } from "../../shared/InitializableModule.sol";
 import { InitializableReentrancyGuard } from "../../shared/InitializableReentrancyGuard.sol";
+import { InitializableAbstractIntegration } from "../platform-integrations/InitializableAbstractIntegration.sol";
 
 // Libs
 import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+interface Integration {
+    
+}
 
 /**
  * @title   Liquidator
@@ -120,7 +126,6 @@ contract Liquidator is
      */
     function readLiquidation(address _bAsset)
         external
-        onlyGovernor
         returns (Liquidation memory liquidation)
     {
         require(liquidations[_bAsset].bAsset != address(0), "No liquidation for this bAsset");
@@ -153,8 +158,6 @@ contract Liquidator is
         require(liquidations[_bAsset].bAsset != address(0), "No liquidation for this bAsset");
 
         Liquidation storage liq = liquidations[_bAsset];
-        liq = liquidations[_bAsset];
-        liq.bAsset = _bAsset;
         liq.integration = _integration;
         liq.sellToken = _sellToken;
         liq.uniswapPath = _uniswapPath;
@@ -187,7 +190,6 @@ contract Liquidator is
         external
         onlyGovernor
     {
-
         require(_uniswapAddress != address(0), "_uniswapAddress cannot be zero address");
         uniswapAddress = _uniswapAddress;
         emit UniswapUpdated(_uniswapAddress);
@@ -206,8 +208,6 @@ contract Liquidator is
         address asset = liq.sellToken;
         
         uint256 balance = IERC20(asset).balanceOf(address(this));
-        IERC20(asset).safeApprove(sendAddress, 0);
-        IERC20(asset).safeApprove(sendAddress, balance);
         IERC20(asset).safeTransfer(sendAddress, balance);
     }
 
@@ -219,27 +219,47 @@ contract Liquidator is
         external
     {
         Liquidation memory liquidation = liquidations[_bAsset];
+        liquidation.lastCalled = block.timestamp;
 
-        require(liquidation.lastCalled + 1 days > now, "Trigger liquidation only callable every 24 hours");
+        require(block.timestamp > liquidation.lastCalled.add(1 days),
+                "Trigger liquidation only callable every 24 hours");
 
-        address asset = liquidation.sellToken;
-        uint256 balance = IERC20(asset).balanceOf(address(this));
-        require(balance != 0, "No tokens to liquidate");
+        // Token being sold is the first in the Uniswap path
+        address sellToken = liquidation.uniswapPath[0];
 
+        // Token being bought is the last in the Uniswap path
+        address buyToken = liquidation.uniswapPath[liquidation.uniswapPath.length.sub(1)];
+
+        uint256 balance = IERC20(sellToken).balanceOf(address(this));
+        require(balance != 0, "No sell tokens to liquidate");
+
+        // The amount we want to receive
+        // This computes a randomised amount of the buyToken wanted 
+        uint256 randomAmountWanted = uint256(blockhash(block.number-1)).mod(3000).add(1000);
+
+        // Get minimum amount of sellTokens needed for the amount of buyTokens
+        // https://uniswap.org/docs/v2/smart-contracts/router02/#getamountsout
+        uint[] memory amountsIn = IUniswapV2Router02(uniswapAddress).getAmountsIn(randomAmountWanted, liquidation.uniswapPath); 
+
+        // Add 10 % to remain over minimum amount
+        uint256 tenPercentOfMinAmount = amountsIn[0].mul(uint(1000)).div(uint(10000));
+        uint256 minAmount = amountsIn[0].add(tenPercentOfMinAmount);
         uint256 sellAmount;
 
-        uint256 randomAmountToSell = uint(blockhash(block.number-1)) % 3000 + 1000;
-
-        if (balance > sellAmount) {
-            sellAmount = randomAmountToSell;
-        } else {
+        // If the balance is less than the minAmount then sell everything 
+        if (balance < minAmount) {
             sellAmount = balance;
+        } else {
+            sellAmount = minAmount;
         }
 
-        IERC20(asset).safeApprove(uniswapAddress, 0);
-        IERC20(asset).safeApprove(uniswapAddress, sellAmount);
+        // Approve the transfer to Uniswap
+        IERC20(sellToken).safeApprove(uniswapAddress, 0);
+        IERC20(sellToken).safeApprove(uniswapAddress, sellAmount);
 
-        IUniswapV2Router02(uniswapAddress).swapExactTokensForTokens(
+        // Make the swap
+        // https://uniswap.org/docs/v2/smart-contracts/router02/#swapexacttokensfortokens
+        uint[] memory uniswapAmounts = IUniswapV2Router02(uniswapAddress).swapExactTokensForTokens(
             sellAmount,     
             uint256(0),
             liquidation.uniswapPath,
@@ -247,7 +267,13 @@ contract Liquidator is
             now.add(1800)
         );
 
-        liquidation.lastCalled = block.timestamp;
+        // Get the pToken for this bAsset
+        address cToken = IPlatformIntegration(liquidation.integration).bAssetToPToken(liquidation.bAsset);
+
+        // Deposit to lending platform
+        require(ICERC20(cToken).mint(uniswapAmounts[uniswapAmounts.length.sub(1)]) == 0, "cToken mint failed");
+
+        emit LiquidationTriggered(_bAsset);
     }
 
     /**
