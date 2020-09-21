@@ -218,14 +218,15 @@ contract Liquidator is
         external
     {
         // TODO  limit calling to a 24 hour period
-
         Liquidation memory liquidation = liquidations[_bAsset];
+
         address asset = liquidation.sellToken;
+        uint256 balance = IERC20(asset).balanceOf(address(this));
+        require(balance != 0, "No tokens to liquidate");
+
         uint256 sellAmount;
 
-        // TODO estimate dollar amount
         uint256 randomAmountToSell = uint(blockhash(block.number-1)) % 3000 + 1000;
-        uint256 balance = IERC20(asset).balanceOf(address(this));
 
         if (balance > sellAmount) {
             sellAmount = randomAmountToSell;
