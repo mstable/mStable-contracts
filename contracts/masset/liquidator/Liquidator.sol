@@ -3,12 +3,12 @@ pragma experimental ABIEncoderV2;
 
 // External
 //import { ILiquidator } from "../interfaces/ILiquidator.sol";
-import { IUniswapV2Router02 } from '../masset/platform-integrations/IUniswapV2Router02.sol';
+import { IUniswapV2Router02 } from '../platform-integrations/IUniswapV2Router02.sol';
 
 // Internal
 import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
-import { InitializableModule } from "../shared/InitializableModule.sol";
-import { InitializableReentrancyGuard } from "../shared/InitializableReentrancyGuard.sol";
+import { InitializableModule } from "../../shared/InitializableModule.sol";
+import { InitializableReentrancyGuard } from "../../shared/InitializableReentrancyGuard.sol";
 
 // Libs
 import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
