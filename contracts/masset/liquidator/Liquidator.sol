@@ -53,7 +53,8 @@ contract Liquidator is
         address[]   uniswapPath;
         uint        amount;
         bool        paused;
-        uint        lastCalled;
+        uint        lastCollected;
+        uint        lastTriggered;
     }
 
     mapping(address => Liquidation) public liquidations;
@@ -201,14 +202,30 @@ contract Liquidator is
     function collect(address _bAsset)
         external   
     {
-        Liquidation memory liq = liquidations[_bAsset];
-        require(msg.sender == liq.integration, "Only integration contract can execute");
+        Liquidation memory liquidation = liquidations[_bAsset];
+        liquidation.lastCollected = block.timestamp;
 
-        address sendAddress = liq.integration;
-        address asset = liq.sellToken;
+        require(msg.sender == liquidation.integration, 
+                "Only integration contract can execute");
+
+        // Randomise the time delay
+        uint256 salt = uint256(keccak256(abi.encodePacked(blockhash(block.number)))).mod(3000000);
+        uint256 timeDelay = ((uint256(1 hours)).mul(salt)).div(1000000);
+
+        require(block.timestamp > liquidation.lastCollected.add(timeDelay),
+                "Collect called too soon");
+
+        // Get the pToken for the bAsset from the Integration contract
+        address pToken = IPlatformIntegration(liquidation.integration).bAssetToPToken(liquidation.bAsset);
         
-        uint256 balance = IERC20(asset).balanceOf(address(this));
-        IERC20(asset).safeTransfer(sendAddress, balance);
+        uint256 balance = IERC20(pToken).balanceOf(address(this));
+        require(balance > 0, "No balance to send");
+
+        if (balance < 1000) {
+            IERC20(pToken).safeTransfer(liquidation.integration, balance);
+        }
+
+        // TODO send a randomised percentage of pTokens
     }
 
     /**
@@ -219,9 +236,9 @@ contract Liquidator is
         external
     {
         Liquidation memory liquidation = liquidations[_bAsset];
-        liquidation.lastCalled = block.timestamp;
+        liquidation.lastTriggered = block.timestamp;
 
-        require(block.timestamp > liquidation.lastCalled.add(1 days),
+        require(block.timestamp > liquidation.lastTriggered.add(1 days),
                 "Trigger liquidation only callable every 24 hours");
 
         // Token being sold is the first in the Uniswap path
@@ -234,7 +251,7 @@ contract Liquidator is
         require(balance != 0, "No sell tokens to liquidate");
 
         // The amount we want to receive
-        // This computes a randomised amount of the buyToken wanted 
+        // This computes a randomised amount of the buyToken wanted between 1000 & 4000
         uint256 randomAmountWanted = uint256(blockhash(block.number-1)).mod(3000).add(1000);
 
         // Get minimum amount of sellTokens needed for the amount of buyTokens
