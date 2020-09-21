@@ -24,7 +24,7 @@ contract("Liquidator", async (accounts) => {
         nexusAddress = systemMachine.nexus.address,
     ): Promise<t.LiquidatorInstance> => {
         liquidator = await Liquidator.new();
-        liquidator.initialize(systemMachine.nexus.address);
+        liquidator.initialize(systemMachine.nexus.address, ZERO_ADDRESS);
         return liquidator;
     };
 
@@ -46,43 +46,75 @@ contract("Liquidator", async (accounts) => {
         });
     });
 
-    describe("addLiquidation()", () => {
+    describe("createLiquidation()", () => {
         it("should revert if not called by the Governor", async () => {
             await expectRevert(
-                liquidator.addLiquidation(ZERO_ADDRESS, ZERO_ADDRESS, new BN(18), {
-                    from: sa.default,
-                }),
+                liquidator.createLiquidation(
+                    sa.dummy1,
+                    sa.dummy2,
+                    ZERO_ADDRESS,
+                    [ZERO_ADDRESS],
+                    new BN(1),
+                    false,
+                    {
+                        from: sa.default,
+                    },
+                ),
                 "Only governor can execute",
             );
         });
         it("should revert if passed a zero address for _bAsset", async () => {
             await expectRevert(
-                liquidator.addLiquidation(ZERO_ADDRESS, ZERO_ADDRESS, new BN(18), {
-                    from: sa.governor,
-                }),
+                liquidator.createLiquidation(
+                    ZERO_ADDRESS,
+                    ZERO_ADDRESS,
+                    ZERO_ADDRESS,
+                    [ZERO_ADDRESS],
+                    new BN(1),
+                    false,
+                    {
+                        from: sa.governor,
+                    },
+                ),
                 "bAsset cannot be zero address",
             );
         });
         it("should revert if passed a zero address for _integration", async () => {
             await expectRevert(
-                liquidator.addLiquidation(sa.dummy1, ZERO_ADDRESS, new BN(1), {
-                    from: sa.governor,
-                }),
+                liquidator.createLiquidation(
+                    sa.dummy1,
+                    ZERO_ADDRESS,
+                    ZERO_ADDRESS,
+                    [ZERO_ADDRESS],
+                    new BN(1),
+                    false,
+                    {
+                        from: sa.governor,
+                    },
+                ),
                 "integration cannot be zero address",
             );
         });
         it("should emit an event after adding a liquidation", async () => {
-            const tx = await liquidator.addLiquidation(sa.dummy1, sa.dummy2, new BN(1), {
-                from: sa.governor,
-            });
+            const tx = await liquidator.createLiquidation(
+                sa.dummy1,
+                sa.dummy2,
+                ZERO_ADDRESS,
+                [ZERO_ADDRESS],
+                new BN(1),
+                false,
+                {
+                    from: sa.governor,
+                },
+            );
             await expectEvent(tx.receipt, "LiquidationAdded");
         });
     });
 
-    describe("getLiquidation()", () => {
+    describe("readLiqudation()", () => {
         it("should revert if not called by the Governor", async () => {
             await expectRevert(
-                liquidator.getLiquidation(ZERO_ADDRESS, {
+                liquidator.readLiquidation(ZERO_ADDRESS, {
                     from: sa.default,
                 }),
                 "Only governor can execute",
@@ -90,27 +122,35 @@ contract("Liquidator", async (accounts) => {
         });
         it("should revert if the liquidation does not exist", async () => {
             await expectRevert(
-                liquidator.getLiquidation.call(sa.dummy3, {
+                liquidator.readLiquidation.call(sa.dummy3, {
                     from: sa.governor,
                 }),
                 "No liquidation for this bAsset",
             );
         });
         it("should return a liquidation", async () => {
-            await liquidator.addLiquidation(sa.dummy1, sa.dummy2, new BN(1), {
+            await liquidator.createLiquidation(
+                sa.dummy1,
+                sa.dummy2,
+                ZERO_ADDRESS,
+                [ZERO_ADDRESS],
+                new BN(1),
+                false,
+                {
+                    from: sa.governor,
+                },
+            );
+            const liquidation = await liquidator.readLiquidation.call(sa.dummy1, {
                 from: sa.governor,
             });
-            const liquidation = await liquidator.getLiquidation.call(sa.dummy1, {
-                from: sa.governor,
-            });
-            expect(liquidation.basset).to.eq(sa.dummy1);
+            expect(liquidation.bAsset).to.eq(sa.dummy1);
         });
     });
 
-    describe("removeLiquidation()", () => {
+    describe("deleteLiquidation()", () => {
         it("should revert if not called by the Governor", async () => {
             await expectRevert(
-                liquidator.removeLiquidation(ZERO_ADDRESS, {
+                liquidator.deleteLiquidation(ZERO_ADDRESS, {
                     from: sa.default,
                 }),
                 "Only governor can execute",
@@ -118,62 +158,144 @@ contract("Liquidator", async (accounts) => {
         });
         it("should revert if the liquidation does not exist", async () => {
             await expectRevert(
-                liquidator.removeLiquidation.call(sa.dummy3, {
+                liquidator.deleteLiquidation.call(sa.dummy3, {
                     from: sa.governor,
                 }),
                 "No liquidation for this bAsset",
             );
         });
-        it("should remove a liquidation", async () => {
-            await liquidator.addLiquidation(sa.dummy1, sa.dummy2, new BN(1), {
+        it("should delete a liquidation", async () => {
+            await liquidator.createLiquidation(
+                sa.dummy1,
+                sa.dummy2,
+                ZERO_ADDRESS,
+                [ZERO_ADDRESS],
+                new BN(1),
+                false,
+                {
+                    from: sa.governor,
+                },
+            );
+            const liquidation = await liquidator.readLiquidation.call(sa.dummy1, {
                 from: sa.governor,
             });
-            const liquidation = await liquidator.getLiquidation.call(sa.dummy1, {
-                from: sa.governor,
-            });
-            expect(liquidation.basset).to.eq(sa.dummy1);
+            expect(liquidation.bAsset).to.eq(sa.dummy1);
 
-            const tx = await liquidator.removeLiquidation(sa.dummy1, {
+            const tx = await liquidator.deleteLiquidation(sa.dummy1, {
                 from: sa.governor,
             });
 
             await expectEvent(tx.receipt, "LiquidationRemoved");
             await expectRevert(
-                liquidator.getLiquidation.call(sa.dummy1, {
+                liquidator.readLiquidation.call(sa.dummy1, {
                     from: sa.governor,
                 }),
                 "No liquidation for this bAsset",
             );
         });
     });
-    describe("pauseLiquidation()", () => {
+    describe("updateLiquidation()", () => {
         it("should revert if not called by the Governor", async () => {
             await expectRevert(
-                liquidator.pauseLiquidation(ZERO_ADDRESS, {
-                    from: sa.default,
-                }),
+                liquidator.updateLiquidation(
+                    sa.dummy1,
+                    sa.dummy2,
+                    ZERO_ADDRESS,
+                    [ZERO_ADDRESS],
+                    new BN(1),
+                    true,
+                    {
+                        from: sa.default,
+                    },
+                ),
                 "Only governor can execute",
             );
         });
         it("should revert if the liquidation does not exist", async () => {
             await expectRevert(
-                liquidator.removeLiquidation.call(sa.dummy3, {
+                liquidator.deleteLiquidation.call(sa.dummy3, {
                     from: sa.governor,
                 }),
                 "No liquidation for this bAsset",
             );
         });
         it("should pause a liquidiation", async () => {
-            await liquidator.addLiquidation(sa.dummy1, sa.dummy2, new BN(1), {
-                from: sa.governor,
-            });
-            await liquidator.pauseLiquidation(sa.dummy1, {
-                from: sa.governor,
-            });
-            const liquidation = await liquidator.getLiquidation.call(sa.dummy1, {
+            await liquidator.createLiquidation(
+                sa.dummy1,
+                sa.dummy2,
+                ZERO_ADDRESS,
+                [ZERO_ADDRESS],
+                new BN(1),
+                true,
+                {
+                    from: sa.governor,
+                },
+            );
+            await liquidator.updateLiquidation(
+                sa.dummy1,
+                sa.dummy2,
+                ZERO_ADDRESS,
+                [ZERO_ADDRESS],
+                new BN(1),
+                true,
+                {
+                    from: sa.governor,
+                },
+            );
+            const liquidation = await liquidator.readLiquidation.call(sa.dummy1, {
                 from: sa.governor,
             });
             expect(liquidation.paused).to.eq(true);
+        });
+    });
+    describe("updateUniswap()", () => {
+        it("should revert if not called by the Governor", async () => {
+            await expectRevert(
+                liquidator.updateUniswapAddress(ZERO_ADDRESS, {
+                    from: sa.default,
+                }),
+                "Only governor can execute",
+            );
+        });
+        it("should update the Uniswap address", async () => {
+            await liquidator.updateUniswapAddress(sa.dummy1, {
+                from: sa.governor,
+            });
+            const updatedUniswapAddress = await liquidator.uniswapAddress.call({
+                from: sa.governor,
+            });
+            expect(updatedUniswapAddress).to.eq(sa.dummy1);
+        });
+        it("should revert if passed a zero address for _uniswapAddress", async () => {
+            await expectRevert(
+                liquidator.updateUniswapAddress(ZERO_ADDRESS, {
+                    from: sa.governor,
+                }),
+                "_uniswapAddress cannot be zero address",
+            );
+        });
+    });
+    describe("triggerLiquidation()", () => {
+        it("should swap tokens with Uniswap", async () => {
+            await liquidator.createLiquidation(
+                sa.dummy1,
+                sa.dummy2,
+                ZERO_ADDRESS,
+                [ZERO_ADDRESS],
+                new BN(1),
+                true,
+                {
+                    from: sa.governor,
+                },
+            );
+        });
+    });
+    describe("randomNumber()", () => {
+        it("should return a random number", async () => {
+            const tx = await liquidator.randomNumber.call({
+                from: sa.governor,
+            });
+            await console.log(tx.toString());
         });
     });
 });
