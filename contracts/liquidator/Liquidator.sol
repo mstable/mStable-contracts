@@ -47,6 +47,7 @@ contract Liquidator is
         address[]   uniswapPath;
         uint        amount;
         bool        paused;
+        uint        lastCalled;
     }
 
     mapping(address => Liquidation) public liquidations;
@@ -217,8 +218,9 @@ contract Liquidator is
     function triggerLiquidation(address _bAsset)
         external
     {
-        // TODO  limit calling to a 24 hour period
         Liquidation memory liquidation = liquidations[_bAsset];
+
+        require(liquidation.lastCalled + 1 days < now, "Trigger liquidation only callable every 24 hours");
 
         address asset = liquidation.sellToken;
         uint256 balance = IERC20(asset).balanceOf(address(this));
@@ -244,6 +246,8 @@ contract Liquidator is
             address(this),
             now.add(1800)
         );
+
+        liquidation.lastCalled = block.timestamp;
     }
 
     /**
