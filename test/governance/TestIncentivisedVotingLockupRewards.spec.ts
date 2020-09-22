@@ -1,10 +1,9 @@
-import { assertBNClosePercent } from "@utils/assertions";
 /* eslint-disable no-nested-ternary */
 
 import * as t from "types/generated";
 import { expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
 import { StandardAccounts, SystemMachine } from "@utils/machines";
-import { assertBNClose, assertBNSlightlyGT } from "@utils/assertions";
+import { assertBNClose, assertBNSlightlyGT, assertBNClosePercent } from "@utils/assertions";
 import { simpleToExactAmount } from "@utils/math";
 import { BN } from "@utils/tools";
 import { ONE_WEEK, ONE_DAY, FIVE_DAYS, fullScale } from "@utils/constants";
@@ -209,6 +208,12 @@ contract("IncentivisedVotingLockupRewards", async (accounts) => {
                 afterData.beneficiaryRewardsEarned,
             );
         }
+    };
+
+    const calculateStaticBalance = async (lockupLength: BN, amount: BN): Promise<BN> => {
+        const slope = amount.div(await votingLockup.MAXTIME());
+        const s = slope.muln(10000).muln(Math.sqrt(lockupLength.toNumber()));
+        return s;
     };
 
     /**
@@ -458,7 +463,11 @@ contract("IncentivisedVotingLockupRewards", async (accounts) => {
             expect(afterData.rewardRate).bignumber.eq(new BN(0));
             expect(afterData.rewardPerTokenStored).bignumber.eq(new BN(0));
             expect(afterData.beneficiaryRewardsEarned).bignumber.eq(new BN(0));
-            assertBNClosePercent(afterData.totalStaticWeight, stakeAmount.divn(52), "0.5");
+            assertBNClosePercent(
+                afterData.totalStaticWeight,
+                await calculateStaticBalance(ONE_WEEK, stakeAmount),
+                "0.5",
+            );
             expect(afterData.lastTimeRewardApplicable).bignumber.eq(new BN(0));
         });
     });
@@ -518,8 +527,8 @@ contract("IncentivisedVotingLockupRewards", async (accounts) => {
             });
         });
         context("with multiple stakers coming in and out", () => {
-            const fundAmount1 = simpleToExactAmount(100, 21);
-            const fundAmount2 = simpleToExactAmount(200, 21);
+            const fundAmount1 = simpleToExactAmount(10000, 19);
+            const fundAmount2 = simpleToExactAmount(20000, 19);
             const staker2 = sa.dummy1;
             const staker3 = sa.dummy2;
             const staker1Stake1 = simpleToExactAmount(100, 18);
@@ -538,19 +547,51 @@ contract("IncentivisedVotingLockupRewards", async (accounts) => {
                  *   [ - - - - - - ] [ - - - - - - ]
                  * 100k            200k                 <-- Funding
                  * +100            +200                 <-- Staker 1
-                 *        +100                          <-- Staker 2
+                 *        +100      |             >|    <-- Staker 2
                  * +100            -100                 <-- Staker 3
                  *
-                 * Staker 1 gets 25k + 20k from week 1 + 160k from week 2 = 205k
-                 * Staker 2 gets 10k from week 1 + 40k from week 2 = 50k
-                 * Staker 3 gets 25k + 20k from week 1 + 0 from week 2 = 45k
+                 * Staker 1 gets 25k + 16.66k from week 1 + 150k from week 2 = 191.66k
+                 * Staker 2 gets 16.66k from week 1 + 50k from week 2 = 66.66k
+                 * Staker 3 gets 25k + 16.66k from week 1 + 0 from week 2 = 41.66k
                  */
+
+                const expectedStatic1 = await calculateStaticBalance(ONE_WEEK, staker1Stake1);
+                const expectedStatic2 = await calculateStaticBalance(
+                    ONE_WEEK.divn(2),
+                    staker1Stake1,
+                );
+                const totalStaticp2 = expectedStatic1.muln(2).add(expectedStatic2);
+                const expectedStatic3 = await calculateStaticBalance(ONE_WEEK, staker1Stake2);
+                const totalStaticp3 = expectedStatic3.add(expectedStatic2);
+                const staker1share = fundAmount1
+                    .divn(2)
+                    .divn(2)
+                    .add(
+                        fundAmount1
+                            .divn(2)
+                            .mul(expectedStatic1)
+                            .div(totalStaticp2),
+                    )
+                    .add(fundAmount2.mul(expectedStatic3).div(totalStaticp3));
+                const staker2share = fundAmount1
+                    .divn(2)
+                    .mul(expectedStatic2)
+                    .div(totalStaticp2)
+                    .add(fundAmount2.mul(expectedStatic2).div(totalStaticp3));
+                const staker3share = fundAmount1
+                    .divn(2)
+                    .divn(2)
+                    .add(
+                        fundAmount1
+                            .divn(2)
+                            .mul(expectedStatic1)
+                            .div(totalStaticp2),
+                    );
 
                 // WEEK 0-1 START
                 await goToNextUnixWeekStart();
                 await expectSuccessfulStake(staker1Stake1);
                 await expectSuccessfulStake(staker3Stake, staker3);
-
                 await expectSuccesfulFunding(fundAmount1);
 
                 await time.increase(ONE_WEEK.divn(2).addn(1));
@@ -570,11 +611,11 @@ contract("IncentivisedVotingLockupRewards", async (accounts) => {
 
                 // WEEK 2 FINISH
                 const earned1 = await votingLockup.earned(sa.default);
-                assertBNClose(earned1, simpleToExactAmount(205, 21), simpleToExactAmount(1, 19));
                 const earned2 = await votingLockup.earned(staker2);
-                assertBNClose(earned2, simpleToExactAmount(50, 21), simpleToExactAmount(1, 19));
                 const earned3 = await votingLockup.earned(staker3);
-                assertBNClose(earned3, simpleToExactAmount(45, 21), simpleToExactAmount(1, 19));
+                assertBNClose(earned1, staker1share, simpleToExactAmount(5, 19));
+                assertBNClose(earned2, staker2share, simpleToExactAmount(5, 19));
+                assertBNClose(earned3, staker3share, simpleToExactAmount(5, 19));
                 // Ensure that sum of earned rewards does not exceed funcing amount
                 expect(fundAmount1.add(fundAmount2)).bignumber.gte(
                     earned1.add(earned2).add(earned3) as any,

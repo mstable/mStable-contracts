@@ -10,6 +10,7 @@ import { RewardsDistributionRecipient } from "../rewards/RewardsDistributionReci
 import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import { SignedSafeMath128 } from "../shared/SignedSafeMath128.sol";
 import { StableMath, SafeMath } from "../shared/StableMath.sol";
+import { Root } from "../shared/Root.sol";
 
 
 /**
@@ -52,7 +53,7 @@ contract IncentivisedVotingLockup is
     IERC20 public stakingToken;
     uint256 private constant WEEK = 7 days;
     uint256 public constant MAXTIME = 365 days;
-    // uint256 public END;
+    uint256 public END;
     bool public expired = false;
 
     /** Lockup */
@@ -122,7 +123,7 @@ contract IncentivisedVotingLockup is
         name = _name;
         symbol = _symbol;
 
-        // END = block.timestamp.add(MAXTIME);
+        END = block.timestamp.add(MAXTIME);
     }
 
     /** @dev Modifier to ensure contract has not yet expired */
@@ -216,8 +217,13 @@ contract IncentivisedVotingLockup is
             }
             // track the total static weight
             // @TODO - Verify that these biases will always result in 0 sum
-            uint256 additiveStaticWeight = totalStaticWeight.add(uint256(userNewPoint.bias));
-            totalStaticWeight = uEpoch == 0 ? additiveStaticWeight : additiveStaticWeight.sub(uint256(userPointHistory[_addr][uEpoch].bias));
+            uint256 newStatic = _staticBalance(userNewPoint.slope, block.timestamp, _newLocked.end);
+            uint256 additiveStaticWeight = totalStaticWeight.add(newStatic);
+            if(uEpoch > 0){
+                uint256 oldStatic = _staticBalance(userPointHistory[_addr][uEpoch].slope, userPointHistory[_addr][uEpoch].ts, _oldLocked.end);
+                additiveStaticWeight = additiveStaticWeight.sub(oldStatic);
+            }
+            totalStaticWeight = additiveStaticWeight;
 
             userPointEpoch[_addr] = uEpoch.add(1);
             userNewPoint.ts = block.timestamp;
@@ -405,8 +411,8 @@ contract IncentivisedVotingLockup is
         require(locked_.amount == 0, "Withdraw old tokens first");
 
         require(unlock_time > block.timestamp, "Can only lock until time in the future");
-        // require(unlock_time <= END, "Voting lock can be 1 year max (until recol)");
-        require(unlock_time <= (block.timestamp.add(MAXTIME)), "Voting lock can be 1 year max (until recol)");
+        require(unlock_time <= END, "Voting lock can be 1 year max (until recol)");
+        // require(unlock_time <= (block.timestamp.add(MAXTIME)), "Voting lock can be 1 year max (until recol)");
 
         _depositFor(msg.sender, _value, unlock_time, locked_, LockAction.CREATE_LOCK);
     }
@@ -446,8 +452,8 @@ contract IncentivisedVotingLockup is
         require(locked_.end > block.timestamp, "Lock expired");
         require(locked_.amount > 0, "Nothing is locked");
         require(unlock_time > locked_.end, "Can only increase lock WEEK");
-        // require(unlock_time <= END, "Voting lock can be 1 year max (until recol)");
-        require(unlock_time <= block.timestamp.add(MAXTIME), "Voting lock can be 1 year max (until recol)");
+        require(unlock_time <= END, "Voting lock can be 1 year max (until recol)");
+        // require(unlock_time <= block.timestamp.add(MAXTIME), "Voting lock can be 1 year max (until recol)");
 
         _depositFor(msg.sender, 0, unlock_time, locked_, LockAction.INCREASE_LOCK_TIME);
     }
@@ -832,10 +838,23 @@ contract IncentivisedVotingLockup is
         returns (uint256)
     {
         uint256 uepoch = userPointEpoch[_addr];
-        if(uepoch == 0){
+        if(uepoch == 0 || userPointHistory[_addr][uepoch].bias == 0){
             return 0;
         }
-        return uint256(userPointHistory[_addr][uepoch].bias);
+        return _staticBalance(userPointHistory[_addr][uepoch].slope, userPointHistory[_addr][uepoch].ts, locked[_addr].end);
+    }
+
+    function _staticBalance(int128 _slope, uint256 _startTime, uint256 _endTime)
+        internal
+        pure
+        returns (uint256)
+    {
+        if(_startTime > _endTime) return 0;
+        // get lockup length (end - point.ts)
+        uint256 lockupLength = _endTime.sub(_startTime);
+        // s = amount * sqrt(length)
+        uint256 s = uint256(_slope.mul(10000)).mul(Root.sqrt(lockupLength));
+        return s;
     }
 
     /**

@@ -8,8 +8,8 @@ import { StandardAccounts } from "@utils/machines";
 import envSetup from "@utils/env_setup";
 import { simpleToExactAmount } from "@utils/math";
 import { BN } from "@utils/tools";
-import { ONE_WEEK, ONE_HOUR, ONE_DAY } from "@utils/constants";
-import * as t from "../../types/generated";
+import { ONE_WEEK, ONE_HOUR, ONE_DAY, fullScale } from "@utils/constants";
+import * as t from "types/generated";
 
 const VotingLockup = artifacts.require("IncentivisedVotingLockup");
 const MetaToken = artifacts.require("MetaToken");
@@ -77,60 +77,164 @@ contract("IncentivisedVotingLockup", async (accounts) => {
                 );
             });
         });
+        describe("fetching for current block", () => {
+            it("fails for balanceOfAt");
+            it("fails for supply");
+        });
     });
 
+    interface LockedBalance {
+        amount: BN;
+        end: BN;
+    }
+
+    interface StakingData {
+        totalStaticWeight: BN;
+        userStaticWeight: BN;
+        userLocked: LockedBalance;
+        senderStakingTokenBalance: BN;
+        contractStakingTokenBalance: BN;
+        userRewardPerTokenPaid: BN;
+        beneficiaryRewardsEarned: BN;
+        rewardPerTokenStored: BN;
+        rewardRate: BN;
+        lastUpdateTime: BN;
+        lastTimeRewardApplicable: BN;
+        periodFinishTime: BN;
+    }
+
+    const snapshotStakingData = async (sender = sa.default): Promise<StakingData> => {
+        const locked = await votingLockup.locked(sender);
+        return {
+            totalStaticWeight: await votingLockup.totalStaticWeight(),
+            userStaticWeight: await votingLockup.staticBalanceOf(sender),
+            userLocked: {
+                amount: locked[0],
+                end: locked[1],
+            },
+            userRewardPerTokenPaid: await votingLockup.userRewardPerTokenPaid(sender),
+            senderStakingTokenBalance: await mta.balanceOf(sender),
+            contractStakingTokenBalance: await mta.balanceOf(votingLockup.address),
+            beneficiaryRewardsEarned: await votingLockup.rewards(sender),
+            rewardPerTokenStored: await votingLockup.rewardPerTokenStored(),
+            rewardRate: await votingLockup.rewardRate(),
+            lastUpdateTime: await votingLockup.lastUpdateTime(),
+            lastTimeRewardApplicable: await votingLockup.lastTimeRewardApplicable(),
+            periodFinishTime: await votingLockup.periodFinish(),
+        };
+    };
+
+    // Flow performed with 4 stakers
+    // 1 -
+    // 2 -
+    // 3 -
+    // 4 -
     describe("performing full system flow", () => {
         before(async () => {
             await deployFresh(simpleToExactAmount(100, 18));
         });
+        describe("checking initial settings", () => {
+            it("should set END date");
+            it("sets & gets duration");
+        });
+        describe("creating a lockup", () => {
+            // TODO - verify balances
+            it("allows user to create a lock", async () => {
+                await votingLockup.createLock(simpleToExactAmount(1, 18), unlockTime);
+                await votingLockup.createLock(simpleToExactAmount(1, 18), unlockTime, {
+                    from: sa.other,
+                });
+                await votingLockup.balanceOf(sa.default);
+                await votingLockup.balanceOfAt(sa.default, 1);
+                await votingLockup.balanceOfAt(sa.default, (await time.latestBlock()) - 1);
+                await votingLockup.totalSupply();
+                await votingLockup.totalSupplyAt(1);
+                await votingLockup.totalSupplyAt((await time.latestBlock()) - 1);
 
-        // TODO - verify balances
-        it("allows user to create a lock", async () => {
-            await votingLockup.createLock(simpleToExactAmount(1, 18), unlockTime);
-            await votingLockup.createLock(simpleToExactAmount(1, 18), unlockTime, {
-                from: sa.other,
+                // require(_value > 0, "Must stake non zero amount");
+                // require(locked_.amount == 0, "Withdraw old tokens first");
+
+                // require(unlock_time > block.timestamp, "Can only lock until time in the future");
+                // // require(unlock_time <= END, "Voting lock can be 1 year max (until recol)");
+                // require(unlock_time <= (block.timestamp.add(MAXTIME)), "Voting lock can be 1 year max (until recol)");
             });
-            await votingLockup.balanceOf(sa.default);
-            await votingLockup.balanceOfAt(sa.default, 1);
-            await votingLockup.balanceOfAt(sa.default, (await time.latestBlock()) - 1);
-            await votingLockup.totalSupply();
-            await votingLockup.totalSupplyAt(1);
-            await votingLockup.totalSupplyAt((await time.latestBlock()) - 1);
+            it("only allows creation up until END date");
         });
 
-        it("allows user to extend lock");
-        // TODO - verify balances
-        it("allows user to claim", async () => {
-            await time.increase(ONE_WEEK);
+        describe("extending lock", () => {
+            // require(_value > 0, "Must stake non zero amount");
+            // require(locked_.amount > 0, "No existing lock found");
+            // require(locked_.end > block.timestamp, "Cannot add to expired lock. Withdraw");
 
-            await votingLockup.claimReward();
+            it("allows anyone to increase lock amount");
 
-            await votingLockup.staticBalanceOf(sa.default);
-            await votingLockup.balanceOf(sa.default);
-            await votingLockup.balanceOfAt(sa.default, 1);
-            await votingLockup.balanceOfAt(sa.default, (await time.latestBlock()) - 1);
-            await votingLockup.totalSupply();
-            await votingLockup.totalSupplyAt(1);
-            await votingLockup.totalSupplyAt((await time.latestBlock()) - 1);
+            // require(locked_.end > block.timestamp, "Lock expired");
+            // require(locked_.amount > 0, "Nothing is locked");
+            // require(unlock_time > locked_.end, "Can only increase lock WEEK");
+            // // require(unlock_time <= END, "Voting lock can be 1 year max (until recol)");
+            // require(unlock_time <= block.timestamp.add(MAXTIME), "Voting lock can be 1 year max (until recol)");
+            it("allows user to extend lock");
         });
-        // TODO - verify balances
-        it("allows user to withdraw", async () => {
-            await time.increase(ONE_WEEK.muln(26));
 
-            await votingLockup.withdraw();
-            await votingLockup.withdraw({ from: sa.other });
-
-            await votingLockup.staticBalanceOf(sa.default);
-            await votingLockup.balanceOf(sa.default);
-            await votingLockup.balanceOfAt(sa.default, 1);
-            await votingLockup.balanceOfAt(sa.default, (await time.latestBlock()) - 1);
-            await votingLockup.totalSupply();
-            await votingLockup.totalSupplyAt(1);
-            await votingLockup.totalSupplyAt((await time.latestBlock()) - 1);
+        describe("trying to withdraw early", () => {
+            // require(block.timestamp >= oldLock.end || expired, "The lock didn't expire");
+            it("fails");
         });
-        it("kicks a user and withdraws their stake");
-        it("fully exists the system");
-        it("expires the contract and unlocks all stakes");
+
+        describe("calling public checkpoint", () => {
+            // checkpoint updates point history
+            it("allows anyone to call checkpoint");
+        });
+
+        describe("calling the getters", () => {
+            // returns 0 if 0
+            it("allows anyone to get last user point");
+        });
+
+        describe("claiming rewards", () => {
+            // TODO - verify balances
+            it("allows user to claim", async () => {
+                await time.increase(ONE_WEEK);
+
+                await votingLockup.claimReward();
+
+                await votingLockup.staticBalanceOf(sa.default);
+                await votingLockup.balanceOf(sa.default);
+                await votingLockup.balanceOfAt(sa.default, 1);
+                await votingLockup.balanceOfAt(sa.default, (await time.latestBlock()) - 1);
+                await votingLockup.totalSupply();
+                await votingLockup.totalSupplyAt(1);
+                await votingLockup.totalSupplyAt((await time.latestBlock()) - 1);
+            });
+        });
+        describe("exiting the system", () => {
+            // TODO - verify balances
+            it("allows user to withdraw", async () => {
+                await time.increase(ONE_WEEK.muln(26));
+
+                await votingLockup.withdraw();
+                await votingLockup.withdraw({ from: sa.other });
+
+                await votingLockup.staticBalanceOf(sa.default);
+                await votingLockup.balanceOf(sa.default);
+                await votingLockup.balanceOfAt(sa.default, 1);
+                await votingLockup.balanceOfAt(sa.default, (await time.latestBlock()) - 1);
+                await votingLockup.totalSupply();
+                await votingLockup.totalSupplyAt(1);
+                await votingLockup.totalSupplyAt((await time.latestBlock()) - 1);
+            });
+            // cant eject a user if they haven't finished lockup yet
+            it("kicks a user and withdraws their stake");
+            it("fully exists the system");
+        });
+
+        describe("expiring the contract", () => {
+            // cant stake after expiry
+            // cant notify after expiry
+            it("must be done after final period finishes");
+            it("only gov");
+            it("expires the contract and unlocks all stakes");
+        });
     });
 
     // Integration test ported from
@@ -179,6 +283,12 @@ contract("IncentivisedVotingLockup", async (accounts) => {
             return nextUnixWeek;
         };
 
+        const calculateStaticBalance = async (lockupLength: BN, amount: BN): Promise<BN> => {
+            const slope = amount.div(await votingLockup.MAXTIME());
+            const s = slope.muln(10000).muln(Math.sqrt(lockupLength.toNumber()));
+            return s;
+        };
+
         it("calculates voting weights on a rolling basis", async () => {
             /**
              * SETUP
@@ -207,10 +317,12 @@ contract("IncentivisedVotingLockup", async (accounts) => {
              * Fund the pool
              */
 
+            console.log("a00");
             let nextUnixWeek = await nextUnixWeekStart();
             await time.increaseTo(nextUnixWeek);
             await time.increase(ONE_HOUR);
             await fundVotingLockup(amount);
+            console.log("a0");
 
             stages["before_deposits"] = [await time.latestBlock(), await time.latest()];
 
@@ -218,10 +330,12 @@ contract("IncentivisedVotingLockup", async (accounts) => {
                 from: alice,
             });
             stages["alice_deposit"] = [await time.latestBlock(), await time.latest()];
+            console.log("a1");
 
-            expect(await votingLockup.staticBalanceOf(alice)).bignumber.eq(
-                await votingLockup.balanceOfAt(alice, stages["alice_deposit"][0]),
-                "Alices static weight must equal initial balance",
+            assertBNClosePercent(
+                await votingLockup.staticBalanceOf(alice),
+                await calculateStaticBalance(ONE_WEEK.sub(ONE_HOUR), amount),
+                "0.1",
             );
             expect(await votingLockup.totalStaticWeight()).bignumber.eq(
                 await votingLockup.staticBalanceOf(alice),
@@ -229,7 +343,7 @@ contract("IncentivisedVotingLockup", async (accounts) => {
             );
             await time.increase(ONE_HOUR);
             await time.advanceBlock();
-
+            console.log("a2");
             assertBNClosePercent(
                 await votingLockup.balanceOf(alice),
                 amount.div(MAXTIME).mul(ONE_WEEK.sub(ONE_HOUR.muln(2))),
@@ -246,7 +360,7 @@ contract("IncentivisedVotingLockup", async (accounts) => {
 
             stages["alice_in_0"] = [];
             stages["alice_in_0"].push([await time.latestBlock(), await time.latest()]);
-
+            console.log("a3");
             /**
              * Measure Alice's decay over whole week
              */
@@ -273,13 +387,14 @@ contract("IncentivisedVotingLockup", async (accounts) => {
                 expect(await votingLockup.balanceOf(bob)).bignumber.eq(new BN(0));
                 stages["alice_in_0"].push([await time.latestBlock(), await time.latest()]);
             }
-
+            console.log("a4");
             await time.increase(ONE_HOUR);
 
             expect(await votingLockup.balanceOf(alice)).bignumber.eq(new BN(0));
-            expect(await votingLockup.staticBalanceOf(alice)).bignumber.eq(
-                await votingLockup.balanceOfAt(alice, stages["alice_deposit"][0]),
-                "Alices static weight must continue to be equal initial balance",
+            assertBNClosePercent(
+                await votingLockup.staticBalanceOf(alice),
+                await calculateStaticBalance(ONE_WEEK.sub(ONE_HOUR), amount),
+                "0.1",
             );
             expect(await votingLockup.totalStaticWeight()).bignumber.eq(
                 await votingLockup.staticBalanceOf(alice),
@@ -359,12 +474,12 @@ contract("IncentivisedVotingLockup", async (accounts) => {
             let bobStatic = await votingLockup.staticBalanceOf(bob);
             let totalStatic = await votingLockup.totalStaticWeight();
 
-            expect(aliceStatic).bignumber.eq(
-                await votingLockup.balanceOfAt(alice, stages["alice_deposit_2"][0]),
+            assertBNClosePercent(
+                aliceStatic,
+                await calculateStaticBalance(ONE_WEEK.muln(2), amount),
+                "0.1",
             );
-            expect(bobStatic).bignumber.eq(
-                await votingLockup.balanceOfAt(bob, stages["bob_deposit_2"][0]),
-            );
+            assertBNClosePercent(bobStatic, await calculateStaticBalance(ONE_WEEK, amount), "0.1");
             expect(totalStatic).bignumber.eq(aliceStatic.add(bobStatic));
 
             t0 = await time.latest();
@@ -423,8 +538,10 @@ contract("IncentivisedVotingLockup", async (accounts) => {
             bobStatic = await votingLockup.staticBalanceOf(bob);
             totalStatic = await votingLockup.totalStaticWeight();
 
-            expect(aliceStatic).bignumber.eq(
-                await votingLockup.balanceOfAt(alice, stages["alice_deposit_2"][0]),
+            assertBNClosePercent(
+                aliceStatic,
+                await calculateStaticBalance(ONE_WEEK.muln(2), amount),
+                "0.1",
             );
             expect(bobStatic).bignumber.eq(new BN(0));
             expect(totalStatic).bignumber.eq(aliceStatic);
@@ -483,8 +600,8 @@ contract("IncentivisedVotingLockup", async (accounts) => {
             const bobRewardsEarned = await votingLockup.rewardsPaid(bob);
 
             assertBNClosePercent(aliceRewardsEarned1, simpleToExactAmount("1000", 18), "0.01");
-            assertBNClosePercent(aliceRewardsEarned2, simpleToExactAmount("1666.666", 18), "0.01");
-            assertBNClosePercent(bobRewardsEarned, simpleToExactAmount("333.333", 18), "0.01");
+            assertBNClosePercent(aliceRewardsEarned2, simpleToExactAmount("1585.788", 18), "0.01");
+            assertBNClosePercent(bobRewardsEarned, simpleToExactAmount("414.212", 18), "0.01");
             assertBNClosePercent(
                 aliceRewardsEarned2.add(bobRewardsEarned),
                 amount.muln(2),
