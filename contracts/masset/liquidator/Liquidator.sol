@@ -188,6 +188,12 @@ contract Liquidator is
         onlyGovernor
     {
         require(liquidations[_bAsset].bAsset != address(0), "No liquidation for this bAsset");
+    
+        // Check for unclaimed pTokens and revert
+        // TODO Add mocks to tests for this call
+        //address pToken = IPlatformIntegration(_integration).bAssetToPToken(_bAsset);
+        //uint256 pTokenbalance = IERC20(pToken).balanceOf(address(this));
+        //require(pTokenbalance > 0, "Unclaimed pTokens on this liquidation");
 
         delete liquidations[_bAsset];
         emit LiquidationDeleted(_bAsset);
@@ -255,6 +261,7 @@ contract Liquidator is
     */
     function triggerLiquidation(address _bAsset)
         external
+        payable
     {
         Liquidation memory liquidation = liquidations[_bAsset];
         liquidation.lastTriggered = block.timestamp;
@@ -268,8 +275,15 @@ contract Liquidator is
         // Token being bought is the last in the Uniswap path
         address buyToken = liquidation.uniswapPath[liquidation.uniswapPath.length.sub(1)];
 
+        // Get allowance given by the integration contract for the sell token
         uint256 allowance = IERC20(sellToken).allowance(liquidation.integration, address(this));
-        require(allowance = 0, "No allowance on sell tokens to liquidate");
+
+        // Transfer tokens to this contract if there is an allowance
+        if (allowance > 0){
+            IERC20(sellToken).safeTransferFrom(liquidation.integration, address(this), allowance);
+        }
+        uint256 balance = IERC20(sellToken).balanceOf(address(this));
+        require((balance > 0), "No sell tokens to liquidate");
 
         // The amount we want to receive
         // This computes a randomised amount of the buyToken wanted between 1000 & 4000
@@ -284,9 +298,9 @@ contract Liquidator is
         uint256 minAmount = amountsIn[0].add(tenPercentOfMinAmount);
         uint256 sellAmount;
 
-        // If the allowance is less than the minAmount then sell everything 
-        if (allowance < minAmount) {
-            sellAmount = allowance;
+        // If the balance is less than the minAmount then sell everything 
+        if (balance < minAmount) {
+            sellAmount = balance;
         } else {
             sellAmount = minAmount;
         }
@@ -308,10 +322,11 @@ contract Liquidator is
         // Get the pToken for this bAsset
         address cToken = IPlatformIntegration(liquidation.integration).bAssetToPToken(liquidation.bAsset);
 
-        uint256 cTokenBalance = IERC20(cToken).balanceOf(address(this));
+        uint256 buyTokenBalance = IERC20(buyToken).balanceOf(address(this));
+        require((buyTokenBalance > 0), "No tokens to deposit");
 
         // Deposit to lending platform
-        require(ICERC20(cToken).mint(cTokenBalance) == 0, "cToken mint failed");
+        require(ICERC20(cToken).mint(buyTokenBalance) == 0, "cToken mint failed");
 
         emit LiquidationTriggered(_bAsset);
     }
