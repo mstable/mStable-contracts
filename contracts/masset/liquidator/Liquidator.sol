@@ -193,6 +193,12 @@ contract Liquidator is
         //uint256 pTokenbalance = IERC20(pToken).balanceOf(address(this));
         //require(pTokenbalance > 0, "Unclaimed pTokens on this liquidation");
 
+        //Liquidation memory liquidation = liquidations[_bAsset];
+
+        //address sellToken = liquidation.uniswapPath[0];
+        //uint256 sellTokenBalance = IERC20(sellToken).balanceOf(address(this));
+        //require((sellTokenBalance == 0), "Sell tokens on this liquidation");
+
         delete liquidations[_bAsset];
         emit LiquidationDeleted(_bAsset);
     }
@@ -219,7 +225,7 @@ contract Liquidator is
         external
         payable
     {
-        Liquidation memory liquidation = liquidations[_bAsset];
+        Liquidation storage liquidation = liquidations[_bAsset];
         liquidation.lastTriggered = block.timestamp;
 
         require(block.timestamp > liquidation.lastTriggered.add(1 days),
