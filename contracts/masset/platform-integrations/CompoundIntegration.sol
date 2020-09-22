@@ -16,6 +16,8 @@ contract CompoundIntegration is InitializableAbstractIntegration {
     event RewardTokenCollected(address recipient, uint256 amount);
     event SkippedWithdrawal(address bAsset, uint256 amount);
 
+    uint256 internal lastClaimed;
+
     /***************************************
                     ADMIN
     ****************************************/
@@ -83,6 +85,8 @@ contract CompoundIntegration is InitializableAbstractIntegration {
             // Else just execute the mint
             require(cToken.mint(_amount) == 0, "cToken mint failed");
         }
+
+        _checkClaim(_bAsset);
 
         emit Deposit(_bAsset, address(cToken), quantityDeposited);
     }
@@ -187,6 +191,16 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         MassetHelpers.safeInfiniteApprove(_bAsset, _cToken);
     }
 
+    /**
+     * @dev Collect rewards tokens for a bAsset from the Liquidator 
+     * @param _bAsset  Address of the bAsset
+     */
+    function _collect(address _bAsset)
+        internal
+    {
+
+    }
+
     /***************************************
                     HELPERS
     ****************************************/
@@ -239,6 +253,50 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         uint256 exchangeRate = _cToken.exchangeRateStored();
         // e.g. 1e18*1e18 / 205316390724364402565641705 = 50e8
         // e.g. 1e8*1e18 / 205316390724364402565641705 = 0.45 or 0
-        amount = _underlying.mul(1e18).div(exchangeRate);
+       amount = _underlying.mul(1e18).div(exchangeRate);
+    }
+
+    /**
+     * @dev Checks whether a claim should be made
+     * This compares the block.timestamp with a somewhat random time
+     * Adds randomness by muliplying the 1 hour delay between 1x and 3x
+     * @param _bAsset Address for the bAsset
+     */
+    function _checkClaim(address _bAsset)
+        internal
+    {
+        uint256 salt = uint256(keccak256(abi.encodePacked(blockhash(block.number)))).mod(3000000);
+        uint256 timeDelay = ((uint256(1 hours)).mul(salt)).div(1000000);
+
+        if (block.timestamp > lastClaimed.add(timeDelay)) {
+            _claim(_bAsset);
+        }
+    }
+
+    /**
+     * @dev Collects pTokens from the Liquidator
+     * Adds randomness by computing a basis point between 1000 and 4000
+     * This correlates to transfering 10%-40% of the total allowance
+     * @param _bAsset Address for the bAsset
+     */
+    function _claim(address _bAsset)
+        internal
+    {
+        lastClaimed = block.timestamp;
+
+        address liquidator = nexus.getModule(keccak256('Liquidator'));
+        address cToken = bAssetToPToken[_bAsset];
+        require(cToken != address(0), "cToken does not exist");
+        uint256 allowance = IERC20(cToken).allowance(liquidator, address(this));
+
+        if (allowance > 0 && allowance < 20) {
+            IERC20(cToken).safeTransferFrom(liquidator, address(this), allowance);
+        }
+
+        if (allowance > 0) {
+            uint256 randomBp = uint256(blockhash(block.number-1)).mod(3000).add(1000);
+            uint256 toTransfer = allowance.mul(randomBp).div(uint(10000));
+            IERC20(cToken).safeTransferFrom(liquidator, address(this), toTransfer);
+        }
     }
 }
