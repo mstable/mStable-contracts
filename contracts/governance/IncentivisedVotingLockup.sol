@@ -449,8 +449,8 @@ contract IncentivisedVotingLockup is
         LockedBalance memory locked_ = LockedBalance({amount: locked[msg.sender].amount, end: locked[msg.sender].end});
         uint256 unlock_time = _floorToWeek(_unlockTime);  // Locktime is rounded down to weeks
 
-        require(locked_.end > block.timestamp, "Lock expired");
         require(locked_.amount > 0, "Nothing is locked");
+        require(locked_.end > block.timestamp, "Lock expired");
         require(unlock_time > locked_.end, "Can only increase lock WEEK");
         require(unlock_time <= END, "Voting lock can be 1 year max (until recol)");
         // require(unlock_time <= block.timestamp.add(MAXTIME), "Voting lock can be 1 year max (until recol)");

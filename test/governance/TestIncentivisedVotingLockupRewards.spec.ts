@@ -60,10 +60,18 @@ contract("IncentivisedVotingLockupRewards", async (accounts) => {
         end: BN;
     }
 
+    interface Point {
+        bias: BN;
+        slope: BN;
+        ts: BN;
+        blk?: BN;
+    }
+
     interface StakingData {
         totalStaticWeight: BN;
         userStaticWeight: BN;
         userLocked: LockedBalance;
+        userLastPoint: Point;
         senderStakingTokenBalance: BN;
         contractStakingTokenBalance: BN;
         userRewardPerTokenPaid: BN;
@@ -77,12 +85,18 @@ contract("IncentivisedVotingLockupRewards", async (accounts) => {
 
     const snapshotStakingData = async (sender = sa.default): Promise<StakingData> => {
         const locked = await votingLockup.locked(sender);
+        const lastPoint = await votingLockup.getLastUserPoint(sender);
         return {
             totalStaticWeight: await votingLockup.totalStaticWeight(),
             userStaticWeight: await votingLockup.staticBalanceOf(sender),
             userLocked: {
                 amount: locked[0],
                 end: locked[1],
+            },
+            userLastPoint: {
+                bias: lastPoint[0],
+                slope: lastPoint[1],
+                ts: lastPoint[2],
             },
             userRewardPerTokenPaid: await votingLockup.userRewardPerTokenPaid(sender),
             senderStakingTokenBalance: await stakingToken.balanceOf(sender),
@@ -148,7 +162,6 @@ contract("IncentivisedVotingLockupRewards", async (accounts) => {
         const timeAfter = await time.latest();
         const periodIsFinished = new BN(timeAfter).gt(beforeData.periodFinishTime);
 
-        console.log("e3.1");
         //    LastUpdateTime
         expect(
             periodIsFinished
@@ -158,13 +171,11 @@ contract("IncentivisedVotingLockupRewards", async (accounts) => {
                 : timeAfter,
         ).bignumber.eq(afterData.lastUpdateTime);
         //    RewardRate doesnt change
-        console.log("e3.2");
         expect(beforeData.rewardRate).bignumber.eq(afterData.rewardRate);
         //    RewardPerTokenStored goes up
         expect(afterData.rewardPerTokenStored).bignumber.gte(
             beforeData.rewardPerTokenStored as any,
         );
-        console.log("e3.3");
         //      Calculate exact expected 'rewardPerToken' increase since last update
         const timeApplicableToRewards = periodIsFinished
             ? beforeData.periodFinishTime.sub(beforeData.lastUpdateTime)
@@ -179,17 +190,14 @@ contract("IncentivisedVotingLockupRewards", async (accounts) => {
             afterData.rewardPerTokenStored,
         );
 
-        console.log("e3.4");
         // Expect updated personal state
         //    userRewardPerTokenPaid(beneficiary) should update
         expect(afterData.userRewardPerTokenPaid).bignumber.eq(afterData.rewardPerTokenStored);
 
         //    If existing staker, then rewards Should increase
         if (shouldResetRewards) {
-            console.log("e3.4.1");
             expect(afterData.beneficiaryRewardsEarned).bignumber.eq(new BN(0));
         } else if (isExistingStaker) {
-            console.log("e3.4.2");
             // rewards(beneficiary) should update with previously accrued tokens
             const increaseInUserRewardPerToken = afterData.rewardPerTokenStored.sub(
                 beforeData.userRewardPerTokenPaid,
@@ -200,9 +208,7 @@ contract("IncentivisedVotingLockupRewards", async (accounts) => {
             expect(beforeData.beneficiaryRewardsEarned.add(assignment)).bignumber.eq(
                 afterData.beneficiaryRewardsEarned,
             );
-            console.log("e3.4.22");
         } else {
-            console.log("e3.4.3");
             // else `rewards` should stay the same
             expect(beforeData.beneficiaryRewardsEarned).bignumber.eq(
                 afterData.beneficiaryRewardsEarned,
@@ -238,7 +244,6 @@ contract("IncentivisedVotingLockupRewards", async (accounts) => {
         if (confirmExistingStaker) {
             expect(isExistingStaker).eq(true);
         }
-        console.log("e1");
         // 2. Approve staking token spending and send the TX
         await stakingToken.approve(votingLockup.address, stakeAmount, {
             from: sender,
@@ -252,18 +257,15 @@ contract("IncentivisedVotingLockupRewards", async (accounts) => {
             : await votingLockup.createLock(stakeAmount, await oneWeekInAdvance(), {
                   from: sender,
               });
-        console.log("e2");
         expectEvent(tx.receipt, "Deposit", {
             provider: sender,
             value: increaseTime ? new BN(0) : stakeAmount,
         });
 
-        console.log("e3");
         // 3. Ensure rewards are accrued to the beneficiary
         const afterData = await snapshotStakingData(sender);
         await assertRewardsAssigned(beforeData, afterData, isExistingStaker);
 
-        console.log("e4");
         // 4. Expect token transfer
         //    StakingToken balance of sender
         expect(
@@ -271,14 +273,12 @@ contract("IncentivisedVotingLockupRewards", async (accounts) => {
                 ? beforeData.senderStakingTokenBalance
                 : beforeData.senderStakingTokenBalance.sub(stakeAmount),
         ).bignumber.eq(afterData.senderStakingTokenBalance);
-        console.log("e5");
         //    StakingToken balance of votingLockup
         expect(
             increaseTime
                 ? beforeData.contractStakingTokenBalance
                 : beforeData.contractStakingTokenBalance.add(stakeAmount),
         ).bignumber.eq(afterData.contractStakingTokenBalance);
-        console.log("e6");
         //    totalStaticWeight of votingLockup
         expect(
             isExistingStaker
@@ -294,12 +294,10 @@ contract("IncentivisedVotingLockupRewards", async (accounts) => {
      * @param rewardUnits Number of units to stake
      */
     const expectSuccesfulFunding = async (rewardUnits: BN): Promise<void> => {
-        console.log("f1");
         const beforeData = await snapshotStakingData();
         const tx = await votingLockup.notifyRewardAmount(rewardUnits, {
             from: rewardsDistributor,
         });
-        console.log("f2");
         expectEvent(tx.receipt, "RewardAdded", { reward: rewardUnits });
 
         const cur = new BN(await time.latest());
@@ -308,18 +306,14 @@ contract("IncentivisedVotingLockupRewards", async (accounts) => {
         );
         const afterData = await snapshotStakingData();
 
-        console.log("f3");
         // Sets lastTimeRewardApplicable to latest
         expect(cur).bignumber.eq(afterData.lastTimeRewardApplicable);
         // Sets lastUpdateTime to latest
-        console.log("f4");
         expect(cur).bignumber.eq(afterData.lastUpdateTime);
         // Sets periodFinish to 1 week from now
-        console.log("f5");
         expect(cur.add(ONE_WEEK)).bignumber.eq(afterData.periodFinishTime);
         // Sets rewardRate to rewardUnits / ONE_WEEK
         if (leftOverRewards.gtn(0)) {
-            console.log("f5.1");
             const total = rewardUnits.add(leftOverRewards);
             assertBNClose(
                 total.div(ONE_WEEK),
@@ -327,7 +321,6 @@ contract("IncentivisedVotingLockupRewards", async (accounts) => {
                 beforeData.rewardRate.div(ONE_WEEK).muln(5), // the effect of 1 second on the future scale
             );
         } else {
-            console.log("f5.2");
             expect(rewardUnits.div(ONE_WEEK)).bignumber.eq(afterData.rewardRate);
         }
     };
@@ -342,7 +335,6 @@ contract("IncentivisedVotingLockupRewards", async (accounts) => {
         const beforeData = await snapshotStakingData(sender);
         const isExistingStaker = beforeData.userStaticWeight.gt(new BN(0));
         expect(isExistingStaker).eq(true);
-        console.log("w1");
         // 2. Send withdrawal tx
         const tx = await votingLockup.withdraw({
             from: sender,
@@ -352,24 +344,20 @@ contract("IncentivisedVotingLockupRewards", async (accounts) => {
             value: beforeData.userLocked.amount,
         });
 
-        console.log("w2");
         // 3. Expect Rewards to accrue to the beneficiary
         //    StakingToken balance of sender
         const afterData = await snapshotStakingData(sender);
         await assertRewardsAssigned(beforeData, afterData, isExistingStaker);
 
-        console.log("w3");
         // 4. Expect token transfer
         //    StakingToken balance of sender
         expect(beforeData.senderStakingTokenBalance.add(beforeData.userLocked.amount)).bignumber.eq(
             afterData.senderStakingTokenBalance,
         );
-        console.log("w4");
         //    Withdraws from the actual rewards wrapper token
         expect(afterData.userLocked.amount).bignumber.eq(new BN(0));
         expect(afterData.userLocked.end).bignumber.eq(new BN(0));
         expect(afterData.userStaticWeight).bignumber.eq(new BN(0));
-        console.log("w5");
         //    Updates total supply
         expect(beforeData.totalStaticWeight.sub(beforeData.userStaticWeight)).bignumber.eq(
             afterData.totalStaticWeight,
@@ -884,7 +872,7 @@ contract("IncentivisedVotingLockupRewards", async (accounts) => {
             it("should withdraw all senders stake and send outstanding rewards to the staker", async () => {
                 const beforeData = await snapshotStakingData();
                 const rewardeeBalanceBefore = await stakingToken.balanceOf(sa.default);
-                console.log("i1");
+
                 const tx = await votingLockup.exit();
                 expectEvent(tx.receipt, "Withdraw", {
                     provider: sa.default,
@@ -893,7 +881,7 @@ contract("IncentivisedVotingLockupRewards", async (accounts) => {
                 expectEvent(tx.receipt, "RewardPaid", {
                     user: sa.default,
                 });
-                console.log("i2");
+
                 const afterData = await snapshotStakingData();
                 // Balance transferred to the rewardee
                 const rewardeeBalanceAfter = await stakingToken.balanceOf(sa.default);
@@ -902,11 +890,11 @@ contract("IncentivisedVotingLockupRewards", async (accounts) => {
                     fundAmount.add(stakeAmount),
                     simpleToExactAmount(1, 16),
                 );
-                console.log("i3");
+
                 // Expect Rewards to accrue to the beneficiary
                 //    StakingToken balance of sender
                 await assertRewardsAssigned(beforeData, afterData, false, true);
-                console.log("i4");
+
                 // Expect token transfer
                 //    StakingToken balance of sender
                 expect(
@@ -914,10 +902,10 @@ contract("IncentivisedVotingLockupRewards", async (accounts) => {
                         .add(stakeAmount)
                         .add(await votingLockup.rewardsPaid(sa.default)),
                 ).bignumber.eq(afterData.senderStakingTokenBalance);
-                console.log("i5");
+
                 //    Withdraws from the actual rewards wrapper token
                 expect(afterData.userStaticWeight).bignumber.eq(new BN(0));
-                console.log("i6");
+
                 //    Updates total supply
                 expect(beforeData.totalStaticWeight.sub(beforeData.userStaticWeight)).bignumber.eq(
                     afterData.totalStaticWeight,
