@@ -107,7 +107,7 @@ contract("Liquidator", async (accounts) => {
                     from: sa.governor,
                 },
             );
-            await expectEvent(tx.receipt, "LiquidationAdded");
+            await expectEvent(tx.receipt, "LiquidationCreated");
         });
     });
 
@@ -177,7 +177,7 @@ contract("Liquidator", async (accounts) => {
                 from: sa.governor,
             });
 
-            await expectEvent(tx.receipt, "LiquidationRemoved");
+            await expectEvent(tx.receipt, "LiquidationDeleted");
             await expectRevert(
                 liquidator.readLiquidation.call(sa.dummy1, {
                     from: sa.governor,
@@ -280,14 +280,6 @@ contract("Liquidator", async (accounts) => {
                     from: sa.governor,
                 },
             );
-        });
-    });
-    describe("randomNumber()", () => {
-        it("should return a random number", async () => {
-            const tx = await liquidator.randomNumber.call({
-                from: sa.governor,
-            });
-            await console.log(tx.toString());
         });
     });
 });
