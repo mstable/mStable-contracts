@@ -5,6 +5,7 @@ pragma experimental ABIEncoderV2;
 import { IUniswapV2Router02 } from '../platform-integrations/IUniswapV2Router02.sol';
 import { ICERC20 } from '../platform-integrations/ICompound.sol';
 import { IPlatformIntegration } from '../../interfaces/IPlatformIntegration.sol';
+// import { ILiquidator } from '../../interfaces/ILiquidator.sol';
 
 // Internal
 import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
@@ -37,9 +38,9 @@ contract Liquidator is
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    event LiquidationAdded(address indexed bAsset);
-    event LiquidationRemoved(address indexed bAsset);
-    event LiquidationPaused(address indexed bAsset);
+    event LiquidationCreated(address indexed bAsset);
+    event LiquidationDeleted(address indexed bAsset);
+    event LiquidationUpdated(address indexed bAsset);
     event LiquidationTriggered(address indexed bAsset);
     event LiquidationCollected(address indexed bAsset);
     event UniswapUpdated(address indexed uniswapAddress);
@@ -108,6 +109,9 @@ contract Liquidator is
     {
         require(_bAsset != address(0), "_bAsset cannot be zero address");
         require(_integration != address(0), "integration cannot be zero address");
+        // TODO add mocks for this in tests
+        //address pToken = IPlatformIntegration(_integration).bAssetToPToken(_bAsset);
+        //require(pToken != address(0), "no pToken for this bAsset");
 
         Liquidation storage liq = liquidations[_bAsset];
         liq.bAsset = _bAsset;
@@ -117,7 +121,7 @@ contract Liquidator is
         liq.amount = _amount;
         liq.paused = _paused;
 
-        emit LiquidationAdded(_bAsset);
+        emit LiquidationCreated(_bAsset);
     }
 
     /**
@@ -159,13 +163,20 @@ contract Liquidator is
         require(liquidations[_bAsset].bAsset != address(0), "No liquidation for this bAsset");
 
         Liquidation storage liq = liquidations[_bAsset];
+
+        // Check for unclaimed pTokens and revert
+        // TODO Add mocks to tests for this call
+        //address pToken = IPlatformIntegration(_integration).bAssetToPToken(_bAsset);
+        //uint256 pTokenbalance = IERC20(pToken).balanceOf(address(this));
+        //require(pTokenbalance > 0, "Unclaimed pTokens on this liquidation");
+        
         liq.integration = _integration;
         liq.sellToken = _sellToken;
         liq.uniswapPath = _uniswapPath;
         liq.amount = _amount;
         liq.paused = _paused;
 
-        emit LiquidationPaused(_bAsset);
+        emit LiquidationUpdated(_bAsset);
     }
 
     /**
@@ -179,7 +190,7 @@ contract Liquidator is
         require(liquidations[_bAsset].bAsset != address(0), "No liquidation for this bAsset");
 
         delete liquidations[_bAsset];
-        emit LiquidationRemoved(_bAsset);
+        emit LiquidationDeleted(_bAsset);
     }
 
     /**
@@ -198,6 +209,7 @@ contract Liquidator is
 
     /**
     * @dev Allows a calling integration contract to collect redeemed tokens
+    * @return  liquidation The liquidation data
     */
     function collect(address _bAsset)
         external   
@@ -221,11 +233,20 @@ contract Liquidator is
         uint256 balance = IERC20(pToken).balanceOf(address(this));
         require(balance > 0, "No balance to send");
 
+        // if the balance is less than 1000 transfer everything
         if (balance < 1000) {
             IERC20(pToken).safeTransfer(liquidation.integration, balance);
+        } else {
+            // generate a random basis point number between 1000 & 4000
+            uint256 randomBp = uint256(blockhash(block.number-1)).mod(3000).add(1000);
+            // calculate a percentage of total balance
+            uint256 toSend = balance.mul(randomBp).div(uint(10000));
+
+            // Send tokens
+            IERC20(pToken).safeTransfer(liquidation.integration, toSend);
         }
 
-        // TODO send a randomised percentage of pTokens
+        emit LiquidationCollected(_bAsset);
     }
 
     /**
@@ -247,8 +268,8 @@ contract Liquidator is
         // Token being bought is the last in the Uniswap path
         address buyToken = liquidation.uniswapPath[liquidation.uniswapPath.length.sub(1)];
 
-        uint256 balance = IERC20(sellToken).balanceOf(address(this));
-        require(balance != 0, "No sell tokens to liquidate");
+        uint256 allowance = IERC20(sellToken).allowance(liquidation.integration, address(this));
+        require(allowance = 0, "No allowance on sell tokens to liquidate");
 
         // The amount we want to receive
         // This computes a randomised amount of the buyToken wanted between 1000 & 4000
@@ -263,9 +284,9 @@ contract Liquidator is
         uint256 minAmount = amountsIn[0].add(tenPercentOfMinAmount);
         uint256 sellAmount;
 
-        // If the balance is less than the minAmount then sell everything 
-        if (balance < minAmount) {
-            sellAmount = balance;
+        // If the allowance is less than the minAmount then sell everything 
+        if (allowance < minAmount) {
+            sellAmount = allowance;
         } else {
             sellAmount = minAmount;
         }
@@ -287,20 +308,12 @@ contract Liquidator is
         // Get the pToken for this bAsset
         address cToken = IPlatformIntegration(liquidation.integration).bAssetToPToken(liquidation.bAsset);
 
+        uint256 cTokenBalance = IERC20(cToken).balanceOf(address(this));
+
         // Deposit to lending platform
-        require(ICERC20(cToken).mint(uniswapAmounts[uniswapAmounts.length.sub(1)]) == 0, "cToken mint failed");
+        require(ICERC20(cToken).mint(cTokenBalance) == 0, "cToken mint failed");
 
         emit LiquidationTriggered(_bAsset);
-    }
-
-    /**
-    * @dev Generate a random number in a range 
-    */
-    function randomNumber() 
-        external 
-        returns (uint) 
-    {
-        return uint(blockhash(block.number-1))% 2000 + 1000;
     }
 
 }
