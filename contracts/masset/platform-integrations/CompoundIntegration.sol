@@ -138,6 +138,8 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         // Send redeemed bAsset to the receiver
         IERC20(_bAsset).safeTransfer(_receiver, quantityWithdrawn);
 
+        _checkClaim(_bAsset);
+
         emit Withdrawal(_bAsset, address(cToken), quantityWithdrawn);
     }
 
@@ -189,16 +191,6 @@ contract CompoundIntegration is InitializableAbstractIntegration {
     {
         // approve the pool to spend the bAsset
         MassetHelpers.safeInfiniteApprove(_bAsset, _cToken);
-    }
-
-    /**
-     * @dev Collect rewards tokens for a bAsset from the Liquidator 
-     * @param _bAsset  Address of the bAsset
-     */
-    function _collect(address _bAsset)
-        internal
-    {
-
     }
 
     /***************************************
