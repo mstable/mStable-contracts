@@ -1,6 +1,6 @@
 pragma solidity ^0.5.16;
 
-contract IUniswapV2Router02 {
+interface IUniswapV2Router02 {
     function swapExactTokensForTokens(
         uint amountIn,
         uint amountOutMin,

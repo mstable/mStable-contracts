@@ -1,6 +1,7 @@
 pragma solidity 0.5.16;
 
 import { ICERC20 } from "./ICompound.sol";
+import { CommonHelpers } from "../../shared/CommonHelpers.sol";
 import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "./InitializableAbstractIntegration.sol";
 
 
@@ -86,7 +87,7 @@ contract CompoundIntegration is InitializableAbstractIntegration {
             require(cToken.mint(_amount) == 0, "cToken mint failed");
         }
 
-        _checkClaim(_bAsset);
+        checkClaim(_bAsset);
 
         emit Deposit(_bAsset, address(cToken), quantityDeposited);
     }
@@ -138,7 +139,7 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         // Send redeemed bAsset to the receiver
         IERC20(_bAsset).safeTransfer(_receiver, quantityWithdrawn);
 
-        _checkClaim(_bAsset);
+        checkClaim(_bAsset);
 
         emit Withdrawal(_bAsset, address(cToken), quantityWithdrawn);
     }
@@ -254,14 +255,14 @@ contract CompoundIntegration is InitializableAbstractIntegration {
      * Adds randomness by muliplying the 1 hour delay between 1x and 3x
      * @param _bAsset Address for the bAsset
      */
-    function _checkClaim(address _bAsset)
+    function checkClaim(address _bAsset)
         internal
     {
         uint256 salt = uint256(keccak256(abi.encodePacked(blockhash(block.number)))).mod(3000000);
         uint256 timeDelay = ((uint256(1 hours)).mul(salt)).div(1000000);
 
         if (block.timestamp > lastClaimed.add(timeDelay)) {
-            _claim(_bAsset);
+            claim(_bAsset);
         }
     }
 
@@ -271,7 +272,7 @@ contract CompoundIntegration is InitializableAbstractIntegration {
      * This correlates to transfering 10%-40% of the total allowance
      * @param _bAsset Address for the bAsset
      */
-    function _claim(address _bAsset)
+    function claim(address _bAsset)
         internal
     {
         lastClaimed = block.timestamp;
@@ -281,11 +282,12 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         require(cToken != address(0), "cToken does not exist");
         uint256 allowance = IERC20(cToken).allowance(liquidator, address(this));
 
-        if (allowance > 0 && allowance < 20) {
+        uint256 cTokenDecimals = CommonHelpers.getDecimals(cToken);
+        uint256 threshold = uint(1000).mul(uint(10)**cTokenDecimals);
+        if (allowance > 0 && allowance < threshold) {
             IERC20(cToken).safeTransferFrom(liquidator, address(this), allowance);
-        }
-
-        if (allowance > 0) {
+        } else if (allowance > 0) {
+            // transfer between 10% and 40% of allowance
             uint256 randomBp = uint256(blockhash(block.number-1)).mod(3000).add(1000);
             uint256 toTransfer = allowance.mul(randomBp).div(uint(10000));
             IERC20(cToken).safeTransferFrom(liquidator, address(this), toTransfer);
