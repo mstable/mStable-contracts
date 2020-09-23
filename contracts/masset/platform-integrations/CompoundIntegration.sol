@@ -269,7 +269,7 @@ contract CompoundIntegration is InitializableAbstractIntegration {
     /**
      * @dev Collects pTokens from the Liquidator
      * Adds randomness by computing a basis point between 1000 and 4000
-     * This correlates to transfering 10%-40% of the total allowance
+     * This correlates to transfering 10%-40% of the total balance
      * @param _bAsset Address for the bAsset
      */
     function claim(address _bAsset)
@@ -280,17 +280,21 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         address liquidator = nexus.getModule(keccak256('Liquidator'));
         address cToken = bAssetToPToken[_bAsset];
         require(cToken != address(0), "cToken does not exist");
-        uint256 allowance = IERC20(cToken).allowance(liquidator, address(this));
 
-        uint256 cTokenDecimals = CommonHelpers.getDecimals(cToken);
-        uint256 threshold = uint(1000).mul(uint(10)**cTokenDecimals);
-        if (allowance > 0 && allowance < threshold) {
-            IERC20(cToken).safeTransferFrom(liquidator, address(this), allowance);
-        } else if (allowance > 0) {
-            // transfer between 10% and 40% of allowance
-            uint256 randomBp = uint256(blockhash(block.number-1)).mod(3000).add(1000);
-            uint256 toTransfer = allowance.mul(randomBp).div(uint(10000));
-            IERC20(cToken).safeTransferFrom(liquidator, address(this), toTransfer);
+        // assumes contract has approval
+        uint256 liquidatorBal = IERC20(cToken).balanceOf(liquidator);
+        if (liquidatorBal > 0) {
+            uint256 cTokenDecimals = CommonHelpers.getDecimals(cToken);
+            uint256 threshold = uint(1000).mul(uint(10)**cTokenDecimals);
+            if (liquidatorBal < threshold) {
+                // if we are below the threshold transfer the entire balance
+                IERC20(cToken).safeTransferFrom(liquidator, address(this), liquidatorBal);
+            } else {
+                // transfer between 10% and 40% of allowance
+                uint256 randomBp = uint256(blockhash(block.number-1)).mod(uint(3000)).add(uint(1000));
+                uint256 toTransfer = liquidatorBal.mul(randomBp).div(uint(10000));
+                IERC20(cToken).safeTransferFrom(liquidator, address(this), toTransfer);
+            }
         }
     }
 }
