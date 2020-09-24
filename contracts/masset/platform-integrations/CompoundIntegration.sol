@@ -16,6 +16,7 @@ contract CompoundIntegration is InitializableAbstractIntegration {
 
     event RewardTokenCollected(address recipient, uint256 amount);
     event SkippedWithdrawal(address bAsset, uint256 amount);
+    event RewardTokenApproved(address rewardToken, address account);
 
     uint256 internal lastClaimed;
 
@@ -44,6 +45,22 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         emit RewardTokenCollected(_recipient, balance);
     }
 
+    /**
+     * @dev Approves Liquidator to spend reward tokens
+     * @param _rewardToken Reward token
+     */
+    function approveRewardToken(
+        address _rewardToken
+    )
+        external
+        onlyGovernor
+    {
+        address liq = nexus.getModule(keccak256("Liquidator"));
+        require(liq != address(0), "Liquidator address cannot be zero");
+        MassetHelpers.safeInfiniteApprove(_rewardToken, liq);
+
+        emit RewardTokenApproved(_rewardToken, liq);
+    }
 
     /***************************************
                     CORE
@@ -279,14 +296,19 @@ contract CompoundIntegration is InitializableAbstractIntegration {
 
         address liquidator = nexus.getModule(keccak256("Liquidator"));
         require(liquidator != address(0), "Liquidator address cannot be zero");
+
         address cToken = bAssetToPToken[_bAsset];
         require(cToken != address(0), "cToken does not exist");
 
-        // assumes contract has approval
         uint256 liquidatorBal = IERC20(cToken).balanceOf(liquidator);
+
         if (liquidatorBal > 0) {
-            uint256 cTokenDecimals = CommonHelpers.getDecimals(cToken);
-            uint256 threshold = uint(1000).mul(uint(10)**cTokenDecimals);
+            // Set a threshold of 1000*10^decimals for the bAsset
+            uint256 bAssetDecimals = CommonHelpers.getDecimals(_bAsset);
+            uint256 bAssetThreshold = uint(1000).mul(uint(10)**bAssetDecimals);
+            // Convert to cTokens
+            ICERC20 cTokenWrapped = _getCTokenFor(_bAsset);
+            uint256 threshold = _convertUnderlyingToCToken(cTokenWrapped, bAssetThreshold);
             if (liquidatorBal < threshold) {
                 // if we are below the threshold transfer the entire balance
                 IERC20(cToken).safeTransferFrom(liquidator, address(this), liquidatorBal);
