@@ -263,7 +263,7 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         uint256 exchangeRate = _cToken.exchangeRateStored();
         // e.g. 1e18*1e18 / 205316390724364402565641705 = 50e8
         // e.g. 1e8*1e18 / 205316390724364402565641705 = 0.45 or 0
-       amount = _underlying.mul(1e18).div(exchangeRate);
+        amount = _underlying.mul(1e18).div(exchangeRate);
     }
 
     /**
