@@ -278,6 +278,7 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         lastClaimed = block.timestamp;
 
         address liquidator = nexus.getModule(keccak256('Liquidator'));
+        require(liquidator != address(0), "Liquidator address cannot be zero");
         address cToken = bAssetToPToken[_bAsset];
         require(cToken != address(0), "cToken does not exist");
 
