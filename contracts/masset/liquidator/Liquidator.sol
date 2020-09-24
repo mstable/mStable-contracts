@@ -108,7 +108,7 @@ contract Liquidator is
         liquidations[_bAsset] = liq;
 
 
-        IERC20(_sellToken).safeApprove(_integration, uint256(0));
+        IERC20(_sellToken).safeApprove(_integration, 0);
         IERC20(_sellToken).safeApprove(_integration, uint256(-1));
 
         emit LiquidationCreated(_bAsset);
@@ -156,7 +156,7 @@ contract Liquidator is
         liquidation.uniswapPath = _uniswapPath;
         liquidation.paused = _paused;
 
-        IERC20(_sellToken).safeApprove(_integration, uint256(0));
+        IERC20(_sellToken).safeApprove(_integration, 0);
         IERC20(_sellToken).safeApprove(_integration, uint256(-1));
 
         emit LiquidationUpdated(_bAsset);
@@ -271,6 +271,8 @@ contract Liquidator is
     {
         uint256 bAssetBalance = IERC20(_bAsset).balanceOf(address(this));
         require((bAssetBalance > 0), "No tokens to deposit");
+        IERC20(_bAsset).safeApprove(_pToken, 0);
+        IERC20(_bAsset).safeApprove(_pToken, uint256(-1));
         require(ICERC20(_pToken).mint(bAssetBalance) == 0, "cToken mint failed");
     }
 
