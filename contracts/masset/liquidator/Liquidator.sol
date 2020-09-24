@@ -107,7 +107,6 @@ contract Liquidator is
 
         liquidations[_bAsset] = liq;
 
-
         IERC20(_sellToken).safeApprove(_integration, 0);
         IERC20(_sellToken).safeApprove(_integration, uint256(-1));
 
