@@ -87,7 +87,7 @@ contract CompoundIntegration is InitializableAbstractIntegration {
             require(cToken.mint(_amount) == 0, "cToken mint failed");
         }
 
-        checkClaim(_bAsset);
+        _checkClaim(_bAsset);
 
         emit Deposit(_bAsset, address(cToken), quantityDeposited);
     }
@@ -139,7 +139,7 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         // Send redeemed bAsset to the receiver
         IERC20(_bAsset).safeTransfer(_receiver, quantityWithdrawn);
 
-        checkClaim(_bAsset);
+        _checkClaim(_bAsset);
 
         emit Withdrawal(_bAsset, address(cToken), quantityWithdrawn);
     }
@@ -255,14 +255,14 @@ contract CompoundIntegration is InitializableAbstractIntegration {
      * Adds randomness by muliplying the 1 hour delay between 1x and 3x
      * @param _bAsset Address for the bAsset
      */
-    function checkClaim(address _bAsset)
+    function _checkClaim(address _bAsset)
         internal
     {
         uint256 salt = uint256(keccak256(abi.encodePacked(blockhash(block.number)))).mod(3000000);
         uint256 timeDelay = ((uint256(1 hours)).mul(salt)).div(1000000);
 
         if (block.timestamp > lastClaimed.add(timeDelay)) {
-            claim(_bAsset);
+            _claim(_bAsset);
         }
     }
 
@@ -272,7 +272,7 @@ contract CompoundIntegration is InitializableAbstractIntegration {
      * This correlates to transfering 10%-40% of the total balance
      * @param _bAsset Address for the bAsset
      */
-    function claim(address _bAsset)
+    function _claim(address _bAsset)
         internal
     {
         lastClaimed = block.timestamp;
