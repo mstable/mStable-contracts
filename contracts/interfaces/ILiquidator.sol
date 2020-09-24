@@ -12,7 +12,6 @@ interface ILiquidator {
     enum Dex { Uniswap, Balancer }
 
     struct Liquidation {
-        address         bAsset;
         address         integration;
         address         sellToken;
         address         pToken;
@@ -23,11 +22,24 @@ interface ILiquidator {
         uint            lastTriggered;
     }
 
-    function triggerLiquidation(address _bAsset) payable external;
-    function createLiquidation(address _bAsset, address _integration, address _sellToken, uint _trancheAmount, LendingPlatform _lendingPlatform, address[] calldata _uniswapPath, bool _paused) external;
-    function readLiquidation(address _bAsset) external returns (Liquidation memory liquidation);
-    function updateLiquidation(address _bAsset, address _integration, address _sellToken, uint _trancheAmount, LendingPlatform _lendingPlatform, address[] calldata _uniswapPath, bool paused) external;
+    function triggerLiquidation(
+        address _bAsset) external;
+    function createLiquidation(
+        address _bAsset,
+        address _integration,
+        address _sellToken,
+        uint _trancheAmount,
+        LendingPlatform _lendingPlatform,
+        address[] calldata _uniswapPath,
+        bool _paused) external;
+    function updateLiquidation(
+        address _bAsset,
+        address _integration,
+        address _sellToken,
+        uint _trancheAmount,
+        LendingPlatform _lendingPlatform,
+        address[] calldata _uniswapPath,
+        bool paused) external;
     function deleteLiquidation(address _bAsset) external;
     function updateUniswapAddress(address _uniswapAddress) external;
 }
-

@@ -2,10 +2,10 @@ pragma solidity 0.5.16;
 pragma experimental ABIEncoderV2;
 
 // External
-import { IUniswapV2Router02 } from '../platform-integrations/IUniswapV2Router02.sol';
-import { ICERC20 } from '../platform-integrations/ICompound.sol';
-import { IPlatformIntegration } from '../../interfaces/IPlatformIntegration.sol';
-import { ILiquidator } from '../../interfaces/ILiquidator.sol';
+import { IUniswapV2Router02 } from "../platform-integrations/IUniswapV2Router02.sol";
+import { ICERC20 } from "../platform-integrations/ICompound.sol";
+import { IPlatformIntegration } from "../../interfaces/IPlatformIntegration.sol";
+import { ILiquidator } from "../../interfaces/ILiquidator.sol";
 
 // Internal
 import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
@@ -58,17 +58,6 @@ contract Liquidator is
     {
         InitializableModule._initialize(_nexus);
         InitializableReentrancyGuard._initialize();
-        _initialize(_uniswapAddress);
-    }
-
-
-    /**
-    * @dev Internal initialize function, to set the Uniswap address
-    * @param _uniswapAddress   Uniswap contract address
-    */
-    function _initialize(address _uniswapAddress)
-        internal
-    {
         uniswapAddress = _uniswapAddress;
     }
 
@@ -94,6 +83,8 @@ contract Liquidator is
         external
         onlyGovernor
     {
+        // integration is required on create so use this to check existence
+        require(liquidations[_bAsset].integration == address(0), "Liquidation exists for this bAsset");
         require(_bAsset != address(0), "bAsset cannot be zero address");
         require(_integration != address(0), "integration cannot be zero address");
         require(_sellToken != address(0), "sellToken cannot be zero address");
@@ -103,33 +94,24 @@ contract Liquidator is
         address pToken = IPlatformIntegration(_integration).bAssetToPToken(_bAsset);
         require(pToken != address(0), "no pToken for this bAsset");
 
-        Liquidation storage liq = liquidations[_bAsset];
+        Liquidation memory liq = Liquidation({
+            integration: _integration,
+            sellToken: _sellToken,
+            trancheAmount: _trancheAmount,
+            lendingPlatform: _lendingPlatform,
+            pToken: pToken,
+            uniswapPath: _uniswapPath,
+            paused: _paused,
+            lastTriggered: uint256(0)
+        });
 
-        liq.bAsset = _bAsset;
-        liq.integration = _integration;
-        liq.sellToken = _sellToken;
-        liq.trancheAmount = _trancheAmount;
-        liq.lendingPlatform = _lendingPlatform;
-        liq.pToken = pToken;
-        liq.uniswapPath = _uniswapPath;
-        liq.paused = _paused;
+        liquidations[_bAsset] = liq;
+
+
+        IERC20(_sellToken).safeApprove(_integration, uint256(0));
+        IERC20(_sellToken).safeApprove(_integration, uint256(-1));
 
         emit LiquidationCreated(_bAsset);
-    }
-
-    /**
-     * @dev Get a liquidation
-     * @param   _bAsset Address for the underlying bAsset
-     * @return  liquidation The liquidation data
-     */
-    function readLiquidation(address _bAsset)
-        external
-        returns (Liquidation memory liquidation)
-    {
-        require(liquidations[_bAsset].bAsset != address(0), "No liquidation for this bAsset");
-
-        liquidation = liquidations[_bAsset];
-        return liquidation;
     }
 
     /**
@@ -155,8 +137,8 @@ contract Liquidator is
         external
         onlyGovernor
     {
-        require(liquidations[_bAsset].bAsset != address(0), "No liquidation for this bAsset");
-        require(_bAsset != address(0), "bAsset cannot be zero address");
+        // integration is required on create so use this to check existence
+        require(liquidations[_bAsset].integration != address(0), "No liquidation for this bAsset");
         require(_integration != address(0), "integration cannot be zero address");
         require(_sellToken != address(0), "sellToken cannot be zero address");
         require(_trancheAmount != uint(0), "trancheAmount cannot be zero");
@@ -164,19 +146,18 @@ contract Liquidator is
 
         Liquidation storage liquidation = liquidations[_bAsset];
 
-        uint256 pTokenBalance = IERC20(liquidation.pToken).balanceOf(address(this));
-        require(pTokenBalance == uint(0), "Unclaimed pTokens on this liquidation");
-
         uint256 sellTokenBalance = IERC20(liquidation.sellToken).balanceOf(address(this));
         require(sellTokenBalance == uint(0), "Unsold sellTokens on this liquidation");
-        
+
         liquidation.integration = _integration;
         liquidation.sellToken = _sellToken;
         liquidation.trancheAmount = _trancheAmount;
         liquidation.lendingPlatform = _lendingPlatform;
         liquidation.uniswapPath = _uniswapPath;
-        liquidation.trancheAmount = _trancheAmount;
         liquidation.paused = _paused;
+
+        IERC20(_sellToken).safeApprove(_integration, uint256(0));
+        IERC20(_sellToken).safeApprove(_integration, uint256(-1));
 
         emit LiquidationUpdated(_bAsset);
     }
@@ -189,12 +170,10 @@ contract Liquidator is
         external
         onlyGovernor
     {
-        require(liquidations[_bAsset].bAsset != address(0), "No liquidation for this bAsset");
+        // integration is required on create so use this to check existence
+        require(liquidations[_bAsset].integration != address(0), "No liquidation for this bAsset");
 
         Liquidation memory liquidation = liquidations[_bAsset];
-
-        uint256 pTokenBalance = IERC20(liquidation.pToken).balanceOf(address(this));
-        require(pTokenBalance == uint(0), "Unclaimed pTokens on this liquidation");
 
         uint256 sellTokenBalance = IERC20(liquidation.sellToken).balanceOf(address(this));
         require(sellTokenBalance == uint(0), "Unsold sellTokens on this liquidation");
@@ -223,16 +202,13 @@ contract Liquidator is
     */
     function triggerLiquidation(address _bAsset)
         external
-        payable
     {
         Liquidation storage liquidation = liquidations[_bAsset];
-        require(block.timestamp > liquidation.lastTriggered.add(1 days),
-                "Trigger liquidation only callable every 24 hours");
+        require(block.timestamp > liquidation.lastTriggered.add(1 days), "Trigger liquidation only callable every 24 hours");
         liquidation.lastTriggered = block.timestamp;
 
         // Cache variables
         address sellToken = liquidation.sellToken;
-        address bAsset = liquidation.bAsset;
         address integration = liquidation.integration;
 
         // Transfer sellTokens from integration contract if there are some
@@ -247,7 +223,7 @@ contract Liquidator is
         require((bal > 0), "No sell tokens to liquidate");
 
         // Get the amount to sell based on the tranche amount we want to buy
-        (uint256 amountToSell , uint256 expectedAmount) = getAmountToSell(liquidation.uniswapPath, liquidation.trancheAmount);
+        (uint256 amountToSell, uint256 expectedAmount) = getAmountToSell(liquidation.uniswapPath, liquidation.trancheAmount);
 
         // The minimum amount of output tokens that must be received for the transaction not to revert
         // Set to 80% of expected
@@ -267,17 +243,17 @@ contract Liquidator is
         IERC20(sellToken).safeApprove(uniswapAddress, 0);
         IERC20(sellToken).safeApprove(uniswapAddress, amountToSell);
         IUniswapV2Router02(uniswapAddress).swapExactTokensForTokens(
-            sellAmount,     
+            sellAmount,
             minAcceptable,
             liquidation.uniswapPath,
             address(this),
-            now.add(1800)
+            block.timestamp.add(1800)
         );
 
         // Deposit to lending platform
         // Assumes integration contracts have inifinte approval to collect them
         if (liquidation.lendingPlatform == LendingPlatform.Compound) {
-            depositToCompound(liquidation.pToken, bAsset); 
+            depositToCompound(liquidation.pToken, _bAsset);
         } else {
             revert("Lending Platform not supported");
         }
@@ -286,7 +262,7 @@ contract Liquidator is
     }
 
     /**
-    * @dev Deposits to Compound 
+    * @dev Deposits to Compound
     * @param _pToken The _pToken to mint
     * @param _bAsset The _bAsset liquidation to be triggered
     */
@@ -301,7 +277,7 @@ contract Liquidator is
     /**
     * @dev Get the amount of sellToken to be sold for a number of bAsset
     * @param _uniswapPath The Uniswap path for this liquidation
-    * @param _trancheAmount The tranche size that we want to buy each time 
+    * @param _trancheAmount The tranche size that we want to buy each time
     */
     function getAmountToSell(
         address[]   memory _uniswapPath,
@@ -318,10 +294,10 @@ contract Liquidator is
         uint256 randomBasisPoint = uint256(blockhash(block.number-1)).mod(uint(1500)).add(uint(8000));
         uint256 amountWanted = _trancheAmount.mul(randomBasisPoint).div(uint(10000));
 
-        // Returns the minimum input asset amount required to buy 
+        // Returns the minimum input asset amount required to buy
         // the given output asset amount (accounting for fees) given reserves
         // https://uniswap.org/docs/v2/smart-contracts/router02/#getamountsin
-        uint[] memory amountsIn = IUniswapV2Router02(uniswapAddress).getAmountsIn(amountWanted, _uniswapPath); 
+        uint[] memory amountsIn = IUniswapV2Router02(uniswapAddress).getAmountsIn(amountWanted, _uniswapPath);
 
         return (amountsIn[0], amountWanted);
     }
