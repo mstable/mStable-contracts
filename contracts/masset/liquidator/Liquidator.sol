@@ -107,8 +107,15 @@ contract Liquidator is
 
         liquidations[_bAsset] = liq;
 
+        // Approve the integration contract to transfer sellTokens
         IERC20(_sellToken).safeApprove(_integration, 0);
         IERC20(_sellToken).safeApprove(_integration, uint256(-1));
+
+        // For Compound approve the _pToken contract for minting
+        if (_lendingPlatform == LendingPlatform.Compound) {
+            IERC20(_bAsset).safeApprove(pToken, 0);
+            IERC20(_bAsset).safeApprove(pToken, uint256(-1));
+        }
 
         emit LiquidationCreated(_bAsset);
     }
@@ -270,8 +277,6 @@ contract Liquidator is
     {
         uint256 bAssetBalance = IERC20(_bAsset).balanceOf(address(this));
         require((bAssetBalance > 0), "No tokens to deposit");
-        IERC20(_bAsset).safeApprove(_pToken, 0);
-        IERC20(_bAsset).safeApprove(_pToken, uint256(-1));
         require(ICERC20(_pToken).mint(bAssetBalance) == 0, "cToken mint failed");
     }
 
