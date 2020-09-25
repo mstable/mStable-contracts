@@ -22,4 +22,7 @@ export default {
         currency: "USD",
         gasPrice: 30,
     },
+    mocha: {
+        timeout: 240000, // 4 min timeout
+    },
 };
