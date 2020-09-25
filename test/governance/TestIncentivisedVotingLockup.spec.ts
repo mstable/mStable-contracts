@@ -387,9 +387,23 @@ contract("IncentivisedVotingLockup", async (accounts) => {
                         "Can only increase lock WEEK",
                     );
                     await expectRevert(
-                        votingLockup.increaseLockLength((await time.latest()).add(ONE_YEAR), {
-                            from: bob,
-                        }),
+                        votingLockup.increaseLockLength(
+                            (await time.latest()).add(ONE_WEEK.muln(42)),
+                            {
+                                from: bob,
+                            },
+                        ),
+                        "Voting lock can be 1 year max (until recol)",
+                    );
+
+                    await expectRevert(
+                        votingLockup.createLock(
+                            stakeAmt1,
+                            (await time.latest()).add(ONE_WEEK.muln(42)),
+                            {
+                                from: david,
+                            },
+                        ),
                         "Voting lock can be 1 year max (until recol)",
                     );
                 });

@@ -405,7 +405,6 @@ contract IncentivisedVotingLockup is
 
         require(unlock_time > block.timestamp, "Can only lock until time in the future");
         require(unlock_time <= END, "Voting lock can be 1 year max (until recol)");
-        // require(unlock_time <= (block.timestamp.add(MAXTIME)), "Voting lock can be 1 year max (until recol)");
 
         _depositFor(msg.sender, _value, unlock_time, locked_, LockAction.CREATE_LOCK);
     }
@@ -446,7 +445,6 @@ contract IncentivisedVotingLockup is
         require(locked_.end > block.timestamp, "Lock expired");
         require(unlock_time > locked_.end, "Can only increase lock WEEK");
         require(unlock_time <= END, "Voting lock can be 1 year max (until recol)");
-        // require(unlock_time <= block.timestamp.add(MAXTIME), "Voting lock can be 1 year max (until recol)");
 
         _depositFor(msg.sender, 0, unlock_time, locked_, LockAction.INCREASE_LOCK_TIME);
     }
