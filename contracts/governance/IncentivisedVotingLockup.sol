@@ -12,7 +12,6 @@ import { SignedSafeMath128 } from "../shared/SignedSafeMath128.sol";
 import { StableMath, SafeMath } from "../shared/StableMath.sol";
 import { Root } from "../shared/Root.sol";
 
-
 /**
  * @title  IncentivisedVotingLockup
  * @author Voting Weight tracking & Decay
@@ -35,7 +34,6 @@ contract IncentivisedVotingLockup is
     ReentrancyGuard,
     RewardsDistributionRecipient
 {
-
     using StableMath for uint256;
     using SafeMath for uint256;
     using SignedSafeMath128 for int128;
@@ -206,7 +204,6 @@ contract IncentivisedVotingLockup is
                 userNewPoint.bias = userNewPoint.slope.mul(int128(_newLocked.end.sub(block.timestamp)));
             }
 
-            // @TODO - Verify moving here does not have knock on effects
             // Moved from bottom final if statement to resolve stack too deep err
 
             // start {
@@ -216,7 +213,6 @@ contract IncentivisedVotingLockup is
                 userPointHistory[_addr].push(userOldPoint);
             }
             // track the total static weight
-            // @TODO - Verify that these biases will always result in 0 sum
             uint256 newStatic = _staticBalance(userNewPoint.slope, block.timestamp, _newLocked.end);
             uint256 additiveStaticWeight = totalStaticWeight.add(newStatic);
             if(uEpoch > 0){
@@ -258,7 +254,6 @@ contract IncentivisedVotingLockup is
         Point memory initialLastPoint = Point({bias: 0, slope: 0, ts: lastPoint.ts, blk: lastPoint.blk});
         uint256 blockSlope = 0; // dblock/dt
         if(block.timestamp > lastPoint.ts){
-            // @TODO - verify: blockSlope = MULTIPLIER * (block.number - lastPoint.blk) / (block.timestamp - lastPoint.ts)
             blockSlope = StableMath.scaleInteger(block.number.sub(lastPoint.blk)).div(block.timestamp.sub(lastPoint.ts));
         }
         // If last point is already recorded in this block, slope=0
@@ -289,8 +284,6 @@ contract IncentivisedVotingLockup is
             }
             lastCheckpoint = iterativeTime;
             lastPoint.ts = iterativeTime;
-            // @TODO - verify math
-            // lastPoint.blk = initialLastPoint.blk + blockSlope * (iterativeTime - initialLastPoint.ts) / MULTIPLIER
             lastPoint.blk = initialLastPoint.blk.add(blockSlope.mulTruncate(iterativeTime.sub(initialLastPoint.ts)));
 
             // when epoch is incremented, we either push here or after slopes updated below
@@ -467,7 +460,6 @@ contract IncentivisedVotingLockup is
         _withdraw(msg.sender);
     }
 
-    // @TODO - Verify that calling withdraw and checkpoint for a third party user does not have knock on effects
     /**
      * @dev Withdraws a given users stake, providing the lockup has finished
      * @param _addr User for which to withdraw
@@ -760,8 +752,7 @@ contract IncentivisedVotingLockup is
 
         Point memory point = pointHistory[targetEpoch];
 
-        // @TODO - verify.. _blockNumber should always be in future after a point history
-        // If point.blk > _blockNumber that means contract did not yet exist
+        // If point.blk > _blockNumber that means we got the initial epoch & contract did not yet exist
         if(point.blk > _blockNumber){
             return 0;
         }
@@ -770,18 +761,15 @@ contract IncentivisedVotingLockup is
         if(targetEpoch < epoch){
             Point memory pointNext = pointHistory[targetEpoch.add(1)];
             if(point.blk != pointNext.blk) {
-                // dTime = (_blockNumber - point.blk) * (pointNext.ts - point.ts) / (pointNext.blk - point.blk);
                 dTime = (_blockNumber.sub(point.blk)).mul(pointNext.ts.sub(point.ts)).div(pointNext.blk.sub(point.blk));
             }
         } else if (point.blk != block.number){
-            // dTime = (_blockNumber - point.blk) * (block.timestamp - point.ts) / (block.number - point.blk);
             dTime = (_blockNumber.sub(point.blk)).mul(block.timestamp.sub(point.ts)).div(block.number.sub(point.blk));
         }
         // Now dTime contains info on how far are we beyond point
 
         return _supplyAt(point, point.ts.add(dTime));
     }
-
 
 
     /***************************************

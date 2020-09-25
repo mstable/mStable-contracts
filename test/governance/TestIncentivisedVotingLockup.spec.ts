@@ -2,13 +2,13 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable @typescript-eslint/camelcase */
 import { network } from "@nomiclabs/buidler";
-import { expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
+import { expectRevert, time } from "@openzeppelin/test-helpers";
 import { assertBNClose, assertBNClosePercent } from "@utils/assertions";
 import { StandardAccounts } from "@utils/machines";
 import envSetup from "@utils/env_setup";
 import { simpleToExactAmount } from "@utils/math";
 import { BN } from "@utils/tools";
-import { ONE_WEEK, ONE_HOUR, ONE_DAY, fullScale, ONE_YEAR } from "@utils/constants";
+import { ONE_WEEK, ONE_HOUR, ONE_DAY, ONE_YEAR } from "@utils/constants";
 import * as t from "../../types/generated";
 
 const VotingLockup = artifacts.require("IncentivisedVotingLockup");
