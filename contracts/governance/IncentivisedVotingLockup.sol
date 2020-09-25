@@ -614,7 +614,6 @@ contract IncentivisedVotingLockup is
             return 0;
         }
         Point memory lastPoint = userPointHistory[_owner][epoch];
-        // lastPoint.bias -= lastPoint.slope * convert(_t - lastPoint.ts, int128)
         lastPoint.bias = lastPoint.bias.sub(lastPoint.slope.mul(int128(block.timestamp.sub(lastPoint.ts))));
         if(lastPoint.bias < 0) {
             lastPoint.bias = 0;
@@ -667,7 +666,6 @@ contract IncentivisedVotingLockup is
             blockTime = blockTime.add(dTime.mul(_blockNumber.sub(point0.blk)).div(dBlock));
         }
         // Current Bias = most recent bias - (slope * time since update)
-        // upoint.bias -= upoint.slope * convert(blockTime - upoint.ts, int128)
         upoint.bias = upoint.bias.sub(upoint.slope.mul(int128(blockTime.sub(upoint.ts))));
         if(upoint.bias >= 0){
             return uint256(upoint.bias);
