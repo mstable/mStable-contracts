@@ -15,7 +15,7 @@ import { Root } from "../shared/Root.sol";
 /**
  * @title  IncentivisedVotingLockup
  * @author Voting Weight tracking & Decay
- *             -> Curve Finance - forked & ported to Solidity (Licensed under MIT)
+ *             -> Curve Finance (MIT) - forked & ported to Solidity
  *             -> https://github.com/curvefi/curve-dao-contracts/blob/master/contracts/VotingEscrow.vy
  *         osolmaz - Research & Reward distributions
  *         alsco77 - Solidity implementation
@@ -205,7 +205,6 @@ contract IncentivisedVotingLockup is
             }
 
             // Moved from bottom final if statement to resolve stack too deep err
-
             // start {
             // Now handle user history
             uint256 uEpoch = userPointEpoch[_addr];

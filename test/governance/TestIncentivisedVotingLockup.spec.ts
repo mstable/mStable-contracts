@@ -516,7 +516,7 @@ contract("IncentivisedVotingLockup", async (accounts) => {
                 expect(charlieAfter.userLocked.end).bignumber.eq(new BN(0));
 
                 await expectRevert(
-                    votingLockup.eject(alice, { from: alice }),
+                    votingLockup.eject(alice, { from: bob }),
                     "Users lock didn't expire",
                 );
             });
@@ -581,6 +581,7 @@ contract("IncentivisedVotingLockup", async (accounts) => {
                 const eveAfter = await snapshotData(eve);
                 expect(aliceAfter.userLocked.amount).bignumber.eq(new BN(0));
                 expect(aliceAfter.userLocked.end).bignumber.eq(new BN(0));
+                expect(aliceAfter.totalStaticWeight).bignumber.eq(new BN(0));
 
                 assertBNClosePercent(
                     simpleToExactAmount(101, 18),
