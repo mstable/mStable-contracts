@@ -77,6 +77,7 @@ contract("Masset - RedeemMasset", async (accounts) => {
         recipient: string = sa.default,
         sender: string = sa.default,
         ignoreHealthAssertions = false,
+        expectFee = false,
     ): Promise<void> => {
         const { mAsset, basketManager, bAssets } = md;
 
@@ -112,6 +113,22 @@ contract("Masset - RedeemMasset", async (accounts) => {
             b.mul(ratioScale).div(new BN(basketComp.bAssets[i].ratio)),
         );
 
+        let fees = bAssets.map(() => new BN(0));
+        let feeRate = new BN(0);
+
+        //    If there is a fee expected, then deduct it from output
+        if (expectFee) {
+            feeRate = await mAsset.redemptionFee();
+            expect(feeRate).bignumber.gt(new BN(0) as any);
+            expect(feeRate).bignumber.lt(fullScale.div(new BN(50)) as any);
+            fees = expectedBassetsExact.map((b) => b.mul(feeRate).div(fullScale));
+            fees.map((f, i) =>
+                expectedBassetsExact[i].gt(new BN(0) as any)
+                    ? expect(f).bignumber.gt(new BN(0) as any)
+                    : null,
+            );
+        }
+
         // 4. Validate any basic events that should occur
         //    Listen for the events
         await expectEvent(tx.receipt, "RedeemedMasset", {
@@ -119,6 +136,17 @@ contract("Masset - RedeemMasset", async (accounts) => {
             recipient,
             mAssetQuantity: exactAmount,
         });
+        if (expectFee) {
+            bAssets.map((b, i) =>
+                fees[i].gt(new BN(0))
+                    ? expectEvent(tx.receipt, "PaidFee", {
+                          payer: sender,
+                          asset: b.address,
+                          feeQuantity: fees[i],
+                      })
+                    : null,
+            );
+        }
 
         // 5. Validate output state
         //    Sender should have less mAsset
@@ -136,7 +164,8 @@ contract("Masset - RedeemMasset", async (accounts) => {
         );
         recipientBassetBalsAfter.map((b, i) =>
             expect(b).bignumber.eq(
-                recipientBassetBalsBefore[i].add(expectedBassetsExact[i]),
+                // Subtract the fee from the returned amount
+                recipientBassetBalsBefore[i].add(expectedBassetsExact[i]).sub(fees[i]),
                 `Recipient should have more bAsset[${i}]`,
             ),
         );
@@ -155,6 +184,7 @@ contract("Masset - RedeemMasset", async (accounts) => {
         );
         bAssetsAfter.map((b, i) =>
             expect(new BN(b.vaultBalance)).bignumber.eq(
+                // Full amount including fee should be taken from vaultBalance
                 new BN(basketComp.bAssets[i].vaultBalance).sub(expectedBassetsExact[i]),
                 `Vault balance should reduce for bAsset[${i}]`,
             ),
@@ -217,6 +247,71 @@ contract("Masset - RedeemMasset", async (accounts) => {
                     );
                     recipientBassetBalsAfter.map((b, i) =>
                         expect(b).bignumber.eq(recipientBassetBalsBefore[i]),
+                    );
+                });
+            });
+            context("and there is a non zero redemption fee", async () => {
+                beforeEach(async () => {
+                    await runSetup(false, false);
+                    // Just mint 100 of everything
+                    await seedWithWeightings(massetDetails, [
+                        new BN(100),
+                        new BN(100),
+                        new BN(100),
+                        new BN(100),
+                    ]);
+                });
+                it("should take the fee from the redeemed bAssets", async () => {
+                    const { mAsset, bAssets } = massetDetails;
+                    const recipient = sa.dummy1;
+                    const basketComp = await massetMachine.getBasketComposition(massetDetails);
+
+                    // Set redemption fee to 1%
+                    await mAsset.setRedemptionFee(simpleToExactAmount(1, 16), {
+                        from: sa.governor,
+                    });
+                    const recipientBassetBalsBefore = await Promise.all(
+                        bAssets.map((b) => b.balanceOf(recipient)),
+                    );
+                    const expectedBassetsExact = await Promise.all(
+                        basketComp.bAssets.map((b) =>
+                            simpleToExactAmount(10, 18)
+                                .mul(ratioScale)
+                                .div(new BN(b.ratio)),
+                        ),
+                    );
+                    const bAssetFees = expectedBassetsExact.map((b, i) =>
+                        b.mul(simpleToExactAmount(1, 16)).div(fullScale),
+                    );
+                    expect(bAssetFees.reduce((p, c) => p.add(c), new BN(0))).bignumber.gt(
+                        new BN(0) as any,
+                    );
+
+                    await assertRedemption(
+                        massetDetails,
+                        simpleToExactAmount(40, 18),
+                        recipient,
+                        undefined,
+                        undefined,
+                        true,
+                    );
+
+                    const recipientBassetBalsAfter = await Promise.all(
+                        bAssets.map((b) => b.balanceOf(recipient)),
+                    );
+                    expectedBassetsExact.map((e, i) =>
+                        expect(recipientBassetBalsAfter[i]).bignumber.eq(
+                            recipientBassetBalsBefore[i]
+                                .add(expectedBassetsExact[i])
+                                .sub(bAssetFees[i]),
+                        ),
+                    );
+
+                    const basketCompAfter = await massetMachine.getBasketComposition(massetDetails);
+                    basketCompAfter.bAssets.map((b, i) =>
+                        expect(b.vaultBalance).bignumber.eq(
+                            basketComp.bAssets[i].vaultBalance.sub(expectedBassetsExact[i]),
+                        ),
                     );
                 });
             });

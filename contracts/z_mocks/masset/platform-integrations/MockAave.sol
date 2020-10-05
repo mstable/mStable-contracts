@@ -3,7 +3,7 @@ pragma solidity 0.5.16;
 import { IAaveAToken, IAaveLendingPool, ILendingPoolAddressesProvider } from "../../../masset/platform-integrations/IAave.sol";
 import { AaveIntegration } from "../../../masset/platform-integrations/AaveIntegration.sol";
 
-import { MassetHelpers, SafeERC20 } from "../../../masset/shared/MassetHelpers.sol";
+import { MassetHelpers, SafeERC20, SafeMath } from "../../../masset/shared/MassetHelpers.sol";
 import { IERC20, ERC20, ERC20Mintable } from "@openzeppelin/contracts/token/ERC20/ERC20Mintable.sol";
 
 
@@ -37,6 +37,8 @@ contract MockAToken is ERC20Mintable {
 
 contract MockAave is IAaveLendingPool, ILendingPoolAddressesProvider {
 
+    using SafeMath for uint256;
+
     mapping(address => address) reserveToAToken;
     address pool = address(this);
     address payable core = address(uint160(address(this)));
@@ -47,6 +49,10 @@ contract MockAave is IAaveLendingPool, ILendingPoolAddressesProvider {
     }
 
     function deposit(address _reserve, uint256 _amount, uint16 /*_referralCode*/) external {
+        uint256 previousBal = IERC20(reserveToAToken[_reserve]).balanceOf(msg.sender);
+        uint256 factor = 2 * (10**13); // 0.002%
+        uint256 interest = previousBal.mul(factor).div(1e18);
+        ERC20Mintable(reserveToAToken[_reserve]).mint(msg.sender, interest);
         // Take their reserve
         MassetHelpers.transferTokens(msg.sender, address(this), _reserve, true, _amount);
         // Credit them with aToken

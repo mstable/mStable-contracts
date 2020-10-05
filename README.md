@@ -1,8 +1,8 @@
 <br/>
 <img src="https://mstable.org/assets/img/email/mstable_logo_horizontal_black.png" width="420" >
 
-[![CircleCI](https://circleci.com/gh/mstable/mStable-contracts.svg?style=svg&circle-token=a8bb29a97a0a0949a15cc28bd9b2245960287bc2)](https://circleci.com/gh/mstable/mStable-contracts)
-[![Coverage Status](https://coveralls.io/repos/github/mstable/mStable-contracts/badge.svg?t=7A5XxE)](https://coveralls.io/github/mstable/mStable-contracts)
+![CI](https://github.com/mstable/mStable-contracts/workflows/Test/badge.svg)
+[![Coverage Status](https://coveralls.io/repos/github/mstable/mStable-contracts/badge.svg?branch=master)](https://coveralls.io/github/mstable/mStable-contracts?branch=master)
 [![Discord](https://img.shields.io/discord/525087739801239552?color=7289DA&label=discord%20)](https://discordapp.com/channels/525087739801239552/)
 
 
@@ -46,6 +46,11 @@ Found a bug? Claim a reward from our open [Bug Bounty](https://docs.mstable.org/
 
 ## Dev notes
 
+### Prerequisites
+
+* Node.js v10.22.0 (you may wish to use [nvm][1])
+* [ganache-cli][2]
+
 ### Installing dependencies
 
 ```
@@ -56,10 +61,12 @@ $ yarn
 
 Deployment scripts are located in `migrations/src`. To run, start `ganache` or `ganache-cli` and run the migration script.
 
-*NB: You should locally use the latest version of `ganache-cli`, as contracts rely on recent opcodes*
+*NB: You should locally use the latest version of `ganache-cli`, as contracts rely on recent opcodes.*
+*In case you are using `ganache` GUI you should go to the settings/gear icon -> chain -> update the gas limit property to 8000000*
 
 ```
-$ ganache-cli -p 7545
+$ ganache-cli -p 7545 -l 8000000
+$ yarn test-prep
 $ yarn migrate
 ```
 
@@ -134,3 +141,5 @@ Codebase rules are enforced through a passing [CI](https://circleci.com) (visibl
 
 <br />
 
+[1]: https://github.com/nvm-sh/nvm
+[2]: https://github.com/trufflesuite/ganache-cli

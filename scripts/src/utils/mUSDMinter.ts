@@ -9,7 +9,7 @@ import TransactionDetails = Truffle.TransactionDetails;
 // eslint-disable-next-line import/prefer-default-export
 export class MUSDMinter {
     constructor(
-        public readonly mUSD: t.MusdInstance,
+        public readonly mUSD: t.MassetInstance,
         public readonly basketManager: t.BasketManagerInstance,
         public readonly bassets: Array<BassetInstance>,
     ) {}

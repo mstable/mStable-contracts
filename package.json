@@ -1,32 +1,41 @@
 {
-  "name": "mstable-contracts",
-  "version": "1.0.0",
-  "private": true,
+  "name": "@mstable/protocol",
+  "version": "1.1.4",
   "description": "mStable Contracts",
   "author": "Stability Labs Pty. Ltd. <hello@stabilitylabs.co>",
   "license": "AGPL-3.0-or-later",
+  "files": [
+    "/contracts/**/*.sol",
+    "!/contracts/z_mocks",
+    "/build/contracts/*.json"
+  ],
   "scripts": {
     "migrate": "truffle migrate --network development --reset",
     "migrate:ropsten": "truffle migrate --network ropsten --reset",
+    "migrate:kovan": "truffle migrate --network kovan --reset",
     "lint": "yarn run lint-ts; yarn run lint-sol",
     "lint-ts": "yarn eslint ./test --ext .ts,.js --fix --quiet",
     "lint-sol": "solium -d contracts/ --fix ",
-    "coverage": "node --max_old_space_size=6144 node_modules/truffle/build/cli.bundled.js run coverage --network coverage --solcoverjs './.solcover.js'",
+    "coverage": "node --max_old_space_size=6144 node_modules/.bin/buidler coverage --network coverage --solcoverjs ./.solcover.js --testfiles 'test/**/Test*.ts' --show-stack-traces",
     "script": "yarn truffle exec ./scripts/main.js",
-    "test": "yarn run test-prep; truffle test;",
-    "test:fork": "yarn run test-prep; truffle test --network fork;",
+    "test": "yarn run test-prep; yarn buidler test;",
+    "test-file": "yarn buidler test",
+    "test:fork": "yarn run test-prep; yarn buidler test --network fork;",
     "test-prep": "yarn run compile; yarn run generate-typings;",
-    "test-lite": " truffle test",
-    "compile": "truffle compile --all",
+    "test-lite": " yarn buidler test",
+    "compile": "yarn buidler compile --force",
     "generate-typings": "rimraf ./types/generated && typechain --target 'truffle-v5' --outDir types/generated './build/contracts/*.json'",
     "prettify": "prettier --write test/*.ts test/**/*.ts types/generated/*.ts types/*.ts artifacts/*.ts",
-    "flatten": "sol-merger \"./contracts/**/*.sol\" ./_flat"
+    "flatten": "sol-merger \"./contracts/**/*.sol\" ./_flat",
+    "prepublishOnly": "yarn run test-prep"
   },
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/mstable/mstable-contracts.git"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mstable/mstable-contracts.git"
   },
   "devDependencies": {
+    "@nomiclabs/buidler-truffle5": "^1.3.4",
+    "@nomiclabs/buidler-web3": "^1.3.4",
     "@openzeppelin/contracts": "2.5.0",
     "@openzeppelin/test-helpers": "git+https://git@github.com/alsco77/openzeppelin-test-helpers.git",
     "@openzeppelin/upgrades": "2.7.2",
@@ -40,6 +49,7 @@
     "@typescript-eslint/eslint-plugin": "^2.21.0",
     "@typescript-eslint/eslint-plugin-tslint": "^2.21.0",
     "@typescript-eslint/parser": "^2.21.0",
+    "buidler-gas-reporter": "0.1.4-beta.4",
     "chai": "^4.2.0",
     "chai-bn": "^0.2.0",
     "chalk": "^3.0.0",
@@ -50,19 +60,16 @@
     "eslint-plugin-import": "^2.20.1",
     "eslint-plugin-jsx-a11y": "^6.2.3",
     "eslint-plugin-react": "^7.18.3",
-    "eth-gas-reporter": "^0.2.14",
     "ethlint": "^1.2.5",
     "humanize-duration": "^3.21.0",
     "mocha": "^7.0.1",
     "parse-duration": "^0.1.2",
     "prettier": "^1.18.2",
     "solc": "0.5.16",
-    "solidity-coverage": "^0.7.1",
+    "solidity-coverage": "^0.7.9",
     "truffle": "5.1.22",
     "truffle-plugin-verify": "^0.3.10",
     "truffle-typings": "^1.0.8",
-    "ts-node": "^8.4.1",
-    "tsconfig-paths": "^3.9.0",
     "typechain": "^2.0.0",
     "types-ethereumjs-util": "^0.0.8",
     "typescript": "^3.6.3",
@@ -70,9 +77,19 @@
     "web3-utils": "1.2.6"
   },
   "dependencies": {
-    "sol-merger": "^3.0.1"
+    "@nomiclabs/buidler": "^1.3.8",
+    "sol-merger": "^3.0.1",
+    "ts-node": "^8.4.1",
+    "tsconfig-paths": "^3.9.0"
   },
   "_moduleAliases": {
     "@utils": "transpiled/test-utils"
+  },
+  "bugs": {
+    "url": "https://github.com/mstable/mstable-contracts/issues"
+  },
+  "homepage": "https://github.com/mstable/mstable-contracts#readme",
+  "directories": {
+    "test": "test"
   }
 }

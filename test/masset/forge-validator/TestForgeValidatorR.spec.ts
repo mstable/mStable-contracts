@@ -513,7 +513,7 @@ contract("ForgeValidator", async (accounts) => {
             });
         });
         context("in a basket with bAssets nearing threshold (max weight breached)", async () => {
-            it("enforces proportional redemption", async () => {
+            it("allows redemption as long as nothing goes overweight", async () => {
                 /**
                  * TotalSupply:     100e18
                  * MaxWeights:      [  40, 40,   40, 40]
@@ -530,8 +530,19 @@ contract("ForgeValidator", async (accounts) => {
                         setBasset(40, "10.5"),
                         setBasset(40, 20),
                     ],
-                    [setArgs(0, 1)],
-                    setResult(false, "Must redeem proportionately"),
+                    [setArgs(0, 10)],
+                    setResult(true, "", true),
+                );
+                await assertRedeem(
+                    setBasket(false, 100),
+                    [
+                        setBasset(40, "39.5"),
+                        setBasset(40, 30),
+                        setBasset(40, "10.5"),
+                        setBasset(40, 20),
+                    ],
+                    [setArgs(1, 3)],
+                    setResult(false, "bAssets must remain below max weight"),
                 );
             });
             describe("and using multiple inputs", async () => {
@@ -552,8 +563,19 @@ contract("ForgeValidator", async (accounts) => {
                             setBasset(40, "10.5"),
                             setBasset(40, 20),
                         ],
-                        [setArgs(0, 1), setArgs(3, 3)],
-                        setResult(false, "Must redeem proportionately"),
+                        [setArgs(0, 5), setArgs(3, 3)],
+                        setResult(true, "", true),
+                    );
+                    await assertRedeem(
+                        setBasket(false, 100),
+                        [
+                            setBasset(40, "39.5"),
+                            setBasset(40, 30),
+                            setBasset(40, "10.5"),
+                            setBasset(40, 20),
+                        ],
+                        [setArgs(0, 1), setArgs(1, 7)],
+                        setResult(false, "bAssets must remain below max weight"),
                     );
                 });
             });

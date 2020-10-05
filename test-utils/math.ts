@@ -1,7 +1,10 @@
 import { BN } from "./tools";
 import { ratioScale } from "./constants";
 
-export const simpleToExactAmount = (amount: number | string | BN, decimals: number | BN): BN => {
+export const simpleToExactAmount = (
+    amount: number | string | BN,
+    decimals: number | BN = 18,
+): BN => {
     // Code is largely lifted from the guts of web3 toWei here:
     // https://github.com/ethjs/ethjs-unit/blob/master/src/index.js
     let amountString = amount.toString();
@@ -65,6 +68,7 @@ export const percentToWeight = (percent: number | string | BN): BN => {
     return simpleToExactAmount(percent, 16);
 };
 
+// TODO - debug this - it does not work for complicated values
 export const exactToSimpleAmount = (amount: BN, decimals: number | BN): BN => {
     // Code is largely lifted from the guts of web3 fromWei here:
     // https://github.com/ethjs/ethjs-unit/blob/master/src/index.js

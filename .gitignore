@@ -31,8 +31,10 @@ typings/
 # next.js build output
 .next
 
-# truffle
+# truffle / buidler
+cache/
 build/
+artifacts/
 contracts-output/
 
 # TSC
@@ -48,9 +50,11 @@ package-lock.json
 .vscode/
 
 # solcover
+.coverage_cache/
 .coverage_artifacts/
 .coverage_contracts/
 coverage.json
+cache
 
 # sol-merger
 flat/

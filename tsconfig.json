@@ -30,6 +30,7 @@
     "./test-utils/*.ts",
     "./test-utils/**/*.ts",
     "./migrations/**/*.ts",
-    "./migrations/*.js"
+    "./migrations/*.js",
+    "./buidler.config.ts"
   ]
 }

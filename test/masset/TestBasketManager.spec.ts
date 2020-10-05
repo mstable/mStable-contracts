@@ -580,7 +580,6 @@ contract("BasketManager", async (accounts) => {
             const bAssetBeforeArr: Array<Basset> = await Promise.all(
                 integrationDetails.aTokens.map((a) => basketManager.getBasset(a.bAsset)),
             );
-            console.log(bAssetBeforeArr[0].vaultBalance);
             await expectRevert(
                 basketManager.decreaseVaultBalances(indexes, integrators, decreaseAmounts, {
                     from: sa.other,
@@ -1419,7 +1418,7 @@ contract("BasketManager", async (accounts) => {
             const movedBassetIntegratorAfter = await mockBasketManager.getBassetIntegrator(
                 movedBasset,
             );
-            await expectRevert(mockBasketManager.integrations(3), "invalid opcode");
+            await expectRevert.assertion(mockBasketManager.integrations(3));
 
             expect(unmovedBassetIntegratorBefore).eq(unmovedBassetIntegratorAfter);
             expect(movedBassetIntegratorBefore).eq(movedBassetIntegratorAfter);
@@ -1460,7 +1459,7 @@ contract("BasketManager", async (accounts) => {
             const unmovedBassetIntegratorAfter = await mockBasketManager.getBassetIntegrator(
                 unMovedBasset,
             );
-            await expectRevert(mockBasketManager.integrations(3), "invalid opcode");
+            await expectRevert.assertion(mockBasketManager.integrations(3));
 
             expect(unmovedBassetIntegratorBefore).eq(unmovedBassetIntegratorAfter);
             expect(unmovedBassetBefore.maxWeight).eq(unmovedBassetAfter.maxWeight);

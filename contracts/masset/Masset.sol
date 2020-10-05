@@ -26,8 +26,8 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @notice  The Masset is a token that allows minting and redemption at a 1:1 ratio
  *          for underlying basket assets (bAssets) of the same peg (i.e. USD,
  *          EUR, Gold). Composition and validation is enforced via the BasketManager.
- * @dev     VERSION: 1.0
- *          DATE:    2020-05-05
+ * @dev     VERSION: 1.1
+ *          DATE:    2020-06-30
  */
 contract Masset is
     Initializable,
@@ -48,6 +48,7 @@ contract Masset is
 
     // State Events
     event SwapFeeChanged(uint256 fee);
+    event RedemptionFeeChanged(uint256 fee);
     event ForgeValidatorChanged(address forgeValidator);
 
     // Modules and connectors
@@ -58,6 +59,9 @@ contract Masset is
     // Basic redemption fee information
     uint256 public swapFee;
     uint256 private MAX_FEE;
+
+    // RELEASE 1.1 VARS
+    uint256 public redemptionFee;
 
     /**
      * @dev Constructor
@@ -535,8 +539,11 @@ contract Masset is
         }
         require(mAssetQuantity > 0, "Must redeem some bAssets");
 
+        // Redemption has fee? Fetch the rate
+        uint256 fee = applyFee ? swapFee : 0;
+
         // Apply fees, burn mAsset and return bAsset to recipient
-        _settleRedemption(_recipient, mAssetQuantity, props.bAssets, _bAssetQuantities, props.indexes, props.integrators, applyFee);
+        _settleRedemption(_recipient, mAssetQuantity, props.bAssets, _bAssetQuantities, props.indexes, props.integrators, fee);
 
         emit Redeemed(msg.sender, _recipient, mAssetQuantity, _bAssets, _bAssetQuantities);
         return mAssetQuantity;
@@ -566,7 +573,7 @@ contract Masset is
         require(redemptionValid, reason);
 
         // Apply fees, burn mAsset and return bAsset to recipient
-        _settleRedemption(_recipient, _mAssetQuantity, props.bAssets, bAssetQuantities, props.indexes, props.integrators, false);
+        _settleRedemption(_recipient, _mAssetQuantity, props.bAssets, bAssetQuantities, props.indexes, props.integrators, redemptionFee);
 
         emit RedeemedMasset(msg.sender, _recipient, _mAssetQuantity);
     }
@@ -579,7 +586,7 @@ contract Masset is
      * @param _bAssetQuantities Array of bAsset quantities
      * @param _indices          Matching indices for the bAsset array
      * @param _integrators      Matching integrators for the bAsset array
-     * @param _applyFee         Apply a fee to this redemption?
+     * @param _feeRate          Fee rate to be applied to this redemption
      */
     function _settleRedemption(
         address _recipient,
@@ -588,16 +595,13 @@ contract Masset is
         uint256[] memory _bAssetQuantities,
         uint8[] memory _indices,
         address[] memory _integrators,
-        bool _applyFee
+        uint256 _feeRate
     ) internal {
         // Burn the full amount of Masset
         _burn(msg.sender, _mAssetQuantity);
 
         // Reduce the amount of bAssets marked in the vault
         basketManager.decreaseVaultBalances(_indices, _integrators, _bAssetQuantities);
-
-        // Redemption has fee? Fetch the rate
-        uint256 fee = _applyFee ? swapFee : 0;
 
         // Transfer the Bassets to the recipient
         uint256 bAssetCount = _bAssets.length;
@@ -606,7 +610,7 @@ contract Masset is
             uint256 q = _bAssetQuantities[i];
             if(q > 0){
                 // Deduct the redemption fee, if any
-                q = _deductSwapFee(bAsset, q, fee);
+                q = _deductSwapFee(bAsset, q, _feeRate);
                 // Transfer the Bassets to the user
                 IPlatformIntegration(_integrators[i]).withdraw(_recipient, bAsset, q, _bAssets[i].isTransferFeeCharged);
             }
@@ -693,6 +697,20 @@ contract Masset is
         swapFee = _swapFee;
 
         emit SwapFeeChanged(_swapFee);
+    }
+
+    /**
+      * @dev Set the ecosystem fee for redeeming a mAsset
+      * @param _redemptionFee Fee calculated in (%/100 * 1e18)
+      */
+    function setRedemptionFee(uint256 _redemptionFee)
+        external
+        onlyGovernor
+    {
+        require(_redemptionFee <= MAX_FEE, "Rate must be within bounds");
+        redemptionFee = _redemptionFee;
+
+        emit RedemptionFeeChanged(_redemptionFee);
     }
 
     /**

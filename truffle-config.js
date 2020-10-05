@@ -43,6 +43,15 @@ module.exports = {
       gasPrice: 100000000001, // 100 GWei,
       skipDryRun: true,
       gas: 8000000
+    },
+    kovan: {
+      provider() {
+        return new HDWalletProvider("", "https://kovan.infura.io/v3/", 0, 3)
+      },
+      network_id: 42,
+      gasPrice: 20000000000, // 20 GWei,
+      skipDryRun: true,
+      gas: 8000000
     }
   },
   mocha: {

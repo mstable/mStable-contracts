@@ -7,6 +7,8 @@ import { InitializableModule } from "../shared/InitializableModule.sol";
  * @author  Stability Labs Pty. Ltd.
  * @notice  Contract to store whitelisted address. The onlyWhitelisted() modifier should be used
  *          to allow the function calls only from the whitelisted addresses.
+ * @dev     Implementing contracts are responsible for adding their own add and remove methods
+ *          as the original purpose of this whitelist is for read optimisation.
  */
 contract InitializableGovernableWhitelist is InitializableModule {
 

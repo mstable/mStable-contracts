@@ -349,10 +349,10 @@ contract("Masset - Redeem", async (accounts) => {
                         mAssetQuantity: expectedMasset,
                         bAssets: [bAsset.address],
                     });
-                    // Recipient should have bAsset quantity after
+                    // Recipient should not receive the bAsset because it equates to redeeming 0 cTokens
                     const recipientBassetBalAfter = await bAsset.balanceOf(sa.default);
                     expect(recipientBassetBalAfter).bignumber.eq(
-                        recipientBassetBalBefore.add(new BN(1)),
+                        recipientBassetBalBefore,
                     );
                     // Sender should have less mASset after
                     const totalSupplyAfter = await mAsset.totalSupply();
@@ -756,7 +756,7 @@ contract("Masset - Redeem", async (accounts) => {
                 beforeEach(async () => {
                     await runSetup(false);
                 });
-                it("should force proportional redemption no matter what", async () => {
+                it("should allow redemption as long as nothing goes overweight", async () => {
                     const { bAssets, mAsset, basketManager } = massetDetails;
                     const composition = await massetMachine.getBasketComposition(massetDetails);
                     // Expect 4 bAssets with 100 weightings
@@ -782,9 +782,11 @@ contract("Masset - Redeem", async (accounts) => {
                     // Should succeed if we redeem this
                     const bAsset = bAssets[0];
                     const bAssetDecimals = await bAsset.decimals();
+                    await assertBasicRedemption(massetDetails, 2, bAsset, true);
+                    // 30% * 93 = 27.8, meaning bAssets[1] is now overweight
                     await expectRevert(
-                        mAsset.redeem(bAsset.address, simpleToExactAmount(10, bAssetDecimals)),
-                        "Must redeem proportionately",
+                        mAsset.redeem(bAsset.address, simpleToExactAmount(5, bAssetDecimals)),
+                        "bAssets must remain below max weight",
                     );
                 });
             });
@@ -885,7 +887,7 @@ contract("Masset - Redeem", async (accounts) => {
                     { from: sa.default },
                 );
                 // Do the redemption
-                for (let i = 0; i < onChainBassets.length; i += 1) {
+                for (let i = 0; i < 5; i += 1) {
                     await assertBasicRedemption(
                         massetDetails,
                         new BN(1),
@@ -1099,16 +1101,15 @@ contract("Masset - Redeem", async (accounts) => {
                     const recipientBassetBalBefore = await bAsset.balanceOf(sa.default);
                     const tx = await mAsset.redeemMulti([bAsset.address], [new BN(1)], sa.default);
 
-                    const swapFee = await mAsset.swapFee();
                     const expectedMasset = new BN(1000000);
                     await expectEvent(tx.receipt, "Redeemed", {
                         mAssetQuantity: expectedMasset,
                         bAssets: [bAsset.address],
                     });
-                    // Recipient should have bAsset quantity after
+                    // Recipient should not receive the bAsset because it equates to redeeming 0 cTokens
                     const recipientBassetBalAfter = await bAsset.balanceOf(sa.default);
                     expect(recipientBassetBalAfter).bignumber.eq(
-                        recipientBassetBalBefore.add(new BN(1)),
+                        recipientBassetBalBefore
                     );
                     // Sender should have less mAsset after
                     const totalSupplyAfter = await mAsset.totalSupply();
