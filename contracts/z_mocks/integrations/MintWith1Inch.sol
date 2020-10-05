@@ -2,8 +2,7 @@ pragma solidity 0.5.16;
 
 // External
 import { AbstractBuyAndMint } from "./AbstractBuyAndMint.sol";
-import { IMintWith1Inch } from "./IMintWith1Inch.sol";
-import { IMasset } from "../interfaces/IMasset.sol";
+import { IMasset } from "../../interfaces/IMasset.sol";
 
 // Libs
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -29,7 +28,7 @@ contract IOneSplit {
  * @notice  Contract integrates with 1inch (a.k.a OneSplit) contract and allows anyone to buy
  *          bAsset tokens using ETH from the 1inch and mint mAssets.
  */
-contract MintWith1Inch is AbstractBuyAndMint, IMintWith1Inch {
+contract MintWith1Inch is AbstractBuyAndMint {
 
     using SafeMath for uint256;
 

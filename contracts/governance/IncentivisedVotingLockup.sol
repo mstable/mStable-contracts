@@ -3,7 +3,7 @@ pragma solidity 0.5.16;
 
 import { IBasicToken } from "../shared/IBasicToken.sol";
 
-import { IIncentivisedVotingLockup } from "./IIncentivisedVotingLockup.sol";
+import { IIncentivisedVotingLockup } from "../interfaces/IIncentivisedVotingLockup.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { RewardsDistributionRecipient } from "../rewards/RewardsDistributionRecipient.sol";
 

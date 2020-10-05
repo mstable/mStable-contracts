@@ -1,8 +1,7 @@
 pragma solidity 0.5.16;
 
 // External
-import { AbstractBuyAndMint } from "../../integrations/AbstractBuyAndMint.sol";
-import { IBuyAndMint } from "./IBuyAndMint.sol";
+import { AbstractBuyAndMint } from "./AbstractBuyAndMint.sol";
 
 // Internal
 import { IMasset } from "../../interfaces/IMasset.sol";
@@ -21,7 +20,7 @@ import { StableMath } from "../../shared/StableMath.sol";
  * @notice  Contract integrates with Kyber Network Proxy contract and allows anyone to buy
  *          bAsset tokens using ETH from the Kyber platform and mint mAsset tokens from mStable.
  */
-contract MintWithKyber is AbstractBuyAndMint, IBuyAndMint, ReentrancyGuard {
+contract MintWithKyber is AbstractBuyAndMint, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using Address for address payable;
