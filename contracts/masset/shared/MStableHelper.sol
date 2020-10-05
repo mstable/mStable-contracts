@@ -268,7 +268,6 @@ contract MStableHelper is IMStableHelper, MassetStructs {
     }
 
 
-
     /***************************************
                     SAVE
     ****************************************/
@@ -303,12 +302,12 @@ contract MStableHelper is IMStableHelper, MassetStructs {
      * @dev Returns the 'credit' units required to withdraw a certain
      * amount of Masset from the SAVE contract
      * @param _save SAVE contract address
-     * @param _amount Amount of mAsset to redeem from SAVE
+     * @param _mAssetUnits Amount of mAsset to redeem from SAVE
      * @return input for the redeem function (ie. credit units to redeem)
      */
     function getSaveRedeemInput(
         ISavingsContract _save,
-        uint256 _amount
+        uint256 _mAssetUnits
     )
         external
         view
@@ -321,7 +320,7 @@ contract MStableHelper is IMStableHelper, MassetStructs {
         uint256 rate = _save.exchangeRate();
         require(rate > 0, "Invalid rate");
 
-        uint256 credits = _amount.divPrecisely(rate);
+        uint256 credits = _mAssetUnits.divPrecisely(rate);
 
         // Add 1 because the amounts always round down
         // e.g. i have 51 credits, e4 10 = 20.4

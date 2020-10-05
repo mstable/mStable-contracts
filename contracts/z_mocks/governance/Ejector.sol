@@ -1,6 +1,6 @@
 pragma solidity 0.5.16;
 
-import { IIncentivisedVotingLockup } from "../../governance/IIncentivisedVotingLockup.sol";
+import { IIncentivisedVotingLockup } from "../../interfaces/IIncentivisedVotingLockup.sol";
 
 contract Ejector {
 
