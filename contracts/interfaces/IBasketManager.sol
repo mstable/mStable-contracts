@@ -53,6 +53,7 @@ contract IBasketManager is MassetStructs {
         returns (Basset memory bAsset);
     function getBassets() external view
         returns (Basset[] memory bAssets, uint256 len);
+    function paused() external view returns (bool);
 
     /** @dev Recollateralisation */
     function handlePegLoss(address _basset, bool _belowPeg) external returns (bool actioned);

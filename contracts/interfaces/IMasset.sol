@@ -44,4 +44,7 @@ contract IMasset is MassetStructs {
 
     /** @dev Getters */
     function getBasketManager() external view returns(address);
+    function forgeValidator() external view returns (address);
+    function totalSupply() external view returns (uint256);
+    function swapFee() external view returns (uint256);
 }

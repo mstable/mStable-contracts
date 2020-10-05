@@ -1,7 +1,7 @@
 pragma solidity 0.5.16;
 
 // Internal
-import { MassetHelpers } from "../masset/shared/MassetHelpers.sol";
+import { MassetHelpers } from "../../masset/shared/MassetHelpers.sol";
 
 // Library
 import { Ownable } from "@openzeppelin/contracts/ownership/Ownable.sol";
