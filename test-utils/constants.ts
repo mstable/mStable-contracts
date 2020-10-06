@@ -90,8 +90,8 @@ export class RopstenAccounts {
 
 export class KovanAccounts {
     // All Native Tokens
-    public DAI: Address = "0xff795577d9ac8bd7d90ee22b6c1703490b6512fd";
-    public USDC: Address = "0xe22da380ee6B445bb8273C81944ADEB6E8450422";
+    public DAI: Address = "0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa";
+    public USDC: Address = "0xb7a4f3e9097c08da09517b5ab877f7a917224ede";
 
     public TUSD: Address = "0x1c4a937d171752e1313D70fb16Ae2ea02f86303e";
     public USDT: Address = "0x13512979ade267ab5100878e2e0f485b568328a4";
