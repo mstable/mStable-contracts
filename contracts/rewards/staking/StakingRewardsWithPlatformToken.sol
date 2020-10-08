@@ -295,6 +295,8 @@ contract StakingRewardsWithPlatformToken is StakingTokenWrapper, RewardsDistribu
         onlyRewardsDistributor
         updateReward(address(0))
     {
+        require(_reward < 1e24, "Cannot notify with more than a million units");
+
         uint256 newPlatformRewards = platformToken.balanceOf(address(this));
         if(newPlatformRewards > 0){
             platformToken.safeTransfer(address(platformTokenVendor), newPlatformRewards);

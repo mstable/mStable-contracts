@@ -374,6 +374,19 @@ contract("StakingRewards", async (accounts) => {
             });
         });
     });
+    context("funding with too much rewards", () => {
+        before(async () => {
+            stakingRewards = await redeployRewards();
+        });
+        it("should fail", async () => {
+            await expectRevert(
+                stakingRewards.notifyRewardAmount(simpleToExactAmount(1, 25), {
+                    from: sa.fundManager,
+                }),
+                "Cannot notify with more than a million units",
+            );
+        });
+    });
     context("staking before rewards are added", () => {
         before(async () => {
             stakingRewards = await redeployRewards();
