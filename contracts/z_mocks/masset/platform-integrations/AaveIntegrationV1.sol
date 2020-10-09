@@ -1,17 +1,17 @@
 pragma solidity 0.5.16;
 
-import { IAaveAToken, IAaveLendingPoolV1, IAaveLendingPoolV2, ILendingPoolAddressesProvider } from "./IAave.sol";
-import { InitializableAbstractIntegration, MassetHelpers, IERC20, SafeMath } from "./InitializableAbstractIntegration.sol";
+import { IAaveAToken, IAaveLendingPoolV1, ILendingPoolAddressesProvider } from "../../../masset/platform-integrations/IAave.sol";
+import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "../../../masset/platform-integrations/InitializableAbstractIntegration.sol";
 
 
 /**
  * @title   AaveIntegration
  * @author  Stability Labs Pty. Ltd.
  * @notice  A simple connection to deposit and withdraw bAssets from Aave
- * @dev     VERSION: 2.0
- *          DATE:    2020-10-08
+ * @dev     VERSION: 1.0
+ *          DATE:    2020-03-26
  */
-contract AaveIntegration is InitializableAbstractIntegration {
+contract AaveIntegrationV1 is InitializableAbstractIntegration {
 
     /***************************************
                     CORE
@@ -48,12 +48,12 @@ contract AaveIntegration is InitializableAbstractIntegration {
         if(_isTokenFeeCharged) {
             // If we charge a fee, account for it
             uint256 prevBal = _checkBalance(aToken);
-            _getLendingPool().deposit(_bAsset, _amount, address(this), referralCode);
+            _getLendingPool().deposit(_bAsset, _amount, referralCode);
             uint256 newBal = _checkBalance(aToken);
             quantityDeposited = _min(quantityDeposited, newBal.sub(prevBal));
         } else {
             // aTokens are 1:1 for each asset
-            _getLendingPool().deposit(_bAsset, _amount, address(this), referralCode);
+            _getLendingPool().deposit(_bAsset, _amount, referralCode);
         }
 
         emit Deposit(_bAsset, address(aToken), quantityDeposited);
@@ -115,53 +115,6 @@ contract AaveIntegration is InitializableAbstractIntegration {
         return _checkBalance(aToken);
     }
 
-    /**
-     * @dev Migrates from V1 to V2 by:
-     *        - Withdrawing all reserves from V1
-     *        - Updating the aToken address
-     *        - Depositing into new reserve
-     * @param _bAssets     Array of bAsset addresses
-     * @param _newATokens  Address of newAToken addresses
-     */
-    function migrate(address[] calldata _bAssets, address[] calldata _newATokens)
-        external
-        onlyGovernor
-    {
-        uint256 len = _bAssets.length;
-        require(len == _newATokens.length, "_bAssets and _newATokens arrays must be the same length");
-
-        // Loop over bAssets, withdraw from v1 and deposit to v2
-        for(uint i = 0; i < len; i++){
-            address bAsset = _bAssets[i];
-            address newAToken = _newATokens[i];
-            require(newAToken != address(0), "Invalid AToken address");
-
-            // 1. Redeem all existing aTokens
-            //    Get the existing Aave Platform Token for the bAsset
-            IAaveAToken oldAToken = _getATokenFor(bAsset);
-            //    Get the balance held on the contract
-            uint256 oldATokenBalance = _checkBalance(oldAToken);
-            //    Redeem the underlying tokens from Aave v1
-            oldAToken.redeem(oldATokenBalance);
-
-            // 2. Update aToken address
-            bAssetToPToken[bAsset] = newAToken;
-            _abstractSetPToken(bAsset, newAToken);
-
-            // 3. Deposit all into new reserve
-            //    Get balance of _bAsset
-            IERC20 b = IERC20(bAsset);
-            uint256 bAssetBalance = b.balanceOf(address(this));
-            //    Deposit to lending pool
-            _getLendingPool().deposit(bAsset, bAssetBalance, address(this), 36);
-            uint256 newATokenBalance = _checkBalance(_getATokenFor(bAsset));
-            //    Dust = 1e24 / 1e6 = 1e18
-            uint256 dust = newATokenBalance.div(1e6);
-            require(newATokenBalance >= oldATokenBalance.sub(dust), "Balance must be gte previous balance");
-            require(newATokenBalance <= oldATokenBalance.add(dust), "Balance must be within bounds of prev balance");
-        }
-    }
-
     /***************************************
                     APPROVALS
     ****************************************/
@@ -209,11 +162,11 @@ contract AaveIntegration is InitializableAbstractIntegration {
     function _getLendingPool()
         internal
         view
-        returns (IAaveLendingPoolV2)
+        returns (IAaveLendingPoolV1)
     {
         address lendingPool = ILendingPoolAddressesProvider(platformAddress).getLendingPool();
         require(lendingPool != address(0), "Lending pool does not exist");
-        return IAaveLendingPoolV2(lendingPool);
+        return IAaveLendingPoolV1(lendingPool);
     }
 
     /**
@@ -259,5 +212,4 @@ contract AaveIntegration is InitializableAbstractIntegration {
     {
         return _aToken.balanceOf(address(this));
     }
-
 }

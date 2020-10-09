@@ -2,7 +2,7 @@ pragma solidity 0.5.16;
 
 import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "../../../masset/platform-integrations/InitializableAbstractIntegration.sol";
 
-import { IAaveAToken, IAaveLendingPool, ILendingPoolAddressesProvider } from "../../../masset/platform-integrations/IAave.sol";
+import { IAaveAToken, IAaveLendingPoolV1, ILendingPoolAddressesProvider } from "../../../masset/platform-integrations/IAave.sol";
 
 contract AaveIntegrationV2 is InitializableAbstractIntegration {
 
@@ -114,11 +114,11 @@ contract AaveIntegrationV2 is InitializableAbstractIntegration {
     function _getLendingPool()
         internal
         view
-        returns (IAaveLendingPool)
+        returns (IAaveLendingPoolV1)
     {
         address lendingPool = ILendingPoolAddressesProvider(platformAddress).getLendingPool();
         require(lendingPool != address(0), "Lending pool does not exist");
-        return IAaveLendingPool(lendingPool);
+        return IAaveLendingPoolV1(lendingPool);
     }
 
     function _getLendingPoolCore()
@@ -280,11 +280,11 @@ contract AaveIntegrationV3 is InitializableAbstractIntegration {
     function _getLendingPool()
         internal
         view
-        returns (IAaveLendingPool)
+        returns (IAaveLendingPoolV1)
     {
         address lendingPool = ILendingPoolAddressesProvider(platformAddress).getLendingPool();
         require(lendingPool != address(0), "Lending pool does not exist");
-        return IAaveLendingPool(lendingPool);
+        return IAaveLendingPoolV1(lendingPool);
     }
 
     // NEW

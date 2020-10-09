@@ -25,7 +25,7 @@ interface IAaveAToken {
  * @dev Interface for Aaves Lending Pool
  * Documentation: https://developers.aave.com/#lendingpool
  */
-interface IAaveLendingPool {
+interface IAaveLendingPoolV1 {
 
     /**
      * @notice Deposits a certain _amount of an asset specified by the _reserve parameter.
@@ -54,4 +54,21 @@ interface ILendingPoolAddressesProvider {
      */
     function getLendingPoolCore() external view returns (address payable);
 
+}
+
+interface IAaveLendingPoolV2 {
+
+    /**
+    * @dev deposits The underlying asset into the reserve. A corresponding amount of the overlying asset (aTokens)
+    * is minted.
+    * @param reserve the address of the reserve
+    * @param amount the amount to be deposited
+    * @param referralCode integrators are assigned a referral code and can potentially receive rewards.
+    **/
+    function deposit(
+        address reserve,
+        uint256 amount,
+        address onBehalfOf,
+        uint16 referralCode
+    ) external;
 }

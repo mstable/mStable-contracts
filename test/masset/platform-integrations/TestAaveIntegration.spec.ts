@@ -27,7 +27,7 @@ const c_MockAaveAToken = artifacts.require("MockAToken");
 const c_MockAave = artifacts.require("MockAave");
 const c_Nexus = artifacts.require("Nexus");
 const c_AaveLendingPoolAddressProvider = artifacts.require("ILendingPoolAddressesProvider");
-const c_AaveLendingPool = artifacts.require("IAaveLendingPool");
+const c_AaveLendingPool = artifacts.require("IAaveLendingPoolV2");
 const c_ERC20 = artifacts.require("ERC20Detailed");
 const c_AaveAToken = artifacts.require("IAaveAToken");
 const c_DelayedProxyAdmin = artifacts.require("DelayedProxyAdmin");
@@ -828,7 +828,7 @@ contract("AaveIntegration", async (accounts) => {
                 await addressProvider.getLendingPool(),
             );
             // 2.2. Call the deposit func
-            await d_lendingPool.deposit(bAsset.address, amount, 9999);
+            await d_lendingPool.deposit(bAsset.address, amount, sa.default, 9999);
             // 2.3. Fast forward some time
             await time.increase(ONE_WEEK);
             // 2.4. Do a redemption

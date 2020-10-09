@@ -29,6 +29,7 @@ const c_VaultProxy = artifacts.require("VaultProxy");
 // Integrations
 const c_AaveIntegration = artifacts.require("AaveIntegration");
 const c_MockAave = artifacts.require("MockAave");
+const c_MockAaveV1 = artifacts.require("MockAaveV1");
 const c_MockAToken = artifacts.require("MockAToken");
 const c_CompoundIntegration = artifacts.require("CompoundIntegration");
 const c_MockCToken = artifacts.require("MockCToken");
@@ -69,14 +70,14 @@ export class MassetMachine {
      * @dev Deploys an mAsset with default parameters, modelled on original mUSD
      * @return Interface will all deployed information
      */
-    public async deployMasset(enableUSDTFee = false): Promise<MassetDetails> {
+    public async deployMasset(enableUSDTFee = false, useOldAave = false): Promise<MassetDetails> {
         const md: MassetDetails = {};
 
         /** *************************************
         0. Mock platforms and bAssets
         Dependencies: []
         *************************************** */
-        const bassetDetails = await this.loadBassets(enableUSDTFee);
+        const bassetDetails = await this.loadBassets(enableUSDTFee, useOldAave);
         md.bAssets = bassetDetails.bAssets;
 
         /** *************************************
@@ -222,10 +223,13 @@ export class MassetMachine {
         return md;
     }
 
-    public async loadBassets(enableUSDTFee = false): Promise<BassetIntegrationDetails> {
+    public async loadBassets(
+        enableUSDTFee = false,
+        useOldAave = false,
+    ): Promise<BassetIntegrationDetails> {
         return this.system.isGanacheFork
             ? this.loadBassetsFork(enableUSDTFee)
-            : this.loadBassetsLocal(enableUSDTFee);
+            : this.loadBassetsLocal(enableUSDTFee, useOldAave);
     }
 
     public async loadBassetsFork(enableUSDTFee = false): Promise<BassetIntegrationDetails> {
@@ -285,7 +289,10 @@ export class MassetMachine {
         };
     }
 
-    public async loadBassetsLocal(enableUSDTFee = false): Promise<BassetIntegrationDetails> {
+    public async loadBassetsLocal(
+        enableUSDTFee = false,
+        useOldAave = false,
+    ): Promise<BassetIntegrationDetails> {
         //  - Mock bAssets
         const mockBasset1 = await c_MockERC20.new("Mock1", "MK1", 12, this.sa.default, 100000000);
         const mockBasset2 = enableUSDTFee
@@ -315,7 +322,8 @@ export class MassetMachine {
         const mockCToken2 = await c_MockCToken.new(mockBasset2.address);
 
         //  - Mock Aave integration
-        const d_MockAave = await c_MockAave.new({ from: this.sa.default });
+        const aaveVersion = useOldAave ? c_MockAaveV1 : c_MockAave;
+        const d_MockAave = await aaveVersion.new({ from: this.sa.default });
 
         //  - Mock aTokens
         const mockAToken3 = await c_MockAToken.new(d_MockAave.address, mockBasset3.address);
