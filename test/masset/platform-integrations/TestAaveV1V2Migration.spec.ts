@@ -2,6 +2,7 @@
 /* eslint-disable consistent-return */
 
 import { expectRevert, time } from "@openzeppelin/test-helpers";
+import { network } from "@nomiclabs/buidler";
 import { BN } from "@utils/tools";
 import { assertBNSlightlyGTPercent, assertBNClosePercent } from "@utils/assertions";
 import { StandardAccounts, SystemMachine, MassetMachine } from "@utils/machines";
@@ -37,6 +38,7 @@ const c_MockAaveV1 = artifacts.require("MockAaveV1");
 const c_MockAaveV2 = artifacts.require("MockAave");
 
 contract("AaveIntegration", async (accounts) => {
+    const isCoverage = network.name === "coverage";
     const sa = new StandardAccounts(accounts);
 
     let systemMachine: SystemMachine;
@@ -162,6 +164,7 @@ contract("AaveIntegration", async (accounts) => {
         });
         context("operating without upgrading", async () => {
             it("should break depositing", async () => {
+                if (isCoverage) return;
                 const amount = simpleToExactAmount(1, 10);
                 await bAsset0.transfer(d_AaveIntegrationV1.address, amount.toString());
                 await expectRevert(
@@ -329,44 +332,4 @@ contract("AaveIntegration", async (accounts) => {
             });
         });
     });
-
-    //     it("should redeem all tokens from Aave v1", async () => {
-    //         // Verify aTokens are minted to prevent false positive
-    //         expect(await aToken.balanceOf(d_AaveIntegration.address)).bignumber.eq(
-    //             simpleToExactAmount(10, bAssetDecimals),
-    //         );
-
-    //         await d_AaveIntegration.migrate(
-    //             [bAsset.address],
-    //             [mockATokenV2.address],
-    //             mockAaveV2.address,
-    //             {
-    //                 from: sa.governor,
-    //             },
-    //         );
-
-    //         // Verify there are no aToken on the contract
-    //         expect(await aToken.balanceOf(d_AaveIntegration.address)).bignumber.eq(new BN(0));
-    //     });
-
-    //     it("should deposit tokens to Aave v2", async () => {
-    //         // Verify the contract has no v2 tokens
-    //         expect(await mockATokenV2.balanceOf(d_AaveIntegration.address)).bignumber.eq(new BN(0));
-
-    //         // Perform the migration
-    //         await d_AaveIntegration.migrate(
-    //             [bAsset.address],
-    //             [mockATokenV2.address],
-    //             mockAaveV2.address,
-    //             {
-    //                 from: sa.governor,
-    //             },
-    //         );
-
-    //         // Verify the contract has received v2 tokens
-    //         expect(await mockATokenV2.balanceOf(d_AaveIntegration.address)).bignumber.eq(
-    //             simpleToExactAmount(10, bAssetDecimals),
-    //         );
-    //     });
-    // });
 });
