@@ -42,7 +42,8 @@ export default async (
     2. StakingRewards
     ****************************************/
 
-    const rewardsDistributor = await c_RewardsDistributor.new(d_Nexus.address, [default_]);
+    await deployer.deploy(c_RewardsDistributor, d_Nexus.address, [default_]);
+    const rewardsDistributor = await c_RewardsDistributor.deployed();
 
     if (network === "development") {
         const stakingToken1 = await c_MockERC20.new("STAKE", "ST8", 18, default_, 1000000);

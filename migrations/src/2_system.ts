@@ -229,8 +229,7 @@ export default async (
     if (deployer.network === "ropsten") {
         console.log("Loading Ropsten bAssets and lending platforms");
         bassetDetails = await loadBassetsRopsten(artifacts);
-    }
-    else if (deployer.network === "kovan") {
+    } else if (deployer.network === "kovan") {
         console.log("Loading Kovan bAssets and lending platforms");
         bassetDetails = await loadBassetsKovan(artifacts);
     } else {
@@ -429,4 +428,6 @@ export default async (
     console.log(`[CompoundIntegration]: '${d_CompoundIntegrationProxy.address}'`);
     console.log(`[SavingsManager]: '${d_SavingsManager.address}'`);
     console.log(`[SavingsContract]: '${d_SavingsContract.address}'`);
+    console.log(`[Nexus]: '${d_Nexus.address}'`);
+    console.log(`[ProxyAdmin]: '${d_DelayedProxyAdmin.address}'`);
 };
