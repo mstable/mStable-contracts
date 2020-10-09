@@ -238,6 +238,8 @@ contract StakingRewards is StakingTokenWrapper, RewardsDistributionRecipient {
         onlyRewardsDistributor
         updateReward(address(0))
     {
+        require(_reward < 1e24, "Cannot notify with more than a million units");
+
         uint256 currentTime = block.timestamp;
         // If previous period over, reset rewardRate
         if (currentTime >= periodFinish) {
