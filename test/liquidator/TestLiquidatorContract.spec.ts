@@ -4,6 +4,7 @@ import { simpleToExactAmount } from "@utils/math";
 import { BN } from "@utils/tools";
 import envSetup from "@utils/env_setup";
 import * as t from "types/generated";
+import { ZERO_ADDRESS } from "@utils/constants";
 import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
 
 const Liquidator = artifacts.require("Liquidator");
@@ -22,26 +23,46 @@ contract("Liquidator", async (accounts) => {
     const redeployLiquidator = async (
         nexusAddress = systemMachine.nexus.address,
     ): Promise<t.LiquidatorInstance> => {
-        console.log(nexusAddress);
-        return Liquidator.new(nexusAddress);
+        liquidator = await Liquidator.new();
+        liquidator.initialize(systemMachine.nexus.address, ZERO_ADDRESS);
+        return liquidator;
     };
 
     before(async () => {
         systemMachine = new SystemMachine(sa.all);
         await systemMachine.initialiseMocks(false, false);
-        await Liquidator.new(systemMachine.nexus.address);
     });
 
     describe("verifying Module initialization", async () => {
         before("reset contracts", async () => {
             liquidator = await redeployLiquidator();
-            ctx.module = liquidator as t.ModuleInstance;
+            ctx.module = liquidator as t.InitializableModuleInstance;
         });
 
         shouldBehaveLikeModule(ctx as Required<typeof ctx>, sa);
 
         it("should properly store valid arguments", async () => {
             expect(await liquidator.nexus()).eq(systemMachine.nexus.address);
+        });
+    });
+
+    describe("createLiquidation()", () => {
+        it("should revert if not called by the Governor", async () => {
+            await expectRevert(
+                liquidator.createLiquidation(
+                    sa.dummy1,
+                    sa.dummy2,
+                    sa.dummy3,
+                    new BN(10000),
+                    1,
+                    [ZERO_ADDRESS],
+                    false,
+                    {
+                        from: sa.default,
+                    },
+                ),
+                "Only governor can execute",
+            );
         });
     });
 });

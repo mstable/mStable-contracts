@@ -7,28 +7,39 @@ pragma experimental ABIEncoderV2;
   */
 
 interface ILiquidator {
+
+    enum LendingPlatform { Compound, Aave, Cream, Dydx, Fulcrum }
+    enum Dex { Uniswap, Balancer }
+
     struct Liquidation {
-        address basset;
-        address integration;
-        address rewardToken;
-        uint    amount;
-        uint    collectDrip;
-        bool    paused;
+        address         integration;
+        address         sellToken;
+        address         pToken;
+        uint            trancheAmount;
+        LendingPlatform lendingPlatform;
+        address[]       uniswapPath;
+        bool            paused;
+        uint            lastTriggered;
     }
 
-    // Views
-    function getLiquidation(address _bAsset) external view returns (Liquidation memory liquidation);
-
-    // Restricted to the `integrationContract` given in addLiquidation
-    function collect() external;
-
-    // Callable by anyone to trigger a selling event 
-    function triggerLiquidation(address _bAsset) external;
-
-    // Governor only
-    function addLiquidation(address _bAsset, address _integration, uint _amount ) external;
-    function removeLiquidation(address _bAsset) external;
-    function pauseLiquidation(address _bAsset) external;
-    function setCollectDrip(address _bAsset) external;
+    function triggerLiquidation(
+        address _bAsset) external;
+    function createLiquidation(
+        address _bAsset,
+        address _integration,
+        address _sellToken,
+        uint _trancheAmount,
+        LendingPlatform _lendingPlatform,
+        address[] calldata _uniswapPath,
+        bool _paused) external;
+    function updateLiquidation(
+        address _bAsset,
+        address _integration,
+        address _sellToken,
+        uint _trancheAmount,
+        LendingPlatform _lendingPlatform,
+        address[] calldata _uniswapPath,
+        bool paused) external;
+    function deleteLiquidation(address _bAsset) external;
+    function updateUniswapAddress(address _uniswapAddress) external;
 }
-

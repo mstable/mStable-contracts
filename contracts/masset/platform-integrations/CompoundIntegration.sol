@@ -1,6 +1,7 @@
 pragma solidity 0.5.16;
 
 import { ICERC20 } from "./ICompound.sol";
+import { CommonHelpers } from "../../shared/CommonHelpers.sol";
 import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "./InitializableAbstractIntegration.sol";
 
 
@@ -15,6 +16,9 @@ contract CompoundIntegration is InitializableAbstractIntegration {
 
     event RewardTokenCollected(address recipient, uint256 amount);
     event SkippedWithdrawal(address bAsset, uint256 amount);
+    event RewardTokenApproved(address rewardToken, address account);
+
+    uint256 internal lastClaimed;
 
     /***************************************
                     ADMIN
@@ -41,6 +45,22 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         emit RewardTokenCollected(_recipient, balance);
     }
 
+    /**
+     * @dev Approves Liquidator to spend reward tokens
+     * @param _rewardToken Reward token
+     */
+    function approveRewardToken(
+        address _rewardToken
+    )
+        external
+        onlyGovernor
+    {
+        address liq = nexus.getModule(keccak256("Liquidator"));
+        require(liq != address(0), "Liquidator address cannot be zero");
+        MassetHelpers.safeInfiniteApprove(_rewardToken, liq);
+
+        emit RewardTokenApproved(_rewardToken, liq);
+    }
 
     /***************************************
                     CORE
@@ -83,6 +103,8 @@ contract CompoundIntegration is InitializableAbstractIntegration {
             // Else just execute the mint
             require(cToken.mint(_amount) == 0, "cToken mint failed");
         }
+
+        _checkClaim(_bAsset);
 
         emit Deposit(_bAsset, address(cToken), quantityDeposited);
     }
@@ -133,6 +155,8 @@ contract CompoundIntegration is InitializableAbstractIntegration {
 
         // Send redeemed bAsset to the receiver
         IERC20(_bAsset).safeTransfer(_receiver, quantityWithdrawn);
+
+        _checkClaim(_bAsset);
 
         emit Withdrawal(_bAsset, address(cToken), quantityWithdrawn);
     }
@@ -240,5 +264,60 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         // e.g. 1e18*1e18 / 205316390724364402565641705 = 50e8
         // e.g. 1e8*1e18 / 205316390724364402565641705 = 0.45 or 0
         amount = _underlying.mul(1e18).div(exchangeRate);
+    }
+
+    /**
+     * @dev Checks whether a claim should be made
+     * This compares the block.timestamp with a somewhat random time
+     * Adds randomness by muliplying the 1 hour delay between 1x and 3x
+     * @param _bAsset Address for the bAsset
+     */
+    function _checkClaim(address _bAsset)
+        internal
+    {
+        uint256 salt = uint256(keccak256(abi.encodePacked(blockhash(block.number)))).mod(3000000);
+        uint256 timeDelay = ((uint256(1 hours)).mul(salt)).div(1000000);
+
+        if (block.timestamp > lastClaimed.add(timeDelay)) {
+            _claim(_bAsset);
+        }
+    }
+
+    /**
+     * @dev Collects pTokens from the Liquidator
+     * Adds randomness by computing a basis point between 1000 and 4000
+     * This correlates to transfering 10%-40% of the total balance
+     * @param _bAsset Address for the bAsset
+     */
+    function _claim(address _bAsset)
+        internal
+    {
+        lastClaimed = block.timestamp;
+
+        address liquidator = nexus.getModule(keccak256("Liquidator"));
+        require(liquidator != address(0), "Liquidator address cannot be zero");
+
+        address cToken = bAssetToPToken[_bAsset];
+        require(cToken != address(0), "cToken does not exist");
+
+        uint256 liquidatorBal = IERC20(cToken).balanceOf(liquidator);
+
+        if (liquidatorBal > 0) {
+            // Set a threshold of 1000*10^decimals for the bAsset
+            uint256 bAssetDecimals = CommonHelpers.getDecimals(_bAsset);
+            uint256 bAssetThreshold = uint(1000).mul(uint(10)**bAssetDecimals);
+            // Convert to cTokens
+            ICERC20 cTokenWrapped = _getCTokenFor(_bAsset);
+            uint256 threshold = _convertUnderlyingToCToken(cTokenWrapped, bAssetThreshold);
+            if (liquidatorBal < threshold) {
+                // if we are below the threshold transfer the entire balance
+                IERC20(cToken).safeTransferFrom(liquidator, address(this), liquidatorBal);
+            } else {
+                // transfer between 10% and 40% of allowance
+                uint256 randomBp = uint256(blockhash(block.number-1)).mod(uint(3000)).add(uint(1000));
+                uint256 toTransfer = liquidatorBal.mul(randomBp).div(uint(10000));
+                IERC20(cToken).safeTransferFrom(liquidator, address(this), toTransfer);
+            }
+        }
     }
 }
