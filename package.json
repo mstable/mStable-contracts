@@ -1,6 +1,6 @@
 {
   "name": "@mstable/protocol",
-  "version": "1.1.4",
+  "version": "1.2.1",
   "description": "mStable Contracts",
   "author": "Stability Labs Pty. Ltd. <hello@stabilitylabs.co>",
   "license": "AGPL-3.0-or-later",
@@ -19,7 +19,7 @@
     "coverage": "node --max_old_space_size=6144 node_modules/.bin/buidler coverage --network coverage --solcoverjs ./.solcover.js --testfiles 'test/**/Test*.ts' --show-stack-traces",
     "script": "yarn truffle exec ./scripts/main.js",
     "test": "yarn run test-prep; yarn buidler test;",
-    "test-file": "truffle test",
+    "test-file": "yarn buidler test",
     "test:fork": "yarn run test-prep; yarn buidler test --network fork;",
     "test-prep": "yarn run compile; yarn run generate-typings;",
     "test-lite": " yarn buidler test",

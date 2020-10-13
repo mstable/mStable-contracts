@@ -580,7 +580,6 @@ contract("BasketManager", async (accounts) => {
             const bAssetBeforeArr: Array<Basset> = await Promise.all(
                 integrationDetails.aTokens.map((a) => basketManager.getBasset(a.bAsset)),
             );
-            console.log(bAssetBeforeArr[0].vaultBalance);
             await expectRevert(
                 basketManager.decreaseVaultBalances(indexes, integrators, decreaseAmounts, {
                     from: sa.other,

@@ -5,9 +5,7 @@ import { StakingTokenWrapper } from "./StakingTokenWrapper.sol";
 import { RewardsDistributionRecipient } from "../RewardsDistributionRecipient.sol";
 
 // Libs
-import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import { StableMath } from "../../shared/StableMath.sol";
 
 
@@ -152,7 +150,7 @@ contract StakingRewards is StakingTokenWrapper, RewardsDistributionRecipient {
         uint256 reward = rewards[msg.sender];
         if (reward > 0) {
             rewards[msg.sender] = 0;
-            rewardsToken.transfer(msg.sender, reward);
+            rewardsToken.safeTransfer(msg.sender, reward);
             emit RewardPaid(msg.sender, reward);
         }
     }
@@ -240,6 +238,8 @@ contract StakingRewards is StakingTokenWrapper, RewardsDistributionRecipient {
         onlyRewardsDistributor
         updateReward(address(0))
     {
+        require(_reward < 1e24, "Cannot notify with more than a million units");
+
         uint256 currentTime = block.timestamp;
         // If previous period over, reset rewardRate
         if (currentTime >= periodFinish) {
