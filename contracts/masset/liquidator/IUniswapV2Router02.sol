@@ -10,8 +10,4 @@ interface IUniswapV2Router02 {
     ) external returns (uint[] memory amounts);
     function quote(uint amountA, uint reserveA, uint reserveB) external pure returns (uint amountB);
     function getAmountsIn(uint amountOut, address[] calldata path) external view returns (uint[] memory amounts);
-
-
-
-
 }

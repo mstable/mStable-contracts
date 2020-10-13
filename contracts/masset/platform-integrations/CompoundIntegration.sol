@@ -9,8 +9,8 @@ import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "./Initi
  * @title   CompoundIntegration
  * @author  Stability Labs Pty. Ltd.
  * @notice  A simple connection to deposit and withdraw bAssets from Compound
- * @dev     VERSION: 1.1
- *          DATE:    2020-07-29
+ * @dev     VERSION: 2.0
+ *          DATE:    2020-10-13
  */
 contract CompoundIntegration is InitializableAbstractIntegration {
 
@@ -104,7 +104,7 @@ contract CompoundIntegration is InitializableAbstractIntegration {
             require(cToken.mint(_amount) == 0, "cToken mint failed");
         }
 
-        _checkClaim(_bAsset);
+        _claimLiquidated();
 
         emit Deposit(_bAsset, address(cToken), quantityDeposited);
     }
@@ -156,7 +156,7 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         // Send redeemed bAsset to the receiver
         IERC20(_bAsset).safeTransfer(_receiver, quantityWithdrawn);
 
-        _checkClaim(_bAsset);
+        _claimLiquidated();
 
         emit Withdrawal(_bAsset, address(cToken), quantityWithdrawn);
     }
@@ -270,16 +270,19 @@ contract CompoundIntegration is InitializableAbstractIntegration {
      * @dev Checks whether a claim should be made
      * This compares the block.timestamp with a somewhat random time
      * Adds randomness by muliplying the 1 hour delay between 1x and 3x
-     * @param _bAsset Address for the bAsset
      */
-    function _checkClaim(address _bAsset)
+    function _claimLiquidated()
         internal
     {
-        uint256 salt = uint256(keccak256(abi.encodePacked(blockhash(block.number)))).mod(3000000);
-        uint256 timeDelay = ((uint256(1 hours)).mul(salt)).div(1000000);
+        uint256 salt = uint256(keccak256(abi.encodePacked(blockhash(block.number)))).mod(3e8);
+        uint256 timeDelay = uint256(1 hours).mul(salt).div(1e8).add(6 hours);
 
         if (block.timestamp > lastClaimed.add(timeDelay)) {
-            _claim(_bAsset);
+            lastClaimed = block.timestamp;
+            address liquidator = nexus.getModule(keccak256("Liquidator"));
+            if(liquidator != address(0)){
+                ILiquidator(liquidator).claim();
+            }
         }
     }
 
