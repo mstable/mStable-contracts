@@ -839,40 +839,6 @@ contract("CompoundIntegration", async (accounts) => {
         });
     });
 
-    describe("collectRewardToken", async () => {
-        before(async () => {
-            await runSetup(false, true);
-        });
-
-        // This needs to be tested on a mainnet fork instead, as the address is hardcoded.
-        // To test here, one would need to override the function and supply a dummy address
-        it("should allow the governor to collect any outstanding COMP", async () => {
-            if (!systemMachine.isGanacheFork) return;
-
-            const COMP = await c_MockERC20.at(ma.COMP);
-
-            const bal = await COMP.balanceOf(d_CompoundIntegration.address);
-            expect(bal.gtn(0), "Must have non zero COMP bal");
-
-            const tx = await d_CompoundIntegration.collectRewardToken(sa.dummy1, {
-                from: sa.governor,
-            });
-
-            expectEvent(tx.receipt, "RewardTokenCollected", {
-                recipient: sa.dummy1,
-                amount: bal,
-            });
-        });
-        it("should fail if not called by the governor", async () => {
-            await expectRevert(
-                d_CompoundIntegration.collectRewardToken(sa.dummy1, {
-                    from: sa.dummy1,
-                }),
-                "Only governor can execute",
-            );
-        });
-    });
-
     describe("checkBalance", async () => {
         beforeEach(async () => {
             await runSetup(false, true);

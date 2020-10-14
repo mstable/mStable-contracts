@@ -1,5 +1,6 @@
 pragma solidity 0.5.16;
 
+import { ILiquidator } from "../liquidator/Liquidator.sol";
 import { ICERC20 } from "./ICompound.sol";
 import { CommonHelpers } from "../../shared/CommonHelpers.sol";
 import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "./InitializableAbstractIntegration.sol";
@@ -25,41 +26,22 @@ contract CompoundIntegration is InitializableAbstractIntegration {
     ****************************************/
 
     /**
-     * @dev Collects the accumulated COMP token from the contract
-     * @param _recipient Recipient to credit
+     * @dev Approves Liquidator to spend reward tokens
      */
-    function collectRewardToken(
-        address _recipient
-    )
+    function approveRewardToken()
         external
         onlyGovernor
     {
+        address liquidator = nexus.getModule(keccak256("Liquidator"));
+        require(liquidator != address(0), "Liquidator address cannot be zero");
+
         // Official checksummed COMP token address
         // https://ethplorer.io/address/0xc00e94cb662c3520282e6f5717214004a7f26888
-        IERC20 compToken = IERC20(0xc00e94Cb662C3520282E6f5717214004A7f26888);
+        address compToken = address(0xc00e94Cb662C3520282E6f5717214004A7f26888);
 
-        uint256 balance = compToken.balanceOf(address(this));
+        MassetHelpers.safeInfiniteApprove(compToken, liquidator);
 
-        require(compToken.transfer(_recipient, balance), "Collection transfer failed");
-
-        emit RewardTokenCollected(_recipient, balance);
-    }
-
-    /**
-     * @dev Approves Liquidator to spend reward tokens
-     * @param _rewardToken Reward token
-     */
-    function approveRewardToken(
-        address _rewardToken
-    )
-        external
-        onlyGovernor
-    {
-        address liq = nexus.getModule(keccak256("Liquidator"));
-        require(liq != address(0), "Liquidator address cannot be zero");
-        MassetHelpers.safeInfiniteApprove(_rewardToken, liq);
-
-        emit RewardTokenApproved(_rewardToken, liq);
+        emit RewardTokenApproved(address(compToken), liquidator);
     }
 
     /***************************************
@@ -266,60 +248,27 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         amount = _underlying.mul(1e18).div(exchangeRate);
     }
 
+    /***************************************
+                    HELPERS
+    ****************************************/
+
     /**
-     * @dev Checks whether a claim should be made
+     * @dev Claims proceeds from the liquidated COMP, if enough time has passed
      * This compares the block.timestamp with a somewhat random time
      * Adds randomness by muliplying the 1 hour delay between 1x and 3x
      */
     function _claimLiquidated()
         internal
     {
-        uint256 salt = uint256(keccak256(abi.encodePacked(blockhash(block.number)))).mod(3e8);
-        uint256 timeDelay = uint256(1 hours).mul(salt).div(1e8).add(6 hours);
+        bytes32 bHash = blockhash(block.number - 1);
+        uint256 salt = uint256(keccak256(abi.encodePacked(block.timestamp, bHash))).mod(3e6);
+        uint256 timeDelay = uint256(1 hours).mul(salt).div(1e6).add(6 hours);
 
         if (block.timestamp > lastClaimed.add(timeDelay)) {
             lastClaimed = block.timestamp;
             address liquidator = nexus.getModule(keccak256("Liquidator"));
             if(liquidator != address(0)){
-                ILiquidator(liquidator).claim();
-            }
-        }
-    }
-
-    /**
-     * @dev Collects pTokens from the Liquidator
-     * Adds randomness by computing a basis point between 1000 and 4000
-     * This correlates to transfering 10%-40% of the total balance
-     * @param _bAsset Address for the bAsset
-     */
-    function _claim(address _bAsset)
-        internal
-    {
-        lastClaimed = block.timestamp;
-
-        address liquidator = nexus.getModule(keccak256("Liquidator"));
-        require(liquidator != address(0), "Liquidator address cannot be zero");
-
-        address cToken = bAssetToPToken[_bAsset];
-        require(cToken != address(0), "cToken does not exist");
-
-        uint256 liquidatorBal = IERC20(cToken).balanceOf(liquidator);
-
-        if (liquidatorBal > 0) {
-            // Set a threshold of 1000*10^decimals for the bAsset
-            uint256 bAssetDecimals = CommonHelpers.getDecimals(_bAsset);
-            uint256 bAssetThreshold = uint(1000).mul(uint(10)**bAssetDecimals);
-            // Convert to cTokens
-            ICERC20 cTokenWrapped = _getCTokenFor(_bAsset);
-            uint256 threshold = _convertUnderlyingToCToken(cTokenWrapped, bAssetThreshold);
-            if (liquidatorBal < threshold) {
-                // if we are below the threshold transfer the entire balance
-                IERC20(cToken).safeTransferFrom(liquidator, address(this), liquidatorBal);
-            } else {
-                // transfer between 10% and 40% of allowance
-                uint256 randomBp = uint256(blockhash(block.number-1)).mod(uint(3000)).add(uint(1000));
-                uint256 toTransfer = liquidatorBal.mul(randomBp).div(uint(10000));
-                IERC20(cToken).safeTransferFrom(liquidator, address(this), toTransfer);
+                ILiquidator(liquidator).collect();
             }
         }
     }
