@@ -54,7 +54,6 @@ contract Liquidator is
         uint256 sellTranche;   // Tranche amount, with token decimals
     }
 
-    /** @dev Constructor */
     function initialize(
         address _nexus,
         address _uniswapAddress
@@ -123,41 +122,72 @@ contract Liquidator is
         emit LiquidationModified(_integration);
     }
 
-    function _validUniswapPath(address _sellToken, address _bAsset, address[] memory _uniswapPath)
-        internal
-        view
-        returns (bool)
-    {
-        uint256 len = _uniswapPath.length;
-        return _sellToken == _uniswapPath[0] && _bAsset == _uniswapPath[len];
-    }
-
     function updateBasset(
+        address _integration,
         address _bAsset,
         address[] calldata _uniswapPath
     )
         external
         onlyGovernance
     {
-        // todo
+        Liquidation memory liquidation = liquidations[_integration];
+
+        address oldBasset = liquidation.bAsset;
+        require(oldBasset != address(0), "Liquidation does not exist");
+        require(_bAsset != address(0), "Invalid bAsset");
+
+        require(_validUniswapPath(liquidation.sellToken, _bAsset, _uniswapPath), "Invalid uniswap path");
+        liquidations[_integration].uniswapPath = _uniswapPath;
+
         // 1. Deal will old bAsset (if changed OR if pToken changed)
-        //    > transfer remainer of pToken to integration
-        //    > remove approval for both bAsset and pToken
-        //    > make helper and share with delete
-        // 2. Deal with new bAsset
-        //    > Verify uniswap path
-        //    > add approval for both bAsset and pToken
-        //    > make helper and share with create
+        address newPToken = IPlatformIntegration(_integration).bAssetToPToken(_bAsset);
+        require(newPToken != address(0), "no pToken for this bAsset");
+
+        address oldPToken = liquidation.pToken;
+        bool pTokenChanged = newPToken != oldPToken;
+        bool bAssetChanged = _bAsset != oldBasset;
+        if(pTokenChanged){
+            // > transfer remainer of pToken to integration
+            uint256 oldPTokenBal = IERC20(oldPToken).balanceOf(address(this));
+            if(oldPTokenBal != 0) {
+                IERC20(oldPToken).safeTransfer(_integration, oldPTokenBal);
+            }
+        }
+        if(pTokenChanged || bAssetChanged){
+            // > remove approval for both bAsset and pToken
+            IERC20(oldBasset).safeApprove(oldPToken, 0);
+            // > add approval for both bAsset and pToken
+            MassetHelpers.safeInfiniteApprove(_bAsset, newPToken);
+
+            liquidations[_integration].bAsset = _bAsset;
+            liquidations[_integration].pToken = newPToken;
+        }
+
+        emit LiquidationModified(_integration);
+    }
+
+    function _validUniswapPath(address _sellToken, address _bAsset, address[] memory _uniswapPath)
+        internal
+        pure
+        returns (bool)
+    {
+        uint256 len = _uniswapPath.length;
+        return _sellToken == _uniswapPath[0] && _bAsset == _uniswapPath[len];
     }
 
     function changeTrancheAmount(
+        address _integration,
         uint256 _sellTranche
     )
         external
         onlyGovernance
     {
-        // todo
-        // 1. Set the new tranche amount
+        Liquidation memory liquidation = liquidations[_integration];
+        require(liquidation.bAsset != address(0), "Liquidation does not exist");
+
+        liquidations[_integration].sellTranche = _sellTranche;
+
+        emit LiquidationModified(_integration);
     }
 
     /**
@@ -167,17 +197,19 @@ contract Liquidator is
         external
         onlyGovernance
     {
-    //     Liquidation memory liquidation = liquidations[_integration];
-    //     require(liquidation.bAsset != address(0), "No liquidation for this integration");
+        Liquidation memory liquidation = liquidations[_integration];
 
+        require(liquidation.bAsset != address(0), "Liquidation does not exist");
 
-    //     // todo
-    //     // 1. Deal will old bAsset (if changed)
-    //     //    > transfer remainer of pToken to integration
-    //     //    > remove approval for both bAsset and pToken
+        address oldPToken = liquidation.pToken;
+        uint256 oldPTokenBal = IERC20(oldPToken).balanceOf(address(this));
+        if(oldPTokenBal != 0) {
+            IERC20(oldPToken).safeTransfer(_integration, oldPTokenBal);
+        }
+        IERC20(liquidation.bAsset).safeApprove(oldPToken, 0);
 
-    //     delete liquidations[_integration];
-    //     emit LiquidationEnded(_integration);
+        delete liquidations[_integration];
+        emit LiquidationEnded(_integration);
     }
 
     /***************************************
@@ -211,6 +243,7 @@ contract Liquidator is
         //    Check contract balance
         uint256 sellTokenBal = IERC20(sellToken).balanceOf(address(this));
         require(sellTokenBal > 0, "No sell tokens to liquidate");
+        require(liquidation.sellTranche > 0, "Liquidation has been paused");
         //    Calc amounts for max tranche
         uint[] memory amountsIn = IUniswapV2Router02(uniswapAddress).getAmountsIn(liquidation.sellTranche, uniswapPath);
         uint256 sellAmount = amountsIn[0];
@@ -243,42 +276,12 @@ contract Liquidator is
 
             // 4.2. Set minCollect to 25% of received
             uint256 cTokenBal = cToken.balanceOf(address(this));
-            liquidations[_integration].collectUnits = cTokenBal.mul(2).div(10);
+            liquidations[_integration].collectUnits = cTokenBal.mul(25).div(100);
         } else {
             revert("Lending Platform not supported");
         }
 
         emit Liquidated(sellToken, bAsset, bAssetBal);
-    }
-
-    /**
-    * @dev Get the amount of sellToken to be sold for a number of bAsset
-    * @param _uniswapPath The Uniswap path for this liquidation
-    * @param _sellTranche The tranche size that we want to buy each time
-    */
-    function _getAmountToSell(
-        address[] memory _uniswapPath,
-        uint256 _sellTranche
-    )
-        internal
-        view
-        returns (uint256, uint256)
-    {
-
-        // // The _sellTranche is the number of bAsset we want to buy each time
-        // // DAI has 18 decimals so 1000 DAI is 10*10^18 or 1000000000000000000000
-        // // This value is set when adding the liquidation
-        // // We randomize this amount by buying betwen 80% and 95% of the amount.
-        // // Uniswap gives us the amount we need to sell with `getAmountsIn`.
-        // uint256 randomBasisPoint = uint256(blockhash(block.number-1)).mod(uint(1500)).add(uint(8000));
-        // uint256 amountWanted = _sellTranche.mul(randomBasisPoint).div(uint(10000));
-
-        // // Returns the minimum input asset amount required to buy
-        // // the given output asset amount (accounting for fees) given reserves
-        // // https://uniswap.org/docs/v2/smart-contracts/router02/#getamountsin
-        // uint[] memory amountsIn = IUniswapV2Router02(uniswapAddress).getAmountsIn(amountWanted, _uniswapPath);
-
-        // return (amountsIn[0], amountWanted);
     }
 
 
@@ -298,10 +301,10 @@ contract Liquidator is
                 // otherwise send between 5 and 35%
                 if (bal > liquidation.collectUnits) {
                     bytes32 bHash = blockhash(block.number - 1);
-                    uint256 randomBp = uint256(keccak256(abi.encodePacked(block.timestamp, bHash))).mod(3e4).add(5e3);
-                    bal = bal.mul(randomBp).div(1e5);
+                    uint256 randomBp = uint256(keccak256(abi.encodePacked(block.timestamp, bHash))).mod(3e17).add(5e16);
+                    bal = bal.mul(randomBp).div(1e18);
                 }
-                IERC20(pToken).transfer(msg.sender, bal);
+                IERC20(pToken).safeTransfer(msg.sender, bal);
             }
         }
     }

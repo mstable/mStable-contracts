@@ -1,7 +1,6 @@
 pragma solidity 0.5.16;
 
 
-
 contract ILiquidator {
 
     enum LendingPlatform { Null, Compound, Aave }
@@ -14,9 +13,9 @@ contract ILiquidator {
         address[] calldata _uniswapPath,
         uint256 _sellTranche
     ) external;
-    function updateBasset(address _bAsset, address[] calldata _uniswapPath) external;
+    function updateBasset(address _integration, address _bAsset, address[] calldata _uniswapPath) external;
+    function changeTrancheAmount(address _integration, uint256 _sellTranche) external;
     function deleteLiquidation(address _integration) external;
-    function changeTrancheAmount(uint256 _sellTranche) external;
 
     function triggerLiquidation(address _integration) external;
 

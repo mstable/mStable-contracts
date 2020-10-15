@@ -262,7 +262,7 @@ contract CompoundIntegration is InitializableAbstractIntegration {
     {
         bytes32 bHash = blockhash(block.number - 1);
         uint256 salt = uint256(keccak256(abi.encodePacked(block.timestamp, bHash))).mod(3e6);
-        uint256 timeDelay = uint256(1 hours).mul(salt).div(1e6).add(6 hours);
+        uint256 timeDelay = uint256(1 hours).mul(salt).div(1e6).add(4 hours);
 
         if (block.timestamp > lastClaimed.add(timeDelay)) {
             lastClaimed = block.timestamp;
