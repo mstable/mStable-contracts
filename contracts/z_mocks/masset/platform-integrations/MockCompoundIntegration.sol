@@ -1,6 +1,29 @@
 pragma solidity 0.5.16;
 
-import { CompoundIntegration, ICERC20, IERC20 } from "../../../masset/platform-integrations/CompoundIntegration.sol";
+import { CompoundIntegration, ICERC20, IERC20, MassetHelpers } from "../../../masset/platform-integrations/CompoundIntegration.sol";
+
+
+// Overrides approveRewardToken
+contract MockCompoundIntegration1 is CompoundIntegration {
+
+    address rewardToken;
+
+    // @override
+    function approveRewardToken()
+        external
+    {
+        address liquidator = nexus.getModule(keccak256("Liquidator"));
+        require(liquidator != address(0), "Liquidator address cannot be zero");
+
+        MassetHelpers.safeInfiniteApprove(rewardToken, liquidator);
+
+        emit RewardTokenApproved(rewardToken, liquidator);
+    }
+
+    function setRewardToken(address _token) external {
+        rewardToken = _token;
+    }
+}
 
 
 // Mock contract to mock `checkBalance`

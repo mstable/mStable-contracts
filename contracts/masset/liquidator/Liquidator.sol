@@ -1,6 +1,9 @@
 pragma solidity 0.5.16;
 pragma experimental ABIEncoderV2;
 
+// TODO - remove
+import "@nomiclabs/buidler/console.sol";
+
 import { IUniswapV2Router02 } from "./IUniswapV2Router02.sol";
 import { ICERC20 } from "../platform-integrations/ICompound.sol";
 import { IPlatformIntegration } from "../../interfaces/IPlatformIntegration.sol";
@@ -63,6 +66,7 @@ contract Liquidator is
     {
         InitializableModule._initialize(_nexus);
 
+        require(_uniswapAddress != address(0), "Invalid uniswap address");
         uniswapAddress = _uniswapAddress;
     }
 
@@ -172,7 +176,7 @@ contract Liquidator is
         returns (bool)
     {
         uint256 len = _uniswapPath.length;
-        return _sellToken == _uniswapPath[0] && _bAsset == _uniswapPath[len];
+        return _sellToken == _uniswapPath[0] && _bAsset == _uniswapPath[len-1];
     }
 
     function changeTrancheAmount(
@@ -235,6 +239,7 @@ contract Liquidator is
         // 1. Transfer sellTokens from integration contract if there are some
         //    Assumes infinite approval
         uint256 integrationBal = IERC20(sellToken).balanceOf(_integration);
+        console.log("tl: IntegrationBal %s", integrationBal);
         if (integrationBal > 0) {
             IERC20(sellToken).safeTransferFrom(_integration, address(this), integrationBal);
         }
@@ -245,8 +250,10 @@ contract Liquidator is
         require(sellTokenBal > 0, "No sell tokens to liquidate");
         require(liquidation.sellTranche > 0, "Liquidation has been paused");
         //    Calc amounts for max tranche
+        console.log("tl: Getting amounts in %s", liquidation.sellTranche);
         uint[] memory amountsIn = IUniswapV2Router02(uniswapAddress).getAmountsIn(liquidation.sellTranche, uniswapPath);
         uint256 sellAmount = amountsIn[0];
+        console.log("tl: SellAmount in %s", sellAmount);
 
         if (sellTokenBal < sellAmount) {
             sellAmount = sellTokenBal;
@@ -258,6 +265,7 @@ contract Liquidator is
         IERC20(sellToken).safeApprove(uniswapAddress, sellAmount);
 
         // 3.2. Make the sale > https://uniswap.org/docs/v2/smart-contracts/router02/#swapexacttokensfortokens
+        console.log("tl: Swapping %s, balance: %s", sellAmount, IERC20(sellToken).balanceOf(address(this)));
         IUniswapV2Router02(uniswapAddress).swapExactTokensForTokens(
             sellAmount,
             0,
@@ -271,6 +279,7 @@ contract Liquidator is
         //    Assumes integration contracts have inifinte approval to collect them
         if (liquidation.platform == LendingPlatform.Compound) {
             // 4.1. Exec deposit
+            console.log("tl: Depositing: %s", bAssetBal);
             ICERC20 cToken = ICERC20(liquidation.pToken);
             require(cToken.mint(bAssetBal) == 0, "cToken mint failed");
 
