@@ -198,7 +198,45 @@ contract("Liquidator", async (accounts) => {
             });
         });
     });
-    context("calling collect", async () => {
-        it("doesn't fail if the caller doesn't exist");
+    context("creating a new liquidation", () => {
+        it("should fail if any inputs are null");
+        it("should fail if uniswap path is invalid");
+        it("should fail if bAsset does not correspond to pToken");
+        it("should only support Compound");
+        it("should fail if liquidation already exists");
+    });
+    context("updating an existing liquidation", () => {
+        describe("changing the bAsset", () => {
+            it("should fail if liquidation does not exist");
+            it("should fail if bAsset is null");
+            it("should fail if uniswap path is invalid");
+            it("should fail if bAsset does not correspond to pToken");
+            it("should update the bAsset successfully", async () => {
+                // move old tokens to the integration
+                // update uniswap path, bAsset and pToken
+            });
+        });
+        describe("changing the tranche amount", () => {
+            it("should fail if liquidation doesn't exist");
+            it("should change the tranche amount");
+            it("should pause liquidations if set to 0");
+        });
+        describe("removing the liquidation altogether", () => {
+            it("should fail if liquidation doesn't exist");
+            it("should deposit any remainder to the platform and delete the liquidation");
+        });
+    });
+    context("triggering a liquidation", () => {
+        it("should fail if liquidation does not exist");
+        it("should fail if called within 24h of the previous");
+        it("reverts if there is nothing to sell");
+        it("should sell everything if the liquidator has less balance than tranche size", async () => {
+            // set tranche size to 1e30
+        });
+        it("should revert if the liquidation is Aave market");
+    });
+    context("calling collect", () => {
+        it("does nothing if the caller is not an active liquidation");
+        it("does nothing if there is nothing left to collect");
     });
 });

@@ -119,10 +119,6 @@ contract Liquidator is
             sellTranche: _sellTranche
         });
 
-        if (_lendingPlatform == LendingPlatform.Compound) {
-            MassetHelpers.safeInfiniteApprove(_bAsset, pToken);
-        }
-
         emit LiquidationModified(_integration);
     }
 
@@ -141,7 +137,6 @@ contract Liquidator is
         require(_bAsset != address(0), "Invalid bAsset");
 
         require(_validUniswapPath(liquidation.sellToken, _bAsset, _uniswapPath), "Invalid uniswap path");
-        liquidations[_integration].uniswapPath = _uniswapPath;
 
         // 1. Deal will old bAsset (if changed OR if pToken changed)
         address newPToken = IPlatformIntegration(_integration).bAssetToPToken(_bAsset);
@@ -149,7 +144,6 @@ contract Liquidator is
 
         address oldPToken = liquidation.pToken;
         bool pTokenChanged = newPToken != oldPToken;
-        bool bAssetChanged = _bAsset != oldBasset;
         if(pTokenChanged){
             // > transfer remainer of pToken to integration
             uint256 oldPTokenBal = IERC20(oldPToken).balanceOf(address(this));
@@ -157,15 +151,10 @@ contract Liquidator is
                 IERC20(oldPToken).safeTransfer(_integration, oldPTokenBal);
             }
         }
-        if(pTokenChanged || bAssetChanged){
-            // > remove approval for both bAsset and pToken
-            IERC20(oldBasset).safeApprove(oldPToken, 0);
-            // > add approval for both bAsset and pToken
-            MassetHelpers.safeInfiniteApprove(_bAsset, newPToken);
 
-            liquidations[_integration].bAsset = _bAsset;
-            liquidations[_integration].pToken = newPToken;
-        }
+        liquidations[_integration].bAsset = _bAsset;
+        liquidations[_integration].pToken = newPToken;
+        liquidations[_integration].uniswapPath = _uniswapPath;
 
         emit LiquidationModified(_integration);
     }
@@ -202,7 +191,6 @@ contract Liquidator is
         onlyGovernance
     {
         Liquidation memory liquidation = liquidations[_integration];
-
         require(liquidation.bAsset != address(0), "Liquidation does not exist");
 
         address oldPToken = liquidation.pToken;
@@ -210,7 +198,6 @@ contract Liquidator is
         if(oldPTokenBal != 0) {
             IERC20(oldPToken).safeTransfer(_integration, oldPTokenBal);
         }
-        IERC20(liquidation.bAsset).safeApprove(oldPToken, 0);
 
         delete liquidations[_integration];
         emit LiquidationEnded(_integration);
@@ -281,6 +268,8 @@ contract Liquidator is
             // 4.1. Exec deposit
             console.log("tl: Depositing: %s", bAssetBal);
             ICERC20 cToken = ICERC20(liquidation.pToken);
+            IERC20(bAsset).safeApprove(address(cToken), 0);
+            IERC20(bAsset).safeApprove(address(cToken), bAssetBal);
             require(cToken.mint(bAssetBal) == 0, "cToken mint failed");
 
             // 4.2. Set minCollect to 25% of received
