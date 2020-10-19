@@ -1,6 +1,5 @@
 pragma solidity 0.5.16;
 
-import { ILiquidator } from "../liquidator/Liquidator.sol";
 import { ICERC20 } from "./ICompound.sol";
 import { CommonHelpers } from "../../shared/CommonHelpers.sol";
 import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "./InitializableAbstractIntegration.sol";
@@ -10,16 +9,13 @@ import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "./Initi
  * @title   CompoundIntegration
  * @author  Stability Labs Pty. Ltd.
  * @notice  A simple connection to deposit and withdraw bAssets from Compound
- * @dev     VERSION: 2.0
- *          DATE:    2020-10-13
+ * @dev     VERSION: 1.2
+ *          DATE:    2020-10-19
  */
 contract CompoundIntegration is InitializableAbstractIntegration {
 
-    event RewardTokenCollected(address recipient, uint256 amount);
     event SkippedWithdrawal(address bAsset, uint256 amount);
     event RewardTokenApproved(address rewardToken, address account);
-
-    uint256 internal lastClaimed;
 
     /***************************************
                     ADMIN

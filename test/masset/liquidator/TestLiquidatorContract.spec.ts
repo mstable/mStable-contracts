@@ -11,8 +11,9 @@ import shouldBehaveLikeModule from "../../shared/behaviours/Module.behaviour";
 
 const Liquidator = artifacts.require("Liquidator");
 const MockCompoundIntegration = artifacts.require("MockCompoundIntegration1");
+const SavingsManager = artifacts.require("SavingsManager");
 const MockERC20 = artifacts.require("MockERC20");
-const MockCToken = artifacts.require("MockCToken");
+const MockCurve = artifacts.require("MockCurveMetaPool");
 const MockUniswap = artifacts.require("MockUniswap");
 
 const { expect } = envSetup.configure();
@@ -24,24 +25,19 @@ contract("Liquidator", async (accounts) => {
 
     let liquidator: t.LiquidatorInstance;
     let bAsset: t.MockErc20Instance;
-    let cToken: t.MockCTokenInstance;
+    let bAsset2: t.MockErc20Instance;
+    let mUSD: t.MockErc20Instance;
     let compIntegration: t.MockCompoundIntegration1Instance;
     let compToken: t.MockErc20Instance;
+    let savings: t.SavingsManagerInstance;
     let uniswap: t.MockUniswapInstance;
-
-    enum LendingPlatform {
-        Null,
-        Compound,
-        Aave,
-    }
+    let curve: t.MockCurveMetaPoolInstance;
 
     interface Liquidation {
-        platform: LendingPlatform;
         sellToken: string;
         bAsset: string;
-        pToken: string;
+        curvePosition: BN;
         uniswapPath?: string[];
-        collectUnits: BN;
         lastTriggered: BN;
         sellTranche: BN;
     }
@@ -53,7 +49,7 @@ contract("Liquidator", async (accounts) => {
 
     interface Data {
         sellTokenBalance: Balance;
-        pTokenBalance: Balance;
+        savingsManagerBal: BN;
         liquidation: Liquidation;
     }
 
@@ -62,12 +58,9 @@ contract("Liquidator", async (accounts) => {
     // - Add to modules
     // - Upgrade COMP
     const redeployLiquidator = async () => {
-        // Fake uniswap
+        // Fake mUSD & uniswap
+        mUSD = await MockERC20.new("mStable USD", "mUSD", 18, sa.fundManager, 100000000);
         uniswap = await MockUniswap.new();
-
-        // Liquidator
-        liquidator = await Liquidator.new();
-        await liquidator.initialize(systemMachine.nexus.address, uniswap.address);
 
         // Set up Comp Integration
         compIntegration = await MockCompoundIntegration.new();
@@ -75,14 +68,23 @@ contract("Liquidator", async (accounts) => {
         await bAsset.transfer(uniswap.address, simpleToExactAmount(100000, 18), {
             from: sa.fundManager,
         });
-        cToken = await MockCToken.new(bAsset.address);
+        bAsset2 = await MockERC20.new("Mock2", "MK2", 18, sa.fundManager, 100000000);
+        await bAsset2.transfer(uniswap.address, simpleToExactAmount(100000, 18), {
+            from: sa.fundManager,
+        });
         await compIntegration.initialize(
             systemMachine.nexus.address,
             [sa.fundManager],
             ZERO_ADDRESS,
-            [bAsset.address],
-            [cToken.address],
+            [bAsset.address, bAsset2.address],
+            [sa.other, sa.other],
         );
+
+        // Set up Curve
+        curve = await MockCurve.new([mUSD.address, bAsset.address, bAsset2.address], mUSD.address);
+        await mUSD.transfer(curve.address, simpleToExactAmount(100000, 18), {
+            from: sa.fundManager,
+        });
 
         // Create COMP token and assign, then approve the liquidator
         compToken = await MockERC20.new("Compound Gov", "COMP", 18, sa.fundManager, 100000000);
@@ -92,13 +94,30 @@ contract("Liquidator", async (accounts) => {
         });
 
         // Add the module
+        // Liquidator
+        liquidator = await Liquidator.new();
+        await liquidator.initialize(
+            systemMachine.nexus.address,
+            uniswap.address,
+            curve.address,
+            mUSD.address,
+        );
+        savings = await SavingsManager.new(systemMachine.nexus.address, mUSD.address, sa.other, {
+            from: sa.default,
+        });
         await systemMachine.nexus.proposeModule(keccak256("Liquidator"), liquidator.address, {
             from: sa.governor,
         });
-        await time.increase(ONE_WEEK.addn(1));
-        await systemMachine.nexus.acceptProposedModule(keccak256("Liquidator"), {
+        await systemMachine.nexus.proposeModule(keccak256("SavingsManager"), savings.address, {
             from: sa.governor,
         });
+        await time.increase(ONE_WEEK.addn(1));
+        await systemMachine.nexus.acceptProposedModules(
+            [keccak256("Liquidator"), keccak256("SavingsManager")],
+            {
+                from: sa.governor,
+            },
+        );
     };
 
     before(async () => {
@@ -114,37 +133,33 @@ contract("Liquidator", async (accounts) => {
 
         it("should properly store valid arguments", async () => {
             expect(await liquidator.nexus()).eq(systemMachine.nexus.address);
-            expect(await liquidator.uniswapAddress).eq(uniswap.address);
+            expect(await liquidator.uniswap()).eq(uniswap.address);
+            expect(await liquidator.curve()).eq(curve.address);
+            expect(await liquidator.mUSD()).eq(mUSD.address);
         });
     });
 
     const getLiquidation = async (addr: string): Promise<Liquidation> => {
         const liquidation = await liquidator.liquidations(addr);
         return {
-            platform: liquidation[0].toNumber() as LendingPlatform,
-            sellToken: liquidation[1],
-            bAsset: liquidation[2],
-            pToken: liquidation[3],
-            collectUnits: liquidation[4],
-            lastTriggered: liquidation[5],
-            sellTranche: liquidation[6],
+            sellToken: liquidation[0],
+            bAsset: liquidation[1],
+            curvePosition: liquidation[2],
+            lastTriggered: liquidation[3],
+            sellTranche: liquidation[4],
         };
     };
     const snapshotData = async (): Promise<Data> => {
         const liquidation = await getLiquidation(liquidator.address);
         const sellBalIntegration = await compToken.balanceOf(compIntegration.address);
         const sellBalLiquidator = await compToken.balanceOf(liquidator.address);
-        const pTokenBalIntegration = await cToken.balanceOf(compIntegration.address);
-        const pTokenBalLiquidator = await cToken.balanceOf(liquidator.address);
+        const savingsManagerBal = await mUSD.balanceOf(savings.address);
         return {
             sellTokenBalance: {
                 integration: sellBalIntegration,
                 liquidator: sellBalLiquidator,
             },
-            pTokenBalance: {
-                integration: pTokenBalIntegration,
-                liquidator: pTokenBalLiquidator,
-            },
+            savingsManagerBal,
             liquidation,
         };
     };
@@ -154,9 +169,9 @@ contract("Liquidator", async (accounts) => {
             it("should set up all args", async () => {
                 await liquidator.createLiquidation(
                     compIntegration.address,
-                    LendingPlatform.Compound,
                     compToken.address,
                     bAsset.address,
+                    1,
                     [compToken.address, ZERO_ADDRESS, bAsset.address],
                     simpleToExactAmount(1000, 18),
                     { from: sa.governor },
@@ -164,38 +179,18 @@ contract("Liquidator", async (accounts) => {
                 const liquidation = await getLiquidation(compIntegration.address);
                 expect(liquidation.sellToken).eq(compToken.address);
                 expect(liquidation.bAsset).eq(bAsset.address);
-                expect(liquidation.pToken).eq(cToken.address);
-                expect(liquidation.collectUnits).bignumber.eq(new BN(0));
+                expect(liquidation.curvePosition).bignumber.eq(new BN(1));
                 expect(liquidation.lastTriggered).bignumber.eq(new BN(0));
                 expect(liquidation.sellTranche).bignumber.eq(simpleToExactAmount(1000, 18));
             });
         });
         describe("triggering a liquidation", () => {
-            it("should sell COMP for bAsset and deposit to Compound", async () => {
+            it("should sell COMP for bAsset and deposit to SavingsManager", async () => {
                 const before = await snapshotData();
                 await compIntegration.approveRewardToken({ from: sa.governor });
                 await liquidator.triggerLiquidation(compIntegration.address);
                 const after = await snapshotData();
-                expect(after.pTokenBalance.liquidator).bignumber.gt(
-                    before.pTokenBalance.liquidator as any,
-                );
-            });
-        });
-        describe("collecting pTokens", () => {
-            it("should sell COMP for bAsset and deposit to Compound", async () => {
-                const before = await snapshotData();
-
-                await bAsset.transfer(compIntegration.address, simpleToExactAmount(10, 18), {
-                    from: sa.fundManager,
-                });
-                await compIntegration.deposit(bAsset.address, simpleToExactAmount(10, 18), false, {
-                    from: sa.fundManager,
-                });
-
-                const after = await snapshotData();
-                expect(after.pTokenBalance.liquidator).bignumber.lt(
-                    before.pTokenBalance.liquidator as any,
-                );
+                expect(after.savingsManagerBal).bignumber.gt(before.savingsManagerBal as any);
             });
         });
     });

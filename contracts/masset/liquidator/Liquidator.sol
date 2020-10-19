@@ -6,8 +6,6 @@ import "@nomiclabs/buidler/console.sol";
 
 import { ICurveMetaPool } from "./ICurveMetaPool.sol";
 import { IUniswapV2Router02 } from "./IUniswapV2Router02.sol";
-import { ICERC20 } from "../platform-integrations/ICompound.sol";
-import { IPlatformIntegration } from "../../interfaces/IPlatformIntegration.sol";
 import { ISavingsManager } from "../../interfaces/ISavingsManager.sol";
 
 import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
@@ -43,7 +41,7 @@ contract Liquidator is
     address public mUSD;
     ICurveMetaPool public curve;
     IUniswapV2Router02 public uniswap;
-    uint256 public interval = 1 weeks;
+    uint256 private interval = 7 days;
 
     mapping(address => Liquidation) public liquidations;
 
@@ -54,7 +52,6 @@ contract Liquidator is
         int128 curvePosition;
         address[] uniswapPath;
 
-        uint256 collectUnits;  // Minimum collection amount for the integration, updated after liquidation
         uint256 lastTriggered;
         uint256 sellTranche;   // Tranche amount, with token decimals
     }
@@ -89,6 +86,7 @@ contract Liquidator is
     * @param _integration The integration contract address for the _bAsset
     * @param _sellToken The integration contract address for the _bAsset
     * @param _bAsset The _bAsset address that this liquidation is for
+    * @param _curvePosition Position of the bAsset in Curves MetaPool
     * @param _uniswapPath The Uniswap path as an array of addresses e.g. [COMP, WETH, DAI]
     * @param _sellTranche The amount of tokens to be sold when triggered (in token decimals)
     */
@@ -113,15 +111,11 @@ contract Liquidator is
         );
         require(_validUniswapPath(_sellToken, _bAsset, _uniswapPath), "Invalid uniswap path");
 
-        address pToken = IPlatformIntegration(_integration).bAssetToPToken(_bAsset);
-        require(pToken != address(0), "no pToken for this bAsset");
-
         liquidations[_integration] = Liquidation({
             sellToken: _sellToken,
             bAsset: _bAsset,
             curvePosition: _curvePosition,
             uniswapPath: _uniswapPath,
-            collectUnits: 0,
             lastTriggered: 0,
             sellTranche: _sellTranche
         });
@@ -129,10 +123,6 @@ contract Liquidator is
         emit LiquidationModified(_integration);
     }
 
-
-    // function changeDelay(uint256 _newDelay) {
-    //     require(_newDelay >= 1 days && _newDelay <= 4 weeks);
-    // }
 
     function updateBasset(
         address _integration,
@@ -150,9 +140,6 @@ contract Liquidator is
         require(_bAsset != address(0), "Invalid bAsset");
 
         require(_validUniswapPath(liquidation.sellToken, _bAsset, _uniswapPath), "Invalid uniswap path");
-
-        address newPToken = IPlatformIntegration(_integration).bAssetToPToken(_bAsset);
-        require(newPToken != address(0), "no pToken for this bAsset");
 
         liquidations[_integration].bAsset = _bAsset;
         liquidations[_integration].curvePosition = _curvePosition;
