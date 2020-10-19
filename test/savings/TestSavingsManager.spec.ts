@@ -56,6 +56,7 @@ contract("SavingsManager", async (accounts) => {
         );
         // Set new SavingsManager address in Nexus
         await nexus.setSavingsManager(savingsManager.address);
+        await nexus.setLiquidator(sa.default);
         return savingsManager;
     }
 
@@ -72,8 +73,6 @@ contract("SavingsManager", async (accounts) => {
                 ctx.module = savingsManager as t.PausableModuleInstance;
             });
             shouldBehaveLikeModule(ctx as Required<typeof ctx>, sa);
-            // SavingsManager is PausableModule, but the extensions mean the
-            // types don't match :-(
             shouldBehaveLikePausableModule(ctx as { module: t.PausableModuleInstance }, sa);
         });
     });
@@ -631,6 +630,8 @@ contract("SavingsManager", async (accounts) => {
         context("when there is some interest to collect", async () => {
             before(async () => {
                 savingsManager = await createNewSavingsManager();
+                await mUSD.approve(savingsManager.address, simpleToExactAmount(1, 20));
+                await savingsManager.depositLiquidation(mUSD.address, simpleToExactAmount(1, 20));
             });
             it("should collect the interest first time", async () => {
                 // Refresh the collection timer

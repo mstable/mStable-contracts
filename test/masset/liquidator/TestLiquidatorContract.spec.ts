@@ -1,10 +1,9 @@
-import { expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
-import { StandardAccounts, SystemMachine, MassetMachine } from "@utils/machines";
+import { expectEvent, expectRevert } from "@openzeppelin/test-helpers";
+import { StandardAccounts } from "@utils/machines";
 import { simpleToExactAmount } from "@utils/math";
 import { BN } from "@utils/tools";
 import envSetup from "@utils/env_setup";
-import { ZERO_ADDRESS, MAX_UINT256, ONE_WEEK } from "@utils/constants";
-import { keccak256 } from "web3-utils";
+import { ZERO_ADDRESS } from "@utils/constants";
 import * as t from "types/generated";
 
 import shouldBehaveLikeModule from "../../shared/behaviours/Module.behaviour";
@@ -13,6 +12,7 @@ const Liquidator = artifacts.require("Liquidator");
 const MockCompoundIntegration = artifacts.require("MockCompoundIntegration1");
 const SavingsManager = artifacts.require("SavingsManager");
 const MockERC20 = artifacts.require("MockERC20");
+const MockNexus = artifacts.require("MockNexus");
 const MockCurve = artifacts.require("MockCurveMetaPool");
 const MockUniswap = artifacts.require("MockUniswap");
 
@@ -21,8 +21,8 @@ const { expect } = envSetup.configure();
 contract("Liquidator", async (accounts) => {
     const sa = new StandardAccounts(accounts);
     const ctx: { module?: t.InitializableModuleInstance } = {};
-    let systemMachine: SystemMachine;
 
+    let nexus: t.MockNexusInstance;
     let liquidator: t.LiquidatorInstance;
     let bAsset: t.MockErc20Instance;
     let bAsset2: t.MockErc20Instance;
@@ -73,7 +73,7 @@ contract("Liquidator", async (accounts) => {
             from: sa.fundManager,
         });
         await compIntegration.initialize(
-            systemMachine.nexus.address,
+            nexus.address,
             [sa.fundManager],
             ZERO_ADDRESS,
             [bAsset.address, bAsset2.address],
@@ -96,33 +96,16 @@ contract("Liquidator", async (accounts) => {
         // Add the module
         // Liquidator
         liquidator = await Liquidator.new();
-        await liquidator.initialize(
-            systemMachine.nexus.address,
-            uniswap.address,
-            curve.address,
-            mUSD.address,
-        );
-        savings = await SavingsManager.new(systemMachine.nexus.address, mUSD.address, sa.other, {
+        await liquidator.initialize(nexus.address, uniswap.address, curve.address, mUSD.address);
+        savings = await SavingsManager.new(nexus.address, mUSD.address, sa.other, {
             from: sa.default,
         });
-        await systemMachine.nexus.proposeModule(keccak256("Liquidator"), liquidator.address, {
-            from: sa.governor,
-        });
-        await systemMachine.nexus.proposeModule(keccak256("SavingsManager"), savings.address, {
-            from: sa.governor,
-        });
-        await time.increase(ONE_WEEK.addn(1));
-        await systemMachine.nexus.acceptProposedModules(
-            [keccak256("Liquidator"), keccak256("SavingsManager")],
-            {
-                from: sa.governor,
-            },
-        );
+        await nexus.setSavingsManager(savings.address);
+        await nexus.setLiquidator(liquidator.address);
     };
 
     before(async () => {
-        systemMachine = new SystemMachine(sa.all);
-        await systemMachine.initialiseMocks(false, false);
+        nexus = await MockNexus.new(sa.governor, sa.governor, sa.dummy1);
 
         await redeployLiquidator();
         ctx.module = liquidator as t.InitializableModuleInstance;
@@ -132,7 +115,7 @@ contract("Liquidator", async (accounts) => {
         shouldBehaveLikeModule(ctx as Required<typeof ctx>, sa);
 
         it("should properly store valid arguments", async () => {
-            expect(await liquidator.nexus()).eq(systemMachine.nexus.address);
+            expect(await liquidator.nexus()).eq(nexus.address);
             expect(await liquidator.uniswap()).eq(uniswap.address);
             expect(await liquidator.curve()).eq(curve.address);
             expect(await liquidator.mUSD()).eq(mUSD.address);
@@ -194,11 +177,12 @@ contract("Liquidator", async (accounts) => {
             });
         });
     });
+    context("calling constructor", () => {
+        it("should fail if any inputs are null");
+    });
     context("creating a new liquidation", () => {
         it("should fail if any inputs are null");
         it("should fail if uniswap path is invalid");
-        it("should fail if bAsset does not correspond to pToken");
-        it("should only support Compound");
         it("should fail if liquidation already exists");
     });
     context("updating an existing liquidation", () => {
@@ -206,10 +190,8 @@ contract("Liquidator", async (accounts) => {
             it("should fail if liquidation does not exist");
             it("should fail if bAsset is null");
             it("should fail if uniswap path is invalid");
-            it("should fail if bAsset does not correspond to pToken");
             it("should update the bAsset successfully", async () => {
-                // move old tokens to the integration
-                // update uniswap path, bAsset and pToken
+                // update uniswap path, bAsset
             });
         });
         describe("changing the tranche amount", () => {
@@ -219,20 +201,16 @@ contract("Liquidator", async (accounts) => {
         });
         describe("removing the liquidation altogether", () => {
             it("should fail if liquidation doesn't exist");
-            it("should deposit any remainder to the platform and delete the liquidation");
+            it("should delete the liquidation");
         });
     });
     context("triggering a liquidation", () => {
         it("should fail if liquidation does not exist");
-        it("should fail if called within 24h of the previous");
+        it("should fail if called within 7 days of the previous");
         it("reverts if there is nothing to sell");
         it("should sell everything if the liquidator has less balance than tranche size", async () => {
             // set tranche size to 1e30
         });
-        it("should revert if the liquidation is Aave market");
-    });
-    context("calling collect", () => {
-        it("does nothing if the caller is not an active liquidation");
-        it("does nothing if there is nothing left to collect");
+        it("sends proceeds to the SavingsManager");
     });
 });

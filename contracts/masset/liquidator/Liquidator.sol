@@ -233,7 +233,6 @@ contract Liquidator is
         // 3.1 Approve Uniswap and make the swap
         IERC20(sellToken).safeApprove(address(uniswap), 0);
         IERC20(sellToken).safeApprove(address(uniswap), sellAmount);
-
         // 3.2. Make the sale > https://uniswap.org/docs/v2/smart-contracts/router02/#swapexacttokensfortokens
         console.log("tl: Swapping %s, balance: %s", sellAmount, IERC20(sellToken).balanceOf(address(this)));
         uniswap.swapExactTokensForTokens(
