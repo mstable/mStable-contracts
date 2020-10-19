@@ -4,9 +4,11 @@ pragma experimental ABIEncoderV2;
 // TODO - remove
 import "@nomiclabs/buidler/console.sol";
 
+import { ICurveMetaPool } from "./ICurveMetaPool.sol";
 import { IUniswapV2Router02 } from "./IUniswapV2Router02.sol";
 import { ICERC20 } from "../platform-integrations/ICompound.sol";
 import { IPlatformIntegration } from "../../interfaces/IPlatformIntegration.sol";
+import { ISavingsManager } from "../../interfaces/ISavingsManager.sol";
 
 import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
 import { InitializableModule } from "../../shared/InitializableModule.sol";
@@ -36,20 +38,20 @@ contract Liquidator is
 
     event LiquidationModified(address indexed integration);
     event LiquidationEnded(address indexed integration);
-    event Liquidated(address indexed sellToken, address buyToken, uint256 buyAmount);
+    event Liquidated(address indexed sellToken, address mUSD, uint256 mUSDAmount, address buyToken);
 
-    address public uniswapAddress;
-    uint256 public interval = 1 days;
+    address public mUSD;
+    ICurveMetaPool public curve;
+    IUniswapV2Router02 public uniswap;
+    uint256 public interval = 1 weeks;
 
     mapping(address => Liquidation) public liquidations;
 
     struct Liquidation {
-        LendingPlatform platform;
-
         address sellToken;
 
         address bAsset;
-        address pToken;
+        int128 curvePosition;
         address[] uniswapPath;
 
         uint256 collectUnits;  // Minimum collection amount for the integration, updated after liquidation
@@ -59,15 +61,23 @@ contract Liquidator is
 
     function initialize(
         address _nexus,
-        address _uniswapAddress
+        address _uniswap,
+        address _curve,
+        address _mUSD
     )
         external
         initializer
     {
         InitializableModule._initialize(_nexus);
 
-        require(_uniswapAddress != address(0), "Invalid uniswap address");
-        uniswapAddress = _uniswapAddress;
+        require(_uniswap != address(0), "Invalid uniswap address");
+        uniswap = IUniswapV2Router02(_uniswap);
+
+        require(_curve != address(0), "Invalid curve address");
+        curve = ICurveMetaPool(_curve);
+
+        require(_mUSD != address(0), "Invalid mUSD address");
+        mUSD = _mUSD;
     }
 
     /***************************************
@@ -77,7 +87,6 @@ contract Liquidator is
     /**
     * @dev Create a liquidation
     * @param _integration The integration contract address for the _bAsset
-    * @param _lendingPlatform The lending platform to use for the deposit
     * @param _sellToken The integration contract address for the _bAsset
     * @param _bAsset The _bAsset address that this liquidation is for
     * @param _uniswapPath The Uniswap path as an array of addresses e.g. [COMP, WETH, DAI]
@@ -85,9 +94,9 @@ contract Liquidator is
     */
     function createLiquidation(
         address _integration,
-        LendingPlatform _lendingPlatform,
         address _sellToken,
         address _bAsset,
+        int128 _curvePosition,
         address[] calldata _uniswapPath,
         uint256 _sellTranche
     )
@@ -97,7 +106,6 @@ contract Liquidator is
         require(liquidations[_integration].sellToken == address(0), "Liquidation exists for this bAsset");
         require(
             _integration != address(0) &&
-            _lendingPlatform != LendingPlatform.Null &&
             _sellToken != address(0) &&
             _bAsset != address(0) &&
             _uniswapPath.length >= uint(2),
@@ -109,10 +117,9 @@ contract Liquidator is
         require(pToken != address(0), "no pToken for this bAsset");
 
         liquidations[_integration] = Liquidation({
-            platform: _lendingPlatform,
             sellToken: _sellToken,
             bAsset: _bAsset,
-            pToken: pToken,
+            curvePosition: _curvePosition,
             uniswapPath: _uniswapPath,
             collectUnits: 0,
             lastTriggered: 0,
@@ -122,9 +129,15 @@ contract Liquidator is
         emit LiquidationModified(_integration);
     }
 
+
+    // function changeDelay(uint256 _newDelay) {
+    //     require(_newDelay >= 1 days && _newDelay <= 4 weeks);
+    // }
+
     function updateBasset(
         address _integration,
         address _bAsset,
+        int128 _curvePosition,
         address[] calldata _uniswapPath
     )
         external
@@ -138,22 +151,11 @@ contract Liquidator is
 
         require(_validUniswapPath(liquidation.sellToken, _bAsset, _uniswapPath), "Invalid uniswap path");
 
-        // 1. Deal will old bAsset (if changed OR if pToken changed)
         address newPToken = IPlatformIntegration(_integration).bAssetToPToken(_bAsset);
         require(newPToken != address(0), "no pToken for this bAsset");
 
-        address oldPToken = liquidation.pToken;
-        bool pTokenChanged = newPToken != oldPToken;
-        if(pTokenChanged){
-            // > transfer remainer of pToken to integration
-            uint256 oldPTokenBal = IERC20(oldPToken).balanceOf(address(this));
-            if(oldPTokenBal != 0) {
-                IERC20(oldPToken).safeTransfer(_integration, oldPTokenBal);
-            }
-        }
-
         liquidations[_integration].bAsset = _bAsset;
-        liquidations[_integration].pToken = newPToken;
+        liquidations[_integration].curvePosition = _curvePosition;
         liquidations[_integration].uniswapPath = _uniswapPath;
 
         emit LiquidationModified(_integration);
@@ -192,12 +194,6 @@ contract Liquidator is
     {
         Liquidation memory liquidation = liquidations[_integration];
         require(liquidation.bAsset != address(0), "Liquidation does not exist");
-
-        address oldPToken = liquidation.pToken;
-        uint256 oldPTokenBal = IERC20(oldPToken).balanceOf(address(this));
-        if(oldPTokenBal != 0) {
-            IERC20(oldPToken).safeTransfer(_integration, oldPTokenBal);
-        }
 
         delete liquidations[_integration];
         emit LiquidationEnded(_integration);
@@ -238,7 +234,7 @@ contract Liquidator is
         require(liquidation.sellTranche > 0, "Liquidation has been paused");
         //    Calc amounts for max tranche
         console.log("tl: Getting amounts in %s", liquidation.sellTranche);
-        uint[] memory amountsIn = IUniswapV2Router02(uniswapAddress).getAmountsIn(liquidation.sellTranche, uniswapPath);
+        uint[] memory amountsIn = uniswap.getAmountsIn(liquidation.sellTranche, uniswapPath);
         uint256 sellAmount = amountsIn[0];
         console.log("tl: SellAmount in %s", sellAmount);
 
@@ -248,12 +244,12 @@ contract Liquidator is
 
         // 3. Make the swap
         // 3.1 Approve Uniswap and make the swap
-        IERC20(sellToken).safeApprove(uniswapAddress, 0);
-        IERC20(sellToken).safeApprove(uniswapAddress, sellAmount);
+        IERC20(sellToken).safeApprove(address(uniswap), 0);
+        IERC20(sellToken).safeApprove(address(uniswap), sellAmount);
 
         // 3.2. Make the sale > https://uniswap.org/docs/v2/smart-contracts/router02/#swapexacttokensfortokens
         console.log("tl: Swapping %s, balance: %s", sellAmount, IERC20(sellToken).balanceOf(address(this)));
-        IUniswapV2Router02(uniswapAddress).swapExactTokensForTokens(
+        uniswap.swapExactTokensForTokens(
             sellAmount,
             0,
             uniswapPath,
@@ -262,48 +258,17 @@ contract Liquidator is
         );
         uint256 bAssetBal = IERC20(bAsset).balanceOf(address(this));
 
-        // 4. Deposit to lending platform
-        //    Assumes integration contracts have inifinte approval to collect them
-        if (liquidation.platform == LendingPlatform.Compound) {
-            // 4.1. Exec deposit
-            console.log("tl: Depositing: %s", bAssetBal);
-            ICERC20 cToken = ICERC20(liquidation.pToken);
-            IERC20(bAsset).safeApprove(address(cToken), 0);
-            IERC20(bAsset).safeApprove(address(cToken), bAssetBal);
-            require(cToken.mint(bAssetBal) == 0, "cToken mint failed");
+        // 3.3. Trade on Curve
+        IERC20(bAsset).safeApprove(address(curve), 0);
+        IERC20(bAsset).safeApprove(address(curve), bAssetBal);
+        uint256 purchased = curve.exchange_underlying(liquidation.curvePosition, 0, bAssetBal, 0);
 
-            // 4.2. Set minCollect to 25% of received
-            uint256 cTokenBal = cToken.balanceOf(address(this));
-            liquidations[_integration].collectUnits = cTokenBal.mul(25).div(100);
-        } else {
-            revert("Lending Platform not supported");
-        }
+        // 4.0. Send to SavingsManager
+        address savings = _savingsManager();
+        IERC20(mUSD).safeApprove(savings, 0);
+        IERC20(mUSD).safeApprove(savings, purchased);
+        ISavingsManager(savings).depositLiquidation(mUSD, purchased);
 
-        emit Liquidated(sellToken, bAsset, bAssetBal);
-    }
-
-
-    /***************************************
-                    COLLECT
-    ****************************************/
-
-    function collect()
-        external
-    {
-        Liquidation memory liquidation = liquidations[msg.sender];
-        address pToken = liquidation.pToken;
-        if(pToken != address(0)){
-            uint256 bal = IERC20(pToken).balanceOf(address(this));
-            if (bal > 0) {
-                // If we are below the threshold transfer the entire balance
-                // otherwise send between 5 and 35%
-                if (bal > liquidation.collectUnits) {
-                    bytes32 bHash = blockhash(block.number - 1);
-                    uint256 randomBp = uint256(keccak256(abi.encodePacked(block.timestamp, bHash))).mod(3e17).add(5e16);
-                    bal = bal.mul(randomBp).div(1e18);
-                }
-                IERC20(pToken).safeTransfer(msg.sender, bal);
-            }
-        }
+        emit Liquidated(sellToken, mUSD, purchased, bAsset);
     }
 }

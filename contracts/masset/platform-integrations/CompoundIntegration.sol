@@ -86,8 +86,6 @@ contract CompoundIntegration is InitializableAbstractIntegration {
             require(cToken.mint(_amount) == 0, "cToken mint failed");
         }
 
-        _claimLiquidated();
-
         emit Deposit(_bAsset, address(cToken), quantityDeposited);
     }
 
@@ -137,8 +135,6 @@ contract CompoundIntegration is InitializableAbstractIntegration {
 
         // Send redeemed bAsset to the receiver
         IERC20(_bAsset).safeTransfer(_receiver, quantityWithdrawn);
-
-        _claimLiquidated();
 
         emit Withdrawal(_bAsset, address(cToken), quantityWithdrawn);
     }
@@ -246,30 +242,5 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         // e.g. 1e18*1e18 / 205316390724364402565641705 = 50e8
         // e.g. 1e8*1e18 / 205316390724364402565641705 = 0.45 or 0
         amount = _underlying.mul(1e18).div(exchangeRate);
-    }
-
-    /***************************************
-                    HELPERS
-    ****************************************/
-
-    /**
-     * @dev Claims proceeds from the liquidated COMP, if enough time has passed
-     * This compares the block.timestamp with a somewhat random time
-     * Adds randomness by muliplying the 1 hour delay between 1x and 3x
-     */
-    function _claimLiquidated()
-        internal
-    {
-        bytes32 bHash = blockhash(block.number - 1);
-        uint256 salt = uint256(keccak256(abi.encodePacked(block.timestamp, bHash))).mod(3e6);
-        uint256 timeDelay = uint256(1 hours).mul(salt).div(1e6).add(4 hours);
-
-        if (block.timestamp > lastClaimed.add(timeDelay)) {
-            lastClaimed = block.timestamp;
-            address liquidator = nexus.getModule(keccak256("Liquidator"));
-            if(liquidator != address(0)){
-                ILiquidator(liquidator).collect();
-            }
-        }
     }
 }

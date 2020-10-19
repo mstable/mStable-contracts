@@ -3,9 +3,9 @@ import { StandardAccounts, SystemMachine, MassetMachine } from "@utils/machines"
 import { simpleToExactAmount } from "@utils/math";
 import { BN } from "@utils/tools";
 import envSetup from "@utils/env_setup";
-import * as t from "types/generated";
 import { ZERO_ADDRESS, MAX_UINT256, ONE_WEEK } from "@utils/constants";
 import { keccak256 } from "web3-utils";
+import * as t from "types/generated";
 
 import shouldBehaveLikeModule from "../../shared/behaviours/Module.behaviour";
 
@@ -27,6 +27,7 @@ contract("Liquidator", async (accounts) => {
     let cToken: t.MockCTokenInstance;
     let compIntegration: t.MockCompoundIntegration1Instance;
     let compToken: t.MockErc20Instance;
+    let uniswap: t.MockUniswapInstance;
 
     enum LendingPlatform {
         Null,
@@ -62,7 +63,7 @@ contract("Liquidator", async (accounts) => {
     // - Upgrade COMP
     const redeployLiquidator = async () => {
         // Fake uniswap
-        const uniswap = await MockUniswap.new();
+        uniswap = await MockUniswap.new();
 
         // Liquidator
         liquidator = await Liquidator.new();
@@ -113,7 +114,7 @@ contract("Liquidator", async (accounts) => {
 
         it("should properly store valid arguments", async () => {
             expect(await liquidator.nexus()).eq(systemMachine.nexus.address);
-            // todo - other params
+            expect(await liquidator.uniswapAddress).eq(uniswap.address);
         });
     });
 

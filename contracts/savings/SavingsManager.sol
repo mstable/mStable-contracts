@@ -33,6 +33,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
     event SavingsContractUpdated(address indexed mAsset, address savingsContract);
     event SavingsRateChanged(uint256 newSavingsRate);
     // Interest collection
+    event LiquidatorDeposited(address indexed mAsset, uint256 amount);
     event InterestCollected(address indexed mAsset, uint256 interest, uint256 newTotalSupply, uint256 apy);
     event InterestDistributed(address indexed mAsset, uint256 amountSent);
     event InterestWithdrawnByGovernor(address indexed mAsset, address recipient, uint256 amount);
@@ -52,6 +53,11 @@ contract SavingsManager is ISavingsManager, PausableModule {
     uint256 constant private MAX_APY = 15e18;
     uint256 constant private TEN_BPS = 1e15;
     uint256 constant private THIRTY_MINUTES = 30 minutes;
+    // Streaming liquidated tokens to SAVE
+    uint256 private constant DURATION = 7 days;
+    // Timestamp for current period finish
+    mapping(address => uint256) public rewardEnd;
+    mapping(address => uint256) public rewardRate;
 
     constructor(
         address _nexus,
@@ -63,6 +69,11 @@ contract SavingsManager is ISavingsManager, PausableModule {
     {
         _updateSavingsContract(_mUSD, _savingsContract);
         emit SavingsContractAdded(_mUSD, _savingsContract);
+    }
+
+    modifier onlyLiquidator() {
+        require(msg.sender == _liquidator(), "Only liquidator can execute");
+        _;
     }
 
     /***************************************
@@ -119,6 +130,31 @@ contract SavingsManager is ISavingsManager, PausableModule {
         require(_savingsRate > 9e17 && _savingsRate <= 1e18, "Must be a valid rate");
         savingsRate = _savingsRate;
         emit SavingsRateChanged(_savingsRate);
+    }
+
+
+    function depositLiquidation(address _mAsset, uint256 _liquidated)
+        external
+        onlyLiquidator
+    {
+        // transfer liquidated mUSD to here
+        IERC20(_mAsset).safeTransferFrom(_liquidator(), address(this), _liquidated);
+
+        // Get remaining rewards
+        uint256 unclaimedSeconds = _unclaimedSeconds(lastCollection[_mAsset], rewardEnd[_mAsset]);
+        uint256 leftover = unclaimedSeconds.mul(rewardRate[_mAsset]);
+
+        // Distribute reward per second over 7 days
+        uint256 currentTime = now;
+        rewardRate[_mAsset] = _liquidated.add(leftover).div(DURATION);
+        rewardEnd[_mAsset] = currentTime.add(DURATION);
+
+        // Reset pool data
+        lastPeriodStart[_mAsset] = currentTime;
+        lastCollection[_mAsset] = currentTime;
+        periodYield[_mAsset] = 0;
+
+        emit LiquidatorDeposited(_mAsset, _liquidated);
     }
 
     /***************************************
@@ -183,14 +219,34 @@ contract SavingsManager is ISavingsManager, PausableModule {
             // 4. Distribute the interest
             //    Calculate the share for savers (95e16 or 95%)
             uint256 saversShare = interestCollected.mulTruncate(savingsRate);
+            //    Add on liquidated
+            uint256 newReward = _unclaimedRewards(_mAsset, previousCollection);
 
             //    Call depositInterest on contract
-            savingsContract.depositInterest(saversShare);
+            savingsContract.depositInterest(saversShare.add(newReward));
 
             emit InterestDistributed(_mAsset, saversShare);
         } else {
             emit InterestCollected(_mAsset, 0, totalSupply, 0);
         }
+    }
+
+    function _unclaimedRewards(address _mAsset, uint256 _previousCollection) internal view returns (uint256) {
+        uint256 end = rewardEnd[_mAsset];
+        uint256 unclaimedSeconds = _unclaimedSeconds(_previousCollection, end);
+        return unclaimedSeconds.mul(rewardRate[_mAsset]);
+    }
+
+    function _unclaimedSeconds(uint256 _lastUpdate, uint256 _end) internal view returns (uint256) {
+        uint256 currentTime = block.timestamp;
+        uint256 unclaimedSeconds = 0;
+
+        if(currentTime <= _end){
+            unclaimedSeconds = currentTime.sub(_lastUpdate);
+        } else if(_lastUpdate < _end) {
+            unclaimedSeconds = _end.sub(_lastUpdate);
+        }
+        return unclaimedSeconds;
     }
 
     /**
