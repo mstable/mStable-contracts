@@ -1,9 +1,9 @@
-import { expectEvent, expectRevert } from "@openzeppelin/test-helpers";
+import { expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
 import { StandardAccounts } from "@utils/machines";
 import { simpleToExactAmount } from "@utils/math";
 import { BN } from "@utils/tools";
 import envSetup from "@utils/env_setup";
-import { ZERO_ADDRESS } from "@utils/constants";
+import { ZERO_ADDRESS, ONE_WEEK } from "@utils/constants";
 import * as t from "types/generated";
 
 import shouldBehaveLikeModule from "../../shared/behaviours/Module.behaviour";
@@ -178,36 +178,268 @@ contract("Liquidator", async (accounts) => {
         });
     });
     context("calling constructor", () => {
-        it("should fail if any inputs are null");
+        it("should fail if any inputs are null", async () => {
+            const lq = await Liquidator.new();
+            await expectRevert(
+                lq.initialize(ZERO_ADDRESS, uniswap.address, curve.address, mUSD.address),
+                "Nexus address is zero",
+            );
+            await expectRevert(
+                lq.initialize(nexus.address, ZERO_ADDRESS, curve.address, mUSD.address),
+                "Invalid uniswap address",
+            );
+            await expectRevert(
+                lq.initialize(nexus.address, uniswap.address, ZERO_ADDRESS, mUSD.address),
+                "Invalid curve address",
+            );
+            await expectRevert(
+                lq.initialize(nexus.address, uniswap.address, curve.address, ZERO_ADDRESS),
+                "Invalid mUSD address",
+            );
+        });
     });
     context("creating a new liquidation", () => {
-        it("should fail if any inputs are null");
-        it("should fail if uniswap path is invalid");
-        it("should fail if liquidation already exists");
+        before(async () => {
+            await redeployLiquidator();
+        });
+        it("should fail if any inputs are null", async () => {
+            await expectRevert(
+                liquidator.createLiquidation(
+                    ZERO_ADDRESS,
+                    compToken.address,
+                    bAsset.address,
+                    1,
+                    [compToken.address, ZERO_ADDRESS, bAsset.address],
+                    simpleToExactAmount(1, 18),
+                    { from: sa.governor },
+                ),
+                "Invalid inputs",
+            );
+        });
+        it("should fail if uniswap path is invalid", async () => {
+            await expectRevert(
+                liquidator.createLiquidation(
+                    compIntegration.address,
+                    compToken.address,
+                    bAsset.address,
+                    1,
+                    [compToken.address, ZERO_ADDRESS, bAsset2.address],
+                    simpleToExactAmount(1, 18),
+                    { from: sa.governor },
+                ),
+                "Invalid uniswap path",
+            );
+
+            await expectRevert(
+                liquidator.createLiquidation(
+                    compIntegration.address,
+                    compToken.address,
+                    bAsset.address,
+                    1,
+                    [compToken.address, ZERO_ADDRESS],
+                    simpleToExactAmount(1, 18),
+                    { from: sa.governor },
+                ),
+                "Invalid uniswap path",
+            );
+        });
+        it("should fail if liquidation already exists", async () => {
+            await liquidator.createLiquidation(
+                compIntegration.address,
+                compToken.address,
+                bAsset.address,
+                1,
+                [compToken.address, ZERO_ADDRESS, bAsset.address],
+                simpleToExactAmount(1000, 18),
+                { from: sa.governor },
+            );
+            const liquidation = await getLiquidation(compIntegration.address);
+            expect(liquidation.sellToken).eq(compToken.address);
+            expect(liquidation.bAsset).eq(bAsset.address);
+            expect(liquidation.curvePosition).bignumber.eq(new BN(1));
+            expect(liquidation.lastTriggered).bignumber.eq(new BN(0));
+            expect(liquidation.sellTranche).bignumber.eq(simpleToExactAmount(1000, 18));
+            await expectRevert(
+                liquidator.createLiquidation(
+                    compIntegration.address,
+                    compToken.address,
+                    bAsset.address,
+                    1,
+                    [compToken.address, ZERO_ADDRESS, bAsset.address],
+                    simpleToExactAmount(1000, 18),
+                    { from: sa.governor },
+                ),
+                "Liquidation exists for this bAsset",
+            );
+        });
     });
     context("updating an existing liquidation", () => {
+        beforeEach(async () => {
+            await redeployLiquidator();
+            await liquidator.createLiquidation(
+                compIntegration.address,
+                compToken.address,
+                bAsset.address,
+                1,
+                [compToken.address, ZERO_ADDRESS, bAsset.address],
+                simpleToExactAmount(1000, 18),
+                { from: sa.governor },
+            );
+        });
         describe("changing the bAsset", () => {
-            it("should fail if liquidation does not exist");
-            it("should fail if bAsset is null");
-            it("should fail if uniswap path is invalid");
-            it("should update the bAsset successfully", async () => {
-                // update uniswap path, bAsset
+            it("should fail if liquidation does not exist", async () => {
+                await expectRevert(
+                    liquidator.updateBasset(
+                        sa.dummy2,
+                        bAsset.address,
+                        1,
+                        [],
+                        simpleToExactAmount(1, 18),
+                        {
+                            from: sa.governor,
+                        },
+                    ),
+                    "Liquidation does not exist",
+                );
             });
-            it("should change the tranche amount");
+            it("should fail if bAsset is null", async () => {
+                await expectRevert(
+                    liquidator.updateBasset(
+                        compIntegration.address,
+                        ZERO_ADDRESS,
+                        1,
+                        [],
+                        simpleToExactAmount(1, 18),
+                        {
+                            from: sa.governor,
+                        },
+                    ),
+                    "Invalid bAsset",
+                );
+            });
+            it("should fail if uniswap path is invalid", async () => {
+                await expectRevert(
+                    liquidator.updateBasset(
+                        compIntegration.address,
+                        bAsset.address,
+                        1,
+                        [bAsset2.address],
+                        simpleToExactAmount(1, 18),
+                        {
+                            from: sa.governor,
+                        },
+                    ),
+                    "Invalid uniswap path",
+                );
+            });
+            it("should update the bAsset successfully", async () => {
+                // update uniswap path, bAsset, tranch amount
+                const tx = await liquidator.updateBasset(
+                    compIntegration.address,
+                    bAsset2.address,
+                    2,
+                    [compToken.address, ZERO_ADDRESS, bAsset2.address],
+                    simpleToExactAmount(123, 18),
+                    { from: sa.governor },
+                );
+                expectEvent(tx.receipt, "LiquidationModified", {
+                    integration: compIntegration.address,
+                });
+                const liquidation = await getLiquidation(compIntegration.address);
+                expect(liquidation.sellToken).eq(compToken.address);
+                expect(liquidation.bAsset).eq(bAsset2.address);
+                expect(liquidation.curvePosition).bignumber.eq(new BN(2));
+                expect(liquidation.sellTranche).bignumber.eq(simpleToExactAmount(123, 18));
+            });
         });
         describe("removing the liquidation altogether", () => {
-            it("should fail if liquidation doesn't exist");
-            it("should delete the liquidation");
+            it("should fail if liquidation doesn't exist", async () => {
+                await expectRevert(
+                    liquidator.deleteLiquidation(sa.dummy2, {
+                        from: sa.governor,
+                    }),
+                    "Liquidation does not exist",
+                );
+            });
+            it("should delete the liquidation", async () => {
+                // update uniswap path, bAsset, tranch amount
+                const tx = await liquidator.deleteLiquidation(compIntegration.address, {
+                    from: sa.governor,
+                });
+                expectEvent(tx.receipt, "LiquidationEnded", {
+                    integration: compIntegration.address,
+                });
+                const oldLiq = await getLiquidation(compIntegration.address);
+                expect(oldLiq.bAsset).eq("0x0000000000000000000000000000000000000000");
+                expect(oldLiq.curvePosition).bignumber.eq(new BN(0));
+            });
         });
     });
     context("triggering a liquidation", () => {
-        it("should pause liquidations if set to 0");
-        it("should fail if liquidation does not exist");
-        it("should fail if called within 7 days of the previous");
-        it("reverts if there is nothing to sell");
-        it("should sell everything if the liquidator has less balance than tranche size", async () => {
-            // set tranche size to 1e30
+        beforeEach(async () => {
+            await redeployLiquidator();
+            await liquidator.createLiquidation(
+                compIntegration.address,
+                compToken.address,
+                bAsset.address,
+                1,
+                [compToken.address, ZERO_ADDRESS, bAsset.address],
+                simpleToExactAmount(1000, 18),
+                { from: sa.governor },
+            );
+            await compIntegration.approveRewardToken({ from: sa.governor });
         });
-        it("sends proceeds to the SavingsManager");
+        it("should fail if liquidation does not exist", async () => {
+            await expectRevert(
+                liquidator.triggerLiquidation(sa.dummy2),
+                "Liquidation does not exist",
+            );
+        });
+        it("should fail if called within 7 days of the previous", async () => {
+            await liquidator.triggerLiquidation(compIntegration.address);
+            await expectRevert(
+                liquidator.triggerLiquidation(compIntegration.address),
+                "Must wait for interval",
+            );
+        });
+        it("should sell everything if the liquidator has less balance than tranche size", async () => {
+            const s0 = await snapshotData();
+            await liquidator.updateBasset(
+                compIntegration.address,
+                bAsset.address,
+                1,
+                [compToken.address, ZERO_ADDRESS, bAsset.address],
+                simpleToExactAmount(1, 30),
+                { from: sa.governor },
+            );
+            // set tranche size to 1e30
+            await liquidator.triggerLiquidation(compIntegration.address);
+
+            const s1 = await snapshotData();
+            // 10 COMP liquidated for > 1000 mUSD
+            expect(s1.savingsManagerBal.sub(s0.savingsManagerBal)).bignumber.gt(
+                simpleToExactAmount(1000, 18),
+            );
+
+            await time.increase(ONE_WEEK.addn(1));
+            await expectRevert(
+                liquidator.triggerLiquidation(compIntegration.address),
+                "No sell tokens to liquidate",
+            );
+        });
+        it("should pause liquidations if set to 0", async () => {
+            await liquidator.updateBasset(
+                compIntegration.address,
+                bAsset.address,
+                1,
+                [compToken.address, ZERO_ADDRESS, bAsset.address],
+                new BN(0),
+                { from: sa.governor },
+            );
+            await expectRevert(
+                liquidator.triggerLiquidation(compIntegration.address),
+                "Liquidation has been paused",
+            );
+        });
     });
 });

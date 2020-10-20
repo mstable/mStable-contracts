@@ -1,9 +1,6 @@
 pragma solidity 0.5.16;
 pragma experimental ABIEncoderV2;
 
-// TODO - remove
-import "@nomiclabs/buidler/console.sol";
-
 import { ICurveMetaPool } from "./ICurveMetaPool.sol";
 import { IUniswapV2Router02 } from "./IUniswapV2Router02.sol";
 import { ISavingsManager } from "../../interfaces/ISavingsManager.sol";
@@ -102,11 +99,12 @@ contract Liquidator is
         onlyGovernance
     {
         require(liquidations[_integration].sellToken == address(0), "Liquidation exists for this bAsset");
+
         require(
             _integration != address(0) &&
             _sellToken != address(0) &&
             _bAsset != address(0) &&
-            _uniswapPath.length >= uint(2),
+            _uniswapPath.length >= 2,
             "Invalid inputs"
         );
         require(_validUniswapPath(_sellToken, _bAsset, _uniswapPath), "Invalid uniswap path");
@@ -145,8 +143,8 @@ contract Liquidator is
 
         address oldBasset = liquidation.bAsset;
         require(oldBasset != address(0), "Liquidation does not exist");
+        
         require(_bAsset != address(0), "Invalid bAsset");
-
         require(_validUniswapPath(liquidation.sellToken, _bAsset, _uniswapPath), "Invalid uniswap path");
 
         liquidations[_integration].bAsset = _bAsset;
@@ -215,7 +213,6 @@ contract Liquidator is
         // 1. Transfer sellTokens from integration contract if there are some
         //    Assumes infinite approval
         uint256 integrationBal = IERC20(sellToken).balanceOf(_integration);
-        console.log("tl: IntegrationBal %s", integrationBal);
         if (integrationBal > 0) {
             IERC20(sellToken).safeTransferFrom(_integration, address(this), integrationBal);
         }
@@ -226,10 +223,8 @@ contract Liquidator is
         require(sellTokenBal > 0, "No sell tokens to liquidate");
         require(liquidation.trancheAmount > 0, "Liquidation has been paused");
         //    Calc amounts for max tranche
-        console.log("tl: Getting amounts in %s", liquidation.trancheAmount);
         uint[] memory amountsIn = uniswap.getAmountsIn(liquidation.trancheAmount, uniswapPath);
         uint256 sellAmount = amountsIn[0];
-        console.log("tl: SellAmount in %s", sellAmount);
 
         if (sellTokenBal < sellAmount) {
             sellAmount = sellTokenBal;
@@ -240,7 +235,6 @@ contract Liquidator is
         IERC20(sellToken).safeApprove(address(uniswap), 0);
         IERC20(sellToken).safeApprove(address(uniswap), sellAmount);
         // 3.2. Make the sale > https://uniswap.org/docs/v2/smart-contracts/router02/#swapexacttokensfortokens
-        console.log("tl: Swapping %s, balance: %s", sellAmount, IERC20(sellToken).balanceOf(address(this)));
         uniswap.swapExactTokensForTokens(
             sellAmount,
             0,
