@@ -1,5 +1,4 @@
 pragma solidity 0.5.16;
-pragma experimental ABIEncoderV2;
 
 import { ICurveMetaPool } from "./ICurveMetaPool.sol";
 import { IUniswapV2Router02 } from "./IUniswapV2Router02.sol";
