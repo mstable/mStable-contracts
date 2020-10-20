@@ -140,16 +140,22 @@ contract SavingsManager is ISavingsManager, PausableModule {
         // transfer liquidated mUSD to here
         IERC20(_mAsset).safeTransferFrom(_liquidator(), address(this), _liquidated);
 
+        uint256 currentTime = now;
+
         // Get remaining rewards
-        uint256 unclaimedSeconds = _unclaimedSeconds(lastCollection[_mAsset], rewardEnd[_mAsset]);
+        uint256 end = rewardEnd[_mAsset];
+        uint256 lastUpdate = lastCollection[_mAsset];
+        uint256 unclaimedSeconds = 0;
+        if(currentTime <= end || lastUpdate < end){
+            unclaimedSeconds = end.sub(lastUpdate);
+        }
         uint256 leftover = unclaimedSeconds.mul(rewardRate[_mAsset]);
 
         // Distribute reward per second over 7 days
-        uint256 currentTime = now;
         rewardRate[_mAsset] = _liquidated.add(leftover).div(DURATION);
         rewardEnd[_mAsset] = currentTime.add(DURATION);
 
-        // Reset pool data
+        // Reset pool data to enable lastCollection usage twice
         lastPeriodStart[_mAsset] = currentTime;
         lastCollection[_mAsset] = currentTime;
         periodYield[_mAsset] = 0;

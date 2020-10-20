@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/camelcase */
 
-import { assertBNClose } from "@utils/assertions";
+import { assertBNClose, assertBNClosePercent } from "@utils/assertions";
 import { expectEvent, time, expectRevert } from "@openzeppelin/test-helpers";
 import { StandardAccounts } from "@utils/machines";
 import { simpleToExactAmount } from "@utils/math";
@@ -14,6 +14,7 @@ import {
     TEN_MINS,
     ONE_DAY,
     ONE_MIN,
+    ONE_WEEK,
 } from "@utils/constants";
 import * as t from "types/generated";
 import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
@@ -43,6 +44,7 @@ contract("SavingsManager", async (accounts) => {
     let savingsContract: t.SavingsContractInstance;
     let savingsManager: t.SavingsManagerInstance;
     let mUSD: t.MockMassetInstance;
+    const liquidator = sa.fundManager;
 
     async function createNewSavingsManager(
         mintAmount: BN = INITIAL_MINT,
@@ -56,7 +58,8 @@ contract("SavingsManager", async (accounts) => {
         );
         // Set new SavingsManager address in Nexus
         await nexus.setSavingsManager(savingsManager.address);
-        await nexus.setLiquidator(sa.default);
+        await nexus.setLiquidator(liquidator);
+        await mUSD.transfer(liquidator, simpleToExactAmount(1, 23), { from: sa.default });
         return savingsManager;
     }
 
@@ -335,6 +338,189 @@ contract("SavingsManager", async (accounts) => {
                     savingsManager.collectAndDistributeInterest(mUSD.address),
                     "Must receive mUSD",
                 );
+            });
+        });
+
+        interface Data {
+            lastPeriodStart: BN;
+            lastCollection: BN;
+            periodYield: BN;
+            rewardEnd: BN;
+            rewardRate: BN;
+            savingsManagerBal: BN;
+            savingsContractBal: BN;
+        }
+        const snapshotData = async (): Promise<Data> => {
+            return {
+                lastPeriodStart: await savingsManager.lastPeriodStart(mUSD.address),
+                lastCollection: await savingsManager.lastCollection(mUSD.address),
+                periodYield: await savingsManager.periodYield(mUSD.address),
+                rewardEnd: await savingsManager.rewardEnd(mUSD.address),
+                rewardRate: await savingsManager.rewardRate(mUSD.address),
+                savingsManagerBal: await mUSD.balanceOf(savingsManager.address),
+                savingsContractBal: await mUSD.balanceOf(savingsContract.address),
+            };
+        };
+        context("testing the boundaries of liquidated deposits", async () => {
+            // Initial supply of 10m units
+            const initialSupply = new BN(10000000);
+            const liquidated1 = simpleToExactAmount(100, 18);
+            const liquidated2 = simpleToExactAmount(200, 18);
+            const liquidated3 = simpleToExactAmount(300, 18);
+            beforeEach(async () => {
+                savingsManager = await createNewSavingsManager(initialSupply);
+            });
+            it("should fail if deposit not called by the liquidator", async () => {
+                await expectRevert(
+                    savingsManager.depositLiquidation(mUSD.address, liquidated1, {
+                        from: sa.dummy2,
+                    }),
+                    "Only liquidator can execute",
+                );
+            });
+            it("should fail if sender has no mUSD approved", async () => {
+                await expectRevert(
+                    savingsManager.depositLiquidation(mUSD.address, liquidated1, {
+                        from: liquidator,
+                    }),
+                    "SafeERC20: low-level call failed",
+                );
+            });
+            it("should set the rewardRate and finish time correctly", async () => {
+                const before = await snapshotData();
+                await mUSD.approve(savingsManager.address, liquidated1, { from: liquidator });
+
+                const tx = await savingsManager.depositLiquidation(mUSD.address, liquidated1, {
+                    from: liquidator,
+                });
+                expectEvent(tx.receipt, "LiquidatorDeposited", {
+                    mAsset: mUSD.address,
+                    amount: liquidated1,
+                });
+                const t0 = await time.latest();
+
+                const after = await snapshotData();
+                expect(after.savingsManagerBal).bignumber.eq(
+                    before.savingsManagerBal.add(liquidated1),
+                );
+                assertBNClose(after.lastCollection, t0, 2);
+                expect(after.lastPeriodStart).bignumber.eq(after.lastCollection);
+                expect(after.periodYield).bignumber.eq(new BN(0));
+                expect(after.rewardEnd).bignumber.eq(after.lastCollection.add(ONE_WEEK));
+                assertBNClosePercent(after.rewardRate, liquidated1.div(ONE_WEEK), "0.001");
+            });
+            it("should work over multiple periods", async () => {
+                //   0         1         2         3
+                //   | - - - - | - - - - | - - - - |
+                //   ^      ^^^           ^ ^  ^
+                //  start   567          1516 18
+                //  @time - Description (periodStart, lastCollection, periodYield)
+                //  @0  - Deposit is made
+                //  @5  - Yield collects days 0-5
+                //  @6  - Deposit is made - second period begins
+                //  @7  - Yield collects days 6-7
+                //  @15 - Yield collects days 7-13 but not 14
+                //  @16 - Yield collects nothing
+                //  @18 - Deposit is made
+
+                // @0
+                const s = await snapshotData();
+                expect(s.rewardRate).bignumber.eq(new BN(0));
+                expect(s.savingsManagerBal).bignumber.eq(new BN(0));
+
+                await mUSD.approve(savingsManager.address, liquidated1, { from: liquidator });
+                await savingsManager.depositLiquidation(mUSD.address, liquidated1, {
+                    from: liquidator,
+                });
+                
+                const s0 = await snapshotData();
+                assertBNClosePercent(s0.rewardRate, liquidated1.div(ONE_WEEK), "0.001");
+
+                await time.increase(ONE_DAY.muln(5));
+                // @5
+                
+                let expectedInterest = ONE_DAY.muln(5).mul(s0.rewardRate);
+                await mUSD.setAmountForCollectInterest(1);
+                await savingsManager.collectAndDistributeInterest(mUSD.address);
+
+                const s5 = await snapshotData();
+                
+                assertBNClosePercent(
+                    s5.savingsManagerBal,
+                    s0.savingsManagerBal.sub(expectedInterest),
+                    "0.01",
+                );
+                
+                assertBNClosePercent(
+                    s5.savingsContractBal,
+                    s0.savingsContractBal.add(expectedInterest),
+                    "0.01",
+                );
+
+                await time.increase(ONE_DAY);
+                // @6
+                const leftOverRewards = ONE_DAY.muln(2).mul(s0.rewardRate);
+                const totalRewards = leftOverRewards.add(liquidated2);
+                
+                await mUSD.approve(savingsManager.address, liquidated2, { from: liquidator });
+                await savingsManager.depositLiquidation(mUSD.address, liquidated2, {
+                    from: liquidator,
+                });
+
+                const s6 = await snapshotData();
+                
+                assertBNClosePercent(s6.rewardRate, totalRewards.div(ONE_WEEK), "0.01");
+                expect(s6.rewardEnd).bignumber.eq(s6.lastCollection.add(ONE_WEEK));
+
+                await time.increase(ONE_DAY);
+                // @7
+                expectedInterest = ONE_DAY.mul(s6.rewardRate);
+                await mUSD.setAmountForCollectInterest(1);
+                await savingsManager.collectAndDistributeInterest(mUSD.address);
+
+                
+                const s7 = await snapshotData();
+                assertBNClosePercent(
+                    s7.savingsManagerBal,
+                    s6.savingsManagerBal.sub(expectedInterest),
+                    "0.01",
+                );
+
+                await time.increase(ONE_DAY.muln(8));
+                // @15
+                expectedInterest = ONE_DAY.muln(6).mul(s6.rewardRate);
+                await mUSD.setAmountForCollectInterest(1);
+                await savingsManager.collectAndDistributeInterest(mUSD.address);
+
+                
+                const s15 = await snapshotData();
+                assertBNClosePercent(
+                    s15.savingsManagerBal,
+                    s7.savingsManagerBal.sub(expectedInterest),
+                    "0.01",
+                );
+
+                expect(s15.rewardEnd).bignumber.lt(s15.lastCollection as any);
+                expect(s15.rewardRate).bignumber.eq(s7.rewardRate);
+                assertBNClose(s15.savingsManagerBal, new BN(0), simpleToExactAmount(1, 6));
+
+                await time.increase(ONE_DAY);
+                // @16
+                expectedInterest = new BN(0);
+                await mUSD.setAmountForCollectInterest(1);
+                await savingsManager.collectAndDistributeInterest(mUSD.address);
+
+                const s16 = await snapshotData();
+                expect(s16.savingsManagerBal).bignumber.eq(s15.savingsManagerBal);
+
+                await time.increase(ONE_DAY.muln(2));
+                // @18
+                await mUSD.approve(savingsManager.address, liquidated3, { from: liquidator });
+                await savingsManager.depositLiquidation(mUSD.address, liquidated3, {
+                    from: liquidator,
+                });
+                const s18 = await snapshotData();
+                assertBNClosePercent(s18.rewardRate, liquidated3.div(ONE_WEEK), "0.001");
             });
         });
         context("testing new mechanism", async () => {
@@ -630,8 +816,12 @@ contract("SavingsManager", async (accounts) => {
         context("when there is some interest to collect", async () => {
             before(async () => {
                 savingsManager = await createNewSavingsManager();
-                await mUSD.approve(savingsManager.address, simpleToExactAmount(1, 20));
-                await savingsManager.depositLiquidation(mUSD.address, simpleToExactAmount(1, 20));
+                await mUSD.approve(savingsManager.address, simpleToExactAmount(1, 20), {
+                    from: liquidator,
+                });
+                await savingsManager.depositLiquidation(mUSD.address, simpleToExactAmount(1, 20), {
+                    from: liquidator,
+                });
             });
             it("should collect the interest first time", async () => {
                 // Refresh the collection timer

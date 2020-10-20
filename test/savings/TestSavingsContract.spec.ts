@@ -3,7 +3,7 @@
 import { expectRevert, expectEvent, time } from "@openzeppelin/test-helpers";
 
 import { simpleToExactAmount } from "@utils/math";
-import { assertBNClose } from "@utils/assertions";
+import { assertBNClose, assertBNSlightlyGT } from "@utils/assertions";
 import { StandardAccounts, SystemMachine, MassetDetails } from "@utils/machines";
 import { BN } from "@utils/tools";
 import { fullScale, ZERO_ADDRESS, ZERO, MAX_UINT256, ONE_DAY } from "@utils/constants";
@@ -18,6 +18,7 @@ const MockNexus = artifacts.require("MockNexus");
 const MockMasset = artifacts.require("MockMasset");
 const MockSavingsManager = artifacts.require("MockSavingsManager");
 const SavingsManager = artifacts.require("SavingsManager");
+const MStableHelper = artifacts.require("MStableHelper");
 
 interface SavingsBalances {
     totalSavings: BN;
@@ -53,6 +54,7 @@ contract("SavingsContract", async (accounts) => {
     let nexus: t.MockNexusInstance;
     let masset: t.MockMassetInstance;
     let savingsManager: t.SavingsManagerInstance;
+    let helper: t.MStableHelperInstance;
 
     const createNewSavingsContract = async (useMockSavingsManager = true): Promise<void> => {
         // Use a mock Nexus so we can dictate addresses
@@ -60,6 +62,7 @@ contract("SavingsContract", async (accounts) => {
         // Use a mock mAsset so we can dictate the interest generated
         masset = await MockMasset.new("MOCK", "MOCK", 18, sa.default, initialMint);
         savingsContract = await SavingsContract.new(nexus.address, masset.address);
+        helper = await MStableHelper.new();
         // Use a mock SavingsManager so we don't need to run integrations
         if (useMockSavingsManager) {
             const mockSavingsManager = await MockSavingsManager.new();
@@ -274,6 +277,43 @@ contract("SavingsContract", async (accounts) => {
                 expect(creditBalBefore.add(TEN_TOKENS)).to.bignumber.equal(creditBalAfter);
                 expect(fullScale).to.bignumber.equal(exchangeRateAfter);
             });
+        });
+    });
+
+    describe("using the helper", async () => {
+        before(async () => {
+            await createNewSavingsContract(false);
+        });
+
+        it("should deposit and withdraw", async () => {
+            // Approve first
+            await masset.approve(savingsContract.address, TEN_TOKENS);
+
+            // Get the total balances
+            const stateBefore = await getBalances(savingsContract, sa.default);
+            expect(stateBefore.exchangeRate).to.bignumber.equal(fullScale);
+
+            // Deposit first to get some savings in the basket
+            await savingsContract.depositSavings(TEN_TOKENS);
+
+            const bal = await helper.getSaveBalance(savingsContract.address, sa.default);
+            assertBNSlightlyGT(TEN_TOKENS, bal, new BN(1));
+
+            // Set up the mAsset with some interest
+            await masset.setAmountForCollectInterest(simpleToExactAmount(5, 18));
+            await masset.transfer(sa.dummy2, TEN_TOKENS);
+            await masset.approve(savingsContract.address, TEN_TOKENS, { from: sa.dummy2 });
+            await savingsContract.depositSavings(TEN_TOKENS, { from: sa.dummy2 });
+
+            const redeemInput = await helper.getSaveRedeemInput(
+                savingsContract.address,
+                TEN_TOKENS,
+            );
+            const balBefore = await masset.balanceOf(sa.default);
+            await savingsContract.redeem(redeemInput);
+
+            const balAfter = await masset.balanceOf(sa.default);
+            expect(balAfter).bignumber.eq(balBefore.add(TEN_TOKENS));
         });
     });
 
