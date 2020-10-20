@@ -53,7 +53,7 @@ contract Liquidator is
         address[] uniswapPath;
 
         uint256 lastTriggered;
-        uint256 sellTranche;   // Tranche amount, with token decimals
+        uint256 trancheAmount;   // The amount of bAsset units to buy each week, with token decimals
     }
 
     function initialize(
@@ -83,12 +83,12 @@ contract Liquidator is
 
     /**
     * @dev Create a liquidation
-    * @param _integration The integration contract address for the _bAsset
-    * @param _sellToken The integration contract address for the _bAsset
-    * @param _bAsset The _bAsset address that this liquidation is for
+    * @param _integration The integration contract address from which to receive sellToken
+    * @param _sellToken Token harvested from the integration contract
+    * @param _bAsset The asset to buy on Uniswap
     * @param _curvePosition Position of the bAsset in Curves MetaPool
     * @param _uniswapPath The Uniswap path as an array of addresses e.g. [COMP, WETH, DAI]
-    * @param _sellTranche The amount of tokens to be sold when triggered (in token decimals)
+    * @param _trancheAmount The amount of bAsset units to buy in each weekly tranche
     */
     function createLiquidation(
         address _integration,
@@ -96,7 +96,7 @@ contract Liquidator is
         address _bAsset,
         int128 _curvePosition,
         address[] calldata _uniswapPath,
-        uint256 _sellTranche
+        uint256 _trancheAmount
     )
         external
         onlyGovernance
@@ -117,18 +117,26 @@ contract Liquidator is
             curvePosition: _curvePosition,
             uniswapPath: _uniswapPath,
             lastTriggered: 0,
-            sellTranche: _sellTranche
+            trancheAmount: _trancheAmount
         });
 
         emit LiquidationModified(_integration);
     }
 
-
+    /**
+    * @dev Update a liquidation
+    * @param _integration The integration contract in question
+    * @param _bAsset New asset to buy on Uniswap
+    * @param _curvePosition Position of the bAsset in Curves MetaPool
+    * @param _uniswapPath The Uniswap path as an array of addresses e.g. [COMP, WETH, DAI]
+    * @param _trancheAmount The amount of bAsset units to buy in each weekly tranche
+    */
     function updateBasset(
         address _integration,
         address _bAsset,
         int128 _curvePosition,
-        address[] calldata _uniswapPath
+        address[] calldata _uniswapPath,
+        uint256 _trancheAmount
     )
         external
         onlyGovernance
@@ -144,10 +152,17 @@ contract Liquidator is
         liquidations[_integration].bAsset = _bAsset;
         liquidations[_integration].curvePosition = _curvePosition;
         liquidations[_integration].uniswapPath = _uniswapPath;
+        liquidations[_integration].trancheAmount = _trancheAmount;
 
         emit LiquidationModified(_integration);
     }
 
+    /**
+    * @dev Validates a given uniswap path - valid if sellToken at position 0 and bAsset at end
+    * @param _sellToken Token harvested from the integration contract
+    * @param _bAsset New asset to buy on Uniswap
+    * @param _uniswapPath The Uniswap path as an array of addresses e.g. [COMP, WETH, DAI]
+    */
     function _validUniswapPath(address _sellToken, address _bAsset, address[] memory _uniswapPath)
         internal
         pure
@@ -155,21 +170,6 @@ contract Liquidator is
     {
         uint256 len = _uniswapPath.length;
         return _sellToken == _uniswapPath[0] && _bAsset == _uniswapPath[len-1];
-    }
-
-    function changeTrancheAmount(
-        address _integration,
-        uint256 _sellTranche
-    )
-        external
-        onlyGovernance
-    {
-        Liquidation memory liquidation = liquidations[_integration];
-        require(liquidation.bAsset != address(0), "Liquidation does not exist");
-
-        liquidations[_integration].sellTranche = _sellTranche;
-
-        emit LiquidationModified(_integration);
     }
 
     /**
@@ -190,7 +190,13 @@ contract Liquidator is
                     LIQUIDATION
     ****************************************/
 
-
+    /**
+    * @dev Triggers a liquidation, flow (once per week):
+    *    - Sells $COMP for $USDC (or other) on Uniswap (up to trancheAmount)
+    *    - Sell USDC for mUSD on Curve
+    *    - Send to SavingsManager
+    * @param _integration Integration for which to trigger liquidation
+    */
     function triggerLiquidation(address _integration)
         external
     {
@@ -218,10 +224,10 @@ contract Liquidator is
         //    Check contract balance
         uint256 sellTokenBal = IERC20(sellToken).balanceOf(address(this));
         require(sellTokenBal > 0, "No sell tokens to liquidate");
-        require(liquidation.sellTranche > 0, "Liquidation has been paused");
+        require(liquidation.trancheAmount > 0, "Liquidation has been paused");
         //    Calc amounts for max tranche
-        console.log("tl: Getting amounts in %s", liquidation.sellTranche);
-        uint[] memory amountsIn = uniswap.getAmountsIn(liquidation.sellTranche, uniswapPath);
+        console.log("tl: Getting amounts in %s", liquidation.trancheAmount);
+        uint[] memory amountsIn = uniswap.getAmountsIn(liquidation.trancheAmount, uniswapPath);
         uint256 sellAmount = amountsIn[0];
         console.log("tl: SellAmount in %s", sellAmount);
 

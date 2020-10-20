@@ -132,7 +132,12 @@ contract SavingsManager is ISavingsManager, PausableModule {
         emit SavingsRateChanged(_savingsRate);
     }
 
-
+    /**
+     * @dev Allows the liquidator to deposit proceeds from iquidated gov tokens.
+     * Transfers proceeds on a second by second basis to the Savings Contract over 1 week.
+     * @param _mAsset The mAsset to transfer and distribute
+     * @param _liquidated Units of mAsset to distribute
+     */
     function depositLiquidation(address _mAsset, uint256 _liquidated)
         external
         onlyLiquidator
@@ -237,12 +242,24 @@ contract SavingsManager is ISavingsManager, PausableModule {
         }
     }
 
+    /**
+     * @dev Calculates unclaimed rewards from the liquidation stream
+     * @param _mAsset mAsset key
+     * @param _previousCollection Time of previous collection
+     * @return Units of mAsset that have been unlocked for distribution
+     */
     function _unclaimedRewards(address _mAsset, uint256 _previousCollection) internal view returns (uint256) {
         uint256 end = rewardEnd[_mAsset];
         uint256 unclaimedSeconds = _unclaimedSeconds(_previousCollection, end);
         return unclaimedSeconds.mul(rewardRate[_mAsset]);
     }
 
+    /**
+     * @dev Calculates the seconds of unclaimed rewards, based on period length
+     * @param _lastUpdate Time of last update
+     * @param _end End time of period
+     * @return Seconds of stream that should be compensated
+     */
     function _unclaimedSeconds(uint256 _lastUpdate, uint256 _end) internal view returns (uint256) {
         uint256 currentTime = block.timestamp;
         uint256 unclaimedSeconds = 0;

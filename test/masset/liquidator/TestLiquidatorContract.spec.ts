@@ -193,11 +193,7 @@ contract("Liquidator", async (accounts) => {
             it("should update the bAsset successfully", async () => {
                 // update uniswap path, bAsset
             });
-        });
-        describe("changing the tranche amount", () => {
-            it("should fail if liquidation doesn't exist");
             it("should change the tranche amount");
-            it("should pause liquidations if set to 0");
         });
         describe("removing the liquidation altogether", () => {
             it("should fail if liquidation doesn't exist");
@@ -205,6 +201,7 @@ contract("Liquidator", async (accounts) => {
         });
     });
     context("triggering a liquidation", () => {
+        it("should pause liquidations if set to 0");
         it("should fail if liquidation does not exist");
         it("should fail if called within 7 days of the previous");
         it("reverts if there is nothing to sell");
