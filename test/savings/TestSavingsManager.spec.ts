@@ -46,9 +46,7 @@ contract("SavingsManager", async (accounts) => {
     let mUSD: t.MockMassetInstance;
     const liquidator = sa.fundManager;
 
-    async function createNewSavingsManager(
-        mintAmount: BN = INITIAL_MINT,
-    ): Promise<t.SavingsManagerInstance> {
+    async function createNewSavingsManager(mintAmount: BN = INITIAL_MINT): Promise<void> {
         mUSD = await MockMasset.new("mUSD", "mUSD", 18, sa.default, mintAmount);
         savingsContract = await SavingsContract.new(nexus.address, mUSD.address);
         savingsManager = await SavingsManager.new(
@@ -60,19 +58,18 @@ contract("SavingsManager", async (accounts) => {
         await nexus.setSavingsManager(savingsManager.address);
         await nexus.setLiquidator(liquidator);
         await mUSD.transfer(liquidator, simpleToExactAmount(1, 23), { from: sa.default });
-        return savingsManager;
     }
 
     before(async () => {
         nexus = await MockNexus.new(sa.governor, governance, manager);
 
-        savingsManager = await createNewSavingsManager();
+        await createNewSavingsManager();
     });
 
     describe("behaviours", async () => {
         describe("should behave like a Module", async () => {
             beforeEach(async () => {
-                savingsManager = await createNewSavingsManager();
+                await createNewSavingsManager();
                 ctx.module = savingsManager as t.PausableModuleInstance;
             });
             shouldBehaveLikeModule(ctx as Required<typeof ctx>, sa);
@@ -280,7 +277,7 @@ contract("SavingsManager", async (accounts) => {
 
     describe("collecting and distributing Interest", async () => {
         beforeEach(async () => {
-            savingsManager = await createNewSavingsManager();
+            await createNewSavingsManager();
         });
         context("with invalid arguments", async () => {
             it("should fail when mAsset not exist", async () => {
@@ -303,7 +300,7 @@ contract("SavingsManager", async (accounts) => {
         });
         context("when there is no interest to collect", async () => {
             before(async () => {
-                savingsManager = await createNewSavingsManager();
+                await createNewSavingsManager();
             });
 
             it("should succeed when interest collected is zero", async () => {
@@ -368,7 +365,7 @@ contract("SavingsManager", async (accounts) => {
             const liquidated2 = simpleToExactAmount(200, 18);
             const liquidated3 = simpleToExactAmount(300, 18);
             beforeEach(async () => {
-                savingsManager = await createNewSavingsManager(initialSupply);
+                await createNewSavingsManager(initialSupply);
             });
             it("should fail if deposit not called by the liquidator", async () => {
                 await expectRevert(
@@ -432,25 +429,25 @@ contract("SavingsManager", async (accounts) => {
                 await savingsManager.depositLiquidation(mUSD.address, liquidated1, {
                     from: liquidator,
                 });
-                
+
                 const s0 = await snapshotData();
                 assertBNClosePercent(s0.rewardRate, liquidated1.div(ONE_WEEK), "0.001");
 
                 await time.increase(ONE_DAY.muln(5));
                 // @5
-                
+
                 let expectedInterest = ONE_DAY.muln(5).mul(s0.rewardRate);
                 await mUSD.setAmountForCollectInterest(1);
                 await savingsManager.collectAndDistributeInterest(mUSD.address);
 
                 const s5 = await snapshotData();
-                
+
                 assertBNClosePercent(
                     s5.savingsManagerBal,
                     s0.savingsManagerBal.sub(expectedInterest),
                     "0.01",
                 );
-                
+
                 assertBNClosePercent(
                     s5.savingsContractBal,
                     s0.savingsContractBal.add(expectedInterest),
@@ -461,14 +458,14 @@ contract("SavingsManager", async (accounts) => {
                 // @6
                 const leftOverRewards = ONE_DAY.muln(2).mul(s0.rewardRate);
                 const totalRewards = leftOverRewards.add(liquidated2);
-                
+
                 await mUSD.approve(savingsManager.address, liquidated2, { from: liquidator });
                 await savingsManager.depositLiquidation(mUSD.address, liquidated2, {
                     from: liquidator,
                 });
 
                 const s6 = await snapshotData();
-                
+
                 assertBNClosePercent(s6.rewardRate, totalRewards.div(ONE_WEEK), "0.01");
                 expect(s6.rewardEnd).bignumber.eq(s6.lastCollection.add(ONE_WEEK));
 
@@ -478,7 +475,6 @@ contract("SavingsManager", async (accounts) => {
                 await mUSD.setAmountForCollectInterest(1);
                 await savingsManager.collectAndDistributeInterest(mUSD.address);
 
-                
                 const s7 = await snapshotData();
                 assertBNClosePercent(
                     s7.savingsManagerBal,
@@ -492,7 +488,6 @@ contract("SavingsManager", async (accounts) => {
                 await mUSD.setAmountForCollectInterest(1);
                 await savingsManager.collectAndDistributeInterest(mUSD.address);
 
-                
                 const s15 = await snapshotData();
                 assertBNClosePercent(
                     s15.savingsManagerBal,
@@ -528,7 +523,7 @@ contract("SavingsManager", async (accounts) => {
             const initialSupply = new BN(10000000);
             const initialSupplyExact = simpleToExactAmount(initialSupply, 18);
             beforeEach(async () => {
-                savingsManager = await createNewSavingsManager(initialSupply);
+                await createNewSavingsManager(initialSupply);
             });
             it("should work when lastCollection time is 0 with low interest", async () => {
                 const lastPeriodStart = await savingsManager.lastPeriodStart(mUSD.address);
@@ -815,13 +810,7 @@ contract("SavingsManager", async (accounts) => {
         });
         context("when there is some interest to collect", async () => {
             before(async () => {
-                savingsManager = await createNewSavingsManager();
-                await mUSD.approve(savingsManager.address, simpleToExactAmount(1, 20), {
-                    from: liquidator,
-                });
-                await savingsManager.depositLiquidation(mUSD.address, simpleToExactAmount(1, 20), {
-                    from: liquidator,
-                });
+                await createNewSavingsManager();
             });
             it("should collect the interest first time", async () => {
                 // Refresh the collection timer
@@ -934,7 +923,7 @@ contract("SavingsManager", async (accounts) => {
 
     describe("extra tests:", async () => {
         beforeEach(async () => {
-            savingsManager = await createNewSavingsManager();
+            await createNewSavingsManager();
         });
 
         it("should collect when 0% unallocated interest", async () => {

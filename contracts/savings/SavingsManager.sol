@@ -211,10 +211,12 @@ contract SavingsManager is ISavingsManager, PausableModule {
             periodYield[_mAsset] = inflationOperand;
         }
 
+        //    Add on liquidated
+        uint256 newReward = _unclaimedRewards(_mAsset, previousCollection);
         // 3. Validate that interest is collected correctly and does not exceed max APY
-        if(interestCollected > 0) {
+        if(interestCollected > 0 || newReward > 0) {
             require(
-                IERC20(_mAsset).balanceOf(address(this)) >= interestCollected,
+                IERC20(_mAsset).balanceOf(address(this)) >= interestCollected.add(newReward),
                 "Must receive mUSD"
             );
 
@@ -225,13 +227,11 @@ contract SavingsManager is ISavingsManager, PausableModule {
             // 4. Distribute the interest
             //    Calculate the share for savers (95e16 or 95%)
             uint256 saversShare = interestCollected.mulTruncate(savingsRate);
-            //    Add on liquidated
-            uint256 newReward = _unclaimedRewards(_mAsset, previousCollection);
 
             //    Call depositInterest on contract
             savingsContract.depositInterest(saversShare.add(newReward));
 
-            emit InterestDistributed(_mAsset, saversShare);
+            emit InterestDistributed(_mAsset, saversShare.add(newReward));
         } else {
             emit InterestCollected(_mAsset, 0, totalSupply, 0);
         }
@@ -267,12 +267,6 @@ contract SavingsManager is ISavingsManager, PausableModule {
         pure
         returns (uint256 extrapolatedAPY)
     {
-        // e.g. day: (86400 * 1e18) / 3.154e7 = 2.74..e15
-        // e.g. 30 mins: (1800 * 1e18) / 3.154e7 = 5.7..e13
-        // e.g. epoch: (1593596907 * 1e18) / 3.154e7 = 50.4..e18
-        uint256 yearsSinceLastCollection =
-            _timeSinceLastCollection.divPrecisely(SECONDS_IN_YEAR);
-
         // Percentage increase in total supply
         // e.g. (1e20 * 1e18) / 1e24 = 1e14 (or a 0.01% increase)
         // e.g. (5e18 * 1e18) / 1.2e24 = 4.1667e12
@@ -280,12 +274,18 @@ contract SavingsManager is ISavingsManager, PausableModule {
         uint256 oldSupply = _newSupply.sub(_interest);
         uint256 percentageIncrease = _interest.divPrecisely(oldSupply);
 
+        //      If over 30 mins, extrapolate APY
+        // e.g. day: (86400 * 1e18) / 3.154e7 = 2.74..e15
+        // e.g. 30 mins: (1800 * 1e18) / 3.154e7 = 5.7..e13
+        // e.g. epoch: (1593596907 * 1e18) / 3.154e7 = 50.4..e18
+        uint256 yearsSinceLastCollection =
+            _timeSinceLastCollection.divPrecisely(SECONDS_IN_YEAR);
+
         // e.g. 0.01% (1e14 * 1e18) / 2.74..e15 = 3.65e16 or 3.65% apr
         // e.g. (4.1667e12 * 1e18) / 5.7..e13 = 7.1e16 or 7.1% apr
         // e.g. (1e16 * 1e18) / 50e18 = 2e14
         extrapolatedAPY = percentageIncrease.divPrecisely(yearsSinceLastCollection);
 
-        //      If over 30 mins, extrapolate APY
         if(_timeSinceLastCollection > THIRTY_MINUTES) {
             require(extrapolatedAPY < MAX_APY, "Interest protected from inflating past maxAPY");
         } else {
