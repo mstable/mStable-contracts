@@ -1,7 +1,6 @@
 pragma solidity 0.5.16;
 
 import { ICERC20 } from "./ICompound.sol";
-import { CommonHelpers } from "../../shared/CommonHelpers.sol";
 import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "./InitializableAbstractIntegration.sol";
 
 

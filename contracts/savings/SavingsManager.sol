@@ -19,8 +19,8 @@ import { StableMath } from "../shared/StableMath.sol";
  * @author  Stability Labs Pty. Ltd.
  * @notice  Savings Manager collects interest from mAssets and sends them to the
  *          corresponding Savings Contract, performing some validation in the process.
- * @dev     VERSION: 1.1
- *          DATE:    2020-07-29
+ * @dev     VERSION: 1.2
+ *          DATE:    2020-10-20
  */
 contract SavingsManager is ISavingsManager, PausableModule {
 
