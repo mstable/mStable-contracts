@@ -130,4 +130,12 @@ contract Module is ModuleKeys {
     function _recollateraliser() internal view returns (address) {
         return nexus.getModule(KEY_RECOLLATERALISER);
     }
+
+    /**
+     * @dev Return Recollateraliser Module address from the Nexus
+     * @return  Address of the Recollateraliser Module contract (Phase 2)
+     */
+    function _liquidator() internal view returns (address) {
+        return nexus.getModule(KEY_LIQUIDATOR);
+    }
 }

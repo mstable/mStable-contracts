@@ -8,39 +8,36 @@ import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "./Initi
  * @title   CompoundIntegration
  * @author  Stability Labs Pty. Ltd.
  * @notice  A simple connection to deposit and withdraw bAssets from Compound
- * @dev     VERSION: 1.1
- *          DATE:    2020-07-29
+ * @dev     VERSION: 1.2
+ *          DATE:    2020-10-19
  */
 contract CompoundIntegration is InitializableAbstractIntegration {
 
-    event RewardTokenCollected(address recipient, uint256 amount);
     event SkippedWithdrawal(address bAsset, uint256 amount);
+    event RewardTokenApproved(address rewardToken, address account);
 
     /***************************************
                     ADMIN
     ****************************************/
 
     /**
-     * @dev Collects the accumulated COMP token from the contract
-     * @param _recipient Recipient to credit
+     * @dev Approves Liquidator to spend reward tokens
      */
-    function collectRewardToken(
-        address _recipient
-    )
+    function approveRewardToken()
         external
         onlyGovernor
     {
+        address liquidator = nexus.getModule(keccak256("Liquidator"));
+        require(liquidator != address(0), "Liquidator address cannot be zero");
+
         // Official checksummed COMP token address
         // https://ethplorer.io/address/0xc00e94cb662c3520282e6f5717214004a7f26888
-        IERC20 compToken = IERC20(0xc00e94Cb662C3520282E6f5717214004A7f26888);
+        address compToken = address(0xc00e94Cb662C3520282E6f5717214004A7f26888);
 
-        uint256 balance = compToken.balanceOf(address(this));
+        MassetHelpers.safeInfiniteApprove(compToken, liquidator);
 
-        require(compToken.transfer(_recipient, balance), "Collection transfer failed");
-
-        emit RewardTokenCollected(_recipient, balance);
+        emit RewardTokenApproved(address(compToken), liquidator);
     }
-
 
     /***************************************
                     CORE

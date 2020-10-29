@@ -19,8 +19,8 @@ import { StableMath } from "../shared/StableMath.sol";
  * @author  Stability Labs Pty. Ltd.
  * @notice  Savings Manager collects interest from mAssets and sends them to the
  *          corresponding Savings Contract, performing some validation in the process.
- * @dev     VERSION: 1.1
- *          DATE:    2020-07-29
+ * @dev     VERSION: 1.2
+ *          DATE:    2020-10-20
  */
 contract SavingsManager is ISavingsManager, PausableModule {
 
@@ -33,6 +33,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
     event SavingsContractUpdated(address indexed mAsset, address savingsContract);
     event SavingsRateChanged(uint256 newSavingsRate);
     // Interest collection
+    event LiquidatorDeposited(address indexed mAsset, uint256 amount);
     event InterestCollected(address indexed mAsset, uint256 interest, uint256 newTotalSupply, uint256 apy);
     event InterestDistributed(address indexed mAsset, uint256 amountSent);
     event InterestWithdrawnByGovernor(address indexed mAsset, address recipient, uint256 amount);
@@ -52,6 +53,11 @@ contract SavingsManager is ISavingsManager, PausableModule {
     uint256 constant private MAX_APY = 15e18;
     uint256 constant private TEN_BPS = 1e15;
     uint256 constant private THIRTY_MINUTES = 30 minutes;
+    // Streaming liquidated tokens to SAVE
+    uint256 private constant DURATION = 7 days;
+    // Timestamp for current period finish
+    mapping(address => uint256) public rewardEnd;
+    mapping(address => uint256) public rewardRate;
 
     constructor(
         address _nexus,
@@ -63,6 +69,11 @@ contract SavingsManager is ISavingsManager, PausableModule {
     {
         _updateSavingsContract(_mUSD, _savingsContract);
         emit SavingsContractAdded(_mUSD, _savingsContract);
+    }
+
+    modifier onlyLiquidator() {
+        require(msg.sender == _liquidator(), "Only liquidator can execute");
+        _;
     }
 
     /***************************************
@@ -121,6 +132,42 @@ contract SavingsManager is ISavingsManager, PausableModule {
         emit SavingsRateChanged(_savingsRate);
     }
 
+    /**
+     * @dev Allows the liquidator to deposit proceeds from iquidated gov tokens.
+     * Transfers proceeds on a second by second basis to the Savings Contract over 1 week.
+     * @param _mAsset The mAsset to transfer and distribute
+     * @param _liquidated Units of mAsset to distribute
+     */
+    function depositLiquidation(address _mAsset, uint256 _liquidated)
+        external
+        onlyLiquidator
+    {
+        // transfer liquidated mUSD to here
+        IERC20(_mAsset).safeTransferFrom(_liquidator(), address(this), _liquidated);
+
+        uint256 currentTime = now;
+
+        // Get remaining rewards
+        uint256 end = rewardEnd[_mAsset];
+        uint256 lastUpdate = lastCollection[_mAsset];
+        uint256 unclaimedSeconds = 0;
+        if(currentTime <= end || lastUpdate < end){
+            unclaimedSeconds = end.sub(lastUpdate);
+        }
+        uint256 leftover = unclaimedSeconds.mul(rewardRate[_mAsset]);
+
+        // Distribute reward per second over 7 days
+        rewardRate[_mAsset] = _liquidated.add(leftover).div(DURATION);
+        rewardEnd[_mAsset] = currentTime.add(DURATION);
+
+        // Reset pool data to enable lastCollection usage twice
+        lastPeriodStart[_mAsset] = currentTime;
+        lastCollection[_mAsset] = currentTime;
+        periodYield[_mAsset] = 0;
+
+        emit LiquidatorDeposited(_mAsset, _liquidated);
+    }
+
     /***************************************
                 COLLECTION
     ****************************************/
@@ -169,10 +216,12 @@ contract SavingsManager is ISavingsManager, PausableModule {
             periodYield[_mAsset] = inflationOperand;
         }
 
+        //    Add on liquidated
+        uint256 newReward = _unclaimedRewards(_mAsset, previousCollection);
         // 3. Validate that interest is collected correctly and does not exceed max APY
-        if(interestCollected > 0) {
+        if(interestCollected > 0 || newReward > 0) {
             require(
-                IERC20(_mAsset).balanceOf(address(this)) >= interestCollected,
+                IERC20(_mAsset).balanceOf(address(this)) >= interestCollected.add(newReward),
                 "Must receive mUSD"
             );
 
@@ -185,12 +234,42 @@ contract SavingsManager is ISavingsManager, PausableModule {
             uint256 saversShare = interestCollected.mulTruncate(savingsRate);
 
             //    Call depositInterest on contract
-            savingsContract.depositInterest(saversShare);
+            savingsContract.depositInterest(saversShare.add(newReward));
 
-            emit InterestDistributed(_mAsset, saversShare);
+            emit InterestDistributed(_mAsset, saversShare.add(newReward));
         } else {
             emit InterestCollected(_mAsset, 0, totalSupply, 0);
         }
+    }
+
+    /**
+     * @dev Calculates unclaimed rewards from the liquidation stream
+     * @param _mAsset mAsset key
+     * @param _previousCollection Time of previous collection
+     * @return Units of mAsset that have been unlocked for distribution
+     */
+    function _unclaimedRewards(address _mAsset, uint256 _previousCollection) internal view returns (uint256) {
+        uint256 end = rewardEnd[_mAsset];
+        uint256 unclaimedSeconds = _unclaimedSeconds(_previousCollection, end);
+        return unclaimedSeconds.mul(rewardRate[_mAsset]);
+    }
+
+    /**
+     * @dev Calculates the seconds of unclaimed rewards, based on period length
+     * @param _lastUpdate Time of last update
+     * @param _end End time of period
+     * @return Seconds of stream that should be compensated
+     */
+    function _unclaimedSeconds(uint256 _lastUpdate, uint256 _end) internal view returns (uint256) {
+        uint256 currentTime = block.timestamp;
+        uint256 unclaimedSeconds = 0;
+
+        if(currentTime <= _end){
+            unclaimedSeconds = currentTime.sub(_lastUpdate);
+        } else if(_lastUpdate < _end) {
+            unclaimedSeconds = _end.sub(_lastUpdate);
+        }
+        return unclaimedSeconds;
     }
 
     /**
@@ -205,12 +284,6 @@ contract SavingsManager is ISavingsManager, PausableModule {
         pure
         returns (uint256 extrapolatedAPY)
     {
-        // e.g. day: (86400 * 1e18) / 3.154e7 = 2.74..e15
-        // e.g. 30 mins: (1800 * 1e18) / 3.154e7 = 5.7..e13
-        // e.g. epoch: (1593596907 * 1e18) / 3.154e7 = 50.4..e18
-        uint256 yearsSinceLastCollection =
-            _timeSinceLastCollection.divPrecisely(SECONDS_IN_YEAR);
-
         // Percentage increase in total supply
         // e.g. (1e20 * 1e18) / 1e24 = 1e14 (or a 0.01% increase)
         // e.g. (5e18 * 1e18) / 1.2e24 = 4.1667e12
@@ -218,12 +291,18 @@ contract SavingsManager is ISavingsManager, PausableModule {
         uint256 oldSupply = _newSupply.sub(_interest);
         uint256 percentageIncrease = _interest.divPrecisely(oldSupply);
 
+        //      If over 30 mins, extrapolate APY
+        // e.g. day: (86400 * 1e18) / 3.154e7 = 2.74..e15
+        // e.g. 30 mins: (1800 * 1e18) / 3.154e7 = 5.7..e13
+        // e.g. epoch: (1593596907 * 1e18) / 3.154e7 = 50.4..e18
+        uint256 yearsSinceLastCollection =
+            _timeSinceLastCollection.divPrecisely(SECONDS_IN_YEAR);
+
         // e.g. 0.01% (1e14 * 1e18) / 2.74..e15 = 3.65e16 or 3.65% apr
         // e.g. (4.1667e12 * 1e18) / 5.7..e13 = 7.1e16 or 7.1% apr
         // e.g. (1e16 * 1e18) / 50e18 = 2e14
         extrapolatedAPY = percentageIncrease.divPrecisely(yearsSinceLastCollection);
 
-        //      If over 30 mins, extrapolate APY
         if(_timeSinceLastCollection > THIRTY_MINUTES) {
             require(extrapolatedAPY < MAX_APY, "Interest protected from inflating past maxAPY");
         } else {
