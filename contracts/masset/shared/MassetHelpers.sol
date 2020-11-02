@@ -39,6 +39,26 @@ library MassetHelpers {
         }
     }
 
+    function transferFromSelf(
+        address _recipient,
+        address _basset,
+        bool _erc20TransferFeeCharged,
+        uint256 _qty
+    )
+        internal
+        returns (uint256 receivedQty)
+    {
+        receivedQty = _qty;
+        if(_erc20TransferFeeCharged) {
+            uint256 balBefore = IERC20(_basset).balanceOf(_recipient);
+            IERC20(_basset).safeTransfer(_recipient, _qty);
+            uint256 balAfter = IERC20(_basset).balanceOf(_recipient);
+            receivedQty = StableMath.min(_qty, balAfter.sub(balBefore));
+        } else {
+            IERC20(_basset).safeTransfer(_recipient, _qty);
+        }
+    }
+
     function safeInfiniteApprove(address _asset, address _spender)
         internal
     {

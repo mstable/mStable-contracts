@@ -23,8 +23,8 @@ import { InitializableReentrancyGuard } from "../shared/InitializableReentrancyG
  *          basket data to the mAsset and is responsible for keeping accurate records.
  *          BasketManager can also optimise lending pool integrations and perform
  *          re-collateralisation on failed bAssets.
- * @dev     VERSION: 1.0
- *          DATE:    2020-05-05
+ * @dev     VERSION: 1.1
+ *          DATE:    2020-11-02
  */
 contract BasketManager is
     Initializable,
@@ -236,11 +236,18 @@ contract BasketManager is
         gains = new uint256[](count);
         interestCollected = 0;
 
+        address mAsset_ = mAsset;
+
         // foreach bAsset
         for(uint8 i = 0; i < count; i++) {
             Basset memory b = allBassets[i];
+            address bAsset = b.addr;
+
             // call each integration to `checkBalance`
-            uint256 balance = IPlatformIntegration(integrations[i]).checkBalance(b.addr);
+            uint256 lending = IPlatformIntegration(integrations[i]).checkBalance(bAsset);
+            uint256 cache = IERC20(bAsset).balanceOf(mAsset_);
+            uint256 balance = lending.add(cache);
+
             uint256 oldVaultBalance = b.vaultBalance;
 
             // accumulate interest (ratioed bAsset)

@@ -26,8 +26,8 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @notice  The Masset is a token that allows minting and redemption at a 1:1 ratio
  *          for underlying basket assets (bAssets) of the same peg (i.e. USD,
  *          EUR, Gold). Composition and validation is enforced via the BasketManager.
- * @dev     VERSION: 1.1
- *          DATE:    2020-06-30
+ * @dev     VERSION: 2.0
+ *          DATE:    2020-11-02
  */
 contract Masset is
     Initializable,
@@ -63,6 +63,10 @@ contract Masset is
     // RELEASE 1.1 VARS
     uint256 public redemptionFee;
 
+    // RELEASE 2.0 VARS
+    uint256 public cacheSize;
+    uint256 public surplus;
+
     /**
      * @dev Constructor
      * @notice To avoid variable shadowing appended `Arg` after arguments name.
@@ -86,7 +90,7 @@ contract Masset is
         basketManager = IBasketManager(_basketManager);
 
         MAX_FEE = 2e16;
-        swapFee = 4e15;
+        swapFee = 6e14;
     }
 
     /**
@@ -260,23 +264,28 @@ contract Masset is
         internal
         returns (uint256 quantityDeposited, uint256 ratioedDeposit)
     {
-        quantityDeposited = _depositTokens(_bAsset, _integrator, _erc20TransferFeeCharged, _quantity);
-        ratioedDeposit = quantityDeposited.mulRatioTruncate(_bAssetRatio);
-    }
+        // todo - move this outside of func to reduce SLOAD
+        uint256 supply = totalSupply();
+        uint256 maxCache = cacheSize.mulTruncate(supply);
+        // end move
+        uint256 relativeMaxCache = maxCache.divRatioPrecisely(_bAssetRatio);
+        uint256 relativeMedCache = relativeMaxCache.div(2);
+        // todo - handle 0% and 100%
+        // todo - handle transfer fee in mass deposit
+        uint256 cacheBal = IERC20(_bAsset).balanceOf(address(this));
+        uint256 prospectiveBal = cacheBal.add(_quantity);
+        if(prospectiveBal >= relativeMaxCache){
+            uint256 quantityTransferred = MassetHelpers.transferTokens(msg.sender, _integrator, _bAsset, _erc20TransferFeeCharged, _quantity);
+            uint256 delta = cacheBal.sub(relativeMedCache);
+            uint256 deltaTransferred = MassetHelpers.transferFromSelf(_integrator, _bAsset, _erc20TransferFeeCharged, delta);
+            // uint256 deposited = IPlatformIntegration(_integrator).deposit(_bAsset, deltaTransferred.add(quantityTransferred), _erc20TransferFeeCharged);
+            // todo - handle churning of fee enabled funds
+            quantityDeposited = StableMath.min(quantityTransferred, _quantity);
+        } else {
+            quantityDeposited = MassetHelpers.transferTokens(msg.sender, address(this), _bAsset, _erc20TransferFeeCharged, _quantity);
+        }
 
-    /** @dev Deposits tokens into the platform integration and returns the deposited amount */
-    function _depositTokens(
-        address _bAsset,
-        address _integrator,
-        bool _erc20TransferFeeCharged,
-        uint256 _quantity
-    )
-        internal
-        returns (uint256 quantityDeposited)
-    {
-        uint256 quantityTransferred = MassetHelpers.transferTokens(msg.sender, _integrator, _bAsset, _erc20TransferFeeCharged, _quantity);
-        uint256 deposited = IPlatformIntegration(_integrator).deposit(_bAsset, quantityTransferred, _erc20TransferFeeCharged);
-        quantityDeposited = StableMath.min(deposited, _quantity);
+        ratioedDeposit = quantityDeposited.mulRatioTruncate(_bAssetRatio);
     }
 
 
@@ -320,7 +329,8 @@ contract Masset is
         require(isValid, reason);
 
         // 3. Deposit the input tokens
-        uint256 quantitySwappedIn = _depositTokens(_input, inputDetails.integrator, inputDetails.bAsset.isTransferFeeCharged, _quantity);
+        (uint256 quantitySwappedIn, ) =
+            _depositTokens(_input, inputDetails.bAsset.ratio, inputDetails.integrator, inputDetails.bAsset.isTransferFeeCharged, _quantity);
         // 3.1. Update the input balance
         basketManager.increaseVaultBalance(inputDetails.index, inputDetails.integrator, quantitySwappedIn);
 
