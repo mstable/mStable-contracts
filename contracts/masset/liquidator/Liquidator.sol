@@ -9,6 +9,7 @@ import { InitializableModule } from "../../shared/InitializableModule.sol";
 import { ILiquidator } from "./ILiquidator.sol";
 import { MassetHelpers } from "../../masset/shared/MassetHelpers.sol";
 
+import { IBasicToken } from "../../shared/IBasicToken.sol";
 import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -40,6 +41,7 @@ contract Liquidator is
     uint256 private interval = 7 days;
 
     mapping(address => Liquidation) public liquidations;
+    mapping(address => uint256) public minReturn;
 
     struct Liquidation {
         address sellToken;
@@ -85,6 +87,7 @@ contract Liquidator is
     * @param _curvePosition Position of the bAsset in Curves MetaPool
     * @param _uniswapPath The Uniswap path as an array of addresses e.g. [COMP, WETH, DAI]
     * @param _trancheAmount The amount of bAsset units to buy in each weekly tranche
+    * @param _minReturn Minimum exact amount of bAsset to get for each (whole) sellToken unit
     */
     function createLiquidation(
         address _integration,
@@ -92,7 +95,8 @@ contract Liquidator is
         address _bAsset,
         int128 _curvePosition,
         address[] calldata _uniswapPath,
-        uint256 _trancheAmount
+        uint256 _trancheAmount,
+        uint256 _minReturn
     )
         external
         onlyGovernance
@@ -103,7 +107,8 @@ contract Liquidator is
             _integration != address(0) &&
             _sellToken != address(0) &&
             _bAsset != address(0) &&
-            _uniswapPath.length >= 2,
+            _uniswapPath.length >= 2 &&
+            _minReturn > 0,
             "Invalid inputs"
         );
         require(_validUniswapPath(_sellToken, _bAsset, _uniswapPath), "Invalid uniswap path");
@@ -116,6 +121,7 @@ contract Liquidator is
             lastTriggered: 0,
             trancheAmount: _trancheAmount
         });
+        minReturn[_integration] = _minReturn;
 
         emit LiquidationModified(_integration);
     }
@@ -127,13 +133,15 @@ contract Liquidator is
     * @param _curvePosition Position of the bAsset in Curves MetaPool
     * @param _uniswapPath The Uniswap path as an array of addresses e.g. [COMP, WETH, DAI]
     * @param _trancheAmount The amount of bAsset units to buy in each weekly tranche
+    * @param _minReturn Minimum exact amount of bAsset to get for each (whole) sellToken unit
     */
     function updateBasset(
         address _integration,
         address _bAsset,
         int128 _curvePosition,
         address[] calldata _uniswapPath,
-        uint256 _trancheAmount
+        uint256 _trancheAmount,
+        uint256 _minReturn
     )
         external
         onlyGovernance
@@ -142,7 +150,8 @@ contract Liquidator is
 
         address oldBasset = liquidation.bAsset;
         require(oldBasset != address(0), "Liquidation does not exist");
-        
+
+        require(_minReturn > 0, "Must set some minimum value");
         require(_bAsset != address(0), "Invalid bAsset");
         require(_validUniswapPath(liquidation.sellToken, _bAsset, _uniswapPath), "Invalid uniswap path");
 
@@ -150,6 +159,7 @@ contract Liquidator is
         liquidations[_integration].curvePosition = _curvePosition;
         liquidations[_integration].uniswapPath = _uniswapPath;
         liquidations[_integration].trancheAmount = _trancheAmount;
+        minReturn[_integration] = _minReturn;
 
         emit LiquidationModified(_integration);
     }
@@ -197,6 +207,9 @@ contract Liquidator is
     function triggerLiquidation(address _integration)
         external
     {
+        // solium-disable-next-line security/no-tx-origin
+        require(tx.origin == msg.sender, "Must be EOA");
+
         Liquidation memory liquidation = liquidations[_integration];
 
         address bAsset = liquidation.bAsset;
@@ -234,19 +247,23 @@ contract Liquidator is
         IERC20(sellToken).safeApprove(address(uniswap), 0);
         IERC20(sellToken).safeApprove(address(uniswap), sellAmount);
         // 3.2. Make the sale > https://uniswap.org/docs/v2/smart-contracts/router02/#swapexacttokensfortokens
+
+        // min amount out = sellAmount * priceFloor / 1e18
+        // e.g. 1e18 * 100e6 / 1e18 = 100e6
+        // e.g. 30e8 * 1e18 / 1e8 = 30e18
+        uint256 sellTokenDec = IBasicToken(sellToken).decimals();
+        uint256 minOut = sellAmount.mul(minReturn[_integration]).div(10 ** sellTokenDec);
+        require(minOut > 0, "Must have some price floor");
         uniswap.swapExactTokensForTokens(
             sellAmount,
-            0,
+            minOut,
             uniswapPath,
             address(this),
             block.timestamp.add(1800)
         );
-        uint256 bAssetBal = IERC20(bAsset).balanceOf(address(this));
 
         // 3.3. Trade on Curve
-        IERC20(bAsset).safeApprove(address(curve), 0);
-        IERC20(bAsset).safeApprove(address(curve), bAssetBal);
-        uint256 purchased = curve.exchange_underlying(liquidation.curvePosition, 0, bAssetBal, 0);
+        uint256 purchased = _sellOnCrv(bAsset, liquidation.curvePosition);
 
         // 4.0. Send to SavingsManager
         address savings = _savingsManager();
@@ -255,5 +272,16 @@ contract Liquidator is
         ISavingsManager(savings).depositLiquidation(mUSD, purchased);
 
         emit Liquidated(sellToken, mUSD, purchased, bAsset);
+    }
+
+    function _sellOnCrv(address _bAsset, int128 _curvePosition) internal returns (uint256 purchased) {
+        uint256 bAssetBal = IERC20(_bAsset).balanceOf(address(this));
+
+        IERC20(_bAsset).safeApprove(address(curve), 0);
+        IERC20(_bAsset).safeApprove(address(curve), bAssetBal);
+        uint256 bAssetDec = IBasicToken(_bAsset).decimals();
+        // e.g. 100e6 * 95e16 / 1e6 = 100e18
+        uint256 minOutCrv = bAssetBal.mul(95e16).div(10 ** bAssetDec);
+        purchased = curve.exchange_underlying(_curvePosition, 0, bAssetBal, minOutCrv);
     }
 }
