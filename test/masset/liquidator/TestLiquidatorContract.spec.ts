@@ -8,6 +8,7 @@ import * as t from "types/generated";
 
 import shouldBehaveLikeModule from "../../shared/behaviours/Module.behaviour";
 
+const MockTrigger = artifacts.require("MockTrigger");
 const Liquidator = artifacts.require("Liquidator");
 const MockCompoundIntegration = artifacts.require("MockCompoundIntegration1");
 const SavingsManager = artifacts.require("SavingsManager");
@@ -160,7 +161,7 @@ contract("Liquidator", async (accounts) => {
                     1,
                     [compToken.address, ZERO_ADDRESS, bAsset.address],
                     simpleToExactAmount(1000, 18),
-                    simpleToExactAmount(70, 6),
+                    simpleToExactAmount(70, 18),
                     { from: sa.governor },
                 );
                 const liquidation = await getLiquidation(compIntegration.address);
@@ -169,7 +170,7 @@ contract("Liquidator", async (accounts) => {
                 expect(liquidation.curvePosition).bignumber.eq(new BN(1));
                 expect(liquidation.lastTriggered).bignumber.eq(new BN(0));
                 expect(liquidation.sellTranche).bignumber.eq(simpleToExactAmount(1000, 18));
-                expect(liquidation.minReturn).bignumber.eq(simpleToExactAmount(70, 6));
+                expect(liquidation.minReturn).bignumber.eq(simpleToExactAmount(70, 18));
             });
         });
         describe("triggering a liquidation", () => {
@@ -216,7 +217,7 @@ contract("Liquidator", async (accounts) => {
                     1,
                     [compToken.address, ZERO_ADDRESS, bAsset.address],
                     simpleToExactAmount(1, 18),
-                    simpleToExactAmount(70, 6),
+                    simpleToExactAmount(70, 18),
                     { from: sa.governor },
                 ),
                 "Invalid inputs",
@@ -231,7 +232,7 @@ contract("Liquidator", async (accounts) => {
                     1,
                     [compToken.address, ZERO_ADDRESS, bAsset2.address],
                     simpleToExactAmount(1, 18),
-                    simpleToExactAmount(70, 6),
+                    simpleToExactAmount(70, 18),
                     { from: sa.governor },
                 ),
                 "Invalid uniswap path",
@@ -245,7 +246,7 @@ contract("Liquidator", async (accounts) => {
                     1,
                     [compToken.address, ZERO_ADDRESS],
                     simpleToExactAmount(1, 18),
-                    simpleToExactAmount(70, 6),
+                    simpleToExactAmount(70, 18),
                     { from: sa.governor },
                 ),
                 "Invalid uniswap path",
@@ -259,7 +260,7 @@ contract("Liquidator", async (accounts) => {
                 1,
                 [compToken.address, ZERO_ADDRESS, bAsset.address],
                 simpleToExactAmount(1000, 18),
-                simpleToExactAmount(70, 6),
+                simpleToExactAmount(70, 18),
                 { from: sa.governor },
             );
             const liquidation = await getLiquidation(compIntegration.address);
@@ -268,6 +269,7 @@ contract("Liquidator", async (accounts) => {
             expect(liquidation.curvePosition).bignumber.eq(new BN(1));
             expect(liquidation.lastTriggered).bignumber.eq(new BN(0));
             expect(liquidation.sellTranche).bignumber.eq(simpleToExactAmount(1000, 18));
+            expect(liquidation.minReturn).bignumber.eq(simpleToExactAmount(70, 18));
             await expectRevert(
                 liquidator.createLiquidation(
                     compIntegration.address,
@@ -276,7 +278,7 @@ contract("Liquidator", async (accounts) => {
                     1,
                     [compToken.address, ZERO_ADDRESS, bAsset.address],
                     simpleToExactAmount(1000, 18),
-                    simpleToExactAmount(70, 6),
+                    simpleToExactAmount(70, 18),
                     { from: sa.governor },
                 ),
                 "Liquidation exists for this bAsset",
@@ -293,7 +295,7 @@ contract("Liquidator", async (accounts) => {
                 1,
                 [compToken.address, ZERO_ADDRESS, bAsset.address],
                 simpleToExactAmount(1000, 18),
-                simpleToExactAmount(70, 6),
+                simpleToExactAmount(70, 18),
                 { from: sa.governor },
             );
         });
@@ -306,7 +308,7 @@ contract("Liquidator", async (accounts) => {
                         1,
                         [],
                         simpleToExactAmount(1, 18),
-                        simpleToExactAmount(70, 6),
+                        simpleToExactAmount(70, 18),
                         {
                             from: sa.governor,
                         },
@@ -322,7 +324,7 @@ contract("Liquidator", async (accounts) => {
                         1,
                         [],
                         simpleToExactAmount(1, 18),
-                        simpleToExactAmount(70, 6),
+                        simpleToExactAmount(70, 18),
                         {
                             from: sa.governor,
                         },
@@ -338,7 +340,7 @@ contract("Liquidator", async (accounts) => {
                         1,
                         [bAsset2.address],
                         simpleToExactAmount(1, 18),
-                        simpleToExactAmount(70, 6),
+                        simpleToExactAmount(70, 18),
                         {
                             from: sa.governor,
                         },
@@ -354,7 +356,7 @@ contract("Liquidator", async (accounts) => {
                     2,
                     [compToken.address, ZERO_ADDRESS, bAsset2.address],
                     simpleToExactAmount(123, 18),
-                    simpleToExactAmount(70, 6),
+                    simpleToExactAmount(70, 18),
                     { from: sa.governor },
                 );
                 expectEvent(tx.receipt, "LiquidationModified", {
@@ -400,10 +402,17 @@ contract("Liquidator", async (accounts) => {
                 1,
                 [compToken.address, ZERO_ADDRESS, bAsset.address],
                 simpleToExactAmount(1000, 18),
-                simpleToExactAmount(70, 6),
+                simpleToExactAmount(70, 18),
                 { from: sa.governor },
             );
             await compIntegration.approveRewardToken({ from: sa.governor });
+        });
+        it("should fail if called via contract", async () => {
+            const mock = await MockTrigger.new();
+            await expectRevert(
+                mock.trigger(liquidator.address, compIntegration.address),
+                "Must be EOA",
+            );
         });
         it("should fail if liquidation does not exist", async () => {
             await expectRevert(
@@ -418,6 +427,25 @@ contract("Liquidator", async (accounts) => {
                 "Must wait for interval",
             );
         });
+        it("should fail if Uniswap price is below the floor", async () => {
+            await uniswap.setRatio(69);
+            await expectRevert(
+                liquidator.triggerLiquidation(compIntegration.address),
+                "UNI: Output amount not enough",
+            );
+            await uniswap.setRatio(71);
+            await liquidator.triggerLiquidation(compIntegration.address);
+        });
+
+        it("should fail if Curve price is below the floor", async () => {
+            await curve.setRatio(simpleToExactAmount(9, 17));
+            await expectRevert(
+                liquidator.triggerLiquidation(compIntegration.address),
+                "CRV: Output amount not enough",
+            );
+            await curve.setRatio(simpleToExactAmount(96, 16));
+            await liquidator.triggerLiquidation(compIntegration.address);
+        });
         it("should sell everything if the liquidator has less balance than tranche size", async () => {
             const s0 = await snapshotData();
             await liquidator.updateBasset(
@@ -426,7 +454,7 @@ contract("Liquidator", async (accounts) => {
                 1,
                 [compToken.address, ZERO_ADDRESS, bAsset.address],
                 simpleToExactAmount(1, 30),
-                simpleToExactAmount(70, 6),
+                simpleToExactAmount(70, 18),
                 { from: sa.governor },
             );
             // set tranche size to 1e30
@@ -451,7 +479,7 @@ contract("Liquidator", async (accounts) => {
                 1,
                 [compToken.address, ZERO_ADDRESS, bAsset.address],
                 new BN(0),
-                simpleToExactAmount(70, 6),
+                simpleToExactAmount(70, 18),
                 { from: sa.governor },
             );
             await expectRevert(

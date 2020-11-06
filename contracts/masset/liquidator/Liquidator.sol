@@ -190,6 +190,8 @@ contract Liquidator is
         require(liquidation.bAsset != address(0), "Liquidation does not exist");
 
         delete liquidations[_integration];
+        delete minReturn[_integration];
+
         emit LiquidationEnded(_integration);
     }
 
@@ -250,7 +252,8 @@ contract Liquidator is
 
         // min amount out = sellAmount * priceFloor / 1e18
         // e.g. 1e18 * 100e6 / 1e18 = 100e6
-        // e.g. 30e8 * 1e18 / 1e8 = 30e18
+        // e.g. 30e8 * 100e6 / 1e8 = 3000e6
+        // e.g. 30e18 * 100e18 / 1e18 = 3000e18
         uint256 sellTokenDec = IBasicToken(sellToken).decimals();
         uint256 minOut = sellAmount.mul(minReturn[_integration]).div(10 ** sellTokenDec);
         require(minOut > 0, "Must have some price floor");

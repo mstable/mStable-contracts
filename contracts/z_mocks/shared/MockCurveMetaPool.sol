@@ -11,6 +11,9 @@ contract MockCurveMetaPool is ICurveMetaPool {
 
     address[] public coins;
     address mUSD;
+    // number of out per in (scaled)
+    uint256 ratio = 98e16;
+
 
     constructor(address[] memory _coins, address _mUSD) public {
         require(_coins[0] == _mUSD, "Coin 0 must be mUSD");
@@ -18,15 +21,20 @@ contract MockCurveMetaPool is ICurveMetaPool {
         mUSD = _mUSD;
     }
 
+    function setRatio(uint256 _newRatio) external {
+        ratio = _newRatio;
+    }
+
     // takes dx i from sender, returns j
-    function exchange_underlying(int128 i, int128 j, uint256 dx, uint256 /*min_dy*/)
+    function exchange_underlying(int128 i, int128 j, uint256 dx, uint256 min_dy)
         external
         returns (uint256)
     {
         require(j == 0, "Output must be mUSD");
         address in_tok = coins[uint256(i)];
         uint256 decimals = IBasicToken(in_tok).decimals();
-        uint256 out_amt = dx * (10 ** (18 - decimals));
+        uint256 out_amt = dx * (10 ** (18 - decimals)) * ratio / 1e18;
+        require(out_amt >= min_dy, "CRV: Output amount not enough");
         IERC20(in_tok).transferFrom(msg.sender, address(this), dx);
         IERC20(mUSD).transfer(msg.sender, out_amt);
         return out_amt;
