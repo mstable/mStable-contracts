@@ -22,14 +22,14 @@ library MassetHelpers {
         address _sender,
         address _recipient,
         address _basset,
-        bool _erc20TransferFeeCharged,
+        bool _hasTxFee,
         uint256 _qty
     )
         internal
         returns (uint256 receivedQty)
     {
         receivedQty = _qty;
-        if(_erc20TransferFeeCharged) {
+        if(_hasTxFee) {
             uint256 balBefore = IERC20(_basset).balanceOf(_recipient);
             IERC20(_basset).safeTransferFrom(_sender, _recipient, _qty);
             uint256 balAfter = IERC20(_basset).balanceOf(_recipient);

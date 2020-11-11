@@ -23,13 +23,13 @@ contract AaveIntegration is InitializableAbstractIntegration {
      *      (mAsset and corresponding BasketManager)
      * @param _bAsset              Address for the bAsset
      * @param _amount              Units of bAsset to deposit
-     * @param _isTokenFeeCharged   Flag that signals if an xfer fee is charged on bAsset
+     * @param _hasTxFee   Flag that signals if an xfer fee is charged on bAsset
      * @return quantityDeposited   Quantity of bAsset that entered the platform
      */
     function deposit(
         address _bAsset,
         uint256 _amount,
-        bool _isTokenFeeCharged
+        bool _hasTxFee
     )
         external
         onlyWhitelisted
@@ -45,7 +45,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
 
         uint16 referralCode = 36; // temp code
 
-        if(_isTokenFeeCharged) {
+        if(_hasTxFee) {
             // If we charge a fee, account for it
             uint256 prevBal = _checkBalance(aToken);
             _getLendingPool().deposit(_bAsset, _amount, referralCode);
@@ -64,13 +64,16 @@ contract AaveIntegration is InitializableAbstractIntegration {
      *      should fail if we have insufficient balance on the platform.
      * @param _receiver     Address to which the bAsset should be sent
      * @param _bAsset       Address of the bAsset
-     * @param _amount       Units of bAsset to withdraw
+     * @param _amount       Units of bAsset to send to recipient
+     * @param _totalAmount  Total units to pull from lending platform
+     * @param _hasTxFee     Is the bAsset known to have a tx fee?
      */
     function withdraw(
         address _receiver,
         address _bAsset,
         uint256 _amount,
-        bool _isTokenFeeCharged
+        uint256 _totalAmount,
+        bool _hasTxFee
     )
         external
         onlyWhitelisted
@@ -83,20 +86,44 @@ contract AaveIntegration is InitializableAbstractIntegration {
         uint256 quantityWithdrawn = _amount;
 
         // Don't need to Approve aToken, as it gets burned in redeem()
-        if(_isTokenFeeCharged) {
+        if(_hasTxFee) {
+            require(_amount == _totalAmount, "Cache inactive for assets with fee");
             IERC20 b = IERC20(_bAsset);
             uint256 prevBal = b.balanceOf(address(this));
-            aToken.redeem(_amount);
+            aToken.redeem(_totalAmount);
             uint256 newBal = b.balanceOf(address(this));
             quantityWithdrawn = _min(quantityWithdrawn, newBal.sub(prevBal));
         } else {
-            aToken.redeem(_amount);
+            aToken.redeem(_totalAmount);
         }
 
         // Send redeemed bAsset to the receiver
         IERC20(_bAsset).safeTransfer(_receiver, quantityWithdrawn);
 
         emit Withdrawal(_bAsset, address(aToken), quantityWithdrawn);
+    }
+
+    /**
+     * @dev Withdraw a quantity of bAsset from the cache.
+     * @param _receiver     Address to which the bAsset should be sent
+     * @param _bAsset       Address of the bAsset
+     * @param _amount       Units of bAsset to withdraw
+     */
+    function withdrawRaw(
+        address _receiver,
+        address _bAsset,
+        uint256 _amount
+    )
+        external
+        onlyWhitelisted
+        nonReentrant
+    {
+        require(_amount > 0, "Must withdraw something");
+
+        // Send redeemed bAsset to the receiver
+        IERC20(_bAsset).safeTransfer(_receiver, _amount);
+
+        emit Withdrawal(_bAsset, address(0), _amount);
     }
 
     /**

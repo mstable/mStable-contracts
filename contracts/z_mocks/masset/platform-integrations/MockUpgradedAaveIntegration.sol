@@ -16,7 +16,7 @@ contract AaveIntegrationV2 is InitializableAbstractIntegration {
     function deposit(
         address _bAsset,
         uint256 _amount,
-        bool _isTokenFeeCharged
+        bool _hasTxFee
     )
         external
         onlyWhitelisted
@@ -30,7 +30,7 @@ contract AaveIntegrationV2 is InitializableAbstractIntegration {
 
         uint16 referralCode = 9999; // temp code
 
-        if(_isTokenFeeCharged) {
+        if(_hasTxFee) {
             // If we charge a fee, account for it
             uint256 prevBal = _checkBalance(aToken);
             _getLendingPool().deposit(address(_bAsset), _amount, referralCode);
@@ -48,7 +48,7 @@ contract AaveIntegrationV2 is InitializableAbstractIntegration {
         address _receiver,
         address _bAsset,
         uint256 _amount,
-        bool /*_isTokenFeeCharged*/
+        bool /*_hasTxFee*/
     )
         external
         onlyWhitelisted
@@ -183,7 +183,7 @@ contract AaveIntegrationV3 is InitializableAbstractIntegration {
     function deposit(
         address _bAsset,
         uint256 _amount,
-        bool _isTokenFeeCharged
+        bool _hasTxFee
     )
         external
         onlyWhitelisted
@@ -197,7 +197,7 @@ contract AaveIntegrationV3 is InitializableAbstractIntegration {
 
         uint16 referralCode = 9999; // temp code
 
-        if(_isTokenFeeCharged) {
+        if(_hasTxFee) {
             // If we charge a fee, account for it
             uint256 prevBal = _checkBalance(aToken);
             _getLendingPool().deposit(address(_bAsset), _amount, referralCode);
@@ -215,7 +215,7 @@ contract AaveIntegrationV3 is InitializableAbstractIntegration {
         address _receiver,
         address _bAsset,
         uint256 _amount,
-        bool /*_isTokenFeeCharged*/
+        bool /*_hasTxFee*/
     )
         external
         onlyWhitelisted

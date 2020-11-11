@@ -49,13 +49,13 @@ contract CompoundIntegration is InitializableAbstractIntegration {
      *      (mAsset and corresponding BasketManager)
      * @param _bAsset              Address for the bAsset
      * @param _amount              Units of bAsset to deposit
-     * @param _isTokenFeeCharged   Flag that signals if an xfer fee is charged on bAsset
+     * @param _hasTxFee   Flag that signals if an xfer fee is charged on bAsset
      * @return quantityDeposited   Quantity of bAsset that entered the platform
      */
     function deposit(
         address _bAsset,
         uint256 _amount,
-        bool _isTokenFeeCharged
+        bool _hasTxFee
     )
         external
         onlyWhitelisted
@@ -70,7 +70,7 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         // We should have been sent this amount, if not, the deposit will fail
         quantityDeposited = _amount;
 
-        if(_isTokenFeeCharged) {
+        if(_hasTxFee) {
             // If we charge a fee, account for it
             uint256 prevBal = _checkBalance(cToken);
             require(cToken.mint(_amount) == 0, "cToken mint failed");
@@ -90,12 +90,15 @@ contract CompoundIntegration is InitializableAbstractIntegration {
      * @param _receiver     Address to which the withdrawn bAsset should be sent
      * @param _bAsset       Address of the bAsset
      * @param _amount       Units of bAsset to withdraw
+     * @param _totalAmount  Total units to pull from lending platform
+     * @param _hasTxFee     Is the bAsset known to have a tx fee?
      */
     function withdraw(
         address _receiver,
         address _bAsset,
         uint256 _amount,
-        bool _isTokenFeeCharged
+        uint256 _totalAmount,
+        bool _hasTxFee
     )
         external
         onlyWhitelisted
@@ -117,15 +120,16 @@ contract CompoundIntegration is InitializableAbstractIntegration {
 
         uint256 quantityWithdrawn = _amount;
 
-        if(_isTokenFeeCharged) {
+        if(_hasTxFee) {
+            require(_amount == _totalAmount, "Cache inactive for assets with fee");
             IERC20 b = IERC20(_bAsset);
             uint256 prevBal = b.balanceOf(address(this));
-            require(cToken.redeemUnderlying(_amount) == 0, "redeem failed");
+            require(cToken.redeemUnderlying(_totalAmount) == 0, "redeem failed");
             uint256 newBal = b.balanceOf(address(this));
             quantityWithdrawn = _min(quantityWithdrawn, newBal.sub(prevBal));
         } else {
             // Redeem Underlying bAsset amount
-            require(cToken.redeemUnderlying(_amount) == 0, "redeem failed");
+            require(cToken.redeemUnderlying(_totalAmount) == 0, "redeem failed");
         }
 
         // Send redeemed bAsset to the receiver
