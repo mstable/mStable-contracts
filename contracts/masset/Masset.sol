@@ -270,8 +270,9 @@ contract Masset is
         returns (uint256 quantityDeposited, uint256 ratioedDeposit)
     {
         // 1 - Send all to PI
-        // todo - confirm that tx sent does not have 
-        uint256 transferred = MassetHelpers.transferTokens(msg.sender, _integrator, _bAsset, _hasTxFee, _quantity);
+        // todo - confirm that tx sent does not have
+        //      - must protect against tx fees being turned on for: USDT + USDC (not DAI, sUSD, TUSD)
+        (uint256 transferred, uint256 cacheBal) = MassetHelpers.transferReturnBalance(msg.sender, _integrator, _bAsset, _quantity);
 
         // 2 - Deposit X if necessary
         //   - Can account here for non-lending market integrated bAssets by simply checking for
@@ -283,10 +284,11 @@ contract Masset is
         }
         // 2.2 - Deposit X if Cache > %
         else {
+            require(transferred == _quantity, "Asset not fully transferred");
+
             quantityDeposited = transferred;
 
             uint256 relativeMaxCache = _maxCache.divRatioPrecisely(_bAssetRatio);
-            uint256 cacheBal = IERC20(_bAsset).balanceOf(_integrator);
 
             if(cacheBal >= relativeMaxCache){
                 uint256 delta = cacheBal.sub(relativeMaxCache.div(2));
@@ -576,7 +578,17 @@ contract Masset is
         uint256 fee = applyFee ? swapFee : 0;
 
         // Apply fees, burn mAsset and return bAsset to recipient
-        _settleRedemption(_recipient, mAssetQuantity, props.bAssets, _bAssetQuantities, props.indexes, props.integrators, fee);
+        _settleRedemption(
+            RedemptionSettlement({
+                recipient: _recipient,
+                mAssetQuantity: mAssetQuantity,
+                bAssetQuantities: _bAssetQuantities,
+                indices: props.indexes,
+                integrators: props.integrators,
+                feeRate: fee,
+                bAssets: props.bAssets
+            })
+        );
 
         emit Redeemed(msg.sender, _recipient, mAssetQuantity, _bAssets, _bAssetQuantities);
         return mAssetQuantity;
@@ -606,66 +618,89 @@ contract Masset is
         require(redemptionValid, reason);
 
         // Apply fees, burn mAsset and return bAsset to recipient
-        _settleRedemption(_recipient, _mAssetQuantity, props.bAssets, bAssetQuantities, props.indexes, props.integrators, redemptionFee);
+        _settleRedemption(
+            RedemptionSettlement({
+                recipient: _recipient,
+                mAssetQuantity: _mAssetQuantity,
+                bAssetQuantities: bAssetQuantities,
+                indices: props.indexes,
+                integrators: props.integrators,
+                feeRate: redemptionFee,
+                bAssets: props.bAssets
+            })
+        );
 
         emit RedeemedMasset(msg.sender, _recipient, _mAssetQuantity);
     }
 
     /**
-     * @dev Internal func to update contract state post-redemption
      * @param _recipient        Recipient of the bAssets
      * @param _mAssetQuantity   Total amount of mAsset to burn from sender
-     * @param _bAssets          Array of bAssets to redeem
      * @param _bAssetQuantities Array of bAsset quantities
      * @param _indices          Matching indices for the bAsset array
      * @param _integrators      Matching integrators for the bAsset array
      * @param _feeRate          Fee rate to be applied to this redemption
+     * @param _bAssets          Array of bAssets to redeem
+     */
+    struct RedemptionSettlement {
+        address recipient;
+        uint256 mAssetQuantity;
+        uint256[] bAssetQuantities;
+        uint8[] indices;
+        address[] integrators;
+        uint256 feeRate;
+        Basset[] bAssets;
+    }
+
+    /**
+     * @dev Internal func to update contract state post-redemption
      */
     function _settleRedemption(
-        address _recipient,
-        uint256 _mAssetQuantity,
-        Basset[] memory _bAssets,
-        uint256[] memory _bAssetQuantities,
-        uint8[] memory _indices,
-        address[] memory _integrators,
-        uint256 _feeRate
+        RedemptionSettlement memory args
     ) internal {
         // Burn the full amount of Masset
-        _burn(msg.sender, _mAssetQuantity);
+        _burn(msg.sender, args.mAssetQuantity);
 
         // Reduce the amount of bAssets marked in the vault
-        basketManager.decreaseVaultBalances(_indices, _integrators, _bAssetQuantities);
+        basketManager.decreaseVaultBalances(args.indices, args.integrators, args.bAssetQuantities);
 
         Cache memory cache = _getCacheSize();
 
         // Transfer the Bassets to the recipient
-        uint256 bAssetCount = _bAssets.length;
+        uint256 bAssetCount = args.bAssets.length;
         for(uint256 i = 0; i < bAssetCount; i++){
-            uint256 q = _bAssetQuantities[i];
+            uint256 q = args.bAssetQuantities[i];
             if(q > 0){
-                address bAsset = _bAssets[i].addr;
-                bool txFee = _bAssets[i].isTransferFeeCharged;
-                address integrator = _integrators[i];
+                address bAsset = args.bAssets[i].addr;
+                address integrator = args.integrators[i];
 
                 // Deduct the redemption fee, if any
-                q = _deductSwapFee(bAsset, q, _feeRate);
+                q = _deductSwapFee(bAsset, q, args.feeRate);
 
-                if(txFee){
-                    IPlatformIntegration(integrator).withdraw(_recipient, bAsset, q, q, txFee);
-                } else {
+                // 1. If txFee then short circuit - there is no cache
+                if(args.bAssets[i].isTransferFeeCharged){
+                    IPlatformIntegration(integrator).withdraw(args.recipient, bAsset, q, q, true);
+                }
+                // 2. Else, withdraw from either cache or main vault
+                else {
                     uint256 cacheBal = IERC20(bAsset).balanceOf(integrator);
-                    // 1 - If balance b in cache, simply withdraw
+                    // 2.1 - If balance b in cache, simply withdraw
                     if(cacheBal > q) {
-                        // withdraw from cache
-                        IPlatformIntegration(integrator).withdrawRaw(_recipient, bAsset, q);
+                        IPlatformIntegration(integrator).withdrawRaw(args.recipient, bAsset, q);
                     }
-                    // 2 - Else if(!txFees)
+                    // 2.2 - Else reset the cache to X
                     //       - Withdraw X+b from platform
                     //       - Send b to user
                     else {
-                        uint256 relativeMidCache = cache.maxCache.divRatioPrecisely(_bAssets[i].ratio).div(2);
-                        uint256 totalWithdrawal = relativeMidCache.sub(cacheBal).add(q);
-                        IPlatformIntegration(integrator).withdraw(_recipient, bAsset, q, totalWithdrawal, txFee);
+                        IPlatformIntegration(integrator).withdraw(
+                            args.recipient,
+                            bAsset,
+                            q,
+                            // uint256 relativeMidCache = cache.maxCache.divRatioPrecisely(args.bAssets[i].ratio).div(2);
+                            // uint256 totalWithdrawal = relativeMidCache.sub(cacheBal).add(q);
+                            cache.maxCache.divRatioPrecisely(args.bAssets[i].ratio).div(2).sub(cacheBal).add(q),
+                            false
+                        );
                     }
                 }
             }
