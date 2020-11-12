@@ -67,7 +67,6 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         // Get the Target token
         ICERC20 cToken = _getCTokenFor(_bAsset);
 
-        // We should have been sent this amount, if not, the deposit will fail
         quantityDeposited = _amount;
 
         if(_hasTxFee) {
@@ -118,24 +117,47 @@ contract CompoundIntegration is InitializableAbstractIntegration {
             return;
         }
 
-        uint256 quantityWithdrawn = _amount;
+        uint256 userWithdrawal = _amount;
 
         if(_hasTxFee) {
             require(_amount == _totalAmount, "Cache inactive for assets with fee");
             IERC20 b = IERC20(_bAsset);
             uint256 prevBal = b.balanceOf(address(this));
-            require(cToken.redeemUnderlying(_totalAmount) == 0, "redeem failed");
+            require(cToken.redeemUnderlying(_amount) == 0, "redeem failed");
             uint256 newBal = b.balanceOf(address(this));
-            quantityWithdrawn = _min(quantityWithdrawn, newBal.sub(prevBal));
+            userWithdrawal = _min(userWithdrawal, newBal.sub(prevBal));
         } else {
             // Redeem Underlying bAsset amount
             require(cToken.redeemUnderlying(_totalAmount) == 0, "redeem failed");
         }
 
         // Send redeemed bAsset to the receiver
-        IERC20(_bAsset).safeTransfer(_receiver, quantityWithdrawn);
+        IERC20(_bAsset).safeTransfer(_receiver, userWithdrawal);
 
-        emit Withdrawal(_bAsset, address(cToken), quantityWithdrawn);
+        emit Withdrawal(_bAsset, address(cToken), userWithdrawal);
+    }
+
+    /**
+     * @dev Withdraw a quantity of bAsset from the cache.
+     * @param _receiver     Address to which the bAsset should be sent
+     * @param _bAsset       Address of the bAsset
+     * @param _amount       Units of bAsset to withdraw
+     */
+    function withdrawRaw(
+        address _receiver,
+        address _bAsset,
+        uint256 _amount
+    )
+        external
+        onlyWhitelisted
+        nonReentrant
+    {
+        require(_amount > 0, "Must withdraw something");
+
+        // Send redeemed bAsset to the receiver
+        IERC20(_bAsset).safeTransfer(_receiver, _amount);
+
+        emit Withdrawal(_bAsset, address(0), _amount);
     }
 
     /**

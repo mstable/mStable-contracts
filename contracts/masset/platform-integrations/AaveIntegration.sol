@@ -40,7 +40,6 @@ contract AaveIntegration is InitializableAbstractIntegration {
         // Get the Target token
         IAaveAToken aToken = _getATokenFor(_bAsset);
 
-        // We should have been sent this amount, if not, the deposit will fail
         quantityDeposited = _amount;
 
         uint16 referralCode = 36; // temp code
@@ -83,7 +82,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
         // Get the Target token
         IAaveAToken aToken = _getATokenFor(_bAsset);
 
-        uint256 quantityWithdrawn = _amount;
+        uint256 userWithdrawal = _amount;
 
         // Don't need to Approve aToken, as it gets burned in redeem()
         if(_hasTxFee) {
@@ -92,15 +91,15 @@ contract AaveIntegration is InitializableAbstractIntegration {
             uint256 prevBal = b.balanceOf(address(this));
             aToken.redeem(_totalAmount);
             uint256 newBal = b.balanceOf(address(this));
-            quantityWithdrawn = _min(quantityWithdrawn, newBal.sub(prevBal));
+            userWithdrawal = _min(userWithdrawal, newBal.sub(prevBal));
         } else {
             aToken.redeem(_totalAmount);
         }
 
         // Send redeemed bAsset to the receiver
-        IERC20(_bAsset).safeTransfer(_receiver, quantityWithdrawn);
+        IERC20(_bAsset).safeTransfer(_receiver, userWithdrawal);
 
-        emit Withdrawal(_bAsset, address(aToken), quantityWithdrawn);
+        emit Withdrawal(_bAsset, address(aToken), userWithdrawal);
     }
 
     /**

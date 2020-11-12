@@ -284,6 +284,8 @@ contract Masset is
         }
         // 2.2 - Deposit X if Cache > %
         else {
+            // This check is in place to ensure that any token with a txFee is rejected
+            // Audit notes: Assumption made that if no fee is collected here then there is no txfee
             require(transferred == _quantity, "Asset not fully transferred");
 
             quantityDeposited = transferred;
