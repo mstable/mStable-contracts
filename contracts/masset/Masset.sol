@@ -375,7 +375,8 @@ contract Masset is
                 hasTxFee: outputDetails.bAsset.isTransferFeeCharged,
                 recipient: args.recipient,
                 ratio: outputDetails.bAsset.ratio,
-                maxCache: cache.maxCache
+                maxCache: cache.maxCache,
+                vaultBalance: outputDetails.bAsset.vaultBalance
             })
         );
 
@@ -682,7 +683,8 @@ contract Masset is
                     hasTxFee: args.bAssets[i].isTransferFeeCharged,
                     recipient: args.recipient,
                     ratio: args.bAssets[i].ratio,
-                    maxCache: cache.maxCache
+                    maxCache: cache.maxCache,
+                    vaultBalance: args.bAssets[i].vaultBalance
                 })
             );
         }
@@ -697,6 +699,7 @@ contract Masset is
         address recipient;
         uint256 ratio;
         uint256 maxCache;
+        uint256 vaultBalance;
     }
 
     function _withdrawTokens(WithdrawArgs memory args) internal returns (uint256 netAmount) {
@@ -716,12 +719,13 @@ contract Masset is
                 if(cacheBal > netAmount) {
                     IPlatformIntegration(args.integrator).withdrawRaw(args.recipient, args.bAsset, netAmount);
                 }
-                // 2.2 - Else reset the cache to X
+                // 2.2 - Else reset the cache to X, or as far as possible
                 //       - Withdraw X+b from platform
                 //       - Send b to user
                 else {
                     uint256 relativeMidCache = args.maxCache.divRatioPrecisely(args.ratio).div(2);
-                    uint256 totalWithdrawal = relativeMidCache.sub(cacheBal).add(netAmount);
+                    // mid = 100, vaultBalance = 40
+                    uint256 totalWithdrawal = StableMath.min(relativeMidCache.sub(cacheBal).add(netAmount), args.vaultBalance);
                     // uint256 totalWithdrawal = args.maxCache.divRatioPrecisely(args.ratio).div(2).sub(cacheBal).add(netAmount);
                     IPlatformIntegration(args.integrator).withdraw(
                         args.recipient,
