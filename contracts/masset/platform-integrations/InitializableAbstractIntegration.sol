@@ -135,31 +135,11 @@ contract InitializableAbstractIntegration is
                     ABSTRACT
     ****************************************/
 
-    /**
-     * @dev Deposit a quantity of bAsset into the platform
-     * @param _bAsset              Address for the bAsset
-     * @param _amount              Units of bAsset to deposit
-     * @param _hasTxFee   Flag that signals if an xfer fee is charged on bAsset
-     * @return quantityDeposited   Quantity of bAsset that entered the platform
-     */
     function deposit(address _bAsset, uint256 _amount, bool _hasTxFee)
         external returns (uint256 quantityDeposited);
 
-    /**
-     * @dev Withdraw a quantity of bAsset from the platform
-     * @param _receiver          Address to which the bAsset should be sent
-     * @param _bAsset            Address of the bAsset
-     * @param _amount            Units of bAsset to withdraw
-     * @param _hasTxFee Flag that signals if an xfer fee is charged on bAsset
-     */
-    function withdraw(address _receiver, address _bAsset, uint256 _amount, bool _hasTxFee) external;
+    function withdraw(address _receiver, address _bAsset, uint256 _amount, uint256 _totalAmount, bool _hasTxFee) external;
 
-    /**
-     * @dev Get the total bAsset value held in the platform
-     * This includes any interest that was generated since depositing
-     * @param _bAsset     Address of the bAsset
-     * @return balance    Total value of the bAsset in the platform
-     */
     function checkBalance(address _bAsset) external returns (uint256 balance);
 
     /***************************************

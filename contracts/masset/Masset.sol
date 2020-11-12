@@ -91,6 +91,8 @@ contract Masset is
 
         MAX_FEE = 2e16;
         swapFee = 6e14;
+        redemptionFee = 3e14;
+        cacheSize = 1e18;
     }
 
     /**
@@ -364,7 +366,7 @@ contract Masset is
         // 5.1. Decrease output bal
         basketManager.decreaseVaultBalance(outputDetails.index, outputDetails.integrator, swapOutput);
 
-        _withdrawTokens(
+        swapOutput = _withdrawTokens(
             WithdrawArgs({
                 quantity: swapOutput,
                 bAsset: args.output,
@@ -697,11 +699,11 @@ contract Masset is
         uint256 maxCache;
     }
 
-    function _withdrawTokens(WithdrawArgs memory args) internal {
+    function _withdrawTokens(WithdrawArgs memory args) internal returns (uint256 netAmount) {
         if(args.quantity > 0){
 
             // Deduct the redemption fee, if any
-            uint256 netAmount = _deductSwapFee(args.bAsset, args.quantity, args.feeRate);
+            netAmount = _deductSwapFee(args.bAsset, args.quantity, args.feeRate);
 
             // 1. If txFee then short circuit - there is no cache
             if(args.hasTxFee){

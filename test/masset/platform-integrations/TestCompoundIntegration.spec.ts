@@ -612,7 +612,7 @@ contract("CompoundIntegration", async (accounts) => {
             expectEvent(tx.receipt, "Deposit", { _amount: amount });
 
             // 4. Call withdraw
-            await d_CompoundIntegration.withdraw(sa.default, bAsset.address, amount, false);
+            await d_CompoundIntegration.withdraw(sa.default, bAsset.address, amount, amount, false);
             const expected_cTokenWithdrawal = await convertUnderlyingToCToken(cToken, amount);
 
             // 5. Check stuff
@@ -650,6 +650,7 @@ contract("CompoundIntegration", async (accounts) => {
                     sa.default,
                     bAsset.address,
                     amount,
+                    amount,
                     false,
                 );
 
@@ -686,6 +687,7 @@ contract("CompoundIntegration", async (accounts) => {
                 const tx = await d_CompoundIntegration.withdraw(
                     sa.default,
                     bAsset.address,
+                    amount,
                     amount,
                     false,
                 );
@@ -730,6 +732,7 @@ contract("CompoundIntegration", async (accounts) => {
                 bAssetRecipient,
                 bAsset.address,
                 amount,
+                amount,
                 true,
             );
             const bAssetRecipient_balAfter = await bAsset.balanceOf(bAssetRecipient);
@@ -773,7 +776,7 @@ contract("CompoundIntegration", async (accounts) => {
 
             // Step 1. call deposit
             await expectRevert(
-                d_CompoundIntegration.withdraw(sa.dummy1, bAsset.address, amount, false, {
+                d_CompoundIntegration.withdraw(sa.dummy1, bAsset.address, amount, amount, false, {
                     from: sa.dummy1,
                 }),
                 "Not a whitelisted address",
@@ -788,7 +791,7 @@ contract("CompoundIntegration", async (accounts) => {
 
             // Step 1. call deposit
             await expectRevert(
-                d_CompoundIntegration.withdraw(sa.default, bAsset.address, amount, false),
+                d_CompoundIntegration.withdraw(sa.default, bAsset.address, amount, amount, false),
                 "ERC20: burn amount exceeds balance",
             );
         });
@@ -805,19 +808,25 @@ contract("CompoundIntegration", async (accounts) => {
 
             // Fails with ZERO bAsset Address
             await expectRevert(
-                d_CompoundIntegration.withdraw(sa.dummy1, ZERO_ADDRESS, amount, false),
+                d_CompoundIntegration.withdraw(sa.dummy1, ZERO_ADDRESS, amount, amount, false),
                 "cToken does not exist",
             );
 
             // Fails with ZERO recipient address
             await expectRevert(
-                d_CompoundIntegration.withdraw(ZERO_ADDRESS, bAsset.address, new BN(1), false),
+                d_CompoundIntegration.withdraw(
+                    ZERO_ADDRESS,
+                    bAsset.address,
+                    new BN(1),
+                    new BN(1),
+                    false,
+                ),
                 "Must specify recipient",
             );
 
             // Fails with ZERO Amount
             await expectRevert(
-                d_CompoundIntegration.withdraw(sa.dummy1, bAsset.address, "0", false),
+                d_CompoundIntegration.withdraw(sa.dummy1, bAsset.address, "0", "0", false),
                 "Must withdraw something",
             );
 
@@ -833,7 +842,7 @@ contract("CompoundIntegration", async (accounts) => {
 
             // Step 1. call withdraw
             await expectRevert(
-                d_CompoundIntegration.withdraw(sa.dummy1, bAsset.address, amount, false),
+                d_CompoundIntegration.withdraw(sa.dummy1, bAsset.address, amount, amount, false),
                 "cToken does not exist",
             );
         });
@@ -912,6 +921,7 @@ contract("CompoundIntegration", async (accounts) => {
             await d_CompoundIntegration.withdraw(
                 sa.default,
                 bAsset.address,
+                underlyingBalanceAfter,
                 underlyingBalanceAfter,
                 false,
             );
