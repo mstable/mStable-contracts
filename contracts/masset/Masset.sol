@@ -305,6 +305,12 @@ contract Masset is
                 SWAP (PUBLIC)
     ****************************************/
 
+    struct SwapArgs {
+        address input;
+        address output;
+        address recipient;
+    }
+
     /**
      * @dev Simply swaps one bAsset for another bAsset or this mAsset at a 1:1 ratio.
      * bAsset <> bAsset swaps will incur a small fee (swapFee()). Swap
@@ -325,61 +331,55 @@ contract Masset is
         nonReentrant
         returns (uint256 output)
     {
-        require(_input != address(0) && _output != address(0), "Invalid swap asset addresses");
-        require(_input != _output, "Cannot swap the same asset");
-        require(_recipient != address(0), "Missing recipient address");
+        SwapArgs memory args = SwapArgs(_input, _output, _recipient);
+        require(args.input != address(0) && args.output != address(0), "Invalid swap asset addresses");
+        require(args.input != args.output, "Cannot swap the same asset");
+        require(args.recipient != address(0), "Missing recipient address");
         require(_quantity > 0, "Invalid quantity");
 
         // 1. If the output is this mAsset, just mint
-        if(_output == address(this)){
-            return _mintTo(_input, _quantity, _recipient);
+        if(args.output == address(this)){
+            return _mintTo(args.input, _quantity, args.recipient);
         }
 
-        // // 2. Grab all relevant info from the Manager
-        // (bool isValid, string memory reason, BassetDetails memory inputDetails, BassetDetails memory outputDetails) =
-        //     basketManager.prepareSwapBassets(_input, _output, false);
-        // require(isValid, reason);
+        // 2. Grab all relevant info from the Manager
+        (bool isValid, string memory reason, BassetDetails memory inputDetails, BassetDetails memory outputDetails) =
+            basketManager.prepareSwapBassets(args.input, args.output, false);
+        require(isValid, reason);
 
-        // Cache memory cache = _getCacheSize();
+        Cache memory cache = _getCacheSize();
 
-        // // 3. Deposit the input tokens
-        // (uint256 quantitySwappedIn, ) =
-        //     _depositTokens(_input, inputDetails.bAsset.ratio, inputDetails.integrator, inputDetails.bAsset.isTransferFeeCharged, _quantity, cache.maxCache);
-        // // 3.1. Update the input balance
-        // basketManager.increaseVaultBalance(inputDetails.index, inputDetails.integrator, quantitySwappedIn);
+        // 3. Deposit the input tokens
+        (uint256 quantitySwappedIn, ) =
+            _depositTokens(args.input, inputDetails.bAsset.ratio, inputDetails.integrator, inputDetails.bAsset.isTransferFeeCharged, _quantity, cache.maxCache);
+        // 3.1. Update the input balance
+        basketManager.increaseVaultBalance(inputDetails.index, inputDetails.integrator, quantitySwappedIn);
 
-        // // 4. Validate the swap
-        // (bool swapValid, string memory swapValidityReason, uint256 swapOutput, bool applySwapFee) =
-        //     forgeValidator.validateSwap(cache.supply, inputDetails.bAsset, outputDetails.bAsset, quantitySwappedIn);
-        // require(swapValid, swapValidityReason);
+        // 4. Validate the swap
+        (bool swapValid, string memory swapValidityReason, uint256 swapOutput, bool applySwapFee) =
+            forgeValidator.validateSwap(cache.supply, inputDetails.bAsset, outputDetails.bAsset, quantitySwappedIn);
+        require(swapValid, swapValidityReason);
 
-        // // 5. Settle the swap
-        // // 5.1. Decrease output bal
-        // basketManager.decreaseVaultBalance(outputDetails.index, outputDetails.integrator, swapOutput);
-        // // 5.2. Calc fee, if any
-        // if(applySwapFee){
-        //     swapOutput = _deductSwapFee(_output, swapOutput, swapFee);
-        // }
-        // // 5.3. Withdraw to recipient
-        // IPlatformIntegration(outputDetails.integrator).withdraw(_recipient, _output, swapOutput, outputDetails.bAsset.isTransferFeeCharged);
+        // 5. Settle the swap
+        // 5.1. Decrease output bal
+        basketManager.decreaseVaultBalance(outputDetails.index, outputDetails.integrator, swapOutput);
 
-        // output = swapOutput;
+        _withdrawTokens(
+            WithdrawArgs({
+                quantity: swapOutput,
+                bAsset: args.output,
+                integrator: outputDetails.integrator,
+                feeRate: applySwapFee ? swapFee: 0,
+                hasTxFee: outputDetails.bAsset.isTransferFeeCharged,
+                recipient: args.recipient,
+                ratio: outputDetails.bAsset.ratio,
+                maxCache: cache.maxCache
+            })
+        );
 
-        // emit Swapped(msg.sender, _input, _output, swapOutput, _recipient);
+        // too much on stack, can't reach args.input
+        emit Swapped(msg.sender, args.input, args.output, swapOutput, args.recipient);
     }
-
-    // function _settleSwap(address _bAsset, BassetDetails memory _outputDetails, uint256 _swapOutput, address _recipient, bool _applyFee) internal returns (uint256 output) {
-    //     output = _swapOutput;
-    //     // 5. Settle the swap
-    //     // 5.1. Decrease output bal
-    //     basketManager.decreaseVaultBalance(_outputDetails.index, _outputDetails.integrator, _swapOutput);
-    //     // 5.2. Calc fee, if any
-    //     if(_applyFee){
-    //         output = _deductSwapFee(_bAsset, _swapOutput, swapFee);
-    //     }
-    //     // 5.3. Withdraw to recipient
-    //     IPlatformIntegration(_outputDetails.integrator).withdraw(_recipient, _bAsset, output, _outputDetails.bAsset.isTransferFeeCharged);
-    // }
 
     /**
      * @dev Determines both if a trade is valid, and the expected fee or output.
@@ -671,39 +671,63 @@ contract Masset is
         // Transfer the Bassets to the recipient
         uint256 bAssetCount = args.bAssets.length;
         for(uint256 i = 0; i < bAssetCount; i++){
-            uint256 q = args.bAssetQuantities[i];
-            if(q > 0){
-                address bAsset = args.bAssets[i].addr;
-                address integrator = args.integrators[i];
+            _withdrawTokens(
+                WithdrawArgs({
+                    quantity: args.bAssetQuantities[i],
+                    bAsset: args.bAssets[i].addr,
+                    integrator: args.integrators[i],
+                    feeRate: args.feeRate,
+                    hasTxFee: args.bAssets[i].isTransferFeeCharged,
+                    recipient: args.recipient,
+                    ratio: args.bAssets[i].ratio,
+                    maxCache: cache.maxCache
+                })
+            );
+        }
+    }
 
-                // Deduct the redemption fee, if any
-                q = _deductSwapFee(bAsset, q, args.feeRate);
+    struct WithdrawArgs {
+        uint256 quantity;
+        address bAsset;
+        address integrator;
+        uint256 feeRate;
+        bool hasTxFee;
+        address recipient;
+        uint256 ratio;
+        uint256 maxCache;
+    }
 
-                // 1. If txFee then short circuit - there is no cache
-                if(args.bAssets[i].isTransferFeeCharged){
-                    IPlatformIntegration(integrator).withdraw(args.recipient, bAsset, q, q, true);
+    function _withdrawTokens(WithdrawArgs memory args) internal {
+        if(args.quantity > 0){
+
+            // Deduct the redemption fee, if any
+            uint256 netAmount = _deductSwapFee(args.bAsset, args.quantity, args.feeRate);
+
+            // 1. If txFee then short circuit - there is no cache
+            if(args.hasTxFee){
+                IPlatformIntegration(args.integrator).withdraw(args.recipient, args.bAsset, netAmount, netAmount, true);
+            }
+            // 2. Else, withdraw from either cache or main vault
+            else {
+                uint256 cacheBal = IERC20(args.bAsset).balanceOf(args.integrator);
+                // 2.1 - If balance b in cache, simply withdraw
+                if(cacheBal > netAmount) {
+                    IPlatformIntegration(args.integrator).withdrawRaw(args.recipient, args.bAsset, netAmount);
                 }
-                // 2. Else, withdraw from either cache or main vault
+                // 2.2 - Else reset the cache to X
+                //       - Withdraw X+b from platform
+                //       - Send b to user
                 else {
-                    uint256 cacheBal = IERC20(bAsset).balanceOf(integrator);
-                    // 2.1 - If balance b in cache, simply withdraw
-                    if(cacheBal > q) {
-                        IPlatformIntegration(integrator).withdrawRaw(args.recipient, bAsset, q);
-                    }
-                    // 2.2 - Else reset the cache to X
-                    //       - Withdraw X+b from platform
-                    //       - Send b to user
-                    else {
-                        IPlatformIntegration(integrator).withdraw(
-                            args.recipient,
-                            bAsset,
-                            q,
-                            // uint256 relativeMidCache = cache.maxCache.divRatioPrecisely(args.bAssets[i].ratio).div(2);
-                            // uint256 totalWithdrawal = relativeMidCache.sub(cacheBal).add(q);
-                            cache.maxCache.divRatioPrecisely(args.bAssets[i].ratio).div(2).sub(cacheBal).add(q),
-                            false
-                        );
-                    }
+                    uint256 relativeMidCache = args.maxCache.divRatioPrecisely(args.ratio).div(2);
+                    uint256 totalWithdrawal = relativeMidCache.sub(cacheBal).add(netAmount);
+                    // uint256 totalWithdrawal = args.maxCache.divRatioPrecisely(args.ratio).div(2).sub(cacheBal).add(netAmount);
+                    IPlatformIntegration(args.integrator).withdraw(
+                        args.recipient,
+                        args.bAsset,
+                        netAmount,
+                        totalWithdrawal,
+                        false
+                    );
                 }
             }
         }
