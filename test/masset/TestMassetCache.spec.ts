@@ -52,7 +52,7 @@ contract("Masset - Mint", async (accounts) => {
 
     const assertFailedMint = async (
         mAsset: t.MassetInstance,
-        bAsset: t.MockErc20Instance,
+        bAsset: t.MockERC20Instance,
         amount: BN,
         reason: string,
     ): Promise<void> => {
@@ -64,7 +64,7 @@ contract("Masset - Mint", async (accounts) => {
     const assertBasicMint = async (
         md: MassetDetails,
         mAssetMintAmount: BN | number,
-        bAsset: t.MockErc20Instance,
+        bAsset: t.MockERC20Instance,
         useMintTo = false,
         recipient: string = sa.default,
         sender: string = sa.default,
@@ -128,7 +128,7 @@ contract("Masset - Mint", async (accounts) => {
     const assertBasicRedemption = async (
         md: MassetDetails,
         bAssetRedeemAmount: BN | number,
-        bAsset: t.MockErc20Instance,
+        bAsset: t.MockERC20Instance,
         expectFee = true,
         useRedeemTo = false,
         recipient: string = sa.default,
@@ -206,6 +206,157 @@ contract("Masset - Mint", async (accounts) => {
         // if (!ignoreHealthAssertions) await assertBasketIsHealthy(massetMachine, md);
     };
 
+    const assertSwap = async (
+        md: MassetDetails,
+        inputBasset: t.MockERC20Instance,
+        outputAsset: t.MockERC20Instance,
+        swapQuantity: BN | number,
+        expectSwapFee: boolean,
+        recipient: string = sa.default,
+        sender: string = sa.default,
+        ignoreHealthAssertions = false,
+        swapQuantityIsBaseUnits = false,
+    ): Promise<void> => {
+        const { mAsset, basketManager } = md;
+
+        // 1. Assert all state is currently valid and prepare objects
+        //    Assert that the basket is in a healthy state
+        if (!ignoreHealthAssertions) await assertBasketIsHealthy(massetMachine, md);
+        //    Is this swap actually a single bAsset mint?
+        const isMint = mAsset.address === outputAsset.address;
+
+        //    Get basic before data about the actors balances
+        const swapperInputBalBefore = await inputBasset.balanceOf(sender);
+        const recipientOutputBalBefore = await outputAsset.balanceOf(recipient);
+
+        //    Get basic before data on the swap assets
+        const inputBassetBefore = await basketManager.getBasset(inputBasset.address);
+        const outputBassetBefore = isMint
+            ? null
+            : await basketManager.getBasset(outputAsset.address);
+
+        // 2. Do the necessary approvals and make the calls
+        const approval0: BN = await massetMachine.approveMasset(
+            inputBasset,
+            mAsset,
+            new BN(swapQuantity),
+            sender,
+            swapQuantityIsBaseUnits,
+        );
+        const swapTx = await mAsset.swap(
+            inputBasset.address,
+            outputAsset.address,
+            approval0,
+            recipient,
+            { from: sender },
+        );
+        // //    Call the swap output function to check if results match
+        // const swapOutputResponse = await mAsset.getSwapOutput(
+        //     inputBasset.address,
+        //     outputAsset.address,
+        //     approval0,
+        //     { from: sender },
+        // );
+
+        // // 3. Calculate expected responses
+        // const inputQuantityExact = swapQuantityIsBaseUnits
+        //     ? new BN(swapQuantity)
+        //     : simpleToExactAmount(swapQuantity, await inputBasset.decimals());
+        // const scaledInputQuantity = swapQuantityIsBaseUnits
+        //     ? new BN(swapQuantity).mul(new BN(inputBassetBefore.ratio)).div(ratioScale)
+        //     : simpleToExactAmount(swapQuantity, 18);
+        // const expectedOutputValue = isMint
+        //     ? scaledInputQuantity
+        //     : scaledInputQuantity.mul(ratioScale).div(new BN(outputBassetBefore.ratio));
+        // let fee = new BN(0);
+        // let feeRate = new BN(0);
+        // //    If there is a fee expected, then deduct it from output
+        // if (expectSwapFee && !isMint) {
+        //     feeRate = await mAsset.swapFee();
+        //     expect(feeRate).bignumber.gt(new BN(0) as any);
+        //     expect(feeRate).bignumber.lt(fullScale.div(new BN(50)) as any);
+        //     fee = expectedOutputValue.mul(feeRate).div(fullScale);
+        //     expect(fee).bignumber.gt(new BN(0) as any);
+        // }
+
+        // // 4. Validate any basic events that should occur
+        // if (isMint) {
+        //     await expectEvent(swapTx.receipt, "Minted", {
+        //         minter: sender,
+        //         recipient,
+        //         mAssetQuantity: expectedOutputValue,
+        //         bAsset: inputBasset.address,
+        //         bAssetQuantity: inputQuantityExact,
+        //     });
+        // } else {
+        //     await expectEvent(swapTx.receipt, "Swapped", {
+        //         swapper: sender,
+        //         input: inputBasset.address,
+        //         output: outputAsset.address,
+        //         outputAmount: expectedOutputValue.sub(fee),
+        //         recipient,
+        //     });
+        //     if (expectSwapFee) {
+        //         await expectEvent(swapTx.receipt, "PaidFee", {
+        //             payer: sender,
+        //             asset: outputAsset.address,
+        //             feeQuantity: fee,
+        //         });
+        //     }
+
+        //     await expectEvent(swapTx.receipt, "Transfer", {
+        //         from: sender,
+        //         to: await basketManager.getBassetIntegrator(inputBasset.address),
+        //         value: inputQuantityExact,
+        //     });
+        // }
+
+        // // 5. Validate output state
+        // //    Swap estimation should match up
+        // const [swapValid, swapReason, swapOutput] = swapOutputResponse;
+        // expect(swapValid).eq(true);
+        // expect(swapReason).eq("");
+        // expect(swapOutput).bignumber.eq(expectedOutputValue.sub(fee));
+
+        // //  Input
+        // //    Deposits into lending platform
+        // const emitter = await AaveIntegration.new();
+        // await expectEvent.inTransaction(swapTx.tx, emitter, "Deposit", {
+        //     _bAsset: inputBasset.address,
+        //     _amount: approval0,
+        // });
+        // //    Sender should have less input bAsset after
+        // const swapperBassetBalAfter = await inputBasset.balanceOf(sender);
+        // expect(swapperBassetBalAfter).bignumber.eq(swapperInputBalBefore.sub(inputQuantityExact));
+        // //    VaultBalance should update for input bAsset
+        // const inputBassetAfter = await basketManager.getBasset(inputBasset.address);
+        // expect(new BN(inputBassetAfter.vaultBalance)).bignumber.eq(
+        //     new BN(inputBassetBefore.vaultBalance).add(inputQuantityExact),
+        // );
+
+        // //  Output
+        // //    Recipient should have output asset quantity after (minus fee)
+        // const recipientBalAfter = await outputAsset.balanceOf(recipient);
+        // expect(recipientBalAfter).bignumber.eq(
+        //     recipientOutputBalBefore.add(expectedOutputValue.sub(fee)),
+        // );
+        // //    VaultBalance should update for output bAsset
+        // if (!isMint) {
+        //     const outputBassetAfter = await basketManager.getBasset(outputAsset.address);
+        //     //    Should deduct the FULL amount, including fee, from the vault balance
+        //     expect(new BN(outputBassetAfter.vaultBalance)).bignumber.eq(
+        //         new BN(outputBassetBefore.vaultBalance).sub(expectedOutputValue),
+        //     );
+        // }
+
+        // // Complete basket should remain in healthy state
+        // if (!ignoreHealthAssertions) await assertBasketIsHealthy(massetMachine, md);
+        // return {
+        //     swapOutput,
+        //     feeRate,
+        // };
+    };
+
     describe("minting with a single bAsset", () => {
         context("when the weights are within the ForgeValidator limit", () => {
             before("reset", async () => {
@@ -216,15 +367,20 @@ contract("Masset - Mint", async (accounts) => {
                 const recipient = forgeValidator.address;
                 await assertBasicMint(massetDetails, new BN(100), bAssets[0], true, recipient);
                 await assertBasicMint(massetDetails, new BN(100), bAssets[0], false);
+                await assertBasicMint(massetDetails, new BN(2), bAssets[0], false);
+                await assertBasicMint(massetDetails, new BN(3), bAssets[0], true, sa.default);
+                await assertBasicMint(massetDetails, new BN(50), bAssets[0], true, recipient);
                 await assertBasicRedemption(
                     massetDetails,
-                    new BN(1),
+                    new BN(10),
                     bAssets[1],
                     true,
                     true,
                     recipient,
                 );
                 await assertBasicRedemption(massetDetails, new BN(20), bAssets[1], true, false);
+                await assertSwap(massetDetails, bAssets[0], bAssets[1], new BN(1), true);
+                await assertSwap(massetDetails, bAssets[0], bAssets[1], new BN(1), true);
             });
         });
     });

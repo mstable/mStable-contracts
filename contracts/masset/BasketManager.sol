@@ -544,12 +544,8 @@ contract BasketManager is
         whenNotPaused
         returns (bool, string memory, BassetDetails memory, BassetDetails memory)
     {
-        BassetDetails memory input = BassetDetails({
-            bAsset: basket.bassets[0],
-            integrator: address(0),
-            index: 0
-        });
-        BassetDetails memory output = input;
+        BassetDetails memory input;
+        BassetDetails memory output;
         // Check that basket state is healthy
         if(basket.failed || basket.undergoingRecol){
             return (false, "Basket is undergoing change", input, output);
@@ -604,6 +600,27 @@ contract BasketManager is
         (Basset[] memory bAssets, uint8[] memory indexes, address[] memory integrators) = _fetchForgeBassets(_bAssets);
         props = ForgePropsMulti({
             isValid: true,
+            bAssets: bAssets,
+            integrators: integrators,
+            indexes: indexes
+        });
+    }
+
+    function prepareRedeemBassets(
+        address[] calldata _bAssets
+    )
+        external
+        view
+        whenNotPaused
+        whenNotRecolling
+        whenBasketIsHealthy
+        returns (RedeemProps memory props)
+    {
+        // Pass the fetching logic to the internal view func to reduce SLOAD cost
+        (Basset[] memory bAssets, uint8[] memory indexes, address[] memory integrators) = _fetchForgeBassets(_bAssets);
+        props = RedeemProps({
+            isValid: true,
+            allBassets: basket.bassets,
             bAssets: bAssets,
             integrators: integrators,
             indexes: indexes

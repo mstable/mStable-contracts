@@ -193,8 +193,8 @@ contract Masset is
 
         // Transfer collateral to the platform integration address and call deposit
         address integrator = bInfo.integrator;
-        (uint256 quantityDeposited, uint256 ratioedDeposit) = (1, 2);
-        //     _depositTokens(_bAsset, bInfo.bAsset.ratio, integrator, bInfo.bAsset.isTransferFeeCharged, _bAssetQuantity, cache.maxCache);
+        (uint256 quantityDeposited, uint256 ratioedDeposit) =
+            _depositTokens(_bAsset, bInfo.bAsset.ratio, integrator, bInfo.bAsset.isTransferFeeCharged, _bAssetQuantity, cache.maxCache);
 
         // Validation should be after token transfer, as bAssetQty is unknown before
         (bool mintValid, string memory reason) = forgeValidator.validateMint(cache.supply, bInfo.bAsset, quantityDeposited);
@@ -284,6 +284,7 @@ contract Masset is
         //     integrator == address(0) || address(this) and then keeping entirely in cache
         // 2.1 - Deposit if xfer fees
         if(_hasTxFee){
+            console.log("_depositTokens: hasTxFee");
             uint256 deposited = IPlatformIntegration(_integrator).deposit(_bAsset, transferred, _hasTxFee);
             quantityDeposited = StableMath.min(deposited, _quantity);
         }
@@ -297,6 +298,7 @@ contract Masset is
 
             uint256 relativeMaxCache = _maxCache.divRatioPrecisely(_bAssetRatio);
 
+            console.log("_depositTokens: cacheBal: %s vs relativeMaxCache: %s", cacheBal, relativeMaxCache);
             if(cacheBal >= relativeMaxCache){
                 uint256 delta = cacheBal.sub(relativeMaxCache.div(2));
                 IPlatformIntegration(_integrator).deposit(_bAsset, delta, _hasTxFee);
@@ -557,16 +559,13 @@ contract Masset is
         uint256 bAssetCount = _bAssetQuantities.length;
         require(bAssetCount > 0 && bAssetCount == _bAssets.length, "Input array mismatch");
 
-        // Get high level basket info
-        Basket memory basket = basketManager.getBasket();
-
         // Prepare relevant data
-        ForgePropsMulti memory props = basketManager.prepareForgeBassets(_bAssets, _bAssetQuantities, false);
+        RedeemProps memory props = basketManager.prepareRedeemBassets(_bAssets);
         if(!props.isValid) return 0;
 
         // Validate redemption
         (bool redemptionValid, string memory reason, bool applyFee) =
-            forgeValidator.validateRedemption(basket.failed, totalSupply(), basket.bassets, props.indexes, _bAssetQuantities);
+            forgeValidator.validateRedemption(false, totalSupply(), props.allBassets, props.indexes, _bAssetQuantities);
         require(redemptionValid, reason);
 
         uint256 mAssetQuantity = 0;
@@ -731,7 +730,7 @@ contract Masset is
                     console.log("_withdrawTokens: cacheBal < net - '%s' < '%s'", cacheBal, netAmount);
                     uint256 relativeMidCache = args.maxCache.divRatioPrecisely(args.ratio).div(2);
                     // mid = 100, vaultBalance = 40
-                    uint256 totalWithdrawal = StableMath.min(relativeMidCache.sub(cacheBal).add(netAmount), args.vaultBalance);
+                    uint256 totalWithdrawal = StableMath.min(relativeMidCache.sub(cacheBal).add(netAmount), args.vaultBalance.sub(cacheBal));
                     console.log("_withdrawTokens: totalWithdrawal", totalWithdrawal);
                     // uint256 totalWithdrawal = args.maxCache.divRatioPrecisely(args.ratio).div(2).sub(cacheBal).add(netAmount);
                     IPlatformIntegration(args.integrator).withdraw(

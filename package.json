@@ -20,16 +20,14 @@
     "lint-sol": "solium -d contracts/ --fix ",
     "coverage": "node --max_old_space_size=6144 node_modules/.bin/hardhat coverage --network coverage --solcoverjs ./.solcover.js --testfiles 'test/**/Test*.ts' --show-stack-traces",
     "script": "yarn truffle exec ./scripts/main.js",
-    "test": "yarn run test-prep; yarn hardhat test;",
+    "test": "yarn run compile; yarn hardhat test;",
     "test-file": "yarn hardhat test",
-    "test:fork": "yarn run test-prep; yarn hardhat test --network fork;",
-    "test-prep": "yarn run compile; yarn run generate-typings;",
+    "test:fork": "yarn run compile; yarn hardhat test --network fork;",
     "test-lite": " yarn hardhat test",
     "compile": "yarn hardhat compile --force",
-    "generate-typings": "rimraf ./types/generated && typechain --target 'truffle-v5' --outDir types/generated './build/contracts/*.json'",
     "prettify": "prettier --write test/*.ts test/**/*.ts types/generated/*.ts types/*.ts artifacts/*.ts",
     "flatten": "sol-merger \"./contracts/**/*.sol\" ./_flat",
-    "prepublishOnly": "yarn run test-prep"
+    "prepublishOnly": "yarn run compile"
   },
   "repository": {
     "type": "git",
@@ -69,7 +67,7 @@
     "truffle": "5.1.22",
     "truffle-plugin-verify": "^0.3.10",
     "truffle-typings": "^1.0.8",
-    "typechain": "^2.0.0",
+    "typechain": "^4.0.0",
     "types-ethereumjs-util": "^0.0.8",
     "typescript": "^3.6.3",
     "web3": "^1.2.6",
@@ -77,10 +75,12 @@
   },
   "dependencies": {
     "@nomiclabs/hardhat-truffle5": "^2.0.0",
-    "hardhat-gas-reporter": "^1.0.1",
-    "solidity-coverage": "^0.7.9",
     "hardhat": "^2.0.3",
+    "hardhat-gas-reporter": "^1.0.1",
+    "hardhat-typechain": "^0.3.3",
     "sol-merger": "^3.0.1",
+    "solidity-coverage": "^0.7.9",
+    "ts-generator": "^0.1.1",
     "ts-node": "^8.4.1",
     "tsconfig-paths": "^3.9.0"
   },

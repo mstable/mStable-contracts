@@ -1,6 +1,7 @@
 require("hardhat-gas-reporter");
 // require("solidity-coverage");
 require("@nomiclabs/hardhat-truffle5");
+require("hardhat-typechain");
 
 require("ts-node/register");
 require("tsconfig-paths/register");
@@ -29,5 +30,9 @@ export default {
     },
     mocha: {
         timeout: 240000, // 4 min timeout
+    },
+    typechain: {
+        outDir: "types/generated",
+        target: "truffle-v5",
     },
 };
