@@ -1,6 +1,9 @@
 pragma solidity 0.5.16;
 pragma experimental ABIEncoderV2;
 
+// TODO - remove
+import { console } from "hardhat/console.sol";
+
 // External
 import { IForgeValidator } from "./forge-validator/IForgeValidator.sol";
 import { IPlatformIntegration } from "../interfaces/IPlatformIntegration.sol";
@@ -190,8 +193,8 @@ contract Masset is
 
         // Transfer collateral to the platform integration address and call deposit
         address integrator = bInfo.integrator;
-        (uint256 quantityDeposited, uint256 ratioedDeposit) =
-            _depositTokens(_bAsset, bInfo.bAsset.ratio, integrator, bInfo.bAsset.isTransferFeeCharged, _bAssetQuantity, cache.maxCache);
+        (uint256 quantityDeposited, uint256 ratioedDeposit) = (1, 2);
+        //     _depositTokens(_bAsset, bInfo.bAsset.ratio, integrator, bInfo.bAsset.isTransferFeeCharged, _bAssetQuantity, cache.maxCache);
 
         // Validation should be after token transfer, as bAssetQty is unknown before
         (bool mintValid, string memory reason) = forgeValidator.validateMint(cache.supply, bInfo.bAsset, quantityDeposited);
@@ -710,6 +713,7 @@ contract Masset is
 
             // 1. If txFee then short circuit - there is no cache
             if(args.hasTxFee){
+                console.log("_withdrawTokens: hasTxFee");
                 IPlatformIntegration(args.integrator).withdraw(args.recipient, args.bAsset, netAmount, netAmount, true);
             }
             // 2. Else, withdraw from either cache or main vault
@@ -717,15 +721,18 @@ contract Masset is
                 uint256 cacheBal = IERC20(args.bAsset).balanceOf(args.integrator);
                 // 2.1 - If balance b in cache, simply withdraw
                 if(cacheBal > netAmount) {
+                    console.log("_withdrawTokens: cacheBal > net - '%s' > '%s'", cacheBal, netAmount);
                     IPlatformIntegration(args.integrator).withdrawRaw(args.recipient, args.bAsset, netAmount);
                 }
                 // 2.2 - Else reset the cache to X, or as far as possible
                 //       - Withdraw X+b from platform
                 //       - Send b to user
                 else {
+                    console.log("_withdrawTokens: cacheBal < net - '%s' < '%s'", cacheBal, netAmount);
                     uint256 relativeMidCache = args.maxCache.divRatioPrecisely(args.ratio).div(2);
                     // mid = 100, vaultBalance = 40
                     uint256 totalWithdrawal = StableMath.min(relativeMidCache.sub(cacheBal).add(netAmount), args.vaultBalance);
+                    console.log("_withdrawTokens: totalWithdrawal", totalWithdrawal);
                     // uint256 totalWithdrawal = args.maxCache.divRatioPrecisely(args.ratio).div(2).sub(cacheBal).add(netAmount);
                     IPlatformIntegration(args.integrator).withdraw(
                         args.recipient,

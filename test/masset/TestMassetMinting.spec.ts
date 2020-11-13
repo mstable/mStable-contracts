@@ -103,11 +103,11 @@ contract("Masset - Mint", async (accounts) => {
             value: bAssetQuantity,
         });
         // Deposits into lending platform
-        const emitter = await AaveIntegration.new();
-        await expectEvent.inTransaction(tx.tx, emitter, "Deposit", {
-            _bAsset: bAsset.address,
-            _amount: bAssetQuantity,
-        });
+        // const emitter = await AaveIntegration.new();
+        // await expectEvent.inTransaction(tx.tx, emitter, "Deposit", {
+        //     _bAsset: bAsset.address,
+        //     _amount: bAssetQuantity,
+        // });
         // Recipient should have mAsset quantity after
         const recipientBalAfter = await mAsset.balanceOf(derivedRecipient);
         expect(recipientBalAfter).bignumber.eq(recipientBalBefore.add(mAssetQuantity));

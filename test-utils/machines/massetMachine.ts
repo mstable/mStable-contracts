@@ -398,12 +398,18 @@ export class MassetMachine {
         // Approve bAssets
         await Promise.all(
             massetDetails.bAssets.map((b, i) =>
-                b.approve(massetDetails.mAsset.address, mintAmounts[i], {
+                b.approve(massetDetails.mAsset.address, mintAmounts[i].muln(2), {
                     from: this.system.sa.default,
                 }),
             ),
         );
 
+        await massetDetails.mAsset.mintMulti(
+            basketDetails.map((b) => b.addr),
+            mintAmounts,
+            this.system.sa.default,
+            { from: this.system.sa.default },
+        );
         await massetDetails.mAsset.mintMulti(
             basketDetails.map((b) => b.addr),
             mintAmounts,
