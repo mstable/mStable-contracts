@@ -393,7 +393,7 @@ contract Masset is
 
         basketManager.decreaseVaultBalance(outputDetails.index, outputDetails.integrator, amountIn____netOutput);
 
-        surplus = surplus.add(swapOutput.sub(amountIn____netOutput));
+        surplus = surplus.add(swapOutput.sub(amountIn____netOutput).mulRatioTruncate(outputDetails.bAsset.ratio));
 
         emit Swapped(msg.sender, args.input, args.output, amountIn____netOutput, args.recipient);
     }
