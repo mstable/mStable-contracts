@@ -183,6 +183,7 @@ contract Masset is
         internal
         returns (uint256 massetMinted)
     {
+        console.log("\n~~ MINT ~~");
         require(_recipient != address(0), "Must be a valid recipient");
         require(_bAssetQuantity > 0, "Quantity must not be 0");
 
@@ -219,6 +220,7 @@ contract Masset is
         internal
         returns (uint256 massetMinted)
     {
+        console.log("\n~~ MINT MULTI ~~");
         require(_recipient != address(0), "Must be a valid recipient");
         uint256 len = _bAssetQuantities.length;
         require(len > 0 && len == _bAssets.length, "Input array mismatch");
@@ -274,6 +276,7 @@ contract Masset is
         internal
         returns (uint256 quantityDeposited, uint256 ratioedDeposit)
     {
+        console.log("depositTokens: start");
         // 1 - Send all to PI
         // todo - confirm that tx sent does not have
         //      - must protect against tx fees being turned on for: USDT + USDC (not DAI, sUSD, TUSD)
@@ -285,7 +288,7 @@ contract Masset is
         // 2.1 - Deposit if xfer fees
         if(_hasTxFee){
             console.log("_depositTokens: hasTxFee");
-            uint256 deposited = IPlatformIntegration(_integrator).deposit(_bAsset, transferred, _hasTxFee);
+            uint256 deposited = IPlatformIntegration(_integrator).deposit(_bAsset, transferred, true);
             quantityDeposited = StableMath.min(deposited, _quantity);
         }
         // 2.2 - Deposit X if Cache > %
@@ -301,7 +304,7 @@ contract Masset is
             console.log("_depositTokens: cacheBal: %s vs relativeMaxCache: %s", cacheBal, relativeMaxCache);
             if(cacheBal >= relativeMaxCache){
                 uint256 delta = cacheBal.sub(relativeMaxCache.div(2));
-                IPlatformIntegration(_integrator).deposit(_bAsset, delta, _hasTxFee);
+                IPlatformIntegration(_integrator).deposit(_bAsset, delta, false);
             }
         }
 
@@ -338,6 +341,8 @@ contract Masset is
         nonReentrant
         returns (uint256 output)
     {
+        console.log("\n~~ SWAP ~~");
+        // Struct created to avoid Stack Too Deep errors. Minor gas cost increase.
         SwapArgs memory args = SwapArgs(_input, _output, _recipient);
         require(args.input != address(0) && args.output != address(0), "Invalid swap asset addresses");
         require(args.input != args.output, "Cannot swap the same asset");
@@ -555,6 +560,7 @@ contract Masset is
         internal
         returns (uint256 massetRedeemed)
     {
+        console.log("\n~~ REDEEM ~~");
         require(_recipient != address(0), "Must be a valid recipient");
         uint256 bAssetCount = _bAssetQuantities.length;
         require(bAssetCount > 0 && bAssetCount == _bAssets.length, "Input array mismatch");

@@ -219,21 +219,21 @@ contract("Masset - Mint", async (accounts) => {
     ): Promise<void> => {
         const { mAsset, basketManager } = md;
 
-        // 1. Assert all state is currently valid and prepare objects
-        //    Assert that the basket is in a healthy state
-        if (!ignoreHealthAssertions) await assertBasketIsHealthy(massetMachine, md);
-        //    Is this swap actually a single bAsset mint?
-        const isMint = mAsset.address === outputAsset.address;
+        // // 1. Assert all state is currently valid and prepare objects
+        // //    Assert that the basket is in a healthy state
+        // if (!ignoreHealthAssertions) await assertBasketIsHealthy(massetMachine, md);
+        // //    Is this swap actually a single bAsset mint?
+        // const isMint = mAsset.address === outputAsset.address;
 
-        //    Get basic before data about the actors balances
-        const swapperInputBalBefore = await inputBasset.balanceOf(sender);
-        const recipientOutputBalBefore = await outputAsset.balanceOf(recipient);
+        // //    Get basic before data about the actors balances
+        // const swapperInputBalBefore = await inputBasset.balanceOf(sender);
+        // const recipientOutputBalBefore = await outputAsset.balanceOf(recipient);
 
-        //    Get basic before data on the swap assets
-        const inputBassetBefore = await basketManager.getBasset(inputBasset.address);
-        const outputBassetBefore = isMint
-            ? null
-            : await basketManager.getBasset(outputAsset.address);
+        // //    Get basic before data on the swap assets
+        // const inputBassetBefore = await basketManager.getBasset(inputBasset.address);
+        // const outputBassetBefore = isMint
+        //     ? null
+        //     : await basketManager.getBasset(outputAsset.address);
 
         // 2. Do the necessary approvals and make the calls
         const approval0: BN = await massetMachine.approveMasset(
@@ -378,9 +378,10 @@ contract("Masset - Mint", async (accounts) => {
                     true,
                     recipient,
                 );
-                await assertBasicRedemption(massetDetails, new BN(20), bAssets[1], true, false);
+                await assertBasicRedemption(massetDetails, new BN(1), bAssets[1], true, false);
                 await assertSwap(massetDetails, bAssets[0], bAssets[1], new BN(1), true);
                 await assertSwap(massetDetails, bAssets[0], bAssets[1], new BN(1), true);
+                await assertSwap(massetDetails, bAssets[1], bAssets[2], new BN(1), true);
             });
         });
     });
