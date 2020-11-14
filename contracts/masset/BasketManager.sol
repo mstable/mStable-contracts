@@ -23,8 +23,8 @@ import { InitializableReentrancyGuard } from "../shared/InitializableReentrancyG
  *          basket data to the mAsset and is responsible for keeping accurate records.
  *          BasketManager can also optimise lending pool integrations and perform
  *          re-collateralisation on failed bAssets.
- * @dev     VERSION: 1.1
- *          DATE:    2020-11-02
+ * @dev     VERSION: 2.0
+ *          DATE:    2020-11-14
  */
 contract BasketManager is
     Initializable,

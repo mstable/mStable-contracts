@@ -19,8 +19,8 @@ import { StableMath } from "../shared/StableMath.sol";
  * @author  Stability Labs Pty. Ltd.
  * @notice  Savings Manager collects interest from mAssets and sends them to the
  *          corresponding Savings Contract, performing some validation in the process.
- * @dev     VERSION: 1.2
- *          DATE:    2020-10-20
+ * @dev     VERSION: 1.3
+ *          DATE:    2020-11-14
  */
 contract SavingsManager is ISavingsManager, PausableModule {
 
@@ -58,6 +58,8 @@ contract SavingsManager is ISavingsManager, PausableModule {
     // Timestamp for current period finish
     mapping(address => uint256) public rewardEnd;
     mapping(address => uint256) public rewardRate;
+    // 1.3 Tracking interest deposits
+    mapping(address => uint256) public lastDeposit;
 
     constructor(
         address _nexus,
@@ -166,6 +168,30 @@ contract SavingsManager is ISavingsManager, PausableModule {
         periodYield[_mAsset] = 0;
 
         emit LiquidatorDeposited(_mAsset, _liquidated);
+    }
+
+    function streamInterest(address _mAsset, uint256 _newSupply, uint256 _interest)
+        external
+    {
+        require(msg.sender == _mAsset, "Sender must be mAsset");
+        uint256 currentTime = now;
+        uint256 previousCall = lastDeposit[_mAsset];
+        uint256 timeSincePreviousCall = currentTime.sub(previousCall);
+        require(timeSincePreviousCall > 12 hours, "Cannot deposit twice in 12 hours");
+
+        // Transfer mUSD to here
+        IERC20(_mAsset).safeTransferFrom(msg.sender, address(this), _interest);
+
+        // Validate APY
+        _validateCollection(_newSupply, _interest, timeSincePreviousCall);
+
+        // LOGIC - bundle this yield in with liquidator yield
+        // If (remainingTime < 24h)
+        //       take all remaining, add this, stream over next 24h
+        // else
+        //       take all remaining, add this, stream over remaininTime + 24h
+
+        lastDeposit[_mAsset] = now;
     }
 
     /***************************************

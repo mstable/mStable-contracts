@@ -8,6 +8,7 @@ import { console } from "hardhat/console.sol";
 import { IForgeValidator } from "./forge-validator/IForgeValidator.sol";
 import { IPlatformIntegration } from "../interfaces/IPlatformIntegration.sol";
 import { IBasketManager } from "../interfaces/IBasketManager.sol";
+import { ISavingsManager } from "../interfaces/ISavingsManager.sol";
 
 // Internal
 import { IMasset } from "../interfaces/IMasset.sol";
@@ -30,7 +31,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  *          for underlying basket assets (bAssets) of the same peg (i.e. USD,
  *          EUR, Gold). Composition and validation is enforced via the BasketManager.
  * @dev     VERSION: 2.0
- *          DATE:    2020-11-02
+ *          DATE:    2020-11-14
  */
 contract Masset is
     Initializable,
@@ -362,21 +363,21 @@ contract Masset is
         Cache memory cache = _getCacheSize();
 
         // 3. Deposit the input tokens
-        (uint256 quantitySwappedIn, ) =
+        // @@@ Audit notes - amountIn____netOutput is re-written in 5.1
+        (uint256 amountIn____netOutput, ) =
             _depositTokens(args.input, inputDetails.bAsset.ratio, inputDetails.integrator, inputDetails.bAsset.isTransferFeeCharged, _quantity, cache.maxCache);
         // 3.1. Update the input balance
-        basketManager.increaseVaultBalance(inputDetails.index, inputDetails.integrator, quantitySwappedIn);
+        basketManager.increaseVaultBalance(inputDetails.index, inputDetails.integrator, amountIn____netOutput);
 
         // 4. Validate the swap
         (bool swapValid, string memory swapValidityReason, uint256 swapOutput, bool applySwapFee) =
-            forgeValidator.validateSwap(cache.supply, inputDetails.bAsset, outputDetails.bAsset, quantitySwappedIn);
+            forgeValidator.validateSwap(cache.supply, inputDetails.bAsset, outputDetails.bAsset, amountIn____netOutput);
         require(swapValid, swapValidityReason);
 
         // 5. Settle the swap
         // 5.1. Decrease output bal
-        basketManager.decreaseVaultBalance(outputDetails.index, outputDetails.integrator, swapOutput);
-
-        swapOutput = _withdrawTokens(
+        // @@@ Audit notes - amountIn____netOutput is re-used here to avoid stack too deep error
+        amountIn____netOutput = _withdrawTokens(
             WithdrawArgs({
                 quantity: swapOutput,
                 bAsset: args.output,
@@ -390,8 +391,11 @@ contract Masset is
             })
         );
 
-        // too much on stack, can't reach args.input
-        emit Swapped(msg.sender, args.input, args.output, swapOutput, args.recipient);
+        basketManager.decreaseVaultBalance(outputDetails.index, outputDetails.integrator, amountIn____netOutput);
+
+        surplus = surplus.add(swapOutput.sub(amountIn____netOutput));
+
+        emit Swapped(msg.sender, args.input, args.output, amountIn____netOutput, args.recipient);
     }
 
     /**
@@ -674,15 +678,14 @@ contract Masset is
         // Burn the full amount of Masset
         _burn(msg.sender, args.mAssetQuantity);
 
-        // Reduce the amount of bAssets marked in the vault
-        basketManager.decreaseVaultBalances(args.indices, args.integrators, args.bAssetQuantities);
-
         Cache memory cache = _getCacheSize();
 
         // Transfer the Bassets to the recipient
         uint256 bAssetCount = args.bAssets.length;
+        uint256[] memory netAmounts = new uint256[](bAssetCount);
+        uint256 fees = 0;
         for(uint256 i = 0; i < bAssetCount; i++){
-            _withdrawTokens(
+            netAmounts[i] = _withdrawTokens(
                 WithdrawArgs({
                     quantity: args.bAssetQuantities[i],
                     bAsset: args.bAssets[i].addr,
@@ -695,7 +698,11 @@ contract Masset is
                     vaultBalance: args.bAssets[i].vaultBalance
                 })
             );
+            fees = fees.add(args.bAssetQuantities[i].sub(netAmounts[i]).mulRatioTruncate(args.bAssets[i].ratio));
         }
+        surplus = surplus.add(fees);
+        // Reduce the amount of bAssets marked in the vault
+        basketManager.decreaseVaultBalances(args.indices, args.integrators, netAmounts);
     }
 
     struct WithdrawArgs {
@@ -877,21 +884,50 @@ contract Masset is
     /**
      * @dev Collects the interest generated from the Basket, minting a relative
      *      amount of mAsset and sending it over to the SavingsManager.
-     * @return totalInterestGained   Equivalent amount of mAsset units that have been generated
+     *      NOTE - the purpose of this function has been modified.
+     * @return swapFeesGained        Equivalent amount of mAsset units that have been generated
      * @return newSupply             New total mAsset supply
      */
     function collectInterest()
         external
         onlySavingsManager
         nonReentrant
+        returns (uint256 swapFeesGained, uint256 newSupply)
+    {
+        uint256 toMint = 0;
+        if(surplus > 1){
+            toMint = surplus.sub(1);
+            surplus = 1;
+        }
+
+        // mint new mAsset to savings manager
+        _mint(msg.sender, toMint);
+        emit MintedMulti(address(this), address(this), toMint, new address[](0), new uint256[](0));
+
+        return (toMint, totalSupply());
+    }
+
+    // todo
+    function collectAllInterest()
+        external
+        nonReentrant
         returns (uint256 totalInterestGained, uint256 newSupply)
     {
+        // 1. Collect interest from Basket
         (uint256 interestCollected, uint256[] memory gains) = basketManager.collectInterest();
 
-        // mint new mAsset to sender
-        _mint(msg.sender, interestCollected);
+        // 2. Mint to here
+        _mint(address(this), interestCollected);
         emit MintedMulti(address(this), address(this), interestCollected, new address[](0), gains);
 
-        return (interestCollected, totalSupply());
+        // 3. Send to SavingsManager and begin streaming
+        // 3.1. Approve SM
+        address savingsManager = _savingsManager();
+        _approve(address(this), savingsManager, interestCollected);
+        // 3.2. Stream proceeds
+        uint256 supply = totalSupply();
+        ISavingsManager(savingsManager).streamInterest(address(this), supply, interestCollected);
+
+        return (interestCollected, supply);
     }
 }

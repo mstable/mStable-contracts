@@ -376,7 +376,7 @@ contract("Masset - Mint", async (accounts) => {
                     bAssets[1],
                     true,
                     true,
-                    recipient,
+                    sa.default,
                 );
                 await assertBasicRedemption(massetDetails, new BN(1), bAssets[1], true, false);
                 await assertSwap(massetDetails, bAssets[0], bAssets[1], new BN(1), true);
