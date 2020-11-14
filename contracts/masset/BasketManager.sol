@@ -236,16 +236,15 @@ contract BasketManager is
         gains = new uint256[](count);
         interestCollected = 0;
 
-        address mAsset_ = mAsset;
-
         // foreach bAsset
         for(uint8 i = 0; i < count; i++) {
             Basset memory b = allBassets[i];
             address bAsset = b.addr;
 
             // call each integration to `checkBalance`
-            uint256 lending = IPlatformIntegration(integrations[i]).checkBalance(bAsset);
-            uint256 cache = IERC20(bAsset).balanceOf(mAsset_);
+            address integration = integrations[i];
+            uint256 lending = IPlatformIntegration(integration).checkBalance(bAsset);
+            uint256 cache = IERC20(bAsset).balanceOf(integration);
             uint256 balance = lending.add(cache);
 
             uint256 oldVaultBalance = b.vaultBalance;
@@ -436,6 +435,12 @@ contract BasketManager is
         (bool exist, uint8 index) = _isAssetInBasket(_bAsset);
         require(exist, "bAsset does not exist");
         basket.bassets[index].isTransferFeeCharged = _flag;
+
+        if(_flag){
+            // if token has tx fees, it can no longer operate with a cache
+            uint256 bal = IERC20(_bAsset).balanceOf(integrations[index]);
+            IPlatformIntegration(integrations[index]).deposit(_bAsset, bal, true);
+        }
 
         emit TransferFeeEnabled(_bAsset, _flag);
     }
