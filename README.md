@@ -44,6 +44,10 @@ Found a bug? Claim a reward from our open [Bug Bounty](https://docs.mstable.org/
 
 <br />
 
+## Artifacts
+
+We publish the contract artifacts to an npm package called [@mstable/protocol](https://www.npmjs.com/package/@mstable/protocol). You can browse them via [unpkg.com](https://unpkg.com/browse/@mstable/protocol@latest/).
+
 ## Dev notes
 
 ### Prerequisites
