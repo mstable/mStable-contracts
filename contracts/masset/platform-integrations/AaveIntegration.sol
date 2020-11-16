@@ -1,22 +1,15 @@
 pragma solidity 0.5.16;
 
-import {
-    IAaveATokenV1,
-    IAaveATokenV2,
-    IAaveLendingPoolV1,
-    IAaveLendingPoolV2,
-    ILendingPoolAddressesProviderV1,
-    ILendingPoolAddressesProviderV2
-} from "./IAave.sol";
-import { InitializableAbstractIntegration, MassetHelpers, IERC20, SafeMath } from "./InitializableAbstractIntegration.sol";
+import { IAaveATokenV1, IAaveLendingPoolV1, ILendingPoolAddressesProviderV1 } from "./IAave.sol";
+import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "./InitializableAbstractIntegration.sol";
 
 
 /**
  * @title   AaveIntegration
  * @author  Stability Labs Pty. Ltd.
  * @notice  A simple connection to deposit and withdraw bAssets from Aave
- * @dev     VERSION: 2.0
- *          DATE:    2020-10-08
+ * @dev     VERSION: 1.0
+ *          DATE:    2020-03-26
  */
 contract AaveIntegration is InitializableAbstractIntegration {
 
@@ -45,22 +38,22 @@ contract AaveIntegration is InitializableAbstractIntegration {
     {
         require(_amount > 0, "Must deposit something");
         // Get the Target token
-        IAaveATokenV2 aToken = _getATokenFor(_bAsset);
+        IAaveATokenV1 aToken = _getATokenFor(_bAsset);
 
         // We should have been sent this amount, if not, the deposit will fail
         quantityDeposited = _amount;
 
-        uint16 referralCode = 36;
+        uint16 referralCode = 36; // temp code
 
         if(_isTokenFeeCharged) {
             // If we charge a fee, account for it
             uint256 prevBal = _checkBalance(aToken);
-            _getLendingPool().deposit(_bAsset, _amount, address(this), referralCode);
+            _getLendingPool().deposit(_bAsset, _amount, referralCode);
             uint256 newBal = _checkBalance(aToken);
             quantityDeposited = _min(quantityDeposited, newBal.sub(prevBal));
         } else {
             // aTokens are 1:1 for each asset
-            _getLendingPool().deposit(_bAsset, _amount, address(this), referralCode);
+            _getLendingPool().deposit(_bAsset, _amount, referralCode);
         }
 
         emit Deposit(_bAsset, address(aToken), quantityDeposited);
@@ -85,23 +78,23 @@ contract AaveIntegration is InitializableAbstractIntegration {
     {
         require(_amount > 0, "Must withdraw something");
         // Get the Target token
-        address aToken = _getATokenFor(_bAsset);
+        IAaveATokenV1 aToken = _getATokenFor(_bAsset);
 
         uint256 quantityWithdrawn = _amount;
 
         // Don't need to Approve aToken, as it gets burned in redeem()
         if(_isTokenFeeCharged) {
-            // IERC20 b = IERC20(_bAsset);
-            // uint256 prevBal = b.balanceOf(address(this));
-            _getLendingPool().withdraw(_bAsset, _amount, _receiver);
-            // uint256 newBal = b.balanceOf(address(this));
-            // quantityWithdrawn = _min(quantityWithdrawn, newBal.sub(prevBal));
+            IERC20 b = IERC20(_bAsset);
+            uint256 prevBal = b.balanceOf(address(this));
+            aToken.redeem(_amount);
+            uint256 newBal = b.balanceOf(address(this));
+            quantityWithdrawn = _min(quantityWithdrawn, newBal.sub(prevBal));
         } else {
-            _getLendingPool().withdraw(_bAsset, _amount, _receiver);
+            aToken.redeem(_amount);
         }
 
         // Send redeemed bAsset to the receiver
-        // IERC20(_bAsset).safeTransfer(_receiver, quantityWithdrawn);
+        IERC20(_bAsset).safeTransfer(_receiver, quantityWithdrawn);
 
         emit Withdrawal(_bAsset, address(aToken), quantityWithdrawn);
     }
@@ -118,56 +111,8 @@ contract AaveIntegration is InitializableAbstractIntegration {
         returns (uint256 balance)
     {
         // balance is always with token aToken decimals
-        address aToken = _getATokenFor(_bAsset);
+        IAaveATokenV1 aToken = _getATokenFor(_bAsset);
         return _checkBalance(aToken);
-    }
-
-    /**
-     * @dev Migrates from V1 to V2 by:
-     *        - Withdrawing all reserves from V1
-     *        - Updating the aToken address
-     *        - Depositing into new reserve
-     * @param _bAssets     Array of bAsset addresses
-     * @param _newATokens  Address of newAToken addresses
-     */
-    function migrate(address _newAddressProvider, address[] calldata _bAssets, address[] calldata _newATokens)
-        external
-        onlyGovernor
-    {
-        uint256 len = _bAssets.length;
-        require(len == _newATokens.length, "_bAssets and _newATokens arrays must be the same length");
-        require(_newAddressProvider != address(0), "New platform address must not be null");
-
-        // 1. Update platform address (root)
-        address oldLendingPoolCore = ILendingPoolAddressesProviderV1(platformAddress).getLendingPoolCore();
-        platformAddress = _newAddressProvider;
-
-        // 2. Loop over bAssets, withdraw from v1 and deposit to v2
-        for(uint i = 0; i < len; i++){
-            address bAsset = _bAssets[i];
-            address newAToken = _newATokens[i];
-            require(newAToken != address(0), "Invalid AToken address");
-
-            // 2.1. Redeem all existing aTokens
-            IAaveATokenV1 oldAToken = IAaveATokenV1(_getATokenFor(bAsset));
-            uint256 oldBalance = oldAToken.balanceOf(address(this));
-            oldAToken.redeem(oldBalance);
-
-            // 2.2. Revoke approval on old LendingPoolCore
-            IERC20(bAsset).safeApprove(oldLendingPoolCore, 0);
-
-            // 2.3. Update aToken address & approve spending
-            bAssetToPToken[bAsset] = newAToken;
-            _abstractSetPToken(bAsset, newAToken);
-
-            // 2.4. Deposit all into new reserve
-            uint256 bal = IERC20(bAsset).balanceOf(address(this));
-            _getLendingPool().deposit(bAsset, bal, address(this), 36);
-            uint256 newBalance = _checkBalance(_getATokenFor(bAsset));
-            //    Dust = 1e24 / 1e6 = 1e18
-            uint256 dust = newBalance.div(1e6);
-            require(newBalance >= oldBalance.sub(dust) && newBalance <= oldBalance.add(dust), "Balance must remain stable");
-        }
     }
 
     /***************************************
@@ -184,7 +129,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
         onlyGovernor
     {
         uint256 bAssetCount = bAssetsMapped.length;
-        address lendingPoolVault = address(_getLendingPool());
+        address lendingPoolVault = _getLendingPoolCore();
         // approve the pool to spend the bAsset
         for(uint i = 0; i < bAssetCount; i++){
             MassetHelpers.safeInfiniteApprove(bAssetsMapped[i], lendingPoolVault);
@@ -200,7 +145,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
     function _abstractSetPToken(address _bAsset, address /*_pToken*/)
         internal
     {
-        address lendingPoolVault = address(_getLendingPool());
+        address lendingPoolVault = _getLendingPoolCore();
         // approve the pool to spend the bAsset
         MassetHelpers.safeInfiniteApprove(_bAsset, lendingPoolVault);
     }
@@ -217,16 +162,30 @@ contract AaveIntegration is InitializableAbstractIntegration {
     function _getLendingPool()
         internal
         view
-        returns (IAaveLendingPoolV2)
+        returns (IAaveLendingPoolV1)
     {
-        address lendingPool = ILendingPoolAddressesProviderV2(platformAddress).getLendingPool();
+        address lendingPool = ILendingPoolAddressesProviderV1(platformAddress).getLendingPool();
         require(lendingPool != address(0), "Lending pool does not exist");
-        return IAaveLendingPoolV2(lendingPool);
+        return IAaveLendingPoolV1(lendingPool);
     }
 
+    /**
+     * @dev Get the current address of the Aave lending pool core, which stores all the
+     *      reserve tokens in its vault.
+     * @return Current lending pool core address
+     */
+    function _getLendingPoolCore()
+        internal
+        view
+        returns (address payable)
+    {
+        address payable lendingPoolCore = ILendingPoolAddressesProviderV1(platformAddress).getLendingPoolCore();
+        require(lendingPoolCore != address(uint160(address(0))), "Lending pool core does not exist");
+        return lendingPoolCore;
+    }
 
     /**
-     * @dev Get the pToken wrapped in the IAaveAToken interface for this bAsset, to use
+     * @dev Get the pToken wrapped in the IAaveATokenV1 interface for this bAsset, to use
      *      for withdrawing or balance checking. Fails if the pToken doesn't exist in our mappings.
      * @param _bAsset  Address of the bAsset
      * @return aToken  Corresponding to this bAsset
@@ -234,11 +193,11 @@ contract AaveIntegration is InitializableAbstractIntegration {
     function _getATokenFor(address _bAsset)
         internal
         view
-        returns (address)
+        returns (IAaveATokenV1)
     {
         address aToken = bAssetToPToken[_bAsset];
         require(aToken != address(0), "aToken does not exist");
-        return aToken;
+        return IAaveATokenV1(aToken);
     }
 
     /**
@@ -246,12 +205,11 @@ contract AaveIntegration is InitializableAbstractIntegration {
      * @param _aToken     aToken for which to check balance
      * @return balance    Total value of the bAsset in the platform
      */
-    function _checkBalance(IAaveATokenV2 _aToken)
+    function _checkBalance(IAaveATokenV1 _aToken)
         internal
         view
         returns (uint256 balance)
     {
         return _aToken.balanceOf(address(this));
     }
-
 }

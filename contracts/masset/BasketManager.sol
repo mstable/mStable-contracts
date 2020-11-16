@@ -486,6 +486,21 @@ contract BasketManager is
     }
 
 
+    function migrateBassets(address[] calldata _bAssets, address _newIntegration) external onlyGovernor {
+
+        // Withdraw from old
+        // Deposit to new
+
+        // for(uint i = 0; i < len; i++){
+        //     address bAsset = _bAssets[i];
+        //     address newAToken = _newATokens[i];
+        // // 2.1. Redeem all existing aTokens
+        //     IAaveATokenV1 oldAToken = IAaveATokenV1(_getATokenFor(bAsset));
+        //     uint256 oldBalance = oldAToken.balanceOf(address(this));
+        //     oldAToken.redeem(oldBalance);
+    }
+
+
     /***************************************
                     GETTERS
     ****************************************/

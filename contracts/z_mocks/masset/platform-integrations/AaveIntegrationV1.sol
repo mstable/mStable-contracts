@@ -1,6 +1,6 @@
 pragma solidity 0.5.16;
 
-import { IAaveAToken, IAaveLendingPoolV1, ILendingPoolAddressesProvider } from "../../../masset/platform-integrations/IAave.sol";
+import { IAaveATokenV1, IAaveLendingPoolV1, ILendingPoolAddressesProviderV1 } from "../../../masset/platform-integrations/IAave.sol";
 import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "../../../masset/platform-integrations/InitializableAbstractIntegration.sol";
 
 
@@ -38,7 +38,7 @@ contract AaveIntegrationV1 is InitializableAbstractIntegration {
     {
         require(_amount > 0, "Must deposit something");
         // Get the Target token
-        IAaveAToken aToken = _getATokenFor(_bAsset);
+        IAaveATokenV1 aToken = _getATokenFor(_bAsset);
 
         // We should have been sent this amount, if not, the deposit will fail
         quantityDeposited = _amount;
@@ -78,7 +78,7 @@ contract AaveIntegrationV1 is InitializableAbstractIntegration {
     {
         require(_amount > 0, "Must withdraw something");
         // Get the Target token
-        IAaveAToken aToken = _getATokenFor(_bAsset);
+        IAaveATokenV1 aToken = _getATokenFor(_bAsset);
 
         uint256 quantityWithdrawn = _amount;
 
@@ -111,7 +111,7 @@ contract AaveIntegrationV1 is InitializableAbstractIntegration {
         returns (uint256 balance)
     {
         // balance is always with token aToken decimals
-        IAaveAToken aToken = _getATokenFor(_bAsset);
+        IAaveATokenV1 aToken = _getATokenFor(_bAsset);
         return _checkBalance(aToken);
     }
 
@@ -164,7 +164,7 @@ contract AaveIntegrationV1 is InitializableAbstractIntegration {
         view
         returns (IAaveLendingPoolV1)
     {
-        address lendingPool = ILendingPoolAddressesProvider(platformAddress).getLendingPool();
+        address lendingPool = ILendingPoolAddressesProviderV1(platformAddress).getLendingPool();
         require(lendingPool != address(0), "Lending pool does not exist");
         return IAaveLendingPoolV1(lendingPool);
     }
@@ -179,13 +179,13 @@ contract AaveIntegrationV1 is InitializableAbstractIntegration {
         view
         returns (address payable)
     {
-        address payable lendingPoolCore = ILendingPoolAddressesProvider(platformAddress).getLendingPoolCore();
+        address payable lendingPoolCore = ILendingPoolAddressesProviderV1(platformAddress).getLendingPoolCore();
         require(lendingPoolCore != address(uint160(address(0))), "Lending pool core does not exist");
         return lendingPoolCore;
     }
 
     /**
-     * @dev Get the pToken wrapped in the IAaveAToken interface for this bAsset, to use
+     * @dev Get the pToken wrapped in the IAaveATokenV1 interface for this bAsset, to use
      *      for withdrawing or balance checking. Fails if the pToken doesn't exist in our mappings.
      * @param _bAsset  Address of the bAsset
      * @return aToken  Corresponding to this bAsset
@@ -193,11 +193,11 @@ contract AaveIntegrationV1 is InitializableAbstractIntegration {
     function _getATokenFor(address _bAsset)
         internal
         view
-        returns (IAaveAToken)
+        returns (IAaveATokenV1)
     {
         address aToken = bAssetToPToken[_bAsset];
         require(aToken != address(0), "aToken does not exist");
-        return IAaveAToken(aToken);
+        return IAaveATokenV1(aToken);
     }
 
     /**
@@ -205,7 +205,7 @@ contract AaveIntegrationV1 is InitializableAbstractIntegration {
      * @param _aToken     aToken for which to check balance
      * @return balance    Total value of the bAsset in the platform
      */
-    function _checkBalance(IAaveAToken _aToken)
+    function _checkBalance(IAaveATokenV1 _aToken)
         internal
         view
         returns (uint256 balance)

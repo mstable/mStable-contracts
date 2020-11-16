@@ -47,17 +47,15 @@ contract AaveIntegration is InitializableAbstractIntegration {
         // We should have been sent this amount, if not, the deposit will fail
         quantityDeposited = _amount;
 
-        uint16 referralCode = 36;
-
         if(_isTokenFeeCharged) {
             // If we charge a fee, account for it
             uint256 prevBal = _checkBalance(aToken);
-            _getLendingPool().deposit(_bAsset, _amount, address(this), referralCode);
+            _getLendingPool().deposit(_bAsset, _amount, address(this), 36);
             uint256 newBal = _checkBalance(aToken);
             quantityDeposited = _min(quantityDeposited, newBal.sub(prevBal));
         } else {
             // aTokens are 1:1 for each asset
-            _getLendingPool().deposit(_bAsset, _amount, address(this), referralCode);
+            _getLendingPool().deposit(_bAsset, _amount, address(this), 36);
         }
 
         emit Deposit(_bAsset, address(aToken), quantityDeposited);
@@ -74,7 +72,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
         address _receiver,
         address _bAsset,
         uint256 _amount,
-        bool _isTokenFeeCharged
+        bool /*_isTokenFeeCharged*/
     )
         external
         onlyWhitelisted
@@ -82,7 +80,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
     {
         require(_amount > 0, "Must withdraw something");
         // Get the Target token
-        address aToken = _getATokenFor(_bAsset);
+        IAaveATokenV2 aToken = _getATokenFor(_bAsset);
 
         _getLendingPool().withdraw(_bAsset, _amount, _receiver);
 
@@ -101,56 +99,8 @@ contract AaveIntegration is InitializableAbstractIntegration {
         returns (uint256 balance)
     {
         // balance is always with token aToken decimals
-        address aToken = _getATokenFor(_bAsset);
+        IAaveATokenV2 aToken = _getATokenFor(_bAsset);
         return _checkBalance(aToken);
-    }
-
-    /**
-     * @dev Migrates from V1 to V2 by:
-     *        - Withdrawing all reserves from V1
-     *        - Updating the aToken address
-     *        - Depositing into new reserve
-     * @param _bAssets     Array of bAsset addresses
-     * @param _newATokens  Address of newAToken addresses
-     */
-    function migrate(address _newAddressProvider, address[] calldata _bAssets, address[] calldata _newATokens)
-        external
-        onlyGovernor
-    {
-        uint256 len = _bAssets.length;
-        require(len == _newATokens.length, "_bAssets and _newATokens arrays must be the same length");
-        require(_newAddressProvider != address(0), "New platform address must not be null");
-
-        // 1. Update platform address (root)
-        address oldLendingPoolCore = ILendingPoolAddressesProviderV1(platformAddress).getLendingPoolCore();
-        platformAddress = _newAddressProvider;
-
-        // 2. Loop over bAssets, withdraw from v1 and deposit to v2
-        for(uint i = 0; i < len; i++){
-            address bAsset = _bAssets[i];
-            address newAToken = _newATokens[i];
-            require(newAToken != address(0), "Invalid AToken address");
-
-            // 2.1. Redeem all existing aTokens
-            IAaveATokenV1 oldAToken = IAaveATokenV1(_getATokenFor(bAsset));
-            uint256 oldBalance = oldAToken.balanceOf(address(this));
-            oldAToken.redeem(oldBalance);
-
-            // 2.2. Revoke approval on old LendingPoolCore
-            IERC20(bAsset).safeApprove(oldLendingPoolCore, 0);
-
-            // 2.3. Update aToken address & approve spending
-            bAssetToPToken[bAsset] = newAToken;
-            _abstractSetPToken(bAsset, newAToken);
-
-            // 2.4. Deposit all into new reserve
-            uint256 bal = IERC20(bAsset).balanceOf(address(this));
-            _getLendingPool().deposit(bAsset, bal, address(this), 36);
-            uint256 newBalance = _checkBalance(_getATokenFor(bAsset));
-            //    Dust = 1e24 / 1e6 = 1e18
-            uint256 dust = newBalance.div(1e6);
-            require(newBalance >= oldBalance.sub(dust) && newBalance <= oldBalance.add(dust), "Balance must remain stable");
-        }
     }
 
     /***************************************
@@ -221,7 +171,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
     {
         address aToken = bAssetToPToken[_bAsset];
         require(aToken != address(0), "aToken does not exist");
-        return aToken;
+        return IAaveATokenV2(aToken);
     }
 
     /**

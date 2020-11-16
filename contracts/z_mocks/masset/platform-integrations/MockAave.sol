@@ -1,6 +1,6 @@
 pragma solidity 0.5.16;
 
-import { IAaveAToken, IAaveLendingPoolV1, IAaveLendingPoolV2, ILendingPoolAddressesProvider } from "../../../masset/platform-integrations/IAave.sol";
+import { IAaveATokenV1, IAaveLendingPoolV1, IAaveLendingPoolV2, ILendingPoolAddressesProviderV1 } from "../../../masset/platform-integrations/IAave.sol";
 import { AaveIntegration } from "../../../masset/platform-integrations/AaveIntegration.sol";
 
 import { MassetHelpers, SafeERC20, SafeMath } from "../../../masset/shared/MassetHelpers.sol";
@@ -36,7 +36,7 @@ contract MockAToken is ERC20Mintable {
     }
 }
 
-contract MockAave is IAaveLendingPoolV2, ILendingPoolAddressesProvider {
+contract MockAave is IAaveLendingPoolV1, ILendingPoolAddressesProviderV1 {
 
     using SafeMath for uint256;
 
@@ -74,7 +74,7 @@ contract MockAave is IAaveLendingPoolV2, ILendingPoolAddressesProvider {
     }
 }
 
-contract MockAaveV1 is IAaveLendingPoolV1, ILendingPoolAddressesProvider {
+contract MockAaveV1 is IAaveLendingPoolV1, ILendingPoolAddressesProviderV1 {
 
     using SafeMath for uint256;
 
@@ -128,7 +128,7 @@ contract MockAaveIntegration is AaveIntegration {
         returns (uint256 balance)
     {
         // balance is always with token aToken decimals
-        IAaveAToken aToken = _getATokenFor(_bAsset);
+        IAaveATokenV1 aToken = _getATokenFor(_bAsset);
         balance = _checkBalance(aToken);
 
         // emit CurrentBalance(_bAsset, balance);
@@ -153,7 +153,7 @@ contract MockAaveIntegrationV1 is AaveIntegrationV1 {
         returns (uint256 balance)
     {
         // balance is always with token aToken decimals
-        IAaveAToken aToken = _getATokenFor(_bAsset);
+        IAaveATokenV1 aToken = _getATokenFor(_bAsset);
         balance = _checkBalance(aToken);
 
         // emit CurrentBalance(_bAsset, balance);
