@@ -359,22 +359,6 @@ contract("Masset - RedeemMasset", async (accounts) => {
                     // Complete basket should remain in healthy state
                     await assertBasketIsHealthy(massetMachine, massetDetails);
                 });
-                it("should fail if the token charges a fee but we dont know about it", async () => {
-                    const { bAssets, mAsset, basketManager } = massetDetails;
-                    await assertBasketIsHealthy(massetMachine, massetDetails);
-                    // 1.0 Assert bAsset has fee
-                    const bAsset = bAssets[3];
-                    const basket = await massetMachine.getBasketComposition(massetDetails);
-                    expect(basket.bAssets[3].isTransferFeeCharged).to.eq(true);
-                    await basketManager.setTransferFeesFlag(bAsset.address, false, {
-                        from: sa.governor,
-                    });
-                    // 2.0 Do the mint
-                    await expectRevert(
-                        mAsset.redeemMasset(new BN(1000000), sa.default),
-                        "SafeERC20: low-level call failed",
-                    );
-                });
             });
             context("passing invalid arguments", async () => {
                 before(async () => {

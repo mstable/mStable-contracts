@@ -23,8 +23,8 @@ import { InitializableReentrancyGuard } from "../shared/InitializableReentrancyG
  *          basket data to the mAsset and is responsible for keeping accurate records.
  *          BasketManager can also optimise lending pool integrations and perform
  *          re-collateralisation on failed bAssets.
- * @dev     VERSION: 1.0
- *          DATE:    2020-05-05
+ * @dev     VERSION: 1.1
+ *          DATE:    2020-16-11
  */
 contract BasketManager is
     Initializable,
@@ -39,6 +39,7 @@ contract BasketManager is
     // Events for Basket composition changes
     event BassetAdded(address indexed bAsset, address integrator);
     event BassetRemoved(address indexed bAsset);
+    event BassetsMigrated(address[] bAssets, address newIntegrator);
     event BasketWeightsUpdated(address[] bAssets, uint256[] maxWeights);
     event BassetStatusChanged(address indexed bAsset, BassetStatus status);
     event BasketStatusChanged();
@@ -486,21 +487,46 @@ contract BasketManager is
     }
 
     /**
-     * @dev Transfers all collateral from one lending market to another
-     * @return b   Basket struct
+     * @dev Transfers all collateral from one lending market to another - used initially
+     *      to handle the migration between Aave V1 and Aave V2. Note - only supports non
+     *      tx fee enabled assets
+     * @param _bAssets Array of basket assets to migrate
+     * @param _newIntegration Address of the new platform integration
      */
-    function migrateBassets(address[] calldata _bAssets, address _newIntegration) external onlyGovernor {
+    function migrateBassets(
+        address[] calldata _bAssets,
+        address _newIntegration
+    )
+        external
+        onlyGovernor
+    {
+        uint256 len = _bAssets.length;
 
-        // Withdraw from old
-        // Deposit to new
+        for(uint i = 0; i < len; i++){
+            // 1. Check that the bAsset is in the basket
+            address bAsset = _bAssets[i];
+            (bool inBasket, uint8 index) = _isAssetInBasket(bAsset);
+            require(inBasket, "bAsset does not exist");
 
-        // for(uint i = 0; i < len; i++){
-        //     address bAsset = _bAssets[i];
-        //     address newAToken = _newATokens[i];
-        // // 2.1. Redeem all existing aTokens
-        //     IAaveATokenV1 oldAToken = IAaveATokenV1(_getATokenFor(bAsset));
-        //     uint256 oldBalance = oldAToken.balanceOf(address(this));
-        //     oldAToken.redeem(oldBalance);
+            // 2. Withdraw everything from the old platform integration
+            IPlatformIntegration oldIntegration = IPlatformIntegration(integrations[index]);
+            uint256 balance = oldIntegration.checkBalance(bAsset);
+            oldIntegration.withdraw(address(this), bAsset, balance, false);
+
+            // 3. Update the integration address for this bAsset
+            integrations[index] = _newIntegration;
+
+            // 4. Deposit everything into the new
+            //    This should fail if we did not receive the full amount from the platform withdrawal
+            IERC20(bAsset).safeTransfer(_newIntegration, balance);
+            IPlatformIntegration newIntegration = IPlatformIntegration(_newIntegration);
+            newIntegration.deposit(bAsset, balance, false);
+            uint256 newBalance = newIntegration.checkBalance(bAsset);
+
+            require(newBalance >= balance, "Must transfer full amount");
+        }
+
+        emit BassetsMigrated(_bAssets, _newIntegration);
     }
 
 
