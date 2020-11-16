@@ -24,12 +24,12 @@ const { expect } = envSetup.configure();
 
 const c_MockERC20 = artifacts.require("MockERC20");
 const c_MockAaveAToken = artifacts.require("MockAToken");
-const c_MockAave = artifacts.require("MockAave");
+const c_MockAave = artifacts.require("MockAaveV1");
 const c_Nexus = artifacts.require("Nexus");
-const c_AaveLendingPoolAddressProvider = artifacts.require("ILendingPoolAddressesProvider");
+const c_AaveLendingPoolAddressProvider = artifacts.require("ILendingPoolAddressesProviderV1");
 const c_AaveLendingPool = artifacts.require("IAaveLendingPoolV2");
 const c_ERC20 = artifacts.require("ERC20Detailed");
-const c_AaveAToken = artifacts.require("IAaveAToken");
+const c_AaveAToken = artifacts.require("IAaveATokenV1");
 const c_DelayedProxyAdmin = artifacts.require("DelayedProxyAdmin");
 const c_InitializableProxy = artifacts.require(
     // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
@@ -71,7 +71,7 @@ contract("AaveIntegration", async (accounts) => {
         d_AaveIntegration = await c_AaveIntegration.at(d_AaveIntegrationProxy.address);
 
         // Load network specific integration data
-        integrationDetails = await massetMachine.loadBassets(enableUSDTFee);
+        integrationDetails = await massetMachine.loadBassets(enableUSDTFee, true);
 
         // Initialize the proxy storage
         const aaveImplementation = await c_AaveIntegration.new();

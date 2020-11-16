@@ -13,13 +13,9 @@ import * as t from "types/generated";
 
 const { expect } = envSetup.configure();
 
-const MockBasketManager1 = artifacts.require("MockBasketManager1");
 const MockERC20 = artifacts.require("MockERC20");
 const MockAToken = artifacts.require("MockAToken");
-const MockAave = artifacts.require("MockAave");
-const AaveIntegration = artifacts.require("AaveIntegration");
-
-const Masset = artifacts.require("Masset");
+const MockAave = artifacts.require("MockAaveV2");
 
 contract("Masset - RedeemMasset", async (accounts) => {
     const sa = new StandardAccounts(accounts);

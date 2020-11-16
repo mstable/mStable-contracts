@@ -9,13 +9,13 @@ import { InitializableAbstractIntegration, MassetHelpers, IERC20, SafeMath } fro
 
 
 /**
- * @title   AaveIntegrationV2
+ * @title   AaveIntegration
  * @author  Stability Labs Pty. Ltd.
  * @notice  A simple connection to deposit and withdraw bAssets from Aave
  * @dev     VERSION: 1.0
  *          DATE:    2020-16-11
  */
-contract AaveIntegration is InitializableAbstractIntegration {
+contract AaveV2Integration is InitializableAbstractIntegration {
 
     /***************************************
                     CORE
@@ -79,7 +79,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
         nonReentrant
     {
         require(_amount > 0, "Must withdraw something");
-        // Get the Target token
+
         IAaveATokenV2 aToken = _getATokenFor(_bAsset);
 
         _getLendingPool().withdraw(_bAsset, _amount, _receiver);
@@ -133,9 +133,9 @@ contract AaveIntegration is InitializableAbstractIntegration {
     function _abstractSetPToken(address _bAsset, address /*_pToken*/)
         internal
     {
-        address lendingPoolVault = address(_getLendingPool());
+        address lendingPool = address(_getLendingPool());
         // approve the pool to spend the bAsset
-        MassetHelpers.safeInfiniteApprove(_bAsset, lendingPoolVault);
+        MassetHelpers.safeInfiniteApprove(_bAsset, lendingPool);
     }
 
     /***************************************

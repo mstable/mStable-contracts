@@ -1,6 +1,6 @@
 pragma solidity 0.5.16;
 
-import { IAaveATokenV1, IAaveLendingPoolV1, IAaveLendingPoolV2, ILendingPoolAddressesProviderV1 } from "../../../masset/platform-integrations/IAave.sol";
+import { IAaveATokenV1, IAaveLendingPoolV1, IAaveLendingPoolV2, ILendingPoolAddressesProviderV1, ILendingPoolAddressesProviderV2 } from "../../../masset/platform-integrations/IAave.sol";
 import { AaveIntegration } from "../../../masset/platform-integrations/AaveIntegration.sol";
 
 import { MassetHelpers, SafeERC20, SafeMath } from "../../../masset/shared/MassetHelpers.sol";
@@ -36,7 +36,7 @@ contract MockAToken is ERC20Mintable {
     }
 }
 
-contract MockAave is IAaveLendingPoolV1, ILendingPoolAddressesProviderV1 {
+contract MockAaveV2 is IAaveLendingPoolV2, ILendingPoolAddressesProviderV2 {
 
     using SafeMath for uint256;
 
@@ -60,12 +60,16 @@ contract MockAave is IAaveLendingPoolV1, ILendingPoolAddressesProviderV1 {
         ERC20Mintable(reserveToAToken[_reserve]).mint(msg.sender, _amount);
     }
 
-    function getLendingPool() external view returns (address) {
-        return pool;
+    function withdraw(
+        address reserve,
+        uint256 amount,
+        address to
+    ) external {
+        IERC20(reserve).transfer(to, amount);
     }
 
-    function getLendingPoolCore() external view returns (address payable) {
-        return core;
+    function getLendingPool() external view returns (address) {
+        return pool;
     }
 
     function breakLendingPools() external {

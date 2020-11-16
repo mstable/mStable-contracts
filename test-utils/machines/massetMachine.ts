@@ -28,8 +28,9 @@ const c_VaultProxy = artifacts.require("VaultProxy");
 
 // Integrations
 const c_AaveIntegration = artifacts.require("AaveIntegration");
-const c_MockAave = artifacts.require("MockAave");
+const c_AaveV2Integration = artifacts.require("AaveV2Integration");
 const c_MockAaveV1 = artifacts.require("MockAaveV1");
+const c_MockAaveV2 = artifacts.require("MockAaveV2");
 const c_MockAToken = artifacts.require("MockAToken");
 const c_CompoundIntegration = artifacts.require("CompoundIntegration");
 const c_MockCToken = artifacts.require("MockCToken");
@@ -120,7 +121,9 @@ export class MassetMachine {
 
         // 2.2. Deploy no Init AaveIntegration
         //  - Deploy Implementation with dummy params (this storage doesn't get used)
-        const d_AaveIntegration = await c_AaveIntegration.new();
+        const d_AaveIntegration = await (useOldAave
+            ? c_AaveIntegration.new()
+            : c_AaveV2Integration.new());
         await d_AaveIntegration.initialize(DEAD_ADDRESS, [DEAD_ADDRESS], DEAD_ADDRESS, [], []);
         //  - Deploy Initializable Proxy
         const d_AaveIntegrationProxy = await c_VaultProxy.new();
@@ -322,7 +325,7 @@ export class MassetMachine {
         const mockCToken2 = await c_MockCToken.new(mockBasset2.address);
 
         //  - Mock Aave integration
-        const aaveVersion = useOldAave ? c_MockAaveV1 : c_MockAave;
+        const aaveVersion = useOldAave ? c_MockAaveV1 : c_MockAaveV2;
         const d_MockAave = await aaveVersion.new({ from: this.sa.default });
 
         //  - Mock aTokens

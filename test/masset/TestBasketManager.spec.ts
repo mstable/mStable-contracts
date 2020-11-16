@@ -24,7 +24,7 @@ import shouldBehaveLikePausableModule from "../shared/behaviours/PausableModule.
 const { expect } = envSetup.configure();
 
 const BasketManager = artifacts.require("BasketManager");
-const AaveIntegration = artifacts.require("AaveIntegration");
+const AaveIntegration = artifacts.require("AaveV2Integration");
 const CompoundIntegration = artifacts.require("CompoundIntegration");
 const MockNexus = artifacts.require("MockNexus");
 const MockBasketManager = artifacts.require("MockBasketManager3");

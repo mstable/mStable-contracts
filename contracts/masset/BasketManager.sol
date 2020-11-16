@@ -485,7 +485,10 @@ contract BasketManager is
         emit BassetRemoved(bAsset.addr);
     }
 
-
+    /**
+     * @dev Transfers all collateral from one lending market to another
+     * @return b   Basket struct
+     */
     function migrateBassets(address[] calldata _bAssets, address _newIntegration) external onlyGovernor {
 
         // Withdraw from old
