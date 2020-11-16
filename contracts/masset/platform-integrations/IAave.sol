@@ -4,7 +4,7 @@ pragma solidity 0.5.16;
  * @dev Interface for Aaves A Token
  * Documentation: https://developers.aave.com/#atokens
  */
-interface IAaveAToken {
+interface IAaveATokenV1 {
 
     /**
      * @notice Non-standard ERC20 function to redeem an _amount of aTokens for the underlying
@@ -40,7 +40,7 @@ interface IAaveLendingPoolV1 {
  * @dev Interface for Aaves Lending Pool
  * Documentation: https://developers.aave.com/#lendingpooladdressesprovider
  */
-interface ILendingPoolAddressesProvider {
+interface ILendingPoolAddressesProviderV1 {
 
     /**
      * @notice Get the current address for Aave LendingPool
@@ -56,6 +56,34 @@ interface ILendingPoolAddressesProvider {
 
 }
 
+/**
+ * @dev Interface for Aaves Lending Pool
+ * Documentation: https://developers.aave.com/#lendingpooladdressesprovider
+ */
+interface ILendingPoolAddressesProviderV2 {
+
+    /**
+     * @notice Get the current address for Aave LendingPool
+     * @dev Lending pool is the core contract on which to call deposit
+     */
+    function getLendingPool() external view returns (address);
+}
+
+/**
+ * @dev Interface for Aaves A Token
+ * Documentation: https://developers.aave.com/#atokens
+ */
+interface IAaveATokenV2 {
+
+    /**
+     * @notice returns the current total aToken balance of _user all interest collected included.
+     * To obtain the user asset principal balance with interests excluded , ERC20 non-standard
+     * method principalBalanceOf() can be used.
+     */
+    function balanceOf(address _user) external view returns(uint256);
+}
+
+
 interface IAaveLendingPoolV2 {
 
     /**
@@ -70,5 +98,17 @@ interface IAaveLendingPoolV2 {
         uint256 amount,
         address onBehalfOf,
         uint16 referralCode
+    ) external;
+
+    /**
+    * @dev withdraws the assets of user.
+    * @param reserve the address of the reserve
+    * @param amount the underlying amount to be redeemed
+    * @param to address that will receive the underlying
+    **/
+    function withdraw(
+        address reserve,
+        uint256 amount,
+        address to
     ) external;
 }

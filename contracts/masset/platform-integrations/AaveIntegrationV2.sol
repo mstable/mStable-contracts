@@ -1,22 +1,19 @@
 pragma solidity 0.5.16;
 
 import {
-    IAaveATokenV1,
     IAaveATokenV2,
-    IAaveLendingPoolV1,
     IAaveLendingPoolV2,
-    ILendingPoolAddressesProviderV1,
     ILendingPoolAddressesProviderV2
 } from "./IAave.sol";
 import { InitializableAbstractIntegration, MassetHelpers, IERC20, SafeMath } from "./InitializableAbstractIntegration.sol";
 
 
 /**
- * @title   AaveIntegration
+ * @title   AaveIntegrationV2
  * @author  Stability Labs Pty. Ltd.
  * @notice  A simple connection to deposit and withdraw bAssets from Aave
- * @dev     VERSION: 2.0
- *          DATE:    2020-10-08
+ * @dev     VERSION: 1.0
+ *          DATE:    2020-16-11
  */
 contract AaveIntegration is InitializableAbstractIntegration {
 
@@ -44,7 +41,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
         returns (uint256 quantityDeposited)
     {
         require(_amount > 0, "Must deposit something");
-        // Get the Target token
+
         IAaveATokenV2 aToken = _getATokenFor(_bAsset);
 
         // We should have been sent this amount, if not, the deposit will fail
@@ -87,23 +84,9 @@ contract AaveIntegration is InitializableAbstractIntegration {
         // Get the Target token
         address aToken = _getATokenFor(_bAsset);
 
-        uint256 quantityWithdrawn = _amount;
+        _getLendingPool().withdraw(_bAsset, _amount, _receiver);
 
-        // Don't need to Approve aToken, as it gets burned in redeem()
-        if(_isTokenFeeCharged) {
-            // IERC20 b = IERC20(_bAsset);
-            // uint256 prevBal = b.balanceOf(address(this));
-            _getLendingPool().withdraw(_bAsset, _amount, _receiver);
-            // uint256 newBal = b.balanceOf(address(this));
-            // quantityWithdrawn = _min(quantityWithdrawn, newBal.sub(prevBal));
-        } else {
-            _getLendingPool().withdraw(_bAsset, _amount, _receiver);
-        }
-
-        // Send redeemed bAsset to the receiver
-        // IERC20(_bAsset).safeTransfer(_receiver, quantityWithdrawn);
-
-        emit Withdrawal(_bAsset, address(aToken), quantityWithdrawn);
+        emit Withdrawal(_bAsset, address(aToken), _amount);
     }
 
     /**
@@ -234,7 +217,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
     function _getATokenFor(address _bAsset)
         internal
         view
-        returns (address)
+        returns (IAaveATokenV2)
     {
         address aToken = bAssetToPToken[_bAsset];
         require(aToken != address(0), "aToken does not exist");
