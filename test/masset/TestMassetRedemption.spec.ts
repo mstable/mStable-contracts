@@ -1244,7 +1244,7 @@ contract("Masset - Redeem", async (accounts) => {
                     });
 
                     const recipientBassetBalBefore = await bAsset.balanceOf(recipient);
-                    await mAsset.redeemMulti([bAsset.address], [oneBasset], sa.default);
+                    await mAsset.redeemMulti([bAsset.address], [oneBasset], recipient);
                     // 4.0 Total supply goes down, and recipient bAsset goes up slightly
                     const recipientBassetBalAfter = await bAsset.balanceOf(recipient);
                     // Assert that we redeemed gt 99% of the bAsset
