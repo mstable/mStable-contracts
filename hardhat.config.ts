@@ -1,22 +1,28 @@
-import { usePlugin } from "@nomiclabs/buidler/config";
+require("hardhat-gas-reporter");
+// require("solidity-coverage");
+require("@nomiclabs/hardhat-truffle5");
+require("hardhat-typechain");
 
 require("ts-node/register");
 require("tsconfig-paths/register");
 
-usePlugin("solidity-coverage");
-usePlugin("@nomiclabs/buidler-truffle5");
-usePlugin("buidler-gas-reporter");
-
 export default {
     networks: {
-        buidlerevm: { allowUnlimitedContractSize: true },
+        hardhat: { allowUnlimitedContractSize: true },
         localhost: { url: "http://localhost:8545" },
         fork: { url: "http://localhost:7545" },
         coverage: {
             url: "http://localhost:7546",
         },
     },
-    solc: { version: "0.5.16" },
+    solidity: {
+        version: "0.5.16",
+        settings: {
+            optimizer: {
+                enabled: true,
+            },
+        },
+    },
     paths: { artifacts: "./build/contracts" },
     gasReporter: {
         currency: "USD",
@@ -24,5 +30,9 @@ export default {
     },
     mocha: {
         timeout: 240000, // 4 min timeout
+    },
+    typechain: {
+        outDir: "types/generated",
+        target: "truffle-v5",
     },
 };

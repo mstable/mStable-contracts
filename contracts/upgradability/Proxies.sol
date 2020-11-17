@@ -31,3 +31,14 @@ contract BasketManagerProxy is InitializableAdminUpgradeabilityProxy {
  */
 contract VaultProxy is InitializableAdminUpgradeabilityProxy {
 }
+
+
+/**
+ * @notice LiquidatorProxy delegates calls to a Liquidator implementation
+ * @dev    Extending on OpenZeppelin's InitializableAdminUpgradabilityProxy
+ * means that the proxy is upgradable through a ProxyAdmin. LiquidatorProxy upgrades
+ * are implemented by a DelayedProxyAdmin, which enforces a 1 week opt-out period.
+ * All upgrades are governed through the current mStable governance.
+ */
+contract LiquidatorProxy is InitializableAdminUpgradeabilityProxy {
+}

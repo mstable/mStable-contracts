@@ -61,7 +61,7 @@ contract("Masset", async (accounts) => {
                     massetDetails.basketManager.address,
                 );
                 expect(await massetDetails.mAsset.swapFee()).bignumber.eq(
-                    simpleToExactAmount(4, 15),
+                    simpleToExactAmount(6, 14),
                 );
                 expect(await massetDetails.mAsset.redemptionFee()).bignumber.eq(new BN(0));
                 expect(await massetDetails.mAsset.decimals()).bignumber.eq(new BN(18));
@@ -197,7 +197,9 @@ contract("Masset", async (accounts) => {
             const mUSDBalAfter = await massetDetails.mAsset.balanceOf(sa.dummy1);
             const bassetsAfter = await massetMachine.getBassetsInMasset(massetDetails);
 
-            bassetsAfter.map((b, i) => expect(b.vaultBalance).bignumber.gt(new BN(bassetsBefore[i].vaultBalance)))
+            bassetsAfter.map((b, i) =>
+                expect(b.vaultBalance).bignumber.gt(new BN(bassetsBefore[i].vaultBalance)),
+            );
 
             const sumOfVaultsAfter = bassetsAfter.reduce(
                 (p, c) => p.add(applyRatio(c.vaultBalance, c.ratio)),

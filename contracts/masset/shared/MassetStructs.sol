@@ -82,6 +82,14 @@ interface MassetStructs {
         address[] integrators;
         uint8[] indexes;
     }
+    /** @dev All details needed to Forge with multiple bAssets */
+    struct RedeemProps {
+        bool isValid;
+        Basset[] allBassets;
+        Basset[] bAssets;
+        address[] integrators;
+        uint8[] indexes;
+    }
 
     /** @dev All details needed for proportionate Redemption */
     struct RedeemPropsMulti {

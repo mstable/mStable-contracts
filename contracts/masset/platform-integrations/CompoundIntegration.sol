@@ -8,39 +8,36 @@ import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "./Initi
  * @title   CompoundIntegration
  * @author  Stability Labs Pty. Ltd.
  * @notice  A simple connection to deposit and withdraw bAssets from Compound
- * @dev     VERSION: 1.1
- *          DATE:    2020-07-29
+ * @dev     VERSION: 1.3
+ *          DATE:    2020-11-14
  */
 contract CompoundIntegration is InitializableAbstractIntegration {
 
-    event RewardTokenCollected(address recipient, uint256 amount);
     event SkippedWithdrawal(address bAsset, uint256 amount);
+    event RewardTokenApproved(address rewardToken, address account);
 
     /***************************************
                     ADMIN
     ****************************************/
 
     /**
-     * @dev Collects the accumulated COMP token from the contract
-     * @param _recipient Recipient to credit
+     * @dev Approves Liquidator to spend reward tokens
      */
-    function collectRewardToken(
-        address _recipient
-    )
+    function approveRewardToken()
         external
         onlyGovernor
     {
+        address liquidator = nexus.getModule(keccak256("Liquidator"));
+        require(liquidator != address(0), "Liquidator address cannot be zero");
+
         // Official checksummed COMP token address
         // https://ethplorer.io/address/0xc00e94cb662c3520282e6f5717214004a7f26888
-        IERC20 compToken = IERC20(0xc00e94Cb662C3520282E6f5717214004A7f26888);
+        address compToken = address(0xc00e94Cb662C3520282E6f5717214004A7f26888);
 
-        uint256 balance = compToken.balanceOf(address(this));
+        MassetHelpers.safeInfiniteApprove(compToken, liquidator);
 
-        require(compToken.transfer(_recipient, balance), "Collection transfer failed");
-
-        emit RewardTokenCollected(_recipient, balance);
+        emit RewardTokenApproved(address(compToken), liquidator);
     }
-
 
     /***************************************
                     CORE
@@ -52,13 +49,13 @@ contract CompoundIntegration is InitializableAbstractIntegration {
      *      (mAsset and corresponding BasketManager)
      * @param _bAsset              Address for the bAsset
      * @param _amount              Units of bAsset to deposit
-     * @param _isTokenFeeCharged   Flag that signals if an xfer fee is charged on bAsset
+     * @param _hasTxFee   Flag that signals if an xfer fee is charged on bAsset
      * @return quantityDeposited   Quantity of bAsset that entered the platform
      */
     function deposit(
         address _bAsset,
         uint256 _amount,
-        bool _isTokenFeeCharged
+        bool _hasTxFee
     )
         external
         onlyWhitelisted
@@ -70,10 +67,9 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         // Get the Target token
         ICERC20 cToken = _getCTokenFor(_bAsset);
 
-        // We should have been sent this amount, if not, the deposit will fail
         quantityDeposited = _amount;
 
-        if(_isTokenFeeCharged) {
+        if(_hasTxFee) {
             // If we charge a fee, account for it
             uint256 prevBal = _checkBalance(cToken);
             require(cToken.mint(_amount) == 0, "cToken mint failed");
@@ -93,12 +89,15 @@ contract CompoundIntegration is InitializableAbstractIntegration {
      * @param _receiver     Address to which the withdrawn bAsset should be sent
      * @param _bAsset       Address of the bAsset
      * @param _amount       Units of bAsset to withdraw
+     * @param _totalAmount  Total units to pull from lending platform
+     * @param _hasTxFee     Is the bAsset known to have a tx fee?
      */
     function withdraw(
         address _receiver,
         address _bAsset,
         uint256 _amount,
-        bool _isTokenFeeCharged
+        uint256 _totalAmount,
+        bool _hasTxFee
     )
         external
         onlyWhitelisted
@@ -118,23 +117,47 @@ contract CompoundIntegration is InitializableAbstractIntegration {
             return;
         }
 
-        uint256 quantityWithdrawn = _amount;
+        uint256 userWithdrawal = _amount;
 
-        if(_isTokenFeeCharged) {
+        if(_hasTxFee) {
+            require(_amount == _totalAmount, "Cache inactive for assets with fee");
             IERC20 b = IERC20(_bAsset);
             uint256 prevBal = b.balanceOf(address(this));
             require(cToken.redeemUnderlying(_amount) == 0, "redeem failed");
             uint256 newBal = b.balanceOf(address(this));
-            quantityWithdrawn = _min(quantityWithdrawn, newBal.sub(prevBal));
+            userWithdrawal = _min(userWithdrawal, newBal.sub(prevBal));
         } else {
             // Redeem Underlying bAsset amount
-            require(cToken.redeemUnderlying(_amount) == 0, "redeem failed");
+            require(cToken.redeemUnderlying(_totalAmount) == 0, "redeem failed");
         }
 
         // Send redeemed bAsset to the receiver
-        IERC20(_bAsset).safeTransfer(_receiver, quantityWithdrawn);
+        IERC20(_bAsset).safeTransfer(_receiver, userWithdrawal);
 
-        emit Withdrawal(_bAsset, address(cToken), quantityWithdrawn);
+        emit Withdrawal(_bAsset, address(cToken), userWithdrawal);
+    }
+
+    /**
+     * @dev Withdraw a quantity of bAsset from the cache.
+     * @param _receiver     Address to which the bAsset should be sent
+     * @param _bAsset       Address of the bAsset
+     * @param _amount       Units of bAsset to withdraw
+     */
+    function withdrawRaw(
+        address _receiver,
+        address _bAsset,
+        uint256 _amount
+    )
+        external
+        onlyWhitelisted
+        nonReentrant
+    {
+        require(_amount > 0, "Must withdraw something");
+
+        // Send redeemed bAsset to the receiver
+        IERC20(_bAsset).safeTransfer(_receiver, _amount);
+
+        emit Withdrawal(_bAsset, address(0), _amount);
     }
 
     /**

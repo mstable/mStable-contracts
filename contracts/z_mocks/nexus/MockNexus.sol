@@ -37,4 +37,8 @@ contract MockNexus is Nexus, ModuleKeys {
     function setSavingsManager(address _savingsManager) external {
         modules[KEY_SAVINGS_MANAGER] = Module({addr: _savingsManager, isLocked: true});
     }
+
+    function setLiquidator(address _liquidator) external {
+        modules[KEY_LIQUIDATOR] = Module({addr: _liquidator, isLocked: true});
+    }
 }

@@ -18,7 +18,7 @@ export enum Platform {
 }
 
 export interface BassetIntegrationDetails {
-    bAssets: Array<t.MockErc20Instance>;
+    bAssets: Array<t.MockERC20Instance>;
     fees: Array<boolean>;
     platforms: Array<Platform>;
     aavePlatformAddress: Address;

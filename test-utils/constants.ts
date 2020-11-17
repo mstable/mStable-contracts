@@ -71,14 +71,14 @@ export class RopstenAccounts {
     public DAI: Address = "0xb5e5d0f8c0cba267cd3d7035d6adc8eba7df7cdd";
     public USDC: Address = "0x8a9447df1fb47209d36204e6d56767a33bf20f9f";
 
-    public TUSD: Address = "0xb36938c51c4f67e5e1112eb11916ed70a772bd75";
+    public TUSD: Address = "0xa2ea00df6d8594dbc76b79befe22db9043b8896f";
 
     public USDT: Address = "0xB404c51BBC10dcBE948077F18a4B8E553D160084";
     public allNativeTokens: Address[] = [this.DAI, this.TUSD, this.USDC, this.USDT];
 
     // AAVE
     public aavePlatform: Address = "0x1c8756FD2B28e9426CDBDcC7E3c4d64fa9A54728";
-    public aTUSD: Address = "0x3de3f55afdb0cf2753fae759f36d892126a06c81";
+    public aTUSD: Address = "0x9265d51f5abf1e23be64418827859bc83ae70a57";
     public aUSDT: Address = "0x790744bC4257B4a0519a3C5649Ac1d16DDaFAE0D";
     public allATokens: Address[] = [this.aTUSD, this.aUSDT];
 

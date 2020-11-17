@@ -614,6 +614,7 @@ contract("AaveIntegration", async (accounts) => {
                 bAssetRecipient,
                 bAsset.address,
                 amount.toString(),
+                amount.toString(),
                 false,
             );
 
@@ -665,6 +666,7 @@ contract("AaveIntegration", async (accounts) => {
                 bAssetRecipient,
                 bAsset.address,
                 amount.toString(),
+                amount.toString(),
                 true,
             );
             const bAssetRecipient_balAfter = await bAsset.balanceOf(bAssetRecipient);
@@ -699,9 +701,16 @@ contract("AaveIntegration", async (accounts) => {
 
             // Step 1. call deposit
             await expectRevert(
-                d_AaveIntegration.withdraw(sa.dummy1, bAsset.address, amount.toString(), false, {
-                    from: sa.dummy1,
-                }),
+                d_AaveIntegration.withdraw(
+                    sa.dummy1,
+                    bAsset.address,
+                    amount.toString(),
+                    amount.toString(),
+                    false,
+                    {
+                        from: sa.dummy1,
+                    },
+                ),
                 "Not a whitelisted address",
             );
         });
@@ -713,7 +722,13 @@ contract("AaveIntegration", async (accounts) => {
 
             // Step 1. call deposit
             await expectRevert(
-                d_AaveIntegration.withdraw(sa.default, bAsset.address, amount.toString(), false),
+                d_AaveIntegration.withdraw(
+                    sa.default,
+                    bAsset.address,
+                    amount.toString(),
+                    amount.toString(),
+                    false,
+                ),
                 systemMachine.isGanacheFork
                     ? "User cannot redeem more than the available balance"
                     : "ERC20: burn amount exceeds balance",
@@ -733,22 +748,35 @@ contract("AaveIntegration", async (accounts) => {
 
             // Fails with ZERO bAsset Address
             await expectRevert(
-                d_AaveIntegration.withdraw(sa.dummy1, ZERO_ADDRESS, amount.toString(), false),
+                d_AaveIntegration.withdraw(
+                    sa.dummy1,
+                    ZERO_ADDRESS,
+                    amount.toString(),
+                    amount.toString(),
+                    false,
+                ),
                 "aToken does not exist",
             );
             // Fails with ZERO recipient address
             await expectRevert.unspecified(
-                d_AaveIntegration.withdraw(ZERO_ADDRESS, bAsset.address, new BN(1), false),
+                d_AaveIntegration.withdraw(
+                    ZERO_ADDRESS,
+                    bAsset.address,
+                    new BN(1),
+                    new BN(1),
+                    false,
+                ),
             );
             // Fails with ZERO Amount
             await expectRevert(
-                d_AaveIntegration.withdraw(sa.dummy1, bAsset.address, "0", false),
+                d_AaveIntegration.withdraw(sa.dummy1, bAsset.address, "0", "0", false),
                 "Must withdraw something",
             );
             // Succeeds with Incorrect bool (defaults to false)
             const tx = await d_AaveIntegration.withdraw(
                 sa.dummy1,
                 bAsset.address,
+                amount.toString(),
                 amount.toString(),
                 undefined,
             );
@@ -775,7 +803,13 @@ contract("AaveIntegration", async (accounts) => {
 
             // Step 1. call withdraw
             await expectRevert(
-                d_AaveIntegration.withdraw(sa.dummy1, bAsset.address, amount.toString(), false),
+                d_AaveIntegration.withdraw(
+                    sa.dummy1,
+                    bAsset.address,
+                    amount.toString(),
+                    amount.toString(),
+                    false,
+                ),
                 "aToken does not exist",
             );
         });
@@ -847,10 +881,11 @@ contract("AaveIntegration", async (accounts) => {
             directBalance = await d_AaveIntegration.checkBalance.call(bAsset.address);
             expect(directBalance).bignumber.eq(aaveIntegration_balAfter);
 
-            // 4. Withdraw our new interested - we worked hard for it!
+            // 4. Withdraw our new interest - we worked hard for it!
             await d_AaveIntegration.withdraw(
                 sa.default,
                 bAsset.address,
+                aaveIntegration_balAfter,
                 aaveIntegration_balAfter,
                 false,
             );

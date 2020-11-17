@@ -23,8 +23,8 @@ import { InitializableReentrancyGuard } from "../shared/InitializableReentrancyG
  *          basket data to the mAsset and is responsible for keeping accurate records.
  *          BasketManager can also optimise lending pool integrations and perform
  *          re-collateralisation on failed bAssets.
- * @dev     VERSION: 1.1
- *          DATE:    2020-16-11
+ * @dev     VERSION: 2.0
+ *          DATE:    2020-11-14
  */
 contract BasketManager is
     Initializable,
@@ -240,8 +240,14 @@ contract BasketManager is
         // foreach bAsset
         for(uint8 i = 0; i < count; i++) {
             Basset memory b = allBassets[i];
+            address bAsset = b.addr;
+
             // call each integration to `checkBalance`
-            uint256 balance = IPlatformIntegration(integrations[i]).checkBalance(b.addr);
+            address integration = integrations[i];
+            uint256 lending = IPlatformIntegration(integration).checkBalance(bAsset);
+            uint256 cache = IERC20(bAsset).balanceOf(integration);
+            uint256 balance = lending.add(cache);
+
             uint256 oldVaultBalance = b.vaultBalance;
 
             // accumulate interest (ratioed bAsset)
@@ -431,6 +437,12 @@ contract BasketManager is
         require(exist, "bAsset does not exist");
         basket.bassets[index].isTransferFeeCharged = _flag;
 
+        if(_flag){
+            // if token has tx fees, it can no longer operate with a cache
+            uint256 bal = IERC20(_bAsset).balanceOf(integrations[index]);
+            IPlatformIntegration(integrations[index]).deposit(_bAsset, bal, true);
+        }
+
         emit TransferFeeEnabled(_bAsset, _flag);
     }
 
@@ -581,12 +593,8 @@ contract BasketManager is
         whenNotPaused
         returns (bool, string memory, BassetDetails memory, BassetDetails memory)
     {
-        BassetDetails memory input = BassetDetails({
-            bAsset: basket.bassets[0],
-            integrator: address(0),
-            index: 0
-        });
-        BassetDetails memory output = input;
+        BassetDetails memory input;
+        BassetDetails memory output;
         // Check that basket state is healthy
         if(basket.failed || basket.undergoingRecol){
             return (false, "Basket is undergoing change", input, output);
@@ -641,6 +649,27 @@ contract BasketManager is
         (Basset[] memory bAssets, uint8[] memory indexes, address[] memory integrators) = _fetchForgeBassets(_bAssets);
         props = ForgePropsMulti({
             isValid: true,
+            bAssets: bAssets,
+            integrators: integrators,
+            indexes: indexes
+        });
+    }
+
+    function prepareRedeemBassets(
+        address[] calldata _bAssets
+    )
+        external
+        view
+        whenNotPaused
+        whenNotRecolling
+        whenBasketIsHealthy
+        returns (RedeemProps memory props)
+    {
+        // Pass the fetching logic to the internal view func to reduce SLOAD cost
+        (Basset[] memory bAssets, uint8[] memory indexes, address[] memory integrators) = _fetchForgeBassets(_bAssets);
+        props = RedeemProps({
+            isValid: true,
+            allBassets: basket.bassets,
             bAssets: bAssets,
             integrators: integrators,
             indexes: indexes

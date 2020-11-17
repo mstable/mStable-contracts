@@ -42,13 +42,15 @@ const c_BasketManager = artifacts.require("MockBasketManager");
 const c_Masset = artifacts.require("Masset");
 const c_MockERC20WithFee = artifacts.require("MockERC20WithFee");
 const c_MockERC20 = artifacts.require("MockERC20");
+const c_MockInitializableToken = artifacts.require("MockInitializableToken");
+const c_MockInitializableTokenWithFee = artifacts.require("MockInitializableTokenWithFee");
 const c_MockUSDT = artifacts.require("MockUSDT");
 
 export interface MassetDetails {
     mAsset?: t.MassetInstance;
     forgeValidator?: t.ForgeValidatorInstance;
     basketManager?: t.MockBasketManagerInstance;
-    bAssets?: Array<t.MockErc20Instance>;
+    bAssets?: Array<t.MockERC20Instance>;
     proxyAdmin?: t.DelayedProxyAdminInstance;
     aaveIntegration?: t.AaveIntegrationInstance;
     compoundIntegration?: t.CompoundIntegrationInstance;
@@ -292,33 +294,45 @@ export class MassetMachine {
         };
     }
 
-    public async loadBassetsLocal(
+    private async loadBassetProxy(
+        name: string,
+        sym: string,
+        dec: number,
+        recipient = this.sa.default,
+        init = 100000000,
         enableUSDTFee = false,
-        useOldAave = false,
-    ): Promise<BassetIntegrationDetails> {
-        //  - Mock bAssets
-        const mockBasset1 = await c_MockERC20.new("Mock1", "MK1", 12, this.sa.default, 100000000);
-        const mockBasset2 = enableUSDTFee
-            ? ((await c_MockERC20WithFee.new(
-                  "Mock5",
-                  "MK5",
-                  6,
-                  this.sa.default,
-                  100000000,
-              )) as t.MockErc20Instance)
-            : await c_MockERC20.new("Mock5", "MK5", 6, this.sa.default, 100000000);
+    ): Promise<t.MockERC20Instance> {
+        const x = await c_MassetProxy.new();
+        const y = enableUSDTFee
+            ? await c_MockInitializableTokenWithFee.new()
+            : await c_MockInitializableToken.new();
+        const data = y.contract.methods.initialize(name, sym, dec, recipient, init).encodeABI();
+        await x.methods["initialize(address,address,bytes)"](y.address, this.sa.governor, data);
+        return c_MockERC20.at(x.address) as t.MockERC20Instance;
+    }
 
-        const mockBasset3 = await c_MockERC20.new("Mock3", "MK3", 18, this.sa.default, 100000000);
-        // Mock up USDT for Aave
-        const mockBasset4 = enableUSDTFee
-            ? ((await c_MockERC20WithFee.new(
-                  "Mock4",
-                  "MK4",
-                  18,
-                  this.sa.default,
-                  100000000,
-              )) as t.MockErc20Instance)
-            : await c_MockERC20.new("Mock4", "MK4", 18, this.sa.default, 100000000);
+    public async loadBassetsLocal(enableUSDTFee = false, useOldAave = false): Promise<BassetIntegrationDetails> {
+        //  - Mock bAssets
+
+        const mockBasset1 = await this.loadBassetProxy("Mock1", "MK1", 12);
+        const mockBasset2 = await this.loadBassetProxy(
+            "Mock5",
+            "MK5",
+            6,
+            this.sa.default,
+            100000000,
+            enableUSDTFee,
+        );
+
+        const mockBasset3 = await this.loadBassetProxy("Mock3", "MK3", 18);
+        const mockBasset4 = await this.loadBassetProxy(
+            "Mock4",
+            "MK4",
+            18,
+            this.sa.default,
+            100000000,
+            enableUSDTFee,
+        );
 
         // Mock C Token
         const mockCToken1 = await c_MockCToken.new(mockBasset1.address);
@@ -366,7 +380,7 @@ export class MassetMachine {
     }
 
     public async mintERC20(
-        erc20: t.MockErc20Instance,
+        erc20: t.MockERC20Instance,
         source: Address,
         recipient: string = this.sa.default,
     ): Promise<Truffle.TransactionResponse<any>> {
@@ -409,12 +423,18 @@ export class MassetMachine {
         // Approve bAssets
         await Promise.all(
             massetDetails.bAssets.map((b, i) =>
-                b.approve(massetDetails.mAsset.address, mintAmounts[i], {
+                b.approve(massetDetails.mAsset.address, mintAmounts[i].muln(2), {
                     from: this.system.sa.default,
                 }),
             ),
         );
 
+        await massetDetails.mAsset.mintMulti(
+            basketDetails.map((b) => b.addr),
+            mintAmounts,
+            this.system.sa.default,
+            { from: this.system.sa.default },
+        );
         await massetDetails.mAsset.mintMulti(
             basketDetails.map((b) => b.addr),
             mintAmounts,
@@ -493,7 +513,7 @@ export class MassetMachine {
      * @param inputIsBaseUnits Override the scaling up to MassetQ
      */
     public async approveMasset(
-        bAsset: t.MockErc20Instance,
+        bAsset: t.MockERC20Instance,
         mAsset: t.MassetInstance,
         fullMassetUnits: number | BN | string,
         sender: string = this.sa.default,
@@ -509,7 +529,7 @@ export class MassetMachine {
     }
 
     public async approveMassetMulti(
-        bAssets: Array<t.MockErc20Instance>,
+        bAssets: Array<t.MockERC20Instance>,
         mAsset: t.MassetInstance,
         fullMassetUnits: number,
         sender: string,

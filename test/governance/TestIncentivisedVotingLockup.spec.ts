@@ -1,7 +1,7 @@
 /* eslint-disable dot-notation */
 /* eslint-disable no-await-in-loop */
 /* eslint-disable @typescript-eslint/camelcase */
-import { network } from "@nomiclabs/buidler";
+import { network } from "hardhat";
 import { expectRevert, time } from "@openzeppelin/test-helpers";
 import { assertBNClose, assertBNClosePercent } from "@utils/assertions";
 import { StandardAccounts } from "@utils/machines";

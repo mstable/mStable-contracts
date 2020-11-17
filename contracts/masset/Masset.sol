@@ -1,10 +1,14 @@
 pragma solidity 0.5.16;
 pragma experimental ABIEncoderV2;
 
+// TODO - remove
+import { console } from "hardhat/console.sol";
+
 // External
 import { IForgeValidator } from "./forge-validator/IForgeValidator.sol";
 import { IPlatformIntegration } from "../interfaces/IPlatformIntegration.sol";
 import { IBasketManager } from "../interfaces/IBasketManager.sol";
+import { ISavingsManager } from "../interfaces/ISavingsManager.sol";
 
 // Internal
 import { IMasset } from "../interfaces/IMasset.sol";
@@ -26,8 +30,8 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @notice  The Masset is a token that allows minting and redemption at a 1:1 ratio
  *          for underlying basket assets (bAssets) of the same peg (i.e. USD,
  *          EUR, Gold). Composition and validation is enforced via the BasketManager.
- * @dev     VERSION: 1.1
- *          DATE:    2020-06-30
+ * @dev     VERSION: 2.0
+ *          DATE:    2020-11-14
  */
 contract Masset is
     Initializable,
@@ -63,6 +67,10 @@ contract Masset is
     // RELEASE 1.1 VARS
     uint256 public redemptionFee;
 
+    // RELEASE 2.0 VARS
+    uint256 public cacheSize;
+    uint256 public surplus;
+
     /**
      * @dev Constructor
      * @notice To avoid variable shadowing appended `Arg` after arguments name.
@@ -86,7 +94,9 @@ contract Masset is
         basketManager = IBasketManager(_basketManager);
 
         MAX_FEE = 2e16;
-        swapFee = 4e15;
+        swapFee = 6e14;
+        redemptionFee = 3e14;
+        cacheSize = 1e18;
     }
 
     /**
@@ -174,19 +184,22 @@ contract Masset is
         internal
         returns (uint256 massetMinted)
     {
+        console.log("\n~~ MINT ~~");
         require(_recipient != address(0), "Must be a valid recipient");
         require(_bAssetQuantity > 0, "Quantity must not be 0");
 
         (bool isValid, BassetDetails memory bInfo) = basketManager.prepareForgeBasset(_bAsset, _bAssetQuantity, true);
         if(!isValid) return 0;
 
+        Cache memory cache = _getCacheSize();
+
         // Transfer collateral to the platform integration address and call deposit
         address integrator = bInfo.integrator;
         (uint256 quantityDeposited, uint256 ratioedDeposit) =
-            _depositTokens(_bAsset, bInfo.bAsset.ratio, integrator, bInfo.bAsset.isTransferFeeCharged, _bAssetQuantity);
+            _depositTokens(_bAsset, bInfo.bAsset.ratio, integrator, bInfo.bAsset.isTransferFeeCharged, _bAssetQuantity, cache.maxCache);
 
         // Validation should be after token transfer, as bAssetQty is unknown before
-        (bool mintValid, string memory reason) = forgeValidator.validateMint(totalSupply(), bInfo.bAsset, quantityDeposited);
+        (bool mintValid, string memory reason) = forgeValidator.validateMint(cache.supply, bInfo.bAsset, quantityDeposited);
         require(mintValid, reason);
 
         // Log the Vault increase - can only be done when basket is healthy
@@ -208,6 +221,7 @@ contract Masset is
         internal
         returns (uint256 massetMinted)
     {
+        console.log("\n~~ MINT MULTI ~~");
         require(_recipient != address(0), "Must be a valid recipient");
         uint256 len = _bAssetQuantities.length;
         require(len > 0 && len == _bAssets.length, "Input array mismatch");
@@ -216,6 +230,8 @@ contract Masset is
         ForgePropsMulti memory props
             = basketManager.prepareForgeBassets(_bAssets, _bAssetQuantities, true);
         if(!props.isValid) return 0;
+
+        Cache memory cache = _getCacheSize();
 
         uint256 mAssetQuantity = 0;
         uint256[] memory receivedQty = new uint256[](len);
@@ -228,7 +244,7 @@ contract Masset is
                 Basset memory bAsset = props.bAssets[i];
 
                 (uint256 quantityDeposited, uint256 ratioedDeposit) =
-                    _depositTokens(bAsset.addr, bAsset.ratio, props.integrators[i], bAsset.isTransferFeeCharged, bAssetQuantity);
+                    _depositTokens(bAsset.addr, bAsset.ratio, props.integrators[i], bAsset.isTransferFeeCharged, bAssetQuantity, cache.maxCache);
 
                 receivedQty[i] = quantityDeposited;
                 mAssetQuantity = mAssetQuantity.add(ratioedDeposit);
@@ -239,7 +255,7 @@ contract Masset is
         basketManager.increaseVaultBalances(props.indexes, props.integrators, receivedQty);
 
         // Validate the proposed mint, after token transfer
-        (bool mintValid, string memory reason) = forgeValidator.validateMintMulti(totalSupply(), props.bAssets, receivedQty);
+        (bool mintValid, string memory reason) = forgeValidator.validateMintMulti(cache.supply, props.bAssets, receivedQty);
         require(mintValid, reason);
 
         // Mint the Masset
@@ -254,35 +270,57 @@ contract Masset is
         address _bAsset,
         uint256 _bAssetRatio,
         address _integrator,
-        bool _erc20TransferFeeCharged,
-        uint256 _quantity
+        bool _hasTxFee,
+        uint256 _quantity,
+        uint256 _maxCache
     )
         internal
         returns (uint256 quantityDeposited, uint256 ratioedDeposit)
     {
-        quantityDeposited = _depositTokens(_bAsset, _integrator, _erc20TransferFeeCharged, _quantity);
+        console.log("depositTokens: start");
+        // 1 - Send all to PI
+        // todo - confirm that tx sent does not have
+        //      - must protect against tx fees being turned on for: USDT + USDC (not DAI, sUSD, TUSD)
+        (uint256 transferred, uint256 cacheBal) = MassetHelpers.transferReturnBalance(msg.sender, _integrator, _bAsset, _quantity);
+
+        // 2 - Deposit X if necessary
+        //   - Can account here for non-lending market integrated bAssets by simply checking for
+        //     integrator == address(0) || address(this) and then keeping entirely in cache
+        // 2.1 - Deposit if xfer fees
+        if(_hasTxFee){
+            console.log("_depositTokens: hasTxFee");
+            uint256 deposited = IPlatformIntegration(_integrator).deposit(_bAsset, transferred, true);
+            quantityDeposited = StableMath.min(deposited, _quantity);
+        }
+        // 2.2 - Deposit X if Cache > %
+        else {
+            // This check is in place to ensure that any token with a txFee is rejected
+            // Audit notes: Assumption made that if no fee is collected here then there is no txfee
+            require(transferred == _quantity, "Asset not fully transferred");
+
+            quantityDeposited = transferred;
+
+            uint256 relativeMaxCache = _maxCache.divRatioPrecisely(_bAssetRatio);
+
+            console.log("_depositTokens: cacheBal: %s vs relativeMaxCache: %s", cacheBal, relativeMaxCache);
+            if(cacheBal >= relativeMaxCache){
+                uint256 delta = cacheBal.sub(relativeMaxCache.div(2));
+                IPlatformIntegration(_integrator).deposit(_bAsset, delta, false);
+            }
+        }
+
         ratioedDeposit = quantityDeposited.mulRatioTruncate(_bAssetRatio);
     }
-
-    /** @dev Deposits tokens into the platform integration and returns the deposited amount */
-    function _depositTokens(
-        address _bAsset,
-        address _integrator,
-        bool _erc20TransferFeeCharged,
-        uint256 _quantity
-    )
-        internal
-        returns (uint256 quantityDeposited)
-    {
-        uint256 quantityTransferred = MassetHelpers.transferTokens(msg.sender, _integrator, _bAsset, _erc20TransferFeeCharged, _quantity);
-        uint256 deposited = IPlatformIntegration(_integrator).deposit(_bAsset, quantityTransferred, _erc20TransferFeeCharged);
-        quantityDeposited = StableMath.min(deposited, _quantity);
-    }
-
 
     /***************************************
                 SWAP (PUBLIC)
     ****************************************/
+
+    struct SwapArgs {
+        address input;
+        address output;
+        address recipient;
+    }
 
     /**
      * @dev Simply swaps one bAsset for another bAsset or this mAsset at a 1:1 ratio.
@@ -304,44 +342,60 @@ contract Masset is
         nonReentrant
         returns (uint256 output)
     {
-        require(_input != address(0) && _output != address(0), "Invalid swap asset addresses");
-        require(_input != _output, "Cannot swap the same asset");
-        require(_recipient != address(0), "Missing recipient address");
+        console.log("\n~~ SWAP ~~");
+        // Struct created to avoid Stack Too Deep errors. Minor gas cost increase.
+        SwapArgs memory args = SwapArgs(_input, _output, _recipient);
+        require(args.input != address(0) && args.output != address(0), "Invalid swap asset addresses");
+        require(args.input != args.output, "Cannot swap the same asset");
+        require(args.recipient != address(0), "Missing recipient address");
         require(_quantity > 0, "Invalid quantity");
 
         // 1. If the output is this mAsset, just mint
-        if(_output == address(this)){
-            return _mintTo(_input, _quantity, _recipient);
+        if(args.output == address(this)){
+            return _mintTo(args.input, _quantity, args.recipient);
         }
 
         // 2. Grab all relevant info from the Manager
         (bool isValid, string memory reason, BassetDetails memory inputDetails, BassetDetails memory outputDetails) =
-            basketManager.prepareSwapBassets(_input, _output, false);
+            basketManager.prepareSwapBassets(args.input, args.output, false);
         require(isValid, reason);
 
+        Cache memory cache = _getCacheSize();
+
         // 3. Deposit the input tokens
-        uint256 quantitySwappedIn = _depositTokens(_input, inputDetails.integrator, inputDetails.bAsset.isTransferFeeCharged, _quantity);
+        // @@@ Audit notes - amountIn____netOutput is re-written in 5.1
+        (uint256 amountIn____netOutput, ) =
+            _depositTokens(args.input, inputDetails.bAsset.ratio, inputDetails.integrator, inputDetails.bAsset.isTransferFeeCharged, _quantity, cache.maxCache);
         // 3.1. Update the input balance
-        basketManager.increaseVaultBalance(inputDetails.index, inputDetails.integrator, quantitySwappedIn);
+        basketManager.increaseVaultBalance(inputDetails.index, inputDetails.integrator, amountIn____netOutput);
 
         // 4. Validate the swap
         (bool swapValid, string memory swapValidityReason, uint256 swapOutput, bool applySwapFee) =
-            forgeValidator.validateSwap(totalSupply(), inputDetails.bAsset, outputDetails.bAsset, quantitySwappedIn);
+            forgeValidator.validateSwap(cache.supply, inputDetails.bAsset, outputDetails.bAsset, amountIn____netOutput);
         require(swapValid, swapValidityReason);
 
         // 5. Settle the swap
         // 5.1. Decrease output bal
-        basketManager.decreaseVaultBalance(outputDetails.index, outputDetails.integrator, swapOutput);
-        // 5.2. Calc fee, if any
-        if(applySwapFee){
-            swapOutput = _deductSwapFee(_output, swapOutput, swapFee);
-        }
-        // 5.3. Withdraw to recipient
-        IPlatformIntegration(outputDetails.integrator).withdraw(_recipient, _output, swapOutput, outputDetails.bAsset.isTransferFeeCharged);
+        // @@@ Audit notes - amountIn____netOutput is re-used here to avoid stack too deep error
+        amountIn____netOutput = _withdrawTokens(
+            WithdrawArgs({
+                quantity: swapOutput,
+                bAsset: args.output,
+                integrator: outputDetails.integrator,
+                feeRate: applySwapFee ? swapFee: 0,
+                hasTxFee: outputDetails.bAsset.isTransferFeeCharged,
+                recipient: args.recipient,
+                ratio: outputDetails.bAsset.ratio,
+                maxCache: cache.maxCache,
+                vaultBalance: outputDetails.bAsset.vaultBalance
+            })
+        );
 
-        output = swapOutput;
+        basketManager.decreaseVaultBalance(outputDetails.index, outputDetails.integrator, amountIn____netOutput);
 
-        emit Swapped(msg.sender, _input, _output, swapOutput, _recipient);
+        surplus = surplus.add(swapOutput.sub(amountIn____netOutput).mulRatioTruncate(outputDetails.bAsset.ratio));
+
+        emit Swapped(msg.sender, args.input, args.output, amountIn____netOutput, args.recipient);
     }
 
     /**
@@ -510,20 +564,18 @@ contract Masset is
         internal
         returns (uint256 massetRedeemed)
     {
+        console.log("\n~~ REDEEM ~~");
         require(_recipient != address(0), "Must be a valid recipient");
         uint256 bAssetCount = _bAssetQuantities.length;
         require(bAssetCount > 0 && bAssetCount == _bAssets.length, "Input array mismatch");
 
-        // Get high level basket info
-        Basket memory basket = basketManager.getBasket();
-
         // Prepare relevant data
-        ForgePropsMulti memory props = basketManager.prepareForgeBassets(_bAssets, _bAssetQuantities, false);
+        RedeemProps memory props = basketManager.prepareRedeemBassets(_bAssets);
         if(!props.isValid) return 0;
 
         // Validate redemption
         (bool redemptionValid, string memory reason, bool applyFee) =
-            forgeValidator.validateRedemption(basket.failed, totalSupply(), basket.bassets, props.indexes, _bAssetQuantities);
+            forgeValidator.validateRedemption(false, totalSupply(), props.allBassets, props.indexes, _bAssetQuantities);
         require(redemptionValid, reason);
 
         uint256 mAssetQuantity = 0;
@@ -543,7 +595,17 @@ contract Masset is
         uint256 fee = applyFee ? swapFee : 0;
 
         // Apply fees, burn mAsset and return bAsset to recipient
-        _settleRedemption(_recipient, mAssetQuantity, props.bAssets, _bAssetQuantities, props.indexes, props.integrators, fee);
+        _settleRedemption(
+            RedemptionSettlement({
+                recipient: _recipient,
+                mAssetQuantity: mAssetQuantity,
+                bAssetQuantities: _bAssetQuantities,
+                indices: props.indexes,
+                integrators: props.integrators,
+                feeRate: fee,
+                bAssets: props.bAssets
+            })
+        );
 
         emit Redeemed(msg.sender, _recipient, mAssetQuantity, _bAssets, _bAssetQuantities);
         return mAssetQuantity;
@@ -573,46 +635,125 @@ contract Masset is
         require(redemptionValid, reason);
 
         // Apply fees, burn mAsset and return bAsset to recipient
-        _settleRedemption(_recipient, _mAssetQuantity, props.bAssets, bAssetQuantities, props.indexes, props.integrators, redemptionFee);
+        _settleRedemption(
+            RedemptionSettlement({
+                recipient: _recipient,
+                mAssetQuantity: _mAssetQuantity,
+                bAssetQuantities: bAssetQuantities,
+                indices: props.indexes,
+                integrators: props.integrators,
+                feeRate: redemptionFee,
+                bAssets: props.bAssets
+            })
+        );
 
         emit RedeemedMasset(msg.sender, _recipient, _mAssetQuantity);
     }
 
     /**
-     * @dev Internal func to update contract state post-redemption
      * @param _recipient        Recipient of the bAssets
      * @param _mAssetQuantity   Total amount of mAsset to burn from sender
-     * @param _bAssets          Array of bAssets to redeem
      * @param _bAssetQuantities Array of bAsset quantities
      * @param _indices          Matching indices for the bAsset array
      * @param _integrators      Matching integrators for the bAsset array
      * @param _feeRate          Fee rate to be applied to this redemption
+     * @param _bAssets          Array of bAssets to redeem
+     */
+    struct RedemptionSettlement {
+        address recipient;
+        uint256 mAssetQuantity;
+        uint256[] bAssetQuantities;
+        uint8[] indices;
+        address[] integrators;
+        uint256 feeRate;
+        Basset[] bAssets;
+    }
+
+    /**
+     * @dev Internal func to update contract state post-redemption
      */
     function _settleRedemption(
-        address _recipient,
-        uint256 _mAssetQuantity,
-        Basset[] memory _bAssets,
-        uint256[] memory _bAssetQuantities,
-        uint8[] memory _indices,
-        address[] memory _integrators,
-        uint256 _feeRate
+        RedemptionSettlement memory args
     ) internal {
         // Burn the full amount of Masset
-        _burn(msg.sender, _mAssetQuantity);
+        _burn(msg.sender, args.mAssetQuantity);
 
-        // Reduce the amount of bAssets marked in the vault
-        basketManager.decreaseVaultBalances(_indices, _integrators, _bAssetQuantities);
+        Cache memory cache = _getCacheSize();
 
         // Transfer the Bassets to the recipient
-        uint256 bAssetCount = _bAssets.length;
+        uint256 bAssetCount = args.bAssets.length;
+        uint256[] memory netAmounts = new uint256[](bAssetCount);
+        uint256 fees = 0;
         for(uint256 i = 0; i < bAssetCount; i++){
-            address bAsset = _bAssets[i].addr;
-            uint256 q = _bAssetQuantities[i];
-            if(q > 0){
-                // Deduct the redemption fee, if any
-                q = _deductSwapFee(bAsset, q, _feeRate);
-                // Transfer the Bassets to the user
-                IPlatformIntegration(_integrators[i]).withdraw(_recipient, bAsset, q, _bAssets[i].isTransferFeeCharged);
+            netAmounts[i] = _withdrawTokens(
+                WithdrawArgs({
+                    quantity: args.bAssetQuantities[i],
+                    bAsset: args.bAssets[i].addr,
+                    integrator: args.integrators[i],
+                    feeRate: args.feeRate,
+                    hasTxFee: args.bAssets[i].isTransferFeeCharged,
+                    recipient: args.recipient,
+                    ratio: args.bAssets[i].ratio,
+                    maxCache: cache.maxCache,
+                    vaultBalance: args.bAssets[i].vaultBalance
+                })
+            );
+            fees = fees.add(args.bAssetQuantities[i].sub(netAmounts[i]).mulRatioTruncate(args.bAssets[i].ratio));
+        }
+        surplus = surplus.add(fees);
+        // Reduce the amount of bAssets marked in the vault
+        basketManager.decreaseVaultBalances(args.indices, args.integrators, netAmounts);
+    }
+
+    struct WithdrawArgs {
+        uint256 quantity;
+        address bAsset;
+        address integrator;
+        uint256 feeRate;
+        bool hasTxFee;
+        address recipient;
+        uint256 ratio;
+        uint256 maxCache;
+        uint256 vaultBalance;
+    }
+
+    function _withdrawTokens(WithdrawArgs memory args) internal returns (uint256 netAmount) {
+        if(args.quantity > 0){
+
+            // Deduct the redemption fee, if any
+            netAmount = _deductSwapFee(args.bAsset, args.quantity, args.feeRate);
+
+            // 1. If txFee then short circuit - there is no cache
+            if(args.hasTxFee){
+                console.log("_withdrawTokens: hasTxFee");
+                IPlatformIntegration(args.integrator).withdraw(args.recipient, args.bAsset, netAmount, netAmount, true);
+            }
+            // 2. Else, withdraw from either cache or main vault
+            else {
+                uint256 cacheBal = IERC20(args.bAsset).balanceOf(args.integrator);
+                // 2.1 - If balance b in cache, simply withdraw
+                if(cacheBal > netAmount) {
+                    console.log("_withdrawTokens: cacheBal > net - '%s' > '%s'", cacheBal, netAmount);
+                    IPlatformIntegration(args.integrator).withdrawRaw(args.recipient, args.bAsset, netAmount);
+                }
+                // 2.2 - Else reset the cache to X, or as far as possible
+                //       - Withdraw X+b from platform
+                //       - Send b to user
+                else {
+                    console.log("_withdrawTokens: cacheBal < net - '%s' < '%s'", cacheBal, netAmount);
+                    uint256 relativeMidCache = args.maxCache.divRatioPrecisely(args.ratio).div(2);
+                    // mid = 100, vaultBalance = 40
+                    uint256 totalWithdrawal = StableMath.min(relativeMidCache.sub(cacheBal).add(netAmount), args.vaultBalance.sub(cacheBal));
+                    console.log("_withdrawTokens: totalWithdrawal", totalWithdrawal);
+                    // uint256 totalWithdrawal = args.maxCache.divRatioPrecisely(args.ratio).div(2).sub(cacheBal).add(netAmount);
+                    IPlatformIntegration(args.integrator).withdraw(
+                        args.recipient,
+                        args.bAsset,
+                        netAmount,
+                        totalWithdrawal,
+                        false
+                    );
+                }
             }
         }
     }
@@ -654,6 +795,17 @@ contract Masset is
         // (5e20 * 1e16) / 1e18 = 5e18
         feeAmount = _bAssetQuantity.mulTruncate(_feeRate);
         outputMinusFee = _bAssetQuantity.sub(feeAmount);
+    }
+
+    struct Cache {
+        uint256 supply;
+        uint256 maxCache;
+    }
+
+    function _getCacheSize() internal view returns (Cache memory) {
+        uint256 supply = totalSupply();
+        uint256 maxCache = cacheSize.mulTruncate(supply);
+        return Cache(supply, maxCache);
     }
 
     /***************************************
@@ -732,21 +884,50 @@ contract Masset is
     /**
      * @dev Collects the interest generated from the Basket, minting a relative
      *      amount of mAsset and sending it over to the SavingsManager.
-     * @return totalInterestGained   Equivalent amount of mAsset units that have been generated
+     *      NOTE - the purpose of this function has been modified.
+     * @return swapFeesGained        Equivalent amount of mAsset units that have been generated
      * @return newSupply             New total mAsset supply
      */
     function collectInterest()
         external
         onlySavingsManager
         nonReentrant
+        returns (uint256 swapFeesGained, uint256 newSupply)
+    {
+        uint256 toMint = 0;
+        if(surplus > 1){
+            toMint = surplus.sub(1);
+            surplus = 1;
+        }
+
+        // mint new mAsset to savings manager
+        _mint(msg.sender, toMint);
+        emit MintedMulti(address(this), address(this), toMint, new address[](0), new uint256[](0));
+
+        return (toMint, totalSupply());
+    }
+
+    // todo
+    function collectAllInterest()
+        external
+        nonReentrant
         returns (uint256 totalInterestGained, uint256 newSupply)
     {
+        // 1. Collect interest from Basket
         (uint256 interestCollected, uint256[] memory gains) = basketManager.collectInterest();
 
-        // mint new mAsset to sender
-        _mint(msg.sender, interestCollected);
+        // 2. Mint to here
+        _mint(address(this), interestCollected);
         emit MintedMulti(address(this), address(this), interestCollected, new address[](0), gains);
 
-        return (interestCollected, totalSupply());
+        // 3. Send to SavingsManager and begin streaming
+        // 3.1. Approve SM
+        address savingsManager = _savingsManager();
+        _approve(address(this), savingsManager, interestCollected);
+        // 3.2. Stream proceeds
+        uint256 supply = totalSupply();
+        ISavingsManager(savingsManager).streamInterest(address(this), supply, interestCollected);
+
+        return (interestCollected, supply);
     }
 }
