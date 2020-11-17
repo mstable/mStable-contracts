@@ -12,7 +12,7 @@ interface ISavingsManager {
     function depositLiquidation(address _mAsset, uint256 _liquidation) external;
 
     /** @dev Liquidator */
-    function streamInterest(address _mAsset, uint256 _newSupply, uint256 _interest) external;
+    function collectAndStreamInterest(address _mAsset) external;
 
     /** @dev Public privs */
     function collectAndDistributeInterest(address _mAsset) external;

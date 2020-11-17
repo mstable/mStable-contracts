@@ -942,29 +942,22 @@ contract Masset is
     /**
      * @dev Collects the interest generated from the Basket, minting a relative
      *      amount of mAsset and sending it over to the SavingsManager.
-     * @return totalInterestGained   Lending market interest collected
+     * @return interestGained   Lending market interest collected
      * @return newSupply             New total mAsset supply
      */
-    function collectAllInterest()
+    function collectPlatformInterest()
         external
+        onlySavingsManager
         nonReentrant
-        returns (uint256 totalInterestGained, uint256 newSupply)
+        returns (uint256 interestGained, uint256 newSupply)
     {
         // 1. Collect interest from Basket
         (uint256 interestCollected, uint256[] memory gains) = basketManager.collectInterest();
 
-        // 2. Mint to here
-        _mint(address(this), interestCollected);
+        // 2. Mint to SM
+        _mint(msg.sender, interestCollected);
         emit MintedMulti(address(this), address(this), interestCollected, new address[](0), gains);
 
-        // 3. Send to SavingsManager and begin streaming
-        // 3.1. Approve SM
-        address savingsManager = _savingsManager();
-        _approve(address(this), savingsManager, interestCollected);
-        // 3.2. Stream proceeds
-        uint256 supply = totalSupply();
-        ISavingsManager(savingsManager).streamInterest(address(this), supply, interestCollected);
-
-        return (interestCollected, supply);
+        return (interestCollected, totalSupply());
     }
 }

@@ -55,11 +55,12 @@ contract SavingsManager is ISavingsManager, PausableModule {
     uint256 constant private THIRTY_MINUTES = 30 minutes;
     // Streaming liquidated tokens to SAVE
     uint256 private constant DURATION = 7 days;
+    uint256 private constant ONE_DAY = 1 days;
     // Timestamp for current period finish
     mapping(address => uint256) public rewardEnd;
     mapping(address => uint256) public rewardRate;
     // 1.3 Tracking interest deposits
-    mapping(address => uint256) public lastDeposit;
+    mapping(address => uint256) public lastBatchCollected;
 
     constructor(
         address _nexus,
@@ -147,51 +148,69 @@ contract SavingsManager is ISavingsManager, PausableModule {
         // transfer liquidated mUSD to here
         IERC20(_mAsset).safeTransferFrom(_liquidator(), address(this), _liquidated);
 
+        uint256 leftover = _allUnclaimedRewards(_mAsset);
+        _initialiseStream(_mAsset, _liquidated.add(leftover), DURATION);
+
+        emit LiquidatorDeposited(_mAsset, _liquidated);
+    }
+
+    function collectAndStreamInterest(address _mAsset)
+        external
+        whenNotPaused
+    {
+        ISavingsContract savingsContract = savingsContracts[_mAsset];
+        require(address(savingsContract) != address(0), "Must have a valid savings contract");
+
         uint256 currentTime = now;
+        uint256 previousBatch = lastBatchCollected[_mAsset];
+        uint256 timeSincePreviousBatch = currentTime.sub(previousBatch);
+        require(timeSincePreviousBatch > 12 hours, "Cannot deposit twice in 12 hours");
+        lastBatchCollected[_mAsset] = now;
+
+        // Batch collect
+        IMasset mAsset = IMasset(_mAsset);
+        (uint256 interestCollected, uint256 totalSupply) = mAsset.collectPlatformInterest();
+
+        // Validate APY
+        uint256 apy = _validateCollection(totalSupply, interestCollected, timeSincePreviousBatch);
 
         // Get remaining rewards
+        uint256 leftover = _allUnclaimedRewards(_mAsset);
+
+        // Bundle this yield in with liquidator yield
+        // If (remainingTime < 24h)
+        //       take all remaining, add this, stream over next 24h
+        // else stream over remainingTime
+        uint256 end = rewardEnd[_mAsset];
+        uint256 remaining = end > currentTime ? end.sub(currentTime) : 0;
+        uint256 newDuration = remaining < ONE_DAY ? ONE_DAY : remaining;
+        _initialiseStream(_mAsset, interestCollected.add(leftover), newDuration);
+
+        emit InterestCollected(_mAsset, interestCollected, totalSupply, apy);
+    }
+
+    function _allUnclaimedRewards(address _mAsset) internal view returns (uint256 leftover) {
+        uint256 currentTime = now;
+
         uint256 end = rewardEnd[_mAsset];
         uint256 lastUpdate = lastCollection[_mAsset];
         uint256 unclaimedSeconds = 0;
         if(currentTime <= end || lastUpdate < end){
             unclaimedSeconds = end.sub(lastUpdate);
         }
-        uint256 leftover = unclaimedSeconds.mul(rewardRate[_mAsset]);
+        return unclaimedSeconds.mul(rewardRate[_mAsset]);
+    }
 
-        // Distribute reward per second over 7 days
-        rewardRate[_mAsset] = _liquidated.add(leftover).div(DURATION);
-        rewardEnd[_mAsset] = currentTime.add(DURATION);
+    function _initialiseStream(address _mAsset, uint256 _amount, uint256 _duration) internal {
+        uint256 currentTime = now;
+        // Distribute reward per second over X seconds
+        rewardRate[_mAsset] = _amount.div(_duration);
+        rewardEnd[_mAsset] = currentTime.add(_duration);
 
         // Reset pool data to enable lastCollection usage twice
         lastPeriodStart[_mAsset] = currentTime;
         lastCollection[_mAsset] = currentTime;
         periodYield[_mAsset] = 0;
-
-        emit LiquidatorDeposited(_mAsset, _liquidated);
-    }
-
-    function streamInterest(address _mAsset, uint256 _newSupply, uint256 _interest)
-        external
-    {
-        require(msg.sender == _mAsset, "Sender must be mAsset");
-        uint256 currentTime = now;
-        uint256 previousCall = lastDeposit[_mAsset];
-        uint256 timeSincePreviousCall = currentTime.sub(previousCall);
-        require(timeSincePreviousCall > 12 hours, "Cannot deposit twice in 12 hours");
-
-        // Transfer mUSD to here
-        IERC20(_mAsset).safeTransferFrom(msg.sender, address(this), _interest);
-
-        // Validate APY
-        _validateCollection(_newSupply, _interest, timeSincePreviousCall);
-
-        // LOGIC - bundle this yield in with liquidator yield
-        // If (remainingTime < 24h)
-        //       take all remaining, add this, stream over next 24h
-        // else
-        //       take all remaining, add this, stream over remaininTime + 24h
-
-        lastDeposit[_mAsset] = now;
     }
 
     /***************************************
