@@ -37,9 +37,8 @@ contract("Masset - Mint", async (accounts) => {
     let massetDetails: MassetDetails;
 
     const runSetup = async (seedBasket = true, enableUSDTFee = false): Promise<void> => {
-        massetDetails = seedBasket
-            ? await massetMachine.deployMassetAndSeedBasket(enableUSDTFee)
-            : await massetMachine.deployMasset(enableUSDTFee);
+        await systemMachine.initialiseMocks(seedBasket, false, enableUSDTFee);
+        massetDetails = systemMachine.mUSD;
         await assertBasketIsHealthy(massetMachine, massetDetails);
     };
 
@@ -364,7 +363,7 @@ contract("Masset - Mint", async (accounts) => {
             });
             it("should exec", async () => {
                 const { bAssets, forgeValidator } = massetDetails;
-                const recipient = forgeValidator.address;
+                const recipient = sa.dummy2;
                 await assertBasicMint(massetDetails, new BN(100), bAssets[0], true, recipient);
                 await assertBasicMint(massetDetails, new BN(100), bAssets[0], false);
                 await assertBasicMint(massetDetails, new BN(2), bAssets[0], false);
@@ -379,9 +378,28 @@ contract("Masset - Mint", async (accounts) => {
                     sa.default,
                 );
                 await assertBasicRedemption(massetDetails, new BN(1), bAssets[1], true, false);
-                await assertSwap(massetDetails, bAssets[0], bAssets[1], new BN(1), true);
+                await assertSwap(massetDetails, bAssets[0], bAssets[1], new BN(1), true, sa.dummy4);
                 await assertSwap(massetDetails, bAssets[0], bAssets[1], new BN(1), true);
                 await assertSwap(massetDetails, bAssets[1], bAssets[2], new BN(1), true);
+                await massetDetails.mAsset.approve(
+                    systemMachine.savingsContract.address,
+                    new BN(1),
+                    { from: sa.default },
+                );
+                // 2. Deposit the mUSD
+                await systemMachine.savingsContract.depositSavings(new BN(1), {
+                    from: sa.default,
+                });
+                await assertSwap(massetDetails, bAssets[1], bAssets[2], new BN(1), true);
+                await massetDetails.mAsset.approve(
+                    systemMachine.savingsContract.address,
+                    new BN(1),
+                    { from: recipient },
+                );
+                // 2. Deposit the mUSD
+                await systemMachine.savingsContract.depositSavings(new BN(1), {
+                    from: recipient,
+                });
             });
         });
     });
