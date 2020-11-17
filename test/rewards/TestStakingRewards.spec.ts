@@ -27,8 +27,8 @@ contract("StakingRewards", async (accounts) => {
     let systemMachine: SystemMachine;
 
     const rewardsDistributor = sa.fundManager;
-    let rewardToken: t.MockErc20Instance;
-    let stakingToken: t.MockErc20Instance;
+    let rewardToken: t.MockERC20Instance;
+    let stakingToken: t.MockERC20Instance;
     let stakingRewards: t.StakingRewardsInstance;
 
     const redeployRewards = async (

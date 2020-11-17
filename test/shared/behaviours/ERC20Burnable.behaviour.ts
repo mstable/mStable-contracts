@@ -7,7 +7,7 @@ import envSetup from "@utils/env_setup";
 const { expect } = envSetup.configure();
 
 export default function shouldBehaveLikeERC20Burnable(
-    ctx: { burnableToken: t.Erc20BurnableInstance },
+    ctx: { burnableToken: t.ERC20BurnableInstance },
     owner,
     initialBalance,
     [burner],

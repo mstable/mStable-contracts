@@ -217,8 +217,8 @@ contract("RewardsDistributor", async (accounts) => {
                 });
             });
             context("and passed expected args", async () => {
-                let rewardToken1: t.MockErc20Instance;
-                let rewardToken2: t.MockErc20Instance;
+                let rewardToken1: t.MockERC20Instance;
+                let rewardToken2: t.MockERC20Instance;
                 let rewardRecipient1: t.MockRewardsDistributionRecipientInstance;
                 let rewardRecipient2: t.MockRewardsDistributionRecipientInstance;
                 let rewardRecipient3: t.MockRewardsDistributionRecipientInstance;
@@ -334,7 +334,7 @@ contract("RewardsDistributor", async (accounts) => {
                 });
             });
             context("and passed valid array with duplicate address", async () => {
-                let rewardToken1: t.MockErc20Instance;
+                let rewardToken1: t.MockERC20Instance;
                 let rewardRecipient1: t.MockRewardsDistributionRecipientInstance;
                 beforeEach(async () => {
                     rewardToken1 = await MockERC20.new("R1", "R1", 18, sa.fundManager, 1000000);
@@ -373,7 +373,7 @@ contract("RewardsDistributor", async (accounts) => {
                 });
             });
             context("and passed some null addresses", async () => {
-                let rewardToken1: t.MockErc20Instance;
+                let rewardToken1: t.MockERC20Instance;
                 let rewardRecipient1: t.MockRewardsDistributionRecipientInstance;
                 beforeEach(async () => {
                     rewardToken1 = await MockERC20.new("R1", "R1", 18, sa.fundManager, 1000000);

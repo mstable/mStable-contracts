@@ -109,7 +109,7 @@ contract("SavingsManager", async (accounts) => {
     });
 
     describe("adding a SavingsContract", async () => {
-        let mockMasset: t.MockErc20Instance;
+        let mockMasset: t.MockERC20Instance;
         const mockSavingsContract = sa.dummy4;
 
         before(async () => {

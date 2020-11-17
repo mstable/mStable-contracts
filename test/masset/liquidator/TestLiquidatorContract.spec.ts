@@ -24,11 +24,11 @@ contract("Liquidator", async (accounts) => {
 
     let nexus: t.MockNexusInstance;
     let liquidator: t.LiquidatorInstance;
-    let bAsset: t.MockErc20Instance;
-    let bAsset2: t.MockErc20Instance;
-    let mUSD: t.MockErc20Instance;
+    let bAsset: t.MockERC20Instance;
+    let bAsset2: t.MockERC20Instance;
+    let mUSD: t.MockERC20Instance;
     let compIntegration: t.MockCompoundIntegration1Instance;
-    let compToken: t.MockErc20Instance;
+    let compToken: t.MockERC20Instance;
     let savings: t.SavingsManagerInstance;
     let uniswap: t.MockUniswapInstance;
     let curve: t.MockCurveMetaPoolInstance;

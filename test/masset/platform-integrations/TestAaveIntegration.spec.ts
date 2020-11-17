@@ -293,7 +293,7 @@ contract("AaveIntegration", async (accounts) => {
     });
 
     describe("setting P Token Address", async () => {
-        let erc20Mock: t.MockErc20Instance;
+        let erc20Mock: t.MockERC20Instance;
         let aTokenMock: t.MockATokenInstance;
         beforeEach("init mocks", async () => {
             erc20Mock = await c_MockERC20.new("TMP", "TMP", 18, sa.default, "1000000");
@@ -610,10 +610,9 @@ contract("AaveIntegration", async (accounts) => {
             const aaveIntegration_balBefore = await aToken.balanceOf(d_AaveIntegration.address);
 
             // Step 1. call withdraw
-            const tx = await d_AaveIntegration.withdraw(
+            const tx = await d_AaveIntegration.methods["withdraw(address,address,uint256,bool)"](
                 bAssetRecipient,
                 bAsset.address,
-                amount.toString(),
                 amount.toString(),
                 false,
             );
@@ -662,10 +661,9 @@ contract("AaveIntegration", async (accounts) => {
             const aaveIntegration_balBefore = await aToken.balanceOf(d_AaveIntegration.address);
 
             // Step 1. call withdraw
-            const tx = await d_AaveIntegration.withdraw(
+            const tx = await d_AaveIntegration.methods["withdraw(address,address,uint256,bool)"](
                 bAssetRecipient,
                 bAsset.address,
-                amount.toString(),
                 amount.toString(),
                 true,
             );
@@ -701,10 +699,9 @@ contract("AaveIntegration", async (accounts) => {
 
             // Step 1. call deposit
             await expectRevert(
-                d_AaveIntegration.withdraw(
+                d_AaveIntegration.methods["withdraw(address,address,uint256,bool)"](
                     sa.dummy1,
                     bAsset.address,
-                    amount.toString(),
                     amount.toString(),
                     false,
                     {
@@ -722,10 +719,9 @@ contract("AaveIntegration", async (accounts) => {
 
             // Step 1. call deposit
             await expectRevert(
-                d_AaveIntegration.withdraw(
+                d_AaveIntegration.methods["withdraw(address,address,uint256,bool)"](
                     sa.default,
                     bAsset.address,
-                    amount.toString(),
                     amount.toString(),
                     false,
                 ),
@@ -748,10 +744,9 @@ contract("AaveIntegration", async (accounts) => {
 
             // Fails with ZERO bAsset Address
             await expectRevert(
-                d_AaveIntegration.withdraw(
+                d_AaveIntegration.methods["withdraw(address,address,uint256,bool)"](
                     sa.dummy1,
                     ZERO_ADDRESS,
-                    amount.toString(),
                     amount.toString(),
                     false,
                 ),
@@ -759,24 +754,27 @@ contract("AaveIntegration", async (accounts) => {
             );
             // Fails with ZERO recipient address
             await expectRevert.unspecified(
-                d_AaveIntegration.withdraw(
+                d_AaveIntegration.methods["withdraw(address,address,uint256,bool)"](
                     ZERO_ADDRESS,
                     bAsset.address,
-                    new BN(1),
                     new BN(1),
                     false,
                 ),
             );
             // Fails with ZERO Amount
             await expectRevert(
-                d_AaveIntegration.withdraw(sa.dummy1, bAsset.address, "0", "0", false),
+                d_AaveIntegration.methods["withdraw(address,address,uint256,bool)"](
+                    sa.dummy1,
+                    bAsset.address,
+                    "0",
+                    false,
+                ),
                 "Must withdraw something",
             );
             // Succeeds with Incorrect bool (defaults to false)
-            const tx = await d_AaveIntegration.withdraw(
+            const tx = await d_AaveIntegration.methods["withdraw(address,address,uint256,bool)"](
                 sa.dummy1,
                 bAsset.address,
-                amount.toString(),
                 amount.toString(),
                 undefined,
             );
@@ -803,10 +801,9 @@ contract("AaveIntegration", async (accounts) => {
 
             // Step 1. call withdraw
             await expectRevert(
-                d_AaveIntegration.withdraw(
+                d_AaveIntegration.methods["withdraw(address,address,uint256,bool)"](
                     sa.dummy1,
                     bAsset.address,
-                    amount.toString(),
                     amount.toString(),
                     false,
                 ),
@@ -882,10 +879,9 @@ contract("AaveIntegration", async (accounts) => {
             expect(directBalance).bignumber.eq(aaveIntegration_balAfter);
 
             // 4. Withdraw our new interest - we worked hard for it!
-            await d_AaveIntegration.withdraw(
+            await d_AaveIntegration.methods["withdraw(address,address,uint256,bool)"](
                 sa.default,
                 bAsset.address,
-                aaveIntegration_balAfter,
                 aaveIntegration_balAfter,
                 false,
             );

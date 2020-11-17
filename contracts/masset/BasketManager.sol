@@ -522,20 +522,29 @@ contract BasketManager is
 
             // 2. Withdraw everything from the old platform integration
             IPlatformIntegration oldIntegration = IPlatformIntegration(integrations[index]);
-            uint256 balance = oldIntegration.checkBalance(bAsset);
-            oldIntegration.withdraw(address(this), bAsset, balance, false);
+            // 2.1. Withdraw from the lending market
+            uint256 lendingBal = oldIntegration.checkBalance(bAsset);
+            oldIntegration.withdraw(address(this), bAsset, lendingBal, false);
+            // 2.2. Withdraw from the cache, if any
+            uint256 cache = IERC20(bAsset).balanceOf(address(oldIntegration));
+            oldIntegration.withdrawRaw(address(this), bAsset, cache);
+            uint256 total = lendingBal.add(cache);
 
             // 3. Update the integration address for this bAsset
             integrations[index] = _newIntegration;
 
             // 4. Deposit everything into the new
             //    This should fail if we did not receive the full amount from the platform withdrawal
-            IERC20(bAsset).safeTransfer(_newIntegration, balance);
+            // 4.1. Deposit all bAsset
+            IERC20(bAsset).safeTransfer(_newIntegration, total);
             IPlatformIntegration newIntegration = IPlatformIntegration(_newIntegration);
-            newIntegration.deposit(bAsset, balance, false);
-            uint256 newBalance = newIntegration.checkBalance(bAsset);
+            newIntegration.deposit(bAsset, lendingBal, false);
+            // 4.2. Check balances
+            uint256 newLendingBal = newIntegration.checkBalance(bAsset);
+            uint256 newCache = IERC20(bAsset).balanceOf(address(newIntegration));
 
-            require(newBalance >= balance, "Must transfer full amount");
+            require(newLendingBal >= lendingBal, "Must transfer full amount");
+            require(newCache >= cache, "Must transfer full amount");
         }
 
         emit BassetsMigrated(_bAssets, _newIntegration);

@@ -38,7 +38,7 @@ contract("IncentivisedVotingLockupRewards", async (accounts) => {
     let systemMachine: SystemMachine;
 
     const rewardsDistributor = sa.fundManager;
-    let stakingToken: t.MockErc20Instance;
+    let stakingToken: t.MockERC20Instance;
     let votingLockup: t.IncentivisedVotingLockupInstance;
 
     const redeployRewards = async (

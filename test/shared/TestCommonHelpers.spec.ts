@@ -20,9 +20,9 @@ contract("CommonHelpers", async (accounts) => {
     });
 
     describe("getting decimals of valid ERC20 token", async () => {
-        let validToken1: t.MockErc20Instance;
-        let validToken2: t.MockErc20Instance;
-        let validToken3: t.MockErc20Instance;
+        let validToken1: t.MockERC20Instance;
+        let validToken2: t.MockERC20Instance;
+        let validToken3: t.MockERC20Instance;
 
         before(async () => {
             validToken1 = await MockErc20.new("Mock", "MK1", 4, sa.default, 1);
@@ -40,10 +40,10 @@ contract("CommonHelpers", async (accounts) => {
         });
     });
     describe("getting decimals of invalid ERC20 tokens", async () => {
-        let tokenWith0: t.MockErc20Instance;
-        let tokenWith2: t.MockErc20Instance;
-        let tokenWith19: t.MockErc20Instance;
-        let tokenWithXX: t.MockErc20Instance;
+        let tokenWith0: t.MockERC20Instance;
+        let tokenWith2: t.MockERC20Instance;
+        let tokenWith19: t.MockERC20Instance;
+        let tokenWithXX: t.MockERC20Instance;
 
         before(async () => {
             tokenWith0 = await MockErc20.new("Mock", "MK0", new BN(0), sa.default, 1);

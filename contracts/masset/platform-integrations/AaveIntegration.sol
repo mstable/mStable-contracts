@@ -64,6 +64,27 @@ contract AaveIntegration is InitializableAbstractIntegration {
      * @param _receiver     Address to which the bAsset should be sent
      * @param _bAsset       Address of the bAsset
      * @param _amount       Units of bAsset to send to recipient
+     * @param _hasTxFee     Is the bAsset known to have a tx fee?
+     */
+    function withdraw(
+        address _receiver,
+        address _bAsset,
+        uint256 _amount,
+        bool _hasTxFee
+    )
+        external
+        onlyWhitelisted
+        nonReentrant
+    {
+        _withdraw(_receiver, _bAsset, _amount, _amount, _hasTxFee);
+    }
+
+    /**
+     * @dev Withdraw a quantity of bAsset from the platform. Redemption
+     *      should fail if we have insufficient balance on the platform.
+     * @param _receiver     Address to which the bAsset should be sent
+     * @param _bAsset       Address of the bAsset
+     * @param _amount       Units of bAsset to send to recipient
      * @param _totalAmount  Total units to pull from lending platform
      * @param _hasTxFee     Is the bAsset known to have a tx fee?
      */
@@ -77,6 +98,18 @@ contract AaveIntegration is InitializableAbstractIntegration {
         external
         onlyWhitelisted
         nonReentrant
+    {
+        _withdraw(_receiver, _bAsset, _amount, _totalAmount, _hasTxFee);
+    }
+
+    function _withdraw(
+        address _receiver,
+        address _bAsset,
+        uint256 _amount,
+        uint256 _totalAmount,
+        bool _hasTxFee
+    )
+        internal
     {
         require(_amount > 0, "Must withdraw something");
         // Get the Target token

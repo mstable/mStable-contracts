@@ -83,6 +83,28 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         emit Deposit(_bAsset, address(cToken), quantityDeposited);
     }
 
+
+    /**
+     * @dev Withdraw a quantity of bAsset from Compound. Redemption
+     *      should fail if we have insufficient cToken balance.
+     * @param _receiver     Address to which the withdrawn bAsset should be sent
+     * @param _bAsset       Address of the bAsset
+     * @param _amount       Units of bAsset to withdraw
+     * @param _hasTxFee     Is the bAsset known to have a tx fee?
+     */
+    function withdraw(
+        address _receiver,
+        address _bAsset,
+        uint256 _amount,
+        bool _hasTxFee
+    )
+        external
+        onlyWhitelisted
+        nonReentrant
+    {
+        _withdraw(_receiver, _bAsset, _amount, _amount, _hasTxFee);
+    }
+
     /**
      * @dev Withdraw a quantity of bAsset from Compound. Redemption
      *      should fail if we have insufficient cToken balance.
@@ -102,6 +124,18 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         external
         onlyWhitelisted
         nonReentrant
+    {
+        _withdraw(_receiver, _bAsset, _amount, _totalAmount, _hasTxFee);
+    }
+
+    function _withdraw(
+        address _receiver,
+        address _bAsset,
+        uint256 _amount,
+        uint256 _totalAmount,
+        bool _hasTxFee
+    )
+        internal
     {
         require(_amount > 0, "Must withdraw something");
         require(_receiver != address(0), "Must specify recipient");
@@ -136,6 +170,7 @@ contract CompoundIntegration is InitializableAbstractIntegration {
 
         emit Withdrawal(_bAsset, address(cToken), userWithdrawal);
     }
+
 
     /**
      * @dev Withdraw a quantity of bAsset from the cache.

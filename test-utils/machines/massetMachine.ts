@@ -40,7 +40,6 @@ const c_BasketManager = artifacts.require("MockBasketManager");
 
 // Masset
 const c_Masset = artifacts.require("Masset");
-const c_MockERC20WithFee = artifacts.require("MockERC20WithFee");
 const c_MockERC20 = artifacts.require("MockERC20");
 const c_MockInitializableToken = artifacts.require("MockInitializableToken");
 const c_MockInitializableTokenWithFee = artifacts.require("MockInitializableTokenWithFee");
@@ -311,7 +310,10 @@ export class MassetMachine {
         return c_MockERC20.at(x.address) as t.MockERC20Instance;
     }
 
-    public async loadBassetsLocal(enableUSDTFee = false, useOldAave = false): Promise<BassetIntegrationDetails> {
+    public async loadBassetsLocal(
+        enableUSDTFee = false,
+        useOldAave = false,
+    ): Promise<BassetIntegrationDetails> {
         //  - Mock bAssets
 
         const mockBasset1 = await this.loadBassetProxy("Mock1", "MK1", 12);

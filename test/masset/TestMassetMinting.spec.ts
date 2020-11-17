@@ -52,7 +52,7 @@ contract("Masset - Mint", async (accounts) => {
 
     const assertFailedMint = async (
         mAsset: t.MassetInstance,
-        bAsset: t.MockErc20Instance,
+        bAsset: t.MockERC20Instance,
         amount: BN,
         reason: string,
     ): Promise<void> => {
@@ -64,7 +64,7 @@ contract("Masset - Mint", async (accounts) => {
     const assertBasicMint = async (
         md: MassetDetails,
         mAssetMintAmount: BN | number,
-        bAsset: t.MockErc20Instance,
+        bAsset: t.MockERC20Instance,
         useMintTo = false,
         recipient: string = sa.default,
         sender: string = sa.default,
@@ -770,7 +770,7 @@ contract("Masset - Mint", async (accounts) => {
         const assertMintMulti = async (
             md: MassetDetails,
             mAssetMintAmounts: Array<BN | number>,
-            bAssets: Array<t.MockErc20Instance>,
+            bAssets: Array<t.MockERC20Instance>,
             recipient: string = sa.default,
             sender: string = sa.default,
             ignoreHealthAssertions = false,

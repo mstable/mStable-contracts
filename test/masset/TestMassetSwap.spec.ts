@@ -57,8 +57,8 @@ contract("Masset - Swap", async (accounts) => {
      */
     const assertFailedSwap = async (
         mAsset: t.MassetInstance,
-        inputBasset: t.MockErc20Instance,
-        outputAsset: t.MockErc20Instance,
+        inputBasset: t.MockERC20Instance,
+        outputAsset: t.MockERC20Instance,
         amount: string | BN | number,
         expectedReason: string,
         sender = sa.default,
@@ -121,8 +121,8 @@ contract("Masset - Swap", async (accounts) => {
      */
     const assertSwap = async (
         md: MassetDetails,
-        inputBasset: t.MockErc20Instance,
-        outputAsset: t.MockErc20Instance,
+        inputBasset: t.MockERC20Instance,
+        outputAsset: t.MockERC20Instance,
         swapQuantity: BN | number,
         expectSwapFee: boolean,
         recipient: string = sa.default,

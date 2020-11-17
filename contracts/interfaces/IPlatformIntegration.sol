@@ -16,6 +16,11 @@ interface IPlatformIntegration {
     /**
      * @dev Withdraw given bAsset from Lending platform
      */
+    function withdraw(address _receiver, address _bAsset, uint256 _amount, bool _hasTxFee) external;
+
+    /**
+     * @dev Withdraw given bAsset from Lending platform
+     */
     function withdraw(address _receiver, address _bAsset, uint256 _amount, uint256 _totalAmount, bool _hasTxFee) external;
 
     /**

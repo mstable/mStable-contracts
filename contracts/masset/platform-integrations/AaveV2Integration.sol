@@ -44,7 +44,6 @@ contract AaveV2Integration is InitializableAbstractIntegration {
 
         IAaveATokenV2 aToken = _getATokenFor(_bAsset);
 
-        // We should have been sent this amount, if not, the deposit will fail
         quantityDeposited = _amount;
 
         if(_isTokenFeeCharged) {
@@ -54,7 +53,6 @@ contract AaveV2Integration is InitializableAbstractIntegration {
             uint256 newBal = _checkBalance(aToken);
             quantityDeposited = _min(quantityDeposited, newBal.sub(prevBal));
         } else {
-            // aTokens are 1:1 for each asset
             _getLendingPool().deposit(_bAsset, _amount, address(this), 36);
         }
 
@@ -72,7 +70,64 @@ contract AaveV2Integration is InitializableAbstractIntegration {
         address _receiver,
         address _bAsset,
         uint256 _amount,
-        bool /*_isTokenFeeCharged*/
+        bool _hasTxFee
+    )
+        external
+        onlyWhitelisted
+        nonReentrant
+    {
+        _withdraw(_receiver, _bAsset, _amount, _amount, _hasTxFee);
+    }
+
+    function withdraw(
+        address _receiver,
+        address _bAsset,
+        uint256 _amount,
+        uint256 _totalAmount,
+        bool _hasTxFee
+    )
+        external
+        onlyWhitelisted
+        nonReentrant
+    {
+        _withdraw(_receiver, _bAsset, _amount, _totalAmount, _hasTxFee);
+    }
+
+    function _withdraw(
+        address _receiver,
+        address _bAsset,
+        uint256 _amount,
+        uint256 _totalAmount,
+        bool _hasTxFee
+    )
+        internal
+    {
+        require(_amount > 0, "Must withdraw something");
+
+        IAaveATokenV2 aToken = _getATokenFor(_bAsset);
+
+        if(_hasTxFee) {
+            require(_amount == _totalAmount, "Cache inactive for assets with fee");
+            _getLendingPool().withdraw(_bAsset, _amount, _receiver);
+        } else {
+            _getLendingPool().withdraw(_bAsset, _totalAmount, address(this));
+            // Send redeemed bAsset to the receiver
+            IERC20(_bAsset).safeTransfer(_receiver, _amount);
+        }
+
+        emit Withdrawal(_bAsset, address(aToken), _amount);
+    }
+
+    /**
+     * @dev Withdraw a quantity of bAsset from the cache.
+     * @param _receiver     Address to which the bAsset should be sent
+     * @param _bAsset       Address of the bAsset
+     * @param _amount       Units of bAsset to withdraw
+     */
+    function withdrawRaw(
+        address _receiver,
+        address _bAsset,
+        uint256 _amount
     )
         external
         onlyWhitelisted
@@ -80,11 +135,10 @@ contract AaveV2Integration is InitializableAbstractIntegration {
     {
         require(_amount > 0, "Must withdraw something");
 
-        IAaveATokenV2 aToken = _getATokenFor(_bAsset);
+        // Send redeemed bAsset to the receiver
+        IERC20(_bAsset).safeTransfer(_receiver, _amount);
 
-        _getLendingPool().withdraw(_bAsset, _amount, _receiver);
-
-        emit Withdrawal(_bAsset, address(aToken), _amount);
+        emit Withdrawal(_bAsset, address(0), _amount);
     }
 
     /**

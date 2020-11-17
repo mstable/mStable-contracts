@@ -38,7 +38,7 @@ contract("UpgradedAaveIntegration", async (accounts) => {
     let d_AaveIntegrationV3: t.AaveIntegrationV3Instance;
 
     let d_MockAave: t.MockAaveV1Instance;
-    let d_mockBasset1: t.MockErc20Instance;
+    let d_mockBasset1: t.MockERC20Instance;
     let d_mockAToken1: t.MockATokenInstance;
 
     let proxyToImplV2: t.AaveIntegrationV2Instance;

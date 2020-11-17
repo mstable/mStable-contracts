@@ -7,7 +7,7 @@ import envSetup from "@utils/env_setup";
 const { expect } = envSetup.configure();
 
 export default function shouldBehaveLikeERC20(
-    ctx: { token: t.Erc20Instance },
+    ctx: { token: t.ERC20Instance },
     errorPrefix,
     initialSupply,
     initialHolder,
@@ -202,7 +202,7 @@ export default function shouldBehaveLikeERC20(
 }
 
 const shouldBehaveLikeERC20Transfer = (
-    ctx: { token: t.Erc20Instance },
+    ctx: { token: t.ERC20Instance },
     errorPrefix,
     from,
     to,
@@ -277,7 +277,7 @@ const shouldBehaveLikeERC20Transfer = (
 };
 
 const shouldBehaveLikeERC20Approve = (
-    ctx: { token: t.Erc20Instance },
+    ctx: { token: t.ERC20Instance },
     errorPrefix,
     owner,
     spender,

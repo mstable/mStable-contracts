@@ -62,7 +62,7 @@ contract("Masset - Redeem", async (accounts) => {
 
     const assertFailedRedemption = async (
         mAsset: t.MassetInstance,
-        bAsset: t.MockErc20Instance,
+        bAsset: t.MockERC20Instance,
         amount: BN,
         reason: string,
     ): Promise<void> => {
@@ -76,7 +76,7 @@ contract("Masset - Redeem", async (accounts) => {
     const assertBasicRedemption = async (
         md: MassetDetails,
         bAssetRedeemAmount: BN | number,
-        bAsset: t.MockErc20Instance,
+        bAsset: t.MockERC20Instance,
         expectFee = true,
         useRedeemTo = false,
         recipient: string = sa.default,
@@ -158,7 +158,7 @@ contract("Masset - Redeem", async (accounts) => {
     const assertRedeemMulti = async (
         md: MassetDetails,
         bAssetRedeemAmounts: Array<BN | number>,
-        bAssets: Array<t.MockErc20Instance>,
+        bAssets: Array<t.MockERC20Instance>,
         expectFee = true,
         recipient: string = sa.default,
         sender: string = sa.default,
