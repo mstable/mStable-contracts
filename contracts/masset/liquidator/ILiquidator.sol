@@ -9,7 +9,8 @@ contract ILiquidator {
         address _bAsset,
         int128 _curvePosition,
         address[] calldata _uniswapPath,
-        uint256 _trancheAmount
+        uint256 _trancheAmount,
+        uint256 _minReturn
     )
         external;
 
@@ -18,7 +19,8 @@ contract ILiquidator {
         address _bAsset,
         int128 _curvePosition,
         address[] calldata _uniswapPath,
-        uint256 _trancheAmount
+        uint256 _trancheAmount,
+        uint256 _minReturn
     )
         external;
         
