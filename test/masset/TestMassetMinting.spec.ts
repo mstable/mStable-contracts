@@ -19,7 +19,7 @@ const MockBasketManager1 = artifacts.require("MockBasketManager1");
 const MockBasketManager2 = artifacts.require("MockBasketManager2");
 const MockERC20 = artifacts.require("MockERC20");
 const MockAToken = artifacts.require("MockAToken");
-const MockAave = artifacts.require("MockAave");
+const MockAave = artifacts.require("MockAaveV2");
 const AaveIntegration = artifacts.require("AaveIntegration");
 const Masset = artifacts.require("Masset");
 

@@ -17,7 +17,7 @@ const { expect } = envSetup.configure();
 
 const MockERC20 = artifacts.require("MockERC20");
 const MockAToken = artifacts.require("MockAToken");
-const MockAave = artifacts.require("MockAave");
+const MockAave = artifacts.require("MockAaveV2");
 const AaveIntegration = artifacts.require("AaveIntegration");
 
 interface SwapDetails {
@@ -699,20 +699,78 @@ contract("Masset - Swap", async (accounts) => {
                         // Complete basket should remain in healthy state
                         await assertBasketIsHealthy(massetMachine, massetDetails);
                     });
-                    it("should fail if the system doesn't know about the fee", async () => {
+                    it("should continue to pay out", async () => {
                         const { bAssets, mAsset, basketManager } = massetDetails;
-                        await basketManager.setTransferFeesFlag(bAssets[3].address, false, {
+                        const sender = sa.default;
+                        const recipient = sa.dummy1;
+                        const inputBasset = bAssets[0];
+                        const outputAsset = bAssets[3];
+                        const swapQuantity = new BN(1);
+                        await basketManager.setTransferFeesFlag(outputAsset.address, false, {
                             from: sa.governor,
                         });
-                        await assertFailedSwap(
+
+                        // 1. Get basic before data about the actors balances
+                        const swapperInputBalBefore = await inputBasset.balanceOf(sender);
+                        const recipientOutputBalBefore = await outputAsset.balanceOf(recipient);
+
+                        //    Get basic before data on the swap assets
+                        const inputBassetBefore = await basketManager.getBasset(
+                            inputBasset.address,
+                        );
+                        const outputBassetBefore = await basketManager.getBasset(
+                            outputAsset.address,
+                        );
+
+                        // 2. Do the necessary approvals and make the calls
+                        const approval0: BN = await massetMachine.approveMasset(
+                            inputBasset,
                             mAsset,
-                            bAssets[0],
-                            bAssets[3],
-                            1,
-                            "SafeERC20: low-level call failed",
-                            sa.default,
-                            sa.default,
-                            false,
+                            swapQuantity,
+                            sender,
+                        );
+                        await mAsset.swap(
+                            inputBasset.address,
+                            outputAsset.address,
+                            approval0,
+                            recipient,
+                            { from: sender },
+                        );
+                        // Senders balance goes down but vaultbalance goes up by less
+
+                        // 3. Calculate expected responses
+                        const inputQuantityExact = simpleToExactAmount(
+                            swapQuantity,
+                            await inputBasset.decimals(),
+                        );
+                        const scaledInputQuantity = simpleToExactAmount(swapQuantity, 18);
+                        const expectedOutputValue = scaledInputQuantity
+                            .mul(ratioScale)
+                            .div(new BN(outputBassetBefore.ratio));
+
+                        const feeRate = await mAsset.swapFee();
+                        const fee = expectedOutputValue.mul(feeRate).div(fullScale);
+
+                        //  Input
+                        //    Sender should have less input bAsset after
+                        const swapperBassetBalAfter = await inputBasset.balanceOf(sender);
+                        expect(swapperBassetBalAfter).bignumber.eq(
+                            swapperInputBalBefore.sub(inputQuantityExact),
+                        );
+                        //    VaultBalance should update for input bAsset
+                        const inputBassetAfter = await basketManager.getBasset(inputBasset.address);
+                        expect(new BN(inputBassetAfter.vaultBalance)).bignumber.eq(
+                            new BN(inputBassetBefore.vaultBalance).add(inputQuantityExact),
+                        );
+                        //  Output
+                        //    Recipient should have output asset quantity after (minus fee)
+                        const recipientBalAfter = await outputAsset.balanceOf(recipient);
+                        // Assert recipient only receives x amount
+                        assertBNSlightlyGTPercent(
+                            expectedOutputValue.sub(fee),
+                            recipientBalAfter.sub(recipientOutputBalBefore),
+                            "0.3",
+                            true,
                         );
                     });
                 });

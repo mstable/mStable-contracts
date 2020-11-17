@@ -2,7 +2,7 @@ pragma solidity 0.5.16;
 
 import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "../../../masset/platform-integrations/InitializableAbstractIntegration.sol";
 
-import { IAaveAToken, IAaveLendingPool, ILendingPoolAddressesProvider } from "../../../masset/platform-integrations/IAave.sol";
+import { IAaveATokenV1, IAaveLendingPoolV1, ILendingPoolAddressesProviderV1 } from "../../../masset/platform-integrations/IAave.sol";
 
 contract AaveIntegrationV2 is InitializableAbstractIntegration {
 
@@ -23,7 +23,7 @@ contract AaveIntegrationV2 is InitializableAbstractIntegration {
         returns (uint256 quantityDeposited)
     {
         // Get the Target token
-        IAaveAToken aToken = _getATokenFor(_bAsset);
+        IAaveATokenV1 aToken = _getATokenFor(_bAsset);
 
         // We should have been sent this amount, if not, the deposit will fail
         quantityDeposited = _amount;
@@ -55,7 +55,7 @@ contract AaveIntegrationV2 is InitializableAbstractIntegration {
         onlyWhitelisted
     {
         // Get the Target token
-        IAaveAToken aToken = _getATokenFor(_bAsset);
+        IAaveATokenV1 aToken = _getATokenFor(_bAsset);
 
         // Don't need to Approve aToken, as it gets burned in redeem()
         aToken.redeem(_totalAmount);
@@ -79,7 +79,7 @@ contract AaveIntegrationV2 is InitializableAbstractIntegration {
         returns (uint256 balance)
     {
         // balance is always with token aToken decimals
-        IAaveAToken aToken = _getATokenFor(_bAsset);
+        IAaveATokenV1 aToken = _getATokenFor(_bAsset);
         // ADDED 100 to the token balance just to check upgrade
         return _checkBalance(aToken).add(100);
     }
@@ -122,11 +122,11 @@ contract AaveIntegrationV2 is InitializableAbstractIntegration {
     function _getLendingPool()
         internal
         view
-        returns (IAaveLendingPool)
+        returns (IAaveLendingPoolV1)
     {
-        address lendingPool = ILendingPoolAddressesProvider(platformAddress).getLendingPool();
+        address lendingPool = ILendingPoolAddressesProviderV1(platformAddress).getLendingPool();
         require(lendingPool != address(0), "Lending pool does not exist");
-        return IAaveLendingPool(lendingPool);
+        return IAaveLendingPoolV1(lendingPool);
     }
 
     function _getLendingPoolCore()
@@ -134,7 +134,7 @@ contract AaveIntegrationV2 is InitializableAbstractIntegration {
         view
         returns (address)
     {
-        address lendingPoolCore = ILendingPoolAddressesProvider(platformAddress).getLendingPoolCore();
+        address lendingPoolCore = ILendingPoolAddressesProviderV1(platformAddress).getLendingPoolCore();
         require(lendingPoolCore != address(0), "Lending pool does not exist");
         return lendingPoolCore;
     }
@@ -142,14 +142,14 @@ contract AaveIntegrationV2 is InitializableAbstractIntegration {
     function _getATokenFor(address _bAsset)
         internal
         view
-        returns (IAaveAToken)
+        returns (IAaveATokenV1)
     {
         address aToken = bAssetToPToken[_bAsset];
         require(aToken != address(0), "aToken does not exist");
-        return IAaveAToken(aToken);
+        return IAaveATokenV1(aToken);
     }
 
-    function _checkBalance(IAaveAToken _aToken)
+    function _checkBalance(IAaveATokenV1 _aToken)
         internal
         view
         returns (uint256 balance)
@@ -198,7 +198,7 @@ contract AaveIntegrationV3 is InitializableAbstractIntegration {
         returns (uint256 quantityDeposited)
     {
         // Get the Target token
-        IAaveAToken aToken = _getATokenFor(_bAsset);
+        IAaveATokenV1 aToken = _getATokenFor(_bAsset);
 
         // We should have been sent this amount, if not, the deposit will fail
         quantityDeposited = _amount;
@@ -230,7 +230,7 @@ contract AaveIntegrationV3 is InitializableAbstractIntegration {
         onlyWhitelisted
     {
         // Get the Target token
-        IAaveAToken aToken = _getATokenFor(_bAsset);
+        IAaveATokenV1 aToken = _getATokenFor(_bAsset);
 
         // Don't need to Approve aToken, as it gets burned in redeem()
         aToken.redeem(_totalAmount);
@@ -251,7 +251,7 @@ contract AaveIntegrationV3 is InitializableAbstractIntegration {
         returns (uint256 balance)
     {
         // balance is always with token aToken decimals
-        IAaveAToken aToken = _getATokenFor(_bAsset);
+        IAaveATokenV1 aToken = _getATokenFor(_bAsset);
         // ADDED 100 to the token balance just to check upgrade
         return _checkBalance(aToken).add(100);
     }
@@ -294,11 +294,11 @@ contract AaveIntegrationV3 is InitializableAbstractIntegration {
     function _getLendingPool()
         internal
         view
-        returns (IAaveLendingPool)
+        returns (IAaveLendingPoolV1)
     {
-        address lendingPool = ILendingPoolAddressesProvider(platformAddress).getLendingPool();
+        address lendingPool = ILendingPoolAddressesProviderV1(platformAddress).getLendingPool();
         require(lendingPool != address(0), "Lending pool does not exist");
-        return IAaveLendingPool(lendingPool);
+        return IAaveLendingPoolV1(lendingPool);
     }
 
     // NEW
@@ -308,7 +308,7 @@ contract AaveIntegrationV3 is InitializableAbstractIntegration {
         returns (uint256 balance)
     {
         // balance is always with token aToken decimals
-        IAaveAToken aToken = _getATokenFor(_bAsset);
+        IAaveATokenV1 aToken = _getATokenFor(_bAsset);
         // ADDED 100 to the token balance just to check upgrade
         return _checkBalance(aToken);
     }
@@ -318,7 +318,7 @@ contract AaveIntegrationV3 is InitializableAbstractIntegration {
         view
         returns (address)
     {
-        address lendingPoolCore = ILendingPoolAddressesProvider(platformAddress).getLendingPoolCore();
+        address lendingPoolCore = ILendingPoolAddressesProviderV1(platformAddress).getLendingPoolCore();
         require(lendingPoolCore != address(0), "Lending pool does not exist");
         return lendingPoolCore;
     }
@@ -326,14 +326,14 @@ contract AaveIntegrationV3 is InitializableAbstractIntegration {
     function _getATokenFor(address _bAsset)
         internal
         view
-        returns (IAaveAToken)
+        returns (IAaveATokenV1)
     {
         address aToken = bAssetToPToken[_bAsset];
         require(aToken != address(0), "aToken does not exist");
-        return IAaveAToken(aToken);
+        return IAaveATokenV1(aToken);
     }
 
-    function _checkBalance(IAaveAToken _aToken)
+    function _checkBalance(IAaveATokenV1 _aToken)
         internal
         view
         returns (uint256 balance)

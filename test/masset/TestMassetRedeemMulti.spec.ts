@@ -13,13 +13,9 @@ import * as t from "types/generated";
 
 const { expect } = envSetup.configure();
 
-const MockBasketManager1 = artifacts.require("MockBasketManager1");
 const MockERC20 = artifacts.require("MockERC20");
 const MockAToken = artifacts.require("MockAToken");
-const MockAave = artifacts.require("MockAave");
-const AaveIntegration = artifacts.require("AaveIntegration");
-
-const Masset = artifacts.require("Masset");
+const MockAave = artifacts.require("MockAaveV2");
 
 contract("Masset - RedeemMasset", async (accounts) => {
     const sa = new StandardAccounts(accounts);
@@ -362,22 +358,6 @@ contract("Masset - RedeemMasset", async (accounts) => {
                     );
                     // Complete basket should remain in healthy state
                     await assertBasketIsHealthy(massetMachine, massetDetails);
-                });
-                it("should fail if the token charges a fee but we dont know about it", async () => {
-                    const { bAssets, mAsset, basketManager } = massetDetails;
-                    await assertBasketIsHealthy(massetMachine, massetDetails);
-                    // 1.0 Assert bAsset has fee
-                    const bAsset = bAssets[3];
-                    const basket = await massetMachine.getBasketComposition(massetDetails);
-                    expect(basket.bAssets[3].isTransferFeeCharged).to.eq(true);
-                    await basketManager.setTransferFeesFlag(bAsset.address, false, {
-                        from: sa.governor,
-                    });
-                    // 2.0 Do the mint
-                    await expectRevert(
-                        mAsset.redeemMasset(new BN(1000000), sa.default),
-                        "SafeERC20: low-level call failed",
-                    );
                 });
             });
             context("passing invalid arguments", async () => {

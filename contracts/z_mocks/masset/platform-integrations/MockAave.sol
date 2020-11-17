@@ -1,9 +1,10 @@
 pragma solidity 0.5.16;
 
-import { IAaveAToken, IAaveLendingPool, ILendingPoolAddressesProvider } from "../../../masset/platform-integrations/IAave.sol";
+import { IAaveATokenV1, IAaveLendingPoolV1, IAaveLendingPoolV2, ILendingPoolAddressesProviderV1, ILendingPoolAddressesProviderV2 } from "../../../masset/platform-integrations/IAave.sol";
 import { AaveIntegration } from "../../../masset/platform-integrations/AaveIntegration.sol";
 
 import { MassetHelpers, SafeERC20, SafeMath } from "../../../masset/shared/MassetHelpers.sol";
+import { AaveIntegrationV1 } from "./AaveIntegrationV1.sol";
 import { IERC20, ERC20, ERC20Mintable } from "@openzeppelin/contracts/token/ERC20/ERC20Mintable.sol";
 
 
@@ -35,7 +36,49 @@ contract MockAToken is ERC20Mintable {
     }
 }
 
-contract MockAave is IAaveLendingPool, ILendingPoolAddressesProvider {
+contract MockAaveV2 is IAaveLendingPoolV2, ILendingPoolAddressesProviderV2 {
+
+    using SafeMath for uint256;
+
+    mapping(address => address) reserveToAToken;
+    address pool = address(this);
+    address payable core = address(uint160(address(this)));
+
+    function addAToken(address _aToken, address _underlying) public {
+        MassetHelpers.safeInfiniteApprove(_underlying, _aToken);
+        reserveToAToken[_underlying] = _aToken;
+    }
+
+    function deposit(address _reserve, uint256 _amount, address /* _onBehalfOf */, uint16 /*_referralCode*/) external {
+        uint256 previousBal = IERC20(reserveToAToken[_reserve]).balanceOf(msg.sender);
+        uint256 factor = 2 * (10**13); // 0.002%
+        uint256 interest = previousBal.mul(factor).div(1e18);
+        ERC20Mintable(reserveToAToken[_reserve]).mint(msg.sender, interest);
+        // Take their reserve
+        MassetHelpers.transferTokens(msg.sender, address(this), _reserve, true, _amount);
+        // Credit them with aToken
+        ERC20Mintable(reserveToAToken[_reserve]).mint(msg.sender, _amount);
+    }
+
+    function withdraw(
+        address reserve,
+        uint256 amount,
+        address to
+    ) external {
+        IERC20(reserve).transfer(to, amount);
+    }
+
+    function getLendingPool() external view returns (address) {
+        return pool;
+    }
+
+    function breakLendingPools() external {
+        pool = address(0);
+        core = address(uint160(address(0)));
+    }
+}
+
+contract MockAaveV1 is IAaveLendingPoolV1, ILendingPoolAddressesProviderV1 {
 
     using SafeMath for uint256;
 
@@ -72,6 +115,10 @@ contract MockAave is IAaveLendingPool, ILendingPoolAddressesProvider {
         core = address(uint160(address(0)));
     }
 
+    function migrateLendingPools(address payable _new) external {
+        pool = _new;
+        core = _new;
+    }
 }
 
 
@@ -79,6 +126,30 @@ contract MockAaveIntegration is AaveIntegration {
 
     // event CurrentBalance(address indexed bAsset, uint256 balance);
 
+    function logBalance(address _bAsset)
+        external
+        view
+        returns (uint256 balance)
+    {
+        // balance is always with token aToken decimals
+        IAaveATokenV1 aToken = _getATokenFor(_bAsset);
+        balance = _checkBalance(aToken);
+
+        // emit CurrentBalance(_bAsset, balance);
+    }
+
+    function getBassetsMapped()
+        external
+        view
+        returns (address[] memory bassets)
+    {
+        return bAssetsMapped;
+    }
+}
+
+contract MockAaveIntegrationV1 is AaveIntegrationV1 {
+
+    // event CurrentBalance(address indexed bAsset, uint256 balance);
 
     function logBalance(address _bAsset)
         external
@@ -86,7 +157,7 @@ contract MockAaveIntegration is AaveIntegration {
         returns (uint256 balance)
     {
         // balance is always with token aToken decimals
-        IAaveAToken aToken = _getATokenFor(_bAsset);
+        IAaveATokenV1 aToken = _getATokenFor(_bAsset);
         balance = _checkBalance(aToken);
 
         // emit CurrentBalance(_bAsset, balance);
