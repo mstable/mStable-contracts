@@ -97,7 +97,7 @@ contract Masset is
         MAX_FEE = 2e16;
         swapFee = 6e14;
         redemptionFee = 3e14;
-        cacheSize = 1e18;
+        cacheSize = 1e17;
     }
 
     /**
@@ -280,8 +280,6 @@ contract Masset is
     {
         console.log("depositTokens: start");
         // 1 - Send all to PI
-        // todo - confirm that tx sent does not have
-        //      - must protect against tx fees being turned on for: USDT + USDC (not DAI, sUSD, TUSD)
         (uint256 transferred, uint256 cacheBal) = MassetHelpers.transferReturnBalance(msg.sender, _integrator, _bAsset, _quantity);
 
         // 2 - Deposit X if necessary
@@ -822,7 +820,7 @@ contract Masset is
     function _getCacheDetails() internal view returns (Cache memory) {
         uint256 _surplus = surplus;
         uint256 sum = totalSupply().add(_surplus);
-        return Cache(sum, cacheSize.mulTruncate(sum), _surplus);
+        return Cache(sum, sum.mulTruncate(cacheSize), _surplus);
     }
 
     /***************************************

@@ -342,8 +342,8 @@ contract("SavingsManager", async (accounts) => {
             lastPeriodStart: BN;
             lastCollection: BN;
             periodYield: BN;
-            rewardEnd: BN;
-            rewardRate: BN;
+            streamEnd: BN;
+            streamRate: BN;
             savingsManagerBal: BN;
             savingsContractBal: BN;
         }
@@ -352,8 +352,8 @@ contract("SavingsManager", async (accounts) => {
                 lastPeriodStart: await savingsManager.lastPeriodStart(mUSD.address),
                 lastCollection: await savingsManager.lastCollection(mUSD.address),
                 periodYield: await savingsManager.periodYield(mUSD.address),
-                rewardEnd: await savingsManager.rewardEnd(mUSD.address),
-                rewardRate: await savingsManager.rewardRate(mUSD.address),
+                streamEnd: await savingsManager.streamEnd(mUSD.address),
+                streamRate: await savingsManager.streamRate(mUSD.address),
                 savingsManagerBal: await mUSD.balanceOf(savingsManager.address),
                 savingsContractBal: await mUSD.balanceOf(savingsContract.address),
             };
@@ -383,7 +383,7 @@ contract("SavingsManager", async (accounts) => {
                     "SafeERC20: low-level call failed",
                 );
             });
-            it("should set the rewardRate and finish time correctly", async () => {
+            it("should set the streamRate and finish time correctly", async () => {
                 const before = await snapshotData();
                 await mUSD.approve(savingsManager.address, liquidated1, { from: liquidator });
 
@@ -403,8 +403,8 @@ contract("SavingsManager", async (accounts) => {
                 assertBNClose(after.lastCollection, t0, 2);
                 expect(after.lastPeriodStart).bignumber.eq(after.lastCollection);
                 expect(after.periodYield).bignumber.eq(new BN(0));
-                expect(after.rewardEnd).bignumber.eq(after.lastCollection.add(ONE_WEEK));
-                assertBNClosePercent(after.rewardRate, liquidated1.div(ONE_WEEK), "0.001");
+                expect(after.streamEnd).bignumber.eq(after.lastCollection.add(ONE_WEEK));
+                assertBNClosePercent(after.streamRate, liquidated1.div(ONE_WEEK), "0.001");
             });
             it("should work over multiple periods", async () => {
                 //   0         1         2         3
@@ -422,7 +422,7 @@ contract("SavingsManager", async (accounts) => {
 
                 // @0
                 const s = await snapshotData();
-                expect(s.rewardRate).bignumber.eq(new BN(0));
+                expect(s.streamRate).bignumber.eq(new BN(0));
                 expect(s.savingsManagerBal).bignumber.eq(new BN(0));
 
                 await mUSD.approve(savingsManager.address, liquidated1, { from: liquidator });
@@ -431,12 +431,12 @@ contract("SavingsManager", async (accounts) => {
                 });
 
                 const s0 = await snapshotData();
-                assertBNClosePercent(s0.rewardRate, liquidated1.div(ONE_WEEK), "0.001");
+                assertBNClosePercent(s0.streamRate, liquidated1.div(ONE_WEEK), "0.001");
 
                 await time.increase(ONE_DAY.muln(5));
                 // @5
 
-                let expectedInterest = ONE_DAY.muln(5).mul(s0.rewardRate);
+                let expectedInterest = ONE_DAY.muln(5).mul(s0.streamRate);
                 await mUSD.setAmountForCollectInterest(1);
                 await savingsManager.collectAndDistributeInterest(mUSD.address);
 
@@ -456,7 +456,7 @@ contract("SavingsManager", async (accounts) => {
 
                 await time.increase(ONE_DAY);
                 // @6
-                const leftOverRewards = ONE_DAY.muln(2).mul(s0.rewardRate);
+                const leftOverRewards = ONE_DAY.muln(2).mul(s0.streamRate);
                 const totalRewards = leftOverRewards.add(liquidated2);
 
                 await mUSD.approve(savingsManager.address, liquidated2, { from: liquidator });
@@ -466,12 +466,12 @@ contract("SavingsManager", async (accounts) => {
 
                 const s6 = await snapshotData();
 
-                assertBNClosePercent(s6.rewardRate, totalRewards.div(ONE_WEEK), "0.01");
-                expect(s6.rewardEnd).bignumber.eq(s6.lastCollection.add(ONE_WEEK));
+                assertBNClosePercent(s6.streamRate, totalRewards.div(ONE_WEEK), "0.01");
+                expect(s6.streamEnd).bignumber.eq(s6.lastCollection.add(ONE_WEEK));
 
                 await time.increase(ONE_DAY);
                 // @7
-                expectedInterest = ONE_DAY.mul(s6.rewardRate);
+                expectedInterest = ONE_DAY.mul(s6.streamRate);
                 await mUSD.setAmountForCollectInterest(1);
                 await savingsManager.collectAndDistributeInterest(mUSD.address);
 
@@ -484,7 +484,7 @@ contract("SavingsManager", async (accounts) => {
 
                 await time.increase(ONE_DAY.muln(8));
                 // @15
-                expectedInterest = ONE_DAY.muln(6).mul(s6.rewardRate);
+                expectedInterest = ONE_DAY.muln(6).mul(s6.streamRate);
                 await mUSD.setAmountForCollectInterest(1);
                 await savingsManager.collectAndDistributeInterest(mUSD.address);
 
@@ -495,8 +495,8 @@ contract("SavingsManager", async (accounts) => {
                     "0.01",
                 );
 
-                expect(s15.rewardEnd).bignumber.lt(s15.lastCollection as any);
-                expect(s15.rewardRate).bignumber.eq(s7.rewardRate);
+                expect(s15.streamEnd).bignumber.lt(s15.lastCollection as any);
+                expect(s15.streamRate).bignumber.eq(s7.streamRate);
                 assertBNClose(s15.savingsManagerBal, new BN(0), simpleToExactAmount(1, 6));
 
                 await time.increase(ONE_DAY);
@@ -515,7 +515,7 @@ contract("SavingsManager", async (accounts) => {
                     from: liquidator,
                 });
                 const s18 = await snapshotData();
-                assertBNClosePercent(s18.rewardRate, liquidated3.div(ONE_WEEK), "0.001");
+                assertBNClosePercent(s18.streamRate, liquidated3.div(ONE_WEEK), "0.001");
             });
         });
         context("testing new mechanism", async () => {
@@ -897,7 +897,7 @@ contract("SavingsManager", async (accounts) => {
     describe("withdrawing unallocated Interest", async () => {
         it("should fail when not called by governor", async () => {
             await expectRevert(
-                savingsManager.withdrawUnallocatedInterest(mUSD.address, sa.other, {
+                savingsManager.distributeUnallocatedInterest(mUSD.address, sa.other, {
                     from: sa.other,
                 }),
                 "Only governance can execute",
@@ -912,7 +912,7 @@ contract("SavingsManager", async (accounts) => {
             const amount = new BN(1000);
             await mUSD.transfer(savingsManager.address, amount, { from: sa.default });
 
-            await savingsManager.withdrawUnallocatedInterest(mUSD.address, sa.other, {
+            await savingsManager.distributeUnallocatedInterest(mUSD.address, sa.other, {
                 from: sa.governor,
             });
 
@@ -965,7 +965,7 @@ contract("SavingsManager", async (accounts) => {
             const expectedTenPercentTokens = FIVE_TOKENS.sub(nintyPercentToken);
             expect(expectedTenPercentTokens).to.bignumber.equal(savingsManagerBalance);
 
-            await savingsManager.withdrawUnallocatedInterest(mUSD.address, sa.governor, {
+            await savingsManager.distributeUnallocatedInterest(mUSD.address, sa.governor, {
                 from: sa.governor,
             });
 
@@ -995,7 +995,7 @@ contract("SavingsManager", async (accounts) => {
             const expectedFivePercentTokens = FIVE_TOKENS.sub(nintyFivePercentToken);
             expect(expectedFivePercentTokens).to.bignumber.equal(savingsManagerBalance);
 
-            await savingsManager.withdrawUnallocatedInterest(mUSD.address, sa.governor, {
+            await savingsManager.distributeUnallocatedInterest(mUSD.address, sa.governor, {
                 from: sa.governor,
             });
 

@@ -122,7 +122,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
             require(_amount == _totalAmount, "Cache inactive for assets with fee");
             IERC20 b = IERC20(_bAsset);
             uint256 prevBal = b.balanceOf(address(this));
-            aToken.redeem(_totalAmount);
+            aToken.redeem(_amount);
             uint256 newBal = b.balanceOf(address(this));
             userWithdrawal = _min(userWithdrawal, newBal.sub(prevBal));
         } else {
@@ -150,6 +150,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
         onlyWhitelisted
         nonReentrant
     {
+        // @TODO - add protections to ensure bAsset is logged to aToken?
         require(_amount > 0, "Must withdraw something");
 
         // Send redeemed bAsset to the receiver
