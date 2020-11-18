@@ -313,12 +313,12 @@ contract SavingsManager is ISavingsManager, PausableModule {
 
             // 4. Distribute the interest
             //    Calculate the share for savers (95e16 or 95%)
-            uint256 saversShare = interestCollected.mulTruncate(savingsRate);
+            uint256 saversShare = interestCollected.add(newReward).mulTruncate(savingsRate);
 
             //    Call depositInterest on contract
-            savingsContract.depositInterest(saversShare.add(newReward));
+            savingsContract.depositInterest(saversShare);
 
-            emit InterestDistributed(_mAsset, saversShare.add(newReward));
+            emit InterestDistributed(_mAsset, saversShare);
         } else {
             emit InterestCollected(_mAsset, 0, totalSupply, 0);
         }
