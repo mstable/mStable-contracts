@@ -364,28 +364,28 @@ contract Masset is
         Cache memory cache = _getCacheDetails();
 
         // 3. Deposit the input tokens
-        // @@@ Audit notes - amountIn____netOutput is re-written in 5.1
-        (uint256 amountIn____netOutput, ) =
+        (uint256 amnountIn, ) =
             _depositTokens(args.input, inputDetails.bAsset.ratio, inputDetails.integrator, inputDetails.bAsset.isTransferFeeCharged, _quantity, cache.maxCache);
         // 3.1. Update the input balance
-        basketManager.increaseVaultBalance(inputDetails.index, inputDetails.integrator, amountIn____netOutput);
+        basketManager.increaseVaultBalance(inputDetails.index, inputDetails.integrator, amnountIn);
 
         // 4. Validate the swap
         (bool swapValid, string memory swapValidityReason, uint256 swapOutput, bool applySwapFee) =
-            forgeValidator.validateSwap(cache.vaultBalanceSum, inputDetails.bAsset, outputDetails.bAsset, amountIn____netOutput);
+            forgeValidator.validateSwap(cache.vaultBalanceSum, inputDetails.bAsset, outputDetails.bAsset, amnountIn);
         require(swapValid, swapValidityReason);
 
         // 5. Settle the swap
+        // 5.0. Redeclare recipient to avoid stack depth error
+        address recipient = args.recipient;
         // 5.1. Decrease output bal
-        // @@@ Audit notes - amountIn____netOutput is re-used here to avoid stack too deep error
         Amount memory amt = _withdrawTokens(
             WithdrawArgs({
                 quantity: swapOutput,
                 bAsset: args.output,
                 integrator: outputDetails.integrator,
-                feeRate: applySwapFee ? swapFee: 0,
+                feeRate: applySwapFee ? swapFee : 0,
                 hasTxFee: outputDetails.bAsset.isTransferFeeCharged,
-                recipient: args.recipient,
+                recipient: recipient,
                 ratio: outputDetails.bAsset.ratio,
                 maxCache: cache.maxCache,
                 vaultBalance: outputDetails.bAsset.vaultBalance
@@ -396,7 +396,7 @@ contract Masset is
 
         surplus = cache.surplus.add(amt.scaledFee);
 
-        emit Swapped(msg.sender, args.input, args.output, amt.net, address(0));
+        emit Swapped(msg.sender, args.input, args.output, amt.net, recipient);
     }
 
     /**

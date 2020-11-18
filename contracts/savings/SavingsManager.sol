@@ -5,7 +5,7 @@ import { IMasset } from "../interfaces/IMasset.sol";
 import { ISavingsContract } from "../interfaces/ISavingsContract.sol";
 
 // Internal
-import { ISavingsManager } from "../interfaces/ISavingsManager.sol";
+import { ISavingsManager, IRevenueRecipient } from "../interfaces/ISavingsManager.sol";
 import { PausableModule } from "../shared/PausableModule.sol";
 
 // Libs
@@ -29,17 +29,20 @@ contract SavingsManager is ISavingsManager, PausableModule {
     using SafeERC20 for IERC20;
 
     // Core admin events
+    event RevenueRecipientAdded(address indexed mAsset, address recipient);
     event SavingsContractAdded(address indexed mAsset, address savingsContract);
     event SavingsContractUpdated(address indexed mAsset, address savingsContract);
     event SavingsRateChanged(uint256 newSavingsRate);
+    event StreamsFrozen();
     // Interest collection
     event LiquidatorDeposited(address indexed mAsset, uint256 amount);
     event InterestCollected(address indexed mAsset, uint256 interest, uint256 newTotalSupply, uint256 apy);
     event InterestDistributed(address indexed mAsset, uint256 amountSent);
-    event InterestWithdrawnByGovernor(address indexed mAsset, address recipient, uint256 amount);
+    event RevenueRedistributed(address indexed mAsset, address recipient, uint256 amount);
 
     // Locations of each mAsset savings contract
     mapping(address => ISavingsContract) public savingsContracts;
+    mapping(address => IRevenueRecipient) public revenueRecipients;
     // Time at which last collection was made
     mapping(address => uint256) public lastPeriodStart;
     mapping(address => uint256) public lastCollection;
@@ -52,15 +55,16 @@ contract SavingsManager is ISavingsManager, PausableModule {
     // Theoretical cap on APY to avoid excess inflation
     uint256 constant private MAX_APY = 15e18;
     uint256 constant private TEN_BPS = 1e15;
-    uint256 constant private THIRTY_MINUTES = 30 minutes;
-    // Streaming liquidated tokens to SAVE
+    // Streaming liquidated tokens
     uint256 private constant DURATION = 7 days;
     uint256 private constant ONE_DAY = 1 days;
+    uint256 constant private THIRTY_MINUTES = 30 minutes;
     // Timestamp for current period finish
-    mapping(address => uint256) public rewardEnd;
-    mapping(address => uint256) public rewardRate;
+    mapping(address => uint256) public streamEnd;
+    mapping(address => uint256) public streamRate;
     // 1.3 Tracking interest deposits
     mapping(address => uint256) public lastBatchCollected;
+    bool private streamsFrozen = false;
 
     constructor(
         address _nexus,
@@ -76,6 +80,11 @@ contract SavingsManager is ISavingsManager, PausableModule {
 
     modifier onlyLiquidator() {
         require(msg.sender == _liquidator(), "Only liquidator can execute");
+        _;
+    }
+
+    modifier whenStreamsNotFrozen() {
+        require(!streamsFrozen, "Streaming is currently frozen");
         _;
     }
 
@@ -122,6 +131,33 @@ contract SavingsManager is ISavingsManager, PausableModule {
     }
 
     /**
+     * @dev Freezes streaming of mAssets
+     */
+    function freezeStreams()
+        external
+        onlyGovernor
+    {
+        streamsFrozen = true;
+
+        emit StreamsFrozen();
+    }
+
+    /**
+     * @dev Adds a new revenue recipient
+     * @param _mAsset           Address of underlying mAsset
+     * @param _recipient        Address of the recipient
+     */
+    function addRevenueRecipient(address _mAsset, address _recipient)
+        external
+        onlyGovernor
+    {
+        revenueRecipients[_mAsset] = IRevenueRecipient(_recipient);
+
+        emit RevenueRecipientAdded(_mAsset, _recipient);
+    }
+
+
+    /**
      * @dev Sets a new savings rate for interest distribution
      * @param _savingsRate   Rate of savings sent to SavingsContract (100% = 1e18)
      */
@@ -144,6 +180,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
     function depositLiquidation(address _mAsset, uint256 _liquidated)
         external
         onlyLiquidator
+        whenStreamsNotFrozen
     {
         // transfer liquidated mUSD to here
         IERC20(_mAsset).safeTransferFrom(_liquidator(), address(this), _liquidated);
@@ -156,7 +193,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
 
     function collectAndStreamInterest(address _mAsset)
         external
-        whenNotPaused
+        whenStreamsNotFrozen
     {
         ISavingsContract savingsContract = savingsContracts[_mAsset];
         require(address(savingsContract) != address(0), "Must have a valid savings contract");
@@ -181,7 +218,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
         // If (remainingTime < 24h)
         //       take all remaining, add this, stream over next 24h
         // else stream over remainingTime
-        uint256 end = rewardEnd[_mAsset];
+        uint256 end = streamEnd[_mAsset];
         uint256 remaining = end > currentTime ? end.sub(currentTime) : 0;
         uint256 newDuration = remaining < ONE_DAY ? ONE_DAY : remaining;
         _initialiseStream(_mAsset, interestCollected.add(leftover), newDuration);
@@ -192,20 +229,20 @@ contract SavingsManager is ISavingsManager, PausableModule {
     function _allUnclaimedRewards(address _mAsset) internal view returns (uint256 leftover) {
         uint256 currentTime = now;
 
-        uint256 end = rewardEnd[_mAsset];
+        uint256 end = streamEnd[_mAsset];
         uint256 lastUpdate = lastCollection[_mAsset];
         uint256 unclaimedSeconds = 0;
         if(currentTime <= end || lastUpdate < end){
             unclaimedSeconds = end.sub(lastUpdate);
         }
-        return unclaimedSeconds.mul(rewardRate[_mAsset]);
+        return unclaimedSeconds.mul(streamRate[_mAsset]);
     }
 
     function _initialiseStream(address _mAsset, uint256 _amount, uint256 _duration) internal {
         uint256 currentTime = now;
         // Distribute reward per second over X seconds
-        rewardRate[_mAsset] = _amount.div(_duration);
-        rewardEnd[_mAsset] = currentTime.add(_duration);
+        streamRate[_mAsset] = _amount.div(_duration);
+        streamEnd[_mAsset] = currentTime.add(_duration);
 
         // Reset pool data to enable lastCollection usage twice
         lastPeriodStart[_mAsset] = currentTime;
@@ -294,9 +331,9 @@ contract SavingsManager is ISavingsManager, PausableModule {
      * @return Units of mAsset that have been unlocked for distribution
      */
     function _unclaimedRewards(address _mAsset, uint256 _previousCollection) internal view returns (uint256) {
-        uint256 end = rewardEnd[_mAsset];
+        uint256 end = streamEnd[_mAsset];
         uint256 unclaimedSeconds = _unclaimedSeconds(_previousCollection, end);
-        return unclaimedSeconds.mul(rewardRate[_mAsset]);
+        return unclaimedSeconds.mul(streamRate[_mAsset]);
     }
 
     /**
@@ -355,25 +392,32 @@ contract SavingsManager is ISavingsManager, PausableModule {
         }
     }
 
+
     /***************************************
-                MANAGEMENT
+            Revenue Redistribution
     ****************************************/
 
     /**
-     * @dev Withdraws any unallocated interest, i.e. that which has been saved for use
+     * @dev Redistributes any unallocated interest, i.e. that which has been saved for use
      *      elsewhere in the system, based on the savingsRate
      * @param _mAsset       mAsset to collect from
-     * @param _recipient    Address of mAsset recipient
      */
-    function withdrawUnallocatedInterest(address _mAsset, address _recipient)
+    function distributeUnallocatedInterest(address _mAsset)
         external
         onlyGovernance
     {
+        IRevenueRecipient recipient = revenueRecipients[_mAsset];
+        require(address(recipient) != address(0), "Must have valida recipient");
+
         IERC20 mAsset = IERC20(_mAsset);
         uint256 balance = mAsset.balanceOf(address(this));
+        uint256 leftover = _allUnclaimedRewards(_mAsset);
 
-        emit InterestWithdrawnByGovernor(_mAsset, _recipient, balance);
+        uint256 unallocated = balance.sub(leftover);
 
-        mAsset.safeTransfer(_recipient, balance);
+        mAsset.approve(address(recipient), unallocated);
+        recipient.depositFunds(_mAsset, unallocated);
+
+        emit RevenueRedistributed(_mAsset, address(recipient), unallocated);
     }
 }
