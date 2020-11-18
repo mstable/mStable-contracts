@@ -897,7 +897,7 @@ contract("SavingsManager", async (accounts) => {
     describe("withdrawing unallocated Interest", async () => {
         it("should fail when not called by governor", async () => {
             await expectRevert(
-                savingsManager.distributeUnallocatedInterest(mUSD.address, sa.other, {
+                savingsManager.distributeUnallocatedInterest(mUSD.address, {
                     from: sa.other,
                 }),
                 "Only governance can execute",
@@ -912,7 +912,7 @@ contract("SavingsManager", async (accounts) => {
             const amount = new BN(1000);
             await mUSD.transfer(savingsManager.address, amount, { from: sa.default });
 
-            await savingsManager.distributeUnallocatedInterest(mUSD.address, sa.other, {
+            await savingsManager.distributeUnallocatedInterest(mUSD.address, {
                 from: sa.governor,
             });
 
@@ -965,7 +965,7 @@ contract("SavingsManager", async (accounts) => {
             const expectedTenPercentTokens = FIVE_TOKENS.sub(nintyPercentToken);
             expect(expectedTenPercentTokens).to.bignumber.equal(savingsManagerBalance);
 
-            await savingsManager.distributeUnallocatedInterest(mUSD.address, sa.governor, {
+            await savingsManager.distributeUnallocatedInterest(mUSD.address, {
                 from: sa.governor,
             });
 
@@ -995,7 +995,7 @@ contract("SavingsManager", async (accounts) => {
             const expectedFivePercentTokens = FIVE_TOKENS.sub(nintyFivePercentToken);
             expect(expectedFivePercentTokens).to.bignumber.equal(savingsManagerBalance);
 
-            await savingsManager.distributeUnallocatedInterest(mUSD.address, sa.governor, {
+            await savingsManager.distributeUnallocatedInterest(mUSD.address, {
                 from: sa.governor,
             });
 
