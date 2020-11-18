@@ -125,6 +125,10 @@ export const assertBasketIsHealthy = async (
     composition.bAssets.forEach((b) => {
         expect(b.overweight).to.eq(false);
     });
+    // Actual tokens held should always gte vaultBalance
+    composition.bAssets.forEach((b) => {
+        expect(b.actualBalance).bignumber.gte(b.vaultBalance as any);
+    });
     // Should be unpaused
     expect(await md.basketManager.paused()).to.eq(false);
     // not failed

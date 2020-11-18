@@ -30,6 +30,9 @@ export interface BassetDetails extends Basset {
     address: Address;
     mAssetUnits: BN;
     overweight: boolean;
+    actualBalance: BN;
+    rawBalance?: BN;
+    platformBalance?: BN;
 }
 
 export interface BasketComposition {

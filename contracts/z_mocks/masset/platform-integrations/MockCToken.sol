@@ -46,7 +46,7 @@ contract MockCToken is ICERC20, ERC20, ERC20Detailed, ERC20Mintable {
         // Take their reserve
         underlyingToken.transferFrom(msg.sender, address(this), mintAmount);
         // Credit them with cToken
-        _mint(msg.sender, mintAmount.divPrecisely(exchangeRate));
+        _mint(msg.sender, mintAmount.divPrecisely(exchangeRate).add(1));
         return 0;
     }
 
@@ -61,7 +61,7 @@ contract MockCToken is ICERC20, ERC20, ERC20Detailed, ERC20Mintable {
         underlyingToken.transfer(msg.sender, redeemAmount);
         return 0;
     }
-
+    
     function balanceOfUnderlying(address owner) external returns (uint) {
         // updateExchangeRate();
         uint256 cTokenBal = this.balanceOf(owner);

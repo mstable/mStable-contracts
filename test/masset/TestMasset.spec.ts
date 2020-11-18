@@ -4,7 +4,7 @@ import { keccak256 } from "web3-utils";
 import { MassetMachine, StandardAccounts, SystemMachine, MassetDetails } from "@utils/machines";
 import { simpleToExactAmount, applyRatio } from "@utils/math";
 import { assertBNSlightlyGTPercent } from "@utils/assertions";
-import { ZERO_ADDRESS, TEN_MINS } from "@utils/constants";
+import { ZERO_ADDRESS, TEN_MINS, MAX_UINT256 } from "@utils/constants";
 import { BN } from "@utils/tools";
 
 import envSetup from "@utils/env_setup";
@@ -63,7 +63,13 @@ contract("Masset", async (accounts) => {
                 expect(await massetDetails.mAsset.swapFee()).bignumber.eq(
                     simpleToExactAmount(6, 14),
                 );
-                expect(await massetDetails.mAsset.redemptionFee()).bignumber.eq(new BN(0));
+                expect(await massetDetails.mAsset.redemptionFee()).bignumber.eq(
+                    simpleToExactAmount(3, 14),
+                );
+                expect(await massetDetails.mAsset.surplus()).bignumber.eq(new BN(0));
+                expect(await massetDetails.mAsset.cacheSize()).bignumber.eq(
+                    simpleToExactAmount(1, 17),
+                );
                 expect(await massetDetails.mAsset.decimals()).bignumber.eq(new BN(18));
                 expect(await massetDetails.mAsset.balanceOf(sa.dummy1)).bignumber.eq(new BN(0));
                 expect(await massetDetails.mAsset.name()).eq("mStable Mock");
@@ -72,6 +78,31 @@ contract("Masset", async (accounts) => {
         });
     });
     describe("using basic setters", async () => {
+        it("should allow changing of the cache size", async () => {
+            // update by the governor
+            const oldSize = await massetDetails.mAsset.cacheSize();
+            const newSize = simpleToExactAmount(1, 16); // 1%
+            expect(oldSize).bignumber.not.eq(newSize);
+            await massetDetails.mAsset.setCacheSize(newSize, { from: sa.governor });
+            expect(await massetDetails.mAsset.cacheSize()).bignumber.eq(newSize);
+            // rejected if not governor
+            await expectRevert(
+                massetDetails.mAsset.setCacheSize(newSize, { from: sa.default }),
+                "Only governance can execute",
+            );
+            // cannot exceed cap
+            const feeExceedingCap = simpleToExactAmount(21, 16); // 21%
+            await expectRevert(
+                massetDetails.mAsset.setCacheSize(feeExceedingCap, { from: sa.governor }),
+                "Must be <= 20%",
+            );
+            // cannot exceed min
+            const feeExceedingMin = MAX_UINT256;
+            await expectRevert(
+                massetDetails.mAsset.setCacheSize(feeExceedingMin, { from: sa.governor }),
+                "Must be <= 20%",
+            );
+        });
         it("should allow upgrades of the ForgeValidator by governor with valid params", async () => {
             // update by the governor
             await massetDetails.mAsset.upgradeForgeValidator(sa.other, { from: sa.governor });
@@ -121,7 +152,7 @@ contract("Masset", async (accounts) => {
                 "Rate must be within bounds",
             );
             // cannot exceed min
-            const feeExceedingMin = new BN(-1); // 11%
+            const feeExceedingMin = MAX_UINT256;
             await expectRevert(
                 massetDetails.mAsset.setSwapFee(feeExceedingMin, { from: sa.governor }),
                 "Rate must be within bounds",
@@ -146,7 +177,7 @@ contract("Masset", async (accounts) => {
                 "Rate must be within bounds",
             );
             // cannot exceed min
-            const feeExceedingMin = new BN(-1); // 11%
+            const feeExceedingMin = MAX_UINT256;
             await expectRevert(
                 massetDetails.mAsset.setRedemptionFee(feeExceedingMin, { from: sa.governor }),
                 "Rate must be within bounds",
@@ -191,14 +222,16 @@ contract("Masset", async (accounts) => {
             const nexus = await Nexus.at(await massetDetails.mAsset.nexus());
             const [savingsManagerInNexus] = await nexus.modules(keccak256("SavingsManager"));
             expect(sa.dummy1).eq(savingsManagerInNexus);
-            const tx = await massetDetails.mAsset.collectInterest({ from: sa.dummy1 });
+
+            await massetDetails.mAsset.collectInterest({ from: sa.dummy1 });
+            const tx = await massetDetails.mAsset.collectPlatformInterest({ from: sa.dummy1 });
 
             // 4.0 Check outputs
             const mUSDBalAfter = await massetDetails.mAsset.balanceOf(sa.dummy1);
             const bassetsAfter = await massetMachine.getBassetsInMasset(massetDetails);
 
             bassetsAfter.map((b, i) =>
-                expect(b.vaultBalance).bignumber.gt(new BN(bassetsBefore[i].vaultBalance)),
+                expect(b.vaultBalance).bignumber.gt(new BN(bassetsBefore[i].vaultBalance) as any),
             );
 
             const sumOfVaultsAfter = bassetsAfter.reduce(
@@ -232,13 +265,13 @@ contract("Masset", async (accounts) => {
                 "Must be savings manager",
             );
             await expectRevert(
-                massetDetails.mAsset.collectInterest({ from: sa.default }),
+                massetDetails.mAsset.collectPlatformInterest({ from: sa.default }),
                 "Must be savings manager",
             );
 
             await massetDetails.basketManager.pause({ from: sa.governor });
             await expectRevert(
-                massetDetails.mAsset.collectInterest({ from: sa.dummy1 }),
+                massetDetails.mAsset.collectPlatformInterest({ from: sa.dummy1 }),
                 "Pausable: paused",
             );
         });

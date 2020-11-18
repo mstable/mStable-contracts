@@ -38,6 +38,7 @@ export interface Basset {
     maxWeight: BN | string;
     vaultBalance: BN | string;
     contract?: t.MockERC20Instance;
+    integrator?: t.IPlatformIntegrationInstance;
 }
 
 export const createBasket = (bassets: Basset[], failed = false): Basket => {

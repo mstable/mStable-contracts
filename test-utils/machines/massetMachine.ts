@@ -44,6 +44,7 @@ const c_MockERC20 = artifacts.require("MockERC20");
 const c_MockInitializableToken = artifacts.require("MockInitializableToken");
 const c_MockInitializableTokenWithFee = artifacts.require("MockInitializableTokenWithFee");
 const c_MockUSDT = artifacts.require("MockUSDT");
+const c_PlatformIntegration = artifacts.require("IPlatformIntegration");
 
 export interface MassetDetails {
     mAsset?: t.MassetInstance;
@@ -460,10 +461,17 @@ export class MassetMachine {
             };
         });
         const bAssetContracts = await Promise.all(bArrays.map((b) => c_MockERC20.at(b.addr)));
+        const integratorAddresses = await Promise.all(
+            bArrays.map((b, i) => massetDetails.basketManager.integrations(i)),
+        );
+        const integrators = await Promise.all(
+            integratorAddresses.map((i) => c_PlatformIntegration.at(i)),
+        );
         return bArrays.map((b, i) => {
             return {
                 ...b,
                 contract: bAssetContracts[i],
+                integrator: integrators[i],
             };
         });
     }
@@ -479,6 +487,14 @@ export class MassetMachine {
         const maxWeightInUnits = bAssets.map((b) =>
             totalSupply.mul(new BN(b.maxWeight)).div(fullScale),
         );
+        // get actual balance of each bAsset
+        const rawBalances = await Promise.all(
+            bAssets.map((b) => b.contract.balanceOf(b.integrator.address)),
+        );
+        const platformBalances = await Promise.all(
+            bAssets.map((b) => b.integrator.checkBalance.call(b.addr)),
+        );
+        const balances = rawBalances.map((b, i) => b.add(platformBalances[i]));
         // get overweight
         const currentVaultUnits = bAssets.map((b) =>
             new BN(b.vaultBalance).mul(new BN(b.ratio)).div(ratioScale),
@@ -495,6 +511,9 @@ export class MassetMachine {
                     address: b.addr,
                     mAssetUnits: currentVaultUnits[i],
                     overweight: overweightBassets[i],
+                    actualBalance: balances[i],
+                    rawBalance: rawBalances[i],
+                    platformBalance: platformBalances[i],
                 };
             }),
             totalSupply,
@@ -528,6 +547,18 @@ export class MassetMachine {
             : simpleToExactAmount(fullMassetUnits, bAssetDecimals.toNumber());
         await bAsset.approve(mAsset.address, approvalAmount, { from: sender });
         return approvalAmount;
+    }
+
+    public async getBasset(bm: t.MockBasketManagerInstance, addr: string): Promise<Basset> {
+        const bAsset = await bm.getBasset(addr);
+        const bAssetContract = await c_MockERC20.at(addr);
+        const integratorAddresses = await bm.getBassetIntegrator(addr);
+        const integrator = await c_PlatformIntegration.at(integratorAddresses);
+        return {
+            ...bAsset,
+            contract: bAssetContract,
+            integrator,
+        };
     }
 
     public async approveMassetMulti(
