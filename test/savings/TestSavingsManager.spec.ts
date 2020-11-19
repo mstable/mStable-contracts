@@ -894,7 +894,7 @@ contract("SavingsManager", async (accounts) => {
         });
     });
 
-    describe("withdrawing unallocated Interest", async () => {
+    describe("distributing unallocated Interest", async () => {
         it("should fail when not called by governor", async () => {
             await expectRevert(
                 savingsManager.distributeUnallocatedInterest(mUSD.address, {
@@ -904,21 +904,24 @@ contract("SavingsManager", async (accounts) => {
             );
         });
 
-        it("should transfer left funds to recipient", async () => {
-            const balanceBefore = await mUSD.balanceOf(sa.other);
-            expect(ZERO).to.bignumber.equal(balanceBefore);
+        it("calls the distribute function on a valid recipient");
 
-            // Send some mUSD to SavingsManager
-            const amount = new BN(1000);
-            await mUSD.transfer(savingsManager.address, amount, { from: sa.default });
+        // it("should transfer left funds to recipient", async () => {
+        //     const balanceBefore = await mUSD.balanceOf(sa.other);
+        //     expect(ZERO).to.bignumber.equal(balanceBefore);
 
-            await savingsManager.distributeUnallocatedInterest(mUSD.address, {
-                from: sa.governor,
-            });
+        //     // Send some mUSD to SavingsManager
+        //     const amount = new BN(1000);
+        //     await mUSD.transfer(savingsManager.address, amount, { from: sa.default });
 
-            const balanceAfter = await mUSD.balanceOf(sa.other);
-            expect(amount).to.bignumber.equal(balanceAfter);
-        });
+        //     await savingsManager
+        //     await savingsManager.distributeUnallocatedInterest(mUSD.address, {
+        //         from: sa.governor,
+        //     });
+
+        //     const balanceAfter = await mUSD.balanceOf(sa.other);
+        //     expect(amount).to.bignumber.equal(balanceAfter);
+        // });
     });
 
     describe("extra tests:", async () => {
@@ -942,65 +945,65 @@ contract("SavingsManager", async (accounts) => {
             expect(ZERO).to.bignumber.equal(savingsManagerBalance);
         });
 
-        it("should collect 10% unallocated interest when rate changed", async () => {
-            // Set savings rate to 90%
-            const NINTY_PERCENT = new BN(9).mul(new BN(10).pow(new BN(17))).add(new BN(1));
-            // 5 * 90% = 4.5 tokens
-            // const nintyPercentToken = new BN(45).mul(new BN(10).pow(new BN(16)));
-            const nintyPercentToken = FIVE_TOKENS.mul(NINTY_PERCENT).div(fullScale);
-            await savingsManager.setSavingsRate(NINTY_PERCENT, { from: sa.governor });
+        it("should collect 10% unallocated interest when rate changed");
+        //     // Set savings rate to 90%
+        //     const NINTY_PERCENT = new BN(9).mul(new BN(10).pow(new BN(17))).add(new BN(1));
+        //     // 5 * 90% = 4.5 tokens
+        //     // const nintyPercentToken = new BN(45).mul(new BN(10).pow(new BN(16)));
+        //     const nintyPercentToken = FIVE_TOKENS.mul(NINTY_PERCENT).div(fullScale);
+        //     await savingsManager.setSavingsRate(NINTY_PERCENT, { from: sa.governor });
 
-            await mUSD.setAmountForCollectInterest(FIVE_TOKENS);
+        //     await mUSD.setAmountForCollectInterest(FIVE_TOKENS);
 
-            let savingsManagerBalance = await mUSD.balanceOf(savingsManager.address);
-            expect(ZERO).to.bignumber.equal(savingsManagerBalance);
+        //     let savingsManagerBalance = await mUSD.balanceOf(savingsManager.address);
+        //     expect(ZERO).to.bignumber.equal(savingsManagerBalance);
 
-            await savingsManager.collectAndDistributeInterest(mUSD.address);
+        //     await savingsManager.collectAndDistributeInterest(mUSD.address);
 
-            const balanceAfter = await mUSD.balanceOf(savingsContract.address);
-            expect(nintyPercentToken).to.bignumber.equal(balanceAfter);
+        //     const balanceAfter = await mUSD.balanceOf(savingsContract.address);
+        //     expect(nintyPercentToken).to.bignumber.equal(balanceAfter);
 
-            // expect 10% balance left at SavingsManager
-            savingsManagerBalance = await mUSD.balanceOf(savingsManager.address);
-            const expectedTenPercentTokens = FIVE_TOKENS.sub(nintyPercentToken);
-            expect(expectedTenPercentTokens).to.bignumber.equal(savingsManagerBalance);
+        //     // expect 10% balance left at SavingsManager
+        //     savingsManagerBalance = await mUSD.balanceOf(savingsManager.address);
+        //     const expectedTenPercentTokens = FIVE_TOKENS.sub(nintyPercentToken);
+        //     expect(expectedTenPercentTokens).to.bignumber.equal(savingsManagerBalance);
 
-            await savingsManager.distributeUnallocatedInterest(mUSD.address, {
-                from: sa.governor,
-            });
+        //     await savingsManager.distributeUnallocatedInterest(mUSD.address, {
+        //         from: sa.governor,
+        //     });
 
-            const balanceOfGovernor = await mUSD.balanceOf(sa.governor);
-            expect(expectedTenPercentTokens).to.bignumber.equal(balanceOfGovernor);
-        });
+        //     const balanceOfGovernor = await mUSD.balanceOf(sa.governor);
+        //     expect(expectedTenPercentTokens).to.bignumber.equal(balanceOfGovernor);
+        // });
 
-        it("should collect 5% unallocated interest when rate changed", async () => {
-            // Set savings rate to 95%
-            const NINTY_FIVE_PERCENT = new BN(95).mul(new BN(10).pow(new BN(16)));
-            // 5 * 95% = 4.75 tokens
-            const nintyFivePercentToken = FIVE_TOKENS.mul(NINTY_FIVE_PERCENT).div(fullScale);
-            await savingsManager.setSavingsRate(NINTY_FIVE_PERCENT, { from: sa.governor });
+        // it("should collect 5% unallocated interest when rate changed", async () => {
+        //     // Set savings rate to 95%
+        //     const NINTY_FIVE_PERCENT = new BN(95).mul(new BN(10).pow(new BN(16)));
+        //     // 5 * 95% = 4.75 tokens
+        //     const nintyFivePercentToken = FIVE_TOKENS.mul(NINTY_FIVE_PERCENT).div(fullScale);
+        //     await savingsManager.setSavingsRate(NINTY_FIVE_PERCENT, { from: sa.governor });
 
-            await mUSD.setAmountForCollectInterest(FIVE_TOKENS);
+        //     await mUSD.setAmountForCollectInterest(FIVE_TOKENS);
 
-            let savingsManagerBalance = await mUSD.balanceOf(savingsManager.address);
-            expect(ZERO).to.bignumber.equal(savingsManagerBalance);
+        //     let savingsManagerBalance = await mUSD.balanceOf(savingsManager.address);
+        //     expect(ZERO).to.bignumber.equal(savingsManagerBalance);
 
-            await savingsManager.collectAndDistributeInterest(mUSD.address);
+        //     await savingsManager.collectAndDistributeInterest(mUSD.address);
 
-            const balanceAfter = await mUSD.balanceOf(savingsContract.address);
-            expect(nintyFivePercentToken).to.bignumber.equal(balanceAfter);
+        //     const balanceAfter = await mUSD.balanceOf(savingsContract.address);
+        //     expect(nintyFivePercentToken).to.bignumber.equal(balanceAfter);
 
-            // expect 5% balance left at SavingsManager
-            savingsManagerBalance = await mUSD.balanceOf(savingsManager.address);
-            const expectedFivePercentTokens = FIVE_TOKENS.sub(nintyFivePercentToken);
-            expect(expectedFivePercentTokens).to.bignumber.equal(savingsManagerBalance);
+        //     // expect 5% balance left at SavingsManager
+        //     savingsManagerBalance = await mUSD.balanceOf(savingsManager.address);
+        //     const expectedFivePercentTokens = FIVE_TOKENS.sub(nintyFivePercentToken);
+        //     expect(expectedFivePercentTokens).to.bignumber.equal(savingsManagerBalance);
 
-            await savingsManager.distributeUnallocatedInterest(mUSD.address, {
-                from: sa.governor,
-            });
+        //     await savingsManager.distributeUnallocatedInterest(mUSD.address, {
+        //         from: sa.governor,
+        //     });
 
-            const balanceOfGovernor = await mUSD.balanceOf(sa.governor);
-            expect(expectedFivePercentTokens).to.bignumber.equal(balanceOfGovernor);
-        });
+        //     const balanceOfGovernor = await mUSD.balanceOf(sa.governor);
+        //     expect(expectedFivePercentTokens).to.bignumber.equal(balanceOfGovernor);
+        // });
     });
 });

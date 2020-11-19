@@ -43,7 +43,7 @@ const convertUnderlyingToCToken = async (
     underlyingAmount: BN,
 ): Promise<BN> => {
     const exchangeRate = await cToken.exchangeRateStored();
-    return underlyingAmount.mul(fullScale).div(exchangeRate);
+    return underlyingAmount.mul(fullScale).div(exchangeRate.subn(1));
 };
 const convertCTokenToUnderlying = async (
     cToken: t.ICERC20Instance,
@@ -689,10 +689,11 @@ contract("CompoundIntegration", async (accounts) => {
                     "withdraw(address,address,uint256,bool)"
                 ](sa.default, bAsset.address, amount, false);
 
-                expectEvent(tx.receipt, "Withdrawal", {
-                    _bAsset: bAsset.address,
-                    _pToken: cToken.address,
-                    _amount: amount,
+                expectEvent(tx.receipt, "PlatformWithdrawal", {
+                    bAsset: bAsset.address,
+                    pToken: cToken.address,
+                    totalAmount: amount,
+                    userAmount: amount,
                 });
 
                 // recipient bAsset bal is the same

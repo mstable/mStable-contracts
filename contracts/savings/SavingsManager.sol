@@ -407,7 +407,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
         onlyGovernance
     {
         IRevenueRecipient recipient = revenueRecipients[_mAsset];
-        require(address(recipient) != address(0), "Must have valida recipient");
+        require(address(recipient) != address(0), "Must have valid recipient");
 
         IERC20 mAsset = IERC20(_mAsset);
         uint256 balance = mAsset.balanceOf(address(this));
