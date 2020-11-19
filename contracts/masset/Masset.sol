@@ -371,6 +371,7 @@ contract Masset is
         (bool swapValid, string memory swapValidityReason, uint256 swapOutput, bool applySwapFee) =
             forgeValidator.validateSwap(cache.vaultBalanceSum, inputDetails.bAsset, outputDetails.bAsset, amnountIn);
         require(swapValid, swapValidityReason);
+        require(swapOutput > 0, "Must withdraw something");
 
         // 5. Settle the swap
         // 5.0. Redeclare recipient to avoid stack depth error
@@ -502,7 +503,7 @@ contract Masset is
 
     /**
      * @dev Credits a recipient with a certain quantity of selected bAssets, in exchange for burning the
-     *      relative Masset quantity from the sender. Sender also incurs a small fee, if any.
+     *      relative Masset quantity from the sender. Sender also incurs a small fee on the outgoing asset.
      * @param _bAssets          Address of the bAssets to redeem
      * @param _bAssetQuantities Units of the bAssets to redeem
      * @param _recipient        Address to credit with withdrawn bAssets
@@ -727,6 +728,7 @@ contract Masset is
     }
 
     function _withdrawTokens(WithdrawArgs memory args) internal returns (Amount memory amount) {
+        console.log("_withdrawTokens: q = args.quantity");
         if(args.quantity > 0){
 
             // 1. Deduct the redemption fee, if any, and log quantities

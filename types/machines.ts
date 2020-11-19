@@ -38,6 +38,7 @@ export interface BassetDetails extends Basset {
 export interface BasketComposition {
     bAssets: Array<BassetDetails>;
     totalSupply: BN;
+    surplus: BN;
     sumOfBassets: BN;
     failed: boolean;
     undergoingRecol: boolean;

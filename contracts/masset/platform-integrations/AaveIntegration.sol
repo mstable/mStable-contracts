@@ -132,7 +132,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
         // Send redeemed bAsset to the receiver
         IERC20(_bAsset).safeTransfer(_receiver, userWithdrawal);
 
-        emit Withdrawal(_bAsset, address(aToken), userWithdrawal);
+        emit PlatformWithdrawal(_bAsset, address(aToken), _totalAmount, userWithdrawal);
     }
 
     /**

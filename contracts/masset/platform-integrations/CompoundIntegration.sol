@@ -168,7 +168,7 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         // Send redeemed bAsset to the receiver
         IERC20(_bAsset).safeTransfer(_receiver, userWithdrawal);
 
-        emit Withdrawal(_bAsset, address(cToken), userWithdrawal);
+        emit PlatformWithdrawal(_bAsset, address(cToken), _totalAmount, _amount);
     }
 
 

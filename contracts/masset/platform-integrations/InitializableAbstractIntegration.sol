@@ -34,6 +34,7 @@ contract InitializableAbstractIntegration is
 
     event Deposit(address indexed _bAsset, address _pToken, uint256 _amount);
     event Withdrawal(address indexed _bAsset, address _pToken, uint256 _amount);
+    event PlatformWithdrawal(address indexed bAsset, address pToken, uint256 totalAmount, uint256 userAmount);
 
     // Core address for the given platform */
     address public platformAddress;

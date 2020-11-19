@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/camelcase */
 /* eslint-disable class-methods-use-this */
+/* eslint-disable no-nested-ternary */
 
 import * as t from "types/generated";
 import { simpleToExactAmount, percentToWeight } from "@utils/math";
@@ -486,7 +487,9 @@ export class MassetMachine {
         const bAssets = await this.getBassetsInMasset(massetDetails);
         const basket = await massetDetails.basketManager.getBasket();
         // total supply of mAsset
-        const totalSupply = await massetDetails.mAsset.totalSupply();
+        const supply = await massetDetails.mAsset.totalSupply();
+        const surplus = await massetDetails.mAsset.surplus();
+        const totalSupply = supply.add(surplus);
         // get weights (relative to totalSupply)
         // apply ratios, then find proportion of totalSupply all in BN
         const maxWeightInUnits = bAssets.map((b) =>
@@ -521,7 +524,8 @@ export class MassetMachine {
                     platformBalance: platformBalances[i],
                 };
             }),
-            totalSupply,
+            totalSupply: supply,
+            surplus,
             sumOfBassets,
             failed: basket.failed,
             undergoingRecol: basket.undergoingRecol,
@@ -595,11 +599,28 @@ export class MassetMachine {
             .mul(cacheSize)
             .div(fullScale);
         const newSum = new BN(integratorBalBefore).add(amount);
-        const expectInteraction = newSum.gte(maxC as any);
+        const expectInteraction =
+            type === "deposit" ? newSum.gte(maxC as any) : amount.gt(new BN(integratorBalBefore));
         return {
             expectInteraction,
-            amount: newSum.sub(maxC.divn(2)),
-            rawBalance: expectInteraction ? maxC.divn(2) : newSum,
+            amount:
+                type === "deposit"
+                    ? newSum.sub(maxC.divn(2))
+                    : BN.min(
+                          maxC
+                              .divn(2)
+                              .add(amount)
+                              .sub(new BN(integratorBalBefore)),
+                          new BN(bAsset.vaultBalance).sub(new BN(integratorBalBefore)),
+                      ),
+            rawBalance:
+                type === "deposit"
+                    ? expectInteraction
+                        ? maxC.divn(2)
+                        : newSum
+                    : expectInteraction
+                    ? BN.min(maxC.divn(2), new BN(bAsset.vaultBalance).sub(amount))
+                    : new BN(integratorBalBefore).sub(amount),
         };
     }
 }

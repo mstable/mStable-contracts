@@ -143,10 +143,16 @@ contract("Masset - Swap", async (accounts) => {
         const recipientOutputBalBefore = await outputAsset.balanceOf(recipient);
 
         //    Get basic before data on the swap assets
-        const inputBassetBefore = await basketManager.getBasset(inputBasset.address);
+        const inputBassetBefore = await massetMachine.getBasset(basketManager, inputBasset.address);
+        const inputIntegratorBalBefore = await inputBassetBefore.contract.balanceOf(
+            inputBassetBefore.integrator.address,
+        );
         const outputBassetBefore = isMint
             ? null
-            : await basketManager.getBasset(outputAsset.address);
+            : await massetMachine.getBasset(basketManager, outputAsset.address);
+        const outputIntegratorBalBefore = isMint
+            ? new BN(0)
+            : await outputBassetBefore.contract.balanceOf(outputBassetBefore.integrator.address);
 
         // 2. Do the necessary approvals and make the calls
         const approval0: BN = await massetMachine.approveMasset(
@@ -156,13 +162,7 @@ contract("Masset - Swap", async (accounts) => {
             sender,
             swapQuantityIsBaseUnits,
         );
-        const swapTx = await mAsset.swap(
-            inputBasset.address,
-            outputAsset.address,
-            approval0,
-            recipient,
-            { from: sender },
-        );
+
         //    Call the swap output function to check if results match
         const swapOutputResponse = await mAsset.getSwapOutput(
             inputBasset.address,
@@ -191,6 +191,32 @@ contract("Masset - Swap", async (accounts) => {
             fee = expectedOutputValue.mul(feeRate).div(fullScale);
             expect(fee).bignumber.gt(new BN(0) as any);
         }
+
+        // Expect to be used in cache
+        const platformInteraction_in = await massetMachine.getPlatformInteraction(
+            mAsset,
+            "deposit",
+            approval0,
+            inputIntegratorBalBefore,
+            inputBassetBefore,
+        );
+        const platformInteraction_out = isMint
+            ? null
+            : await massetMachine.getPlatformInteraction(
+                  mAsset,
+                  "withdrawal",
+                  expectedOutputValue.sub(fee),
+                  outputIntegratorBalBefore,
+                  outputBassetBefore,
+              );
+
+        const swapTx = await mAsset.swap(
+            inputBasset.address,
+            outputAsset.address,
+            approval0,
+            recipient,
+            { from: sender },
+        );
 
         // 4. Validate any basic events that should occur
         if (isMint) {
@@ -224,6 +250,27 @@ contract("Masset - Swap", async (accounts) => {
             });
         }
 
+        const inputIntegratorBalAfter = await inputBassetBefore.contract.balanceOf(
+            inputBassetBefore.integrator.address,
+        );
+        const outputIntegratorBalAfter = isMint
+            ? new BN(0)
+            : await outputBassetBefore.contract.balanceOf(outputBassetBefore.integrator.address);
+        console.log(
+            "a",
+            inputIntegratorBalAfter.toString(),
+            platformInteraction_in.rawBalance.toString(),
+        );
+        if (!isMint) {
+            expect(inputIntegratorBalAfter).bignumber.eq(platformInteraction_in.rawBalance);
+            console.log(
+                "b",
+                outputIntegratorBalAfter.toString(),
+                platformInteraction_out.rawBalance.toString(),
+            );
+            expect(outputIntegratorBalAfter).bignumber.eq(platformInteraction_out.rawBalance);
+        }
+
         // 5. Validate output state
         //    Swap estimation should match up
         const [swapValid, swapReason, swapOutput] = swapOutputResponse;
@@ -234,10 +281,12 @@ contract("Masset - Swap", async (accounts) => {
         //  Input
         //    Deposits into lending platform
         const emitter = await AaveIntegration.new();
-        await expectEvent.inTransaction(swapTx.tx, emitter, "Deposit", {
-            _bAsset: inputBasset.address,
-            _amount: approval0,
-        });
+        if (platformInteraction_in.expectInteraction) {
+            await expectEvent.inTransaction(swapTx.tx, emitter, "Deposit", {
+                _bAsset: inputBasset.address,
+                _amount: platformInteraction_in.amount,
+            });
+        }
         //    Sender should have less input bAsset after
         const swapperBassetBalAfter = await inputBasset.balanceOf(sender);
         expect(swapperBassetBalAfter).bignumber.eq(swapperInputBalBefore.sub(inputQuantityExact));
@@ -258,8 +307,21 @@ contract("Masset - Swap", async (accounts) => {
             const outputBassetAfter = await basketManager.getBasset(outputAsset.address);
             //    Should deduct the FULL amount, including fee, from the vault balance
             expect(new BN(outputBassetAfter.vaultBalance)).bignumber.eq(
-                new BN(outputBassetBefore.vaultBalance).sub(expectedOutputValue),
+                new BN(outputBassetBefore.vaultBalance).sub(expectedOutputValue.sub(fee)),
             );
+
+            if (platformInteraction_out.expectInteraction) {
+                await expectEvent.inTransaction(swapTx.tx, emitter, "PlatformWithdrawal", {
+                    bAsset: outputAsset.address,
+                    totalAmount: platformInteraction_out.amount,
+                    userAmount: expectedOutputValue.sub(fee),
+                });
+            } else {
+                await expectEvent.inTransaction(swapTx.tx, emitter, "Withdrawal", {
+                    _bAsset: outputAsset.address,
+                    _amount: expectedOutputValue.sub(fee),
+                });
+            }
         }
 
         // Complete basket should remain in healthy state
@@ -612,7 +674,7 @@ contract("Masset - Swap", async (accounts) => {
                             bAssets[3],
                             bAssets[0],
                             1,
-                            "SafeERC20: low-level call failed",
+                            "Asset not fully transferred",
                             sa.default,
                             sa.default,
                             false,

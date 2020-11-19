@@ -73,7 +73,7 @@ contract("Masset - RedeemMasset", async (accounts) => {
         recipient: string = sa.default,
         sender: string = sa.default,
         ignoreHealthAssertions = false,
-        expectFee = false,
+        expectFee = true,
     ): Promise<void> => {
         const { mAsset, basketManager, bAssets } = md;
 
@@ -158,13 +158,19 @@ contract("Masset - RedeemMasset", async (accounts) => {
         const recipientBassetBalsAfter = await Promise.all(
             bAssets.map((b) => b.balanceOf(recipient)),
         );
-        recipientBassetBalsAfter.map((b, i) =>
-            expect(b).bignumber.eq(
+        recipientBassetBalsAfter.map((b, i) => {
+            console.log(
+                b.toString(),
+                recipientBassetBalsBefore[i].toString(),
+                expectedBassetsExact[i].toString(),
+                fees[i].toString(),
+            );
+            return expect(b).bignumber.eq(
                 // Subtract the fee from the returned amount
                 recipientBassetBalsBefore[i].add(expectedBassetsExact[i]).sub(fees[i]),
                 `Recipient should have more bAsset[${i}]`,
-            ),
-        );
+            );
+        });
         //    Basset payout should always be lte exactAmount in Masset terms
         const sumOfRedemption = expectedBassets.reduce((p, c) => p.add(c), new BN(0));
         assertBNSlightlyGTPercent(
@@ -181,7 +187,9 @@ contract("Masset - RedeemMasset", async (accounts) => {
         bAssetsAfter.map((b, i) =>
             expect(new BN(b.vaultBalance)).bignumber.eq(
                 // Full amount including fee should be taken from vaultBalance
-                new BN(basketComp.bAssets[i].vaultBalance).sub(expectedBassetsExact[i]),
+                new BN(basketComp.bAssets[i].vaultBalance)
+                    .sub(expectedBassetsExact[i])
+                    .add(fees[i]),
                 `Vault balance should reduce for bAsset[${i}]`,
             ),
         );
@@ -306,7 +314,9 @@ contract("Masset - RedeemMasset", async (accounts) => {
                     const basketCompAfter = await massetMachine.getBasketComposition(massetDetails);
                     basketCompAfter.bAssets.map((b, i) =>
                         expect(b.vaultBalance).bignumber.eq(
-                            basketComp.bAssets[i].vaultBalance.sub(expectedBassetsExact[i]),
+                            new BN(basketComp.bAssets[i].vaultBalance)
+                                .sub(expectedBassetsExact[i])
+                                .add(bAssetFees[i]),
                         ),
                     );
                 });
@@ -353,8 +363,11 @@ contract("Masset - RedeemMasset", async (accounts) => {
                     );
                     // VaultBalance should update for this bAsset
                     const bAssetAfter = await basketManager.getBasset(bAsset.address);
+
+                    const feeRate = await mAsset.redemptionFee();
+                    const fee = expectedBasset.mul(feeRate).div(fullScale);
                     expect(new BN(bAssetAfter.vaultBalance)).bignumber.eq(
-                        new BN(bAsset.vaultBalance).sub(expectedBasset),
+                        new BN(bAsset.vaultBalance).sub(expectedBasset).add(fee),
                     );
                     // Complete basket should remain in healthy state
                     await assertBasketIsHealthy(massetMachine, massetDetails);

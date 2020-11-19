@@ -115,7 +115,7 @@ contract AaveV2Integration is InitializableAbstractIntegration {
             IERC20(_bAsset).safeTransfer(_receiver, _amount);
         }
 
-        emit Withdrawal(_bAsset, address(aToken), _amount);
+        emit PlatformWithdrawal(_bAsset, address(aToken), _totalAmount, _amount);
     }
 
     /**
