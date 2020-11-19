@@ -54,6 +54,30 @@ contract AaveIntegrationV2 is InitializableAbstractIntegration {
         external
         onlyWhitelisted
     {
+        _withdraw(_receiver, _bAsset, _amount, _totalAmount, true);
+    }
+
+    function withdraw(
+        address _receiver,
+        address _bAsset,
+        uint256 _amount,
+        bool /*_hasTxFee*/
+    )
+        external
+        onlyWhitelisted
+    {
+        _withdraw(_receiver, _bAsset, _amount, _amount, true);
+    }
+
+    function _withdraw(
+        address _receiver,
+        address _bAsset,
+        uint256 _amount,
+        uint256 _totalAmount,
+        bool /*_hasTxFee*/
+    )
+        internal
+    {
         // Get the Target token
         IAaveATokenV1 aToken = _getATokenFor(_bAsset);
 
@@ -65,6 +89,7 @@ contract AaveIntegrationV2 is InitializableAbstractIntegration {
 
         emit Withdrawal(_bAsset, address(aToken), _amount);
     }
+
 
 
     function withdrawRaw(address _receiver, address _bAsset, uint256 _amount) external {
@@ -228,6 +253,30 @@ contract AaveIntegrationV3 is InitializableAbstractIntegration {
     )
         external
         onlyWhitelisted
+    {
+        _withdraw(_receiver, _bAsset, _amount, _totalAmount, true);
+    }
+
+    function withdraw(
+        address _receiver,
+        address _bAsset,
+        uint256 _amount,
+        bool /*_hasTxFee*/
+    )
+        external
+        onlyWhitelisted
+    {
+        _withdraw(_receiver, _bAsset, _amount, _amount, true);
+    }
+
+    function _withdraw(
+        address _receiver,
+        address _bAsset,
+        uint256 _amount,
+        uint256 _totalAmount,
+        bool /*_hasTxFee*/
+    )
+        internal
     {
         // Get the Target token
         IAaveATokenV1 aToken = _getATokenFor(_bAsset);

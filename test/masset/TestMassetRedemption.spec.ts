@@ -281,7 +281,7 @@ contract("Masset - Redeem", async (accounts) => {
         );
         bAssetsAfter.map((b, i) =>
             expect(new BN(b.vaultBalance)).bignumber.eq(
-                new BN(bAssetsBefore[i].vaultBalance).sub(bAssetsExact[i].sub(fees[i])),
+                new BN(bAssetsBefore[i].vaultBalance).sub(bAssetsExact[i]).add(fees[i]),
             ),
         );
 

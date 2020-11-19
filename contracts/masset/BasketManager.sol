@@ -440,7 +440,9 @@ contract BasketManager is
         if(_flag){
             // if token has tx fees, it can no longer operate with a cache
             uint256 bal = IERC20(_bAsset).balanceOf(integrations[index]);
-            IPlatformIntegration(integrations[index]).deposit(_bAsset, bal, true);
+            if(bal > 0){
+                IPlatformIntegration(integrations[index]).deposit(_bAsset, bal, true);
+            }
         }
 
         emit TransferFeeEnabled(_bAsset, _flag);
@@ -513,6 +515,7 @@ contract BasketManager is
         onlyGovernor
     {
         uint256 len = _bAssets.length;
+        require(len > 0, "Must migrate some bAssets");
 
         for(uint i = 0; i < len; i++){
             // 1. Check that the bAsset is in the basket
@@ -522,11 +525,12 @@ contract BasketManager is
 
             // 2. Withdraw everything from the old platform integration
             IPlatformIntegration oldIntegration = IPlatformIntegration(integrations[index]);
+            require(address(oldIntegration) != _newIntegration, "Must transfer to new integrator");
             // 2.1. Withdraw from the lending market
             uint256 lendingBal = oldIntegration.checkBalance(bAsset);
+            uint256 cache = IERC20(bAsset).balanceOf(address(oldIntegration));
             oldIntegration.withdraw(address(this), bAsset, lendingBal, false);
             // 2.2. Withdraw from the cache, if any
-            uint256 cache = IERC20(bAsset).balanceOf(address(oldIntegration));
             oldIntegration.withdrawRaw(address(this), bAsset, cache);
             uint256 total = lendingBal.add(cache);
 
@@ -542,9 +546,17 @@ contract BasketManager is
             // 4.2. Check balances
             uint256 newLendingBal = newIntegration.checkBalance(bAsset);
             uint256 newCache = IERC20(bAsset).balanceOf(address(newIntegration));
+            uint256 upperMargin = 1001e15;
+            uint256 lowerMargin =  999e15;
 
-            require(newLendingBal >= lendingBal, "Must transfer full amount");
-            require(newCache >= cache, "Must transfer full amount");
+            require(
+                newLendingBal >= lendingBal.mulTruncate(lowerMargin) &&
+                newLendingBal <= lendingBal.mulTruncate(upperMargin),
+                "Must transfer full amount");
+            require(
+                newCache >= cache.mulTruncate(lowerMargin) &&
+                newCache <= cache.mulTruncate(upperMargin),
+                "Must transfer full amount");
         }
 
         emit BassetsMigrated(_bAssets, _newIntegration);

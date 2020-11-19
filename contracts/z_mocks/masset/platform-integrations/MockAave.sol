@@ -4,7 +4,6 @@ import { IAaveATokenV1, IAaveLendingPoolV1, IAaveLendingPoolV2, ILendingPoolAddr
 import { AaveIntegration } from "../../../masset/platform-integrations/AaveIntegration.sol";
 
 import { MassetHelpers, SafeERC20, SafeMath } from "../../../masset/shared/MassetHelpers.sol";
-import { AaveIntegrationV1 } from "./AaveIntegrationV1.sol";
 import { IERC20, ERC20, ERC20Mintable } from "@openzeppelin/contracts/token/ERC20/ERC20Mintable.sol";
 
 
@@ -123,31 +122,6 @@ contract MockAaveV1 is IAaveLendingPoolV1, ILendingPoolAddressesProviderV1 {
 
 
 contract MockAaveIntegration is AaveIntegration {
-
-    // event CurrentBalance(address indexed bAsset, uint256 balance);
-
-    function logBalance(address _bAsset)
-        external
-        view
-        returns (uint256 balance)
-    {
-        // balance is always with token aToken decimals
-        IAaveATokenV1 aToken = _getATokenFor(_bAsset);
-        balance = _checkBalance(aToken);
-
-        // emit CurrentBalance(_bAsset, balance);
-    }
-
-    function getBassetsMapped()
-        external
-        view
-        returns (address[] memory bassets)
-    {
-        return bAssetsMapped;
-    }
-}
-
-contract MockAaveIntegrationV1 is AaveIntegrationV1 {
 
     // event CurrentBalance(address indexed bAsset, uint256 balance);
 

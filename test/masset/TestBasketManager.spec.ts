@@ -15,7 +15,7 @@ import { percentToWeight, simpleToExactAmount } from "@utils/math";
 import { expectEvent, expectRevert } from "@openzeppelin/test-helpers";
 import * as t from "types/generated";
 import { MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
-import { ZERO_ADDRESS, ZERO, ratioScale, fullScale } from "@utils/constants";
+import { ZERO_ADDRESS, ZERO, ratioScale, fullScale, DEAD_ADDRESS } from "@utils/constants";
 import { BassetIntegrationDetails, Platform } from "../../types/machines";
 
 import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
@@ -30,6 +30,7 @@ const MockNexus = artifacts.require("MockNexus");
 const MockBasketManager = artifacts.require("MockBasketManager3");
 const MockERC20 = artifacts.require("MockERC20");
 const MockCompoundIntegration = artifacts.require("MockCompoundIntegration2");
+const MaliciousAaveIntegration = artifacts.require("MaliciousAaveIntegration");
 
 contract("BasketManager", async (accounts) => {
     let systemMachine: SystemMachine;
@@ -96,7 +97,24 @@ contract("BasketManager", async (accounts) => {
     }
 
     async function createNewBasketManager(): Promise<t.BasketManagerInstance> {
+        aaveIntegration = await AaveIntegration.new();
+        compoundIntegration = await CompoundIntegration.new();
         basketManager = await BasketManager.new();
+
+        await aaveIntegration.initialize(
+            nexus.address,
+            [masset, governance, basketManager.address],
+            integrationDetails.aavePlatformAddress,
+            integrationDetails.aTokens.map((a) => a.bAsset),
+            integrationDetails.aTokens.map((a) => a.aToken),
+        );
+        await compoundIntegration.initialize(
+            nexus.address,
+            [masset, governance, basketManager.address],
+            sa.dummy1,
+            integrationDetails.cTokens.map((c) => c.bAsset),
+            integrationDetails.cTokens.map((c) => c.cToken),
+        );
         await basketManager.initialize(
             nexus.address,
             masset,
@@ -118,22 +136,6 @@ contract("BasketManager", async (accounts) => {
 
         nexus = await MockNexus.new(sa.governor, governance, manager);
 
-        aaveIntegration = await AaveIntegration.new();
-        await aaveIntegration.initialize(
-            nexus.address,
-            [masset, governance],
-            integrationDetails.aavePlatformAddress,
-            integrationDetails.aTokens.map((a) => a.bAsset),
-            integrationDetails.aTokens.map((a) => a.aToken),
-        );
-        compoundIntegration = await CompoundIntegration.new();
-        await compoundIntegration.initialize(
-            nexus.address,
-            [masset, governance],
-            sa.dummy1,
-            integrationDetails.cTokens.map((c) => c.bAsset),
-            integrationDetails.cTokens.map((c) => c.cToken),
-        );
         await createNewBasketManager();
 
         ctx.module = basketManager;
@@ -718,6 +720,9 @@ contract("BasketManager", async (accounts) => {
             );
 
             const platformBalance = new BN(10).pow(new BN(18));
+            const bAsset0 = await MockERC20.at(integrationDetails.aTokens[0].bAsset);
+            await bAsset0.transfer(mockCompound.address, new BN(2));
+
             await mockCompound.setCustomBalance(platformBalance);
 
             await basketManager.collectInterest({ from: masset });
@@ -725,7 +730,13 @@ contract("BasketManager", async (accounts) => {
             await Promise.all(
                 integrationDetails.aTokens.map(async (a, index) => {
                     const bAsset = await basketManager.getBasset(a.bAsset);
-                    expect(platformBalance).to.bignumber.equal(bAsset.vaultBalance);
+                    if (index === 0) {
+                        expect(platformBalance.add(new BN(2))).to.bignumber.equal(
+                            bAsset.vaultBalance,
+                        );
+                    } else {
+                        expect(platformBalance).to.bignumber.equal(bAsset.vaultBalance);
+                    }
                 }),
             );
         });
@@ -757,6 +768,112 @@ contract("BasketManager", async (accounts) => {
                     expect(existingValutBal).to.bignumber.equal(bAsset.vaultBalance);
                 }),
             );
+        });
+    });
+
+    describe("migrating bAssets between platforms", () => {
+        let newMigration: t.AaveV2IntegrationInstance;
+        let maliciousIntegration: t.MaliciousAaveIntegrationInstance;
+        let transferringAsset: t.MockERC20Instance;
+        before(async () => {
+            await createNewBasketManager();
+            [, , transferringAsset] = integrationDetails.bAssets;
+            await transferringAsset.transfer(aaveIntegration.address, new BN(10000));
+            await aaveIntegration.deposit(transferringAsset.address, new BN(9000), false, {
+                from: governance,
+            });
+            newMigration = await AaveIntegration.new();
+            await newMigration.initialize(
+                nexus.address,
+                [masset, basketManager.address],
+                integrationDetails.aavePlatformAddress,
+                integrationDetails.aTokens.map((a) => a.bAsset),
+                integrationDetails.aTokens.map((a) => a.aToken),
+            );
+            maliciousIntegration = await MaliciousAaveIntegration.new();
+            await maliciousIntegration.initialize(
+                nexus.address,
+                [masset, basketManager.address],
+                integrationDetails.aavePlatformAddress,
+                integrationDetails.aTokens.map((a) => a.bAsset),
+                integrationDetails.aTokens.map((a) => a.aToken),
+            );
+        });
+        it("should fail if passed 0 bAssets", async () => {
+            await expectRevert(
+                basketManager.migrateBassets([], newMigration.address, { from: sa.governor }),
+                "Must migrate some bAssets",
+            );
+        });
+        it("should fail if bAsset does not exist", async () => {
+            await expectRevert(
+                basketManager.migrateBassets([DEAD_ADDRESS], newMigration.address, {
+                    from: sa.governor,
+                }),
+                "bAsset does not exist",
+            );
+        });
+        it("should fail if integrator address is the same", async () => {
+            await expectRevert(
+                basketManager.migrateBassets([transferringAsset.address], aaveIntegration.address, {
+                    from: sa.governor,
+                }),
+                "Must transfer to new integrator",
+            );
+        });
+        it("should fail if new address is a dud", async () => {
+            await expectRevert.unspecified(
+                basketManager.migrateBassets([transferringAsset.address], DEAD_ADDRESS, {
+                    from: sa.governor,
+                }),
+            );
+        });
+        it("should fail if the full amount is not transferred and deposited", async () => {
+            await expectRevert(
+                basketManager.migrateBassets(
+                    [transferringAsset.address],
+                    maliciousIntegration.address,
+                    {
+                        from: sa.governor,
+                    },
+                ),
+                "Must transfer full amount",
+            );
+        });
+        it("should move all bAssets from a to b", async () => {
+            // get balances before
+            const bal = await aaveIntegration.checkBalance.call(transferringAsset.address);
+            expect(bal).bignumber.eq(new BN(9000));
+            const rawBal = await transferringAsset.balanceOf(aaveIntegration.address);
+            expect(rawBal).bignumber.eq(new BN(1000));
+            let integratorAddress = await basketManager.getBassetIntegrator(
+                transferringAsset.address,
+            );
+            expect(integratorAddress).eq(aaveIntegration.address);
+            // call migrate
+            const tx = await basketManager.migrateBassets(
+                [transferringAsset.address],
+                newMigration.address,
+                {
+                    from: sa.governor,
+                },
+            );
+            // moves all bAssets from old to new
+            const migratedBal = await newMigration.checkBalance.call(transferringAsset.address);
+            expect(migratedBal).bignumber.eq(bal);
+            const migratedRawBal = await transferringAsset.balanceOf(newMigration.address);
+            expect(migratedRawBal).bignumber.eq(rawBal);
+            // old balances should be empty
+            const newRawBal = await transferringAsset.balanceOf(aaveIntegration.address);
+            expect(newRawBal).bignumber.eq(new BN(0));
+            // updates the integrator address
+            integratorAddress = await basketManager.getBassetIntegrator(transferringAsset.address);
+            expect(integratorAddress).eq(newMigration.address);
+            // emits BassetsMigrated
+            await expectEvent(tx.receipt, "BassetsMigrated", {
+                bAssets: [transferringAsset.address],
+                newIntegrator: newMigration.address,
+            });
         });
     });
 
@@ -1172,24 +1289,29 @@ contract("BasketManager", async (accounts) => {
             );
         });
 
-        it("should succeed when called by governor for a valid bAsset", async () => {
-            await Promise.all(
-                integrationDetails.aTokens.map(async (a) => {
-                    let bAsset: Basset = await basketManager.getBasset(a.bAsset);
-                    expect(false).to.equal(bAsset.isTransferFeeCharged);
+        it("should succeed and deposit outstanding bAsset when called by governor", async () => {
+            const { bAsset } = integrationDetails.aTokens[0];
+            let details: Basset = await basketManager.getBasset(bAsset);
+            const contract = await MockERC20.at(bAsset);
+            const integrator = await basketManager.getBassetIntegrator(bAsset);
+            const integratorContract = await CompoundIntegration.at(integrator);
 
-                    const tx = await basketManager.setTransferFeesFlag(a.bAsset, true, {
-                        from: sa.governor,
-                    });
-                    expectEvent.inLogs(tx.logs, "TransferFeeEnabled", {
-                        bAsset: a.bAsset,
-                        enabled: true,
-                    });
+            await contract.transfer(integrator, new BN(100000));
+            expect(false).to.equal(details.isTransferFeeCharged);
 
-                    bAsset = await basketManager.getBasset(a.bAsset);
-                    expect(true).to.equal(bAsset.isTransferFeeCharged);
-                }),
-            );
+            const tx = await basketManager.setTransferFeesFlag(bAsset, true, {
+                from: sa.governor,
+            });
+            expectEvent.inLogs(tx.logs, "TransferFeeEnabled", {
+                bAsset,
+                enabled: true,
+            });
+
+            expect(await integratorContract.checkBalance.call(bAsset)).bignumber.eq(new BN(100000));
+            expect(await contract.balanceOf(integrator)).bignumber.eq(new BN(0));
+
+            details = await basketManager.getBasset(bAsset);
+            expect(true).to.equal(details.isTransferFeeCharged);
         });
 
         it("should allow enable fee for bAsset", async () => {
@@ -1557,6 +1679,45 @@ contract("BasketManager", async (accounts) => {
 
         it("should return ForgePropsMulti", async () => {
             // rely on integration tests from the mAsset to ensure that the forge props are being passed correctly
+        });
+    });
+
+    describe("prepare redeem bAssets", async () => {
+        it("should fail when contract is Paused", async () => {
+            await basketManager.pause({ from: sa.governor });
+
+            await expectRevert(
+                basketManager.prepareRedeemBassets([integrationDetails.aTokens[0].bAsset]),
+                "Pausable: paused",
+            );
+            await basketManager.unpause({ from: sa.governor });
+        });
+
+        it("should fail when passed duplicate items", async () => {
+            await expectRevert(
+                basketManager.prepareRedeemBassets([
+                    integrationDetails.aTokens[0].bAsset,
+                    integrationDetails.aTokens[1].bAsset,
+                    integrationDetails.aTokens[0].bAsset,
+                ]),
+                "Must have no duplicates",
+            );
+        });
+
+        it("should fail when passed incorrect bAsset address", async () => {
+            await expectRevert(
+                basketManager.prepareRedeemBassets([sa.dummy1]),
+                "bAsset must exist",
+            );
+        });
+        it("shold return redeemProps", async () => {
+            const { bAsset } = integrationDetails.aTokens[0];
+            const response = await basketManager.prepareRedeemBassets([bAsset]);
+            expect(response.isValid).eq(true);
+            await expectBassets(response.allBassets, new BN(4));
+            expect(response.bAssets.length).eq(1);
+            expect(response.bAssets[0].addr).eq(bAsset);
+            expect(response.indexes[0]).bignumber.eq(new BN(2));
         });
     });
 

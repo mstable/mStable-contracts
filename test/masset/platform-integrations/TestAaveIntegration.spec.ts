@@ -644,7 +644,11 @@ contract("AaveIntegration", async (accounts) => {
                 systemMachine.isGanacheFork,
             );
             // 2.3 Should give accurate return value
-            expectEvent(tx.receipt, "Withdrawal", { _amount: amount });
+            expectEvent(tx.receipt, "PlatformWithdrawal", {
+                bAsset: bAsset.address,
+                totalAmount: amount,
+                userAmount: amount,
+            });
         });
 
         it("should handle the fee calculations", async () => {
@@ -792,7 +796,11 @@ contract("AaveIntegration", async (accounts) => {
                 systemMachine.isGanacheFork,
             );
             // 2.3 Should give accurate return value
-            expectEvent(tx.receipt, "Withdrawal", { _amount: amount });
+            expectEvent(tx.receipt, "PlatformWithdrawal", {
+                bAsset: bAsset.address,
+                totalAmount: amount,
+                userAmount: amount,
+            });
         });
         it("should fail if the bAsset is not supported", async () => {
             // Step 0. Choose tokens

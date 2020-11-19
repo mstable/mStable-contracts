@@ -23,7 +23,7 @@ const c_MockAToken = artifacts.require("MockAToken");
 const c_MockAave = artifacts.require("MockAaveV1");
 const c_MockErc20 = artifacts.require("MockERC20");
 
-contract("UpgradedAaveIntegration", async (accounts) => {
+contract("PlatformIntegrationUpgradability", async (accounts) => {
     let d_Nexus: t.MockNexusInstance;
     const sa = new StandardAccounts(accounts);
     const governanceAddr = sa.governor;
