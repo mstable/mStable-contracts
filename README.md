@@ -70,7 +70,7 @@ Deployment scripts are located in `migrations/src`. To run, start `ganache` or `
 
 ```
 $ ganache-cli -p 7545 -l 8000000
-$ yarn test-prep
+$ yarn compile
 $ yarn migrate
 ```
 
@@ -91,7 +91,7 @@ mStable-contracts test suite is built to support execution on a [mainnet fork](h
 
 ```
 $ ganache-cli -f http://localhost:1234 -p 7545 -l 100000000 --allowUnlimitedContractSize --unlock "0x6cC5F688a315f3dC28A7781717a9A798a59fDA7b" --unlock "0x3f5CE5FBFe3E9af3971dD833D26bA9b5C936f0bE" --unlock "0x3dfd23a6c5e8bbcfc9581d2e864a68feb6a076d3"
-$ yarn test-prep
+$ yarn compile
 $ truffle test ./test/xxx.spec.tx --network fork
 ```
 

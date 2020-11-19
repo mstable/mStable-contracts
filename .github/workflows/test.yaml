@@ -20,5 +20,5 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-yarn-
       - run: yarn install
-      - run: yarn test-prep
+      - run: yarn compile
       - run: yarn test

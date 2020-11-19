@@ -43,3 +43,9 @@ export interface BasketComposition {
     undergoingRecol: boolean;
     colRatio: BN;
 }
+
+export interface ActionDetails {
+    expectInteraction: boolean;
+    amount: BN;
+    rawBalance: BN;
+}

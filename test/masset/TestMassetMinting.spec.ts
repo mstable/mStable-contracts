@@ -88,17 +88,13 @@ contract("Masset - Mint", async (accounts) => {
         );
 
         // Expect to be used in cache
-        const totalSupply = await mAsset.totalSupply();
-        const surplus = await mAsset.surplus();
-        const cacheSize = await mAsset.cacheSize();
-        const maxC = totalSupply
-            .add(surplus)
-            .mul(ratioScale)
-            .div(new BN(bAssetBefore.ratio))
-            .mul(cacheSize)
-            .div(fullScale);
-        const newSum = integratorBalBefore.add(approval0);
-        const expectDeposit = newSum.gte(maxC as any);
+        const platformInteraction = await massetMachine.getPlatformInteraction(
+            mAsset,
+            "deposit",
+            approval0,
+            integratorBalBefore,
+            bAssetBefore,
+        );
 
         const tx = useMintTo
             ? await mAsset.mintTo(bAsset.address, approval0, derivedRecipient, { from: sender })
@@ -124,14 +120,12 @@ contract("Masset - Mint", async (accounts) => {
         const integratorBalAfter = await bAssetBefore.contract.balanceOf(
             bAssetBefore.integrator.address,
         );
-        if (expectDeposit) {
+        expect(integratorBalAfter).bignumber.eq(platformInteraction.rawBalance);
+        if (platformInteraction.expectInteraction) {
             await expectEvent.inTransaction(tx.tx, emitter, "Deposit", {
                 _bAsset: bAsset.address,
-                _amount: newSum.sub(maxC.divn(2)),
+                _amount: platformInteraction.amount,
             });
-        } else {
-            console.log("h1");
-            expect(integratorBalAfter).bignumber.eq(integratorBalBefore.add(bAssetQuantity));
         }
         // Recipient should have mAsset quantity after
         const recipientBalAfter = await mAsset.balanceOf(derivedRecipient);

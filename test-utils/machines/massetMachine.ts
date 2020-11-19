@@ -14,7 +14,12 @@ import {
 import { Basset } from "@utils/mstable-objects";
 import { SystemMachine, StandardAccounts } from ".";
 import { Address } from "../../types/common";
-import { BassetIntegrationDetails, Platform, BasketComposition } from "../../types/machines";
+import {
+    BassetIntegrationDetails,
+    Platform,
+    BasketComposition,
+    ActionDetails,
+} from "../../types/machines";
 
 // ForgeValidator
 const c_ForgeValidator = artifacts.require("ForgeValidator");
@@ -571,5 +576,30 @@ export class MassetMachine {
             bAssets.map((b) => this.approveMasset(b, mAsset, fullMassetUnits, sender)),
         );
         return result;
+    }
+
+    public async getPlatformInteraction(
+        mAsset: t.MassetInstance,
+        type: "deposit" | "withdrawal",
+        amount: BN,
+        integratorBalBefore: number | BN,
+        bAsset: Basset,
+    ): Promise<ActionDetails> {
+        const totalSupply = await mAsset.totalSupply();
+        const surplus = await mAsset.surplus();
+        const cacheSize = await mAsset.cacheSize();
+        const maxC = totalSupply
+            .add(surplus)
+            .mul(ratioScale)
+            .div(new BN(bAsset.ratio))
+            .mul(cacheSize)
+            .div(fullScale);
+        const newSum = new BN(integratorBalBefore).add(amount);
+        const expectInteraction = newSum.gte(maxC as any);
+        return {
+            expectInteraction,
+            amount: newSum.sub(maxC.divn(2)),
+            rawBalance: expectInteraction ? maxC.divn(2) : newSum,
+        };
     }
 }
