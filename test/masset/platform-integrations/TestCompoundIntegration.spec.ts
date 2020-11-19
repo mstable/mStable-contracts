@@ -43,7 +43,10 @@ const convertUnderlyingToCToken = async (
     underlyingAmount: BN,
 ): Promise<BN> => {
     const exchangeRate = await cToken.exchangeRateStored();
-    return underlyingAmount.mul(fullScale).div(exchangeRate.subn(1));
+    return underlyingAmount
+        .addn(1)
+        .mul(fullScale)
+        .div(exchangeRate);
 };
 const convertCTokenToUnderlying = async (
     cToken: t.ICERC20Instance,
@@ -606,7 +609,10 @@ contract("CompoundIntegration", async (accounts) => {
                 d_CompoundIntegration.address,
             );
             const exchangeRate = await cToken.exchangeRateStored();
-            const expected_cTokens = amount.mul(fullScale).div(exchangeRate);
+            const expected_cTokens = amount
+                .addn(1)
+                .mul(fullScale)
+                .div(exchangeRate);
             expect(expected_cTokens).to.bignumber.equal(cToken_balanceOfIntegration);
 
             expectEvent(tx.receipt, "Deposit", { _amount: amount });
@@ -698,7 +704,7 @@ contract("CompoundIntegration", async (accounts) => {
 
                 // recipient bAsset bal is the same
                 const recipientBassetBalAfter = await bAsset.balanceOf(sa.default);
-                expect(recipientBassetBalAfter).bignumber.eq(recipientBassetBalBefore.addn(1));
+                expect(recipientBassetBalAfter).bignumber.eq(recipientBassetBalBefore.add(amount));
                 // compoundIntegration cTokenBal is the same
                 const integrationCTokenBalanceAfter = await cToken.balanceOf(
                     d_CompoundIntegration.address,

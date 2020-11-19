@@ -46,7 +46,7 @@ contract MockCToken is ICERC20, ERC20, ERC20Detailed, ERC20Mintable {
         // Take their reserve
         underlyingToken.transferFrom(msg.sender, address(this), mintAmount);
         // Credit them with cToken
-        _mint(msg.sender, mintAmount.divPrecisely(exchangeRate.sub(1)));
+        _mint(msg.sender, mintAmount.add(1).divPrecisely(exchangeRate));
         return 0;
     }
 
@@ -54,7 +54,7 @@ contract MockCToken is ICERC20, ERC20, ERC20Detailed, ERC20Mintable {
         // Pretend to inflate the cTokenExchangeRate
         updateExchangeRate();
 
-        uint256 cTokens = redeemAmount.divPrecisely(exchangeRate);
+        uint256 cTokens = redeemAmount.add(1).divPrecisely(exchangeRate);
         // Burn the cToken
         _burn(msg.sender, cTokens);
         // Send them back their reserve

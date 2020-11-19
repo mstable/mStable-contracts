@@ -11,9 +11,6 @@ export default {
         hardhat: { allowUnlimitedContractSize: true },
         localhost: { url: "http://localhost:8545" },
         fork: { url: "http://localhost:7545" },
-        coverage: {
-            url: "http://localhost:7546",
-        },
     },
     solidity: {
         version: "0.5.16",
