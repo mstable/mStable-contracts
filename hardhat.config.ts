@@ -1,5 +1,5 @@
 require("hardhat-gas-reporter");
-// require("solidity-coverage");
+require("solidity-coverage");
 require("@nomiclabs/hardhat-truffle5");
 require("hardhat-typechain");
 

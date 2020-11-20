@@ -1651,7 +1651,7 @@ contract("Masset - Redeem", async (accounts) => {
                 // Mint 6.25 of each bAsset, taking total to 100%
                 const approvals = await Promise.all(
                     onChainBassets.map((b, i) =>
-                        massetMachine.approveMasset(b.contract, mAsset, new BN("6.25"), sa.default),
+                        massetMachine.approveMasset(b.contract, mAsset, new BN(10), sa.default),
                     ),
                 );
                 await mAsset.mintMulti(

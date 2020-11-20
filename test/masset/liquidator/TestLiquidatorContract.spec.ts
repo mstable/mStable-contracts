@@ -21,7 +21,7 @@ const { expect } = envSetup.configure();
 
 contract("Liquidator", async (accounts) => {
     const sa = new StandardAccounts(accounts);
-    const ctx: { module?: t.InitializableModuleInstance } = {};
+    const ctx: { module?: t.ModuleInstance } = {};
 
     let nexus: t.MockNexusInstance;
     let liquidator: t.LiquidatorInstance;
@@ -110,7 +110,7 @@ contract("Liquidator", async (accounts) => {
         nexus = await MockNexus.new(sa.governor, sa.governor, sa.dummy1);
 
         await redeployLiquidator();
-        ctx.module = liquidator as t.InitializableModuleInstance;
+        ctx.module = (liquidator as any) as t.ModuleInstance;
     });
 
     describe("verifying initialization", async () => {

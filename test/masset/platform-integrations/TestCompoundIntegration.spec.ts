@@ -31,11 +31,7 @@ const c_MockCToken = artifacts.require("MockCToken");
 const c_Nexus = artifacts.require("Nexus");
 const c_DelayedProxyAdmin = artifacts.require("DelayedProxyAdmin");
 
-const c_InitializableProxy = artifacts.require(
-    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-    // @ts-ignore
-    "@openzeppelin/upgrades/InitializableAdminUpgradeabilityProxy",
-);
+const c_InitializableProxy = artifacts.require("InitializableAdminUpgradeabilityProxy");
 const c_CompoundIntegration = artifacts.require("CompoundIntegration");
 
 const convertUnderlyingToCToken = async (

@@ -314,7 +314,7 @@ export class MassetMachine {
             : await c_MockInitializableToken.new();
         const data = y.contract.methods.initialize(name, sym, dec, recipient, init).encodeABI();
         await x.methods["initialize(address,address,bytes)"](y.address, this.sa.governor, data);
-        return c_MockERC20.at(x.address) as t.MockERC20Instance;
+        return (await c_MockERC20.at(x.address)) as t.MockERC20Instance;
     }
 
     public async loadBassetsLocal(

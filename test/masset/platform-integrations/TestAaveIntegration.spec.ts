@@ -51,7 +51,7 @@ contract("AaveIntegration", async (accounts) => {
     let d_AaveIntegrationProxy: t.InitializableAdminUpgradeabilityProxyInstance;
     let d_AaveIntegration: t.MockAaveIntegrationInstance;
 
-    const ctx: { module?: t.InitializableModuleInstance } = {};
+    const ctx: { module?: t.ModuleInstance } = {};
 
     before("base init", async () => {
         systemMachine = new SystemMachine(sa.all);
@@ -119,7 +119,7 @@ contract("AaveIntegration", async (accounts) => {
             );
         }
 
-        ctx.module = d_AaveIntegration;
+        ctx.module = d_AaveIntegration as t.ModuleInstance;
     };
 
     describe("initializing AaveIntegration", async () => {
