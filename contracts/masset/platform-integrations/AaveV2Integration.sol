@@ -9,7 +9,7 @@ import { InitializableAbstractIntegration, MassetHelpers, IERC20, SafeMath } fro
 
 
 /**
- * @title   AaveIntegration
+ * @title   AaveV2Integration
  * @author  Stability Labs Pty. Ltd.
  * @notice  A simple connection to deposit and withdraw bAssets from Aave
  * @dev     VERSION: 1.0

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/camelcase */
 
-import { assertBNClose, assertBNClosePercent } from "@utils/assertions";
+import { assertBNClose, assertBNClosePercent, assertBNSlightlyGTPercent } from "@utils/assertions";
 import { expectEvent, time, expectRevert } from "@openzeppelin/test-helpers";
 import { StandardAccounts } from "@utils/machines";
 import { simpleToExactAmount } from "@utils/math";
@@ -15,10 +15,12 @@ import {
     ONE_DAY,
     ONE_MIN,
     ONE_WEEK,
+    DEAD_ADDRESS,
 } from "@utils/constants";
 import * as t from "types/generated";
 import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
 import shouldBehaveLikePausableModule from "../shared/behaviours/PausableModule.behaviour";
+import { platform } from "os";
 
 const { expect } = envSetup.configure();
 
@@ -27,6 +29,7 @@ const MockNexus = artifacts.require("MockNexus");
 const MockMasset = artifacts.require("MockMasset");
 const MockMasset1 = artifacts.require("MockMasset1");
 const SavingsContract = artifacts.require("SavingsContract");
+const MockRevenueRecipient = artifacts.require("MockRevenueRecipient");
 
 contract("SavingsManager", async (accounts) => {
     const TEN = new BN(10);
@@ -234,30 +237,68 @@ contract("SavingsManager", async (accounts) => {
         });
     });
 
+    describe("freezing streams", async () => {
+        it("should fail when not called by governor", async () => {
+            await expectRevert(
+                savingsManager.freezeStreams({ from: sa.other }),
+                "Only governor can execute",
+            );
+        });
+        it("should stop all streaming from being initialized", async () => {
+            const tx = await savingsManager.freezeStreams({ from: sa.governor });
+            expectEvent(tx.receipt, "StreamsFrozen");
+
+            await expectRevert(
+                savingsManager.collectAndStreamInterest(mUSD.address),
+                "Streaming is currently frozen",
+            );
+        });
+    });
+
+    describe("adding a revenue recipient", async () => {
+        it("should fail when not called by governor", async () => {
+            await expectRevert(
+                savingsManager.addRevenueRecipient(mUSD.address, DEAD_ADDRESS, { from: sa.other }),
+                "Only governor can execute",
+            );
+        });
+        it("should simply update the recipient and emit an event", async () => {
+            const tx = await savingsManager.addRevenueRecipient(mUSD.address, sa.fundManager, {
+                from: sa.governor,
+            });
+            expectEvent(tx.receipt, "RevenueRecipientAdded", {
+                mAsset: mUSD.address,
+                recipient: sa.fundManager,
+            });
+            const recipient = await savingsManager.revenueRecipients(mUSD.address);
+            expect(recipient).eq(sa.fundManager);
+        });
+    });
+
     describe("modifying the savings rate", async () => {
         it("should fail when not called by governor", async () => {
-            expectRevert(
+            await expectRevert(
                 savingsManager.setSavingsRate(fullScale, { from: sa.other }),
                 "Only governor can execute",
             );
         });
 
         it("should fail when not in range (lower range)", async () => {
-            expectRevert(
-                savingsManager.setSavingsRate(new BN(10).pow(new BN(16)), { from: sa.governor }),
+            await expectRevert(
+                savingsManager.setSavingsRate(simpleToExactAmount(1, 16), { from: sa.governor }),
                 "Must be a valid rate",
             );
         });
 
         it("should fail when not in range (higher range)", async () => {
-            expectRevert(
-                savingsManager.setSavingsRate(new BN(10).pow(new BN(19)), { from: sa.governor }),
+            await expectRevert(
+                savingsManager.setSavingsRate(simpleToExactAmount(1, 20), { from: sa.governor }),
                 "Must be a valid rate",
             );
         });
 
         it("should succeed when in valid range (min value)", async () => {
-            const newRate = new BN("9").mul(new BN(10).pow(new BN(17))).add(new BN(1));
+            const newRate = simpleToExactAmount(6, 17);
             const tx = await savingsManager.setSavingsRate(newRate, {
                 from: sa.governor,
             });
@@ -266,7 +307,7 @@ contract("SavingsManager", async (accounts) => {
         });
 
         it("should succeed when in valid range (max value)", async () => {
-            const newRate = new BN(10).pow(new BN(18));
+            const newRate = simpleToExactAmount(1, 18);
             const tx = await savingsManager.setSavingsRate(newRate, {
                 from: sa.governor,
             });
@@ -316,23 +357,23 @@ contract("SavingsManager", async (accounts) => {
 
         context("with a broken mAsset", async () => {
             it("fails if the mAsset does not send required mAsset", async () => {
-                mUSD = await MockMasset1.new("mUSD", "mUSD", 18, sa.default, INITIAL_MINT);
+                const mUSD2 = await MockMasset1.new("mUSD", "mUSD", 18, sa.default, INITIAL_MINT);
                 savingsContract = await SavingsContract.new(nexus.address, mUSD.address);
                 savingsManager = await SavingsManager.new(
                     nexus.address,
-                    mUSD.address,
+                    mUSD2.address,
                     savingsContract.address,
                 );
                 // Set new SavingsManager address in Nexus
                 nexus.setSavingsManager(savingsManager.address);
 
                 const newInterest = new BN(10).mul(fullScale);
-                await mUSD.setAmountForCollectInterest(newInterest);
+                await mUSD2.setAmountForCollectInterest(newInterest);
 
                 // should move 1 day in future
                 await time.increase(THIRTY_MINUTES);
                 await expectRevert(
-                    savingsManager.collectAndDistributeInterest(mUSD.address),
+                    savingsManager.collectAndDistributeInterest(mUSD2.address),
                     "Must receive mUSD",
                 );
             });
@@ -346,6 +387,7 @@ contract("SavingsManager", async (accounts) => {
             streamRate: BN;
             savingsManagerBal: BN;
             savingsContractBal: BN;
+            lastBatchCollected: BN;
         }
         const snapshotData = async (): Promise<Data> => {
             return {
@@ -356,6 +398,7 @@ contract("SavingsManager", async (accounts) => {
                 streamRate: await savingsManager.streamRate(mUSD.address),
                 savingsManagerBal: await mUSD.balanceOf(savingsManager.address),
                 savingsContractBal: await mUSD.balanceOf(savingsContract.address),
+                lastBatchCollected: await savingsManager.lastBatchCollected(mUSD.address),
             };
         };
         context("testing the boundaries of liquidated deposits", async () => {
@@ -516,6 +559,264 @@ contract("SavingsManager", async (accounts) => {
                 });
                 const s18 = await snapshotData();
                 assertBNClosePercent(s18.streamRate, liquidated3.div(ONE_WEEK), "0.001");
+            });
+        });
+
+        context("testing the collection and streaming of mAsset interest", async () => {
+            // Initial supply of 10m units
+            const initialSupply = new BN(10000000);
+            const liquidated1 = simpleToExactAmount(100, 18);
+            const liquidated2 = simpleToExactAmount(200, 18);
+            const platformInterest1 = simpleToExactAmount(10, 18);
+            const platformInterest2 = simpleToExactAmount(50, 18);
+            const platformInterest3 = simpleToExactAmount(20, 18);
+            const platformInterest4 = simpleToExactAmount(40, 18);
+            // check lastBatchCollected
+            beforeEach(async () => {
+                await createNewSavingsManager(initialSupply);
+            });
+            it("should fail if streams are frozen", async () => {
+                await savingsManager.freezeStreams({ from: sa.governor });
+                await expectRevert(
+                    savingsManager.collectAndStreamInterest(mUSD.address),
+                    "Streaming is currently frozen",
+                );
+            });
+            it("should fail if there is no valid savings contract", async () => {
+                await expectRevert(
+                    savingsManager.collectAndStreamInterest(sa.dummy1, {
+                        from: sa.dummy2,
+                    }),
+                    "Must have a valid savings contract",
+                );
+            });
+            it("should fail if called twice within 12 hours", async () => {
+                await mUSD.setAmountForPlatformInterest(new BN(10000));
+                await savingsManager.collectAndStreamInterest(mUSD.address);
+                await expectRevert(
+                    savingsManager.collectAndStreamInterest(mUSD.address, {
+                        from: sa.dummy2,
+                    }),
+                    "Cannot deposit twice in 12 hours",
+                );
+            });
+            it("should have no effect if there is no interest to collect", async () => {
+                const before = await snapshotData();
+                const tx = await savingsManager.collectAndStreamInterest(mUSD.address);
+                expectEvent(tx.receipt, "InterestCollected", {
+                    interest: new BN(0),
+                    apy: new BN(0),
+                });
+                const after = await snapshotData();
+                expect(before.streamRate).bignumber.eq(after.streamRate);
+                expect(before.streamEnd).bignumber.eq(after.streamEnd);
+                expect(before.lastPeriodStart).bignumber.eq(after.lastPeriodStart);
+                expect(before.lastCollection).bignumber.eq(after.lastCollection);
+            });
+            it("should fail if the APY is too high", async () => {
+                await mUSD.setAmountForPlatformInterest(new BN(10000));
+                await savingsManager.collectAndStreamInterest(mUSD.address);
+
+                await time.increase(ONE_DAY.divn(2).addn(1));
+                // max APY = 1500%
+                // initial liq = 10m
+                // 12h increase = ~~205k
+                await mUSD.setAmountForPlatformInterest(simpleToExactAmount(210000, 18));
+                await expectRevert(
+                    savingsManager.collectAndStreamInterest(mUSD.address, {
+                        from: sa.dummy2,
+                    }),
+                    "Interest protected from inflating past maxAPY",
+                );
+                await mUSD.setAmountForPlatformInterest(simpleToExactAmount(200000, 18));
+                const tx = await savingsManager.collectAndStreamInterest(mUSD.address);
+                expectEvent(tx.receipt, "InterestCollected", {
+                    interest: simpleToExactAmount(200000, 18),
+                });
+            });
+            it("should factor in new mUSD, initialise stream and emit an event", async () => {
+                const before = await snapshotData();
+                expect(before.lastBatchCollected).bignumber.eq(new BN(0));
+                expect(before.lastCollection).bignumber.eq(new BN(0));
+                expect(before.lastPeriodStart).bignumber.eq(new BN(0));
+                expect(before.periodYield).bignumber.eq(new BN(0));
+                expect(before.savingsContractBal).bignumber.eq(new BN(0));
+                expect(before.savingsManagerBal).bignumber.eq(new BN(0));
+                expect(before.streamRate).bignumber.eq(new BN(0));
+                expect(before.streamEnd).bignumber.eq(new BN(0));
+
+                const ts = await time.latest();
+                const collectionAmount = simpleToExactAmount(100, 18);
+                await mUSD.setAmountForPlatformInterest(collectionAmount);
+                const tx = await savingsManager.collectAndStreamInterest(mUSD.address);
+
+                const after = await snapshotData();
+                assertBNClose(after.lastBatchCollected, ts, 5);
+                expect(after.lastCollection).bignumber.eq(after.lastBatchCollected);
+                expect(after.lastPeriodStart).bignumber.eq(after.lastBatchCollected);
+                expect(after.periodYield).bignumber.eq(new BN(0));
+                expect(after.savingsContractBal).bignumber.eq(new BN(0));
+                expect(after.savingsManagerBal).bignumber.eq(collectionAmount);
+                assertBNClosePercent(after.streamRate, simpleToExactAmount("1.157", 15), "0.1");
+                expect(after.streamEnd).bignumber.eq(after.lastBatchCollected.add(ONE_DAY));
+                assertBNSlightlyGTPercent(
+                    collectionAmount,
+                    after.streamRate.mul(after.streamEnd.sub(after.lastCollection)),
+                    "0.1",
+                    true,
+                );
+
+                expectEvent(tx.receipt, "InterestCollected", {
+                    mAsset: mUSD.address,
+                    interest: collectionAmount,
+                    newTotalSupply: simpleToExactAmount(initialSupply, 18).add(collectionAmount),
+                });
+            });
+
+            it("should integrate with liquidator stream to allow collection and streaming of interest from mAsset", async () => {
+                //   0             1             2             3
+                //   | - - - - - - | - - - - - - | - - - - - - |
+                //   ^  ^     ^  ^^     ^ ^         ^ ^
+                //   0  1     5  |7    10 |        16 |
+                //              6.5      11          17
+                //  @time - Action
+                //  @0  - Liquidation is made
+                //  @1  - Stream interest is made - same end time
+                //  @5  - Yield collects days 1-5
+                //  @6.5- Stream interest is made - 24h extension
+                //  @7  - Liquidation is made
+                //  @10 - Yield collects days 7-10
+                //  @11 - Stream interest is made - same end time
+                //  @16 - Yield collects 11-14
+                //  @17 - Stream interest is made - 24h from now
+                // @0
+                const s = await snapshotData();
+                expect(s.streamRate).bignumber.eq(new BN(0));
+                expect(s.savingsManagerBal).bignumber.eq(new BN(0));
+                await mUSD.approve(savingsManager.address, liquidated1, { from: liquidator });
+                await savingsManager.depositLiquidation(mUSD.address, liquidated1, {
+                    from: liquidator,
+                });
+                const s0 = await snapshotData();
+                assertBNClosePercent(s0.streamRate, liquidated1.div(ONE_WEEK), "0.001");
+                await time.increase(ONE_DAY.muln(1));
+                // @1
+                await mUSD.setAmountForPlatformInterest(platformInterest1);
+                await savingsManager.collectAndStreamInterest(mUSD.address);
+                const s1 = await snapshotData();
+                assertBNClosePercent(
+                    s1.streamRate,
+                    liquidated1.add(platformInterest1).div(ONE_DAY.muln(6)),
+                    "0.001",
+                );
+                expect(s1.streamEnd).bignumber.eq(s0.streamEnd);
+                expect(s1.lastBatchCollected).bignumber.eq(s1.lastCollection);
+                await time.increase(ONE_DAY.muln(4));
+                // @5
+                let expectedInterest = ONE_DAY.muln(4).mul(s1.streamRate);
+                await mUSD.setAmountForCollectInterest(1);
+                await savingsManager.collectAndDistributeInterest(mUSD.address);
+                const s5 = await snapshotData();
+                assertBNClosePercent(
+                    s5.savingsManagerBal,
+                    s1.savingsManagerBal.sub(expectedInterest),
+                    "0.01",
+                );
+                assertBNClosePercent(
+                    s5.savingsContractBal,
+                    s1.savingsContractBal.add(expectedInterest),
+                    "0.01",
+                );
+                await time.increase(ONE_DAY.muln(3).divn(2));
+                // @6
+                let leftOverRewards = ONE_DAY.muln(2).mul(s1.streamRate);
+                let totalRewards = leftOverRewards.add(platformInterest2);
+                const ts6 = await time.latest();
+                await mUSD.setAmountForPlatformInterest(platformInterest2);
+                await savingsManager.collectAndStreamInterest(mUSD.address);
+
+                const s6 = await snapshotData();
+
+                assertBNClosePercent(s6.streamRate, totalRewards.div(ONE_DAY), "0.01");
+                assertBNClose(ts6, s6.lastBatchCollected, 5);
+                assertBNClose(ts6, s6.lastCollection, 5);
+                expect(s6.streamEnd).bignumber.eq(s6.lastCollection.add(ONE_DAY));
+                await time.increase(ONE_DAY.divn(2));
+                // @7
+                leftOverRewards = ONE_DAY.mul(s6.streamRate);
+                totalRewards = leftOverRewards.add(liquidated2);
+                const ts7 = await time.latest();
+                await mUSD.approve(savingsManager.address, liquidated2, { from: liquidator });
+                await savingsManager.depositLiquidation(mUSD.address, liquidated2, {
+                    from: liquidator,
+                });
+                const s7 = await snapshotData();
+                assertBNClosePercent(s7.streamRate, totalRewards.div(ONE_WEEK), "0.001");
+                expect(s6.lastBatchCollected).bignumber.eq(s7.lastBatchCollected);
+                assertBNClose(ts7, s7.lastCollection, 5);
+                expect(s7.streamEnd).bignumber.eq(s7.lastCollection.add(ONE_WEEK));
+
+                await time.increase(ONE_DAY.muln(3));
+                // @t10
+                expectedInterest = ONE_DAY.muln(3).mul(s7.streamRate);
+                await mUSD.setAmountForCollectInterest(1);
+                await savingsManager.collectAndDistributeInterest(mUSD.address);
+                const s10 = await snapshotData();
+                assertBNClosePercent(
+                    s10.savingsManagerBal,
+                    s7.savingsManagerBal.sub(expectedInterest),
+                    "0.01",
+                );
+                assertBNClosePercent(
+                    s10.savingsContractBal,
+                    s7.savingsContractBal.add(expectedInterest),
+                    "0.01",
+                );
+                await time.increase(ONE_DAY);
+                // @t11
+                await mUSD.setAmountForPlatformInterest(platformInterest3);
+                await savingsManager.collectAndStreamInterest(mUSD.address);
+                const s11 = await snapshotData();
+                expect(s11.streamEnd).bignumber.eq(s10.streamEnd);
+                expect(s11.lastBatchCollected).bignumber.eq(s11.lastCollection);
+                assertBNClosePercent(
+                    s11.streamRate,
+                    s10.streamRate
+                        .mul(ONE_DAY.muln(4))
+                        .add(platformInterest3)
+                        .div(ONE_DAY.muln(3)),
+                    "0.002",
+                );
+                await time.increase(ONE_DAY.muln(5));
+                // @16
+                expectedInterest = s11.streamRate.mul(ONE_DAY.muln(3));
+                await mUSD.setAmountForCollectInterest(1);
+                await savingsManager.collectAndDistributeInterest(mUSD.address);
+                const s16 = await snapshotData();
+                assertBNClosePercent(
+                    s16.savingsManagerBal,
+                    s11.savingsManagerBal.sub(expectedInterest),
+                    "0.01",
+                );
+                assertBNClosePercent(
+                    s16.savingsContractBal,
+                    s11.savingsContractBal.add(expectedInterest),
+                    "0.01",
+                );
+                // all mUSD should be drained now
+                expect(s16.savingsManagerBal).bignumber.lt(simpleToExactAmount(1, 16) as any);
+                await time.increase(ONE_DAY.muln(1));
+                // @17
+                const ts17 = await time.latest();
+                await mUSD.setAmountForPlatformInterest(platformInterest4);
+                await savingsManager.collectAndStreamInterest(mUSD.address);
+
+                const s17 = await snapshotData();
+
+                assertBNClosePercent(s17.streamRate, platformInterest4.div(ONE_DAY), "0.01");
+                assertBNClose(ts17, s17.lastBatchCollected, 5);
+                assertBNClose(ts17, s17.lastCollection, 5);
+                expect(s17.streamEnd).bignumber.eq(s17.lastCollection.add(ONE_DAY));
             });
         });
         context("testing new mechanism", async () => {
@@ -903,30 +1204,94 @@ contract("SavingsManager", async (accounts) => {
                 "Only governance can execute",
             );
         });
+        it("should fail without a valid recipient", async () => {
+            await expectRevert(
+                savingsManager.distributeUnallocatedInterest(mUSD.address, {
+                    from: sa.governor,
+                }),
+                "Must have valid recipient",
+            );
+        });
 
-        it("calls the distribute function on a valid recipient");
+        it("calls the distribute function on a valid recipient", async () => {
+            const balanceBefore = await mUSD.balanceOf(sa.other);
+            expect(ZERO).to.bignumber.equal(balanceBefore);
 
-        // it("should transfer left funds to recipient", async () => {
-        //     const balanceBefore = await mUSD.balanceOf(sa.other);
-        //     expect(ZERO).to.bignumber.equal(balanceBefore);
+            // Send some mUSD to SavingsManager
+            const amount = new BN(1000);
+            await mUSD.transfer(savingsManager.address, amount, { from: sa.default });
 
-        //     // Send some mUSD to SavingsManager
-        //     const amount = new BN(1000);
-        //     await mUSD.transfer(savingsManager.address, amount, { from: sa.default });
+            const recipient = await MockRevenueRecipient.new();
+            await savingsManager.addRevenueRecipient(mUSD.address, recipient.address, {
+                from: sa.governor,
+            });
+            const tx = await savingsManager.distributeUnallocatedInterest(mUSD.address, {
+                from: sa.governor,
+            });
 
-        //     await savingsManager
-        //     await savingsManager.distributeUnallocatedInterest(mUSD.address, {
-        //         from: sa.governor,
-        //     });
+            const balanceAfter = await mUSD.balanceOf(recipient.address);
+            expect(amount).to.bignumber.equal(balanceAfter);
 
-        //     const balanceAfter = await mUSD.balanceOf(sa.other);
-        //     expect(amount).to.bignumber.equal(balanceAfter);
-        // });
+            expectEvent(tx.receipt, "RevenueRedistributed", {
+                mAsset: mUSD.address,
+                recipient: recipient.address,
+                amount,
+            });
+        });
+
+        it("calculates the unallocated interest correctly and calls the recipient", async () => {
+            const recipient = await MockRevenueRecipient.new();
+            await savingsManager.addRevenueRecipient(mUSD.address, recipient.address, {
+                from: sa.governor,
+            });
+            const liquidationAmount = simpleToExactAmount(1000, 18);
+            const swapFeesAmount = simpleToExactAmount(50, 18);
+            // Set rate to 80%
+            await savingsManager.setSavingsRate(simpleToExactAmount(8, 17), { from: sa.governor });
+            // Create a liquidation
+            await mUSD.approve(savingsManager.address, liquidationAmount, { from: liquidator });
+            await savingsManager.depositLiquidation(mUSD.address, liquidationAmount, {
+                from: liquidator,
+            });
+            // Zoom forward 3 days
+            await time.increase(ONE_DAY.muln(3));
+            // Set interest for collection
+            await mUSD.setAmountForCollectInterest(swapFeesAmount);
+            // Deposit to SAVE
+            await savingsManager.collectAndDistributeInterest(mUSD.address);
+            // Redistribution should net (interest + 3/7 of liquidation) * 0.2
+            const expectedRedistribution = liquidationAmount
+                .muln(3)
+                .divn(7)
+                .add(swapFeesAmount)
+                .muln(2)
+                .divn(10);
+
+            await savingsManager.distributeUnallocatedInterest(mUSD.address, {
+                from: sa.governor,
+            });
+            const balance00 = await mUSD.balanceOf(recipient.address);
+            assertBNClosePercent(expectedRedistribution, balance00, "0.01");
+            // Zoom forward 1 days
+            await time.increase(ONE_DAY);
+            // Redistribution should net 0
+            await savingsManager.distributeUnallocatedInterest(mUSD.address, {
+                from: sa.governor,
+            });
+            const balance01 = await mUSD.balanceOf(recipient.address);
+            expect(balance01).bignumber.eq(balance00);
+        });
     });
 
     describe("extra tests:", async () => {
+        let recipient;
         beforeEach(async () => {
             await createNewSavingsManager();
+
+            recipient = await MockRevenueRecipient.new();
+            await savingsManager.addRevenueRecipient(mUSD.address, recipient.address, {
+                from: sa.governor,
+            });
         });
 
         it("should collect when 0% unallocated interest", async () => {
@@ -945,65 +1310,65 @@ contract("SavingsManager", async (accounts) => {
             expect(ZERO).to.bignumber.equal(savingsManagerBalance);
         });
 
-        it("should collect 10% unallocated interest when rate changed");
-        //     // Set savings rate to 90%
-        //     const NINTY_PERCENT = new BN(9).mul(new BN(10).pow(new BN(17))).add(new BN(1));
-        //     // 5 * 90% = 4.5 tokens
-        //     // const nintyPercentToken = new BN(45).mul(new BN(10).pow(new BN(16)));
-        //     const nintyPercentToken = FIVE_TOKENS.mul(NINTY_PERCENT).div(fullScale);
-        //     await savingsManager.setSavingsRate(NINTY_PERCENT, { from: sa.governor });
+        it("should collect 10% unallocated interest when rate changed", async () => {
+            // Set savings rate to 90%
+            const NINTY_PERCENT = new BN(9).mul(new BN(10).pow(new BN(17))).add(new BN(1));
+            // 5 * 90% = 4.5 tokens
+            // const nintyPercentToken = new BN(45).mul(new BN(10).pow(new BN(16)));
+            const nintyPercentToken = FIVE_TOKENS.mul(NINTY_PERCENT).div(fullScale);
+            await savingsManager.setSavingsRate(NINTY_PERCENT, { from: sa.governor });
 
-        //     await mUSD.setAmountForCollectInterest(FIVE_TOKENS);
+            await mUSD.setAmountForCollectInterest(FIVE_TOKENS);
 
-        //     let savingsManagerBalance = await mUSD.balanceOf(savingsManager.address);
-        //     expect(ZERO).to.bignumber.equal(savingsManagerBalance);
+            let savingsManagerBalance = await mUSD.balanceOf(savingsManager.address);
+            expect(ZERO).to.bignumber.equal(savingsManagerBalance);
 
-        //     await savingsManager.collectAndDistributeInterest(mUSD.address);
+            await savingsManager.collectAndDistributeInterest(mUSD.address);
 
-        //     const balanceAfter = await mUSD.balanceOf(savingsContract.address);
-        //     expect(nintyPercentToken).to.bignumber.equal(balanceAfter);
+            const balanceAfter = await mUSD.balanceOf(savingsContract.address);
+            expect(nintyPercentToken).to.bignumber.equal(balanceAfter);
 
-        //     // expect 10% balance left at SavingsManager
-        //     savingsManagerBalance = await mUSD.balanceOf(savingsManager.address);
-        //     const expectedTenPercentTokens = FIVE_TOKENS.sub(nintyPercentToken);
-        //     expect(expectedTenPercentTokens).to.bignumber.equal(savingsManagerBalance);
+            // expect 10% balance left at SavingsManager
+            savingsManagerBalance = await mUSD.balanceOf(savingsManager.address);
+            const expectedTenPercentTokens = FIVE_TOKENS.sub(nintyPercentToken);
+            expect(expectedTenPercentTokens).to.bignumber.equal(savingsManagerBalance);
 
-        //     await savingsManager.distributeUnallocatedInterest(mUSD.address, {
-        //         from: sa.governor,
-        //     });
+            await savingsManager.distributeUnallocatedInterest(mUSD.address, {
+                from: sa.governor,
+            });
 
-        //     const balanceOfGovernor = await mUSD.balanceOf(sa.governor);
-        //     expect(expectedTenPercentTokens).to.bignumber.equal(balanceOfGovernor);
-        // });
+            const balanceOfRecipient = await mUSD.balanceOf(recipient.address);
+            expect(expectedTenPercentTokens).to.bignumber.equal(balanceOfRecipient);
+        });
 
-        // it("should collect 5% unallocated interest when rate changed", async () => {
-        //     // Set savings rate to 95%
-        //     const NINTY_FIVE_PERCENT = new BN(95).mul(new BN(10).pow(new BN(16)));
-        //     // 5 * 95% = 4.75 tokens
-        //     const nintyFivePercentToken = FIVE_TOKENS.mul(NINTY_FIVE_PERCENT).div(fullScale);
-        //     await savingsManager.setSavingsRate(NINTY_FIVE_PERCENT, { from: sa.governor });
+        it("should collect 5% unallocated interest when rate changed", async () => {
+            // Set savings rate to 95%
+            const NINTY_FIVE_PERCENT = new BN(95).mul(new BN(10).pow(new BN(16)));
+            // 5 * 95% = 4.75 tokens
+            const nintyFivePercentToken = FIVE_TOKENS.mul(NINTY_FIVE_PERCENT).div(fullScale);
+            await savingsManager.setSavingsRate(NINTY_FIVE_PERCENT, { from: sa.governor });
 
-        //     await mUSD.setAmountForCollectInterest(FIVE_TOKENS);
+            await mUSD.setAmountForCollectInterest(FIVE_TOKENS);
 
-        //     let savingsManagerBalance = await mUSD.balanceOf(savingsManager.address);
-        //     expect(ZERO).to.bignumber.equal(savingsManagerBalance);
+            let savingsManagerBalance = await mUSD.balanceOf(savingsManager.address);
+            expect(ZERO).to.bignumber.equal(savingsManagerBalance);
 
-        //     await savingsManager.collectAndDistributeInterest(mUSD.address);
+            await savingsManager.collectAndDistributeInterest(mUSD.address);
 
-        //     const balanceAfter = await mUSD.balanceOf(savingsContract.address);
-        //     expect(nintyFivePercentToken).to.bignumber.equal(balanceAfter);
+            const balanceAfter = await mUSD.balanceOf(savingsContract.address);
+            expect(nintyFivePercentToken).to.bignumber.equal(balanceAfter);
 
-        //     // expect 5% balance left at SavingsManager
-        //     savingsManagerBalance = await mUSD.balanceOf(savingsManager.address);
-        //     const expectedFivePercentTokens = FIVE_TOKENS.sub(nintyFivePercentToken);
-        //     expect(expectedFivePercentTokens).to.bignumber.equal(savingsManagerBalance);
+            // expect 5% balance left at SavingsManager
+            savingsManagerBalance = await mUSD.balanceOf(savingsManager.address);
+            const expectedFivePercentTokens = FIVE_TOKENS.sub(nintyFivePercentToken);
+            expect(expectedFivePercentTokens).to.bignumber.equal(savingsManagerBalance);
 
-        //     await savingsManager.distributeUnallocatedInterest(mUSD.address, {
-        //         from: sa.governor,
-        //     });
+            await savingsManager.distributeUnallocatedInterest(mUSD.address, {
+                from: sa.governor,
+            });
 
-        //     const balanceOfGovernor = await mUSD.balanceOf(sa.governor);
-        //     expect(expectedFivePercentTokens).to.bignumber.equal(balanceOfGovernor);
-        // });
+            const balanceOfRecipient = await mUSD.balanceOf(recipient.address);
+            expect(expectedFivePercentTokens).to.bignumber.equal(balanceOfRecipient);
+        });
     });
 });

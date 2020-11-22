@@ -31,11 +31,7 @@ const c_AaveLendingPool = artifacts.require("IAaveLendingPoolV2");
 const c_ERC20 = artifacts.require("ERC20Detailed");
 const c_AaveAToken = artifacts.require("IAaveATokenV1");
 const c_DelayedProxyAdmin = artifacts.require("DelayedProxyAdmin");
-const c_InitializableProxy = artifacts.require(
-    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-    // @ts-ignore
-    "@openzeppelin/upgrades/InitializableAdminUpgradeabilityProxy",
-) as t.InitializableAdminUpgradeabilityProxyContract;
+const c_InitializableProxy = artifacts.require("InitializableAdminUpgradeabilityProxy");
 const c_AaveIntegration = artifacts.require("MockAaveIntegration");
 
 contract("AaveIntegration", async (accounts) => {

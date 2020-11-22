@@ -2,6 +2,7 @@ require("hardhat-gas-reporter");
 require("solidity-coverage");
 require("@nomiclabs/hardhat-truffle5");
 require("hardhat-typechain");
+require("@tenderly/hardhat-tenderly");
 
 require("ts-node/register");
 require("tsconfig-paths/register");
@@ -31,5 +32,9 @@ export default {
     typechain: {
         outDir: "types/generated",
         target: "truffle-v5",
+    },
+    tenderly: {
+        username: "mStable",
+        project: "mStable-contracts",
     },
 };

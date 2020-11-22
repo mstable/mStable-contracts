@@ -1,5 +1,8 @@
 pragma solidity 0.5.16;
 
+// TODO - remove
+import { console } from "hardhat/console.sol";
+
 // External
 import { IMasset } from "../interfaces/IMasset.sol";
 import { ISavingsContract } from "../interfaces/ISavingsContract.sol";
@@ -165,8 +168,8 @@ contract SavingsManager is ISavingsManager, PausableModule {
         external
         onlyGovernor
     {
-        // Greater than 90% upto 100%
-        require(_savingsRate > 9e17 && _savingsRate <= 1e18, "Must be a valid rate");
+        // Greater than 60% upto 100%
+        require(_savingsRate >= 6e17 && _savingsRate <= 1e18, "Must be a valid rate");
         savingsRate = _savingsRate;
         emit SavingsRateChanged(_savingsRate);
     }
@@ -202,28 +205,33 @@ contract SavingsManager is ISavingsManager, PausableModule {
         uint256 previousBatch = lastBatchCollected[_mAsset];
         uint256 timeSincePreviousBatch = currentTime.sub(previousBatch);
         require(timeSincePreviousBatch > 12 hours, "Cannot deposit twice in 12 hours");
-        lastBatchCollected[_mAsset] = now;
+        lastBatchCollected[_mAsset] = currentTime;
 
         // Batch collect
         IMasset mAsset = IMasset(_mAsset);
         (uint256 interestCollected, uint256 totalSupply) = mAsset.collectPlatformInterest();
 
-        // Validate APY
-        uint256 apy = _validateCollection(totalSupply, interestCollected, timeSincePreviousBatch);
+        console.log("\ncollectAndStreamInterest: interest %s vs totalSupply %s", interestCollected, totalSupply);
+        if(interestCollected > 0){
+            // Validate APY
+            uint256 apy = _validateCollection(totalSupply, interestCollected, timeSincePreviousBatch);
 
-        // Get remaining rewards
-        uint256 leftover = _allUnclaimedRewards(_mAsset);
+            // Get remaining rewards
+            uint256 leftover = _allUnclaimedRewards(_mAsset);
 
-        // Bundle this yield in with liquidator yield
-        // If (remainingTime < 24h)
-        //       take all remaining, add this, stream over next 24h
-        // else stream over remainingTime
-        uint256 end = streamEnd[_mAsset];
-        uint256 remaining = end > currentTime ? end.sub(currentTime) : 0;
-        uint256 newDuration = remaining < ONE_DAY ? ONE_DAY : remaining;
-        _initialiseStream(_mAsset, interestCollected.add(leftover), newDuration);
+            // Bundle this yield in with liquidator yield
+            // If (remainingTime < 24h)
+            //       take all remaining, add this, stream over next 24h
+            // else stream over remainingTime
+            uint256 end = streamEnd[_mAsset];
+            uint256 remaining = end > currentTime ? end.sub(currentTime) : 0;
+            uint256 newDuration = remaining < ONE_DAY ? ONE_DAY : remaining;
+            _initialiseStream(_mAsset, interestCollected.add(leftover), newDuration);
 
-        emit InterestCollected(_mAsset, interestCollected, totalSupply, apy);
+            emit InterestCollected(_mAsset, interestCollected, totalSupply, apy);
+        }
+
+        emit InterestCollected(_mAsset, interestCollected, totalSupply, 0);
     }
 
     function _allUnclaimedRewards(address _mAsset) internal view returns (uint256 leftover) {

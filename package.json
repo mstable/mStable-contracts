@@ -74,6 +74,7 @@
   },
   "dependencies": {
     "@nomiclabs/hardhat-truffle5": "^2.0.0",
+    "@tenderly/hardhat-tenderly": "^1.0.3",
     "hardhat": "^2.0.3",
     "hardhat-gas-reporter": "^1.0.1",
     "hardhat-typechain": "^0.3.3",
