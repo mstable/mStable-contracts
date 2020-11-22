@@ -266,7 +266,11 @@ contract Masset is
         return mAssetQuantity;
     }
 
-    /** @dev Deposits tokens into the platform integration and returns the ratioed amount */
+    /**
+     * @dev Deposits a given asset to the system. If there is sufficient room for the asset
+     * in the cache, then just transfer, otherwise reset the cache to the desired mid level by
+     * depositing the delta in the platform
+     */
     function _depositTokens(
         address _bAsset,
         uint256 _bAssetRatio,
@@ -279,7 +283,7 @@ contract Masset is
         returns (uint256 quantityDeposited, uint256 ratioedDeposit)
     {
         console.log("depositTokens: start");
-        // 1 - Send all to PI
+        // 1 - Send all to PI, using the opportunity to get the cache balance and net amount transferred
         (uint256 transferred, uint256 cacheBal) = MassetHelpers.transferReturnBalance(msg.sender, _integrator, _bAsset, _quantity);
 
         // 2 - Deposit X if necessary
@@ -291,7 +295,7 @@ contract Masset is
             uint256 deposited = IPlatformIntegration(_integrator).deposit(_bAsset, transferred, true);
             quantityDeposited = StableMath.min(deposited, _quantity);
         }
-        // 2.2 - Deposit X if Cache > %
+        // 2.2 - Else Deposit X if Cache > %
         else {
             // This check is in place to ensure that any token with a txFee is rejected
             // Audit notes: Assumption made that if no fee is collected here then there is no txfee
@@ -677,7 +681,8 @@ contract Masset is
     }
 
     /**
-     * @dev Internal func to update contract state post-redemption
+     * @dev Internal func to update contract state post-redemption,
+     * burning sufficient mAsset before withdrawing all tokens
      */
     function _settleRedemption(
         RedemptionSettlement memory args
@@ -727,6 +732,13 @@ contract Masset is
         uint256 vaultBalance;
     }
 
+    /**
+     * @dev Withdraws a given asset from its platformIntegration. If there is sufficient liquidity
+     * in the cache, then withdraw from there, otherwise withdraw from the lending market and reset the
+     * cache to the mid level.
+     * @param args     All args needed for a full withdrawal
+     * @return amount  Struct containing the desired output, output-fee, and the scaled fee
+     */
     function _withdrawTokens(WithdrawArgs memory args) internal returns (Amount memory amount) {
         console.log("_withdrawTokens: q = args.quantity");
         if(args.quantity > 0){
@@ -780,8 +792,12 @@ contract Masset is
     }
 
     /**
-     * @dev Pay the forging fee by burning relative amount of mAsset
-     * @param _bAssetQuantity     Exact amount of bAsset being swapped out
+     * @dev Calculates the output amount from a given bAsset quantity and fee, and returns in a helpful struct
+     * @param _asset            Asset upon which the fee is being deducted
+     * @param _bAssetQuantity   Exact amount of the bAsset
+     * @param _feeRate          Percentage fee rate
+     * @param _ratio            bAsset ratio, to calculate the scaled fee
+     * @return struct containing input, input-fee, and a scaled fee
      */
     function _deductSwapFee(address _asset, uint256 _bAssetQuantity, uint256 _feeRate, uint256 _ratio)
         private
@@ -798,8 +814,11 @@ contract Masset is
     }
 
     /**
-     * @dev Pay the forging fee by burning relative amount of mAsset
-     * @param _bAssetQuantity     Exact amount of bAsset being swapped out
+     * @dev Calculates the output amount from a given bAsset quantity and fee
+     * @param _bAssetQuantity   Exact amount of bAsset being swapped out
+     * @param _feeRate          Percentage rate of fee
+     * @return feeAmount        Fee in output asset units
+     * @return outputMinusFee   Input minus fee
      */
     function _calcSwapFee(uint256 _bAssetQuantity, uint256 _feeRate)
         private
@@ -813,12 +832,21 @@ contract Masset is
         outputMinusFee = _bAssetQuantity.sub(feeAmount);
     }
 
+    /**
+     * vaultBalanceSum = totalSupply + 'surplus'
+     * maxCache = vaultBalanceSum * (cacheSize / 1e18)
+     * surplus is simply surplus, to reduce SLOADs
+     */
     struct Cache {
         uint256 vaultBalanceSum;
         uint256 maxCache;
         uint256 surplus;
     }
 
+    /**
+     * @dev Gets the supply and cache details for the mAsset, taking into account the surplus
+     * @return Cache containing (tracked) sum of vault balances, ideal cache size and surplus
+     */
     function _getCacheDetails() internal view returns (Cache memory) {
         uint256 _surplus = surplus;
         uint256 sum = totalSupply().add(_surplus);

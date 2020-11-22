@@ -18,26 +18,6 @@ library MassetHelpers {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    function transferTokens(
-        address _sender,
-        address _recipient,
-        address _basset,
-        bool _hasTxFee,
-        uint256 _qty
-    )
-        internal
-        returns (uint256 receivedQty)
-    {
-        receivedQty = _qty;
-        if(_hasTxFee) {
-            uint256 balBefore = IERC20(_basset).balanceOf(_recipient);
-            IERC20(_basset).safeTransferFrom(_sender, _recipient, _qty);
-            uint256 balAfter = IERC20(_basset).balanceOf(_recipient);
-            receivedQty = StableMath.min(_qty, balAfter.sub(balBefore));
-        } else {
-            IERC20(_basset).safeTransferFrom(_sender, _recipient, _qty);
-        }
-    }
 
     function transferReturnBalance(
         address _sender,

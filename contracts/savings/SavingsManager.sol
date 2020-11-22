@@ -1,8 +1,5 @@
 pragma solidity 0.5.16;
 
-// TODO - remove
-import { console } from "hardhat/console.sol";
-
 // External
 import { IMasset } from "../interfaces/IMasset.sol";
 import { ISavingsContract } from "../interfaces/ISavingsContract.sol";
@@ -62,12 +59,12 @@ contract SavingsManager is ISavingsManager, PausableModule {
     uint256 private constant DURATION = 7 days;
     uint256 private constant ONE_DAY = 1 days;
     uint256 constant private THIRTY_MINUTES = 30 minutes;
-    // Timestamp for current period finish
+    // Tracking streams
     mapping(address => uint256) public streamEnd;
     mapping(address => uint256) public streamRate;
-    // 1.3 Tracking interest deposits
-    mapping(address => uint256) public lastBatchCollected;
     bool private streamsFrozen = false;
+    // Batches are for the platformInterest collection
+    mapping(address => uint256) public lastBatchCollected;
 
     constructor(
         address _nexus,
@@ -194,6 +191,11 @@ contract SavingsManager is ISavingsManager, PausableModule {
         emit LiquidatorDeposited(_mAsset, _liquidated);
     }
 
+    /**
+     * @dev Collects the platform interest from a given mAsset and then adds capital to the
+     * stream. If there is > 24h left in current stream, just top it up, otherwise reset.
+     * @param _mAsset The mAsset to fetch interest
+     */
     function collectAndStreamInterest(address _mAsset)
         external
         whenStreamsNotFrozen
@@ -211,7 +213,6 @@ contract SavingsManager is ISavingsManager, PausableModule {
         IMasset mAsset = IMasset(_mAsset);
         (uint256 interestCollected, uint256 totalSupply) = mAsset.collectPlatformInterest();
 
-        console.log("\ncollectAndStreamInterest: interest %s vs totalSupply %s", interestCollected, totalSupply);
         if(interestCollected > 0){
             // Validate APY
             uint256 apy = _validateCollection(totalSupply, interestCollected, timeSincePreviousBatch);
@@ -234,6 +235,12 @@ contract SavingsManager is ISavingsManager, PausableModule {
         emit InterestCollected(_mAsset, interestCollected, totalSupply, 0);
     }
 
+    /**
+     * @dev Calculates how many rewards from the stream are still to be distributed, from the
+     * last collection time to the end of the stream.
+     * @param _mAsset The mAsset in question
+     * @return leftover The total amount of mAsset that is yet to be collected from a stream
+     */
     function _allUnclaimedRewards(address _mAsset) internal view returns (uint256 leftover) {
         uint256 currentTime = now;
 
@@ -246,6 +253,12 @@ contract SavingsManager is ISavingsManager, PausableModule {
         return unclaimedSeconds.mul(streamRate[_mAsset]);
     }
 
+    /**
+     * @dev Simply sets up the stream
+     * @param _mAsset The mAsset in question
+     * @param _amount Amount of units to stream
+     * @param _duration Duration of the stream, from now
+     */
     function _initialiseStream(address _mAsset, uint256 _amount, uint256 _duration) internal {
         uint256 currentTime = now;
         // Distribute reward per second over X seconds
@@ -406,9 +419,9 @@ contract SavingsManager is ISavingsManager, PausableModule {
     ****************************************/
 
     /**
-     * @dev Redistributes any unallocated interest, i.e. that which has been saved for use
-     *      elsewhere in the system, based on the savingsRate
-     * @param _mAsset       mAsset to collect from
+     * @dev Redistributes the unallocated interest to the saved recipient, allowing
+     * the siphoned assets to be used elsewhere in the system
+     * @param _mAsset  mAsset to collect
      */
     function distributeUnallocatedInterest(address _mAsset)
         external

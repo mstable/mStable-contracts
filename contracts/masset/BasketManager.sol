@@ -242,7 +242,7 @@ contract BasketManager is
             Basset memory b = allBassets[i];
             address bAsset = b.addr;
 
-            // call each integration to `checkBalance`
+            // call each integration to `checkBalance` and sum with the cache balance
             address integration = integrations[i];
             uint256 lending = IPlatformIntegration(integration).checkBalance(bAsset);
             uint256 cache = IERC20(bAsset).balanceOf(integration);
@@ -676,6 +676,10 @@ contract BasketManager is
         });
     }
 
+    /**
+     * @dev Fetch the array of bAssets for redemption, and pass back all basket info.
+     * @param _bAssets   Array of bAsset addresses to redeem
+     */
     function prepareRedeemBassets(
         address[] calldata _bAssets
     )

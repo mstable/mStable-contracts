@@ -159,12 +159,6 @@ contract("Masset - RedeemMasset", async (accounts) => {
             bAssets.map((b) => b.balanceOf(recipient)),
         );
         recipientBassetBalsAfter.map((b, i) => {
-            console.log(
-                b.toString(),
-                recipientBassetBalsBefore[i].toString(),
-                expectedBassetsExact[i].toString(),
-                fees[i].toString(),
-            );
             return expect(b).bignumber.eq(
                 // Subtract the fee from the returned amount
                 recipientBassetBalsBefore[i].add(expectedBassetsExact[i]).sub(fees[i]),

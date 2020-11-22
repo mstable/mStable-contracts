@@ -198,7 +198,6 @@ contract("Masset - Redeem", async (accounts) => {
         ignoreHealthAssertions = false,
     ): Promise<void> => {
         const { mAsset, basketManager } = md;
-        console.log("i");
         if (!ignoreHealthAssertions) await assertBasketIsHealthy(massetMachine, md);
 
         // Get balances before
@@ -285,7 +284,6 @@ contract("Masset - Redeem", async (accounts) => {
             ),
         );
 
-        console.log("ii");
         // Complete basket should remain in healthy state
         if (!ignoreHealthAssertions) await assertBasketIsHealthy(massetMachine, md);
     };

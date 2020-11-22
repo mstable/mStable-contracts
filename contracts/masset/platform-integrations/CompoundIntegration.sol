@@ -85,8 +85,7 @@ contract CompoundIntegration is InitializableAbstractIntegration {
 
 
     /**
-     * @dev Withdraw a quantity of bAsset from Compound. Redemption
-     *      should fail if we have insufficient cToken balance.
+     * @dev Withdraw a quantity of bAsset from Compound
      * @param _receiver     Address to which the withdrawn bAsset should be sent
      * @param _bAsset       Address of the bAsset
      * @param _amount       Units of bAsset to withdraw
@@ -106,8 +105,7 @@ contract CompoundIntegration is InitializableAbstractIntegration {
     }
 
     /**
-     * @dev Withdraw a quantity of bAsset from Compound. Redemption
-     *      should fail if we have insufficient cToken balance.
+     * @dev Withdraw a quantity of bAsset from Compound
      * @param _receiver     Address to which the withdrawn bAsset should be sent
      * @param _bAsset       Address of the bAsset
      * @param _amount       Units of bAsset to withdraw
@@ -187,9 +185,11 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         onlyWhitelisted
         nonReentrant
     {
+        // @TODO - add protections to ensure bAsset is logged to aToken?
+        // Unecessary only Masset/BM have write access
+
         require(_amount > 0, "Must withdraw something");
 
-        // Send redeemed bAsset to the receiver
         IERC20(_bAsset).safeTransfer(_receiver, _amount);
 
         emit Withdrawal(_bAsset, address(0), _amount);

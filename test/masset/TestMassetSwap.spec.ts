@@ -256,18 +256,8 @@ contract("Masset - Swap", async (accounts) => {
         const outputIntegratorBalAfter = isMint
             ? new BN(0)
             : await outputBassetBefore.contract.balanceOf(outputBassetBefore.integrator.address);
-        console.log(
-            "a",
-            inputIntegratorBalAfter.toString(),
-            platformInteraction_in.rawBalance.toString(),
-        );
         if (!isMint) {
             expect(inputIntegratorBalAfter).bignumber.eq(platformInteraction_in.rawBalance);
-            console.log(
-                "b",
-                outputIntegratorBalAfter.toString(),
-                platformInteraction_out.rawBalance.toString(),
-            );
             expect(outputIntegratorBalAfter).bignumber.eq(platformInteraction_out.rawBalance);
         }
 

@@ -123,7 +123,6 @@ export const assertBasketIsHealthy = async (
     assertBnGte(composition.sumOfBassets, composition.totalSupply.add(composition.surplus));
     // No basket weight should be above max
     composition.bAssets.forEach((b, i) => {
-        console.log(`i${i}`);
         expect(b.overweight).to.eq(false);
     });
     // Actual tokens held should always gte vaultBalance

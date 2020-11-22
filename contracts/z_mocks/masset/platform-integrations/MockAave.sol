@@ -4,6 +4,7 @@ import { IAaveATokenV1, IAaveLendingPoolV1, IAaveLendingPoolV2, ILendingPoolAddr
 import { AaveIntegration } from "../../../masset/platform-integrations/AaveIntegration.sol";
 
 import { MassetHelpers, SafeERC20, SafeMath } from "../../../masset/shared/MassetHelpers.sol";
+import { StableMath } from "../../../shared/StableMath.sol";
 import { IERC20, ERC20, ERC20Mintable } from "@openzeppelin/contracts/token/ERC20/ERC20Mintable.sol";
 
 
@@ -38,6 +39,7 @@ contract MockAToken is ERC20Mintable {
 contract MockAaveV2 is IAaveLendingPoolV2, ILendingPoolAddressesProviderV2 {
 
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
 
     mapping(address => address) reserveToAToken;
     address pool = address(this);
@@ -54,7 +56,7 @@ contract MockAaveV2 is IAaveLendingPoolV2, ILendingPoolAddressesProviderV2 {
         uint256 interest = previousBal.mul(factor).div(1e18);
         ERC20Mintable(reserveToAToken[_reserve]).mint(msg.sender, interest);
         // Take their reserve
-        MassetHelpers.transferTokens(msg.sender, address(this), _reserve, true, _amount);
+        transferTokens(msg.sender, address(this), _reserve, true, _amount);
         // Credit them with aToken
         ERC20Mintable(reserveToAToken[_reserve]).mint(msg.sender, _amount);
     }
@@ -75,11 +77,36 @@ contract MockAaveV2 is IAaveLendingPoolV2, ILendingPoolAddressesProviderV2 {
         pool = address(0);
         core = address(uint160(address(0)));
     }
+
+
+    function transferTokens(
+        address _sender,
+        address _recipient,
+        address _basset,
+        bool _hasTxFee,
+        uint256 _qty
+    )
+        internal
+        returns (uint256 receivedQty)
+    {
+        receivedQty = _qty;
+        if(_hasTxFee) {
+            uint256 balBefore = IERC20(_basset).balanceOf(_recipient);
+            IERC20(_basset).safeTransferFrom(_sender, _recipient, _qty);
+            uint256 balAfter = IERC20(_basset).balanceOf(_recipient);
+            receivedQty = StableMath.min(_qty, balAfter.sub(balBefore));
+        } else {
+            IERC20(_basset).safeTransferFrom(_sender, _recipient, _qty);
+        }
+    }
 }
+
+
 
 contract MockAaveV1 is IAaveLendingPoolV1, ILendingPoolAddressesProviderV1 {
 
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
 
     mapping(address => address) reserveToAToken;
     address pool = address(this);
@@ -96,9 +123,31 @@ contract MockAaveV1 is IAaveLendingPoolV1, ILendingPoolAddressesProviderV1 {
         uint256 interest = previousBal.mul(factor).div(1e18);
         ERC20Mintable(reserveToAToken[_reserve]).mint(msg.sender, interest);
         // Take their reserve
-        MassetHelpers.transferTokens(msg.sender, address(this), _reserve, true, _amount);
+        transferTokens(msg.sender, address(this), _reserve, true, _amount);
         // Credit them with aToken
         ERC20Mintable(reserveToAToken[_reserve]).mint(msg.sender, _amount);
+    }
+
+
+    function transferTokens(
+        address _sender,
+        address _recipient,
+        address _basset,
+        bool _hasTxFee,
+        uint256 _qty
+    )
+        internal
+        returns (uint256 receivedQty)
+    {
+        receivedQty = _qty;
+        if(_hasTxFee) {
+            uint256 balBefore = IERC20(_basset).balanceOf(_recipient);
+            IERC20(_basset).safeTransferFrom(_sender, _recipient, _qty);
+            uint256 balAfter = IERC20(_basset).balanceOf(_recipient);
+            receivedQty = StableMath.min(_qty, balAfter.sub(balBefore));
+        } else {
+            IERC20(_basset).safeTransferFrom(_sender, _recipient, _qty);
+        }
     }
 
     function getLendingPool() external view returns (address) {

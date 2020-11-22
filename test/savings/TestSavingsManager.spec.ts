@@ -683,7 +683,7 @@ contract("SavingsManager", async (accounts) => {
                 //  @0  - Liquidation is made
                 //  @1  - Stream interest is made - same end time
                 //  @5  - Yield collects days 1-5
-                //  @6.5- Stream interest is made - 24h extension
+                //  @6.5- Stream interest is made - 24h from now
                 //  @7  - Liquidation is made
                 //  @10 - Yield collects days 7-10
                 //  @11 - Stream interest is made - same end time

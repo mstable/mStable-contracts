@@ -59,8 +59,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
     }
 
     /**
-     * @dev Withdraw a quantity of bAsset from the platform. Redemption
-     *      should fail if we have insufficient balance on the platform.
+     * @dev Withdraw a quantity of bAsset from the platform
      * @param _receiver     Address to which the bAsset should be sent
      * @param _bAsset       Address of the bAsset
      * @param _amount       Units of bAsset to send to recipient
@@ -80,8 +79,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
     }
 
     /**
-     * @dev Withdraw a quantity of bAsset from the platform. Redemption
-     *      should fail if we have insufficient balance on the platform.
+     * @dev Withdraw a quantity of bAsset from the platform
      * @param _receiver     Address to which the bAsset should be sent
      * @param _bAsset       Address of the bAsset
      * @param _amount       Units of bAsset to send to recipient
@@ -151,6 +149,8 @@ contract AaveIntegration is InitializableAbstractIntegration {
         nonReentrant
     {
         // @TODO - add protections to ensure bAsset is logged to aToken?
+        // Unecessary only Masset/BM have write access
+
         require(_amount > 0, "Must withdraw something");
 
         // Send redeemed bAsset to the receiver
