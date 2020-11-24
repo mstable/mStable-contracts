@@ -3,7 +3,12 @@
 
 import { expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
 import { BN } from "@utils/tools";
-import { assertBNClose, assertBNSlightlyGT, assertBNSlightlyGTPercent } from "@utils/assertions";
+import {
+    assertBNClose,
+    assertBNClosePercent,
+    assertBNSlightlyGT,
+    assertBNSlightlyGTPercent,
+} from "@utils/assertions";
 import { StandardAccounts, SystemMachine, MassetMachine } from "@utils/machines";
 import {
     MainnetAccounts,
@@ -19,6 +24,7 @@ import envSetup from "@utils/env_setup";
 import * as t from "types/generated";
 import { BassetIntegrationDetails } from "../../../types";
 import shouldBehaveLikeModule from "../../shared/behaviours/Module.behaviour";
+import { createFalse } from "typescript";
 
 const { expect } = envSetup.configure();
 
@@ -812,6 +818,143 @@ contract("AaveIntegration", async (accounts) => {
                     false,
                 ),
                 "aToken does not exist",
+            );
+        });
+    });
+
+    describe("withdraw specific amount", async () => {
+        describe("and the token does not have transfer fee", async () => {
+            beforeEach("init mocks", async () => {
+                await runSetup(false, true);
+            });
+            it("should allow withdrawal of X and give Y to the caller", async () => {
+                // Step 0. Choose tokens
+                const bAsset = await c_ERC20.at(integrationDetails.aTokens[0].bAsset);
+                const bAsset_decimals = await bAsset.decimals();
+                const amount = simpleToExactAmount(5, bAsset_decimals);
+                const totalAmount = amount.muln(2);
+                const aToken = await c_AaveAToken.at(integrationDetails.aTokens[0].aToken);
+                // 0.1 Get balance before
+                const bAssetRecipient = sa.dummy1;
+                const bAssetRecipient_balBefore = await bAsset.balanceOf(bAssetRecipient);
+                const aaveIntegration_balBefore = await bAsset.balanceOf(d_AaveIntegration.address);
+                const aaveBalanceBefore = await d_AaveIntegration.checkBalance.call(bAsset.address);
+
+                // fail if called by non Bm or mAsset
+                await expectRevert(
+                    d_AaveIntegration.methods["withdraw(address,address,uint256,uint256,bool)"](
+                        bAssetRecipient,
+                        bAsset.address,
+                        amount,
+                        totalAmount,
+                        false,
+                        {
+                            from: sa.dummy1,
+                        },
+                    ),
+                    "Not a whitelisted address",
+                );
+                // send the amount
+                const tx = await d_AaveIntegration.methods[
+                    "withdraw(address,address,uint256,uint256,bool)"
+                ](bAssetRecipient, bAsset.address, amount, totalAmount, false);
+                const bAssetRecipient_balAfter = await bAsset.balanceOf(bAssetRecipient);
+                const aaveIntegration_balAfter = await bAsset.balanceOf(d_AaveIntegration.address);
+                const aaveBalanceAfter = await d_AaveIntegration.checkBalance.call(bAsset.address);
+                expect(bAssetRecipient_balAfter).bignumber.eq(
+                    bAssetRecipient_balBefore.add(amount),
+                );
+                expect(aaveIntegration_balAfter).bignumber.eq(
+                    aaveIntegration_balBefore.add(totalAmount.sub(amount)),
+                );
+                expect(aaveBalanceAfter).bignumber.eq(aaveBalanceBefore.sub(totalAmount));
+                // emit the event
+                expectEvent(tx.receipt, "PlatformWithdrawal", {
+                    bAsset: bAsset.address,
+                    pToken: aToken.address,
+                    totalAmount: totalAmount,
+                    userAmount: amount,
+                });
+            });
+        });
+        describe("and the token has transfer fees", async () => {
+            beforeEach("init mocks", async () => {
+                await runSetup(true, true);
+            });
+            it("should fail if totalAmount != userAmount", async () => {
+                const bAsset = await c_ERC20.at(integrationDetails.aTokens[1].bAsset);
+                const bAsset_decimals = await bAsset.decimals();
+                const amount = simpleToExactAmount(5, bAsset_decimals);
+                const totalAmount = amount.muln(2);
+                await expectRevert(
+                    d_AaveIntegration.methods["withdraw(address,address,uint256,uint256,bool)"](
+                        sa.dummy1,
+                        bAsset.address,
+                        amount,
+                        totalAmount,
+                        true,
+                    ),
+                    "Cache inactive for assets with fee",
+                );
+            });
+        });
+    });
+
+    describe("withdrawRaw", async () => {
+        beforeEach("init mocks", async () => {
+            await runSetup(false, true);
+        });
+        it("should fail if caller is not whitelisetd", async () => {
+            const bAsset = await c_ERC20.at(integrationDetails.aTokens[0].bAsset);
+            await expectRevert(
+                d_AaveIntegration.withdrawRaw(sa.dummy3, bAsset.address, new BN(1), {
+                    from: sa.dummy1,
+                }),
+                "Not a whitelisted address",
+            );
+        });
+        it("should allow the mAsset or BM to withdraw a given bAsset", async () => {
+            const bAsset = await c_ERC20.at(integrationDetails.aTokens[0].bAsset);
+            const bAsset_decimals = await bAsset.decimals();
+            const amount = simpleToExactAmount(5, bAsset_decimals);
+
+            await bAsset.transfer(d_AaveIntegration.address, amount);
+
+            const bAssetRecipient = sa.dummy1;
+            const bAssetRecipient_balBefore = await bAsset.balanceOf(bAssetRecipient);
+            const aaveIntegration_balBefore = await bAsset.balanceOf(d_AaveIntegration.address);
+            const aaveBalanceBefore = await d_AaveIntegration.checkBalance.call(bAsset.address);
+
+            const tx = await d_AaveIntegration.withdrawRaw(bAssetRecipient, bAsset.address, amount);
+
+            const bAssetRecipient_balAfter = await bAsset.balanceOf(bAssetRecipient);
+            const aaveIntegration_balAfter = await bAsset.balanceOf(d_AaveIntegration.address);
+            const aaveBalanceAfter = await d_AaveIntegration.checkBalance.call(bAsset.address);
+
+            // Balances remain the same
+            expect(bAssetRecipient_balAfter).bignumber.eq(bAssetRecipient_balBefore.add(amount));
+            expect(aaveIntegration_balAfter).bignumber.eq(aaveIntegration_balBefore.sub(amount));
+            expect(aaveBalanceAfter).bignumber.eq(aaveBalanceBefore);
+
+            // Emits expected event
+            expectEvent(tx.receipt, "Withdrawal", {
+                _bAsset: bAsset.address,
+                _pToken: ZERO_ADDRESS,
+                _amount: amount,
+            });
+        });
+        it("should fail if there is no balance in a given asset", async () => {
+            const bAsset = await c_ERC20.at(integrationDetails.aTokens[0].bAsset);
+            await expectRevert(
+                d_AaveIntegration.withdrawRaw(sa.dummy3, bAsset.address, new BN(1)),
+                "SafeERC20: low-level call failed",
+            );
+        });
+        it("should fail if specified a 0 amount", async () => {
+            const bAsset = await c_ERC20.at(integrationDetails.aTokens[0].bAsset);
+            await expectRevert(
+                d_AaveIntegration.withdrawRaw(sa.dummy3, bAsset.address, new BN(0)),
+                "Must withdraw something",
             );
         });
     });
