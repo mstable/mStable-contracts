@@ -14,7 +14,7 @@ import * as t from "types/generated";
 const { expect } = envSetup.configure();
 
 const MockERC20 = artifacts.require("MockERC20");
-const MockAToken = artifacts.require("MockAToken");
+const MockAToken = artifacts.require("MockATokenV2");
 const MockAave = artifacts.require("MockAaveV2");
 
 contract("Masset - RedeemMasset", async (accounts) => {
@@ -273,9 +273,7 @@ contract("Masset - RedeemMasset", async (accounts) => {
                     );
                     const expectedBassetsExact = await Promise.all(
                         basketComp.bAssets.map((b) =>
-                            simpleToExactAmount(10, 18)
-                                .mul(ratioScale)
-                                .div(new BN(b.ratio)),
+                            simpleToExactAmount(10, 18).mul(ratioScale).div(new BN(b.ratio)),
                         ),
                     );
                     const bAssetFees = expectedBassetsExact.map((b, i) =>

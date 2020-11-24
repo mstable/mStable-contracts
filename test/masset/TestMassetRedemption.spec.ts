@@ -15,7 +15,7 @@ const { expect } = envSetup.configure();
 
 const MockBasketManager1 = artifacts.require("MockBasketManager1");
 const MockERC20 = artifacts.require("MockERC20");
-const MockAToken = artifacts.require("MockAToken");
+const MockAToken = artifacts.require("MockATokenV2");
 const MockAave = artifacts.require("MockAaveV2");
 const AaveIntegration = artifacts.require("AaveIntegration");
 
