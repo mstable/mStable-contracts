@@ -3,7 +3,12 @@
 
 import { expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
 import { BN } from "@utils/tools";
-import { assertBNClose, assertBNSlightlyGT, assertBNSlightlyGTPercent } from "@utils/assertions";
+import {
+    assertBNClose,
+    assertBNClosePercent,
+    assertBNSlightlyGT,
+    assertBNSlightlyGTPercent,
+} from "@utils/assertions";
 import { StandardAccounts, SystemMachine, MassetMachine } from "@utils/machines";
 import {
     MainnetAccounts,
@@ -23,16 +28,17 @@ import shouldBehaveLikeModule from "../../shared/behaviours/Module.behaviour";
 const { expect } = envSetup.configure();
 
 const c_MockERC20 = artifacts.require("MockERC20");
-const c_MockAaveAToken = artifacts.require("MockAToken");
-const c_MockAave = artifacts.require("MockAaveV1");
 const c_Nexus = artifacts.require("Nexus");
-const c_AaveLendingPoolAddressProvider = artifacts.require("ILendingPoolAddressesProviderV1");
-const c_AaveLendingPool = artifacts.require("IAaveLendingPoolV1");
 const c_ERC20 = artifacts.require("ERC20Detailed");
-const c_AaveAToken = artifacts.require("IAaveATokenV1");
 const c_DelayedProxyAdmin = artifacts.require("DelayedProxyAdmin");
 const c_InitializableProxy = artifacts.require("InitializableAdminUpgradeabilityProxy");
+
 const c_AaveIntegration = artifacts.require("MockAaveIntegration");
+const c_MockAaveAToken = artifacts.require("MockATokenV2");
+const c_MockAave = artifacts.require("MockAaveV2");
+const c_AaveLendingPoolAddressProvider = artifacts.require("ILendingPoolAddressesProviderV2");
+const c_AaveLendingPool = artifacts.require("IAaveLendingPoolV2");
+const c_AaveAToken = artifacts.require("IAaveATokenV2");
 
 contract("AaveIntegration", async (accounts) => {
     const sa = new StandardAccounts(accounts);
@@ -200,7 +206,7 @@ contract("AaveIntegration", async (accounts) => {
             const addressProvider = await c_AaveLendingPoolAddressProvider.at(
                 integrationDetails.aavePlatformAddress,
             );
-            const approvedAddress = await addressProvider.getLendingPoolCore();
+            const approvedAddress = await addressProvider.getLendingPool();
             const balance = await bAsset.allowance(d_AaveIntegration.address, approvedAddress);
             expect(balance).bignumber.eq(MAX_UINT256 as any);
         });
@@ -290,7 +296,7 @@ contract("AaveIntegration", async (accounts) => {
 
     describe("setting P Token Address", async () => {
         let erc20Mock: t.MockERC20Instance;
-        let aTokenMock: t.MockATokenInstance;
+        let aTokenMock: t.MockATokenV2Instance;
         beforeEach("init mocks", async () => {
             erc20Mock = await c_MockERC20.new("TMP", "TMP", 18, sa.default, "1000000");
             aTokenMock = await c_MockAaveAToken.new(sa.other, erc20Mock.address);
@@ -320,7 +326,7 @@ contract("AaveIntegration", async (accounts) => {
             const addressProvider = await c_AaveLendingPoolAddressProvider.at(
                 integrationDetails.aavePlatformAddress,
             );
-            const approvedAddress = await addressProvider.getLendingPoolCore();
+            const approvedAddress = await addressProvider.getLendingPool();
             const balance = await erc20Mock.allowance(d_AaveIntegration.address, approvedAddress);
             expect(balance).bignumber.eq(MAX_UINT256 as any);
         });
@@ -366,7 +372,7 @@ contract("AaveIntegration", async (accounts) => {
             const addressProvider = await c_AaveLendingPoolAddressProvider.at(
                 integrationDetails.aavePlatformAddress,
             );
-            const bAssetRecipient = await addressProvider.getLendingPoolCore();
+            const bAssetRecipient = await addressProvider.getLendingPool();
             const bAssetRecipient_balBefore = await bAsset.balanceOf(bAssetRecipient);
             const aaveIntegration_balBefore = await aToken.balanceOf(d_AaveIntegration.address);
             // Cross that match with the `checkBalance` call
@@ -417,7 +423,7 @@ contract("AaveIntegration", async (accounts) => {
             const aToken = await c_AaveAToken.at(integrationDetails.aTokens[1].aToken);
 
             // 0.1 Get balance before
-            const bAssetRecipient = await addressProvider.getLendingPoolCore();
+            const bAssetRecipient = await addressProvider.getLendingPool();
             const bAssetRecipient_balBefore = await bAsset.balanceOf(bAssetRecipient);
             const aaveIntegration_balBefore = await aToken.balanceOf(d_AaveIntegration.address);
             // Cross that match with the `checkBalance` call
@@ -531,7 +537,7 @@ contract("AaveIntegration", async (accounts) => {
             const addressProvider = await c_AaveLendingPoolAddressProvider.at(
                 integrationDetails.aavePlatformAddress,
             );
-            const bAssetRecipient = await addressProvider.getLendingPoolCore();
+            const bAssetRecipient = await addressProvider.getLendingPool();
             const bAssetRecipient_balBefore = await bAsset.balanceOf(bAssetRecipient);
             const aaveIntegration_balBefore = await aToken.balanceOf(d_AaveIntegration.address);
 
@@ -995,16 +1001,16 @@ contract("AaveIntegration", async (accounts) => {
             // DIRECTlY to the LendingPool.
             // Doing this activity should raise our aToken balances slightly
             // 2.1. Approve the LendingPool Core
-            await bAsset.approve(await addressProvider.getLendingPoolCore(), amount);
+            await bAsset.approve(await addressProvider.getLendingPool(), amount);
             const d_lendingPool = await c_AaveLendingPool.at(
                 await addressProvider.getLendingPool(),
             );
             // 2.2. Call the deposit func
-            await d_lendingPool.deposit(bAsset.address, amount, 9999);
+            await d_lendingPool.deposit(bAsset.address, amount, sa.default, 9999);
             // 2.3. Fast forward some time
             await time.increase(ONE_WEEK);
             // 2.4. Do a redemption
-            await aToken.redeem(amount);
+            await d_lendingPool.withdraw(bAsset.address, amount, sa.default);
 
             // 3. Analyse our new balances
             const aaveIntegration_balAfter = await aToken.balanceOf(d_AaveIntegration.address);
@@ -1049,7 +1055,7 @@ contract("AaveIntegration", async (accounts) => {
             const addressProvider = await c_AaveLendingPoolAddressProvider.at(
                 integrationDetails.aavePlatformAddress,
             );
-            const approvedAddress = await addressProvider.getLendingPoolCore();
+            const approvedAddress = await addressProvider.getLendingPool();
 
             await d_AaveIntegration.reApproveAllTokens({
                 from: sa.governor,
