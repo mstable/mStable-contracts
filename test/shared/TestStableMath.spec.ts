@@ -1,6 +1,6 @@
 import { expectRevert } from "@openzeppelin/test-helpers";
 
-import { exactToSimpleAmount, simpleToExactAmount } from "@utils/math";
+import { simpleToExactAmount } from "@utils/math";
 import { BN } from "@utils/tools";
 import { fullScale, ratioScale } from "@utils/constants";
 import envSetup from "@utils/env_setup";
@@ -29,13 +29,6 @@ contract("StableMath", async () => {
         it("should return the correct ratio scale", async () => {
             expect(await math.getRatioScale()).bignumber.eq(simpleToExactAmount(1, 8));
             expect(await math.getRatioScale()).bignumber.eq(ratioScale);
-        });
-
-        it("should be able to go to and from both kinds of units", async () => {
-            expect(exactToSimpleAmount(simpleToExactAmount(1, 18), 18)).bignumber.eq(new BN(1));
-            expect(exactToSimpleAmount(simpleToExactAmount("0.5", 10), 10)).bignumber.eq(
-                new BN("0.5"),
-            );
         });
     });
 

@@ -29,7 +29,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
     using SafeERC20 for IERC20;
 
     // Core admin events
-    event RevenueRecipientAdded(address indexed mAsset, address recipient);
+    event RevenueRecipientSet(address indexed mAsset, address recipient);
     event SavingsContractAdded(address indexed mAsset, address savingsContract);
     event SavingsContractUpdated(address indexed mAsset, address savingsContract);
     event SavingsRateChanged(uint256 newSavingsRate);
@@ -144,17 +144,17 @@ contract SavingsManager is ISavingsManager, PausableModule {
     }
 
     /**
-     * @dev Adds a new revenue recipient
+     * @dev Sets the revenue recipient address
      * @param _mAsset           Address of underlying mAsset
      * @param _recipient        Address of the recipient
      */
-    function addRevenueRecipient(address _mAsset, address _recipient)
+    function setRevenueRecipient(address _mAsset, address _recipient)
         external
         onlyGovernor
     {
         revenueRecipients[_mAsset] = IRevenueRecipient(_recipient);
 
-        emit RevenueRecipientAdded(_mAsset, _recipient);
+        emit RevenueRecipientSet(_mAsset, _recipient);
     }
 
 
@@ -438,7 +438,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
         uint256 unallocated = balance.sub(leftover);
 
         mAsset.approve(address(recipient), unallocated);
-        recipient.depositFunds(_mAsset, unallocated);
+        recipient.notifyRedistributionAmount(_mAsset, unallocated);
 
         emit RevenueRedistributed(_mAsset, address(recipient), unallocated);
     }

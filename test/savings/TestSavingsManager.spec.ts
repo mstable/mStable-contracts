@@ -258,15 +258,15 @@ contract("SavingsManager", async (accounts) => {
     describe("adding a revenue recipient", async () => {
         it("should fail when not called by governor", async () => {
             await expectRevert(
-                savingsManager.addRevenueRecipient(mUSD.address, DEAD_ADDRESS, { from: sa.other }),
+                savingsManager.setRevenueRecipient(mUSD.address, DEAD_ADDRESS, { from: sa.other }),
                 "Only governor can execute",
             );
         });
         it("should simply update the recipient and emit an event", async () => {
-            const tx = await savingsManager.addRevenueRecipient(mUSD.address, sa.fundManager, {
+            const tx = await savingsManager.setRevenueRecipient(mUSD.address, sa.fundManager, {
                 from: sa.governor,
             });
-            expectEvent(tx.receipt, "RevenueRecipientAdded", {
+            expectEvent(tx.receipt, "RevenueRecipientSet", {
                 mAsset: mUSD.address,
                 recipient: sa.fundManager,
             });
@@ -781,10 +781,7 @@ contract("SavingsManager", async (accounts) => {
                 expect(s11.lastBatchCollected).bignumber.eq(s11.lastCollection);
                 assertBNClosePercent(
                     s11.streamRate,
-                    s10.streamRate
-                        .mul(ONE_DAY.muln(4))
-                        .add(platformInterest3)
-                        .div(ONE_DAY.muln(3)),
+                    s10.streamRate.mul(ONE_DAY.muln(4)).add(platformInterest3).div(ONE_DAY.muln(3)),
                     "0.002",
                 );
                 await time.increase(ONE_DAY.muln(5));
@@ -1222,7 +1219,7 @@ contract("SavingsManager", async (accounts) => {
             await mUSD.transfer(savingsManager.address, amount, { from: sa.default });
 
             const recipient = await MockRevenueRecipient.new();
-            await savingsManager.addRevenueRecipient(mUSD.address, recipient.address, {
+            await savingsManager.setRevenueRecipient(mUSD.address, recipient.address, {
                 from: sa.governor,
             });
             const tx = await savingsManager.distributeUnallocatedInterest(mUSD.address, {
@@ -1241,7 +1238,7 @@ contract("SavingsManager", async (accounts) => {
 
         it("calculates the unallocated interest correctly and calls the recipient", async () => {
             const recipient = await MockRevenueRecipient.new();
-            await savingsManager.addRevenueRecipient(mUSD.address, recipient.address, {
+            await savingsManager.setRevenueRecipient(mUSD.address, recipient.address, {
                 from: sa.governor,
             });
             const liquidationAmount = simpleToExactAmount(1000, 18);
@@ -1289,7 +1286,7 @@ contract("SavingsManager", async (accounts) => {
             await createNewSavingsManager();
 
             recipient = await MockRevenueRecipient.new();
-            await savingsManager.addRevenueRecipient(mUSD.address, recipient.address, {
+            await savingsManager.setRevenueRecipient(mUSD.address, recipient.address, {
                 from: sa.governor,
             });
         });

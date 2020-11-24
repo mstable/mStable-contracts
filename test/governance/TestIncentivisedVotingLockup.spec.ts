@@ -988,7 +988,6 @@ contract("IncentivisedVotingLockup", async (accounts) => {
                 w_total = await votingLockup.totalSupplyAt(block);
                 expect(w_bob).bignumber.eq(new BN(0));
                 expect(w_alice).bignumber.eq(w_total);
-                // TODO - Verify below has been ported correctly
                 const time_left = ONE_WEEK.muln(7 - i)
                     .divn(7)
                     .sub(ONE_HOUR.muln(2));

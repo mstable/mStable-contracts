@@ -21,5 +21,5 @@ interface ISavingsManager {
 interface IRevenueRecipient {
 
     /** @dev Recipient */
-    function depositFunds(address _mAsset, uint256 _amount) external;
+    function notifyRedistributionAmount(address _mAsset, uint256 _amount) external;
 }
