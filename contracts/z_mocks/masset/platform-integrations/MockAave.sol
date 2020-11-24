@@ -14,6 +14,7 @@ import { AaveV2Integration } from "../../../masset/platform-integrations/AaveV2I
 import { MassetHelpers, SafeERC20, SafeMath } from "../../../masset/shared/MassetHelpers.sol";
 import { StableMath } from "../../../shared/StableMath.sol";
 import { IERC20, ERC20, ERC20Mintable } from "@openzeppelin/contracts/token/ERC20/ERC20Mintable.sol";
+import { ERC20Burnable } from "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
 
 
 // 1. User calls 'getLendingPool'
@@ -55,6 +56,10 @@ contract MockATokenV2 is ERC20Mintable {
         lendingPool = _lendingPool;
         underlyingToken = _underlyingToken;
         addMinter(_lendingPool);
+    }
+
+    function burn(address user, uint256 amount) public {
+        _burn(user, amount);
     }
 }
 
@@ -157,6 +162,7 @@ contract MockAaveV2 is IAaveLendingPoolV2, ILendingPoolAddressesProviderV2 {
         uint256 amount,
         address to
     ) external {
+        MockATokenV2(reserveToAToken[reserve]).burn(msg.sender, amount);
         IERC20(reserve).transfer(to, amount);
     }
 

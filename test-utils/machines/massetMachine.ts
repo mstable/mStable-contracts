@@ -38,6 +38,7 @@ const c_AaveV2Integration = artifacts.require("AaveV2Integration");
 const c_MockAaveV1 = artifacts.require("MockAaveV1");
 const c_MockAaveV2 = artifacts.require("MockAaveV2");
 const c_MockAToken = artifacts.require("MockAToken");
+const c_MockATokenV2 = artifacts.require("MockATokenV2");
 const c_CompoundIntegration = artifacts.require("CompoundIntegration");
 const c_MockCToken = artifacts.require("MockCToken");
 
@@ -352,8 +353,9 @@ export class MassetMachine {
         const d_MockAave = await aaveVersion.new({ from: this.sa.default });
 
         //  - Mock aTokens
-        const mockAToken3 = await c_MockAToken.new(d_MockAave.address, mockBasset3.address);
-        const mockAToken4 = await c_MockAToken.new(d_MockAave.address, mockBasset4.address);
+        const aToken = useOldAave ? c_MockAToken : c_MockATokenV2;
+        const mockAToken3 = await aToken.new(d_MockAave.address, mockBasset3.address);
+        const mockAToken4 = await aToken.new(d_MockAave.address, mockBasset4.address);
 
         //  - Add to the Platform
         await d_MockAave.addAToken(mockAToken3.address, mockBasset3.address);
@@ -607,10 +609,7 @@ export class MassetMachine {
                 type === "deposit"
                     ? newSum.sub(maxC.divn(2))
                     : BN.min(
-                          maxC
-                              .divn(2)
-                              .add(amount)
-                              .sub(new BN(integratorBalBefore)),
+                          maxC.divn(2).add(amount).sub(new BN(integratorBalBefore)),
                           new BN(bAsset.vaultBalance).sub(new BN(integratorBalBefore)),
                       ),
             rawBalance:

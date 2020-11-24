@@ -33,7 +33,7 @@ const c_ERC20 = artifacts.require("ERC20Detailed");
 const c_DelayedProxyAdmin = artifacts.require("DelayedProxyAdmin");
 const c_InitializableProxy = artifacts.require("InitializableAdminUpgradeabilityProxy");
 
-const c_AaveIntegration = artifacts.require("MockAaveIntegration");
+const c_AaveIntegration = artifacts.require("MockAaveV2Integration");
 const c_MockAaveAToken = artifacts.require("MockATokenV2");
 const c_MockAave = artifacts.require("MockAaveV2");
 const c_AaveLendingPoolAddressProvider = artifacts.require("ILendingPoolAddressesProviderV2");
@@ -51,7 +51,7 @@ contract("AaveIntegration", async (accounts) => {
     let integrationDetails: BassetIntegrationDetails;
     let d_DelayedProxyAdmin: t.DelayedProxyAdminInstance;
     let d_AaveIntegrationProxy: t.InitializableAdminUpgradeabilityProxyInstance;
-    let d_AaveIntegration: t.MockAaveIntegrationInstance;
+    let d_AaveIntegration: t.MockAaveV2IntegrationInstance;
 
     const ctx: { module?: t.ModuleInstance } = {};
 
@@ -73,7 +73,7 @@ contract("AaveIntegration", async (accounts) => {
         d_AaveIntegration = await c_AaveIntegration.at(d_AaveIntegrationProxy.address);
 
         // Load network specific integration data
-        integrationDetails = await massetMachine.loadBassets(enableUSDTFee, true);
+        integrationDetails = await massetMachine.loadBassets(enableUSDTFee, false);
 
         // Initialize the proxy storage
         const aaveImplementation = await c_AaveIntegration.new();
@@ -386,7 +386,7 @@ contract("AaveIntegration", async (accounts) => {
             const tx = await d_AaveIntegration.deposit(bAsset.address, amount.toString(), false);
 
             // Step 3. Check for things:
-            // 3.1 Check that lending pool core has bAssets
+            // 3.1 Check that lending pool has bAssets
             expect(await bAsset.balanceOf(bAssetRecipient)).bignumber.eq(
                 bAssetRecipient_balBefore.add(amount),
             );
@@ -453,7 +453,7 @@ contract("AaveIntegration", async (accounts) => {
             );
 
             // Step 3. Check for things:
-            // 3.1 Check that lending pool core has bAssets
+            // 3.1 Check that lending pool has bAssets
             expect(await bAsset.balanceOf(bAssetRecipient)).bignumber.eq(
                 bAssetRecipient_balBefore.add(expectedDeposit),
             );
@@ -562,7 +562,7 @@ contract("AaveIntegration", async (accounts) => {
             );
 
             // Step 3. Check for things:
-            // 3.1 Check that lending pool core has bAssets
+            // 3.1 Check that lending pool has bAssets
             expect(await bAsset.balanceOf(bAssetRecipient)).bignumber.eq(
                 bAssetRecipient_balBefore.add(amount),
             );
@@ -576,7 +576,7 @@ contract("AaveIntegration", async (accounts) => {
             // 3.3 Check that return value is cool (via event)
             expectEvent(tx.receipt, "Deposit", { _amount: amount });
         });
-        it("should fail if lending pool or core does not exist (skip on fork)", async () => {
+        it("should fail if lending pool does not exist (skip on fork)", async () => {
             // Can only run on local, due to constraints from Aave
             if (systemMachine.isGanacheFork) return;
             const mockAave = await c_MockAave.at(integrationDetails.aavePlatformAddress);
@@ -591,7 +591,7 @@ contract("AaveIntegration", async (accounts) => {
             // Fails with ZERO Amount
             await expectRevert(
                 d_AaveIntegration.reApproveAllTokens({ from: sa.governor }),
-                "Lending pool core does not exist",
+                "Lending pool does not exist",
             );
         });
     });
@@ -1000,7 +1000,7 @@ contract("AaveIntegration", async (accounts) => {
             // 2. Simulate some external activity by depositing or redeeming
             // DIRECTlY to the LendingPool.
             // Doing this activity should raise our aToken balances slightly
-            // 2.1. Approve the LendingPool Core
+            // 2.1. Approve the LendingPool
             await bAsset.approve(await addressProvider.getLendingPool(), amount);
             const d_lendingPool = await c_AaveLendingPool.at(
                 await addressProvider.getLendingPool(),
@@ -1090,7 +1090,7 @@ contract("AaveIntegration", async (accounts) => {
                 "Only governor can execute",
             );
         });
-        it("should fail if lending pool core does not exist (mock)", async () => {
+        it("should fail if lending pool does not exist (mock)", async () => {
             // Can only run on local, due to constraints from Aave
             if (systemMachine.isGanacheFork) return;
             const mockAave = await c_MockAave.at(integrationDetails.aavePlatformAddress);
@@ -1098,7 +1098,7 @@ contract("AaveIntegration", async (accounts) => {
             // Fails with ZERO Amount
             await expectRevert(
                 d_AaveIntegration.reApproveAllTokens({ from: sa.governor }),
-                "Lending pool core does not exist",
+                "Lending pool does not exist",
             );
         });
     });
