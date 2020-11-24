@@ -136,6 +136,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
     function freezeStreams()
         external
         onlyGovernor
+        whenStreamsNotFrozen
     {
         streamsFrozen = true;
 

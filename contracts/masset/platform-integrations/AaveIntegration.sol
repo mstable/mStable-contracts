@@ -149,7 +149,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
         nonReentrant
     {
         // @TODO - add protections to ensure bAsset is logged to aToken?
-        // Unecessary only Masset/BM have write access
+        // Unnecessary only Masset/BM have write access
 
         require(_amount > 0, "Must withdraw something");
 

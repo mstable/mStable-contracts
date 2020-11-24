@@ -27,13 +27,13 @@ contract AaveV2Integration is InitializableAbstractIntegration {
      *      (mAsset and corresponding BasketManager)
      * @param _bAsset              Address for the bAsset
      * @param _amount              Units of bAsset to deposit
-     * @param _isTokenFeeCharged   Flag that signals if an xfer fee is charged on bAsset
+     * @param _hasTxFee   Flag that signals if an xfer fee is charged on bAsset
      * @return quantityDeposited   Quantity of bAsset that entered the platform
      */
     function deposit(
         address _bAsset,
         uint256 _amount,
-        bool _isTokenFeeCharged
+        bool _hasTxFee
     )
         external
         onlyWhitelisted
@@ -46,7 +46,7 @@ contract AaveV2Integration is InitializableAbstractIntegration {
 
         quantityDeposited = _amount;
 
-        if(_isTokenFeeCharged) {
+        if(_hasTxFee) {
             // If we charge a fee, account for it
             uint256 prevBal = _checkBalance(aToken);
             _getLendingPool().deposit(_bAsset, _amount, address(this), 36);
@@ -142,7 +142,7 @@ contract AaveV2Integration is InitializableAbstractIntegration {
         nonReentrant
     {
         // @TODO - add protections to ensure bAsset is logged to aToken?
-        // Unecessary only Masset/BM have write access
+        // Unnecessary only Masset/BM have write access
 
         require(_amount > 0, "Must withdraw something");
 

@@ -215,7 +215,7 @@ contract ForgeValidator is IForgeValidator {
         uint256 idxCount = _indices.length;
         if(idxCount != _bAssetQuantities.length) return (false, "Input arrays must have equal length", false);
 
-        // Get current weightings, and cache some outputs from the loop to avoid unecessary recursion
+        // Get current weightings, and cache some outputs from the loop to avoid Unnecessary recursion
         BasketStateResponse memory data = _getBasketState(_totalVault, _allBassets);
         if(!data.isValid) return (false, data.reason, false);
 
