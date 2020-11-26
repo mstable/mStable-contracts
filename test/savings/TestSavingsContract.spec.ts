@@ -22,7 +22,7 @@ const MStableHelper = artifacts.require("MStableHelper");
 
 interface SavingsBalances {
     totalSavings: BN;
-    totalCredits: BN;
+    totalSupply: BN;
     userCredits: BN;
     exchangeRate: BN;
 }
@@ -33,7 +33,7 @@ const getBalances = async (
 ): Promise<SavingsBalances> => {
     return {
         totalSavings: await contract.totalSavings(),
-        totalCredits: await contract.totalCredits(),
+        totalSupply: await contract.totalSupply(),
         userCredits: await contract.creditBalances(user),
         exchangeRate: await contract.exchangeRate(),
     };
@@ -61,7 +61,13 @@ contract("SavingsContract", async (accounts) => {
         nexus = await MockNexus.new(sa.governor, governance, manager);
         // Use a mock mAsset so we can dictate the interest generated
         masset = await MockMasset.new("MOCK", "MOCK", 18, sa.default, initialMint);
-        savingsContract = await SavingsContract.new(nexus.address, masset.address);
+        savingsContract = await SavingsContract.new(
+            nexus.address,
+            masset.address,
+            "Savings Credit",
+            "ymUSD",
+            18,
+        );
         helper = await MStableHelper.new();
         // Use a mock SavingsManager so we don't need to run integrations
         if (useMockSavingsManager) {
@@ -99,7 +105,7 @@ contract("SavingsContract", async (accounts) => {
     describe("constructor", async () => {
         it("should fail when masset address is zero", async () => {
             await expectRevert(
-                SavingsContract.new(nexus.address, ZERO_ADDRESS),
+                SavingsContract.new(nexus.address, ZERO_ADDRESS, "Savings Credit", "ymUSD", 18),
                 "mAsset address is zero",
             );
         });
@@ -107,7 +113,7 @@ contract("SavingsContract", async (accounts) => {
         it("should succeed when valid parameters", async () => {
             const nexusAddr = await savingsContract.nexus();
             expect(nexus.address).to.equal(nexusAddr);
-            expect(ZERO).to.bignumber.equal(await savingsContract.totalCredits());
+            expect(ZERO).to.bignumber.equal(await savingsContract.totalSupply());
             expect(ZERO).to.bignumber.equal(await savingsContract.totalSavings());
             expect(fullScale).to.bignumber.equal(await savingsContract.exchangeRate());
         });
@@ -160,7 +166,7 @@ contract("SavingsContract", async (accounts) => {
                 const stateMiddle = await getBalances(savingsContract, sa.default);
                 expect(stateMiddle.exchangeRate).to.bignumber.equal(fullScale);
                 expect(stateMiddle.totalSavings).to.bignumber.equal(TEN_TOKENS);
-                expect(stateMiddle.totalCredits).to.bignumber.equal(TEN_TOKENS);
+                expect(stateMiddle.totalSupply).to.bignumber.equal(TEN_TOKENS);
 
                 // Set up the mAsset with some interest
                 const interestCollected = simpleToExactAmount(10, 18);
@@ -179,7 +185,7 @@ contract("SavingsContract", async (accounts) => {
                 const dummyState = await getBalances(savingsContract, sa.dummy2);
                 expect(dummyState.userCredits).bignumber.eq(TEN_TOKENS.div(new BN(2)));
                 expect(dummyState.totalSavings).bignumber.eq(TEN_TOKENS.mul(new BN(3)));
-                expect(dummyState.totalCredits).bignumber.eq(
+                expect(dummyState.totalSupply).bignumber.eq(
                     TEN_TOKENS.mul(new BN(3)).div(new BN(2)),
                 );
             });
@@ -215,7 +221,7 @@ contract("SavingsContract", async (accounts) => {
 
                 // Get the total balances
                 const totalSavingsBefore = await savingsContract.totalSavings();
-                const totalCreditsBefore = await savingsContract.totalCredits();
+                const totalSupplyBefore = await savingsContract.totalSupply();
                 const creditBalBefore = await savingsContract.creditBalances(sa.default);
                 const exchangeRateBefore = await savingsContract.exchangeRate();
                 expect(fullScale).to.bignumber.equal(exchangeRateBefore);
@@ -230,13 +236,13 @@ contract("SavingsContract", async (accounts) => {
                 });
 
                 const totalSavingsAfter = await savingsContract.totalSavings();
-                const totalCreditsAfter = await savingsContract.totalCredits();
+                const totalSupplyAfter = await savingsContract.totalSupply();
                 const creditBalAfter = await savingsContract.creditBalances(sa.default);
                 const exchangeRateAfter = await savingsContract.exchangeRate();
 
                 expect(totalSavingsBefore.add(TEN_TOKENS)).to.bignumber.equal(totalSavingsAfter);
-                expect(totalCreditsBefore.add(calcCreditIssued)).to.bignumber.equal(
-                    totalCreditsAfter,
+                expect(totalSupplyBefore.add(calcCreditIssued)).to.bignumber.equal(
+                    totalSupplyAfter,
                 );
                 expect(creditBalBefore.add(TEN_TOKENS)).to.bignumber.equal(creditBalAfter);
                 expect(fullScale).to.bignumber.equal(exchangeRateAfter);
@@ -250,7 +256,7 @@ contract("SavingsContract", async (accounts) => {
                 const balanceOfUserBefore = await masset.balanceOf(sa.default);
                 const balanceBefore = await masset.balanceOf(savingsContract.address);
                 const totalSavingsBefore = await savingsContract.totalSavings();
-                const totalCreditsBefore = await savingsContract.totalCredits();
+                const totalSupplyBefore = await savingsContract.totalSupply();
                 const creditBalBefore = await savingsContract.creditBalances(sa.default);
                 const exchangeRateBefore = await savingsContract.exchangeRate();
                 expect(fullScale).to.bignumber.equal(exchangeRateBefore);
@@ -266,14 +272,14 @@ contract("SavingsContract", async (accounts) => {
                 const balanceOfUserAfter = await masset.balanceOf(sa.default);
                 const balanceAfter = await masset.balanceOf(savingsContract.address);
                 const totalSavingsAfter = await savingsContract.totalSavings();
-                const totalCreditsAfter = await savingsContract.totalCredits();
+                const totalSupplyAfter = await savingsContract.totalSupply();
                 const creditBalAfter = await savingsContract.creditBalances(sa.default);
                 const exchangeRateAfter = await savingsContract.exchangeRate();
 
                 expect(balanceOfUserBefore.sub(TEN_TOKENS)).to.bignumber.equal(balanceOfUserAfter);
                 expect(balanceBefore.add(TEN_TOKENS)).to.bignumber.equal(balanceAfter);
                 expect(totalSavingsBefore.add(TEN_TOKENS)).to.bignumber.equal(totalSavingsAfter);
-                expect(totalCreditsBefore.add(TEN_TOKENS)).to.bignumber.equal(totalCreditsAfter);
+                expect(totalSupplyBefore.add(TEN_TOKENS)).to.bignumber.equal(totalSupplyAfter);
                 expect(creditBalBefore.add(TEN_TOKENS)).to.bignumber.equal(creditBalAfter);
                 expect(fullScale).to.bignumber.equal(exchangeRateAfter);
             });
@@ -533,13 +539,11 @@ contract("SavingsContract", async (accounts) => {
                 await savingsContract.redeem(state1.userCredits, { from: saver1 });
                 const state4 = await getBalances(savingsContract, saver1);
                 expect(state4.userCredits).bignumber.eq(new BN(0));
-                expect(state4.totalCredits).bignumber.eq(
-                    state3.totalCredits.sub(state1.userCredits),
-                );
+                expect(state4.totalSupply).bignumber.eq(state3.totalSupply.sub(state1.userCredits));
                 expect(state4.exchangeRate).bignumber.eq(state3.exchangeRate);
                 assertBNClose(
                     state4.totalSavings,
-                    state4.totalCredits.mul(state4.exchangeRate).div(fullScale),
+                    state4.totalSupply.mul(state4.exchangeRate).div(fullScale),
                     new BN(1000),
                 );
                 // 5.0 user 4 deposits
@@ -567,7 +571,7 @@ contract("SavingsContract", async (accounts) => {
             it("Should deposit the mUSD and assign credits to the saver", async () => {
                 const depositAmount = simpleToExactAmount(1, 18);
                 // const exchangeRate_before = await systemMachine.savingsContract.exchangeRate();
-                const credits_totalBefore = await systemMachine.savingsContract.totalCredits();
+                const credits_totalBefore = await systemMachine.savingsContract.totalSupply();
                 const mUSD_balBefore = await massetDetails.mAsset.balanceOf(sa.default);
                 const mUSD_totalBefore = await systemMachine.savingsContract.totalSavings();
                 // 1. Approve the savings contract to spend mUSD
@@ -586,7 +590,7 @@ contract("SavingsContract", async (accounts) => {
                 expect(credits_balAfter, "Must receive some savings credits").bignumber.eq(
                     simpleToExactAmount(1, 18),
                 );
-                const credits_totalAfter = await systemMachine.savingsContract.totalCredits();
+                const credits_totalAfter = await systemMachine.savingsContract.totalSupply();
                 expect(credits_totalAfter, "Must deposit 1 full units of mUSD").bignumber.eq(
                     credits_totalBefore.add(simpleToExactAmount(1, 18)),
                 );
