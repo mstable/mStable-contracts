@@ -250,7 +250,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
         uint256 end = streamEnd[_mAsset];
         uint256 lastUpdate = lastCollection[_mAsset];
         uint256 unclaimedSeconds = 0;
-        if(currentTime <= end || lastUpdate < end){
+        if(lastUpdate < end){
             unclaimedSeconds = end.sub(lastUpdate);
         }
         return unclaimedSeconds.mul(streamRate[_mAsset]);
