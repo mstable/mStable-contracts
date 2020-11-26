@@ -20,7 +20,6 @@ import {
 import * as t from "types/generated";
 import shouldBehaveLikeModule from "../shared/behaviours/Module.behaviour";
 import shouldBehaveLikePausableModule from "../shared/behaviours/PausableModule.behaviour";
-import { platform } from "os";
 
 const { expect } = envSetup.configure();
 
@@ -51,7 +50,13 @@ contract("SavingsManager", async (accounts) => {
 
     async function createNewSavingsManager(mintAmount: BN = INITIAL_MINT): Promise<void> {
         mUSD = await MockMasset.new("mUSD", "mUSD", 18, sa.default, mintAmount);
-        savingsContract = await SavingsContract.new(nexus.address, mUSD.address);
+        savingsContract = await SavingsContract.new(
+            nexus.address,
+            mUSD.address,
+            "mUSD Credit",
+            "ymUSD",
+            18,
+        );
         savingsManager = await SavingsManager.new(
             nexus.address,
             mUSD.address,
@@ -358,7 +363,13 @@ contract("SavingsManager", async (accounts) => {
         context("with a broken mAsset", async () => {
             it("fails if the mAsset does not send required mAsset", async () => {
                 const mUSD2 = await MockMasset1.new("mUSD", "mUSD", 18, sa.default, INITIAL_MINT);
-                savingsContract = await SavingsContract.new(nexus.address, mUSD.address);
+                savingsContract = await SavingsContract.new(
+                    nexus.address,
+                    mUSD.address,
+                    "Savings Credit",
+                    "ymUSD",
+                    18,
+                );
                 savingsManager = await SavingsManager.new(
                     nexus.address,
                     mUSD2.address,

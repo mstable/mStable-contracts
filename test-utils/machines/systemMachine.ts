@@ -83,6 +83,9 @@ export class SystemMachine {
         this.savingsContract = await c_SavingsContract.new(
             this.nexus.address,
             this.mUSD.mAsset.address,
+            "Savings Credit",
+            "ymUSD",
+            18,
             { from: this.sa.default },
         );
         this.savingsManager = await c_SavingsManager.new(
