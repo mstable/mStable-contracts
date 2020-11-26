@@ -245,7 +245,10 @@ contract BasketManager is
             // call each integration to `checkBalance` and sum with the cache balance
             address integration = integrations[i];
             uint256 lending = IPlatformIntegration(integration).checkBalance(bAsset);
-            uint256 cache = IERC20(bAsset).balanceOf(integration);
+            uint256 cache = 0;
+            if (!b.isTransferFeeCharged) {
+                cache = IERC20(bAsset).balanceOf(integration);
+            }
             uint256 balance = lending.add(cache);
 
             uint256 oldVaultBalance = b.vaultBalance;

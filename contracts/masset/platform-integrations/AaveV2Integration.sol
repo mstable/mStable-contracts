@@ -110,7 +110,7 @@ contract AaveV2Integration is InitializableAbstractIntegration {
     )
         internal
     {
-        require(_amount > 0, "Must withdraw something");
+        require(_totalAmount > 0, "Must withdraw something");
 
         IAaveATokenV2 aToken = _getATokenFor(_bAsset);
 
@@ -145,6 +145,7 @@ contract AaveV2Integration is InitializableAbstractIntegration {
         // Unnecessary only Masset/BM have write access
 
         require(_amount > 0, "Must withdraw something");
+        require(_receiver != address(0), "Must specify recipient");
 
         // Send redeemed bAsset to the receiver
         IERC20(_bAsset).safeTransfer(_receiver, _amount);

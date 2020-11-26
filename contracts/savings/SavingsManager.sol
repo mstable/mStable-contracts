@@ -180,6 +180,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
      */
     function depositLiquidation(address _mAsset, uint256 _liquidated)
         external
+        whenNotPaused
         onlyLiquidator
         whenStreamsNotFrozen
     {
@@ -199,6 +200,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
      */
     function collectAndStreamInterest(address _mAsset)
         external
+        whenNotPaused
         whenStreamsNotFrozen
     {
         ISavingsContract savingsContract = savingsContracts[_mAsset];

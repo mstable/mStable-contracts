@@ -135,7 +135,7 @@ contract CompoundIntegration is InitializableAbstractIntegration {
     )
         internal
     {
-        require(_amount > 0, "Must withdraw something");
+        require(_totalAmount > 0, "Must withdraw something");
         require(_receiver != address(0), "Must specify recipient");
 
         // Get the Target token
@@ -143,9 +143,9 @@ contract CompoundIntegration is InitializableAbstractIntegration {
 
         // If redeeming 0 cTokens, just skip, else COMP will revert
         // Reason for skipping: to ensure that redeemMasset is always able to execute
-        uint256 cTokensToRedeem = _convertUnderlyingToCToken(cToken, _amount);
+        uint256 cTokensToRedeem = _convertUnderlyingToCToken(cToken, _totalAmount);
         if(cTokensToRedeem == 0) {
-            emit SkippedWithdrawal(_bAsset, _amount);
+            emit SkippedWithdrawal(_bAsset, _totalAmount);
             return;
         }
 
@@ -189,6 +189,7 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         // Unnecessary only Masset/BM have write access
 
         require(_amount > 0, "Must withdraw something");
+        require(_receiver != address(0), "Must specify recipient");
 
         IERC20(_bAsset).safeTransfer(_receiver, _amount);
 

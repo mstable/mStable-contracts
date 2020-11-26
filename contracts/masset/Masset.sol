@@ -306,7 +306,7 @@ contract Masset is
             uint256 relativeMaxCache = _maxCache.divRatioPrecisely(_bAssetRatio);
 
             console.log("_depositTokens: cacheBal: %s vs relativeMaxCache: %s", cacheBal, relativeMaxCache);
-            if(cacheBal >= relativeMaxCache){
+            if(cacheBal > relativeMaxCache){
                 uint256 delta = cacheBal.sub(relativeMaxCache.div(2));
                 IPlatformIntegration(_integrator).deposit(_bAsset, delta, false);
             }
@@ -755,8 +755,8 @@ contract Masset is
             else {
                 uint256 cacheBal = IERC20(args.bAsset).balanceOf(args.integrator);
                 // 3.1 - If balance b in cache, simply withdraw
-                if(cacheBal > amount.net) {
-                    console.log("_withdrawTokens: cacheBal > net - '%s' > '%s'", cacheBal, amount.net);
+                if(cacheBal >= amount.net) {
+                    console.log("_withdrawTokens: cacheBal >= net - '%s' > '%s'", cacheBal, amount.net);
                     IPlatformIntegration(args.integrator).withdrawRaw(args.recipient, args.bAsset, amount.net);
                 }
                 // 3.2 - Else reset the cache to X, or as far as possible
@@ -765,7 +765,7 @@ contract Masset is
                 else {
                     console.log("_withdrawTokens: cacheBal < net - '%s' < '%s'", cacheBal, amount.net);
                     uint256 relativeMidCache = args.maxCache.divRatioPrecisely(args.ratio).div(2);
-                    uint256 totalWithdrawal = StableMath.min(relativeMidCache.sub(cacheBal).add(amount.net), args.vaultBalance.sub(cacheBal));
+                    uint256 totalWithdrawal = StableMath.min(relativeMidCache.add(amount.net).sub(cacheBal), args.vaultBalance.sub(cacheBal));
 
                     console.log("_withdrawTokens: totalWithdrawal", totalWithdrawal);
                     IPlatformIntegration(args.integrator).withdraw(
@@ -955,6 +955,9 @@ contract Masset is
         returns (uint256 swapFeesGained, uint256 newSupply)
     {
         uint256 toMint = 0;
+        // Set the surplus variable to 1 to optimise for SSTORE costs.
+        // If setting to 0 here, it would save 5k per savings deposit, but cost 20k for the
+        // first surplus call (a SWAP or REDEEM).
         if(surplus > 1){
             toMint = surplus.sub(1);
             surplus = 1;
