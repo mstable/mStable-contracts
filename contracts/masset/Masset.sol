@@ -400,6 +400,8 @@ contract Masset is
         surplus = cache.surplus.add(amt.scaledFee);
 
         emit Swapped(msg.sender, args.input, args.output, amt.net, recipient);
+
+        return amt.net;
     }
 
     /**
