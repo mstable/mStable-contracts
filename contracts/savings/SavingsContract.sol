@@ -133,9 +133,9 @@ contract SavingsContract is ISavingsContract, SavingsCredit, Module {
     // Amount of underlying savings in the contract
     uint256 public totalSavings;
     // Rate between 'savings credits' and underlying
-    // e.g. 1 credit (1e18) mulTruncate(exchangeRate) = underlying, starts at 1:1
+    // e.g. 1 credit (1e17) mulTruncate(exchangeRate) = underlying, starts at 10:1
     // exchangeRate increases over time and is essentially a percentage based value
-    uint256 public exchangeRate = 1e18;
+    uint256 public exchangeRate = 1e17;
 
     // Underlying asset is underlying
     IERC20 private underlying;
