@@ -6,6 +6,7 @@ import { ISavingsManager } from "../interfaces/ISavingsManager.sol";
 // Internal
 import { ISavingsContract } from "../interfaces/ISavingsContract.sol";
 import { Module } from "../shared/Module.sol";
+import { AbstractStakingRewards } from "./AbstractStakingRewards.sol";
 
 // Libs
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -15,7 +16,7 @@ import { StableMath } from "../shared/StableMath.sol";
 
 
 
-contract SavingsCredit is IERC20, ERC20Detailed {
+contract SavingsCredit is IERC20, ERC20Detailed, AbstractStakingRewards {
 
     using SafeMath for uint256;
 
@@ -26,12 +27,17 @@ contract SavingsCredit is IERC20, ERC20Detailed {
     mapping(address => uint256) internal _creditBalances;
     mapping(address => mapping(address => uint256)) private _allowances;
 
-    constructor(string memory _nameArg, string memory _symbolArg, uint8 _decimalsArg)
+    constructor(address _nexus, address _rewardToken, address _distributor, string memory _nameArg, string memory _symbolArg, uint8 _decimalsArg)
         internal
         ERC20Detailed(
             _nameArg,
             _symbolArg,
             _decimalsArg
+        )
+        AbstractStakingRewards(
+            _nexus,
+            _rewardToken,
+            _distributor
         )
     {
         
@@ -75,7 +81,13 @@ contract SavingsCredit is IERC20, ERC20Detailed {
         return true;
     }
 
-    function _transfer(address sender, address recipient, uint256 amount) internal {
+    // add here for sender and recipient
+    // TODO - add single method for updating rewards
+    function _transfer(address sender, address recipient, uint256 amount)
+        updateReward(sender)
+        updateReward(recipient)
+        internal
+    {
         require(sender != address(0), "ERC20: transfer from the zero address");
         require(recipient != address(0), "ERC20: transfer to the zero address");
 
@@ -84,7 +96,11 @@ contract SavingsCredit is IERC20, ERC20Detailed {
         emit Transfer(sender, recipient, amount);
     }
 
-    function _mint(address account, uint256 amount) internal {
+    // add here for sender
+    function _mint(address account, uint256 amount)
+        updateReward(account)
+        internal
+    {
         require(account != address(0), "ERC20: mint to the zero address");
 
         _totalCredits = _totalCredits.add(amount);
@@ -92,7 +108,11 @@ contract SavingsCredit is IERC20, ERC20Detailed {
         emit Transfer(address(0), account, amount);
     }
 
-    function _burn(address account, uint256 amount) internal {
+    // add here for sender
+    function _burn(address account, uint256 amount)
+        internal
+        updateReward(account)
+    {
         require(account != address(0), "ERC20: burn from the zero address");
 
         _creditBalances[account] = _creditBalances[account].sub(amount, "ERC20: burn amount exceeds balance");
@@ -119,7 +139,7 @@ contract SavingsCredit is IERC20, ERC20Detailed {
  * @dev     VERSION: 2.0
  *          DATE:    2020-11-28
  */
-contract SavingsContract is ISavingsContract, SavingsCredit, Module {
+contract SavingsContract is ISavingsContract, SavingsCredit {
 
     using SafeMath for uint256;
     using StableMath for uint256;
@@ -141,10 +161,17 @@ contract SavingsContract is ISavingsContract, SavingsCredit, Module {
     IERC20 private underlying;
     bool private automateInterestCollection = true;
 
-    constructor(address _nexus, IERC20 _underlying, string memory _nameArg, string memory _symbolArg, uint8 _decimalsArg)
+    constructor(
+            address _nexus,
+            address _rewardToken,
+            address _distributor,
+            IERC20 _underlying,
+            string memory _nameArg,
+            string memory _symbolArg,
+            uint8 _decimalsArg
+        )
         public
-        SavingsCredit(_nameArg, _symbolArg, _decimalsArg)
-        Module(_nexus)
+        SavingsCredit(_nexus, _rewardToken, _distributor, _nameArg, _symbolArg, _decimalsArg)
     {
         require(address(_underlying) != address(0), "mAsset address is zero");
         underlying = _underlying;
