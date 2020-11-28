@@ -1,42 +1,23 @@
 pragma solidity 0.5.16;
 
 import { ISavingsContract } from "../../interfaces/ISavingsContract.sol";
-import { IUniswapV2Router02 } from "../../masset/liquidator/IUniswapV2Router02.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-
-interface ISaveWithAnything {
-
-}
-
-
-contract SaveViaUniswap {
+contract SaveViaMint {
 
     address save;
-    address platform;
+    address mAsset = "";
 
-    constructor(address _save, address _curve) public {
-      save = _save;
-      platform = _curve;
+    constructor(address _save) public {
+        save = _save;
     }
 
-    // 1. Approve this contract to spend the sell token (e.g. ETH)
-    // 2. calculate the _path and other data relevant to the purchase off-chain
-    // 3. Calculate the "min buy amount" if any, off chain
-    function buyAndSave(address _mAsset, address[] calldata _path, uint256 _minBuyAmount) external {
-      // 1. transfer the sell token to here
-      // 2. approve the platform to spend the selltoken
-      // 3. buy asset from the platform
-      // 3.1. optional > call mint
-      // 4. deposit into save on behalf of the sender
-      // ISavingsContract(save).deposit(buyAmount, msg.sender);
-      // IUniswapV2Router02(platform).swapExactTokensForTokens(.....)
+    function mintAndSave(address _mAsset, address _bAsset, uint _bassetAmount) external {
+        IERC20(_bAsset).transferFrom(msg.sender, address(this), _bassetAmount);
+        IERC20(_bAsset).approve(address(this), _bassetAmount);
+        IMasset mAsset = IMasset(_mAsset);
+        uint massetsMinted = mAsset.mint(_bAsset, _bassetAmount);
+        ISavingsContract(save).deposit(massetsMinted, msg.sender);
     }
 
-    function mintAndSave(address _mAsset, address _bAsset) external {
-      // 1. transfer the sell token to here
-      // 2. approve the platform to spend the selltoken
-      // 3. call the mint
-      // 4. deposit into save on behalf of the sender
-      // ISavingsContract(save).deposit(buyAmount, msg.sender);
-    }
 }

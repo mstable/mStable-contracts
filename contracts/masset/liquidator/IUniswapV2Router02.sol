@@ -9,4 +9,5 @@ interface IUniswapV2Router02 {
         uint deadline
     ) external returns (uint[] memory amounts);
     function getAmountsIn(uint amountOut, address[] calldata path) external view returns (uint[] memory amounts);
+    function WETH() external pure returns (address);
 }
