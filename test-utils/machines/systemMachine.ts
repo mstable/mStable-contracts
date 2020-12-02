@@ -14,6 +14,7 @@ const c_Nexus = artifacts.require("Nexus");
 // Savings
 const c_SavingsContract = artifacts.require("SavingsContract");
 const c_SavingsManager = artifacts.require("SavingsManager");
+const c_MockERC20 = artifacts.require("MockERC20");
 
 /**
  * @dev The SystemMachine is responsible for creating mock versions of our contracts
@@ -31,6 +32,8 @@ export class SystemMachine {
     public nexus: t.NexusInstance;
 
     public mUSD: MassetDetails;
+
+    public mta: t.MockERC20Instance;
 
     public savingsContract: t.SavingsContractInstance;
 
@@ -80,9 +83,12 @@ export class SystemMachine {
         /* **************************************
             3. Savings
         *************************************** */
+        this.mta = await c_MockERC20.new("MTA", "MTA", 18, this.sa.fundManager, 1000000);
         this.savingsContract = await c_SavingsContract.new(
             this.nexus.address,
             this.mUSD.mAsset.address,
+            this.mta.address,
+            this.sa.fundManager,
             "Savings Credit",
             "ymUSD",
             18,

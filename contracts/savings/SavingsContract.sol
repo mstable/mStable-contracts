@@ -95,6 +95,7 @@ contract SavingsCredit is IERC20, ERC20Detailed, AbstractStakingRewards {
     function _transfer(address sender, address recipient, uint256 amount)
         internal
         updateRewards(sender, recipient)
+        // updatePowers(sender, recipient)
     {
         require(sender != address(0), "ERC20: transfer from the zero address");
         require(recipient != address(0), "ERC20: transfer to the zero address");
@@ -104,10 +105,13 @@ contract SavingsCredit is IERC20, ERC20Detailed, AbstractStakingRewards {
         emit Transfer(sender, recipient, amount);
     }
 
-    // Before a _mint is called, rewards should already be accrued
-    // Should then update 'power' of the recipient AFTER
+    // @Modification - 2 things must be done on a mint
+    // 1 - Accrue Rewards for account
+    // 2 - Update 'power' of the participant AFTER
     function _mint(address account, uint256 amount)
         internal
+        updateReward(account)
+        updatePower(account)
     {
         require(account != address(0), "ERC20: mint to the zero address");
 
@@ -116,10 +120,13 @@ contract SavingsCredit is IERC20, ERC20Detailed, AbstractStakingRewards {
         emit Transfer(address(0), account, amount);
     }
 
-    // Before a _mint is called, rewards should already be accrued
-    // Should then update 'power' of the recipient AFTER
+    // @Modification - 2 things must be done on a mint
+    // 1 - Accrue Rewards for account
+    // 2 - Update 'power' of the participant AFTER
     function _burn(address account, uint256 amount)
         internal
+        updateReward(account)
+        updatePower(account)
     {
         require(account != address(0), "ERC20: burn from the zero address");
 
@@ -159,24 +166,26 @@ contract SavingsContract is ISavingsContract, SavingsCredit {
     event AutomaticInterestCollectionSwitched(bool automationEnabled);
 
     // Amount of underlying savings in the contract
-    uint256 public totalSavings;
+    // uint256 public totalSavings;
+
     // Rate between 'savings credits' and underlying
     // e.g. 1 credit (1e17) mulTruncate(exchangeRate) = underlying, starts at 10:1
     // exchangeRate increases over time and is essentially a percentage based value
     uint256 public exchangeRate = 1e17;
 
     // Underlying asset is underlying
-    IERC20 private underlying;
+    IERC20 public underlying;
     bool private automateInterestCollection = true;
 
+    // TODO - use constant addresses during deployment. Adds to bytecode
     constructor(
-            address _nexus,
-            address _rewardToken,
+            address _nexus, // constant
+            address _rewardToken, // constant
             address _distributor,
-            IERC20 _underlying,
-            string memory _nameArg,
-            string memory _symbolArg,
-            uint8 _decimalsArg
+            IERC20 _underlying, // constant
+            string memory _nameArg, // constant
+            string memory _symbolArg, // constant
+            uint8 _decimalsArg // constant
         )
         public
         SavingsCredit(_nexus, _rewardToken, _distributor, _nameArg, _symbolArg, _decimalsArg)
@@ -220,19 +229,35 @@ contract SavingsContract is ISavingsContract, SavingsCredit {
 
         // Transfer the interest from sender to here
         require(underlying.transferFrom(msg.sender, address(this), _amount), "Must receive tokens");
-        totalSavings = totalSavings.add(_amount);
 
         // Calc new exchange rate, protect against initialisation case
-        if(_totalCredits > 0) {
+        uint256 totalCredits = _totalCredits;
+        if(totalCredits > 0) {
             // new exchange rate is relationship between _totalCredits & totalSavings
             // _totalCredits * exchangeRate = totalSavings
             // exchangeRate = totalSavings/_totalCredits
-            // e.g. (100e18 * 1e18) / 100e18 = 1e18
-            // e.g. (101e20 * 1e18) / 100e20 = 1.01e18
-            // e.g. 1e16 * 1e18 / 1e25 = 1e11
-            exchangeRate = totalSavings.divPrecisely(_totalCredits);
+            uint256 amountPerCredit = _amount.divPrecisely(totalCredits);
+            uint256 newExchangeRate = exchangeRate.add(amountPerCredit);
+            exchangeRate = newExchangeRate;
 
-            emit ExchangeRateUpdated(exchangeRate, _amount);
+            emit ExchangeRateUpdated(newExchangeRate, _amount);
+        }
+    }
+
+    modifier onlyPoker() {
+        // require(msg.sender == poker);
+        _;
+    }
+
+    // Protects against initiailisation case
+    function pokeSurplus()
+        external
+        onlyPoker
+    {
+        uint256 sum = _creditToUnderlying(_totalCredits);
+        uint256 balance = underlying.balanceOf(address(this));
+        if(balance > sum){
+            exchangeRate = balance.divPrecisely(_totalCredits);
         }
     }
 
@@ -266,17 +291,16 @@ contract SavingsContract is ISavingsContract, SavingsCredit {
 
     function _deposit(uint256 _underlying, address _beneficiary)
         internal
-        updateReward(_beneficiary)
         returns (uint256 creditsIssued)
     {
         require(_underlying > 0, "Must deposit something");
 
         // Collect recent interest generated by basket and update exchange rate
-        ISavingsManager(_savingsManager()).collectAndDistributeInterest(address(underlying));
+        IERC20 mAsset = underlying;
+        ISavingsManager(_savingsManager()).collectAndDistributeInterest(address(mAsset));
 
         // Transfer tokens from sender to here
-        require(underlying.transferFrom(msg.sender, address(this), _underlying), "Must receive tokens");
-        totalSavings = totalSavings.add(_underlying);
+        require(mAsset.transferFrom(msg.sender, address(this), _underlying), "Must receive tokens");
 
         // Calc how many credits they receive based on currentRatio
         creditsIssued = _underlyingToCredits(_underlying);
@@ -284,7 +308,7 @@ contract SavingsContract is ISavingsContract, SavingsCredit {
         // add credits to balances
         _mint(_beneficiary, creditsIssued);
 
-        emit SavingsDeposited(msg.sender, _underlying, creditsIssued);
+        emit SavingsDeposited(_beneficiary, _underlying, creditsIssued);
     }
 
     /**
@@ -300,13 +324,14 @@ contract SavingsContract is ISavingsContract, SavingsCredit {
     {
         require(_credits > 0, "Must withdraw something");
 
+        massetReturned = _redeem(_credits);
+
+        // Collect recent interest generated by basket and update exchange rate
         if(automateInterestCollection) {
-            // Collect recent interest generated by basket and update exchange rate
             ISavingsManager(_savingsManager()).collectAndDistributeInterest(address(underlying));
         }
-
-        return _redeem(_credits);
     }
+
 
     function redeemUnderlying(uint256 _underlying)
         external
@@ -329,17 +354,15 @@ contract SavingsContract is ISavingsContract, SavingsCredit {
 
     function _redeem(uint256 _credits)
         internal
-        updateReward(msg.sender)
         returns (uint256 massetReturned)
     {
-        uint256 saverCredits = _creditBalances[msg.sender];
-        require(saverCredits >= _credits, "Saver has no credits");
+        // uint256 saverCredits = _creditBalances[msg.sender];
+        // require(saverCredits >= _credits, "Saver has no credits");
 
         _burn(msg.sender, _credits);
 
         // Calc payout based on currentRatio
         massetReturned = _creditToUnderlying(_credits);
-        totalSavings = totalSavings.sub(massetReturned);
 
         // Transfer tokens from here to sender
         require(underlying.transfer(msg.sender, massetReturned), "Must send tokens");
@@ -372,7 +395,8 @@ contract SavingsContract is ISavingsContract, SavingsCredit {
     {
         // e.g. (1e20 * 1e18) / 1e18 = 1e20
         // e.g. (1e20 * 1e18) / 14e17 = 7.1429e19
-        credits = _underlying.add(1).divPrecisely(exchangeRate);
+        // e.g. 1 * 1e18 / 1e17 + 1 = 11 => 11 * 1e17 / 1e18 = 1.1e18 / 1e18 = 1
+        credits = _underlying.divPrecisely(exchangeRate).add(1);
     }
 
     /**

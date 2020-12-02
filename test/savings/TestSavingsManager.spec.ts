@@ -26,6 +26,7 @@ const { expect } = envSetup.configure();
 const SavingsManager = artifacts.require("SavingsManager");
 const MockNexus = artifacts.require("MockNexus");
 const MockMasset = artifacts.require("MockMasset");
+const MockERC20 = artifacts.require("MockERC20");
 const MockMasset1 = artifacts.require("MockMasset1");
 const SavingsContract = artifacts.require("SavingsContract");
 const MockRevenueRecipient = artifacts.require("MockRevenueRecipient");
@@ -46,14 +47,18 @@ contract("SavingsManager", async (accounts) => {
     let savingsContract: t.SavingsContractInstance;
     let savingsManager: t.SavingsManagerInstance;
     let mUSD: t.MockMassetInstance;
+    let mta: t.MockERC20Instance;
     const liquidator = sa.fundManager;
 
     async function createNewSavingsManager(mintAmount: BN = INITIAL_MINT): Promise<void> {
         mUSD = await MockMasset.new("mUSD", "mUSD", 18, sa.default, mintAmount);
+        mta = await MockERC20.new("MTA", "MTA", 18, sa.fundManager, 1000000);
         savingsContract = await SavingsContract.new(
             nexus.address,
+            mta.address,
+            sa.fundManager,
             mUSD.address,
-            "mUSD Credit",
+            "Savings Credit",
             "ymUSD",
             18,
         );
@@ -365,6 +370,8 @@ contract("SavingsManager", async (accounts) => {
                 const mUSD2 = await MockMasset1.new("mUSD", "mUSD", 18, sa.default, INITIAL_MINT);
                 savingsContract = await SavingsContract.new(
                     nexus.address,
+                    mta.address,
+                    sa.fundManager,
                     mUSD.address,
                     "Savings Credit",
                     "ymUSD",

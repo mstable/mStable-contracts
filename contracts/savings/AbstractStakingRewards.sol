@@ -2,6 +2,7 @@ pragma solidity 0.5.16;
 
 // Internal
 import { RewardsDistributionRecipient } from "../rewards/RewardsDistributionRecipient.sol";
+import { IIncentivisedVotingLockup } from "../interfaces/IIncentivisedVotingLockup.sol";
 
 // Libs
 import { IERC20, SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
@@ -14,6 +15,7 @@ contract AbstractStakingRewards is RewardsDistributionRecipient {
     using SafeERC20 for IERC20;
 
     IERC20 public rewardsToken;
+    IIncentivisedVotingLockup public staking;
 
     uint256 private constant DURATION = 7 days;
 
@@ -27,6 +29,10 @@ contract AbstractStakingRewards is RewardsDistributionRecipient {
     uint256 public rewardPerTokenStored = 0;
     mapping(address => uint256) public userRewardPerTokenPaid;
     mapping(address => uint256) public rewards;
+    // Power details
+    mapping(address => bool) public switchedOn;
+    mapping(address => uint256) public userPower;
+    uint256 public totalPower;
 
     event RewardAdded(uint256 reward);
     event RewardPaid(address indexed user, uint256 reward);
@@ -43,8 +49,17 @@ contract AbstractStakingRewards is RewardsDistributionRecipient {
         rewardsToken = IERC20(_rewardsToken);
     }
 
-    function powerOf(address _account) public view returns (uint256);
-    function totalPower() public view returns (uint256);
+    function balanceOf(address _account) public view returns (uint256);
+    function totalSupply() public view returns (uint256);
+
+    modifier updatePower(address _account) {
+        _;
+        uint256 before = userPower[_account];
+        uint256 current = balanceOf(_account);
+        userPower[_account] = current;
+        uint256 delta = current > before ? current.sub(before) : before.sub(current);
+        totalPower = current > before ? totalPower.add(delta) : totalPower.sub(delta);
+    }
 
     /** @dev Updates the reward for a given address, before executing function */
     // Fresh case scenario: SLOAD  SSTORE
@@ -185,14 +200,14 @@ contract AbstractStakingRewards is RewardsDistributionRecipient {
         }
         // new reward units to distribute = rewardRate * timeSinceLastUpdate
         uint256 rewardUnitsToDistribute = rewardRate.mul(timeDelta); // + 1 SLOAD
-        uint256 stakedTokens = totalSupply(); // + 1 SLOAD
+        uint256 totalPower_ = totalPower; // + 1 SLOAD
         // If there is no StakingToken liquidity, avoid div(0)
         // If there is nothing to distribute, short circuit
-        if (stakedTokens == 0 || rewardUnitsToDistribute == 0) {
+        if (totalPower_ == 0 || rewardUnitsToDistribute == 0) {
             return (rewardPerTokenStored, lastApplicableTime);
         }
         // new reward units per token = (rewardUnitsToDistribute * 1e18) / totalTokens
-        uint256 unitsToDistributePerToken = rewardUnitsToDistribute.divPrecisely(stakedTokens);
+        uint256 unitsToDistributePerToken = rewardUnitsToDistribute.divPrecisely(totalPower_);
         // return summed rate
         return (rewardPerTokenStored.add(unitsToDistributePerToken), lastApplicableTime); // + 1 SLOAD
     }
@@ -222,7 +237,7 @@ contract AbstractStakingRewards is RewardsDistributionRecipient {
             return rewards[_account];
         }
         // new reward = staked tokens * difference in rate
-        uint256 userNewReward = balanceOf(_account).mulTruncate(userRewardDelta); // + 1 SLOAD
+        uint256 userNewReward = userPower[_account].mulTruncate(userRewardDelta); // + 1 SLOAD
         // add to previous rewards
         return rewards[_account].add(userNewReward);
     }
