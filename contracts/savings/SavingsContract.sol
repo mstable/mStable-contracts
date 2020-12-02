@@ -43,50 +43,58 @@ contract SavingsCredit is IERC20, ERC20Detailed, AbstractStakingRewards {
         
     }
 
+    /** Ported straight from OpenZeppelin ERC20 */
     function totalSupply() public view returns (uint256) {
         return _totalCredits;
     }
 
+    /** Ported straight from OpenZeppelin ERC20 */
     function balanceOf(address account) public view returns (uint256) {
         return _creditBalances[account];
     }
 
+    /** Ported straight from OpenZeppelin ERC20 */
     function transfer(address recipient, uint256 amount) public returns (bool) {
         _transfer(msg.sender, recipient, amount);
         return true;
     }
 
+    /** Ported straight from OpenZeppelin ERC20 */
     function allowance(address owner, address spender) public view returns (uint256) {
         return _allowances[owner][spender];
     }
 
+    /** Ported straight from OpenZeppelin ERC20 */
     function approve(address spender, uint256 amount) public returns (bool) {
         _approve(msg.sender, spender, amount);
         return true;
     }
 
+    /** Ported straight from OpenZeppelin ERC20 */
     function transferFrom(address sender, address recipient, uint256 amount) public returns (bool) {
         _transfer(sender, recipient, amount);
         _approve(sender, msg.sender, _allowances[sender][msg.sender].sub(amount, "ERC20: transfer amount exceeds allowance"));
         return true;
     }
 
+    /** Ported straight from OpenZeppelin ERC20 */
     function increaseAllowance(address spender, uint256 addedValue) public returns (bool) {
         _approve(msg.sender, spender, _allowances[msg.sender][spender].add(addedValue));
         return true;
     }
 
+    /** Ported straight from OpenZeppelin ERC20 */
     function decreaseAllowance(address spender, uint256 subtractedValue) public returns (bool) {
         _approve(msg.sender, spender, _allowances[msg.sender][spender].sub(subtractedValue, "ERC20: decreased allowance below zero"));
         return true;
     }
 
-    // add here for sender and recipient
-    // TODO - add single method for updating rewards
+    // @Modification - 2 things must be done on a transfer
+    // 1 - Accrue Rewards for both sender and recipient
+    // 2 - Update 'power' of each participant AFTER
     function _transfer(address sender, address recipient, uint256 amount)
-        updateReward(sender)
-        updateReward(recipient)
         internal
+        updateRewards(sender, recipient)
     {
         require(sender != address(0), "ERC20: transfer from the zero address");
         require(recipient != address(0), "ERC20: transfer to the zero address");
@@ -96,9 +104,9 @@ contract SavingsCredit is IERC20, ERC20Detailed, AbstractStakingRewards {
         emit Transfer(sender, recipient, amount);
     }
 
-    // add here for sender
+    // Before a _mint is called, rewards should already be accrued
+    // Should then update 'power' of the recipient AFTER
     function _mint(address account, uint256 amount)
-        updateReward(account)
         internal
     {
         require(account != address(0), "ERC20: mint to the zero address");
@@ -108,10 +116,10 @@ contract SavingsCredit is IERC20, ERC20Detailed, AbstractStakingRewards {
         emit Transfer(address(0), account, amount);
     }
 
-    // add here for sender
+    // Before a _mint is called, rewards should already be accrued
+    // Should then update 'power' of the recipient AFTER
     function _burn(address account, uint256 amount)
         internal
-        updateReward(account)
     {
         require(account != address(0), "ERC20: burn from the zero address");
 
@@ -120,6 +128,7 @@ contract SavingsCredit is IERC20, ERC20Detailed, AbstractStakingRewards {
         emit Transfer(account, address(0), amount);
     }
 
+    /** Ported straight from OpenZeppelin ERC20 */
     function _approve(address owner, address spender, uint256 amount) internal {
         require(owner != address(0), "ERC20: approve from the zero address");
         require(spender != address(0), "ERC20: approve to the zero address");
@@ -127,7 +136,6 @@ contract SavingsCredit is IERC20, ERC20Detailed, AbstractStakingRewards {
         _allowances[owner][spender] = amount;
         emit Approval(owner, spender, amount);
     }
-
 }
 
 /**
@@ -206,7 +214,7 @@ contract SavingsContract is ISavingsContract, SavingsCredit {
      */
     function depositInterest(uint256 _amount)
         external
-        onlySavingsManager
+        onlySavingsManager // TODO - remove this?
     {
         require(_amount > 0, "Must deposit something");
 
@@ -221,6 +229,7 @@ contract SavingsContract is ISavingsContract, SavingsCredit {
             // exchangeRate = totalSavings/_totalCredits
             // e.g. (100e18 * 1e18) / 100e18 = 1e18
             // e.g. (101e20 * 1e18) / 100e20 = 1.01e18
+            // e.g. 1e16 * 1e18 / 1e25 = 1e11
             exchangeRate = totalSavings.divPrecisely(_totalCredits);
 
             emit ExchangeRateUpdated(exchangeRate, _amount);
@@ -257,6 +266,7 @@ contract SavingsContract is ISavingsContract, SavingsCredit {
 
     function _deposit(uint256 _underlying, address _beneficiary)
         internal
+        updateReward(_beneficiary)
         returns (uint256 creditsIssued)
     {
         require(_underlying > 0, "Must deposit something");
@@ -319,6 +329,7 @@ contract SavingsContract is ISavingsContract, SavingsCredit {
 
     function _redeem(uint256 _credits)
         internal
+        updateReward(msg.sender)
         returns (uint256 massetReturned)
     {
         uint256 saverCredits = _creditBalances[msg.sender];

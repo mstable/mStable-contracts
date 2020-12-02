@@ -43,28 +43,69 @@ contract AbstractStakingRewards is RewardsDistributionRecipient {
         rewardsToken = IERC20(_rewardsToken);
     }
 
-    function balanceOf(address _account) public view returns (uint256);
-    function totalSupply() public view returns (uint256);
+    function powerOf(address _account) public view returns (uint256);
+    function totalPower() public view returns (uint256);
 
     /** @dev Updates the reward for a given address, before executing function */
-    // TODO
-    // Optimise this for reads, and for 2 people.. e.g. combine all data retriebal to initial `rewardPerToken` call
-    // Then add a second method to update for two accounts to fully optimise.
+    // Fresh case scenario: SLOAD  SSTORE
+    // _rewardPerToken         x5
+    // rewardPerTokenStored            5k
+    // lastUpdateTime                  5k
+    // _earned1                x3     20k
+    //                       6.4k     30k
+    //                      =       36.4k
     modifier updateReward(address _account) {
         // Setting of global vars
-        uint256 newRewardPerToken = rewardPerToken();
+        (uint256 newRewardPerToken, uint256 lastApplicableTime) = _rewardPerToken();
         // If statement protects against loss in initialisation case
         if(newRewardPerToken > 0) {
             rewardPerTokenStored = newRewardPerToken;
-            lastUpdateTime = lastTimeRewardApplicable();
+            lastUpdateTime = lastApplicableTime;
             // Setting of personal vars based on new globals
             if (_account != address(0)) {
-                rewards[_account] = earned(_account);
+                rewards[_account] = _earned(_account, newRewardPerToken);
                 userRewardPerTokenPaid[_account] = newRewardPerToken;
             }
         }
         _;
     }
+
+    // Worst case scenario: SLOAD  SSTORE
+    // _rewardPerToken         x5
+    // rewardPerTokenStored            5k
+    // lastUpdateTime                  5k
+    // _earned1                x3  10-25k
+    // _earned2                x3  10-25k
+    //                       8.8k  30-60k
+    //                      = 38.8k-68.8k
+    // Wrapper scenario:    SLOAD  SSTORE
+    // _rewardPerToken         x3
+    // rewardPerTokenStored            0k
+    // lastUpdateTime                  0k
+    // _earned1                x3  10-25k
+    // _earned2                x3  10-25k
+    //                       8.8k  30-60k
+    //                      = 38.8k-68.8k
+    modifier updateRewards(address _a1, address _a2) {
+        // Setting of global vars
+        (uint256 newRewardPerToken, uint256 lastApplicableTime) = _rewardPerToken();
+        // If statement protects against loss in initialisation case
+        if(newRewardPerToken > 0) {
+            rewardPerTokenStored = newRewardPerToken;
+            lastUpdateTime = lastApplicableTime;
+            // Setting of personal vars based on new globals
+            if (_a1 != address(0)) {
+                rewards[_a1] = _earned(_a1, newRewardPerToken);
+                userRewardPerTokenPaid[_a1] = newRewardPerToken;
+            }
+            if (_a2 != address(0)) {
+                rewards[_a2] = _earned(_a2, newRewardPerToken);
+                userRewardPerTokenPaid[_a2] = newRewardPerToken;
+            }
+        }
+        _;
+    }
+
 
     /**
      * @dev Claims outstanding rewards for the sender.
@@ -75,11 +116,19 @@ contract AbstractStakingRewards is RewardsDistributionRecipient {
         updateReward(msg.sender)
     {
         uint256 reward = rewards[msg.sender];
+        // TODO - make this base 1 to reduce SSTORE cost in updaterwd
         if (reward > 0) {
             rewards[msg.sender] = 0;
+            // TODO - simply add to week in 24 weeks time (floor)
             rewardsToken.safeTransfer(msg.sender, reward);
             emit RewardPaid(msg.sender, reward);
         }
+    }
+
+    function withdrawReward(uint256[] calldata _ids)
+        external
+    {
+        // withdraw all unlocked rewards
     }
 
 
@@ -119,17 +168,33 @@ contract AbstractStakingRewards is RewardsDistributionRecipient {
         view
         returns (uint256)
     {
-        // If there is no StakingToken liquidity, avoid div(0)
-        uint256 stakedTokens = totalSupply();
-        if (stakedTokens == 0) {
-            return rewardPerTokenStored;
+        (uint256 rewardPerToken_, ) = _rewardPerToken();
+        return rewardPerToken_;
+    }
+
+    function _rewardPerToken()
+        internal
+        view
+        returns (uint256 rewardPerToken_, uint256 lastTimeRewardApplicable_)
+    {
+        uint256 lastApplicableTime = lastTimeRewardApplicable(); // + 1 SLOAD
+        uint256 timeDelta = lastApplicableTime.sub(lastUpdateTime); // + 1 SLOAD
+        // If this has been called twice in the same block, shortcircuit to reduce gas
+        if(timeDelta == 0) {
+            return (rewardPerTokenStored, lastApplicableTime);
         }
         // new reward units to distribute = rewardRate * timeSinceLastUpdate
-        uint256 rewardUnitsToDistribute = rewardRate.mul(lastTimeRewardApplicable().sub(lastUpdateTime));
+        uint256 rewardUnitsToDistribute = rewardRate.mul(timeDelta); // + 1 SLOAD
+        uint256 stakedTokens = totalSupply(); // + 1 SLOAD
+        // If there is no StakingToken liquidity, avoid div(0)
+        // If there is nothing to distribute, short circuit
+        if (stakedTokens == 0 || rewardUnitsToDistribute == 0) {
+            return (rewardPerTokenStored, lastApplicableTime);
+        }
         // new reward units per token = (rewardUnitsToDistribute * 1e18) / totalTokens
         uint256 unitsToDistributePerToken = rewardUnitsToDistribute.divPrecisely(stakedTokens);
         // return summed rate
-        return rewardPerTokenStored.add(unitsToDistributePerToken);
+        return (rewardPerTokenStored.add(unitsToDistributePerToken), lastApplicableTime); // + 1 SLOAD
     }
 
     /**
@@ -142,10 +207,22 @@ contract AbstractStakingRewards is RewardsDistributionRecipient {
         view
         returns (uint256)
     {
+        return _earned(_account, rewardPerToken());
+    }
+
+    function _earned(address _account, uint256 _currentRewardPerToken)
+        internal
+        view
+        returns (uint256)
+    {
         // current rate per token - rate user previously received
-        uint256 userRewardDelta = rewardPerToken().sub(userRewardPerTokenPaid[_account]);
+        uint256 userRewardDelta = _currentRewardPerToken.sub(userRewardPerTokenPaid[_account]); // + 1 SLOAD
+        // Short circuit if there is nothing new to distribute
+        if(userRewardDelta == 0){
+            return rewards[_account];
+        }
         // new reward = staked tokens * difference in rate
-        uint256 userNewReward = balanceOf(_account).mulTruncate(userRewardDelta);
+        uint256 userNewReward = balanceOf(_account).mulTruncate(userRewardDelta); // + 1 SLOAD
         // add to previous rewards
         return rewards[_account].add(userNewReward);
     }
