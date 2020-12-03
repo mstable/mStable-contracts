@@ -2,22 +2,20 @@ pragma solidity 0.5.16;
 
 // Internal
 import { RewardsDistributionRecipient } from "../rewards/RewardsDistributionRecipient.sol";
-import { IIncentivisedVotingLockup } from "../interfaces/IIncentivisedVotingLockup.sol";
+import { BoostedTokenWrapper } from "./BoostedTokenWrapper.sol";
 
 // Libs
 import { IERC20, SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import { StableMath, SafeMath } from "../shared/StableMath.sol";
 
-contract AbstractStakingRewards is RewardsDistributionRecipient {
+
+contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipient {
 
     using StableMath for uint256;
-    using SafeMath for uint256;
-    using SafeERC20 for IERC20;
 
     IERC20 public rewardsToken;
-    IIncentivisedVotingLockup public staking;
 
-    uint256 private constant DURATION = 7 days;
+    uint256 public constant DURATION = 7 days;
 
     // Timestamp for current period finish
     uint256 public periodFinish = 0;
@@ -29,46 +27,29 @@ contract AbstractStakingRewards is RewardsDistributionRecipient {
     uint256 public rewardPerTokenStored = 0;
     mapping(address => uint256) public userRewardPerTokenPaid;
     mapping(address => uint256) public rewards;
-    // Power details
-    mapping(address => bool) public switchedOn;
-    mapping(address => uint256) public userPower;
-    uint256 public totalPower;
 
     event RewardAdded(uint256 reward);
+    event Staked(address indexed user, uint256 amount, address payer);
+    event Withdrawn(address indexed user, uint256 amount);
     event RewardPaid(address indexed user, uint256 reward);
 
     /** @dev StakingRewards is a TokenWrapper and RewardRecipient */
+    // TODO - add constants to bytecode at deployTime to reduce SLOAD cost
     constructor(
-        address _nexus,
-        address _rewardsToken,
+        address _nexus, // constant
+        address _stakingToken, // constant
+        address _stakingContract, // constant
+        address _rewardsToken, // constant
         address _rewardsDistributor
     )
         public
         RewardsDistributionRecipient(_nexus, _rewardsDistributor)
+        BoostedTokenWrapper(_stakingToken, _stakingContract)
     {
         rewardsToken = IERC20(_rewardsToken);
     }
 
-    function balanceOf(address _account) public view returns (uint256);
-    function totalSupply() public view returns (uint256);
-
-    modifier updatePower(address _account) {
-        _;
-        uint256 before = userPower[_account];
-        uint256 current = balanceOf(_account);
-        userPower[_account] = current;
-        uint256 delta = current > before ? current.sub(before) : before.sub(current);
-        totalPower = current > before ? totalPower.add(delta) : totalPower.sub(delta);
-    }
-
     /** @dev Updates the reward for a given address, before executing function */
-    // Fresh case scenario: SLOAD  SSTORE
-    // _rewardPerToken         x5
-    // rewardPerTokenStored            5k
-    // lastUpdateTime                  5k
-    // _earned1                x3     20k
-    //                       6.4k     30k
-    //                      =       36.4k
     modifier updateReward(address _account) {
         // Setting of global vars
         (uint256 newRewardPerToken, uint256 lastApplicableTime) = _rewardPerToken();
@@ -85,65 +66,110 @@ contract AbstractStakingRewards is RewardsDistributionRecipient {
         _;
     }
 
-    // Worst case scenario: SLOAD  SSTORE
-    // _rewardPerToken         x5
-    // rewardPerTokenStored            5k
-    // lastUpdateTime                  5k
-    // _earned1                x3  10-25k
-    // _earned2                x3  10-25k
-    //                       8.8k  30-60k
-    //                      = 38.8k-68.8k
-    // Wrapper scenario:    SLOAD  SSTORE
-    // _rewardPerToken         x3
-    // rewardPerTokenStored            0k
-    // lastUpdateTime                  0k
-    // _earned1                x3  10-25k
-    // _earned2                x3  10-25k
-    //                       8.8k  30-60k
-    //                      = 38.8k-68.8k
-    modifier updateRewards(address _a1, address _a2) {
-        // Setting of global vars
-        (uint256 newRewardPerToken, uint256 lastApplicableTime) = _rewardPerToken();
-        // If statement protects against loss in initialisation case
-        if(newRewardPerToken > 0) {
-            rewardPerTokenStored = newRewardPerToken;
-            lastUpdateTime = lastApplicableTime;
-            // Setting of personal vars based on new globals
-            if (_a1 != address(0)) {
-                rewards[_a1] = _earned(_a1, newRewardPerToken);
-                userRewardPerTokenPaid[_a1] = newRewardPerToken;
-            }
-            if (_a2 != address(0)) {
-                rewards[_a2] = _earned(_a2, newRewardPerToken);
-                userRewardPerTokenPaid[_a2] = newRewardPerToken;
-            }
-        }
+    /** @dev Updates the reward for a given address, before executing function */
+    modifier updateBoost(address _account) {
         _;
+        _setBoost(_account);
     }
 
+    /***************************************
+                    ACTIONS
+    ****************************************/
+
+    /**
+     * @dev Stakes a given amount of the StakingToken for the sender
+     * @param _amount Units of StakingToken
+     */
+    function stake(uint256 _amount)
+        external
+        updateReward(msg.sender)
+        updateBoost(msg.sender)
+    {
+        _stake(msg.sender, _amount);
+    }
+
+    /**
+     * @dev Stakes a given amount of the StakingToken for a given beneficiary
+     * @param _beneficiary Staked tokens are credited to this address
+     * @param _amount      Units of StakingToken
+     */
+    function stake(address _beneficiary, uint256 _amount)
+        external
+        updateReward(_beneficiary)
+        updateBoost(_beneficiary)
+    {
+        _stake(_beneficiary, _amount);
+    }
+
+    /**
+     * @dev Withdraws stake from pool and claims any rewards
+     */
+    function exit()
+        external
+        updateReward(msg.sender)
+        updateBoost(msg.sender)
+    {
+        _withdraw(rawBalanceOf(msg.sender));
+        _claimReward();
+    }
+
+    /**
+     * @dev Withdraws given stake amount from the pool
+     * @param _amount Units of the staked token to withdraw
+     */
+    function withdraw(uint256 _amount)
+        external
+        updateReward(msg.sender)
+        updateBoost(msg.sender)
+    {
+        _withdraw(_amount);
+    }
 
     /**
      * @dev Claims outstanding rewards for the sender.
      * First updates outstanding reward allocation and then transfers.
      */
     function claimReward()
-        public
+        external
         updateReward(msg.sender)
+        updateBoost(msg.sender)
+    {
+        _claimReward();
+    }
+
+
+    /**
+     * @dev Internally stakes an amount by depositing from sender,
+     * and crediting to the specified beneficiary
+     * @param _beneficiary Staked tokens are credited to this address
+     * @param _amount      Units of StakingToken
+     */
+    function _stake(address _beneficiary, uint256 _amount)
+        internal
+    {
+        require(_amount > 0, "Cannot stake 0");
+        _stakeRaw(_beneficiary, _amount);
+        emit Staked(_beneficiary, _amount, msg.sender);
+    }
+
+    function _withdraw(uint256 _amount)
+        internal
+    {
+        require(_amount > 0, "Cannot withdraw 0");
+        _withdrawRaw(_amount);
+        emit Withdrawn(msg.sender, _amount);
+    }
+
+
+    function _claimReward()
+        internal
     {
         uint256 reward = rewards[msg.sender];
-        // TODO - make this base 1 to reduce SSTORE cost in updaterwd
         if (reward > 0) {
             rewards[msg.sender] = 0;
-            // TODO - simply add to week in 24 weeks time (floor)
             rewardsToken.safeTransfer(msg.sender, reward);
             emit RewardPaid(msg.sender, reward);
         }
-    }
-
-    function withdrawReward(uint256[] calldata _ids)
-        external
-    {
-        // withdraw all unlocked rewards
     }
 
 
@@ -200,14 +226,14 @@ contract AbstractStakingRewards is RewardsDistributionRecipient {
         }
         // new reward units to distribute = rewardRate * timeSinceLastUpdate
         uint256 rewardUnitsToDistribute = rewardRate.mul(timeDelta); // + 1 SLOAD
-        uint256 totalPower_ = totalPower; // + 1 SLOAD
+        uint256 supply = totalSupply(); // + 1 SLOAD
         // If there is no StakingToken liquidity, avoid div(0)
         // If there is nothing to distribute, short circuit
-        if (totalPower_ == 0 || rewardUnitsToDistribute == 0) {
+        if (supply == 0 || rewardUnitsToDistribute == 0) {
             return (rewardPerTokenStored, lastApplicableTime);
         }
         // new reward units per token = (rewardUnitsToDistribute * 1e18) / totalTokens
-        uint256 unitsToDistributePerToken = rewardUnitsToDistribute.divPrecisely(totalPower_);
+        uint256 unitsToDistributePerToken = rewardUnitsToDistribute.divPrecisely(supply);
         // return summed rate
         return (rewardPerTokenStored.add(unitsToDistributePerToken), lastApplicableTime); // + 1 SLOAD
     }
@@ -237,7 +263,7 @@ contract AbstractStakingRewards is RewardsDistributionRecipient {
             return rewards[_account];
         }
         // new reward = staked tokens * difference in rate
-        uint256 userNewReward = userPower[_account].mulTruncate(userRewardDelta); // + 1 SLOAD
+        uint256 userNewReward = balanceOf(_account).mulTruncate(userRewardDelta); // + 1 SLOAD
         // add to previous rewards
         return rewards[_account].add(userNewReward);
     }

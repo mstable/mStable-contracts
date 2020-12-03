@@ -5,145 +5,14 @@ import { ISavingsManager } from "../interfaces/ISavingsManager.sol";
 
 // Internal
 import { ISavingsContract } from "../interfaces/ISavingsContract.sol";
-import { Module } from "../shared/Module.sol";
-import { AbstractStakingRewards } from "./AbstractStakingRewards.sol";
+import { InitializableToken } from "../shared/InitializableToken.sol";
+import { InitializableModule } from "../shared/InitializableModule.sol";
 
 // Libs
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { ERC20Detailed } from "@openzeppelin/contracts/token/ERC20/ERC20Detailed.sol";
 import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 import { StableMath } from "../shared/StableMath.sol";
 
-
-
-contract SavingsCredit is IERC20, ERC20Detailed, AbstractStakingRewards {
-
-    using SafeMath for uint256;
-
-    // Total number of savings credits issued
-    uint256 internal _totalCredits;
-
-    // Amount of credits for each saver
-    mapping(address => uint256) internal _creditBalances;
-    mapping(address => mapping(address => uint256)) private _allowances;
-
-    constructor(address _nexus, address _rewardToken, address _distributor, string memory _nameArg, string memory _symbolArg, uint8 _decimalsArg)
-        internal
-        ERC20Detailed(
-            _nameArg,
-            _symbolArg,
-            _decimalsArg
-        )
-        AbstractStakingRewards(
-            _nexus,
-            _rewardToken,
-            _distributor
-        )
-    {
-        
-    }
-
-    /** Ported straight from OpenZeppelin ERC20 */
-    function totalSupply() public view returns (uint256) {
-        return _totalCredits;
-    }
-
-    /** Ported straight from OpenZeppelin ERC20 */
-    function balanceOf(address account) public view returns (uint256) {
-        return _creditBalances[account];
-    }
-
-    /** Ported straight from OpenZeppelin ERC20 */
-    function transfer(address recipient, uint256 amount) public returns (bool) {
-        _transfer(msg.sender, recipient, amount);
-        return true;
-    }
-
-    /** Ported straight from OpenZeppelin ERC20 */
-    function allowance(address owner, address spender) public view returns (uint256) {
-        return _allowances[owner][spender];
-    }
-
-    /** Ported straight from OpenZeppelin ERC20 */
-    function approve(address spender, uint256 amount) public returns (bool) {
-        _approve(msg.sender, spender, amount);
-        return true;
-    }
-
-    /** Ported straight from OpenZeppelin ERC20 */
-    function transferFrom(address sender, address recipient, uint256 amount) public returns (bool) {
-        _transfer(sender, recipient, amount);
-        _approve(sender, msg.sender, _allowances[sender][msg.sender].sub(amount, "ERC20: transfer amount exceeds allowance"));
-        return true;
-    }
-
-    /** Ported straight from OpenZeppelin ERC20 */
-    function increaseAllowance(address spender, uint256 addedValue) public returns (bool) {
-        _approve(msg.sender, spender, _allowances[msg.sender][spender].add(addedValue));
-        return true;
-    }
-
-    /** Ported straight from OpenZeppelin ERC20 */
-    function decreaseAllowance(address spender, uint256 subtractedValue) public returns (bool) {
-        _approve(msg.sender, spender, _allowances[msg.sender][spender].sub(subtractedValue, "ERC20: decreased allowance below zero"));
-        return true;
-    }
-
-    // @Modification - 2 things must be done on a transfer
-    // 1 - Accrue Rewards for both sender and recipient
-    // 2 - Update 'power' of each participant AFTER
-    function _transfer(address sender, address recipient, uint256 amount)
-        internal
-        updateRewards(sender, recipient)
-        // updatePowers(sender, recipient)
-    {
-        require(sender != address(0), "ERC20: transfer from the zero address");
-        require(recipient != address(0), "ERC20: transfer to the zero address");
-
-        _creditBalances[sender] = _creditBalances[sender].sub(amount, "ERC20: transfer amount exceeds balance");
-        _creditBalances[recipient] = _creditBalances[recipient].add(amount);
-        emit Transfer(sender, recipient, amount);
-    }
-
-    // @Modification - 2 things must be done on a mint
-    // 1 - Accrue Rewards for account
-    // 2 - Update 'power' of the participant AFTER
-    function _mint(address account, uint256 amount)
-        internal
-        updateReward(account)
-        updatePower(account)
-    {
-        require(account != address(0), "ERC20: mint to the zero address");
-
-        _totalCredits = _totalCredits.add(amount);
-        _creditBalances[account] = _creditBalances[account].add(amount);
-        emit Transfer(address(0), account, amount);
-    }
-
-    // @Modification - 2 things must be done on a mint
-    // 1 - Accrue Rewards for account
-    // 2 - Update 'power' of the participant AFTER
-    function _burn(address account, uint256 amount)
-        internal
-        updateReward(account)
-        updatePower(account)
-    {
-        require(account != address(0), "ERC20: burn from the zero address");
-
-        _creditBalances[account] = _creditBalances[account].sub(amount, "ERC20: burn amount exceeds balance");
-        _totalCredits = _totalCredits.sub(amount);
-        emit Transfer(account, address(0), amount);
-    }
-
-    /** Ported straight from OpenZeppelin ERC20 */
-    function _approve(address owner, address spender, uint256 amount) internal {
-        require(owner != address(0), "ERC20: approve from the zero address");
-        require(spender != address(0), "ERC20: approve to the zero address");
-
-        _allowances[owner][spender] = amount;
-        emit Approval(owner, spender, amount);
-    }
-}
 
 /**
  * @title   SavingsContract
@@ -154,7 +23,7 @@ contract SavingsCredit is IERC20, ERC20Detailed, AbstractStakingRewards {
  * @dev     VERSION: 2.0
  *          DATE:    2020-11-28
  */
-contract SavingsContract is ISavingsContract, SavingsCredit {
+contract SavingsContract is ISavingsContract, InitializableToken, InitializableModule {
 
     using SafeMath for uint256;
     using StableMath for uint256;
@@ -165,12 +34,9 @@ contract SavingsContract is ISavingsContract, SavingsCredit {
     event CreditsRedeemed(address indexed redeemer, uint256 creditsRedeemed, uint256 savingsCredited);
     event AutomaticInterestCollectionSwitched(bool automationEnabled);
 
-    // Amount of underlying savings in the contract
-    // uint256 public totalSavings;
-
     // Rate between 'savings credits' and underlying
     // e.g. 1 credit (1e17) mulTruncate(exchangeRate) = underlying, starts at 10:1
-    // exchangeRate increases over time and is essentially a percentage based value
+    // exchangeRate increases over time
     uint256 public exchangeRate = 1e17;
 
     // Underlying asset is underlying
@@ -179,19 +45,17 @@ contract SavingsContract is ISavingsContract, SavingsCredit {
 
     // TODO - use constant addresses during deployment. Adds to bytecode
     constructor(
-            address _nexus, // constant
-            address _rewardToken, // constant
-            address _distributor,
-            IERC20 _underlying, // constant
-            string memory _nameArg, // constant
-            string memory _symbolArg, // constant
-            uint8 _decimalsArg // constant
-        )
+        address _nexus, // constant
+        IERC20 _underlying, // constant
+        string memory _nameArg, // constant
+        string memory _symbolArg // constant
+    )
         public
-        SavingsCredit(_nexus, _rewardToken, _distributor, _nameArg, _symbolArg, _decimalsArg)
     {
         require(address(_underlying) != address(0), "mAsset address is zero");
         underlying = _underlying;
+        InitializableToken._initialize(_nameArg, _symbolArg);
+        InitializableModule._initialize(_nexus);
     }
 
     /** @dev Only the savings managaer (pulled from Nexus) can execute this */
@@ -231,7 +95,7 @@ contract SavingsContract is ISavingsContract, SavingsCredit {
         require(underlying.transferFrom(msg.sender, address(this), _amount), "Must receive tokens");
 
         // Calc new exchange rate, protect against initialisation case
-        uint256 totalCredits = _totalCredits;
+        uint256 totalCredits = totalSupply();
         if(totalCredits > 0) {
             // new exchange rate is relationship between _totalCredits & totalSavings
             // _totalCredits * exchangeRate = totalSavings
@@ -254,10 +118,10 @@ contract SavingsContract is ISavingsContract, SavingsCredit {
         external
         onlyPoker
     {
-        uint256 sum = _creditToUnderlying(_totalCredits);
+        uint256 sum = _creditToUnderlying(totalSupply());
         uint256 balance = underlying.balanceOf(address(this));
         if(balance > sum){
-            exchangeRate = balance.divPrecisely(_totalCredits);
+            exchangeRate = balance.divPrecisely(totalSupply());
         }
     }
 
@@ -356,9 +220,6 @@ contract SavingsContract is ISavingsContract, SavingsCredit {
         internal
         returns (uint256 massetReturned)
     {
-        // uint256 saverCredits = _creditBalances[msg.sender];
-        // require(saverCredits >= _credits, "Saver has no credits");
-
         _burn(msg.sender, _credits);
 
         // Calc payout based on currentRatio
@@ -376,12 +237,12 @@ contract SavingsContract is ISavingsContract, SavingsCredit {
     ****************************************/
 
     function balanceOfUnderlying(address _user) external view returns (uint256 balance) {
-        return _creditToUnderlying(_creditBalances[_user]);
+        return _creditToUnderlying(balanceOf(_user));
     }
 
 
     function creditBalances(address _user) external view returns (uint256) {
-        return _creditBalances[_user];
+        return balanceOf(_user);
     }
 
     /**
