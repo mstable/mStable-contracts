@@ -11,52 +11,53 @@ import { IBasicToken } from "../../shared/IBasicToken.sol";
 contract SaveViaUniswap {
 
     using SafeERC20 for IERC20;
-    using SafeMath for uint;
+    using SafeMath for uint256;
     address save;
     ICurveMetaPool curve;
     IUniswapV2Router02 uniswap;
+    address[] curveAssets;
 
-    constructor(address _save, address _uniswapAddress, address _curveAddress, address _bAsset, uint _bAssetAmount) public {
+    constructor(address _save, address _uniswapAddress, address _curveAddress, address _mAsset, address[] memory _curveAssets) public {
         require(_save != address(0), "Invalid save address");
         save = _save;
         require(_uniswapAddress != address(0), "Invalid uniswap address");
         uniswap = IUniswapV2Router02(_uniswapAddress);
         require(_curveAddress != address(0), "Invalid curve address");
         curve = ICurveMetaPool(_curveAddress);
-        IERC20(_bAsset).safeApprove(address(uniswap), _bAssetAmount);
-        IERC20(_bAsset).safeApprove(address(uniswap), _bAssetAmount);
-        IERC20(_bAsset).safeApprove(address(curve), _bAssetAmount);
+        curveAssets = _curveAssets;
+        IERC20(_mAsset).safeApprove(address(save), uint256(-1));
+        for(uint256 i = 0; i < curveAssets.length; i++ ) {
+            IERC20(curveAssets[i]).safeApprove(address(curve), uint256(-1));
+        }
     }
 
     function buyAndSave (
-        address _bAsset,
-        uint _bAssetAmount,
-        uint _amountOutMin,
+        address _asset,
+        uint256 _inputAmount,
+        uint256 _amountOutMin,
         address[] calldata _path,
-        uint _deadline,
-        int128 _curvePosition
+        uint256 _deadline,
+        int128 _curvePosition,
+        uint256 _minOutCrv
         ) external {
-        IERC20(_bAsset).transferFrom(msg.sender, address(this), _bAssetAmount);
+        IERC20(_asset).transferFrom(msg.sender, address(this), _inputAmount);
         uint[] memory amounts = uniswap.swapExactTokensForTokens(
-            _bAssetAmount,
+            _inputAmount,
             _amountOutMin,
             _path,
             address(save),
             _deadline
         );
-        // I copied this from the Liquidator contract, I am unsure about the second and last parameter in crv fn)
-        uint256 bAssetDec = IBasicToken(_bAsset).decimals();
-        uint256 minOutCrv = _bAssetAmount.mul(95e16).div(10 ** bAssetDec);
-        uint purchased = curve.exchange_underlying(_curvePosition, 0, amounts[1], minOutCrv);
+
+        uint purchased = curve.exchange_underlying(_curvePosition, 0, amounts[amounts.length-1], _minOutCrv);
         ISavingsContract(save).deposit(purchased, msg.sender);
     }
 
-    // when you say off-chain does it mean we compute the values on the FE?
-    function getAmountsOutForTokenValue(uint _bAssetAmount, address[] memory _path) public view returns (uint[] memory) {
+    function getAmountsOutForTokenValue(uint256 _bAssetAmount, address[] memory _path) public view returns (uint[] memory) {
         return uniswap.getAmountsOut(_bAssetAmount, _path);
     }
 
-    function getEstimatedAmountForToken(uint _tokenAmount, address[] memory _path) public view returns (uint[] memory) {
+    function getEstimatedAmountForToken(uint256 _tokenAmount, address[] memory _path) public view returns (uint[] memory) {
         return uniswap.getAmountsIn(_tokenAmount, _path);
     }
 }
