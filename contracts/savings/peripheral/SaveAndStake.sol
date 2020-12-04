@@ -1,6 +1,6 @@
 pragma solidity 0.5.16;
 
-import { ISavingsContractV2 } from "../interfaces/ISavingsContract.sol";
+import { ISavingsContractV2 } from "../../interfaces/ISavingsContract.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 
