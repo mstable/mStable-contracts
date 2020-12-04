@@ -4,7 +4,7 @@ pragma experimental ABIEncoderV2;
 import { IMasset } from "../../interfaces/IMasset.sol";
 import { IBasketManager } from "../../interfaces/IBasketManager.sol";
 import { IMStableHelper } from "../../interfaces/IMStableHelper.sol";
-import { ISavingsContract } from "../../interfaces/ISavingsContract.sol";
+import { ISavingsContractV1 } from "../../interfaces/ISavingsContract.sol";
 import { IForgeValidator } from "../forge-validator/IForgeValidator.sol";
 
 import { MassetStructs } from "./MassetStructs.sol";
@@ -279,7 +279,7 @@ contract MStableHelper is IMStableHelper, MassetStructs {
      * @return balance in Masset units
      */
     function getSaveBalance(
-        ISavingsContract _save,
+        ISavingsContractV1 _save,
         address _user
     )
         external
@@ -306,7 +306,7 @@ contract MStableHelper is IMStableHelper, MassetStructs {
      * @return input for the redeem function (ie. credit units to redeem)
      */
     function getSaveRedeemInput(
-        ISavingsContract _save,
+        ISavingsContractV1 _save,
         uint256 _mAssetUnits
     )
         external

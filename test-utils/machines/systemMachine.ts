@@ -83,7 +83,6 @@ export class SystemMachine {
         /* **************************************
             3. Savings
         *************************************** */
-        this.mta = await c_MockERC20.new("MTA", "MTA", 18, this.sa.fundManager, 1000000);
         this.savingsContract = await c_SavingsContract.new(
             this.nexus.address,
             this.mUSD.mAsset.address,

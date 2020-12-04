@@ -2,7 +2,7 @@ pragma solidity 0.5.16;
 
 // External
 import { IMasset } from "../interfaces/IMasset.sol";
-import { ISavingsContract } from "../interfaces/ISavingsContract.sol";
+import { ISavingsContractV1 } from "../interfaces/ISavingsContract.sol";
 
 // Internal
 import { ISavingsManager, IRevenueRecipient } from "../interfaces/ISavingsManager.sol";
@@ -41,7 +41,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
     event RevenueRedistributed(address indexed mAsset, address recipient, uint256 amount);
 
     // Locations of each mAsset savings contract
-    mapping(address => ISavingsContract) public savingsContracts;
+    mapping(address => ISavingsContractV1) public savingsContracts;
     mapping(address => IRevenueRecipient) public revenueRecipients;
     // Time at which last collection was made
     mapping(address => uint256) public lastPeriodStart;
@@ -124,7 +124,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
         internal
     {
         require(_mAsset != address(0) && _savingsContract != address(0), "Must be valid address");
-        savingsContracts[_mAsset] = ISavingsContract(_savingsContract);
+        savingsContracts[_mAsset] = ISavingsContractV1(_savingsContract);
 
         IERC20(_mAsset).safeApprove(address(_savingsContract), 0);
         IERC20(_mAsset).safeApprove(address(_savingsContract), uint256(-1));
@@ -203,7 +203,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
         whenNotPaused
         whenStreamsNotFrozen
     {
-        ISavingsContract savingsContract = savingsContracts[_mAsset];
+        ISavingsContractV1 savingsContract = savingsContracts[_mAsset];
         require(address(savingsContract) != address(0), "Must have a valid savings contract");
 
         uint256 currentTime = now;
@@ -288,7 +288,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
         external
         whenNotPaused
     {
-        ISavingsContract savingsContract = savingsContracts[_mAsset];
+        ISavingsContractV1 savingsContract = savingsContracts[_mAsset];
         require(address(savingsContract) != address(0), "Must have a valid savings contract");
 
         // Get collection details

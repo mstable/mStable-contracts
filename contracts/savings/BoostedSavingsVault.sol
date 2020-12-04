@@ -16,6 +16,8 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
     IERC20 public rewardsToken;
 
     uint256 public constant DURATION = 7 days;
+    uint256 private constant WEEK = 7 days;
+    uint256 public constant LOCKUP = 26 weeks;
 
     // Timestamp for current period finish
     uint256 public periodFinish = 0;
@@ -27,11 +29,14 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
     uint256 public rewardPerTokenStored = 0;
     mapping(address => uint256) public userRewardPerTokenPaid;
     mapping(address => uint256) public rewards;
+    mapping(address => mapping(uint256 => uint256)) public lockedRewards;
 
     event RewardAdded(uint256 reward);
     event Staked(address indexed user, uint256 amount, address payer);
     event Withdrawn(address indexed user, uint256 amount);
-    event RewardPaid(address indexed user, uint256 reward);
+    // event BoostUpdated()
+    // event RewardsLocked
+    // event RewardsPaid(address indexed user, uint256 reward);
 
     /** @dev StakingRewards is a TokenWrapper and RewardRecipient */
     // TODO - add constants to bytecode at deployTime to reduce SLOAD cost
@@ -110,7 +115,7 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         updateBoost(msg.sender)
     {
         _withdraw(rawBalanceOf(msg.sender));
-        _claimReward();
+        _lockRewards();
     }
 
     /**
@@ -125,18 +130,40 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         _withdraw(_amount);
     }
 
-    /**
-     * @dev Claims outstanding rewards for the sender.
-     * First updates outstanding reward allocation and then transfers.
-     */
-    function claimReward()
+    function lockRewards()
         external
         updateReward(msg.sender)
         updateBoost(msg.sender)
     {
-        _claimReward();
+        _lockRewards();
     }
 
+    function claimRewards(uint256[] calldata _ids)
+        external
+        updateReward(msg.sender)
+        updateBoost(msg.sender)
+    {
+        uint256 len = _ids.length;
+        uint256 cumulative = 0;
+        for(uint256 i = 0; i < len; i++){
+            uint256 id = _ids[i];
+            uint256 time = id.mul(WEEK);
+            require(now > time, "Reward not unlocked");
+            uint256 amt = lockedRewards[msg.sender][id];
+            lockedRewards[msg.sender][id] = 0;
+            cumulative = cumulative.add(amt);
+        }
+        rewardsToken.safeTransfer(msg.sender, cumulative);
+        // emit RewardPaid(msg.sender, reward);
+    }
+
+    function pokeBoost(address _user)
+        external
+        updateReward(_user)
+        updateBoost(_user)
+    {
+        // Emit boost poked?
+    }
 
     /**
      * @dev Internally stakes an amount by depositing from sender,
@@ -161,15 +188,24 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
     }
 
 
-    function _claimReward()
+    function _lockRewards()
         internal
     {
         uint256 reward = rewards[msg.sender];
         if (reward > 0) {
             rewards[msg.sender] = 0;
-            rewardsToken.safeTransfer(msg.sender, reward);
-            emit RewardPaid(msg.sender, reward);
+            uint256 id = _weekNumber(now + LOCKUP);
+            lockedRewards[msg.sender][id] = lockedRewards[msg.sender][id].add(reward);
+            // emit RewardsLocked(unlockTime, user, amount)
         }
+    }
+
+    function _weekNumber(uint256 _t)
+        internal
+        pure
+        returns(uint256)
+    {
+        return _t.div(WEEK);
     }
 
 

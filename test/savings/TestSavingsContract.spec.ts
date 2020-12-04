@@ -60,7 +60,6 @@ contract("SavingsContract", async (accounts) => {
     let savingsContract: t.SavingsContractInstance;
     let nexus: t.MockNexusInstance;
     let masset: t.MockMassetInstance;
-    let mta: t.MockERC20Instance;
     let savingsManager: t.SavingsManagerInstance;
     let helper: t.MStableHelperInstance;
 
@@ -69,22 +68,12 @@ contract("SavingsContract", async (accounts) => {
         nexus = await MockNexus.new(sa.governor, governance, manager);
         // Use a mock mAsset so we can dictate the interest generated
         masset = await MockMasset.new("MOCK", "MOCK", 18, sa.default, initialMint);
-        mta = await MockERC20.new("MTA", "MTA", 18, sa.fundManager, 1000000);
         savingsContract = await SavingsContract.new(
             nexus.address,
-            mta.address,
-            sa.fundManager,
             masset.address,
             "Savings Credit",
             "ymUSD",
-            18,
         );
-        await mta.transfer(savingsContract.address, simpleToExactAmount(1, 18), {
-            from: sa.fundManager,
-        });
-        await savingsContract.notifyRewardAmount(simpleToExactAmount(1, 18), {
-            from: sa.fundManager,
-        });
         helper = await MStableHelper.new();
         // Use a mock SavingsManager so we don't need to run integrations
         if (useMockSavingsManager) {
@@ -125,15 +114,7 @@ contract("SavingsContract", async (accounts) => {
     describe("constructor", async () => {
         it("should fail when masset address is zero", async () => {
             await expectRevert(
-                SavingsContract.new(
-                    nexus.address,
-                    mta.address,
-                    sa.fundManager,
-                    ZERO_ADDRESS,
-                    "Savings Credit",
-                    "ymUSD",
-                    18,
-                ),
+                SavingsContract.new(nexus.address, ZERO_ADDRESS, "Savings Credit", "ymUSD"),
                 "mAsset address is zero",
             );
         });
@@ -190,7 +171,7 @@ contract("SavingsContract", async (accounts) => {
                 expect(stateBefore.exchangeRate).to.bignumber.equal(initialExchangeRate);
 
                 // Deposit first to get some savings in the basket
-                await savingsContract.depositSavings(TEN_EXACT);
+                await savingsContract.methods["deposit(uint256)"](TEN_EXACT);
 
                 const stateMiddle = await getBalances(savingsContract, sa.default);
                 expect(stateMiddle.exchangeRate).to.bignumber.equal(initialExchangeRate);
@@ -209,7 +190,7 @@ contract("SavingsContract", async (accounts) => {
                 await masset.approve(savingsContract.address, TEN_EXACT, { from: sa.dummy2 });
 
                 // Dummy 2 deposits into the contract
-                await savingsContract.depositSavings(TEN_EXACT, { from: sa.dummy2 });
+                await savingsContract.methods["deposit(uint256)"](TEN_EXACT, { from: sa.dummy2 });
 
                 const stateEnd = await getBalances(savingsContract, sa.default);
                 assertBNClose(stateEnd.exchangeRate, initialExchangeRate.muln(2), 1);
@@ -225,7 +206,10 @@ contract("SavingsContract", async (accounts) => {
                 await createNewSavingsContract();
             });
             it("should fail when amount is zero", async () => {
-                await expectRevert(savingsContract.depositSavings(ZERO), "Must deposit something");
+                await expectRevert(
+                    savingsContract.methods["deposit(uint256)"](ZERO),
+                    "Must deposit something",
+                );
             });
 
             it("should fail if the user has no balance", async () => {
@@ -234,7 +218,7 @@ contract("SavingsContract", async (accounts) => {
 
                 // Deposit
                 await expectRevert(
-                    savingsContract.depositSavings(TEN_EXACT, { from: sa.dummy1 }),
+                    savingsContract.methods["deposit(uint256)"](TEN_EXACT, { from: sa.dummy1 }),
                     "ERC20: transfer amount exceeds balance",
                 );
             });
@@ -253,7 +237,7 @@ contract("SavingsContract", async (accounts) => {
                 expect(initialExchangeRate).to.bignumber.equal(balancesBefore.exchangeRate);
 
                 // Deposit
-                const tx = await savingsContract.depositSavings(TEN_EXACT);
+                const tx = await savingsContract.methods["deposit(uint256)"](TEN_EXACT);
                 const calcCreditIssued = underlyingToCredits(TEN_EXACT, initialExchangeRate);
                 expectEvent.inLogs(tx.logs, "SavingsDeposited", {
                     saver: sa.default,
@@ -284,7 +268,7 @@ contract("SavingsContract", async (accounts) => {
                 expect(initialExchangeRate).to.bignumber.equal(before.exchangeRate);
 
                 // Deposit
-                const tx = await savingsContract.depositSavings(TEN_EXACT);
+                const tx = await savingsContract.methods["deposit(uint256)"](TEN_EXACT);
                 const calcCreditIssued = underlyingToCredits(TEN_EXACT, initialExchangeRate);
                 expectEvent.inLogs(tx.logs, "SavingsDeposited", {
                     saver: sa.default,
@@ -321,7 +305,7 @@ contract("SavingsContract", async (accounts) => {
             expect(stateBefore.exchangeRate).to.bignumber.equal(initialExchangeRate);
 
             // Deposit first to get some savings in the basket
-            await savingsContract.depositSavings(TEN_EXACT);
+            await savingsContract.methods["deposit(uint256)"](TEN_EXACT);
 
             const bal = await helper.getSaveBalance(savingsContract.address, sa.default);
             expect(TEN_EXACT).bignumber.eq(bal);
@@ -330,7 +314,7 @@ contract("SavingsContract", async (accounts) => {
             await masset.setAmountForCollectInterest(simpleToExactAmount(5, 18));
             await masset.transfer(sa.dummy2, TEN_EXACT);
             await masset.approve(savingsContract.address, TEN_EXACT, { from: sa.dummy2 });
-            await savingsContract.depositSavings(TEN_EXACT, { from: sa.dummy2 });
+            await savingsContract.methods["deposit(uint256)"](TEN_EXACT, { from: sa.dummy2 });
 
             const redeemInput = await helper.getSaveRedeemInput(savingsContract.address, TEN_EXACT);
             const balBefore = await masset.balanceOf(sa.default);
@@ -390,7 +374,7 @@ contract("SavingsContract", async (accounts) => {
             //     // Deposit to SavingsContract
             //     await masset.approve(savingsContract.address, TEN_EXACT);
             //     await savingsContract.automateInterestCollectionFlag(false, { from: sa.governor });
-            //     await savingsContract.depositSavings(TEN_EXACT);
+            //     await savingsContract.methods["deposit(uint256)"](TEN_EXACT);
 
             //     const balanceBefore = await masset.balanceOf(savingsContract.address);
 
@@ -448,7 +432,7 @@ contract("SavingsContract", async (accounts) => {
 
                 // Deposit tokens first
                 const balanceBeforeDeposit = await masset.balanceOf(savingsContract.address);
-                await savingsContract.depositSavings(TEN_EXACT);
+                await savingsContract.methods["deposit(uint256)"](TEN_EXACT);
                 const balanceAfterDeposit = await masset.balanceOf(savingsContract.address);
                 expect(balanceBeforeDeposit.add(TEN_EXACT)).to.bignumber.equal(balanceAfterDeposit);
 
@@ -476,7 +460,7 @@ contract("SavingsContract", async (accounts) => {
 
                 // Deposit tokens first
                 const balanceBeforeDeposit = await masset.balanceOf(savingsContract.address);
-                await savingsContract.depositSavings(TEN_EXACT);
+                await savingsContract.methods["deposit(uint256)"](TEN_EXACT);
                 const balanceAfterDeposit = await masset.balanceOf(savingsContract.address);
                 expect(balanceBeforeDeposit.add(TEN_EXACT)).to.bignumber.equal(balanceAfterDeposit);
 
@@ -537,20 +521,20 @@ contract("SavingsContract", async (accounts) => {
                 // interest remains unassigned and exchange rate unmoved
                 await masset.setAmountForCollectInterest(interestToReceive1);
                 await time.increase(ONE_DAY);
-                await savingsContract.depositSavings(saver1deposit, { from: saver1 });
+                await savingsContract.methods["deposit(uint256)"](saver1deposit, { from: saver1 });
                 await savingsContract.pokeSurplus();
                 const state1 = await getBalances(savingsContract, saver1);
                 // 2.0 user 2 deposits
                 // interest rate benefits user 1 and issued user 2 less credits than desired
                 await masset.setAmountForCollectInterest(interestToReceive2);
                 await time.increase(ONE_DAY);
-                await savingsContract.depositSavings(saver2deposit, { from: saver2 });
+                await savingsContract.methods["deposit(uint256)"](saver2deposit, { from: saver2 });
                 const state2 = await getBalances(savingsContract, saver2);
                 // 3.0 user 3 deposits
                 // interest rate benefits users 1 and 2
                 await masset.setAmountForCollectInterest(interestToReceive3);
                 await time.increase(ONE_DAY);
-                await savingsContract.depositSavings(saver3deposit, { from: saver3 });
+                await savingsContract.methods["deposit(uint256)"](saver3deposit, { from: saver3 });
                 const state3 = await getBalances(savingsContract, saver3);
                 // 4.0 user 1 withdraws all her credits
                 await savingsContract.redeem(state1.userCredits, { from: saver1 });
@@ -567,7 +551,7 @@ contract("SavingsContract", async (accounts) => {
                 // interest rate benefits users 2 and 3
                 await masset.setAmountForCollectInterest(interestToReceive4);
                 await time.increase(ONE_DAY);
-                await savingsContract.depositSavings(saver4deposit, { from: saver4 });
+                await savingsContract.methods["deposit(uint256)"](saver4deposit, { from: saver4 });
                 const state5 = await getBalances(savingsContract, saver4);
                 // 6.0 users 2, 3, and 4 withdraw all their tokens
                 await savingsContract.redeem(state2.userCredits, { from: saver2 });
@@ -593,7 +577,7 @@ contract("SavingsContract", async (accounts) => {
                     from: sa.default,
                 });
                 // 2. Deposit the mUSD
-                await savingsContract.depositSavings(depositAmount, {
+                await savingsContract.methods["deposit(uint256)"](depositAmount, {
                     from: sa.default,
                 });
                 const expectedCredits = underlyingToCredits(depositAmount, initialExchangeRate);
