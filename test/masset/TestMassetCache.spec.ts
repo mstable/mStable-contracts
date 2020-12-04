@@ -387,7 +387,7 @@ contract("Masset - Mint", async (accounts) => {
                     { from: sa.default },
                 );
                 // 2. Deposit the mUSD
-                await systemMachine.savingsContract.depositSavings(new BN(1), {
+                await systemMachine.savingsContract.methods["depositSavings(uint256)"](new BN(1), {
                     from: sa.default,
                 });
                 await assertSwap(massetDetails, bAssets[1], bAssets[2], new BN(1), true);
@@ -397,7 +397,7 @@ contract("Masset - Mint", async (accounts) => {
                     { from: recipient },
                 );
                 // 2. Deposit the mUSD
-                await systemMachine.savingsContract.depositSavings(new BN(1), {
+                await systemMachine.savingsContract.methods["depositSavings(uint256)"](new BN(1), {
                     from: recipient,
                 });
             });
