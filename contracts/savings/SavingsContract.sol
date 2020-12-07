@@ -255,9 +255,9 @@ contract SavingsContract is
         //      - ensure that it does not affect with the APY calculations in poke
 
         // Transfer tokens from here to sender
-        require(underlying.transfer(msg.sender, massetReturned), "Must send tokens");
+        require(underlying.transfer(msg.sender, amt), "Must send tokens");
 
-        emit CreditsRedeemed(msg.sender, _credits, massetReturned);
+        emit CreditsRedeemed(msg.sender, _credits, amt);
 
         return amt;
     }
