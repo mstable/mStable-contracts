@@ -130,6 +130,17 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         _withdraw(_amount);
     }
 
+    // TODO - LockRewards && claimRewards
+    // it's unlikely that the most optimal solution is this locking of rewards
+    // because it means that the accrual does not happen second by second, but at the time of
+    // locking.
+    // Other options:
+    //  1 - Merkle Drop
+    //    - Have 2/3 of the reward units diverted to a MerkleDrop contract that allows for the
+    //      hash additions and consequent redemption in 6 months by actors. Will at most cost 23k per week per claim
+    //    - TODO - add a function in here to claim & consequently withdraw all rewards (pass the IDs for the merkle redemption)
+    //  2 - External vesting..
+
     function lockRewards()
         external
         updateReward(msg.sender)

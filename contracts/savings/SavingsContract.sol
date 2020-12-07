@@ -8,6 +8,7 @@ import { ISavingsContractV1, ISavingsContractV2 } from "../interfaces/ISavingsCo
 import { InitializableToken } from "../shared/InitializableToken.sol";
 import { InitializableModule } from "../shared/InitializableModule.sol";
 import { IConnector } from "./peripheral/IConnector.sol";
+import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
 
 // Libs
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -27,6 +28,7 @@ import { StableMath } from "../shared/StableMath.sol";
 contract SavingsContract is
     ISavingsContractV1,
     ISavingsContractV2,
+    Initializable,
     InitializableToken,
     InitializableModule
 {
@@ -39,6 +41,9 @@ contract SavingsContract is
     event SavingsDeposited(address indexed saver, uint256 savingsDeposited, uint256 creditsIssued);
     event CreditsRedeemed(address indexed redeemer, uint256 creditsRedeemed, uint256 savingsCredited);
     event AutomaticInterestCollectionSwitched(bool automationEnabled);
+    event PokerUpdated(address poker);
+    event FractionUpdated(uint256 fraction);
+    event Poked(uint256 oldBalance, uint256 newBalance, uint256 interestDetected);
 
     // Rate between 'savings credits' and underlying
     // e.g. 1 credit (1e17) mulTruncate(exchangeRate) = underlying, starts at 10:1
@@ -53,24 +58,33 @@ contract SavingsContract is
     address public poker;
     uint256 public lastPoke;
     uint256 public lastBalance;
-    uint256 public fraction = 2e17;
+    uint256 public fraction;
+    IConnector public connector;
+    uint256 constant private POKE_CADENCE = 4 hours;
     uint256 constant private MAX_APY = 2e18;
     uint256 constant private SECONDS_IN_YEAR = 365 days;
-    IConnector public connector;
 
     // TODO - use constant addresses during deployment. Adds to bytecode
-    constructor(
+    function initialize(
         address _nexus, // constant
+        address _poker,
         IERC20 _underlying, // constant
-        string memory _nameArg,
-        string memory _symbolArg
+        string calldata _nameArg,
+        string calldata _symbolArg
     )
-        public
+        external
+        initializer
     {
-        require(address(_underlying) != address(0), "mAsset address is zero");
-        underlying = _underlying;
         InitializableToken._initialize(_nameArg, _symbolArg);
         InitializableModule._initialize(_nexus);
+
+        require(address(_underlying) != address(0), "mAsset address is zero");
+        underlying = _underlying;
+
+        require(_poker != address(0), "Invalid poker address");
+        poker = _poker;
+
+        fraction = 2e17;
     }
 
     /** @dev Only the savings managaer (pulled from Nexus) can execute this */
@@ -234,12 +248,18 @@ contract SavingsContract is
         _burn(msg.sender, _credits);
 
         // Calc payout based on currentRatio
-        massetReturned = _creditsToUnderlying(_credits);
+        (uint256 amt, uint256 exchangeRate_) = _creditsToUnderlying(_credits);
+
+        // TODO - check the collateralisation here
+        //      - if over fraction + 2e17, then withdraw down to fraction
+        //      - ensure that it does not affect with the APY calculations in poke
 
         // Transfer tokens from here to sender
         require(underlying.transfer(msg.sender, massetReturned), "Must send tokens");
 
         emit CreditsRedeemed(msg.sender, _credits, massetReturned);
+
+        return amt;
     }
 
     /***************************************
@@ -248,7 +268,7 @@ contract SavingsContract is
 
 
     modifier onlyPoker() {
-        // require(msg.sender == poker);
+        require(msg.sender == poker, "Only poker can execute");
         _;
     }
 
@@ -257,20 +277,44 @@ contract SavingsContract is
         external
         onlyPoker
     {
-        // require more than 4 hours have passed
+        // TODO
+        // Consider security optimisation: lastExchangeRate vs lastBalance.. do global check rather than just checking the balance of connectors
 
-        uint256 sum = _creditsToUnderlying(totalSupply());
-        uint256 balance = underlying.balanceOf(address(this));
-        
-        // get current balance from connector
-        // validate that % hasn't been hit
-        // if < before, 
+        // 1. Verify that poke cadence is valid
+        uint256 currentTime = uint256(now);
+        uint256 timeSinceLastPoke = currentTime.sub(lastPoke);
+        require(timeSinceLastPoke > POKE_CADENCE, "Not enough time elapsed");
+        lastPoke = currentTime;
 
-        // if <= X%, set to X%
-
-        if(balance > sum){
-            exchangeRate = balance.divPrecisely(totalSupply());
+        // 2. Check and verify new connector balance
+        uint256 connectorBalance = connector.checkBalance();
+        uint256 lastBalance_ = lastBalance;
+        if(connectorBalance > 0){
+            require(connectorBalance >= lastBalance_, "Invalid yield");
+            _validateCollection(connectorBalance, connectorBalance.sub(lastBalance_), timeSinceLastPoke);
         }
+        lastBalance = connectorBalance;
+
+        // 3. Level the assets to Fraction (connector) & 100-fraction (raw)
+        uint256 balance = underlying.balanceOf(address(this));
+        uint256 realSum = balance.add(connectorBalance);
+        // e.g. 1e20 * 2e17 / 1e18 = 2e19
+        uint256 idealConnectorAmount = realSum.mulTruncate(fraction);
+        if(idealConnectorAmount > connectorBalance){
+            // deposit to connector
+            connector.deposit(idealConnectorAmount.sub(connectorBalance));
+        } else {
+            // withdraw from connector
+            connector.withdraw(connectorBalance.sub(idealConnectorAmount));
+        }
+
+        // 4. Calculate new exchangeRate
+        (uint256 totalCredited, uint256 exchangeRate_) = _creditsToUnderlying(totalSupply());
+        if(realSum > totalCredited){
+            exchangeRate = realSum.divPrecisely(totalSupply());
+        }
+
+        // emit Poked(lastBalance_, connectorBalance, );
     }
 
     function _validateCollection(uint256 _newBalance, uint256 _interest, uint256 _timeSinceLastCollection)
@@ -300,18 +344,45 @@ contract SavingsContract is
         require(extrapolatedAPY < MAX_APY, "Interest protected from inflating past maxAPY");
     }
 
+    function setPoker(address _newPoker)
+        external
+        onlyGovernor
+    {
+        require(_newPoker != address(0) && _newPoker != poker, "Invalid poker");
+
+        poker = _newPoker;
+
+        emit PokerUpdated(_newPoker);
+    }
+
     function setFraction(uint256 _fraction)
         external
         onlyGovernor
     {
-        
+        require(_fraction <= 5e17, "Fraction must be <= 50%");
+
+        fraction = _fraction;
+
+        emit FractionUpdated(_fraction);
     }
 
     function setConnector()
         external
         onlyGovernor
     {
+        // Withdraw all from previous
+        // deposit to new
+        // check that the balance is legit
+    }
 
+    function emergencyStop(uint256 _withdrawAmount)
+        external
+        onlyGovernor
+    {
+        // withdraw _withdrawAmount from connection
+        // check total collateralisation of credits
+        // set collateralisation ratio
+        // emit emergencyStop
     }
     
 
@@ -320,7 +391,7 @@ contract SavingsContract is
     ****************************************/
 
     function balanceOfUnderlying(address _user) external view returns (uint256 balance) {
-        return _creditsToUnderlying(balanceOf(_user));
+        (balance,) = _creditsToUnderlying(balanceOf(_user));
     }
 
     function creditBalances(address _user) external view returns (uint256) {
@@ -331,8 +402,8 @@ contract SavingsContract is
         return _underlyingToCredits(_underlying);
     }
 
-    function creditsToUnderlying(uint256 _credits) external view returns (uint256) {
-        return _creditsToUnderlying(_credits);
+    function creditsToUnderlying(uint256 _credits) external view returns (uint256 amount) {
+        (amount,) = _creditsToUnderlying(_credits);
     }
 
     /**
@@ -357,10 +428,11 @@ contract SavingsContract is
     function _creditsToUnderlying(uint256 _credits)
         internal
         view
-        returns (uint256 underlyingAmount)
+        returns (uint256 underlyingAmount, uint256 exchangeRate_)
     {
         // e.g. (1e20 * 1e18) / 1e18 = 1e20
         // e.g. (1e20 * 14e17) / 1e18 = 1.4e20
-        underlyingAmount = _credits.mulTruncate(exchangeRate);
+        exchangeRate_ = exchangeRate;
+        underlyingAmount = _credits.mulTruncate(exchangeRate_);
     }
 }
