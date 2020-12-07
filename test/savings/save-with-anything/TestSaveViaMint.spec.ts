@@ -4,6 +4,7 @@ import { StandardAccounts, MassetMachine, SystemMachine } from "@utils/machines"
 import * as t from "types/generated";
 
 const SavingsContract = artifacts.require("SavingsContract");
+const SavingsManager = artifacts.require("SavingsManager");
 const MockNexus = artifacts.require("MockNexus");
 const SaveViaMint = artifacts.require("SaveViaMint");
 
@@ -14,6 +15,7 @@ contract("SaveViaMint", async (accounts) => {
     let bAsset: t.MockERC20Instance;
     let mUSD: t.MassetInstance;
     let savings: t.SavingsContractInstance;
+    let savingsManager: t.SavingsManagerInstance;
     let saveViaMint: t.SaveViaMintInstance;
     let nexus: t.MockNexusInstance;
 
@@ -29,6 +31,10 @@ contract("SaveViaMint", async (accounts) => {
             "ymUSD",
             18,
         );
+        savingsManager = await SavingsManager.new(nexus.address, mUSD.address, sa.other, {
+            from: sa.default,
+        });
+        await nexus.setSavingsManager(savingsManager.address);
         saveViaMint = await SaveViaMint.new(savings.address, mUSD.address);
     };
 
