@@ -1,12 +1,10 @@
 /* eslint-disable @typescript-eslint/camelcase */
 
-import { StandardAccounts, MassetMachine, SystemMachine} from "@utils/machines";
+import { StandardAccounts, MassetMachine, SystemMachine } from "@utils/machines";
 import * as t from "types/generated";
 
-const MockERC20 = artifacts.require("MockERC20");
-const SavingsManager = artifacts.require("SavingsManager");
+const SavingsContract = artifacts.require("SavingsContract");
 const MockNexus = artifacts.require("MockNexus");
-const MockMasset = artifacts.require("MockMasset");
 const SaveViaMint = artifacts.require("SaveViaMint");
 
 contract("SaveViaMint", async (accounts) => {
@@ -14,20 +12,24 @@ contract("SaveViaMint", async (accounts) => {
     const systemMachine = new SystemMachine(sa.all);
     const massetMachine = new MassetMachine(systemMachine);
     let bAsset: t.MockERC20Instance;
-    let mUSD: t.MockERC20Instance;
-    let savings: t.SavingsManagerInstance;
-    let saveViaMint: t.SaveViaMint;
+    let mUSD: t.MassetInstance;
+    let savings: t.SavingsContractInstance;
+    let saveViaMint: t.SaveViaMintInstance;
     let nexus: t.MockNexusInstance;
 
     const setupEnvironment = async (): Promise<void> => {
         let massetDetails = await massetMachine.deployMasset();
         // deploy contracts
-        bAsset = await MockERC20.new() //how to get bAsset out of the massetMachine?
-        mUSD = await MockERC20.new(massetDetails.mAsset.name(), massetDetails.mAsset.symbol(), massetDetails.mAsset.decimals(), sa.fundManager, 100000000);
-        savings = await SavingsManager.new(nexus.address, mUSD.address, sa.other, {
-            from: sa.default,
-        });
-        saveViaMint = SaveViaMint.new(savings.address);
+        bAsset = massetDetails.bAssets[0];
+        mUSD = massetDetails.mAsset;
+        savings = await SavingsContract.new(
+            nexus.address,
+            mUSD.address,
+            "Savings Credit",
+            "ymUSD",
+            18,
+        );
+        saveViaMint = await SaveViaMint.new(savings.address, mUSD.address);
     };
 
     before(async () => {
@@ -37,7 +39,8 @@ contract("SaveViaMint", async (accounts) => {
 
     describe("saving via mint", async () => {
         it("should mint tokens & deposit", async () => {
-            await saveViaMint.mintAndSave(mUSD.address, bAsset, 100000000);
+            await bAsset.approve(saveViaMint.address, 100);
+            await saveViaMint.mintAndSave(mUSD.address, bAsset.address, 100);
         });
     });
 });

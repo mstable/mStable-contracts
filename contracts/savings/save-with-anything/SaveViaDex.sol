@@ -31,7 +31,34 @@ contract SaveViaUniswap {
         }
     }
 
-    function buyAndSave (
+    function swapOnCurve(
+        uint _amount,
+        int128 _curvePosition,
+        uint256 _minOutCrv
+    ) external {
+        uint purchased = curve.exchange_underlying(_curvePosition, 0, _amount, _minOutCrv);
+        ISavingsContract(save).deposit(purchased, msg.sender);
+    }
+
+    function swapOnUniswapWithEth(
+        uint _amountOutMin,
+        address[] calldata _path,
+        uint _deadline,
+        int128 _curvePosition,
+        uint256 _minOutCrv
+        ) external payable {
+        require(msg.value <= address(this).balance, "Not enough Eth in contract to perform swap.");
+        uint[] memory amounts = uniswap.swapExactETHForTokens.value(msg.value)(
+            _amountOutMin,
+            _path,
+            address(save),
+            _deadline
+        );
+        uint purchased = curve.exchange_underlying(_curvePosition, 0, amounts[amounts.length-1], _minOutCrv);
+        ISavingsContract(save).deposit(purchased, msg.sender);
+    }
+
+    function swapOnUniswap(
         address _asset,
         uint256 _inputAmount,
         uint256 _amountOutMin,
@@ -41,6 +68,7 @@ contract SaveViaUniswap {
         uint256 _minOutCrv
         ) external {
         IERC20(_asset).transferFrom(msg.sender, address(this), _inputAmount);
+        IERC20(_asset).safeApprove(address(uniswap), _inputAmount);
         uint[] memory amounts = uniswap.swapExactTokensForTokens(
             _inputAmount,
             _amountOutMin,
@@ -48,7 +76,6 @@ contract SaveViaUniswap {
             address(save),
             _deadline
         );
-
         uint purchased = curve.exchange_underlying(_curvePosition, 0, amounts[amounts.length-1], _minOutCrv);
         ISavingsContract(save).deposit(purchased, msg.sender);
     }
