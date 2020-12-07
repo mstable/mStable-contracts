@@ -47,11 +47,10 @@ contract SaveViaUniswap {
         int128 _curvePosition,
         uint256 _minOutCrv
         ) external payable {
-        require(msg.value <= address(this).balance, "Not enough Eth in contract to perform swap.");
         uint[] memory amounts = uniswap.swapExactETHForTokens.value(msg.value)(
             _amountOutMin,
             _path,
-            address(save),
+            address(this),
             _deadline
         );
         uint purchased = curve.exchange_underlying(_curvePosition, 0, amounts[amounts.length-1], _minOutCrv);
@@ -73,7 +72,7 @@ contract SaveViaUniswap {
             _inputAmount,
             _amountOutMin,
             _path,
-            address(save),
+            address(this),
             _deadline
         );
         uint purchased = curve.exchange_underlying(_curvePosition, 0, amounts[amounts.length-1], _minOutCrv);
