@@ -45,12 +45,11 @@ contract Connector_yVault is IConnector {
     }
 
     function withdraw(uint256 _amt) external onlySave {
-        IyVault vault = IyVault(yVault);
         // amount = shares * sharePrice
         // shares = amount / sharePrice
-        uint256 sharePrice = vault.getPricePerFullShare();
-        uint256 sharesToWithdraw = _amt.divPrecisely(sharePrice).add(1);
-        vault.withdraw(sharesToWithdraw);
+        uint256 sharePrice = IyVault(yVault).getPricePerFullShare();
+        uint256 sharesToWithdraw = _amt.divPrecisely(sharePrice);
+        IyVault(yVault).withdraw(sharesToWithdraw);
         IERC20(mUSD).transfer(save, _amt);
     }
 
