@@ -93,6 +93,10 @@ contract BoostedTokenWrapper is ReentrancyGuard {
     function _setBoost(address _account)
         internal
     {
+        uint256 oldBoost = _boostedBalances[_account];
+        uint256 newBoost = _rawBalances[_account].add(1);
+        _totalBoostedSupply = _totalBoostedSupply.sub(oldBoost).add(newBoost);
+        _boostedBalances[_account] = newBoost;
         // boost = stakingContract
         // decrease old total supply
         // decrease old boosted amount

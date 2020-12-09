@@ -15,9 +15,9 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
 
     IERC20 public rewardsToken;
 
-    uint256 public constant DURATION = 7 days;
-    uint256 private constant WEEK = 7 days;
-    uint256 public constant LOCKUP = 26 weeks;
+    uint64 public constant DURATION = 7 days;
+    uint64 public constant LOCKUP = 26 weeks;
+    uint64 public constant UNLOCK = 2e17;
 
     // Timestamp for current period finish
     uint256 public periodFinish = 0;
@@ -27,14 +27,26 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
     uint256 public lastUpdateTime = 0;
     // Ever increasing rewardPerToken rate, based on % of total supply
     uint256 public rewardPerTokenStored = 0;
-    mapping(address => uint256) public userRewardPerTokenPaid;
-    mapping(address => uint256) public rewards;
-    mapping(address => mapping(uint256 => uint256)) public lockedRewards;
+    mapping(address => UserData) public userData;
+    mapping(address => uint64) public userClaim;
+    mapping(address => Reward[]) public userRewards;
+
+    struct UserData {
+        uint128 rewardPerTokenPaid;
+        uint128 rewards;
+        uint64 lastAction;
+    }
+
+    struct Reward {
+        uint64 start;
+        uint64 finish;
+        uint128 rate;
+    }
 
     event RewardAdded(uint256 reward);
     event Staked(address indexed user, uint256 amount, address payer);
     event Withdrawn(address indexed user, uint256 amount);
-    // event BoostUpdated()
+    event Poked(address indexed user);
     // event RewardsLocked
     // event RewardsPaid(address indexed user, uint256 reward);
 
@@ -64,9 +76,25 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
             lastUpdateTime = lastApplicableTime;
             // Setting of personal vars based on new globals
             if (_account != address(0)) {
-                rewards[_account] = _earned(_account, newRewardPerToken);
-                userRewardPerTokenPaid[_account] = newRewardPerToken;
+                // TODO - safely typecast here
+                UserData memory data = userData[_account];
+                uint256 earned = _earned(_account, data.rewardPerTokenPaid, newRewardPerToken);
+                if(earned > 0){
+                    uint256 unlocked = earned.mulTruncate(UNLOCK);
+                    uint256 locked = earned.sub(unlocked);
+                    userRewards[_account].push(Reward({
+                        start: uint64(data.lastAction + LOCKUP),
+                        finish: uint64(now + LOCKUP),
+                        rate: uint128(locked.div(now.sub(data.lastAction)))
+                    }));
+                    userData[_account] = UserData(uint128(newRewardPerToken), data.rewards + uint128(unlocked), uint64(now));
+                } else {
+                    userData[_account] = UserData(uint128(newRewardPerToken), data.rewards, uint64(now));
+                }
             }
+        } else if(_account == address(0)) {
+            // This should only be hit once, in initialisation case
+            userData[_account].lastAction = uint64(now);
         }
         _;
     }
@@ -115,7 +143,7 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         updateBoost(msg.sender)
     {
         _withdraw(rawBalanceOf(msg.sender));
-        _lockRewards();
+        // _lockRewards();
     }
 
     /**
@@ -130,23 +158,92 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         _withdraw(_amount);
     }
 
-    // TODO - LockRewards && claimRewards
-    // it's unlikely that the most optimal solution is this locking of rewards
-    // because it means that the accrual does not happen second by second, but at the time of
-    // locking.
-    // Other options:
-    //  1 - Merkle Drop
-    //    - Have 2/3 of the reward units diverted to a MerkleDrop contract that allows for the
-    //      hash additions and consequent redemption in 6 months by actors. Will at most cost 23k per week per claim
-    //    - TODO - add a function in here to claim & consequently withdraw all rewards (pass the IDs for the merkle redemption)
-    //  2 - External vesting..
+    /**
+     * @dev Uses binarysearch to find the unclaimed lockups for a given account
+     */
+    function _findFirstUnclaimed(uint64 _lastClaim, address _account)
+        internal
+        view
+        returns(uint256 first)
+    {
+        // first = first where finish > _lastClaim
+        // last = last where start < now
+        uint256 len = userRewards[_account].length;
+        // Binary search
+        uint256 min = 0;
+        uint256 max = len;
+        // Will be always enough for 128-bit numbers
+        for(uint256 i = 0; i < 128; i++){
+            if (min >= max)
+                break;
+            uint256 mid = (min.add(max).add(1)).div(2);
+            if (userRewards[_account][mid].finish > _lastClaim){
+                min = mid;
+            } else {
+                max = mid.sub(1);
+            }
+        }
+        return min;
+    }
 
-    function lockRewards()
+    //     function _findLastUnclaimed(uint64 _lastClaim, address _account)
+    //     internal
+    //     view
+    //     returns(uint256 last)
+    // {
+    //     // last = last where start < now
+    //     uint256 len = userRewards[_account].length;
+    //     // Binary search
+    //     uint256 min = 0;
+    //     uint256 max = len;
+    //     // Will be always enough for 128-bit numbers
+    //     for(uint256 i = 0; i < 128; i++){
+    //         if (min >= max)
+    //             break;
+    //         uint256 mid = (min.add(max).add(1)).div(2);
+    //         if (userRewards[_account][mid].finish > _lastClaim){
+    //             min = mid;
+    //         } else {
+    //             max = mid.sub(1);
+    //         }
+    //     }
+    //     return min;
+    // }
+
+
+    function unclaimedRewards(address _account)
+        external
+        view
+        returns (uint256 amount, uint256[] memory ids)
+    {
+        uint256 len = userRewards[_account].length;
+        uint256 currentTime = block.timestamp;
+        uint64 lastClaim = userClaim[_account];
+        uint256 count = 0;
+
+        // TODO - use binary search here to find the start and end
+
+        for(uint256 i = 0; i < len; i++){
+            Reward memory rwd = userRewards[_account][i];
+            if(currentTime > rwd.start && lastClaim < rwd.finish) {
+                uint256 endTime = StableMath.min(rwd.finish, currentTime);
+                uint256 startTime = StableMath.max(rwd.start, lastClaim);
+                uint256 unclaimed = endTime.sub(startTime).mul(rwd.rate);
+
+                amount = amount.add(unclaimed);
+                ids[count++] = i;
+            }
+        }
+    }
+
+    function claimRewards()
         external
         updateReward(msg.sender)
         updateBoost(msg.sender)
     {
-        _lockRewards();
+        // transfer unlocked rewards
+        // find start and end blocks
+        // pass to internal fn
     }
 
     function claimRewards(uint256[] calldata _ids)
@@ -154,15 +251,20 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         updateReward(msg.sender)
         updateBoost(msg.sender)
     {
-        uint256 len = _ids.length;
+        uint256 currentTime = block.timestamp;
+        uint64 lastClaim = userClaim[msg.sender];
+        userClaim[msg.sender] = uint64(currentTime);
+
         uint256 cumulative = 0;
+        uint256 len = _ids.length;
         for(uint256 i = 0; i < len; i++){
-            uint256 id = _ids[i];
-            uint256 time = id.mul(WEEK);
-            require(now > time, "Reward not unlocked");
-            uint256 amt = lockedRewards[msg.sender][id];
-            lockedRewards[msg.sender][id] = 0;
-            cumulative = cumulative.add(amt);
+            Reward memory rwd = userRewards[msg.sender][i];
+            require(lastClaim <= rwd.finish, "Must be unclaimed");
+            require(currentTime >= rwd.start, "Must have started");
+            uint256 endTime = StableMath.min(rwd.finish, currentTime);
+            uint256 startTime = StableMath.max(rwd.start, lastClaim);
+            uint256 unclaimed = endTime.sub(startTime).mul(rwd.rate);
+            cumulative.add(unclaimed);
         }
         rewardsToken.safeTransfer(msg.sender, cumulative);
         // emit RewardPaid(msg.sender, reward);
@@ -173,7 +275,7 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         updateReward(_user)
         updateBoost(_user)
     {
-        // Emit boost poked?
+        emit Poked(_user);
     }
 
     /**
@@ -196,27 +298,6 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         require(_amount > 0, "Cannot withdraw 0");
         _withdrawRaw(_amount);
         emit Withdrawn(msg.sender, _amount);
-    }
-
-
-    function _lockRewards()
-        internal
-    {
-        uint256 reward = rewards[msg.sender];
-        if (reward > 0) {
-            rewards[msg.sender] = 0;
-            uint256 id = _weekNumber(now + LOCKUP);
-            lockedRewards[msg.sender][id] = lockedRewards[msg.sender][id].add(reward);
-            // emit RewardsLocked(unlockTime, user, amount)
-        }
-    }
-
-    function _weekNumber(uint256 _t)
-        internal
-        pure
-        returns(uint256)
-    {
-        return _t.div(WEEK);
     }
 
 
@@ -295,24 +376,24 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         view
         returns (uint256)
     {
-        return _earned(_account, rewardPerToken());
+        return userData[_account].rewards + _earned(_account, userData[_account].rewardPerTokenPaid, rewardPerToken());
     }
 
-    function _earned(address _account, uint256 _currentRewardPerToken)
+    function _earned(address _account, uint256 _userRewardPerTokenPaid, uint256 _currentRewardPerToken)
         internal
         view
         returns (uint256)
     {
         // current rate per token - rate user previously received
-        uint256 userRewardDelta = _currentRewardPerToken.sub(userRewardPerTokenPaid[_account]); // + 1 SLOAD
+        uint256 userRewardDelta = _currentRewardPerToken.sub(_userRewardPerTokenPaid); // + 1 SLOAD
         // Short circuit if there is nothing new to distribute
         if(userRewardDelta == 0){
-            return rewards[_account];
+            return 0;
         }
         // new reward = staked tokens * difference in rate
         uint256 userNewReward = balanceOf(_account).mulTruncate(userRewardDelta); // + 1 SLOAD
         // add to previous rewards
-        return rewards[_account].add(userNewReward);
+        return userNewReward;
     }
 
 
