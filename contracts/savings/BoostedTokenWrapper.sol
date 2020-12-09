@@ -7,6 +7,8 @@ import { IIncentivisedVotingLockup } from "../interfaces/IIncentivisedVotingLock
 import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
+import { StableMath } from "../shared/StableMath.sol";
+import { Root } from "../shared/Root.sol";
 
 
 contract BoostedTokenWrapper is ReentrancyGuard {
@@ -93,15 +95,19 @@ contract BoostedTokenWrapper is ReentrancyGuard {
     function _setBoost(address _account)
         internal
     {
-        uint256 oldBoost = _boostedBalances[_account];
-        uint256 newBoost = _rawBalances[_account].add(1);
-        _totalBoostedSupply = _totalBoostedSupply.sub(oldBoost).add(newBoost);
-        _boostedBalances[_account] = newBoost;
-        // boost = stakingContract
-        // decrease old total supply
-        // decrease old boosted amount
-        // calculate new boost
-        // add to total supply
-        // add to old boost
+        // boost = min(0.5 + 2 * vMTA_balance / ymUSD_locked^(7/8), 1.5)
+        uint256 fullScale = StableMath.getFullScale();
+        uint256 vMTABalance = stakingContract.balanceOf(_account);
+        uint256 denominator = Root.sqrt(Root.sqrt(Root.sqrt(_rawBalances[_account])));
+        denominator = denominator * denominator * denominator * denominator * denominator * denominator * denominator;
+        uint256 maxBoost = fullScale * 3 / 2;
+
+        uint256 boost = StableMath.min(fullScale / 2
+            + 2 * vMTABalance * fullScale / denominator, maxBoost);
+
+        uint256 oldBoostedBalance = _boostedBalances[_account];
+        uint256 newBoostedBalance = _rawBalances[_account] * boost / fullScale;
+        _totalBoostedSupply = _totalBoostedSupply.sub(oldBoostedBalance).add(newBoostedBalance);
+        _boostedBalances[_account] = newBoostedBalance;
     }
 }
