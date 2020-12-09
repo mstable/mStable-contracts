@@ -92,22 +92,49 @@ contract BoostedTokenWrapper is ReentrancyGuard {
         stakingToken.safeTransfer(msg.sender, _amount);
     }
 
+    /**
+     * @dev Updates the boost for the given address according to the formula
+     * boost = min(0.5 + 2 * vMTA_balance / ymUSD_locked^(7/8), 1.5)
+     * @param _account User for which to update the boost
+     */
     function _setBoost(address _account)
         internal
     {
-        // boost = min(0.5 + 2 * vMTA_balance / ymUSD_locked^(7/8), 1.5)
-        uint256 fullScale = StableMath.getFullScale();
         uint256 vMTABalance = stakingContract.balanceOf(_account);
-        uint256 denominator = Root.sqrt(Root.sqrt(Root.sqrt(_rawBalances[_account])));
-        denominator = denominator * denominator * denominator * denominator * denominator * denominator * denominator;
-        uint256 maxBoost = fullScale * 3 / 2;
 
-        uint256 boost = StableMath.min(fullScale / 2
-            + 2 * vMTABalance * fullScale / denominator, maxBoost);
+        // The following lines should compute locked ymUSD to the power 7/8
+        uint256 denominator = Root.sqrt(Root.sqrt(Root.sqrt(_rawBalances[_account])));
+        denominator = denominator.mul(
+            denominator.mul(
+                denominator.mul(
+                    denominator.mul(
+                        denominator.mul(
+                            denominator.mul(
+                                denominator))))));
+
+        uint256 maxBoost = StableMath.divPrecisely(3, 2);
+
+        uint256 boost = StableMath.min(
+            StableMath.divPrecisely(1, 2)
+            + StableMath.divPrecisely(vMTABalance.mul(2), denominator),
+            maxBoost);
 
         uint256 oldBoostedBalance = _boostedBalances[_account];
-        uint256 newBoostedBalance = _rawBalances[_account] * boost / fullScale;
+        uint256 newBoostedBalance = StableMath.mulTruncate(_rawBalances[_account], boost);
         _totalBoostedSupply = _totalBoostedSupply.sub(oldBoostedBalance).add(newBoostedBalance);
         _boostedBalances[_account] = newBoostedBalance;
     }
+
+    /**
+     * @dev Read the boost for the given address
+     * @param _account User for which to return the boost
+     */
+    function getBoost(address _account)
+        public
+        view
+        returns (uint256)
+    {
+        return StableMath.divPrecisely(_boostedBalances[_account], _rawBalances[_account]);
+    }
+
 }
