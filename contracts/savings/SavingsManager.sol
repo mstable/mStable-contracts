@@ -20,13 +20,14 @@ import { StableMath } from "../shared/StableMath.sol";
  * @notice  Savings Manager collects interest from mAssets and sends them to the
  *          corresponding Savings Contract, performing some validation in the process.
  * @dev     VERSION: 1.3
- *          DATE:    2020-11-14
+ *          DATE:    2020-12-09
  */
 contract SavingsManager is ISavingsManager, PausableModule {
 
     using SafeMath for uint256;
     using StableMath for uint256;
     using SafeERC20 for IERC20;
+
 
     // Core admin events
     event RevenueRecipientSet(address indexed mAsset, address recipient);
@@ -59,12 +60,24 @@ contract SavingsManager is ISavingsManager, PausableModule {
     uint256 private constant DURATION = 7 days;
     uint256 private constant ONE_DAY = 1 days;
     uint256 constant private THIRTY_MINUTES = 30 minutes;
-    // Tracking streams
-    mapping(address => uint256) public streamEnd;
-    mapping(address => uint256) public streamRate;
+    // Streams
     bool private streamsFrozen = false;
+    // Liquidator
+    mapping(address => Stream) public liqStream;
+    // Platform
+    mapping(address => Stream) public yieldStream;
     // Batches are for the platformInterest collection
     mapping(address => uint256) public lastBatchCollected;
+
+    enum StreamType {
+        liquidator,
+        yield
+    }
+
+    struct Stream {
+        uint256 end;
+        uint256 rate;
+    }
 
     constructor(
         address _nexus,
@@ -184,11 +197,14 @@ contract SavingsManager is ISavingsManager, PausableModule {
         onlyLiquidator
         whenStreamsNotFrozen
     {
+        // Collect existing interest to ensure everything is up to date
+        _collectAndDistributeInterest(_mAsset);
+
         // transfer liquidated mUSD to here
         IERC20(_mAsset).safeTransferFrom(_liquidator(), address(this), _liquidated);
 
-        uint256 leftover = _allUnclaimedRewards(_mAsset);
-        _initialiseStream(_mAsset, _liquidated.add(leftover), DURATION);
+        uint256 leftover = _unstreamedRewards(_mAsset, StreamType.liquidator);
+        _initialiseStream(_mAsset, StreamType.liquidator, _liquidated.add(leftover), DURATION);
 
         emit LiquidatorDeposited(_mAsset, _liquidated);
     }
@@ -203,8 +219,8 @@ contract SavingsManager is ISavingsManager, PausableModule {
         whenNotPaused
         whenStreamsNotFrozen
     {
-        ISavingsContract savingsContract = savingsContracts[_mAsset];
-        require(address(savingsContract) != address(0), "Must have a valid savings contract");
+        // Collect existing interest to ensure everything is up to date
+        _collectAndDistributeInterest(_mAsset);
 
         uint256 currentTime = now;
         uint256 previousBatch = lastBatchCollected[_mAsset];
@@ -213,24 +229,15 @@ contract SavingsManager is ISavingsManager, PausableModule {
         lastBatchCollected[_mAsset] = currentTime;
 
         // Batch collect
-        IMasset mAsset = IMasset(_mAsset);
-        (uint256 interestCollected, uint256 totalSupply) = mAsset.collectPlatformInterest();
+        (uint256 interestCollected, uint256 totalSupply) =  IMasset(_mAsset).collectPlatformInterest();
 
         if(interestCollected > 0){
             // Validate APY
             uint256 apy = _validateCollection(totalSupply, interestCollected, timeSincePreviousBatch);
 
             // Get remaining rewards
-            uint256 leftover = _allUnclaimedRewards(_mAsset);
-
-            // Bundle this yield in with liquidator yield
-            // If (remainingTime < 24h)
-            //       take all remaining, add this, stream over next 24h
-            // else stream over remainingTime
-            uint256 end = streamEnd[_mAsset];
-            uint256 remaining = end > currentTime ? end.sub(currentTime) : 0;
-            uint256 newDuration = remaining < ONE_DAY ? ONE_DAY : remaining;
-            _initialiseStream(_mAsset, interestCollected.add(leftover), newDuration);
+            uint256 leftover = _unstreamedRewards(_mAsset, StreamType.yield);
+            _initialiseStream(_mAsset, StreamType.yield, interestCollected.add(leftover), ONE_DAY);
 
             emit InterestCollected(_mAsset, interestCollected, totalSupply, apy);
         }
@@ -244,16 +251,17 @@ contract SavingsManager is ISavingsManager, PausableModule {
      * @param _mAsset The mAsset in question
      * @return leftover The total amount of mAsset that is yet to be collected from a stream
      */
-    function _allUnclaimedRewards(address _mAsset) internal view returns (uint256 leftover) {
+    function _unstreamedRewards(address _mAsset, StreamType _stream) internal view returns (uint256 leftover) {
         uint256 currentTime = now;
-
-        uint256 end = streamEnd[_mAsset];
         uint256 lastUpdate = lastCollection[_mAsset];
+        require(lastUpdate == currentTime, "Must have fresh collection");
+
+        Stream memory stream = _stream == StreamType.liquidator ? liqStream[_mAsset] : yieldStream[_mAsset];
         uint256 unclaimedSeconds = 0;
-        if(lastUpdate < end){
-            unclaimedSeconds = end.sub(lastUpdate);
+        if(lastUpdate < stream.end){
+            unclaimedSeconds = stream.end.sub(lastUpdate);
         }
-        return unclaimedSeconds.mul(streamRate[_mAsset]);
+        return unclaimedSeconds.mul(stream.rate);
     }
 
     /**
@@ -262,11 +270,16 @@ contract SavingsManager is ISavingsManager, PausableModule {
      * @param _amount Amount of units to stream
      * @param _duration Duration of the stream, from now
      */
-    function _initialiseStream(address _mAsset, uint256 _amount, uint256 _duration) internal {
+    function _initialiseStream(address _mAsset, StreamType _stream, uint256 _amount, uint256 _duration) internal {
         uint256 currentTime = now;
         // Distribute reward per second over X seconds
-        streamRate[_mAsset] = _amount.div(_duration);
-        streamEnd[_mAsset] = currentTime.add(_duration);
+        uint256 rate = _amount.div(_duration);
+        uint256 end = currentTime.add(_duration);
+        if(_stream == StreamType.liquidator){
+            liqStream[_mAsset] = Stream(end, rate);
+        } else {
+            yieldStream[_mAsset] = Stream(end, rate);
+        }
 
         // Reset pool data to enable lastCollection usage twice
         lastPeriodStart[_mAsset] = currentTime;
@@ -287,6 +300,12 @@ contract SavingsManager is ISavingsManager, PausableModule {
     function collectAndDistributeInterest(address _mAsset)
         external
         whenNotPaused
+    {
+        _collectAndDistributeInterest(_mAsset);
+    }
+
+    function _collectAndDistributeInterest(address _mAsset)
+        internal
     {
         ISavingsContract savingsContract = savingsContracts[_mAsset];
         require(address(savingsContract) != address(0), "Must have a valid savings contract");
@@ -355,9 +374,15 @@ contract SavingsManager is ISavingsManager, PausableModule {
      * @return Units of mAsset that have been unlocked for distribution
      */
     function _unclaimedRewards(address _mAsset, uint256 _previousCollection) internal view returns (uint256) {
-        uint256 end = streamEnd[_mAsset];
-        uint256 unclaimedSeconds = _unclaimedSeconds(_previousCollection, end);
-        return unclaimedSeconds.mul(streamRate[_mAsset]);
+        Stream memory liq = liqStream[_mAsset];
+        uint256 unclaimedSeconds_liq = _unclaimedSeconds(_previousCollection, liq.end);
+        uint256 subtotal_liq = unclaimedSeconds_liq.mul(liq.rate);
+
+        Stream memory yield = yieldStream[_mAsset];
+        uint256 unclaimedSeconds_yield = _unclaimedSeconds(_previousCollection, yield.end);
+        uint256 subtotal_yield = unclaimedSeconds_yield.mul(yield.rate);
+
+        return subtotal_liq.add(subtotal_yield);
     }
 
     /**
@@ -435,9 +460,10 @@ contract SavingsManager is ISavingsManager, PausableModule {
 
         IERC20 mAsset = IERC20(_mAsset);
         uint256 balance = mAsset.balanceOf(address(this));
-        uint256 leftover = _allUnclaimedRewards(_mAsset);
+        uint256 leftover_liq = _unstreamedRewards(_mAsset, StreamType.liquidator);
+        uint256 leftover_yield = _unstreamedRewards(_mAsset, StreamType.yield);
 
-        uint256 unallocated = balance.sub(leftover);
+        uint256 unallocated = balance.sub(leftover_liq).sub(leftover_yield);
 
         mAsset.approve(address(recipient), unallocated);
         recipient.notifyRedistributionAmount(_mAsset, unallocated);
