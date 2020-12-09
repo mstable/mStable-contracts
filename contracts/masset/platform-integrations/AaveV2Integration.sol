@@ -17,6 +17,32 @@ import { InitializableAbstractIntegration, MassetHelpers, IERC20, SafeMath } fro
  */
 contract AaveV2Integration is InitializableAbstractIntegration {
 
+    event RewardTokenApproved(address rewardToken, address account);
+
+    /***************************************
+                    ADMIN
+    ****************************************/
+
+    /**
+     * @dev Approves Liquidator to spend reward tokens
+     */
+    function approveRewardToken()
+        external
+        onlyGovernor
+    {
+        address liquidator = nexus.getModule(keccak256("Liquidator"));
+        require(liquidator != address(0), "Liquidator address cannot be zero");
+
+        // Official checksummed AAVE token address
+        // https://ethplorer.io/address/0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9
+        address aaveToken = address(0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9);
+
+        MassetHelpers.safeInfiniteApprove(aaveToken, liquidator);
+
+        emit RewardTokenApproved(address(aaveToken), liquidator);
+    }
+
+
     /***************************************
                     CORE
     ****************************************/
@@ -27,7 +53,7 @@ contract AaveV2Integration is InitializableAbstractIntegration {
      *      (mAsset and corresponding BasketManager)
      * @param _bAsset              Address for the bAsset
      * @param _amount              Units of bAsset to deposit
-     * @param _hasTxFee   Flag that signals if an xfer fee is charged on bAsset
+     * @param _hasTxFee            Is the bAsset known to have a tx fee?
      * @return quantityDeposited   Quantity of bAsset that entered the platform
      */
     function deposit(
@@ -64,6 +90,7 @@ contract AaveV2Integration is InitializableAbstractIntegration {
      * @param _receiver     Address to which the bAsset should be sent
      * @param _bAsset       Address of the bAsset
      * @param _amount       Units of bAsset to withdraw
+     * @param _hasTxFee     Is the bAsset known to have a tx fee?
      */
     function withdraw(
         address _receiver,
