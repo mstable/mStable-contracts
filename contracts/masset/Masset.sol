@@ -1,14 +1,10 @@
 pragma solidity 0.5.16;
 pragma experimental ABIEncoderV2;
 
-// TODO - remove
-import { console } from "hardhat/console.sol";
-
 // External
 import { IForgeValidator } from "./forge-validator/IForgeValidator.sol";
 import { IPlatformIntegration } from "../interfaces/IPlatformIntegration.sol";
 import { IBasketManager } from "../interfaces/IBasketManager.sol";
-import { ISavingsManager } from "../interfaces/ISavingsManager.sol";
 
 // Internal
 import { IMasset } from "../interfaces/IMasset.sol";
@@ -185,7 +181,6 @@ contract Masset is
         internal
         returns (uint256 massetMinted)
     {
-        console.log("\n~~ MINT ~~");
         require(_recipient != address(0), "Must be a valid recipient");
         require(_bAssetQuantity > 0, "Quantity must not be 0");
 
@@ -222,7 +217,6 @@ contract Masset is
         internal
         returns (uint256 massetMinted)
     {
-        console.log("\n~~ MINT MULTI ~~");
         require(_recipient != address(0), "Must be a valid recipient");
         uint256 len = _bAssetQuantities.length;
         require(len > 0 && len == _bAssets.length, "Input array mismatch");
@@ -282,7 +276,6 @@ contract Masset is
         internal
         returns (uint256 quantityDeposited, uint256 ratioedDeposit)
     {
-        console.log("depositTokens: start");
         // 1 - Send all to PI, using the opportunity to get the cache balance and net amount transferred
         (uint256 transferred, uint256 cacheBal) = MassetHelpers.transferReturnBalance(msg.sender, _integrator, _bAsset, _quantity);
 
@@ -291,7 +284,6 @@ contract Masset is
         //     integrator == address(0) || address(this) and then keeping entirely in cache
         // 2.1 - Deposit if xfer fees
         if(_hasTxFee){
-            console.log("_depositTokens: hasTxFee");
             uint256 deposited = IPlatformIntegration(_integrator).deposit(_bAsset, transferred, true);
             quantityDeposited = StableMath.min(deposited, _quantity);
         }
@@ -305,7 +297,6 @@ contract Masset is
 
             uint256 relativeMaxCache = _maxCache.divRatioPrecisely(_bAssetRatio);
 
-            console.log("_depositTokens: cacheBal: %s vs relativeMaxCache: %s", cacheBal, relativeMaxCache);
             if(cacheBal > relativeMaxCache){
                 uint256 delta = cacheBal.sub(relativeMaxCache.div(2));
                 IPlatformIntegration(_integrator).deposit(_bAsset, delta, false);
@@ -345,7 +336,6 @@ contract Masset is
         nonReentrant
         returns (uint256 output)
     {
-        console.log("\n~~ SWAP ~~");
         // Struct created to avoid Stack Too Deep errors. Minor gas cost increase.
         SwapArgs memory args = SwapArgs(_input, _output, _recipient);
         require(args.input != address(0) && args.output != address(0), "Invalid swap asset addresses");
@@ -572,7 +562,6 @@ contract Masset is
         internal
         returns (uint256 massetRedeemed)
     {
-        console.log("\n~~ REDEEM ~~");
         require(_recipient != address(0), "Must be a valid recipient");
         uint256 bAssetCount = _bAssetQuantities.length;
         require(bAssetCount > 0 && bAssetCount == _bAssets.length, "Input array mismatch");
@@ -742,7 +731,6 @@ contract Masset is
      * @return amount  Struct containing the desired output, output-fee, and the scaled fee
      */
     function _withdrawTokens(WithdrawArgs memory args) internal returns (Amount memory amount) {
-        console.log("_withdrawTokens: q = args.quantity");
         if(args.quantity > 0){
 
             // 1. Deduct the redemption fee, if any, and log quantities
@@ -750,7 +738,6 @@ contract Masset is
 
             // 2. If txFee then short circuit - there is no cache
             if(args.hasTxFee){
-                console.log("_withdrawTokens: hasTxFee");
                 IPlatformIntegration(args.integrator).withdraw(args.recipient, args.bAsset, amount.net, amount.net, true);
             }
             // 3. Else, withdraw from either cache or main vault
@@ -758,18 +745,15 @@ contract Masset is
                 uint256 cacheBal = IERC20(args.bAsset).balanceOf(args.integrator);
                 // 3.1 - If balance b in cache, simply withdraw
                 if(cacheBal >= amount.net) {
-                    console.log("_withdrawTokens: cacheBal >= net - '%s' > '%s'", cacheBal, amount.net);
                     IPlatformIntegration(args.integrator).withdrawRaw(args.recipient, args.bAsset, amount.net);
                 }
                 // 3.2 - Else reset the cache to X, or as far as possible
                 //       - Withdraw X+b from platform
                 //       - Send b to user
                 else {
-                    console.log("_withdrawTokens: cacheBal < net - '%s' < '%s'", cacheBal, amount.net);
                     uint256 relativeMidCache = args.maxCache.divRatioPrecisely(args.ratio).div(2);
                     uint256 totalWithdrawal = StableMath.min(relativeMidCache.add(amount.net).sub(cacheBal), args.vaultBalance.sub(cacheBal));
 
-                    console.log("_withdrawTokens: totalWithdrawal", totalWithdrawal);
                     IPlatformIntegration(args.integrator).withdraw(
                         args.recipient,
                         args.bAsset,

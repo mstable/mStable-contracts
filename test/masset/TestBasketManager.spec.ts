@@ -43,7 +43,7 @@ contract("BasketManager", async (accounts) => {
     const manager = sa.dummy3;
 
     let integrationDetails: BassetIntegrationDetails;
-    let aaveIntegration: t.AaveIntegrationInstance;
+    let aaveIntegration: t.AaveV2IntegrationInstance;
     let compoundIntegration: t.CompoundIntegrationInstance;
     let basketManager: t.BasketManagerInstance;
     let nexus: t.MockNexusInstance;

@@ -23,7 +23,7 @@ contract AaveIntegration is InitializableAbstractIntegration {
      *      (mAsset and corresponding BasketManager)
      * @param _bAsset              Address for the bAsset
      * @param _amount              Units of bAsset to deposit
-     * @param _hasTxFee   Flag that signals if an xfer fee is charged on bAsset
+     * @param _hasTxFee            Is the bAsset known to have a tx fee?
      * @return quantityDeposited   Quantity of bAsset that entered the platform
      */
     function deposit(
@@ -148,9 +148,6 @@ contract AaveIntegration is InitializableAbstractIntegration {
         onlyWhitelisted
         nonReentrant
     {
-        // @TODO - add protections to ensure bAsset is logged to aToken?
-        // Unnecessary only Masset/BM have write access
-
         require(_amount > 0, "Must withdraw something");
         require(_receiver != address(0), "Must specify recipient");
 

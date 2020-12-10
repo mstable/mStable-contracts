@@ -525,13 +525,14 @@ contract BasketManager is
             address bAsset = _bAssets[i];
             (bool inBasket, uint8 index) = _isAssetInBasket(bAsset);
             require(inBasket, "bAsset does not exist");
+            require(!basket.bassets[index].isTransferFeeCharged, "Cannot migrate bAssets with xfer fee");
 
             // 2. Withdraw everything from the old platform integration
             IPlatformIntegration oldIntegration = IPlatformIntegration(integrations[index]);
             require(address(oldIntegration) != _newIntegration, "Must transfer to new integrator");
+            uint256 cache = IERC20(bAsset).balanceOf(address(oldIntegration));
             // 2.1. Withdraw from the lending market
             uint256 lendingBal = oldIntegration.checkBalance(bAsset);
-            uint256 cache = IERC20(bAsset).balanceOf(address(oldIntegration));
             oldIntegration.withdraw(address(this), bAsset, lendingBal, false);
             // 2.2. Withdraw from the cache, if any
             oldIntegration.withdrawRaw(address(this), bAsset, cache);
@@ -549,8 +550,8 @@ contract BasketManager is
             // 4.2. Check balances
             uint256 newLendingBal = newIntegration.checkBalance(bAsset);
             uint256 newCache = IERC20(bAsset).balanceOf(address(newIntegration));
-            uint256 upperMargin = 1001e15;
-            uint256 lowerMargin =  999e15;
+            uint256 upperMargin = 10001e14;
+            uint256 lowerMargin =  9999e14;
 
             require(
                 newLendingBal >= lendingBal.mulTruncate(lowerMargin) &&
