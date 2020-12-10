@@ -1,7 +1,7 @@
 /* eslint-disable dot-notation */
 /* eslint-disable no-await-in-loop */
 /* eslint-disable @typescript-eslint/camelcase */
-import { network } from "@nomiclabs/buidler";
+import { network } from "hardhat";
 import { expectRevert, time } from "@openzeppelin/test-helpers";
 import { assertBNClose, assertBNClosePercent } from "@utils/assertions";
 import { StandardAccounts } from "@utils/machines";
@@ -988,7 +988,6 @@ contract("IncentivisedVotingLockup", async (accounts) => {
                 w_total = await votingLockup.totalSupplyAt(block);
                 expect(w_bob).bignumber.eq(new BN(0));
                 expect(w_alice).bignumber.eq(w_total);
-                // TODO - Verify below has been ported correctly
                 const time_left = ONE_WEEK.muln(7 - i)
                     .divn(7)
                     .sub(ONE_HOUR.muln(2));

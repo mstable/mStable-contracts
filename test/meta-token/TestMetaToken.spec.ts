@@ -17,8 +17,8 @@ const { expect } = envSetup.configure();
 contract("MetaToken", async (accounts) => {
     const ctx: {
         module?: t.ModuleInstance;
-        token?: t.Erc20Instance;
-        burnableToken?: t.Erc20BurnableInstance;
+        token?: t.ERC20Instance;
+        burnableToken?: t.ERC20BurnableInstance;
     } = {};
     const sa = new StandardAccounts(accounts);
     let systemMachine: SystemMachine;
@@ -53,8 +53,8 @@ contract("MetaToken", async (accounts) => {
     describe("verifying ERC20 properties", async () => {
         beforeEach("reset contracts", async () => {
             meta = await redeployMeta();
-            ctx.token = meta as t.Erc20Instance;
-            ctx.burnableToken = meta as t.Erc20BurnableInstance;
+            ctx.token = meta as t.ERC20Instance;
+            ctx.burnableToken = meta as t.ERC20BurnableInstance;
         });
 
         shouldBehaveLikeERC20(

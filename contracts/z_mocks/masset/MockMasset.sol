@@ -23,10 +23,15 @@ contract MockMasset is MockERC20 {
     {}
 
     uint256 private amountToMint = 0;
+    uint256 private platformAmountToMint = 0;
 
     // Inject amount of tokens to mint
     function setAmountForCollectInterest(uint256 _amount) public {
         amountToMint = _amount;
+    }
+    // Inject amount of tokens to mint
+    function setAmountForPlatformInterest(uint256 _amount) public {
+        platformAmountToMint = _amount;
     }
 
     function collectInterest()
@@ -38,6 +43,17 @@ contract MockMasset is MockERC20 {
         newSupply = totalSupply();
         // Set back to zero
         amountToMint = 0;
+    }
+
+    function collectPlatformInterest()
+        external
+        returns (uint256 totalInterestGained, uint256 newSupply)
+    {
+        _mint(msg.sender, platformAmountToMint);
+        totalInterestGained = platformAmountToMint;
+        newSupply = totalSupply();
+        // Set back to zero
+        platformAmountToMint = 0;
     }
 
 }

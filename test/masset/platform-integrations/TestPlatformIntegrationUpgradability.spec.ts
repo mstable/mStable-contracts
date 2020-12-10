@@ -20,10 +20,10 @@ const c_AaveIntegrationV2 = artifacts.require("AaveIntegrationV2");
 const c_AaveIntegrationV3 = artifacts.require("AaveIntegrationV3");
 
 const c_MockAToken = artifacts.require("MockAToken");
-const c_MockAave = artifacts.require("MockAave");
+const c_MockAave = artifacts.require("MockAaveV1");
 const c_MockErc20 = artifacts.require("MockERC20");
 
-contract("UpgradedAaveIntegration", async (accounts) => {
+contract("PlatformIntegrationUpgradability", async (accounts) => {
     let d_Nexus: t.MockNexusInstance;
     const sa = new StandardAccounts(accounts);
     const governanceAddr = sa.governor;
@@ -37,8 +37,8 @@ contract("UpgradedAaveIntegration", async (accounts) => {
     let d_AaveIntegrationV2: t.AaveIntegrationV2Instance;
     let d_AaveIntegrationV3: t.AaveIntegrationV3Instance;
 
-    let d_MockAave: t.MockAaveInstance;
-    let d_mockBasset1: t.MockErc20Instance;
+    let d_MockAave: t.MockAaveV1Instance;
+    let d_mockBasset1: t.MockERC20Instance;
     let d_mockAToken1: t.MockATokenInstance;
 
     let proxyToImplV2: t.AaveIntegrationV2Instance;

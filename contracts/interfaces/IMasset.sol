@@ -11,7 +11,8 @@ import { MassetStructs } from "../masset/shared/MassetStructs.sol";
 contract IMasset is MassetStructs {
 
     /** @dev Calc interest */
-    function collectInterest() external returns (uint256 massetMinted, uint256 newTotalSupply);
+    function collectInterest() external returns (uint256 swapFeesGained, uint256 newTotalSupply);
+    function collectPlatformInterest() external returns (uint256 interestGained, uint256 newTotalSupply);
 
     /** @dev Minting */
     function mint(address _basset, uint256 _bassetQuantity)

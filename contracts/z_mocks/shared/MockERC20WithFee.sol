@@ -52,7 +52,7 @@ contract ERC20WithFee is IERC20, MinterRole {
      * these values are immutable: they can only be set once during
      * construction.
      */
-    constructor (string memory name, string memory symbol, uint8 decimals) public {
+    function _initialize(string memory name, string memory symbol, uint8 decimals) internal {
         _name = name;
         _symbol = symbol;
         _decimals = decimals;
@@ -307,14 +307,9 @@ contract MockERC20WithFee is ERC20WithFee {
         address _initialRecipient,
         uint256 _initialMint
     )
-        ERC20WithFee
-    (
-        _name,
-        _symbol,
-        _decimals
-    )
         public
     {
+        ERC20WithFee._initialize(_name, _symbol, _decimals);
         feeRate = 1e15;
         _mint(_initialRecipient, _initialMint.mul(10 ** uint256(_decimals)));
     }

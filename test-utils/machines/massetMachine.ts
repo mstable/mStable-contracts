@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/camelcase */
 /* eslint-disable class-methods-use-this */
+/* eslint-disable no-nested-ternary */
 
 import * as t from "types/generated";
 import { simpleToExactAmount, percentToWeight } from "@utils/math";
@@ -14,7 +15,12 @@ import {
 import { Basset } from "@utils/mstable-objects";
 import { SystemMachine, StandardAccounts } from ".";
 import { Address } from "../../types/common";
-import { BassetIntegrationDetails, Platform, BasketComposition } from "../../types/machines";
+import {
+    BassetIntegrationDetails,
+    Platform,
+    BasketComposition,
+    ActionDetails,
+} from "../../types/machines";
 
 // ForgeValidator
 const c_ForgeValidator = artifacts.require("ForgeValidator");
@@ -28,8 +34,11 @@ const c_VaultProxy = artifacts.require("VaultProxy");
 
 // Integrations
 const c_AaveIntegration = artifacts.require("AaveIntegration");
-const c_MockAave = artifacts.require("MockAave");
+const c_AaveV2Integration = artifacts.require("AaveV2Integration");
+const c_MockAaveV1 = artifacts.require("MockAaveV1");
+const c_MockAaveV2 = artifacts.require("MockAaveV2");
 const c_MockAToken = artifacts.require("MockAToken");
+const c_MockATokenV2 = artifacts.require("MockATokenV2");
 const c_CompoundIntegration = artifacts.require("CompoundIntegration");
 const c_MockCToken = artifacts.require("MockCToken");
 
@@ -38,15 +47,17 @@ const c_BasketManager = artifacts.require("MockBasketManager");
 
 // Masset
 const c_Masset = artifacts.require("Masset");
-const c_MockERC20WithFee = artifacts.require("MockERC20WithFee");
 const c_MockERC20 = artifacts.require("MockERC20");
+const c_MockInitializableToken = artifacts.require("MockInitializableToken");
+const c_MockInitializableTokenWithFee = artifacts.require("MockInitializableTokenWithFee");
 const c_MockUSDT = artifacts.require("MockUSDT");
+const c_PlatformIntegration = artifacts.require("IPlatformIntegration");
 
 export interface MassetDetails {
     mAsset?: t.MassetInstance;
     forgeValidator?: t.ForgeValidatorInstance;
     basketManager?: t.MockBasketManagerInstance;
-    bAssets?: Array<t.MockErc20Instance>;
+    bAssets?: Array<t.MockERC20Instance>;
     proxyAdmin?: t.DelayedProxyAdminInstance;
     aaveIntegration?: t.AaveIntegrationInstance;
     compoundIntegration?: t.CompoundIntegrationInstance;
@@ -69,14 +80,14 @@ export class MassetMachine {
      * @dev Deploys an mAsset with default parameters, modelled on original mUSD
      * @return Interface will all deployed information
      */
-    public async deployMasset(enableUSDTFee = false): Promise<MassetDetails> {
+    public async deployMasset(enableUSDTFee = false, useOldAave = false): Promise<MassetDetails> {
         const md: MassetDetails = {};
 
         /** *************************************
         0. Mock platforms and bAssets
         Dependencies: []
         *************************************** */
-        const bassetDetails = await this.loadBassets(enableUSDTFee);
+        const bassetDetails = await this.loadBassets(enableUSDTFee, useOldAave);
         md.bAssets = bassetDetails.bAssets;
 
         /** *************************************
@@ -119,7 +130,9 @@ export class MassetMachine {
 
         // 2.2. Deploy no Init AaveIntegration
         //  - Deploy Implementation with dummy params (this storage doesn't get used)
-        const d_AaveIntegration = await c_AaveIntegration.new();
+        const d_AaveIntegration = await (useOldAave
+            ? c_AaveIntegration.new()
+            : c_AaveV2Integration.new());
         await d_AaveIntegration.initialize(DEAD_ADDRESS, [DEAD_ADDRESS], DEAD_ADDRESS, [], []);
         //  - Deploy Initializable Proxy
         const d_AaveIntegrationProxy = await c_VaultProxy.new();
@@ -222,10 +235,13 @@ export class MassetMachine {
         return md;
     }
 
-    public async loadBassets(enableUSDTFee = false): Promise<BassetIntegrationDetails> {
+    public async loadBassets(
+        enableUSDTFee = false,
+        useOldAave = false,
+    ): Promise<BassetIntegrationDetails> {
         return this.system.isGanacheFork
             ? this.loadBassetsFork(enableUSDTFee)
-            : this.loadBassetsLocal(enableUSDTFee);
+            : this.loadBassetsLocal(enableUSDTFee, useOldAave);
     }
 
     public async loadBassetsFork(enableUSDTFee = false): Promise<BassetIntegrationDetails> {
@@ -285,41 +301,61 @@ export class MassetMachine {
         };
     }
 
-    public async loadBassetsLocal(enableUSDTFee = false): Promise<BassetIntegrationDetails> {
-        //  - Mock bAssets
-        const mockBasset1 = await c_MockERC20.new("Mock1", "MK1", 12, this.sa.default, 100000000);
-        const mockBasset2 = enableUSDTFee
-            ? ((await c_MockERC20WithFee.new(
-                  "Mock5",
-                  "MK5",
-                  6,
-                  this.sa.default,
-                  100000000,
-              )) as t.MockErc20Instance)
-            : await c_MockERC20.new("Mock5", "MK5", 6, this.sa.default, 100000000);
+    private async loadBassetProxy(
+        name: string,
+        sym: string,
+        dec: number,
+        recipient = this.sa.default,
+        init = 100000000,
+        enableUSDTFee = false,
+    ): Promise<t.MockERC20Instance> {
+        const x = await c_MassetProxy.new();
+        const y = enableUSDTFee
+            ? await c_MockInitializableTokenWithFee.new()
+            : await c_MockInitializableToken.new();
+        const data = y.contract.methods.initialize(name, sym, dec, recipient, init).encodeABI();
+        await x.methods["initialize(address,address,bytes)"](y.address, this.sa.governor, data);
+        return (await c_MockERC20.at(x.address)) as t.MockERC20Instance;
+    }
 
-        const mockBasset3 = await c_MockERC20.new("Mock3", "MK3", 18, this.sa.default, 100000000);
-        // Mock up USDT for Aave
-        const mockBasset4 = enableUSDTFee
-            ? ((await c_MockERC20WithFee.new(
-                  "Mock4",
-                  "MK4",
-                  18,
-                  this.sa.default,
-                  100000000,
-              )) as t.MockErc20Instance)
-            : await c_MockERC20.new("Mock4", "MK4", 18, this.sa.default, 100000000);
+    public async loadBassetsLocal(
+        enableUSDTFee = false,
+        useOldAave = false,
+    ): Promise<BassetIntegrationDetails> {
+        //  - Mock bAssets
+
+        const mockBasset1 = await this.loadBassetProxy("Mock1", "MK1", 12);
+        const mockBasset2 = await this.loadBassetProxy(
+            "Mock5",
+            "MK5",
+            6,
+            this.sa.default,
+            100000000,
+            enableUSDTFee,
+        );
+
+        const mockBasset3 = await this.loadBassetProxy("Mock3", "MK3", 18);
+        const mockBasset4 = await this.loadBassetProxy(
+            "Mock4",
+            "MK4",
+            18,
+            this.sa.default,
+            100000000,
+            enableUSDTFee,
+        );
 
         // Mock C Token
         const mockCToken1 = await c_MockCToken.new(mockBasset1.address);
         const mockCToken2 = await c_MockCToken.new(mockBasset2.address);
 
         //  - Mock Aave integration
-        const d_MockAave = await c_MockAave.new({ from: this.sa.default });
+        const aaveVersion = useOldAave ? c_MockAaveV1 : c_MockAaveV2;
+        const d_MockAave = await aaveVersion.new({ from: this.sa.default });
 
         //  - Mock aTokens
-        const mockAToken3 = await c_MockAToken.new(d_MockAave.address, mockBasset3.address);
-        const mockAToken4 = await c_MockAToken.new(d_MockAave.address, mockBasset4.address);
+        const aToken = useOldAave ? c_MockAToken : c_MockATokenV2;
+        const mockAToken3 = await aToken.new(d_MockAave.address, mockBasset3.address);
+        const mockAToken4 = await aToken.new(d_MockAave.address, mockBasset4.address);
 
         //  - Add to the Platform
         await d_MockAave.addAToken(mockAToken3.address, mockBasset3.address);
@@ -355,7 +391,7 @@ export class MassetMachine {
     }
 
     public async mintERC20(
-        erc20: t.MockErc20Instance,
+        erc20: t.MockERC20Instance,
         source: Address,
         recipient: string = this.sa.default,
     ): Promise<Truffle.TransactionResponse<any>> {
@@ -398,12 +434,18 @@ export class MassetMachine {
         // Approve bAssets
         await Promise.all(
             massetDetails.bAssets.map((b, i) =>
-                b.approve(massetDetails.mAsset.address, mintAmounts[i], {
+                b.approve(massetDetails.mAsset.address, mintAmounts[i].muln(2), {
                     from: this.system.sa.default,
                 }),
             ),
         );
 
+        await massetDetails.mAsset.mintMulti(
+            basketDetails.map((b) => b.addr),
+            mintAmounts,
+            this.system.sa.default,
+            { from: this.system.sa.default },
+        );
         await massetDetails.mAsset.mintMulti(
             basketDetails.map((b) => b.addr),
             mintAmounts,
@@ -427,10 +469,17 @@ export class MassetMachine {
             };
         });
         const bAssetContracts = await Promise.all(bArrays.map((b) => c_MockERC20.at(b.addr)));
+        const integratorAddresses = await Promise.all(
+            bArrays.map((b, i) => massetDetails.basketManager.integrations(i)),
+        );
+        const integrators = await Promise.all(
+            integratorAddresses.map((i) => c_PlatformIntegration.at(i)),
+        );
         return bArrays.map((b, i) => {
             return {
                 ...b,
                 contract: bAssetContracts[i],
+                integrator: integrators[i],
             };
         });
     }
@@ -440,12 +489,22 @@ export class MassetMachine {
         const bAssets = await this.getBassetsInMasset(massetDetails);
         const basket = await massetDetails.basketManager.getBasket();
         // total supply of mAsset
-        const totalSupply = await massetDetails.mAsset.totalSupply();
+        const supply = await massetDetails.mAsset.totalSupply();
+        const surplus = await massetDetails.mAsset.surplus();
+        const totalSupply = supply.add(surplus);
         // get weights (relative to totalSupply)
         // apply ratios, then find proportion of totalSupply all in BN
         const maxWeightInUnits = bAssets.map((b) =>
             totalSupply.mul(new BN(b.maxWeight)).div(fullScale),
         );
+        // get actual balance of each bAsset
+        const rawBalances = await Promise.all(
+            bAssets.map((b) => b.contract.balanceOf(b.integrator.address)),
+        );
+        const platformBalances = await Promise.all(
+            bAssets.map((b) => b.integrator.checkBalance.call(b.addr)),
+        );
+        const balances = rawBalances.map((b, i) => b.add(platformBalances[i]));
         // get overweight
         const currentVaultUnits = bAssets.map((b) =>
             new BN(b.vaultBalance).mul(new BN(b.ratio)).div(ratioScale),
@@ -462,9 +521,13 @@ export class MassetMachine {
                     address: b.addr,
                     mAssetUnits: currentVaultUnits[i],
                     overweight: overweightBassets[i],
+                    actualBalance: balances[i],
+                    rawBalance: rawBalances[i],
+                    platformBalance: platformBalances[i],
                 };
             }),
-            totalSupply,
+            totalSupply: supply,
+            surplus,
             sumOfBassets,
             failed: basket.failed,
             undergoingRecol: basket.undergoingRecol,
@@ -482,7 +545,7 @@ export class MassetMachine {
      * @param inputIsBaseUnits Override the scaling up to MassetQ
      */
     public async approveMasset(
-        bAsset: t.MockErc20Instance,
+        bAsset: t.MockERC20Instance,
         mAsset: t.MassetInstance,
         fullMassetUnits: number | BN | string,
         sender: string = this.sa.default,
@@ -497,8 +560,20 @@ export class MassetMachine {
         return approvalAmount;
     }
 
+    public async getBasset(bm: t.MockBasketManagerInstance, addr: string): Promise<Basset> {
+        const bAsset = await bm.getBasset(addr);
+        const bAssetContract = await c_MockERC20.at(addr);
+        const integratorAddresses = await bm.getBassetIntegrator(addr);
+        const integrator = await c_PlatformIntegration.at(integratorAddresses);
+        return {
+            ...bAsset,
+            contract: bAssetContract,
+            integrator,
+        };
+    }
+
     public async approveMassetMulti(
-        bAssets: Array<t.MockErc20Instance>,
+        bAssets: Array<t.MockERC20Instance>,
         mAsset: t.MassetInstance,
         fullMassetUnits: number,
         sender: string,
@@ -507,5 +582,44 @@ export class MassetMachine {
             bAssets.map((b) => this.approveMasset(b, mAsset, fullMassetUnits, sender)),
         );
         return result;
+    }
+
+    public async getPlatformInteraction(
+        mAsset: t.MassetInstance,
+        type: "deposit" | "withdrawal",
+        amount: BN,
+        integratorBalBefore: number | BN,
+        bAsset: Basset,
+    ): Promise<ActionDetails> {
+        const totalSupply = await mAsset.totalSupply();
+        const surplus = await mAsset.surplus();
+        const cacheSize = await mAsset.cacheSize();
+        const maxC = totalSupply
+            .add(surplus)
+            .mul(ratioScale)
+            .div(new BN(bAsset.ratio))
+            .mul(cacheSize)
+            .div(fullScale);
+        const newSum = new BN(integratorBalBefore).add(amount);
+        const expectInteraction =
+            type === "deposit" ? newSum.gte(maxC as any) : amount.gt(new BN(integratorBalBefore));
+        return {
+            expectInteraction,
+            amount:
+                type === "deposit"
+                    ? newSum.sub(maxC.divn(2))
+                    : BN.min(
+                          maxC.divn(2).add(amount).sub(new BN(integratorBalBefore)),
+                          new BN(bAsset.vaultBalance).sub(new BN(integratorBalBefore)),
+                      ),
+            rawBalance:
+                type === "deposit"
+                    ? expectInteraction
+                        ? maxC.divn(2)
+                        : newSum
+                    : expectInteraction
+                    ? BN.min(maxC.divn(2), new BN(bAsset.vaultBalance).sub(amount))
+                    : new BN(integratorBalBefore).sub(amount),
+        };
     }
 }

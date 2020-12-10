@@ -31,7 +31,7 @@ export enum Platform {
 }
 
 export interface BassetIntegrationDetails {
-    bAssets: Array<t.MockErc20Instance>;
+    bAssets: Array<t.MockERC20Instance>;
     platforms: Array<Platform>;
     aavePlatformAddress: Address;
     aTokens: Array<ATokenDetails>;
@@ -119,7 +119,7 @@ async function loadBassetsLocal(
     deployer,
 ): Promise<BassetIntegrationDetails> {
     const c_MockERC20 = artifacts.require("MockERC20");
-    const c_MockAave = artifacts.require("MockAave");
+    const c_MockAave = artifacts.require("MockAaveV2");
     const c_MockAToken = artifacts.require("MockAToken");
     const c_MockCToken = artifacts.require("MockCToken");
     //  - Mock bAssets

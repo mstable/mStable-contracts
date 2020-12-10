@@ -8,8 +8,8 @@ import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "./Initi
  * @title   CompoundIntegration
  * @author  Stability Labs Pty. Ltd.
  * @notice  A simple connection to deposit and withdraw bAssets from Compound
- * @dev     VERSION: 1.2
- *          DATE:    2020-10-19
+ * @dev     VERSION: 1.3
+ *          DATE:    2020-11-14
  */
 contract CompoundIntegration is InitializableAbstractIntegration {
 
@@ -49,13 +49,13 @@ contract CompoundIntegration is InitializableAbstractIntegration {
      *      (mAsset and corresponding BasketManager)
      * @param _bAsset              Address for the bAsset
      * @param _amount              Units of bAsset to deposit
-     * @param _isTokenFeeCharged   Flag that signals if an xfer fee is charged on bAsset
+     * @param _hasTxFee   Flag that signals if an xfer fee is charged on bAsset
      * @return quantityDeposited   Quantity of bAsset that entered the platform
      */
     function deposit(
         address _bAsset,
         uint256 _amount,
-        bool _isTokenFeeCharged
+        bool _hasTxFee
     )
         external
         onlyWhitelisted
@@ -67,10 +67,9 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         // Get the Target token
         ICERC20 cToken = _getCTokenFor(_bAsset);
 
-        // We should have been sent this amount, if not, the deposit will fail
         quantityDeposited = _amount;
 
-        if(_isTokenFeeCharged) {
+        if(_hasTxFee) {
             // If we charge a fee, account for it
             uint256 prevBal = _checkBalance(cToken);
             require(cToken.mint(_amount) == 0, "cToken mint failed");
@@ -84,18 +83,103 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         emit Deposit(_bAsset, address(cToken), quantityDeposited);
     }
 
+
     /**
-     * @dev Withdraw a quantity of bAsset from Compound. Redemption
-     *      should fail if we have insufficient cToken balance.
+     * @dev Withdraw a quantity of bAsset from Compound
      * @param _receiver     Address to which the withdrawn bAsset should be sent
      * @param _bAsset       Address of the bAsset
      * @param _amount       Units of bAsset to withdraw
+     * @param _hasTxFee     Is the bAsset known to have a tx fee?
      */
     function withdraw(
         address _receiver,
         address _bAsset,
         uint256 _amount,
-        bool _isTokenFeeCharged
+        bool _hasTxFee
+    )
+        external
+        onlyWhitelisted
+        nonReentrant
+    {
+        _withdraw(_receiver, _bAsset, _amount, _amount, _hasTxFee);
+    }
+
+    /**
+     * @dev Withdraw a quantity of bAsset from Compound
+     * @param _receiver     Address to which the withdrawn bAsset should be sent
+     * @param _bAsset       Address of the bAsset
+     * @param _amount       Units of bAsset to withdraw
+     * @param _totalAmount  Total units to pull from lending platform
+     * @param _hasTxFee     Is the bAsset known to have a tx fee?
+     */
+    function withdraw(
+        address _receiver,
+        address _bAsset,
+        uint256 _amount,
+        uint256 _totalAmount,
+        bool _hasTxFee
+    )
+        external
+        onlyWhitelisted
+        nonReentrant
+    {
+        _withdraw(_receiver, _bAsset, _amount, _totalAmount, _hasTxFee);
+    }
+
+    function _withdraw(
+        address _receiver,
+        address _bAsset,
+        uint256 _amount,
+        uint256 _totalAmount,
+        bool _hasTxFee
+    )
+        internal
+    {
+        require(_totalAmount > 0, "Must withdraw something");
+        require(_receiver != address(0), "Must specify recipient");
+
+        // Get the Target token
+        ICERC20 cToken = _getCTokenFor(_bAsset);
+
+        // If redeeming 0 cTokens, just skip, else COMP will revert
+        // Reason for skipping: to ensure that redeemMasset is always able to execute
+        uint256 cTokensToRedeem = _convertUnderlyingToCToken(cToken, _totalAmount);
+        if(cTokensToRedeem == 0) {
+            emit SkippedWithdrawal(_bAsset, _totalAmount);
+            return;
+        }
+
+        uint256 userWithdrawal = _amount;
+
+        if(_hasTxFee) {
+            require(_amount == _totalAmount, "Cache inactive for assets with fee");
+            IERC20 b = IERC20(_bAsset);
+            uint256 prevBal = b.balanceOf(address(this));
+            require(cToken.redeemUnderlying(_amount) == 0, "redeem failed");
+            uint256 newBal = b.balanceOf(address(this));
+            userWithdrawal = _min(userWithdrawal, newBal.sub(prevBal));
+        } else {
+            // Redeem Underlying bAsset amount
+            require(cToken.redeemUnderlying(_totalAmount) == 0, "redeem failed");
+        }
+
+        // Send redeemed bAsset to the receiver
+        IERC20(_bAsset).safeTransfer(_receiver, userWithdrawal);
+
+        emit PlatformWithdrawal(_bAsset, address(cToken), _totalAmount, _amount);
+    }
+
+
+    /**
+     * @dev Withdraw a quantity of bAsset from the cache.
+     * @param _receiver     Address to which the bAsset should be sent
+     * @param _bAsset       Address of the bAsset
+     * @param _amount       Units of bAsset to withdraw
+     */
+    function withdrawRaw(
+        address _receiver,
+        address _bAsset,
+        uint256 _amount
     )
         external
         onlyWhitelisted
@@ -104,34 +188,9 @@ contract CompoundIntegration is InitializableAbstractIntegration {
         require(_amount > 0, "Must withdraw something");
         require(_receiver != address(0), "Must specify recipient");
 
-        // Get the Target token
-        ICERC20 cToken = _getCTokenFor(_bAsset);
+        IERC20(_bAsset).safeTransfer(_receiver, _amount);
 
-        // If redeeming 0 cTokens, just skip, else COMP will revert
-        // Reason for skipping: to ensure that redeemMasset is always able to execute
-        uint256 cTokensToRedeem = _convertUnderlyingToCToken(cToken, _amount);
-        if(cTokensToRedeem == 0) {
-            emit SkippedWithdrawal(_bAsset, _amount);
-            return;
-        }
-
-        uint256 quantityWithdrawn = _amount;
-
-        if(_isTokenFeeCharged) {
-            IERC20 b = IERC20(_bAsset);
-            uint256 prevBal = b.balanceOf(address(this));
-            require(cToken.redeemUnderlying(_amount) == 0, "redeem failed");
-            uint256 newBal = b.balanceOf(address(this));
-            quantityWithdrawn = _min(quantityWithdrawn, newBal.sub(prevBal));
-        } else {
-            // Redeem Underlying bAsset amount
-            require(cToken.redeemUnderlying(_amount) == 0, "redeem failed");
-        }
-
-        // Send redeemed bAsset to the receiver
-        IERC20(_bAsset).safeTransfer(_receiver, quantityWithdrawn);
-
-        emit Withdrawal(_bAsset, address(cToken), quantityWithdrawn);
+        emit Withdrawal(_bAsset, address(0), _amount);
     }
 
     /**

@@ -18,7 +18,7 @@ export enum Platform {
 }
 
 export interface BassetIntegrationDetails {
-    bAssets: Array<t.MockErc20Instance>;
+    bAssets: Array<t.MockERC20Instance>;
     fees: Array<boolean>;
     platforms: Array<Platform>;
     aavePlatformAddress: Address;
@@ -30,13 +30,23 @@ export interface BassetDetails extends Basset {
     address: Address;
     mAssetUnits: BN;
     overweight: boolean;
+    actualBalance: BN;
+    rawBalance?: BN;
+    platformBalance?: BN;
 }
 
 export interface BasketComposition {
     bAssets: Array<BassetDetails>;
     totalSupply: BN;
+    surplus: BN;
     sumOfBassets: BN;
     failed: boolean;
     undergoingRecol: boolean;
     colRatio: BN;
+}
+
+export interface ActionDetails {
+    expectInteraction: boolean;
+    amount: BN;
+    rawBalance: BN;
 }

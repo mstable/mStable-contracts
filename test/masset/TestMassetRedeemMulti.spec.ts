@@ -13,13 +13,9 @@ import * as t from "types/generated";
 
 const { expect } = envSetup.configure();
 
-const MockBasketManager1 = artifacts.require("MockBasketManager1");
 const MockERC20 = artifacts.require("MockERC20");
-const MockAToken = artifacts.require("MockAToken");
-const MockAave = artifacts.require("MockAave");
-const AaveIntegration = artifacts.require("AaveIntegration");
-
-const Masset = artifacts.require("Masset");
+const MockAToken = artifacts.require("MockATokenV2");
+const MockAave = artifacts.require("MockAaveV2");
 
 contract("Masset - RedeemMasset", async (accounts) => {
     const sa = new StandardAccounts(accounts);
@@ -77,7 +73,7 @@ contract("Masset - RedeemMasset", async (accounts) => {
         recipient: string = sa.default,
         sender: string = sa.default,
         ignoreHealthAssertions = false,
-        expectFee = false,
+        expectFee = true,
     ): Promise<void> => {
         const { mAsset, basketManager, bAssets } = md;
 
@@ -162,13 +158,13 @@ contract("Masset - RedeemMasset", async (accounts) => {
         const recipientBassetBalsAfter = await Promise.all(
             bAssets.map((b) => b.balanceOf(recipient)),
         );
-        recipientBassetBalsAfter.map((b, i) =>
-            expect(b).bignumber.eq(
+        recipientBassetBalsAfter.map((b, i) => {
+            return expect(b).bignumber.eq(
                 // Subtract the fee from the returned amount
                 recipientBassetBalsBefore[i].add(expectedBassetsExact[i]).sub(fees[i]),
                 `Recipient should have more bAsset[${i}]`,
-            ),
-        );
+            );
+        });
         //    Basset payout should always be lte exactAmount in Masset terms
         const sumOfRedemption = expectedBassets.reduce((p, c) => p.add(c), new BN(0));
         assertBNSlightlyGTPercent(
@@ -185,7 +181,9 @@ contract("Masset - RedeemMasset", async (accounts) => {
         bAssetsAfter.map((b, i) =>
             expect(new BN(b.vaultBalance)).bignumber.eq(
                 // Full amount including fee should be taken from vaultBalance
-                new BN(basketComp.bAssets[i].vaultBalance).sub(expectedBassetsExact[i]),
+                new BN(basketComp.bAssets[i].vaultBalance)
+                    .sub(expectedBassetsExact[i])
+                    .add(fees[i]),
                 `Vault balance should reduce for bAsset[${i}]`,
             ),
         );
@@ -275,9 +273,7 @@ contract("Masset - RedeemMasset", async (accounts) => {
                     );
                     const expectedBassetsExact = await Promise.all(
                         basketComp.bAssets.map((b) =>
-                            simpleToExactAmount(10, 18)
-                                .mul(ratioScale)
-                                .div(new BN(b.ratio)),
+                            simpleToExactAmount(10, 18).mul(ratioScale).div(new BN(b.ratio)),
                         ),
                     );
                     const bAssetFees = expectedBassetsExact.map((b, i) =>
@@ -310,7 +306,9 @@ contract("Masset - RedeemMasset", async (accounts) => {
                     const basketCompAfter = await massetMachine.getBasketComposition(massetDetails);
                     basketCompAfter.bAssets.map((b, i) =>
                         expect(b.vaultBalance).bignumber.eq(
-                            basketComp.bAssets[i].vaultBalance.sub(expectedBassetsExact[i]),
+                            new BN(basketComp.bAssets[i].vaultBalance)
+                                .sub(expectedBassetsExact[i])
+                                .add(bAssetFees[i]),
                         ),
                     );
                 });
@@ -357,27 +355,14 @@ contract("Masset - RedeemMasset", async (accounts) => {
                     );
                     // VaultBalance should update for this bAsset
                     const bAssetAfter = await basketManager.getBasset(bAsset.address);
+
+                    const feeRate = await mAsset.redemptionFee();
+                    const fee = expectedBasset.mul(feeRate).div(fullScale);
                     expect(new BN(bAssetAfter.vaultBalance)).bignumber.eq(
-                        new BN(bAsset.vaultBalance).sub(expectedBasset),
+                        new BN(bAsset.vaultBalance).sub(expectedBasset).add(fee),
                     );
                     // Complete basket should remain in healthy state
                     await assertBasketIsHealthy(massetMachine, massetDetails);
-                });
-                it("should fail if the token charges a fee but we dont know about it", async () => {
-                    const { bAssets, mAsset, basketManager } = massetDetails;
-                    await assertBasketIsHealthy(massetMachine, massetDetails);
-                    // 1.0 Assert bAsset has fee
-                    const bAsset = bAssets[3];
-                    const basket = await massetMachine.getBasketComposition(massetDetails);
-                    expect(basket.bAssets[3].isTransferFeeCharged).to.eq(true);
-                    await basketManager.setTransferFeesFlag(bAsset.address, false, {
-                        from: sa.governor,
-                    });
-                    // 2.0 Do the mint
-                    await expectRevert(
-                        mAsset.redeemMasset(new BN(1000000), sa.default),
-                        "SafeERC20: low-level call failed",
-                    );
                 });
             });
             context("passing invalid arguments", async () => {

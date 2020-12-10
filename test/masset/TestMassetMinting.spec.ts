@@ -8,7 +8,7 @@ import { simpleToExactAmount } from "@utils/math";
 import { MassetDetails, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import { BN } from "@utils/tools";
 import { BassetStatus } from "@utils/mstable-objects";
-import { ZERO_ADDRESS, fullScale } from "@utils/constants";
+import { ZERO_ADDRESS, fullScale, ratioScale } from "@utils/constants";
 import envSetup from "@utils/env_setup";
 import * as t from "types/generated";
 import { BasketComposition } from "../../types";
@@ -19,7 +19,7 @@ const MockBasketManager1 = artifacts.require("MockBasketManager1");
 const MockBasketManager2 = artifacts.require("MockBasketManager2");
 const MockERC20 = artifacts.require("MockERC20");
 const MockAToken = artifacts.require("MockAToken");
-const MockAave = artifacts.require("MockAave");
+const MockAave = artifacts.require("MockAaveV2");
 const AaveIntegration = artifacts.require("AaveIntegration");
 const Masset = artifacts.require("Masset");
 
@@ -52,7 +52,7 @@ contract("Masset - Mint", async (accounts) => {
 
     const assertFailedMint = async (
         mAsset: t.MassetInstance,
-        bAsset: t.MockErc20Instance,
+        bAsset: t.MockERC20Instance,
         amount: BN,
         reason: string,
     ): Promise<void> => {
@@ -64,7 +64,7 @@ contract("Masset - Mint", async (accounts) => {
     const assertBasicMint = async (
         md: MassetDetails,
         mAssetMintAmount: BN | number,
-        bAsset: t.MockErc20Instance,
+        bAsset: t.MockERC20Instance,
         useMintTo = false,
         recipient: string = sa.default,
         sender: string = sa.default,
@@ -76,13 +76,26 @@ contract("Masset - Mint", async (accounts) => {
         const minterBassetBalBefore = await bAsset.balanceOf(sender);
         const derivedRecipient = useMintTo ? recipient : sender;
         const recipientBalBefore = await mAsset.balanceOf(derivedRecipient);
-        const bAssetBefore = await basketManager.getBasset(bAsset.address);
+        const bAssetBefore = await massetMachine.getBasset(basketManager, bAsset.address);
+        const integratorBalBefore = await bAssetBefore.contract.balanceOf(
+            bAssetBefore.integrator.address,
+        );
 
         const approval0: BN = await massetMachine.approveMasset(
             bAsset,
             mAsset,
             new BN(mAssetMintAmount),
         );
+
+        // Expect to be used in cache
+        const platformInteraction = await massetMachine.getPlatformInteraction(
+            mAsset,
+            "deposit",
+            approval0,
+            integratorBalBefore,
+            bAssetBefore,
+        );
+
         const tx = useMintTo
             ? await mAsset.mintTo(bAsset.address, approval0, derivedRecipient, { from: sender })
             : await mAsset.mint(bAsset.address, approval0, { from: sender });
@@ -99,15 +112,21 @@ contract("Masset - Mint", async (accounts) => {
         // Transfers to lending platform
         await expectEvent(tx.receipt, "Transfer", {
             from: sender,
-            to: await basketManager.getBassetIntegrator(bAsset.address),
+            to: bAssetBefore.integrator.address,
             value: bAssetQuantity,
         });
         // Deposits into lending platform
         const emitter = await AaveIntegration.new();
-        await expectEvent.inTransaction(tx.tx, emitter, "Deposit", {
-            _bAsset: bAsset.address,
-            _amount: bAssetQuantity,
-        });
+        const integratorBalAfter = await bAssetBefore.contract.balanceOf(
+            bAssetBefore.integrator.address,
+        );
+        expect(integratorBalAfter).bignumber.eq(platformInteraction.rawBalance);
+        if (platformInteraction.expectInteraction) {
+            await expectEvent.inTransaction(tx.tx, emitter, "Deposit", {
+                _bAsset: bAsset.address,
+                _amount: platformInteraction.amount,
+            });
+        }
         // Recipient should have mAsset quantity after
         const recipientBalAfter = await mAsset.balanceOf(derivedRecipient);
         expect(recipientBalAfter).bignumber.eq(recipientBalBefore.add(mAssetQuantity));
@@ -302,7 +321,7 @@ contract("Masset - Mint", async (accounts) => {
                     // 3.0 Do the mint
                     await expectRevert(
                         mAsset.mintTo(bAsset.address, approval0, sa.default),
-                        "SafeERC20: low-level call failed",
+                        "Asset not fully transferred",
                     );
                 });
             });
@@ -770,7 +789,7 @@ contract("Masset - Mint", async (accounts) => {
         const assertMintMulti = async (
             md: MassetDetails,
             mAssetMintAmounts: Array<BN | number>,
-            bAssets: Array<t.MockErc20Instance>,
+            bAssets: Array<t.MockERC20Instance>,
             recipient: string = sa.default,
             sender: string = sa.default,
             ignoreHealthAssertions = false,
@@ -992,7 +1011,7 @@ contract("Masset - Mint", async (accounts) => {
                     // 3.0 Do the mint
                     await expectRevert(
                         mAsset.mintMulti([bAsset.address], [approval0], sa.default),
-                        "SafeERC20: low-level call failed",
+                        "Asset not fully transferred",
                     );
                 });
             });

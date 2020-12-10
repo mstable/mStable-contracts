@@ -23,8 +23,8 @@ import { InitializableReentrancyGuard } from "../shared/InitializableReentrancyG
  *          basket data to the mAsset and is responsible for keeping accurate records.
  *          BasketManager can also optimise lending pool integrations and perform
  *          re-collateralisation on failed bAssets.
- * @dev     VERSION: 1.0
- *          DATE:    2020-05-05
+ * @dev     VERSION: 2.0
+ *          DATE:    2020-11-14
  */
 contract BasketManager is
     Initializable,
@@ -39,6 +39,7 @@ contract BasketManager is
     // Events for Basket composition changes
     event BassetAdded(address indexed bAsset, address integrator);
     event BassetRemoved(address indexed bAsset);
+    event BassetsMigrated(address[] bAssets, address newIntegrator);
     event BasketWeightsUpdated(address[] bAssets, uint256[] maxWeights);
     event BassetStatusChanged(address indexed bAsset, BassetStatus status);
     event BasketStatusChanged();
@@ -239,8 +240,17 @@ contract BasketManager is
         // foreach bAsset
         for(uint8 i = 0; i < count; i++) {
             Basset memory b = allBassets[i];
-            // call each integration to `checkBalance`
-            uint256 balance = IPlatformIntegration(integrations[i]).checkBalance(b.addr);
+            address bAsset = b.addr;
+
+            // call each integration to `checkBalance` and sum with the cache balance
+            address integration = integrations[i];
+            uint256 lending = IPlatformIntegration(integration).checkBalance(bAsset);
+            uint256 cache = 0;
+            if (!b.isTransferFeeCharged) {
+                cache = IERC20(bAsset).balanceOf(integration);
+            }
+            uint256 balance = lending.add(cache);
+
             uint256 oldVaultBalance = b.vaultBalance;
 
             // accumulate interest (ratioed bAsset)
@@ -430,6 +440,14 @@ contract BasketManager is
         require(exist, "bAsset does not exist");
         basket.bassets[index].isTransferFeeCharged = _flag;
 
+        if(_flag){
+            // if token has tx fees, it can no longer operate with a cache
+            uint256 bal = IERC20(_bAsset).balanceOf(integrations[index]);
+            if(bal > 0){
+                IPlatformIntegration(integrations[index]).deposit(_bAsset, bal, true);
+            }
+        }
+
         emit TransferFeeEnabled(_bAsset, _flag);
     }
 
@@ -485,6 +503,69 @@ contract BasketManager is
         emit BassetRemoved(bAsset.addr);
     }
 
+    /**
+     * @dev Transfers all collateral from one lending market to another - used initially
+     *      to handle the migration between Aave V1 and Aave V2. Note - only supports non
+     *      tx fee enabled assets
+     * @param _bAssets Array of basket assets to migrate
+     * @param _newIntegration Address of the new platform integration
+     */
+    function migrateBassets(
+        address[] calldata _bAssets,
+        address _newIntegration
+    )
+        external
+        onlyGovernor
+    {
+        uint256 len = _bAssets.length;
+        require(len > 0, "Must migrate some bAssets");
+
+        for(uint i = 0; i < len; i++){
+            // 1. Check that the bAsset is in the basket
+            address bAsset = _bAssets[i];
+            (bool inBasket, uint8 index) = _isAssetInBasket(bAsset);
+            require(inBasket, "bAsset does not exist");
+            require(!basket.bassets[index].isTransferFeeCharged, "Cannot migrate bAssets with xfer fee");
+
+            // 2. Withdraw everything from the old platform integration
+            IPlatformIntegration oldIntegration = IPlatformIntegration(integrations[index]);
+            require(address(oldIntegration) != _newIntegration, "Must transfer to new integrator");
+            uint256 cache = IERC20(bAsset).balanceOf(address(oldIntegration));
+            // 2.1. Withdraw from the lending market
+            uint256 lendingBal = oldIntegration.checkBalance(bAsset);
+            oldIntegration.withdraw(address(this), bAsset, lendingBal, false);
+            // 2.2. Withdraw from the cache, if any
+            oldIntegration.withdrawRaw(address(this), bAsset, cache);
+            uint256 total = lendingBal.add(cache);
+
+            // 3. Update the integration address for this bAsset
+            integrations[index] = _newIntegration;
+
+            // 4. Deposit everything into the new
+            //    This should fail if we did not receive the full amount from the platform withdrawal
+            // 4.1. Deposit all bAsset
+            IERC20(bAsset).safeTransfer(_newIntegration, total);
+            IPlatformIntegration newIntegration = IPlatformIntegration(_newIntegration);
+            newIntegration.deposit(bAsset, lendingBal, false);
+            // 4.2. Check balances
+            uint256 newLendingBal = newIntegration.checkBalance(bAsset);
+            uint256 newCache = IERC20(bAsset).balanceOf(address(newIntegration));
+            uint256 upperMargin = 10001e14;
+            uint256 lowerMargin =  9999e14;
+
+            require(
+                newLendingBal >= lendingBal.mulTruncate(lowerMargin) &&
+                newLendingBal <= lendingBal.mulTruncate(upperMargin),
+                "Must transfer full amount");
+            require(
+                newCache >= cache.mulTruncate(lowerMargin) &&
+                newCache <= cache.mulTruncate(upperMargin),
+                "Must transfer full amount");
+        }
+
+        emit BassetsMigrated(_bAssets, _newIntegration);
+    }
+
 
     /***************************************
                     GETTERS
@@ -537,12 +618,8 @@ contract BasketManager is
         whenNotPaused
         returns (bool, string memory, BassetDetails memory, BassetDetails memory)
     {
-        BassetDetails memory input = BassetDetails({
-            bAsset: basket.bassets[0],
-            integrator: address(0),
-            index: 0
-        });
-        BassetDetails memory output = input;
+        BassetDetails memory input;
+        BassetDetails memory output;
         // Check that basket state is healthy
         if(basket.failed || basket.undergoingRecol){
             return (false, "Basket is undergoing change", input, output);
@@ -597,6 +674,31 @@ contract BasketManager is
         (Basset[] memory bAssets, uint8[] memory indexes, address[] memory integrators) = _fetchForgeBassets(_bAssets);
         props = ForgePropsMulti({
             isValid: true,
+            bAssets: bAssets,
+            integrators: integrators,
+            indexes: indexes
+        });
+    }
+
+    /**
+     * @dev Fetch the array of bAssets for redemption, and pass back all basket info.
+     * @param _bAssets   Array of bAsset addresses to redeem
+     */
+    function prepareRedeemBassets(
+        address[] calldata _bAssets
+    )
+        external
+        view
+        whenNotPaused
+        whenNotRecolling
+        whenBasketIsHealthy
+        returns (RedeemProps memory props)
+    {
+        // Pass the fetching logic to the internal view func to reduce SLOAD cost
+        (Basset[] memory bAssets, uint8[] memory indexes, address[] memory integrators) = _fetchForgeBassets(_bAssets);
+        props = RedeemProps({
+            isValid: true,
+            allBassets: basket.bassets,
             bAssets: bAssets,
             integrators: integrators,
             indexes: indexes

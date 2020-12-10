@@ -47,6 +47,8 @@ contract IBasketManager is MassetStructs {
         returns (bool, string memory, BassetDetails memory, BassetDetails memory);
     function prepareForgeBassets(address[] calldata _bAssets, uint256[] calldata _amts, bool _mint) external
         returns (ForgePropsMulti memory props);
+    function prepareRedeemBassets(address[] calldata _bAssets) external view
+        returns (RedeemProps memory props);
     function prepareRedeemMulti() external view
         returns (RedeemPropsMulti memory props);
     function getBasset(address _token) external view

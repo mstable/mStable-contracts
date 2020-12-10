@@ -60,7 +60,11 @@ export class SystemMachine {
     /**
      * @dev Initialises the system to replicate current migration scripts
      */
-    public async initialiseMocks(seedMasset = false, dummySavingsManager = false): Promise<void> {
+    public async initialiseMocks(
+        seedMasset = false,
+        dummySavingsManager = false,
+        enableUSDTFee = false,
+    ): Promise<void> {
         /* **************************************
             1. Nexus (Redeploy)
         *************************************** */
@@ -70,8 +74,8 @@ export class SystemMachine {
             2. mUSD
         *************************************** */
         this.mUSD = seedMasset
-            ? await this.massetMachine.deployMassetAndSeedBasket()
-            : await this.massetMachine.deployMasset();
+            ? await this.massetMachine.deployMassetAndSeedBasket(enableUSDTFee)
+            : await this.massetMachine.deployMasset(enableUSDTFee);
 
         /* **************************************
             3. Savings

@@ -68,37 +68,6 @@ export const percentToWeight = (percent: number | string | BN): BN => {
     return simpleToExactAmount(percent, 16);
 };
 
-// TODO - debug this - it does not work for complicated values
-export const exactToSimpleAmount = (amount: BN, decimals: number | BN): BN => {
-    // Code is largely lifted from the guts of web3 fromWei here:
-    // https://github.com/ethjs/ethjs-unit/blob/master/src/index.js
-    const scale = new BN(10).pow(new BN(decimals));
-    const scaleString = scale.toString();
-    const negative = amount.lt(new BN("0"));
-
-    if (negative) {
-        amount = amount.mul(new BN("-1"));
-    }
-
-    let fraction = amount.mod(scale).toString();
-
-    while (fraction.length < scaleString.length - 1) {
-        fraction = `0${fraction}`;
-    }
-
-    // Chop zeros off the end if there are extras.
-    fraction = fraction.replace(/0+$/, "");
-
-    const whole = amount.div(scale).toString();
-    let value = whole.concat(fraction === "" ? "" : `.${fraction}`);
-
-    if (negative) {
-        value = `-${value}`;
-    }
-
-    return new BN(value);
-};
-
 // How many bAssets is this mAsset worth
 export const applyRatioMassetToBasset = (input: BN, ratio: BN | string): BN => {
     return input.mul(ratioScale).div(new BN(ratio));

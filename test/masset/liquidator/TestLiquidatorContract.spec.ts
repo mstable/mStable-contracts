@@ -13,6 +13,7 @@ const Liquidator = artifacts.require("Liquidator");
 const MockCompoundIntegration = artifacts.require("MockCompoundIntegration1");
 const SavingsManager = artifacts.require("SavingsManager");
 const MockERC20 = artifacts.require("MockERC20");
+const MockMasset = artifacts.require("MockMasset");
 const MockNexus = artifacts.require("MockNexus");
 const MockCurve = artifacts.require("MockCurveMetaPool");
 const MockUniswap = artifacts.require("MockUniswap");
@@ -21,15 +22,15 @@ const { expect } = envSetup.configure();
 
 contract("Liquidator", async (accounts) => {
     const sa = new StandardAccounts(accounts);
-    const ctx: { module?: t.InitializableModuleInstance } = {};
+    const ctx: { module?: t.ModuleInstance } = {};
 
     let nexus: t.MockNexusInstance;
     let liquidator: t.LiquidatorInstance;
-    let bAsset: t.MockErc20Instance;
-    let bAsset2: t.MockErc20Instance;
-    let mUSD: t.MockErc20Instance;
+    let bAsset: t.MockERC20Instance;
+    let bAsset2: t.MockERC20Instance;
+    let mUSD: t.MockMassetInstance;
     let compIntegration: t.MockCompoundIntegration1Instance;
-    let compToken: t.MockErc20Instance;
+    let compToken: t.MockERC20Instance;
     let savings: t.SavingsManagerInstance;
     let uniswap: t.MockUniswapInstance;
     let curve: t.MockCurveMetaPoolInstance;
@@ -61,7 +62,7 @@ contract("Liquidator", async (accounts) => {
     // - Upgrade COMP
     const redeployLiquidator = async () => {
         // Fake mUSD & uniswap
-        mUSD = await MockERC20.new("mStable USD", "mUSD", 18, sa.fundManager, 100000000);
+        mUSD = await MockMasset.new("mStable USD", "mUSD", 18, sa.fundManager, 100000000);
         uniswap = await MockUniswap.new();
 
         // Set up Comp Integration
@@ -110,7 +111,7 @@ contract("Liquidator", async (accounts) => {
         nexus = await MockNexus.new(sa.governor, sa.governor, sa.dummy1);
 
         await redeployLiquidator();
-        ctx.module = liquidator as t.InitializableModuleInstance;
+        ctx.module = (liquidator as any) as t.ModuleInstance;
     });
 
     describe("verifying initialization", async () => {
