@@ -684,7 +684,7 @@ contract("SavingsManager", async (accounts) => {
                 });
             });
 
-            it("should integrate with liquidator stream to allow collection and streaming of interest from mAsset", async () => {
+            it("should coexist with liquidator stream to allow simultaneous streaming", async () => {
                 //   0             1             2             3
                 //   | - - - - - - | - - - - - - | - - - - - - |
                 //   ^  ^     ^         ^ ^         ^ ^
@@ -762,7 +762,7 @@ contract("SavingsManager", async (accounts) => {
                 await savingsManager.collectAndStreamInterest(mUSD.address);
                 const s115 = await snapshotData();
                 expect(s115.yieldStream.end).bignumber.eq(s115.lastCollection.add(ONE_DAY));
-                assertBNClosePercent(s115.yieldStream.rate, total.div(ONE_DAY), "0.003");
+                assertBNClosePercent(s115.yieldStream.rate, total.div(ONE_DAY), "0.01");
                 await time.increase(ONE_DAY.muln(9).divn(2));
                 // @16
                 expectedInterest = s115.yieldStream.rate.mul(ONE_DAY);
@@ -788,7 +788,7 @@ contract("SavingsManager", async (accounts) => {
                 await savingsManager.collectAndStreamInterest(mUSD.address);
                 const s17 = await snapshotData();
                 assertBNClosePercent(s17.yieldStream.rate, platformInterest4.div(ONE_DAY), "0.01");
-                assertBNClose(ts17, s17.lastCollection, 5);
+                assertBNClose(ts17, s17.lastCollection, 10);
             });
         });
         context("testing new mechanism", async () => {
