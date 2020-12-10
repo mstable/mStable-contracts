@@ -252,9 +252,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
      * @return leftover The total amount of mAsset that is yet to be collected from a stream
      */
     function _unstreamedRewards(address _mAsset, StreamType _stream) internal view returns (uint256 leftover) {
-        uint256 currentTime = now;
         uint256 lastUpdate = lastCollection[_mAsset];
-        require(lastUpdate == currentTime, "Must have fresh collection");
 
         Stream memory stream = _stream == StreamType.liquidator ? liqStream[_mAsset] : yieldStream[_mAsset];
         uint256 unclaimedSeconds = 0;
@@ -282,9 +280,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
         }
 
         // Reset pool data to enable lastCollection usage twice
-        lastPeriodStart[_mAsset] = currentTime;
-        lastCollection[_mAsset] = currentTime;
-        periodYield[_mAsset] = 0;
+        require(lastCollection[_mAsset] == currentTime, "Stream data must be up to date");
     }
 
     /***************************************
