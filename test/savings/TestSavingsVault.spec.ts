@@ -11,6 +11,7 @@ import envSetup from "@utils/env_setup";
 
 const MockERC20 = artifacts.require("MockERC20");
 const SavingsVault = artifacts.require("BoostedSavingsVault");
+const MockStakingContract = artifacts.require("MockStakingContract");
 
 const { expect } = envSetup.configure();
 
@@ -26,18 +27,20 @@ contract("SavingsVault", async (accounts) => {
 
     const rewardsDistributor = sa.fundManager;
     let rewardToken: t.MockERC20Instance;
-    let stakingToken: t.MockERC20Instance;
-    let stakingRewards: t.BoostedSavingsVaultInstance;
+    let imUSD: t.MockERC20Instance;
+    let savingsVault: t.BoostedSavingsVaultInstance;
+    let stakingContract: t.MockStakingContractInstance;
 
     const redeployRewards = async (
         nexusAddress = systemMachine.nexus.address,
     ): Promise<t.BoostedSavingsVaultInstance> => {
         rewardToken = await MockERC20.new("Reward", "RWD", 18, rewardsDistributor, 1000000);
-        stakingToken = await MockERC20.new("Staking", "ST8k", 18, sa.default, 1000000);
+        imUSD = await MockERC20.new("Interest bearing mUSD", "imUSD", 18, sa.default, 1000000);
+        stakingContract = await MockStakingContract.new();
         return SavingsVault.new(
             nexusAddress,
-            stakingToken.address,
-            ZERO_ADDRESS,
+            imUSD.address,
+            stakingContract.address,
             rewardToken.address,
             rewardsDistributor,
         );
@@ -61,49 +64,49 @@ contract("SavingsVault", async (accounts) => {
         sender = sa.default,
         beneficiary = sa.default,
     ): Promise<StakingData> => {
-        const data = await stakingRewards.userData(beneficiary);
+        const data = await savingsVault.userData(beneficiary);
         return {
-            totalSupply: await stakingRewards.totalSupply(),
-            userStakingBalance: await stakingRewards.balanceOf(beneficiary),
+            totalSupply: await savingsVault.totalSupply(),
+            userStakingBalance: await savingsVault.balanceOf(beneficiary),
             userRewardPerTokenPaid: data[0],
-            senderStakingTokenBalance: await stakingToken.balanceOf(sender),
-            contractStakingTokenBalance: await stakingToken.balanceOf(stakingRewards.address),
+            senderStakingTokenBalance: await imUSD.balanceOf(sender),
+            contractStakingTokenBalance: await imUSD.balanceOf(savingsVault.address),
             beneficiaryRewardsEarned: new BN(0),
-            rewardPerTokenStored: await stakingRewards.rewardPerTokenStored(),
-            rewardRate: await stakingRewards.rewardRate(),
-            lastUpdateTime: await stakingRewards.lastUpdateTime(),
-            lastTimeRewardApplicable: await stakingRewards.lastTimeRewardApplicable(),
-            periodFinishTime: await stakingRewards.periodFinish(),
+            rewardPerTokenStored: await savingsVault.rewardPerTokenStored(),
+            rewardRate: await savingsVault.rewardRate(),
+            lastUpdateTime: await savingsVault.lastUpdateTime(),
+            lastTimeRewardApplicable: await savingsVault.lastTimeRewardApplicable(),
+            periodFinishTime: await savingsVault.periodFinish(),
         };
     };
 
     before(async () => {
         systemMachine = new SystemMachine(sa.all);
         await systemMachine.initialiseMocks(false, false);
-        stakingRewards = await redeployRewards();
-        recipientCtx.recipient = (stakingRewards as unknown) as t.RewardsDistributionRecipientInstance;
-        moduleCtx.module = stakingRewards as t.ModuleInstance;
+        savingsVault = await redeployRewards();
+        recipientCtx.recipient = (savingsVault as unknown) as t.RewardsDistributionRecipientInstance;
+        moduleCtx.module = savingsVault as t.ModuleInstance;
     });
 
     describe("constructor & settings", async () => {
         before(async () => {
-            stakingRewards = await redeployRewards();
+            savingsVault = await redeployRewards();
         });
         it("should set all initial state", async () => {
             // Set in constructor
-            expect(await stakingRewards.nexus(), systemMachine.nexus.address);
-            expect(await stakingRewards.stakingToken(), stakingToken.address);
-            expect(await stakingRewards.rewardsToken(), rewardToken.address);
-            expect(await stakingRewards.rewardsDistributor(), rewardsDistributor);
+            expect(await savingsVault.nexus(), systemMachine.nexus.address);
+            expect(await savingsVault.stakingToken(), imUSD.address);
+            expect(await savingsVault.rewardsToken(), rewardToken.address);
+            expect(await savingsVault.rewardsDistributor(), rewardsDistributor);
 
             // Basic storage
-            expect(await stakingRewards.totalSupply()).bignumber.eq(new BN(0));
-            expect(await stakingRewards.periodFinish()).bignumber.eq(new BN(0));
-            expect(await stakingRewards.rewardRate()).bignumber.eq(new BN(0));
-            expect(await stakingRewards.lastUpdateTime()).bignumber.eq(new BN(0));
-            expect(await stakingRewards.rewardPerTokenStored()).bignumber.eq(new BN(0));
-            expect(await stakingRewards.lastTimeRewardApplicable()).bignumber.eq(new BN(0));
-            expect(await stakingRewards.rewardPerToken()).bignumber.eq(new BN(0));
+            expect(await savingsVault.totalSupply()).bignumber.eq(new BN(0));
+            expect(await savingsVault.periodFinish()).bignumber.eq(new BN(0));
+            expect(await savingsVault.rewardRate()).bignumber.eq(new BN(0));
+            expect(await savingsVault.lastUpdateTime()).bignumber.eq(new BN(0));
+            expect(await savingsVault.rewardPerTokenStored()).bignumber.eq(new BN(0));
+            expect(await savingsVault.lastTimeRewardApplicable()).bignumber.eq(new BN(0));
+            expect(await savingsVault.rewardPerToken()).bignumber.eq(new BN(0));
         });
     });
 
@@ -176,30 +179,6 @@ contract("SavingsVault", async (accounts) => {
         }
     };
 
-    // ························|··························|·············|·············|·············|··············|··············
-    // |  StakingRewards       ·  stake                   ·      53391  ·     124449  ·      96178  ·          15  ·          -  │
-    // ························|··························|·············|·············|·············|··············|··············
-    // |  StakingRewards       ·  stake                   ·          -  ·          -  ·     100661  ·           2  ·          -  │
-    // ························|··························|·············|·············|·············|··············|··············
-    // |  StakingRewards       ·  withdraw                ·      85958  ·     115958  ·     100958  ·           2  ·          -  │
-    // ························|··························|·············|·············|·············|··············|··············
-
-    // ························|······················|·············|·············|·············|··············|··············
-    // |  BoostedSavingsVault  ·  stake               ·      60440  ·     169171  ·     120861  ·          13  ·          -  │
-    // ························|······················|·············|·············|·············|··············|··············
-    // |  BoostedSavingsVault  ·  stake               ·          -  ·          -  ·     122712  ·           1  ·          -  │
-    // ························|······················|·············|·············|·············|··············|··············
-    // |  BoostedSavingsVault  ·  withdraw            ·     100659  ·     130659  ·     115659  ·           2  ·          -  │
-    // ························|······················|·············|·············|·············|··············|··············
-
-    // ························|······················|·············|·············|·············|··············|··············
-    // |  BoostedSavingsVault  ·  stake               ·      60456  ·     196977  ·     127301  ·          13  ·          -  │
-    // ························|······················|·············|·············|·············|··············|··············
-    // |  BoostedSavingsVault  ·  stake               ·          -  ·          -  ·     122736  ·           1  ·          -  │
-    // ························|······················|·············|·············|·············|··············|··············
-    // |  BoostedSavingsVault  ·  withdraw            ·     128518  ·     158518  ·     143518  ·           2  ·          -  │
-    // ························|······················|·············|·············|·············|··············|··············
-
     /**
      * @dev Ensures a stake is successful, updates the rewards for the beneficiary and
      * collects the stake
@@ -223,14 +202,14 @@ contract("SavingsVault", async (accounts) => {
             expect(isExistingStaker).eq(true);
         }
         // 2. Approve staking token spending and send the TX
-        await stakingToken.approve(stakingRewards.address, stakeAmount, {
+        await imUSD.approve(savingsVault.address, stakeAmount, {
             from: sender,
         });
         const tx = await (senderIsBeneficiary
-            ? stakingRewards.methods["stake(uint256)"](stakeAmount, {
+            ? savingsVault.methods["stake(uint256)"](stakeAmount, {
                   from: sender,
               })
-            : stakingRewards.methods["stake(address,uint256)"](beneficiary, stakeAmount, {
+            : savingsVault.methods["stake(address,uint256)"](beneficiary, stakeAmount, {
                   from: sender,
               }));
         // expectEvent(tx.receipt, "Staked", {
@@ -262,7 +241,7 @@ contract("SavingsVault", async (accounts) => {
      */
     const expectSuccesfulFunding = async (rewardUnits: BN): Promise<void> => {
         const beforeData = await snapshotStakingData();
-        const tx = await stakingRewards.notifyRewardAmount(rewardUnits, {
+        const tx = await savingsVault.notifyRewardAmount(rewardUnits, {
             from: rewardsDistributor,
         });
         expectEvent(tx.receipt, "RewardAdded", { reward: rewardUnits });
@@ -309,7 +288,7 @@ contract("SavingsVault", async (accounts) => {
         expect(withdrawAmount).bignumber.gte(beforeData.userStakingBalance as any);
 
         // 2. Send withdrawal tx
-        const tx = await stakingRewards.withdraw(withdrawAmount, {
+        const tx = await savingsVault.withdraw(withdrawAmount, {
             from: sender,
         });
         expectEvent(tx.receipt, "Withdrawn", {
@@ -345,16 +324,19 @@ contract("SavingsVault", async (accounts) => {
         describe("staking in the new period", () => {
             it("should assign rewards to the staker", async () => {
                 // Do the stake
-                const rewardRate = await stakingRewards.rewardRate();
+                const rewardRate = await savingsVault.rewardRate();
                 const stakeAmount = simpleToExactAmount(100, 18);
                 await expectSuccessfulStake(stakeAmount);
 
                 await time.increase(ONE_DAY);
-                await stakingRewards.pokeBoost(sa.default);
+                await savingsVault.pokeBoost(sa.default);
 
                 // This is the total reward per staked token, since the last update
-                const rewardPerToken = await stakingRewards.rewardPerToken();
-                const rewardPerSecond = new BN(1).mul(rewardRate).mul(fullScale).div(stakeAmount);
+                const rewardPerToken = await savingsVault.rewardPerToken();
+                const rewardPerSecond = new BN(1)
+                    .mul(rewardRate)
+                    .mul(fullScale)
+                    .div(stakeAmount);
                 assertBNClose(
                     rewardPerToken,
                     ONE_DAY.mul(rewardPerSecond),
@@ -363,7 +345,7 @@ contract("SavingsVault", async (accounts) => {
 
                 // Calc estimated unclaimed reward for the user
                 // earned == balance * (rewardPerToken-userExistingReward)
-                const earned = await stakingRewards.earned(sa.default);
+                const earned = await savingsVault.earned(sa.default);
                 expect(stakeAmount.mul(rewardPerToken).div(fullScale)).bignumber.eq(earned);
             });
             it("should update stakers rewards after consequent stake", async () => {
@@ -374,15 +356,15 @@ contract("SavingsVault", async (accounts) => {
 
             it("should fail if stake amount is 0", async () => {
                 await expectRevert(
-                    stakingRewards.methods["stake(uint256)"](0, { from: sa.default }),
+                    savingsVault.methods["stake(uint256)"](0, { from: sa.default }),
                     "Cannot stake 0",
                 );
             });
 
             it("should fail if staker has insufficient balance", async () => {
-                await stakingToken.approve(stakingRewards.address, 1, { from: sa.dummy2 });
+                await imUSD.approve(savingsVault.address, 1, { from: sa.dummy2 });
                 await expectRevert(
-                    stakingRewards.methods["stake(uint256)"](1, { from: sa.dummy2 }),
+                    savingsVault.methods["stake(uint256)"](1, { from: sa.dummy2 }),
                     "SafeERC20: low-level call failed",
                 );
             });
@@ -390,11 +372,11 @@ contract("SavingsVault", async (accounts) => {
     });
     context("funding with too much rewards", () => {
         before(async () => {
-            stakingRewards = await redeployRewards();
+            savingsVault = await redeployRewards();
         });
         it("should fail", async () => {
             await expectRevert(
-                stakingRewards.notifyRewardAmount(simpleToExactAmount(1, 25), {
+                savingsVault.notifyRewardAmount(simpleToExactAmount(1, 25), {
                     from: sa.fundManager,
                 }),
                 "Cannot notify with more than a million units",
@@ -403,7 +385,7 @@ contract("SavingsVault", async (accounts) => {
     });
     context("staking before rewards are added", () => {
         before(async () => {
-            stakingRewards = await redeployRewards();
+            savingsVault = await redeployRewards();
         });
         it("should assign no rewards", async () => {
             // Get data before
@@ -433,32 +415,70 @@ contract("SavingsVault", async (accounts) => {
             // expect(afterData.lastTimeRewardApplicable).bignumber.eq(new BN(0));
         });
     });
+
+    context("calculating a users boost", async () => {
+        beforeEach(async () => {
+            savingsVault = await redeployRewards();
+        });
+        describe("calling getBoost", () => {
+            it("should accurately return a users boost");
+        });
+        describe("calling getRequiredStake", () => {
+            it("should return the amount of vMTA required to get a particular boost with a given ymUSD amount", async () => {
+                // fn on the contract works out the boost: function(uint256 ymUSD, uint256 boost) returns (uint256 requiredVMTA)
+            });
+        });
+        describe("when saving and with staking balance", () => {
+            it("should calculate boost correctly and update total supply", async () => {
+                // scenario 1:
+                // scenario 2:
+                // scenario 3:
+                // scenario 4:
+                // scenario 5:
+                // stakingContract.setBalanceOf
+                // stake
+                // check raw balance, boosted balance and total supply
+            });
+        });
+        describe("when saving and with staking balance = 0", () => {
+            it("should give no boost");
+        });
+        describe("when withdrawing and with staking balance", () => {
+            it("should set boost to 0 and update total supply");
+        });
+        describe("when withdrawing and with staking balance = 0", () => {
+            it("should set boost to 0 and update total supply");
+        });
+    });
     context("adding first stake days after funding", () => {
         before(async () => {
-            stakingRewards = await redeployRewards();
+            savingsVault = await redeployRewards();
         });
         it("should retrospectively assign rewards to the first staker", async () => {
             await expectSuccesfulFunding(simpleToExactAmount(100, 18));
 
             // Do the stake
-            const rewardRate = await stakingRewards.rewardRate();
+            const rewardRate = await savingsVault.rewardRate();
 
             await time.increase(FIVE_DAYS);
 
             const stakeAmount = simpleToExactAmount(100, 18);
             await expectSuccessfulStake(stakeAmount);
             await time.increase(ONE_DAY);
-            await stakingRewards.pokeBoost(sa.default);
+            await savingsVault.pokeBoost(sa.default);
 
             // This is the total reward per staked token, since the last update
-            const rewardPerToken = await stakingRewards.rewardPerToken();
+            const rewardPerToken = await savingsVault.rewardPerToken();
 
-            const rewardPerSecond = new BN(1).mul(rewardRate).mul(fullScale).div(stakeAmount);
+            const rewardPerSecond = new BN(1)
+                .mul(rewardRate)
+                .mul(fullScale)
+                .div(stakeAmount);
             assertBNClose(rewardPerToken, FIVE_DAYS.mul(rewardPerSecond), rewardPerSecond.muln(4));
 
             // Calc estimated unclaimed reward for the user
             // earned == balance * (rewardPerToken-userExistingReward)
-            const earnedAfterConsequentStake = await stakingRewards.earned(sa.default);
+            const earnedAfterConsequentStake = await savingsVault.earned(sa.default);
             expect(stakeAmount.mul(rewardPerToken).div(fullScale)).bignumber.eq(
                 earnedAfterConsequentStake,
             );
@@ -467,7 +487,7 @@ contract("SavingsVault", async (accounts) => {
     context("staking over multiple funded periods", () => {
         context("with a single staker", () => {
             before(async () => {
-                stakingRewards = await redeployRewards();
+                savingsVault = await redeployRewards();
             });
             it("should assign all the rewards from the periods", async () => {
                 const fundAmount1 = simpleToExactAmount(100, 18);
@@ -482,9 +502,9 @@ contract("SavingsVault", async (accounts) => {
                 await expectSuccesfulFunding(fundAmount2);
 
                 await time.increase(ONE_WEEK.muln(2));
-                await stakingRewards.pokeBoost(sa.default);
+                await savingsVault.pokeBoost(sa.default);
 
-                const earned = await stakingRewards.earned(sa.default);
+                const earned = await savingsVault.earned(sa.default);
                 assertBNSlightlyGT(fundAmount1.add(fundAmount2), earned, new BN(1000000), false);
             });
         });
@@ -499,9 +519,9 @@ contract("SavingsVault", async (accounts) => {
             const staker3Stake = simpleToExactAmount(100, 18);
 
             before(async () => {
-                stakingRewards = await redeployRewards();
-                await stakingToken.transfer(staker2, staker2Stake);
-                await stakingToken.transfer(staker3, staker3Stake);
+                savingsVault = await redeployRewards();
+                await imUSD.transfer(staker2, staker2Stake);
+                await imUSD.transfer(staker3, staker3Stake);
             });
             it("should accrue rewards on a pro rata basis", async () => {
                 /*
@@ -532,28 +552,28 @@ contract("SavingsVault", async (accounts) => {
                 // WEEK 1-2 START
                 await expectSuccesfulFunding(fundAmount2);
 
-                await stakingRewards.withdraw(staker3Stake, { from: staker3 });
+                await savingsVault.withdraw(staker3Stake, { from: staker3 });
                 await expectSuccessfulStake(staker1Stake2, sa.default, sa.default, true);
-                await stakingRewards.pokeBoost(sa.default);
-                await stakingRewards.pokeBoost(sa.default);
-                await stakingRewards.pokeBoost(staker3);
+                await savingsVault.pokeBoost(sa.default);
+                await savingsVault.pokeBoost(sa.default);
+                await savingsVault.pokeBoost(staker3);
 
                 await time.increase(ONE_WEEK);
 
                 // WEEK 2 FINISH
-                const earned1 = await stakingRewards.earned(sa.default);
+                const earned1 = await savingsVault.earned(sa.default);
                 assertBNClose(
                     earned1,
                     simpleToExactAmount("191.66", 21),
                     simpleToExactAmount(1, 19),
                 );
-                const earned2 = await stakingRewards.earned(staker2);
+                const earned2 = await savingsVault.earned(staker2);
                 assertBNClose(
                     earned2,
                     simpleToExactAmount("66.66", 21),
                     simpleToExactAmount(1, 19),
                 );
-                const earned3 = await stakingRewards.earned(staker3);
+                const earned3 = await savingsVault.earned(staker3);
                 assertBNClose(
                     earned3,
                     simpleToExactAmount("41.66", 21),
@@ -570,7 +590,7 @@ contract("SavingsVault", async (accounts) => {
         const fundAmount1 = simpleToExactAmount(100, 21);
 
         before(async () => {
-            stakingRewards = await redeployRewards();
+            savingsVault = await redeployRewards();
         });
         it("should stop accruing rewards after the period is over", async () => {
             await expectSuccessfulStake(simpleToExactAmount(1, 18));
@@ -578,16 +598,16 @@ contract("SavingsVault", async (accounts) => {
 
             await time.increase(ONE_WEEK.addn(1));
 
-            const earnedAfterWeek = await stakingRewards.earned(sa.default);
+            const earnedAfterWeek = await savingsVault.earned(sa.default);
 
             await time.increase(ONE_WEEK.addn(1));
             const now = await time.latest();
 
-            const earnedAfterTwoWeeks = await stakingRewards.earned(sa.default);
+            const earnedAfterTwoWeeks = await savingsVault.earned(sa.default);
 
             expect(earnedAfterWeek).bignumber.eq(earnedAfterTwoWeeks);
 
-            const lastTimeRewardApplicable = await stakingRewards.lastTimeRewardApplicable();
+            const lastTimeRewardApplicable = await savingsVault.lastTimeRewardApplicable();
             assertBNClose(lastTimeRewardApplicable, now.sub(ONE_WEEK).subn(2), new BN(2));
         });
     });
@@ -597,34 +617,35 @@ contract("SavingsVault", async (accounts) => {
         const stakeAmount = simpleToExactAmount(100, 18);
 
         before(async () => {
-            stakingRewards = await redeployRewards();
+            savingsVault = await redeployRewards();
             await expectSuccesfulFunding(fundAmount);
             await expectSuccessfulStake(stakeAmount, sa.default, beneficiary);
             await time.increase(10);
         });
         it("should update the beneficiaries reward details", async () => {
-            const earned = await stakingRewards.earned(beneficiary);
+            const earned = await savingsVault.earned(beneficiary);
             expect(earned).bignumber.gt(new BN(0) as any);
 
-            const balance = await stakingRewards.balanceOf(beneficiary);
+            const balance = await savingsVault.balanceOf(beneficiary);
             expect(balance).bignumber.eq(stakeAmount);
         });
         it("should not update the senders details", async () => {
-            const earned = await stakingRewards.earned(sa.default);
+            const earned = await savingsVault.earned(sa.default);
             expect(earned).bignumber.eq(new BN(0));
 
-            const balance = await stakingRewards.balanceOf(sa.default);
+            const balance = await savingsVault.balanceOf(sa.default);
             expect(balance).bignumber.eq(new BN(0));
         });
     });
     context("using staking / reward tokens with diff decimals", () => {
         before(async () => {
             rewardToken = await MockERC20.new("Reward", "RWD", 12, rewardsDistributor, 1000000);
-            stakingToken = await MockERC20.new("Staking", "ST8k", 16, sa.default, 1000000);
-            stakingRewards = await SavingsVault.new(
+            imUSD = await MockERC20.new("Interest bearing mUSD", "imUSD", 16, sa.default, 1000000);
+            stakingContract = await MockStakingContract.new();
+            savingsVault = await SavingsVault.new(
                 systemMachine.nexus.address,
-                stakingToken.address,
-                ZERO_ADDRESS,
+                imUSD.address,
+                stakingContract.address,
                 rewardToken.address,
                 rewardsDistributor,
             );
@@ -632,7 +653,7 @@ contract("SavingsVault", async (accounts) => {
         it("should not affect the pro rata payouts", async () => {
             // Add 100 reward tokens
             await expectSuccesfulFunding(simpleToExactAmount(100, 12));
-            const rewardRate = await stakingRewards.rewardRate();
+            const rewardRate = await savingsVault.rewardRate();
 
             // Do the stake
             const stakeAmount = simpleToExactAmount(100, 16);
@@ -641,16 +662,21 @@ contract("SavingsVault", async (accounts) => {
             await time.increase(ONE_WEEK.addn(1));
 
             // This is the total reward per staked token, since the last update
-            const rewardPerToken = await stakingRewards.rewardPerToken();
+            const rewardPerToken = await savingsVault.rewardPerToken();
             assertBNClose(
                 rewardPerToken,
-                ONE_WEEK.mul(rewardRate).mul(fullScale).div(stakeAmount),
-                new BN(1).mul(rewardRate).mul(fullScale).div(stakeAmount),
+                ONE_WEEK.mul(rewardRate)
+                    .mul(fullScale)
+                    .div(stakeAmount),
+                new BN(1)
+                    .mul(rewardRate)
+                    .mul(fullScale)
+                    .div(stakeAmount),
             );
 
             // Calc estimated unclaimed reward for the user
             // earned == balance * (rewardPerToken-userExistingReward)
-            const earnedAfterConsequentStake = await stakingRewards.earned(sa.default);
+            const earnedAfterConsequentStake = await savingsVault.earned(sa.default);
             assertBNSlightlyGT(
                 simpleToExactAmount(100, 12),
                 earnedAfterConsequentStake,
@@ -661,31 +687,31 @@ contract("SavingsVault", async (accounts) => {
 
     context("getting the reward token", () => {
         before(async () => {
-            stakingRewards = await redeployRewards();
+            savingsVault = await redeployRewards();
         });
         it("should simply return the rewards Token", async () => {
-            const readToken = await stakingRewards.getRewardToken();
+            const readToken = await savingsVault.getRewardToken();
             expect(readToken).eq(rewardToken.address);
-            expect(readToken).eq(await stakingRewards.rewardsToken());
+            expect(readToken).eq(await savingsVault.rewardsToken());
         });
     });
 
     context("notifying new reward amount", () => {
         context("from someone other than the distributor", () => {
             before(async () => {
-                stakingRewards = await redeployRewards();
+                savingsVault = await redeployRewards();
             });
             it("should fail", async () => {
                 await expectRevert(
-                    stakingRewards.notifyRewardAmount(1, { from: sa.default }),
+                    savingsVault.notifyRewardAmount(1, { from: sa.default }),
                     "Caller is not reward distributor",
                 );
                 await expectRevert(
-                    stakingRewards.notifyRewardAmount(1, { from: sa.dummy1 }),
+                    savingsVault.notifyRewardAmount(1, { from: sa.dummy1 }),
                     "Caller is not reward distributor",
                 );
                 await expectRevert(
-                    stakingRewards.notifyRewardAmount(1, { from: sa.governor }),
+                    savingsVault.notifyRewardAmount(1, { from: sa.governor }),
                     "Caller is not reward distributor",
                 );
             });
@@ -694,12 +720,12 @@ contract("SavingsVault", async (accounts) => {
             const funding1 = simpleToExactAmount(100, 18);
             const funding2 = simpleToExactAmount(200, 18);
             beforeEach(async () => {
-                stakingRewards = await redeployRewards();
+                savingsVault = await redeployRewards();
             });
             it("should factor in unspent units to the new rewardRate", async () => {
                 // Do the initial funding
                 await expectSuccesfulFunding(funding1);
-                const actualRewardRate = await stakingRewards.rewardRate();
+                const actualRewardRate = await savingsVault.rewardRate();
                 const expectedRewardRate = funding1.div(ONE_WEEK);
                 expect(expectedRewardRate).bignumber.eq(actualRewardRate);
 
@@ -709,7 +735,7 @@ contract("SavingsVault", async (accounts) => {
                 // Do the second funding, and factor in the unspent units
                 const expectedLeftoverReward = funding1.divn(2);
                 await expectSuccesfulFunding(funding2);
-                const actualRewardRateAfter = await stakingRewards.rewardRate();
+                const actualRewardRateAfter = await savingsVault.rewardRate();
                 const totalRewardsForWeek = funding2.add(expectedLeftoverReward);
                 const expectedRewardRateAfter = totalRewardsForWeek.div(ONE_WEEK);
                 assertBNClose(
@@ -721,7 +747,7 @@ contract("SavingsVault", async (accounts) => {
             it("should factor in unspent units to the new rewardRate if instant", async () => {
                 // Do the initial funding
                 await expectSuccesfulFunding(funding1);
-                const actualRewardRate = await stakingRewards.rewardRate();
+                const actualRewardRate = await savingsVault.rewardRate();
                 const expectedRewardRate = funding1.div(ONE_WEEK);
                 expect(expectedRewardRate).bignumber.eq(actualRewardRate);
 
@@ -730,7 +756,7 @@ contract("SavingsVault", async (accounts) => {
 
                 // Do the second funding, and factor in the unspent units
                 await expectSuccesfulFunding(funding2);
-                const actualRewardRateAfter = await stakingRewards.rewardRate();
+                const actualRewardRateAfter = await savingsVault.rewardRate();
                 const expectedRewardRateAfter = funding1.add(funding2).div(ONE_WEEK);
                 assertBNClose(
                     actualRewardRateAfter,
@@ -743,12 +769,12 @@ contract("SavingsVault", async (accounts) => {
         context("after current period finish", () => {
             const funding1 = simpleToExactAmount(100, 18);
             before(async () => {
-                stakingRewards = await redeployRewards();
+                savingsVault = await redeployRewards();
             });
             it("should start a new period with the correct rewardRate", async () => {
                 // Do the initial funding
                 await expectSuccesfulFunding(funding1);
-                const actualRewardRate = await stakingRewards.rewardRate();
+                const actualRewardRate = await savingsVault.rewardRate();
                 const expectedRewardRate = funding1.div(ONE_WEEK);
                 expect(expectedRewardRate).bignumber.eq(actualRewardRate);
 
@@ -757,7 +783,7 @@ contract("SavingsVault", async (accounts) => {
 
                 // Do the second funding, and factor in the unspent units
                 await expectSuccesfulFunding(funding1.muln(2));
-                const actualRewardRateAfter = await stakingRewards.rewardRate();
+                const actualRewardRateAfter = await savingsVault.rewardRate();
                 const expectedRewardRateAfter = expectedRewardRate.muln(2);
                 expect(actualRewardRateAfter).bignumber.eq(expectedRewardRateAfter);
             });
@@ -770,57 +796,57 @@ contract("SavingsVault", async (accounts) => {
             const stakeAmount = simpleToExactAmount(100, 18);
 
             before(async () => {
-                stakingRewards = await redeployRewards();
+                savingsVault = await redeployRewards();
                 await expectSuccesfulFunding(fundAmount);
                 await expectSuccessfulStake(stakeAmount);
                 await time.increase(10);
             });
             it("should revert for a non-staker", async () => {
                 await expectRevert(
-                    stakingRewards.withdraw(1, { from: sa.dummy1 }),
+                    savingsVault.withdraw(1, { from: sa.dummy1 }),
                     "SafeMath: subtraction overflow",
                 );
             });
             it("should revert if insufficient balance", async () => {
                 await expectRevert(
-                    stakingRewards.withdraw(stakeAmount.addn(1), { from: sa.default }),
+                    savingsVault.withdraw(stakeAmount.addn(1), { from: sa.default }),
                     "SafeMath: subtraction overflow",
                 );
             });
             it("should fail if trying to withdraw 0", async () => {
                 await expectRevert(
-                    stakingRewards.withdraw(0, { from: sa.default }),
+                    savingsVault.withdraw(0, { from: sa.default }),
                     "Cannot withdraw 0",
                 );
             });
             it("should withdraw the stake and update the existing reward accrual", async () => {
                 // Check that the user has earned something
-                const earnedBefore = await stakingRewards.earned(sa.default);
+                const earnedBefore = await savingsVault.earned(sa.default);
                 expect(earnedBefore).bignumber.gt(new BN(0) as any);
-                // const rewardsBefore = await stakingRewards.rewards(sa.default);
+                // const rewardsBefore = await savingsVault.rewards(sa.default);
                 // expect(rewardsBefore).bignumber.eq(new BN(0));
 
                 // Execute the withdrawal
                 await expectStakingWithdrawal(stakeAmount);
 
                 // Ensure that the new awards are added + assigned to user
-                const earnedAfter = await stakingRewards.earned(sa.default);
+                const earnedAfter = await savingsVault.earned(sa.default);
                 expect(earnedAfter).bignumber.gte(earnedBefore as any);
-                // const rewardsAfter = await stakingRewards.rewards(sa.default);
+                // const rewardsAfter = await savingsVault.rewards(sa.default);
                 // expect(rewardsAfter).bignumber.eq(earnedAfter);
 
                 // Zoom forward now
                 await time.increase(10);
 
                 // Check that the user does not earn anything else
-                const earnedEnd = await stakingRewards.earned(sa.default);
+                const earnedEnd = await savingsVault.earned(sa.default);
                 expect(earnedEnd).bignumber.eq(earnedAfter);
-                // const rewardsEnd = await stakingRewards.rewards(sa.default);
+                // const rewardsEnd = await savingsVault.rewards(sa.default);
                 // expect(rewardsEnd).bignumber.eq(rewardsAfter);
 
                 // Cannot withdraw anything else
                 await expectRevert(
-                    stakingRewards.withdraw(stakeAmount.addn(1), { from: sa.default }),
+                    savingsVault.withdraw(stakeAmount.addn(1), { from: sa.default }),
                     "SafeMath: subtraction overflow",
                 );
             });
