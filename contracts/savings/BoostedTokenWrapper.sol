@@ -7,6 +7,8 @@ import { IIncentivisedVotingLockup } from "../interfaces/IIncentivisedVotingLock
 import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
+import { StableMath } from "../shared/StableMath.sol";
+import { Root } from "../shared/Root.sol";
 
 
 contract BoostedTokenWrapper is ReentrancyGuard {
@@ -20,6 +22,12 @@ contract BoostedTokenWrapper is ReentrancyGuard {
     uint256 private _totalBoostedSupply;
     mapping(address => uint256) private _boostedBalances;
     mapping(address => uint256) private _rawBalances;
+
+    uint256 private constant MIN_DEPOSIT = 1e18;
+    uint256 private constant MIN_VOTING_WEIGHT = 1e18;
+    uint256 private constant MAX_BOOST = 1e18 / 2;
+    uint256 private constant MIN_BOOST = 1e18 * 3 / 2;
+    uint8 private constant BOOST_COEFF = 2;
 
     /**
      * @dev TokenWrapper constructor
@@ -90,18 +98,88 @@ contract BoostedTokenWrapper is ReentrancyGuard {
         stakingToken.safeTransfer(msg.sender, _amount);
     }
 
+    /**
+     * @dev Updates the boost for the given address according to the formula
+     * boost = min(0.5 + 2 * vMTA_balance / ymUSD_locked^(7/8), 1.5)
+     * @param _account User for which to update the boost
+     */
     function _setBoost(address _account)
         internal
     {
-        uint256 oldBoost = _boostedBalances[_account];
-        uint256 newBoost = _rawBalances[_account].add(1);
-        _totalBoostedSupply = _totalBoostedSupply.sub(oldBoost).add(newBoost);
-        _boostedBalances[_account] = newBoost;
-        // boost = stakingContract
-        // decrease old total supply
-        // decrease old boosted amount
-        // calculate new boost
-        // add to total supply
-        // add to old boost
+        uint256 balance = _rawBalances[_account];
+        uint256 boostedBalance = _boostedBalances[_account];
+        uint256 votingWeight;
+        uint256 boost;
+        bool is_boosted = true;
+
+        // Check whether balance is sufficient
+        // is_boosted is used to minimize gas usage
+        if(balance < MIN_DEPOSIT) {
+            is_boosted = false;
+        }
+
+        // Check whether voting weight balance is sufficient
+        if(is_boosted) {
+            votingWeight = stakingContract.balanceOf(_account);
+            if(votingWeight < MIN_VOTING_WEIGHT) {
+                is_boosted = false;
+            }
+        }
+
+        if(is_boosted) {
+            boost = _compute_boost(balance, votingWeight);
+        } else {
+            boost = MIN_BOOST;
+        }
+
+        uint256 newBoostedBalance = StableMath.mulTruncate(balance, boost);
+
+        if(newBoostedBalance != boostedBalance) {
+            _totalBoostedSupply = _totalBoostedSupply.sub(boostedBalance).add(newBoostedBalance);
+            _boostedBalances[_account] = newBoostedBalance;
+        }
     }
+
+    /**
+     * @dev Computes the boost for
+     * boost = min(0.5 + 2 * voting_weight / deposit^(7/8), 1.5)
+     * @param _account User for which to update the boost
+     */
+    function _compute_boost(uint256 _deposit, uint256 _votingWeight)
+        private
+        pure
+        returns (uint256)
+    {
+        require(_deposit >= MIN_DEPOSIT, "Requires minimum deposit value.");
+        require(_votingWeight >= MIN_VOTING_WEIGHT, "Requires minimum voting weight.");
+
+        // Compute balance to the power 7/8
+        uint256 denominator = Root.sqrt(Root.sqrt(Root.sqrt(_deposit)));
+        denominator = denominator.mul(
+            denominator.mul(
+                denominator.mul(
+                    denominator.mul(
+                        denominator.mul(
+                            denominator.mul(
+                                denominator))))));
+
+        uint256 boost = StableMath.min(
+            MIN_BOOST + StableMath.divPrecisely(_votingWeight.mul(BOOST_COEFF), denominator),
+            MAX_BOOST
+        );
+        return boost;
+    }
+
+    /**
+     * @dev Read the boost for the given address
+     * @param _account User for which to return the boost
+     */
+    function getBoost(address _account)
+        public
+        view
+        returns (uint256)
+    {
+        return StableMath.divPrecisely(_boostedBalances[_account], _rawBalances[_account]);
+    }
+
 }
