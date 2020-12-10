@@ -5,7 +5,6 @@ pragma experimental ABIEncoderV2;
 import { IForgeValidator } from "./forge-validator/IForgeValidator.sol";
 import { IPlatformIntegration } from "../interfaces/IPlatformIntegration.sol";
 import { IBasketManager } from "../interfaces/IBasketManager.sol";
-import { ISavingsManager } from "../interfaces/ISavingsManager.sol";
 
 // Internal
 import { IMasset } from "../interfaces/IMasset.sol";
