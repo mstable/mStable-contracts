@@ -420,6 +420,14 @@ contract("SavingsVault", async (accounts) => {
         beforeEach(async () => {
             savingsVault = await redeployRewards();
         });
+        describe("calling getBoost", () => {
+            it("should accurately return a users boost");
+        });
+        describe("calling getRequiredStake", () => {
+            it("should return the amount of vMTA required to get a particular boost with a given ymUSD amount", async () => {
+                // fn on the contract works out the boost: function(uint256 ymUSD, uint256 boost) returns (uint256 requiredVMTA)
+            });
+        });
         describe("when saving and with staking balance", () => {
             it("should calculate boost correctly and update total supply", async () => {
                 // scenario 1:
