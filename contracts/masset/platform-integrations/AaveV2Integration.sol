@@ -168,9 +168,6 @@ contract AaveV2Integration is InitializableAbstractIntegration {
         onlyWhitelisted
         nonReentrant
     {
-        // @TODO - add protections to ensure bAsset is logged to aToken?
-        // Unnecessary only Masset/BM have write access
-
         require(_amount > 0, "Must withdraw something");
         require(_receiver != address(0), "Must specify recipient");
 

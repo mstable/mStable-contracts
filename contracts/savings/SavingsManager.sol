@@ -225,7 +225,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
         uint256 currentTime = now;
         uint256 previousBatch = lastBatchCollected[_mAsset];
         uint256 timeSincePreviousBatch = currentTime.sub(previousBatch);
-        require(timeSincePreviousBatch > 12 hours, "Cannot deposit twice in 12 hours");
+        require(timeSincePreviousBatch > 6 hours, "Cannot deposit twice in 6 hours");
         lastBatchCollected[_mAsset] = currentTime;
 
         // Batch collect

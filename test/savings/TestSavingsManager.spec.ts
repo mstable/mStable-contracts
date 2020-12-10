@@ -595,14 +595,14 @@ contract("SavingsManager", async (accounts) => {
                     "Must have a valid savings contract",
                 );
             });
-            it("should fail if called twice within 12 hours", async () => {
+            it("should fail if called twice within 6 hours", async () => {
                 await mUSD.setAmountForPlatformInterest(new BN(10000));
                 await savingsManager.collectAndStreamInterest(mUSD.address);
                 await expectRevert(
                     savingsManager.collectAndStreamInterest(mUSD.address, {
                         from: sa.dummy2,
                     }),
-                    "Cannot deposit twice in 12 hours",
+                    "Cannot deposit twice in 6 hours",
                 );
             });
             it("should have no effect if there is no interest to collect", async () => {
