@@ -47,8 +47,7 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
     event Staked(address indexed user, uint256 amount, address payer);
     event Withdrawn(address indexed user, uint256 amount);
     event Poked(address indexed user);
-    // event RewardsLocked
-    // event RewardsPaid(address indexed user, uint256 reward);
+    event RewardPaid(address indexed user, uint256 reward);
 
     /** @dev StakingRewards is a TokenWrapper and RewardRecipient */
     // TODO - add constants to bytecode at deployTime to reduce SLOAD cost
@@ -143,7 +142,8 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         updateBoost(msg.sender)
     {
         _withdraw(rawBalanceOf(msg.sender));
-        // _lockRewards();
+        (uint256 first, uint256 last) = _unclaimedEpochs(msg.sender);
+        _claimRewards(first, last);
     }
 
     /**
@@ -158,116 +158,40 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         _withdraw(_amount);
     }
 
-    /**
-     * @dev Uses binarysearch to find the unclaimed lockups for a given account
-     */
-    function _findFirstUnclaimed(uint64 _lastClaim, address _account)
-        internal
-        view
-        returns(uint256 first)
-    {
-        // first = first where finish > _lastClaim
-        // last = last where start < now
-        uint256 len = userRewards[_account].length;
-        // Binary search
-        uint256 min = 0;
-        uint256 max = len;
-        // Will be always enough for 128-bit numbers
-        for(uint256 i = 0; i < 128; i++){
-            if (min >= max)
-                break;
-            uint256 mid = (min.add(max).add(1)).div(2);
-            if (userRewards[_account][mid].finish > _lastClaim){
-                min = mid;
-            } else {
-                max = mid.sub(1);
-            }
-        }
-        return min;
-    }
-
-    //     function _findLastUnclaimed(uint64 _lastClaim, address _account)
-    //     internal
-    //     view
-    //     returns(uint256 last)
-    // {
-    //     // last = last where start < now
-    //     uint256 len = userRewards[_account].length;
-    //     // Binary search
-    //     uint256 min = 0;
-    //     uint256 max = len;
-    //     // Will be always enough for 128-bit numbers
-    //     for(uint256 i = 0; i < 128; i++){
-    //         if (min >= max)
-    //             break;
-    //         uint256 mid = (min.add(max).add(1)).div(2);
-    //         if (userRewards[_account][mid].finish > _lastClaim){
-    //             min = mid;
-    //         } else {
-    //             max = mid.sub(1);
-    //         }
-    //     }
-    //     return min;
-    // }
-
-
-    function unclaimedRewards(address _account)
-        external
-        view
-        returns (uint256 amount, uint256[] memory ids)
-    {
-        uint256 len = userRewards[_account].length;
-        uint256 currentTime = block.timestamp;
-        uint64 lastClaim = userClaim[_account];
-        uint256 count = 0;
-
-        // TODO - use binary search here to find the start and end
-
-        for(uint256 i = 0; i < len; i++){
-            Reward memory rwd = userRewards[_account][i];
-            if(currentTime > rwd.start && lastClaim < rwd.finish) {
-                uint256 endTime = StableMath.min(rwd.finish, currentTime);
-                uint256 startTime = StableMath.max(rwd.start, lastClaim);
-                uint256 unclaimed = endTime.sub(startTime).mul(rwd.rate);
-
-                amount = amount.add(unclaimed);
-                ids[count++] = i;
-            }
-        }
-    }
-
     function claimRewards()
         external
         updateReward(msg.sender)
         updateBoost(msg.sender)
     {
-        // transfer unlocked rewards
-        // find start and end blocks
-        // pass to internal fn
+        (uint256 first, uint256 last) = _unclaimedEpochs(msg.sender);
+
+        _claimRewards(first, last);
     }
 
-    function claimRewards(uint256[] calldata _ids)
+    function claimRewards(uint256 _first, uint256 _last)
         external
         updateReward(msg.sender)
         updateBoost(msg.sender)
     {
+        _claimRewards(_first, _last);
+    }
+
+    function _claimRewards(uint256 _first, uint256 _last)
+        internal
+    {
         uint256 currentTime = block.timestamp;
-        uint64 lastClaim = userClaim[msg.sender];
+
+        uint256 unclaimed = _unclaimedRewards(msg.sender, _first, _last);
         userClaim[msg.sender] = uint64(currentTime);
 
-        uint256 cumulative = 0;
-        uint256 len = _ids.length;
-        for(uint256 i = 0; i < len; i++){
-            Reward memory rwd = userRewards[msg.sender][i];
-            require(lastClaim <= rwd.finish, "Must be unclaimed");
-            require(currentTime >= rwd.start, "Must have started");
-            uint256 endTime = StableMath.min(rwd.finish, currentTime);
-            uint256 startTime = StableMath.max(rwd.start, lastClaim);
-            uint256 unclaimed = endTime.sub(startTime).mul(rwd.rate);
-            cumulative.add(unclaimed);
-        }
-        rewardsToken.safeTransfer(msg.sender, cumulative);
-        // emit RewardPaid(msg.sender, reward);
+        uint256 unlocked = userData[msg.sender].rewards;
+        userData[msg.sender].rewards = 0;
+
+        uint256 total = unclaimed.add(unlocked);
+
+        rewardsToken.safeTransfer(msg.sender, total);
+
+        emit RewardPaid(msg.sender, total);
     }
 
     function pokeBoost(address _user)
@@ -394,6 +318,116 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         uint256 userNewReward = balanceOf(_account).mulTruncate(userRewardDelta); // + 1 SLOAD
         // add to previous rewards
         return userNewReward;
+    }
+
+
+    function unclaimedRewards(address _account)
+        external
+        view
+        returns (uint256 amount, uint256 first, uint256 last)
+    {
+        (first, last) = _unclaimedEpochs(_account);
+        amount = _unclaimedRewards(_account, first, last);
+    }
+
+    function _unclaimedEpochs(address _account)
+        internal
+        view
+        returns (uint256 first, uint256 last)
+    {
+        uint64 lastClaim = userClaim[_account];
+
+        uint256 firstUnclaimed = _findFirstUnclaimed(lastClaim, _account);
+        uint256 lastUnclaimed = _findLastUnclaimed(_account);
+
+        return (firstUnclaimed, lastUnclaimed);
+    }
+
+    function _unclaimedRewards(address _account, uint256 _first, uint256 _last)
+        internal
+        view
+        returns (uint256 amount)
+    {
+        uint256 currentTime = block.timestamp;
+        uint64 lastClaim = userClaim[_account];
+
+        uint256 count = _last.sub(_first);
+
+        if(count == 0) return 0;
+
+        for(uint256 i = 0; i < count; i++){
+
+            uint256 id = _first.add(i);
+            Reward memory rwd = userRewards[_account][id];
+
+            require(lastClaim <= rwd.finish, "Must be unclaimed");
+            require(currentTime >= rwd.start, "Must have started");
+
+            uint256 endTime = StableMath.min(rwd.finish, currentTime);
+            uint256 startTime = StableMath.max(rwd.start, lastClaim);
+            uint256 unclaimed = endTime.sub(startTime).mul(rwd.rate);
+
+            amount = amount.add(unclaimed);
+        }
+    }
+
+
+    /**
+     * @dev Uses binarysearch to find the unclaimed lockups for a given account
+     */
+    function _findFirstUnclaimed(uint64 _lastClaim, address _account)
+        internal
+        view
+        returns(uint256 first)
+    {
+        // first = first where finish > _lastClaim
+        // last = last where start < now
+        uint256 len = userRewards[_account].length;
+        if(len == 0) return 0;
+        // Binary search
+        uint256 min = 0;
+        uint256 max = len - 1;
+        // Will be always enough for 128-bit numbers
+        for(uint256 i = 0; i < 128; i++){
+            if (min >= max)
+                break;
+            uint256 mid = (min.add(max).add(1)).div(2);
+            if (_lastClaim > userRewards[_account][mid].start){
+                min = mid;
+            } else {
+                max = mid.sub(1);
+            }
+        }
+        return min;
+    }
+
+    /**
+     * @dev Uses binarysearch to find the unclaimed lockups for a given account
+     */
+    function _findLastUnclaimed(address _account)
+        internal
+        view
+        returns(uint256 first)
+    {
+        // first = first where finish > _lastClaim
+        // last = last where start < now
+        uint256 len = userRewards[_account].length;
+        if(len == 0) return 0;
+        // Binary search
+        uint256 min = 0;
+        uint256 max = len - 1;
+        // Will be always enough for 128-bit numbers
+        for(uint256 i = 0; i < 128; i++){
+            if (min >= max)
+                break;
+            uint256 mid = (min.add(max).add(1)).div(2);
+            if (now > userRewards[_account][mid].start){
+                min = mid;
+            } else {
+                max = mid.sub(1);
+            }
+        }
+        return min;
     }
 
 

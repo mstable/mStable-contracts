@@ -14,6 +14,7 @@ import { Root } from "../shared/Root.sol";
 contract BoostedTokenWrapper is ReentrancyGuard {
 
     using SafeMath for uint256;
+    using StableMath for uint256;
     using SafeERC20 for IERC20;
 
     IERC20 public stakingToken;
@@ -25,8 +26,8 @@ contract BoostedTokenWrapper is ReentrancyGuard {
 
     uint256 private constant MIN_DEPOSIT = 1e18;
     uint256 private constant MIN_VOTING_WEIGHT = 1e18;
-    uint256 private constant MAX_BOOST = 1e18 / 2;
-    uint256 private constant MIN_BOOST = 1e18 * 3 / 2;
+    uint256 private constant MAX_BOOST = 15e17;
+    uint256 private constant MIN_BOOST = 5e17;
     uint8 private constant BOOST_COEFF = 2;
 
     /**
@@ -106,33 +107,18 @@ contract BoostedTokenWrapper is ReentrancyGuard {
     function _setBoost(address _account)
         internal
     {
-        uint256 balance = _rawBalances[_account];
+        uint256 rawBalance = _rawBalances[_account];
         uint256 boostedBalance = _boostedBalances[_account];
-        uint256 votingWeight;
-        uint256 boost;
-        bool is_boosted = true;
+        uint256 boost = MIN_BOOST;
 
         // Check whether balance is sufficient
         // is_boosted is used to minimize gas usage
-        if(balance < MIN_DEPOSIT) {
-            is_boosted = false;
+        if(rawBalance > MIN_DEPOSIT) {
+            uint256 votingWeight = stakingContract.balanceOf(_account);
+            boost = _compute_boost(rawBalance, votingWeight);
         }
 
-        // Check whether voting weight balance is sufficient
-        if(is_boosted) {
-            votingWeight = stakingContract.balanceOf(_account);
-            if(votingWeight < MIN_VOTING_WEIGHT) {
-                is_boosted = false;
-            }
-        }
-
-        if(is_boosted) {
-            boost = _compute_boost(balance, votingWeight);
-        } else {
-            boost = MIN_BOOST;
-        }
-
-        uint256 newBoostedBalance = StableMath.mulTruncate(balance, boost);
+        uint256 newBoostedBalance = rawBalance.mulTruncate(boost);
 
         if(newBoostedBalance != boostedBalance) {
             _totalBoostedSupply = _totalBoostedSupply.sub(boostedBalance).add(newBoostedBalance);
@@ -143,30 +129,32 @@ contract BoostedTokenWrapper is ReentrancyGuard {
     /**
      * @dev Computes the boost for
      * boost = min(0.5 + 2 * voting_weight / deposit^(7/8), 1.5)
-     * @param _account User for which to update the boost
      */
     function _compute_boost(uint256 _deposit, uint256 _votingWeight)
         private
         pure
         returns (uint256)
     {
-        require(_deposit >= MIN_DEPOSIT, "Requires minimum deposit value.");
-        require(_votingWeight >= MIN_VOTING_WEIGHT, "Requires minimum voting weight.");
+        require(_deposit >= MIN_DEPOSIT, "Requires minimum deposit value");
+
+        if(_votingWeight == 0) return MIN_BOOST;
 
         // Compute balance to the power 7/8
-        uint256 denominator = Root.sqrt(Root.sqrt(Root.sqrt(_deposit)));
+        uint256 denominator = Root.sqrt(Root.sqrt(Root.sqrt(_deposit * 10)));
         denominator = denominator.mul(
             denominator.mul(
                 denominator.mul(
                     denominator.mul(
                         denominator.mul(
                             denominator.mul(
-                                denominator))))));
+                                denominator)))))
+            );
 
         uint256 boost = StableMath.min(
-            MIN_BOOST + StableMath.divPrecisely(_votingWeight.mul(BOOST_COEFF), denominator),
+            MIN_BOOST.add(_votingWeight.mul(BOOST_COEFF).divPrecisely(denominator)),
             MAX_BOOST
         );
+
         return boost;
     }
 
@@ -181,5 +169,4 @@ contract BoostedTokenWrapper is ReentrancyGuard {
     {
         return StableMath.divPrecisely(_boostedBalances[_account], _rawBalances[_account]);
     }
-
 }

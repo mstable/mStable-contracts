@@ -30,6 +30,12 @@ contract("SavingsVault", async (accounts) => {
     let imUSD: t.MockERC20Instance;
     let savingsVault: t.BoostedSavingsVaultInstance;
     let stakingContract: t.MockStakingContractInstance;
+    const minBoost = simpleToExactAmount(5, 17);
+    const maxBoost = simpleToExactAmount(15, 17);
+
+    const boost = (raw: BN, boostAmt: BN): BN => {
+        return raw.mul(boostAmt).div(fullScale);
+    };
 
     const redeployRewards = async (
         nexusAddress = systemMachine.nexus.address,
@@ -326,17 +332,15 @@ contract("SavingsVault", async (accounts) => {
                 // Do the stake
                 const rewardRate = await savingsVault.rewardRate();
                 const stakeAmount = simpleToExactAmount(100, 18);
+                const boosted = boost(stakeAmount, minBoost);
                 await expectSuccessfulStake(stakeAmount);
+                expect(boosted).bignumber.eq(await savingsVault.balanceOf(sa.default));
 
                 await time.increase(ONE_DAY);
-                await savingsVault.pokeBoost(sa.default);
 
                 // This is the total reward per staked token, since the last update
                 const rewardPerToken = await savingsVault.rewardPerToken();
-                const rewardPerSecond = new BN(1)
-                    .mul(rewardRate)
-                    .mul(fullScale)
-                    .div(stakeAmount);
+                const rewardPerSecond = rewardRate.mul(fullScale).div(boosted);
                 assertBNClose(
                     rewardPerToken,
                     ONE_DAY.mul(rewardPerSecond),
@@ -346,7 +350,10 @@ contract("SavingsVault", async (accounts) => {
                 // Calc estimated unclaimed reward for the user
                 // earned == balance * (rewardPerToken-userExistingReward)
                 const earned = await savingsVault.earned(sa.default);
-                expect(stakeAmount.mul(rewardPerToken).div(fullScale)).bignumber.eq(earned);
+                expect(boosted.mul(rewardPerToken).div(fullScale)).bignumber.eq(earned);
+
+                await stakingContract.setBalanceOf(sa.default, simpleToExactAmount(1, 21));
+                await savingsVault.pokeBoost(sa.default);
             });
             it("should update stakers rewards after consequent stake", async () => {
                 const stakeAmount = simpleToExactAmount(100, 18);
@@ -463,25 +470,25 @@ contract("SavingsVault", async (accounts) => {
             await time.increase(FIVE_DAYS);
 
             const stakeAmount = simpleToExactAmount(100, 18);
+            const boosted = boost(stakeAmount, minBoost);
             await expectSuccessfulStake(stakeAmount);
             await time.increase(ONE_DAY);
-            await savingsVault.pokeBoost(sa.default);
 
             // This is the total reward per staked token, since the last update
             const rewardPerToken = await savingsVault.rewardPerToken();
 
-            const rewardPerSecond = new BN(1)
-                .mul(rewardRate)
-                .mul(fullScale)
-                .div(stakeAmount);
+            const rewardPerSecond = rewardRate.mul(fullScale).div(boosted);
             assertBNClose(rewardPerToken, FIVE_DAYS.mul(rewardPerSecond), rewardPerSecond.muln(4));
 
             // Calc estimated unclaimed reward for the user
             // earned == balance * (rewardPerToken-userExistingReward)
             const earnedAfterConsequentStake = await savingsVault.earned(sa.default);
-            expect(stakeAmount.mul(rewardPerToken).div(fullScale)).bignumber.eq(
+            expect(boosted.mul(rewardPerToken).div(fullScale)).bignumber.eq(
                 earnedAfterConsequentStake,
             );
+
+            await stakingContract.setBalanceOf(sa.default, simpleToExactAmount(1, 21));
+            await savingsVault.pokeBoost(sa.default);
         });
     });
     context("staking over multiple funded periods", () => {
@@ -502,10 +509,12 @@ contract("SavingsVault", async (accounts) => {
                 await expectSuccesfulFunding(fundAmount2);
 
                 await time.increase(ONE_WEEK.muln(2));
-                await savingsVault.pokeBoost(sa.default);
 
                 const earned = await savingsVault.earned(sa.default);
                 assertBNSlightlyGT(fundAmount1.add(fundAmount2), earned, new BN(1000000), false);
+
+                await stakingContract.setBalanceOf(sa.default, simpleToExactAmount(1, 21));
+                await savingsVault.pokeBoost(sa.default);
             });
         });
         context("with multiple stakers coming in and out", () => {
@@ -554,9 +563,9 @@ contract("SavingsVault", async (accounts) => {
 
                 await savingsVault.withdraw(staker3Stake, { from: staker3 });
                 await expectSuccessfulStake(staker1Stake2, sa.default, sa.default, true);
-                await savingsVault.pokeBoost(sa.default);
-                await savingsVault.pokeBoost(sa.default);
-                await savingsVault.pokeBoost(staker3);
+                // await savingsVault.pokeBoost(sa.default);
+                // await savingsVault.pokeBoost(sa.default);
+                // await savingsVault.pokeBoost(staker3);
 
                 await time.increase(ONE_WEEK);
 
@@ -626,8 +635,11 @@ contract("SavingsVault", async (accounts) => {
             const earned = await savingsVault.earned(beneficiary);
             expect(earned).bignumber.gt(new BN(0) as any);
 
+            const rawBalance = await savingsVault.rawBalanceOf(beneficiary);
+            expect(rawBalance).bignumber.eq(stakeAmount);
+
             const balance = await savingsVault.balanceOf(beneficiary);
-            expect(balance).bignumber.eq(stakeAmount);
+            expect(balance).bignumber.eq(boost(stakeAmount, minBoost));
         });
         it("should not update the senders details", async () => {
             const earned = await savingsVault.earned(sa.default);
@@ -682,6 +694,57 @@ contract("SavingsVault", async (accounts) => {
                 earnedAfterConsequentStake,
                 simpleToExactAmount(1, 9),
             );
+        });
+    });
+
+    context("claiming rewards", async () => {
+        const fundAmount = simpleToExactAmount(100, 21);
+        const stakeAmount = simpleToExactAmount(100, 18);
+
+        before(async () => {
+            savingsVault = await redeployRewards();
+            await expectSuccesfulFunding(fundAmount);
+            await rewardToken.transfer(savingsVault.address, fundAmount, {
+                from: rewardsDistributor,
+            });
+            await expectSuccessfulStake(stakeAmount, sa.default, sa.dummy2);
+            await time.increase(ONE_WEEK.addn(1));
+        });
+        it("should do nothing for a non-staker", async () => {
+            const beforeData = await snapshotStakingData(sa.dummy1, sa.dummy1);
+            await savingsVault.methods["claimRewards()"]({ from: sa.dummy1 });
+
+            const afterData = await snapshotStakingData(sa.dummy1, sa.dummy1);
+            expect(beforeData.beneficiaryRewardsEarned).bignumber.eq(new BN(0));
+            expect(afterData.beneficiaryRewardsEarned).bignumber.eq(new BN(0));
+            expect(afterData.senderStakingTokenBalance).bignumber.eq(new BN(0));
+            expect(afterData.userRewardPerTokenPaid).bignumber.eq(afterData.rewardPerTokenStored);
+        });
+        it("should send all accrued rewards to the rewardee", async () => {
+            const beforeData = await snapshotStakingData(sa.dummy2, sa.dummy2);
+            const rewardeeBalanceBefore = await rewardToken.balanceOf(sa.dummy2);
+            expect(rewardeeBalanceBefore).bignumber.eq(new BN(0));
+            const tx = await savingsVault.methods["claimRewards(uint256,uint256)"](0, 0, {
+                from: sa.dummy2,
+            });
+            expectEvent(tx.receipt, "RewardPaid", {
+                user: sa.dummy2,
+            });
+            const afterData = await snapshotStakingData(sa.dummy2, sa.dummy2);
+            await assertRewardsAssigned(beforeData, afterData, false, true);
+            // Balance transferred to the rewardee
+            const rewardeeBalanceAfter = await rewardToken.balanceOf(sa.dummy2);
+            assertBNClose(rewardeeBalanceAfter, fundAmount, simpleToExactAmount(1, 16));
+
+            // 'rewards' reset to 0
+            expect(afterData.beneficiaryRewardsEarned).bignumber.eq(new BN(0));
+            // Paid up until the last block
+            expect(afterData.userRewardPerTokenPaid).bignumber.eq(afterData.rewardPerTokenStored);
+            // Token balances dont change
+            expect(afterData.senderStakingTokenBalance).bignumber.eq(
+                beforeData.senderStakingTokenBalance,
+            );
+            expect(beforeData.userStakingBalance).bignumber.eq(afterData.userStakingBalance);
         });
     });
 

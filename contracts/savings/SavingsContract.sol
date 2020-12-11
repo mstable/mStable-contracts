@@ -360,7 +360,7 @@ contract SavingsContract is
         emit FractionUpdated(_fraction);
     }
 
-    // TODO - consider delaying this
+    // TODO - consider delaying this aside from initialisation case
     // function setConnector(address _newConnector)
     //     external
     //     onlyGovernor

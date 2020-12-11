@@ -303,7 +303,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
     function _collectAndDistributeInterest(address _mAsset)
         internal
     {
-        ISavingsContract savingsContract = savingsContracts[_mAsset];
+        ISavingsContractV1 savingsContract = savingsContracts[_mAsset];
         require(address(savingsContract) != address(0), "Must have a valid savings contract");
 
         // Get collection details
