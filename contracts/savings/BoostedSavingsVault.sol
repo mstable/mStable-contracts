@@ -6,17 +6,37 @@ import { BoostedTokenWrapper } from "./BoostedTokenWrapper.sol";
 
 // Libs
 import { IERC20, SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/SafeCast.sol";
 import { StableMath, SafeMath } from "../shared/StableMath.sol";
 
-
+/**
+ * @title  BoostedSavingsVault
+ * @author Stability Labs Pty. Ltd.
+ * @notice Accrues rewards second by second, based on a users boosted balance
+ * @dev    Forked from rewards/staking/StakingRewards.sol
+ *         Changes:
+ *          - Lockup implemented in `updateReward` hook (20% unlock immediately, 80% locked for 6 months)
+ *          - `updateBoost` hook called after every external action to reset a users boost
+ *          - Struct packing of common data
+ *          - Searching for and claiming of unlocked rewards
+ */
 contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipient {
 
     using StableMath for uint256;
+    using SafeCast for uint256;
+
+    event RewardAdded(uint256 reward);
+    event Staked(address indexed user, uint256 amount, address payer);
+    event Withdrawn(address indexed user, uint256 amount);
+    event Poked(address indexed user);
+    event RewardPaid(address indexed user, uint256 reward);
 
     IERC20 public rewardsToken;
 
     uint64 public constant DURATION = 7 days;
-    uint64 public constant LOCKUP = 26 weeks;
+    // Length of token lockup, after rewards are earned
+    uint256 public constant LOCKUP = 26 weeks;
+    // Percentage of earned tokens unlocked immediately
     uint64 public constant UNLOCK = 2e17;
 
     // Timestamp for current period finish
@@ -28,8 +48,9 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
     // Ever increasing rewardPerToken rate, based on % of total supply
     uint256 public rewardPerTokenStored = 0;
     mapping(address => UserData) public userData;
-    mapping(address => uint64) public userClaim;
+    // Locked reward tracking
     mapping(address => Reward[]) public userRewards;
+    mapping(address => uint64) public userClaim;
 
     struct UserData {
         uint128 rewardPerTokenPaid;
@@ -43,14 +64,9 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         uint128 rate;
     }
 
-    event RewardAdded(uint256 reward);
-    event Staked(address indexed user, uint256 amount, address payer);
-    event Withdrawn(address indexed user, uint256 amount);
-    event Poked(address indexed user);
-    event RewardPaid(address indexed user, uint256 reward);
 
-    /** @dev StakingRewards is a TokenWrapper and RewardRecipient */
     // TODO - add constants to bytecode at deployTime to reduce SLOAD cost
+    /** @dev StakingRewards is a TokenWrapper and RewardRecipient */
     constructor(
         address _nexus, // constant
         address _stakingToken, // constant
@@ -65,35 +81,57 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         rewardsToken = IERC20(_rewardsToken);
     }
 
-    /** @dev Updates the reward for a given address, before executing function */
+    /**
+     * @dev Updates the reward for a given address, before executing function.
+     * Locks 80% of new rewards up for 6 months, vesting linearly from (time of last action + 6 months) to
+     * (now + 6 months). This allows rewards to be distributed close to how they were accrued, as opposed
+     * to locking up for a flat 6 months from the time of this fn call (allowing more passive accrual).
+     */
     modifier updateReward(address _account) {
+        uint256 currentTime = block.timestamp;
+        uint64 currentTime64 = SafeCast.toUint64(currentTime);
+
         // Setting of global vars
         (uint256 newRewardPerToken, uint256 lastApplicableTime) = _rewardPerToken();
         // If statement protects against loss in initialisation case
         if(newRewardPerToken > 0) {
+
             rewardPerTokenStored = newRewardPerToken;
             lastUpdateTime = lastApplicableTime;
+
             // Setting of personal vars based on new globals
             if (_account != address(0)) {
-                // TODO - safely typecast here
+
                 UserData memory data = userData[_account];
                 uint256 earned = _earned(_account, data.rewardPerTokenPaid, newRewardPerToken);
+
                 if(earned > 0){
+
                     uint256 unlocked = earned.mulTruncate(UNLOCK);
                     uint256 locked = earned.sub(unlocked);
+
                     userRewards[_account].push(Reward({
-                        start: uint64(data.lastAction + LOCKUP),
-                        finish: uint64(now + LOCKUP),
-                        rate: uint128(locked.div(now.sub(data.lastAction)))
+                        start: SafeCast.toUint64(LOCKUP.add(data.lastAction)),
+                        finish: SafeCast.toUint64(LOCKUP.add(currentTime)),
+                        rate: SafeCast.toUint128(locked.div(currentTime.sub(data.lastAction)))
                     }));
-                    userData[_account] = UserData(uint128(newRewardPerToken), data.rewards + uint128(unlocked), uint64(now));
+
+                    userData[_account] = UserData({
+                        rewardPerTokenPaid: SafeCast.toUint128(newRewardPerToken),
+                        rewards: SafeCast.toUint128(unlocked.add(data.rewards)),
+                        lastAction: currentTime64
+                    });
                 } else {
-                    userData[_account] = UserData(uint128(newRewardPerToken), data.rewards, uint64(now));
+                    userData[_account] = UserData({
+                        rewardPerTokenPaid: SafeCast.toUint128(newRewardPerToken),
+                        rewards: data.rewards,
+                        lastAction: currentTime64
+                    });
                 }
             }
         } else if(_account == address(0)) {
-            // This should only be hit once, in initialisation case
-            userData[_account].lastAction = uint64(now);
+            // This should only be hit once, for first staker in initialisation case
+            userData[_account].lastAction = currentTime64;
         }
         _;
     }
@@ -105,7 +143,7 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
     }
 
     /***************************************
-                    ACTIONS
+                ACTIONS - EXTERNAL
     ****************************************/
 
     /**
@@ -134,7 +172,9 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
     }
 
     /**
-     * @dev Withdraws stake from pool and claims any rewards
+     * @dev Withdraws stake from pool and claims any unlocked rewards.
+     * Note, this function is costly - the args for _claimRewards
+     * should be determined off chain and then passed to other fn
      */
     function exit()
         external
@@ -144,6 +184,20 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         _withdraw(rawBalanceOf(msg.sender));
         (uint256 first, uint256 last) = _unclaimedEpochs(msg.sender);
         _claimRewards(first, last);
+    }
+
+    /**
+     * @dev Withdraws stake from pool and claims any unlocked rewards.
+     * @param _first    Index of the first array element to claim
+     * @param _last     Index of the last array element to claim
+     */
+    function exit(uint256 _first, uint256 _last)
+        external
+        updateReward(msg.sender)
+        updateBoost(msg.sender)
+    {
+        _withdraw(rawBalanceOf(msg.sender));
+        _claimRewards(_first, _last);
     }
 
     /**
@@ -158,6 +212,11 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         _withdraw(_amount);
     }
 
+    /**
+     * @dev Claims all unlocked rewards for sender.
+     * Note, this function is costly - the args for _claimRewards
+     * should be determined off chain and then passed to other fn
+     */
     function claimRewards()
         external
         updateReward(msg.sender)
@@ -168,6 +227,12 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         _claimRewards(first, last);
     }
 
+    /**
+     * @dev Claims all unlocked rewards for sender. Both immediately unlocked
+     * rewards and also locked rewards past their time lock.
+     * @param _first    Index of the first array element to claim
+     * @param _last     Index of the last array element to claim
+     */
     function claimRewards(uint256 _first, uint256 _last)
         external
         updateReward(msg.sender)
@@ -176,6 +241,27 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         _claimRewards(_first, _last);
     }
 
+    /**
+     * @dev Pokes a given account to reset the boost
+     */
+    function pokeBoost(address _account)
+        external
+        updateReward(_account)
+        updateBoost(_account)
+    {
+        emit Poked(_account);
+    }
+
+    /***************************************
+                ACTIONS - INTERNAL
+    ****************************************/
+
+    /**
+     * @dev Claims all unlocked rewards for sender. Both immediately unlocked
+     * rewards and also locked rewards past their time lock.
+     * @param _first    Index of the first array element to claim
+     * @param _last     Index of the last array element to claim
+     */
     function _claimRewards(uint256 _first, uint256 _last)
         internal
     {
@@ -194,14 +280,6 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         emit RewardPaid(msg.sender, total);
     }
 
-    function pokeBoost(address _user)
-        external
-        updateReward(_user)
-        updateBoost(_user)
-    {
-        emit Poked(_user);
-    }
-
     /**
      * @dev Internally stakes an amount by depositing from sender,
      * and crediting to the specified beneficiary
@@ -216,6 +294,10 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         emit Staked(_beneficiary, _amount, msg.sender);
     }
 
+    /**
+     * @dev Withdraws raw units from the sender
+     * @param _amount      Units of StakingToken
+     */
     function _withdraw(uint256 _amount)
         internal
     {
@@ -291,7 +373,8 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
     }
 
     /**
-     * @dev Calculates the amount of unclaimed rewards a user has earned
+     * @dev Returned the units of IMMEDIATELY claimable rewards a user has to receive. Note - this
+     * does NOT include the majority of rewards which will be locked up.
      * @param _account User address
      * @return Total reward amount earned
      */
@@ -300,9 +383,29 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         view
         returns (uint256)
     {
-        return userData[_account].rewards + _earned(_account, userData[_account].rewardPerTokenPaid, rewardPerToken());
+        uint256 newEarned = _earned(_account, userData[_account].rewardPerTokenPaid, rewardPerToken());
+        uint256 immediatelyUnlocked = newEarned.mulTruncate(UNLOCK);
+        return immediatelyUnlocked.add(userData[_account].rewards);
     }
 
+    /**
+     * @dev Calculates all unclaimed reward data, finding both immediately unlocked rewards
+     * and those that have passed their time lock.
+     * @param _account User address
+     * @return amount Total units of unclaimed rewards
+     * @return first Index of the first userReward that has unlocked
+     * @return last Index of the last userReward that has unlocked
+     */
+    function unclaimedRewards(address _account)
+        external
+        view
+        returns (uint256 amount, uint256 first, uint256 last)
+    {
+        (first, last) = _unclaimedEpochs(_account);
+        amount = _unclaimedRewards(_account, first, last).add(earned(_account));
+    }
+
+    /** @dev Returns only the most recently earned rewards */
     function _earned(address _account, uint256 _userRewardPerTokenPaid, uint256 _currentRewardPerToken)
         internal
         view
@@ -320,16 +423,9 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         return userNewReward;
     }
 
-
-    function unclaimedRewards(address _account)
-        external
-        view
-        returns (uint256 amount, uint256 first, uint256 last)
-    {
-        (first, last) = _unclaimedEpochs(_account);
-        amount = _unclaimedRewards(_account, first, last);
-    }
-
+    /**
+     * @dev Gets the first and last indexes of array elements containing unclaimed rewards
+     */
     function _unclaimedEpochs(address _account)
         internal
         view
@@ -343,6 +439,9 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         return (firstUnclaimed, lastUnclaimed);
     }
 
+    /**
+     * @dev Sums the cumulative rewards from a valid range
+     */
     function _unclaimedRewards(address _account, uint256 _first, uint256 _last)
         internal
         view
@@ -352,16 +451,21 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         uint64 lastClaim = userClaim[_account];
 
         uint256 count = _last.sub(_first);
-
-        if(count == 0) return 0;
+        // Check for no rewards unlocked
+        if(_first == 0 && _last == 0) {
+            uint256 totalLen = userRewards[_account].length;
+            if(totalLen == 0 || currentTime <= userRewards[_account][0].start){
+                return 0;
+            }
+        }
 
         for(uint256 i = 0; i < count; i++){
 
             uint256 id = _first.add(i);
             Reward memory rwd = userRewards[_account][id];
 
-            require(lastClaim <= rwd.finish, "Must be unclaimed");
             require(currentTime >= rwd.start, "Must have started");
+            require(lastClaim <= rwd.finish, "Must be unclaimed");
 
             uint256 endTime = StableMath.min(rwd.finish, currentTime);
             uint256 startTime = StableMath.max(rwd.start, lastClaim);
@@ -380,8 +484,6 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         view
         returns(uint256 first)
     {
-        // first = first where finish > _lastClaim
-        // last = last where start < now
         uint256 len = userRewards[_account].length;
         if(len == 0) return 0;
         // Binary search
@@ -409,8 +511,6 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         view
         returns(uint256 first)
     {
-        // first = first where finish > _lastClaim
-        // last = last where start < now
         uint256 len = userRewards[_account].length;
         if(len == 0) return 0;
         // Binary search
@@ -429,7 +529,6 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         }
         return min;
     }
-
 
     /***************************************
                     ADMIN

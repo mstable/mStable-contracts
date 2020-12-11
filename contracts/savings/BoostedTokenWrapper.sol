@@ -10,7 +10,15 @@ import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 import { StableMath } from "../shared/StableMath.sol";
 import { Root } from "../shared/Root.sol";
 
-
+/**
+ * @title  BoostedTokenWrapper
+ * @author Stability Labs Pty. Ltd.
+ * @notice Wrapper to facilitate tracking of staked balances, applying a boost
+ * @dev    Forked from rewards/staking/StakingTokenWrapper.sol
+ *         Changes:
+ *          - Adding `_boostedBalances` and `_totalBoostedSupply`
+ *          - Implemting of a `_setBoost` hook to calculate/apply a users boost
+ */
 contract BoostedTokenWrapper is ReentrancyGuard {
 
     using SafeMath for uint256;
@@ -18,14 +26,15 @@ contract BoostedTokenWrapper is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     IERC20 public stakingToken;
+    // mStable MTA Staking contract
     IIncentivisedVotingLockup public stakingContract;
 
     uint256 private _totalBoostedSupply;
     mapping(address => uint256) private _boostedBalances;
     mapping(address => uint256) private _rawBalances;
 
+    // Vars for use in the boost calculations
     uint256 private constant MIN_DEPOSIT = 1e18;
-    uint256 private constant MIN_VOTING_WEIGHT = 1e18;
     uint256 private constant MAX_BOOST = 15e17;
     uint256 private constant MIN_BOOST = 5e17;
     uint8 private constant BOOST_COEFF = 2;
@@ -33,6 +42,7 @@ contract BoostedTokenWrapper is ReentrancyGuard {
     /**
      * @dev TokenWrapper constructor
      * @param _stakingToken Wrapped token to be staked
+     * @param _stakingContract mStable MTA Staking contract
      */
     constructor(address _stakingToken, address _stakingContract) internal {
         stakingToken = IERC20(_stakingToken);
@@ -40,7 +50,7 @@ contract BoostedTokenWrapper is ReentrancyGuard {
     }
 
     /**
-     * @dev Get the total amount of the staked token
+     * @dev Get the total boosted amount
      * @return uint256 total supply
      */
     function totalSupply()
@@ -52,7 +62,7 @@ contract BoostedTokenWrapper is ReentrancyGuard {
     }
 
     /**
-     * @dev Get the balance of a given account
+     * @dev Get the boosted balance of a given account
      * @param _account User for which to retrieve balance
      */
     function balanceOf(address _account)
@@ -64,7 +74,7 @@ contract BoostedTokenWrapper is ReentrancyGuard {
     }
 
     /**
-     * @dev Get the balance of a given account
+     * @dev Get the RAW balance of a given account
      * @param _account User for which to retrieve balance
      */
     function rawBalanceOf(address _account)
@@ -102,6 +112,7 @@ contract BoostedTokenWrapper is ReentrancyGuard {
     /**
      * @dev Updates the boost for the given address according to the formula
      * boost = min(0.5 + 2 * vMTA_balance / ymUSD_locked^(7/8), 1.5)
+     * If rawBalance <= MIN_DEPOSIT, boost is 0
      * @param _account User for which to update the boost
      */
     function _setBoost(address _account)
@@ -161,12 +172,13 @@ contract BoostedTokenWrapper is ReentrancyGuard {
     /**
      * @dev Read the boost for the given address
      * @param _account User for which to return the boost
+     * @return boost where 1x == 1e18
      */
     function getBoost(address _account)
         public
         view
         returns (uint256)
     {
-        return StableMath.divPrecisely(_boostedBalances[_account], _rawBalances[_account]);
+        return balanceOf(_account).divPrecisely(rawBalanceOf(_account));
     }
 }
