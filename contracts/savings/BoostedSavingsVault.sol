@@ -213,6 +213,24 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
     }
 
     /**
+     * @dev Claims only the tokens that have been immediately unlocked, not including
+     * those that are in the lockers.
+     */
+    function claimReward()
+        external
+        updateReward(msg.sender)
+        updateBoost(msg.sender)
+    {
+        uint256 unlocked = userData[msg.sender].rewards;
+        userData[msg.sender].rewards = 0;
+
+        if(unlocked > 0){
+            rewardsToken.safeTransfer(msg.sender, unlocked);
+            emit RewardPaid(msg.sender, unlocked);
+        }
+    }
+
+    /**
      * @dev Claims all unlocked rewards for sender.
      * Note, this function is costly - the args for _claimRewards
      * should be determined off chain and then passed to other fn

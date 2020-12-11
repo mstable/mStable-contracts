@@ -3,7 +3,7 @@
 import * as t from "types/generated";
 import { expectEvent, expectRevert, time } from "@openzeppelin/test-helpers";
 import { StandardAccounts, SystemMachine } from "@utils/machines";
-import { assertBNClose, assertBNSlightlyGT } from "@utils/assertions";
+import { assertBNClose, assertBNSlightlyGT, assertBNClosePercent } from "@utils/assertions";
 import { simpleToExactAmount } from "@utils/math";
 import { BN } from "@utils/tools";
 import { ONE_WEEK, ONE_DAY, FIVE_DAYS, fullScale, ZERO_ADDRESS } from "@utils/constants";
@@ -436,15 +436,43 @@ contract("SavingsVault", async (accounts) => {
             });
         });
         describe("when saving and with staking balance", () => {
-            it("should calculate boost correctly and update total supply", async () => {
-                // scenario 1:
-                // scenario 2:
-                // scenario 3:
-                // scenario 4:
-                // scenario 5:
-                // stakingContract.setBalanceOf
-                // stake
-                // check raw balance, boosted balance and total supply
+            it("should calculate boost for 10k imUSD stake and 250 vMTA", async () => {
+                const deposit = simpleToExactAmount(10000);
+                const stake = simpleToExactAmount(250, 18);
+                const expectedBoost = simpleToExactAmount(15000);
+
+                await expectSuccessfulStake(deposit);
+                await stakingContract.setBalanceOf(sa.default, stake);
+                await savingsVault.pokeBoost(sa.default);
+
+                const balance = await savingsVault.balanceOf(sa.default);
+                expect(balance).bignumber.eq(expectedBoost);
+            });
+            it("should calculate boost for 10k imUSD stake and 100 vMTA", async () => {
+                const deposit = simpleToExactAmount(10000, 18);
+                const stake = simpleToExactAmount(100, 18);
+                const expectedBoost = simpleToExactAmount(9740, 18);
+
+                await expectSuccessfulStake(deposit);
+                await stakingContract.setBalanceOf(sa.default, stake);
+                await savingsVault.pokeBoost(sa.default);
+
+                const balance = await savingsVault.balanceOf(sa.default);
+                console.log(balance.toString());
+                assertBNClosePercent(balance, expectedBoost, "1");
+            });
+            it("should calculate boost for 100k imUSD stake and 1000 vMTA", async () => {
+                const deposit = simpleToExactAmount(100000, 18);
+                const stake = simpleToExactAmount(1000, 18);
+                const expectedBoost = simpleToExactAmount(113200, 18);
+
+                await expectSuccessfulStake(deposit);
+                await stakingContract.setBalanceOf(sa.default, stake);
+                await savingsVault.pokeBoost(sa.default);
+
+                const balance = await savingsVault.balanceOf(sa.default);
+                console.log(balance.toString());
+                assertBNClosePercent(balance, expectedBoost, "1");
             });
         });
         describe("when saving and with staking balance = 0", () => {

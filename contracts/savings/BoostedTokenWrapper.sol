@@ -1,5 +1,6 @@
 pragma solidity 0.5.16;
 
+
 // Internal
 import { IIncentivisedVotingLockup } from "../interfaces/IIncentivisedVotingLockup.sol";
 
@@ -35,6 +36,7 @@ contract BoostedTokenWrapper is ReentrancyGuard {
 
     // Vars for use in the boost calculations
     uint256 private constant MIN_DEPOSIT = 1e18;
+    uint256 private constant TEN_POW_1_8 = 177827941003892293632;
     uint256 private constant MAX_BOOST = 15e17;
     uint256 private constant MIN_BOOST = 5e17;
     uint8 private constant BOOST_COEFF = 2;
@@ -86,6 +88,19 @@ contract BoostedTokenWrapper is ReentrancyGuard {
     }
 
     /**
+     * @dev Read the boost for the given address
+     * @param _account User for which to return the boost
+     * @return boost where 1x == 1e18
+     */
+    function getBoost(address _account)
+        public
+        view
+        returns (uint256)
+    {
+        return balanceOf(_account).divPrecisely(rawBalanceOf(_account));
+    }
+
+    /**
      * @dev Deposits a given amount of StakingToken from sender
      * @param _amount Units of StakingToken
      */
@@ -126,7 +141,7 @@ contract BoostedTokenWrapper is ReentrancyGuard {
         // is_boosted is used to minimize gas usage
         if(rawBalance > MIN_DEPOSIT) {
             uint256 votingWeight = stakingContract.balanceOf(_account);
-            boost = _compute_boost(rawBalance, votingWeight);
+            boost = _computeBoost(rawBalance, votingWeight);
         }
 
         uint256 newBoostedBalance = rawBalance.mulTruncate(boost);
@@ -141,7 +156,7 @@ contract BoostedTokenWrapper is ReentrancyGuard {
      * @dev Computes the boost for
      * boost = min(0.5 + 2 * voting_weight / deposit^(7/8), 1.5)
      */
-    function _compute_boost(uint256 _deposit, uint256 _votingWeight)
+    function _computeBoost(uint256 _deposit, uint256 _votingWeight)
         private
         pure
         returns (uint256)
@@ -151,7 +166,7 @@ contract BoostedTokenWrapper is ReentrancyGuard {
         if(_votingWeight == 0) return MIN_BOOST;
 
         // Compute balance to the power 7/8
-        uint256 denominator = Root.sqrt(Root.sqrt(Root.sqrt(_deposit * 10)));
+        uint256 denominator = Root.sqrt(Root.sqrt(Root.sqrt(_deposit / 10)));
         denominator = denominator.mul(
             denominator.mul(
                 denominator.mul(
@@ -160,6 +175,7 @@ contract BoostedTokenWrapper is ReentrancyGuard {
                             denominator.mul(
                                 denominator)))))
             );
+        denominator = denominator.mulTruncate(TEN_POW_1_8);
 
         uint256 boost = StableMath.min(
             MIN_BOOST.add(_votingWeight.mul(BOOST_COEFF).divPrecisely(denominator)),
@@ -167,18 +183,5 @@ contract BoostedTokenWrapper is ReentrancyGuard {
         );
 
         return boost;
-    }
-
-    /**
-     * @dev Read the boost for the given address
-     * @param _account User for which to return the boost
-     * @return boost where 1x == 1e18
-     */
-    function getBoost(address _account)
-        public
-        view
-        returns (uint256)
-    {
-        return balanceOf(_account).divPrecisely(rawBalanceOf(_account));
     }
 }
