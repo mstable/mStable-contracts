@@ -129,7 +129,7 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
                     });
                 }
             }
-        } else if(_account == address(0)) {
+        } else if(_account != address(0)) {
             // This should only be hit once, for first staker in initialisation case
             userData[_account].lastAction = currentTime64;
         }

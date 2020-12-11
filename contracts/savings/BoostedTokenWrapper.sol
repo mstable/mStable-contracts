@@ -166,7 +166,7 @@ contract BoostedTokenWrapper is ReentrancyGuard {
         if(_votingWeight == 0) return MIN_BOOST;
 
         // Compute balance to the power 7/8
-        uint256 denominator = Root.sqrt(Root.sqrt(Root.sqrt(_deposit / 10)));
+        uint256 denominator = Root.sqrt(Root.sqrt(Root.sqrt(_deposit * 1e5)));
         denominator = denominator.mul(
             denominator.mul(
                 denominator.mul(
@@ -175,8 +175,7 @@ contract BoostedTokenWrapper is ReentrancyGuard {
                             denominator.mul(
                                 denominator)))))
             );
-        denominator = denominator.mulTruncate(TEN_POW_1_8);
-
+        denominator = denominator.div(1e3);
         uint256 boost = StableMath.min(
             MIN_BOOST.add(_votingWeight.mul(BOOST_COEFF).divPrecisely(denominator)),
             MAX_BOOST
