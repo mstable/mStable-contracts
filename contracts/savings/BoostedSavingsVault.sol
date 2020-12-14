@@ -204,6 +204,7 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
      * @dev Withdraws given stake amount from the pool
      * @param _amount Units of the staked token to withdraw
      */
+     // TODO - ensure that withdrawing and consequently staking, plays nicely with reward unlocking
     function withdraw(uint256 _amount)
         external
         updateReward(msg.sender)
@@ -468,7 +469,6 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         uint256 currentTime = block.timestamp;
         uint64 lastClaim = userClaim[_account];
 
-        uint256 count = _last.sub(_first);
         // Check for no rewards unlocked
         if(_first == 0 && _last == 0) {
             uint256 totalLen = userRewards[_account].length;
@@ -477,6 +477,7 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
             }
         }
 
+        uint256 count = _last.sub(_first).add(1);
         for(uint256 i = 0; i < count; i++){
 
             uint256 id = _first.add(i);

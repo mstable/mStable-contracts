@@ -55,7 +55,6 @@ contract SavingsContract is
     // e.g. 1 credit (1e17) mulTruncate(exchangeRate) = underlying, starts at 10:1
     // exchangeRate increases over time
     uint256 public exchangeRate;
-    uint256 public colRatio;
 
     // Underlying asset is underlying
     IERC20 public underlying;
@@ -177,6 +176,7 @@ contract SavingsContract is
         external
         returns (uint256 creditsIssued)
     {
+        require(exchangeRate == 1e17, "Can only use this method before streaming begins");
         return _deposit(_underlying, _beneficiary, true);
     }
 

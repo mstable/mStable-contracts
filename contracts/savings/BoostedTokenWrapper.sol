@@ -36,7 +36,6 @@ contract BoostedTokenWrapper is ReentrancyGuard {
 
     // Vars for use in the boost calculations
     uint256 private constant MIN_DEPOSIT = 1e18;
-    uint256 private constant TEN_POW_1_8 = 177827941003892293632;
     uint256 private constant MAX_BOOST = 15e17;
     uint256 private constant MIN_BOOST = 5e17;
     uint8 private constant BOOST_COEFF = 2;

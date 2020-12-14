@@ -33,4 +33,9 @@ contract SaveAndStake {
         uint256 credits = ISavingsContractV2(save).depositSavings(_amount);
         IBoostedSavingsVault(vault).stake(msg.sender, credits);
     }
+
+    function saveNow(uint256 _amount) external {
+        IERC20(mAsset).transferFrom(msg.sender, address(this), _amount);
+        ISavingsContractV2(save).depositSavings(_amount, msg.sender);
+    }
 }
