@@ -18,7 +18,7 @@ contract IyVault is ERC20 {
 /**
  * @title  Connector_yVault
  * @author Stability Labs Pty. Ltd.
- * @notice
+ * @notice XxX
  */
 contract Connector_yVault is IConnector {
 
@@ -46,11 +46,13 @@ contract Connector_yVault is IConnector {
     }
 
     function deposit(uint256 _amt) external onlySave {
+        // TODO - if using meta pool LP token, account for coordinated flash loan scenario
         IERC20(mUSD).transferFrom(save, address(this), _amt);
         IyVault(yVault).deposit(_amt);
     }
 
     function withdraw(uint256 _amt) external onlySave {
+        // TODO - if using meta pool LP token, account for coordinated flash loan scenario
         // amount = shares * sharePrice
         // shares = amount / sharePrice
         uint256 sharePrice = IyVault(yVault).getPricePerFullShare();
@@ -60,6 +62,7 @@ contract Connector_yVault is IConnector {
     }
 
     function checkBalance() external view returns (uint256) {
+        // TODO - if using meta pool LP token, account for coordinated flash loan scenario
         uint256 sharePrice = IyVault(yVault).getPricePerFullShare();
         uint256 shares = IERC20(yVault).balanceOf(address(this));
         return shares.mulTruncate(sharePrice);
