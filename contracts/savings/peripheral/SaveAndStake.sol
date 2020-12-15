@@ -5,9 +5,14 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 
 interface IBoostedSavingsVault {
-  function stake(address _beneficiary, uint256 _amount) external;
+    function stake(address _beneficiary, uint256 _amount) external;
 }
 
+/**
+ * @title  SaveAndStake
+ * @author Stability Labs Pty. Ltd.
+ * @notice Simply saves an mAsset and then into the vault
+ */
 contract SaveAndStake {
 
     address mAsset;
@@ -19,7 +24,7 @@ contract SaveAndStake {
         address _save, // constant
         address _vault // constant
     )
-      public
+        public
     {
         mAsset = _mAsset;
         save = _save;
@@ -28,14 +33,13 @@ contract SaveAndStake {
         IERC20(_save).approve(_vault, uint256(-1));
     }
 
+    /**
+     * @dev Simply saves an mAsset and then into the vault
+     * @param _amount Units of mAsset to deposit to savings
+     */
     function saveAndStake(uint256 _amount) external {
         IERC20(mAsset).transferFrom(msg.sender, address(this), _amount);
         uint256 credits = ISavingsContractV2(save).depositSavings(_amount);
         IBoostedSavingsVault(vault).stake(msg.sender, credits);
-    }
-
-    function saveNow(uint256 _amount) external {
-        IERC20(mAsset).transferFrom(msg.sender, address(this), _amount);
-        ISavingsContractV2(save).depositSavings(_amount, msg.sender);
     }
 }

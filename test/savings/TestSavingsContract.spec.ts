@@ -1,5 +1,13 @@
 /* eslint-disable @typescript-eslint/camelcase */
 
+/**
+ *
+ * TODO - Test as a Proxy Contract
+ * ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ * - Ensure backwards compatibility
+ * - Test SaveAndStake & Save and go(briefly)
+ */
+
 import { expectRevert, expectEvent, time } from "@openzeppelin/test-helpers";
 
 import { simpleToExactAmount } from "@utils/math";
@@ -94,7 +102,10 @@ contract("SavingsContract", async (accounts) => {
 
     /** Credits issued based on ever increasing exchange rate */
     function underlyingToCredits(amount: BN, exchangeRate: BN): BN {
-        return amount.mul(fullScale).div(exchangeRate).addn(1);
+        return amount
+            .mul(fullScale)
+            .div(exchangeRate)
+            .addn(1);
     }
     function creditsToUnderlying(amount: BN, exchangeRate: BN): BN {
         return amount.mul(exchangeRate).div(fullScale);
@@ -398,7 +409,9 @@ contract("SavingsContract", async (accounts) => {
                 const tx = await savingsContract.depositInterest(TEN_EXACT, {
                     from: savingsManagerAccount,
                 });
-                const expectedExchangeRate = TWENTY_TOKENS.mul(fullScale).div(HUNDRED).subn(1);
+                const expectedExchangeRate = TWENTY_TOKENS.mul(fullScale)
+                    .div(HUNDRED)
+                    .subn(1);
                 expectEvent.inLogs(tx.logs, "ExchangeRateUpdated", {
                     newExchangeRate: expectedExchangeRate,
                     interestCollected: TEN_EXACT,

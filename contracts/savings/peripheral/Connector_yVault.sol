@@ -5,15 +5,21 @@ import { IConnector } from "./IConnector.sol";
 import { StableMath, SafeMath } from "../../shared/StableMath.sol";
 
 contract IyVault is ERC20 {
+
     function deposit(uint256 _amount) public;
     function depositAll() external;
 
     function withdraw(uint256 _shares) public;
     function withdrawAll() external;
-    
+
     function getPricePerFullShare() public view returns (uint256);
 }
 
+/**
+ * @title  Connector_yVault
+ * @author Stability Labs Pty. Ltd.
+ * @notice
+ */
 contract Connector_yVault is IConnector {
 
     using StableMath for uint256;

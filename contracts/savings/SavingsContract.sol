@@ -20,10 +20,10 @@ import { StableMath } from "../shared/StableMath.sol";
  * @title   SavingsContract
  * @author  Stability Labs Pty. Ltd.
  * @notice  Savings contract uses the ever increasing "exchangeRate" to increase
- *          the value of the Savers "credits" relative to the amount of additional
+ *          the value of the Savers "credits" (ERC20) relative to the amount of additional
  *          underlying collateral that has been deposited into this contract ("interest")
  * @dev     VERSION: 2.0
- *          DATE:    2020-11-28
+ *          DATE:    2020-12-15
  */
 contract SavingsContract is
     ISavingsContractV1,
@@ -61,12 +61,19 @@ contract SavingsContract is
     bool private automateInterestCollection;
 
     // Yield
+    // Poker is responsible for depositing/withdrawing from connector
     address public poker;
+    // Last time a poke was made
     uint256 public lastPoke;
+    // Last known balance of the connector
     uint256 public lastBalance;
+    // Fraction of capital assigned to the connector (100% = 1e18)
     uint256 public fraction;
+    // Address of the current connector (all IConnectors are mStable validated)
     IConnector public connector;
+    // How often do we allow pokes
     uint256 constant private POKE_CADENCE = 4 hours;
+    // Max APY generated on the capital in the connector
     uint256 constant private MAX_APY = 2e18;
     uint256 constant private SECONDS_IN_YEAR = 365 days;
 
@@ -151,27 +158,11 @@ contract SavingsContract is
     ****************************************/
 
     /**
-     * @dev Deposit the senders savings to the vault, and credit them internally with "credits".
-     *      Credit amount is calculated as a ratio of deposit amount and exchange rate:
-     *                    credits = underlying / exchangeRate
-     *      We will first update the internal exchange rate by collecting any interest generated on the underlying.
+     * @dev During a migration period, allow savers to deposit underlying here before the interest has been redirected
      * @param _underlying      Units of underlying to deposit into savings vault
-     * @return creditsIssued   Units of credits issued internally
+     * @param _beneficiary     Immediately transfer the imUSD token to this beneficiary address
+     * @return creditsIssued   Units of credits (imUSD) issued
      */
-    function depositSavings(uint256 _underlying)
-        external
-        returns (uint256 creditsIssued)
-    {
-        return _deposit(_underlying, msg.sender, false);
-    }
-
-    function depositSavings(uint256 _underlying, address _beneficiary)
-        external
-        returns (uint256 creditsIssued)
-    {
-        return _deposit(_underlying, _beneficiary, false);
-    }
-
     function preDeposit(uint256 _underlying, address _beneficiary)
         external
         returns (uint256 creditsIssued)
@@ -180,6 +171,40 @@ contract SavingsContract is
         return _deposit(_underlying, _beneficiary, true);
     }
 
+    /**
+     * @dev Deposit the senders savings to the vault, and credit them internally with "credits".
+     *      Credit amount is calculated as a ratio of deposit amount and exchange rate:
+     *                    credits = underlying / exchangeRate
+     *      We will first update the internal exchange rate by collecting any interest generated on the underlying.
+     * @param _underlying      Units of underlying to deposit into savings vault
+     * @return creditsIssued   Units of credits (imUSD) issued
+     */
+    function depositSavings(uint256 _underlying)
+        external
+        returns (uint256 creditsIssued)
+    {
+        return _deposit(_underlying, msg.sender, false);
+    }
+
+    /**
+     * @dev Deposit the senders savings to the vault, and credit them internally with "credits".
+     *      Credit amount is calculated as a ratio of deposit amount and exchange rate:
+     *                    credits = underlying / exchangeRate
+     *      We will first update the internal exchange rate by collecting any interest generated on the underlying.
+     * @param _underlying      Units of underlying to deposit into savings vault
+     * @param _beneficiary     Immediately transfer the imUSD token to this beneficiary address
+     * @return creditsIssued   Units of credits (imUSD) issued
+     */
+    function depositSavings(uint256 _underlying, address _beneficiary)
+        external
+        returns (uint256 creditsIssued)
+    {
+        return _deposit(_underlying, _beneficiary, false);
+    }
+
+    /**
+     * @dev Internally deposit the _underlying from the sender and credit the beneficiary with new imUSD
+     */
     function _deposit(uint256 _underlying, address _beneficiary, bool _skipCollection)
         internal
         returns (uint256 creditsIssued)
@@ -198,7 +223,7 @@ contract SavingsContract is
         // Calc how many credits they receive based on currentRatio
         (creditsIssued,) = _underlyingToCredits(_underlying);
 
-        // add credits to balances
+        // add credits to ERC20 balances
         _mint(_beneficiary, creditsIssued);
 
         emit SavingsDeposited(_beneficiary, _underlying, creditsIssued);
@@ -211,6 +236,8 @@ contract SavingsContract is
 
 
     // Deprecated in favour of redeemCredits
+    // Maintaining backwards compatibility, this fn minimics the old redeem fn, in which
+    // credits are redeemed but the interest from the underlying is not collected.
     function redeem(uint256 _credits)
         external
         returns (uint256 massetReturned)
@@ -250,23 +277,34 @@ contract SavingsContract is
         return payout;
     }
 
+    /**
+     * @dev Redeem credits into a specific amount of underlying.
+     *      Credits needed to burn is calculated using:
+     *                    credits = underlying / exchangeRate
+     * @param _underlying     Amount of underlying to redeem
+     * @return creditsBurned  Units of credits burned from sender
+     */
     function redeemUnderlying(uint256 _underlying)
         external
         returns (uint256 creditsBurned)
     {
         require(_underlying > 0, "Must withdraw something");
 
+        // Collect recent interest generated by basket and update exchange rate
         if(automateInterestCollection) {
-            // Collect recent interest generated by basket and update exchange rate
             ISavingsManager(_savingsManager()).collectAndDistributeInterest(address(underlying));
         }
 
+        // Ensure that the payout was sufficient
         (uint256 credits, uint256 massetReturned) = _redeem(_underlying, false);
         require(massetReturned == _underlying, "Invalid output");
 
         return credits;
     }
 
+    /**
+     * @dev Internally burn the credits and send the underlying to msg.sender
+     */
     function _redeem(uint256 _amt, bool _isCreditAmt)
         internal
         returns (uint256 creditsBurned, uint256 massetReturned)
@@ -275,19 +313,27 @@ contract SavingsContract is
         uint256 credits_ = 0;
         uint256 underlying_ = 0;
         uint256 exchangeRate_ = 0;
+        // If the input is a credit amt, then calculate underlying payout and cache the exchangeRate
         if(_isCreditAmt){
             credits_ = _amt;
             (underlying_, exchangeRate_) = _creditsToUnderlying(_amt);
-        } else {
+        }
+        // If the input is in underlying, then calculate credits needed to burn
+        else {
             underlying_ = _amt;
             (credits_, exchangeRate_) = _underlyingToCredits(_amt);
         }
 
+        // Burn required credits from the sender FIRST
         _burn(msg.sender, credits_);
 
         // Transfer tokens from here to sender
         require(underlying.transfer(msg.sender, underlying_), "Must send tokens");
 
+        // If this withdrawal pushes the portion of stored collateral in the `connector` over a certain
+        // threshold (fraction + 20%), then this should trigger a _poke on the connector. This is to avoid
+        // a situation in which there is a rush on withdrawals for some reason, causing the connector
+        // balance to go up and thus having too large an exposure.
         CachedData memory cachedData = _cacheData();
         ConnectorStatus memory status = _getConnectorStatus(cachedData, exchangeRate_);
         if(status.inConnector > status.limit){
@@ -299,18 +345,30 @@ contract SavingsContract is
         return (credits_, underlying_);
     }
 
+
     struct ConnectorStatus {
+        // Limit is the max amount of units allowed in the connector
         uint256 limit;
+        // Derived balance of the connector
         uint256 inConnector;
     }
 
+    /**
+     * @dev Derives the units of collateral held in the connector
+     * @param _data         Struct containing data on balances
+     * @param _exchangeRate Current system exchange rate
+     * @return status       Contains max amount of assets allowed in connector
+     */
     function _getConnectorStatus(CachedData memory _data, uint256 _exchangeRate)
         internal
         pure
         returns (ConnectorStatus memory)
     {
+        // Total units of underlying collateralised
         uint256 totalCollat = _data.totalCredits.mulTruncate(_exchangeRate);
+        // Max amount of underlying that can be held in the connector
         uint256 limit = totalCollat.mulTruncate(_data.fraction.add(2e17));
+        // Derives amount of underlying present in the connector
         uint256 inConnector = _data.rawBalance >= totalCollat ? 0 : totalCollat.sub(_data.rawBalance);
 
         return ConnectorStatus(limit, inConnector);
@@ -321,12 +379,16 @@ contract SavingsContract is
     ****************************************/
 
 
+    /** @dev Modifier allowing only the designated poker to execute the fn */
     modifier onlyPoker() {
         require(msg.sender == poker, "Only poker can execute");
         _;
     }
 
-    // Protects against initiailisation case
+    /**
+     * @dev External poke function allows for the redistribution of collateral between here and the
+     * current connector, setting the ratio back to the defined optimal.
+     */
     function poke()
         external
         onlyPoker
@@ -335,6 +397,10 @@ contract SavingsContract is
         _poke(cachedData, false);
     }
 
+    /**
+     * @dev Governance action to set the address of a new poker
+     * @param _newPoker     Address of the new poker
+     */
     function setPoker(address _newPoker)
         external
         onlyGovernor
@@ -346,6 +412,11 @@ contract SavingsContract is
         emit PokerUpdated(_newPoker);
     }
 
+    /**
+     * @dev Governance action to set the percentage of assets that should be held
+     * in the connector.
+     * @param _fraction     Percentage of assets that should be held there (where 20% == 2e17)
+     */
     function setFraction(uint256 _fraction)
         external
         onlyGovernor
@@ -360,33 +431,50 @@ contract SavingsContract is
         emit FractionUpdated(_fraction);
     }
 
-    // TODO - consider delaying this aside from initialisation case
-    // function setConnector(address _newConnector)
-    //     external
-    //     onlyGovernor
-    // {
-    //     // Withdraw all from previous by setting target = 0
-    //     CachedData memory cachedData = _cacheData();
-    //     cachedData.fraction = 0;
-    //     _poke(cachedData, true);
-    //     // Set new connector
-    //     CachedData memory cachedDataNew = _cacheData();
-    //     connector = IConnector(_newConnector);
-    //     _poke(cachedDataNew, true);
+    /**
+     * @dev Governance action to set the address of a new connector, and move funds (if any) across.
+     * @param _newConnector     Address of the new connector
+     */
+    function setConnector(address _newConnector)
+        external
+        onlyGovernor
+    {
+        // Withdraw all from previous by setting target = 0
+        CachedData memory cachedData = _cacheData();
+        cachedData.fraction = 0;
+        _poke(cachedData, true);
 
-    //     emit ConnectorUpdated(_newConnector);
-    // }
+        // Set new connector
+        CachedData memory cachedDataNew = _cacheData();
+        connector = IConnector(_newConnector);
+        _poke(cachedDataNew, true);
 
-    // Should it be the case that some or all of the liquidity is trapped in
-    function emergencyStop(uint256 _withdrawAmount)
+        emit ConnectorUpdated(_newConnector);
+    }
+
+    /**
+     * @dev Governance action to perform an emergency withdraw of the assets in the connector,
+     * should it be the case that some or all of the liquidity is trapped in. This causes the total
+     * collateral in the system to go down, causing a hard refresh.
+     */
+    function emergencyWithdraw(uint256 _withdrawAmount)
         external
         onlyGovernor
     {
         // withdraw _withdrawAmount from connection
         connector.withdraw(_withdrawAmount);
+
+        // reset the connector
+        connector = IConnector(address(0));
+        emit ConnectorUpdated(address(0));
+
+        // set fraction to 0
+        fraction = 0;
+        emit FractionUpdated(0);
+
         // check total collateralisation of credits
         CachedData memory data = _cacheData();
-        // set collateralisation ratio
+        // use rawBalance as the liquidity in the connector is not written off
         _refreshExchangeRate(data.rawBalance, data.totalCredits, true);
 
         emit EmergencyUpdate();
@@ -397,31 +485,38 @@ contract SavingsContract is
                     YIELD - I
     ****************************************/
 
+    /** @dev Internal poke function to keep the balance between connector and raw balance healthy */
     function _poke(CachedData memory _data, bool _ignoreCadence) internal {
-        // 1. Verify that poke cadence is valid
+
+        // 1. Verify that poke cadence is valid, unless this is a manual action by governance
         uint256 currentTime = uint256(now);
         uint256 timeSinceLastPoke = currentTime.sub(lastPoke);
         require(_ignoreCadence || timeSinceLastPoke > POKE_CADENCE, "Not enough time elapsed");
         lastPoke = currentTime;
 
+        // If there is a connector, check the balance and settle to the specified fraction %
         IConnector connector_ = connector;
         if(address(connector_) != address(0)){
 
             // 2. Check and verify new connector balance
             uint256 lastBalance_ = lastBalance;
             uint256 connectorBalance = connector_.checkBalance();
+            // Always expect the collateral in the connector to increase in value
             require(connectorBalance >= lastBalance_, "Invalid yield");
             if(connectorBalance > 0){
-                _validateCollection(connectorBalance, connectorBalance.sub(lastBalance_), timeSinceLastPoke);
+                // Validate the collection by ensuring that the APY is not ridiculous (forked from SavingsManager)
+                _validateCollection(lastBalance_, connectorBalance.sub(lastBalance_), timeSinceLastPoke);
             }
 
             // 3. Level the assets to Fraction (connector) & 100-fraction (raw)
             uint256 realSum = _data.rawBalance.add(connectorBalance);
             uint256 ideal = realSum.mulTruncate(_data.fraction);
             if(ideal > connectorBalance){
-                connector.deposit(ideal.sub(connectorBalance));
+                uint256 deposit = ideal.sub(connectorBalance);
+                underlying.approve(address(connector_), deposit);
+                connector_.deposit(deposit);
             } else {
-                connector.withdraw(connectorBalance.sub(ideal));
+                connector_.withdraw(connectorBalance.sub(ideal));
             }
 
             // 4i. Refresh exchange rate and emit event
@@ -439,51 +534,94 @@ contract SavingsContract is
         }
     }
 
+    /**
+     * @dev Internal fn to refresh the exchange rate, based on the sum of collateral and the number of credits
+     * @param _realSum          Sum of collateral held by the contract
+     * @param _totalCredits     Total number of credits in the system
+     * @param _ignoreValidation This is for use in the emergency situation, and ignores a decreasing exchangeRate
+     */
     function _refreshExchangeRate(uint256 _realSum, uint256 _totalCredits, bool _ignoreValidation) internal {
+        // Based on the current exchange rate, how much underlying is collateralised?
         (uint256 totalCredited, ) = _creditsToUnderlying(_totalCredits);
 
+        // Require the amount of capital held to be greater than the previously credited units
         require(_ignoreValidation || _realSum >= totalCredited, "Insufficient capital");
+        // Work out the new exchange rate based on the current capital
         uint256 newExchangeRate = _calcExchangeRate(_realSum, _totalCredits);
         exchangeRate = newExchangeRate;
 
         emit ExchangeRateUpdated(newExchangeRate, _realSum.sub(totalCredited));
     }
 
+    /**
+     * FORKED DIRECTLY FROM SAVINGSMANAGER.sol
+     * ---------------------------------------
+     * @dev Validates that an interest collection does not exceed a maximum APY. If last collection
+     * was under 30 mins ago, simply check it does not exceed 10bps
+     * @param _newBalance              New balance of the underlying
+     * @param _interest                Increase in total supply since last collection
+     * @param _timeSinceLastCollection Seconds since last collection
+     */
     function _validateCollection(uint256 _newBalance, uint256 _interest, uint256 _timeSinceLastCollection)
         internal
         pure
         returns (uint256 extrapolatedAPY)
     {
+        // Protect against division by 0
+        uint256 protectedTime = StableMath.max(1, _timeSinceLastCollection);
+
         uint256 oldSupply = _newBalance.sub(_interest);
         uint256 percentageIncrease = _interest.divPrecisely(oldSupply);
 
         uint256 yearsSinceLastCollection =
-            _timeSinceLastCollection.divPrecisely(SECONDS_IN_YEAR);
+            protectedTime.divPrecisely(SECONDS_IN_YEAR);
 
         extrapolatedAPY = percentageIncrease.divPrecisely(yearsSinceLastCollection);
 
-        require(extrapolatedAPY < MAX_APY, "Interest protected from inflating past maxAPY");
+        if(protectedTime > 30 minutes) {
+            require(extrapolatedAPY < MAX_APY, "Interest protected from inflating past maxAPY");
+        } else {
+            require(percentageIncrease < 1e15, "Interest protected from inflating past 10 Bps");
+        }
     }
-    
+
 
     /***************************************
                     VIEW - E
     ****************************************/
 
+    /**
+     * @dev Returns the underlying balance of a given user
+     * @param _user     Address of the user to check
+     * @return balance  Units of underlying owned by the user
+     */
     function balanceOfUnderlying(address _user) external view returns (uint256 balance) {
         (balance,) = _creditsToUnderlying(balanceOf(_user));
     }
 
-    function creditBalances(address _user) external view returns (uint256) {
-        return balanceOf(_user);
-    }
-
+    /**
+     * @dev Converts a given underlying amount into credits
+     * @param _underlying  Units of underlying
+     * @return credits     Credit units (a.k.a imUSD)
+     */
     function underlyingToCredits(uint256 _underlying) external view returns (uint256 credits) {
         (credits,) = _underlyingToCredits(_underlying);
     }
 
+    /**
+     * @dev Converts a given credit amount into underlying
+     * @param _credits  Units of credits
+     * @return amount   Corresponding underlying amount
+     */
     function creditsToUnderlying(uint256 _credits) external view returns (uint256 amount) {
         (amount,) = _creditsToUnderlying(_credits);
+    }
+
+    // Deprecated in favour of `balanceOf(address)`
+    // Maintained for backwards compatibility
+    // Returns the credit balance of a given user
+    function creditBalances(address _user) external view returns (uint256) {
+        return balanceOf(_user);
     }
 
 
@@ -492,11 +630,18 @@ contract SavingsContract is
     ****************************************/
 
     struct CachedData {
+        // SLOAD from 'fraction'
         uint256 fraction;
+        // ERC20 balance of underlying, held by this contract
+        // underlying.balanceOf(address(this))
         uint256 rawBalance;
+        // totalSupply()
         uint256 totalCredits;
     }
 
+    /**
+     * @dev Retrieves generic data to avoid duplicate SLOADs
+     */
     function _cacheData() internal view returns (CachedData memory) {
         uint256 balance = underlying.balanceOf(address(this));
         return CachedData(fraction, balance, totalSupply());
@@ -518,6 +663,10 @@ contract SavingsContract is
         credits = _underlying.divPrecisely(exchangeRate_).add(1);
     }
 
+    /**
+     * @dev Works out a new exchange rate, given an amount of collateral and total credits
+     *               e = underlying / credits
+     */
     function _calcExchangeRate(uint256 _totalCollateral, uint256 _totalCredits)
         internal
         pure
