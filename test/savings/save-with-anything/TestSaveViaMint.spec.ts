@@ -1,20 +1,27 @@
 /* eslint-disable @typescript-eslint/camelcase */
 
-import { expectRevert, expectEvent, time } from "@openzeppelin/test-helpers";
-
-import { simpleToExactAmount } from "@utils/math";
-import { assertBNClose, assertBNSlightlyGT } from "@utils/assertions";
-import { StandardAccounts, SystemMachine, MassetDetails } from "@utils/machines";
-import { BN } from "@utils/tools";
-import { fullScale, ZERO_ADDRESS, ZERO, MAX_UINT256, ONE_DAY } from "@utils/constants";
-import envSetup from "@utils/env_setup";
+import { StandardAccounts, SystemMachine } from "@utils/machines";
 import * as t from "types/generated";
 
-contract("SavingsContract", async (accounts) => {
+const SaveViaMint = artifacts.require("SaveViaMint");
+
+contract("SaveViaMint", async (accounts) => {
     const sa = new StandardAccounts(accounts);
+    const systemMachine = new SystemMachine(sa.all);
+    let bAsset: t.MockERC20Instance;
+    let mUSD: t.MassetInstance;
+    let savings: t.SavingsContractInstance;
+    let saveViaMint: t.SaveViaMintInstance;
 
     const setupEnvironment = async (): Promise<void> => {
-        // deploy mAsset, savingsContract, mock uniswap (if necessary)
+        await systemMachine.initialiseMocks();
+
+        const massetDetails = systemMachine.mUSD;
+        [bAsset] = massetDetails.bAssets;
+        mUSD = massetDetails.mAsset;
+        savings = systemMachine.savingsContract;
+
+        saveViaMint = await SaveViaMint.new(savings.address, mUSD.address);
     };
 
     before(async () => {
@@ -22,6 +29,9 @@ contract("SavingsContract", async (accounts) => {
     });
 
     describe("saving via mint", async () => {
-        it("should do something");
+        it("should mint tokens & deposit", async () => {
+            await bAsset.approve(saveViaMint.address, 100);
+            await saveViaMint.mintAndSave(mUSD.address, bAsset.address, 100);
+        });
     });
 });
