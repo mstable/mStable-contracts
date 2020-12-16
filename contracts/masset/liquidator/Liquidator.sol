@@ -38,7 +38,6 @@ contract Liquidator is
     address public mUSD;
     ICurveMetaPool public curve;
     IUniswapV2Router02 public uniswap;
-    uint256 private interval = 7 days;
 
     mapping(address => Liquidation) public liquidations;
     mapping(address => uint256) public minReturn;
@@ -217,7 +216,7 @@ contract Liquidator is
         address bAsset = liquidation.bAsset;
         require(bAsset != address(0), "Liquidation does not exist");
 
-        require(block.timestamp > liquidation.lastTriggered.add(interval), "Must wait for interval");
+        require(block.timestamp > liquidation.lastTriggered.add(7 days), "Must wait for interval");
         liquidations[_integration].lastTriggered = block.timestamp;
 
         // Cache variables
