@@ -9,6 +9,7 @@ import { IERC20, SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20
 import { SafeCast } from "@openzeppelin/contracts/utils/SafeCast.sol";
 import { StableMath, SafeMath } from "../shared/StableMath.sol";
 
+
 /**
  * @title  BoostedSavingsVault
  * @author Stability Labs Pty. Ltd.
@@ -56,6 +57,7 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         uint128 rewardPerTokenPaid;
         uint128 rewards;
         uint64 lastAction;
+        uint64 rewardCount;
     }
 
     struct Reward {
@@ -63,7 +65,6 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         uint64 finish;
         uint128 rate;
     }
-
 
     // TODO - add constants to bytecode at deployTime to reduce SLOAD cost
     /** @dev StakingRewards is a TokenWrapper and RewardRecipient */
@@ -119,13 +120,15 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
                     userData[_account] = UserData({
                         rewardPerTokenPaid: SafeCast.toUint128(newRewardPerToken),
                         rewards: SafeCast.toUint128(unlocked.add(data.rewards)),
-                        lastAction: currentTime64
+                        lastAction: currentTime64,
+                        rewardCount: data.rewardCount + 1
                     });
                 } else {
                     userData[_account] = UserData({
                         rewardPerTokenPaid: SafeCast.toUint128(newRewardPerToken),
                         rewards: data.rewards,
-                        lastAction: currentTime64
+                        lastAction: currentTime64,
+                        rewardCount: data.rewardCount
                     });
                 }
             }

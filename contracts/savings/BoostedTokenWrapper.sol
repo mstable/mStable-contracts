@@ -38,7 +38,7 @@ contract BoostedTokenWrapper is ReentrancyGuard {
     uint256 private constant MIN_DEPOSIT = 1e18;
     uint256 private constant MAX_BOOST = 15e17;
     uint256 private constant MIN_BOOST = 5e17;
-    uint8 private constant BOOST_COEFF = 2;
+    uint8 private constant BOOST_COEFF = 32;
 
     /**
      * @dev TokenWrapper constructor
@@ -175,8 +175,9 @@ contract BoostedTokenWrapper is ReentrancyGuard {
                                 denominator)))))
             );
         denominator = denominator.div(1e3);
-        uint256 boost = StableMath.min(
-            MIN_BOOST.add(_votingWeight.mul(BOOST_COEFF).divPrecisely(denominator)),
+        uint256 boost = _votingWeight.mul(BOOST_COEFF).div(10).divPrecisely(denominator);
+        boost = StableMath.min(
+            MIN_BOOST.add(boost),
             MAX_BOOST
         );
 

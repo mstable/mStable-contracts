@@ -1,4 +1,4 @@
-import { asciiToHex as aToH, padRight } from "web3-utils";
+import { asciiToHex as aToH, padRight, fromWei } from "web3-utils";
 import BN from "bn.js";
 
-export { aToH, BN, padRight };
+export { aToH, BN, padRight, fromWei };
