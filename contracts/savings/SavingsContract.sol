@@ -518,6 +518,7 @@ contract SavingsContract is
             } else {
                 connector_.withdraw(connectorBalance.sub(ideal));
             }
+            // TODO - check balance here again and update exchange rate accordingly
 
             // 4i. Refresh exchange rate and emit event
             lastBalance = ideal;
@@ -533,6 +534,7 @@ contract SavingsContract is
 
         }
     }
+
 
     /**
      * @dev Internal fn to refresh the exchange rate, based on the sum of collateral and the number of credits

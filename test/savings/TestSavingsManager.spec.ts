@@ -57,7 +57,7 @@ contract("SavingsManager", async (accounts) => {
             sa.default,
             mUSD.address,
             "Savings Credit",
-            "ymUSD",
+            "imUSD",
         );
         savingsManager = await SavingsManager.new(
             nexus.address,
@@ -372,7 +372,7 @@ contract("SavingsManager", async (accounts) => {
                     sa.default,
                     mUSD.address,
                     "Savings Credit",
-                    "ymUSD",
+                    "imUSD",
                 );
                 savingsManager = await SavingsManager.new(
                     nexus.address,

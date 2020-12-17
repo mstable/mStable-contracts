@@ -1,13 +1,5 @@
 /* eslint-disable @typescript-eslint/camelcase */
 
-/**
- *
- * TODO - Test as a Proxy Contract
- * ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
- * - Ensure backwards compatibility
- * - Test SaveAndStake & Save and go(briefly)
- */
-
 import { expectRevert, expectEvent, time } from "@openzeppelin/test-helpers";
 
 import { simpleToExactAmount } from "@utils/math";
@@ -24,6 +16,7 @@ const { expect } = envSetup.configure();
 const SavingsContract = artifacts.require("SavingsContract");
 const MockNexus = artifacts.require("MockNexus");
 const MockMasset = artifacts.require("MockMasset");
+const MockProxy = artifacts.require("MockProxy");
 const MockERC20 = artifacts.require("MockERC20");
 const MockSavingsManager = artifacts.require("MockSavingsManager");
 const SavingsManager = artifacts.require("SavingsManager");
@@ -78,13 +71,14 @@ contract("SavingsContract", async (accounts) => {
         masset = await MockMasset.new("MOCK", "MOCK", 18, sa.default, initialMint);
         savingsContract = await SavingsContract.new();
 
-        await savingsContract.initialize(
-            nexus.address,
-            sa.default,
-            masset.address,
-            "Savings Credit",
-            "ymUSD",
-        );
+        const proxy = await MockProxy.new();
+        const impl = await SavingsContract.new();
+        const data: string = impl.contract.methods
+            .initialize(nexus.address, sa.default, masset.address, "Savings Credit", "imUSD")
+            .encodeABI();
+        await proxy.methods["initialize(address,address,bytes)"](impl.address, sa.dummy4, data);
+        savingsContract = await SavingsContract.at(proxy.address);
+
         helper = await MStableHelper.new();
         // Use a mock SavingsManager so we don't need to run integrations
         if (useMockSavingsManager) {
@@ -134,7 +128,7 @@ contract("SavingsContract", async (accounts) => {
                     sa.default,
                     ZERO_ADDRESS,
                     "Savings Credit",
-                    "ymUSD",
+                    "imUSD",
                 ),
                 "mAsset address is zero",
             );
@@ -354,7 +348,7 @@ contract("SavingsContract", async (accounts) => {
     });
 
     describe("depositing interest", async () => {
-        const savingsManagerAccount = sa.dummy4;
+        const savingsManagerAccount = sa.dummy3;
 
         beforeEach(async () => {
             await createNewSavingsContract();

@@ -12,6 +12,7 @@ import { Address } from "../../types";
 const c_Nexus = artifacts.require("Nexus");
 
 // Savings
+const c_Proxy = artifacts.require("MockProxy");
 const c_SavingsContract = artifacts.require("SavingsContract");
 const c_SavingsManager = artifacts.require("SavingsManager");
 const c_MockERC20 = artifacts.require("MockERC20");
@@ -84,14 +85,24 @@ export class SystemMachine {
             3. Savings
         *************************************** */
 
-        this.savingsContract = await c_SavingsContract.new();
-        await this.savingsContract.initialize(
-            this.nexus.address,
-            this.sa.default,
-            this.mUSD.mAsset.address,
-            "Savings Credit",
-            "ymUSD",
+        const proxy = await c_Proxy.new();
+        const impl = await c_SavingsContract.new();
+        const data: string = impl.contract.methods
+            .initialize(
+                this.nexus.address,
+                this.sa.default,
+                this.mUSD.mAsset.address,
+                "Savings Credit",
+                "imUSD",
+            )
+            .encodeABI();
+        await proxy.methods["initialize(address,address,bytes)"](
+            impl.address,
+            this.sa.dummy4,
+            data,
         );
+        this.savingsContract = await c_SavingsContract.at(proxy.address);
+
         this.savingsManager = await c_SavingsManager.new(
             this.nexus.address,
             this.mUSD.mAsset.address,

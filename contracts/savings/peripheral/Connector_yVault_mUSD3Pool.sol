@@ -15,17 +15,24 @@ contract IyVault is ERC20 {
     function getPricePerFullShare() public view returns (uint256);
 }
 
-/**
- * @title  Connector_yVault
- * @author Stability Labs Pty. Ltd.
- * @notice XxX
- */
-contract Connector_yVault is IConnector {
+contract ICurve_DepositMUSD {
+    function add_liquidity(uint256[] calldata amounts, uint256 min_mint_amount) external;
+    function remove_liquidity_one_coin(uint256 _token_amount, int128 i, uint256 min_amount) external;
+}
+
+contract ICurve_ExchangeMUSD {
+    function get_virtual_price() external view returns(uint256);
+}
+
+// TODO - Complete implementation and ensure flash loan proof
+contract Connector_yVault_mUSD3Pool is IConnector {
 
     using StableMath for uint256;
     using SafeMath for uint256;
 
     address save;
+    address curve_deposit;
+    address curve_exchange;
     address yVault;
     address mUSD;
 
@@ -45,12 +52,19 @@ contract Connector_yVault is IConnector {
         _;
     }
 
+    // Steps:
+    //  - Deposit mUSD in curve_deposit
+    //  - Deposit mUSD3Pool LP into yVault
+    // https://github.com/iearn-finance/yearn-protocol/blob/develop/contracts/strategies/StrategyUSDT3pool.sol#L78
     function deposit(uint256 _amt) external onlySave {
         // TODO - if using meta pool LP token, account for coordinated flash loan scenario
         IERC20(mUSD).transferFrom(save, address(this), _amt);
         IyVault(yVault).deposit(_amt);
     }
 
+    // Steps:
+    //  - Withdraw mUSD3Pool LP from yVault
+    //  - Withdraw mUSD from in curve_deposit
     function withdraw(uint256 _amt) external onlySave {
         // TODO - if using meta pool LP token, account for coordinated flash loan scenario
         // amount = shares * sharePrice
@@ -61,10 +75,23 @@ contract Connector_yVault is IConnector {
         IERC20(mUSD).transfer(save, _amt);
     }
 
+    // Steps:
+    //  - Get total mUSD3Pool balance held in yVault
+    //    - Get yVault share balance
+    //    - Get yVault share to mUSD3Pool ratio
+    //  - Get exchange rate between mUSD3Pool LP and mUSD (virtual price?)
+    // To consider: if using virtual price, and mUSD is initially traded at a discount,
+    // then depositing 10k mUSD is likely to net a virtual amount of 9.97k or so. Somehow
+    // need to make 
     function checkBalance() external view returns (uint256) {
         // TODO - if using meta pool LP token, account for coordinated flash loan scenario
         uint256 sharePrice = IyVault(yVault).getPricePerFullShare();
         uint256 shares = IERC20(yVault).balanceOf(address(this));
         return shares.mulTruncate(sharePrice);
+    }
+
+    function _shareToMUSDRate() internal view returns (uint256) {
+        // mUSD3Pool LP balance = shares * sharePrice
+        // USD value = mUSD3Pool LP * virtual price
     }
 }

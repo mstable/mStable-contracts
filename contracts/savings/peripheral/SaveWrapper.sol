@@ -16,7 +16,8 @@ interface IBoostedSavingsVault {
     function stake(address _beneficiary, uint256 _amount) external;
 }
 
-// 3 FLOWS
+// 4 FLOWS
+// 0 - SAVE
 // 1 - MINT AND SAVE
 // 2 - BUY AND SAVE (Curve)
 // 3 - BUY AND SAVE (ETH via Uni)
