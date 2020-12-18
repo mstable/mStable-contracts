@@ -7,7 +7,7 @@ import { StandardAccounts, SystemMachine } from "@utils/machines";
 import { assertBNClose, assertBNSlightlyGT, assertBNClosePercent } from "@utils/assertions";
 import { simpleToExactAmount } from "@utils/math";
 import { BN, fromWei } from "@utils/tools";
-import { ONE_WEEK, ONE_DAY, FIVE_DAYS, fullScale, ZERO_ADDRESS } from "@utils/constants";
+import { ONE_WEEK, ONE_DAY, FIVE_DAYS, fullScale } from "@utils/constants";
 import envSetup from "@utils/env_setup";
 
 const { expect } = envSetup.configure();
@@ -31,7 +31,7 @@ interface UserData {
     rewardPerTokenPaid: BN;
     rewards: BN;
     lastAction: BN;
-    rewardCount: BN;
+    rewardCount: number;
     userClaim: BN;
 }
 interface ContractData {
@@ -76,6 +76,7 @@ contract("SavingsVault", async (accounts) => {
     const minBoost = simpleToExactAmount(5, 17);
     const maxBoost = simpleToExactAmount(15, 17);
     const coeff = 32;
+    const lockupPeriod = ONE_WEEK.muln(26);
 
     const boost = (raw: BN, boostAmt: BN): BN => {
         return raw.mul(boostAmt).div(fullScale);
@@ -83,6 +84,8 @@ contract("SavingsVault", async (accounts) => {
 
     const calcBoost = (raw: BN, vMTA: BN): BN => {
         // min(d + c * vMTA^a / imUSD^b, m)
+        if (raw.lt(simpleToExactAmount(1, 18))) return minBoost;
+
         let denom = parseFloat(fromWei(raw.divn(10)));
         denom **= 0.875;
         return BN.min(
@@ -101,10 +104,14 @@ contract("SavingsVault", async (accounts) => {
         return total.divn(5);
     };
 
+    const lockedRewards = (total: BN): BN => {
+        return total.divn(5).muln(4);
+    };
+
     const redeployRewards = async (
         nexusAddress = systemMachine.nexus.address,
     ): Promise<t.BoostedSavingsVaultInstance> => {
-        rewardToken = await MockERC20.new("Reward", "RWD", 18, rewardsDistributor, 1000000);
+        rewardToken = await MockERC20.new("Reward", "RWD", 18, rewardsDistributor, 10000000);
         imUSD = await MockERC20.new("Interest bearing mUSD", "imUSD", 18, sa.default, 1000000);
         stakingContract = await MockStakingContract.new();
         return SavingsVault.new(
@@ -145,7 +152,7 @@ contract("SavingsVault", async (accounts) => {
                 rewardPerTokenPaid: userData[0],
                 rewards: userData[1],
                 lastAction: userData[2],
-                rewardCount: userData[3],
+                rewardCount: userData[3].toNumber(),
                 userClaim: await savingsVault.userClaim(beneficiary),
             },
             userRewards,
@@ -237,23 +244,46 @@ contract("SavingsVault", async (accounts) => {
         expect(afterData.userData.rewardPerTokenPaid).bignumber.eq(
             afterData.userData.rewardPerTokenPaid,
         );
+
+        const increaseInUserRewardPerToken = afterData.contractData.rewardPerTokenStored.sub(
+            beforeData.userData.rewardPerTokenPaid,
+        );
+        const assignment = beforeData.boostBalance.balance
+            .mul(increaseInUserRewardPerToken)
+            .div(fullScale);
         //    If existing staker, then rewards Should increase
         if (shouldResetRewards) {
             expect(afterData.userData.rewards).bignumber.eq(new BN(0));
         } else if (isExistingStaker) {
             // rewards(beneficiary) should update with previously accrued tokens
-            const increaseInUserRewardPerToken = afterData.contractData.rewardPerTokenStored.sub(
-                beforeData.userData.rewardPerTokenPaid,
-            );
-            const assignment = beforeData.boostBalance.balance
-                .mul(increaseInUserRewardPerToken)
-                .div(fullScale);
             expect(beforeData.userData.rewards.add(unlockedRewards(assignment))).bignumber.eq(
                 afterData.userData.rewards,
             );
         } else {
             // else `rewards` should stay the same
             expect(beforeData.userData.rewards).bignumber.eq(afterData.userData.rewards);
+        }
+
+        // If existing staker, then a new entry should be appended
+        const newRewards = afterData.contractData.rewardPerTokenStored.gt(
+            beforeData.userData.rewardPerTokenPaid,
+        );
+        if (isExistingStaker && newRewards) {
+            const newLockEntry = afterData.userRewards[afterData.userData.rewardCount - 1];
+            expect(newLockEntry.start).bignumber.eq(
+                beforeData.userData.lastAction.add(lockupPeriod),
+            );
+            expect(newLockEntry.finish).bignumber.eq(
+                afterData.userData.lastAction.add(lockupPeriod),
+            );
+            const elapsed = afterData.userData.lastAction.sub(beforeData.userData.lastAction);
+            expect(newLockEntry.rate).bignumber.eq(lockedRewards(assignment).div(elapsed));
+            expect(afterData.userData.lastAction).bignumber.eq(timeAfter);
+        } else {
+            expect(beforeData.userRewards.length).eq(afterData.userRewards.length);
+            expect(beforeData.userData.rewardCount).eq(afterData.userData.rewardCount);
+            expect(afterData.userData.lastAction).bignumber.eq(timeAfter);
+            expect(beforeData.userData.userClaim).bignumber.eq(afterData.userData.userClaim);
         }
     };
 
@@ -515,14 +545,6 @@ contract("SavingsVault", async (accounts) => {
         beforeEach(async () => {
             savingsVault = await redeployRewards();
         });
-        describe("calling getBoost", () => {
-            it("should accurately return a users boost");
-        });
-        describe("calling getRequiredStake", () => {
-            it("should return the amount of vMTA required to get a particular boost with a given imUSD amount", async () => {
-                // fn on the contract works out the boost: function(uint256 imUSD, uint256 boost) returns (uint256 requiredVMTA)
-            });
-        });
         describe("when saving and with staking balance", () => {
             it("should calculate boost for 10k imUSD stake and 250 vMTA", async () => {
                 const deposit = simpleToExactAmount(10000);
@@ -535,8 +557,10 @@ contract("SavingsVault", async (accounts) => {
 
                 const balance = await savingsVault.balanceOf(sa.default);
                 expect(balance).bignumber.eq(expectedBoost);
-                console.log(boost(deposit, calcBoost(deposit, stake)).toString());
                 expect(boost(deposit, calcBoost(deposit, stake))).bignumber.eq(expectedBoost);
+
+                const ratio = await savingsVault.getBoost(sa.default);
+                expect(ratio).bignumber.eq(maxBoost);
             });
             it("should calculate boost for 10k imUSD stake and 100 vMTA", async () => {
                 const deposit = simpleToExactAmount(10000, 18);
@@ -548,14 +572,14 @@ contract("SavingsVault", async (accounts) => {
                 await savingsVault.pokeBoost(sa.default);
 
                 const balance = await savingsVault.balanceOf(sa.default);
-                console.log(balance.toString());
                 assertBNClosePercent(balance, expectedBoost, "1");
-                console.log(calcBoost(deposit, stake).toString());
                 assertBNClosePercent(
                     boost(deposit, calcBoost(deposit, stake)),
                     expectedBoost,
                     "0.1",
                 );
+                const ratio = await savingsVault.getBoost(sa.default);
+                assertBNClosePercent(ratio, simpleToExactAmount(1.259, 18), "0.1");
             });
             it("should calculate boost for 100k imUSD stake and 800 vMTA", async () => {
                 const deposit = simpleToExactAmount(100000, 18);
@@ -567,24 +591,126 @@ contract("SavingsVault", async (accounts) => {
                 await savingsVault.pokeBoost(sa.default);
 
                 const balance = await savingsVault.balanceOf(sa.default);
-                console.log(balance.toString());
                 assertBNClosePercent(balance, expectedBoost, "1");
-                console.log(calcBoost(deposit, stake).toString());
                 assertBNClosePercent(
                     boost(deposit, calcBoost(deposit, stake)),
                     expectedBoost,
                     "0.1",
                 );
+
+                const ratio = await savingsVault.getBoost(sa.default);
+                assertBNClosePercent(ratio, simpleToExactAmount(1.31, 18), "0.1");
+            });
+        });
+        describe("when saving with low staking balance and high vMTA", () => {
+            it("should give no boost due to below min threshold", async () => {
+                const deposit = simpleToExactAmount(5, 17);
+                const stake = simpleToExactAmount(800, 18);
+                const expectedBoost = simpleToExactAmount(25, 16);
+
+                await expectSuccessfulStake(deposit);
+                await stakingContract.setBalanceOf(sa.default, stake);
+                await savingsVault.pokeBoost(sa.default);
+
+                const balance = await savingsVault.balanceOf(sa.default);
+                assertBNClosePercent(balance, expectedBoost, "1");
+                assertBNClosePercent(
+                    boost(deposit, calcBoost(deposit, stake)),
+                    expectedBoost,
+                    "0.1",
+                );
+
+                const ratio = await savingsVault.getBoost(sa.default);
+                assertBNClosePercent(ratio, minBoost, "0.1");
             });
         });
         describe("when saving and with staking balance = 0", () => {
-            it("should give no boost");
+            it("should give no boost", async () => {
+                const deposit = simpleToExactAmount(100, 18);
+                const expectedBoost = simpleToExactAmount(50, 18);
+
+                await expectSuccessfulStake(deposit);
+
+                const balance = await savingsVault.balanceOf(sa.default);
+                assertBNClosePercent(balance, expectedBoost, "1");
+                assertBNClosePercent(boost(deposit, minBoost), expectedBoost, "0.1");
+
+                const ratio = await savingsVault.getBoost(sa.default);
+                assertBNClosePercent(ratio, minBoost, "0.1");
+            });
         });
         describe("when withdrawing and with staking balance", () => {
-            it("should set boost to 0 and update total supply");
+            it("should set boost to 0 and update total supply", async () => {
+                const deposit = simpleToExactAmount(100, 18);
+                const stake = simpleToExactAmount(800, 18);
+
+                await expectSuccessfulStake(deposit);
+                await stakingContract.setBalanceOf(sa.default, stake);
+                await savingsVault.pokeBoost(sa.default);
+
+                await time.increase(ONE_WEEK);
+                await savingsVault.methods["exit()"]();
+
+                const balance = await savingsVault.balanceOf(sa.default);
+                const raw = await savingsVault.rawBalanceOf(sa.default);
+                const supply = await savingsVault.totalSupply();
+
+                expect(balance).bignumber.eq(new BN(0));
+                expect(raw).bignumber.eq(new BN(0));
+                expect(supply).bignumber.eq(new BN(0));
+            });
         });
-        describe("when withdrawing and with staking balance = 0", () => {
-            it("should set boost to 0 and update total supply");
+        describe("when staking and then updating vMTA balance", () => {
+            it("should start accruing more rewards", async () => {
+                // Alice vs Bob
+                // 1. Pools are funded
+                // 2. Alice and Bob both deposit 100 and have no MTA
+                // 3. wait half a week
+                // 4. Alice increases MTA stake to get max boost
+                // 5. Both users are poked
+                // 6. Wait half a week
+                // 7. Both users are poked
+                // 8. Alice accrued 3x the rewards in the second entry
+                const alice = sa.default;
+                const bob = sa.dummy1;
+                // 1.
+                const hunnit = simpleToExactAmount(100, 18);
+                await rewardToken.transfer(savingsVault.address, hunnit, {
+                    from: rewardsDistributor,
+                });
+                await expectSuccesfulFunding(hunnit);
+
+                // 2.
+                await expectSuccessfulStake(hunnit);
+                await expectSuccessfulStake(hunnit, sa.default, bob);
+
+                // 3.
+                await time.increase(ONE_WEEK.divn(2));
+
+                // 4.
+                await stakingContract.setBalanceOf(alice, hunnit);
+
+                // 5.
+                await savingsVault.pokeBoost(alice);
+                await savingsVault.pokeBoost(bob);
+
+                // 6.
+                await time.increase(ONE_WEEK.divn(2));
+
+                // 7.
+                await savingsVault.pokeBoost(alice);
+                await savingsVault.pokeBoost(bob);
+
+                // 8.
+                const aliceData = await snapshotStakingData(alice, alice);
+                const bobData = await snapshotStakingData(bob, bob);
+
+                assertBNClosePercent(
+                    aliceData.userRewards[1].rate,
+                    bobData.userRewards[1].rate.muln(3),
+                    "0.1",
+                );
+            });
         });
     });
     context("adding first stake days after funding", () => {
@@ -668,6 +794,8 @@ contract("SavingsVault", async (accounts) => {
                 await imUSD.transfer(staker2, staker2Stake);
                 await imUSD.transfer(staker3, staker3Stake);
             });
+            // TODO - add boost for Staker 1 and staker 2
+            // - reward accrual rate only changes AFTER the action
             it("should accrue rewards on a pro rata basis", async () => {
                 /*
                  *  0               1               2   <-- Weeks
@@ -782,6 +910,7 @@ contract("SavingsVault", async (accounts) => {
             expect(balance).bignumber.eq(new BN(0));
         });
     });
+
     context("using staking / reward tokens with diff decimals", () => {
         before(async () => {
             rewardToken = await MockERC20.new("Reward", "RWD", 12, rewardsDistributor, 1000000);
@@ -847,7 +976,7 @@ contract("SavingsVault", async (accounts) => {
         });
         it("should do nothing for a non-staker", async () => {
             const beforeData = await snapshotStakingData(sa.dummy1, sa.dummy1);
-            await savingsVault.methods["claimRewards()"]({ from: sa.dummy1 });
+            await savingsVault.claimReward({ from: sa.dummy1 });
 
             const afterData = await snapshotStakingData(sa.dummy1, sa.dummy1);
             expect(beforeData.userData.rewards).bignumber.eq(new BN(0));
@@ -857,18 +986,18 @@ contract("SavingsVault", async (accounts) => {
                 afterData.contractData.rewardPerTokenStored,
             );
         });
-        it("should send all accrued rewards to the rewardee", async () => {
+        it("should send all UNLOCKED rewards to the rewardee", async () => {
             const beforeData = await snapshotStakingData(sa.dummy2, sa.dummy2);
             const rewardeeBalanceBefore = await rewardToken.balanceOf(sa.dummy2);
             expect(rewardeeBalanceBefore).bignumber.eq(new BN(0));
-            const tx = await savingsVault.methods["claimRewards(uint256,uint256)"](0, 0, {
+            const tx = await savingsVault.claimReward({
                 from: sa.dummy2,
             });
             expectEvent(tx.receipt, "RewardPaid", {
                 user: sa.dummy2,
             });
             const afterData = await snapshotStakingData(sa.dummy2, sa.dummy2);
-            await assertRewardsAssigned(beforeData, afterData, false, true);
+            await assertRewardsAssigned(beforeData, afterData, true, true);
             // Balance transferred to the rewardee
             const rewardeeBalanceAfter = await rewardToken.balanceOf(sa.dummy2);
             assertBNClose(rewardeeBalanceAfter, unlocked, simpleToExactAmount(1, 16));
@@ -884,6 +1013,402 @@ contract("SavingsVault", async (accounts) => {
             expect(beforeData.boostBalance.balance).bignumber.eq(afterData.boostBalance.balance);
         });
     });
+    context("claiming locked rewards", () => {
+        /*
+         *  0    1    2    3   .. 26  27   28   29  <-- Weeks
+         * 100k 100k 200k 100k                      <-- Funding
+         *                        [ 1 ][ 1.5  ][.5]
+         *  ^    ^      ^  ^                        <-- Staker
+         * stake p1    p2  withdraw
+         */
+
+        const hunnit = simpleToExactAmount(100, 21);
+        const sum = hunnit.muln(4);
+        const unlocked = unlockedRewards(sum);
+
+        beforeEach(async () => {
+            savingsVault = await redeployRewards();
+            await rewardToken.transfer(savingsVault.address, hunnit.muln(5), {
+                from: rewardsDistributor,
+            });
+            // t0
+            await expectSuccesfulFunding(hunnit);
+            await expectSuccessfulStake(hunnit);
+            await time.increase(ONE_WEEK.addn(1));
+            // t1
+            await expectSuccesfulFunding(hunnit);
+            await savingsVault.pokeBoost(sa.default);
+            await time.increase(ONE_WEEK.addn(1));
+            // t2
+            await expectSuccesfulFunding(hunnit.muln(2));
+            await time.increase(ONE_WEEK.divn(2));
+            // t2x5
+            await savingsVault.pokeBoost(sa.default);
+            await time.increase(ONE_WEEK.divn(2));
+            // t3
+            await expectSuccesfulFunding(hunnit);
+        });
+        it("should fetch the unclaimed tranche data", async () => {
+            await expectStakingWithdrawal(hunnit);
+            await time.increase(ONE_WEEK.muln(23));
+            // t = 26
+            let [amount, first, last] = await savingsVault.unclaimedRewards(sa.default);
+            assertBNClosePercent(amount, unlocked, "0.01");
+            expect(first).bignumber.eq(new BN(0));
+            expect(last).bignumber.eq(new BN(0));
+
+            await time.increase(ONE_WEEK.muln(3).divn(2));
+
+            // t = 27.5
+            [amount, first, last] = await savingsVault.unclaimedRewards(sa.default);
+            expect(first).bignumber.eq(new BN(0));
+            expect(last).bignumber.eq(new BN(1));
+            assertBNClosePercent(
+                amount,
+                unlocked.add(lockedRewards(simpleToExactAmount(166.666, 21))),
+                "0.01",
+            );
+
+            await time.increase(ONE_WEEK.muln(5).divn(2));
+
+            // t = 30
+            [amount, first, last] = await savingsVault.unclaimedRewards(sa.default);
+            expect(first).bignumber.eq(new BN(0));
+            expect(last).bignumber.eq(new BN(2));
+            assertBNClosePercent(
+                amount,
+                unlocked.add(lockedRewards(simpleToExactAmount(400, 21))),
+                "0.01",
+            );
+        });
+        it("should claim all unlocked rewards over the tranches, and any immediate unlocks", async () => {
+            await expectStakingWithdrawal(hunnit);
+            await time.increase(ONE_WEEK.muln(23));
+            await time.increase(ONE_WEEK.muln(3).divn(2));
+
+            // t=27.5
+            const expected = lockedRewards(simpleToExactAmount(166.666, 21));
+            const allRewards = unlocked.add(expected);
+            let [amount, first, last] = await savingsVault.unclaimedRewards(sa.default);
+            expect(first).bignumber.eq(new BN(0));
+            expect(last).bignumber.eq(new BN(1));
+            assertBNClosePercent(amount, allRewards, "0.01");
+
+            // claims all immediate unlocks
+            const dataBefore = await snapshotStakingData();
+            const t27x5 = await time.latest();
+            const tx = await savingsVault.methods["claimRewards(uint256,uint256)"](first, last);
+            expectEvent(tx.receipt, "RewardPaid", {
+                user: sa.default,
+            });
+
+            // Gets now unclaimed rewards (0, since no time has passed)
+            [amount, first, last] = await savingsVault.unclaimedRewards(sa.default);
+            expect(first).bignumber.eq(new BN(1));
+            expect(last).bignumber.eq(new BN(1));
+            expect(amount).bignumber.eq(new BN(0));
+
+            const dataAfter = await snapshotStakingData();
+
+            // Checks that data has been updated correctly
+            expect(dataAfter.boostBalance.totalSupply).bignumber.eq(new BN(0));
+            expect(dataAfter.tokenBalance.sender).bignumber.eq(
+                dataBefore.tokenBalance.sender.add(amount),
+            );
+            expect(dataAfter.userData.lastAction).bignumber.eq(dataAfter.userData.userClaim);
+            assertBNClose(t27x5, dataAfter.userData.lastAction, 5);
+            expect(dataAfter.userData.rewards).bignumber.eq(new BN(0));
+
+            await expectRevert(
+                savingsVault.methods["claimRewards(uint256,uint256)"](0, 0),
+                "Invalid epoch",
+            );
+
+            await time.increase(100);
+            [amount, first, last] = await savingsVault.unclaimedRewards(sa.default);
+            expect(first).bignumber.eq(new BN(1));
+            expect(last).bignumber.eq(new BN(1));
+            assertBNClose(
+                amount,
+                dataAfter.userRewards[1].rate.muln(100),
+                dataAfter.userRewards[1].rate.muln(3),
+            );
+
+            await savingsVault.methods["claimRewards(uint256,uint256)"](1, 1);
+
+            await time.increase(ONE_DAY.muln(10));
+
+            await savingsVault.methods["claimRewards(uint256,uint256)"](1, 1);
+
+            const d3 = await snapshotStakingData();
+            expect(d3.userData.userClaim).bignumber.eq(d3.userRewards[1].finish);
+
+            await savingsVault.methods["claimRewards(uint256,uint256)"](1, 1);
+
+            const d4 = await snapshotStakingData();
+            expect(d4.userData.userClaim).bignumber.eq(d4.userRewards[1].finish);
+            expect(d4.tokenBalance.sender).bignumber.eq(d3.tokenBalance.sender);
+        });
+        it("should claim rewards without being passed the params", async () => {
+            await expectStakingWithdrawal(hunnit);
+            await time.increase(ONE_WEEK.muln(23));
+            await time.increase(ONE_WEEK.muln(3).divn(2));
+
+            // t=27.5
+            const expected = lockedRewards(simpleToExactAmount(166.666, 21));
+            const allRewards = unlocked.add(expected);
+            let [amount, first, last] = await savingsVault.unclaimedRewards(sa.default);
+            expect(first).bignumber.eq(new BN(0));
+            expect(last).bignumber.eq(new BN(1));
+            assertBNClosePercent(amount, allRewards, "0.01");
+
+            // claims all immediate unlocks
+            const dataBefore = await snapshotStakingData();
+            const t27x5 = await time.latest();
+            const tx = await savingsVault.methods["claimRewards()"]();
+            expectEvent(tx.receipt, "RewardPaid", {
+                user: sa.default,
+            });
+
+            // Gets now unclaimed rewards (0, since no time has passed)
+            [amount, first, last] = await savingsVault.unclaimedRewards(sa.default);
+            expect(first).bignumber.eq(new BN(1));
+            expect(last).bignumber.eq(new BN(1));
+            expect(amount).bignumber.eq(new BN(0));
+
+            const dataAfter = await snapshotStakingData();
+
+            // Checks that data has been updated correctly
+            expect(dataAfter.boostBalance.totalSupply).bignumber.eq(new BN(0));
+            expect(dataAfter.tokenBalance.sender).bignumber.eq(
+                dataBefore.tokenBalance.sender.add(amount),
+            );
+            expect(dataAfter.userData.lastAction).bignumber.eq(dataAfter.userData.userClaim);
+            assertBNClose(t27x5, dataAfter.userData.lastAction, 5);
+            expect(dataAfter.userData.rewards).bignumber.eq(new BN(0));
+        });
+        it("should unlock all rewards after sufficient time has elapsed", async () => {
+            await expectStakingWithdrawal(hunnit);
+            await time.increase(ONE_WEEK.muln(27));
+
+            // t=30
+            const expected = lockedRewards(simpleToExactAmount(400, 21));
+            const allRewards = unlocked.add(expected);
+            let [amount, first, last] = await savingsVault.unclaimedRewards(sa.default);
+            expect(first).bignumber.eq(new BN(0));
+            expect(last).bignumber.eq(new BN(2));
+            assertBNClosePercent(amount, allRewards, "0.01");
+
+            // claims all immediate unlocks
+            const dataBefore = await snapshotStakingData();
+            const t30 = await time.latest();
+            const tx = await savingsVault.methods["claimRewards()"]();
+            expectEvent(tx.receipt, "RewardPaid", {
+                user: sa.default,
+            });
+
+            // Gets now unclaimed rewards (0, since no time has passed)
+            [amount, first, last] = await savingsVault.unclaimedRewards(sa.default);
+            expect(first).bignumber.eq(new BN(2));
+            expect(last).bignumber.eq(new BN(2));
+            expect(amount).bignumber.eq(new BN(0));
+
+            const dataAfter = await snapshotStakingData();
+
+            // Checks that data has been updated correctly
+            expect(dataAfter.boostBalance.totalSupply).bignumber.eq(new BN(0));
+            expect(dataAfter.tokenBalance.sender).bignumber.eq(
+                dataBefore.tokenBalance.sender.add(amount),
+            );
+            expect(dataAfter.userData.userClaim).bignumber.eq(dataAfter.userRewards[2].finish);
+            assertBNClose(t30, dataAfter.userData.lastAction, 5);
+            expect(dataAfter.userData.rewards).bignumber.eq(new BN(0));
+        });
+        it("should break if we leave rewards unclaimed at the start or end", async () => {
+            await expectStakingWithdrawal(hunnit);
+            await time.increase(ONE_WEEK.muln(25));
+
+            // t=28
+            let [, first, last] = await savingsVault.unclaimedRewards(sa.default);
+            expect(first).bignumber.eq(new BN(0));
+            expect(last).bignumber.eq(new BN(1));
+
+            await expectRevert(
+                savingsVault.methods["claimRewards(uint256,uint256)"](1, 1),
+                "Invalid _first arg: Must claim earlier entries",
+            );
+
+            await time.increase(ONE_WEEK.muln(3));
+            // t=31
+            [, first, last] = await savingsVault.unclaimedRewards(sa.default);
+            expect(first).bignumber.eq(new BN(0));
+            expect(last).bignumber.eq(new BN(2));
+
+            await savingsVault.methods["claimRewards(uint256,uint256)"](0, 1);
+
+            await savingsVault.methods["claimRewards(uint256,uint256)"](1, 2);
+
+            // then try to claim 0-2 again, and it should give nothing
+            const unclaimed = await savingsVault.unclaimedRewards(sa.default);
+            expect(unclaimed[0]).bignumber.eq(new BN(0));
+            expect(unclaimed[1]).bignumber.eq(new BN(2));
+            expect(unclaimed[2]).bignumber.eq(new BN(2));
+
+            const dataBefore = await snapshotStakingData();
+            await expectRevert(
+                savingsVault.methods["claimRewards(uint256,uint256)"](0, 2),
+                "Invalid epoch",
+            );
+            const dataAfter = await snapshotStakingData();
+
+            expect(dataAfter.tokenBalance.sender).bignumber.eq(dataBefore.tokenBalance.sender);
+            expect(dataAfter.userData.userClaim).bignumber.eq(dataBefore.userData.userClaim);
+        });
+        describe("with many array entries", () => {
+            it("should allow them all to be searched and claimed", async () => {
+                await rewardToken.transfer(savingsVault.address, hunnit.muln(6), {
+                    from: rewardsDistributor,
+                });
+                await time.increase(ONE_WEEK);
+                // t4
+                await savingsVault.pokeBoost(sa.default);
+                await expectSuccesfulFunding(hunnit);
+                await time.increase(ONE_WEEK.divn(2));
+                // t4.5
+                await savingsVault.pokeBoost(sa.default);
+                await time.increase(ONE_WEEK.divn(2));
+                // t5
+                await savingsVault.pokeBoost(sa.default);
+                await expectSuccesfulFunding(hunnit);
+                await time.increase(ONE_WEEK.divn(2));
+                // t5.5
+                await savingsVault.pokeBoost(sa.default);
+                await time.increase(ONE_WEEK.divn(2));
+                // t6
+                await savingsVault.pokeBoost(sa.default);
+                await expectSuccesfulFunding(hunnit);
+                await time.increase(ONE_WEEK.divn(2));
+                // t6.5
+                await savingsVault.pokeBoost(sa.default);
+                await time.increase(ONE_WEEK.divn(2));
+                // t7
+                await savingsVault.pokeBoost(sa.default);
+                await expectSuccesfulFunding(hunnit);
+                await time.increase(ONE_WEEK.divn(2));
+                // t7.5
+                await savingsVault.pokeBoost(sa.default);
+                await time.increase(ONE_WEEK.divn(2));
+                // t8
+                await savingsVault.pokeBoost(sa.default);
+                await expectSuccesfulFunding(hunnit);
+                await time.increase(ONE_WEEK.divn(2));
+                // t8.5
+                await savingsVault.pokeBoost(sa.default);
+                await time.increase(ONE_WEEK.divn(2));
+                // t9
+                await savingsVault.pokeBoost(sa.default);
+                await expectSuccesfulFunding(hunnit);
+                await time.increase(ONE_WEEK.divn(2));
+                // t9.5
+                await savingsVault.pokeBoost(sa.default);
+                await time.increase(ONE_WEEK.divn(2));
+                // t10
+                await savingsVault.pokeBoost(sa.default);
+
+                // count = 1
+                // t=28
+                await time.increase(ONE_WEEK.muln(18));
+                let [amt, first, last] = await savingsVault.unclaimedRewards(sa.default);
+                expect(first).bignumber.eq(new BN(0));
+                expect(last).bignumber.eq(new BN(1));
+
+                const data28 = await snapshotStakingData();
+                expect(data28.userData.userClaim).bignumber.eq(new BN(0));
+                expect(data28.userData.rewardCount).eq(15);
+
+                // t=32
+                await time.increase(ONE_WEEK.muln(4).subn(100));
+                [amt, first, last] = await savingsVault.unclaimedRewards(sa.default);
+                expect(first).bignumber.eq(new BN(0));
+                expect(last).bignumber.eq(new BN(6));
+                await savingsVault.methods["claimRewards(uint256,uint256)"](0, 6);
+                const data32 = await snapshotStakingData();
+                expect(data32.userData.userClaim).bignumber.eq(data32.userData.lastAction);
+
+                [amt, first, last] = await savingsVault.unclaimedRewards(sa.default);
+                expect(amt).bignumber.eq(new BN(0));
+                expect(first).bignumber.eq(new BN(6));
+                expect(last).bignumber.eq(new BN(6));
+
+                // t=35
+                await time.increase(ONE_WEEK.muln(3));
+                [amt, first, last] = await savingsVault.unclaimedRewards(sa.default);
+                expect(first).bignumber.eq(new BN(6));
+                expect(last).bignumber.eq(new BN(12));
+
+                await savingsVault.methods["claimRewards(uint256,uint256)"](6, 12);
+                const data35 = await snapshotStakingData();
+                expect(data35.userData.userClaim).bignumber.eq(data35.userData.lastAction);
+                [amt, ,] = await savingsVault.unclaimedRewards(sa.default);
+                expect(amt).bignumber.eq(new BN(0));
+
+                await expectRevert(
+                    savingsVault.methods["claimRewards(uint256,uint256)"](0, 1),
+                    "Invalid epoch",
+                );
+            });
+        });
+        describe("with a one second entry", () => {
+            it("should allow it to be claimed", async () => {
+                await rewardToken.transfer(savingsVault.address, hunnit, {
+                    from: rewardsDistributor,
+                });
+                await savingsVault.pokeBoost(sa.default);
+                await time.increase(ONE_WEEK);
+                // t4
+                await expectSuccesfulFunding(hunnit);
+                await savingsVault.pokeBoost(sa.default);
+                await savingsVault.pokeBoost(sa.default);
+                await savingsVault.pokeBoost(sa.default);
+                await savingsVault.pokeBoost(sa.default);
+                await savingsVault.pokeBoost(sa.default);
+                await savingsVault.pokeBoost(sa.default);
+                await savingsVault.pokeBoost(sa.default);
+                await time.increase(ONE_WEEK.muln(26).subn(10));
+
+                // t30
+                const data = await snapshotStakingData();
+                expect(data.userData.rewardCount).eq(10);
+                const r4 = data.userRewards[4];
+                const r5 = data.userRewards[5];
+                expect(r4.finish).bignumber.eq(r5.start);
+                expect(r5.finish).bignumber.eq(r5.start.addn(1));
+                expect(r4.rate).bignumber.eq(r5.rate);
+                assertBNClosePercent(r4.rate, lockedRewards(data.contractData.rewardRate), "0.001");
+
+                let [, first, last] = await savingsVault.unclaimedRewards(sa.default);
+                expect(first).bignumber.eq(new BN(0));
+                expect(last).bignumber.eq(new BN(3));
+                await savingsVault.methods["claimRewards(uint256,uint256)"](0, 3);
+                await time.increase(20);
+
+                [, first, last] = await savingsVault.unclaimedRewards(sa.default);
+                expect(first).bignumber.eq(new BN(3));
+                expect(last).bignumber.eq(new BN(10));
+
+                await expectRevert(
+                    savingsVault.methods["claimRewards(uint256,uint256)"](0, 8),
+                    "Invalid epoch",
+                );
+                await savingsVault.methods["claimRewards(uint256,uint256)"](3, 8);
+                await expectRevert(
+                    savingsVault.methods["claimRewards(uint256,uint256)"](6, 9),
+                    "Invalid epoch",
+                );
+                await savingsVault.methods["claimRewards()"];
+            });
+        });
+    });
 
     context("getting the reward token", () => {
         before(async () => {
@@ -893,6 +1418,124 @@ contract("SavingsVault", async (accounts) => {
             const readToken = await savingsVault.getRewardToken();
             expect(readToken).eq(rewardToken.address);
             expect(readToken).eq(await savingsVault.rewardsToken());
+        });
+    });
+
+    context("calling exit", () => {
+        const hunnit = simpleToExactAmount(100, 18);
+        beforeEach(async () => {
+            savingsVault = await redeployRewards();
+            await rewardToken.transfer(savingsVault.address, hunnit, {
+                from: rewardsDistributor,
+            });
+            await expectSuccesfulFunding(hunnit);
+            await expectSuccessfulStake(hunnit);
+            await time.increase(ONE_WEEK.addn(1));
+        });
+        context("with no raw balance but rewards unlocked", () => {
+            it("errors", async () => {
+                await savingsVault.withdraw(hunnit);
+                const beforeData = await snapshotStakingData();
+                expect(beforeData.boostBalance.totalSupply).bignumber.eq(new BN(0));
+                await expectRevert(savingsVault.methods["exit()"](), "Cannot withdraw 0");
+            });
+        });
+        context("with raw balance", async () => {
+            it("withdraws everything and claims unlocked rewards", async () => {
+                const beforeData = await snapshotStakingData();
+                expect(beforeData.boostBalance.totalSupply).bignumber.eq(
+                    simpleToExactAmount(50, 18),
+                );
+                await savingsVault.methods["exit()"]();
+                const afterData = await snapshotStakingData();
+                expect(afterData.userData.userClaim).bignumber.eq(afterData.userData.lastAction);
+                expect(afterData.userData.rewards).bignumber.eq(new BN(0));
+                expect(afterData.boostBalance.totalSupply).bignumber.eq(new BN(0));
+            });
+        });
+        context("with unlocked rewards", () => {
+            it("claims unlocked epochs", async () => {
+                await savingsVault.pokeBoost(sa.default);
+                await time.increase(ONE_WEEK.muln(27));
+
+                const [amount, first, last] = await savingsVault.unclaimedRewards(sa.default);
+                expect(first).bignumber.eq(new BN(0));
+                expect(last).bignumber.eq(new BN(0));
+                assertBNClosePercent(amount, hunnit, "0.01");
+
+                // claims all immediate unlocks
+                const tx = await savingsVault.methods["exit(uint256,uint256)"](first, last);
+                expectEvent(tx.receipt, "RewardPaid", {
+                    user: sa.default,
+                });
+                expectEvent(tx.receipt, "Withdrawn", {
+                    user: sa.default,
+                    amount: hunnit,
+                });
+            });
+        });
+    });
+
+    context("withdrawing stake or rewards", () => {
+        context("withdrawing a stake amount", () => {
+            const fundAmount = simpleToExactAmount(100, 21);
+            const stakeAmount = simpleToExactAmount(100, 18);
+
+            before(async () => {
+                savingsVault = await redeployRewards();
+                await expectSuccesfulFunding(fundAmount);
+                await expectSuccessfulStake(stakeAmount);
+                await time.increase(10);
+            });
+            it("should revert for a non-staker", async () => {
+                await expectRevert(
+                    savingsVault.withdraw(1, { from: sa.dummy1 }),
+                    "SafeMath: subtraction overflow",
+                );
+            });
+            it("should revert if insufficient balance", async () => {
+                await expectRevert(
+                    savingsVault.withdraw(stakeAmount.addn(1), { from: sa.default }),
+                    "SafeMath: subtraction overflow",
+                );
+            });
+            it("should fail if trying to withdraw 0", async () => {
+                await expectRevert(
+                    savingsVault.withdraw(0, { from: sa.default }),
+                    "Cannot withdraw 0",
+                );
+            });
+            it("should withdraw the stake and update the existing reward accrual", async () => {
+                // Check that the user has earned something
+                const earnedBefore = await savingsVault.earned(sa.default);
+                expect(earnedBefore).bignumber.gt(new BN(0) as any);
+                const dataBefore = await snapshotStakingData();
+                expect(dataBefore.userData.rewards).bignumber.eq(new BN(0));
+
+                // Execute the withdrawal
+                await expectStakingWithdrawal(stakeAmount);
+
+                // Ensure that the new awards are added + assigned to user
+                const earnedAfter = await savingsVault.earned(sa.default);
+                expect(earnedAfter).bignumber.gte(earnedBefore as any);
+                const dataAfter = await snapshotStakingData();
+                expect(dataAfter.userData.rewards).bignumber.eq(earnedAfter);
+
+                // Zoom forward now
+                await time.increase(10);
+
+                // Check that the user does not earn anything else
+                const earnedEnd = await savingsVault.earned(sa.default);
+                expect(earnedEnd).bignumber.eq(earnedAfter);
+                const dataEnd = await snapshotStakingData();
+                expect(dataEnd.userData.rewards).bignumber.eq(dataAfter.userData.rewards);
+
+                // Cannot withdraw anything else
+                await expectRevert(
+                    savingsVault.withdraw(stakeAmount.addn(1), { from: sa.default }),
+                    "SafeMath: subtraction overflow",
+                );
+            });
         });
     });
 
@@ -986,69 +1629,6 @@ contract("SavingsVault", async (accounts) => {
                 const actualRewardRateAfter = await savingsVault.rewardRate();
                 const expectedRewardRateAfter = expectedRewardRate.muln(2);
                 expect(actualRewardRateAfter).bignumber.eq(expectedRewardRateAfter);
-            });
-        });
-    });
-
-    context("withdrawing stake or rewards", () => {
-        context("withdrawing a stake amount", () => {
-            const fundAmount = simpleToExactAmount(100, 21);
-            const stakeAmount = simpleToExactAmount(100, 18);
-
-            before(async () => {
-                savingsVault = await redeployRewards();
-                await expectSuccesfulFunding(fundAmount);
-                await expectSuccessfulStake(stakeAmount);
-                await time.increase(10);
-            });
-            it("should revert for a non-staker", async () => {
-                await expectRevert(
-                    savingsVault.withdraw(1, { from: sa.dummy1 }),
-                    "SafeMath: subtraction overflow",
-                );
-            });
-            it("should revert if insufficient balance", async () => {
-                await expectRevert(
-                    savingsVault.withdraw(stakeAmount.addn(1), { from: sa.default }),
-                    "SafeMath: subtraction overflow",
-                );
-            });
-            it("should fail if trying to withdraw 0", async () => {
-                await expectRevert(
-                    savingsVault.withdraw(0, { from: sa.default }),
-                    "Cannot withdraw 0",
-                );
-            });
-            it("should withdraw the stake and update the existing reward accrual", async () => {
-                // Check that the user has earned something
-                const earnedBefore = await savingsVault.earned(sa.default);
-                expect(earnedBefore).bignumber.gt(new BN(0) as any);
-                // const rewardsBefore = await savingsVault.rewards(sa.default);
-                // expect(rewardsBefore).bignumber.eq(new BN(0));
-
-                // Execute the withdrawal
-                await expectStakingWithdrawal(stakeAmount);
-
-                // Ensure that the new awards are added + assigned to user
-                const earnedAfter = await savingsVault.earned(sa.default);
-                expect(earnedAfter).bignumber.gte(earnedBefore as any);
-                // const rewardsAfter = await savingsVault.rewards(sa.default);
-                // expect(rewardsAfter).bignumber.eq(earnedAfter);
-
-                // Zoom forward now
-                await time.increase(10);
-
-                // Check that the user does not earn anything else
-                const earnedEnd = await savingsVault.earned(sa.default);
-                expect(earnedEnd).bignumber.eq(earnedAfter);
-                // const rewardsEnd = await savingsVault.rewards(sa.default);
-                // expect(rewardsEnd).bignumber.eq(rewardsAfter);
-
-                // Cannot withdraw anything else
-                await expectRevert(
-                    savingsVault.withdraw(stakeAmount.addn(1), { from: sa.default }),
-                    "SafeMath: subtraction overflow",
-                );
             });
         });
     });

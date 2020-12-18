@@ -125,7 +125,7 @@ contract BoostedTokenWrapper is ReentrancyGuard {
 
     /**
      * @dev Updates the boost for the given address according to the formula
-     * boost = min(0.5 + 2 * vMTA_balance / imUSD_locked^(7/8), 1.5)
+     * boost = min(0.5 + c * vMTA_balance / imUSD_locked^(7/8), 1.5)
      * If rawBalance <= MIN_DEPOSIT, boost is 0
      * @param _account User for which to update the boost
      */
@@ -153,7 +153,7 @@ contract BoostedTokenWrapper is ReentrancyGuard {
 
     /**
      * @dev Computes the boost for
-     * boost = min(0.5 + 2 * voting_weight / deposit^(7/8), 1.5)
+     * boost = min(0.5 + c * voting_weight / deposit^(7/8), 1.5)
      */
     function _computeBoost(uint256 _deposit, uint256 _votingWeight)
         private

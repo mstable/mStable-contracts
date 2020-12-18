@@ -1,6 +1,7 @@
 pragma solidity 0.5.16;
 
 // Internal
+import { IBoostedVaultWithLockup } from "../interfaces/IBoostedVaultWithLockup.sol";
 import { RewardsDistributionRecipient } from "../rewards/RewardsDistributionRecipient.sol";
 import { BoostedTokenWrapper } from "./BoostedTokenWrapper.sol";
 
@@ -21,7 +22,7 @@ import { StableMath, SafeMath } from "../shared/StableMath.sol";
  *          - Struct packing of common data
  *          - Searching for and claiming of unlocked rewards
  */
-contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipient {
+contract BoostedSavingsVault is IBoostedVaultWithLockup, BoostedTokenWrapper, RewardsDistributionRecipient {
 
     using StableMath for uint256;
     using SafeCast for uint256;
@@ -106,6 +107,8 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
                 UserData memory data = userData[_account];
                 uint256 earned = _earned(_account, data.rewardPerTokenPaid, newRewardPerToken);
 
+                // If earned == 0, then it must either be the initial stake, or an action in the
+                // same block, since new rewards unlock after each block.
                 if(earned > 0){
 
                     uint256 unlocked = earned.mulTruncate(UNLOCK);
@@ -207,7 +210,6 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
      * @dev Withdraws given stake amount from the pool
      * @param _amount Units of the staked token to withdraw
      */
-     // TODO - ensure that withdrawing and consequently staking, plays nicely with reward unlocking
     function withdraw(uint256 _amount)
         external
         updateReward(msg.sender)
@@ -287,19 +289,19 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
     function _claimRewards(uint256 _first, uint256 _last)
         internal
     {
-        uint256 currentTime = block.timestamp;
-
-        uint256 unclaimed = _unclaimedRewards(msg.sender, _first, _last);
-        userClaim[msg.sender] = uint64(currentTime);
+        (uint256 unclaimed, uint256 lastTimestamp) = _unclaimedRewards(msg.sender, _first, _last);
+        userClaim[msg.sender] = uint64(lastTimestamp);
 
         uint256 unlocked = userData[msg.sender].rewards;
         userData[msg.sender].rewards = 0;
 
         uint256 total = unclaimed.add(unlocked);
 
-        rewardsToken.safeTransfer(msg.sender, total);
+        if(total > 0){
+            rewardsToken.safeTransfer(msg.sender, total);
 
-        emit RewardPaid(msg.sender, total);
+            emit RewardPaid(msg.sender, total);
+        }
     }
 
     /**
@@ -424,7 +426,8 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
         returns (uint256 amount, uint256 first, uint256 last)
     {
         (first, last) = _unclaimedEpochs(_account);
-        amount = _unclaimedRewards(_account, first, last).add(earned(_account));
+        (uint256 unlocked, ) = _unclaimedRewards(_account, first, last);
+        amount = unlocked.add(earned(_account));
     }
 
     /** @dev Returns only the most recently earned rewards */
@@ -467,17 +470,21 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
     function _unclaimedRewards(address _account, uint256 _first, uint256 _last)
         internal
         view
-        returns (uint256 amount)
+        returns (uint256 amount, uint256 latestTimestamp)
     {
         uint256 currentTime = block.timestamp;
         uint64 lastClaim = userClaim[_account];
 
         // Check for no rewards unlocked
+        uint256 totalLen = userRewards[_account].length;
         if(_first == 0 && _last == 0) {
-            uint256 totalLen = userRewards[_account].length;
             if(totalLen == 0 || currentTime <= userRewards[_account][0].start){
-                return 0;
+                return (0, currentTime);
             }
+        }
+        // If there are previous unlocks, check for claims that would leave them untouchable
+        if(_first > 0){
+            require(lastClaim >= userRewards[_account][_first.sub(1)].finish, "Invalid _first arg: Must claim earlier entries");
         }
 
         uint256 count = _last.sub(_first).add(1);
@@ -486,8 +493,7 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
             uint256 id = _first.add(i);
             Reward memory rwd = userRewards[_account][id];
 
-            require(currentTime >= rwd.start, "Must have started");
-            require(lastClaim <= rwd.finish, "Must be unclaimed");
+            require(currentTime >= rwd.start && lastClaim <= rwd.finish, "Invalid epoch");
 
             uint256 endTime = StableMath.min(rwd.finish, currentTime);
             uint256 startTime = StableMath.max(rwd.start, lastClaim);
@@ -495,6 +501,10 @@ contract BoostedSavingsVault is BoostedTokenWrapper, RewardsDistributionRecipien
 
             amount = amount.add(unclaimed);
         }
+
+        // Calculate last relevant timestamp here to allow users to avoid issue of OOG errors
+        // by claiming rewards in batches.
+        latestTimestamp = StableMath.min(currentTime, userRewards[_account][_last].finish);
     }
 
 
