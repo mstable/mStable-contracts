@@ -533,9 +533,13 @@ contract BasketManager is
             uint256 cache = IERC20(bAsset).balanceOf(address(oldIntegration));
             // 2.1. Withdraw from the lending market
             uint256 lendingBal = oldIntegration.checkBalance(bAsset);
-            oldIntegration.withdraw(address(this), bAsset, lendingBal, false);
+            if(lendingBal > 0) {
+                oldIntegration.withdraw(address(this), bAsset, lendingBal, false);
+            }
             // 2.2. Withdraw from the cache, if any
-            oldIntegration.withdrawRaw(address(this), bAsset, cache);
+            if(cache > 0){
+                oldIntegration.withdrawRaw(address(this), bAsset, cache);
+            }
             uint256 total = lendingBal.add(cache);
 
             // 3. Update the integration address for this bAsset
