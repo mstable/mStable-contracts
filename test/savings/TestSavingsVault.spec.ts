@@ -735,7 +735,7 @@ contract("SavingsVault", async (accounts) => {
 
             // e.g. 1e15 * 1e18 / 50e18 = 2e13
             const rewardPerSecond = rewardRate.mul(fullScale).div(boosted);
-            assertBNClose(rewardPerToken, FIVE_DAYS.mul(rewardPerSecond), rewardPerSecond.muln(4));
+            assertBNClosePercent(rewardPerToken, FIVE_DAYS.mul(rewardPerSecond), "0.01");
 
             // Calc estimated unclaimed reward for the user
             // earned == balance * (rewardPerToken-userExistingReward)
