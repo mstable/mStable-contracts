@@ -609,7 +609,10 @@ export class MassetMachine {
                 type === "deposit"
                     ? newSum.sub(maxC.divn(2))
                     : BN.min(
-                          maxC.divn(2).add(amount).sub(new BN(integratorBalBefore)),
+                          maxC
+                              .divn(2)
+                              .add(amount)
+                              .sub(new BN(integratorBalBefore)),
                           new BN(bAsset.vaultBalance).sub(new BN(integratorBalBefore)),
                       ),
             rawBalance:

@@ -875,6 +875,7 @@ contract("BasketManager", async (accounts) => {
                 newIntegrator: newMigration.address,
             });
         });
+        it("should pass if either rawBalance or balance are 0");
     });
 
     describe("addBasset()", async () => {
