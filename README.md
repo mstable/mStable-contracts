@@ -4,7 +4,7 @@
 ![CI](https://github.com/mstable/mStable-contracts/workflows/Test/badge.svg)
 [![Coverage Status](https://coveralls.io/repos/github/mstable/mStable-contracts/badge.svg?branch=master)](https://coveralls.io/github/mstable/mStable-contracts?branch=master)
 [![Discord](https://img.shields.io/discord/525087739801239552?color=7289DA&label=discord%20)](https://discordapp.com/channels/525087739801239552/)
-
+[![npm version](https://badge.fury.io/js/%40mstable%2Fprotocol.svg)](https://badge.fury.io/js/%40mstable%2Fprotocol)
 
 <br />
 
@@ -47,6 +47,8 @@ Found a bug? Claim a reward from our open [Bug Bounty](https://docs.mstable.org/
 ## Artifacts
 
 We publish the contract artifacts to an npm package called [@mstable/protocol](https://www.npmjs.com/package/@mstable/protocol). You can browse them via [unpkg.com](https://unpkg.com/browse/@mstable/protocol@latest/).
+
+<br />
 
 ## Dev notes
 
