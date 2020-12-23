@@ -3,7 +3,7 @@ import { StandardAccounts } from "@utils/machines";
 import { simpleToExactAmount } from "@utils/math";
 import { BN } from "@utils/tools";
 import envSetup from "@utils/env_setup";
-import { ZERO_ADDRESS, ONE_WEEK } from "@utils/constants";
+import { ZERO_ADDRESS, ONE_WEEK, ONE_DAY } from "@utils/constants";
 import * as t from "types/generated";
 
 import shouldBehaveLikeModule from "../../shared/behaviours/Module.behaviour";
@@ -12,11 +12,13 @@ const MockTrigger = artifacts.require("MockTrigger");
 const Liquidator = artifacts.require("Liquidator");
 const MockCompoundIntegration = artifacts.require("MockCompoundIntegration1");
 const SavingsManager = artifacts.require("SavingsManager");
+const SavingsContract = artifacts.require("SavingsContract");
 const MockERC20 = artifacts.require("MockERC20");
 const MockMasset = artifacts.require("MockMasset");
 const MockNexus = artifacts.require("MockNexus");
 const MockCurve = artifacts.require("MockCurveMetaPool");
 const MockUniswap = artifacts.require("MockUniswap");
+const MockProxy = artifacts.require("MockProxy");
 
 const { expect } = envSetup.configure();
 
@@ -98,9 +100,17 @@ contract("Liquidator", async (accounts) => {
 
         // Add the module
         // Liquidator
-        liquidator = await Liquidator.new();
-        await liquidator.initialize(nexus.address, uniswap.address, curve.address, mUSD.address);
-        savings = await SavingsManager.new(nexus.address, mUSD.address, sa.other, {
+        const proxy = await MockProxy.new();
+        const impl = await Liquidator.new();
+
+        const data: string = impl.contract.methods
+            .initialize(nexus.address, uniswap.address, curve.address, mUSD.address)
+            .encodeABI();
+        await proxy.methods["initialize(address,address,bytes)"](impl.address, sa.other, data);
+        liquidator = await Liquidator.at(proxy.address);
+
+        const save = await SavingsContract.new(nexus.address, mUSD.address);
+        savings = await SavingsManager.new(nexus.address, mUSD.address, save.address, {
             from: sa.default,
         });
         await nexus.setSavingsManager(savings.address);
@@ -421,13 +431,6 @@ contract("Liquidator", async (accounts) => {
                 "Liquidation does not exist",
             );
         });
-        it("should fail if called within 7 days of the previous", async () => {
-            await liquidator.triggerLiquidation(compIntegration.address);
-            await expectRevert(
-                liquidator.triggerLiquidation(compIntegration.address),
-                "Must wait for interval",
-            );
-        });
         it("should fail if Uniswap price is below the floor", async () => {
             await uniswap.setRatio(69);
             await expectRevert(
@@ -487,6 +490,16 @@ contract("Liquidator", async (accounts) => {
                 liquidator.triggerLiquidation(compIntegration.address),
                 "Liquidation has been paused",
             );
+        });
+        it("should fail if called within 7 days of the previous", async () => {
+            await liquidator.triggerLiquidation(compIntegration.address);
+            await time.increase(ONE_DAY.muln(5));
+            await expectRevert(
+                liquidator.triggerLiquidation(compIntegration.address),
+                "Must wait for interval",
+            );
+            await time.increase(ONE_DAY.muln(3));
+            await liquidator.triggerLiquidation(compIntegration.address);
         });
     });
 });

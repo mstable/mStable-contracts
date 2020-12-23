@@ -7,7 +7,6 @@ import { ISavingsManager } from "../../interfaces/ISavingsManager.sol";
 import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
 import { InitializableModule } from "../../shared/InitializableModule.sol";
 import { ILiquidator } from "./ILiquidator.sol";
-import { MassetHelpers } from "../../masset/shared/MassetHelpers.sol";
 
 import { IBasicToken } from "../../shared/IBasicToken.sol";
 import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
@@ -20,8 +19,8 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @author  Stability Labs Pty. Ltd.
  * @notice  The Liquidator allows rewards to be swapped for another token
  *          and returned to a calling contract
- * @dev     VERSION: 1.0
- *          DATE:    2020-10-13
+ * @dev     VERSION: 1.2
+ *          DATE:    2020-12-16
  */
 contract Liquidator is
     ILiquidator,
@@ -38,6 +37,7 @@ contract Liquidator is
     address public mUSD;
     ICurveMetaPool public curve;
     IUniswapV2Router02 public uniswap;
+    // Deprecated var, but kept around to mirror storage layout
     uint256 private interval = 7 days;
 
     mapping(address => Liquidation) public liquidations;
@@ -217,7 +217,7 @@ contract Liquidator is
         address bAsset = liquidation.bAsset;
         require(bAsset != address(0), "Liquidation does not exist");
 
-        require(block.timestamp > liquidation.lastTriggered.add(interval), "Must wait for interval");
+        require(block.timestamp > liquidation.lastTriggered.add(7 days), "Must wait for interval");
         liquidations[_integration].lastTriggered = block.timestamp;
 
         // Cache variables
