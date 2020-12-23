@@ -775,13 +775,9 @@ contract("BasketManager", async (accounts) => {
         let newMigration: t.AaveV2IntegrationInstance;
         let maliciousIntegration: t.MaliciousAaveIntegrationInstance;
         let transferringAsset: t.MockERC20Instance;
-        before(async () => {
+        beforeEach(async () => {
             await createNewBasketManager();
             [, , transferringAsset] = integrationDetails.bAssets;
-            await transferringAsset.transfer(aaveIntegration.address, new BN(10000));
-            await aaveIntegration.deposit(transferringAsset.address, new BN(9000), false, {
-                from: governance,
-            });
             newMigration = await AaveIntegration.new();
             await newMigration.initialize(
                 nexus.address,
@@ -829,6 +825,10 @@ contract("BasketManager", async (accounts) => {
             );
         });
         it("should fail if the full amount is not transferred and deposited", async () => {
+            await transferringAsset.transfer(aaveIntegration.address, new BN(10000));
+            await aaveIntegration.deposit(transferringAsset.address, new BN(9000), false, {
+                from: governance,
+            });
             await expectRevert(
                 basketManager.migrateBassets(
                     [transferringAsset.address],
@@ -841,6 +841,10 @@ contract("BasketManager", async (accounts) => {
             );
         });
         it("should move all bAssets from a to b", async () => {
+            await transferringAsset.transfer(aaveIntegration.address, new BN(10000));
+            await aaveIntegration.deposit(transferringAsset.address, new BN(9000), false, {
+                from: governance,
+            });
             // get balances before
             const bal = await aaveIntegration.checkBalance.call(transferringAsset.address);
             expect(bal).bignumber.eq(new BN(9000));
@@ -875,7 +879,42 @@ contract("BasketManager", async (accounts) => {
                 newIntegrator: newMigration.address,
             });
         });
-        it("should pass if either rawBalance or balance are 0");
+        it("should pass if either rawBalance or balance are 0", async () => {
+            await transferringAsset.transfer(aaveIntegration.address, new BN(10000));
+            await aaveIntegration.deposit(transferringAsset.address, new BN(10000), false, {
+                from: governance,
+            });
+            // get balances before
+            const bal = await aaveIntegration.checkBalance.call(transferringAsset.address);
+            expect(bal).bignumber.eq(new BN(10000));
+            const rawBal = await transferringAsset.balanceOf(aaveIntegration.address);
+            expect(rawBal).bignumber.eq(new BN(0));
+            let integratorAddress = await basketManager.getBassetIntegrator(
+                transferringAsset.address,
+            );
+            expect(integratorAddress).eq(aaveIntegration.address);
+            // call migrate
+            const tx = await basketManager.migrateBassets(
+                [transferringAsset.address],
+                newMigration.address,
+                {
+                    from: sa.governor,
+                },
+            );
+            // moves all bAssets from old to new
+            const migratedBal = await newMigration.checkBalance.call(transferringAsset.address);
+            expect(migratedBal).bignumber.eq(bal);
+            const migratedRawBal = await transferringAsset.balanceOf(newMigration.address);
+            expect(migratedRawBal).bignumber.eq(rawBal);
+            // updates the integrator address
+            integratorAddress = await basketManager.getBassetIntegrator(transferringAsset.address);
+            expect(integratorAddress).eq(newMigration.address);
+            // emits BassetsMigrated
+            await expectEvent(tx.receipt, "BassetsMigrated", {
+                bAssets: [transferringAsset.address],
+                newIntegrator: newMigration.address,
+            });
+        });
     });
 
     describe("addBasset()", async () => {
