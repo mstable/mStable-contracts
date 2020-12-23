@@ -290,7 +290,6 @@ contract Masset is
         // 2.2 - Else Deposit X if Cache > %
         else {
             // This check is in place to ensure that any token with a txFee is rejected
-            // Audit notes: Assumption made that if no fee is collected here then there is no txfee
             require(transferred == _quantity, "Asset not fully transferred");
 
             quantityDeposited = transferred;
@@ -356,14 +355,14 @@ contract Masset is
         Cache memory cache = _getCacheDetails();
 
         // 3. Deposit the input tokens
-        (uint256 amnountIn, ) =
+        (uint256 amountIn, ) =
             _depositTokens(args.input, inputDetails.bAsset.ratio, inputDetails.integrator, inputDetails.bAsset.isTransferFeeCharged, _quantity, cache.maxCache);
         // 3.1. Update the input balance
-        basketManager.increaseVaultBalance(inputDetails.index, inputDetails.integrator, amnountIn);
+        basketManager.increaseVaultBalance(inputDetails.index, inputDetails.integrator, amountIn);
 
         // 4. Validate the swap
         (bool swapValid, string memory swapValidityReason, uint256 swapOutput, bool applySwapFee) =
-            forgeValidator.validateSwap(cache.vaultBalanceSum, inputDetails.bAsset, outputDetails.bAsset, amnountIn);
+            forgeValidator.validateSwap(cache.vaultBalanceSum, inputDetails.bAsset, outputDetails.bAsset, amountIn);
         require(swapValid, swapValidityReason);
         require(swapOutput > 0, "Must withdraw something");
 

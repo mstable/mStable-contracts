@@ -74,7 +74,7 @@ export const applyRatioMassetToBasset = (input: BN, ratio: BN | string): BN => {
 };
 
 // How many mAssets is this bAsset worth
-export const applyRatio = (bAssetQ: BN | string, ratio: BN | string): BN => {
+export const applyRatio = (bAssetQ: BN | string | number, ratio: BN | string): BN => {
     return new BN(bAssetQ).mul(new BN(ratio)).div(ratioScale);
 };
 

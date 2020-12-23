@@ -153,6 +153,7 @@ contract("Masset - Swap", async (accounts) => {
         const outputIntegratorBalBefore = isMint
             ? new BN(0)
             : await outputBassetBefore.contract.balanceOf(outputBassetBefore.integrator.address);
+        const surplusBefore = await mAsset.surplus();
 
         // 2. Do the necessary approvals and make the calls
         const approval0: BN = await massetMachine.approveMasset(
@@ -182,6 +183,7 @@ contract("Masset - Swap", async (accounts) => {
             ? scaledInputQuantity
             : scaledInputQuantity.mul(ratioScale).div(new BN(outputBassetBefore.ratio));
         let fee = new BN(0);
+        let scaledFee = new BN(0);
         let feeRate = new BN(0);
         //    If there is a fee expected, then deduct it from output
         if (expectSwapFee && !isMint) {
@@ -190,6 +192,7 @@ contract("Masset - Swap", async (accounts) => {
             expect(feeRate).bignumber.lt(fullScale.div(new BN(50)) as any);
             fee = expectedOutputValue.mul(feeRate).div(fullScale);
             expect(fee).bignumber.gt(new BN(0) as any);
+            scaledFee = fee.mul(new BN(outputBassetBefore.ratio)).div(ratioScale);
         }
 
         // Expect to be used in cache
@@ -253,11 +256,11 @@ contract("Masset - Swap", async (accounts) => {
         const inputIntegratorBalAfter = await inputBassetBefore.contract.balanceOf(
             inputBassetBefore.integrator.address,
         );
+        expect(inputIntegratorBalAfter).bignumber.eq(platformInteraction_in.rawBalance);
         const outputIntegratorBalAfter = isMint
             ? new BN(0)
             : await outputBassetBefore.contract.balanceOf(outputBassetBefore.integrator.address);
         if (!isMint) {
-            expect(inputIntegratorBalAfter).bignumber.eq(platformInteraction_in.rawBalance);
             expect(outputIntegratorBalAfter).bignumber.eq(platformInteraction_out.rawBalance);
         }
 
@@ -312,6 +315,8 @@ contract("Masset - Swap", async (accounts) => {
                     _amount: expectedOutputValue.sub(fee),
                 });
             }
+            const surplusAfter = await mAsset.surplus();
+            expect(new BN(surplusAfter)).bignumber.eq(new BN(surplusBefore).add(scaledFee));
         }
 
         // Complete basket should remain in healthy state
