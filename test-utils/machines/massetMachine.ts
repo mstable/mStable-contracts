@@ -591,6 +591,14 @@ export class MassetMachine {
         integratorBalBefore: number | BN,
         bAsset: Basset,
     ): Promise<ActionDetails> {
+        const hasTxFee = bAsset.isTransferFeeCharged;
+        if (hasTxFee) {
+            return {
+                expectInteraction: true,
+                amount,
+                rawBalance: new BN(0),
+            };
+        }
         const totalSupply = await mAsset.totalSupply();
         const surplus = await mAsset.surplus();
         const cacheSize = await mAsset.cacheSize();

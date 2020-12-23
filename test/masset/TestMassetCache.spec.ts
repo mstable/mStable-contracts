@@ -1,34 +1,17 @@
-/* eslint-disable @typescript-eslint/camelcase */
-/* eslint-disable no-await-in-loop */
+import { expectEvent } from "@openzeppelin/test-helpers";
 
-import { expectEvent, expectRevert } from "@openzeppelin/test-helpers";
-
-import { assertBasketIsHealthy, assertBNSlightlyGTPercent } from "@utils/assertions";
+import { assertBasketIsHealthy } from "@utils/assertions";
 import { simpleToExactAmount, applyRatio } from "@utils/math";
 import { MassetDetails, MassetMachine, StandardAccounts, SystemMachine } from "@utils/machines";
 import { BN } from "@utils/tools";
-import { BassetStatus } from "@utils/mstable-objects";
-import { ZERO_ADDRESS, fullScale, ratioScale } from "@utils/constants";
+import { Basset } from "@utils/mstable-objects";
+import { fullScale, ratioScale } from "@utils/constants";
 import envSetup from "@utils/env_setup";
 import * as t from "types/generated";
-import { BasketComposition } from "../../types";
 
 const { expect } = envSetup.configure();
 
-const MockBasketManager1 = artifacts.require("MockBasketManager1");
-const MockBasketManager2 = artifacts.require("MockBasketManager2");
-const MockERC20 = artifacts.require("MockERC20");
-const MockAToken = artifacts.require("MockAToken");
-const MockAave = artifacts.require("MockAaveV2");
 const AaveIntegration = artifacts.require("AaveIntegration");
-const Masset = artifacts.require("Masset");
-
-interface MintOutput {
-    minterBassetBalBefore: BN;
-    minterBassetBalAfter: BN;
-    recipientBalBefore: BN;
-    recipientBalAfter: BN;
-}
 
 contract("Masset - Cache", async (accounts) => {
     const sa = new StandardAccounts(accounts);
@@ -48,14 +31,20 @@ contract("Masset - Cache", async (accounts) => {
         await runSetup();
     });
 
-    const assertFailedMint = async (
-        mAsset: t.MassetInstance,
-        bAsset: t.MockERC20Instance,
-        amount: BN,
-        reason: string,
+    const seedWithWeightings = async (
+        md: MassetDetails,
+        weights: Array<BN | string | number>,
     ): Promise<void> => {
-        const approval: BN = await massetMachine.approveMasset(bAsset, mAsset, amount);
-        await expectRevert(mAsset.mint(bAsset.address, approval), reason);
+        const { mAsset, bAssets } = md;
+        const approvals = await Promise.all(
+            bAssets.map((b, i) => massetMachine.approveMasset(b, mAsset, weights[i], sa.default)),
+        );
+        await mAsset.mintMulti(
+            bAssets.map((b) => b.address),
+            approvals,
+            sa.default,
+            { from: sa.default },
+        );
     };
 
     // Helper to assert basic minting conditions, i.e. balance before and after
@@ -152,6 +141,7 @@ contract("Masset - Cache", async (accounts) => {
         const bAssetDecimals = await bAsset.decimals();
         const bAssetExact = simpleToExactAmount(bAssetRedeemAmount, bAssetDecimals);
         const surplusBefore = await mAsset.surplus();
+        const hasTxFee = bAssetBefore.isTransferFeeCharged;
 
         const integratorBalBefore = await bAssetBefore.contract.balanceOf(
             bAssetBefore.integrator.address,
@@ -223,10 +213,12 @@ contract("Masset - Cache", async (accounts) => {
         const mUSDSupplyAfter = await mAsset.totalSupply();
         expect(mUSDSupplyAfter).bignumber.eq(mUSDSupplyBefore.sub(mAssetQuantity));
         // Recipient should have more bAsset, minus fee
-        const recipientBassetBalAfter = await bAsset.balanceOf(sa.default);
-        expect(recipientBassetBalAfter).bignumber.eq(
-            recipientBassetBalBefore.add(bAssetExact).sub(fee),
-        );
+        if (!hasTxFee) {
+            const recipientBassetBalAfter = await bAsset.balanceOf(sa.default);
+            expect(recipientBassetBalAfter).bignumber.eq(
+                recipientBassetBalBefore.add(bAssetExact).sub(fee),
+            );
+        }
         // VaultBalance should update for this bAsset, including fee
         const bAssetAfter = await basketManager.getBasset(bAsset.address);
         // 100, 0.6
@@ -318,14 +310,14 @@ contract("Masset - Cache", async (accounts) => {
         }
 
         // Expect to be used in cache
-        const platformInteraction_in = await massetMachine.getPlatformInteraction(
+        const platformInteractionIn = await massetMachine.getPlatformInteraction(
             mAsset,
             "deposit",
             approval0,
             inputIntegratorBalBefore,
             inputBassetBefore,
         );
-        const platformInteraction_out = isMint
+        const platformInteractionOut = isMint
             ? null
             : await massetMachine.getPlatformInteraction(
                   mAsset,
@@ -378,12 +370,12 @@ contract("Masset - Cache", async (accounts) => {
         const inputIntegratorBalAfter = await inputBassetBefore.contract.balanceOf(
             inputBassetBefore.integrator.address,
         );
-        expect(inputIntegratorBalAfter).bignumber.eq(platformInteraction_in.rawBalance);
+        expect(inputIntegratorBalAfter).bignumber.eq(platformInteractionIn.rawBalance);
         const outputIntegratorBalAfter = isMint
             ? new BN(0)
             : await outputBassetBefore.contract.balanceOf(outputBassetBefore.integrator.address);
         if (!isMint) {
-            expect(outputIntegratorBalAfter).bignumber.eq(platformInteraction_out.rawBalance);
+            expect(outputIntegratorBalAfter).bignumber.eq(platformInteractionOut.rawBalance);
         }
 
         // 5. Validate output state
@@ -396,10 +388,10 @@ contract("Masset - Cache", async (accounts) => {
         //  Input
         //    Deposits into lending platform
         const emitter = await AaveIntegration.new();
-        if (platformInteraction_in.expectInteraction) {
+        if (platformInteractionIn.expectInteraction) {
             await expectEvent.inTransaction(swapTx.tx, emitter, "Deposit", {
                 _bAsset: inputBasset.address,
-                _amount: platformInteraction_in.amount,
+                _amount: platformInteractionIn.amount,
             });
         }
         //    Sender should have less input bAsset after
@@ -425,10 +417,10 @@ contract("Masset - Cache", async (accounts) => {
                 new BN(outputBassetBefore.vaultBalance).sub(expectedOutputValue.sub(fee)),
             );
 
-            if (platformInteraction_out.expectInteraction) {
+            if (platformInteractionOut.expectInteraction) {
                 await expectEvent.inTransaction(swapTx.tx, emitter, "PlatformWithdrawal", {
                     bAsset: outputAsset.address,
-                    totalAmount: platformInteraction_out.amount,
+                    totalAmount: platformInteractionOut.amount,
                     userAmount: expectedOutputValue.sub(fee),
                 });
             } else {
@@ -454,14 +446,20 @@ contract("Masset - Cache", async (accounts) => {
 
             // Series of mints and redemptions
             await assertBasicRedemption(massetDetails, new BN(10), bAssets[1], true);
-            await assertBasicMint(massetDetails, new BN(100), bAssets[0]);
-            await assertBasicMint(massetDetails, new BN(100), bAssets[0]);
-            await assertBasicMint(massetDetails, new BN(2), bAssets[0]);
-            await assertBasicMint(massetDetails, new BN(50), bAssets[0]);
+            await assertBasicMint(massetDetails, new BN(10), bAssets[0]);
+            await assertBasicMint(massetDetails, new BN(20), bAssets[0]);
+            await assertBasicMint(massetDetails, new BN(12), bAssets[1]);
+            await assertBasicMint(massetDetails, new BN(3), bAssets[2]);
             await assertBasicRedemption(massetDetails, new BN(1), bAssets[1], true);
-            await assertSwap(massetDetails, bAssets[0], bAssets[1], new BN(1), true, sa.dummy4);
-            await assertSwap(massetDetails, bAssets[0], bAssets[1], new BN(1), true);
-            await assertSwap(massetDetails, bAssets[1], bAssets[2], new BN(1), true);
+            await assertSwap(massetDetails, bAssets[0], bAssets[1], new BN(10), true, sa.dummy4);
+            await assertSwap(massetDetails, bAssets[0], bAssets[1], new BN(6), true);
+            await assertSwap(massetDetails, bAssets[1], bAssets[2], new BN(20), true);
+            await assertBasicMint(massetDetails, new BN(3), bAssets[2]);
+            await assertBasicMint(massetDetails, new BN(6), bAssets[0]);
+            await assertBasicMint(massetDetails, new BN(12), bAssets[0]);
+            await assertBasicRedemption(massetDetails, new BN(1), bAssets[0], true);
+            await assertBasicRedemption(massetDetails, new BN(14), bAssets[0], true);
+            await assertSwap(massetDetails, bAssets[2], bAssets[3], new BN(14), true);
 
             // Test savings deposit
             await massetDetails.mAsset.approve(systemMachine.savingsContract.address, new BN(1), {
@@ -492,26 +490,264 @@ contract("Masset - Cache", async (accounts) => {
             });
             await runTxs();
         });
+        it("should allow for changing cache sizes", async () => {
+            await massetDetails.mAsset.setCacheSize(simpleToExactAmount(2, 17), {
+                from: sa.governor,
+            });
+            await runTxs();
+            await massetDetails.mAsset.setCacheSize(simpleToExactAmount(2, 16), {
+                from: sa.governor,
+            });
+            await runTxs();
+            await massetDetails.mAsset.setCacheSize(simpleToExactAmount(1, 17), {
+                from: sa.governor,
+            });
+            await runTxs();
+        });
+        context("lowering the cache size with assets in the cache", async () => {});
     });
     context("testing the fine tuning of cache limits", () => {
         // start with a total supply of 100 and no cache
-        it("should deposit if it goes over");
-        it("should withdraw if tx fee");
-        it("should withdrawRaw if there is cache balance");
-        it("should withdraw to mean");
+        let bAssetsBefore: Basset[];
+        beforeEach("reset", async () => {
+            await runSetup(false);
+            await seedWithWeightings(massetDetails, [
+                new BN(25),
+                new BN(25),
+                new BN(25),
+                new BN(25),
+            ]);
+            const { basketManager, bAssets } = massetDetails;
+            // Refactor the weightings to push some overweight
+            await basketManager.setBasketWeights(
+                bAssets.map((b) => b.address),
+                bAssets.map(() => simpleToExactAmount(60, 16)),
+                {
+                    from: sa.governor,
+                },
+            );
+            bAssetsBefore = await Promise.all(
+                bAssets.map((b) => massetMachine.getBasset(basketManager, b.address)),
+            );
+            const integratorBalsBefore = await Promise.all(
+                bAssetsBefore.map((b) => b.contract.balanceOf(b.integrator.address)),
+            );
+            integratorBalsBefore.map((b) => expect(b).bignumber.eq(new BN(0)));
+        });
+        it("should deposit if it goes over", async () => {
+            const bAsset = bAssetsBefore[0];
+            const bAssetDecimals = await bAsset.contract.decimals();
+            const senderBalStart = await bAsset.contract.balanceOf(sa.default);
+            // first tx should move it to 5 units in cache
+            await assertBasicMint(massetDetails, 5, bAsset.contract, false);
+            // Total Supply = 105, cache = 5, vaultBalance = 30
+            // second tx pushes above
+            await assertBasicMint(massetDetails, 6, bAsset.contract, false);
+            // Total Supply = 111, cache = 5.25, vaultBalance = 36
+            const cacheBalAfter = await bAsset.contract.balanceOf(bAsset.integrator.address);
+            expect(cacheBalAfter).bignumber.eq(simpleToExactAmount("5.25", bAssetDecimals));
+            // Sender should have 7 less
+            const senderBalAfter = await bAsset.contract.balanceOf(sa.default);
+            expect(senderBalAfter).bignumber.eq(
+                senderBalStart.sub(simpleToExactAmount(11, bAssetDecimals)),
+            );
+        });
+        it("should withdrawRaw if there is cache balance", async () => {
+            const bAsset = bAssetsBefore[0];
+            const bAssetDecimals = await bAsset.contract.decimals();
+            // first tx should move it to 5 units in cache
+            await assertBasicRedemption(massetDetails, 1, bAsset.contract, true);
+            // Total Supply = 99, cache = 5, vaultBalance = 24
+            // second tx withdraws raw
+            await assertBasicRedemption(massetDetails, 4, bAsset.contract, true);
+            // Total Supply = 93, cache = 1, vaultBalance = 18
+
+            const cacheBalAfter = await bAsset.contract.balanceOf(bAsset.integrator.address);
+            expect(cacheBalAfter).bignumber.eq(simpleToExactAmount("1.0024", bAssetDecimals));
+        });
+        it("should withdraw to mean", async () => {
+            const { mAsset } = massetDetails;
+            const bAsset = bAssetsBefore[0];
+            const bAssetDecimals = await bAsset.contract.decimals();
+            const senderBalStart = await mAsset.balanceOf(sa.default);
+            // first tx should move it to 5 units in cache
+            await assertBasicRedemption(massetDetails, 1, bAsset.contract, true);
+            // Total Supply = 99, cache = 5, vaultBalance = 24
+            // second tx resets the cache and withdraws
+            await assertBasicRedemption(massetDetails, 10, bAsset.contract, true);
+            // Total Supply = 89, cache = 5, vaultBalance = 25
+            const cacheBalAfter = await bAsset.contract.balanceOf(bAsset.integrator.address);
+            expect(cacheBalAfter).bignumber.eq(simpleToExactAmount("4.95003", bAssetDecimals));
+            // Sender should have 11 less mAsset
+            const senderBalAfter = await mAsset.balanceOf(sa.default);
+            expect(senderBalAfter).bignumber.eq(senderBalStart.sub(simpleToExactAmount(11, 18)));
+        });
+    });
+    context("with an asset with a txfee", () => {
+        let bAssetsBefore: Basset[];
+        beforeEach("reset", async () => {
+            await runSetup(false, true);
+            await seedWithWeightings(massetDetails, [
+                new BN(25),
+                new BN(25),
+                new BN(25),
+                new BN(25),
+            ]);
+            const { basketManager, bAssets } = massetDetails;
+            // Refactor the weightings to push some overweight
+            await basketManager.setBasketWeights(
+                bAssets.map((b) => b.address),
+                bAssets.map(() => simpleToExactAmount(60, 16)),
+                {
+                    from: sa.governor,
+                },
+            );
+            bAssetsBefore = await Promise.all(
+                bAssets.map((b) => massetMachine.getBasset(basketManager, b.address)),
+            );
+            const integratorBalsBefore = await Promise.all(
+                bAssetsBefore.map((b) => b.contract.balanceOf(b.integrator.address)),
+            );
+            integratorBalsBefore.map((b) => expect(b).bignumber.eq(new BN(0)));
+        });
+        it("should not store anything in the cache if there is a tx fee", async () => {
+            const { mAsset } = massetDetails;
+            const bAsset = bAssetsBefore[1];
+            const senderBalStart = await mAsset.balanceOf(sa.default);
+            // first tx should move it to 5 units in cache
+            await assertBasicRedemption(massetDetails, 1, bAsset.contract, true);
+            // Total Supply = 99, cache = 0, vaultBalance = 24
+            // second tx resets the cache and withdraws
+            await assertBasicRedemption(massetDetails, 10, bAsset.contract, true);
+            // Total Supply = 89, cache = 0, vaultBalance = 25
+            const cacheBalAfter = await bAsset.contract.balanceOf(bAsset.integrator.address);
+            expect(cacheBalAfter).bignumber.eq(new BN(0));
+            // Sender should have 11 less mAsset
+            const senderBalAfter = await mAsset.balanceOf(sa.default);
+            expect(senderBalAfter).bignumber.eq(senderBalStart.sub(simpleToExactAmount(11, 18)));
+        });
     });
     context("ensuring redeemMasset analyses max cache and surplus correctly", () => {
-        before("reset", async () => {
-            await runSetup();
+        // start with a total supply of 100 and no cache
+        let bAssetsBefore: Basset[];
+        beforeEach("reset", async () => {
+            await runSetup(false);
+            await seedWithWeightings(massetDetails, [
+                new BN(25),
+                new BN(25),
+                new BN(25),
+                new BN(25),
+            ]);
+            const { basketManager, bAssets } = massetDetails;
+            // Refactor the weightings to push some overweight
+            await basketManager.setBasketWeights(
+                bAssets.map((b) => b.address),
+                bAssets.map(() => simpleToExactAmount(60, 16)),
+                {
+                    from: sa.governor,
+                },
+            );
+            bAssetsBefore = await Promise.all(
+                bAssets.map((b) => massetMachine.getBasset(basketManager, b.address)),
+            );
+            const integratorBalsBefore = await Promise.all(
+                bAssetsBefore.map((b) => b.contract.balanceOf(b.integrator.address)),
+            );
+            integratorBalsBefore.map((b) => expect(b).bignumber.eq(new BN(0)));
         });
-        it("should reset all assets to cache mid point");
-        it("should accumulate a surplus over multiple tx's");
+        it("should reset all assets to cache mid point", async () => {
+            const { mAsset } = massetDetails;
+            const bAssetDecimals = await Promise.all(
+                bAssetsBefore.map((b) => b.contract.decimals()),
+            );
+            const senderBalStart = await mAsset.balanceOf(sa.default);
+            // first tx should move it to 5 units in cache
+            await mAsset.redeemMasset(simpleToExactAmount(1, 18), sa.default);
+            // Total Supply = 99, cache = 5, vaultBalance = 99.0003
+            // second tx resets the cache and withdraws
+            await mAsset.redeemMasset(simpleToExactAmount(22, 18), sa.default);
+            // Total Supply = 77, cache = 4.950015, vaultBalance = 79.0069
+            const integratorBalsAfter = await Promise.all(
+                bAssetsBefore.map((b) => b.contract.balanceOf(b.integrator.address)),
+            );
+            integratorBalsAfter.map((b, i) =>
+                expect(b).bignumber.eq(simpleToExactAmount("4.950015", bAssetDecimals[i])),
+            );
+            // Sender should have 2 less mAsset
+            const senderBalAfter = await mAsset.balanceOf(sa.default);
+            expect(senderBalAfter).bignumber.eq(senderBalStart.sub(simpleToExactAmount(23, 18)));
+        });
+        it("should accumulate a surplus over multiple tx's", async () => {
+            const { mAsset } = massetDetails;
+            const surplusStart = await mAsset.surplus();
+            const totalSupplyStart = await mAsset.totalSupply();
+            // first tx should move it to 5 units in cache
+            await mAsset.redeemMasset(simpleToExactAmount(1, 18), sa.default);
+            // Total Supply = 99, cache = 5, vaultBalance = 99.0003
+            // second tx resets the cache and withdraws
+            await mAsset.redeemMasset(simpleToExactAmount(1, 18), sa.default);
+            // Total Supply = 98, cache = 4.950015, vaultBalance = 98.0006
+            const surplusEnd = await mAsset.surplus();
+            expect(surplusEnd).bignumber.eq(surplusStart.add(simpleToExactAmount("0.0006", 18)));
+            const totalSupplyEnd = await mAsset.totalSupply();
+            expect(totalSupplyEnd).bignumber.eq(totalSupplyStart.sub(simpleToExactAmount(2, 18)));
+        });
     });
     context("testing fee collection and distribution", () => {
+        before("generate some surplus and lending market interest", async () => {
+            await runSetup(true);
+            await massetDetails.mAsset.redeemMasset(simpleToExactAmount(20, 18), sa.default);
+            const surplus = await massetDetails.mAsset.surplus();
+            expect(surplus).bignumber.eq(simpleToExactAmount("0.006", 18));
+        });
         it("allows SM to collect surplus", async () => {
-            // check surplus before
-            // ensure it goes to 0 and relevant mUSD is minted
-            //
+            const { mAsset } = massetDetails;
+            const compositionBefore = await massetMachine.getBasketComposition(massetDetails);
+            const balBefore = await mAsset.balanceOf(systemMachine.savingsContract.address);
+            await massetDetails.mAsset.approve(systemMachine.savingsContract.address, new BN(1), {
+                from: sa.default,
+            });
+            await systemMachine.savingsContract.depositSavings(new BN(1), {
+                from: sa.default,
+            });
+            const compositionAfter = await massetMachine.getBasketComposition(massetDetails);
+            expect(compositionAfter.sumOfBassets).bignumber.eq(compositionBefore.sumOfBassets);
+            expect(compositionAfter.surplus).bignumber.eq(new BN(1));
+            expect(compositionAfter.totalSupply).bignumber.eq(
+                compositionBefore.totalSupply.add(compositionBefore.surplus).subn(1),
+            );
+            const balAfter = await mAsset.balanceOf(systemMachine.savingsContract.address);
+            expect(balAfter).bignumber.eq(balBefore.add(compositionBefore.surplus));
+        });
+        it("allows SM to collect platform interest", async () => {
+            const { mAsset } = massetDetails;
+            const compositionBefore = await massetMachine.getBasketComposition(massetDetails);
+            const balBefore = await mAsset.balanceOf(systemMachine.savingsManager.address);
+            const sumBefore = compositionBefore.bAssets.reduce(
+                (p, c, i) => p.add(applyRatio(c.actualBalance, c.ratio)),
+                new BN(0),
+            );
+
+            await systemMachine.savingsManager.collectAndStreamInterest(mAsset.address);
+
+            const compositionAfter = await massetMachine.getBasketComposition(massetDetails);
+            const balAfter = await mAsset.balanceOf(systemMachine.savingsManager.address);
+            const sumAfter = compositionAfter.bAssets.reduce(
+                (p, c, i) => p.add(applyRatio(c.actualBalance, c.ratio)),
+                new BN(0),
+            );
+            const vaultBalanceDiff = compositionAfter.sumOfBassets.sub(
+                compositionBefore.sumOfBassets,
+            );
+
+            expect(compositionAfter.sumOfBassets).bignumber.gt(compositionBefore.sumOfBassets);
+            expect(compositionAfter.surplus).bignumber.eq(compositionBefore.surplus);
+            expect(compositionAfter.totalSupply).bignumber.eq(
+                compositionBefore.totalSupply.add(vaultBalanceDiff),
+            );
+            expect(sumAfter).bignumber.eq(sumBefore);
+            expect(sumBefore).bignumber.eq(compositionAfter.sumOfBassets);
+            expect(balAfter).bignumber.eq(balBefore.add(vaultBalanceDiff));
         });
     });
 });

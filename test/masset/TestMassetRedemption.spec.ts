@@ -208,12 +208,13 @@ contract("Masset - Redeem", async (accounts) => {
             bAssets.map((b) => b.balanceOf(recipient)),
         );
         const bAssetsBefore = await Promise.all(
-            bAssets.map((b) => basketManager.getBasset(b.address)),
+            bAssets.map((b) => massetMachine.getBasset(basketManager, b.address)),
         );
         const bAssetsDecimals = await Promise.all(bAssets.map((b) => b.decimals()));
         const bAssetsExact = await Promise.all(
             bAssets.map((_, i) => simpleToExactAmount(bAssetRedeemAmounts[i], bAssetsDecimals[i])),
         );
+        const surplusBefore = await mAsset.surplus();
 
         // Execute the redemption
         const tx = await mAsset.redeemMulti(
@@ -229,6 +230,7 @@ contract("Masset - Redeem", async (accounts) => {
             new BN(0),
         );
         let fees = bAssets.map(() => new BN(0));
+        let scaledFees = bAssets.map(() => new BN(0));
         let feeRate = new BN(0);
         //    If there is a fee expected, then deduct it from output
         if (expectFee) {
@@ -241,6 +243,7 @@ contract("Masset - Redeem", async (accounts) => {
                     ? expect(f).bignumber.gt(new BN(0) as any)
                     : null,
             );
+            scaledFees = fees.map((f, i) => f.mul(new BN(bAssetsBefore[i].ratio)).div(ratioScale));
         }
 
         // Listen for the events
@@ -261,6 +264,11 @@ contract("Masset - Redeem", async (accounts) => {
                     : null,
             );
         }
+        const surplusAfter = await mAsset.surplus();
+        expect(new BN(surplusAfter)).bignumber.eq(
+            new BN(surplusBefore).add(scaledFees.reduce((p, c) => p.add(c), new BN(0))),
+        );
+
         // Sender should have less mAsset
         const senderMassetBalAfter = await mAsset.balanceOf(sender);
         expect(senderMassetBalAfter).bignumber.eq(senderMassetBalBefore.sub(mAssetQuantity));
