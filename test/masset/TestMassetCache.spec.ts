@@ -718,6 +718,20 @@ contract("Masset - Cache", async (accounts) => {
             );
             const balAfter = await mAsset.balanceOf(systemMachine.savingsContract.address);
             expect(balAfter).bignumber.eq(balBefore.add(compositionBefore.surplus));
+
+            await massetDetails.mAsset.approve(systemMachine.savingsContract.address, new BN(1), {
+                from: sa.default,
+            });
+            await systemMachine.savingsContract.depositSavings(new BN(1), {
+                from: sa.default,
+            });
+
+            const compositionEnd = await massetMachine.getBasketComposition(massetDetails);
+            expect(compositionEnd.sumOfBassets).bignumber.eq(compositionAfter.sumOfBassets);
+            expect(compositionEnd.surplus).bignumber.eq(new BN(1));
+            expect(compositionEnd.totalSupply).bignumber.eq(compositionAfter.totalSupply);
+            const balEnd = await mAsset.balanceOf(systemMachine.savingsContract.address);
+            expect(balEnd).bignumber.eq(balAfter.add(new BN(1)));
         });
         it("allows SM to collect platform interest", async () => {
             const { mAsset } = massetDetails;
