@@ -58,6 +58,12 @@ contract Connector_yVault_mUSD is IConnector {
         IERC20(mUSD).transfer(save, _amt);
     }
 
+    function withdrawAll(uint256 _amt) external onlySave {
+        // getBalanceOf shares
+        // withdraw all
+        // send all to save
+    }
+
     function checkBalance() external view returns (uint256) {
         // TODO - if using meta pool LP token, account for coordinated flash loan scenario
         uint256 sharePrice = IyVault(yVault).getPricePerFullShare();

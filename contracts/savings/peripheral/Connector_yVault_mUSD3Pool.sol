@@ -75,14 +75,20 @@ contract Connector_yVault_mUSD3Pool is IConnector {
         IERC20(mUSD).transfer(save, _amt);
     }
 
+    function withdrawAll(uint256 _amt) external onlySave {
+        // getBalanceOf shares
+        // withdraw all
+        // send all to save
+    }
+
     // Steps:
     //  - Get total mUSD3Pool balance held in yVault
     //    - Get yVault share balance
     //    - Get yVault share to mUSD3Pool ratio
     //  - Get exchange rate between mUSD3Pool LP and mUSD (virtual price?)
     // To consider: if using virtual price, and mUSD is initially traded at a discount,
-    // then depositing 10k mUSD is likely to net a virtual amount of 9.97k or so. Somehow
-    // need to make 
+    // then depositing 10k mUSD is likely to net a virtual amount of 9.97k or so. Can either take
+    // a deficit to begin with, or track the amount of units deposited
     function checkBalance() external view returns (uint256) {
         // TODO - if using meta pool LP token, account for coordinated flash loan scenario
         uint256 sharePrice = IyVault(yVault).getPricePerFullShare();

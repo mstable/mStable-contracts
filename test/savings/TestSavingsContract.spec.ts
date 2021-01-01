@@ -53,7 +53,7 @@ contract("SavingsContract", async (accounts) => {
     const TEN_EXACT = new BN(10).mul(fullScale);
     const ONE_EXACT = fullScale;
     const initialMint = new BN(1000000000);
-    const initialExchangeRate = fullScale.divn(10);
+    const initialExchangeRate = simpleToExactAmount(1, 17);
 
     let systemMachine: SystemMachine;
     let massetDetails: MassetDetails;
