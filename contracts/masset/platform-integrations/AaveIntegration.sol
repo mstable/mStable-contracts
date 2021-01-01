@@ -8,8 +8,8 @@ import { InitializableAbstractIntegration, MassetHelpers, IERC20 } from "./Initi
  * @title   AaveIntegration
  * @author  Stability Labs Pty. Ltd.
  * @notice  A simple connection to deposit and withdraw bAssets from Aave
- * @dev     VERSION: 1.1
- *          DATE:    2020-03-26
+ * @dev     VERSION: 1.2
+ *          DATE:    2020-12-24
  */
 contract AaveIntegration is InitializableAbstractIntegration {
 
