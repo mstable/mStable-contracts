@@ -133,7 +133,7 @@ contract SavingsContract is
      */
     function depositInterest(uint256 _amount)
         external
-        onlySavingsManager // TODO - remove this?
+        onlySavingsManager
     {
         require(_amount > 0, "Must deposit something");
 

@@ -75,7 +75,7 @@ contract Connector_yVault_mUSD3Pool is IConnector {
         IERC20(mUSD).transfer(save, _amt);
     }
 
-    function withdrawAll(uint256 _amt) external onlySave {
+    function withdrawAll() external onlySave {
         // getBalanceOf shares
         // withdraw all
         // send all to save
