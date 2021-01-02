@@ -938,37 +938,159 @@ contract("SavingsContract", async (accounts) => {
     });
 
     describe("setting poker", () => {
-        it("allows governance to set a new poker");
+        before(async () => {
+            await createNewSavingsContract();
+        });
+        it("fails if not called by governor", async () => {
+            await expectRevert(
+                savingsContract.setPoker(sa.dummy1, { from: sa.dummy1 }),
+                "Only governor can execute",
+            );
+        });
+        it("fails if invalid poker address", async () => {
+            await expectRevert(
+                savingsContract.setPoker(sa.default, { from: sa.governor }),
+                "Invalid poker",
+            );
+        });
+        it("allows governance to set a new poker", async () => {
+            const tx = await savingsContract.setPoker(sa.dummy1, { from: sa.governor });
+            expectEvent(tx.receipt, "PokerUpdated", {
+                poker: sa.dummy1,
+            });
+            expect(await savingsContract.poker()).eq(sa.dummy1);
+        });
+    });
+
+    describe("setting fraction", () => {
+        before(async () => {
+            await createNewSavingsContract();
+            await masset.approve(savingsContract.address, simpleToExactAmount(1, 18));
+            await savingsContract.preDeposit(simpleToExactAmount(1, 18), sa.default);
+        });
+        it("fails if not called by governor", async () => {
+            await expectRevert(
+                savingsContract.setFraction(simpleToExactAmount(1, 17), { from: sa.dummy1 }),
+                "Only governor can execute",
+            );
+        });
+        it("fails if over the threshold", async () => {
+            await expectRevert(
+                savingsContract.setFraction(simpleToExactAmount(55, 16), { from: sa.governor }),
+                "Fraction must be <= 50%",
+            );
+        });
+        it("sets a new fraction and pokes", async () => {
+            const tx = await savingsContract.setFraction(simpleToExactAmount(1, 16), {
+                from: sa.governor,
+            });
+            expectEvent(tx.receipt, "FractionUpdated", {
+                fraction: simpleToExactAmount(1, 16),
+            });
+            expectEvent(tx.receipt, "PokedRaw");
+            expect(await savingsContract.fraction()).bignumber.eq(simpleToExactAmount(1, 16));
+        });
+    });
+
+    describe("setting connector", () => {
+        const deposit = simpleToExactAmount(100, 18);
+
+        beforeEach(async () => {
+            await createNewSavingsContract();
+            const connector = await MockConnector.new(savingsContract.address, masset.address);
+
+            await masset.approve(savingsContract.address, simpleToExactAmount(1, 21));
+            await savingsContract.preDeposit(deposit, alice);
+
+            await savingsContract.setConnector(connector.address, { from: sa.governor });
+        });
+        afterEach(async () => {
+            const data = await getData(savingsContract, alice);
+            expect(exchangeRateHolds(data), "Exchange rate must hold");
+        });
+        it("fails if not called by governor", async () => {
+            await expectRevert(
+                savingsContract.setConnector(sa.dummy1, { from: sa.dummy1 }),
+                "Only governor can execute",
+            );
+        });
+        it("updates the connector address, moving assets to new connector", async () => {
+            const dataBefore = await getData(savingsContract, alice);
+
+            expect(dataBefore.connector.balance).bignumber.eq(
+                deposit.mul(dataBefore.connector.fraction).div(fullScale),
+            );
+            expect(dataBefore.balances.contract).bignumber.eq(
+                deposit.sub(dataBefore.connector.balance),
+            );
+            expect(dataBefore.exchangeRate).bignumber.eq(initialExchangeRate);
+
+            const newConnector = await MockConnector.new(savingsContract.address, masset.address);
+
+            const tx = await savingsContract.setConnector(newConnector.address, {
+                from: sa.governor,
+            });
+            expectEvent(tx.receipt, "ConnectorUpdated", {
+                connector: newConnector.address,
+            });
+
+            const dataAfter = await getData(savingsContract, alice);
+            expect(dataAfter.connector.address).eq(newConnector.address);
+            expect(dataAfter.connector.balance).bignumber.eq(dataBefore.connector.balance);
+            const oldConnector = await MockConnector.at(dataBefore.connector.address);
+            expect(await oldConnector.checkBalance()).bignumber.eq(new BN(0));
+        });
+        it("withdraws everything if connector is set to 0", async () => {
+            const dataBefore = await getData(savingsContract, alice);
+            const tx = await savingsContract.setConnector(ZERO_ADDRESS, {
+                from: sa.governor,
+            });
+            expectEvent(tx.receipt, "ConnectorUpdated", {
+                connector: ZERO_ADDRESS,
+            });
+
+            const dataAfter = await getData(savingsContract, alice);
+            expect(dataAfter.connector.address).eq(ZERO_ADDRESS);
+            expect(dataAfter.connector.balance).bignumber.eq(new BN(0));
+            expect(dataAfter.balances.contract).bignumber.eq(
+                dataBefore.balances.contract.add(dataBefore.connector.balance),
+            );
+        });
     });
 
     describe("poking", () => {
         it("allows only poker to poke");
+        it("fails if there are no credits");
+        it("should fail if the raw balance goes down somehow", async () => {
+            // _refreshExchangeRate
+            // ExchangeRate must increase
+        });
         it("only allows pokes once every 4h");
-        context("after a connector has been added", () => {
-            it("should deposit to the connector");
+        context("with a connector", () => {
+            it("should do nothing if the fraction is 0");
+            it("should accrue interest and update exchange rate", async () => {
+                // check everything - lastPoke, lastBalance, etc
+            });
+            it("should fail if the APY is too high");
+            it("should deposit to the connector if total supply lowers", async () => {
+                // deposit 1
+                // increase total balance
+                // deposit 2
+            });
             it("should withdraw from the connector if total supply lowers");
-            it("should update the exchange rate with new interest");
-            it("should work correctly after changing from no connector to connector");
-            it("should work correctly after changing fraction");
         });
         context("with no connector", () => {
             it("simply updates the exchangeRate with the new balance");
         });
     });
 
-    describe("setting fraction", () => {
-        it("allows governance to set a new fraction");
-    });
-
-    describe("setting connector", () => {
-        it("updates the connector address");
-        it("withdraws everything from old connector and adds it to new");
-    });
-
     describe("testing emergency stop", () => {
-        it("withdraws remainder from the connector");
+        it("withdraws specific amount from the connector");
         it("sets fraction and connector to 0");
-        it("should factor in to the new exchange rate");
+        it("should lowers exchange rate if necessary", async () => {
+            // after
+            // poking should not affect the exchangeRate (pokedRaw)
+        });
         it("should still allow deposits and withdrawals to work");
     });
 

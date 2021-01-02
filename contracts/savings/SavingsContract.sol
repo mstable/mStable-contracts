@@ -527,6 +527,7 @@ contract SavingsContract is
 
     /** @dev Internal poke function to keep the balance between connector and raw balance healthy */
     function _poke(CachedData memory _data, bool _ignoreCadence) internal {
+        require(_data.totalCredits > 0, "Must have something to poke");
 
         // 1. Verify that poke cadence is valid, unless this is a manual action by governance
         uint256 currentTime = uint256(now);
@@ -595,7 +596,7 @@ contract SavingsContract is
         (uint256 totalCredited, ) = _creditsToUnderlying(_totalCredits);
 
         // Require the amount of capital held to be greater than the previously credited units
-        require(_ignoreValidation || _realSum >= totalCredited, "Insufficient capital");
+        require(_ignoreValidation || _realSum >= totalCredited, "ExchangeRate must increase");
         // Work out the new exchange rate based on the current capital
         uint256 newExchangeRate = _calcExchangeRate(_realSum, _totalCredits);
         exchangeRate = newExchangeRate;
