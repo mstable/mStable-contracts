@@ -71,7 +71,7 @@ export const assertBnGte = (actual: BN, comparison: BN): void => {
 export const assertBNSlightlyGT = (
     actual: BN,
     equator: BN,
-    maxActualShouldExceedExpected = new BN(100),
+    maxActualShouldExceedExpected: number | BN = new BN(100),
     mustBeGreater = false,
 ): void => {
     const actualDelta = actual.gt(equator) ? actual.sub(equator) : equator.sub(actual);
@@ -81,7 +81,7 @@ export const assertBNSlightlyGT = (
         `Actual value should be greater than the expected value`,
     );
     assert.ok(
-        actual.lte(equator.add(maxActualShouldExceedExpected)),
+        actual.lte(equator.add(new BN(maxActualShouldExceedExpected))),
         `Actual value should not exceed ${maxActualShouldExceedExpected.toString()} units greater than expected. Variance was ${actualDelta.toString()}`,
     );
 };

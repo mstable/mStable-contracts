@@ -111,14 +111,44 @@ contract SavingsContract is
     }
 
 
-    /** @dev Enable or disable the automation of fee collection during deposit process */
-    function automateInterestCollectionFlag(bool _enabled)
-        external
-        onlyGovernor
-    {
-        automateInterestCollection = _enabled;
-        emit AutomaticInterestCollectionSwitched(_enabled);
+    /***************************************
+                    VIEW - E
+    ****************************************/
+
+    /**
+     * @dev Returns the underlying balance of a given user
+     * @param _user     Address of the user to check
+     * @return balance  Units of underlying owned by the user
+     */
+    function balanceOfUnderlying(address _user) external view returns (uint256 balance) {
+        (balance,) = _creditsToUnderlying(balanceOf(_user));
     }
+
+    /**
+     * @dev Converts a given underlying amount into credits
+     * @param _underlying  Units of underlying
+     * @return credits     Credit units (a.k.a imUSD)
+     */
+    function underlyingToCredits(uint256 _underlying) external view returns (uint256 credits) {
+        (credits,) = _underlyingToCredits(_underlying);
+    }
+
+    /**
+     * @dev Converts a given credit amount into underlying
+     * @param _credits  Units of credits
+     * @return amount   Corresponding underlying amount
+     */
+    function creditsToUnderlying(uint256 _credits) external view returns (uint256 amount) {
+        (amount,) = _creditsToUnderlying(_credits);
+    }
+
+    // Deprecated in favour of `balanceOf(address)`
+    // Maintained for backwards compatibility
+    // Returns the credit balance of a given user
+    function creditBalances(address _user) external view returns (uint256) {
+        return balanceOf(_user);
+    }
+
 
     /***************************************
                     INTEREST
@@ -146,14 +176,22 @@ contract SavingsContract is
             // new exchange rate is relationship between _totalCredits & totalSavings
             // _totalCredits * exchangeRate = totalSavings
             // exchangeRate = totalSavings/_totalCredits
-            uint256 amountPerCredit = _calcExchangeRate(_amount, totalCredits);
-            uint256 newExchangeRate = exchangeRate.add(amountPerCredit);
+            (uint256 totalCollat, ) = _creditsToUnderlying(totalCredits);
+            uint256 newExchangeRate = _calcExchangeRate(totalCollat.add(_amount), totalCredits);
             exchangeRate = newExchangeRate;
 
             emit ExchangeRateUpdated(newExchangeRate, _amount);
         }
     }
 
+    /** @dev Enable or disable the automation of fee collection during deposit process */
+    function automateInterestCollectionFlag(bool _enabled)
+        external
+        onlyGovernor
+    {
+        automateInterestCollection = _enabled;
+        emit AutomaticInterestCollectionSwitched(_enabled);
+    }
 
     /***************************************
                     DEPOSIT
@@ -599,45 +637,6 @@ contract SavingsContract is
 
 
     /***************************************
-                    VIEW - E
-    ****************************************/
-
-    /**
-     * @dev Returns the underlying balance of a given user
-     * @param _user     Address of the user to check
-     * @return balance  Units of underlying owned by the user
-     */
-    function balanceOfUnderlying(address _user) external view returns (uint256 balance) {
-        (balance,) = _creditsToUnderlying(balanceOf(_user));
-    }
-
-    /**
-     * @dev Converts a given underlying amount into credits
-     * @param _underlying  Units of underlying
-     * @return credits     Credit units (a.k.a imUSD)
-     */
-    function underlyingToCredits(uint256 _underlying) external view returns (uint256 credits) {
-        (credits,) = _underlyingToCredits(_underlying);
-    }
-
-    /**
-     * @dev Converts a given credit amount into underlying
-     * @param _credits  Units of credits
-     * @return amount   Corresponding underlying amount
-     */
-    function creditsToUnderlying(uint256 _credits) external view returns (uint256 amount) {
-        (amount,) = _creditsToUnderlying(_credits);
-    }
-
-    // Deprecated in favour of `balanceOf(address)`
-    // Maintained for backwards compatibility
-    // Returns the credit balance of a given user
-    function creditBalances(address _user) external view returns (uint256) {
-        return balanceOf(_user);
-    }
-
-
-    /***************************************
                     VIEW - I
     ****************************************/
 
@@ -661,7 +660,7 @@ contract SavingsContract is
 
     /**
      * @dev Converts masset amount into credits based on exchange rate
-     *               c = masset / exchangeRate
+     *               c = (masset / exchangeRate) + 1
      */
     function _underlyingToCredits(uint256 _underlying)
         internal
@@ -677,14 +676,14 @@ contract SavingsContract is
 
     /**
      * @dev Works out a new exchange rate, given an amount of collateral and total credits
-     *               e = underlying / credits
+     *               e = underlying / (credits-1)
      */
     function _calcExchangeRate(uint256 _totalCollateral, uint256 _totalCredits)
         internal
         pure
         returns (uint256 _exchangeRate)
     {
-        return _totalCollateral.divPrecisely(_totalCredits);
+        return _totalCollateral.divPrecisely(_totalCredits.sub(1));
     }
 
     /**
