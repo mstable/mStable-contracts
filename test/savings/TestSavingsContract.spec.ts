@@ -1080,7 +1080,7 @@ contract("SavingsContract", async (accounts) => {
             it("should withdraw from the connector if total supply lowers");
         });
         context("with no connector", () => {
-            it("simply updates the exchangeRate with the new balance");
+            it("simply updates the exchangeRate using the raw balance");
         });
     });
 
