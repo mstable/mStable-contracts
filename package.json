@@ -1,13 +1,13 @@
 {
   "name": "@mstable/protocol",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "mStable Contracts",
   "author": "mStable <info@mstable.org>",
   "license": "AGPL-3.0-or-later",
   "files": [
     "/contracts/**/*.sol",
     "!/contracts/z_mocks",
-    "/build/contracts/*.json",
+    "/build/contracts/**/*.json",
     "/test-utils/**/*.ts",
     "/types/**/*.ts"
   ],
