@@ -1,4 +1,5 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.7.6;
 
 /**
  * @dev Contract module that helps prevent reentrant calls to a function.

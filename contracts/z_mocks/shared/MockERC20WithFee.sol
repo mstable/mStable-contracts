@@ -1,9 +1,10 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.7.6;
 
-import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
+import { SafeMath } from "@openzeppelin/contracts-solc7/math/SafeMath.sol";
 import { StableMath } from "../../shared/StableMath.sol";
-import { MinterRole } from "@openzeppelin/contracts/access/roles/MinterRole.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { MinterRole } from "../../shared/@openzeppelin-2.5/MinterRole.sol";
+import { IERC20 } from "@openzeppelin/contracts-solc7/token/ERC20/IERC20.sol";
 
 /**
  * @dev Implementation of the `IERC20` interface.

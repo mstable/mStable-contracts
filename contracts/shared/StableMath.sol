@@ -1,6 +1,7 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.7.6;
 
-import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
+import { SafeMath } from "@openzeppelin/contracts-solc7/math/SafeMath.sol";
 
 /**
  * @title   StableMath
@@ -21,9 +22,9 @@ library StableMath {
     uint256 private constant FULL_SCALE = 1e18;
 
     /**
-     * @notice Token Ratios are used when converting between units of bAsset, mAsset and MTA
+     * @dev Token Ratios are used when converting between units of bAsset, mAsset and MTA
      * Reasoning: Takes into account token decimals, and difference in base unit (i.e. grams to Troy oz for gold)
-     * @dev bAsset ratio unit for use in exact calculations,
+     * bAsset ratio unit for use in exact calculations,
      * where (1 bAsset unit * bAsset.ratio) / ratioScale == x mAsset unit
      */
     uint256 private constant RATIO_SCALE = 1e8;
@@ -146,7 +147,7 @@ library StableMath {
      *      i.e. How much mAsset is this bAsset worth?
      * @param x     Left hand operand to multiplication (i.e Exact quantity)
      * @param ratio bAsset ratio
-     * @return      Result after multiplying the two inputs and then dividing by the ratio scale
+     * @return c    Result after multiplying the two inputs and then dividing by the ratio scale
      */
     function mulRatioTruncate(uint256 x, uint256 ratio)
         internal
@@ -184,7 +185,7 @@ library StableMath {
      *      i.e. How much bAsset is this mAsset worth?
      * @param x     Left hand operand in division
      * @param ratio bAsset ratio
-     * @return      Result after multiplying the left operand by the scale, and
+     * @return c    Result after multiplying the left operand by the scale, and
      *              executing the division on the right hand input.
      */
     function divRatioPrecisely(uint256 x, uint256 ratio)

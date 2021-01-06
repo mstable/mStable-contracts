@@ -1,4 +1,5 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.7.6;
 
 // Internal
 import { RewardsDistributionRecipient } from "../RewardsDistributionRecipient.sol";
@@ -6,9 +7,9 @@ import { StakingTokenWrapper } from "./StakingTokenWrapper.sol";
 import { PlatformTokenVendor } from "./PlatformTokenVendor.sol";
 
 // Libs
-import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
+import { SafeERC20, IERC20 } from "@openzeppelin/contracts-solc7/token/ERC20/SafeERC20.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts-solc7/utils/ReentrancyGuard.sol";
+import { SafeMath } from "@openzeppelin/contracts-solc7/math/SafeMath.sol";
 import { StableMath } from "../../shared/StableMath.sol";
 
 

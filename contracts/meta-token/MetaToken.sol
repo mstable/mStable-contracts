@@ -1,9 +1,9 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.7.6;
 
 import { GovernedMinterRole } from "./GovernedMinterRole.sol";
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { ERC20Detailed } from "@openzeppelin/contracts/token/ERC20/ERC20Detailed.sol";
-import { ERC20Burnable } from "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
+import { ERC20 } from "@openzeppelin/contracts-solc7/token/ERC20/ERC20.sol";
+import { ERC20Burnable } from "@openzeppelin/contracts-solc7/token/ERC20/ERC20Burnable.sol";
 
 /**
  * @title  MetaToken
@@ -14,7 +14,6 @@ import { ERC20Burnable } from "@openzeppelin/contracts/token/ERC20/ERC20Burnable
 contract MetaToken is
     ERC20,
     GovernedMinterRole,
-    ERC20Detailed,
     ERC20Burnable
 {
 
@@ -26,12 +25,10 @@ contract MetaToken is
         address _nexus,
         address _initialRecipient
     )
-        public
         GovernedMinterRole(_nexus)
-        ERC20Detailed(
+        ERC20(
             "Meta",
-            "MTA",
-            18
+            "MTA"
         )
     {
         // 100m initial supply

@@ -1,13 +1,14 @@
 /* solium-disable security/no-block-members */
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.7.6;
 
 import { IBasicToken } from "../shared/IBasicToken.sol";
 
 import { IIncentivisedVotingLockup } from "../interfaces/IIncentivisedVotingLockup.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts-solc7/utils/ReentrancyGuard.sol";
 import { RewardsDistributionRecipient } from "../rewards/RewardsDistributionRecipient.sol";
 
-import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import { SafeERC20, IERC20 } from "@openzeppelin/contracts-solc7/token/ERC20/SafeERC20.sol";
 import { SignedSafeMath128 } from "../shared/SignedSafeMath128.sol";
 import { StableMath, SafeMath } from "../shared/StableMath.sol";
 import { Root } from "../shared/Root.sol";

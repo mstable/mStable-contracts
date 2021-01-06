@@ -1,8 +1,9 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.7.6;
 
 import { Module } from "../shared/Module.sol";
-import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
-import { AdminUpgradeabilityProxy } from "@openzeppelin/upgrades/contracts/upgradeability/AdminUpgradeabilityProxy.sol";
+import { SafeMath } from "@openzeppelin/contracts-solc7/math/SafeMath.sol";
+import { AdminUpgradeabilityProxy } from "../shared/@openzeppelin-2.5/upgrades/AdminUpgradeabilityProxy.sol";
 
 /**
  * @title   DelayedProxyAdmin

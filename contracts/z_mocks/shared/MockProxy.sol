@@ -1,6 +1,7 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.7.6;
 
-import { InitializableAdminUpgradeabilityProxy } from "@openzeppelin/upgrades/contracts/upgradeability/InitializableAdminUpgradeabilityProxy.sol";
+import { InitializableAdminUpgradeabilityProxy } from "../../shared/@openzeppelin-2.5/upgrades/InitializableAdminUpgradeabilityProxy.sol";
 
 contract MockProxy is InitializableAdminUpgradeabilityProxy {
   

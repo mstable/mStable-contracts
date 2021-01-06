@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.7.6;
 
 /**
  * @title SignedSafeMath128
  * @author OpenZeppelin > https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/math/SignedSafeMath.sol
  * @dev Signed math operations with safety checks that revert on error.
- *      Reverted to solc 0.5.16 & updated from int256 to int128
+ *      Reverted to solc 0.7.6 & updated from int256 to int128
  */
 library SignedSafeMath128 {
     int128 constant private _INT128_MIN = -2**127;

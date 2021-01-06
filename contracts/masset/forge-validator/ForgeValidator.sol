@@ -1,9 +1,10 @@
-pragma solidity 0.5.16;
-pragma experimental ABIEncoderV2;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.7.6;
+pragma ABIEncoderV2;
 
 import { IForgeValidator, MassetStructs } from "./IForgeValidator.sol";
 import { StableMath } from "../../shared/StableMath.sol";
-import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
+import { SafeMath } from "@openzeppelin/contracts-solc7/math/SafeMath.sol";
 
 /**
  * @title   ForgeValidator

@@ -1,4 +1,5 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.7.6;
 
 import {
     IAaveATokenV1,
@@ -13,8 +14,8 @@ import { AaveV2Integration } from "../../../masset/platform-integrations/AaveV2I
 
 import { MassetHelpers, SafeERC20, SafeMath } from "../../../masset/shared/MassetHelpers.sol";
 import { StableMath } from "../../../shared/StableMath.sol";
-import { IERC20, ERC20, ERC20Mintable } from "@openzeppelin/contracts/token/ERC20/ERC20Mintable.sol";
-import { ERC20Burnable } from "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
+import { ERC20Mintable } from "../../../shared/@openzeppelin-2.5/ERC20Mintable.sol";
+import { IERC20 } from "@openzeppelin/contracts-solc7/token/ERC20/IERC20.sol";
 
 
 // 1. User calls 'getLendingPool'

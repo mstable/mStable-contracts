@@ -1,7 +1,8 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.7.6;
 
 import { IUniswapV2Router02 } from "../../masset/liquidator/IUniswapV2Router02.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts-solc7/token/ERC20/IERC20.sol";
 
 
 // Simulates the selling of COMP

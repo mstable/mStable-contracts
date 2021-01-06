@@ -1,9 +1,10 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.7.6;
 
 import { ICERC20 } from "../../../masset/platform-integrations/ICompound.sol";
 
-import { IERC20, ERC20, ERC20Mintable } from "@openzeppelin/contracts/token/ERC20/ERC20Mintable.sol";
-import { ERC20Detailed } from "@openzeppelin/contracts/token/ERC20/ERC20Detailed.sol";
+import { IERC20, ERC20, ERC20Mintable } from "../../../shared/@openzeppelin-2.5/ERC20Mintable.sol";
+import { ERC20Detailed } from "../../../shared/@openzeppelin-2.5/ERC20Detailed.sol";
 import { StableMath } from "../../../shared/StableMath.sol";
 
 

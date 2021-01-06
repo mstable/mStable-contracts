@@ -1,12 +1,13 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.7.6;
 
 // External
 import { AbstractBuyAndMint } from "./AbstractBuyAndMint.sol";
 import { IMasset } from "../../interfaces/IMasset.sol";
 
 // Libs
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
+import { IERC20 } from "@openzeppelin/contracts-solc7/token/ERC20/IERC20.sol";
+import { SafeMath } from "@openzeppelin/contracts-solc7/math/SafeMath.sol";
 
 /**
  * @dev OneSplit Exchange interface

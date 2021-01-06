@@ -1,4 +1,5 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.7.6;
 pragma experimental ABIEncoderV2;
 
 // External
@@ -8,7 +9,7 @@ import { IBasketManager } from "../interfaces/IBasketManager.sol";
 
 // Internal
 import { IMasset } from "../interfaces/IMasset.sol";
-import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
+import { Initializable } from "@openzeppelin/contracts-solc7/proxy/Initializable.sol";
 import { InitializableToken } from "../shared/InitializableToken.sol";
 import { InitializableModule } from "../shared/InitializableModule.sol";
 import { InitializableReentrancyGuard } from "../shared/InitializableReentrancyGuard.sol";
@@ -17,8 +18,8 @@ import { MassetStructs } from "./shared/MassetStructs.sol";
 // Libs
 import { StableMath } from "../shared/StableMath.sol";
 import { MassetHelpers } from "./shared/MassetHelpers.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts-solc7/token/ERC20/SafeERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts-solc7/token/ERC20/IERC20.sol";
 
 /**
  * @title   Masset

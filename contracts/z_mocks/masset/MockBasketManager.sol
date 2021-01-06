@@ -1,5 +1,6 @@
-pragma solidity 0.5.16;
-pragma experimental ABIEncoderV2;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.7.6;
+pragma ABIEncoderV2;
 
 import { BasketManager } from "../../masset/BasketManager.sol";
 import { MassetStructs } from "../../masset/shared/MassetStructs.sol";

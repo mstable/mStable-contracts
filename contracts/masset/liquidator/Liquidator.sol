@@ -1,17 +1,18 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.7.6;
 
 import { ICurveMetaPool } from "./ICurveMetaPool.sol";
 import { IUniswapV2Router02 } from "./IUniswapV2Router02.sol";
 import { ISavingsManager } from "../../interfaces/ISavingsManager.sol";
 
-import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
+import { Initializable } from "@openzeppelin/contracts-solc7/proxy/Initializable.sol";
 import { InitializableModule } from "../../shared/InitializableModule.sol";
 import { ILiquidator } from "./ILiquidator.sol";
 
 import { IBasicToken } from "../../shared/IBasicToken.sol";
-import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeMath } from "@openzeppelin/contracts-solc7/math/SafeMath.sol";
+import { SafeERC20 } from "@openzeppelin/contracts-solc7/token/ERC20/SafeERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts-solc7/token/ERC20/IERC20.sol";
 
 
 /**

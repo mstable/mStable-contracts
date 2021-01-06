@@ -1,10 +1,11 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.7.6;
 
 // Internal
 import { MassetHelpers } from "../../masset/shared/MassetHelpers.sol";
 
 // Library
-import { Ownable } from "@openzeppelin/contracts/ownership/Ownable.sol";
+import { Ownable } from "@openzeppelin/contracts-solc7/access/Ownable.sol";
 
 /**
  * @title   AbstractBuyAndMint
@@ -12,7 +13,7 @@ import { Ownable } from "@openzeppelin/contracts/ownership/Ownable.sol";
  * @notice  Abstract contract to allow buy bAsset tokens with ETH and mint mAssets tokens
  *          from mStable.
  */
-contract AbstractBuyAndMint is Ownable {
+abstract contract AbstractBuyAndMint is Ownable {
 
     using MassetHelpers for address;
 
@@ -25,7 +26,7 @@ contract AbstractBuyAndMint is Ownable {
      * @dev Abstarct constructor
      * @param _mAssets Array of valid mAsset addresses allowed to mint.
      */
-    constructor(address[] memory _mAssets) internal {
+    constructor(address[] memory _mAssets) {
         require(_mAssets.length > 0, "No mAssets provided");
         for(uint256 i = 0; i < _mAssets.length; i++) {
             _addMasset(_mAssets[i]);

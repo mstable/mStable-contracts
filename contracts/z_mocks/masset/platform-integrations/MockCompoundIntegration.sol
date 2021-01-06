@@ -1,4 +1,5 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.7.6;
 
 import { CompoundIntegration, ICERC20, IERC20, MassetHelpers } from "../../../masset/platform-integrations/CompoundIntegration.sol";
 

@@ -1,8 +1,9 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.7.6;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20Detailed.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20Mintable.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "../../shared/@openzeppelin-2.5/ERC20Detailed.sol";
+import "../../shared/@openzeppelin-2.5/ERC20Mintable.sol";
+import "../../shared/@openzeppelin-2.5/ERC20.sol";
 
 contract MockERC20 is ERC20, ERC20Detailed, ERC20Mintable {
 

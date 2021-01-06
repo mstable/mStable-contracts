@@ -1,8 +1,8 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.7.6;
 
 import { Module } from "../shared/Module.sol";
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { Roles } from "@openzeppelin/contracts/access/Roles.sol";
+import { Roles } from "../shared/@openzeppelin-2.5/Roles.sol";
 
 /**
  * @title  GovernedMinterRole
@@ -11,7 +11,7 @@ import { Roles } from "@openzeppelin/contracts/access/Roles.sol";
  *          - `addMinter` modified from `onlyMinter` to `onlyGovernor`
  *          - `removeMinter` function added, callable by `onlyGovernor`
  */
-contract GovernedMinterRole is Module {
+abstract contract GovernedMinterRole is Module {
 
     using Roles for Roles.Role;
 
@@ -20,7 +20,7 @@ contract GovernedMinterRole is Module {
 
     Roles.Role private _minters;
 
-    constructor(address _nexus) internal Module(_nexus) {
+    constructor(address _nexus) Module(_nexus) {
     }
 
     modifier onlyMinter() {

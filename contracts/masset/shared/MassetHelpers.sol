@@ -1,9 +1,10 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.7.6;
 
 import { StableMath } from "../../shared/StableMath.sol";
-import { SafeMath }  from "@openzeppelin/contracts/math/SafeMath.sol";
-import { SafeERC20 }  from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import { IERC20 }     from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeMath }  from "@openzeppelin/contracts-solc7/math/SafeMath.sol";
+import { SafeERC20 }  from "@openzeppelin/contracts-solc7/token/ERC20/SafeERC20.sol";
+import { IERC20 }     from "@openzeppelin/contracts-solc7/token/ERC20/IERC20.sol";
 
 /**
  * @title   MassetHelpers

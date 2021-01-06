@@ -1,6 +1,7 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.7.6;
 
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { ERC20 } from "./@openzeppelin-2.5/ERC20.sol";
 import { InitializableERC20Detailed } from "./InitializableERC20Detailed.sol";
 
 /**
@@ -8,7 +9,7 @@ import { InitializableERC20Detailed } from "./InitializableERC20Detailed.sol";
  * @author Stability Labs Pty. Ltd.
  * @dev    Basic ERC20Detailed Token functionality for Masset
  */
-contract InitializableToken is ERC20, InitializableERC20Detailed {
+abstract contract InitializableToken is ERC20, InitializableERC20Detailed {
 
     /**
      * @dev Initialization function for implementing contract

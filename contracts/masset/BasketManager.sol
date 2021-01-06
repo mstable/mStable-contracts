@@ -1,19 +1,20 @@
-pragma solidity 0.5.16;
-pragma experimental ABIEncoderV2;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.7.6;
+pragma ABIEncoderV2;
 
 // External
 import { IPlatformIntegration } from "../interfaces/IPlatformIntegration.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts-solc7/token/ERC20/IERC20.sol";
 
 // Internal
 import { InitializablePausableModule } from "../shared/InitializablePausableModule.sol";
 import { IBasketManager } from "../interfaces/IBasketManager.sol";
-import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
+import { Initializable } from "@openzeppelin/contracts-solc7/proxy/Initializable.sol";
 
 // Libs
 import { CommonHelpers } from "../shared/CommonHelpers.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
+import { SafeERC20 } from "@openzeppelin/contracts-solc7/token/ERC20/SafeERC20.sol";
+import { SafeMath } from "@openzeppelin/contracts-solc7/math/SafeMath.sol";
 import { StableMath } from "../shared/StableMath.sol";
 import { InitializableReentrancyGuard } from "../shared/InitializableReentrancyGuard.sol";
 
