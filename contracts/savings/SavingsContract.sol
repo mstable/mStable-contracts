@@ -550,8 +550,8 @@ contract SavingsContract is
             }
 
             // 3. Level the assets to Fraction (connector) & 100-fraction (raw)
-            uint256 realSum = _data.rawBalance.add(connectorBalance);
-            uint256 ideal = realSum.mulTruncate(_data.fraction);
+            uint256 sum = _data.rawBalance.add(connectorBalance);
+            uint256 ideal = sum.mulTruncate(_data.fraction);
             //     If there is not enough mAsset in the connector, then deposit
             if(ideal > connectorBalance){
                 uint256 deposit = ideal.sub(connectorBalance);
@@ -563,6 +563,7 @@ contract SavingsContract is
                 // If fraction == 0, then withdraw everything
                 if(ideal == 0){
                     connector_.withdrawAll();
+                    sum = IERC20(underlying).balanceOf(address(this));
                 } else {
                     connector_.withdraw(connectorBalance.sub(ideal));
                 }
@@ -571,7 +572,7 @@ contract SavingsContract is
 
             // 4i. Refresh exchange rate and emit event
             lastBalance = ideal;
-            _refreshExchangeRate(realSum, _data.totalCredits, false);
+            _refreshExchangeRate(sum, _data.totalCredits, false);
             emit Poked(lastBalance_, ideal, connectorBalance.sub(lastBalance_));
 
         } else {

@@ -1059,25 +1059,74 @@ contract("SavingsContract", async (accounts) => {
     });
 
     describe("poking", () => {
-        it("allows only poker to poke");
-        it("fails if there are no credits");
-        it("should fail if the raw balance goes down somehow", async () => {
-            // _refreshExchangeRate
-            // ExchangeRate must increase
+        const deposit = simpleToExactAmount(100, 18);
+        before(async () => {
+            await createNewSavingsContract();
         });
-        it("only allows pokes once every 4h");
+        it("allows only poker to poke", async () => {
+            await expectRevert(
+                savingsContract.poke({ from: sa.governor }),
+                "Only poker can execute",
+            );
+        });
+        it("fails if there are no credits", async () => {
+            const credits = await savingsContract.totalSupply();
+            expect(credits).bignumber.eq(new BN(0));
+            await expectRevert(
+                savingsContract.poke({ from: sa.default }),
+                "Must have something to poke",
+            );
+        });
+        it("only allows pokes once every 4h", async () => {
+            await masset.approve(savingsContract.address, simpleToExactAmount(1, 21));
+            await savingsContract.preDeposit(deposit, alice);
+            await savingsContract.poke();
+            await time.increase(ONE_HOUR.muln(3));
+            await expectRevert(
+                savingsContract.poke({ from: sa.default }),
+                "Not enough time elapsed",
+            );
+        });
         context("with a connector", () => {
+            beforeEach(async () => {
+                await createNewSavingsContract();
+                const connector = await MockConnector.new(savingsContract.address, masset.address);
+
+                await masset.approve(savingsContract.address, simpleToExactAmount(1, 21));
+                await savingsContract.preDeposit(deposit, alice);
+
+                await savingsContract.setConnector(connector.address, { from: sa.governor });
+            });
+            afterEach(async () => {
+                const data = await getData(savingsContract, alice);
+                expect(exchangeRateHolds(data), "Exchange rate must hold");
+            });
             it("should do nothing if the fraction is 0");
+            it("should fail if the raw balance goes down somehow", async () => {
+                // _refreshExchangeRate
+                // ExchangeRate must increase
+            });
             it("should accrue interest and update exchange rate", async () => {
                 // check everything - lastPoke, lastBalance, etc
             });
-            it("should fail if the APY is too high");
+            it("should fail if the APY is too high", async () => {
+                // in 30 mins: "Interest protected from inflating past 10 Bps"
+                //  > 30 mins: "Interest protected from inflating past maxAPY"
+            });
+            it("should fail if the balance has gone down", async () => {
+                // "Invalid yield"
+            });
             it("should deposit to the connector if total supply lowers", async () => {
                 // deposit 1
                 // increase total balance
                 // deposit 2
             });
             it("should withdraw from the connector if total supply lowers");
+
+            // For ex. in yVault and due to slippage on Curve (+ price movement)
+            context("handling unavailable assets in the connector", () => {
+                it("does x");
+            });
         });
         context("with no connector", () => {
             it("simply updates the exchangeRate using the raw balance");
