@@ -1213,7 +1213,7 @@ contract("SavingsContract", async (accounts) => {
                 expect(dataAfter.connector.balance).bignumber.gte(
                     dataAfter.connector.lastBalance as any,
                 );
-                assertBNClosePercent(dataAfter.balances.contract, simpleToExactAmount(2, 20), "2");
+                assertBNClosePercent(dataAfter.balances.contract, simpleToExactAmount(8, 19), "2");
             });
         });
         context("with a vault connector", () => {
