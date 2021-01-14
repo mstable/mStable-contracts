@@ -5,8 +5,6 @@ import { IConnector } from "../../savings/peripheral/IConnector.sol";
 import { StableMath, SafeMath } from "../../shared/StableMath.sol";
 
 
-// Turn this into a real mock by issuing shares on deposit that go up in value
-
 contract MockConnector is IConnector {
 
     using StableMath for uint256;
@@ -46,10 +44,5 @@ contract MockConnector is IConnector {
 
     function checkBalance() external view returns (uint256) {
         return deposited;
-        // return StableMath.max(deposited, )
     }
-
-    // function _bumpSharePrice() internal private {
-    //     sharePrice = sharePrice.mul(1001).div(1000);
-    // }
 }

@@ -3,7 +3,12 @@
 import { expectRevert, expectEvent, time } from "@openzeppelin/test-helpers";
 
 import { simpleToExactAmount } from "@utils/math";
-import { assertBNClose, assertBNSlightlyGT } from "@utils/assertions";
+import {
+    assertBNClose,
+    assertBNClosePercent,
+    assertBNSlightlyGT,
+    assertBNSlightlyGTPercent,
+} from "@utils/assertions";
 import { StandardAccounts, SystemMachine, MassetDetails } from "@utils/machines";
 import { BN } from "@utils/tools";
 import { fullScale, ZERO_ADDRESS, ZERO, MAX_UINT256, ONE_DAY, ONE_HOUR } from "@utils/constants";
@@ -17,6 +22,8 @@ const SavingsContract = artifacts.require("SavingsContract");
 const MockNexus = artifacts.require("MockNexus");
 const MockMasset = artifacts.require("MockMasset");
 const MockConnector = artifacts.require("MockConnector");
+const MockVaultConnector = artifacts.require("MockVaultConnector");
+const MockLendingConnector = artifacts.require("MockLendingConnector");
 const MockProxy = artifacts.require("MockProxy");
 const MockERC20 = artifacts.require("MockERC20");
 const MockSavingsManager = artifacts.require("MockSavingsManager");
@@ -386,6 +393,12 @@ contract("SavingsContract", async (accounts) => {
                 await expectRevert(
                     savingsContract.methods["depositSavings(uint256)"](ZERO),
                     "Must deposit something",
+                );
+            });
+            it("should fail when beneficiary is 0", async () => {
+                await expectRevert(
+                    savingsContract.methods["depositSavings(uint256,address)"](1, ZERO_ADDRESS),
+                    "Invalid beneficiary address",
                 );
             });
             it("should fail if the user has no balance", async () => {
@@ -1087,14 +1100,128 @@ contract("SavingsContract", async (accounts) => {
                 "Not enough time elapsed",
             );
         });
-        // TODO - handle 2 scenarios - 1 with Lending market, 1 with yVault
-        // Run fully through each scenario
-        context("with a connector", () => {
-            beforeEach(async () => {
+        context("with an erroneous connector", () => {
+            it("should fail if the APY is too high", async () => {
+                // in 30 mins: "Interest protected from inflating past 10 Bps"
+                //  > 30 mins: "Interest protected from inflating past maxAPY"
+            });
+            it("should fail if the raw balance goes down somehow", async () => {
+                // _refreshExchangeRate
+                // ExchangeRate must increase
+            });
+            it("should fail if the balance has gone down", async () => {
+                // "Invalid yield"
+            });
+            it("is protected by the system invariant", async () => {
+                // connector returns invalid balance after deposit
+                // Enforce system invariant
+            });
+        });
+        context("with a lending market connector", () => {
+            let connector: t.MockLendingConnectorInstance;
+            before(async () => {
+                await createNewSavingsContract();
+                connector = await MockLendingConnector.new(savingsContract.address, masset.address);
+                // Give mock some extra assets to allow inflation
+                await masset.transfer(connector.address, simpleToExactAmount(100, 18));
+
+                await masset.approve(savingsContract.address, simpleToExactAmount(1, 21));
+                await savingsContract.preDeposit(deposit, alice);
+
+                // Set up connector
+                await savingsContract.setFraction(0, { from: sa.governor });
+                await savingsContract.setConnector(connector.address, { from: sa.governor });
+            });
+            afterEach(async () => {
+                const data = await getData(savingsContract, alice);
+                expect(exchangeRateHolds(data), "Exchange rate must hold");
+            });
+            it("should do nothing if the fraction is 0", async () => {
+                const data = await getData(savingsContract, alice);
+                await time.increase(ONE_HOUR.muln(4));
+                const tx = await savingsContract.poke();
+                expectEvent(tx.receipt, "Poked", {
+                    oldBalance: new BN(0),
+                    newBalance: new BN(0),
+                    interestDetected: new BN(0),
+                });
+                const dataAfter = await getData(savingsContract, alice);
+                expect(dataAfter.balances.contract).bignumber.eq(data.balances.contract);
+                expect(dataAfter.exchangeRate).bignumber.eq(data.exchangeRate);
+            });
+            it("should poke when fraction is set", async () => {
+                const tx = await savingsContract.setFraction(simpleToExactAmount(2, 17), {
+                    from: sa.governor,
+                });
+
+                expectEvent(tx.receipt, "Poked", {
+                    oldBalance: new BN(0),
+                    newBalance: simpleToExactAmount(2, 19),
+                    interestDetected: new BN(0),
+                });
+
+                const dataAfter = await getData(savingsContract, alice);
+                expect(dataAfter.balances.contract).bignumber.eq(simpleToExactAmount(8, 19));
+                expect(dataAfter.connector.balance).bignumber.eq(simpleToExactAmount(2, 19));
+            });
+            it("should accrue interest and update exchange rate", async () => {
+                await time.increase(ONE_DAY);
+                const data = await getData(savingsContract, alice);
+
+                const ts = await time.latest();
+                await connector.poke();
+                const tx = await savingsContract.poke();
+                expectEvent(tx.receipt, "Poked", {
+                    oldBalance: simpleToExactAmount(2, 19),
+                });
+
+                const dataAfter = await getData(savingsContract, alice);
+                expect(dataAfter.exchangeRate).bignumber.gt(data.exchangeRate as any);
+                assertBNClose(dataAfter.connector.lastPoke, ts, 5);
+                expect(dataAfter.connector.balance).bignumber.gte(
+                    dataAfter.connector.lastBalance as any,
+                );
+            });
+            it("should deposit to the connector if total supply increases", async () => {
+                await masset.approve(savingsContract.address, simpleToExactAmount(1, 20));
+                await savingsContract.methods["depositSavings(uint256)"](deposit);
+
+                await time.increase(ONE_DAY);
+                const data = await getData(savingsContract, alice);
+
+                const ts = await time.latest();
+                await savingsContract.poke();
+
+                const dataAfter = await getData(savingsContract, alice);
+                expect(dataAfter.exchangeRate).bignumber.gt(data.exchangeRate as any);
+                assertBNClose(dataAfter.connector.lastPoke, ts, 5);
+                expect(dataAfter.connector.balance).bignumber.gte(
+                    dataAfter.connector.lastBalance as any,
+                );
+                assertBNClosePercent(dataAfter.balances.contract, simpleToExactAmount(16, 19), "2");
+            });
+            it("should withdraw from the connector if total supply lowers", async () => {
+                await savingsContract.redeemUnderlying(simpleToExactAmount(1, 20));
+
+                await time.increase(ONE_DAY.muln(2));
+                const data = await getData(savingsContract, alice);
+
+                await savingsContract.poke();
+
+                const dataAfter = await getData(savingsContract, alice);
+                expect(dataAfter.exchangeRate).bignumber.gte(data.exchangeRate as any);
+                expect(dataAfter.connector.balance).bignumber.gte(
+                    dataAfter.connector.lastBalance as any,
+                );
+                assertBNClosePercent(dataAfter.balances.contract, simpleToExactAmount(2, 20), "2");
+            });
+        });
+        context("with a vault connector", () => {
+            before(async () => {
                 await createNewSavingsContract();
                 const connector = await MockConnector.new(savingsContract.address, masset.address);
 
-                await masset.approve(savingsContract.address, simpleToExactAmount(1, 21));
+                await masset.approve(savingsContract.address, simpleToExactAmount(1, 20));
                 await savingsContract.preDeposit(deposit, alice);
 
                 await savingsContract.setConnector(connector.address, { from: sa.governor });
@@ -1103,46 +1230,120 @@ contract("SavingsContract", async (accounts) => {
                 const data = await getData(savingsContract, alice);
                 expect(exchangeRateHolds(data), "Exchange rate must hold");
             });
-            it("should do nothing if the fraction is 0");
-            it("should fail if the raw balance goes down somehow", async () => {
-                // _refreshExchangeRate
-                // ExchangeRate must increase
-            });
             it("should accrue interest and update exchange rate", async () => {
                 // check everything - lastPoke, lastBalance, etc
             });
-            it("should fail if the APY is too high", async () => {
-                // in 30 mins: "Interest protected from inflating past 10 Bps"
-                //  > 30 mins: "Interest protected from inflating past maxAPY"
-            });
-            it("should fail if the balance has gone down", async () => {
-                // "Invalid yield"
-            });
-            it("should deposit to the connector if total supply lowers", async () => {
+            it("should deposit to the connector if total supply increases", async () => {
                 // deposit 1
                 // increase total balance
                 // deposit 2
             });
             it("should withdraw from the connector if total supply lowers");
-
-            // For ex. in yVault and due to slippage on Curve (+ price movement)
-            context("handling unavailable assets in the connector", () => {
-                it("does x");
-            });
+            it("should continue to accrue interest");
         });
         context("with no connector", () => {
-            it("simply updates the exchangeRate using the raw balance");
+            const deposit2 = simpleToExactAmount(100, 18);
+            const airdrop = simpleToExactAmount(1, 18);
+            beforeEach(async () => {
+                await createNewSavingsContract();
+                await masset.approve(savingsContract.address, simpleToExactAmount(1, 21));
+                await savingsContract.preDeposit(deposit2, alice);
+            });
+            it("simply updates the exchangeRate using the raw balance", async () => {
+                const dataBefore = await getData(savingsContract, alice);
+                expect(dataBefore.balances.userCredits).bignumber.eq(
+                    underlyingToCredits(deposit2, initialExchangeRate),
+                );
+
+                await masset.transfer(savingsContract.address, airdrop);
+                const tx = await savingsContract.poke({ from: sa.default });
+                expectEvent(tx.receipt, "ExchangeRateUpdated", {
+                    newExchangeRate: deposit2
+                        .add(airdrop)
+                        .mul(fullScale)
+                        .div(dataBefore.balances.userCredits.subn(1)),
+                    interestCollected: airdrop,
+                });
+                expectEvent(tx.receipt, "PokedRaw");
+                const balanceOfUnderlying = await savingsContract.balanceOfUnderlying(alice);
+                expect(balanceOfUnderlying).bignumber.eq(deposit2.add(airdrop));
+            });
         });
     });
 
     describe("testing emergency stop", () => {
-        it("withdraws specific amount from the connector");
-        it("sets fraction and connector to 0");
-        it("should lowers exchange rate if necessary", async () => {
-            // after
-            // poking should not affect the exchangeRate (pokedRaw)
+        const deposit = simpleToExactAmount(100, 18);
+        let dataBefore: Data;
+        const expectedRateAfter = initialExchangeRate.divn(10).muln(9);
+        before(async () => {
+            await createNewSavingsContract();
+            const connector = await MockConnector.new(savingsContract.address, masset.address);
+
+            await masset.transfer(bob, simpleToExactAmount(100, 18));
+            await masset.approve(savingsContract.address, simpleToExactAmount(1, 21));
+            await savingsContract.preDeposit(deposit, alice);
+
+            await savingsContract.setConnector(connector.address, { from: sa.governor });
+            dataBefore = await getData(savingsContract, alice);
         });
-        it("should still allow deposits and withdrawals to work");
+        afterEach(async () => {
+            const data = await getData(savingsContract, alice);
+            expect(exchangeRateHolds(data), "exchange rate must hold");
+        });
+        it("withdraws specific amount from the connector", async () => {
+            expect(dataBefore.connector.balance).bignumber.eq(deposit.divn(5));
+
+            const tx = await savingsContract.emergencyWithdraw(simpleToExactAmount(10, 18), {
+                from: sa.governor,
+            });
+            expectEvent(tx.receipt, "ConnectorUpdated", {
+                connector: ZERO_ADDRESS,
+            });
+            expectEvent(tx.receipt, "FractionUpdated", {
+                fraction: new BN(0),
+            });
+            expectEvent(tx.receipt, "EmergencyUpdate");
+            expectEvent(tx.receipt, "ExchangeRateUpdated", {
+                newExchangeRate: expectedRateAfter,
+                interestCollected: new BN(0),
+            });
+
+            const dataMiddle = await getData(savingsContract, alice);
+            expect(dataMiddle.balances.contract).bignumber.eq(simpleToExactAmount(90, 18));
+            expect(dataMiddle.balances.totalCredits).bignumber.eq(dataBefore.balances.totalCredits);
+        });
+        it("sets fraction and connector to 0", async () => {
+            const fraction = await savingsContract.fraction();
+            expect(fraction).bignumber.eq(new BN(0));
+            const connector = await savingsContract.connector();
+            expect(connector).eq(ZERO_ADDRESS);
+        });
+        it("should lowers exchange rate if necessary", async () => {
+            const data = await getData(savingsContract, alice);
+            expect(data.exchangeRate).bignumber.eq(expectedRateAfter);
+
+            const balanceOfUnderlying = await savingsContract.balanceOfUnderlying(alice);
+            expect(balanceOfUnderlying).bignumber.eq(simpleToExactAmount(90, 18));
+        });
+        it("should still allow deposits and withdrawals to work", async () => {
+            await masset.approve(savingsContract.address, simpleToExactAmount(1, 21), {
+                from: bob,
+            });
+            await savingsContract.methods["depositSavings(uint256)"](deposit, { from: bob });
+            const data = await getData(savingsContract, bob);
+            expect(data.balances.userCredits).bignumber.eq(
+                underlyingToCredits(deposit, expectedRateAfter),
+            );
+
+            const balanceOfUnderlying = await savingsContract.balanceOfUnderlying(bob);
+            expect(balanceOfUnderlying).bignumber.eq(deposit);
+
+            await savingsContract.redeemCredits(data.balances.userCredits, { from: bob });
+
+            const dataEnd = await getData(savingsContract, bob);
+            expect(dataEnd.balances.userCredits).bignumber.eq(new BN(0));
+            expect(dataEnd.balances.user).bignumber.eq(data.balances.user.add(deposit));
+        });
     });
 
     context("performing multiple operations from multiple addresses in sequence", async () => {

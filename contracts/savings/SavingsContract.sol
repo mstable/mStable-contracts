@@ -76,7 +76,7 @@ contract SavingsContract is
     // How often do we allow pokes
     uint256 constant private POKE_CADENCE = 4 hours;
     // Max APY generated on the capital in the connector
-    uint256 constant private MAX_APY = 2e18;
+    uint256 constant private MAX_APY = 4e18;
     uint256 constant private SECONDS_IN_YEAR = 365 days;
 
     // Add these constants to bytecode at deploytime
@@ -570,8 +570,6 @@ contract SavingsContract is
                 }
             }
             //     Else ideal == connectorBalance (e.g. 0), do nothing
-            // TODO - consider if this will actually work.. maybe check that new rawBalance is
-            // fully withdrawn?
             require(connector_.checkBalance() >= ideal, "Enforce system invariant");
 
             // 4i. Refresh exchange rate and emit event
@@ -606,7 +604,7 @@ contract SavingsContract is
         uint256 newExchangeRate = _calcExchangeRate(_realSum, _totalCredits);
         exchangeRate = newExchangeRate;
 
-        emit ExchangeRateUpdated(newExchangeRate, _realSum.sub(totalCredited));
+        emit ExchangeRateUpdated(newExchangeRate, _realSum > totalCredited ? _realSum.sub(totalCredited) : 0);
     }
 
     /**

@@ -7,7 +7,7 @@ import { StandardAccounts, SystemMachine } from "@utils/machines";
 import { assertBNClose, assertBNSlightlyGT, assertBNClosePercent } from "@utils/assertions";
 import { simpleToExactAmount } from "@utils/math";
 import { BN, fromWei } from "@utils/tools";
-import { ONE_WEEK, ONE_DAY, FIVE_DAYS, fullScale } from "@utils/constants";
+import { ONE_WEEK, ONE_DAY, FIVE_DAYS, fullScale, ZERO_ADDRESS } from "@utils/constants";
 import envSetup from "@utils/env_setup";
 
 const { expect } = envSetup.configure();
@@ -491,6 +491,14 @@ contract("SavingsVault", async (accounts) => {
                 await expectRevert(
                     savingsVault.methods["stake(uint256)"](0, { from: sa.default }),
                     "Cannot stake 0",
+                );
+            });
+            it("should fail if beneficiary is empty", async () => {
+                await expectRevert(
+                    savingsVault.methods["stake(address,uint256)"](ZERO_ADDRESS, 1, {
+                        from: sa.default,
+                    }),
+                    "Invalid beneficiary address",
                 );
             });
 
