@@ -2,8 +2,9 @@ pragma solidity 0.5.16;
 
 // Internal
 import { IBoostedVaultWithLockup } from "../interfaces/IBoostedVaultWithLockup.sol";
-import { RewardsDistributionRecipient } from "../rewards/RewardsDistributionRecipient.sol";
+import { InitializableRewardsDistributionRecipient } from "../rewards/InitializableRewardsDistributionRecipient.sol";
 import { BoostedTokenWrapper } from "./BoostedTokenWrapper.sol";
+import { Initializable } from "@openzeppelin/upgrades/contracts/Initializable.sol";
 
 // Libs
 import { IERC20, SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
@@ -22,7 +23,12 @@ import { StableMath, SafeMath } from "../shared/StableMath.sol";
  *          - Struct packing of common data
  *          - Searching for and claiming of unlocked rewards
  */
-contract BoostedSavingsVault is IBoostedVaultWithLockup, BoostedTokenWrapper, RewardsDistributionRecipient {
+contract BoostedSavingsVault is
+    IBoostedVaultWithLockup,
+    Initializable,
+    InitializableRewardsDistributionRecipient,
+    BoostedTokenWrapper
+{
 
     using StableMath for uint256;
     using SafeCast for uint256;
@@ -67,19 +73,22 @@ contract BoostedSavingsVault is IBoostedVaultWithLockup, BoostedTokenWrapper, Re
         uint128 rate;
     }
 
-    // TODO - add constants to bytecode at deployTime to reduce SLOAD cost
-    /** @dev StakingRewards is a TokenWrapper and RewardRecipient */
-    constructor(
+    /**
+     * @dev StakingRewards is a TokenWrapper and RewardRecipient
+     * Constants added to bytecode at deployTime to reduce SLOAD cost
+     */
+    function initialize(
         address _nexus, // constant
         address _stakingToken, // constant
         address _stakingContract, // constant
         address _rewardsToken, // constant
         address _rewardsDistributor
     )
-        public
-        RewardsDistributionRecipient(_nexus, _rewardsDistributor)
-        BoostedTokenWrapper(_stakingToken, _stakingContract)
+        external
+        initializer
     {
+        InitializableRewardsDistributionRecipient._initialize(_nexus, _rewardsDistributor);
+        BoostedTokenWrapper._initialize(_stakingToken, _stakingContract);
         rewardsToken = IERC20(_rewardsToken);
     }
 
@@ -142,7 +151,7 @@ contract BoostedSavingsVault is IBoostedVaultWithLockup, BoostedTokenWrapper, Re
         _;
     }
 
-    /** @dev Updates the reward for a given address, before executing function */
+    /** @dev Updates the boost for a given address, after the rest of the function has executed */
     modifier updateBoost(address _account) {
         _;
         _setBoost(_account);
@@ -314,6 +323,8 @@ contract BoostedSavingsVault is IBoostedVaultWithLockup, BoostedTokenWrapper, Re
         internal
     {
         require(_amount > 0, "Cannot stake 0");
+        require(_beneficiary != address(0), "Invalid beneficiary address");
+
         _stakeRaw(_beneficiary, _amount);
         emit Staked(_beneficiary, _amount, msg.sender);
     }

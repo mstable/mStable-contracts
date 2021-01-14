@@ -1087,6 +1087,8 @@ contract("SavingsContract", async (accounts) => {
                 "Not enough time elapsed",
             );
         });
+        // TODO - handle 2 scenarios - 1 with Lending market, 1 with yVault
+        // Run fully through each scenario
         context("with a connector", () => {
             beforeEach(async () => {
                 await createNewSavingsContract();

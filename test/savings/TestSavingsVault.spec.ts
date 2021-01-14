@@ -15,6 +15,7 @@ const { expect } = envSetup.configure();
 const MockERC20 = artifacts.require("MockERC20");
 const SavingsVault = artifacts.require("BoostedSavingsVault");
 const MockStakingContract = artifacts.require("MockStakingContract");
+const MockProxy = artifacts.require("MockProxy");
 
 interface StakingBalance {
     raw: BN;
@@ -114,13 +115,20 @@ contract("SavingsVault", async (accounts) => {
         rewardToken = await MockERC20.new("Reward", "RWD", 18, rewardsDistributor, 10000000);
         imUSD = await MockERC20.new("Interest bearing mUSD", "imUSD", 18, sa.default, 1000000);
         stakingContract = await MockStakingContract.new();
-        return SavingsVault.new(
-            nexusAddress,
-            imUSD.address,
-            stakingContract.address,
-            rewardToken.address,
-            rewardsDistributor,
-        );
+
+        const proxy = await MockProxy.new();
+        const impl = await SavingsVault.new();
+        const data: string = impl.contract.methods
+            .initialize(
+                nexusAddress,
+                imUSD.address,
+                stakingContract.address,
+                rewardToken.address,
+                rewardsDistributor,
+            )
+            .encodeABI();
+        await proxy.methods["initialize(address,address,bytes)"](impl.address, sa.dummy4, data);
+        return SavingsVault.at(proxy.address);
     };
 
     const snapshotStakingData = async (
@@ -794,8 +802,6 @@ contract("SavingsVault", async (accounts) => {
                 await imUSD.transfer(staker2, staker2Stake);
                 await imUSD.transfer(staker3, staker3Stake);
             });
-            // TODO - add boost for Staker 1 and staker 2
-            // - reward accrual rate only changes AFTER the action
             it("should accrue rewards on a pro rata basis", async () => {
                 /*
                  *  0               1               2   <-- Weeks
@@ -916,13 +922,19 @@ contract("SavingsVault", async (accounts) => {
             rewardToken = await MockERC20.new("Reward", "RWD", 12, rewardsDistributor, 1000000);
             imUSD = await MockERC20.new("Interest bearing mUSD", "imUSD", 16, sa.default, 1000000);
             stakingContract = await MockStakingContract.new();
-            savingsVault = await SavingsVault.new(
-                systemMachine.nexus.address,
-                imUSD.address,
-                stakingContract.address,
-                rewardToken.address,
-                rewardsDistributor,
-            );
+            const proxy = await MockProxy.new();
+            const impl = await SavingsVault.new();
+            const data: string = impl.contract.methods
+                .initialize(
+                    systemMachine.nexus.address,
+                    imUSD.address,
+                    stakingContract.address,
+                    rewardToken.address,
+                    rewardsDistributor,
+                )
+                .encodeABI();
+            await proxy.methods["initialize(address,address,bytes)"](impl.address, sa.dummy4, data);
+            savingsVault = await SavingsVault.at(proxy.address);
         });
         it("should not affect the pro rata payouts", async () => {
             // Add 100 reward tokens
