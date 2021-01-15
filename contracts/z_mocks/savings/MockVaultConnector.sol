@@ -57,7 +57,7 @@ contract MockVaultConnector is IConnector {
             uint256 timeDelta = currentTime.sub(lastAccrual);
             uint256 interest = timeDelta.mul(perSecond);
             uint256 newValue = realB.mulTruncate(interest);
-            realB = newValue;
+            realB += newValue;
         }
         lastAccrual = currentTime;
     }
@@ -67,6 +67,8 @@ contract MockVaultConnector is IConnector {
     }
 
     function deposit(uint256 _amount) external _accrueValue onlySave {
+        // Mimic the expected external balance here so we can track
+        // the expected resulting balance following the deposit
         uint256 checkedB = _checkBalanceExt();
         trackedB = checkedB.add(_amount);
 

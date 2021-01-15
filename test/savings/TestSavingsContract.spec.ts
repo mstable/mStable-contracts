@@ -3,12 +3,7 @@
 import { expectRevert, expectEvent, time } from "@openzeppelin/test-helpers";
 
 import { simpleToExactAmount } from "@utils/math";
-import {
-    assertBNClose,
-    assertBNClosePercent,
-    assertBNSlightlyGT,
-    assertBNSlightlyGTPercent,
-} from "@utils/assertions";
+import { assertBNClose, assertBNClosePercent } from "@utils/assertions";
 import { StandardAccounts, SystemMachine, MassetDetails } from "@utils/machines";
 import { BN } from "@utils/tools";
 import { fullScale, ZERO_ADDRESS, ZERO, MAX_UINT256, ONE_DAY, ONE_HOUR } from "@utils/constants";
@@ -24,6 +19,8 @@ const MockMasset = artifacts.require("MockMasset");
 const MockConnector = artifacts.require("MockConnector");
 const MockVaultConnector = artifacts.require("MockVaultConnector");
 const MockLendingConnector = artifacts.require("MockLendingConnector");
+const MockErroneousConnector1 = artifacts.require("MockErroneousConnector1");
+const MockErroneousConnector2 = artifacts.require("MockErroneousConnector2");
 const MockProxy = artifacts.require("MockProxy");
 const MockERC20 = artifacts.require("MockERC20");
 const MockSavingsManager = artifacts.require("MockSavingsManager");
@@ -844,11 +841,6 @@ contract("SavingsContract", async (accounts) => {
                 const dataBefore = await getData(savingsContract, alice);
                 const poke = await getExpectedPoke(dataBefore, redemption);
 
-                console.log(
-                    redemption.toString(),
-                    creditsToUnderlying(redemption, dataBefore.exchangeRate).toString(),
-                );
-
                 const tx = await savingsContract.redeemCredits(redemption);
                 const dataAfter = await getData(savingsContract, alice);
                 expectEvent(tx.receipt, "CreditsRedeemed", {
@@ -1072,7 +1064,7 @@ contract("SavingsContract", async (accounts) => {
     });
 
     describe("poking", () => {
-        const deposit = simpleToExactAmount(100, 18);
+        const deposit = simpleToExactAmount(1, 20);
         before(async () => {
             await createNewSavingsContract();
         });
@@ -1101,20 +1093,53 @@ contract("SavingsContract", async (accounts) => {
             );
         });
         context("with an erroneous connector", () => {
-            it("should fail if the APY is too high", async () => {
-                // in 30 mins: "Interest protected from inflating past 10 Bps"
-                //  > 30 mins: "Interest protected from inflating past maxAPY"
+            beforeEach(async () => {
+                await createNewSavingsContract();
+
+                await masset.approve(savingsContract.address, simpleToExactAmount(1, 21));
+                await savingsContract.preDeposit(deposit, alice);
+            });
+            afterEach(async () => {
+                const data = await getData(savingsContract, alice);
+                expect(exchangeRateHolds(data), "Exchange rate must hold");
             });
             it("should fail if the raw balance goes down somehow", async () => {
-                // _refreshExchangeRate
-                // ExchangeRate must increase
-            });
-            it("should fail if the balance has gone down", async () => {
-                // "Invalid yield"
+                const connector = await MockErroneousConnector1.new(
+                    savingsContract.address,
+                    masset.address,
+                );
+                await savingsContract.setConnector(connector.address, { from: sa.governor });
+                // Total collat goes down
+                await savingsContract.redeemUnderlying(deposit.divn(2));
+                // Withdrawal is made but nothing comes back
+                await time.increase(ONE_HOUR.muln(6));
+                await savingsContract.poke();
+                // Try that again
+                await time.increase(ONE_HOUR.muln(12));
+                await expectRevert(savingsContract.poke(), "ExchangeRate must increase");
             });
             it("is protected by the system invariant", async () => {
-                // connector returns invalid balance after deposit
-                // Enforce system invariant
+                // connector returns invalid balance after withdrawal
+                const connector = await MockErroneousConnector2.new(
+                    savingsContract.address,
+                    masset.address,
+                );
+                await savingsContract.setConnector(connector.address, { from: sa.governor });
+                await savingsContract.redeemUnderlying(deposit.divn(2));
+
+                await time.increase(ONE_HOUR.muln(4));
+                await expectRevert(savingsContract.poke(), "Enforce system invariant");
+            });
+            it("should fail if the balance has gone down", async () => {
+                const connector = await MockErroneousConnector2.new(
+                    savingsContract.address,
+                    masset.address,
+                );
+                await savingsContract.setConnector(connector.address, { from: sa.governor });
+
+                await time.increase(ONE_HOUR.muln(4));
+                await connector.poke();
+                await expectRevert(savingsContract.poke(), "Invalid yield");
             });
         });
         context("with a lending market connector", () => {
@@ -1215,31 +1240,170 @@ contract("SavingsContract", async (accounts) => {
                 );
                 assertBNClosePercent(dataAfter.balances.contract, simpleToExactAmount(8, 19), "2");
             });
+            it("should continue to accrue interest", async () => {
+                await time.increase(ONE_DAY.muln(3));
+                const data = await getData(savingsContract, alice);
+
+                await savingsContract.poke();
+
+                const dataAfter = await getData(savingsContract, alice);
+                expect(dataAfter.exchangeRate).bignumber.gte(data.exchangeRate as any);
+                expect(dataAfter.connector.balance).bignumber.gte(
+                    dataAfter.connector.lastBalance as any,
+                );
+                assertBNClosePercent(dataAfter.balances.contract, simpleToExactAmount(8, 19), "2");
+            });
+            it("should fail if the APY is too high", async () => {
+                await time.increase(ONE_HOUR.muln(4));
+                await expectRevert(
+                    savingsContract.poke(),
+                    "Interest protected from inflating past maxAPY",
+                );
+            });
         });
         context("with a vault connector", () => {
+            let connector: t.MockVaultConnectorInstance;
             before(async () => {
                 await createNewSavingsContract();
-                const connector = await MockConnector.new(savingsContract.address, masset.address);
+                connector = await MockVaultConnector.new(savingsContract.address, masset.address);
 
-                await masset.approve(savingsContract.address, simpleToExactAmount(1, 20));
+                await masset.transfer(connector.address, simpleToExactAmount(100, 18));
+                await masset.approve(savingsContract.address, simpleToExactAmount(1, 21));
                 await savingsContract.preDeposit(deposit, alice);
-
-                await savingsContract.setConnector(connector.address, { from: sa.governor });
             });
             afterEach(async () => {
                 const data = await getData(savingsContract, alice);
                 expect(exchangeRateHolds(data), "Exchange rate must hold");
             });
-            it("should accrue interest and update exchange rate", async () => {
-                // check everything - lastPoke, lastBalance, etc
+            it("should poke when fraction is set", async () => {
+                const tx = await savingsContract.setConnector(connector.address, {
+                    from: sa.governor,
+                });
+
+                expectEvent(tx.receipt, "Poked", {
+                    oldBalance: new BN(0),
+                    newBalance: simpleToExactAmount(2, 19),
+                    interestDetected: new BN(0),
+                });
+
+                const dataAfter = await getData(savingsContract, alice);
+                expect(dataAfter.balances.contract).bignumber.eq(simpleToExactAmount(8, 19));
+                expect(dataAfter.connector.balance).bignumber.eq(simpleToExactAmount(2, 19));
+            });
+            // In this case, the slippage from the deposit has caused the connector
+            // to be less than the original balance. Fortunately, the invariant for Connectors
+            // protects against this case, and will return the deposited balance.
+            it("should not accrue interest if there is still a deficit", async () => {
+                await time.increase(ONE_HOUR.muln(4));
+                await savingsContract.poke();
+
+                await time.increase(ONE_DAY);
+                const data = await getData(savingsContract, alice);
+
+                const ts = await time.latest();
+                await connector.poke();
+                const tx = await savingsContract.poke();
+                expectEvent(tx.receipt, "Poked", {
+                    oldBalance: simpleToExactAmount(2, 19),
+                    newBalance: simpleToExactAmount(2, 19),
+                    interestDetected: new BN(0),
+                });
+
+                const dataAfter = await getData(savingsContract, alice);
+                expect(dataAfter.exchangeRate).bignumber.eq(data.exchangeRate);
+                assertBNClose(dataAfter.connector.lastPoke, ts, 5);
+                expect(dataAfter.connector.balance).bignumber.eq(
+                    dataAfter.connector.lastBalance as any,
+                );
+            });
+            it("should accrue interest if the balance goes positive", async () => {
+                await time.increase(ONE_DAY.muln(2));
+                await connector.poke();
+
+                await time.increase(ONE_DAY);
+                const data = await getData(savingsContract, alice);
+
+                const connectorBalance = await connector.checkBalance();
+                expect(connectorBalance).bignumber.gt(simpleToExactAmount(2, 19) as any);
+
+                await connector.poke();
+                const tx = await savingsContract.poke();
+                expectEvent(tx.receipt, "Poked", {
+                    oldBalance: simpleToExactAmount(2, 19),
+                });
+
+                const dataAfter = await getData(savingsContract, alice);
+                expect(dataAfter.exchangeRate).bignumber.gt(data.exchangeRate as any);
+                expect(connectorBalance).bignumber.gt(dataAfter.connector.lastBalance as any);
             });
             it("should deposit to the connector if total supply increases", async () => {
-                // deposit 1
-                // increase total balance
-                // deposit 2
+                await masset.approve(savingsContract.address, simpleToExactAmount(1, 20));
+                await savingsContract.methods["depositSavings(uint256)"](deposit);
+
+                await time.increase(ONE_DAY);
+                const data = await getData(savingsContract, alice);
+
+                const ts = await time.latest();
+                await savingsContract.poke();
+
+                const dataAfter = await getData(savingsContract, alice);
+                expect(dataAfter.exchangeRate).bignumber.eq(data.exchangeRate as any);
+                assertBNClose(dataAfter.connector.lastPoke, ts, 5);
+                expect(dataAfter.connector.balance).bignumber.gte(
+                    dataAfter.connector.lastBalance as any,
+                );
+                assertBNClosePercent(dataAfter.balances.contract, simpleToExactAmount(16, 19), "2");
             });
-            it("should withdraw from the connector if total supply lowers");
-            it("should continue to accrue interest");
+            it("should withdraw from the connector if total supply lowers", async () => {
+                await savingsContract.redeemUnderlying(simpleToExactAmount(1, 20));
+
+                await time.increase(ONE_DAY.muln(2));
+                const data = await getData(savingsContract, alice);
+
+                await savingsContract.poke();
+
+                const dataAfter = await getData(savingsContract, alice);
+                expect(dataAfter.exchangeRate).bignumber.gte(data.exchangeRate as any);
+                expect(dataAfter.connector.balance).bignumber.gte(
+                    dataAfter.connector.lastBalance as any,
+                );
+                assertBNClosePercent(dataAfter.balances.contract, simpleToExactAmount(8, 19), "2");
+            });
+            it("should continue to accrue interest", async () => {
+                await time.increase(ONE_DAY);
+                const data = await getData(savingsContract, alice);
+
+                await savingsContract.poke();
+
+                const dataAfter = await getData(savingsContract, alice);
+                expect(dataAfter.exchangeRate).bignumber.gte(data.exchangeRate as any);
+                expect(dataAfter.connector.balance).bignumber.gte(
+                    dataAfter.connector.lastBalance as any,
+                );
+                assertBNClosePercent(dataAfter.balances.contract, simpleToExactAmount(8, 19), "2");
+            });
+            it("allows the connector to be switched to a lending market", async () => {
+                await time.increase(ONE_DAY);
+                const newConnector = await MockLendingConnector.new(
+                    savingsContract.address,
+                    masset.address,
+                );
+                const data = await getData(savingsContract, alice);
+                await savingsContract.setConnector(newConnector.address, {
+                    from: sa.governor,
+                });
+                const dataAfter = await getData(savingsContract, alice);
+                expect(dataAfter.connector.address).eq(newConnector.address);
+                assertBNClosePercent(
+                    dataAfter.connector.lastBalance,
+                    creditsToUnderlying(
+                        dataAfter.balances.totalCredits,
+                        dataAfter.exchangeRate,
+                    ).divn(5),
+                    "0.0001",
+                );
+                expect(dataAfter.balances.contract).bignumber.gte(data.balances.contract as any);
+            });
         });
         context("with no connector", () => {
             const deposit2 = simpleToExactAmount(100, 18);
