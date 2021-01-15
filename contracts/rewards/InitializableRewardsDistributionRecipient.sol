@@ -22,8 +22,8 @@ contract InitializableRewardsDistributionRecipient is IRewardsDistributionRecipi
 
     /** @dev Recipient is a module, governed by mStable governance */
     function _initialize(address _nexus, address _rewardsDistributor) internal {
-        rewardsDistributor = _rewardsDistributor;
         InitializableModule2._initialize(_nexus);
+        rewardsDistributor = _rewardsDistributor;
     }
 
     /**

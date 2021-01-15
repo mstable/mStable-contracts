@@ -29,7 +29,6 @@ contract BoostedSavingsVault is
     InitializableRewardsDistributionRecipient,
     BoostedTokenWrapper
 {
-
     using StableMath for uint256;
     using SafeCast for uint256;
 
@@ -48,13 +47,13 @@ contract BoostedSavingsVault is
     uint64 public constant UNLOCK = 2e17;
 
     // Timestamp for current period finish
-    uint256 public periodFinish = 0;
+    uint256 public periodFinish;
     // RewardRate for the rest of the PERIOD
-    uint256 public rewardRate = 0;
+    uint256 public rewardRate;
     // Last time any user took action
-    uint256 public lastUpdateTime = 0;
+    uint256 public lastUpdateTime;
     // Ever increasing rewardPerToken rate, based on % of total supply
-    uint256 public rewardPerTokenStored = 0;
+    uint256 public rewardPerTokenStored;
     mapping(address => UserData) public userData;
     // Locked reward tracking
     mapping(address => Reward[]) public userRewards;
