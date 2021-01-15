@@ -42,3 +42,6 @@ contract VaultProxy is InitializableAdminUpgradeabilityProxy {
  */
 contract LiquidatorProxy is InitializableAdminUpgradeabilityProxy {
 }
+
+contract InitializableProxy is InitializableAdminUpgradeabilityProxy {
+}
