@@ -1,7 +1,7 @@
 pragma solidity 0.5.16;
 
 import { IERC20, ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { IConnector } from "./IConnector.sol";
+import { IConnector } from "../../savings/peripheral/IConnector.sol";
 import { StableMath, SafeMath } from "../../shared/StableMath.sol";
 
 contract IyVault is ERC20 {
