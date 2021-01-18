@@ -76,7 +76,7 @@ contract("SavingsVault", async (accounts) => {
 
     const minBoost = simpleToExactAmount(5, 17);
     const maxBoost = simpleToExactAmount(15, 17);
-    const coeff = 32;
+    const coeff = 60;
     const lockupPeriod = ONE_WEEK.muln(26);
 
     const boost = (raw: BN, boostAmt: BN): BN => {
@@ -578,10 +578,10 @@ contract("SavingsVault", async (accounts) => {
                 const ratio = await savingsVault.getBoost(sa.default);
                 expect(ratio).bignumber.eq(maxBoost);
             });
-            it("should calculate boost for 10k imUSD stake and 100 vMTA", async () => {
+            it("should calculate boost for 10k imUSD stake and 50 vMTA", async () => {
                 const deposit = simpleToExactAmount(10000, 18);
-                const stake = simpleToExactAmount(100, 18);
-                const expectedBoost = simpleToExactAmount(12590, 18);
+                const stake = simpleToExactAmount(50, 18);
+                const expectedBoost = simpleToExactAmount(12110, 18);
 
                 await expectSuccessfulStake(deposit);
                 await stakingContract.setBalanceOf(sa.default, stake);
@@ -595,12 +595,12 @@ contract("SavingsVault", async (accounts) => {
                     "0.1",
                 );
                 const ratio = await savingsVault.getBoost(sa.default);
-                assertBNClosePercent(ratio, simpleToExactAmount(1.259, 18), "0.1");
+                assertBNClosePercent(ratio, simpleToExactAmount(1.211, 18), "0.1");
             });
-            it("should calculate boost for 100k imUSD stake and 800 vMTA", async () => {
+            it("should calculate boost for 100k imUSD stake and 500 vMTA", async () => {
                 const deposit = simpleToExactAmount(100000, 18);
-                const stake = simpleToExactAmount(800, 18);
-                const expectedBoost = simpleToExactAmount(131000, 18);
+                const stake = simpleToExactAmount(500, 18);
+                const expectedBoost = simpleToExactAmount(144900, 18);
 
                 await expectSuccessfulStake(deposit);
                 await stakingContract.setBalanceOf(sa.default, stake);
@@ -615,7 +615,7 @@ contract("SavingsVault", async (accounts) => {
                 );
 
                 const ratio = await savingsVault.getBoost(sa.default);
-                assertBNClosePercent(ratio, simpleToExactAmount(1.31, 18), "0.1");
+                assertBNClosePercent(ratio, simpleToExactAmount(1.449, 18), "0.1");
             });
         });
         describe("when saving with low staking balance and high vMTA", () => {
