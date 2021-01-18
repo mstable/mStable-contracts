@@ -64,14 +64,14 @@ contract StakingRewards is StakingTokenWrapper, RewardsDistributionRecipient {
     /** @dev Updates the reward for a given address, before executing function */
     modifier updateReward(address _account) {
         // Setting of global vars
-        uint256 newRewardPerToken = rewardPerToken();
+        (uint256 newRewardPerToken, uint256 lastApplicableTime) = _rewardPerToken();
         // If statement protects against loss in initialisation case
         if(newRewardPerToken > 0) {
             rewardPerTokenStored = newRewardPerToken;
-            lastUpdateTime = lastTimeRewardApplicable();
+            lastUpdateTime = lastApplicableTime;
             // Setting of personal vars based on new globals
             if (_account != address(0)) {
-                rewards[_account] = earned(_account);
+                rewards[_account] = _earned(_account, newRewardPerToken);
                 userRewardPerTokenPaid[_account] = newRewardPerToken;
             }
         }
@@ -192,17 +192,33 @@ contract StakingRewards is StakingTokenWrapper, RewardsDistributionRecipient {
         view
         returns (uint256)
     {
-        // If there is no StakingToken liquidity, avoid div(0)
-        uint256 stakedTokens = totalSupply();
-        if (stakedTokens == 0) {
-            return rewardPerTokenStored;
+        (uint256 rewardPerToken_, ) = _rewardPerToken();
+        return rewardPerToken_;
+    }
+
+    function _rewardPerToken()
+        internal
+        view
+        returns (uint256 rewardPerToken_, uint256 lastTimeRewardApplicable_)
+    {
+        uint256 lastApplicableTime = lastTimeRewardApplicable(); // + 1 SLOAD
+        uint256 timeDelta = lastApplicableTime.sub(lastUpdateTime); // + 1 SLOAD
+        // If this has been called twice in the same block, shortcircuit to reduce gas
+        if(timeDelta == 0) {
+            return (rewardPerTokenStored, lastApplicableTime);
         }
         // new reward units to distribute = rewardRate * timeSinceLastUpdate
-        uint256 rewardUnitsToDistribute = rewardRate.mul(lastTimeRewardApplicable().sub(lastUpdateTime));
+        uint256 rewardUnitsToDistribute = rewardRate.mul(timeDelta); // + 1 SLOAD
+        uint256 supply = totalSupply(); // + 1 SLOAD
+        // If there is no StakingToken liquidity, avoid div(0)
+        // If there is nothing to distribute, short circuit
+        if (supply == 0 || rewardUnitsToDistribute == 0) {
+            return (rewardPerTokenStored, lastApplicableTime);
+        }
         // new reward units per token = (rewardUnitsToDistribute * 1e18) / totalTokens
-        uint256 unitsToDistributePerToken = rewardUnitsToDistribute.divPrecisely(stakedTokens);
+        uint256 unitsToDistributePerToken = rewardUnitsToDistribute.divPrecisely(supply);
         // return summed rate
-        return rewardPerTokenStored.add(unitsToDistributePerToken);
+        return (rewardPerTokenStored.add(unitsToDistributePerToken), lastApplicableTime); // + 1 SLOAD
     }
 
     /**
@@ -215,10 +231,22 @@ contract StakingRewards is StakingTokenWrapper, RewardsDistributionRecipient {
         view
         returns (uint256)
     {
+        return _earned(_account, rewardPerToken());
+    }
+
+    function _earned(address _account, uint256 _currentRewardPerToken)
+        internal
+        view
+        returns (uint256)
+    {
         // current rate per token - rate user previously received
-        uint256 userRewardDelta = rewardPerToken().sub(userRewardPerTokenPaid[_account]);
+        uint256 userRewardDelta = _currentRewardPerToken.sub(userRewardPerTokenPaid[_account]); // + 1 SLOAD
+        // Short circuit if there is nothing new to distribute
+        if(userRewardDelta == 0){
+            return rewards[_account];
+        }
         // new reward = staked tokens * difference in rate
-        uint256 userNewReward = balanceOf(_account).mulTruncate(userRewardDelta);
+        uint256 userNewReward = balanceOf(_account).mulTruncate(userRewardDelta); // + 1 SLOAD
         // add to previous rewards
         return rewards[_account].add(userNewReward);
     }

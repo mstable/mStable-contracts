@@ -25,7 +25,8 @@ module.exports = {
         }
     },
     "rules": {
-        "@typescript-eslint/no-use-before-define": 1
+        "@typescript-eslint/no-use-before-define": 1,
+        "no-nested-ternary": 0
     },
     "overrides": [
         {

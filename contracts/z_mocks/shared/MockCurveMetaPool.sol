@@ -39,4 +39,13 @@ contract MockCurveMetaPool is ICurveMetaPool {
         IERC20(mUSD).transfer(msg.sender, out_amt);
         return out_amt;
     }
+
+
+    function get_dy(int128 i, int128 j, uint256 dx) external view returns (uint256) {
+        require(j == 0, "Output must be mUSD");
+        address in_tok = coins[uint256(i)];
+        uint256 decimals = IBasicToken(in_tok).decimals();
+        uint256 out_amt = dx * (10 ** (18 - decimals)) * ratio / 1e18;
+        return out_amt;
+    }
 }

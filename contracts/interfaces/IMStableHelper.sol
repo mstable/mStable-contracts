@@ -1,6 +1,6 @@
 pragma solidity 0.5.16;
 
-import { ISavingsContract } from "./ISavingsContract.sol";
+import { ISavingsContractV1 } from "./ISavingsContract.sol";
 
 interface IMStableHelper {
 
@@ -96,7 +96,7 @@ interface IMStableHelper {
      * @return balance in Masset units
      */
     function getSaveBalance(
-        ISavingsContract _save,
+        ISavingsContractV1 _save,
         address _user
     )
         external
@@ -113,7 +113,7 @@ interface IMStableHelper {
      * @return input for the redeem function (ie. credit units to redeem)
      */
     function getSaveRedeemInput(
-        ISavingsContract _save,
+        ISavingsContractV1 _save,
         uint256 _amount
     )
         external

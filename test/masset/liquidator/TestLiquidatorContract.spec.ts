@@ -109,7 +109,9 @@ contract("Liquidator", async (accounts) => {
         await proxy.methods["initialize(address,address,bytes)"](impl.address, sa.other, data);
         liquidator = await Liquidator.at(proxy.address);
 
-        const save = await SavingsContract.new(nexus.address, mUSD.address);
+        const save = await SavingsContract.new();
+        await save.initialize(nexus.address, sa.default, mUSD.address, "Savings Credit", "imUSD");
+
         savings = await SavingsManager.new(nexus.address, mUSD.address, save.address, {
             from: sa.default,
         });

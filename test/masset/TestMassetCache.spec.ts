@@ -465,12 +465,12 @@ contract("Masset - Cache", async (accounts) => {
             await massetDetails.mAsset.approve(systemMachine.savingsContract.address, new BN(1), {
                 from: sa.default,
             });
-            await systemMachine.savingsContract.depositSavings(new BN(1), {
+            await systemMachine.savingsContract.methods["depositSavings(uint256)"](new BN(1), {
                 from: sa.default,
             });
             await assertSwap(massetDetails, bAssets[1], bAssets[2], new BN(1), true);
             await massetDetails.mAsset.approve(systemMachine.savingsContract.address, new BN(1));
-            await systemMachine.savingsContract.depositSavings(new BN(1));
+            await systemMachine.savingsContract.methods["depositSavings(uint256)"](new BN(1));
         };
         it("should exec with 0%", async () => {
             await massetDetails.mAsset.setCacheSize(0, {
@@ -707,7 +707,7 @@ contract("Masset - Cache", async (accounts) => {
             await massetDetails.mAsset.approve(systemMachine.savingsContract.address, new BN(1), {
                 from: sa.default,
             });
-            await systemMachine.savingsContract.depositSavings(new BN(1), {
+            await systemMachine.savingsContract.methods["depositSavings(uint256)"](new BN(1), {
                 from: sa.default,
             });
             const compositionAfter = await massetMachine.getBasketComposition(massetDetails);
@@ -722,7 +722,7 @@ contract("Masset - Cache", async (accounts) => {
             await massetDetails.mAsset.approve(systemMachine.savingsContract.address, new BN(1), {
                 from: sa.default,
             });
-            await systemMachine.savingsContract.depositSavings(new BN(1), {
+            await systemMachine.savingsContract.methods["depositSavings(uint256)"](new BN(1), {
                 from: sa.default,
             });
 

@@ -55,4 +55,15 @@ contract MockUniswap is IUniswapV2Router02 {
         amounts[0] = amountIn;
         amounts[len-1] = amountOut;
     }
+
+    function swapExactETHForTokens(
+        uint amountOutMin,
+        address[] calldata path,
+        address to, uint deadline
+    ) external payable returns (uint[] memory amounts) {
+        return new uint[](0);
+    }
+    function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts) {
+        return new uint[](0);
+    }
 }

@@ -50,7 +50,15 @@ contract("SavingsManager", async (accounts) => {
 
     async function createNewSavingsManager(mintAmount: BN = INITIAL_MINT): Promise<void> {
         mUSD = await MockMasset.new("mUSD", "mUSD", 18, sa.default, mintAmount);
-        savingsContract = await SavingsContract.new(nexus.address, mUSD.address);
+
+        savingsContract = await SavingsContract.new();
+        await savingsContract.initialize(
+            nexus.address,
+            sa.default,
+            mUSD.address,
+            "Savings Credit",
+            "imUSD",
+        );
         savingsManager = await SavingsManager.new(
             nexus.address,
             mUSD.address,
@@ -357,7 +365,15 @@ contract("SavingsManager", async (accounts) => {
         context("with a broken mAsset", async () => {
             it("fails if the mAsset does not send required mAsset", async () => {
                 const mUSD2 = await MockMasset1.new("mUSD", "mUSD", 18, sa.default, INITIAL_MINT);
-                savingsContract = await SavingsContract.new(nexus.address, mUSD.address);
+
+                savingsContract = await SavingsContract.new();
+                await savingsContract.initialize(
+                    nexus.address,
+                    sa.default,
+                    mUSD.address,
+                    "Savings Credit",
+                    "imUSD",
+                );
                 savingsManager = await SavingsManager.new(
                     nexus.address,
                     mUSD2.address,
