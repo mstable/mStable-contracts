@@ -1,51 +1,119 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.8.0;
+pragma abicoder v2;
 
-import { MassetStructs } from "../masset/shared/MassetStructs.sol";
+import { MassetStructs } from "../masset/MassetStructs.sol";
 
-/**
- * @title IMasset
- * @dev   (Internal) Interface for interacting with Masset
- *        VERSION: 1.0
- *        DATE:    2020-05-05
- */
-contract IMasset is MassetStructs {
+abstract contract IMasset is MassetStructs {
+    // Mint
+    function mint(
+        address _input,
+        uint256 _inputQuantity,
+        uint256 _minOutputQuantity,
+        address _recipient
+    ) external virtual returns (uint256 mintOutput);
 
-    /** @dev Calc interest */
-    function collectInterest() external returns (uint256 swapFeesGained, uint256 newTotalSupply);
-    function collectPlatformInterest() external returns (uint256 interestGained, uint256 newTotalSupply);
+    function mintMulti(
+        address[] calldata _inputs,
+        uint256[] calldata _inputQuantities,
+        uint256 _minOutputQuantity,
+        address _recipient
+    ) external virtual returns (uint256 mintOutput);
 
-    /** @dev Minting */
-    function mint(address _basset, uint256 _bassetQuantity)
-        external returns (uint256 massetMinted);
-    function mintTo(address _basset, uint256 _bassetQuantity, address _recipient)
-        external returns (uint256 massetMinted);
-    function mintMulti(address[] calldata _bAssets, uint256[] calldata _bassetQuantity, address _recipient)
-        external returns (uint256 massetMinted);
+    function getMintOutput(address _input, uint256 _inputQuantity)
+        external
+        view
+        virtual
+        returns (uint256 mintOutput);
 
-    /** @dev Swapping */
-    function swap( address _input, address _output, uint256 _quantity, address _recipient)
-        external returns (uint256 output);
-    function getSwapOutput( address _input, address _output, uint256 _quantity)
-        external view returns (bool, string memory, uint256 output);
+    function getMintMultiOutput(address[] calldata _inputs, uint256[] calldata _inputQuantities)
+        external
+        view
+        virtual
+        returns (uint256 mintOutput);
 
-    /** @dev Redeeming */
-    function redeem(address _basset, uint256 _bassetQuantity)
-        external returns (uint256 massetRedeemed);
-    function redeemTo(address _basset, uint256 _bassetQuantity, address _recipient)
-        external returns (uint256 massetRedeemed);
-    function redeemMulti(address[] calldata _bAssets, uint256[] calldata _bassetQuantities, address _recipient)
-        external returns (uint256 massetRedeemed);
-    function redeemMasset(uint256 _mAssetQuantity, address _recipient) external;
+    // Swaps
+    function swap(
+        address _input,
+        address _output,
+        uint256 _inputQuantity,
+        uint256 _minOutputQuantity,
+        address _recipient
+    ) external virtual returns (uint256 swapOutput);
 
-    /** @dev Setters for the Manager or Gov to update module info */
-    function upgradeForgeValidator(address _newForgeValidator) external;
+    function getSwapOutput(
+        address _input,
+        address _output,
+        uint256 _inputQuantity
+    ) external view virtual returns (uint256 swapOutput);
 
-    /** @dev Setters for Gov to set system params */
-    function setSwapFee(uint256 _swapFee) external;
+    // Redemption
+    function redeem(
+        address _output,
+        uint256 _mAssetQuantity,
+        uint256 _minOutputQuantity,
+        address _recipient
+    ) external virtual returns (uint256 outputQuantity);
 
-    /** @dev Getters */
-    function getBasketManager() external view returns(address);
-    function forgeValidator() external view returns (address);
-    function totalSupply() external view returns (uint256);
-    function swapFee() external view returns (uint256);
+    function redeemMasset(
+        uint256 _mAssetQuantity,
+        uint256[] calldata _minOutputQuantities,
+        address _recipient
+    ) external virtual returns (uint256[] memory outputQuantities);
+
+    function redeemExactBassets(
+        address[] calldata _outputs,
+        uint256[] calldata _outputQuantities,
+        uint256 _maxMassetQuantity,
+        address _recipient
+    ) external virtual returns (uint256 mAssetRedeemed);
+
+    function getRedeemOutput(address _output, uint256 _mAssetQuantity)
+        external
+        view
+        virtual
+        returns (uint256 bAssetOutput);
+
+    function getRedeemExactBassetsOutput(
+        address[] calldata _outputs,
+        uint256[] calldata _outputQuantities
+    ) external view virtual returns (uint256 mAssetAmount);
+
+    // Views
+    function getBasket() external view virtual returns (bool, bool);
+
+    function getBasset(address _token)
+        external
+        view
+        virtual
+        returns (BassetPersonal memory personal, BassetData memory data);
+
+    function getBassets()
+        external
+        view
+        virtual
+        returns (BassetPersonal[] memory personal, BassetData[] memory data);
+
+    function bAssetIndexes(address) external view virtual returns (uint8);
+
+    // SavingsManager
+    function collectInterest() external virtual returns (uint256 swapFeesGained, uint256 newSupply);
+
+    function collectPlatformInterest()
+        external
+        virtual
+        returns (uint256 mintAmount, uint256 newSupply);
+
+    // Admin
+    function setCacheSize(uint256 _cacheSize) external virtual;
+
+    function upgradeForgeValidator(address _newForgeValidator) external virtual;
+
+    function setFees(uint256 _swapFee, uint256 _redemptionFee) external virtual;
+
+    function setTransferFeesFlag(address _bAsset, bool _flag) external virtual;
+
+    function migrateBassets(address[] calldata _bAssets, address _newIntegration) external virtual;
 }
+
+abstract contract Deprecated_BasketManager is MassetStructs {}

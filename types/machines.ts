@@ -1,52 +1,53 @@
-import * as t from "types/generated";
-import { BN } from "../test-utils/tools";
-import { Address } from "./common";
-import { Basset } from "../test-utils/mstable-objects";
+import { MockERC20 } from "types/generated"
+import { BN } from "../test-utils/math"
+import { Address } from "./common"
+import { Basset } from "../test-utils/mstable-objects"
 
 export interface ATokenDetails {
-    bAsset: Address;
-    aToken: Address;
+    bAsset: Address
+    aToken: Address
 }
 export interface CTokenDetails {
-    bAsset: Address;
-    cToken: Address;
+    bAsset: Address
+    cToken: Address
 }
 
 export enum Platform {
+    none,
     aave,
     compound,
 }
 
 export interface BassetIntegrationDetails {
-    bAssets: Array<t.MockERC20Instance>;
-    fees: Array<boolean>;
-    platforms: Array<Platform>;
-    aavePlatformAddress: Address;
-    aTokens: Array<ATokenDetails>;
-    cTokens: Array<CTokenDetails>;
+    bAssets: Array<MockERC20>
+    bAssetTxFees: boolean[]
+    platforms?: Array<Platform>
+    aavePlatformAddress?: Address
+    aTokens?: Array<ATokenDetails>
+    cTokens?: Array<CTokenDetails>
 }
 
 export interface BassetDetails extends Basset {
-    address: Address;
-    mAssetUnits: BN;
-    overweight: boolean;
-    actualBalance: BN;
-    rawBalance?: BN;
-    platformBalance?: BN;
+    address: Address
+    mAssetUnits: BN
+    actualBalance: BN
+    rawBalance?: BN
+    platformBalance?: BN
 }
 
 export interface BasketComposition {
-    bAssets: Array<BassetDetails>;
-    totalSupply: BN;
-    surplus: BN;
-    sumOfBassets: BN;
-    failed: boolean;
-    undergoingRecol: boolean;
-    colRatio: BN;
+    bAssets: Array<BassetDetails>
+    totalSupply: BN
+    surplus: BN
+    sumOfBassets: BN
+    failed: boolean
+    undergoingRecol: boolean
+    colRatio?: BN
 }
 
 export interface ActionDetails {
-    expectInteraction: boolean;
-    amount: BN;
-    rawBalance: BN;
+    hasLendingMarket: boolean
+    expectInteraction: boolean
+    amount?: BN
+    rawBalance?: BN
 }

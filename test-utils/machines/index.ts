@@ -1,3 +1,2 @@
-export { SystemMachine } from "./systemMachine";
-export { MassetMachine, MassetDetails } from "./massetMachine";
-export { StandardAccounts } from "./standardAccounts";
+export { MassetMachine, MassetDetails } from "./mAssetMachine"
+export { StandardAccounts, Account } from "./standardAccounts"

@@ -1,19 +1,15 @@
-pragma solidity 0.5.16;
-
-import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.8.0;
 
 /**
  * @title   StableMath
- * @author  Stability Labs Pty. Ltd.
+ * @author  mStable
  * @notice  A library providing safe mathematical operations to multiply and
  *          divide with standardised precision.
  * @dev     Derives from OpenZeppelin's SafeMath lib and uses generic system
  *          wide variables for managing precision.
  */
 library StableMath {
-
-    using SafeMath for uint256;
-
     /**
      * @dev Scaling unit for use in specific calculations,
      * where 1 * 10**18, or 1e18 represents a unit '1'
@@ -21,9 +17,9 @@ library StableMath {
     uint256 private constant FULL_SCALE = 1e18;
 
     /**
-     * @notice Token Ratios are used when converting between units of bAsset, mAsset and MTA
+     * @dev Token Ratios are used when converting between units of bAsset, mAsset and MTA
      * Reasoning: Takes into account token decimals, and difference in base unit (i.e. grams to Troy oz for gold)
-     * @dev bAsset ratio unit for use in exact calculations,
+     * bAsset ratio unit for use in exact calculations,
      * where (1 bAsset unit * bAsset.ratio) / ratioScale == x mAsset unit
      */
     uint256 private constant RATIO_SCALE = 1e8;
@@ -49,12 +45,8 @@ library StableMath {
      * @param x   Simple uint256 to scale
      * @return    Scaled value a to an exact number
      */
-    function scaleInteger(uint256 x)
-        internal
-        pure
-        returns (uint256)
-    {
-        return x.mul(FULL_SCALE);
+    function scaleInteger(uint256 x) internal pure returns (uint256) {
+        return x * FULL_SCALE;
     }
 
     /***************************************
@@ -68,11 +60,7 @@ library StableMath {
      * @return      Result after multiplying the two inputs and then dividing by the shared
      *              scale unit
      */
-    function mulTruncate(uint256 x, uint256 y)
-        internal
-        pure
-        returns (uint256)
-    {
+    function mulTruncate(uint256 x, uint256 y) internal pure returns (uint256) {
         return mulTruncateScale(x, y, FULL_SCALE);
     }
 
@@ -85,16 +73,15 @@ library StableMath {
      * @return      Result after multiplying the two inputs and then dividing by the shared
      *              scale unit
      */
-    function mulTruncateScale(uint256 x, uint256 y, uint256 scale)
-        internal
-        pure
-        returns (uint256)
-    {
+    function mulTruncateScale(
+        uint256 x,
+        uint256 y,
+        uint256 scale
+    ) internal pure returns (uint256) {
         // e.g. assume scale = fullScale
         // z = 10e18 * 9e17 = 9e36
-        uint256 z = x.mul(y);
         // return 9e38 / 1e18 = 9e18
-        return z.div(scale);
+        return (x * y) / scale;
     }
 
     /**
@@ -104,17 +91,13 @@ library StableMath {
      * @return      Result after multiplying the two inputs and then dividing by the shared
      *              scale unit, rounded up to the closest base unit.
      */
-    function mulTruncateCeil(uint256 x, uint256 y)
-        internal
-        pure
-        returns (uint256)
-    {
+    function mulTruncateCeil(uint256 x, uint256 y) internal pure returns (uint256) {
         // e.g. 8e17 * 17268172638 = 138145381104e17
-        uint256 scaled = x.mul(y);
+        uint256 scaled = x * y;
         // e.g. 138145381104e17 + 9.99...e17 = 138145381113.99...e17
-        uint256 ceil = scaled.add(FULL_SCALE.sub(1));
+        uint256 ceil = scaled + FULL_SCALE - 1;
         // e.g. 13814538111.399...e18 / 1e18 = 13814538111
-        return ceil.div(FULL_SCALE);
+        return ceil / FULL_SCALE;
     }
 
     /**
@@ -125,17 +108,11 @@ library StableMath {
      * @return      Result after multiplying the left operand by the scale, and
      *              executing the division on the right hand input.
      */
-    function divPrecisely(uint256 x, uint256 y)
-        internal
-        pure
-        returns (uint256)
-    {
+    function divPrecisely(uint256 x, uint256 y) internal pure returns (uint256) {
         // e.g. 8e18 * 1e18 = 8e36
-        uint256 z = x.mul(FULL_SCALE);
         // e.g. 8e36 / 10e18 = 8e17
-        return z.div(y);
+        return (x * FULL_SCALE) / y;
     }
-
 
     /***************************************
                   RATIO FUNCS
@@ -146,13 +123,9 @@ library StableMath {
      *      i.e. How much mAsset is this bAsset worth?
      * @param x     Left hand operand to multiplication (i.e Exact quantity)
      * @param ratio bAsset ratio
-     * @return      Result after multiplying the two inputs and then dividing by the ratio scale
+     * @return c    Result after multiplying the two inputs and then dividing by the ratio scale
      */
-    function mulRatioTruncate(uint256 x, uint256 ratio)
-        internal
-        pure
-        returns (uint256 c)
-    {
+    function mulRatioTruncate(uint256 x, uint256 ratio) internal pure returns (uint256 c) {
         return mulTruncateScale(x, ratio, RATIO_SCALE);
     }
 
@@ -164,38 +137,28 @@ library StableMath {
      * @return      Result after multiplying the two inputs and then dividing by the shared
      *              ratio scale, rounded up to the closest base unit.
      */
-    function mulRatioTruncateCeil(uint256 x, uint256 ratio)
-        internal
-        pure
-        returns (uint256)
-    {
+    function mulRatioTruncateCeil(uint256 x, uint256 ratio) internal pure returns (uint256) {
         // e.g. How much mAsset should I burn for this bAsset (x)?
         // 1e18 * 1e8 = 1e26
-        uint256 scaled = x.mul(ratio);
+        uint256 scaled = x * ratio;
         // 1e26 + 9.99e7 = 100..00.999e8
-        uint256 ceil = scaled.add(RATIO_SCALE.sub(1));
+        uint256 ceil = scaled + RATIO_SCALE - 1;
         // return 100..00.999e8 / 1e8 = 1e18
-        return ceil.div(RATIO_SCALE);
+        return ceil / RATIO_SCALE;
     }
-
 
     /**
      * @dev Precisely divides two ratioed units, by first scaling the left hand operand
      *      i.e. How much bAsset is this mAsset worth?
      * @param x     Left hand operand in division
      * @param ratio bAsset ratio
-     * @return      Result after multiplying the left operand by the scale, and
+     * @return c    Result after multiplying the left operand by the scale, and
      *              executing the division on the right hand input.
      */
-    function divRatioPrecisely(uint256 x, uint256 ratio)
-        internal
-        pure
-        returns (uint256 c)
-    {
+    function divRatioPrecisely(uint256 x, uint256 ratio) internal pure returns (uint256 c) {
         // e.g. 1e14 * 1e8 = 1e22
-        uint256 y = x.mul(RATIO_SCALE);
         // return 1e22 / 1e12 = 1e10
-        return y.div(ratio);
+        return (x * RATIO_SCALE) / ratio;
     }
 
     /***************************************
@@ -208,11 +171,7 @@ library StableMath {
      * @param y     Right hand input
      * @return      Minimum of the two inputs
      */
-    function min(uint256 x, uint256 y)
-        internal
-        pure
-        returns (uint256)
-    {
+    function min(uint256 x, uint256 y) internal pure returns (uint256) {
         return x > y ? y : x;
     }
 
@@ -222,11 +181,7 @@ library StableMath {
      * @param y     Right hand input
      * @return      Maximum of the two inputs
      */
-    function max(uint256 x, uint256 y)
-        internal
-        pure
-        returns (uint256)
-    {
+    function max(uint256 x, uint256 y) internal pure returns (uint256) {
         return x > y ? x : y;
     }
 
@@ -236,11 +191,7 @@ library StableMath {
      * @param upperBound  Maximum possible value to return
      * @return            Input x clamped to a maximum value, upperBound
      */
-    function clamp(uint256 x, uint256 upperBound)
-        internal
-        pure
-        returns (uint256)
-    {
+    function clamp(uint256 x, uint256 upperBound) internal pure returns (uint256) {
         return x > upperBound ? upperBound : x;
     }
 }

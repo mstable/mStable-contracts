@@ -37,6 +37,9 @@ build/
 artifacts/
 contracts-output/
 
+# VS Code Solidity Extension
+bin/contracts
+
 # TSC
 /artifacts/json
 /artifacts/ts
@@ -49,6 +52,9 @@ package-lock.json
 # .vscode
 .vscode/
 
+# WebStorm
+.idea/
+
 # solcover
 .coverage_cache/
 .coverage_artifacts/
@@ -59,3 +65,7 @@ cache
 # sol-merger
 flat/
 _flat/
+
+# test data
+/test-utils/validator-data/*.csv
+testoutput.txt

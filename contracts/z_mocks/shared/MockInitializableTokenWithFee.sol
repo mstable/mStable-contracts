@@ -1,4 +1,5 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.8.0;
 
 import { ERC20WithFee } from "./MockERC20WithFee.sol";
 
@@ -16,6 +17,6 @@ contract MockInitializableTokenWithFee is ERC20WithFee {
     function initialize(string calldata _nameArg, string calldata _symbolArg, uint8 _decimals, address _initialRecipient, uint256 _initialMint) external {
         ERC20WithFee._initialize(_nameArg, _symbolArg, _decimals);
         feeRate = 1e15;
-        _mint(_initialRecipient, _initialMint.mul(10 ** uint256(_decimals)));
+        _mint(_initialRecipient, _initialMint * 10 ** uint256(_decimals));
     }
 }

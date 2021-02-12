@@ -1,4 +1,9 @@
-import { Address } from "../../types/common";
+import { Signer } from "ethers"
+
+export interface Account {
+    signer: Signer
+    address: string
+}
 
 /**
  * @dev Standard accounts
@@ -7,30 +12,36 @@ export class StandardAccounts {
     /**
      * @dev Default accounts as per system Migrations
      */
-    public all: Address[];
+    public all: Account[]
 
-    public default: Address;
+    public default: Account
 
-    public governor: Address;
+    public governor: Account
 
-    public other: Address;
+    public other: Account
 
-    public dummy1: Address;
+    public dummy1: Account
 
-    public dummy2: Address;
+    public dummy2: Account
 
-    public dummy3: Address;
+    public dummy3: Account
 
-    public dummy4: Address;
+    public dummy4: Account
 
-    public fundManager: Address;
+    public fundManager: Account
 
-    public fundManager2: Address;
+    public fundManager2: Account
 
-    constructor(accounts: Address[]) {
-        this.all = accounts;
+    public mockSavingsManager: Account
 
-        [
+    public async initAccounts(signers: Signer[]): Promise<StandardAccounts> {
+        this.all = await Promise.all(
+            signers.map(async (s) => ({
+                signer: s,
+                address: await s.getAddress(),
+            })),
+        )
+        ;[
             this.default,
             this.governor,
             this.other,
@@ -40,8 +51,10 @@ export class StandardAccounts {
             this.dummy4,
             this.fundManager,
             this.fundManager2,
-        ] = accounts;
+            this.mockSavingsManager,
+        ] = this.all
+        return this
     }
 }
 
-export default StandardAccounts;
+export default StandardAccounts

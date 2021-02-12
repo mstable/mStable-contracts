@@ -1,2 +1,2 @@
-export type Address = string;
-export type Bytes32 = string;
+export type Address = string
+export type Bytes32 = string

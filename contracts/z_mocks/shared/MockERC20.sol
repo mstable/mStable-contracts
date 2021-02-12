@@ -1,10 +1,9 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20Detailed.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20Mintable.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts-sol8/contracts/token/ERC20/ERC20.sol";
 
-contract MockERC20 is ERC20, ERC20Detailed, ERC20Mintable {
+contract MockERC20 is ERC20 {
 
     constructor (
         string memory _name,
@@ -13,17 +12,12 @@ contract MockERC20 is ERC20, ERC20Detailed, ERC20Mintable {
         address _initialRecipient,
         uint256 _initialMint
     )
-        ERC20Detailed(
+        ERC20(
             _name,
-            _symbol,
-            _decimals
+            _symbol
         )
-        public
     {
-        _mint(_initialRecipient, _initialMint.mul(10 ** uint256(_decimals)));
+      _setupDecimals(_decimals);
+        _mint(_initialRecipient, _initialMint * (10 ** uint256(_decimals)));
     }
-}
-
-contract MockUSDT {
-    function setParams(uint newBasisPoints, uint newMaxFee) public;
 }

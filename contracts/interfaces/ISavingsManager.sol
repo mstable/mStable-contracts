@@ -1,10 +1,10 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.8.0;
 
 /**
  * @title ISavingsManager
  */
 interface ISavingsManager {
-
     /** @dev Admin privs */
     function distributeUnallocatedInterest(address _mAsset) external;
 
@@ -19,7 +19,6 @@ interface ISavingsManager {
 }
 
 interface IRevenueRecipient {
-
     /** @dev Recipient */
     function notifyRedistributionAmount(address _mAsset, uint256 _amount) external;
 }

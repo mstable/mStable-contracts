@@ -1,4 +1,5 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.8.0;
 
 /**
  * @dev Contract module that helps prevent reentrant calls to a function.
@@ -22,7 +23,7 @@ pragma solidity 0.5.16;
 contract InitializableReentrancyGuard {
     bool private _notEntered;
 
-    function _initialize() internal {
+    function _initializeReentrancyGuard() internal {
         // Storing an initial non-zero value makes deployment a bit more
         // expensive, but in exchange the refund on every call to nonReentrant
         // will be lower in amount. Since refunds are capped to a percetange of

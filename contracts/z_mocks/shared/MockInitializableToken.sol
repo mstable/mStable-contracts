@@ -1,15 +1,15 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.8.0;
 
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20Mintable.sol";
+import { ERC205 } from "../../shared/@openzeppelin-2.5/ERC205.sol";
 import { InitializableERC20Detailed } from "../../shared/InitializableERC20Detailed.sol";
 
 /**
  * @title  InitializableToken
- * @author Stability Labs Pty. Ltd.
+ * @author mStable
  * @dev    Basic ERC20Detailed Token functionality for Masset
  */
-contract MockInitializableToken is ERC20, ERC20Mintable, InitializableERC20Detailed {
+contract MockInitializableToken is ERC205, InitializableERC20Detailed {
 
     /**
      * @dev Initialization function for implementing contract
@@ -17,6 +17,7 @@ contract MockInitializableToken is ERC20, ERC20Mintable, InitializableERC20Detai
      */
     function initialize(string calldata _nameArg, string calldata _symbolArg, uint8 _decimals, address _initialRecipient, uint256 _initialMint) external {
         InitializableERC20Detailed._initialize(_nameArg, _symbolArg, _decimals);
-        _mint(_initialRecipient, _initialMint.mul(10 ** uint256(_decimals)));
+        
+        _mint(_initialRecipient, _initialMint * 10 ** uint256(_decimals));
     }
 }

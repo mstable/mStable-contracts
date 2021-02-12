@@ -1,12 +1,14 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.8.0;
 
-import { Module } from "../shared/Module.sol";
-import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
-import { AdminUpgradeabilityProxy } from "@openzeppelin/upgrades/contracts/upgradeability/AdminUpgradeabilityProxy.sol";
+import { ImmutableModule } from "../shared/ImmutableModule.sol";
+import {
+    TransparentUpgradeableProxy
+} from "@openzeppelin/contracts-sol8/contracts/proxy/TransparentUpgradeableProxy.sol";
 
 /**
  * @title   DelayedProxyAdmin
- * @author  Stability Labs Pty. Ltd.
+ * @author  mStable
  * @notice  Proxy admin contract to upgrade the upgradable contracts. The upgradable contracts
  *          are transparent proxy contracts from OpenZeppelin-SDK.
  * @dev     The contract has a delyed upgradability. The Governor can propose a new implementation
@@ -14,18 +16,16 @@ import { AdminUpgradeabilityProxy } from "@openzeppelin/upgrades/contracts/upgra
  *          and upgrade of contract is performed.
  *          Part of the code taken from OpenZeppelin-SDK's ProxyAdmin.sol
  */
-contract DelayedProxyAdmin is Module {
-    using SafeMath for uint256;
-
+contract DelayedProxyAdmin is ImmutableModule {
     event UpgradeProposed(address indexed proxy, address implementation, bytes data);
     event UpgradeCancelled(address indexed proxy);
     event Upgraded(address indexed proxy, address oldImpl, address newImpl, bytes data);
 
     // Request struct to store proposed upgrade requests
-    struct Request{
+    struct Request {
         address implementation; // New contract implementation address
-        bytes data;             // Data to call a function on new contract implementation
-        uint256 timestamp;      // Timestamp when upgrade request is proposed
+        bytes data; // Data to call a function on new contract implementation
+        uint256 timestamp; // Timestamp when upgrade request is proposed
     }
 
     // Opt-out upgrade delay
@@ -38,7 +38,7 @@ contract DelayedProxyAdmin is Module {
      * @dev Constructor
      * @param _nexus Nexus contract address
      */
-    constructor(address _nexus) public Module(_nexus) {}
+    constructor(address _nexus) ImmutableModule(_nexus) {}
 
     /**
      * @dev The Governor can propose a new contract implementation for a given proxy.
@@ -50,10 +50,7 @@ contract DelayedProxyAdmin is Module {
         address _proxy,
         address _implementation,
         bytes calldata _data
-    )
-        external
-        onlyGovernor
-    {
+    ) external onlyGovernor {
         require(_proxy != address(0), "Proxy address is zero");
         require(_implementation != address(0), "Implementation address is zero");
         require(requests[_proxy].implementation == address(0), "Upgrade already proposed");
@@ -62,7 +59,7 @@ contract DelayedProxyAdmin is Module {
         Request storage request = requests[_proxy];
         request.implementation = _implementation;
         request.data = _data;
-        request.timestamp = now;
+        request.timestamp = block.timestamp;
 
         emit UpgradeProposed(_proxy, _implementation, _data);
     }
@@ -97,11 +94,11 @@ contract DelayedProxyAdmin is Module {
         // Deleting before to avoid re-entrancy
         delete requests[_proxy];
 
-        if(data.length == 0) {
+        if (data.length == 0) {
             require(msg.value == 0, "msg.value should be zero");
-            AdminUpgradeabilityProxy(_proxy).upgradeTo(newImpl);
+            TransparentUpgradeableProxy(_proxy).upgradeTo(newImpl);
         } else {
-            AdminUpgradeabilityProxy(_proxy).upgradeToAndCall.value(msg.value)(newImpl, data);
+            TransparentUpgradeableProxy(_proxy).upgradeToAndCall{ value: msg.value }(newImpl, data);
         }
 
         emit Upgraded(_proxy, oldImpl, newImpl, data);
@@ -113,8 +110,7 @@ contract DelayedProxyAdmin is Module {
      * @return Returns `true` when upgrade delay is over, otherwise `false`
      */
     function _isDelayOver(uint256 _timestamp) private view returns (bool) {
-        if(_timestamp > 0 && now >= _timestamp.add(UPGRADE_DELAY))
-            return true;
+        if (_timestamp > 0 && block.timestamp >= _timestamp + UPGRADE_DELAY) return true;
         return false;
     }
 
@@ -165,10 +161,10 @@ contract DelayedProxyAdmin is Module {
     // NOTICE: This can be removed. However, kept it for us to remind that we are not calling this fn.
     // We are not allowing this function call from Governor or Governance.
     /**
-    * @dev Changes the admin of a proxy.
-    * @param proxy Proxy to change admin.
-    * @param newAdmin Address to transfer proxy administration to.
-    */
+     * @dev Changes the admin of a proxy.
+     * @param proxy Proxy to change admin.
+     * @param newAdmin Address to transfer proxy administration to.
+     */
     // function changeProxyAdmin(AdminUpgradeabilityProxy proxy, address newAdmin) public onlyGovernor {
     //     proxy.changeAdmin(newAdmin);
     // }

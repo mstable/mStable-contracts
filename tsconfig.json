@@ -17,20 +17,15 @@
       "node_modules/@0x/typescript-typings/types",
       "node_modules/@types"
     ],
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "resolveJsonModule": true
   },
   "include": [
-    "./types/*.ts",
-    "./types/chai.d.ts",
-    "./types/interfaces.d.ts",
-    "./types/**/*.ts",
-    "./test/*.ts",
     "./scripts/**/*.ts",
+    "./types/**/*.ts",
+    "./tasks/**/*.ts",
     "./test/**/*.ts",
-    "./test-utils/*.ts",
-    "./test-utils/**/*.ts",
-    "./migrations/**/*.ts",
-    "./migrations/*.js"
+    "./test-utils/**/*.ts"
   ],
   "files": ["./hardhat.config.ts"]
 }

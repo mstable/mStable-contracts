@@ -1,9 +1,8 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.8.0;
 
-import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 import { StableMath } from "../../shared/StableMath.sol";
-import { MinterRole } from "@openzeppelin/contracts/access/roles/MinterRole.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts-sol8/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @dev Implementation of the `IERC20` interface.
@@ -28,9 +27,8 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * functions have been added to mitigate the well-known issues around setting
  * allowances. See `IERC20.approve`.
  */
-contract ERC20WithFee is IERC20, MinterRole {
+contract ERC20WithFee is IERC20 {
 
-    using SafeMath for uint256;
     using StableMath for uint256;
 
     uint256 public feeRate;
@@ -92,14 +90,14 @@ contract ERC20WithFee is IERC20, MinterRole {
     /**
      * @dev See `IERC20.totalSupply`.
      */
-    function totalSupply() public view returns (uint256) {
+    function totalSupply() public override view returns (uint256) {
         return _totalSupply;
     }
 
     /**
      * @dev See `IERC20.balanceOf`.
      */
-    function balanceOf(address account) public view returns (uint256) {
+    function balanceOf(address account) public override view returns (uint256) {
         return _balances[account];
     }
 
@@ -111,7 +109,7 @@ contract ERC20WithFee is IERC20, MinterRole {
      * - `recipient` cannot be the zero address.
      * - the caller must have a balance of at least `amount`.
      */
-    function transfer(address recipient, uint256 amount) public returns (bool) {
+    function transfer(address recipient, uint256 amount) public override returns (bool) {
         _transfer(msg.sender, recipient, amount);
         return true;
     }
@@ -119,7 +117,7 @@ contract ERC20WithFee is IERC20, MinterRole {
     /**
      * @dev See `IERC20.allowance`.
      */
-    function allowance(address owner, address spender) public view returns (uint256) {
+    function allowance(address owner, address spender) public override view returns (uint256) {
         return _allowances[owner][spender];
     }
 
@@ -130,7 +128,7 @@ contract ERC20WithFee is IERC20, MinterRole {
      *
      * - `spender` cannot be the zero address.
      */
-    function approve(address spender, uint256 value) public returns (bool) {
+    function approve(address spender, uint256 value) public override returns (bool) {
         _approve(msg.sender, spender, value);
         return true;
     }
@@ -147,9 +145,9 @@ contract ERC20WithFee is IERC20, MinterRole {
      * - the caller must have allowance for `sender`'s tokens of at least
      * `amount`.
      */
-    function transferFrom(address sender, address recipient, uint256 amount) public returns (bool) {
+    function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
         _transfer(sender, recipient, amount);
-        _approve(sender, msg.sender, _allowances[sender][msg.sender].sub(amount));
+        _approve(sender, msg.sender, _allowances[sender][msg.sender] - amount);
         return true;
     }
 
@@ -166,7 +164,7 @@ contract ERC20WithFee is IERC20, MinterRole {
      * - `spender` cannot be the zero address.
      */
     function increaseAllowance(address spender, uint256 addedValue) public returns (bool) {
-        _approve(msg.sender, spender, _allowances[msg.sender][spender].add(addedValue));
+        _approve(msg.sender, spender, _allowances[msg.sender][spender] + addedValue);
         return true;
     }
 
@@ -185,7 +183,7 @@ contract ERC20WithFee is IERC20, MinterRole {
      * `subtractedValue`.
      */
     function decreaseAllowance(address spender, uint256 subtractedValue) public returns (bool) {
-        _approve(msg.sender, spender, _allowances[msg.sender][spender].sub(subtractedValue));
+        _approve(msg.sender, spender, _allowances[msg.sender][spender] - subtractedValue);
         return true;
     }
 
@@ -208,12 +206,12 @@ contract ERC20WithFee is IERC20, MinterRole {
         require(recipient != address(0), "ERC20: transfer to the zero address");
 
         uint256 fee = amount.mulTruncate(feeRate);
-        uint256 remainder = amount.sub(fee);
+        uint256 remainder = amount - fee;
 
         _burn(sender, fee);
 
-        _balances[sender] = _balances[sender].sub(remainder);
-        _balances[recipient] = _balances[recipient].add(remainder);
+        _balances[sender] = _balances[sender] - remainder;
+        _balances[recipient] = _balances[recipient] + remainder;
         emit Transfer(sender, recipient, remainder);
     }
 
@@ -229,8 +227,8 @@ contract ERC20WithFee is IERC20, MinterRole {
     function _mint(address account, uint256 amount) internal {
         require(account != address(0), "ERC20: mint to the zero address");
 
-        _totalSupply = _totalSupply.add(amount);
-        _balances[account] = _balances[account].add(amount);
+        _totalSupply = _totalSupply + amount;
+        _balances[account] = _balances[account] + amount;
         emit Transfer(address(0), account, amount);
     }
 
@@ -248,8 +246,8 @@ contract ERC20WithFee is IERC20, MinterRole {
     function _burn(address account, uint256 value) internal {
         require(account != address(0), "ERC20: burn from the zero address");
 
-        _totalSupply = _totalSupply.sub(value);
-        _balances[account] = _balances[account].sub(value);
+        _totalSupply = _totalSupply - value;
+        _balances[account] = _balances[account] - value;
         emit Transfer(account, address(0), value);
     }
 
@@ -282,7 +280,7 @@ contract ERC20WithFee is IERC20, MinterRole {
      */
     function _burnFrom(address account, uint256 amount) internal {
         _burn(account, amount);
-        _approve(account, msg.sender, _allowances[account][msg.sender].sub(amount));
+        _approve(account, msg.sender, _allowances[account][msg.sender] - amount);
     }
 
     /**
@@ -292,7 +290,7 @@ contract ERC20WithFee is IERC20, MinterRole {
      *
      * - the caller must have the `MinterRole`.
      */
-    function mint(address account, uint256 amount) public onlyMinter returns (bool) {
+    function mint(address account, uint256 amount) public returns (bool) {
         _mint(account, amount);
         return true;
     }
@@ -311,7 +309,7 @@ contract MockERC20WithFee is ERC20WithFee {
     {
         ERC20WithFee._initialize(_name, _symbol, _decimals);
         feeRate = 1e15;
-        _mint(_initialRecipient, _initialMint.mul(10 ** uint256(_decimals)));
+        _mint(_initialRecipient, _initialMint * (10 ** uint256(_decimals)));
     }
 
 }

@@ -1,15 +1,24 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.8.0;
 
-import { InitializableAdminUpgradeabilityProxy } from "@openzeppelin/upgrades/contracts/upgradeability/InitializableAdminUpgradeabilityProxy.sol";
+// import { InitializableAdminUpgradeabilityProxy } from "../shared/@openzeppelin-2.5/upgrades/InitializableAdminUpgradeabilityProxy.sol";
+import {
+    TransparentUpgradeableProxy
+} from "@openzeppelin/contracts-sol8/contracts/proxy/TransparentUpgradeableProxy.sol";
 
 /**
- * @notice MassetProxy delegates calls to a Masset implementation
+ * @notice AssetProxy delegates calls to a Masset implementation
  * @dev    Extending on OpenZeppelin's InitializableAdminUpgradabilityProxy
- * means that the proxy is upgradable through a ProxyAdmin. MassetProxy upgrades
+ * means that the proxy is upgradable through a ProxyAdmin. AssetProxy upgrades
  * are implemented by a DelayedProxyAdmin, which enforces a 1 week opt-out period.
  * All upgrades are governed through the current mStable governance.
  */
-contract MassetProxy is InitializableAdminUpgradeabilityProxy {
+contract AssetProxy is TransparentUpgradeableProxy {
+    constructor(
+        address _logic,
+        address admin_,
+        bytes memory _data
+    ) payable TransparentUpgradeableProxy(_logic, admin_, _data) {}
 }
 
 /**
@@ -19,7 +28,12 @@ contract MassetProxy is InitializableAdminUpgradeabilityProxy {
  * are implemented by a DelayedProxyAdmin, which enforces a 1 week opt-out period.
  * All upgrades are governed through the current mStable governance.
  */
-contract BasketManagerProxy is InitializableAdminUpgradeabilityProxy {
+contract BasketManagerProxy is TransparentUpgradeableProxy {
+    constructor(
+        address _logic,
+        address admin_,
+        bytes memory _data
+    ) payable TransparentUpgradeableProxy(_logic, admin_, _data) {}
 }
 
 /**
@@ -29,9 +43,13 @@ contract BasketManagerProxy is InitializableAdminUpgradeabilityProxy {
  * are implemented by a DelayedProxyAdmin, which enforces a 1 week opt-out period.
  * All upgrades are governed through the current mStable governance.
  */
-contract VaultProxy is InitializableAdminUpgradeabilityProxy {
+contract VaultProxy is TransparentUpgradeableProxy {
+    constructor(
+        address _logic,
+        address admin_,
+        bytes memory _data
+    ) payable TransparentUpgradeableProxy(_logic, admin_, _data) {}
 }
-
 
 /**
  * @notice LiquidatorProxy delegates calls to a Liquidator implementation
@@ -40,5 +58,10 @@ contract VaultProxy is InitializableAdminUpgradeabilityProxy {
  * are implemented by a DelayedProxyAdmin, which enforces a 1 week opt-out period.
  * All upgrades are governed through the current mStable governance.
  */
-contract LiquidatorProxy is InitializableAdminUpgradeabilityProxy {
+contract LiquidatorProxy is TransparentUpgradeableProxy {
+    constructor(
+        address _logic,
+        address admin_,
+        bytes memory _data
+    ) payable TransparentUpgradeableProxy(_logic, admin_, _data) {}
 }

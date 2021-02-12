@@ -1,12 +1,13 @@
-pragma solidity 0.5.16;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.8.0;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts-sol8/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @dev Optional functions from the ERC20 standard.
  * Converted from openzeppelin/contracts/token/ERC20/ERC20Detailed.sol
  */
-contract InitializableERC20Detailed is IERC20 {
+abstract contract InitializableERC20Detailed is IERC20 {
     string private _name;
     string private _symbol;
     uint8 private _decimals;
@@ -17,7 +18,11 @@ contract InitializableERC20Detailed is IERC20 {
      * construction.
      * @notice To avoid variable shadowing appended `Arg` after arguments name.
      */
-    function _initialize(string memory nameArg, string memory symbolArg, uint8 decimalsArg) internal {
+    function _initialize(
+        string memory nameArg,
+        string memory symbolArg,
+        uint8 decimalsArg
+    ) internal {
         _name = nameArg;
         _symbol = symbolArg;
         _decimals = decimalsArg;
