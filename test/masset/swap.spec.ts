@@ -273,7 +273,7 @@ describe("Masset - Swap", () => {
                 const { bAssets } = details
                 await assertSwap(details, bAssets[0], bAssets[1], 3, true, details.forgeValidator.address)
             })
-            context.only("when bAssets have different decimals", () => {
+            context("when bAssets have different decimals", () => {
                 it("should swap 6 decimals bAsset for 12 decimal bAsset", async () => {
                     const { bAssets } = details
                     await assertSwap(details, bAssets[1], bAssets[2], 10, true, details.forgeValidator.address)
