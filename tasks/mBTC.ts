@@ -27,22 +27,23 @@ const getBasket = async (mBtc: Masset, signer: Signer) => {
     const tvlCap = await getTvlCap(signer)
 
     const bAssets = await mBtc.getBassets()
-    const values: BN[] = []
-    let total = BN.from(0)
-    btcBassets.forEach((bAsset, i) => {
-        values.push(applyRatio(bAssets[1][i].vaultBalance, bAssets[1][i].ratio))
-        total = total.add(values[i])
+    const bAssetTotals: BN[] = []
+    let totalBassets = BN.from(0)
+    btcBassets.forEach((_, i) => {
+        const scaledBassetQuantity = applyRatio(bAssets[1][i].vaultBalance, bAssets[1][i].ratio)
+        bAssetTotals.push(scaledBassetQuantity)
+        totalBassets = totalBassets.add(scaledBassetQuantity)
     })
 
     console.log("\nmBTC basket")
     btcBassets.forEach((bAsset, i) => {
-        const percentage = values[i].mul(100).div(total)
-        console.log(`${bAsset.symbol.padEnd(7)}  ${formatUnits(values[i]).padEnd(20)} ${percentage.toString().padStart(2)}%`)
+        const percentage = bAssetTotals[i].mul(100).div(totalBassets)
+        console.log(`${bAsset.symbol.padEnd(7)}  ${formatUnits(bAssetTotals[i]).padEnd(20)} ${percentage.toString().padStart(2)}%`)
     })
     const surplus = await mBtc.surplus()
     console.log(`Surplus  ${formatUnits(surplus)}`)
-    const tvlCapPercentage = total.mul(100).div(tvlCap)
-    console.log(`Total   ${formatUnits(total).padStart(21)}`)
+    const tvlCapPercentage = totalBassets.mul(100).div(tvlCap)
+    console.log(`Total   ${formatUnits(totalBassets).padStart(21)}`)
     console.log(`TVL cap ${formatUnits(tvlCap).padStart(21)} ${tvlCapPercentage}%`)
 }
 
@@ -97,12 +98,14 @@ const getMints = async (mBTC: Masset, currentBlock: number): Promise<TxSummary> 
     console.log("\nMints in last 24 hours")
     console.log("Block#\t Minter\t\t\t\t\t    bAsset Masset Quantity")
     let total = BN.from(0)
+    let count = 0
     logs.forEach((log) => {
         const inputBasset = getBassetFromAddress(log.args.input)
         console.log(`${log.blockNumber} ${log.args.minter} ${inputBasset.symbol.padEnd(6)} ${formatUnits(log.args.mAssetQuantity)}`)
         total = total.add(log.args.mAssetQuantity)
+        count += 1
     })
-    console.log(`Total ${formatUnits(total)}`)
+    console.log(`Count ${count}, Total ${formatUnits(total)}`)
     return {
         total,
         fees: BN.from(0),
@@ -117,6 +120,7 @@ const getRedemptions = async (mBTC: Masset, currentBlock: number): Promise<TxSum
     console.log("Block#\t Redeemer\t\t\t\t    bAsset Masset Quantity\tFee")
     let total = BN.from(0)
     let fees = BN.from(0)
+    let count = 0
     logs.forEach((log) => {
         const outputBasset = getBassetFromAddress(log.args.output)
         console.log(
@@ -126,8 +130,9 @@ const getRedemptions = async (mBTC: Masset, currentBlock: number): Promise<TxSum
         )
         total = total.add(log.args.mAssetQuantity)
         fees = fees.add(log.args.scaledFee)
+        count += 1
     })
-    console.log(`Total ${formatUnits(total)}`)
+    console.log(`Count ${count}, Total ${formatUnits(total)}`)
 
     return {
         total,
@@ -144,6 +149,7 @@ const getSwaps = async (mBTC: Masset, currentBlock: number): Promise<TxSummary> 
     // Scaled bAsset quantities
     let total = BN.from(0)
     let fees = BN.from(0)
+    let count = 0
     logs.forEach((log) => {
         const inputBasset = getBassetFromAddress(log.args.input)
         const outputBasset = getBassetFromAddress(log.args.output)
@@ -155,8 +161,9 @@ const getSwaps = async (mBTC: Masset, currentBlock: number): Promise<TxSummary> 
         )
         total = total.add(applyDecimals(log.args.outputAmount, outputBasset.decimals))
         fees = fees.add(log.args.scaledFee)
+        count += 1
     })
-    console.log(`Total ${formatUnits(total)}`)
+    console.log(`Count ${count}, Total ${formatUnits(total)}`)
 
     return {
         total,
@@ -164,17 +171,22 @@ const getSwaps = async (mBTC: Masset, currentBlock: number): Promise<TxSummary> 
     }
 }
 
-const outputFees = (redeems: TxSummary, swaps: TxSummary) => {
+const outputFees = (mints: TxSummary, swaps: TxSummary, redeems: TxSummary, totalSupply: BN) => {
     const totalFees = redeems.fees.add(swaps.fees)
-    const totalTotals = redeems.total.add(swaps.total)
+    const totalTotals = mints.total.add(redeems.total).add(swaps.total)
     console.log("\nFees in the last 24 hours")
+    console.log("        mBTC Volume\t      Fees\t\t   Fee %")
+    console.log(
+        `Mints  ${formatUnits(mints.total).padEnd(22)} ${formatUnits(mints.fees).padEnd(20)} ${mints.fees.mul(100).div(totalFees)}%`,
+    )
     console.log(
         `Redeem ${formatUnits(redeems.total).padEnd(22)} ${formatUnits(redeems.fees).padEnd(20)} ${redeems.fees.mul(100).div(totalFees)}%`,
     )
     console.log(
         `Swap   ${formatUnits(swaps.total).padEnd(22)} ${formatUnits(swaps.fees).padEnd(20)} ${swaps.fees.mul(100).div(totalFees)}%`,
     )
-    console.log(`Total  ${formatUnits(totalTotals).padEnd(22)} ${formatUnits(totalFees).padEnd(20)}`)
+    const totalApy = totalFees.mul(36500).div(totalSupply)
+    console.log(`Total  ${formatUnits(totalTotals).padEnd(22)} ${formatUnits(totalFees).padEnd(20)} APY ${totalApy}%`)
 }
 
 task("mBTC-snap", "Get the latest data from the mBTC contracts").setAction(async (_, hre) => {
@@ -194,10 +206,12 @@ task("mBTC-snap", "Get the latest data from the mBTC contracts").setAction(async
     await getBalances(mBtc)
     await getSwapRates(mBtc)
 
-    await getMints(mBtc, currentBlock)
+    const mintSummary = await getMints(mBtc, currentBlock)
     const redeemSummary = await getRedemptions(mBtc, currentBlock)
     const swapSummary = await getSwaps(mBtc, currentBlock)
-    outputFees(redeemSummary, swapSummary)
+
+    const totalSupply = await mBtc.totalSupply()
+    outputFees(mintSummary, swapSummary, redeemSummary, totalSupply)
 })
 
 module.exports = {}
