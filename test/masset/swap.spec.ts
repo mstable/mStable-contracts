@@ -273,6 +273,24 @@ describe("Masset - Swap", () => {
                 const { bAssets } = details
                 await assertSwap(details, bAssets[0], bAssets[1], 3, true, details.forgeValidator.address)
             })
+            context("when bAssets have different decimals", () => {
+                it("should swap 6 decimals bAsset for 12 decimal bAsset", async () => {
+                    const { bAssets } = details
+                    await assertSwap(details, bAssets[1], bAssets[2], 10, true, details.forgeValidator.address)
+                })
+                it("should swap 12 decimals bAsset for 6 decimal bAsset", async () => {
+                    const { bAssets } = details
+                    await assertSwap(details, bAssets[2], bAssets[1], 10, true, details.forgeValidator.address)
+                })
+                it("should swap 6 decimals bAsset for 18 decimal bAsset", async () => {
+                    const { bAssets } = details
+                    await assertSwap(details, bAssets[1], bAssets[3], 10, true, details.forgeValidator.address)
+                })
+                it("should swap 18 decimals bAsset for 18 decimal bAsset", async () => {
+                    const { bAssets } = details
+                    await assertSwap(details, bAssets[0], bAssets[3], 10, true, details.forgeValidator.address)
+                })
+            })
             it("should swap with min qty same as qty less swap fee", async () => {
                 const { bAssets, mAsset } = details
                 const inputBasset = bAssets[2] // wBTC 12 decimal places

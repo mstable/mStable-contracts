@@ -445,4 +445,55 @@ task("deployMBTC-mainnet", "Deploys the mBTC contracts to Mainnet").setAction(as
     //  - Add mBTC savingsContract to SavingsManager to enable interest collection
 })
 
+task("initMBTC", "Initializes the mBTC and imBTC implementations").setAction(async (_, hre) => {
+    const { ethers, network } = hre
+
+    const [deployer] = await ethers.getSigners()
+
+    console.log(`Connecting using ${await deployer.getAddress()} and url ${network.name}`)
+
+    const addresses = {
+        mBtcManager: "0x1E91F826fa8aA4fa4D3F595898AF3A64dd188848",
+        mBtcImpl: "0x69AD1387dA6b2Ab2eA4bF2BEE68246bc042B587f",
+        imBtcImpl: "0x1C728F1bda86CD8d19f56E36eb9e24ED3E572A39",
+        deadToken: "0xB68dEfcA27e80cEb9bCC201fE28edaDc508Ec15b",
+    }
+
+    // mBTC Implementation
+    const linkedAddress = {
+        __$1a38b0db2bd175b310a9a3f8697d44eb75$__: addresses.mBtcManager,
+    }
+    const mBtcImpl = await new Masset__factory(linkedAddress, deployer).attach(addresses.mBtcImpl)
+    const tx1 = await mBtcImpl.initialize(
+        "DEAD",
+        "DEAD",
+        DEAD_ADDRESS,
+        [
+            {
+                addr: addresses.deadToken,
+                integrator: ZERO_ADDRESS,
+                hasTxFee: false,
+                status: 0,
+            },
+        ],
+        {
+            a: 100,
+            limits: {
+                min: simpleToExactAmount(100, 16),
+                max: simpleToExactAmount(100, 16),
+            },
+        },
+    )
+    console.log(`mBTC impl initialize tx ${tx1.hash}`)
+    const receipt1 = await tx1.wait()
+    console.log(`mBTC tx mined status ${receipt1.status} used ${receipt1.gasUsed} gas`)
+
+    // imBTC Savings Contract
+    const imBtcImpl = await new SavingsContract__factory(deployer).attach(addresses.imBtcImpl)
+    const tx2 = await imBtcImpl.initialize(DEAD_ADDRESS, "DEAD", "DEAD")
+    console.log(`imBTC impl initialize tx ${tx2.hash}`)
+    const receipt2 = await tx2.wait()
+    console.log(`imBTC tx mined status ${receipt2.status} used ${receipt2.gasUsed} gas`)
+})
+
 module.exports = {}
