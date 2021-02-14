@@ -118,3 +118,35 @@ Codebase rules are enforced through a passing [CI](https://circleci.com) (visibl
 
 [1]: https://github.com/nvm-sh/nvm
 [2]: https://github.com/trufflesuite/ganache-cli
+
+### Command Line Interface
+
+[Hardhat Tasks](https://hardhat.org/guides/create-task.html) are used for command line interactions with the mStable contracts. The tasks can be found in the [tasks](./tasks) folder.
+
+A separate Hardhat config file [tasks.config.ts](./tasks.config.ts) is used for task config. This inherits from the main Hardhat config file [hardhat.config.ts](./hardhat.config.ts). This avoids circular dependencies when the repository needs to be compiled before the Typechain artifacts have been generated. This means the `--config tasks.config.ts` Hardhat option needs to be used to run the mStable tasks.
+
+Config your network. If you are just using readonly tasks like `mBTC-snap` you don't need to have a signer with Ether in it so the default Hardhat test account is ok to use. For safety, the mainnet config is not committed to the repository to avoid accidentally running tasks against mainnet.
+
+```
+mainnet: {
+    url: process.env.NODE_URL || "",
+    accounts: {
+        mnemonic: "test test test test test test test test test test test junk",
+    },
+},
+```
+
+**Never commit mainnet private keys, mnemonics or provider URLs to the repository.**
+
+Examples of using the Hardhat tasks
+
+```zsh
+# List all Hardhat tasks
+hh --config tasks.config.ts
+
+# Set the provider url
+export NODE_URL=https://mainnet.infura.io/v3/yourApiKey
+
+# To run the mBTC-snap task against mainnet
+hh --config tasks.config.ts --network mainnet mBTC-snap
+```

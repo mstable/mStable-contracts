@@ -62,7 +62,7 @@ export const contracts = {
     mainnet: {
         // BTC tokens
         renBTC: "0xEB4C2781e4ebA804CE9a9803C67d0893436bB27D",
-        sBTC: "0xfe18be6b3bd88a2d2a7f928d00292e7a9963cfc6",
+        sBTC: "0xfE18be6b3Bd88A2D2A7f928d00292E7a9963CfC6",
         WBTC: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
 
         // mBTC contracts
@@ -86,4 +86,11 @@ export const contracts = {
         mBTC: "0x4A677A48A790f26eac4c97f495E537558Abf6A79",
         imBTC: "0xBfe31D984d688628d06Ae2Da1D640Cf5D9e242A5",
     },
+}
+
+export const getBassetFromAddress = (address: string, network = "mainnet"): Bassets => {
+    const contract = Object.entries(contracts[network]).find((c) => c[1] === address)
+    if (!contract) return undefined
+    const symbol = contract[0]
+    return btcBassets.find((btcBasset) => btcBasset.symbol === symbol)
 }
