@@ -148,5 +148,5 @@ hh --config tasks.config.ts
 export NODE_URL=https://mainnet.infura.io/v3/yourApiKey
 
 # To run the mBTC-snap task against mainnet
-hh --config tasks.config.ts --network mainnet mBTC-snap
+yarn task mBTC-snap --network mainnet
 ```
