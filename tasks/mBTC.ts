@@ -119,7 +119,7 @@ const getMultiMints = async (mBTC: Masset, fromBlock: number, startTime: Date): 
     const logs = await mBTC.queryFilter(filter, fromBlock)
 
     console.log(`\nMulti Mints since block ${fromBlock} at ${startTime.toUTCString()}`)
-    console.log("Block#\t Tx hash\t\t\t\t\t\t\t    bAsset Masset Quantity")
+    console.log("Block#\t Tx hash\t\t\t\t\t\t\t    Masset Quantity")
     let total = BN.from(0)
     let count = 0
     logs.forEach((log) => {
@@ -173,7 +173,7 @@ const getMultiRedemptions = async (mBTC: Masset, fromBlock: number, startTime: D
     const logs = await mBTC.queryFilter(filter, fromBlock)
 
     console.log(`\nMulti Redemptions since block ${fromBlock} at ${startTime.toUTCString()}`)
-    console.log("Block#\t Tx hash\t\t\t\t\t\t\t    bAsset Masset Quantity\tFee")
+    console.log("Block#\t Tx hash\t\t\t\t\t\t\t    Masset Quantity\t Fee")
     let total = BN.from(0)
     let fees = BN.from(0)
     let count = 0
@@ -239,7 +239,7 @@ const outputFees = (
     const totalFees = redeems.fees.add(multiRedeems.fees).add(swaps.fees)
     const totalTotals = mints.total.add(multiMints.total).add(redeems.total).add(multiRedeems.total).add(swaps.total)
     console.log(`\nFees since ${startTime.toUTCString()}`)
-    console.log("        mBTC Volume\t      Fees\t\t   Fee %")
+    console.log("              mBTC Volume\t     Fees\t\t  Fee %")
     console.log(
         `Mints         ${formatUnits(mints.total).padEnd(22)} ${formatUnits(mints.fees).padEnd(20)} ${mints.fees.mul(100).div(totalFees)}%`,
     )
