@@ -60,7 +60,7 @@ const getSwapRates = async (mBTC: Masset) => {
                     const output = await mBTC.getSwapOutput(inputAddress, outputAddress, input)
                     const scaledInput = applyDecimals(input, inputToken.decimals)
                     const scaledOutput = applyDecimals(output, outputToken.decimals)
-                    const percent = scaledOutput.sub(scaledInput).mul(1000).div(scaledInput)
+                    const percent = scaledOutput.sub(scaledInput).mul(10000).div(scaledInput)
                     console.log(
                         `${inputStr} ${inputToken.symbol.padEnd(6)} -> ${outputToken.symbol.padEnd(6)} ${formatUnits(
                             output,
