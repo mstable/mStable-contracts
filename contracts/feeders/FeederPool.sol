@@ -19,7 +19,6 @@ import { SafeCast } from "@openzeppelin/contracts-sol8/contracts/utils/SafeCast.
 import { StableMath } from "../shared/StableMath.sol";
 import { Manager } from "../masset/Manager.sol";
 
-
 contract FeederPool is
     IFeederPool,
     Initializable,
@@ -90,7 +89,7 @@ contract FeederPool is
     BassetPersonal[] public bAssetPersonal;
     BassetData[] public bAssetData;
     address public immutable mAsset;
-  
+
     uint256 private constant A_PRECISION = 100;
     AmpData public ampData;
     WeightLimits public weightLimits;
@@ -128,10 +127,23 @@ contract FeederPool is
         //   vBalance     mutable     mutable
         //     status    outdated    outdated
         require(_mAsset.addr == mAsset, "mAsset incorrect");
-        bAssetPersonal[0] = BassetPersonal(_mAsset.addr, _mAsset.integrator, false, BassetStatus.Normal);
+        bAssetPersonal[0] = BassetPersonal(
+            _mAsset.addr,
+            _mAsset.integrator,
+            false,
+            BassetStatus.Normal
+        );
         bAssetData[0] = BassetData(1e8, 0);
-        bAssetPersonal[1] = BassetPersonal(_fAsset.addr, _fAsset.integrator, _fAsset.hasTxFee, BassetStatus.Normal);
-        bAssetData[1] = BassetData(SafeCast.toUint128(10**(18 - IBasicToken(_fAsset.addr).decimals())), 0);
+        bAssetPersonal[1] = BassetPersonal(
+            _fAsset.addr,
+            _fAsset.integrator,
+            _fAsset.hasTxFee,
+            BassetStatus.Normal
+        );
+        bAssetData[1] = BassetData(
+            SafeCast.toUint128(10**(18 - IBasicToken(_fAsset.addr).decimals())),
+            0
+        );
 
         uint64 startA = SafeCast.toUint64(_config.a * A_PRECISION);
         ampData = AmpData(startA, startA, 0, 0);
@@ -174,8 +186,18 @@ contract FeederPool is
         uint256 _inputQuantity,
         uint256 _minOutputQuantity,
         address _recipient
-    ) external override nonReentrant whenInOperation returns (uint256 mintOutput) {
-        mintOutput = _mintTo(_input, _inputQuantity, _minOutputQuantity, _recipient);
+    ) external nonReentrant whenInOperation returns (uint256 mintOutput) {
+        require(_recipient != address(0), "Invalid recipient");
+        require(_inputQuantity > 0, "Qty==0");
+
+        (bool exists, uint8 idx) = _getAsset(_input);
+
+        if (exists) {
+            mintOutput = _mintLocal(idx, _inputQuantity, _minOutputQuantity, _recipient);
+        } else {
+            uint256 mAssetMinted = IMasset(mAsset).mint(_input, _inputQuantity, 0, address(this));
+            mintOutput = _mintLocal(0, mAssetMinted, _minOutputQuantity, _recipient);
+        }
     }
 
     // /**
@@ -193,28 +215,32 @@ contract FeederPool is
     //     uint256[] calldata _inputQuantities,
     //     uint256 _minOutputQuantity,
     //     address _recipient
-    // ) external override nonReentrant whenInOperation returns (uint256 mintOutput) {
+    // ) external  nonReentrant whenInOperation returns (uint256 mintOutput) {
     //     mintOutput = _mintMulti(_inputs, _inputQuantities, _minOutputQuantity, _recipient);
     // }
 
-    // /**
-    //  * @dev Get the projected output of a given mint
-    //  * @param _input             Address of the bAsset to deposit for the minted mAsset
-    //  * @param _inputQuantity     Quantity in bAsset units
-    //  * @return mintOutput        Estimated mint output in mAsset terms
-    //  */
-    // function getMintOutput(address _input, uint256 _inputQuantity)
-    //     external
-    //     view
-    //     override
-    //     returns (uint256 mintOutput)
-    // {
-    //     require(_inputQuantity > 0, "Qty==0");
+    /**
+     * @dev Get the projected output of a given mint
+     * @param _input             Address of the bAsset to deposit for the minted mAsset
+     * @param _inputQuantity     Quantity in bAsset units
+     * @return mintOutput        Estimated mint output in mAsset terms
+     */
+    function getMintOutput(address _input, uint256 _inputQuantity)
+        external
+        view
+        returns (uint256 mintOutput)
+    {
+        require(_inputQuantity > 0, "Qty==0");
 
-    //     (, uint8 idx, ) = _getAsset(_input, true);
+        (bool exists, uint8 idx) = _getAsset(_input);
 
-    //     mintOutput = validator.computeMint(bAssetData, idx, _inputQuantity, _getConfig());
-    // }
+        if (exists) {
+            mintOutput = validator.computeMint(bAssetData, idx, _inputQuantity, _getConfig());
+        } else {
+            uint256 esimatedMasset = IMasset(mAsset).getMintOutput(_input, _inputQuantity);
+            mintOutput = validator.computeMint(bAssetData, 0, esimatedMasset, _getConfig());
+        }
+    }
 
     // /**
     //  * @dev Get the projected output of a given mint
@@ -225,7 +251,7 @@ contract FeederPool is
     // function getMintMultiOutput(address[] calldata _inputs, uint256[] calldata _inputQuantities)
     //     external
     //     view
-    //     override
+    //
     //     returns (uint256 mintOutput)
     // {
     //     uint256 len = _inputQuantities.length;
@@ -238,27 +264,6 @@ contract FeederPool is
               MINTING (INTERNAL)
     ****************************************/
 
-    /** @dev Mint Single */
-    function _mintTo(
-        address _input,
-        uint256 _inputQuantity,
-        uint256 _minOutputQuantity,
-        address _recipient
-    ) internal returns (uint256 tokensMinted) {
-        require(_recipient != address(0), "Invalid recipient");
-        require(_inputQuantity > 0, "Qty==0");
-
-        (bool exists, uint8 idx) = _getAsset(_input);
-
-        // exists == `_input` is either fAsset or mAsset
-        if(exists){
-          return _mintLocal(idx, _inputQuantity, _minOutputQuantity, _recipient);
-        } else {
-          uint256 mAssetMinted = IMasset(mAsset).mint(_input, _inputQuantity, 0, address(this));
-          return _mintLocal(0, mAssetMinted, _minOutputQuantity, _recipient);
-        }
-    }
-
     function _mintLocal(
         uint8 _idx,
         uint256 _inputQuantity,
@@ -270,19 +275,9 @@ contract FeederPool is
         // Transfer collateral to the platform integration address and call deposit
         BassetPersonal memory personal = bAssetPersonal[_idx];
         uint256 quantityDeposited =
-            Manager.depositTokens(
-                personal,
-                allBassets[_idx].ratio,
-                _inputQuantity,
-                cache.maxCache
-            );
+            Manager.depositTokens(personal, allBassets[_idx].ratio, _inputQuantity, cache.maxCache);
         // Validation should be after token transfer, as bAssetQty is unknown before
-        tokensMinted = validator.computeMint(
-            allBassets,
-            _idx,
-            quantityDeposited,
-            _getConfig()
-        );
+        tokensMinted = validator.computeMint(allBassets, _idx, quantityDeposited, _getConfig());
         require(tokensMinted >= _minOutputQuantity, "Mint quantity < min qty");
         // Log the Vault increase - can only be done when basket is healthy
         bAssetData[_idx].vaultBalance =
@@ -342,137 +337,183 @@ contract FeederPool is
     //             SWAP (PUBLIC)
     // ****************************************/
 
-    // /**
-    //  * @dev Swaps one bAsset for another bAsset using the bAsset addresses.
-    //  * bAsset <> bAsset swaps will incur a small fee (swapFee()).
-    //  * @param _input             Address of bAsset to deposit
-    //  * @param _output            Address of bAsset to receive
-    //  * @param _inputQuantity     Units of input bAsset to swap
-    //  * @param _minOutputQuantity Minimum quantity of the swap output asset. This protects against slippage
-    //  * @param _recipient         Address to transfer output asset to
-    //  * @return swapOutput        Quantity of output asset returned from swap
-    //  */
-    // function swap(
-    //     address _input,
-    //     address _output,
-    //     uint256 _inputQuantity,
-    //     uint256 _minOutputQuantity,
-    //     address _recipient
-    // ) external override nonReentrant whenInOperation returns (uint256 swapOutput) {
-    //     swapOutput = _swap(_input, _output, _inputQuantity, _minOutputQuantity, _recipient);
-    // }
+    /**
+     * @dev Swaps one bAsset for another bAsset using the bAsset addresses.
+     * bAsset <> bAsset swaps will incur a small fee (swapFee()).
+     * @param _input             Address of bAsset to deposit
+     * @param _output            Address of bAsset to receive
+     * @param _inputQuantity     Units of input bAsset to swap
+     * @param _minOutputQuantity Minimum quantity of the swap output asset. This protects against slippage
+     * @param _recipient         Address to transfer output asset to
+     * @return swapOutput        Quantity of output asset returned from swap
+     */
+    function swap(
+        address _input,
+        address _output,
+        uint256 _inputQuantity,
+        uint256 _minOutputQuantity,
+        address _recipient
+    ) external nonReentrant whenInOperation returns (uint256 swapOutput) {
+        require(_recipient != address(0), "Invalid recipient");
+        require(_input != _output, "Invalid pair");
+        require(_inputQuantity > 0, "Qty==0");
 
-    // /**
-    //  * @dev Determines both if a trade is valid, and the expected fee or output.
-    //  * Swap is valid if it does not result in the input asset exceeding its maximum weight.
-    //  * @param _input             Address of bAsset to deposit
-    //  * @param _output            Address of bAsset to receive
-    //  * @param _inputQuantity     Units of input bAsset to swap
-    //  * @return swapOutput        Quantity of output asset returned from swap
-    //  */
-    // function getSwapOutput(
-    //     address _input,
-    //     address _output,
-    //     uint256 _inputQuantity
-    // ) external view override returns (uint256 swapOutput) {
-    //     require(_input != _output, "Invalid pair");
-    //     require(_inputQuantity > 0, "Invalid swap quantity");
+        (bool inputExists, uint8 inputIdx) = _getAsset(_input);
+        (bool outputExists, uint8 outputIdx) = _getAsset(_output);
+        require(inputExists || outputExists, "Nothing to swap with");
 
-    //     // // 1. Load the bAssets from storage into memory
-    //     // BassetData[] memory allBassets = bAssetData;
-    //     // (uint8 inputIdx, ) = _getAsset(_input);
-    //     // (uint8 outputIdx, ) = _getAsset(_output);
+        // Internal swap between fAsset and mAsset
+        if (inputExists && outputExists) {
+            return _swapLocal(inputIdx, outputIdx, _inputQuantity, _minOutputQuantity, _recipient);
+        }
+        // TODO - do we want to support mAsset -> mpAsset and mpAsset -> mAsset here? I don't see the point
+        // If we do, need to re-jig this
+        require(inputIdx != 0 && outputIdx != 0, "Covnersion not supported");
 
-    //     // // 2. If a bAsset swap, calculate the validity, output and fee
-    //     // (swapOutput, ) = validator.computeSwap(
-    //     //     allBassets,
-    //     //     inputIdx,
-    //     //     outputIdx,
-    //     //     _inputQuantity,
-    //     //     swapFee,
-    //     //     _getConfig()
-    //     // );
-    // }
+        // Swapping out of fAsset
+        // Swap into mAsset > Redeem into mpAsset
+        if (inputExists) {
+            uint256 mAssetQuantity = _swapLocal(inputIdx, 0, _inputQuantity, 0, address(this));
+            return IMasset(mAsset).redeem(_output, mAssetQuantity, _minOutputQuantity, _recipient);
+        }
+        // Else we are swapping into fAsset
+        // Mint mAsset from mp > Swap into fAsset here
+        else {
+            uint256 mAssetQuantity = IMasset(mAsset).mint(_input, _inputQuantity, 0, address(this));
+            return _swapLocal(0, outputIdx, mAssetQuantity, _minOutputQuantity, _recipient);
+        }
+    }
+
+    /**
+     * @dev Determines both if a trade is valid, and the expected fee or output.
+     * Swap is valid if it does not result in the input asset exceeding its maximum weight.
+     * @param _input             Address of bAsset to deposit
+     * @param _output            Address of bAsset to receive
+     * @param _inputQuantity     Units of input bAsset to swap
+     * @return swapOutput        Quantity of output asset returned from swap
+     */
+    function getSwapOutput(
+        address _input,
+        address _output,
+        uint256 _inputQuantity
+    ) external view returns (uint256 swapOutput) {
+        require(_input != _output, "Invalid pair");
+        require(_inputQuantity > 0, "Invalid swap quantity");
+
+        (bool inputExists, uint8 inputIdx) = _getAsset(_input);
+        (bool outputExists, uint8 outputIdx) = _getAsset(_output);
+        require(inputExists || outputExists, "Nothing to swap with");
+
+        // Internal swap between fAsset and mAsset
+        if (inputExists && outputExists) {
+            (swapOutput, ) = validator.computeSwap(
+                bAssetData,
+                inputIdx,
+                outputIdx,
+                _inputQuantity,
+                outputIdx == 0 ? 0 : swapFee,
+                _getConfig()
+            );
+            return swapOutput;
+        }
+
+        require(inputIdx != 0 && outputIdx != 0, "Covnersion not supported");
+
+        // Swapping out of fAsset
+        uint256 mAssetQuantity;
+        if (inputExists) {
+            // Swap into mAsset > Redeem into mpAsset
+            (mAssetQuantity, ) = validator.computeSwap(
+                bAssetData,
+                1,
+                0,
+                _inputQuantity,
+                0,
+                _getConfig()
+            );
+            swapOutput = IMasset(mAsset).getRedeemOutput(_output, mAssetQuantity);
+        }
+        // Else we are swapping into fAsset
+        else {
+            // Mint mAsset from mp > Swap into fAsset here
+            mAssetQuantity = IMasset(mAsset).getMintOutput(_input, _inputQuantity);
+            (swapOutput, ) = validator.computeSwap(
+                bAssetData,
+                0,
+                1,
+                mAssetQuantity,
+                swapFee,
+                _getConfig()
+            );
+        }
+    }
 
     /***************************************
               SWAP (INTERNAL)
     ****************************************/
 
-    // /** @dev Swap single */
-    // function _swap(
-    //     address _input,
-    //     address _output,
-    //     uint256 _inputQuantity,
-    //     uint256 _minOutputQuantity,
-    //     address _recipient
-    // ) internal returns (uint256 swapOutput) {
-    //     require(_recipient != address(0), "Invalid recipient");
-    //     require(_input != _output, "Invalid pair");
-    //     require(_inputQuantity > 0, "Invalid swap quantity");
+    function _swapLocal(
+        uint8 _inputIdx,
+        uint8 _outputIdx,
+        uint256 _inputQuantity,
+        uint256 _minOutputQuantity,
+        address _recipient
+    ) internal returns (uint256 swapOutput) {
+        // 2. Load cache
+        BassetData[] memory allBassets = bAssetData;
+        Cache memory cache = _getCacheDetails();
+        // 3. Deposit the input tokens
+        BassetPersonal memory inputPersonal = bAssetPersonal[_outputIdx];
+        uint256 quantityDeposited =
+            Manager.depositTokens(
+                inputPersonal,
+                allBassets[_inputIdx].ratio,
+                _inputQuantity,
+                cache.maxCache
+            );
+        // 3.1. Update the input balance
+        bAssetData[_inputIdx].vaultBalance =
+            allBassets[_inputIdx].vaultBalance +
+            SafeCast.toUint128(quantityDeposited);
 
-    //     // 1. Load the bAssets from storage into memory
-    //     BassetData[] memory allBassets = bAssetData;
-    //     (bool inputExists, uint8 inputIdx, BassetPersonal memory inputPersonal) = _getAsset(_input, false);
-    //     (bool outputExists, uint8 outputIdx, BassetPersonal memory outputPersonal) = _getAsset(_output, false);
-
-    //     // if !inputExists && !outputExists.. then nothing we can do here
-    //     // if inputExists && outputExists
-    //     //   swap
-    //     // else if inputExists
-    //     //   swap then mPool redeem
-    //     // else if outputExists
-    //     //   main poolMint then swap
-
-    //     // // 2. Load cache
-    //     // Cache memory cache = _getCacheDetails();
-    //     // // 3. Deposit the input tokens
-    //     // uint256 quantityDeposited =
-    //     //     Manager.depositTokens(
-    //     //         inputPersonal,
-    //     //         allBassets[inputIdx].ratio,
-    //     //         _inputQuantity,
-    //     //         cache.maxCache
-    //     //     );
-    //     // // 3.1. Update the input balance
-    //     // bAssetData[inputIdx].vaultBalance =
-    //     //     allBassets[inputIdx].vaultBalance +
-    //     //     SafeCast.toUint128(quantityDeposited);
-
-    //     // // 3. Validate the swap
-    //     // uint256 scaledFee;
-    //     // (swapOutput, scaledFee) = validator.computeSwap(
-    //     //     allBassets,
-    //     //     inputIdx,
-    //     //     outputIdx,
-    //     //     quantityDeposited,
-    //     //     swapFee,
-    //     //     _getConfig()
-    //     // );
-    //     // require(swapOutput >= _minOutputQuantity, "Output qty < minimum qty");
-    //     // require(swapOutput > 0, "Zero output quantity");
-    //     // //4. Settle the swap
-    //     // //4.1. Decrease output bal
-    //     // Manager.withdrawTokens(
-    //     //     swapOutput,
-    //     //     outputPersonal,
-    //     //     allBassets[outputIdx],
-    //     //     _recipient,
-    //     //     cache.maxCache
-    //     // );
-    //     // bAssetData[outputIdx].vaultBalance =
-    //     //     allBassets[outputIdx].vaultBalance -
-    //     //     SafeCast.toUint128(swapOutput);
-    //     // // Save new surplus to storage
-    //     // surplus = cache.surplus + scaledFee;
-    //     // emit Swapped(
-    //     //     msg.sender,
-    //     //     inputPersonal.addr,
-    //     //     outputPersonal.addr,
-    //     //     swapOutput,
-    //     //     scaledFee,
-    //     //     _recipient
-    //     // );
-    // }
+        // 3. Validate the swap
+        uint256 scaledFee;
+        (swapOutput, scaledFee) = validator.computeSwap(
+            allBassets,
+            _inputIdx,
+            _outputIdx,
+            quantityDeposited,
+            _outputIdx == 0 ? 0 : swapFee,
+            _getConfig()
+        );
+        require(swapOutput >= _minOutputQuantity, "Output qty < minimum qty");
+        require(swapOutput > 0, "Zero output quantity");
+        //4. Settle the swap
+        //4.1. Decrease output bal
+        // TODO - if recipient == address(this) then no need to transfer anything
+        BassetPersonal memory outputPersonal = bAssetPersonal[_outputIdx];
+        Manager.withdrawTokens(
+            swapOutput,
+            outputPersonal,
+            allBassets[_outputIdx],
+            _recipient,
+            cache.maxCache
+        );
+        bAssetData[_outputIdx].vaultBalance =
+            allBassets[_outputIdx].vaultBalance -
+            SafeCast.toUint128(swapOutput);
+        // Save new surplus to storage
+        // TODO - re-jig the fees and increase LP token value
+        // surplus = cache.surplus + scaledFee;
+        emit Swapped(
+            msg.sender,
+            inputPersonal.addr,
+            outputPersonal.addr,
+            swapOutput,
+            scaledFee,
+            _recipient
+        );
+    }
 
     // /***************************************
     //             REDEMPTION (PUBLIC)
@@ -495,7 +536,7 @@ contract FeederPool is
     //     uint256 _mAssetQuantity,
     //     uint256 _minOutputQuantity,
     //     address _recipient
-    // ) external override nonReentrant whenInOperation returns (uint256 outputQuantity) {
+    // ) external  nonReentrant whenInOperation returns (uint256 outputQuantity) {
     //     outputQuantity = _redeem(_output, _mAssetQuantity, _minOutputQuantity, _recipient);
     // }
 
@@ -510,7 +551,7 @@ contract FeederPool is
     //     uint256 _mAssetQuantity,
     //     uint256[] calldata _minOutputQuantities,
     //     address _recipient
-    // ) external override nonReentrant whenInOperation returns (uint256[] memory outputQuantities) {
+    // ) external  nonReentrant whenInOperation returns (uint256[] memory outputQuantities) {
     //     outputQuantities = _redeemMasset(_mAssetQuantity, _minOutputQuantities, _recipient);
     // }
 
@@ -528,7 +569,7 @@ contract FeederPool is
     //     uint256[] calldata _outputQuantities,
     //     uint256 _maxMassetQuantity,
     //     address _recipient
-    // ) external override nonReentrant whenInOperation returns (uint256 mAssetQuantity) {
+    // ) external  nonReentrant whenInOperation returns (uint256 mAssetQuantity) {
     //     mAssetQuantity = _redeemExactBassets(
     //         _outputs,
     //         _outputQuantities,
@@ -546,7 +587,7 @@ contract FeederPool is
     // function getRedeemOutput(address _output, uint256 _mAssetQuantity)
     //     external
     //     view
-    //     override
+    //
     //     returns (uint256 bAssetOutput)
     // {
     //     require(_mAssetQuantity > 0, "Qty==0");
@@ -571,7 +612,7 @@ contract FeederPool is
     // function getRedeemExactBassetsOutput(
     //     address[] calldata _outputs,
     //     uint256[] calldata _outputQuantities
-    // ) external view override returns (uint256 mAssetQuantity) {
+    // ) external view  returns (uint256 mAssetQuantity) {
     //     uint256 len = _outputQuantities.length;
     //     require(len > 0 && len == _outputs.length, "Invalid array input");
 
@@ -761,7 +802,7 @@ contract FeederPool is
     //  * @dev Get basket details for `Masset_MassetStructs.Basket`
     //  * @return b   Basket struct
     //  */
-    // function getBasket() external view override returns (bool, bool) {
+    // function getBasket() external view  returns (bool, bool) {
     //     return (basket.undergoingRecol, basket.failed);
     // }
 
@@ -773,7 +814,7 @@ contract FeederPool is
     // function getBassets()
     //     external
     //     view
-    //     override
+    //
     //     returns (BassetPersonal[] memory personal, BassetData[] memory data)
     // {
     //     return (bAssetPersonal, bAssetData);
@@ -788,7 +829,7 @@ contract FeederPool is
     // function getBasset(address _bAsset)
     //     external
     //     view
-    //     override
+    //
     //     returns (BassetPersonal memory personal, BassetData memory data)
     // {
     //     uint8 idx = bAssetIndexes[_bAsset];
@@ -823,13 +864,9 @@ contract FeederPool is
         BassetPersonal personal;
     }
 
-    function _getAsset(address _asset)
-        internal
-        view
-        returns (bool exists, uint8 idx)
-    {
+    function _getAsset(address _asset) internal view returns (bool exists, uint8 idx) {
         // if input is mAsset then we know the position
-        if(_asset == mAsset) return (true, 0);
+        if (_asset == mAsset) return (true, 0);
 
         // else it exists if the position 1 is _asset
         return (bAssetPersonal[1].addr == _asset, 1);
@@ -907,7 +944,7 @@ contract FeederPool is
     //  */
     // function collectPlatformInterest()
     //     external
-    //     override
+    //
     //     onlySavingsManager
     //     whenInOperation
     //     nonReentrant
@@ -938,7 +975,7 @@ contract FeederPool is
     //  *      _cacheSize * totalSupply / 2 under normal circumstances.
     //  * @param _cacheSize Maximum percent of total mAsset supply to hold for each bAsset
     //  */
-    // function setCacheSize(uint256 _cacheSize) external override onlyGovernor {
+    // function setCacheSize(uint256 _cacheSize) external  onlyGovernor {
     //     require(_cacheSize <= 2e17, "Must be <= 20%");
 
     //     cacheSize = _cacheSize;
@@ -951,7 +988,7 @@ contract FeederPool is
     //  *      only while validator is unlocked.
     //  * @param _newvalidator Address of the new validator
     //  */
-    // function upgradevalidator(address _newvalidator) external override onlyGovernor {
+    // function upgradevalidator(address _newvalidator) external  onlyGovernor {
     //     require(!validatorLocked, "ForgeVal locked");
     //     require(_newvalidator != address(0), "Null address");
 
@@ -964,7 +1001,7 @@ contract FeederPool is
     //  * @dev Set the ecosystem fee for sewapping bAssets or redeeming specific bAssets
     //  * @param _swapFee Fee calculated in (%/100 * 1e18)
     //  */
-    // function setFees(uint256 _swapFee, uint256 _redemptionFee) external override onlyGovernor {
+    // function setFees(uint256 _swapFee, uint256 _redemptionFee) external  onlyGovernor {
     //     require(_swapFee <= MAX_FEE, "Swap rate oob");
     //     require(_redemptionFee <= MAX_FEE, "Redemption rate oob");
 
@@ -993,7 +1030,7 @@ contract FeederPool is
     //  * @param _bAsset   bAsset address
     //  * @param _flag         Charge transfer fee when its set to 'true', otherwise 'false'
     //  */
-    // function setTransferFeesFlag(address _bAsset, bool _flag) external override onlyGovernor {
+    // function setTransferFeesFlag(address _bAsset, bool _flag) external  onlyGovernor {
     //     Manager.setTransferFeesFlag(bAssetPersonal, bAssetIndexes, _bAsset, _flag);
     // }
 
@@ -1007,7 +1044,7 @@ contract FeederPool is
     //  */
     // function migrateBassets(address[] calldata _bAssets, address _newIntegration)
     //     external
-    //     override
+    //
     //     onlyGovernor
     // {
     //     Manager.migrateBassets(bAssetPersonal, bAssetIndexes, _bAssets, _newIntegration);
