@@ -393,7 +393,7 @@ contract FeederPool is
 
         // Internal swap between fAsset and mAsset
         if (inputExists && outputExists) {
-            return _swapLocal(inputIdx, outputIdx, _inputQuantity, _minOutputQuantity, _recipient);
+            return _swapLocal(inputIdx, outputIdx, _inputQuantity, _minOutputQuantity, false, _recipient);
         }
         // TODO - do we want to support mAsset -> mpAsset and mpAsset -> mAsset here? I don't see the point
         // If we do, need to re-jig this
@@ -402,13 +402,14 @@ contract FeederPool is
         // Swapping out of fAsset
         // Swap into mAsset > Redeem into mpAsset
         if (inputExists) {
-            uint256 mAssetQuantity = _swapLocal(inputIdx, 0, _inputQuantity, 0, address(this));
+            uint256 mAssetQuantity = _swapLocal(inputIdx, 0, _inputQuantity, 0, false, address(this));
             return IMasset(mAsset).redeem(_output, mAssetQuantity, _minOutputQuantity, _recipient);
         }
         // Else we are swapping into fAsset
         // Mint mAsset from mp > Swap into fAsset here
+        IERC20(_input).safeTransferFrom(msg.sender, address(this), _inputQuantity);
         uint256 mAssetQuantity = IMasset(mAsset).mint(_input, _inputQuantity, 0, address(this));
-        return _swapLocal(0, outputIdx, mAssetQuantity, _minOutputQuantity, _recipient);
+        return _swapLocal(0, outputIdx, mAssetQuantity, _minOutputQuantity, true, _recipient);
     }
 
     /**
@@ -484,24 +485,31 @@ contract FeederPool is
         uint8 _outputIdx,
         uint256 _inputQuantity,
         uint256 _minOutputQuantity,
+        bool _skipDeposit,
         address _recipient
     ) internal returns (uint256 swapOutput) {
         // 2. Load cache
         BassetData[] memory allBassets = bAssetData;
         Cache memory cache = _getCacheDetails();
         // 3. Deposit the input tokens
-        BassetPersonal memory inputPersonal = bAssetPersonal[_outputIdx];
-        uint256 quantityDeposited =
-            Manager.depositTokens(
-                inputPersonal,
-                allBassets[_inputIdx].ratio,
-                _inputQuantity,
-                cache.maxCache
-            );
-        // 3.1. Update the input balance
-        bAssetData[_inputIdx].vaultBalance =
-            allBassets[_inputIdx].vaultBalance +
-            SafeCast.toUint128(quantityDeposited);
+        BassetPersonal memory inputPersonal = bAssetPersonal[_inputIdx];
+        // TODO - consider if this is dangerous to trust supplied _inputQty
+        uint256 quantityDeposited = _inputQuantity;
+        {
+            if(!_skipDeposit) {
+                quantityDeposited = Manager.depositTokens(
+                    inputPersonal,
+                    allBassets[_inputIdx].ratio,
+                    _inputQuantity,
+                    cache.maxCache
+                );
+            }
+            // 3.1. Update the input balance
+            bAssetData[_inputIdx].vaultBalance =
+                allBassets[_inputIdx].vaultBalance +
+                SafeCast.toUint128(quantityDeposited);
+        }
+
 
         // 3. Validate the swap
         uint256 scaledFee;
@@ -510,7 +518,7 @@ contract FeederPool is
             _inputIdx,
             _outputIdx,
             quantityDeposited,
-            _outputIdx == 0 ? 0 : swapFee,
+            0, // TODO - revert to _outputIdx == 0 ? 0 : swapFee. Need to resovle stack too deep
             _getConfig()
         );
         require(swapOutput >= _minOutputQuantity, "Output qty < minimum qty");
@@ -519,15 +527,16 @@ contract FeederPool is
         //4.1. Decrease output bal
         // TODO - if recipient == address(this) then no need to transfer anything
         BassetPersonal memory outputPersonal = bAssetPersonal[_outputIdx];
+        uint8 outputIdx = _outputIdx; // TODO -revert back
         Manager.withdrawTokens(
             swapOutput,
             outputPersonal,
-            allBassets[_outputIdx],
+            allBassets[outputIdx],
             _recipient,
             cache.maxCache
         );
-        bAssetData[_outputIdx].vaultBalance =
-            allBassets[_outputIdx].vaultBalance -
+        bAssetData[outputIdx].vaultBalance =
+            allBassets[outputIdx].vaultBalance -
             SafeCast.toUint128(swapOutput);
         // Save new surplus to storage
         // TODO - re-jig the fees and increase LP token value
