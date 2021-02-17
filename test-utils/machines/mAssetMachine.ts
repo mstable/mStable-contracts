@@ -23,6 +23,7 @@ import {
     MockInitializableToken__factory,
     MockInitializableTokenWithFee__factory,
     Manager,
+    AssetProxy,
 } from "types/generated"
 import { BN, minimum, simpleToExactAmount } from "@utils/math"
 import { fullScale, MainnetAccounts, ratioScale, ZERO_ADDRESS, DEAD_ADDRESS } from "@utils/constants"
@@ -39,6 +40,7 @@ export interface MassetDetails {
     platform?: MockPlatformIntegration
     aavePlatformAddress?: string
     managerLib?: Manager
+    wrappedManagerLib?: Manager
 }
 
 export class MassetMachine {
@@ -127,7 +129,8 @@ export class MassetMachine {
             platform: useLendingMarkets
                 ? await new MockPlatformIntegration__factory(this.sa.default.signer).attach(integrationAddress)
                 : null,
-            managerLib: (await ManagerFactory.attach(mAsset.address)) as Manager,
+            managerLib,
+            wrappedManagerLib: (await ManagerFactory.attach(mAsset.address)) as Manager,
         }
     }
 
@@ -593,7 +596,11 @@ export class MassetMachine {
 
         const balances = rawBalances.map((b, i) => b.add(platformBalances[i]))
         // get overweight
-        const currentVaultUnits = bAssets.map((b) => BN.from(b.vaultBalance).mul(BN.from(b.ratio)).div(ratioScale))
+        const currentVaultUnits = bAssets.map((b) =>
+            BN.from(b.vaultBalance)
+                .mul(BN.from(b.ratio))
+                .div(ratioScale),
+        )
         // get total amount
         const sumOfBassets = currentVaultUnits.reduce((p, c) => p.add(c), BN.from(0))
         return {
@@ -624,7 +631,7 @@ export class MassetMachine {
      */
     public async approveMasset(
         bAsset: MockERC20,
-        mAsset: Masset | ExposedMasset,
+        mAsset: Masset | ExposedMasset | MockERC20 | AssetProxy,
         fullMassetUnits: number | BN | string,
         sender: Signer = this.sa.default.signer,
         inputIsBaseUnits = false,
@@ -672,7 +679,12 @@ export class MassetMachine {
         const totalSupply = await mAsset.totalSupply()
         const surplus = await mAsset.surplus()
         const cacheSize = await mAsset.cacheSize()
-        const maxC = totalSupply.add(surplus).mul(ratioScale).div(BN.from(bAsset.ratio)).mul(cacheSize).div(fullScale)
+        const maxC = totalSupply
+            .add(surplus)
+            .mul(ratioScale)
+            .div(BN.from(bAsset.ratio))
+            .mul(cacheSize)
+            .div(fullScale)
         const newSum = BN.from(integratorBalBefore).add(amount)
         const expectInteraction = type === "deposit" ? newSum.gte(maxC) : amount.gt(BN.from(integratorBalBefore))
         return {
@@ -682,7 +694,10 @@ export class MassetMachine {
                 type === "deposit"
                     ? newSum.sub(maxC.div(2))
                     : minimum(
-                          maxC.div(2).add(amount).sub(BN.from(integratorBalBefore)),
+                          maxC
+                              .div(2)
+                              .add(amount)
+                              .sub(BN.from(integratorBalBefore)),
                           BN.from(bAsset.vaultBalance).sub(BN.from(integratorBalBefore)),
                       ),
             rawBalance:

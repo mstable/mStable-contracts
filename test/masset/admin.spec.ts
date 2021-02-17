@@ -161,13 +161,13 @@ describe("Masset Admin", () => {
                 expect(personalData.hasTxFee).to.be.false
 
                 const tx = mAsset.connect(sa.governor.signer).setTransferFeesFlag(personalData.addr, true)
-                await expect(tx).to.emit(details.managerLib, "TransferFeeEnabled").withArgs(personalData.addr, true)
+                await expect(tx).to.emit(details.wrappedManagerLib, "TransferFeeEnabled").withArgs(personalData.addr, true)
                 personalData = await mAsset.bAssetPersonal(3)
                 expect(personalData.hasTxFee).to.be.true
 
                 // restore the flag back to false
                 const tx2 = mAsset.connect(sa.governor.signer).setTransferFeesFlag(personalData.addr, false)
-                await expect(tx2).to.emit(details.managerLib, "TransferFeeEnabled").withArgs(personalData.addr, false)
+                await expect(tx2).to.emit(details.wrappedManagerLib, "TransferFeeEnabled").withArgs(personalData.addr, false)
                 await tx2
                 personalData = await mAsset.bAssetPersonal(3)
                 expect(personalData.hasTxFee).to.be.false
@@ -179,13 +179,13 @@ describe("Masset Admin", () => {
                 expect(personalData.hasTxFee).to.be.false
 
                 const tx = details.mAsset.connect(sa.governor.signer).setTransferFeesFlag(personalData.addr, true)
-                await expect(tx).to.emit(details.managerLib, "TransferFeeEnabled").withArgs(personalData.addr, true)
+                await expect(tx).to.emit(details.wrappedManagerLib, "TransferFeeEnabled").withArgs(personalData.addr, true)
                 const personalDataAfter = await details.mAsset.bAssetPersonal(2)
                 expect(personalDataAfter.hasTxFee).to.be.true
 
                 // restore the flag back to false
                 const tx2 = details.mAsset.connect(sa.governor.signer).setTransferFeesFlag(personalData.addr, false)
-                await expect(tx2).to.emit(details.managerLib, "TransferFeeEnabled").withArgs(personalData.addr, false)
+                await expect(tx2).to.emit(details.wrappedManagerLib, "TransferFeeEnabled").withArgs(personalData.addr, false)
                 const personalDataAfterRestore = await details.mAsset.bAssetPersonal(2)
                 expect(personalDataAfterRestore.hasTxFee).to.be.false
             })
@@ -454,7 +454,7 @@ describe("Masset Admin", () => {
             // call migrate
             const tx = details.mAsset.connect(sa.governor.signer).migrateBassets([transferringAsset.address], newMigration.address)
             // emits BassetsMigrated
-            await expect(tx).to.emit(details.managerLib, "BassetsMigrated").withArgs([transferringAsset.address], newMigration.address)
+            await expect(tx).to.emit(details.wrappedManagerLib, "BassetsMigrated").withArgs([transferringAsset.address], newMigration.address)
             // moves all bAssets from old to new
             const migratedBal = await newMigration.callStatic.checkBalance(transferringAsset.address)
             expect(migratedBal).eq(bal)
@@ -481,7 +481,7 @@ describe("Masset Admin", () => {
             // call migrate
             const tx = details.mAsset.connect(sa.governor.signer).migrateBassets([transferringAsset.address], newMigration.address)
             // emits BassetsMigrated
-            await expect(tx).to.emit(details.managerLib, "BassetsMigrated").withArgs([transferringAsset.address], newMigration.address)
+            await expect(tx).to.emit(details.wrappedManagerLib, "BassetsMigrated").withArgs([transferringAsset.address], newMigration.address)
             // moves all bAssets from old to new
             const migratedBal = await newMigration.callStatic.checkBalance(transferringAsset.address)
             expect(migratedBal).eq(bal)
@@ -514,7 +514,7 @@ describe("Masset Admin", () => {
             // call migrate
             const tx = details.mAsset.connect(sa.governor.signer).migrateBassets([transferringAsset.address], newMigration.address)
             // emits BassetsMigrated
-            await expect(tx).to.emit(details.managerLib, "BassetsMigrated").withArgs([transferringAsset.address], newMigration.address)
+            await expect(tx).to.emit(details.wrappedManagerLib, "BassetsMigrated").withArgs([transferringAsset.address], newMigration.address)
             // moves all bAssets from old to new
             const migratedBal = await newMigration.callStatic.checkBalance(transferringAsset.address)
             expect(migratedBal).eq(0)
@@ -534,11 +534,11 @@ describe("Masset Admin", () => {
             await runSetup(true, false, true)
         })
         it("should skip when Normal (by governor)", async () => {
-            const { bAssets, mAsset, managerLib } = details
+            const { bAssets, mAsset, wrappedManagerLib } = details
             const basketBefore = await mAsset.getBasket()
             expect(basketBefore[0]).to.false
             const tx = mAsset.connect(sa.governor.signer).negateIsolation(bAssets[0].address)
-            await expect(tx).to.emit(managerLib, "BassetStatusChanged").withArgs(bAssets[0].address, BassetStatus.Normal)
+            await expect(tx).to.emit(wrappedManagerLib, "BassetStatusChanged").withArgs(bAssets[0].address, BassetStatus.Normal)
             const afterBefore = await mAsset.getBasket()
             expect(afterBefore[0]).to.false
         })
@@ -555,7 +555,7 @@ describe("Masset Admin", () => {
             await expect(mAsset.connect(sa.governor.signer).negateIsolation(sa.other.address)).to.be.revertedWith("Invalid asset")
         })
         it("should succeed when status is 'BrokenAbovePeg' (by governor)", async () => {
-            const { bAssets, mAsset, managerLib } = details
+            const { bAssets, mAsset, wrappedManagerLib } = details
             const bAsset = bAssets[1]
 
             const basketBefore = await mAsset.getBasket()
@@ -572,7 +572,7 @@ describe("Masset Admin", () => {
 
             const tx = mAsset.connect(sa.governor.signer).negateIsolation(bAsset.address)
 
-            await expect(tx).to.emit(managerLib, "BassetStatusChanged").withArgs(bAsset.address, BassetStatus.Normal)
+            await expect(tx).to.emit(wrappedManagerLib, "BassetStatusChanged").withArgs(bAsset.address, BassetStatus.Normal)
             await tx
             const basketAfterNegateIsolation = await mAsset.getBasket()
             expect(basketAfterNegateIsolation[0], "after negateIsolation undergoingRecol").to.false
@@ -580,7 +580,7 @@ describe("Masset Admin", () => {
             expect(bAssetStateAfterNegateIsolation.personal.status, "after negateIsolation personal.status").to.eq(BassetStatus.Normal)
         })
         it("should succeed when two bAssets have BrokenBelowPeg", async () => {
-            const { bAssets, mAsset, managerLib } = details
+            const { bAssets, mAsset, wrappedManagerLib } = details
 
             const basketBefore = await mAsset.getBasket()
             expect(basketBefore[0], "before undergoingRecol").to.false
@@ -597,7 +597,7 @@ describe("Masset Admin", () => {
 
             const tx = mAsset.connect(sa.governor.signer).negateIsolation(bAssets[3].address)
 
-            await expect(tx).to.emit(managerLib, "BassetStatusChanged").withArgs(bAssets[3].address, BassetStatus.Normal)
+            await expect(tx).to.emit(wrappedManagerLib, "BassetStatusChanged").withArgs(bAssets[3].address, BassetStatus.Normal)
             await tx
             const basketAfterNegateIsolation = await mAsset.getBasket()
             expect(basketAfterNegateIsolation[0], "after negateIsolation undergoingRecol").to.true
@@ -626,7 +626,7 @@ describe("Masset Admin", () => {
             const startTime = await getTimestamp()
             const endTime = startTime.add(ONE_WEEK.mul(2))
             const tx = mAsset.startRampA(120, endTime)
-            await expect(tx).to.emit(details.managerLib, "StartRampA").withArgs(10000, 12000, startTime.add(1), endTime)
+            await expect(tx).to.emit(details.wrappedManagerLib, "StartRampA").withArgs(10000, 12000, startTime.add(1), endTime)
 
             // after values
             const ampDataAfter = await mAsset.ampData()
@@ -864,7 +864,7 @@ describe("Masset Admin", () => {
                 const currentA = await mAsset.getA()
                 const currentTime = await getTimestamp()
                 const tx = mAsset.stopRampA()
-                await expect(tx).to.emit(details.managerLib, "StopRampA").withArgs(currentA, currentTime.add(1))
+                await expect(tx).to.emit(details.wrappedManagerLib, "StopRampA").withArgs(currentA, currentTime.add(1))
                 expect(await mAsset.getA()).to.eq(currentA)
 
                 const ampDataAfter = await mAsset.ampData()

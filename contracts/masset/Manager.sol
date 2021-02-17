@@ -2,6 +2,8 @@
 pragma solidity 0.8.0;
 pragma abicoder v2;
 
+import "hardhat/console.sol";
+
 // External
 import { IPlatformIntegration } from "../interfaces/IPlatformIntegration.sol";
 import { IInvariantValidator } from "./IInvariantValidator.sol";
@@ -397,8 +399,10 @@ library Manager {
         uint256 _quantity,
         uint256 _maxCache
     ) external returns (uint256 quantityDeposited) {
+        console.log("m1");
         // 0. If integration is 0, short circuit
         if (_bAsset.integrator == address(0)) {
+            console.log("m2", _bAsset.addr, _quantity, IERC20(_bAsset.addr).allowance(msg.sender, address(this)));
             (uint256 received, ) =
                 MassetHelpers.transferReturnBalance(
                     msg.sender,
@@ -406,6 +410,7 @@ library Manager {
                     _bAsset.addr,
                     _quantity
                 );
+            console.log("m3", _bAsset.addr, _quantity, IERC20(_bAsset.addr).allowance(msg.sender, address(this)));
             return received;
         }
 

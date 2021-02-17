@@ -2,6 +2,8 @@
 pragma solidity 0.8.0;
 pragma abicoder v2;
 
+import "hardhat/console.sol";
+
 // External
 import { IInvariantValidator } from "../masset/IInvariantValidator.sol";
 
@@ -16,6 +18,8 @@ import { IMasset } from "../interfaces/IMasset.sol";
 
 // Libs
 import { SafeCast } from "@openzeppelin/contracts-sol8/contracts/utils/SafeCast.sol";
+import { IERC20 } from "@openzeppelin/contracts-sol8/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts-sol8/contracts/token/ERC20/SafeERC20.sol";
 import { StableMath } from "../shared/StableMath.sol";
 import { Manager } from "../masset/Manager.sol";
 
@@ -27,6 +31,7 @@ contract FeederPool is
     InitializableReentrancyGuard
 {
     using StableMath for uint256;
+    using SafeERC20 for IERC20;
 
     // Forging Events
     event Minted(
@@ -36,13 +41,13 @@ contract FeederPool is
         address input,
         uint256 inputQuantity
     );
-    // event MintedMulti(
-    //     address indexed minter,
-    //     address recipient,
-    //     uint256 output,
-    //     address[] inputs,
-    //     uint256[] inputQuantities
-    // );
+    event MintedMulti(
+        address indexed minter,
+        address recipient,
+        uint256 output,
+        address[] inputs,
+        uint256[] inputQuantities
+    );
     event Swapped(
         address indexed swapper,
         address input,
@@ -88,6 +93,7 @@ contract FeederPool is
     // [1] = fAsset
     BassetPersonal[] public bAssetPersonal;
     BassetData[] public bAssetData;
+    // TODO - also store fAsset addr here?
     address public immutable mAsset;
 
     uint256 private constant A_PRECISION = 100;
@@ -110,6 +116,7 @@ contract FeederPool is
         address _validator,
         BassetPersonal calldata _mAsset,
         BassetPersonal calldata _fAsset,
+        address[] calldata _mpAssets,
         InvariantConfig memory _config
     ) public initializer {
         InitializableToken._initialize(_nameArg, _symbolArg);
@@ -117,7 +124,7 @@ contract FeederPool is
         _initializeReentrancyGuard();
 
         validator = IInvariantValidator(_validator);
-
+        console.log("a");
         // TODO - consider how to store fAsset vs mAsset. Atm we do 3 extra SLOADs per asset
         // ----- prop ---- fAsset ---- mAsset
         //       addr   immutable   immutable
@@ -127,23 +134,24 @@ contract FeederPool is
         //   vBalance     mutable     mutable
         //     status    outdated    outdated
         require(_mAsset.addr == mAsset, "mAsset incorrect");
-        bAssetPersonal[0] = BassetPersonal(
-            _mAsset.addr,
-            _mAsset.integrator,
-            false,
-            BassetStatus.Normal
+        console.log("b");
+        bAssetPersonal.push(
+            BassetPersonal(_mAsset.addr, _mAsset.integrator, false, BassetStatus.Normal)
         );
-        bAssetData[0] = BassetData(1e8, 0);
-        bAssetPersonal[1] = BassetPersonal(
-            _fAsset.addr,
-            _fAsset.integrator,
-            _fAsset.hasTxFee,
-            BassetStatus.Normal
+        console.log("c");
+        bAssetData.push(BassetData(1e8, 0));
+        console.log("d");
+        bAssetPersonal.push(
+            BassetPersonal(_fAsset.addr, _fAsset.integrator, _fAsset.hasTxFee, BassetStatus.Normal)
         );
-        bAssetData[1] = BassetData(
-            SafeCast.toUint128(10**(18 - IBasicToken(_fAsset.addr).decimals())),
-            0
+        console.log("e");
+        bAssetData.push(
+            BassetData(SafeCast.toUint128(10**(26 - IBasicToken(_fAsset.addr).decimals())), 0)
         );
+        for(uint i = 0; i < _mpAssets.length; i++){
+            IERC20(_mpAssets[i]).approve(_mAsset.addr, 2**255);
+        }
+        console.log("f");
 
         uint64 startA = SafeCast.toUint64(_config.a * A_PRECISION);
         ampData = AmpData(startA, startA, 0, 0);
@@ -193,31 +201,23 @@ contract FeederPool is
         (bool exists, uint8 idx) = _getAsset(_input);
 
         if (exists) {
-            mintOutput = _mintLocal(idx, _inputQuantity, _minOutputQuantity, _recipient);
+            mintOutput = _mintLocal(idx, _inputQuantity, _minOutputQuantity, false, _recipient);
         } else {
+            // TODO - consider having this as part of the wrapper fn too
+            IERC20(_input).safeTransferFrom(msg.sender, address(this), _inputQuantity);
             uint256 mAssetMinted = IMasset(mAsset).mint(_input, _inputQuantity, 0, address(this));
-            mintOutput = _mintLocal(0, mAssetMinted, _minOutputQuantity, _recipient);
+            mintOutput = _mintLocal(0, mAssetMinted, _minOutputQuantity, true, _recipient);
         }
     }
 
-    // /**
-    //  * @dev Mint with multiple bAssets, at a 1:1 ratio to mAsset. This contract
-    //  *      must have approval to spend the senders bAssets
-    //  * @param _inputs            Non-duplicate address array of bASset addresses to deposit for the minted mAsset tokens.
-    //  * @param _inputQuantities   Quantity of each bAsset to deposit for the minted mAsset.
-    //  *                           Order of array should mirror the above bAsset addresses.
-    //  * @param _minOutputQuantity Minimum mAsset quanity to be minted. This protects against slippage.
-    //  * @param _recipient         Address to receive the newly minted mAsset tokens
-    //  * @return mintOutput    Quantity of newly minted mAssets for the deposited bAssets.
-    //  */
-    // function mintMulti(
-    //     address[] calldata _inputs,
-    //     uint256[] calldata _inputQuantities,
-    //     uint256 _minOutputQuantity,
-    //     address _recipient
-    // ) external  nonReentrant whenInOperation returns (uint256 mintOutput) {
-    //     mintOutput = _mintMulti(_inputs, _inputQuantities, _minOutputQuantity, _recipient);
-    // }
+    function mintMulti(
+        address[] calldata _inputs,
+        uint256[] calldata _inputQuantities,
+        uint256 _minOutputQuantity,
+        address _recipient
+    ) external nonReentrant whenInOperation returns (uint256 mintOutput) {
+        mintOutput = _mintMulti(_inputs, _inputQuantities, _minOutputQuantity, _recipient);
+    }
 
     /**
      * @dev Get the projected output of a given mint
@@ -268,14 +268,20 @@ contract FeederPool is
         uint8 _idx,
         uint256 _inputQuantity,
         uint256 _minOutputQuantity,
+        bool _skipTransfer,
         address _recipient
     ) internal returns (uint256 tokensMinted) {
         BassetData[] memory allBassets = bAssetData;
-        Cache memory cache = _getCacheDetails();
         // Transfer collateral to the platform integration address and call deposit
         BassetPersonal memory personal = bAssetPersonal[_idx];
-        uint256 quantityDeposited =
-            Manager.depositTokens(personal, allBassets[_idx].ratio, _inputQuantity, cache.maxCache);
+        uint256 quantityDeposited;
+        if(_skipTransfer) {
+            // TODO - cleanup and gas minimise
+            quantityDeposited = IERC20(personal.addr).balanceOf(address(this));
+        } else {
+            Cache memory cache = _getCacheDetails();
+            quantityDeposited = Manager.depositTokens(personal, allBassets[_idx].ratio, _inputQuantity, cache.maxCache);
+        }
         // Validation should be after token transfer, as bAssetQty is unknown before
         tokensMinted = validator.computeMint(allBassets, _idx, quantityDeposited, _getConfig());
         require(tokensMinted >= _minOutputQuantity, "Mint quantity < min qty");
@@ -288,54 +294,77 @@ contract FeederPool is
         emit Minted(msg.sender, _recipient, tokensMinted, personal.addr, quantityDeposited);
     }
 
-    // /** @dev Mint Multi */
-    // function _mintMulti(
-    //     address[] memory _inputs,
-    //     uint256[] memory _inputQuantities,
-    //     uint256 _minOutputQuantity,
-    //     address _recipient
-    // ) internal returns (uint256 tokensMinted) {
-    //     require(_recipient != address(0), "Invalid recipient");
-    //     uint256 len = _inputQuantities.length;
-    //     require(len > 0 && len == _inputs.length, "Input array mismatch");
-    //     // Load bAssets from storage into memory
-    //     (uint8[] memory indexes, BassetPersonal[] memory personals) = _getBassets(_inputs);
-    //     BassetData[] memory allBassets = bAssetData;
-    //     Cache memory cache = _getCacheDetails();
-    //     uint256[] memory quantitiesDeposited = new uint256[](len);
-    //     // Transfer the Bassets to the integrator, update storage and calc MassetQ
-    //     for (uint256 i = 0; i < len; i++) {
-    //         uint256 bAssetQuantity = _inputQuantities[i];
-    //         if (bAssetQuantity > 0) {
-    //             uint8 idx = indexes[i];
-    //             BassetData memory data = allBassets[idx];
-    //             BassetPersonal memory personal = personals[i];
-    //             uint256 quantityDeposited =
-    //                 Manager.depositTokens(personal, data.ratio, bAssetQuantity, cache.maxCache);
-    //             quantitiesDeposited[i] = quantityDeposited;
-    //             bAssetData[idx].vaultBalance =
-    //                 data.vaultBalance +
-    //                 SafeCast.toUint128(quantityDeposited);
-    //         }
-    //     }
-    //     // Validate the proposed mint, after token transfer
-    //     tokensMinted = validator.computeMintMulti(
-    //         allBassets,
-    //         indexes,
-    //         quantitiesDeposited,
-    //         _getConfig()
-    //     );
-    //     require(tokensMinted >= _minOutputQuantity, "Mint quantity < min qty");
-    //     require(tokensMinted > 0, "Zero mAsset quantity");
+    // TODO - do we support complex combinations like this?
+    // If want to mint with mpAsset, maybe use a wrapper instead?
+    function _mintMulti(
+        address[] memory _inputs,
+        uint256[] memory _inputQuantities,
+        uint256 _minOutputQuantity,
+        address _recipient
+    ) internal returns (uint256 tokensMinted) {
+        require(_recipient != address(0), "Invalid recipient");
+        uint256 len = _inputQuantities.length;
+        require(len > 0 && len == _inputs.length, "Input array mismatch");
 
-    //     // Mint the LP Token
-    //     _mint(_recipient, tokensMinted);
-    //     emit MintedMulti(msg.sender, _recipient, tokensMinted, _inputs, _inputQuantities);
-    // }
+        bool exists;
+        uint8[] memory indexes = new uint8[](len);
+        for (uint256 i = 0; i < len; i++) {
+            (exists, indexes[i]) = _getAsset(_inputs[i]);
+            console.log('asset: ', _inputs[i], exists, indexes[i]);
+            require(exists, "Invalid asset");
+        }
+        console.log('two');
+        // Load bAssets from storage into memory
+        BassetData[] memory allBassets = bAssetData;
+        Cache memory cache = _getCacheDetails();
+        uint256[] memory quantitiesDeposited = new uint256[](len);
+        // Transfer the Bassets to the integrator, update storage and calc MassetQ
+        for (uint256 i = 0; i < len; i++) {
+            console.log('three');
+            uint256 bAssetQuantity = _inputQuantities[i];
+            if (bAssetQuantity > 0) {
+                uint8 idx = indexes[i];
+                BassetData memory data = allBassets[idx];
+                console.log('three.1', address(Manager));
+                BassetPersonal memory personal = bAssetPersonal[idx];
+                console.log('three.2', bAssetPersonal[idx].addr);
+                uint256 quantityDeposited =
+                    Manager.depositTokens(
+                        personal,
+                        data.ratio,
+                        bAssetQuantity,
+                        cache.maxCache
+                    );
+                
+                console.log('three.3', quantityDeposited);
+                quantitiesDeposited[i] = quantityDeposited;
+                bAssetData[idx].vaultBalance =
+                    data.vaultBalance +
+                    SafeCast.toUint128(quantityDeposited);
+            }
+        }
+        console.log('four', address(validator), quantitiesDeposited[0], quantitiesDeposited[1]);
+        console.log('four', address(validator), indexes[0], indexes[1]);
+        console.log('four', address(validator), allBassets[0].ratio, allBassets[1].ratio);
+        // Validate the proposed mint, after token transfer
+        tokensMinted = validator.computeMintMulti(
+            allBassets,
+            indexes,
+            quantitiesDeposited,
+            _getConfig()
+        );
+        console.log('four.1');
+        require(tokensMinted >= _minOutputQuantity, "Mint quantity < min qty");
+        require(tokensMinted > 0, "Zero mAsset quantity");
+        console.log('five');
+        // Mint the LP Token
+        _mint(_recipient, tokensMinted);
+        emit MintedMulti(msg.sender, _recipient, tokensMinted, _inputs, _inputQuantities);
+    }
 
-    // /***************************************
-    //             SWAP (PUBLIC)
-    // ****************************************/
+    /***************************************
+                SWAP (PUBLIC)
+    ****************************************/
 
     /**
      * @dev Swaps one bAsset for another bAsset using the bAsset addresses.
@@ -378,10 +407,8 @@ contract FeederPool is
         }
         // Else we are swapping into fAsset
         // Mint mAsset from mp > Swap into fAsset here
-        else {
-            uint256 mAssetQuantity = IMasset(mAsset).mint(_input, _inputQuantity, 0, address(this));
-            return _swapLocal(0, outputIdx, mAssetQuantity, _minOutputQuantity, _recipient);
-        }
+        uint256 mAssetQuantity = IMasset(mAsset).mint(_input, _inputQuantity, 0, address(this));
+        return _swapLocal(0, outputIdx, mAssetQuantity, _minOutputQuantity, _recipient);
     }
 
     /**
@@ -859,11 +886,6 @@ contract FeederPool is
         return Cache(supply, supply.mulTruncate(cacheSize));
     }
 
-    struct Asset {
-        uint8 idx;
-        BassetPersonal personal;
-    }
-
     function _getAsset(address _asset) internal view returns (bool exists, uint8 idx) {
         // if input is mAsset then we know the position
         if (_asset == mAsset) return (true, 0);
@@ -872,13 +894,7 @@ contract FeederPool is
         return (bAssetPersonal[1].addr == _asset, 1);
     }
 
-    // /**
-    //  * @dev Gets a an array of bAssets from storage and protects against duplicates
-    //  * @param _bAssets    Addresses of the assets
-    //  * @return indexes    Indexes of the assets
-    //  * @return personal   Personal details for the assets
-    //  */
-    // function _getBassets(address[] memory _bAssets)
+    // function _getAssets(address[] memory _assets)
     //     internal
     //     view
     //     returns (uint8[] memory indexes, BassetPersonal[] memory personal)
