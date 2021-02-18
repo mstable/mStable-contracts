@@ -454,7 +454,9 @@ describe("Masset Admin", () => {
             // call migrate
             const tx = details.mAsset.connect(sa.governor.signer).migrateBassets([transferringAsset.address], newMigration.address)
             // emits BassetsMigrated
-            await expect(tx).to.emit(details.wrappedManagerLib, "BassetsMigrated").withArgs([transferringAsset.address], newMigration.address)
+            await expect(tx)
+                .to.emit(details.wrappedManagerLib, "BassetsMigrated")
+                .withArgs([transferringAsset.address], newMigration.address)
             // moves all bAssets from old to new
             const migratedBal = await newMigration.callStatic.checkBalance(transferringAsset.address)
             expect(migratedBal).eq(bal)
@@ -481,7 +483,9 @@ describe("Masset Admin", () => {
             // call migrate
             const tx = details.mAsset.connect(sa.governor.signer).migrateBassets([transferringAsset.address], newMigration.address)
             // emits BassetsMigrated
-            await expect(tx).to.emit(details.wrappedManagerLib, "BassetsMigrated").withArgs([transferringAsset.address], newMigration.address)
+            await expect(tx)
+                .to.emit(details.wrappedManagerLib, "BassetsMigrated")
+                .withArgs([transferringAsset.address], newMigration.address)
             // moves all bAssets from old to new
             const migratedBal = await newMigration.callStatic.checkBalance(transferringAsset.address)
             expect(migratedBal).eq(bal)
@@ -514,7 +518,9 @@ describe("Masset Admin", () => {
             // call migrate
             const tx = details.mAsset.connect(sa.governor.signer).migrateBassets([transferringAsset.address], newMigration.address)
             // emits BassetsMigrated
-            await expect(tx).to.emit(details.wrappedManagerLib, "BassetsMigrated").withArgs([transferringAsset.address], newMigration.address)
+            await expect(tx)
+                .to.emit(details.wrappedManagerLib, "BassetsMigrated")
+                .withArgs([transferringAsset.address], newMigration.address)
             // moves all bAssets from old to new
             const migratedBal = await newMigration.callStatic.checkBalance(transferringAsset.address)
             expect(migratedBal).eq(0)

@@ -23,11 +23,16 @@ library MassetHelpers {
         uint256 _qty
     ) internal returns (uint256 receivedQty, uint256 recipientBalance) {
         uint256 balBefore = IERC20(_bAsset).balanceOf(_recipient);
-        console.log('tf1', _qty, IERC20(_bAsset).balanceOf(_sender), IERC20(_bAsset).allowance(_sender, _recipient));
+        console.log(
+            "tf1",
+            _qty,
+            IERC20(_bAsset).balanceOf(_sender),
+            IERC20(_bAsset).allowance(_sender, _recipient)
+        );
         IERC20(_bAsset).safeTransferFrom(_sender, _recipient, _qty);
-        console.log('tf2');
+        console.log("tf2");
         recipientBalance = IERC20(_bAsset).balanceOf(_recipient);
-        console.log('tf3', recipientBalance, balBefore);
+        console.log("tf3", recipientBalance, balBefore);
         receivedQty = recipientBalance - balBefore;
     }
 

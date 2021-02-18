@@ -53,7 +53,6 @@ contract FeederPool is
         address input,
         address output,
         uint256 outputAmount,
-        uint256 scaledFee,
         address recipient
     );
     // event Redeemed(
@@ -148,7 +147,7 @@ contract FeederPool is
         bAssetData.push(
             BassetData(SafeCast.toUint128(10**(26 - IBasicToken(_fAsset.addr).decimals())), 0)
         );
-        for(uint i = 0; i < _mpAssets.length; i++){
+        for (uint256 i = 0; i < _mpAssets.length; i++) {
             IERC20(_mpAssets[i]).approve(_mAsset.addr, 2**255);
         }
         console.log("f");
@@ -275,12 +274,17 @@ contract FeederPool is
         // Transfer collateral to the platform integration address and call deposit
         BassetPersonal memory personal = bAssetPersonal[_idx];
         uint256 quantityDeposited;
-        if(_skipTransfer) {
-            // TODO - cleanup and gas minimise
+        if (_skipTransfer) {
+            // TODO - fix this.. can't just read balance
             quantityDeposited = IERC20(personal.addr).balanceOf(address(this));
         } else {
             Cache memory cache = _getCacheDetails();
-            quantityDeposited = Manager.depositTokens(personal, allBassets[_idx].ratio, _inputQuantity, cache.maxCache);
+            quantityDeposited = Manager.depositTokens(
+                personal,
+                allBassets[_idx].ratio,
+                _inputQuantity,
+                cache.maxCache
+            );
         }
         // Validation should be after token transfer, as bAssetQty is unknown before
         tokensMinted = validator.computeMint(allBassets, _idx, quantityDeposited, _getConfig());
@@ -294,8 +298,6 @@ contract FeederPool is
         emit Minted(msg.sender, _recipient, tokensMinted, personal.addr, quantityDeposited);
     }
 
-    // TODO - do we support complex combinations like this?
-    // If want to mint with mpAsset, maybe use a wrapper instead?
     function _mintMulti(
         address[] memory _inputs,
         uint256[] memory _inputQuantities,
@@ -310,42 +312,37 @@ contract FeederPool is
         uint8[] memory indexes = new uint8[](len);
         for (uint256 i = 0; i < len; i++) {
             (exists, indexes[i]) = _getAsset(_inputs[i]);
-            console.log('asset: ', _inputs[i], exists, indexes[i]);
+            console.log("asset: ", _inputs[i], exists, indexes[i]);
             require(exists, "Invalid asset");
         }
-        console.log('two');
+        console.log("two");
         // Load bAssets from storage into memory
         BassetData[] memory allBassets = bAssetData;
         Cache memory cache = _getCacheDetails();
         uint256[] memory quantitiesDeposited = new uint256[](len);
         // Transfer the Bassets to the integrator, update storage and calc MassetQ
         for (uint256 i = 0; i < len; i++) {
-            console.log('three');
+            console.log("three");
             uint256 bAssetQuantity = _inputQuantities[i];
             if (bAssetQuantity > 0) {
                 uint8 idx = indexes[i];
                 BassetData memory data = allBassets[idx];
-                console.log('three.1', address(Manager));
+                console.log("three.1", address(Manager));
                 BassetPersonal memory personal = bAssetPersonal[idx];
-                console.log('three.2', bAssetPersonal[idx].addr);
+                console.log("three.2", bAssetPersonal[idx].addr);
                 uint256 quantityDeposited =
-                    Manager.depositTokens(
-                        personal,
-                        data.ratio,
-                        bAssetQuantity,
-                        cache.maxCache
-                    );
-                
-                console.log('three.3', quantityDeposited);
+                    Manager.depositTokens(personal, data.ratio, bAssetQuantity, cache.maxCache);
+
+                console.log("three.3", quantityDeposited);
                 quantitiesDeposited[i] = quantityDeposited;
                 bAssetData[idx].vaultBalance =
                     data.vaultBalance +
                     SafeCast.toUint128(quantityDeposited);
             }
         }
-        console.log('four', address(validator), quantitiesDeposited[0], quantitiesDeposited[1]);
-        console.log('four', address(validator), indexes[0], indexes[1]);
-        console.log('four', address(validator), allBassets[0].ratio, allBassets[1].ratio);
+        console.log("four", address(validator), quantitiesDeposited[0], quantitiesDeposited[1]);
+        console.log("four", address(validator), indexes[0], indexes[1]);
+        console.log("four", address(validator), allBassets[0].ratio, allBassets[1].ratio);
         // Validate the proposed mint, after token transfer
         tokensMinted = validator.computeMintMulti(
             allBassets,
@@ -353,10 +350,10 @@ contract FeederPool is
             quantitiesDeposited,
             _getConfig()
         );
-        console.log('four.1');
+        console.log("four.1");
         require(tokensMinted >= _minOutputQuantity, "Mint quantity < min qty");
         require(tokensMinted > 0, "Zero mAsset quantity");
-        console.log('five');
+        console.log("five");
         // Mint the LP Token
         _mint(_recipient, tokensMinted);
         emit MintedMulti(msg.sender, _recipient, tokensMinted, _inputs, _inputQuantities);
@@ -393,7 +390,15 @@ contract FeederPool is
 
         // Internal swap between fAsset and mAsset
         if (inputExists && outputExists) {
-            return _swapLocal(inputIdx, outputIdx, _inputQuantity, _minOutputQuantity, false, _recipient);
+            return
+                _swapLocal(
+                    inputIdx,
+                    outputIdx,
+                    _inputQuantity,
+                    _minOutputQuantity,
+                    false,
+                    _recipient
+                );
         }
         // TODO - do we want to support mAsset -> mpAsset and mpAsset -> mAsset here? I don't see the point
         // If we do, need to re-jig this
@@ -402,7 +407,8 @@ contract FeederPool is
         // Swapping out of fAsset
         // Swap into mAsset > Redeem into mpAsset
         if (inputExists) {
-            uint256 mAssetQuantity = _swapLocal(inputIdx, 0, _inputQuantity, 0, false, address(this));
+            uint256 mAssetQuantity =
+                _swapLocal(inputIdx, 0, _inputQuantity, 0, false, address(this));
             return IMasset(mAsset).redeem(_output, mAssetQuantity, _minOutputQuantity, _recipient);
         }
         // Else we are swapping into fAsset
@@ -410,6 +416,136 @@ contract FeederPool is
         IERC20(_input).safeTransferFrom(msg.sender, address(this), _inputQuantity);
         uint256 mAssetQuantity = IMasset(mAsset).mint(_input, _inputQuantity, 0, address(this));
         return _swapLocal(0, outputIdx, mAssetQuantity, _minOutputQuantity, true, _recipient);
+    }
+
+    struct Asset {
+        uint8 idx;
+        uint256 amt;
+        BassetPersonal personal;
+    }
+
+    struct Status {
+        address addr;
+        bool exists;
+        uint8 idx;
+    }
+
+    function swap2(
+        address _input,
+        address _output,
+        uint256 _inputQuantity,
+        uint256 _minOutputQuantity,
+        address _recipient
+    ) external returns (uint256 swapOutput) {
+        // TODO - refactor local and struct naming conventions
+        Status memory input = _getAsset2(_input);
+        Status memory output = _getAsset2(_output);
+        require(_pathIsValid(input, output), "Invalid pair");
+        // todo - if input exists, output must be 1, same with output. No mpAsst -> mAsset allowed
+
+        // do deposit (move to internal fn)
+        Asset memory in_i = _transferIn(input, _inputQuantity);
+        // 1. [f/mAsset ->][ f/mAsset]               : Y - normal in, SWAP, normal out
+        // 3. [mpAsset -> mAsset][ -> fAsset]        : Y - mint in  , SWAP, normal out
+        if (output.exists) {
+            swapOutput = _swapLocal(in_i, output, _minOutputQuantity, _recipient);
+        }
+        // 2. [fAsset ->][ mAsset][ -> mpAsset]      : Y - normal in, SWAP, mpOut
+        else {
+            swapOutput = _swapLocal(in_i, Status(mAsset, true, 0), 0, address(this));
+            swapOutput = IMasset(mAsset).redeem(output.addr, swapOutput, _minOutputQuantity, _recipient);
+        }
+
+        emit Swapped(msg.sender, input.addr, output.addr, swapOutput, _recipient);
+    }
+
+    function _pathIsValid(Status memory _in, Status memory _out) internal returns (bool isValid) {
+        return true;
+        // // Valid if:
+        // isValid = true;
+        // if(!_in.exists && !_out.exists) isValid = false;
+        // if(_in.idx == 0 && !_out.exists) isValid = false;
+        // if(_out.idx == 0 && !_in.exists) isValid = false;
+        // // Straight swap
+        // if(_in.exists && _out.exists) return true;
+        // // mpAsset -> mpAsset
+        // if(!_in.exists && !_out.exists) return false;
+        // // 1 must exist
+        // if(_in.exists && _in.idx == 1) return true;
+        // if(_out.exists && _out.idx == 1) return true;
+    }
+
+    function _transferIn(Status memory _input, uint256 _inputQuantity)
+        internal
+        returns (Asset memory in_i)
+    {
+        BassetData[] memory allBassets = bAssetData;
+        if (_input.exists) {
+            // simply deposit
+            Cache memory cache = _getCacheDetails();
+            BassetPersonal memory personal = bAssetPersonal[_input.idx];
+            uint256 amt =
+                Manager.depositTokens(
+                    personal,
+                    allBassets[_input.idx].ratio,
+                    _inputQuantity,
+                    cache.maxCache
+                );
+            in_i = Asset(_input.idx, amt, personal);
+        } else {
+            // mint in main pool and log balance
+            // TODO - handle tx fees?
+            IERC20(_input.addr).safeTransferFrom(msg.sender, address(this), _inputQuantity);
+            uint256 balBefore = IERC20(mAsset).balanceOf(address(this));
+            IMasset(mAsset).mint(_input.addr, _inputQuantity, 0, address(this));
+            uint256 balAfter = IERC20(mAsset).balanceOf(address(this));
+            uint256 amt = balAfter - balBefore;
+            // TODO - consider poking cache here?
+            in_i = Asset(0, amt, bAssetPersonal[0]);
+        }
+        bAssetData[in_i.idx].vaultBalance =
+            allBassets[in_i.idx].vaultBalance +
+            SafeCast.toUint128(in_i.amt);
+    }
+
+    function _swapLocal(
+        Asset memory _in,
+        Status memory _output,
+        uint256 _minOutputQuantity,
+        address _recipient
+    ) internal returns (uint256 swapOutput) {
+        BassetData[] memory allBassets = bAssetData;
+        Cache memory cache = _getCacheDetails();
+        // 3. Validate the swap
+        // todo - remove fee?
+        uint256 scaledFee;
+        (swapOutput, scaledFee) = validator.computeSwap(
+            allBassets,
+            _in.idx,
+            _output.idx,
+            _in.amt,
+            _output.idx == 0 ? 0 : swapFee,
+            _getConfig()
+        );
+        require(swapOutput >= _minOutputQuantity, "Output qty < minimum qty");
+        require(swapOutput > 0, "Zero output quantity");
+        //4. Settle the swap
+        //4.1. Decrease output bal
+        // TODO - if recipient == address(this) then no need to transfer anything
+        BassetPersonal memory outputPersonal = bAssetPersonal[_output.idx];
+        Manager.withdrawTokens(
+            swapOutput,
+            outputPersonal,
+            allBassets[_output.idx],
+            _recipient,
+            cache.maxCache
+        );
+        bAssetData[_output.idx].vaultBalance =
+            allBassets[_output.idx].vaultBalance -
+            SafeCast.toUint128(swapOutput);
+        // Save new surplus to storage
+        // TODO - re-jig the fees and increase LP token value
+        // surplus = cache.surplus + scaledFee;
     }
 
     /**
@@ -493,10 +629,10 @@ contract FeederPool is
         Cache memory cache = _getCacheDetails();
         // 3. Deposit the input tokens
         BassetPersonal memory inputPersonal = bAssetPersonal[_inputIdx];
-        // TODO - consider if this is dangerous to trust supplied _inputQty
+        // TODO - consider if this is dangerous to trust supplied _inputQtybn
         uint256 quantityDeposited = _inputQuantity;
         {
-            if(!_skipDeposit) {
+            if (!_skipDeposit) {
                 quantityDeposited = Manager.depositTokens(
                     inputPersonal,
                     allBassets[_inputIdx].ratio,
@@ -509,7 +645,6 @@ contract FeederPool is
                 allBassets[_inputIdx].vaultBalance +
                 SafeCast.toUint128(quantityDeposited);
         }
-
 
         // 3. Validate the swap
         uint256 scaledFee;
@@ -541,14 +676,14 @@ contract FeederPool is
         // Save new surplus to storage
         // TODO - re-jig the fees and increase LP token value
         // surplus = cache.surplus + scaledFee;
-        emit Swapped(
-            msg.sender,
-            inputPersonal.addr,
-            outputPersonal.addr,
-            swapOutput,
-            scaledFee,
-            _recipient
-        );
+        // emit SwappedInternal(
+        //     msg.sender,
+        //     inputPersonal.addr,
+        //     outputPersonal.addr,
+        //     swapOutput,
+        //     scaledFee,
+        //     _recipient
+        // );
     }
 
     // /***************************************
@@ -901,6 +1036,14 @@ contract FeederPool is
 
         // else it exists if the position 1 is _asset
         return (bAssetPersonal[1].addr == _asset, 1);
+    }
+
+    function _getAsset2(address _asset) internal view returns (Status memory status) {
+        // if input is mAsset then we know the position
+        if (_asset == mAsset) return Status(_asset, true, 0);
+
+        // else it exists if the position 1 is _asset
+        return Status(_asset, bAssetPersonal[1].addr == _asset, 1);
     }
 
     // function _getAssets(address[] memory _assets)
