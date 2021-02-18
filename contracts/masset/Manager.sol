@@ -2,8 +2,6 @@
 pragma solidity 0.8.0;
 pragma abicoder v2;
 
-import "hardhat/console.sol";
-
 // External
 import { IPlatformIntegration } from "../interfaces/IPlatformIntegration.sol";
 import { IInvariantValidator } from "./IInvariantValidator.sol";
@@ -65,7 +63,6 @@ library Manager {
     ) external {
         require(_bAsset != address(0), "bAsset address must be valid");
         uint8 bAssetCount = uint8(_bAssetPersonal.length);
-        console.log("%s personal length", _bAssetPersonal.length);
         require(bAssetCount < _maxBassets, "Max bAssets in Basket");
 
         uint8 idx = _bAssetIndexes[_bAsset];

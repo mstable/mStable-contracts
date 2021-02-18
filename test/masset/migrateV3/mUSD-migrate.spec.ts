@@ -11,7 +11,6 @@ import {
     DelayedProxyAdmin__factory,
     ERC20__factory,
     Masset,
-    MassetV2__factory,
     Masset__factory,
     MusdV3,
     MusdV3__factory,
@@ -62,14 +61,17 @@ const validateTokenStorage = async (mUsdV3Proxy: MusdV3) => {
     // some mUSD token holder
     expect(await mUsdV3Proxy.balanceOf("0x5C80E54f903458edD0723e268377f5768C7869d7"), "balanceOf").to.eq("6971708003000000000000")
 }
-const validateMassetStorage = async (mUsdV3Proxy: MusdV3) => {
-    // expect(await mUsdV3Proxy.getBasketManager(), "basket manager").to.eq(basketManagerAddress)
-    // TODO storage not being preserved
-    expect(await mUsdV3Proxy.forgeValidator(), "old validator").to.eq(oldForgeValidator)
+const validateUnchangedMassetStorage = async (mUsdV3Proxy: MusdV3) => {
     expect(await mUsdV3Proxy.swapFee(), "swap fee").to.eq(simpleToExactAmount(6, 14))
     expect(await mUsdV3Proxy.redemptionFee(), "redemption fee").to.eq(simpleToExactAmount(3, 14))
-    expect(await mUsdV3Proxy.cacheSize(), "cache size").to.eq(simpleToExactAmount(1, 17))
+    expect(await mUsdV3Proxy.cacheSize(), "cache size").to.eq(simpleToExactAmount(3, 16))
     expect(await mUsdV3Proxy.surplus(), "surplus").to.gt(0)
+}
+const validateNewMassetStorage = async (mUsdV3Proxy: MusdV3) => {
+    expect(await mUsdV3Proxy.forgeValidator(), "forge validator").to.eq(invariantValidatorAddress)
+
+    const invariantConfig = await mUsdV3Proxy.getConfig()
+    expect(invariantConfig.a, "amplification coefficient (A)").to.eq(defaultConfig.a * 100)
 }
 
 describe("mUSD V2.0 to V3.0", () => {
@@ -111,7 +113,7 @@ describe("mUSD V2.0 to V3.0", () => {
     it("Connected to forked V2 via the mUSD proxy", async () => {
         expect(await mUsdV2.getBasketManager(), "basket manager").to.eq(basketManagerAddress)
         await validateTokenStorage(mUsdV2 as MusdV3)
-        await validateMassetStorage(mUsdV2 as MusdV3)
+        await validateUnchangedMassetStorage(mUsdV2 as MusdV3)
     })
     it("Impersonated governor multisig wallet deploy test ERC20 token", async () => {
         const tokenFactory = await new ERC20__factory(governorMultisig)
@@ -146,33 +148,10 @@ describe("mUSD V2.0 to V3.0", () => {
         })
         it("should preserve storage in mUSD proxy", async () => {
             await validateTokenStorage(mUsdV2 as MusdV3)
-            await validateMassetStorage(mUsdV2 as MusdV3)
+            await validateUnchangedMassetStorage(mUsdV2 as MusdV3)
         })
     })
-    context("Upgrade proxy to point to replica old mUSD implementation", () => {
-        let mUsdV3Proxy: MusdV3
-        beforeEach(async () => {
-            const mUsdV2Factory = new MassetV2__factory(deployer)
-            const mUsdV2New = await mUsdV2Factory.deploy(nexusAddress)
-            // The mUSD implementation will have a blank validator
-            expect(await mUsdV2New.forgeValidator(), "before old validator").to.eq(ZERO_ADDRESS)
-
-            // Propose upgrade to the mUSD proxy contract using the delayed proxy admin contract
-            const proposeUpgradeTx = delayedProxyAdmin.proposeUpgrade(mUsdProxyAddress, mUsdV2New.address, "0x")
-            await expect(proposeUpgradeTx).to.emit(delayedProxyAdmin, "UpgradeProposed")
-
-            // Move the chain forward by just over 1 week
-            await increaseTime(ONE_WEEK.toNumber() + 100)
-
-            // Approve and execute call to upgradeToAndCall on mUSD proxy which then calls migrate on the new mUSD V3 implementation
-            await delayedProxyAdmin.acceptUpgradeRequest(mUsdProxyAddress)
-            mUsdV3Proxy = await mUsdV3Factory.attach(mUsdProxyAddress)
-        })
-        it("should preserve storage in mUSD proxy", async () => {
-            await validateTokenStorage(mUsdV2 as MusdV3)
-        })
-    })
-    context.only("Upgrade of mUSD implementation using upgradeTo from delayed admin proxy", () => {
+    context("Upgrade of mUSD implementation using upgradeTo from delayed admin proxy", () => {
         let mUsdV3Proxy: MusdV3
         beforeEach(async () => {
             const mUsdV3 = await mUsdV3Factory.deploy(nexusAddress)
@@ -190,28 +169,25 @@ describe("mUSD V2.0 to V3.0", () => {
             await delayedProxyAdmin.acceptUpgradeRequest(mUsdProxyAddress)
             mUsdV3Proxy = await mUsdV3Factory.attach(mUsdProxyAddress)
         })
-        it.only("Should upgrade mUSD", async () => {
+        it("Should upgrade mUSD", async () => {
             // validate before the upgrade
             await validateTokenStorage(mUsdV3Proxy)
-            await validateMassetStorage(mUsdV3Proxy as MusdV3)
+            await validateUnchangedMassetStorage(mUsdV3Proxy)
 
-            // await mUsdV3Proxy.upgrade(invariantValidatorAddress, defaultConfig)
+            await mUsdV3Proxy.upgrade(invariantValidatorAddress, defaultConfig)
 
-            // // validate after the upgrade
-            // await validateTokenStorage(mUsdV3Proxy as MusdV3)
-            // await validateMassetStorage(mUsdV3Proxy as MusdV3)
-            // expect(await mUsdV3Proxy.getBasketManager(), "after basket manager").to.eq(ZERO_ADDRESS)
-            // expect(await mUsdV2.forgeValidator(), "forge validator").to.eq(invariantValidatorAddress)
-
-            const invariantConfig = await mUsdV3Proxy.getConfig()
-            expect(invariantConfig.a, "amplification coefficient (A)").to.eq(defaultConfig.a * 100)
+            // validate after the upgrade
+            await validateTokenStorage(mUsdV3Proxy)
+            await validateUnchangedMassetStorage(mUsdV3Proxy)
+            await validateNewMassetStorage(mUsdV3Proxy)
         })
         it("Should fail to upgrade mUSD again", async () => {
             await expect(mUsdV3Proxy.upgrade(invariantValidatorAddress, defaultConfig)).to.revertedWith("already upgraded")
         })
         // TODO add mint, swap and redeem
     })
-    context.skip("Upgrade of mUSD implementation using upgradeToAndCall from delayed admin proxy", () => {
+    context("Upgrade of mUSD implementation using upgradeToAndCall from delayed admin proxy", () => {
+        let mUsdV3Proxy: MusdV3
         it("migrate via time deploy admin contract", async () => {
             const mUsdV3 = await mUsdV3Factory.deploy(nexusAddress)
             // The mUSD implementation will have a blank validator
@@ -233,12 +209,15 @@ describe("mUSD V2.0 to V3.0", () => {
                 .to.emit(delayedProxyAdmin, "Upgraded")
                 .withArgs(mUsdProxyAddress, mUsdV2ImplAddress, mUsdV3.address, migrateCallData)
 
+            mUsdV3Proxy = await mUsdV3Factory.attach(mUsdProxyAddress)
+
+            await validateTokenStorage(mUsdV3Proxy)
+            await validateUnchangedMassetStorage(mUsdV3Proxy)
+            await validateNewMassetStorage(mUsdV3Proxy)
+
             // The new mUSD implementation will still have a blank validator
             // as the mUSD storage is in the proxy
             expect(await mUsdV3.forgeValidator(), "after old validator").to.eq(ZERO_ADDRESS)
-        })
-        it("After upgrade checks", async () => {
-            await validateTokenStorage(mUsdV2 as MusdV3)
         })
     })
 })

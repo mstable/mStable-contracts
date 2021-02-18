@@ -2,8 +2,6 @@
 pragma solidity 0.8.0;
 pragma abicoder v2;
 
-import "hardhat/console.sol";
-
 // External
 import { IInvariantValidator } from "../../../masset/IInvariantValidator.sol";
 
@@ -23,6 +21,7 @@ import { Manager } from "../../../masset/Manager.sol";
 // Legacy
 import { IBasketManager } from "./IBasketManager.sol";
 import { Basket } from "./MassetStructsV2.sol";
+import { InitializableModuleV2 } from "./InitializableModuleV2.sol";
 
 /**
  * @title   Masset used to migrate mUSD from V2.0 to V3.0
@@ -38,42 +37,11 @@ import { Basket } from "./MassetStructsV2.sol";
     IMasset,
     Initializable,
     InitializableToken,
-    ImmutableModule,
-    InitializableReentrancyGuard
+    InitializableModuleV2,
+    InitializableReentrancyGuard,
+    ImmutableModule
 {
     using StableMath for uint256;
-
-    // 
-    address private nexus_deprecated;
-
-    // Release 1.0 VARS
-    IInvariantValidator public forgeValidator;
-    bool internal forgeValidatorLocked;
-    // Deprecated - maintain for storage layout in mUSD
-    address internal deprecated_basketManager;
-
-    // Basic redemption fee information
-    uint256 public swapFee;
-    uint256 public MAX_FEE;
-
-    // Release 1.1 VARS
-    uint256 public redemptionFee;
-
-    // Release 2.0 VARS
-    uint256 public cacheSize;
-    uint256 public surplus;
-
-    // Release 3.0 VARS
-    // Struct holding Basket details
-    BassetPersonal[] public bAssetPersonal;
-    BassetData[] public bAssetData;
-    mapping(address => uint8) public override bAssetIndexes;
-    uint8 public maxBassets;
-    BasketState public basket;
-    // Amplification Data
-    uint256 private constant A_PRECISION = 100;
-    AmpData public ampData;
-    WeightLimits public weightLimits;
 
     // Forging Events
     event Minted(
@@ -121,6 +89,35 @@ import { Basket } from "./MassetStructsV2.sol";
     event WeightLimitsChanged(uint128 min, uint128 max);
     event ForgeValidatorChanged(address forgeValidator);
 
+    // Release 1.0 VARS
+    IInvariantValidator public forgeValidator;
+    bool internal forgeValidatorLocked;
+    // Deprecated - maintain for storage layout in mUSD
+    address internal deprecated_basketManager;
+
+    // Basic redemption fee information
+    uint256 public swapFee;
+    uint256 public MAX_FEE;
+
+    // Release 1.1 VARS
+    uint256 public redemptionFee;
+
+    // Release 2.0 VARS
+    uint256 public cacheSize;
+    uint256 public surplus;
+
+    // Release 3.0 VARS
+    // Struct holding Basket details
+    BassetPersonal[] public bAssetPersonal;
+    BassetData[] public bAssetData;
+    mapping(address => uint8) public override bAssetIndexes;
+    uint8 public maxBassets;
+    BasketState public basket;
+    // Amplification Data
+    uint256 private constant A_PRECISION = 100;
+    AmpData public ampData;
+    WeightLimits public weightLimits;
+
     /**
      * @dev Constructor to set immutable bytecode
      * @param _nexus   Nexus address
@@ -139,43 +136,37 @@ import { Basket } from "./MassetStructsV2.sol";
         address _forgeValidator,
         InvariantConfig memory _config
     ) public {
-        // // prevent upgrade being run again by checking the old Basket Manager
-        // require(deprecated_basketManager != address(0x0), "already upgraded");
-        // // require(address(forgeValidator) == 0xbB90D06371030fFa150E463621c22950b212eaa1, "invalid forge validator address");
-        // forgeValidator = IInvariantValidator(_forgeValidator);
+        // prevent upgrade being run again by checking the old forge validator
+        require(address(forgeValidator) == 0xbB90D06371030fFa150E463621c22950b212eaa1, "already upgraded");
+        forgeValidator = IInvariantValidator(_forgeValidator);
 
-        // // Read the Basket Manager details from the mUSD proxy's storage into memory
-        // // require(deprecated_basketManager == 0x66126B4aA2a1C07536Ef8E5e8bD4EfDA1FdEA96D, "invalid basket address");
-        // IBasketManager basketManager = IBasketManager(deprecated_basketManager);
+        // Read the Basket Manager details from the mUSD proxy's storage into memory
+        IBasketManager basketManager = IBasketManager(deprecated_basketManager);
+        // Update the storage of the Basket Manager in the mUSD Proxy
+        deprecated_basketManager = address(0);
 
-        // // TODO storage is not preserved to will reset for now
-        // // IBasketManager basketManager = IBasketManager(0x66126B4aA2a1C07536Ef8E5e8bD4EfDA1FdEA96D);
-        // // Update the storage of the Basket Manager in the mUSD Proxy
-        // deprecated_basketManager = address(0);
+        maxBassets = 10;
 
-        // maxBassets = 10;
+        Basket memory basket = basketManager.getBasket();
+        uint256 len = basket.bassets.length;
+        require(len == 4, "Invalid bAssets");
+        for (uint256 i = 0; i < len; i++) {
+            address bAssetAddress = basket.bassets[i].addr;
+            Manager.addBasset(
+                bAssetPersonal,
+                bAssetData,
+                bAssetIndexes,
+                maxBassets,
+                bAssetAddress,
+                basketManager.getBassetIntegrator(bAssetAddress),
+                1e8,
+                basket.bassets[i].isTransferFeeCharged
+            );
+        }
 
-        // Basket memory basket = basketManager.getBasket();
-        // uint256 len = basket.bassets.length;
-        // require(len == 4, "Invalid bAssets");
-        // for (uint256 i = 0; i < len; i++) {
-        //     address bAssetAddress = basket.bassets[i].addr;
-        //     console.log("%s mUSD bassets %s, max %s", i, bAssetAddress, maxBassets);
-        //     Manager.addBasset(
-        //         bAssetPersonal,
-        //         bAssetData,
-        //         bAssetIndexes,
-        //         maxBassets,
-        //         bAssetAddress,
-        //         basketManager.getBassetIntegrator(bAssetAddress),
-        //         1e8,
-        //         basket.bassets[i].isTransferFeeCharged
-        //     );
-        // }
-
-        // uint64 startA = SafeCast.toUint64(_config.a * A_PRECISION);
-        // ampData = AmpData(startA, startA, 0, 0);
-        // weightLimits = _config.limits;
+        uint64 startA = SafeCast.toUint64(_config.a * A_PRECISION);
+        ampData = AmpData(startA, startA, 0, 0);
+        weightLimits = _config.limits;
 
         // TODO check weights are near 25%
 
