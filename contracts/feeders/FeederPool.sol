@@ -441,9 +441,7 @@ contract FeederPool is
         Status memory input = _getAsset2(_input);
         Status memory output = _getAsset2(_output);
         require(_pathIsValid(input, output), "Invalid pair");
-        // todo - if input exists, output must be 1, same with output. No mpAsst -> mAsset allowed
 
-        // do deposit (move to internal fn)
         Asset memory in_i = _transferIn(input, _inputQuantity);
         // 1. [f/mAsset ->][ f/mAsset]               : Y - normal in, SWAP, normal out
         // 3. [mpAsset -> mAsset][ -> fAsset]        : Y - mint in  , SWAP, normal out
@@ -460,19 +458,14 @@ contract FeederPool is
     }
 
     function _pathIsValid(Status memory _in, Status memory _out) internal returns (bool isValid) {
-        return true;
-        // // Valid if:
-        // isValid = true;
-        // if(!_in.exists && !_out.exists) isValid = false;
-        // if(_in.idx == 0 && !_out.exists) isValid = false;
-        // if(_out.idx == 0 && !_in.exists) isValid = false;
-        // // Straight swap
-        // if(_in.exists && _out.exists) return true;
-        // // mpAsset -> mpAsset
-        // if(!_in.exists && !_out.exists) return false;
-        // // 1 must exist
-        // if(_in.exists && _in.idx == 1) return true;
-        // if(_out.exists && _out.idx == 1) return true;
+        // mpAsset -> mpAsset
+        if(!_in.exists && !_out.exists) return false;
+        // f/mAsset -> f/mAsset
+        if(_in.exists && _out.exists) return true;
+        // fAsset -> mpAsset
+        if(_in.exists && _in.idx == 1) return true;
+        // mpAsset -> fAsset
+        if(_out.exists && _out.idx == 1) return true;
     }
 
     function _transferIn(Status memory _input, uint256 _inputQuantity)
