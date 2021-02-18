@@ -2,8 +2,8 @@
 pragma solidity 0.8.0;
 
 /** @dev Stores high level basket info */
-struct BasketV2 {
-    BassetV2[] bassets;
+struct Basket {
+    Basset[] bassets;
     uint8 maxBassets;
     bool undergoingRecol;
     bool failed;
@@ -12,7 +12,7 @@ struct BasketV2 {
 }
 
 /** @dev Stores bAsset info. The struct takes 5 storage slots per Basset */
-struct BassetV2 {
+struct Basset {
     address addr;
     BassetStatus status;
     bool isTransferFeeCharged;
@@ -36,7 +36,7 @@ enum BassetStatus {
 
 /** @dev Internal details on Basset */
 struct BassetDetails {
-    BassetV2 bAsset;
+    Basset bAsset;
     address integrator;
     uint8 index;
 }

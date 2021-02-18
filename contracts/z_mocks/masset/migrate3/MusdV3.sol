@@ -2,25 +2,27 @@
 pragma solidity 0.8.0;
 pragma abicoder v2;
 
+import "hardhat/console.sol";
+
 // External
-import { IInvariantValidator } from "../IInvariantValidator.sol";
+import { IInvariantValidator } from "../../../masset/IInvariantValidator.sol";
 
 // Internal
-import { Initializable } from "../../shared/@openzeppelin-2.5/Initializable.sol";
-import { InitializableToken } from "../../shared/InitializableToken.sol";
-import { ImmutableModule } from "../../shared/ImmutableModule.sol";
-import { InitializableReentrancyGuard } from "../../shared/InitializableReentrancyGuard.sol";
-import { IMasset, Deprecated_BasketManager } from "../../interfaces/IMasset.sol";
+import { Initializable } from "../../../shared/@openzeppelin-2.5/Initializable.sol";
+import { InitializableToken } from "../../../shared/InitializableToken.sol";
+import { ImmutableModule } from "../../../shared/ImmutableModule.sol";
+import { InitializableReentrancyGuard } from "../../../shared/InitializableReentrancyGuard.sol";
+import { IMasset, Deprecated_BasketManager } from "../../../interfaces/IMasset.sol";
+import { MassetStructs } from "../../../masset/MassetStructs.sol";
 
 // Libs
 import { SafeCast } from "@openzeppelin/contracts-sol8/contracts/utils/SafeCast.sol";
-import { StableMath } from "../../shared/StableMath.sol";
-import { Manager } from "../Manager.sol";
+import { StableMath } from "../../../shared/StableMath.sol";
+import { Manager } from "../../../masset/Manager.sol";
 
 // Legacy
 import { IBasketManager } from "./IBasketManager.sol";
-import { MassetV2 } from "./MassetV2.sol";
-import { BasketV2 } from "./MassetStructsV2.sol";
+import { Basket } from "./MassetStructsV2.sol";
 
 /**
  * @title   Masset used to migrate mUSD from V2.0 to V3.0
@@ -32,7 +34,7 @@ import { BasketV2 } from "./MassetStructsV2.sol";
  * @dev     VERSION: 3.0
  *          DATE:    2021-01-22
  */
-contract MusdV3 is
+ contract MusdV3 is
     IMasset,
     Initializable,
     InitializableToken,
@@ -40,6 +42,38 @@ contract MusdV3 is
     InitializableReentrancyGuard
 {
     using StableMath for uint256;
+
+    // 
+    address private nexus_deprecated;
+
+    // Release 1.0 VARS
+    IInvariantValidator public forgeValidator;
+    bool internal forgeValidatorLocked;
+    // Deprecated - maintain for storage layout in mUSD
+    address internal deprecated_basketManager;
+
+    // Basic redemption fee information
+    uint256 public swapFee;
+    uint256 public MAX_FEE;
+
+    // Release 1.1 VARS
+    uint256 public redemptionFee;
+
+    // Release 2.0 VARS
+    uint256 public cacheSize;
+    uint256 public surplus;
+
+    // Release 3.0 VARS
+    // Struct holding Basket details
+    BassetPersonal[] public bAssetPersonal;
+    BassetData[] public bAssetData;
+    mapping(address => uint8) public override bAssetIndexes;
+    uint8 public maxBassets;
+    BasketState public basket;
+    // Amplification Data
+    uint256 private constant A_PRECISION = 100;
+    AmpData public ampData;
+    WeightLimits public weightLimits;
 
     // Forging Events
     event Minted(
@@ -87,35 +121,6 @@ contract MusdV3 is
     event WeightLimitsChanged(uint128 min, uint128 max);
     event ForgeValidatorChanged(address forgeValidator);
 
-    // Release 1.0 VARS
-    IInvariantValidator public forgeValidator;
-    bool private forgeValidatorLocked;
-    // Deprecated - maintain for storage layout in mUSD
-    address private deprecated_basketManager;
-
-    // Basic redemption fee information
-    uint256 public swapFee;
-    uint256 private MAX_FEE;
-
-    // Release 1.1 VARS
-    uint256 public redemptionFee;
-
-    // Release 2.0 VARS
-    uint256 public cacheSize;
-    uint256 public surplus;
-
-    // Release 3.0 VARS
-    // Struct holding Basket details
-    BassetPersonal[] public bAssetPersonal;
-    BassetData[] public bAssetData;
-    mapping(address => uint8) public override bAssetIndexes;
-    uint8 public maxBassets;
-    BasketState public basket;
-    // Amplification Data
-    uint256 private constant A_PRECISION = 100;
-    AmpData public ampData;
-    WeightLimits public weightLimits;
-
     /**
      * @dev Constructor to set immutable bytecode
      * @param _nexus   Nexus address
@@ -134,36 +139,47 @@ contract MusdV3 is
         address _forgeValidator,
         InvariantConfig memory _config
     ) public {
-        // prevent upgrade being run again by checking the old Basket Manager
-        require(address(deprecated_basketManager) != address(0x0), "already upgraded");
-        forgeValidator = IInvariantValidator(_forgeValidator);
+        // // prevent upgrade being run again by checking the old Basket Manager
+        // require(deprecated_basketManager != address(0x0), "already upgraded");
+        // // require(address(forgeValidator) == 0xbB90D06371030fFa150E463621c22950b212eaa1, "invalid forge validator address");
+        // forgeValidator = IInvariantValidator(_forgeValidator);
 
-        // Read the Basket Manager details from the mUSD proxy's storage into memory
-        IBasketManager basketManager = IBasketManager(deprecated_basketManager);
-        // Update the storage of the Basket Manager in the mUSD Proxy
-        deprecated_basketManager = address(0);
+        // // Read the Basket Manager details from the mUSD proxy's storage into memory
+        // // require(deprecated_basketManager == 0x66126B4aA2a1C07536Ef8E5e8bD4EfDA1FdEA96D, "invalid basket address");
+        // IBasketManager basketManager = IBasketManager(deprecated_basketManager);
 
-        // BasketV2 memory basket = basketManager.getBasket();
+        // // TODO storage is not preserved to will reset for now
+        // // IBasketManager basketManager = IBasketManager(0x66126B4aA2a1C07536Ef8E5e8bD4EfDA1FdEA96D);
+        // // Update the storage of the Basket Manager in the mUSD Proxy
+        // deprecated_basketManager = address(0);
+
+        // maxBassets = 10;
+
+        // Basket memory basket = basketManager.getBasket();
         // uint256 len = basket.bassets.length;
-        // require(len > 0, "No bAssets");
+        // require(len == 4, "Invalid bAssets");
         // for (uint256 i = 0; i < len; i++) {
+        //     address bAssetAddress = basket.bassets[i].addr;
+        //     console.log("%s mUSD bassets %s, max %s", i, bAssetAddress, maxBassets);
         //     Manager.addBasset(
         //         bAssetPersonal,
         //         bAssetData,
         //         bAssetIndexes,
         //         maxBassets,
-        //         basket.bassets[i].addr,
-        //         basketManager.integrations(i),
+        //         bAssetAddress,
+        //         basketManager.getBassetIntegrator(bAssetAddress),
         //         1e8,
         //         basket.bassets[i].isTransferFeeCharged
         //     );
         // }
 
-        uint64 startA = SafeCast.toUint64(_config.a * A_PRECISION);
-        ampData = AmpData(startA, startA, 0, 0);
-        weightLimits = _config.limits;
+        // uint64 startA = SafeCast.toUint64(_config.a * A_PRECISION);
+        // ampData = AmpData(startA, startA, 0, 0);
+        // weightLimits = _config.limits;
 
         // TODO check weights are near 25%
+
+        // TODO is the reentry set correctly?
     }
 
     /**
@@ -285,9 +301,9 @@ contract MusdV3 is
         return forgeValidator.computeMintMulti(bAssetData, indexes, _inputQuantities, _getConfig());
     }
 
-    /***************************************
-              MINTING (INTERNAL)
-    ****************************************/
+    // /***************************************
+    //           MINTING (INTERNAL)
+    // ****************************************/
 
     /** @dev Mint Single */
     function _mintTo(
