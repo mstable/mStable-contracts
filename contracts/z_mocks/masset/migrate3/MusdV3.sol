@@ -91,13 +91,13 @@ import { InitializableModuleV2 } from "./InitializableModuleV2.sol";
 
     // Release 1.0 VARS
     IInvariantValidator public forgeValidator;
-    bool internal forgeValidatorLocked;
+    bool private forgeValidatorLocked;
     // Deprecated - maintain for storage layout in mUSD
-    address internal deprecated_basketManager;
+    address private deprecated_basketManager;
 
     // Basic redemption fee information
     uint256 public swapFee;
-    uint256 public MAX_FEE;
+    uint256 private MAX_FEE;
 
     // Release 1.1 VARS
     uint256 public redemptionFee;
@@ -135,33 +135,35 @@ import { InitializableModuleV2 } from "./InitializableModuleV2.sol";
     function upgrade(
         address _forgeValidator,
         InvariantConfig memory _config
-    ) public {
-        // prevent upgrade being run again by checking the old forge validator
-        require(address(forgeValidator) == 0xbB90D06371030fFa150E463621c22950b212eaa1, "already upgraded");
-        forgeValidator = IInvariantValidator(_forgeValidator);
-
+    ) public nonReentrant whenHealthy {
+        // prevent upgrade being run again by checking the old basket manager
+        require(deprecated_basketManager != address(0), "already upgraded");
         // Read the Basket Manager details from the mUSD proxy's storage into memory
         IBasketManager basketManager = IBasketManager(deprecated_basketManager);
         // Update the storage of the Basket Manager in the mUSD Proxy
         deprecated_basketManager = address(0);
 
+        forgeValidator = IInvariantValidator(_forgeValidator);
+
         maxBassets = 10;
 
         Basket memory basket = basketManager.getBasket();
         uint256 len = basket.bassets.length;
-        require(len == 4, "Invalid bAssets");
         for (uint256 i = 0; i < len; i++) {
             address bAssetAddress = basket.bassets[i].addr;
+            address integratorAddress = basketManager.getBassetIntegrator(bAssetAddress);
             Manager.addBasset(
                 bAssetPersonal,
                 bAssetData,
                 bAssetIndexes,
                 maxBassets,
                 bAssetAddress,
-                basketManager.getBassetIntegrator(bAssetAddress),
+                integratorAddress,
                 1e8,
-                basket.bassets[i].isTransferFeeCharged
+                false   // tx fee
             );
+            // set the vault balance
+            bAssetData[i].vaultBalance = SafeCast.toUint128(basket.bassets[i].vaultBalance);
         }
 
         uint64 startA = SafeCast.toUint64(_config.a * A_PRECISION);
@@ -169,8 +171,6 @@ import { InitializableModuleV2 } from "./InitializableModuleV2.sol";
         weightLimits = _config.limits;
 
         // TODO check weights are near 25%
-
-        // TODO is the reentry set correctly?
     }
 
     /**

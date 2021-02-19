@@ -25,8 +25,8 @@ export const hardhatConfig = {
             blockGasLimit: 9000000,
             forking: {
                 url: process.env.NODE_URL || "",
+                blockNumber: 11880000,
             },
-            blockNumber: 11880000,
         },
         localhost: { url: "http://localhost:8545" },
         fork: {
