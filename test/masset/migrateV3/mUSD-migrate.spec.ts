@@ -9,10 +9,10 @@ import { ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import { simpleToExactAmount } from "@utils/math"
 import { DelayedProxyAdmin, DelayedProxyAdmin__factory, Masset, Masset__factory, MusdV3, MusdV3__factory } from "types/generated"
 import { increaseTime } from "@utils/time"
+import { BassetStatus } from "@utils/mstable-objects"
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 import { abi as MusdV2Abi, bytecode as MusdV2Bytecode } from "./MassetV2.json"
-import { BassetStatus } from "@utils/mstable-objects"
 
 // Accounts that are impersonated
 const deployerAddress = "0x19F12C947D25Ff8a3b748829D8001cA09a28D46d"
@@ -31,6 +31,7 @@ const invariantValidatorAddress = "0xd36050B5F28126b5292B59128ED25E489a0f2F3f"
 const linkedAddress = {
     __$1a38b0db2bd175b310a9a3f8697d44eb75$__: "0x1E91F826fa8aA4fa4D3F595898AF3A64dd188848",
 }
+const forkBlockNumber = 11880000
 
 const defaultConfig = {
     a: 120,
@@ -48,22 +49,41 @@ const impersonate = async (addr): Promise<Signer> => {
     return ethers.provider.getSigner(addr)
 }
 
+const impersonateAccounts = async () => {
+    // Impersonate mainnet accounts
+    const accounts = {
+        deployer: await impersonate(deployerAddress),
+        governorMultisig: await impersonate(governorMultisigAddress),
+        ethWhale: await impersonate(ethWhaleAddress),
+    }
+
+    // send some Ether to the impersonated miltisig contract as it doesn't have Ether
+    await accounts.ethWhale.sendTransaction({
+        to: governorMultisigAddress,
+        value: simpleToExactAmount(10),
+    })
+
+    return accounts
+}
+
 // Test the token storage variables
 const validateTokenStorage = async (token: MusdV3 | Masset) => {
     expect(await token.symbol(), "symbol").to.eq("mUSD")
     expect(await token.name(), "name").to.eq("mStable USD")
     expect(await token.decimals(), "decimals").to.eq(18)
     // some mUSD token holder
-    expect(await token.balanceOf("0x5C80E54f903458edD0723e268377f5768C7869d7"), "balanceOf").to.eq("6971708003000000000000")
+    expect(await token.balanceOf("0x5C80E54f903458edD0723e268377f5768C7869d7"), `mUSD balance at block ${forkBlockNumber}`).to.eq(
+        "6971708003000000000000",
+    )
     // For block number 11880000
-    expect(await token.totalSupply(), "totalSupply at block 11880000").to.eq("45286852911137226622051552")
+    expect(await token.totalSupply(), `totalSupply at block ${forkBlockNumber}`).to.eq("45286852911137226622051552")
 }
 // Test the existing Masset V2 storage variables
 const validateUnchangedMassetStorage = async (mUsd: MusdV3 | Masset) => {
     expect(await mUsd.swapFee(), "swap fee").to.eq(simpleToExactAmount(6, 14))
     expect(await mUsd.redemptionFee(), "redemption fee").to.eq(simpleToExactAmount(3, 14))
     expect(await mUsd.cacheSize(), "cache size").to.eq(simpleToExactAmount(3, 16))
-    expect(await mUsd.surplus(), "surplus at block 11880000").to.eq("60000000000000000001")
+    expect(await mUsd.surplus(), `surplus at block ${forkBlockNumber}`).to.eq("60000000000000000001")
 }
 // Test the new Masset V3 storage variables
 const validateNewMassetStorage = async (mUsd: MusdV3 | Masset) => {
@@ -123,15 +143,9 @@ describe("mUSD V2.0 to V3.0", () => {
     let deployer: Signer
     let governorMultisig: Signer
     before(async () => {
-        // Impersonate mainnet accounts
-        deployer = await impersonate(deployerAddress)
-        governorMultisig = await impersonate(governorMultisigAddress)
-        const ethWhale = await impersonate(ethWhaleAddress)
-
-        await ethWhale.sendTransaction({
-            to: governorMultisigAddress,
-            value: simpleToExactAmount(10),
-        })
+        const accounts = await impersonateAccounts()
+        deployer = accounts.deployer
+        governorMultisig = accounts.governorMultisig
 
         // Point to mUSD contract using the old V2 interface via the proxy
         mUsdV2Factory = new ContractFactory(MusdV2Abi, MusdV2Bytecode, deployer)
@@ -218,7 +232,25 @@ describe("mUSD V2.0 to V3.0", () => {
         // TODO add mint, swap and redeem
         // Do some admin operations
     })
-    context.skip("Upgrade of mUSD implementation using upgradeToAndCall from delayed admin proxy", () => {
+    // this can not be run on a forked Hardhat network if the previous test has been run as the contract would have already been upgraded
+    context("Upgrade of mUSD implementation using upgradeToAndCall from delayed admin proxy", () => {
+        before(async () => {
+            await network.provider.request({
+                method: "hardhat_reset",
+                params: [
+                    {
+                        forking: {
+                            jsonRpcUrl: "https://eth-mainnet.alchemyapi.io/v2/ZjhL-TgqJLscNx_tQpNDeuuA0yEQkoo7",
+                            blockNumber: forkBlockNumber,
+                        },
+                    },
+                ],
+            })
+
+            const accounts = await impersonateAccounts()
+            deployer = accounts.deployer
+            governorMultisig = accounts.governorMultisig
+        })
         it("migrate via time deploy admin contract", async () => {
             const mUsdV3Impl = await mUsdV3Factory.deploy(nexusAddress)
             // The mUSD implementation will have a blank validator
@@ -232,13 +264,12 @@ describe("mUSD V2.0 to V3.0", () => {
 
             // Move the chain forward by just over 1 week
             await increaseTime(ONE_WEEK.toNumber() + 100)
-            // await delayedProxyAdmin.cancelUpgrade(mUsdProxyAddress)
 
             // Approve and execute call to upgradeToAndCall on mUSD proxy which then calls migrate on the new mUSD V3 implementation
             const tx = delayedProxyAdmin.acceptUpgradeRequest(mUsdProxyAddress)
             await expect(tx)
                 .to.emit(delayedProxyAdmin, "Upgraded")
-                .withArgs(mUsdProxyAddress, mUsdV2ImplAddress, mUsdV3.address, migrateCallData)
+                .withArgs(mUsdProxyAddress, mUsdV2ImplAddress, mUsdV3Impl.address, migrateCallData)
 
             await validateTokenStorage(mUsdV3)
             await validateUnchangedMassetStorage(mUsdV3)
