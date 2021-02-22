@@ -22,8 +22,7 @@ import { StableMath } from "../shared/StableMath.sol";
 import { Manager } from "../masset/Manager.sol";
 import { FeederValidator } from "./FeederValidator.sol";
 
-// TODO - bring in FeederPool interface and add overrides
-// TODO - hook collectPlatformInterest into savings manager
+// TODO - hook collectPlatformInterest into savings manager or somewhere else external to provide validation
 // TODO - handle all local transfers to address(this) - no need to xfer
 // TODO - remove all instances of bAsset or mAsset where used incorrectly
 // TODO - remove unused dependencies
