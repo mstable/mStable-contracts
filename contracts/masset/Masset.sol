@@ -3,7 +3,7 @@ pragma solidity 0.8.0;
 pragma abicoder v2;
 
 // External
-import { IInvariantValidator } from "./IInvariantValidator.sol";
+import { IInvariantValidator } from "../interfaces/IInvariantValidator.sol";
 
 // Internal
 import { Initializable } from "../shared/@openzeppelin-2.5/Initializable.sol";

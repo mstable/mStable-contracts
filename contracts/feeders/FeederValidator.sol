@@ -3,20 +3,20 @@ pragma solidity 0.8.0;
 
 import "hardhat/console.sol";
 
-import { IInvariantValidator } from "../interfaces/IInvariantValidator.sol";
+import { IFeederValidator } from "./IFeederValidator.sol";
 import { Root } from "../shared/Root.sol";
 
 /**
- * @title   InvariantValidator
+ * @title   FeederValidator
  * @author  mStable
  * @notice  Builds on and enforces the StableSwap invariant conceived by Michael Egorov. (https://www.curve.fi/stableswap-paper.pdf)
  *          Derived by mStable and adapted for the needs of an mAsset, as described in MIP-7 (http://mips.mstable.org/MIPS/mip-7)
  *          Calculates and validates the result of Masset operations with respect to the invariant.
  *          This supports low slippage swaps and applies penalties towards min and max regions.
  * @dev     VERSION: 1.0
- *          DATE:    2021-02-04
+ *          DATE:    2021-02-22
  */
-contract InvariantValidator is IInvariantValidator {
+contract FeederValidator is IFeederValidator {
     uint256 internal constant A_PRECISION = 100;
 
     // Data used for determining max TVL during guarded launch
@@ -40,14 +40,14 @@ contract InvariantValidator is IInvariantValidator {
      * @param _bAssets      Array of all bAsset Data
      * @param _i            Index of bAsset with which to mint
      * @param _rawInput     Raw amount of bAsset to use in mint
-     * @param _config       Generalised invariantConfig stored externally
+     * @param _config       Generalised FeederConfig stored externally
      * @return mintAmount   Quantity of mAssets minted
      */
     function computeMint(
         BassetData[] calldata _bAssets,
         uint8 _i,
         uint256 _rawInput,
-        InvariantConfig memory _config
+        FeederConfig memory _config
     ) external view override returns (uint256 mintAmount) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
@@ -69,14 +69,14 @@ contract InvariantValidator is IInvariantValidator {
      * @param _bAssets      Array of all bAsset Data
      * @param _indices      Indexes of bAssets with which to mint
      * @param _rawInputs    Raw amounts of bAssets to use in mint
-     * @param _config       Generalised invariantConfig stored externally
+     * @param _config       Generalised FeederConfig stored externally
      * @return mintAmount   Quantity of mAssets minted
      */
     function computeMintMulti(
         BassetData[] calldata _bAssets,
         uint8[] calldata _indices,
         uint256[] calldata _rawInputs,
-        InvariantConfig memory _config
+        FeederConfig memory _config
     ) external view override returns (uint256 mintAmount) {
         console.log("Validator: mintMulti");
         // 1. Get raw reserves
@@ -110,7 +110,7 @@ contract InvariantValidator is IInvariantValidator {
      * @param _o            Index of bAsset to swap OUT
      * @param _rawInput     Raw amounts of input bAsset to input
      * @param _feeRate      Swap fee rate to apply to output
-     * @param _config       Generalised invariantConfig stored externally
+     * @param _config       Generalised FeederConfig stored externally
      * @return bAssetOutputQuantity   Raw bAsset output quantity
      * @return scaledSwapFee          Swap fee collected, in mAsset terms
      */
@@ -120,7 +120,7 @@ contract InvariantValidator is IInvariantValidator {
         uint8 _o,
         uint256 _rawInput,
         uint256 _feeRate,
-        InvariantConfig memory _config
+        FeederConfig memory _config
     ) external view override returns (uint256 bAssetOutputQuantity, uint256 scaledSwapFee) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
@@ -149,14 +149,14 @@ contract InvariantValidator is IInvariantValidator {
      * @param _bAssets              Array of all bAsset Data
      * @param _o                    Index of output bAsset
      * @param _netMassetQuantity    Net amount of mAsset to redeem
-     * @param _config               Generalised invariantConfig stored externally
+     * @param _config               Generalised FeederConfig stored externally
      * @return rawOutputUnits       Raw bAsset output returned
      */
     function computeRedeem(
         BassetData[] calldata _bAssets,
         uint8 _o,
         uint256 _netMassetQuantity,
-        InvariantConfig memory _config
+        FeederConfig memory _config
     ) external view override returns (uint256 rawOutputUnits) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
@@ -178,14 +178,14 @@ contract InvariantValidator is IInvariantValidator {
      * @param _bAssets          Array of all bAsset Data
      * @param _indices          Indexes of output bAssets
      * @param _rawOutputs       Desired raw bAsset outputs
-     * @param _config           Generalised invariantConfig stored externally
+     * @param _config           Generalised FeederConfig stored externally
      * @return totalmAssets     Amount of mAsset required to redeem bAssets
      */
     function computeRedeemExact(
         BassetData[] calldata _bAssets,
         uint8[] calldata _indices,
         uint256[] calldata _rawOutputs,
-        InvariantConfig memory _config
+        FeederConfig memory _config
     ) external view override returns (uint256 totalmAssets) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);

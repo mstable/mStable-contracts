@@ -49,6 +49,12 @@ interface MassetStructs {
         uint128 max;
     }
 
+    struct FeederConfig {
+        uint256 supply;
+        uint256 a;
+        WeightLimits limits;
+    }
+
     struct AmpData {
         uint64 initialA;
         uint64 targetA;

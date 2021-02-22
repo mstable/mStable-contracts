@@ -5,10 +5,10 @@ pragma abicoder v2;
 import "hardhat/console.sol";
 
 // External
-import { IInvariantValidator } from "../masset/IInvariantValidator.sol";
+import { IFeederValidator } from "./IFeederValidator.sol";
 
 // Internal
-import { IFeederPool } from "./IFeederPool.sol";
+import { IFeederPool } from "../interfaces/IFeederPool.sol";
 import { Initializable } from "@openzeppelin/contracts-sol8/contracts/proxy/Initializable.sol";
 import { InitializableToken } from "../shared/InitializableToken.sol";
 import { ImmutableModule } from "../shared/ImmutableModule.sol";
@@ -53,6 +53,7 @@ contract FeederPool is
         address input,
         address output,
         uint256 outputAmount,
+        uint256 fee,
         address recipient
     );
     // event Redeemed(
@@ -78,7 +79,7 @@ contract FeederPool is
     // event WeightLimitsChanged(uint128 min, uint128 max);
     // event validatorChanged(address validator);
 
-    IInvariantValidator public validator;
+    IFeederValidator public validator;
 
     uint256 private constant MAX_FEE = 1e16;
     uint256 public swapFee;
@@ -122,7 +123,7 @@ contract FeederPool is
 
         _initializeReentrancyGuard();
 
-        validator = IInvariantValidator(_validator);
+        validator = IFeederValidator(_validator);
         console.log("a");
         // TODO - consider how to store fAsset vs mAsset. Atm we do 3 extra SLOADs per asset
         // ----- prop ---- fAsset ---- mAsset
@@ -197,16 +198,17 @@ contract FeederPool is
         require(_recipient != address(0), "Invalid recipient");
         require(_inputQuantity > 0, "Qty==0");
 
-        (bool exists, uint8 idx) = _getAsset(_input);
+        Asset memory input = _getAsset(_input);
 
-        if (exists) {
-            mintOutput = _mintLocal(idx, _inputQuantity, _minOutputQuantity, false, _recipient);
-        } else {
-            // TODO - consider having this as part of the wrapper fn too
-            IERC20(_input).safeTransferFrom(msg.sender, address(this), _inputQuantity);
-            uint256 mAssetMinted = IMasset(mAsset).mint(_input, _inputQuantity, 0, address(this));
-            mintOutput = _mintLocal(0, mAssetMinted, _minOutputQuantity, true, _recipient);
-        }
+        BassetData[] memory cachedBassetData = bAssetData;
+        AssetData memory inputData = _transferIn(cachedBassetData, input, _inputQuantity);
+        // Validation should be after token transfer, as bAssetQty is unknown before
+        mintOutput = validator.computeMint(cachedBassetData, inputData.idx, inputData.amt, _getConfig());
+        require(mintOutput >= _minOutputQuantity, "Mint quantity < min qty");
+        
+        // Mint the LP Token
+        _mint(_recipient, mintOutput);
+        emit Minted(msg.sender, _recipient, mintOutput, _input, inputData.amt);
     }
 
     function mintMulti(
@@ -231,10 +233,10 @@ contract FeederPool is
     {
         require(_inputQuantity > 0, "Qty==0");
 
-        (bool exists, uint8 idx) = _getAsset(_input);
+        Asset memory input = _getAsset(_input);
 
-        if (exists) {
-            mintOutput = validator.computeMint(bAssetData, idx, _inputQuantity, _getConfig());
+        if (input.exists) {
+            mintOutput = validator.computeMint(bAssetData, input.idx, _inputQuantity, _getConfig());
         } else {
             uint256 esimatedMasset = IMasset(mAsset).getMintOutput(_input, _inputQuantity);
             mintOutput = validator.computeMint(bAssetData, 0, esimatedMasset, _getConfig());
@@ -263,39 +265,48 @@ contract FeederPool is
               MINTING (INTERNAL)
     ****************************************/
 
-    function _mintLocal(
-        uint8 _idx,
-        uint256 _inputQuantity,
-        uint256 _minOutputQuantity,
-        bool _skipTransfer,
-        address _recipient
-    ) internal returns (uint256 tokensMinted) {
-        BassetData[] memory allBassets = bAssetData;
-        // Transfer collateral to the platform integration address and call deposit
-        BassetPersonal memory personal = bAssetPersonal[_idx];
-        uint256 quantityDeposited;
-        if (_skipTransfer) {
-            // TODO - fix this.. can't just read balance
-            quantityDeposited = IERC20(personal.addr).balanceOf(address(this));
+    // Results in a deposited fAsset or mAsset, whether that is directly, or through mpAsset -> mAsset minting
+    // from the main pool.
+    function _transferIn(
+        BassetData[] memory _cachedBassetData,
+        Asset memory _input,
+        uint256 _inputQuantity
+    )
+        internal
+        returns (AssetData memory inputData)
+    {
+        if (_input.exists) {
+            BassetPersonal memory personal = bAssetPersonal[_input.idx];
+            uint256 amt =
+                Manager.depositTokens(
+                    personal,
+                    _cachedBassetData[_input.idx].ratio,
+                    _inputQuantity,
+                    _getCacheDetails().maxCache
+                );
+            inputData = AssetData(_input.idx, amt, personal);
         } else {
-            Cache memory cache = _getCacheDetails();
-            quantityDeposited = Manager.depositTokens(
-                personal,
-                allBassets[_idx].ratio,
-                _inputQuantity,
-                cache.maxCache
-            );
+            inputData = _mpMint(_input, _inputQuantity);
+            require(inputData.amt > 0, "Must mint something from mp");
         }
-        // Validation should be after token transfer, as bAssetQty is unknown before
-        tokensMinted = validator.computeMint(allBassets, _idx, quantityDeposited, _getConfig());
-        require(tokensMinted >= _minOutputQuantity, "Mint quantity < min qty");
-        // Log the Vault increase - can only be done when basket is healthy
-        bAssetData[_idx].vaultBalance =
-            allBassets[_idx].vaultBalance +
-            SafeCast.toUint128(quantityDeposited);
-        // Mint the LP Token
-        _mint(_recipient, tokensMinted);
-        emit Minted(msg.sender, _recipient, tokensMinted, personal.addr, quantityDeposited);
+        bAssetData[inputData.idx].vaultBalance =
+            _cachedBassetData[inputData.idx].vaultBalance +
+            SafeCast.toUint128(inputData.amt);
+    }
+
+    // mint in main pool and log balance
+    function _mpMint(
+        Asset memory _input,
+        uint256 _inputQuantity
+    ) internal returns (AssetData memory mAssetData) {
+        // TODO - handle tx fees?
+        // TODO - consider poking cache here?
+        mAssetData = AssetData(0, 0, bAssetPersonal[0]);
+        IERC20(_input.addr).safeTransferFrom(msg.sender, address(this), _inputQuantity);
+        uint256 balBefore = IERC20(mAssetData.personal.addr).balanceOf(address(this));
+        IMasset(mAssetData.personal.addr).mint(_input.addr, _inputQuantity, 0, address(this));
+        uint256 balAfter = IERC20(mAssetData.personal.addr).balanceOf(address(this));
+        mAssetData.amt = balAfter - balBefore;
     }
 
     function _mintMulti(
@@ -308,12 +319,13 @@ contract FeederPool is
         uint256 len = _inputQuantities.length;
         require(len > 0 && len == _inputs.length, "Input array mismatch");
 
-        bool exists;
+        Asset memory input_;
         uint8[] memory indexes = new uint8[](len);
         for (uint256 i = 0; i < len; i++) {
-            (exists, indexes[i]) = _getAsset(_inputs[i]);
-            console.log("asset: ", _inputs[i], exists, indexes[i]);
-            require(exists, "Invalid asset");
+            input_ = _getAsset(_inputs[i]);
+            indexes[i] = input_.idx;
+            console.log("asset: ", _inputs[i], input_.exists, indexes[i]);
+            require(input_.exists, "Invalid asset");
         }
         console.log("two");
         // Load bAssets from storage into memory
@@ -363,182 +375,37 @@ contract FeederPool is
                 SWAP (PUBLIC)
     ****************************************/
 
-    /**
-     * @dev Swaps one bAsset for another bAsset using the bAsset addresses.
-     * bAsset <> bAsset swaps will incur a small fee (swapFee()).
-     * @param _input             Address of bAsset to deposit
-     * @param _output            Address of bAsset to receive
-     * @param _inputQuantity     Units of input bAsset to swap
-     * @param _minOutputQuantity Minimum quantity of the swap output asset. This protects against slippage
-     * @param _recipient         Address to transfer output asset to
-     * @return swapOutput        Quantity of output asset returned from swap
-     */
     function swap(
         address _input,
         address _output,
         uint256 _inputQuantity,
         uint256 _minOutputQuantity,
         address _recipient
-    ) external nonReentrant whenInOperation returns (uint256 swapOutput) {
-        require(_recipient != address(0), "Invalid recipient");
-        require(_input != _output, "Invalid pair");
-        require(_inputQuantity > 0, "Qty==0");
-
-        (bool inputExists, uint8 inputIdx) = _getAsset(_input);
-        (bool outputExists, uint8 outputIdx) = _getAsset(_output);
-        require(inputExists || outputExists, "Nothing to swap with");
-
-        // Internal swap between fAsset and mAsset
-        if (inputExists && outputExists) {
-            return
-                _swapLocal(
-                    inputIdx,
-                    outputIdx,
-                    _inputQuantity,
-                    _minOutputQuantity,
-                    false,
-                    _recipient
-                );
-        }
-        // TODO - do we want to support mAsset -> mpAsset and mpAsset -> mAsset here? I don't see the point
-        // If we do, need to re-jig this
-        require(inputIdx != 0 && outputIdx != 0, "Covnersion not supported");
-
-        // Swapping out of fAsset
-        // Swap into mAsset > Redeem into mpAsset
-        if (inputExists) {
-            uint256 mAssetQuantity =
-                _swapLocal(inputIdx, 0, _inputQuantity, 0, false, address(this));
-            return IMasset(mAsset).redeem(_output, mAssetQuantity, _minOutputQuantity, _recipient);
-        }
-        // Else we are swapping into fAsset
-        // Mint mAsset from mp > Swap into fAsset here
-        IERC20(_input).safeTransferFrom(msg.sender, address(this), _inputQuantity);
-        uint256 mAssetQuantity = IMasset(mAsset).mint(_input, _inputQuantity, 0, address(this));
-        return _swapLocal(0, outputIdx, mAssetQuantity, _minOutputQuantity, true, _recipient);
-    }
-
-    struct Asset {
-        uint8 idx;
-        uint256 amt;
-        BassetPersonal personal;
-    }
-
-    struct Status {
-        address addr;
-        bool exists;
-        uint8 idx;
-    }
-
-    function swap2(
-        address _input,
-        address _output,
-        uint256 _inputQuantity,
-        uint256 _minOutputQuantity,
-        address _recipient
     ) external returns (uint256 swapOutput) {
-        // TODO - refactor local and struct naming conventions
-        Status memory input = _getAsset2(_input);
-        Status memory output = _getAsset2(_output);
+        // require(_recipient != address(0), "Invalid recipient");
+        // require(_input != _output, "Invalid pair");
+        // require(_inputQuantity > 0, "Qty==0");
+
+        Asset memory input = _getAsset(_input);
+        Asset memory output = _getAsset(_output);
         require(_pathIsValid(input, output), "Invalid pair");
 
-        Asset memory in_i = _transferIn(input, _inputQuantity);
+        BassetData[] memory cachedBassetData = bAssetData;
+
+        AssetData memory inputData = _transferIn(cachedBassetData, input, _inputQuantity);
         // 1. [f/mAsset ->][ f/mAsset]               : Y - normal in, SWAP, normal out
         // 3. [mpAsset -> mAsset][ -> fAsset]        : Y - mint in  , SWAP, normal out
+        uint256 localFee;
         if (output.exists) {
-            swapOutput = _swapLocal(in_i, output, _minOutputQuantity, _recipient);
+            (swapOutput, localFee) = _swapLocal(cachedBassetData, inputData, output, _minOutputQuantity, _recipient);
         }
         // 2. [fAsset ->][ mAsset][ -> mpAsset]      : Y - normal in, SWAP, mpOut
         else {
-            swapOutput = _swapLocal(in_i, Status(mAsset, true, 0), 0, address(this));
+            (swapOutput, localFee) = _swapLocal(cachedBassetData, inputData, Asset(0, mAsset, true), 0, address(this));
             swapOutput = IMasset(mAsset).redeem(output.addr, swapOutput, _minOutputQuantity, _recipient);
         }
 
-        emit Swapped(msg.sender, input.addr, output.addr, swapOutput, _recipient);
-    }
-
-    function _pathIsValid(Status memory _in, Status memory _out) internal returns (bool isValid) {
-        // mpAsset -> mpAsset
-        if(!_in.exists && !_out.exists) return false;
-        // f/mAsset -> f/mAsset
-        if(_in.exists && _out.exists) return true;
-        // fAsset -> mpAsset
-        if(_in.exists && _in.idx == 1) return true;
-        // mpAsset -> fAsset
-        if(_out.exists && _out.idx == 1) return true;
-    }
-
-    function _transferIn(Status memory _input, uint256 _inputQuantity)
-        internal
-        returns (Asset memory in_i)
-    {
-        BassetData[] memory allBassets = bAssetData;
-        if (_input.exists) {
-            // simply deposit
-            Cache memory cache = _getCacheDetails();
-            BassetPersonal memory personal = bAssetPersonal[_input.idx];
-            uint256 amt =
-                Manager.depositTokens(
-                    personal,
-                    allBassets[_input.idx].ratio,
-                    _inputQuantity,
-                    cache.maxCache
-                );
-            in_i = Asset(_input.idx, amt, personal);
-        } else {
-            // mint in main pool and log balance
-            // TODO - handle tx fees?
-            IERC20(_input.addr).safeTransferFrom(msg.sender, address(this), _inputQuantity);
-            uint256 balBefore = IERC20(mAsset).balanceOf(address(this));
-            IMasset(mAsset).mint(_input.addr, _inputQuantity, 0, address(this));
-            uint256 balAfter = IERC20(mAsset).balanceOf(address(this));
-            uint256 amt = balAfter - balBefore;
-            // TODO - consider poking cache here?
-            in_i = Asset(0, amt, bAssetPersonal[0]);
-        }
-        bAssetData[in_i.idx].vaultBalance =
-            allBassets[in_i.idx].vaultBalance +
-            SafeCast.toUint128(in_i.amt);
-    }
-
-    function _swapLocal(
-        Asset memory _in,
-        Status memory _output,
-        uint256 _minOutputQuantity,
-        address _recipient
-    ) internal returns (uint256 swapOutput) {
-        BassetData[] memory allBassets = bAssetData;
-        Cache memory cache = _getCacheDetails();
-        // 3. Validate the swap
-        // todo - remove fee?
-        uint256 scaledFee;
-        (swapOutput, scaledFee) = validator.computeSwap(
-            allBassets,
-            _in.idx,
-            _output.idx,
-            _in.amt,
-            _output.idx == 0 ? 0 : swapFee,
-            _getConfig()
-        );
-        require(swapOutput >= _minOutputQuantity, "Output qty < minimum qty");
-        require(swapOutput > 0, "Zero output quantity");
-        //4. Settle the swap
-        //4.1. Decrease output bal
-        // TODO - if recipient == address(this) then no need to transfer anything
-        BassetPersonal memory outputPersonal = bAssetPersonal[_output.idx];
-        Manager.withdrawTokens(
-            swapOutput,
-            outputPersonal,
-            allBassets[_output.idx],
-            _recipient,
-            cache.maxCache
-        );
-        bAssetData[_output.idx].vaultBalance =
-            allBassets[_output.idx].vaultBalance -
-            SafeCast.toUint128(swapOutput);
-        // Save new surplus to storage
-        // TODO - re-jig the fees and increase LP token value
-        // surplus = cache.surplus + scaledFee;
+        emit Swapped(msg.sender, input.addr, output.addr, swapOutput, localFee, _recipient);
     }
 
     /**
@@ -557,30 +424,27 @@ contract FeederPool is
         require(_input != _output, "Invalid pair");
         require(_inputQuantity > 0, "Invalid swap quantity");
 
-        (bool inputExists, uint8 inputIdx) = _getAsset(_input);
-        (bool outputExists, uint8 outputIdx) = _getAsset(_output);
-        require(inputExists || outputExists, "Nothing to swap with");
+        Asset memory input = _getAsset(_input);
+        Asset memory output = _getAsset(_output);
+        require(_pathIsValid(input, output), "Invalid pair");
 
         // Internal swap between fAsset and mAsset
-        if (inputExists && outputExists) {
+        if (input.exists && output.exists) {
             (swapOutput, ) = validator.computeSwap(
                 bAssetData,
-                inputIdx,
-                outputIdx,
+                input.idx,
+                output.idx,
                 _inputQuantity,
-                outputIdx == 0 ? 0 : swapFee,
+                output.idx == 0 ? 0 : swapFee,
                 _getConfig()
             );
             return swapOutput;
         }
 
-        require(inputIdx != 0 && outputIdx != 0, "Covnersion not supported");
-
         // Swapping out of fAsset
-        uint256 mAssetQuantity;
-        if (inputExists) {
+        if (input.exists) {
             // Swap into mAsset > Redeem into mpAsset
-            (mAssetQuantity, ) = validator.computeSwap(
+            (swapOutput, ) = validator.computeSwap(
                 bAssetData,
                 1,
                 0,
@@ -588,17 +452,17 @@ contract FeederPool is
                 0,
                 _getConfig()
             );
-            swapOutput = IMasset(mAsset).getRedeemOutput(_output, mAssetQuantity);
+            swapOutput = IMasset(mAsset).getRedeemOutput(_output, swapOutput);
         }
         // Else we are swapping into fAsset
         else {
             // Mint mAsset from mp > Swap into fAsset here
-            mAssetQuantity = IMasset(mAsset).getMintOutput(_input, _inputQuantity);
+            swapOutput = IMasset(mAsset).getMintOutput(_input, _inputQuantity);
             (swapOutput, ) = validator.computeSwap(
                 bAssetData,
                 0,
                 1,
-                mAssetQuantity,
+                swapOutput,
                 swapFee,
                 _getConfig()
             );
@@ -609,44 +473,37 @@ contract FeederPool is
               SWAP (INTERNAL)
     ****************************************/
 
-    function _swapLocal(
-        uint8 _inputIdx,
-        uint8 _outputIdx,
-        uint256 _inputQuantity,
-        uint256 _minOutputQuantity,
-        bool _skipDeposit,
-        address _recipient
-    ) internal returns (uint256 swapOutput) {
-        // 2. Load cache
-        BassetData[] memory allBassets = bAssetData;
-        Cache memory cache = _getCacheDetails();
-        // 3. Deposit the input tokens
-        BassetPersonal memory inputPersonal = bAssetPersonal[_inputIdx];
-        // TODO - consider if this is dangerous to trust supplied _inputQtybn
-        uint256 quantityDeposited = _inputQuantity;
-        {
-            if (!_skipDeposit) {
-                quantityDeposited = Manager.depositTokens(
-                    inputPersonal,
-                    allBassets[_inputIdx].ratio,
-                    _inputQuantity,
-                    cache.maxCache
-                );
-            }
-            // 3.1. Update the input balance
-            bAssetData[_inputIdx].vaultBalance =
-                allBassets[_inputIdx].vaultBalance +
-                SafeCast.toUint128(quantityDeposited);
-        }
 
+    function _pathIsValid(Asset memory _in, Asset memory _out) internal pure returns (bool isValid) {
+        // mpAsset -> mpAsset
+        if(!_in.exists && !_out.exists) return false;
+        // f/mAsset -> f/mAsset
+        if(_in.exists && _out.exists) return true;
+        // fAsset -> mpAsset
+        if(_in.exists && _in.idx == 1) return true;
+        // mpAsset -> fAsset
+        if(_out.exists && _out.idx == 1) return true;
+        // Path is into or out of mAsset - just use main pool for this
+        return false;
+    }
+
+    function _swapLocal(
+        BassetData[] memory _cachedBassetData,
+        AssetData memory _in,
+        Asset memory _output,
+        uint256 _minOutputQuantity,
+        address _recipient
+    ) internal returns (uint256 swapOutput, uint256 scaledFee) {
+        Cache memory cache = _getCacheDetails();
         // 3. Validate the swap
+        // todo - remove fee?
         uint256 scaledFee;
         (swapOutput, scaledFee) = validator.computeSwap(
-            allBassets,
-            _inputIdx,
-            _outputIdx,
-            quantityDeposited,
-            0, // TODO - revert to _outputIdx == 0 ? 0 : swapFee. Need to resovle stack too deep
+            _cachedBassetData,
+            _in.idx,
+            _output.idx,
+            _in.amt,
+            _output.idx == 0 ? 0 : swapFee,
             _getConfig()
         );
         require(swapOutput >= _minOutputQuantity, "Output qty < minimum qty");
@@ -654,29 +511,20 @@ contract FeederPool is
         //4. Settle the swap
         //4.1. Decrease output bal
         // TODO - if recipient == address(this) then no need to transfer anything
-        BassetPersonal memory outputPersonal = bAssetPersonal[_outputIdx];
-        uint8 outputIdx = _outputIdx; // TODO -revert back
+        BassetPersonal memory outputPersonal = bAssetPersonal[_output.idx];
         Manager.withdrawTokens(
             swapOutput,
             outputPersonal,
-            allBassets[outputIdx],
+            _cachedBassetData[_output.idx],
             _recipient,
             cache.maxCache
         );
-        bAssetData[outputIdx].vaultBalance =
-            allBassets[outputIdx].vaultBalance -
+        bAssetData[_output.idx].vaultBalance =
+            _cachedBassetData[_output.idx].vaultBalance -
             SafeCast.toUint128(swapOutput);
         // Save new surplus to storage
         // TODO - re-jig the fees and increase LP token value
         // surplus = cache.surplus + scaledFee;
-        // emit SwappedInternal(
-        //     msg.sender,
-        //     inputPersonal.addr,
-        //     outputPersonal.addr,
-        //     swapOutput,
-        //     scaledFee,
-        //     _recipient
-        // );
     }
 
     // /***************************************
@@ -1005,7 +853,7 @@ contract FeederPool is
     /**
      * @dev Gets all config needed for general InvariantValidator calls
      */
-    function getConfig() external view returns (InvariantConfig memory config) {
+    function getConfig() external view returns (FeederConfig memory config) {
         return _getConfig();
     }
 
@@ -1023,20 +871,24 @@ contract FeederPool is
         return Cache(supply, supply.mulTruncate(cacheSize));
     }
 
-    function _getAsset(address _asset) internal view returns (bool exists, uint8 idx) {
-        // if input is mAsset then we know the position
-        if (_asset == mAsset) return (true, 0);
-
-        // else it exists if the position 1 is _asset
-        return (bAssetPersonal[1].addr == _asset, 1);
+    struct AssetData {
+        uint8 idx;
+        uint256 amt;
+        BassetPersonal personal;
     }
 
-    function _getAsset2(address _asset) internal view returns (Status memory status) {
+    struct Asset {
+        uint8 idx;
+        address addr;
+        bool exists;
+    }
+
+    function _getAsset(address _asset) internal view returns (Asset memory status) {
         // if input is mAsset then we know the position
-        if (_asset == mAsset) return Status(_asset, true, 0);
+        if (_asset == mAsset) return Asset(0, _asset, true);
 
         // else it exists if the position 1 is _asset
-        return Status(_asset, bAssetPersonal[1].addr == _asset, 1);
+        return Asset(1, _asset, bAssetPersonal[1].addr == _asset);
     }
 
     // function _getAssets(address[] memory _assets)
@@ -1061,8 +913,8 @@ contract FeederPool is
     /**
      * @dev Gets all config needed for general InvariantValidator calls
      */
-    function _getConfig() internal view returns (InvariantConfig memory) {
-        return InvariantConfig(_getA(), weightLimits);
+    function _getConfig() internal view returns (FeederConfig memory) {
+        return FeederConfig(totalSupply(), _getA(), weightLimits);
     }
 
     /**

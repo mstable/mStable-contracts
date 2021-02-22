@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.0;
 
-import { MassetStructs } from "./MassetStructs.sol";
+import { MassetStructs } from "../masset/MassetStructs.sol";
 
 abstract contract IInvariantValidator is MassetStructs {
     // Mint

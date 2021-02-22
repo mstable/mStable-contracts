@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.0;
 
-import { IInvariantValidator } from "../../masset/IInvariantValidator.sol";
+import { IInvariantValidator } from "../../interfaces/IInvariantValidator.sol";
 
 // Mock Invariant Validator simply returns 1:1 swap for swap, accounting for decimals
 // Deducts any fee, too

@@ -6,7 +6,7 @@ import "hardhat/console.sol";
 
 // External
 import { IPlatformIntegration } from "../interfaces/IPlatformIntegration.sol";
-import { IInvariantValidator } from "./IInvariantValidator.sol";
+import { IInvariantValidator } from "../interfaces/IInvariantValidator.sol";
 import { IBasicToken } from "../shared/IBasicToken.sol";
 
 // Internal
