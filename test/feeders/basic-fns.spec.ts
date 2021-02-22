@@ -5,7 +5,7 @@ import { assertBNClosePercent } from "@utils/assertions"
 import { simpleToExactAmount } from "@utils/math"
 import { MassetDetails, MassetMachine, StandardAccounts, FeederMachine, FeederDetails } from "@utils/machines"
 
-describe("Feeder Pools", () => {
+describe.only("Feeder Pools", () => {
     let sa: StandardAccounts
     let feederMachine: FeederMachine
     let details: MassetDetails
@@ -65,7 +65,7 @@ describe("Feeder Pools", () => {
             await pool.mint(bAssets[1].address, approval, simpleToExactAmount(95), sa.default.address)
         })
     })
-    describe.only("testing some swaps", () => {
+    describe("testing some swaps", () => {
         before(async () => {
             await runSetup()
         })
@@ -73,21 +73,21 @@ describe("Feeder Pools", () => {
             const { pool, mAsset, fAsset } = feeder
             // Swap mAsset -> fAsset
             const approval = await feederMachine.approveFeeder(mAsset, pool.address, 10)
-            await pool.swap2(mAsset.address, fAsset.address, approval, simpleToExactAmount("9.5"), sa.default.address)
+            await pool.swap(mAsset.address, fAsset.address, approval, simpleToExactAmount("9.5"), sa.default.address)
         })
         it("should swap into mpAsset", async () => {
             const { pool, fAsset, mAssetDetails } = feeder
             const { bAssets } = mAssetDetails
             // fAsset -> mpAsset
             const approval = await feederMachine.approveFeeder(fAsset, pool.address, 10)
-            await pool.swap2(fAsset.address, bAssets[0].address, approval, simpleToExactAmount("9.5"), sa.default.address)
+            await pool.swap(fAsset.address, bAssets[0].address, approval, simpleToExactAmount("9.5"), sa.default.address)
         })
         it("should swap out of mpAsset", async () => {
             const { pool, fAsset, mAssetDetails } = feeder
             const { bAssets } = mAssetDetails
             // mpAsset -> fAsset
             const approval = await feederMachine.approveFeeder(bAssets[0], pool.address, 10)
-            await pool.swap2(bAssets[0].address, fAsset.address, approval, simpleToExactAmount("9.5"), sa.default.address)
+            await pool.swap(bAssets[0].address, fAsset.address, approval, simpleToExactAmount("9.5"), sa.default.address)
         })
     })
 })

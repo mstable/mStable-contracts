@@ -4,7 +4,7 @@
 import { Signer } from "ethers"
 import { ethers } from "hardhat"
 import {
-    InvariantValidator__factory,
+    FeederValidator__factory,
     MockInvariantValidator__factory,
     AssetProxy__factory,
     MockNexus__factory,
@@ -23,7 +23,7 @@ import {
     MockInitializableToken__factory,
     MockInitializableTokenWithFee__factory,
     Manager,
-    AssetProxy,
+    FeederValidator,
     FeederPool,
     FeederPool__factory,
 } from "types/generated"
@@ -36,7 +36,7 @@ import { MassetMachine, MassetDetails } from "./mAssetMachine"
 
 export interface FeederDetails {
     pool?: FeederPool
-    validator?: InvariantValidator
+    validator?: FeederValidator
     mAsset?: MockERC20
     fAsset?: MockERC20
     // [0] = mAsset
@@ -69,7 +69,7 @@ export class FeederMachine {
 
         const bBtc = await this.mAssetMachine.loadBassetProxy("Binance BTC", "bBTC", 18)
         const bAssets = [mAssetDetails.mAsset as MockERC20, bBtc]
-        const validator = await new InvariantValidator__factory(this.sa.default.signer).deploy(
+        const validator = await new FeederValidator__factory(this.sa.default.signer).deploy(
             simpleToExactAmount(1, 24),
             simpleToExactAmount(1, 24),
         )
