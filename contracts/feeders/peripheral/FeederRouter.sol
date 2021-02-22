@@ -3,8 +3,8 @@ pragma solidity 0.8.0;
 pragma abicoder v2;
 
 // Internal
-import { IMasset } from "../interfaces/IMasset.sol";
-import { FeederPool } from "./FeederPool.sol";
+import { IMasset } from "../../interfaces/IMasset.sol";
+import { FeederPool } from "../FeederPool.sol";
 
 // Libs
 import { IERC20 } from "@openzeppelin/contracts-sol8/contracts/token/ERC20/IERC20.sol";

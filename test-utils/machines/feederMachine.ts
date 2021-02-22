@@ -69,12 +69,10 @@ export class FeederMachine {
 
         const bBtc = await this.mAssetMachine.loadBassetProxy("Binance BTC", "bBTC", 18)
         const bAssets = [mAssetDetails.mAsset as MockERC20, bBtc]
-        const validator = await new FeederValidator__factory(this.sa.default.signer).deploy(
-            simpleToExactAmount(1, 24),
-            simpleToExactAmount(1, 24),
-        )
+        const validator = await new FeederValidator__factory(this.sa.default.signer).deploy()
         const linkedAddress = {
             __$1a38b0db2bd175b310a9a3f8697d44eb75$__: mAssetDetails.managerLib.address,
+            __$ba0f40aa073b093068e86d426c6136c22f$__: validator.address,
         }
         console.log("i")
         const impl = await new FeederPool__factory(linkedAddress, this.sa.default.signer).deploy(DEAD_ADDRESS, mAssetDetails.mAsset.address)
@@ -82,7 +80,6 @@ export class FeederMachine {
         const data = impl.interface.encodeFunctionData("initialize", [
             "mStable mBTC/bBTC Feeder",
             "bBTC fPool",
-            validator.address,
             {
                 addr: mAssetDetails.mAsset.address,
                 integrator: ZERO_ADDRESS,

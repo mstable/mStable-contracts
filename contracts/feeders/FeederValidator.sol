@@ -3,7 +3,7 @@ pragma solidity 0.8.0;
 
 import "hardhat/console.sol";
 
-import { IFeederValidator } from "./IFeederValidator.sol";
+import { MassetStructs } from "../masset/MassetStructs.sol";
 import { Root } from "../shared/Root.sol";
 
 /**
@@ -16,19 +16,8 @@ import { Root } from "../shared/Root.sol";
  * @dev     VERSION: 1.0
  *          DATE:    2021-02-22
  */
-contract FeederValidator is IFeederValidator {
+library FeederValidator {
     uint256 internal constant A_PRECISION = 100;
-
-    // Data used for determining max TVL during guarded launch
-    uint256 public immutable startTime;
-    uint256 public immutable startingCap;
-    uint256 public immutable capFactor;
-
-    constructor(uint256 _startingCap, uint256 _capFactor) {
-        startTime = block.timestamp;
-        startingCap = _startingCap;
-        capFactor = _capFactor;
-    }
 
     /***************************************
                     EXTERNAL
@@ -44,11 +33,11 @@ contract FeederValidator is IFeederValidator {
      * @return mintAmount   Quantity of mAssets minted
      */
     function computeMint(
-        BassetData[] calldata _bAssets,
+        MassetStructs.BassetData[] calldata _bAssets,
         uint8 _i,
         uint256 _rawInput,
-        FeederConfig memory _config
-    ) external view override returns (uint256 mintAmount) {
+        MassetStructs.FeederConfig memory _config
+    ) external view returns (uint256 mintAmount) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
@@ -60,7 +49,7 @@ contract FeederValidator is IFeederValidator {
         sum += scaledInput;
         // 4. Finalise mint
         require(_inBounds(x, sum, _config.limits), "Exceeds weight limits");
-        mintAmount = _computeMintOutput(x, sum, k0, _config.a);
+        mintAmount = _computeMintOutput(x, sum, k0, _config);
     }
 
     /**
@@ -73,11 +62,11 @@ contract FeederValidator is IFeederValidator {
      * @return mintAmount   Quantity of mAssets minted
      */
     function computeMintMulti(
-        BassetData[] calldata _bAssets,
+        MassetStructs.BassetData[] calldata _bAssets,
         uint8[] calldata _indices,
         uint256[] calldata _rawInputs,
-        FeederConfig memory _config
-    ) external view override returns (uint256 mintAmount) {
+        MassetStructs.FeederConfig memory _config
+    ) external view returns (uint256 mintAmount) {
         console.log("Validator: mintMulti");
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
@@ -99,7 +88,7 @@ contract FeederValidator is IFeederValidator {
         // 4. Finalise mint
         require(_inBounds(x, sum, _config.limits), "Exceeds weight limits");
         console.log("Validator: mintMulti 3");
-        mintAmount = _computeMintOutput(x, sum, k0, _config.a);
+        mintAmount = _computeMintOutput(x, sum, k0, _config);
     }
 
     /**
@@ -115,13 +104,13 @@ contract FeederValidator is IFeederValidator {
      * @return scaledSwapFee          Swap fee collected, in mAsset terms
      */
     function computeSwap(
-        BassetData[] calldata _bAssets,
+        MassetStructs.BassetData[] calldata _bAssets,
         uint8 _i,
         uint8 _o,
         uint256 _rawInput,
         uint256 _feeRate,
-        FeederConfig memory _config
-    ) external view override returns (uint256 bAssetOutputQuantity, uint256 scaledSwapFee) {
+        MassetStructs.FeederConfig memory _config
+    ) external view returns (uint256 bAssetOutputQuantity, uint256 scaledSwapFee) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
@@ -153,17 +142,18 @@ contract FeederValidator is IFeederValidator {
      * @return rawOutputUnits       Raw bAsset output returned
      */
     function computeRedeem(
-        BassetData[] calldata _bAssets,
+        MassetStructs.BassetData[] calldata _bAssets,
         uint8 _o,
         uint256 _netMassetQuantity,
-        FeederConfig memory _config
-    ) external view override returns (uint256 rawOutputUnits) {
+        MassetStructs.FeederConfig memory _config
+    ) external view returns (uint256 rawOutputUnits) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
         uint256 k0 = _invariant(x, sum, _config.a);
+        uint256 kFinal = (k0 * (_config.supply - _netMassetQuantity)) / _config.supply;
         // 3. Compute bAsset output
-        uint256 newOutputReserve = _solveInvariant(x, _config.a, _o, k0 - _netMassetQuantity);
+        uint256 newOutputReserve = _solveInvariant(x, _config.a, _o, kFinal);
         uint256 output = x[_o] - newOutputReserve - 1;
         rawOutputUnits = (output * 1e8) / _bAssets[_o].ratio;
         // 4. Check for max weight
@@ -182,11 +172,11 @@ contract FeederValidator is IFeederValidator {
      * @return totalmAssets     Amount of mAsset required to redeem bAssets
      */
     function computeRedeemExact(
-        BassetData[] calldata _bAssets,
+        MassetStructs.BassetData[] calldata _bAssets,
         uint8[] calldata _indices,
         uint256[] calldata _rawOutputs,
-        FeederConfig memory _config
-    ) external view override returns (uint256 totalmAssets) {
+        MassetStructs.FeederConfig memory _config
+    ) external view returns (uint256 totalmAssets) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
@@ -203,7 +193,7 @@ contract FeederValidator is IFeederValidator {
         // 4. Get new value of reserves according to invariant
         uint256 k1 = _invariant(x, sum, _config.a);
         // 5. Total mAsset is the difference between values
-        totalmAssets = k0 - k1;
+        totalmAssets = (_config.supply * (k0 - k1)) / k0;
     }
 
     /***************************************
@@ -212,33 +202,27 @@ contract FeederValidator is IFeederValidator {
 
     /**
      * @dev Computes the actual mint output after adding mint inputs
-     * to the vault balances. Also checks that tvl cap does not exceed
-     * the cap, during guarded launch period.
+     * to the vault balances
      * @param _x            Scaled vaultBalances
      * @param _sum          Sum of vaultBalances, to avoid another loop
      * @param _k            Previous value of invariant, k, before addition
-     * @param _a                Precise amplification coefficient
+     * @param _config       Generalised FeederConfig stored externally
      * @return mintAmount   Amount of value added to invariant, in mAsset terms
      */
     function _computeMintOutput(
         uint256[] memory _x,
         uint256 _sum,
         uint256 _k,
-        uint256 _a
+        MassetStructs.FeederConfig memory _config
     ) internal view returns (uint256 mintAmount) {
         // 1. Get value of reserves according to invariant
-        uint256 kFinal = _invariant(_x, _sum, _a);
-        // 2. Guarded launch - ensure TVL cap is not hit
-        // e.g. 10 days after launch
-        // e.g. 864000e18 / 86400 = 1.4e18 (1.4 weeks)
-        uint256 weeksSinceLaunch = ((block.timestamp - startTime) * 1e18) / 604800;
-        if (weeksSinceLaunch < 7e18) {
-            // e.g. 1e19 + (15e18 * 2.04e36) = 1e19 + 3.06e55
-            uint256 maxK = startingCap + ((capFactor * (weeksSinceLaunch**2)) / 1e36);
-            require(kFinal <= maxK, "Cannot exceed TVL cap");
+        uint256 kFinal = _invariant(_x, _sum, _config.a);
+        // 2. Total minted is the difference between values, with respect to total supply
+        if (_config.supply == 0) {
+            mintAmount = kFinal - _k;
+        } else {
+            mintAmount = (_config.supply * (kFinal - _k)) / _k;
         }
-        // 3. Total minted is the difference between values
-        mintAmount = kFinal - _k;
     }
 
     /**
@@ -247,7 +231,7 @@ contract FeederValidator is IFeederValidator {
      * @return x        Scaled vault balances
      * @return sum      Sum of scaled vault balances
      */
-    function _getReserves(BassetData[] memory _bAssets)
+    function _getReserves(MassetStructs.BassetData[] memory _bAssets)
         internal
         pure
         returns (uint256[] memory x, uint256 sum)
@@ -256,7 +240,7 @@ contract FeederValidator is IFeederValidator {
         x = new uint256[](len);
         uint256 r;
         for (uint256 i = 0; i < len; i++) {
-            BassetData memory bAsset = _bAssets[i];
+            MassetStructs.BassetData memory bAsset = _bAssets[i];
             r = (bAsset.vaultBalance * bAsset.ratio) / 1e8;
             x[i] = r;
             sum += r;
@@ -273,7 +257,7 @@ contract FeederValidator is IFeederValidator {
     function _inBounds(
         uint256[] memory _x,
         uint256 _sum,
-        WeightLimits memory _limits
+        MassetStructs.WeightLimits memory _limits
     ) internal view returns (bool inBounds) {
         uint256 len = _x.length;
         inBounds = true;
