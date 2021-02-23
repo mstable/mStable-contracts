@@ -166,7 +166,10 @@ describe("Masset - Swap", () => {
             feeRate = await mAsset.swapFee()
             expect(feeRate, "fee rate > 0").gt(BN.from(0))
             expect(feeRate, "fee rate < fullScale / 50").lt(fullScale.div(BN.from(50)))
-            fee = expectedOutputValue.mul(fullScale).div(fullScale.sub(feeRate)).sub(expectedOutputValue)
+            fee = expectedOutputValue
+                .mul(fullScale)
+                .div(fullScale.sub(feeRate))
+                .sub(expectedOutputValue)
             expect(fee, "fee > 0").gt(BN.from(0))
             scaledFee = fee.mul(BN.from(outputBassetBefore.ratio)).div(ratioScale)
         }
@@ -228,7 +231,9 @@ describe("Masset - Swap", () => {
                 .to.emit(platform, "PlatformWithdrawal")
                 .withArgs(outputAsset.address, outputBassetBefore.pToken, platformInteractionOut.amount, expectedOutputValue)
         } else if (platformInteractionOut.hasLendingMarket) {
-            await expect(swapTx).to.emit(platform, "Withdrawal").withArgs(outputAsset.address, ZERO_ADDRESS, expectedOutputValue)
+            await expect(swapTx)
+                .to.emit(platform, "Withdrawal")
+                .withArgs(outputAsset.address, ZERO_ADDRESS, expectedOutputValue)
         }
         //    Recipient should have output asset quantity after (minus fee)
         const recipientBalAfter = await outputAsset.balanceOf(recipient)
@@ -414,7 +419,7 @@ describe("Masset - Swap", () => {
                         bAssets[1],
                         1,
                         0,
-                        "VM Exception while processing transaction: revert",
+                        "ERC20: transfer amount exceeds balance",
                         sa.dummy1.signer,
                         sa.dummy1.address,
                         true,
@@ -431,7 +436,7 @@ describe("Masset - Swap", () => {
                     expect(await input.balanceOf(sender.address)).eq(10000)
                     await expect(
                         mAsset.connect(sender.signer).swap(input.address, bAssets[1].address, 5, 1, sa.default.address),
-                    ).to.revertedWith("VM Exception while processing transaction: revert")
+                    ).to.revertedWith("ERC20: transfer amount exceeds allowance")
                 })
                 it("should fail if *either* bAsset does not exist", async () => {
                     const { bAssets, mAsset } = details
