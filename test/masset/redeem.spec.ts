@@ -193,7 +193,9 @@ describe("Masset - Redeem", () => {
             await expect(tx, "PlatformWithdrawal event").to.emit(platform, "PlatformWithdrawal")
             // .withArgs(bAsset.address, bAssetBefore.pToken, platformInteraction.amount, bAssetQuantityExact)
         } else if (platformInteraction.hasLendingMarket) {
-            await expect(tx, "Withdrawal event").to.emit(platform, "Withdrawal").withArgs(bAsset.address, bAssetQuantityExact)
+            await expect(tx, "Withdrawal event")
+                .to.emit(platform, "Withdrawal")
+                .withArgs(bAsset.address, bAssetQuantityExact)
         }
         // Transfer events
         await expect(tx, "Transfer event to burn the redeemed mAssets")
@@ -639,7 +641,7 @@ describe("Masset - Redeem", () => {
                     const sender = sa.dummy1
                     expect(await mAsset.balanceOf(sender.address)).eq(0)
                     await assertFailedBasicRedemption(
-                        "ERC20: transfer amount exceeds balance",
+                        "ERC20: burn amount exceeds balance",
                         mAsset,
                         bAssets[0],
                         "10000000000000000000",
@@ -781,7 +783,9 @@ describe("Masset - Redeem", () => {
                     // VaultBalance should update for this bAsset
                     const bAssetAfter = await mAsset.getBasset(bAsset.address)
                     expect(BN.from(bAssetAfter.data.vaultBalance), "before != after + fee").eq(
-                        BN.from(bAssetBefore.data.vaultBalance).sub(oneBasset).add(bAssetFee),
+                        BN.from(bAssetBefore.data.vaultBalance)
+                            .sub(oneBasset)
+                            .add(bAssetFee),
                     )
                 })
                 it("should send less output to user if fee unexpected", async () => {
@@ -991,7 +995,7 @@ describe("Masset - Redeem", () => {
                 const sender = sa.dummy1
                 expect(await mAsset.balanceOf(sender.address)).eq(0)
                 await assertFailedExactBassetsRedemption(
-                    "ERC20: transfer amount exceeds balance",
+                    "ERC20: burn amount exceeds balance",
                     mAsset,
                     bAssets,
                     [1, 2, 3, 4],
@@ -1124,14 +1128,7 @@ describe("Masset - Redeem", () => {
                 const { bAssets, mAsset } = details
                 const sender = sa.dummy1
                 expect(await mAsset.balanceOf(sender.address)).eq(0)
-                await assertFailedMassetRedemption(
-                    "ERC20: transfer amount exceeds balance",
-                    mAsset,
-                    10,
-                    [2, 2, 2, 2],
-                    bAssets,
-                    sender.signer,
-                )
+                await assertFailedMassetRedemption("ERC20: burn amount exceeds balance", mAsset, 10, [2, 2, 2, 2], bAssets, sender.signer)
             })
             context("when a bAsset has broken its peg", () => {
                 it("should fail if broken below peg", async () => {

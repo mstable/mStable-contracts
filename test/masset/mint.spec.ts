@@ -183,7 +183,9 @@ describe("Masset - Mint", () => {
         )
         expect(integratorBalAfter, "integratorBalAfter").eq(integratorBalBefore.add(bAssetQuantityExact))
         if (platformInteraction.expectInteraction) {
-            await expect(tx).to.emit(platform, "Deposit").withArgs(bAsset.address, bAssetBefore.pToken, platformInteraction.amount)
+            await expect(tx)
+                .to.emit(platform, "Deposit")
+                .withArgs(bAsset.address, bAssetBefore.pToken, platformInteraction.amount)
         }
 
         // Recipient should have mAsset quantity after
@@ -269,7 +271,9 @@ describe("Masset - Mint", () => {
                     // take 0.1% off for the transfer fee = amount * (1 - 0.001)
                     const bAssetAmountLessFee = bAssetQuantity.mul(999).div(1000)
                     // 3.1 Check Transfers to lending platform
-                    await expect(tx).to.emit(bAsset, "Transfer").withArgs(sa.default.address, platform.address, bAssetAmountLessFee)
+                    await expect(tx)
+                        .to.emit(bAsset, "Transfer")
+                        .withArgs(sa.default.address, platform.address, bAssetAmountLessFee)
                     // 3.2 Check Deposits into lending platform
                     await expect(tx)
                         .to.emit(platform, "Deposit")
@@ -362,11 +366,12 @@ describe("Masset - Mint", () => {
                         bAsset,
                         100,
                         99,
-                        true,
+                        false,
                         sender.signer,
                         sender.address,
                         false,
                         100,
+                        true,
                     )
                 })
                 it("should fail if the bAsset does not exist", async () => {
@@ -530,15 +535,21 @@ describe("Masset - Mint", () => {
                     const platformToken = await platform.bAssetToPToken(bAsset.address)
                     const lendingPlatform = await platform.platformAddress()
                     // 3.1 Check Transfers from sender to platform integration
-                    await expect(tx).to.emit(bAsset, "Transfer").withArgs(sa.default.address, platform.address, bAssetAmountLessFee)
+                    await expect(tx)
+                        .to.emit(bAsset, "Transfer")
+                        .withArgs(sa.default.address, platform.address, bAssetAmountLessFee)
                     // 3.2 Check Transfers from platform integration to lending platform
-                    await expect(tx).to.emit(bAsset, "Transfer").withArgs(
-                        platform.address,
-                        lendingPlatform,
-                        bAssetAmountLessFee.mul(999).div(1000), // Take another 0.1% off the transfer value
-                    )
+                    await expect(tx)
+                        .to.emit(bAsset, "Transfer")
+                        .withArgs(
+                            platform.address,
+                            lendingPlatform,
+                            bAssetAmountLessFee.mul(999).div(1000), // Take another 0.1% off the transfer value
+                        )
                     // 3.3 Check Deposits into lending platform
-                    await expect(tx).to.emit(platform, "Deposit").withArgs(bAsset.address, platformToken, bAssetAmountLessFee)
+                    await expect(tx)
+                        .to.emit(platform, "Deposit")
+                        .withArgs(bAsset.address, platformToken, bAssetAmountLessFee)
                     // 4.0 Recipient should have mAsset quantity after
                     const recipientBalAfter = await mAsset.balanceOf(recipient.address)
                     // Assert that we minted gt 99% of the bAsset
@@ -613,6 +624,7 @@ describe("Masset - Mint", () => {
                         ZERO_ADDRESS,
                         false,
                         1,
+                        true,
                     )
                 })
                 context("with incorrect bAsset array", async () => {
@@ -719,6 +731,7 @@ describe("Masset - Mint", () => {
                         sa.default.address,
                         false,
                         100,
+                        true,
                     )
                 })
                 it("should fail if the bAsset does not exist", async () => {
