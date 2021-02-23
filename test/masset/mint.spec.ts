@@ -366,11 +366,12 @@ describe("Masset - Mint", () => {
                         bAsset,
                         100,
                         99,
-                        true,
+                        false,
                         sender.signer,
                         sender.address,
                         false,
                         100,
+                        true,
                     )
                 })
                 it("should fail if the bAsset does not exist", async () => {
@@ -623,6 +624,7 @@ describe("Masset - Mint", () => {
                         ZERO_ADDRESS,
                         false,
                         1,
+                        true,
                     )
                 })
                 context("with incorrect bAsset array", async () => {
@@ -729,6 +731,7 @@ describe("Masset - Mint", () => {
                         sa.default.address,
                         false,
                         100,
+                        true,
                     )
                 })
                 it("should fail if the bAsset does not exist", async () => {
