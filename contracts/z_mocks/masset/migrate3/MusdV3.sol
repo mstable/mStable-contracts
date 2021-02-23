@@ -20,7 +20,7 @@ import { Manager } from "../../../masset/Manager.sol";
 
 // Legacy
 import { IBasketManager } from "./IBasketManager.sol";
-import { Basket } from "./MassetStructsV2.sol";
+import { Basket, Basset } from "./MassetStructsV2.sol";
 import { InitializableModuleV2 } from "./InitializableModuleV2.sol";
 
 /**
@@ -145,32 +145,49 @@ import { InitializableModuleV2 } from "./InitializableModuleV2.sol";
 
         forgeValidator = IInvariantValidator(_forgeValidator);
 
-        maxBassets = 10;
-
         Basket memory basket = basketManager.getBasket();
+
         uint256 len = basket.bassets.length;
-        for (uint256 i = 0; i < len; i++) {
-            address bAssetAddress = basket.bassets[i].addr;
+        uint256[] memory scaledVaultBalances = new uint[](len);
+        uint256 maxScaledVaultBalance;
+        for (uint8 i = 0; i < len; i++) {
+            Basset memory bAsset = basket.bassets[i];
+            address bAssetAddress = bAsset.addr;
+            bAssetIndexes[bAssetAddress] = i;
+
             address integratorAddress = basketManager.getBassetIntegrator(bAssetAddress);
-            Manager.addBasset(
-                bAssetPersonal,
-                bAssetData,
-                bAssetIndexes,
-                maxBassets,
-                bAssetAddress,
-                integratorAddress,
-                1e8,
-                false   // tx fee
+            bAssetPersonal.push(
+                MassetStructs.BassetPersonal({
+                    addr: bAssetAddress,
+                    integrator: integratorAddress,
+                    hasTxFee: false,
+                    status: MassetStructs.BassetStatus.Normal
+                })
             );
-            // set the vault balance
-            bAssetData[i].vaultBalance = SafeCast.toUint128(basket.bassets[i].vaultBalance);
+
+            uint128 ratio = SafeCast.toUint128(bAsset.ratio);
+            uint128 vaultBalance = SafeCast.toUint128(bAsset.vaultBalance);
+            bAssetData.push(
+                MassetStructs.BassetData({ ratio: ratio, vaultBalance: vaultBalance })
+            );
+
+            // caclulate scaled vault bAsset balance and totoal vault balance
+            uint128 scaledVaultBalance = (vaultBalance * ratio) / 1e8;
+            scaledVaultBalances[i] = scaledVaultBalance;
+            maxScaledVaultBalance += scaledVaultBalance;
         }
 
+        // Check each bAsset is under 25.01% weight
+        maxScaledVaultBalance = maxScaledVaultBalance * 2501 / 10000;
+        for (uint8 i = 0; i < len; i++) {
+            require(scaledVaultBalances[i] < maxScaledVaultBalance, "imbalanced");
+        }
+
+        // Set new V3.0 storage variables
+        maxBassets = 10;
         uint64 startA = SafeCast.toUint64(_config.a * A_PRECISION);
         ampData = AmpData(startA, startA, 0, 0);
         weightLimits = _config.limits;
-
-        // TODO check weights are near 25%
     }
 
     /**
