@@ -199,12 +199,21 @@ task("fSize", "Gets the bytecode size of the FeederPool.sol contract").setAction
     }
     // Implementation
     const feederPoolFactory = new FeederPool__factory(linkedAddress, deployer)
-    const size = feederPoolFactory.bytecode.length / 2 / 1000
+    let size = feederPoolFactory.bytecode.length / 2 / 1000
     if (size > 24.576) {
         console.error(`FeederPool size is ${size} kb: ${size - 24.576} kb too big`)
     } else {
         console.log(`FeederPool = ${size} kb`)
     }
+
+    const forgeVal = await new FeederValidator__factory(deployer)
+    size = forgeVal.bytecode.length / 2 / 1000
+    console.log(`FeederValidator = ${size} kb`)
+
+    // External linked library
+    const manager = await ethers.getContractFactory("FeederManager")
+    size = manager.bytecode.length / 2 / 1000
+    console.log(`FeederManager = ${size} kb`)
 })
 
 task("deployFeeder", "Deploys a feeder pool").setAction(async (_, hre) => {

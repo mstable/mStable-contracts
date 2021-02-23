@@ -62,3 +62,28 @@ interface MassetStructs {
         uint64 rampEndTime;
     }
 }
+
+struct FeederData {
+    uint256 swapFee;
+    uint256 redemptionFee;
+
+    uint256 cacheSize;
+
+    BassetPersonal[] bAssetPersonal;
+    BassetData[] bAssetData;
+
+    AmpData ampData;
+    WeightLimits weightLimits;
+}
+
+struct AssetData {
+    uint8 idx;
+    uint256 amt;
+    BassetPersonal personal;
+}
+
+struct Asset {
+    uint8 idx;
+    address addr;
+    bool exists;
+}

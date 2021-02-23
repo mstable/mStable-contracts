@@ -3,7 +3,7 @@ pragma solidity 0.8.0;
 
 import "hardhat/console.sol";
 
-import { MassetStructs } from "../masset/MassetStructs.sol";
+import { MassetStructs, Asset, FeederData, BassetData } from "../masset/MassetStructs.sol";
 import { Root } from "../shared/Root.sol";
 
 /**
@@ -16,11 +16,74 @@ import { Root } from "../shared/Root.sol";
  * @dev     VERSION: 1.0
  *          DATE:    2021-02-22
  */
-library FeederValidator {
+library FeederLogic {
     uint256 internal constant A_PRECISION = 100;
 
+    function mint(
+        FeederData storage _data,
+        FeederConfig memory _config,
+        Asset calldata _input,
+        uint256 _inputQuantity,
+        uint256 _minOutputQuantity,
+        address _recipient
+    ) external returns (uint256 mintOutput) {
+        BassetData[] memory cachedBassetData = _data.bAssetData;
+        AssetData memory inputData = _transferIn(cachedBassetData, input, _inputQuantity);
+        // Validation should be after token transfer, as bAssetQty is unknown before
+        mintOutput = _computeMint(
+            cachedBassetData,
+            inputData.idx,
+            inputData.amt,
+            _config
+        );
+        require(mintOutput >= _minOutputQuantity, "Mint quantity < min qty");
+    }
+
+    function _transferIn(
+        FeederData storage _data,
+        BassetData[] memory _cachedBassetData,
+        Asset memory _input,
+        uint256 _inputQuantity
+    ) internal returns (AssetData memory inputData) {
+        if (_input.exists) {
+            BassetPersonal memory personal = bAssetPersonal[_input.idx];
+            uint256 amt =
+                FeederManager.depositTokens(
+                    personal,
+                    _cachedBassetData[_input.idx].ratio,
+                    _inputQuantity,
+                    _getCacheDetails().maxCache
+                );
+            inputData = AssetData(_input.idx, amt, personal);
+        } else {
+            inputData = _mpMint(_input, _inputQuantity);
+            require(inputData.amt > 0, "Must mint something from mp");
+        }
+        bAssetData[inputData.idx].vaultBalance =
+            _cachedBassetData[inputData.idx].vaultBalance +
+            SafeCast.toUint128(inputData.amt);
+    }
+
+
+    // mint in main pool and log balance
+    function _mpMint(Asset memory _input, uint256 _inputQuantity)
+        internal
+        returns (AssetData memory mAssetData)
+    {
+        // TODO - handle tx fees with new massethelpers fns
+        // TODO - consider poking cache here?
+        mAssetData = AssetData(0, 0, bAssetPersonal[0]);
+        IERC20(_input.addr).safeTransferFrom(msg.sender, address(this), _inputQuantity);
+        uint256 balBefore = IERC20(mAssetData.personal.addr).balanceOf(address(this));
+        IMasset(mAssetData.personal.addr).mint(_input.addr, _inputQuantity, 0, address(this));
+        uint256 balAfter = IERC20(mAssetData.personal.addr).balanceOf(address(this));
+        mAssetData.amt = balAfter - balBefore;
+    }
+
+
+
     /***************************************
-                    EXTERNAL
+                    internal
     ****************************************/
 
     /**
@@ -29,15 +92,15 @@ library FeederValidator {
      * @param _bAssets      Array of all bAsset Data
      * @param _i            Index of bAsset with which to mint
      * @param _rawInput     Raw amount of bAsset to use in mint
-     * @param _config       Generalised FeederConfig stored externally
+     * @param _config       Generalised FeederConfig stored internally
      * @return mintAmount   Quantity of mAssets minted
      */
-    function computeMint(
-        MassetStructs.BassetData[] calldata _bAssets,
+    function _computeMint(
+        MassetStructs.BassetData[] memory _bAssets,
         uint8 _i,
         uint256 _rawInput,
         MassetStructs.FeederConfig memory _config
-    ) external view returns (uint256 mintAmount) {
+    ) internal view returns (uint256 mintAmount) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
@@ -58,15 +121,15 @@ library FeederValidator {
      * @param _bAssets      Array of all bAsset Data
      * @param _indices      Indexes of bAssets with which to mint
      * @param _rawInputs    Raw amounts of bAssets to use in mint
-     * @param _config       Generalised FeederConfig stored externally
+     * @param _config       Generalised FeederConfig stored internally
      * @return mintAmount   Quantity of mAssets minted
      */
-    function computeMintMulti(
-        MassetStructs.BassetData[] calldata _bAssets,
-        uint8[] calldata _indices,
-        uint256[] calldata _rawInputs,
+    function _computeMintMulti(
+        MassetStructs.BassetData[] memory _bAssets,
+        uint8[] memory _indices,
+        uint256[] memory _rawInputs,
         MassetStructs.FeederConfig memory _config
-    ) external view returns (uint256 mintAmount) {
+    ) internal view returns (uint256 mintAmount) {
         console.log("Validator: mintMulti");
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
@@ -99,18 +162,18 @@ library FeederValidator {
      * @param _o            Index of bAsset to swap OUT
      * @param _rawInput     Raw amounts of input bAsset to input
      * @param _feeRate      Swap fee rate to apply to output
-     * @param _config       Generalised FeederConfig stored externally
+     * @param _config       Generalised FeederConfig stored internally
      * @return bAssetOutputQuantity   Raw bAsset output quantity
      * @return scaledSwapFee          Swap fee collected, in mAsset terms
      */
-    function computeSwap(
-        MassetStructs.BassetData[] calldata _bAssets,
+    function _computeSwap(
+        MassetStructs.BassetData[] memory _bAssets,
         uint8 _i,
         uint8 _o,
         uint256 _rawInput,
         uint256 _feeRate,
         MassetStructs.FeederConfig memory _config
-    ) external view returns (uint256 bAssetOutputQuantity, uint256 scaledSwapFee) {
+    ) internal view returns (uint256 bAssetOutputQuantity, uint256 scaledSwapFee) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
@@ -138,15 +201,15 @@ library FeederValidator {
      * @param _bAssets              Array of all bAsset Data
      * @param _o                    Index of output bAsset
      * @param _netMassetQuantity    Net amount of mAsset to redeem
-     * @param _config               Generalised FeederConfig stored externally
+     * @param _config               Generalised FeederConfig stored internally
      * @return rawOutputUnits       Raw bAsset output returned
      */
-    function computeRedeem(
-        MassetStructs.BassetData[] calldata _bAssets,
+    function _computeRedeem(
+        MassetStructs.BassetData[] memory _bAssets,
         uint8 _o,
         uint256 _netMassetQuantity,
         MassetStructs.FeederConfig memory _config
-    ) external view returns (uint256 rawOutputUnits) {
+    ) internal view returns (uint256 rawOutputUnits) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
@@ -168,15 +231,15 @@ library FeederValidator {
      * @param _bAssets          Array of all bAsset Data
      * @param _indices          Indexes of output bAssets
      * @param _rawOutputs       Desired raw bAsset outputs
-     * @param _config           Generalised FeederConfig stored externally
+     * @param _config           Generalised FeederConfig stored internally
      * @return totalmAssets     Amount of mAsset required to redeem bAssets
      */
-    function computeRedeemExact(
-        MassetStructs.BassetData[] calldata _bAssets,
-        uint8[] calldata _indices,
-        uint256[] calldata _rawOutputs,
+    function _computeRedeemExact(
+        MassetStructs.BassetData[] memory _bAssets,
+        uint8[] memory _indices,
+        uint256[] memory _rawOutputs,
         MassetStructs.FeederConfig memory _config
-    ) external view returns (uint256 totalmAssets) {
+    ) internal view returns (uint256 totalmAssets) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
@@ -206,7 +269,7 @@ library FeederValidator {
      * @param _x            Scaled vaultBalances
      * @param _sum          Sum of vaultBalances, to avoid another loop
      * @param _k            Previous value of invariant, k, before addition
-     * @param _config       Generalised FeederConfig stored externally
+     * @param _config       Generalised FeederConfig stored internally
      * @return mintAmount   Amount of value added to invariant, in mAsset terms
      */
     function _computeMintOutput(
