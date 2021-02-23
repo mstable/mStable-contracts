@@ -2,13 +2,12 @@ import { ethers } from "hardhat"
 import { expect } from "chai"
 
 import { assertBNClosePercent } from "@utils/assertions"
-import { BN, simpleToExactAmount } from "@utils/math"
-import { MassetDetails, MassetMachine, StandardAccounts, FeederMachine, FeederDetails } from "@utils/machines"
+import { simpleToExactAmount } from "@utils/math"
+import { MassetMachine, StandardAccounts, FeederMachine, FeederDetails } from "@utils/machines"
 
 describe.only("Feeder Pools", () => {
     let sa: StandardAccounts
     let feederMachine: FeederMachine
-    let details: MassetDetails
     let feeder: FeederDetails
 
     const runSetup = async (seedBasket = true): Promise<void> => {
@@ -24,9 +23,6 @@ describe.only("Feeder Pools", () => {
         await runSetup()
     })
 
-    // TODO
-    // - check for total supply, token movements and vault balances
-    // - branch and do OZ 4.0.0-beta.0 upgrade
     describe("testing some mints", () => {
         before(async () => {
             await runSetup(true)
