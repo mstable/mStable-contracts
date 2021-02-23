@@ -190,6 +190,23 @@ const deployVault = async (sender: Signer, addresses: CommonAddresses, feederPoo
     console.log(`Deployed Vault Proxy to ${vProxy.address}. gas used ${receiptVaultProxy.gasUsed}`)
 }
 
+task("fSize", "Gets the bytecode size of the FeederPool.sol contract").setAction(async (_, hre) => {
+    const { ethers } = hre
+    const [deployer] = await ethers.getSigners()
+    const linkedAddress = {
+        __$60670dd84d06e10bb8a5ac6f99a1c0890c$__: DEAD_ADDRESS,
+        __$ba0f40aa073b093068e86d426c6136c22f$__: DEAD_ADDRESS,
+    }
+    // Implementation
+    const feederPoolFactory = new FeederPool__factory(linkedAddress, deployer)
+    const size = feederPoolFactory.bytecode.length / 2 / 1000
+    if (size > 24.576) {
+        console.error(`FeederPool size is ${size} kb: ${size - 24.576} kb too big`)
+    } else {
+        console.log(`FeederPool = ${size} kb`)
+    }
+})
+
 task("deployFeeder", "Deploys a feeder pool").setAction(async (_, hre) => {
     const { ethers, network } = hre
     const [deployer] = await ethers.getSigners()
@@ -202,7 +219,7 @@ task("deployFeeder", "Deploys a feeder pool").setAction(async (_, hre) => {
                   nexus: "0xeD04Cd19f50F893792357eA53A549E23Baf3F6cB",
                   proxyAdmin: "0x2d369F83E9DC764a759a74e87a9Bc542a2BbfdF0",
                   rewardsDistributor: "0x99B62B75E3565bEAD786ddBE2642E9c40aA33465",
-                  mAsset: "0x4A677A48A790f26eac4c97f495E537558Abf6A79",
+                  mAsset: "0x4A677A48A790f26eac4c97f495E537558Abf6A79", // mBTC
               }
             : {
                   mta: DEAD_ADDRESS,
@@ -210,7 +227,8 @@ task("deployFeeder", "Deploys a feeder pool").setAction(async (_, hre) => {
                   nexus: DEAD_ADDRESS,
                   proxyAdmin: DEAD_ADDRESS,
                   rewardsDistributor: DEAD_ADDRESS,
-                  mAsset: DEAD_ADDRESS,
+                  // TODO - if wanting to do a successful deploy, will need to create a mock mAsset
+                  mAsset: (await new MockERC20__factory(deployer).deploy("mAsset", "mXXX", 18, DEAD_ADDRESS, 1)).address,
               }
 
     const mAssetContract = await new MockERC20__factory(deployer).attach(addresses.mAsset)

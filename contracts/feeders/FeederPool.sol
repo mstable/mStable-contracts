@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.0;
-pragma abicoder v2;
 
 // Internal
 import { IFeederPool } from "../interfaces/IFeederPool.sol";
@@ -19,14 +18,15 @@ import { StableMath } from "../shared/StableMath.sol";
 import { FeederManager } from "./FeederManager.sol";
 import { FeederValidator } from "./FeederValidator.sol";
 
-// TODO - deploy script
-// TODO - resolve internal todos
 // TODO - get back under EIP170 limit
+// TODO - deploy
+// TODO - resolve internal todos
 // TODO - check that `mAsset` is always converted and uses storage addr
 // TODO - remove unused dependencies (Here, Manager, Validator)
 // TODO - remove all instances of bAsset or mAsset where used incorrectly
 // TODO - reconsider moving FeederValidator to internal lib (consider upgrade strategy)
 // TODO - seriously reconsider storage layout and how to tidy this file up
+// - Add comprehensive natspec comments
 contract FeederPool is
     IFeederPool,
     Initializable,
