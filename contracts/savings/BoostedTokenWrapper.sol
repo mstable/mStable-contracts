@@ -8,7 +8,7 @@ import { IIncentivisedVotingLockup } from "../interfaces/IIncentivisedVotingLock
 import {
     SafeERC20,
     IERC20
-} from "@openzeppelin/contracts-sol8/contracts/token/ERC20/SafeERC20.sol";
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { InitializableReentrancyGuard } from "../shared/InitializableReentrancyGuard.sol";
 import { StableMath } from "../shared/StableMath.sol";
 import { Root } from "../shared/Root.sol";

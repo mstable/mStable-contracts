@@ -639,7 +639,7 @@ describe("Masset - Redeem", () => {
                     const sender = sa.dummy1
                     expect(await mAsset.balanceOf(sender.address)).eq(0)
                     await assertFailedBasicRedemption(
-                        "VM Exception while processing transaction: revert",
+                        "ERC20: transfer amount exceeds balance",
                         mAsset,
                         bAssets[0],
                         "10000000000000000000",
@@ -991,7 +991,7 @@ describe("Masset - Redeem", () => {
                 const sender = sa.dummy1
                 expect(await mAsset.balanceOf(sender.address)).eq(0)
                 await assertFailedExactBassetsRedemption(
-                    "VM Exception while processing transaction: revert",
+                    "ERC20: transfer amount exceeds balance",
                     mAsset,
                     bAssets,
                     [1, 2, 3, 4],
@@ -1125,7 +1125,7 @@ describe("Masset - Redeem", () => {
                 const sender = sa.dummy1
                 expect(await mAsset.balanceOf(sender.address)).eq(0)
                 await assertFailedMassetRedemption(
-                    "VM Exception while processing transaction: revert",
+                    "ERC20: transfer amount exceeds balance",
                     mAsset,
                     10,
                     [2, 2, 2, 2],

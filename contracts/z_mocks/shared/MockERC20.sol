@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.0;
 
-import "@openzeppelin/contracts-sol8/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract MockERC20 is ERC20 {
+
+    uint8 dec;
 
     constructor (
         string memory _name,
@@ -17,7 +19,11 @@ contract MockERC20 is ERC20 {
             _symbol
         )
     {
-      _setupDecimals(_decimals);
+        dec = _decimals;
         _mint(_initialRecipient, _initialMint * (10 ** uint256(_decimals)));
+    }
+
+    function decimals() public view override returns (uint8) {
+        return dec;
     }
 }

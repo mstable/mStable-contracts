@@ -13,7 +13,7 @@ import { InitializableReentrancyGuard } from "../shared/InitializableReentrancyG
 import { IMasset, Deprecated_BasketManager } from "../interfaces/IMasset.sol";
 
 // Libs
-import { SafeCast } from "@openzeppelin/contracts-sol8/contracts/utils/SafeCast.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { StableMath } from "../shared/StableMath.sol";
 import { Manager } from "./Manager.sol";
 

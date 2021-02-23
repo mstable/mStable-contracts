@@ -12,7 +12,7 @@ import { IConnector } from "./peripheral/IConnector.sol";
 import { Initializable } from "../shared/@openzeppelin-2.5/Initializable.sol";
 
 // Libs
-import { IERC20 } from "@openzeppelin/contracts-sol8/contracts/token/ERC20/IERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { StableMath } from "../shared/StableMath.sol";
 
 /**

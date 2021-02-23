@@ -4,7 +4,7 @@ pragma solidity 0.8.0;
 import { ImmutableModule } from "../shared/ImmutableModule.sol";
 import {
     TransparentUpgradeableProxy
-} from "@openzeppelin/contracts-sol8/contracts/proxy/TransparentUpgradeableProxy.sol";
+} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 /**
  * @title   DelayedProxyAdmin

@@ -2,7 +2,7 @@
 pragma solidity 0.8.0;
 
 import { StableMath } from "../../shared/StableMath.sol";
-import { IERC20 } from "@openzeppelin/contracts-sol8/contracts/token/ERC20/IERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @dev Implementation of the `IERC20` interface.

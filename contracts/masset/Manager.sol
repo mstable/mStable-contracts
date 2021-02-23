@@ -11,9 +11,9 @@ import { IBasicToken } from "../shared/IBasicToken.sol";
 import { MassetStructs } from "./MassetStructs.sol";
 
 // Libs
-import { SafeCast } from "@openzeppelin/contracts-sol8/contracts/utils/SafeCast.sol";
-import { IERC20 } from "@openzeppelin/contracts-sol8/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts-sol8/contracts/token/ERC20/SafeERC20.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { StableMath } from "../shared/StableMath.sol";
 import { MassetHelpers } from "../shared/MassetHelpers.sol";
 
