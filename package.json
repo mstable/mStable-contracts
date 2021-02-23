@@ -20,8 +20,6 @@
     "task": "yarn compile && yarn hardhat --config tasks.config.ts",
     "test": "yarn hardhat test",
     "test:long": "LONG_TESTS=true yarn hardhat test",
-    "test-file": "yarn hardhat test",
-    "test-file:long": "LONG_TESTS=true yarn hardhat test",
     "compile": "yarn hardhat compile --force",
     "prettify": "prettier --write tasks/**/*.ts test/**/*.ts types/*.ts contracts/**/*.sol",
     "flatten": "sol-merger \"./contracts/**/*.sol\" ./_flat",

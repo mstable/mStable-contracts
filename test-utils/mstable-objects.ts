@@ -32,7 +32,7 @@ export interface Basset {
     status: BN | BassetStatus
     isTransferFeeCharged: boolean
     ratio: BN | string
-    vaultBalance: BN | string
+    vaultBalance: BN
     pToken?: string
     integratorAddr?: string
     contract?: MockERC20

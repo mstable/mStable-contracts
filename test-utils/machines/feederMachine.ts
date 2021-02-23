@@ -109,7 +109,7 @@ export class FeederMachine {
         const a = await pool.getConfig()
         console.log(a)
         if (seedBasket) {
-            const approvals = await Promise.all(bAssets.map((b) => this.mAssetMachine.approveMasset(b, pool, 50, this.sa.default.signer)))
+            const approvals = await Promise.all(bAssets.map((b) => this.mAssetMachine.approveMasset(b, pool, 200, this.sa.default.signer)))
             console.log("vi")
             await pool.mintMulti(
                 bAssets.map((b) => b.address),
@@ -129,7 +129,7 @@ export class FeederMachine {
     }
 
     public async getBassets(feederDetails: FeederDetails): Promise<Basset[]> {
-        const [personal, data] = await feederDetails.mAsset.getBassets()
+        const [personal, data] = await feederDetails.pool.getBassets()
         const bArrays: Array<Basset> = personal.map((b, i) => {
             const d = data[i]
             return {
