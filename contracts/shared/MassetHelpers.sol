@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.0;
 
-import "hardhat/console.sol";
-
-import { SafeERC20 } from "@openzeppelin/contracts-sol8/contracts/token/ERC20/SafeERC20.sol";
-import { IERC20 } from "@openzeppelin/contracts-sol8/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title   MassetHelpers
@@ -23,16 +21,8 @@ library MassetHelpers {
         uint256 _qty
     ) internal returns (uint256 receivedQty, uint256 recipientBalance) {
         uint256 balBefore = IERC20(_bAsset).balanceOf(_recipient);
-        console.log(
-            "tf1",
-            _qty,
-            IERC20(_bAsset).balanceOf(_sender),
-            IERC20(_bAsset).allowance(_sender, _recipient)
-        );
         IERC20(_bAsset).safeTransferFrom(_sender, _recipient, _qty);
-        console.log("tf2");
         recipientBalance = IERC20(_bAsset).balanceOf(_recipient);
-        console.log("tf3", recipientBalance, balBefore);
         receivedQty = recipientBalance - balBefore;
     }
 

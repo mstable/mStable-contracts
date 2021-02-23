@@ -526,10 +526,10 @@
     "@types/sinon-chai" "^3.2.3"
     "@types/web3" "1.0.19"
 
-"@openzeppelin/contracts-sol8@yarn:oz-fork@3.4.0":
-  version "3.4.0"
-  resolved "https://registry.yarnpkg.com/oz-fork/-/oz-fork-3.4.0.tgz#baab9f6f50fad2479e6b1aecb84875aa506fac0d"
-  integrity sha512-q1GRsuzY8F8upDw9vWrU4N8jY2o8CdYQRiFPm1vA8ZYUxqBkmJTs8JEujN3bc9kEUUt3zanLp+Sqpa/MlLjgGQ==
+"@openzeppelin/contracts@4.0.0-beta.0":
+  version "4.0.0-beta.0"
+  resolved "https://registry.yarnpkg.com/@openzeppelin/contracts/-/contracts-4.0.0-beta.0.tgz#e16c9f5f667b05e5bf86ecbf32ed92f145a7c890"
+  integrity sha512-O/LC1F04y6PiXuU6oDRmNUIlVwoEC9mS8Lmij6nRt4N1em0fLvirK33QiDc5IgheRZQ7QJ3pyPNCRhNiZNKfLQ==
 
 "@resolver-engine/core@^0.3.3":
   version "0.3.3"

@@ -10,11 +10,8 @@ import { BoostedTokenWrapper } from "./BoostedTokenWrapper.sol";
 import { Initializable } from "../shared/@openzeppelin-2.5/Initializable.sol";
 
 // Libs
-import {
-    IERC20,
-    SafeERC20
-} from "@openzeppelin/contracts-sol8/contracts/token/ERC20/SafeERC20.sol";
-import { SafeCast } from "@openzeppelin/contracts-sol8/contracts/utils/SafeCast.sol";
+import { IERC20, SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { StableMath } from "../shared/StableMath.sol";
 
 /**

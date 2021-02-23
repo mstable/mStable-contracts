@@ -32,7 +32,7 @@
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.1",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
-    "@openzeppelin/contracts-sol8": "yarn:oz-fork@3.4.0",
+    "@openzeppelin/contracts": "4.0.0-beta.0",
     "@tenderly/hardhat-tenderly": "^1.0.3",
     "@typechain/ethers-v5": "^5.0.0",
     "@types/lodash": "^4.14.138",

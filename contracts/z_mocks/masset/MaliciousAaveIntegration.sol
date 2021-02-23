@@ -8,8 +8,8 @@ import { IAaveATokenV2, IAaveLendingPoolV2, ILendingPoolAddressesProviderV2 } fr
 
 // Libs
 import { MassetHelpers } from "../../shared/MassetHelpers.sol";
-import { SafeERC20 } from "@openzeppelin/contracts-sol8/contracts/token/ERC20/SafeERC20.sol";
-import { IERC20 } from "@openzeppelin/contracts-sol8/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 
 contract MaliciousAaveIntegration is

@@ -4,7 +4,7 @@ pragma solidity 0.8.0;
 // import { InitializableAdminUpgradeabilityProxy } from "../shared/@openzeppelin-2.5/upgrades/InitializableAdminUpgradeabilityProxy.sol";
 import {
     TransparentUpgradeableProxy
-} from "@openzeppelin/contracts-sol8/contracts/proxy/TransparentUpgradeableProxy.sol";
+} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 /**
  * @notice AssetProxy delegates calls to a Masset implementation
