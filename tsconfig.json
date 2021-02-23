@@ -27,5 +27,5 @@
     "./test/**/*.ts",
     "./test-utils/**/*.ts"
   ],
-  "files": ["./hardhat.config.ts"]
+  "files": ["./hardhat.config.ts", "./tasks.config.ts"]
 }
