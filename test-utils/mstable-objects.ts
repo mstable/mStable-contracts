@@ -57,7 +57,7 @@ export const createBasset = (
     addr: ZERO_ADDRESS,
     isTransferFeeCharged,
     ratio: createMultiple(decimals).toString(),
-    vaultBalance: simpleToExactAmount(vaultBalance, decimals).toString(),
+    vaultBalance: simpleToExactAmount(vaultBalance, decimals),
     status,
 })
 

@@ -7,8 +7,8 @@ import { IMasset } from "../../interfaces/IMasset.sol";
 import { FeederPool } from "../FeederPool.sol";
 
 // Libs
-import { IERC20 } from "@openzeppelin/contracts-sol8/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts-sol8/contracts/token/ERC20/SafeERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 // Routes:
 //  1) multiMint and multiRedeem from fPool (fp) to mAsset pools (mp)

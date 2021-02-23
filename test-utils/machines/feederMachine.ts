@@ -5,6 +5,7 @@ import { Signer } from "ethers"
 import { ethers } from "hardhat"
 import {
     FeederValidator__factory,
+    FeederManager__factory,
     MockInvariantValidator__factory,
     AssetProxy__factory,
     MockNexus__factory,
@@ -70,8 +71,9 @@ export class FeederMachine {
         const bBtc = await this.mAssetMachine.loadBassetProxy("Binance BTC", "bBTC", 18)
         const bAssets = [mAssetDetails.mAsset as MockERC20, bBtc]
         const validator = await new FeederValidator__factory(this.sa.default.signer).deploy()
+        const manager = await new FeederManager__factory(this.sa.default.signer).deploy()
         const linkedAddress = {
-            __$1a38b0db2bd175b310a9a3f8697d44eb75$__: mAssetDetails.managerLib.address,
+            __$60670dd84d06e10bb8a5ac6f99a1c0890c$__: manager.address,
             __$ba0f40aa073b093068e86d426c6136c22f$__: validator.address,
         }
         console.log("i")

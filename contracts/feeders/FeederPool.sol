@@ -2,12 +2,9 @@
 pragma solidity 0.8.0;
 pragma abicoder v2;
 
-// External
-// import { IFeederValidator } from "../interfaces/IFeederValidator.sol";
-
 // Internal
 import { IFeederPool } from "../interfaces/IFeederPool.sol";
-import { Initializable } from "@openzeppelin/contracts-sol8/contracts/proxy/Initializable.sol";
+import { Initializable } from "@openzeppelin/contracts/utils/Initializable.sol";
 import { InitializableToken } from "../shared/InitializableToken.sol";
 import { ImmutableModule } from "../shared/ImmutableModule.sol";
 import { InitializableReentrancyGuard } from "../shared/InitializableReentrancyGuard.sol";
@@ -15,21 +12,21 @@ import { IBasicToken } from "../shared/IBasicToken.sol";
 import { IMasset } from "../interfaces/IMasset.sol";
 
 // Libs
-import { SafeCast } from "@openzeppelin/contracts-sol8/contracts/utils/SafeCast.sol";
-import { IERC20 } from "@openzeppelin/contracts-sol8/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts-sol8/contracts/token/ERC20/SafeERC20.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { StableMath } from "../shared/StableMath.sol";
-import { Manager } from "../masset/Manager.sol";
+import { FeederManager } from "./FeederManager.sol";
 import { FeederValidator } from "./FeederValidator.sol";
 
-// TODO - hook collectPlatformInterest into savings manager or somewhere else external to provide validation
-// TODO - handle all local transfers to address(this) - no need to xfer
-// TODO - remove all instances of bAsset or mAsset where used incorrectly
-// TODO - remove unused dependencies
-// TODO - make new Manager tailored for this (e.g. migrateBassets)
+// TODO - deploy script
+// TODO - resolve internal todos
+// TODO - get back under EIP170 limit
 // TODO - check that `mAsset` is always converted and uses storage addr
-// TODO - import OpenZeppelins require statements into InitializableToken
+// TODO - remove unused dependencies (Here, Manager, Validator)
+// TODO - remove all instances of bAsset or mAsset where used incorrectly
 // TODO - reconsider moving FeederValidator to internal lib (consider upgrade strategy)
+// TODO - seriously reconsider storage layout and how to tidy this file up
 contract FeederPool is
     IFeederPool,
     Initializable,
@@ -178,14 +175,14 @@ contract FeederPool is
     /**
      * @dev Verifies that the caller is the Savings Manager contract
      */
-    modifier onlySavingsManager() {
-        _isSavingsManager();
+    modifier onlyInterestValidator() {
+        // keccak256("InterestValidator") = c10a28f028c7f7282a03c90608e38a4a646e136e614e4b07d119280c5f7f839f
+        require(
+            nexus.getModule(0xc10a28f028c7f7282a03c90608e38a4a646e136e614e4b07d119280c5f7f839f) ==
+                msg.sender,
+            "Only validator"
+        );
         _;
-    }
-
-    // Internal fn for modifier to reduce deployment size
-    function _isSavingsManager() internal view {
-        require(_savingsManager() == msg.sender, "Must be savings manager");
     }
 
     /***************************************
@@ -299,7 +296,7 @@ contract FeederPool is
         if (_input.exists) {
             BassetPersonal memory personal = bAssetPersonal[_input.idx];
             uint256 amt =
-                Manager.depositTokens(
+                FeederManager.depositTokens(
                     personal,
                     _cachedBassetData[_input.idx].ratio,
                     _inputQuantity,
@@ -320,7 +317,7 @@ contract FeederPool is
         internal
         returns (AssetData memory mAssetData)
     {
-        // TODO - handle tx fees?
+        // TODO - handle tx fees with new massethelpers fns
         // TODO - consider poking cache here?
         mAssetData = AssetData(0, 0, bAssetPersonal[0]);
         IERC20(_input.addr).safeTransferFrom(msg.sender, address(this), _inputQuantity);
@@ -353,7 +350,12 @@ contract FeederPool is
                 BassetData memory data = allBassets[idx];
                 BassetPersonal memory personal = bAssetPersonal[idx];
                 uint256 quantityDeposited =
-                    Manager.depositTokens(personal, data.ratio, bAssetQuantity, cache.maxCache);
+                    FeederManager.depositTokens(
+                        personal,
+                        data.ratio,
+                        bAssetQuantity,
+                        cache.maxCache
+                    );
 
                 quantitiesDeposited[i] = quantityDeposited;
                 bAssetData[idx].vaultBalance =
@@ -533,15 +535,16 @@ contract FeederPool is
         require(swapOutput > 0, "Zero output quantity");
         //4. Settle the swap
         //4.1. Decrease output bal
-        // TODO - if recipient == address(this) then no need to transfer anything
         BassetPersonal memory outputPersonal = bAssetPersonal[_output.idx];
-        Manager.withdrawTokens(
-            swapOutput,
-            outputPersonal,
-            _cachedBassetData[_output.idx],
-            _recipient,
-            cache.maxCache
-        );
+        if (_recipient != address(this) || outputPersonal.integrator != address(0)) {
+            FeederManager.withdrawTokens(
+                swapOutput,
+                outputPersonal,
+                _cachedBassetData[_output.idx],
+                _recipient,
+                cache.maxCache
+            );
+        }
         bAssetData[_output.idx].vaultBalance =
             _cachedBassetData[_output.idx].vaultBalance -
             SafeCast.toUint128(swapOutput);
@@ -648,7 +651,7 @@ contract FeederPool is
             // Set output in array
             (outputQuantities[i], outputs[i]) = (amountOut, bAssetPersonal[i].addr);
             // Transfer the bAsset to the recipient
-            Manager.withdrawTokens(
+            FeederManager.withdrawTokens(
                 amountOut,
                 bAssetPersonal[i],
                 allBassets[i],
@@ -717,7 +720,7 @@ contract FeederPool is
             // Transfer the Bassets to the recipient
             for (uint256 i = 0; i < len; i++) {
                 uint8 idx = indexes[i];
-                Manager.withdrawTokens(
+                FeederManager.withdrawTokens(
                     _outputQuantities[i],
                     bAssetPersonal[idx],
                     allBassets[idx],
@@ -818,13 +821,16 @@ contract FeederPool is
         // 1.0. Burn the full amount of Masset
         _burn(msg.sender, _fpTokenQuantity);
         // 2.0. Transfer the Bassets to the recipient
-        Manager.withdrawTokens(
-            outputQuantity,
-            bAssetPersonal[_output.idx],
-            allBassets[_output.idx],
-            _recipient,
-            _getCacheDetails().maxCache
-        );
+        BassetPersonal memory outputPersonal = bAssetPersonal[_output.idx];
+        if (_recipient != address(this) || outputPersonal.integrator != address(0)) {
+            FeederManager.withdrawTokens(
+                outputQuantity,
+                outputPersonal,
+                allBassets[_output.idx],
+                _recipient,
+                _getCacheDetails().maxCache
+            );
+        }
         // 3.0. Set vault balance
         bAssetData[_output.idx].vaultBalance =
             allBassets[_output.idx].vaultBalance -
@@ -973,23 +979,18 @@ contract FeederPool is
     function collectPlatformInterest()
         external
         override
-        onlySavingsManager
+        onlyInterestValidator
         whenInOperation
         nonReentrant
         returns (uint256 mintAmount, uint256 newSupply)
     {
-        // TODO - there must be some protections here. Maybe it can still connect to the savings manager and validate there.
-        // Instead of minting and transferring.. and burning... could simply pass the fig to SM to get validated
-        // uint256[] memory gains;
-        // (mintAmount, gains) = Manager.collectPlatformInterest(
-        //     bAssetPersonal,
-        //     bAssetData,
-        //     validator,
-        //     _getConfig()
-        // );
-        // newSupply = totalSupply() + mintAmount;
-        // require(mintAmount > 0, "Must collect something");
-        // emit MintedMulti(address(this), msg.sender, 0, new address[](0), gains);
+        (uint8[] memory idxs, uint256[] memory gains) =
+            FeederManager.calculatePlatformInterest(bAssetPersonal, bAssetData);
+        // Calculate potential mint amount. This will be validated by the interest validator
+        mintAmount = FeederValidator.computeMintMulti(bAssetData, idxs, gains, _getConfig());
+        newSupply = totalSupply() + mintAmount;
+        require(mintAmount > 0, "Must collect something");
+        emit MintedMulti(address(this), msg.sender, 0, new address[](0), gains);
     }
 
     /***************************************
@@ -1049,8 +1050,7 @@ contract FeederPool is
         override
         onlyGovernor
     {
-        // TODO - fix manager fn
-        // Manager.migrateBassets(bAssetPersonal, bAssetIndexes, _bAssets, _newIntegration);
+        FeederManager.migrateBassets(bAssetPersonal, _bAssets, _newIntegration);
     }
 
     /**
@@ -1059,7 +1059,7 @@ contract FeederPool is
      * @param _rampEndTime  Time at which A will arrive at _targetA
      */
     function startRampA(uint256 _targetA, uint256 _rampEndTime) external onlyGovernor {
-        Manager.startRampA(ampData, _targetA, _rampEndTime, _getA(), A_PRECISION);
+        FeederManager.startRampA(ampData, _targetA, _rampEndTime, _getA(), A_PRECISION);
     }
 
     /**
@@ -1067,6 +1067,6 @@ contract FeederPool is
      * it to whatever the current value is.
      */
     function stopRampA() external onlyGovernor {
-        Manager.stopRampA(ampData, _getA());
+        FeederManager.stopRampA(ampData, _getA());
     }
 }
