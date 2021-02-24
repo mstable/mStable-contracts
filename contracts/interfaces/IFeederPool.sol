@@ -2,9 +2,9 @@
 pragma solidity 0.8.0;
 pragma abicoder v2;
 
-import { MassetStructs } from "../masset/MassetStructs.sol";
+import { BassetPersonal, BassetData } from "../masset/MassetStructs.sol";
 
-abstract contract IFeederPool is MassetStructs {
+abstract contract IFeederPool {
     // Mint
     function mint(
         address _input,

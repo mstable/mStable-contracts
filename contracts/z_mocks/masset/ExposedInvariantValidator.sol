@@ -2,6 +2,7 @@
 pragma solidity 0.8.0;
 
 import { InvariantValidator } from "../../masset/InvariantValidator.sol";
+import "../../masset/MassetStructs.sol";
 
 contract ExposedInvariantValidator is InvariantValidator {
 

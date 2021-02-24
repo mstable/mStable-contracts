@@ -2,9 +2,9 @@
 pragma solidity 0.8.0;
 pragma abicoder v2;
 
-import { MassetStructs } from "../masset/MassetStructs.sol";
+import { BassetData, BassetPersonal } from "../masset/MassetStructs.sol";
 
-abstract contract IMasset is MassetStructs {
+abstract contract IMasset {
     // Mint
     function mint(
         address _input,
@@ -116,4 +116,4 @@ abstract contract IMasset is MassetStructs {
     function migrateBassets(address[] calldata _bAssets, address _newIntegration) external virtual;
 }
 
-abstract contract Deprecated_BasketManager is MassetStructs {}
+abstract contract Deprecated_BasketManager {}

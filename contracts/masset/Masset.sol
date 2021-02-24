@@ -11,6 +11,7 @@ import { InitializableToken } from "../shared/InitializableToken.sol";
 import { ImmutableModule } from "../shared/ImmutableModule.sol";
 import { InitializableReentrancyGuard } from "../shared/InitializableReentrancyGuard.sol";
 import { IMasset, Deprecated_BasketManager } from "../interfaces/IMasset.sol";
+import "./MassetStructs.sol";
 
 // Libs
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";

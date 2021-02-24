@@ -6,14 +6,13 @@ pragma abicoder v2;
 import { IPlatformIntegration } from "../interfaces/IPlatformIntegration.sol";
 
 // Internal
-import { MassetStructs } from "../masset/MassetStructs.sol";
+import { BassetData, BassetPersonal, BassetStatus, AmpData } from "../masset/MassetStructs.sol";
 
 // Libs
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { StableMath } from "../shared/StableMath.sol";
-import { MassetHelpers } from "../shared/MassetHelpers.sol";
 
 /**
  * @title   Manager
@@ -43,19 +42,19 @@ library FeederManager {
      * @return rawGains         Raw increases in vault Balance
      */
     function calculatePlatformInterest(
-        MassetStructs.BassetPersonal[] memory _bAssetPersonal,
-        MassetStructs.BassetData[] storage _bAssetData
+        BassetPersonal[] memory _bAssetPersonal,
+        BassetData[] storage _bAssetData
     ) external returns (uint8[] memory idxs, uint256[] memory rawGains) {
         // Get basket details
-        MassetStructs.BassetData[] memory bAssetData_ = _bAssetData;
+        BassetData[] memory bAssetData_ = _bAssetData;
         uint256 count = bAssetData_.length;
         idxs = new uint8[](count);
         rawGains = new uint256[](count);
         // 1. Calculate rawGains in each bAsset, in comparison to current vault balance
         for (uint256 i = 0; i < count; i++) {
             idxs[i] = uint8(i);
-            MassetStructs.BassetPersonal memory bPersonal = _bAssetPersonal[i];
-            MassetStructs.BassetData memory bData = bAssetData_[i];
+            BassetPersonal memory bPersonal = _bAssetPersonal[i];
+            BassetData memory bData = bAssetData_[i];
             // If there is no integration, then nothing can have accrued
             if (bPersonal.integrator == address(0)) continue;
             uint256 lending =
@@ -67,7 +66,7 @@ library FeederManager {
             uint256 balance = lending + cache;
             uint256 oldVaultBalance = bData.vaultBalance;
             if (
-                balance > oldVaultBalance && bPersonal.status == MassetStructs.BassetStatus.Normal
+                balance > oldVaultBalance && bPersonal.status == BassetStatus.Normal
             ) {
                 _bAssetData[i].vaultBalance = SafeCast.toUint128(balance);
                 uint256 interestDelta = balance - oldVaultBalance;
@@ -88,7 +87,7 @@ library FeederManager {
      * @param _newIntegration   Address of the new platform integration
      */
     function migrateBassets(
-        MassetStructs.BassetPersonal[] storage _bAssetPersonal,
+        BassetPersonal[] storage _bAssetPersonal,
         address[] calldata _bAssets,
         address _newIntegration
     ) external {
@@ -154,7 +153,7 @@ library FeederManager {
         emit BassetsMigrated(_bAssets, _newIntegration);
     }
 
-    function _getAssetIndex(MassetStructs.BassetPersonal[] storage _bAssetPersonal, address _asset)
+    function _getAssetIndex(BassetPersonal[] storage _bAssetPersonal, address _asset)
         internal
         view
         returns (uint8 idx)
@@ -172,7 +171,7 @@ library FeederManager {
      * @param _rampEndTime  Time at which A will arrive at _targetA
      */
     function startRampA(
-        MassetStructs.AmpData storage _ampData,
+        AmpData storage _ampData,
         uint256 _targetA,
         uint256 _rampEndTime,
         uint256 _currentA,
@@ -205,7 +204,7 @@ library FeederManager {
      * @dev Stops the changing of the amplification var A, setting
      * it to whatever the current value is.
      */
-    function stopRampA(MassetStructs.AmpData storage _ampData, uint256 _currentA) external {
+    function stopRampA(AmpData storage _ampData, uint256 _currentA) external {
         require(block.timestamp < _ampData.rampEndTime, "Amplification not changing");
 
         _ampData.initialA = SafeCast.toUint64(_currentA);
@@ -216,125 +215,4 @@ library FeederManager {
         emit StopRampA(_currentA, block.timestamp);
     }
 
-    /***************************************
-                    FORGING
-    ****************************************/
-
-    /**
-     * @dev Deposits a given asset to the system. If there is sufficient room for the asset
-     * in the cache, then just transfer, otherwise reset the cache to the desired mid level by
-     * depositing the delta in the platform
-     */
-    function depositTokens(
-        MassetStructs.BassetPersonal memory _bAsset,
-        uint256 _bAssetRatio,
-        uint256 _quantity,
-        uint256 _maxCache
-    ) external returns (uint256 quantityDeposited) {
-        // 0. If integration is 0, short circuit
-        if (_bAsset.integrator == address(0)) {
-            (uint256 received, ) =
-                MassetHelpers.transferReturnBalance(
-                    msg.sender,
-                    address(this),
-                    _bAsset.addr,
-                    _quantity
-                );
-            return received;
-        }
-
-        // 1 - Send all to PI, using the opportunity to get the cache balance and net amount transferred
-        uint256 cacheBal;
-        (quantityDeposited, cacheBal) = MassetHelpers.transferReturnBalance(
-            msg.sender,
-            _bAsset.integrator,
-            _bAsset.addr,
-            _quantity
-        );
-
-        // 2 - Deposit X if necessary
-        // 2.1 - Deposit if xfer fees
-        if (_bAsset.hasTxFee) {
-            uint256 deposited =
-                IPlatformIntegration(_bAsset.integrator).deposit(
-                    _bAsset.addr,
-                    quantityDeposited,
-                    true
-                );
-
-            return StableMath.min(deposited, quantityDeposited);
-        }
-        // 2.2 - Else Deposit X if Cache > %
-        // This check is in place to ensure that any token with a txFee is rejected
-        require(quantityDeposited == _quantity, "Asset not fully transferred");
-
-        uint256 relativeMaxCache = _maxCache.divRatioPrecisely(_bAssetRatio);
-
-        if (cacheBal > relativeMaxCache) {
-            uint256 delta = cacheBal - (relativeMaxCache / 2);
-            IPlatformIntegration(_bAsset.integrator).deposit(_bAsset.addr, delta, false);
-        }
-    }
-
-    /**
-     * @dev Withdraws a given asset from its platformIntegration. If there is sufficient liquidity
-     * in the cache, then withdraw from there, otherwise withdraw from the lending market and reset the
-     * cache to the mid level.
-     */
-    function withdrawTokens(
-        uint256 _quantity,
-        MassetStructs.BassetPersonal memory _personal,
-        MassetStructs.BassetData memory _data,
-        address _recipient,
-        uint256 _maxCache
-    ) external {
-        if (_quantity == 0) return;
-
-        // 1.0 If there is no integrator, send from here
-        if (_personal.integrator == address(0)) {
-            if (_recipient == address(this)) return;
-            IERC20(_personal.addr).safeTransfer(_recipient, _quantity);
-        }
-        // 1.1 If txFee then short circuit - there is no cache
-        else if (_personal.hasTxFee) {
-            IPlatformIntegration(_personal.integrator).withdraw(
-                _recipient,
-                _personal.addr,
-                _quantity,
-                _quantity,
-                true
-            );
-        }
-        // 1.2. Else, withdraw from either cache or main vault
-        else {
-            uint256 cacheBal = IERC20(_personal.addr).balanceOf(_personal.integrator);
-            // 2.1 - If balance b in cache, simply withdraw
-            if (cacheBal >= _quantity) {
-                IPlatformIntegration(_personal.integrator).withdrawRaw(
-                    _recipient,
-                    _personal.addr,
-                    _quantity
-                );
-            }
-            // 2.2 - Else reset the cache to X, or as far as possible
-            //       - Withdraw X+b from platform
-            //       - Send b to user
-            else {
-                uint256 relativeMidCache = _maxCache.divRatioPrecisely(_data.ratio) / 2;
-                uint256 totalWithdrawal =
-                    StableMath.min(
-                        relativeMidCache + _quantity - cacheBal,
-                        _data.vaultBalance - SafeCast.toUint128(cacheBal)
-                    );
-
-                IPlatformIntegration(_personal.integrator).withdraw(
-                    _recipient,
-                    _personal.addr,
-                    _quantity,
-                    totalWithdrawal,
-                    false
-                );
-            }
-        }
-    }
 }

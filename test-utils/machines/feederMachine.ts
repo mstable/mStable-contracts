@@ -4,7 +4,7 @@
 import { Signer } from "ethers"
 import { ethers } from "hardhat"
 import {
-    FeederValidator__factory,
+    FeederLogic__factory,
     FeederManager__factory,
     MockInvariantValidator__factory,
     AssetProxy__factory,
@@ -24,7 +24,7 @@ import {
     MockInitializableToken__factory,
     MockInitializableTokenWithFee__factory,
     Manager,
-    FeederValidator,
+    FeederLogic,
     FeederPool,
     FeederPool__factory,
 } from "types/generated"
@@ -37,7 +37,7 @@ import { MassetMachine, MassetDetails } from "./mAssetMachine"
 
 export interface FeederDetails {
     pool?: FeederPool
-    validator?: FeederValidator
+    logic?: FeederLogic
     mAsset?: MockERC20
     fAsset?: MockERC20
     // [0] = mAsset
@@ -70,11 +70,11 @@ export class FeederMachine {
 
         const bBtc = await this.mAssetMachine.loadBassetProxy("Binance BTC", "bBTC", 18)
         const bAssets = [mAssetDetails.mAsset as MockERC20, bBtc]
-        const validator = await new FeederValidator__factory(this.sa.default.signer).deploy()
+        const feederLogic = await new FeederLogic__factory(this.sa.default.signer).deploy()
         const manager = await new FeederManager__factory(this.sa.default.signer).deploy()
         const linkedAddress = {
             __$60670dd84d06e10bb8a5ac6f99a1c0890c$__: manager.address,
-            __$ba0f40aa073b093068e86d426c6136c22f$__: validator.address,
+            __$7791d1d5b7ea16da359ce352a2ac3a881c$__: feederLogic.address,
         }
         console.log("i")
         const impl = await new FeederPool__factory(linkedAddress, this.sa.default.signer).deploy(DEAD_ADDRESS, mAssetDetails.mAsset.address)
@@ -122,7 +122,7 @@ export class FeederMachine {
         }
         return {
             pool,
-            validator,
+            logic: feederLogic,
             mAsset: mAssetDetails.mAsset as MockERC20,
             fAsset: bBtc,
             bAssets,

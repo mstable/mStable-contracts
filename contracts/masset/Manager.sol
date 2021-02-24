@@ -8,7 +8,7 @@ import { IInvariantValidator } from "../interfaces/IInvariantValidator.sol";
 import { IBasicToken } from "../shared/IBasicToken.sol";
 
 // Internal
-import { MassetStructs } from "./MassetStructs.sol";
+import "./MassetStructs.sol";
 
 // Libs
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
@@ -32,7 +32,7 @@ library Manager {
     event BassetsMigrated(address[] bAssets, address newIntegrator);
     event TransferFeeEnabled(address indexed bAsset, bool enabled);
     event BassetAdded(address indexed bAsset, address integrator);
-    event BassetStatusChanged(address indexed bAsset, MassetStructs.BassetStatus status);
+    event BassetStatusChanged(address indexed bAsset, BassetStatus status);
     event BasketStatusChanged();
     event StartRampA(uint256 currentA, uint256 targetA, uint256 startTime, uint256 rampEndTime);
     event StopRampA(uint256 currentA, uint256 time);
@@ -52,8 +52,8 @@ library Manager {
      * @param _hasTxFee         Are transfer fees charged on this bAsset (e.g. USDT)
      */
     function addBasset(
-        MassetStructs.BassetPersonal[] storage _bAssetPersonal,
-        MassetStructs.BassetData[] storage _bAssetData,
+        BassetPersonal[] storage _bAssetPersonal,
+        BassetData[] storage _bAssetData,
         mapping(address => uint8) storage _bAssetIndexes,
         uint8 _maxBassets,
         address _bAsset,
@@ -89,15 +89,15 @@ library Manager {
         _bAssetIndexes[_bAsset] = bAssetCount;
 
         _bAssetPersonal.push(
-            MassetStructs.BassetPersonal({
+            BassetPersonal({
                 addr: _bAsset,
                 integrator: _integration,
                 hasTxFee: _hasTxFee,
-                status: MassetStructs.BassetStatus.Normal
+                status: BassetStatus.Normal
             })
         );
         _bAssetData.push(
-            MassetStructs.BassetData({ ratio: SafeCast.toUint128(ratio), vaultBalance: 0 })
+            BassetData({ ratio: SafeCast.toUint128(ratio), vaultBalance: 0 })
         );
 
         emit BassetAdded(_bAsset, _integration);
@@ -113,21 +113,21 @@ library Manager {
      * @return rawGains         Raw increases in vault Balance
      */
     function collectPlatformInterest(
-        MassetStructs.BassetPersonal[] memory _bAssetPersonal,
-        MassetStructs.BassetData[] storage _bAssetData,
+        BassetPersonal[] memory _bAssetPersonal,
+        BassetData[] storage _bAssetData,
         IInvariantValidator _forgeValidator,
-        MassetStructs.InvariantConfig memory _config
+        InvariantConfig memory _config
     ) external returns (uint256 mintAmount, uint256[] memory rawGains) {
         // Get basket details
-        MassetStructs.BassetData[] memory bAssetData_ = _bAssetData;
+        BassetData[] memory bAssetData_ = _bAssetData;
         uint256 count = bAssetData_.length;
         uint8[] memory indices = new uint8[](count);
         rawGains = new uint256[](count);
         // 1. Calculate rawGains in each bAsset, in comparison to current vault balance
         for (uint256 i = 0; i < count; i++) {
             indices[i] = uint8(i);
-            MassetStructs.BassetPersonal memory bPersonal = _bAssetPersonal[i];
-            MassetStructs.BassetData memory bData = bAssetData_[i];
+            BassetPersonal memory bPersonal = _bAssetPersonal[i];
+            BassetData memory bData = bAssetData_[i];
             // If there is no integration, then nothing can have accrued
             if (bPersonal.integrator == address(0)) continue;
             uint256 lending =
@@ -139,7 +139,7 @@ library Manager {
             uint256 balance = lending + cache;
             uint256 oldVaultBalance = bData.vaultBalance;
             if (
-                balance > oldVaultBalance && bPersonal.status == MassetStructs.BassetStatus.Normal
+                balance > oldVaultBalance && bPersonal.status == BassetStatus.Normal
             ) {
                 _bAssetData[i].vaultBalance = SafeCast.toUint128(balance);
                 uint256 interestDelta = balance - oldVaultBalance;
@@ -159,7 +159,7 @@ library Manager {
      * @param _flag         Charge transfer fee when its set to 'true', otherwise 'false'
      */
     function setTransferFeesFlag(
-        MassetStructs.BassetPersonal[] storage _bAssetPersonal,
+        BassetPersonal[] storage _bAssetPersonal,
         mapping(address => uint8) storage _bAssetIndexes,
         address _bAsset,
         bool _flag
@@ -192,7 +192,7 @@ library Manager {
      * @param _newIntegration   Address of the new platform integration
      */
     function migrateBassets(
-        MassetStructs.BassetPersonal[] storage _bAssetPersonal,
+        BassetPersonal[] storage _bAssetPersonal,
         mapping(address => uint8) storage _bAssetIndexes,
         address[] calldata _bAssets,
         address _newIntegration
@@ -268,8 +268,8 @@ library Manager {
      *                         or above (f)
      */
     function handlePegLoss(
-        MassetStructs.BasketState storage _basket,
-        MassetStructs.BassetPersonal[] storage _bAssetPersonal,
+        BasketState storage _basket,
+        BassetPersonal[] storage _bAssetPersonal,
         mapping(address => uint8) storage _bAssetIndexes,
         address _bAsset,
         bool _belowPeg
@@ -278,10 +278,10 @@ library Manager {
 
         uint256 i = _getAssetIndex(_bAssetPersonal, _bAssetIndexes, _bAsset);
 
-        MassetStructs.BassetStatus newStatus =
+        BassetStatus newStatus =
             _belowPeg
-                ? MassetStructs.BassetStatus.BrokenBelowPeg
-                : MassetStructs.BassetStatus.BrokenAbovePeg;
+                ? BassetStatus.BrokenBelowPeg
+                : BassetStatus.BrokenAbovePeg;
         _bAssetPersonal[i].status = newStatus;
 
         _basket.undergoingRecol = true;
@@ -297,25 +297,25 @@ library Manager {
      * @param _bAsset Address of the bAsset
      */
     function negateIsolation(
-        MassetStructs.BasketState storage _basket,
-        MassetStructs.BassetPersonal[] storage _bAssetPersonal,
+        BasketState storage _basket,
+        BassetPersonal[] storage _bAssetPersonal,
         mapping(address => uint8) storage _bAssetIndexes,
         address _bAsset
     ) external {
         uint256 i = _getAssetIndex(_bAssetPersonal, _bAssetIndexes, _bAsset);
 
-        _bAssetPersonal[i].status = MassetStructs.BassetStatus.Normal;
+        _bAssetPersonal[i].status = BassetStatus.Normal;
 
         bool undergoingRecol = false;
         for (uint256 j = 0; j < _bAssetPersonal.length; j++) {
-            if (_bAssetPersonal[j].status != MassetStructs.BassetStatus.Normal) {
+            if (_bAssetPersonal[j].status != BassetStatus.Normal) {
                 undergoingRecol = true;
                 break;
             }
         }
         _basket.undergoingRecol = undergoingRecol;
 
-        emit BassetStatusChanged(_bAsset, MassetStructs.BassetStatus.Normal);
+        emit BassetStatusChanged(_bAsset, BassetStatus.Normal);
     }
 
     /**
@@ -324,7 +324,7 @@ library Manager {
      * @param _rampEndTime  Time at which A will arrive at _targetA
      */
     function startRampA(
-        MassetStructs.AmpData storage _ampData,
+        AmpData storage _ampData,
         uint256 _targetA,
         uint256 _rampEndTime,
         uint256 _currentA,
@@ -357,7 +357,7 @@ library Manager {
      * @dev Stops the changing of the amplification var A, setting
      * it to whatever the current value is.
      */
-    function stopRampA(MassetStructs.AmpData storage _ampData, uint256 _currentA) external {
+    function stopRampA(AmpData storage _ampData, uint256 _currentA) external {
         require(block.timestamp < _ampData.rampEndTime, "Amplification not changing");
 
         _ampData.initialA = SafeCast.toUint64(_currentA);
@@ -374,7 +374,7 @@ library Manager {
      * @return idx        Index of the asset
      */
     function _getAssetIndex(
-        MassetStructs.BassetPersonal[] storage _bAssetPersonal,
+        BassetPersonal[] storage _bAssetPersonal,
         mapping(address => uint8) storage _bAssetIndexes,
         address _asset
     ) internal view returns (uint8 idx) {
@@ -392,7 +392,7 @@ library Manager {
      * depositing the delta in the platform
      */
     function depositTokens(
-        MassetStructs.BassetPersonal memory _bAsset,
+        BassetPersonal memory _bAsset,
         uint256 _bAssetRatio,
         uint256 _quantity,
         uint256 _maxCache
@@ -449,8 +449,8 @@ library Manager {
      */
     function withdrawTokens(
         uint256 _quantity,
-        MassetStructs.BassetPersonal memory _personal,
-        MassetStructs.BassetData memory _data,
+        BassetPersonal memory _personal,
+        BassetData memory _data,
         address _recipient,
         uint256 _maxCache
     ) external {

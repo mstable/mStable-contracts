@@ -3,20 +3,22 @@ pragma solidity 0.8.0;
 
 import "hardhat/console.sol";
 
-import { MassetStructs, Asset, FeederData, BassetData } from "../masset/MassetStructs.sol";
+import { IPlatformIntegration } from "../interfaces/IPlatformIntegration.sol";
+import "../masset/MassetStructs.sol";
 import { Root } from "../shared/Root.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IMasset } from "../interfaces/IMasset.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { MassetHelpers } from "../shared/MassetHelpers.sol";
+import { StableMath } from "../shared/StableMath.sol";
 
-/**
- * @title   FeederValidator
- * @author  mStable
- * @notice  Builds on and enforces the StableSwap invariant conceived by Michael Egorov. (https://www.curve.fi/stableswap-paper.pdf)
- *          Derived by mStable and adapted for the needs of an mAsset, as described in MIP-7 (http://mips.mstable.org/MIPS/mip-7)
- *          Calculates and validates the result of Masset operations with respect to the invariant.
- *          This supports low slippage swaps and applies penalties towards min and max regions.
- * @dev     VERSION: 1.0
- *          DATE:    2021-02-22
- */
+
 library FeederLogic {
+
+    using StableMath for uint256;
+    using SafeERC20 for IERC20;
+
     uint256 internal constant A_PRECISION = 100;
 
     function mint(
@@ -24,13 +26,12 @@ library FeederLogic {
         FeederConfig memory _config,
         Asset calldata _input,
         uint256 _inputQuantity,
-        uint256 _minOutputQuantity,
-        address _recipient
+        uint256 _minOutputQuantity
     ) external returns (uint256 mintOutput) {
         BassetData[] memory cachedBassetData = _data.bAssetData;
-        AssetData memory inputData = _transferIn(cachedBassetData, input, _inputQuantity);
+        AssetData memory inputData = _transferIn(_data, _config, cachedBassetData, _input, _inputQuantity);
         // Validation should be after token transfer, as bAssetQty is unknown before
-        mintOutput = _computeMint(
+        mintOutput = computeMint(
             cachedBassetData,
             inputData.idx,
             inputData.amt,
@@ -39,40 +40,82 @@ library FeederLogic {
         require(mintOutput >= _minOutputQuantity, "Mint quantity < min qty");
     }
 
+    function mintMulti(
+        FeederData storage _data,
+        FeederConfig memory _config,
+        uint8[] calldata _indices,
+        uint256[] calldata _inputQuantities,
+        uint256 _minOutputQuantity
+    ) external returns (uint256 mintOutput) {
+        uint256 len = _indices.length;
+        uint256[] memory quantitiesDeposited = new uint256[](len);
+        // Load bAssets from storage into memory
+        BassetData[] memory allBassets = _data.bAssetData;
+        uint256 maxCache = _getCacheDetails(_data, _config.supply);
+        // Transfer the Bassets to the integrator, update storage and calc MassetQ
+        for (uint256 i = 0; i < len; i++) {
+            if (_inputQuantities[i] > 0) {
+                uint8 idx = _indices[i];
+                BassetData memory bData = allBassets[idx];
+                quantitiesDeposited[i] =
+                    _depositTokens(
+                        _data.bAssetPersonal[idx],
+                        bData.ratio,
+                        _inputQuantities[i],
+                        maxCache
+                    );
+
+                _data.bAssetData[idx].vaultBalance =
+                    bData.vaultBalance +
+                    SafeCast.toUint128(quantitiesDeposited[i]);
+            }
+        }
+        // Validate the proposed mint, after token transfer
+        mintOutput = computeMintMulti(
+            allBassets,
+            _indices,
+            quantitiesDeposited,
+            _config
+        );
+        require(mintOutput >= _minOutputQuantity, "Mint quantity < min qty");
+        require(mintOutput > 0, "Zero mAsset quantity");
+    }
+
     function _transferIn(
         FeederData storage _data,
+        FeederConfig memory _config,
         BassetData[] memory _cachedBassetData,
         Asset memory _input,
         uint256 _inputQuantity
     ) internal returns (AssetData memory inputData) {
         if (_input.exists) {
-            BassetPersonal memory personal = bAssetPersonal[_input.idx];
+            BassetPersonal memory personal = _data.bAssetPersonal[_input.idx];
             uint256 amt =
-                FeederManager.depositTokens(
+                _depositTokens(
                     personal,
                     _cachedBassetData[_input.idx].ratio,
                     _inputQuantity,
-                    _getCacheDetails().maxCache
+                    _getCacheDetails(_data, _config.supply)
                 );
             inputData = AssetData(_input.idx, amt, personal);
         } else {
-            inputData = _mpMint(_input, _inputQuantity);
+            inputData = _mpMint(_data, _input, _inputQuantity);
             require(inputData.amt > 0, "Must mint something from mp");
         }
-        bAssetData[inputData.idx].vaultBalance =
+        _data.bAssetData[inputData.idx].vaultBalance =
             _cachedBassetData[inputData.idx].vaultBalance +
             SafeCast.toUint128(inputData.amt);
     }
 
 
     // mint in main pool and log balance
-    function _mpMint(Asset memory _input, uint256 _inputQuantity)
+    function _mpMint(FeederData storage _data, Asset memory _input, uint256 _inputQuantity)
         internal
         returns (AssetData memory mAssetData)
     {
         // TODO - handle tx fees with new massethelpers fns
         // TODO - consider poking cache here?
-        mAssetData = AssetData(0, 0, bAssetPersonal[0]);
+        mAssetData = AssetData(0, 0, _data.bAssetPersonal[0]);
         IERC20(_input.addr).safeTransferFrom(msg.sender, address(this), _inputQuantity);
         uint256 balBefore = IERC20(mAssetData.personal.addr).balanceOf(address(this));
         IMasset(mAssetData.personal.addr).mint(_input.addr, _inputQuantity, 0, address(this));
@@ -81,9 +124,136 @@ library FeederLogic {
     }
 
 
+    function _getCacheDetails(FeederData storage _data, uint256 _supply) internal view returns (uint256 maxCache) {
+        maxCache = _supply * _data.cacheSize / 1e18;
+    }
+
 
     /***************************************
-                    internal
+                    FORGING
+    ****************************************/
+
+    /**
+     * @dev Deposits a given asset to the system. If there is sufficient room for the asset
+     * in the cache, then just transfer, otherwise reset the cache to the desired mid level by
+     * depositing the delta in the platform
+     */
+    function _depositTokens(
+        BassetPersonal memory _bAsset,
+        uint256 _bAssetRatio,
+        uint256 _quantity,
+        uint256 _maxCache
+    ) internal returns (uint256 quantityDeposited) {
+        // 0. If integration is 0, short circuit
+        if (_bAsset.integrator == address(0)) {
+            (uint256 received, ) =
+                MassetHelpers.transferReturnBalance(
+                    msg.sender,
+                    address(this),
+                    _bAsset.addr,
+                    _quantity
+                );
+            return received;
+        }
+
+        // 1 - Send all to PI, using the opportunity to get the cache balance and net amount transferred
+        uint256 cacheBal;
+        (quantityDeposited, cacheBal) = MassetHelpers.transferReturnBalance(
+            msg.sender,
+            _bAsset.integrator,
+            _bAsset.addr,
+            _quantity
+        );
+
+        // 2 - Deposit X if necessary
+        // 2.1 - Deposit if xfer fees
+        if (_bAsset.hasTxFee) {
+            uint256 deposited =
+                IPlatformIntegration(_bAsset.integrator).deposit(
+                    _bAsset.addr,
+                    quantityDeposited,
+                    true
+                );
+
+            return StableMath.min(deposited, quantityDeposited);
+        }
+        // 2.2 - Else Deposit X if Cache > %
+        // This check is in place to ensure that any token with a txFee is rejected
+        require(quantityDeposited == _quantity, "Asset not fully transferred");
+
+        uint256 relativeMaxCache = _maxCache.divRatioPrecisely(_bAssetRatio);
+
+        if (cacheBal > relativeMaxCache) {
+            uint256 delta = cacheBal - (relativeMaxCache / 2);
+            IPlatformIntegration(_bAsset.integrator).deposit(_bAsset.addr, delta, false);
+        }
+    }
+
+    // /**
+    //  * @dev Withdraws a given asset from its platformIntegration. If there is sufficient liquidity
+    //  * in the cache, then withdraw from there, otherwise withdraw from the lending market and reset the
+    //  * cache to the mid level.
+    //  */
+    // function withdrawTokens(
+    //     uint256 _quantity,
+    //     BassetPersonal memory _personal,
+    //     BassetData memory _data,
+    //     address _recipient,
+    //     uint256 _maxCache
+    // ) external {
+    //     if (_quantity == 0) return;
+
+    //     // 1.0 If there is no integrator, send from here
+    //     if (_personal.integrator == address(0)) {
+    //         if (_recipient == address(this)) return;
+    //         IERC20(_personal.addr).safeTransfer(_recipient, _quantity);
+    //     }
+    //     // 1.1 If txFee then short circuit - there is no cache
+    //     else if (_personal.hasTxFee) {
+    //         IPlatformIntegration(_personal.integrator).withdraw(
+    //             _recipient,
+    //             _personal.addr,
+    //             _quantity,
+    //             _quantity,
+    //             true
+    //         );
+    //     }
+    //     // 1.2. Else, withdraw from either cache or main vault
+    //     else {
+    //         uint256 cacheBal = IERC20(_personal.addr).balanceOf(_personal.integrator);
+    //         // 2.1 - If balance b in cache, simply withdraw
+    //         if (cacheBal >= _quantity) {
+    //             IPlatformIntegration(_personal.integrator).withdrawRaw(
+    //                 _recipient,
+    //                 _personal.addr,
+    //                 _quantity
+    //             );
+    //         }
+    //         // 2.2 - Else reset the cache to X, or as far as possible
+    //         //       - Withdraw X+b from platform
+    //         //       - Send b to user
+    //         else {
+    //             uint256 relativeMidCache = _maxCache.divRatioPrecisely(_data.ratio) / 2;
+    //             uint256 totalWithdrawal =
+    //                 StableMath.min(
+    //                     relativeMidCache + _quantity - cacheBal,
+    //                     _data.vaultBalance - SafeCast.toUint128(cacheBal)
+    //                 );
+
+    //             IPlatformIntegration(_personal.integrator).withdraw(
+    //                 _recipient,
+    //                 _personal.addr,
+    //                 _quantity,
+    //                 totalWithdrawal,
+    //                 false
+    //             );
+    //         }
+    //     }
+    // }
+
+
+    /***************************************
+                    INVARIANT
     ****************************************/
 
     /**
@@ -95,12 +265,12 @@ library FeederLogic {
      * @param _config       Generalised FeederConfig stored internally
      * @return mintAmount   Quantity of mAssets minted
      */
-    function _computeMint(
-        MassetStructs.BassetData[] memory _bAssets,
+    function computeMint(
+        BassetData[] memory _bAssets,
         uint8 _i,
         uint256 _rawInput,
-        MassetStructs.FeederConfig memory _config
-    ) internal view returns (uint256 mintAmount) {
+        FeederConfig memory _config
+    ) public view returns (uint256 mintAmount) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
@@ -124,12 +294,12 @@ library FeederLogic {
      * @param _config       Generalised FeederConfig stored internally
      * @return mintAmount   Quantity of mAssets minted
      */
-    function _computeMintMulti(
-        MassetStructs.BassetData[] memory _bAssets,
+    function computeMintMulti(
+        BassetData[] memory _bAssets,
         uint8[] memory _indices,
         uint256[] memory _rawInputs,
-        MassetStructs.FeederConfig memory _config
-    ) internal view returns (uint256 mintAmount) {
+        FeederConfig memory _config
+    ) public view returns (uint256 mintAmount) {
         console.log("Validator: mintMulti");
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
@@ -166,14 +336,14 @@ library FeederLogic {
      * @return bAssetOutputQuantity   Raw bAsset output quantity
      * @return scaledSwapFee          Swap fee collected, in mAsset terms
      */
-    function _computeSwap(
-        MassetStructs.BassetData[] memory _bAssets,
+    function computeSwap(
+        BassetData[] memory _bAssets,
         uint8 _i,
         uint8 _o,
         uint256 _rawInput,
         uint256 _feeRate,
-        MassetStructs.FeederConfig memory _config
-    ) internal view returns (uint256 bAssetOutputQuantity, uint256 scaledSwapFee) {
+        FeederConfig memory _config
+    ) public view returns (uint256 bAssetOutputQuantity, uint256 scaledSwapFee) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
@@ -204,12 +374,12 @@ library FeederLogic {
      * @param _config               Generalised FeederConfig stored internally
      * @return rawOutputUnits       Raw bAsset output returned
      */
-    function _computeRedeem(
-        MassetStructs.BassetData[] memory _bAssets,
+    function computeRedeem(
+        BassetData[] memory _bAssets,
         uint8 _o,
         uint256 _netMassetQuantity,
-        MassetStructs.FeederConfig memory _config
-    ) internal view returns (uint256 rawOutputUnits) {
+        FeederConfig memory _config
+    ) public view returns (uint256 rawOutputUnits) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
@@ -234,12 +404,12 @@ library FeederLogic {
      * @param _config           Generalised FeederConfig stored internally
      * @return totalmAssets     Amount of mAsset required to redeem bAssets
      */
-    function _computeRedeemExact(
-        MassetStructs.BassetData[] memory _bAssets,
+    function computeRedeemExact(
+        BassetData[] memory _bAssets,
         uint8[] memory _indices,
         uint256[] memory _rawOutputs,
-        MassetStructs.FeederConfig memory _config
-    ) internal view returns (uint256 totalmAssets) {
+        FeederConfig memory _config
+    ) public view returns (uint256 totalmAssets) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
@@ -276,7 +446,7 @@ library FeederLogic {
         uint256[] memory _x,
         uint256 _sum,
         uint256 _k,
-        MassetStructs.FeederConfig memory _config
+        FeederConfig memory _config
     ) internal view returns (uint256 mintAmount) {
         // 1. Get value of reserves according to invariant
         uint256 kFinal = _invariant(_x, _sum, _config.a);
@@ -294,7 +464,7 @@ library FeederLogic {
      * @return x        Scaled vault balances
      * @return sum      Sum of scaled vault balances
      */
-    function _getReserves(MassetStructs.BassetData[] memory _bAssets)
+    function _getReserves(BassetData[] memory _bAssets)
         internal
         pure
         returns (uint256[] memory x, uint256 sum)
@@ -303,7 +473,7 @@ library FeederLogic {
         x = new uint256[](len);
         uint256 r;
         for (uint256 i = 0; i < len; i++) {
-            MassetStructs.BassetData memory bAsset = _bAssets[i];
+            BassetData memory bAsset = _bAssets[i];
             r = (bAsset.vaultBalance * bAsset.ratio) / 1e8;
             x[i] = r;
             sum += r;
@@ -320,7 +490,7 @@ library FeederLogic {
     function _inBounds(
         uint256[] memory _x,
         uint256 _sum,
-        MassetStructs.WeightLimits memory _limits
+        WeightLimits memory _limits
     ) internal view returns (bool inBounds) {
         uint256 len = _x.length;
         inBounds = true;

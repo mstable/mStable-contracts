@@ -2,7 +2,8 @@
 pragma solidity 0.8.0;
 
 // Internal
-import { IFeederPool, MassetStructs } from "../interfaces/IFeederPool.sol";
+import "../masset/MassetStructs.sol";
+import { IFeederPool } from "../interfaces/IFeederPool.sol";
 import { Initializable } from "@openzeppelin/contracts/utils/Initializable.sol";
 import { InitializableToken } from "../shared/InitializableToken.sol";
 import { ImmutableModule } from "../shared/ImmutableModule.sol";
@@ -30,7 +31,6 @@ import { FeederLogic } from "./FeederLogic.sol";
 // TODO - move to solc 0.8.x
 contract FeederPool is
     // IFeederPool,
-    MassetStructs,
     Initializable,
     InitializableToken,
     ImmutableModule,
@@ -207,17 +207,17 @@ contract FeederPool is
         uint256 _inputQuantity,
         uint256 _minOutputQuantity,
         address _recipient
-    ) external override nonReentrant whenInOperation returns (uint256 mintOutput) {
+    ) external  nonReentrant whenInOperation returns (uint256 mintOutput) {
         require(_recipient != address(0), "Invalid recipient");
         require(_inputQuantity > 0, "Qty==0");
 
         Asset memory input = _getAsset(_input);
 
-        mintOutput = FeederLogic.mint(data, _getConfig(), _inputQuantity, _minOutputQuantity, _recipient);
+        mintOutput = FeederLogic.mint(data, _getConfig(), input, _inputQuantity, _minOutputQuantity);
 
         // Mint the LP Token
         _mint(_recipient, mintOutput);
-        emit Minted(msg.sender, _recipient, mintOutput, _input, inputData.amt);
+        emit Minted(msg.sender, _recipient, mintOutput, _input, _inputQuantity);
     }
 
     function mintMulti(
@@ -225,7 +225,7 @@ contract FeederPool is
         uint256[] calldata _inputQuantities,
         uint256 _minOutputQuantity,
         address _recipient
-    ) external override nonReentrant whenInOperation returns (uint256 mintOutput) {
+    ) external  nonReentrant whenInOperation returns (uint256 mintOutput) {
         mintOutput = _mintMulti(_inputs, _inputQuantities, _minOutputQuantity, _recipient);
     }
 
@@ -238,7 +238,7 @@ contract FeederPool is
     // function getMintOutput(address _input, uint256 _inputQuantity)
     //     external
     //     view
-    //     override
+    //     
     //     returns (uint256 mintOutput)
     // {
     //     require(_inputQuantity > 0, "Qty==0");
@@ -267,7 +267,7 @@ contract FeederPool is
     // function getMintMultiOutput(address[] calldata _inputs, uint256[] calldata _inputQuantities)
     //     external
     //     view
-    //     override
+    //     
     //     returns (uint256 mintOutput)
     // {
     //     uint256 len = _inputQuantities.length;
@@ -293,40 +293,7 @@ contract FeederPool is
         require(len > 0 && len == _inputs.length, "Input array mismatch");
 
         uint8[] memory indexes = _getAssets(_inputs);
-        // Load bAssets from storage into memory
-        BassetData[] memory allBassets = bAssetData;
-        Cache memory cache = _getCacheDetails();
-        uint256[] memory quantitiesDeposited = new uint256[](len);
-        // Transfer the Bassets to the integrator, update storage and calc MassetQ
-        for (uint256 i = 0; i < len; i++) {
-            uint256 bAssetQuantity = _inputQuantities[i];
-            if (bAssetQuantity > 0) {
-                uint8 idx = indexes[i];
-                BassetData memory data = allBassets[idx];
-                BassetPersonal memory personal = bAssetPersonal[idx];
-                uint256 quantityDeposited =
-                    FeederManager.depositTokens(
-                        personal,
-                        data.ratio,
-                        bAssetQuantity,
-                        cache.maxCache
-                    );
-
-                quantitiesDeposited[i] = quantityDeposited;
-                bAssetData[idx].vaultBalance =
-                    data.vaultBalance +
-                    SafeCast.toUint128(quantityDeposited);
-            }
-        }
-        // Validate the proposed mint, after token transfer
-        tokensMinted = FeederLogic.computeMintMulti(
-            allBassets,
-            indexes,
-            quantitiesDeposited,
-            _getConfig()
-        );
-        require(tokensMinted >= _minOutputQuantity, "Mint quantity < min qty");
-        require(tokensMinted > 0, "Zero mAsset quantity");
+        tokensMinted = FeederLogic.mintMulti(data, _getConfig(), indexes, _inputQuantities, _minOutputQuantity);
         // Mint the LP Token
         _mint(_recipient, tokensMinted);
         emit MintedMulti(msg.sender, _recipient, tokensMinted, _inputs, _inputQuantities);
@@ -342,7 +309,7 @@ contract FeederPool is
     //     uint256 _inputQuantity,
     //     uint256 _minOutputQuantity,
     //     address _recipient
-    // ) external override returns (uint256 swapOutput) {
+    // ) external  returns (uint256 swapOutput) {
     //     require(_recipient != address(0), "Invalid recipient");
     //     require(_input != _output, "Invalid pair");
     //     require(_inputQuantity > 0, "Qty==0");
@@ -398,7 +365,7 @@ contract FeederPool is
     //     address _input,
     //     address _output,
     //     uint256 _inputQuantity
-    // ) external view override returns (uint256 swapOutput) {
+    // ) external view  returns (uint256 swapOutput) {
     //     require(_input != _output, "Invalid pair");
     //     require(_inputQuantity > 0, "Invalid swap quantity");
 
@@ -526,7 +493,7 @@ contract FeederPool is
     //     uint256 _fpTokenQuantity,
     //     uint256 _minOutputQuantity,
     //     address _recipient
-    // ) external override nonReentrant whenInOperation returns (uint256 outputQuantity) {
+    // ) external  nonReentrant whenInOperation returns (uint256 outputQuantity) {
     //     require(_recipient != address(0), "Invalid recipient");
     //     require(_fpTokenQuantity > 0, "Qty==0");
 
@@ -576,7 +543,7 @@ contract FeederPool is
     //     uint256 _inputQuantity,
     //     uint256[] calldata _minOutputQuantities,
     //     address _recipient
-    // ) external override nonReentrant whenInOperation returns (uint256[] memory outputQuantities) {
+    // ) external  nonReentrant whenInOperation returns (uint256[] memory outputQuantities) {
     //     require(_recipient != address(0), "Invalid recipient");
     //     require(_inputQuantity > 0, "Qty==0");
 
@@ -641,7 +608,7 @@ contract FeederPool is
     //     uint256[] calldata _outputQuantities,
     //     uint256 _maxInputQuantity,
     //     address _recipient
-    // ) external override nonReentrant whenInOperation returns (uint256 fpTokenQuantity) {
+    // ) external  nonReentrant whenInOperation returns (uint256 fpTokenQuantity) {
     //     require(_recipient != address(0), "Invalid recipient");
     //     uint256 len = _outputQuantities.length;
     //     require(len > 0 && len == _outputs.length, "Invalid array input");
@@ -706,7 +673,7 @@ contract FeederPool is
     // function getRedeemOutput(address _output, uint256 _fpTokenQuantity)
     //     external
     //     view
-    //     override
+    //     
     //     returns (uint256 bAssetOutput)
     // {
     //     require(_fpTokenQuantity > 0, "Qty==0");
@@ -735,7 +702,7 @@ contract FeederPool is
     // function getRedeemExactBassetsOutput(
     //     address[] calldata _outputs,
     //     uint256[] calldata _outputQuantities
-    // ) external view override returns (uint256 fpTokenQuantity) {
+    // ) external view  returns (uint256 fpTokenQuantity) {
     //     uint256 len = _outputQuantities.length;
     //     require(len > 0 && len == _outputs.length, "Invalid array input");
 
@@ -799,33 +766,33 @@ contract FeederPool is
     /**
      * @dev Get data for a all bAssets in basket
      * @return personal  Struct[] with full bAsset data
-     * @return data      Number of bAssets in the Basket
+     * @return vaultData      Number of bAssets in the Basket
      */
     function getBassets()
         external
         view
-        override
-        returns (BassetPersonal[] memory personal, BassetData[] memory data)
+        
+        returns (BassetPersonal[] memory, BassetData[] memory vaultData)
     {
-        return (bAssetPersonal, bAssetData);
+        return (data.bAssetPersonal, data.bAssetData);
     }
 
     /**
      * @dev Get data for a specific bAsset, if it exists
      * @param _bAsset   Address of bAsset
      * @return personal  Struct with full bAsset data
-     * @return data  Struct with full bAsset data
+     * @return vaultData  Struct with full bAsset data
      */
     function getBasset(address _bAsset)
         external
         view
-        override
-        returns (BassetPersonal memory personal, BassetData memory data)
+        
+        returns (BassetPersonal memory personal, BassetData memory vaultData)
     {
         Asset memory asset = _getAsset(_bAsset);
         require(asset.exists, "Invalid asset");
-        personal = bAssetPersonal[asset.idx];
-        data = bAssetData[asset.idx];
+        personal = data.bAssetPersonal[asset.idx];
+        vaultData = data.bAssetData[asset.idx];
     }
 
     /**
@@ -839,24 +806,13 @@ contract FeederPool is
                 GETTERS - INTERNAL
     ****************************************/
 
-    struct Cache {
-        uint256 supply;
-        uint256 maxCache;
-    }
-
-    function _getCacheDetails() internal view returns (Cache memory) {
-        uint256 supply = totalSupply();
-        return Cache(supply, supply.mulTruncate(cacheSize));
-    }
-
-
 
     function _getAsset(address _asset) internal view returns (Asset memory status) {
         // if input is mAsset then we know the position
         if (_asset == mAsset) return Asset(0, _asset, true);
 
         // else it exists if the position 1 is _asset
-        return Asset(1, _asset, bAssetPersonal[1].addr == _asset);
+        return Asset(1, _asset, data.bAssetPersonal[1].addr == _asset);
     }
 
     function _getAssets(address[] memory _assets) internal view returns (uint8[] memory indexes) {
@@ -879,14 +835,14 @@ contract FeederPool is
      * @dev Gets all config needed for general InvariantValidator calls
      */
     function _getConfig() internal view returns (FeederConfig memory) {
-        return FeederConfig(totalSupply(), _getA(), weightLimits);
+        return FeederConfig(totalSupply(), _getA(), data.weightLimits);
     }
 
     /**
      * @dev Gets current amplification var A
      */
     function _getA() internal view returns (uint256) {
-        AmpData memory ampData_ = ampData;
+        AmpData memory ampData_ = data.ampData;
 
         uint64 endA = ampData_.targetA;
         uint64 endTime = ampData_.rampEndTime;
@@ -922,16 +878,16 @@ contract FeederPool is
      */
     function collectPlatformInterest()
         external
-        override
+        
         onlyInterestValidator
         whenInOperation
         nonReentrant
         returns (uint256 mintAmount, uint256 newSupply)
     {
         (uint8[] memory idxs, uint256[] memory gains) =
-            FeederManager.calculatePlatformInterest(bAssetPersonal, bAssetData);
+            FeederManager.calculatePlatformInterest(data.bAssetPersonal, data.bAssetData);
         // Calculate potential mint amount. This will be validated by the interest validator
-        mintAmount = FeederLogic.computeMintMulti(bAssetData, idxs, gains, _getConfig());
+        mintAmount = FeederLogic.computeMintMulti(data.bAssetData, idxs, gains, _getConfig());
         newSupply = totalSupply() + mintAmount;
         require(mintAmount > 0, "Must collect something");
         emit MintedMulti(address(this), msg.sender, 0, new address[](0), gains);
@@ -946,10 +902,10 @@ contract FeederPool is
      *      _cacheSize * totalSupply / 2 under normal circumstances.
      * @param _cacheSize Maximum percent of total mAsset supply to hold for each bAsset
      */
-    function setCacheSize(uint256 _cacheSize) external override onlyGovernor {
+    function setCacheSize(uint256 _cacheSize) external  onlyGovernor {
         require(_cacheSize <= 2e17, "Must be <= 20%");
 
-        cacheSize = _cacheSize;
+        data.cacheSize = _cacheSize;
 
         emit CacheSizeChanged(_cacheSize);
     }
@@ -958,12 +914,12 @@ contract FeederPool is
      * @dev Set the ecosystem fee for sewapping bAssets or redeeming specific bAssets
      * @param _swapFee Fee calculated in (%/100 * 1e18)
      */
-    function setFees(uint256 _swapFee, uint256 _redemptionFee) external override onlyGovernor {
+    function setFees(uint256 _swapFee, uint256 _redemptionFee) external  onlyGovernor {
         require(_swapFee <= MAX_FEE, "Swap rate oob");
         require(_redemptionFee <= MAX_FEE, "Redemption rate oob");
 
-        swapFee = _swapFee;
-        redemptionFee = _redemptionFee;
+        data.swapFee = _swapFee;
+        data.redemptionFee = _redemptionFee;
 
         emit FeesChanged(_swapFee, _redemptionFee);
     }
@@ -976,7 +932,7 @@ contract FeederPool is
     function setWeightLimits(uint128 _min, uint128 _max) external onlyGovernor {
         require(_min <= 3e17 && _max >= 7e17, "Weights oob");
 
-        weightLimits = WeightLimits(_min, _max);
+        data.weightLimits = WeightLimits(_min, _max);
 
         emit WeightLimitsChanged(_min, _max);
     }
@@ -991,10 +947,10 @@ contract FeederPool is
      */
     function migrateBassets(address[] calldata _bAssets, address _newIntegration)
         external
-        override
+        
         onlyGovernor
     {
-        FeederManager.migrateBassets(bAssetPersonal, _bAssets, _newIntegration);
+        FeederManager.migrateBassets(data.bAssetPersonal, _bAssets, _newIntegration);
     }
 
     /**
@@ -1003,7 +959,7 @@ contract FeederPool is
      * @param _rampEndTime  Time at which A will arrive at _targetA
      */
     function startRampA(uint256 _targetA, uint256 _rampEndTime) external onlyGovernor {
-        FeederManager.startRampA(ampData, _targetA, _rampEndTime, _getA(), A_PRECISION);
+        FeederManager.startRampA(data.ampData, _targetA, _rampEndTime, _getA(), A_PRECISION);
     }
 
     /**
@@ -1011,6 +967,6 @@ contract FeederPool is
      * it to whatever the current value is.
      */
     function stopRampA() external onlyGovernor {
-        FeederManager.stopRampA(ampData, _getA());
+        FeederManager.stopRampA(data.ampData, _getA());
     }
 }
