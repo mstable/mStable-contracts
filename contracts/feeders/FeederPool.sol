@@ -84,26 +84,10 @@ contract FeederPool is
     event FeesChanged(uint256 swapFee, uint256 redemptionFee);
     event WeightLimitsChanged(uint128 min, uint128 max);
 
-    // FeederLogic public validator;
-
     uint256 private constant MAX_FEE = 1e16;
-    // uint256 public swapFee;
-    // uint256 public redemptionFee;
-
-    // uint256 public cacheSize;
-
-    // TODO - consider if array & storage necessary
-    // Possibly save fAsset and mAsset addr's to mem and lookup at:
-    // [0] = mAsset
-    // [1] = fAsset
-    // BassetPersonal[] public bAssetPersonal;
-    // BassetData[] public bAssetData;
-    // TODO - also store fAsset addr here?
-    address public immutable mAsset;
-
     uint256 private constant A_PRECISION = 100;
-    // AmpData public ampData;
-    // WeightLimits public weightLimits;
+
+    address public immutable mAsset;
 
     FeederData public data;
 
@@ -226,311 +210,207 @@ contract FeederPool is
         uint256 _minOutputQuantity,
         address _recipient
     ) external  nonReentrant whenInOperation returns (uint256 mintOutput) {
-        mintOutput = _mintMulti(_inputs, _inputQuantities, _minOutputQuantity, _recipient);
-    }
-
-    // /**
-    //  * @dev Get the projected output of a given mint
-    //  * @param _input             Address of the bAsset to deposit for the minted mAsset
-    //  * @param _inputQuantity     Quantity in bAsset units
-    //  * @return mintOutput        Estimated mint output in mAsset terms
-    //  */
-    // function getMintOutput(address _input, uint256 _inputQuantity)
-    //     external
-    //     view
-    //     
-    //     returns (uint256 mintOutput)
-    // {
-    //     require(_inputQuantity > 0, "Qty==0");
-
-    //     Asset memory input = _getAsset(_input);
-
-    //     if (input.exists) {
-    //         mintOutput = FeederLogic.computeMint(
-    //             bAssetData,
-    //             input.idx,
-    //             _inputQuantity,
-    //             _getConfig()
-    //         );
-    //     } else {
-    //         uint256 esimatedMasset = IMasset(mAsset).getMintOutput(_input, _inputQuantity);
-    //         mintOutput = FeederLogic.computeMint(bAssetData, 0, esimatedMasset, _getConfig());
-    //     }
-    // }
-
-    // /**
-    //  * @dev Get the projected output of a given mint
-    //  * @param _inputs            Non-duplicate address array of addresses to bAssets to deposit for the minted mAsset tokens.
-    //  * @param _inputQuantities  Quantity of each bAsset to deposit for the minted mAsset.
-    //  * @return mintOutput        Estimated mint output in mAsset terms
-    //  */
-    // function getMintMultiOutput(address[] calldata _inputs, uint256[] calldata _inputQuantities)
-    //     external
-    //     view
-    //     
-    //     returns (uint256 mintOutput)
-    // {
-    //     uint256 len = _inputQuantities.length;
-    //     require(len > 0 && len == _inputs.length, "Input array mismatch");
-    //     uint8[] memory indexes = _getAssets(_inputs);
-    //     return
-    //         FeederLogic.computeMintMulti(bAssetData, indexes, _inputQuantities, _getConfig());
-    // }
-
-    /***************************************
-              MINTING (INTERNAL)
-    ****************************************/
-
-
-    function _mintMulti(
-        address[] memory _inputs,
-        uint256[] memory _inputQuantities,
-        uint256 _minOutputQuantity,
-        address _recipient
-    ) internal returns (uint256 tokensMinted) {
         require(_recipient != address(0), "Invalid recipient");
         uint256 len = _inputQuantities.length;
         require(len > 0 && len == _inputs.length, "Input array mismatch");
 
         uint8[] memory indexes = _getAssets(_inputs);
-        tokensMinted = FeederLogic.mintMulti(data, _getConfig(), indexes, _inputQuantities, _minOutputQuantity);
+        mintOutput = FeederLogic.mintMulti(data, _getConfig(), indexes, _inputQuantities, _minOutputQuantity);
         // Mint the LP Token
-        _mint(_recipient, tokensMinted);
-        emit MintedMulti(msg.sender, _recipient, tokensMinted, _inputs, _inputQuantities);
+        _mint(_recipient, mintOutput);
+        emit MintedMulti(msg.sender, _recipient, mintOutput, _inputs, _inputQuantities);
     }
+
+    /**
+     * @dev Get the projected output of a given mint
+     * @param _input             Address of the bAsset to deposit for the minted mAsset
+     * @param _inputQuantity     Quantity in bAsset units
+     * @return mintOutput        Estimated mint output in mAsset terms
+     */
+    function getMintOutput(address _input, uint256 _inputQuantity)
+        external
+        view
+        
+        returns (uint256 mintOutput)
+    {
+        require(_inputQuantity > 0, "Qty==0");
+
+        Asset memory input = _getAsset(_input);
+
+        if (input.exists) {
+            mintOutput = FeederLogic.computeMint(
+                data.bAssetData,
+                input.idx,
+                _inputQuantity,
+                _getConfig()
+            );
+        } else {
+            uint256 esimatedMasset = IMasset(mAsset).getMintOutput(_input, _inputQuantity);
+            mintOutput = FeederLogic.computeMint(data.bAssetData, 0, esimatedMasset, _getConfig());
+        }
+    }
+
+    /**
+     * @dev Get the projected output of a given mint
+     * @param _inputs            Non-duplicate address array of addresses to bAssets to deposit for the minted mAsset tokens.
+     * @param _inputQuantities  Quantity of each bAsset to deposit for the minted mAsset.
+     * @return mintOutput        Estimated mint output in mAsset terms
+     */
+    function getMintMultiOutput(address[] calldata _inputs, uint256[] calldata _inputQuantities)
+        external
+        view
+        
+        returns (uint256 mintOutput)
+    {
+        uint256 len = _inputQuantities.length;
+        require(len > 0 && len == _inputs.length, "Input array mismatch");
+        uint8[] memory indexes = _getAssets(_inputs);
+        return FeederLogic.computeMintMulti(data.bAssetData, indexes, _inputQuantities, _getConfig());
+    }
+
 
     /***************************************
                 SWAP (PUBLIC)
     ****************************************/
 
-    // function swap(
-    //     address _input,
-    //     address _output,
-    //     uint256 _inputQuantity,
-    //     uint256 _minOutputQuantity,
-    //     address _recipient
-    // ) external  returns (uint256 swapOutput) {
-    //     require(_recipient != address(0), "Invalid recipient");
-    //     require(_input != _output, "Invalid pair");
-    //     require(_inputQuantity > 0, "Qty==0");
+    function swap(
+        address _input,
+        address _output,
+        uint256 _inputQuantity,
+        uint256 _minOutputQuantity,
+        address _recipient
+    ) external  returns (uint256 swapOutput) {
+        require(_recipient != address(0), "Invalid recipient");
+        require(_input != _output, "Invalid pair");
+        require(_inputQuantity > 0, "Qty==0");
 
-    //     Asset memory input = _getAsset(_input);
-    //     Asset memory output = _getAsset(_output);
-    //     require(_pathIsValid(input, output), "Invalid pair");
+        Asset memory input = _getAsset(_input);
+        Asset memory output = _getAsset(_output);
+        require(_pathIsValid(input, output), "Invalid pair");
 
-    //     BassetData[] memory cachedBassetData = bAssetData;
+        uint256 localFee;
+        (swapOutput, localFee) = FeederLogic.swap(data, _getConfig(), input, output, _inputQuantity, _minOutputQuantity, _recipient);
+        
+        emit Swapped(msg.sender, input.addr, output.addr, swapOutput, localFee, _recipient);
+    }
 
-    //     AssetData memory inputData = _transferIn(cachedBassetData, input, _inputQuantity);
-    //     // 1. [f/mAsset ->][ f/mAsset]               : Y - normal in, SWAP, normal out
-    //     // 3. [mpAsset -> mAsset][ -> fAsset]        : Y - mint in  , SWAP, normal out
-    //     uint256 localFee;
-    //     if (output.exists) {
-    //         (swapOutput, localFee) = _swapLocal(
-    //             cachedBassetData,
-    //             inputData,
-    //             output,
-    //             _minOutputQuantity,
-    //             _recipient
-    //         );
-    //     }
-    //     // 2. [fAsset ->][ mAsset][ -> mpAsset]      : Y - normal in, SWAP, mpOut
-    //     else {
-    //         (swapOutput, localFee) = _swapLocal(
-    //             cachedBassetData,
-    //             inputData,
-    //             Asset(0, mAsset, true),
-    //             0,
-    //             address(this)
-    //         );
-    //         swapOutput = IMasset(mAsset).redeem(
-    //             output.addr,
-    //             swapOutput,
-    //             _minOutputQuantity,
-    //             _recipient
-    //         );
-    //     }
+    /**
+     * @dev Determines both if a trade is valid, and the expected fee or output.
+     * Swap is valid if it does not result in the input asset exceeding its maximum weight.
+     * @param _input             Address of bAsset to deposit
+     * @param _output            Address of bAsset to receive
+     * @param _inputQuantity     Units of input bAsset to swap
+     * @return swapOutput        Quantity of output asset returned from swap
+     */
+    function getSwapOutput(
+        address _input,
+        address _output,
+        uint256 _inputQuantity
+    ) external view  returns (uint256 swapOutput) {
+        require(_input != _output, "Invalid pair");
+        require(_inputQuantity > 0, "Invalid swap quantity");
 
-    //     emit Swapped(msg.sender, input.addr, output.addr, swapOutput, localFee, _recipient);
-    // }
+        Asset memory input = _getAsset(_input);
+        Asset memory output = _getAsset(_output);
+        require(_pathIsValid(input, output), "Invalid pair");
 
-    // /**
-    //  * @dev Determines both if a trade is valid, and the expected fee or output.
-    //  * Swap is valid if it does not result in the input asset exceeding its maximum weight.
-    //  * @param _input             Address of bAsset to deposit
-    //  * @param _output            Address of bAsset to receive
-    //  * @param _inputQuantity     Units of input bAsset to swap
-    //  * @return swapOutput        Quantity of output asset returned from swap
-    //  */
-    // function getSwapOutput(
-    //     address _input,
-    //     address _output,
-    //     uint256 _inputQuantity
-    // ) external view  returns (uint256 swapOutput) {
-    //     require(_input != _output, "Invalid pair");
-    //     require(_inputQuantity > 0, "Invalid swap quantity");
+        // Internal swap between fAsset and mAsset
+        if (input.exists && output.exists) {
+            (swapOutput, ) = FeederLogic.computeSwap(
+                data.bAssetData,
+                input.idx,
+                output.idx,
+                _inputQuantity,
+                output.idx == 0 ? 0 : data.swapFee,
+                _getConfig()
+            );
+            return swapOutput;
+        }
 
-    //     Asset memory input = _getAsset(_input);
-    //     Asset memory output = _getAsset(_output);
-    //     require(_pathIsValid(input, output), "Invalid pair");
+        // Swapping out of fAsset
+        if (input.exists) {
+            // Swap into mAsset > Redeem into mpAsset
+            (swapOutput, ) = FeederLogic.computeSwap(
+                data.bAssetData,
+                1,
+                0,
+                _inputQuantity,
+                0,
+                _getConfig()
+            );
+            swapOutput = IMasset(mAsset).getRedeemOutput(_output, swapOutput);
+        }
+        // Else we are swapping into fAsset
+        else {
+            // Mint mAsset from mp > Swap into fAsset here
+            swapOutput = IMasset(mAsset).getMintOutput(_input, _inputQuantity);
+            (swapOutput, ) = FeederLogic.computeSwap(
+                data.bAssetData,
+                0,
+                1,
+                swapOutput,
+                data.swapFee,
+                _getConfig()
+            );
+        }
+    }
 
-    //     // Internal swap between fAsset and mAsset
-    //     if (input.exists && output.exists) {
-    //         (swapOutput, ) = FeederLogic.computeSwap(
-    //             bAssetData,
-    //             input.idx,
-    //             output.idx,
-    //             _inputQuantity,
-    //             output.idx == 0 ? 0 : swapFee,
-    //             _getConfig()
-    //         );
-    //         return swapOutput;
-    //     }
+    /***************************************
+                SWAP (INTERNAL)
+    ****************************************/
 
-    //     // Swapping out of fAsset
-    //     if (input.exists) {
-    //         // Swap into mAsset > Redeem into mpAsset
-    //         (swapOutput, ) = FeederLogic.computeSwap(
-    //             bAssetData,
-    //             1,
-    //             0,
-    //             _inputQuantity,
-    //             0,
-    //             _getConfig()
-    //         );
-    //         swapOutput = IMasset(mAsset).getRedeemOutput(_output, swapOutput);
-    //     }
-    //     // Else we are swapping into fAsset
-    //     else {
-    //         // Mint mAsset from mp > Swap into fAsset here
-    //         swapOutput = IMasset(mAsset).getMintOutput(_input, _inputQuantity);
-    //         (swapOutput, ) = FeederLogic.computeSwap(
-    //             bAssetData,
-    //             0,
-    //             1,
-    //             swapOutput,
-    //             swapFee,
-    //             _getConfig()
-    //         );
-    //     }
-    // }
+    function _pathIsValid(Asset memory _in, Asset memory _out)
+        internal
+        pure
+        returns (bool isValid)
+    {
+        // mpAsset -> mpAsset
+        if (!_in.exists && !_out.exists) return false;
+        // f/mAsset -> f/mAsset
+        if (_in.exists && _out.exists) return true;
+        // fAsset -> mpAsset
+        if (_in.exists && _in.idx == 1) return true;
+        // mpAsset -> fAsset
+        if (_out.exists && _out.idx == 1) return true;
+        // Path is into or out of mAsset - just use main pool for this
+        return false;
+    }
 
-    // /***************************************
-    //           SWAP (INTERNAL)
-    // ****************************************/
 
-    // function _pathIsValid(Asset memory _in, Asset memory _out)
-    //     internal
-    //     pure
-    //     returns (bool isValid)
-    // {
-    //     // mpAsset -> mpAsset
-    //     if (!_in.exists && !_out.exists) return false;
-    //     // f/mAsset -> f/mAsset
-    //     if (_in.exists && _out.exists) return true;
-    //     // fAsset -> mpAsset
-    //     if (_in.exists && _in.idx == 1) return true;
-    //     // mpAsset -> fAsset
-    //     if (_out.exists && _out.idx == 1) return true;
-    //     // Path is into or out of mAsset - just use main pool for this
-    //     return false;
-    // }
 
-    // function _swapLocal(
-    //     BassetData[] memory _cachedBassetData,
-    //     AssetData memory _in,
-    //     Asset memory _output,
-    //     uint256 _minOutputQuantity,
-    //     address _recipient
-    // ) internal returns (uint256 swapOutput, uint256 scaledFee) {
-    //     Cache memory cache = _getCacheDetails();
-    //     // 3. Validate the swap
-    //     // todo - remove fee?
-    //     (swapOutput, scaledFee) = FeederLogic.computeSwap(
-    //         _cachedBassetData,
-    //         _in.idx,
-    //         _output.idx,
-    //         _in.amt,
-    //         _output.idx == 0 ? 0 : swapFee,
-    //         _getConfig()
-    //     );
-    //     require(swapOutput >= _minOutputQuantity, "Output qty < minimum qty");
-    //     require(swapOutput > 0, "Zero output quantity");
-    //     //4. Settle the swap
-    //     //4.1. Decrease output bal
-    //     BassetPersonal memory outputPersonal = bAssetPersonal[_output.idx];
-    //     if (_recipient != address(this) || outputPersonal.integrator != address(0)) {
-    //         FeederManager.withdrawTokens(
-    //             swapOutput,
-    //             outputPersonal,
-    //             _cachedBassetData[_output.idx],
-    //             _recipient,
-    //             cache.maxCache
-    //         );
-    //     }
-    //     bAssetData[_output.idx].vaultBalance =
-    //         _cachedBassetData[_output.idx].vaultBalance -
-    //         SafeCast.toUint128(swapOutput);
-    // }
+    /***************************************
+                REDEMPTION (PUBLIC)
+    ****************************************/
 
-    // /***************************************
-    //             REDEMPTION (PUBLIC)
-    // ****************************************/
 
-    // /**
-    //  * @notice Redeems a specified quantity of mAsset in return for a bAsset specified by bAsset address.
-    //  * The bAsset is sent to the specified recipient.
-    //  * The bAsset quantity is relative to current vault balance levels and desired mAsset quantity.
-    //  * The quantity of mAsset is burnt as payment.
-    //  * A minimum quantity of bAsset is specified to protect against price slippage between the mAsset and bAsset.
-    //  * @param _output            Address of the bAsset to receive
-    //  * @param _fpTokenQuantity   Quantity of fp LP Token to redeem
-    //  * @param _minOutputQuantity Minimum bAsset quantity to receive for the burnt fpTokens. This protects against slippage.
-    //  * @param _recipient         Address to transfer the withdrawn bAssets to.
-    //  * @return outputQuantity    Quanity of bAsset units received for the burnt fpTokens
-    //  */
-    // function redeem(
-    //     address _output,
-    //     uint256 _fpTokenQuantity,
-    //     uint256 _minOutputQuantity,
-    //     address _recipient
-    // ) external  nonReentrant whenInOperation returns (uint256 outputQuantity) {
-    //     require(_recipient != address(0), "Invalid recipient");
-    //     require(_fpTokenQuantity > 0, "Qty==0");
+    function redeem(
+        address _output,
+        uint256 _fpTokenQuantity,
+        uint256 _minOutputQuantity,
+        address _recipient
+    ) external  nonReentrant whenInOperation returns (uint256 outputQuantity) {
+        require(_recipient != address(0), "Invalid recipient");
+        require(_fpTokenQuantity > 0, "Qty==0");
 
-    //     Asset memory output = _getAsset(_output);
+        Asset memory output = _getAsset(_output);
 
-    //     uint256 localFee;
-    //     if (output.exists) {
-    //         (outputQuantity, localFee) = _redeemLocal(
-    //             output,
-    //             _fpTokenQuantity,
-    //             _minOutputQuantity,
-    //             _recipient
-    //         );
-    //     } else {
-    //         (outputQuantity, localFee) = _redeemLocal(
-    //             Asset(0, mAsset, true),
-    //             _fpTokenQuantity,
-    //             0,
-    //             address(this)
-    //         );
-    //         outputQuantity = IMasset(mAsset).redeem(
-    //             output.addr,
-    //             outputQuantity,
-    //             _minOutputQuantity,
-    //             _recipient
-    //         );
-    //     }
+        // Get config before burning. Config > Burn > CacheSize
+        FeederConfig memory config = _getConfig();
+        _burn(msg.sender, _fpTokenQuantity);
 
-    //     emit Redeemed(
-    //         msg.sender,
-    //         _recipient,
-    //         _fpTokenQuantity,
-    //         output.addr,
-    //         outputQuantity,
-    //         localFee
-    //     );
-    // }
+        uint256 localFee;
+        (outputQuantity, localFee) = FeederLogic.redeem(data, config, output, _fpTokenQuantity, _minOutputQuantity, _recipient);
+
+        emit Redeemed(
+            msg.sender,
+            _recipient,
+            _fpTokenQuantity,
+            output.addr,
+            outputQuantity,
+            localFee
+        );
+    }
+
 
     // /**
     //  * @dev Credits a recipient with a proportionate amount of bAssets, relative to current vault
@@ -594,170 +474,98 @@ contract FeederPool is
     //     );
     // }
 
-    // /**
-    //  * @dev Credits a recipient with a certain quantity of selected bAssets, in exchange for burning the
-    //  *      relative Masset quantity from the sender. Sender also incurs a small fee on the outgoing asset.
-    //  * @param _outputs           Addresses of the bAssets to receive
-    //  * @param _outputQuantities  Units of the bAssets to redeem
-    //  * @param _maxInputQuantity  Maximum mAsset quantity to burn for the received bAssets. This protects against slippage.
-    //  * @param _recipient         Address to receive the withdrawn bAssets
-    //  * @return fpTokenQuantity    Quantity of mAsset units burned plus the swap fee to pay for the redeemed bAssets
-    //  */
-    // function redeemExactBassets(
-    //     address[] calldata _outputs,
-    //     uint256[] calldata _outputQuantities,
-    //     uint256 _maxInputQuantity,
-    //     address _recipient
-    // ) external  nonReentrant whenInOperation returns (uint256 fpTokenQuantity) {
-    //     require(_recipient != address(0), "Invalid recipient");
-    //     uint256 len = _outputQuantities.length;
-    //     require(len > 0 && len == _outputs.length, "Invalid array input");
-    //     require(_maxInputQuantity > 0, "Qty==0");
+    /**
+     * @dev Credits a recipient with a certain quantity of selected bAssets, in exchange for burning the
+     *      relative Masset quantity from the sender. Sender also incurs a small fee on the outgoing asset.
+     * @param _outputs           Addresses of the bAssets to receive
+     * @param _outputQuantities  Units of the bAssets to redeem
+     * @param _maxInputQuantity  Maximum mAsset quantity to burn for the received bAssets. This protects against slippage.
+     * @param _recipient         Address to receive the withdrawn bAssets
+     * @return fpTokenQuantity    Quantity of mAsset units burned plus the swap fee to pay for the redeemed bAssets
+     */
+    function redeemExactBassets(
+        address[] calldata _outputs,
+        uint256[] calldata _outputQuantities,
+        uint256 _maxInputQuantity,
+        address _recipient
+    ) external  nonReentrant whenInOperation returns (uint256 fpTokenQuantity) {
+        require(_recipient != address(0), "Invalid recipient");
+        uint256 len = _outputQuantities.length;
+        require(len > 0 && len == _outputs.length, "Invalid array input");
+        require(_maxInputQuantity > 0, "Qty==0");
 
-    //     uint8[] memory indexes = _getAssets(_outputs);
+        uint8[] memory indexes = _getAssets(_outputs);
 
-    //     // Load bAsset data from storage to memory
-    //     BassetData[] memory allBassets = bAssetData;
+        uint256 localFee;
+        (fpTokenQuantity, localFee) = FeederLogic.redeemExactBassets(data, _getConfig(), indexes, _outputQuantities, _maxInputQuantity, _recipient);
 
-    //     // Validate redemption
-    //     uint256 fpTokenRequired =
-    //         FeederLogic.computeRedeemExact(
-    //             allBassets,
-    //             indexes,
-    //             _outputQuantities,
-    //             _getConfig()
-    //         );
-    //     fpTokenQuantity = fpTokenRequired.divPrecisely(1e18 - redemptionFee);
-    //     uint256 fee = fpTokenQuantity - fpTokenRequired;
-    //     require(fpTokenQuantity > 0, "Must redeem some mAssets");
-    //     fpTokenQuantity += 1;
-    //     require(fpTokenQuantity <= _maxInputQuantity, "Redeem mAsset qty > max quantity");
+        _burn(msg.sender, fpTokenQuantity);
 
-    //     // Apply fees, burn mAsset and return bAsset to recipient
-    //     // Avoids stack depth error by using local context
-    //     {
-    //         // Burn the full amount of Masset
-    //         _burn(msg.sender, fpTokenQuantity);
-    //         Cache memory cache = _getCacheDetails();
-    //         // Transfer the Bassets to the recipient
-    //         for (uint256 i = 0; i < len; i++) {
-    //             uint8 idx = indexes[i];
-    //             FeederManager.withdrawTokens(
-    //                 _outputQuantities[i],
-    //                 bAssetPersonal[idx],
-    //                 allBassets[idx],
-    //                 _recipient,
-    //                 cache.maxCache
-    //             );
-    //             bAssetData[idx].vaultBalance =
-    //                 allBassets[idx].vaultBalance -
-    //                 SafeCast.toUint128(_outputQuantities[i]);
-    //         }
-    //     }
-    //     emit RedeemedMulti(
-    //         msg.sender,
-    //         _recipient,
-    //         fpTokenQuantity,
-    //         _outputs,
-    //         _outputQuantities,
-    //         fee
-    //     );
-    // }
+        emit RedeemedMulti(
+            msg.sender,
+            _recipient,
+            fpTokenQuantity,
+            _outputs,
+            _outputQuantities,
+            localFee
+        );
+    }
 
-    // /**
-    //  * @notice Gets the estimated output from a given redeem
-    //  * @param _output            Address of the bAsset to receive
-    //  * @param _fpTokenQuantity   Quantity of fpToken to redeem
-    //  * @return bAssetOutput      Estimated quantity of bAsset units received for the burnt mAssets
-    //  */
-    // function getRedeemOutput(address _output, uint256 _fpTokenQuantity)
-    //     external
-    //     view
-    //     
-    //     returns (uint256 bAssetOutput)
-    // {
-    //     require(_fpTokenQuantity > 0, "Qty==0");
+    /**
+     * @notice Gets the estimated output from a given redeem
+     * @param _output            Address of the bAsset to receive
+     * @param _fpTokenQuantity   Quantity of fpToken to redeem
+     * @return bAssetOutput      Estimated quantity of bAsset units received for the burnt mAssets
+     */
+    function getRedeemOutput(address _output, uint256 _fpTokenQuantity)
+        external
+        view
+        
+        returns (uint256 bAssetOutput)
+    {
+        require(_fpTokenQuantity > 0, "Qty==0");
 
-    //     Asset memory output = _getAsset(_output);
-    //     uint256 scaledFee = _fpTokenQuantity.mulTruncate(redemptionFee);
+        Asset memory output = _getAsset(_output);
+        uint256 scaledFee = _fpTokenQuantity.mulTruncate(data.redemptionFee);
 
-    //     bAssetOutput = FeederLogic.computeRedeem(
-    //         bAssetData,
-    //         output.exists ? output.idx : 0,
-    //         _fpTokenQuantity - scaledFee,
-    //         _getConfig()
-    //     );
-    //     // Extra step for mpAsset redemption
-    //     if (!output.exists) {
-    //         bAssetOutput = IMasset(mAsset).getRedeemOutput(output.addr, bAssetOutput);
-    //     }
-    // }
+        bAssetOutput = FeederLogic.computeRedeem(
+            data.bAssetData,
+            output.exists ? output.idx : 0,
+            _fpTokenQuantity - scaledFee,
+            _getConfig()
+        );
+        // Extra step for mpAsset redemption
+        if (!output.exists) {
+            bAssetOutput = IMasset(mAsset).getRedeemOutput(output.addr, bAssetOutput);
+        }
+    }
 
-    // /**
-    //  * @notice Gets the estimated output from a given redeem
-    //  * @param _outputs           Addresses of the bAsset to receive
-    //  * @param _outputQuantities  Quantities of bAsset to redeem
-    //  * @return fpTokenQuantity    Estimated quantity of mAsset units needed to burn to receive output
-    //  */
-    // function getRedeemExactBassetsOutput(
-    //     address[] calldata _outputs,
-    //     uint256[] calldata _outputQuantities
-    // ) external view  returns (uint256 fpTokenQuantity) {
-    //     uint256 len = _outputQuantities.length;
-    //     require(len > 0 && len == _outputs.length, "Invalid array input");
+    /**
+     * @notice Gets the estimated output from a given redeem
+     * @param _outputs           Addresses of the bAsset to receive
+     * @param _outputQuantities  Quantities of bAsset to redeem
+     * @return fpTokenQuantity    Estimated quantity of mAsset units needed to burn to receive output
+     */
+    function getRedeemExactBassetsOutput(
+        address[] calldata _outputs,
+        uint256[] calldata _outputQuantities
+    ) external view  returns (uint256 fpTokenQuantity) {
+        uint256 len = _outputQuantities.length;
+        require(len > 0 && len == _outputs.length, "Invalid array input");
 
-    //     uint8[] memory indexes = _getAssets(_outputs);
+        uint8[] memory indexes = _getAssets(_outputs);
 
-    //     uint256 mAssetRedeemed =
-    //         FeederLogic.computeRedeemExact(
-    //             bAssetData,
-    //             indexes,
-    //             _outputQuantities,
-    //             _getConfig()
-    //         );
-    //     fpTokenQuantity = mAssetRedeemed.divPrecisely(1e18 - redemptionFee) + 1;
-    // }
+        uint256 mAssetRedeemed =
+            FeederLogic.computeRedeemExact(
+                data.bAssetData,
+                indexes,
+                _outputQuantities,
+                _getConfig()
+            );
+        fpTokenQuantity = mAssetRedeemed.divPrecisely(1e18 - data.redemptionFee);
+        if(fpTokenQuantity > 0) fpTokenQuantity += 1;
+    }
 
-    // /***************************************
-    //             REDEMPTION (INTERNAL)
-    // ****************************************/
-
-    // function _redeemLocal(
-    //     Asset memory _output,
-    //     uint256 _fpTokenQuantity,
-    //     uint256 _minOutputQuantity,
-    //     address _recipient
-    // ) internal returns (uint256 outputQuantity, uint256 scaledFee) {
-    //     BassetData[] memory allBassets = bAssetData;
-    //     // Calculate redemption quantities
-    //     scaledFee = _fpTokenQuantity.mulTruncate(redemptionFee);
-    //     outputQuantity = FeederLogic.computeRedeem(
-    //         allBassets,
-    //         _output.idx,
-    //         _fpTokenQuantity - scaledFee,
-    //         _getConfig()
-    //     );
-    //     require(outputQuantity >= _minOutputQuantity, "bAsset qty < min qty");
-    //     require(outputQuantity > 0, "Output == 0");
-    //     // Apply fees, burn mAsset and return bAsset to recipient
-    //     // 1.0. Burn the full amount of Masset
-    //     _burn(msg.sender, _fpTokenQuantity);
-    //     // 2.0. Transfer the Bassets to the recipient
-    //     BassetPersonal memory outputPersonal = bAssetPersonal[_output.idx];
-    //     if (_recipient != address(this) || outputPersonal.integrator != address(0)) {
-    //         FeederManager.withdrawTokens(
-    //             outputQuantity,
-    //             outputPersonal,
-    //             allBassets[_output.idx],
-    //             _recipient,
-    //             _getCacheDetails().maxCache
-    //         );
-    //     }
-    //     // 3.0. Set vault balance
-    //     bAssetData[_output.idx].vaultBalance =
-    //         allBassets[_output.idx].vaultBalance -
-    //         SafeCast.toUint128(outputQuantity);
-    // }
 
     /***************************************
                     GETTERS

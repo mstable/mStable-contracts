@@ -21,6 +21,11 @@ library FeederLogic {
 
     uint256 internal constant A_PRECISION = 100;
 
+
+    /***************************************
+                    MINT
+    ****************************************/
+
     function mint(
         FeederData storage _data,
         FeederConfig memory _config,
@@ -81,6 +86,144 @@ library FeederLogic {
         require(mintOutput > 0, "Zero mAsset quantity");
     }
 
+
+    /***************************************
+                    SWAP
+    ****************************************/
+
+    function swap(
+        FeederData storage _data,
+        FeederConfig memory _config,
+        Asset calldata _input,
+        Asset calldata _output,
+        uint256 _inputQuantity,
+        uint256 _minOutputQuantity,
+        address _recipient
+    ) external returns (uint256 swapOutput, uint256 localFee) {
+        BassetData[] memory cachedBassetData = _data.bAssetData;
+
+        AssetData memory inputData = _transferIn(_data, _config, cachedBassetData, _input, _inputQuantity);
+        // 1. [f/mAsset ->][ f/mAsset]               : Y - normal in, SWAP, normal out
+        // 3. [mpAsset -> mAsset][ -> fAsset]        : Y - mint in  , SWAP, normal out
+        if (_output.exists) {
+            (swapOutput, localFee) = _swapLocal(
+                _data,
+                _config,
+                cachedBassetData,
+                inputData,
+                _output,
+                _minOutputQuantity,
+                _recipient
+            );
+        }
+        // 2. [fAsset ->][ mAsset][ -> mpAsset]      : Y - normal in, SWAP, mpOut
+        else {
+            address mAsset = _data.bAssetPersonal[0].addr;
+            (swapOutput, localFee) = _swapLocal(
+                _data,
+                _config,
+                cachedBassetData,
+                inputData,
+                Asset(0, mAsset, true),
+                0,
+                address(this)
+            );
+            swapOutput = IMasset(mAsset).redeem(
+                _output.addr,
+                swapOutput,
+                _minOutputQuantity,
+                _recipient
+            );
+        }
+    }
+
+    /***************************************
+                    REDEEM
+    ****************************************/
+
+    function redeem(
+        FeederData storage _data,
+        FeederConfig memory _config,
+        Asset calldata _output,
+        uint256 _fpTokenQuantity,
+        uint256 _minOutputQuantity,
+        address _recipient
+    ) external returns (uint256 outputQuantity, uint256 localFee) {
+        if (_output.exists) {
+            (outputQuantity, localFee) = _redeemLocal(
+                _data,
+                _config,
+                _output,
+                _fpTokenQuantity,
+                _minOutputQuantity,
+                _recipient
+            );
+        } else {
+            address mAsset = _data.bAssetPersonal[0].addr;
+            (outputQuantity, localFee) = _redeemLocal(
+                _data,
+                _config,
+                Asset(0, mAsset, true),
+                _fpTokenQuantity,
+                0,
+                address(this)
+            );
+            outputQuantity = IMasset(mAsset).redeem(
+                _output.addr,
+                outputQuantity,
+                _minOutputQuantity,
+                _recipient
+            );
+        }
+    }
+
+    function redeemExactBassets(
+        FeederData storage _data,
+        FeederConfig memory _config,
+        uint8[] calldata _indices,
+        uint256[] calldata _outputQuantities,
+        uint256 _maxInputQuantity,
+        address _recipient
+    ) external returns (uint256 fpTokenQuantity, uint256 localFee) {
+        // Load bAsset data from storage to memory
+        BassetData[] memory allBassets = _data.bAssetData;
+
+        // Validate redemption
+        uint256 fpTokenRequired =
+            computeRedeemExact(
+                allBassets,
+                _indices,
+                _outputQuantities,
+                _config
+            );
+        fpTokenQuantity = fpTokenRequired.divPrecisely(1e18 - _data.redemptionFee);
+        localFee = fpTokenQuantity - fpTokenRequired;
+        require(fpTokenQuantity > 0, "Must redeem some mAssets");
+        fpTokenQuantity += 1;
+        require(fpTokenQuantity <= _maxInputQuantity, "Redeem mAsset qty > max quantity");
+
+        // Burn the full amount of Masset
+        // _burn(msg.sender, fpTokenQuantity);
+        uint256 maxCache = _getCacheDetails(_data, _config.supply - fpTokenQuantity);
+        // Transfer the Bassets to the recipient
+        for (uint256 i = 0; i < _outputQuantities.length; i++) {
+            withdrawTokens(
+                _outputQuantities[i],
+                _data.bAssetPersonal[_indices[i]],
+                allBassets[_indices[i]],
+                _recipient,
+                maxCache
+            );
+            _data.bAssetData[_indices[i]].vaultBalance =
+                allBassets[_indices[i]].vaultBalance -
+                SafeCast.toUint128(_outputQuantities[i]);
+        }
+    }
+
+    /***************************************
+                FORGING - INTERNAL
+    ****************************************/
+
     function _transferIn(
         FeederData storage _data,
         FeederConfig memory _config,
@@ -123,15 +266,76 @@ library FeederLogic {
         mAssetData.amt = balAfter - balBefore;
     }
 
-
-    function _getCacheDetails(FeederData storage _data, uint256 _supply) internal view returns (uint256 maxCache) {
-        maxCache = _supply * _data.cacheSize / 1e18;
+    function _swapLocal(
+        FeederData storage _data,
+        FeederConfig memory _config,
+        BassetData[] memory _cachedBassetData,
+        AssetData memory _inputData,
+        Asset memory _output,
+        uint256 _minOutputQuantity,
+        address _recipient
+    ) internal returns (uint256 swapOutput, uint256 scaledFee) {
+        // Validate the swap
+        (swapOutput, scaledFee) = computeSwap(
+            _cachedBassetData,
+            _inputData.idx,
+            _output.idx,
+            _inputData.amt,
+            _output.idx == 0 ? 0 : _data.swapFee,
+            _config
+        );
+        require(swapOutput >= _minOutputQuantity, "Output qty < minimum qty");
+        require(swapOutput > 0, "Zero output quantity");
+        // Settle the swap
+        // Decrease output bal
+        BassetPersonal memory outputPersonal = _data.bAssetPersonal[_output.idx];
+        withdrawTokens(
+            swapOutput,
+            outputPersonal,
+            _cachedBassetData[_output.idx],
+            _recipient,
+            _getCacheDetails(_data, _config.supply)
+        );
+        _data.bAssetData[_output.idx].vaultBalance =
+            _cachedBassetData[_output.idx].vaultBalance -
+            SafeCast.toUint128(swapOutput);
     }
 
 
-    /***************************************
-                    FORGING
-    ****************************************/
+    function _redeemLocal(
+        FeederData storage _data,
+        FeederConfig memory _config,
+        Asset memory _output,
+        uint256 _fpTokenQuantity,
+        uint256 _minOutputQuantity,
+        address _recipient
+    ) internal returns (uint256 outputQuantity, uint256 scaledFee) {
+        BassetData[] memory allBassets = _data.bAssetData;
+        // Calculate redemption quantities
+        scaledFee = _fpTokenQuantity.mulTruncate(_data.redemptionFee);
+        outputQuantity = computeRedeem(
+            allBassets,
+            _output.idx,
+            _fpTokenQuantity - scaledFee,
+            _config
+        );
+        require(outputQuantity >= _minOutputQuantity, "bAsset qty < min qty");
+        require(outputQuantity > 0, "Output == 0");
+
+        // Transfer the Bassets to the recipient
+        withdrawTokens(
+            outputQuantity,
+            _data.bAssetPersonal[_output.idx],
+            allBassets[_output.idx],
+            _recipient,
+            _getCacheDetails(_data, _config.supply - _fpTokenQuantity)
+        );
+        // Set vault balance
+        _data.bAssetData[_output.idx].vaultBalance =
+            allBassets[_output.idx].vaultBalance -
+            SafeCast.toUint128(outputQuantity);
+    }
+
 
     /**
      * @dev Deposits a given asset to the system. If there is sufficient room for the asset
@@ -189,67 +393,78 @@ library FeederLogic {
         }
     }
 
-    // /**
-    //  * @dev Withdraws a given asset from its platformIntegration. If there is sufficient liquidity
-    //  * in the cache, then withdraw from there, otherwise withdraw from the lending market and reset the
-    //  * cache to the mid level.
-    //  */
-    // function withdrawTokens(
-    //     uint256 _quantity,
-    //     BassetPersonal memory _personal,
-    //     BassetData memory _data,
-    //     address _recipient,
-    //     uint256 _maxCache
-    // ) external {
-    //     if (_quantity == 0) return;
+    /**
+     * @dev Withdraws a given asset from its platformIntegration. If there is sufficient liquidity
+     * in the cache, then withdraw from there, otherwise withdraw from the lending market and reset the
+     * cache to the mid level.
+     */
+    function withdrawTokens(
+        uint256 _quantity,
+        BassetPersonal memory _personal,
+        BassetData memory _data,
+        address _recipient,
+        uint256 _maxCache
+    ) internal {
+        if (_quantity == 0) return;
 
-    //     // 1.0 If there is no integrator, send from here
-    //     if (_personal.integrator == address(0)) {
-    //         if (_recipient == address(this)) return;
-    //         IERC20(_personal.addr).safeTransfer(_recipient, _quantity);
-    //     }
-    //     // 1.1 If txFee then short circuit - there is no cache
-    //     else if (_personal.hasTxFee) {
-    //         IPlatformIntegration(_personal.integrator).withdraw(
-    //             _recipient,
-    //             _personal.addr,
-    //             _quantity,
-    //             _quantity,
-    //             true
-    //         );
-    //     }
-    //     // 1.2. Else, withdraw from either cache or main vault
-    //     else {
-    //         uint256 cacheBal = IERC20(_personal.addr).balanceOf(_personal.integrator);
-    //         // 2.1 - If balance b in cache, simply withdraw
-    //         if (cacheBal >= _quantity) {
-    //             IPlatformIntegration(_personal.integrator).withdrawRaw(
-    //                 _recipient,
-    //                 _personal.addr,
-    //                 _quantity
-    //             );
-    //         }
-    //         // 2.2 - Else reset the cache to X, or as far as possible
-    //         //       - Withdraw X+b from platform
-    //         //       - Send b to user
-    //         else {
-    //             uint256 relativeMidCache = _maxCache.divRatioPrecisely(_data.ratio) / 2;
-    //             uint256 totalWithdrawal =
-    //                 StableMath.min(
-    //                     relativeMidCache + _quantity - cacheBal,
-    //                     _data.vaultBalance - SafeCast.toUint128(cacheBal)
-    //                 );
+        // 1.0 If there is no integrator, send from here
+        if (_personal.integrator == address(0)) {
+            if (_recipient == address(this)) return;
+            IERC20(_personal.addr).safeTransfer(_recipient, _quantity);
+        }
+        // 1.1 If txFee then short circuit - there is no cache
+        else if (_personal.hasTxFee) {
+            IPlatformIntegration(_personal.integrator).withdraw(
+                _recipient,
+                _personal.addr,
+                _quantity,
+                _quantity,
+                true
+            );
+        }
+        // 1.2. Else, withdraw from either cache or main vault
+        else {
+            uint256 cacheBal = IERC20(_personal.addr).balanceOf(_personal.integrator);
+            // 2.1 - If balance b in cache, simply withdraw
+            if (cacheBal >= _quantity) {
+                IPlatformIntegration(_personal.integrator).withdrawRaw(
+                    _recipient,
+                    _personal.addr,
+                    _quantity
+                );
+            }
+            // 2.2 - Else reset the cache to X, or as far as possible
+            //       - Withdraw X+b from platform
+            //       - Send b to user
+            else {
+                uint256 relativeMidCache = _maxCache.divRatioPrecisely(_data.ratio) / 2;
+                uint256 totalWithdrawal =
+                    StableMath.min(
+                        relativeMidCache + _quantity - cacheBal,
+                        _data.vaultBalance - SafeCast.toUint128(cacheBal)
+                    );
 
-    //             IPlatformIntegration(_personal.integrator).withdraw(
-    //                 _recipient,
-    //                 _personal.addr,
-    //                 _quantity,
-    //                 totalWithdrawal,
-    //                 false
-    //             );
-    //         }
-    //     }
-    // }
+                IPlatformIntegration(_personal.integrator).withdraw(
+                    _recipient,
+                    _personal.addr,
+                    _quantity,
+                    totalWithdrawal,
+                    false
+                );
+            }
+        }
+    }
+
+
+
+    /***************************************
+                GETTERS - INTERNAL
+    ****************************************/
+
+    function _getCacheDetails(FeederData storage _data, uint256 _supply) internal view returns (uint256 maxCache) {
+        maxCache = _supply * _data.cacheSize / 1e18;
+    }
+
 
 
     /***************************************

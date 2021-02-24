@@ -9,7 +9,7 @@ import { formatEther } from "ethers/lib/utils"
 import {
     FeederPool,
     FeederPool__factory,
-    FeederValidator__factory,
+    FeederLogic__factory,
     AssetProxy__factory,
     MockERC20,
     MockERC20__factory,
@@ -74,10 +74,10 @@ const deployFeederPool = async (
     fAsset: DeployedFasset,
 ): Promise<FeederPool> => {
     // Invariant Validator
-    console.log(`Deploying Feeder Validator`)
-    const forgeVal = await new FeederValidator__factory(sender).deploy()
-    const receiptForgeVal = await forgeVal.deployTransaction.wait()
-    console.log(`Deployed Feeder Validator to ${forgeVal.address}. gas used ${receiptForgeVal.gasUsed}`)
+    console.log(`Deploying FeederLogic`)
+    const feederLogic = await new FeederLogic__factory(sender).deploy()
+    const receiptFeederLogic = await feederLogic.deployTransaction.wait()
+    console.log(`Deployed FeederLogic to ${feederLogic.address}. gas used ${receiptFeederLogic.gasUsed}`)
 
     // External linked library
     const Manager = await ethers.getContractFactory("FeederManager")
@@ -87,7 +87,7 @@ const deployFeederPool = async (
 
     const linkedAddress = {
         __$60670dd84d06e10bb8a5ac6f99a1c0890c$__: managerLib.address,
-        __$ba0f40aa073b093068e86d426c6136c22f$__: forgeVal.address,
+        __$7791d1d5b7ea16da359ce352a2ac3a881c$__: feederLogic.address,
     }
     // Implementation
     const feederPoolFactory = new FeederPool__factory(linkedAddress, sender)
@@ -195,7 +195,7 @@ task("fSize", "Gets the bytecode size of the FeederPool.sol contract").setAction
     const [deployer] = await ethers.getSigners()
     const linkedAddress = {
         __$60670dd84d06e10bb8a5ac6f99a1c0890c$__: DEAD_ADDRESS,
-        __$ba0f40aa073b093068e86d426c6136c22f$__: DEAD_ADDRESS,
+        __$7791d1d5b7ea16da359ce352a2ac3a881c$__: DEAD_ADDRESS,
     }
     // Implementation
     const feederPoolFactory = new FeederPool__factory(linkedAddress, deployer)
@@ -206,9 +206,9 @@ task("fSize", "Gets the bytecode size of the FeederPool.sol contract").setAction
         console.log(`FeederPool = ${size} kb`)
     }
 
-    const forgeVal = await new FeederValidator__factory(deployer)
-    size = forgeVal.bytecode.length / 2 / 1000
-    console.log(`FeederValidator = ${size} kb`)
+    const logic = await new FeederLogic__factory(deployer)
+    size = logic.bytecode.length / 2 / 1000
+    console.log(`FeederLogic = ${size} kb`)
 
     // External linked library
     const manager = await ethers.getContractFactory("FeederManager")
