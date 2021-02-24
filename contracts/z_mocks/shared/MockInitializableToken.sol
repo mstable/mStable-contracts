@@ -18,6 +18,6 @@ contract MockInitializableToken is ERC205, InitializableERC20Detailed {
     function initialize(string calldata _nameArg, string calldata _symbolArg, uint8 _decimals, address _initialRecipient, uint256 _initialMint) external {
         InitializableERC20Detailed._initialize(_nameArg, _symbolArg, _decimals);
         
-        _mint(_initialRecipient, _initialMint * 10 ** uint256(_decimals));
+        _mint(_initialRecipient, _initialMint * (10 ** uint256(_decimals)));
     }
 }

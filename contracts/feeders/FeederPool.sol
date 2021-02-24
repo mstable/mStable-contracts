@@ -1,43 +1,33 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.0;
 
+// External
+import { IMasset } from "../interfaces/IMasset.sol";
+
 // Internal
 import "../masset/MassetStructs.sol";
 import { IFeederPool } from "../interfaces/IFeederPool.sol";
 import { Initializable } from "@openzeppelin/contracts/utils/Initializable.sol";
 import { InitializableToken } from "../shared/InitializableToken.sol";
-import { ImmutableModule } from "../shared/ImmutableModule.sol";
+import { PausableModule } from "../shared/PausableModule.sol";
 import { InitializableReentrancyGuard } from "../shared/InitializableReentrancyGuard.sol";
 import { IBasicToken } from "../shared/IBasicToken.sol";
-import { IMasset } from "../interfaces/IMasset.sol";
 
 // Libs
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { StableMath } from "../shared/StableMath.sol";
 import { FeederManager } from "./FeederManager.sol";
 import { FeederLogic } from "./FeederLogic.sol";
 
-// TODO - get back under EIP170 limit
-// TODO - deploy
-// TODO - resolve internal todos
-// TODO - check that `mAsset` is always converted and uses storage addr
-// TODO - remove unused dependencies (Here, Manager, Validator)
-// TODO - remove all instances of bAsset or mAsset where used incorrectly
-// TODO - reconsider moving FeederLogic to internal lib (consider upgrade strategy)
-// TODO - seriously reconsider storage layout and how to tidy this file up
-// - Add comprehensive natspec comments
-// TODO - move to solc 0.8.x
 contract FeederPool is
-    // IFeederPool,
+    IFeederPool,
     Initializable,
     InitializableToken,
-    ImmutableModule,
+    PausableModule,
     InitializableReentrancyGuard
 {
     using StableMath for uint256;
-    using SafeERC20 for IERC20;
 
     // Forging Events
     event Minted(
@@ -95,9 +85,7 @@ contract FeederPool is
      * @dev Constructor to set immutable bytecode
      * @param _nexus   Nexus address
      */
-    constructor(address _nexus, address _mAsset) ImmutableModule(_nexus) {
-        // TODO - need to be extremely careful when upgrading contracts with immutable storage
-        // Check what would happen if this was updated incorrectly
+    constructor(address _nexus, address _mAsset) PausableModule(_nexus) {
         mAsset = _mAsset;
     }
 
@@ -113,15 +101,6 @@ contract FeederPool is
 
         _initializeReentrancyGuard();
 
-        // validator = IFeederLogic(_validator);
-        // TODO - consider how to store fAsset vs mAsset. Atm we do 3 extra SLOADs per asset
-        // ----- prop ---- fAsset ---- mAsset
-        //       addr   immutable   immutable
-        //      ratio   immutable   immutable
-        // integrator     mutable     mutable
-        //   hasTxFee     mutable   immutable
-        //   vBalance     mutable     mutable
-        //     status    outdated    outdated
         require(_mAsset.addr == mAsset, "mAsset incorrect");
         data.bAssetPersonal.push(
             BassetPersonal(_mAsset.addr, _mAsset.integrator, false, BassetStatus.Normal)
@@ -156,8 +135,7 @@ contract FeederPool is
 
     // Internal fn for modifier to reduce deployment size
     function _isOperational() internal view {
-        // BasketState memory basket_ = basket;
-        // require(!paused || msg.sender == 'recollateraliser', "Unhealthy");
+        require(!_paused || msg.sender == _recollateraliser(), "Unhealthy");
     }
 
     /**
@@ -174,7 +152,7 @@ contract FeederPool is
     }
 
     /***************************************
-                MINTING (PUBLIC)
+                    MINTING
     ****************************************/
 
     /**
@@ -191,13 +169,19 @@ contract FeederPool is
         uint256 _inputQuantity,
         uint256 _minOutputQuantity,
         address _recipient
-    ) external  nonReentrant whenInOperation returns (uint256 mintOutput) {
+    ) external override nonReentrant whenInOperation returns (uint256 mintOutput) {
         require(_recipient != address(0), "Invalid recipient");
         require(_inputQuantity > 0, "Qty==0");
 
         Asset memory input = _getAsset(_input);
 
-        mintOutput = FeederLogic.mint(data, _getConfig(), input, _inputQuantity, _minOutputQuantity);
+        mintOutput = FeederLogic.mint(
+            data,
+            _getConfig(),
+            input,
+            _inputQuantity,
+            _minOutputQuantity
+        );
 
         // Mint the LP Token
         _mint(_recipient, mintOutput);
@@ -209,13 +193,19 @@ contract FeederPool is
         uint256[] calldata _inputQuantities,
         uint256 _minOutputQuantity,
         address _recipient
-    ) external  nonReentrant whenInOperation returns (uint256 mintOutput) {
+    ) external override nonReentrant whenInOperation returns (uint256 mintOutput) {
         require(_recipient != address(0), "Invalid recipient");
         uint256 len = _inputQuantities.length;
         require(len > 0 && len == _inputs.length, "Input array mismatch");
 
         uint8[] memory indexes = _getAssets(_inputs);
-        mintOutput = FeederLogic.mintMulti(data, _getConfig(), indexes, _inputQuantities, _minOutputQuantity);
+        mintOutput = FeederLogic.mintMulti(
+            data,
+            _getConfig(),
+            indexes,
+            _inputQuantities,
+            _minOutputQuantity
+        );
         // Mint the LP Token
         _mint(_recipient, mintOutput);
         emit MintedMulti(msg.sender, _recipient, mintOutput, _inputs, _inputQuantities);
@@ -230,7 +220,7 @@ contract FeederPool is
     function getMintOutput(address _input, uint256 _inputQuantity)
         external
         view
-        
+        override
         returns (uint256 mintOutput)
     {
         require(_inputQuantity > 0, "Qty==0");
@@ -259,18 +249,18 @@ contract FeederPool is
     function getMintMultiOutput(address[] calldata _inputs, uint256[] calldata _inputQuantities)
         external
         view
-        
+        override
         returns (uint256 mintOutput)
     {
         uint256 len = _inputQuantities.length;
         require(len > 0 && len == _inputs.length, "Input array mismatch");
         uint8[] memory indexes = _getAssets(_inputs);
-        return FeederLogic.computeMintMulti(data.bAssetData, indexes, _inputQuantities, _getConfig());
+        return
+            FeederLogic.computeMintMulti(data.bAssetData, indexes, _inputQuantities, _getConfig());
     }
 
-
     /***************************************
-                SWAP (PUBLIC)
+                    SWAPPING
     ****************************************/
 
     function swap(
@@ -279,7 +269,7 @@ contract FeederPool is
         uint256 _inputQuantity,
         uint256 _minOutputQuantity,
         address _recipient
-    ) external  returns (uint256 swapOutput) {
+    ) external override returns (uint256 swapOutput) {
         require(_recipient != address(0), "Invalid recipient");
         require(_input != _output, "Invalid pair");
         require(_inputQuantity > 0, "Qty==0");
@@ -289,8 +279,16 @@ contract FeederPool is
         require(_pathIsValid(input, output), "Invalid pair");
 
         uint256 localFee;
-        (swapOutput, localFee) = FeederLogic.swap(data, _getConfig(), input, output, _inputQuantity, _minOutputQuantity, _recipient);
-        
+        (swapOutput, localFee) = FeederLogic.swap(
+            data,
+            _getConfig(),
+            input,
+            output,
+            _inputQuantity,
+            _minOutputQuantity,
+            _recipient
+        );
+
         emit Swapped(msg.sender, input.addr, output.addr, swapOutput, localFee, _recipient);
     }
 
@@ -306,7 +304,7 @@ contract FeederPool is
         address _input,
         address _output,
         uint256 _inputQuantity
-    ) external view  returns (uint256 swapOutput) {
+    ) external view override returns (uint256 swapOutput) {
         require(_input != _output, "Invalid pair");
         require(_inputQuantity > 0, "Invalid swap quantity");
 
@@ -355,10 +353,6 @@ contract FeederPool is
         }
     }
 
-    /***************************************
-                SWAP (INTERNAL)
-    ****************************************/
-
     function _pathIsValid(Asset memory _in, Asset memory _out)
         internal
         pure
@@ -376,19 +370,16 @@ contract FeederPool is
         return false;
     }
 
-
-
     /***************************************
-                REDEMPTION (PUBLIC)
+                    REDEMPTION
     ****************************************/
-
 
     function redeem(
         address _output,
         uint256 _fpTokenQuantity,
         uint256 _minOutputQuantity,
         address _recipient
-    ) external  nonReentrant whenInOperation returns (uint256 outputQuantity) {
+    ) external override nonReentrant whenInOperation returns (uint256 outputQuantity) {
         require(_recipient != address(0), "Invalid recipient");
         require(_fpTokenQuantity > 0, "Qty==0");
 
@@ -399,7 +390,14 @@ contract FeederPool is
         _burn(msg.sender, _fpTokenQuantity);
 
         uint256 localFee;
-        (outputQuantity, localFee) = FeederLogic.redeem(data, config, output, _fpTokenQuantity, _minOutputQuantity, _recipient);
+        (outputQuantity, localFee) = FeederLogic.redeem(
+            data,
+            config,
+            output,
+            _fpTokenQuantity,
+            _minOutputQuantity,
+            _recipient
+        );
 
         emit Redeemed(
             msg.sender,
@@ -411,68 +409,44 @@ contract FeederPool is
         );
     }
 
+    /**
+     * @dev Credits a recipient with a proportionate amount of bAssets, relative to current vault
+     * balance levels and desired mAsset quantity. Burns the mAsset as payment.
+     * @param _inputQuantity        Quantity of fpToken to redeem
+     * @param _minOutputQuantities  Min units of output to receive
+     * @param _recipient            Address to credit the withdrawn bAssets
+     */
+    function redeemProportionately(
+        uint256 _inputQuantity,
+        uint256[] calldata _minOutputQuantities,
+        address _recipient
+    ) external override nonReentrant whenInOperation returns (uint256[] memory outputQuantities) {
+        require(_recipient != address(0), "Invalid recipient");
+        require(_inputQuantity > 0, "Qty==0");
 
-    // /**
-    //  * @dev Credits a recipient with a proportionate amount of bAssets, relative to current vault
-    //  * balance levels and desired mAsset quantity. Burns the mAsset as payment.
-    //  * @param _inputQuantity        Quantity of fpToken to redeem
-    //  * @param _minOutputQuantities  Min units of output to receive
-    //  * @param _recipient            Address to credit the withdrawn bAssets
-    //  */
-    // function redeemProportionately(
-    //     uint256 _inputQuantity,
-    //     uint256[] calldata _minOutputQuantities,
-    //     address _recipient
-    // ) external  nonReentrant whenInOperation returns (uint256[] memory outputQuantities) {
-    //     require(_recipient != address(0), "Invalid recipient");
-    //     require(_inputQuantity > 0, "Qty==0");
+        // Get config before burning. Burn > CacheSize
+        FeederConfig memory config = _getConfig();
+        _burn(msg.sender, _inputQuantity);
 
-    //     // Calculate mAsset redemption quantities
-    //     uint256 scaledFee = _inputQuantity.mulTruncate(redemptionFee);
-    //     uint256 redemptionAmount = _inputQuantity - scaledFee;
+        address[] memory outputs;
+        uint256 scaledFee;
+        (scaledFee, outputs, outputQuantities) = FeederLogic.redeemProportionately(
+            data,
+            config,
+            _inputQuantity,
+            _minOutputQuantities,
+            _recipient
+        );
 
-    //     // Burn mAsset quantity
-    //     _burn(msg.sender, _inputQuantity);
-
-    //     // Calc cache and total mAsset circulating
-    //     Cache memory cache = _getCacheDetails();
-    //     uint256 totalMasset = cache.supply + _inputQuantity;
-
-    //     // Load the bAsset data from storage into memory
-    //     BassetData[] memory allBassets = bAssetData;
-
-    //     uint256 len = allBassets.length;
-    //     address[] memory outputs = new address[](len);
-    //     outputQuantities = new uint256[](len);
-    //     for (uint256 i = 0; i < len; i++) {
-    //         // Get amount out, proportionate to redemption quantity
-    //         uint256 amountOut = (allBassets[i].vaultBalance * redemptionAmount) / totalMasset;
-    //         require(amountOut > 1, "Output == 0");
-    //         amountOut -= 1;
-    //         require(amountOut >= _minOutputQuantities[i], "bAsset qty < min qty");
-    //         // Set output in array
-    //         (outputQuantities[i], outputs[i]) = (amountOut, bAssetPersonal[i].addr);
-    //         // Transfer the bAsset to the recipient
-    //         FeederManager.withdrawTokens(
-    //             amountOut,
-    //             bAssetPersonal[i],
-    //             allBassets[i],
-    //             _recipient,
-    //             cache.maxCache
-    //         );
-    //         // reduce vaultBalance
-    //         bAssetData[i].vaultBalance = allBassets[i].vaultBalance - SafeCast.toUint128(amountOut);
-    //     }
-
-    //     emit RedeemedMulti(
-    //         msg.sender,
-    //         _recipient,
-    //         _inputQuantity,
-    //         outputs,
-    //         outputQuantities,
-    //         scaledFee
-    //     );
-    // }
+        emit RedeemedMulti(
+            msg.sender,
+            _recipient,
+            _inputQuantity,
+            outputs,
+            outputQuantities,
+            scaledFee
+        );
+    }
 
     /**
      * @dev Credits a recipient with a certain quantity of selected bAssets, in exchange for burning the
@@ -488,7 +462,7 @@ contract FeederPool is
         uint256[] calldata _outputQuantities,
         uint256 _maxInputQuantity,
         address _recipient
-    ) external  nonReentrant whenInOperation returns (uint256 fpTokenQuantity) {
+    ) external override nonReentrant whenInOperation returns (uint256 fpTokenQuantity) {
         require(_recipient != address(0), "Invalid recipient");
         uint256 len = _outputQuantities.length;
         require(len > 0 && len == _outputs.length, "Invalid array input");
@@ -497,7 +471,14 @@ contract FeederPool is
         uint8[] memory indexes = _getAssets(_outputs);
 
         uint256 localFee;
-        (fpTokenQuantity, localFee) = FeederLogic.redeemExactBassets(data, _getConfig(), indexes, _outputQuantities, _maxInputQuantity, _recipient);
+        (fpTokenQuantity, localFee) = FeederLogic.redeemExactBassets(
+            data,
+            _getConfig(),
+            indexes,
+            _outputQuantities,
+            _maxInputQuantity,
+            _recipient
+        );
 
         _burn(msg.sender, fpTokenQuantity);
 
@@ -520,7 +501,7 @@ contract FeederPool is
     function getRedeemOutput(address _output, uint256 _fpTokenQuantity)
         external
         view
-        
+        override
         returns (uint256 bAssetOutput)
     {
         require(_fpTokenQuantity > 0, "Qty==0");
@@ -549,7 +530,7 @@ contract FeederPool is
     function getRedeemExactBassetsOutput(
         address[] calldata _outputs,
         uint256[] calldata _outputQuantities
-    ) external view  returns (uint256 fpTokenQuantity) {
+    ) external view override returns (uint256 fpTokenQuantity) {
         uint256 len = _outputQuantities.length;
         require(len > 0 && len == _outputs.length, "Invalid array input");
 
@@ -563,9 +544,8 @@ contract FeederPool is
                 _getConfig()
             );
         fpTokenQuantity = mAssetRedeemed.divPrecisely(1e18 - data.redemptionFee);
-        if(fpTokenQuantity > 0) fpTokenQuantity += 1;
+        if (fpTokenQuantity > 0) fpTokenQuantity += 1;
     }
-
 
     /***************************************
                     GETTERS
@@ -579,7 +559,7 @@ contract FeederPool is
     function getBassets()
         external
         view
-        
+        override
         returns (BassetPersonal[] memory, BassetData[] memory vaultData)
     {
         return (data.bAssetPersonal, data.bAssetData);
@@ -594,7 +574,7 @@ contract FeederPool is
     function getBasset(address _bAsset)
         external
         view
-        
+        override
         returns (BassetPersonal memory personal, BassetData memory vaultData)
     {
         Asset memory asset = _getAsset(_bAsset);
@@ -613,7 +593,6 @@ contract FeederPool is
     /***************************************
                 GETTERS - INTERNAL
     ****************************************/
-
 
     function _getAsset(address _asset) internal view returns (Asset memory status) {
         // if input is mAsset then we know the position
@@ -639,6 +618,7 @@ contract FeederPool is
             }
         }
     }
+
     /**
      * @dev Gets all config needed for general InvariantValidator calls
      */
@@ -686,7 +666,7 @@ contract FeederPool is
      */
     function collectPlatformInterest()
         external
-        
+        override
         onlyInterestValidator
         whenInOperation
         nonReentrant
@@ -710,7 +690,7 @@ contract FeederPool is
      *      _cacheSize * totalSupply / 2 under normal circumstances.
      * @param _cacheSize Maximum percent of total mAsset supply to hold for each bAsset
      */
-    function setCacheSize(uint256 _cacheSize) external  onlyGovernor {
+    function setCacheSize(uint256 _cacheSize) external override onlyGovernor {
         require(_cacheSize <= 2e17, "Must be <= 20%");
 
         data.cacheSize = _cacheSize;
@@ -722,7 +702,7 @@ contract FeederPool is
      * @dev Set the ecosystem fee for sewapping bAssets or redeeming specific bAssets
      * @param _swapFee Fee calculated in (%/100 * 1e18)
      */
-    function setFees(uint256 _swapFee, uint256 _redemptionFee) external  onlyGovernor {
+    function setFees(uint256 _swapFee, uint256 _redemptionFee) external override onlyGovernor {
         require(_swapFee <= MAX_FEE, "Swap rate oob");
         require(_redemptionFee <= MAX_FEE, "Redemption rate oob");
 
@@ -755,7 +735,7 @@ contract FeederPool is
      */
     function migrateBassets(address[] calldata _bAssets, address _newIntegration)
         external
-        
+        override
         onlyGovernor
     {
         FeederManager.migrateBassets(data.bAssetPersonal, _bAssets, _newIntegration);

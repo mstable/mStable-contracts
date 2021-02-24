@@ -6,7 +6,7 @@ pragma abicoder v2;
 import { IPlatformIntegration } from "../interfaces/IPlatformIntegration.sol";
 
 // Internal
-import { BassetData, BassetPersonal, BassetStatus, AmpData } from "../masset/MassetStructs.sol";
+import "../masset/MassetStructs.sol";
 
 // Libs
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
@@ -65,9 +65,7 @@ library FeederManager {
             }
             uint256 balance = lending + cache;
             uint256 oldVaultBalance = bData.vaultBalance;
-            if (
-                balance > oldVaultBalance && bPersonal.status == BassetStatus.Normal
-            ) {
+            if (balance > oldVaultBalance && bPersonal.status == BassetStatus.Normal) {
                 _bAssetData[i].vaultBalance = SafeCast.toUint128(balance);
                 uint256 interestDelta = balance - oldVaultBalance;
                 rawGains[i] = interestDelta;
@@ -214,5 +212,4 @@ library FeederManager {
 
         emit StopRampA(_currentA, block.timestamp);
     }
-
 }

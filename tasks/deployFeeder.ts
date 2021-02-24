@@ -100,12 +100,12 @@ const deployFeederPool = async (
     console.log(`Deploying FeederPool impl with Nexus ${addresses.nexus} and mAsset ${feederData.mAsset.address}`)
     const impl = await feederPoolFactory.deploy(addresses.nexus, feederData.mAsset.address)
     const receiptImpl = await impl.deployTransaction.wait()
-    console.log(`Deployed Masset to ${impl.address}. gas used ${receiptImpl.gasUsed}`)
+    console.log(`Deployed FeederPool impl to ${impl.address}. gas used ${receiptImpl.gasUsed}`)
 
     // Initialization Data
     const mpAssets = (await feederPoolFactory.attach(feederData.mAsset.address).getBassets())[0].map((p) => p[0])
     console.log(
-        `Initializing Masset with: ${feederData.name}, ${feederData.symbol}, ${feederData.mAsset}, ${
+        `Initializing FeederPool with: ${feederData.name}, ${feederData.symbol}, ${feederData.mAsset.address}, ${
             fAsset.contract.address
         }, ${feederData.config.a.toString()}, ${feederData.config.limits.min.toString()}, ${feederData.config.limits.max.toString()}`,
     )
@@ -129,18 +129,17 @@ const deployFeederPool = async (
     ])
 
     console.log(`Deploying FeederPool proxy with impl: ${impl.address} and admin ${addresses.proxyAdmin}`)
-    const mBtcProxy = await new AssetProxy__factory(sender).deploy(impl.address, addresses.proxyAdmin, data)
-    const receiptProxy = await mBtcProxy.deployTransaction.wait()
+    const feederPoolProxy = await new AssetProxy__factory(sender).deploy(impl.address, addresses.proxyAdmin, data)
+    const receiptProxy = await feederPoolProxy.deployTransaction.wait()
 
-    console.log(`Deployed FeederPool proxy to address ${mBtcProxy.address}. gas used ${receiptProxy.gasUsed}`)
+    console.log(`Deployed FeederPool proxy to address ${feederPoolProxy.address}. gas used ${receiptProxy.gasUsed}`)
 
-    // Create a Masset contract pointing to the deployed proxy contract
-    return new FeederPool__factory(linkedAddress, sender).attach(mBtcProxy.address)
+    // Create a FeederPool contract pointing to the deployed proxy contract
+    return new FeederPool__factory(linkedAddress, sender).attach(feederPoolProxy.address)
 }
 
 const mint = async (sender: Signer, bAssets: DeployedFasset[], feederPool: FeederPool) => {
-    // Mint 3/5 of starting cap
-    const scaledTestQty = simpleToExactAmount(100)
+    const scaledTestQty = simpleToExactAmount(1)
 
     // Approve spending
     // eslint-disable-next-line
@@ -158,17 +157,32 @@ const mint = async (sender: Signer, bAssets: DeployedFasset[], feederPool: Feede
     }
 
     // Mint
+    console.log(
+        bAssets.map(() => scaledTestQty.toString()),
+        await Promise.all(bAssets.map(async (b) => (await b.contract.allowance(await sender.getAddress(), feederPool.address)).toString())),
+        await Promise.all(bAssets.map(async (b) => (await b.contract.balanceOf(await sender.getAddress())).toString())),
+        bAssets.map((b) => b.address),
+        (await feederPool.getBassets())[0].map((b) => b[0]),
+        await feederPool.mAsset(),
+    )
     const tx = await feederPool.mintMulti(
-        bAssets.map((b) => b.contract.address),
+        bAssets.map((b) => b.address),
         bAssets.map(() => scaledTestQty),
         1,
         await sender.getAddress(),
+        {
+            gasLimit: BN.from(8000000),
+        },
     )
     const receiptMint = await tx.wait()
 
     // Log minted amount
     const mAssetAmount = formatEther(await feederPool.totalSupply())
-    console.log(`Minted ${mAssetAmount} fpToken from ${formatEther(scaledTestQty)} Units for each fAsset. gas used ${receiptMint.gasUsed}`)
+    console.log(
+        `Minted ${mAssetAmount} fpToken from ${formatEther(scaledTestQty)} Units for each [fAsset, mAsset]. gas used ${
+            receiptMint.gasUsed
+        }`,
+    )
 }
 
 const deployVault = async (sender: Signer, addresses: CommonAddresses, feederPool: FeederPool): Promise<void> => {
@@ -261,7 +275,7 @@ task("deployFeeder", "Deploys a feeder pool").setAction(async (_, hre) => {
     const feederData: FeederData = {
         mAsset: deployedMasset,
         name: `${deployedMasset.symbol}/${deployedFasset.symbol} FeederPool`,
-        symbol: `fP ${deployedMasset.symbol}/${deployedFasset.symbol}`,
+        symbol: `fP${deployedMasset.symbol}/${deployedFasset.symbol}`,
         config: {
             a: BN.from(100),
             limits: {

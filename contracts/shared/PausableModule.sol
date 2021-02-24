@@ -20,7 +20,7 @@ abstract contract PausableModule is ImmutableModule {
      */
     event Unpaused(address account);
 
-    bool private _paused = false;
+    bool internal _paused = false;
 
     /**
      * @dev Modifier to make a function callable only when the contract is not paused.

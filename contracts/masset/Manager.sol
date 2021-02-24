@@ -96,9 +96,7 @@ library Manager {
                 status: BassetStatus.Normal
             })
         );
-        _bAssetData.push(
-            BassetData({ ratio: SafeCast.toUint128(ratio), vaultBalance: 0 })
-        );
+        _bAssetData.push(BassetData({ ratio: SafeCast.toUint128(ratio), vaultBalance: 0 }));
 
         emit BassetAdded(_bAsset, _integration);
     }
@@ -138,9 +136,7 @@ library Manager {
             }
             uint256 balance = lending + cache;
             uint256 oldVaultBalance = bData.vaultBalance;
-            if (
-                balance > oldVaultBalance && bPersonal.status == BassetStatus.Normal
-            ) {
+            if (balance > oldVaultBalance && bPersonal.status == BassetStatus.Normal) {
                 _bAssetData[i].vaultBalance = SafeCast.toUint128(balance);
                 uint256 interestDelta = balance - oldVaultBalance;
                 rawGains[i] = interestDelta;
@@ -279,9 +275,7 @@ library Manager {
         uint256 i = _getAssetIndex(_bAssetPersonal, _bAssetIndexes, _bAsset);
 
         BassetStatus newStatus =
-            _belowPeg
-                ? BassetStatus.BrokenBelowPeg
-                : BassetStatus.BrokenAbovePeg;
+            _belowPeg ? BassetStatus.BrokenBelowPeg : BassetStatus.BrokenAbovePeg;
         _bAssetPersonal[i].status = newStatus;
 
         _basket.undergoingRecol = true;

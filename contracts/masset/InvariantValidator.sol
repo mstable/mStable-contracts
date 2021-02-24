@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.0;
 
-import "hardhat/console.sol";
-
 import { IInvariantValidator } from "../interfaces/IInvariantValidator.sol";
 import { BassetData, InvariantConfig, WeightLimits } from "../masset/MassetStructs.sol";
 import { Root } from "../shared/Root.sol";
@@ -79,10 +77,8 @@ contract InvariantValidator is IInvariantValidator {
         uint256[] calldata _rawInputs,
         InvariantConfig memory _config
     ) external view override returns (uint256 mintAmount) {
-        console.log("Validator: mintMulti");
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
-        console.log("Validator: mintMulti 1");
         // 2. Get value of reserves according to invariant
         uint256 k0 = _invariant(x, sum, _config.a);
 
@@ -96,10 +92,8 @@ contract InvariantValidator is IInvariantValidator {
             x[idx] += scaledInput;
             sum += scaledInput;
         }
-        console.log("Validator: mintMulti 2");
         // 4. Finalise mint
         require(_inBounds(x, sum, _config.limits), "Exceeds weight limits");
-        console.log("Validator: mintMulti 3");
         mintAmount = _computeMintOutput(x, sum, k0, _config.a);
     }
 
@@ -279,10 +273,8 @@ contract InvariantValidator is IInvariantValidator {
         uint256 len = _x.length;
         inBounds = true;
         uint256 w;
-        console.log("min: ", _limits.min, " max :", _limits.max);
         for (uint256 i = 0; i < len; i++) {
             w = (_x[i] * 1e18) / _sum;
-            console.log("weight", i, w);
             if (w > _limits.max || w < _limits.min) return false;
         }
     }

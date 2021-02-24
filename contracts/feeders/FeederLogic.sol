@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.0;
 
-import "hardhat/console.sol";
-
+// External
 import { IPlatformIntegration } from "../interfaces/IPlatformIntegration.sol";
+import { IMasset } from "../interfaces/IMasset.sol";
+
+// Internal
 import "../masset/MassetStructs.sol";
+
+// Libs
 import { Root } from "../shared/Root.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { IMasset } from "../interfaces/IMasset.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { MassetHelpers } from "../shared/MassetHelpers.sol";
 import { StableMath } from "../shared/StableMath.sol";
-
 
 library FeederLogic {
 
@@ -21,33 +23,28 @@ library FeederLogic {
 
     uint256 internal constant A_PRECISION = 100;
 
-
     /***************************************
                     MINT
     ****************************************/
 
     function mint(
         FeederData storage _data,
-        FeederConfig memory _config,
+        FeederConfig calldata _config,
         Asset calldata _input,
         uint256 _inputQuantity,
         uint256 _minOutputQuantity
     ) external returns (uint256 mintOutput) {
         BassetData[] memory cachedBassetData = _data.bAssetData;
-        AssetData memory inputData = _transferIn(_data, _config, cachedBassetData, _input, _inputQuantity);
+        AssetData memory inputData =
+            _transferIn(_data, _config, cachedBassetData, _input, _inputQuantity);
         // Validation should be after token transfer, as bAssetQty is unknown before
-        mintOutput = computeMint(
-            cachedBassetData,
-            inputData.idx,
-            inputData.amt,
-            _config
-        );
+        mintOutput = computeMint(cachedBassetData, inputData.idx, inputData.amt, _config);
         require(mintOutput >= _minOutputQuantity, "Mint quantity < min qty");
     }
 
     function mintMulti(
         FeederData storage _data,
-        FeederConfig memory _config,
+        FeederConfig calldata _config,
         uint8[] calldata _indices,
         uint256[] calldata _inputQuantities,
         uint256 _minOutputQuantity
@@ -62,13 +59,12 @@ library FeederLogic {
             if (_inputQuantities[i] > 0) {
                 uint8 idx = _indices[i];
                 BassetData memory bData = allBassets[idx];
-                quantitiesDeposited[i] =
-                    _depositTokens(
-                        _data.bAssetPersonal[idx],
-                        bData.ratio,
-                        _inputQuantities[i],
-                        maxCache
-                    );
+                quantitiesDeposited[i] = _depositTokens(
+                    _data.bAssetPersonal[idx],
+                    bData.ratio,
+                    _inputQuantities[i],
+                    maxCache
+                );
 
                 _data.bAssetData[idx].vaultBalance =
                     bData.vaultBalance +
@@ -76,16 +72,10 @@ library FeederLogic {
             }
         }
         // Validate the proposed mint, after token transfer
-        mintOutput = computeMintMulti(
-            allBassets,
-            _indices,
-            quantitiesDeposited,
-            _config
-        );
+        mintOutput = computeMintMulti(allBassets, _indices, quantitiesDeposited, _config);
         require(mintOutput >= _minOutputQuantity, "Mint quantity < min qty");
         require(mintOutput > 0, "Zero mAsset quantity");
     }
-
 
     /***************************************
                     SWAP
@@ -93,7 +83,7 @@ library FeederLogic {
 
     function swap(
         FeederData storage _data,
-        FeederConfig memory _config,
+        FeederConfig calldata _config,
         Asset calldata _input,
         Asset calldata _output,
         uint256 _inputQuantity,
@@ -102,7 +92,8 @@ library FeederLogic {
     ) external returns (uint256 swapOutput, uint256 localFee) {
         BassetData[] memory cachedBassetData = _data.bAssetData;
 
-        AssetData memory inputData = _transferIn(_data, _config, cachedBassetData, _input, _inputQuantity);
+        AssetData memory inputData =
+            _transferIn(_data, _config, cachedBassetData, _input, _inputQuantity);
         // 1. [f/mAsset ->][ f/mAsset]               : Y - normal in, SWAP, normal out
         // 3. [mpAsset -> mAsset][ -> fAsset]        : Y - mint in  , SWAP, normal out
         if (_output.exists) {
@@ -143,7 +134,7 @@ library FeederLogic {
 
     function redeem(
         FeederData storage _data,
-        FeederConfig memory _config,
+        FeederConfig calldata _config,
         Asset calldata _output,
         uint256 _fpTokenQuantity,
         uint256 _minOutputQuantity,
@@ -177,6 +168,55 @@ library FeederLogic {
         }
     }
 
+    function redeemProportionately(
+        FeederData storage _data,
+        FeederConfig calldata _config,
+        uint256 _inputQuantity,
+        uint256[] calldata _minOutputQuantities,
+        address _recipient
+    )
+        external
+        returns (
+            uint256 scaledFee,
+            address[] memory outputs,
+            uint256[] memory outputQuantities
+        )
+    {
+        // Calculate mAsset redemption quantities
+        scaledFee = _inputQuantity.mulTruncate(_data.redemptionFee);
+
+        // Calc cache and total mAsset circulating
+        uint256 maxCache = _getCacheDetails(_data, _config.supply - _inputQuantity);
+
+        // Load the bAsset data from storage into memory
+        BassetData[] memory allBassets = _data.bAssetData;
+        uint256 len = allBassets.length;
+        outputs = new address[](len);
+        outputQuantities = new uint256[](len);
+        for (uint256 i = 0; i < len; i++) {
+            // Get amount out, proportionate to redemption quantity
+            uint256 amountOut =
+                (allBassets[i].vaultBalance * (_inputQuantity - scaledFee)) / _config.supply;
+            require(amountOut > 1, "Output == 0");
+            amountOut -= 1;
+            require(amountOut >= _minOutputQuantities[i], "bAsset qty < min qty");
+            // Set output in array
+            (outputQuantities[i], outputs[i]) = (amountOut, _data.bAssetPersonal[i].addr);
+            // Transfer the bAsset to the recipient
+            _withdrawTokens(
+                amountOut,
+                _data.bAssetPersonal[i],
+                allBassets[i],
+                _recipient,
+                maxCache
+            );
+            // reduce vaultBalance
+            _data.bAssetData[i].vaultBalance =
+                allBassets[i].vaultBalance -
+                SafeCast.toUint128(amountOut);
+        }
+    }
+
     function redeemExactBassets(
         FeederData storage _data,
         FeederConfig memory _config,
@@ -190,12 +230,7 @@ library FeederLogic {
 
         // Validate redemption
         uint256 fpTokenRequired =
-            computeRedeemExact(
-                allBassets,
-                _indices,
-                _outputQuantities,
-                _config
-            );
+            computeRedeemExact(allBassets, _indices, _outputQuantities, _config);
         fpTokenQuantity = fpTokenRequired.divPrecisely(1e18 - _data.redemptionFee);
         localFee = fpTokenQuantity - fpTokenRequired;
         require(fpTokenQuantity > 0, "Must redeem some mAssets");
@@ -207,7 +242,7 @@ library FeederLogic {
         uint256 maxCache = _getCacheDetails(_data, _config.supply - fpTokenQuantity);
         // Transfer the Bassets to the recipient
         for (uint256 i = 0; i < _outputQuantities.length; i++) {
-            withdrawTokens(
+            _withdrawTokens(
                 _outputQuantities[i],
                 _data.bAssetPersonal[_indices[i]],
                 allBassets[_indices[i]],
@@ -250,14 +285,14 @@ library FeederLogic {
             SafeCast.toUint128(inputData.amt);
     }
 
-
     // mint in main pool and log balance
-    function _mpMint(FeederData storage _data, Asset memory _input, uint256 _inputQuantity)
-        internal
-        returns (AssetData memory mAssetData)
-    {
+    function _mpMint(
+        FeederData storage _data,
+        Asset memory _input,
+        uint256 _inputQuantity
+    ) internal returns (AssetData memory mAssetData) {
         // TODO - handle tx fees with new massethelpers fns
-        // TODO - consider poking cache here?
+        // TODO - consider poking cache here for mAsset deposit?
         mAssetData = AssetData(0, 0, _data.bAssetPersonal[0]);
         IERC20(_input.addr).safeTransferFrom(msg.sender, address(this), _inputQuantity);
         uint256 balBefore = IERC20(mAssetData.personal.addr).balanceOf(address(this));
@@ -289,7 +324,7 @@ library FeederLogic {
         // Settle the swap
         // Decrease output bal
         BassetPersonal memory outputPersonal = _data.bAssetPersonal[_output.idx];
-        withdrawTokens(
+        _withdrawTokens(
             swapOutput,
             outputPersonal,
             _cachedBassetData[_output.idx],
@@ -300,7 +335,6 @@ library FeederLogic {
             _cachedBassetData[_output.idx].vaultBalance -
             SafeCast.toUint128(swapOutput);
     }
-
 
     function _redeemLocal(
         FeederData storage _data,
@@ -323,7 +357,7 @@ library FeederLogic {
         require(outputQuantity > 0, "Output == 0");
 
         // Transfer the Bassets to the recipient
-        withdrawTokens(
+        _withdrawTokens(
             outputQuantity,
             _data.bAssetPersonal[_output.idx],
             allBassets[_output.idx],
@@ -335,7 +369,6 @@ library FeederLogic {
             allBassets[_output.idx].vaultBalance -
             SafeCast.toUint128(outputQuantity);
     }
-
 
     /**
      * @dev Deposits a given asset to the system. If there is sufficient room for the asset
@@ -398,7 +431,7 @@ library FeederLogic {
      * in the cache, then withdraw from there, otherwise withdraw from the lending market and reset the
      * cache to the mid level.
      */
-    function withdrawTokens(
+    function _withdrawTokens(
         uint256 _quantity,
         BassetPersonal memory _personal,
         BassetData memory _data,
@@ -455,17 +488,13 @@ library FeederLogic {
         }
     }
 
-
-
-    /***************************************
-                GETTERS - INTERNAL
-    ****************************************/
-
-    function _getCacheDetails(FeederData storage _data, uint256 _supply) internal view returns (uint256 maxCache) {
-        maxCache = _supply * _data.cacheSize / 1e18;
+    function _getCacheDetails(FeederData storage _data, uint256 _supply)
+        internal
+        view
+        returns (uint256 maxCache)
+    {
+        maxCache = (_supply * _data.cacheSize) / 1e18;
     }
-
-
 
     /***************************************
                     INVARIANT
@@ -515,10 +544,8 @@ library FeederLogic {
         uint256[] memory _rawInputs,
         FeederConfig memory _config
     ) public view returns (uint256 mintAmount) {
-        console.log("Validator: mintMulti");
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
-        console.log("Validator: mintMulti 1");
         // 2. Get value of reserves according to invariant
         uint256 k0 = _invariant(x, sum, _config.a);
 
@@ -532,10 +559,8 @@ library FeederLogic {
             x[idx] += scaledInput;
             sum += scaledInput;
         }
-        console.log("Validator: mintMulti 2");
         // 4. Finalise mint
         require(_inBounds(x, sum, _config.limits), "Exceeds weight limits");
-        console.log("Validator: mintMulti 3");
         mintAmount = _computeMintOutput(x, sum, k0, _config);
     }
 
@@ -710,10 +735,8 @@ library FeederLogic {
         uint256 len = _x.length;
         inBounds = true;
         uint256 w;
-        console.log("min: ", _limits.min, " max :", _limits.max);
         for (uint256 i = 0; i < len; i++) {
             w = (_x[i] * 1e18) / _sum;
-            console.log("weight", i, w);
             if (w > _limits.max || w < _limits.min) return false;
         }
     }
