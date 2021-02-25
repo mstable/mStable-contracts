@@ -4,11 +4,13 @@ import { assertBNClose } from "@utils/assertions"
 import { DEAD_ADDRESS, fullScale, MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
 import { BN, simpleToExactAmount } from "@utils/math"
-import { mintData, mintMultiData, redeemData, redeemExactData, redeemMassetData, swapData } from "@utils/validator-data"
+import { mAssetData } from "@utils/validator-data"
 
 import { expect } from "chai"
 import { ethers } from "hardhat"
 import { InvariantValidator, InvariantValidator__factory, Masset, Masset__factory, MockERC20 } from "types/generated"
+
+const { mintData, mintMultiData, redeemData, redeemExactData, redeemMassetData, swapData } = mAssetData
 
 const config = {
     a: BN.from(12000),
@@ -138,7 +140,9 @@ describe("Invariant Validator - One basket one test", () => {
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}, ${testData.reserve2}`, () => {
                 for (const testRedeem of testData.redeems) {
                     // Deduct swap fee before performing redemption
-                    const netInput = cv(testRedeem.mAssetQty).mul(fullScale.sub(swapFeeRate)).div(fullScale)
+                    const netInput = cv(testRedeem.mAssetQty)
+                        .mul(fullScale.sub(swapFeeRate))
+                        .div(fullScale)
 
                     if (testRedeem.hardLimitError) {
                         it(`${(count += 1)} throws Max Weight error when redeeming ${testRedeem.mAssetQty} mAssets for bAsset ${

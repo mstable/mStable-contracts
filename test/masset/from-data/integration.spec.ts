@@ -9,8 +9,9 @@ import { DEAD_ADDRESS, MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
 import { ExposedInvariantValidator__factory, ExposedMasset } from "types/generated"
 import { assertBNClose, assertBNSlightlyGT } from "@utils/assertions"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
-import fullTestData from "@utils/validator-data/full/integrationData.json"
-import sampleTestData from "@utils/validator-data/sample/integrationData.json"
+import { mAssetData } from "@utils/validator-data"
+
+const { full, sample } = mAssetData.integrationData
 
 const config = {
     a: BN.from(120),
@@ -34,7 +35,7 @@ const getReserves = (data: any) =>
             vaultBalance: cv(data[`reserve${i}`]),
         }))
 
-const chosenTestData = process.env.LONG_TESTS === "true" ? fullTestData : sampleTestData
+const chosenTestData = process.env.LONG_TESTS === "true" ? full : sample
 
 describe("Invariant Validator - One basket many tests", () => {
     let mAsset: ExposedMasset

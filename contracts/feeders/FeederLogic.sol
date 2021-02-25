@@ -669,6 +669,15 @@ library FeederLogic {
         totalmAssets = (_config.supply * (k0 - k1)) / k0;
     }
 
+    function computePrice(
+        BassetData[] memory _bAssets,
+        FeederConfig memory _config
+    ) public view returns (uint256 price, uint256 k) {
+        (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
+        k = _invariant(x, sum, _config.a);
+        price = 1e18 * k / _config.supply;
+    }
+
     /***************************************
                     INTERNAL
     ****************************************/

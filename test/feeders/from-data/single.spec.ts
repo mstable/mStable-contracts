@@ -1,0 +1,316 @@
+/* eslint-disable @typescript-eslint/no-loop-func */
+/* eslint-disable no-restricted-syntax */
+import { assertBNClose } from "@utils/assertions"
+import { DEAD_ADDRESS, fullScale, MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
+import { MassetMachine, StandardAccounts } from "@utils/machines"
+import { BN, simpleToExactAmount } from "@utils/math"
+import { feederData } from "@utils/validator-data"
+
+import { expect } from "chai"
+import { ethers } from "hardhat"
+import {
+    ExposedFeederLogic,
+    ExposedFeederLogic__factory,
+    FeederLogic__factory,
+    FeederPool,
+    MockERC20,
+    FeederManager__factory,
+    FeederPool__factory,
+} from "types/generated"
+
+const { mintData, mintMultiData, redeemData, redeemExactData, redeemProportionalData, swapData } = feederData
+
+const config = {
+    a: BN.from(8000),
+    limits: {
+        min: simpleToExactAmount(5, 16),
+        max: simpleToExactAmount(95, 16),
+    },
+}
+
+const ratio = simpleToExactAmount(1, 8)
+const swapFeeRate = simpleToExactAmount(8, 14)
+const redemptionFeeRate = simpleToExactAmount(4, 14)
+const tolerance = 1
+
+const cv = (n: number | string): BN => BN.from(BigInt(n).toString())
+const getReserves = (data: any) =>
+    [0, 1, 2, 3, 4]
+        .filter((i) => data[`reserve${i}`])
+        .map((i) => ({
+            ratio,
+            vaultBalance: cv(data[`reserve${i}`]),
+        }))
+
+const runLongTests = process.env.LONG_TESTS === "true"
+
+describe("Feeder Validator - One basket one test", () => {
+    let exposedFeeder: ExposedFeederLogic
+    let sa: StandardAccounts
+
+    before(async () => {
+        const accounts = await ethers.getSigners()
+        const mAssetMachine = await new MassetMachine().initAccounts(accounts)
+        sa = mAssetMachine.sa
+        const logic = await new FeederLogic__factory(sa.default.signer).deploy()
+        const linkedAddress = {
+            __$7791d1d5b7ea16da359ce352a2ac3a881c$__: logic.address,
+        }
+        exposedFeeder = await new ExposedFeederLogic__factory(linkedAddress, sa.default.signer).deploy()
+    })
+    describe("Compute Mint", () => {
+        let count = 0
+        const testMintData = runLongTests ? mintData.full : mintData.sample
+        for (const testData of testMintData) {
+            const reserves = getReserves(testData)
+            const localConfig = { ...config, supply: testData.mAssetSupply }
+            describe(`reserves: ${testData.reserve0}, ${testData.reserve1}`, () => {
+                for (const testMint of testData.mints) {
+                    if (testMint.hardLimitError) {
+                        it(`${(count += 1)} throws Max Weight error when minting ${testMint.bAssetQty.toString()} bAssets with index ${
+                            testMint.bAssetIndex
+                        }`, async () => {
+                            await expect(
+                                exposedFeeder.computeMint(reserves, testMint.bAssetIndex, cv(testMint.bAssetQty), localConfig),
+                            ).to.be.revertedWith("Exceeds weight limits")
+                        })
+                    } else {
+                        it(`${(count += 1)} deposit ${testMint.bAssetQty.toString()} bAssets with index ${
+                            testMint.bAssetIndex
+                        }`, async () => {
+                            const mAssetQty = await exposedFeeder.computeMint(
+                                reserves,
+                                testMint.bAssetIndex,
+                                cv(testMint.bAssetQty),
+                                localConfig,
+                            )
+                            expect(mAssetQty).eq(cv(testMint.expectedQty))
+                        })
+                    }
+                }
+            })
+        }
+    })
+    describe("Compute Multi Mint", () => {
+        let count = 0
+        const testMultiMintData = runLongTests ? mintMultiData.full : mintMultiData.sample
+        for (const testData of testMultiMintData) {
+            const reserves = getReserves(testData)
+            const localConfig = { ...config, supply: testData.mAssetSupply }
+            describe(`reserves: ${testData.reserve0}, ${testData.reserve1}`, () => {
+                for (const testMint of testData.mints) {
+                    const qtys = testMint.bAssetQtys.map((b) => cv(b))
+                    it(`${(count += 1)} deposit ${qtys} bAssets`, async () => {
+                        const mAssetQty = await exposedFeeder.computeMintMulti(reserves, [0, 1], qtys, localConfig)
+                        expect(mAssetQty).eq(cv(testMint.expectedQty))
+                    })
+                }
+            })
+        }
+    })
+    describe("Compute Swap", () => {
+        let count = 0
+        const testSwapData = runLongTests ? swapData.full : swapData.sample
+        for (const testData of testSwapData) {
+            const reserves = getReserves(testData)
+            const localConfig = { ...config, supply: testData.mAssetSupply }
+            describe(`reserves: ${testData.reserve0}, ${testData.reserve1}`, () => {
+                for (const testSwap of testData.swaps) {
+                    if (testSwap.hardLimitError) {
+                        it(`${(count += 1)} throws Max Weight error when swapping ${testSwap.inputQty.toString()} ${
+                            testSwap.inputIndex
+                        } for ${testSwap.outputIndex}`, async () => {
+                            await expect(
+                                exposedFeeder.computeSwap(
+                                    reserves,
+                                    testSwap.inputIndex,
+                                    testSwap.outputIndex,
+                                    cv(testSwap.inputQty),
+                                    swapFeeRate,
+                                    localConfig,
+                                ),
+                            ).to.be.revertedWith("Exceeds weight limits")
+                        })
+                    } else {
+                        it(`${(count += 1)} swaps ${testSwap.inputQty.toString()} ${testSwap.inputIndex} for ${
+                            testSwap.outputIndex
+                        }`, async () => {
+                            const result = await exposedFeeder.computeSwap(
+                                reserves,
+                                testSwap.inputIndex,
+                                testSwap.outputIndex,
+                                cv(testSwap.inputQty),
+                                swapFeeRate,
+                                localConfig,
+                            )
+                            assertBNClose(result.bAssetOutputQuantity, cv(testSwap.outputQty), tolerance)
+                        })
+                    }
+                }
+            })
+        }
+    })
+    describe("Compute Redeem", () => {
+        let count = 0
+        const testRedeemData = runLongTests ? redeemData.full : redeemData.sample
+        for (const testData of testRedeemData) {
+            const reserves = getReserves(testData)
+            const localConfig = { ...config, supply: testData.mAssetSupply }
+            describe(`reserves: ${testData.reserve0}, ${testData.reserve1}`, () => {
+                for (const testRedeem of testData.redeems) {
+                    // Deduct swap fee before performing redemption
+                    const netInput = cv(testRedeem.mAssetQty)
+                        .mul(fullScale.sub(redemptionFeeRate))
+                        .div(fullScale)
+
+                    if (testRedeem.hardLimitError) {
+                        it(`${(count += 1)} throws Max Weight error when redeeming ${testRedeem.mAssetQty} mAssets for bAsset ${
+                            testRedeem.bAssetIndex
+                        }`, async () => {
+                            await expect(
+                                exposedFeeder.computeRedeem(reserves, testRedeem.bAssetIndex, netInput, localConfig),
+                            ).to.be.revertedWith("Exceeds weight limits")
+                        })
+                    } else {
+                        it(`${(count += 1)} redeem ${testRedeem.mAssetQty} mAssets for bAsset ${testRedeem.bAssetIndex}`, async () => {
+                            const bAssetQty = await exposedFeeder.computeRedeem(reserves, testRedeem.bAssetIndex, netInput, localConfig)
+                            assertBNClose(bAssetQty, cv(testRedeem.outputQty), 2)
+                        })
+                    }
+                }
+            })
+        }
+    })
+    describe("Compute Exact Redeem", () => {
+        let count = 0
+        const testRedeemExactData = runLongTests ? redeemExactData.full : redeemExactData.sample
+        for (const testData of testRedeemExactData) {
+            const reserves = getReserves(testData)
+            const localConfig = { ...config, supply: testData.mAssetSupply }
+            describe(`reserves: ${testData.reserve0}, ${testData.reserve1}`, () => {
+                for (const testRedeem of testData.redeems) {
+                    // Deduct swap fee after performing redemption
+                    const applyFee = (m: BN): BN => m.mul(fullScale).div(fullScale.sub(redemptionFeeRate))
+                    const qtys = testRedeem.bAssetQtys.map((b) => cv(b))
+
+                    if (testRedeem.insufficientLiquidityError) {
+                        it(`${(count += 1)} throws throw insufficient liquidity error when redeeming ${qtys} bAssets`, async () => {
+                            await expect(exposedFeeder.computeRedeemExact(reserves, [0, 1], qtys, localConfig)).to.be.revertedWith(
+                                "VM Exception",
+                            )
+                        })
+                    } else if (testRedeem.hardLimitError) {
+                        it(`${(count += 1)} throws Max Weight error when redeeming ${qtys} bAssets`, async () => {
+                            await expect(exposedFeeder.computeRedeemExact(reserves, [0, 1], qtys, localConfig)).to.be.revertedWith(
+                                "Exceeds weight limits",
+                            )
+                        })
+                    } else {
+                        it(`${(count += 1)} redeem ${qtys} bAssets`, async () => {
+                            const mAssetQty = await exposedFeeder.computeRedeemExact(reserves, [0, 1], qtys, localConfig)
+                            assertBNClose(applyFee(mAssetQty), cv(testRedeem.mAssetQty), tolerance)
+                        })
+                    }
+                }
+            })
+        }
+    })
+
+    describe("Compute Redeem Masset", () => {
+        let count = 0
+        const testRedeemData = runLongTests ? redeemProportionalData.full : redeemProportionalData.sample
+        for (const testData of testRedeemData) {
+            const reserves = getReserves(testData)
+            describe(`reserves: ${testData.reserve0}, ${testData.reserve1}`, () => {
+                let feederPool: FeederPool
+                let recipient: string
+                let bAssetAddresses: string[]
+                let bAssets: MockERC20[]
+                let mAssetBassets: MockERC20[]
+                let feederFactory: FeederPool__factory
+                before(async () => {
+                    const accounts = await ethers.getSigners()
+                    const mAssetMachine = await new MassetMachine().initAccounts(accounts)
+                    sa = mAssetMachine.sa
+                    recipient = await sa.default.address
+
+                    const mAssetDetails = await mAssetMachine.deployMasset(false, false, false)
+                    await mAssetMachine.seedWithWeightings(mAssetDetails, [25000000, 25000000, 25000000, 25000000])
+                    mAssetBassets = mAssetDetails.bAssets
+                    const bBtc = await mAssetMachine.loadBassetProxy("Binance BTC", "bBTC", 18)
+                    bAssets = [mAssetDetails.mAsset as MockERC20, bBtc]
+                    bAssetAddresses = bAssets.map((b) => b.address)
+                    const feederLogic = await new FeederLogic__factory(sa.default.signer).deploy()
+                    const manager = await new FeederManager__factory(sa.default.signer).deploy()
+                    feederFactory = (
+                        await ethers.getContractFactory("FeederPool", {
+                            libraries: {
+                                FeederManager: manager.address,
+                                FeederLogic: feederLogic.address,
+                            },
+                        })
+                    ).connect(sa.default.signer) as FeederPool__factory
+                })
+
+                beforeEach(async () => {
+                    feederPool = (await feederFactory.deploy(DEAD_ADDRESS, bAssets[0].address)) as FeederPool
+                    await feederPool.initialize(
+                        "mStable mBTC/bBTC Feeder",
+                        "bBTC fPool",
+                        {
+                            addr: bAssets[0].address,
+                            integrator: ZERO_ADDRESS,
+                            hasTxFee: false,
+                            status: 0,
+                        },
+                        {
+                            addr: bAssets[1].address,
+                            integrator: ZERO_ADDRESS,
+                            hasTxFee: false,
+                            status: 0,
+                        },
+                        mAssetBassets.map((b) => b.address),
+                        {
+                            a: simpleToExactAmount(1, 2),
+                            limits: {
+                                min: simpleToExactAmount(3, 16),
+                                max: simpleToExactAmount(97, 16),
+                            },
+                        },
+                    )
+                    await Promise.all(bAssets.map((b) => b.approve(feederPool.address, MAX_UINT256)))
+                    await feederPool.mintMulti(
+                        bAssetAddresses,
+                        reserves.map((r) => r.vaultBalance),
+                        0,
+                        recipient,
+                    )
+                })
+
+                for (const testRedeem of testData.redeems) {
+                    const qtys = testRedeem.bAssetQtys.map((b) => cv(b))
+                    if (testRedeem.insufficientLiquidityError) {
+                        it(`${(count += 1)} throws throw insufficient liquidity error when redeeming ${
+                            testRedeem.mAssetQty
+                        } mAsset`, async () => {
+                            await expect(feederPool.redeemProportionately(cv(testRedeem.mAssetQty), qtys, recipient)).to.be.revertedWith(
+                                "VM Exception",
+                            )
+                        })
+                    } else if (testRedeem.hardLimitError) {
+                        it(`${(count += 1)} throws Max Weight error when redeeming ${qtys} bAssets`, async () => {
+                            await expect(feederPool.redeemProportionately(cv(testRedeem.mAssetQty), qtys, recipient)).to.be.revertedWith(
+                                "Exceeds weight limits",
+                            )
+                            throw new Error("invalid exception")
+                        })
+                    } else {
+                        it(`${(count += 1)} redeem ${testRedeem.mAssetQty} mAssets for proportionate bAssets`, async () => {
+                            await feederPool.redeemProportionately(cv(testRedeem.mAssetQty), qtys, recipient)
+                        })
+                    }
+                }
+            })
+        }
+    })
+})

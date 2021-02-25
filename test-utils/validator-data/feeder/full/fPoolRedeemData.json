@@ -1,0 +1,862 @@
+[
+  {
+    "reserve0": "1000000000000000000000000",
+    "reserve1": "1000000000000000000000000",
+    "A": 80,
+    "mAssetSupply": "2000000000000000000000000",
+    "hardMin": 50000000000000000,
+    "hardMax": 950000000000000000,
+    "redemptionFeeRate": 400000000000000,
+    "redeems": [
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "10000000000000",
+        "outputQty": "9995999999999",
+        "swapFee": "4000000000",
+        "priceReceived": 1.0004001600641257
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1000000000000000",
+        "outputQty": "999599999996916",
+        "swapFee": "400000000000",
+        "priceReceived": 1.0004001600671122
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "100000000000000000",
+        "outputQty": "99959999969160487",
+        "swapFee": "40000000000000",
+        "priceReceived": 1.0004001603726675
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1000000000000000000",
+        "outputQty": "999599996916047366",
+        "swapFee": "400000000000000",
+        "priceReceived": 1.0004001631504469
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "10000000000000000000",
+        "outputQty": "9995999691603366544",
+        "swapFee": "4000000000000000",
+        "priceReceived": 1.0004001909283764
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "100000000000000000000",
+        "outputQty": "99959969158966408935",
+        "swapFee": "40000000000000000",
+        "priceReceived": 1.000400468721333
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "179799999999999993708544",
+        "outputQty": "179617623668079288009415",
+        "swapFee": "71919999999999997483",
+        "priceReceived": 1.0010153587838224
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "359599999999999987417088",
+        "outputQty": "358947632078046535204405",
+        "swapFee": "143839999999999994966",
+        "priceReceived": 1.0018174459549343
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "539400000000000014680064",
+        "outputQty": "537776433511566377517265",
+        "swapFee": "215760000000000005872",
+        "priceReceived": 1.0030190361407845
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "719199999999999974834176",
+        "outputQty": "715376972207454495065532",
+        "swapFee": "287679999999999989933",
+        "priceReceived": 1.005344074440569
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "898999999999999934988288",
+        "outputQty": "887044051625507403781894",
+        "swapFee": "359599999999999973995",
+        "priceReceived": 1.0134784155900525
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1078800000000000029360128",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1258599999999999989514240",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1438399999999999949668352",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1618199999999999909822464",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1797999999999999869976576",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "10000000000000",
+        "outputQty": "9995999999999",
+        "swapFee": "4000000000",
+        "priceReceived": 1.0004001600641257
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1000000000000000",
+        "outputQty": "999599999996916",
+        "swapFee": "400000000000",
+        "priceReceived": 1.0004001600671122
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "100000000000000000",
+        "outputQty": "99959999969160487",
+        "swapFee": "40000000000000",
+        "priceReceived": 1.0004001603726675
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1000000000000000000",
+        "outputQty": "999599996916047366",
+        "swapFee": "400000000000000",
+        "priceReceived": 1.0004001631504469
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "10000000000000000000",
+        "outputQty": "9995999691603366544",
+        "swapFee": "4000000000000000",
+        "priceReceived": 1.0004001909283764
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "100000000000000000000",
+        "outputQty": "99959969158966408935",
+        "swapFee": "40000000000000000",
+        "priceReceived": 1.000400468721333
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "179799999999999993708544",
+        "outputQty": "179617623668079288009415",
+        "swapFee": "71919999999999997483",
+        "priceReceived": 1.0010153587838224
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "359599999999999987417088",
+        "outputQty": "358947632078046535204405",
+        "swapFee": "143839999999999994966",
+        "priceReceived": 1.0018174459549343
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "539400000000000014680064",
+        "outputQty": "537776433511566377517265",
+        "swapFee": "215760000000000005872",
+        "priceReceived": 1.0030190361407845
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "719199999999999974834176",
+        "outputQty": "715376972207454495065532",
+        "swapFee": "287679999999999989933",
+        "priceReceived": 1.005344074440569
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "898999999999999934988288",
+        "outputQty": "887044051625507403781894",
+        "swapFee": "359599999999999973995",
+        "priceReceived": 1.0134784155900525
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1078800000000000029360128",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1258599999999999989514240",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1438399999999999949668352",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1618199999999999909822464",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1797999999999999869976576",
+        "hardLimitError": true
+      }
+    ]
+  },
+  {
+    "reserve0": "1000000000000000000000000",
+    "reserve1": "1000000000000000000000000",
+    "A": 80,
+    "mAssetSupply": "2000000000000000000000000",
+    "hardMin": 50000000000000000,
+    "hardMax": 950000000000000000,
+    "redemptionFeeRate": 400000000000000,
+    "redeems": [
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "10000000000000",
+        "outputQty": "9995999999999",
+        "swapFee": "4000000000",
+        "priceReceived": 1.0004001600641257
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1000000000000000",
+        "outputQty": "999599999996916",
+        "swapFee": "400000000000",
+        "priceReceived": 1.0004001600671122
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "100000000000000000",
+        "outputQty": "99959999969160487",
+        "swapFee": "40000000000000",
+        "priceReceived": 1.0004001603726675
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1000000000000000000",
+        "outputQty": "999599996916047366",
+        "swapFee": "400000000000000",
+        "priceReceived": 1.0004001631504469
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "10000000000000000000",
+        "outputQty": "9995999691603366544",
+        "swapFee": "4000000000000000",
+        "priceReceived": 1.0004001909283764
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "100000000000000000000",
+        "outputQty": "99959969158966408935",
+        "swapFee": "40000000000000000",
+        "priceReceived": 1.000400468721333
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "179799999999999993708544",
+        "outputQty": "179617623668079288009415",
+        "swapFee": "71919999999999997483",
+        "priceReceived": 1.0010153587838224
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "359599999999999987417088",
+        "outputQty": "358947632078046535204405",
+        "swapFee": "143839999999999994966",
+        "priceReceived": 1.0018174459549343
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "539400000000000014680064",
+        "outputQty": "537776433511566377517265",
+        "swapFee": "215760000000000005872",
+        "priceReceived": 1.0030190361407845
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "719199999999999974834176",
+        "outputQty": "715376972207454495065532",
+        "swapFee": "287679999999999989933",
+        "priceReceived": 1.005344074440569
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "898999999999999934988288",
+        "outputQty": "887044051625507403781894",
+        "swapFee": "359599999999999973995",
+        "priceReceived": 1.0134784155900525
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1078800000000000029360128",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1258599999999999989514240",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1438399999999999949668352",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1618199999999999909822464",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1797999999999999869976576",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "10000000000000",
+        "outputQty": "9995999999999",
+        "swapFee": "4000000000",
+        "priceReceived": 1.0004001600641257
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1000000000000000",
+        "outputQty": "999599999996916",
+        "swapFee": "400000000000",
+        "priceReceived": 1.0004001600671122
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "100000000000000000",
+        "outputQty": "99959999969160487",
+        "swapFee": "40000000000000",
+        "priceReceived": 1.0004001603726675
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1000000000000000000",
+        "outputQty": "999599996916047366",
+        "swapFee": "400000000000000",
+        "priceReceived": 1.0004001631504469
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "10000000000000000000",
+        "outputQty": "9995999691603366544",
+        "swapFee": "4000000000000000",
+        "priceReceived": 1.0004001909283764
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "100000000000000000000",
+        "outputQty": "99959969158966408935",
+        "swapFee": "40000000000000000",
+        "priceReceived": 1.000400468721333
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "179799999999999993708544",
+        "outputQty": "179617623668079288009415",
+        "swapFee": "71919999999999997483",
+        "priceReceived": 1.0010153587838224
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "359599999999999987417088",
+        "outputQty": "358947632078046535204405",
+        "swapFee": "143839999999999994966",
+        "priceReceived": 1.0018174459549343
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "539400000000000014680064",
+        "outputQty": "537776433511566377517265",
+        "swapFee": "215760000000000005872",
+        "priceReceived": 1.0030190361407845
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "719199999999999974834176",
+        "outputQty": "715376972207454495065532",
+        "swapFee": "287679999999999989933",
+        "priceReceived": 1.005344074440569
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "898999999999999934988288",
+        "outputQty": "887044051625507403781894",
+        "swapFee": "359599999999999973995",
+        "priceReceived": 1.0134784155900525
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1078800000000000029360128",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1258599999999999989514240",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1438399999999999949668352",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1618199999999999909822464",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1797999999999999869976576",
+        "hardLimitError": true
+      }
+    ]
+  },
+  {
+    "reserve0": "1000000000000000000000000",
+    "reserve1": "1000000000000000000000000",
+    "A": 80,
+    "mAssetSupply": "2000000000000000000000000",
+    "hardMin": 50000000000000000,
+    "hardMax": 950000000000000000,
+    "redemptionFeeRate": 400000000000000,
+    "redeems": [
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "10000000000000",
+        "outputQty": "9995999999999",
+        "swapFee": "4000000000",
+        "priceReceived": 1.0004001600641257
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1000000000000000",
+        "outputQty": "999599999996916",
+        "swapFee": "400000000000",
+        "priceReceived": 1.0004001600671122
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "100000000000000000",
+        "outputQty": "99959999969160487",
+        "swapFee": "40000000000000",
+        "priceReceived": 1.0004001603726675
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1000000000000000000",
+        "outputQty": "999599996916047366",
+        "swapFee": "400000000000000",
+        "priceReceived": 1.0004001631504469
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "10000000000000000000",
+        "outputQty": "9995999691603366544",
+        "swapFee": "4000000000000000",
+        "priceReceived": 1.0004001909283764
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "100000000000000000000",
+        "outputQty": "99959969158966408935",
+        "swapFee": "40000000000000000",
+        "priceReceived": 1.000400468721333
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "179799999999999993708544",
+        "outputQty": "179617623668079288009415",
+        "swapFee": "71919999999999997483",
+        "priceReceived": 1.0010153587838224
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "359599999999999987417088",
+        "outputQty": "358947632078046535204405",
+        "swapFee": "143839999999999994966",
+        "priceReceived": 1.0018174459549343
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "539400000000000014680064",
+        "outputQty": "537776433511566377517265",
+        "swapFee": "215760000000000005872",
+        "priceReceived": 1.0030190361407845
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "719199999999999974834176",
+        "outputQty": "715376972207454495065532",
+        "swapFee": "287679999999999989933",
+        "priceReceived": 1.005344074440569
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "898999999999999934988288",
+        "outputQty": "887044051625507403781894",
+        "swapFee": "359599999999999973995",
+        "priceReceived": 1.0134784155900525
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1078800000000000029360128",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1258599999999999989514240",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1438399999999999949668352",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1618199999999999909822464",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1797999999999999869976576",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "10000000000000",
+        "outputQty": "9995999999999",
+        "swapFee": "4000000000",
+        "priceReceived": 1.0004001600641257
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1000000000000000",
+        "outputQty": "999599999996916",
+        "swapFee": "400000000000",
+        "priceReceived": 1.0004001600671122
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "100000000000000000",
+        "outputQty": "99959999969160487",
+        "swapFee": "40000000000000",
+        "priceReceived": 1.0004001603726675
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1000000000000000000",
+        "outputQty": "999599996916047366",
+        "swapFee": "400000000000000",
+        "priceReceived": 1.0004001631504469
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "10000000000000000000",
+        "outputQty": "9995999691603366544",
+        "swapFee": "4000000000000000",
+        "priceReceived": 1.0004001909283764
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "100000000000000000000",
+        "outputQty": "99959969158966408935",
+        "swapFee": "40000000000000000",
+        "priceReceived": 1.000400468721333
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "179799999999999993708544",
+        "outputQty": "179617623668079288009415",
+        "swapFee": "71919999999999997483",
+        "priceReceived": 1.0010153587838224
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "359599999999999987417088",
+        "outputQty": "358947632078046535204405",
+        "swapFee": "143839999999999994966",
+        "priceReceived": 1.0018174459549343
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "539400000000000014680064",
+        "outputQty": "537776433511566377517265",
+        "swapFee": "215760000000000005872",
+        "priceReceived": 1.0030190361407845
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "719199999999999974834176",
+        "outputQty": "715376972207454495065532",
+        "swapFee": "287679999999999989933",
+        "priceReceived": 1.005344074440569
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "898999999999999934988288",
+        "outputQty": "887044051625507403781894",
+        "swapFee": "359599999999999973995",
+        "priceReceived": 1.0134784155900525
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1078800000000000029360128",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1258599999999999989514240",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1438399999999999949668352",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1618199999999999909822464",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1797999999999999869976576",
+        "hardLimitError": true
+      }
+    ]
+  },
+  {
+    "reserve0": "1000000000000000000000000",
+    "reserve1": "1000000000000000000000000",
+    "A": 80,
+    "mAssetSupply": "2000000000000000000000000",
+    "hardMin": 50000000000000000,
+    "hardMax": 950000000000000000,
+    "redemptionFeeRate": 400000000000000,
+    "redeems": [
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "10000000000000",
+        "outputQty": "9995999999999",
+        "swapFee": "4000000000",
+        "priceReceived": 1.0004001600641257
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1000000000000000",
+        "outputQty": "999599999996916",
+        "swapFee": "400000000000",
+        "priceReceived": 1.0004001600671122
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "100000000000000000",
+        "outputQty": "99959999969160487",
+        "swapFee": "40000000000000",
+        "priceReceived": 1.0004001603726675
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1000000000000000000",
+        "outputQty": "999599996916047366",
+        "swapFee": "400000000000000",
+        "priceReceived": 1.0004001631504469
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "10000000000000000000",
+        "outputQty": "9995999691603366544",
+        "swapFee": "4000000000000000",
+        "priceReceived": 1.0004001909283764
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "100000000000000000000",
+        "outputQty": "99959969158966408935",
+        "swapFee": "40000000000000000",
+        "priceReceived": 1.000400468721333
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "179799999999999993708544",
+        "outputQty": "179617623668079288009415",
+        "swapFee": "71919999999999997483",
+        "priceReceived": 1.0010153587838224
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "359599999999999987417088",
+        "outputQty": "358947632078046535204405",
+        "swapFee": "143839999999999994966",
+        "priceReceived": 1.0018174459549343
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "539400000000000014680064",
+        "outputQty": "537776433511566377517265",
+        "swapFee": "215760000000000005872",
+        "priceReceived": 1.0030190361407845
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "719199999999999974834176",
+        "outputQty": "715376972207454495065532",
+        "swapFee": "287679999999999989933",
+        "priceReceived": 1.005344074440569
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "898999999999999934988288",
+        "outputQty": "887044051625507403781894",
+        "swapFee": "359599999999999973995",
+        "priceReceived": 1.0134784155900525
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1078800000000000029360128",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1258599999999999989514240",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1438399999999999949668352",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1618199999999999909822464",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 0,
+        "mAssetQty": "1797999999999999869976576",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "10000000000000",
+        "outputQty": "9995999999999",
+        "swapFee": "4000000000",
+        "priceReceived": 1.0004001600641257
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1000000000000000",
+        "outputQty": "999599999996916",
+        "swapFee": "400000000000",
+        "priceReceived": 1.0004001600671122
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "100000000000000000",
+        "outputQty": "99959999969160487",
+        "swapFee": "40000000000000",
+        "priceReceived": 1.0004001603726675
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1000000000000000000",
+        "outputQty": "999599996916047366",
+        "swapFee": "400000000000000",
+        "priceReceived": 1.0004001631504469
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "10000000000000000000",
+        "outputQty": "9995999691603366544",
+        "swapFee": "4000000000000000",
+        "priceReceived": 1.0004001909283764
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "100000000000000000000",
+        "outputQty": "99959969158966408935",
+        "swapFee": "40000000000000000",
+        "priceReceived": 1.000400468721333
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "179799999999999993708544",
+        "outputQty": "179617623668079288009415",
+        "swapFee": "71919999999999997483",
+        "priceReceived": 1.0010153587838224
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "359599999999999987417088",
+        "outputQty": "358947632078046535204405",
+        "swapFee": "143839999999999994966",
+        "priceReceived": 1.0018174459549343
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "539400000000000014680064",
+        "outputQty": "537776433511566377517265",
+        "swapFee": "215760000000000005872",
+        "priceReceived": 1.0030190361407845
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "719199999999999974834176",
+        "outputQty": "715376972207454495065532",
+        "swapFee": "287679999999999989933",
+        "priceReceived": 1.005344074440569
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "898999999999999934988288",
+        "outputQty": "887044051625507403781894",
+        "swapFee": "359599999999999973995",
+        "priceReceived": 1.0134784155900525
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1078800000000000029360128",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1258599999999999989514240",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1438399999999999949668352",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1618199999999999909822464",
+        "hardLimitError": true
+      },
+      {
+        "bAssetIndex": 1,
+        "mAssetQty": "1797999999999999869976576",
+        "hardLimitError": true
+      }
+    ]
+  }
+]

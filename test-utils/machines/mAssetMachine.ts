@@ -65,7 +65,7 @@ export class MassetMachine {
         // If mocks enabled, uses mock which returns 1:1 on all actions
         const forgeVal = await (useMockValidator
             ? new MockInvariantValidator__factory(this.sa.default.signer).deploy()
-            : new InvariantValidator__factory(this.sa.default.signer).deploy(simpleToExactAmount(1, 24), simpleToExactAmount(1, 24)))
+            : new InvariantValidator__factory(this.sa.default.signer).deploy(simpleToExactAmount(1, 26), simpleToExactAmount(1, 24)))
 
         // 3. Masset
         // 3.1. Dependencies
