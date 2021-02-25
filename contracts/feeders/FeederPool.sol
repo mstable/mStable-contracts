@@ -120,8 +120,8 @@ contract FeederPool is
         data.ampData = AmpData(startA, startA, 0, 0);
         data.weightLimits = _config.limits;
 
-        data.swapFee = 20e14;
-        data.redemptionFee = 10e14;
+        data.swapFee = 8e14;
+        data.redemptionFee = 4e14;
         data.cacheSize = 1e17;
     }
 
@@ -550,6 +550,10 @@ contract FeederPool is
     /***************************************
                     GETTERS
     ****************************************/
+
+    function getPrice() public view returns (uint256 price, uint256 k) {
+        return FeederLogic.computePrice(data.bAssetData, _getConfig());
+    }
 
     /**
      * @dev Get data for a all bAssets in basket

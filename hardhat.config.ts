@@ -40,6 +40,12 @@ export const hardhatConfig = {
                 enabled: true,
                 runs: 200,
             },
+            outputSelection: {
+                "*": {
+                    Masset: ["storageLayout"],
+                    FeederPool: ["storageLayout"],
+                },
+            },
         },
     },
     paths: { artifacts: "./build" },
