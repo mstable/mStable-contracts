@@ -317,36 +317,22 @@ describe("Feeder Validation - One basket many tests", () => {
                         throw Error("unknown action")
                 }
 
-                // TODO - add proper invariant checks
                 it("holds invariant after action", async () => {
                     const dataEnd = await getData(feederPool)
                     // 1. Check resulting reserves
                     if (testData.reserves) {
                         dataEnd.vaultBalances.map((vb, i) => assertBNClose(vb, cv(testData.reserves[i]), BN.from(1000)))
                     }
-                    // 2. Check that invariant holds: `totalSupply + surplus = k = invariant(reserves)`
-                    //    After each action, this property should hold true, proving 100% that mint/swap/redeem hold,
-                    //    and fees are being paid 100% accurately. This should show that the redeemBasset holds.
-                    // assertBNSlightlyGT(dataEnd.value.k, dataEnd.totalSupply.mul(dataEnd.), BN.from(1000000000000), false, "K does not hold")
-                    //    The dust collected should always increase in favour of the system
-                    // const newKDiff = dataEnd.value.k.sub(dataEnd.totalSupply)
-                    // const cachedLastDiff = lastKDiff
-                    // lastKDiff = newKDiff
-                    // if (testData.type !== "redeemMasset") {
-                    //     expect(newKDiff, "Dust can only accumulate in favour of the system").gte(cachedLastDiff)
-                    // } else if (newKDiff < cachedLastDiff) {
-                    //     assertBNClose(newKDiff, cachedLastDiff, BN.from(200), "K dust accrues on redeemMasset")
-                    // }
-
-                    // // 3. Check swap fee accrual
-                    // if (testData.swapFee) {
-                    //     assertBNClose(
-                    //         newKDiff,
-                    //         cachedLastDiff.add(cv(testData.swapFee)),
-                    //         2,
-                    //         "Swap fees should accrue accurately after each action",
-                    //     )
-                    // }
+                    // 2. Price always goes up
+                    if (testData.type !== "redeemMasset") {
+                        expect(dataEnd.value.price, "fpToken price should always go up").gte(dataBefore.value.price)
+                    } else if (dataEnd.value.price.lt(dataBefore.value.price)) {
+                        assertBNClose(dataEnd.value.price, dataBefore.value.price, 200, "fpToken price should always go up")
+                    }
+                    // 3. Supply checks out
+                    if (testData.mAssetSupply) {
+                        assertBNClose(dataEnd.totalSupply, cv(testData.mAssetSupply), 100, "Total supply should check out")
+                    }
                 })
             })
         }
