@@ -126,7 +126,7 @@ describe("Feeder Validator - One basket one test", () => {
                                     testSwap.inputIndex,
                                     testSwap.outputIndex,
                                     cv(testSwap.inputQty),
-                                    swapFeeRate,
+                                    testSwap.outputIndex === 0 ? 0 : swapFeeRate,
                                     localConfig,
                                 ),
                             ).to.be.revertedWith("Exceeds weight limits")
@@ -140,7 +140,7 @@ describe("Feeder Validator - One basket one test", () => {
                                 testSwap.inputIndex,
                                 testSwap.outputIndex,
                                 cv(testSwap.inputQty),
-                                swapFeeRate,
+                                testSwap.outputIndex === 0 ? 0 : swapFeeRate,
                                 localConfig,
                             )
                             assertBNClose(result.bAssetOutputQuantity, cv(testSwap.outputQty), tolerance)

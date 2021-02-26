@@ -190,7 +190,7 @@ const deployVault = async (sender: Signer, addresses: CommonAddresses, feederPoo
         addresses.nexus,
         feederPool.address,
         addresses.staking,
-        simpleToExactAmount(1, 18),
+        simpleToExactAmount(30000, 18),
         addresses.mta,
     )
     const receiptVaultImpl = await vImpl.deployTransaction.wait()
