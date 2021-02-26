@@ -336,7 +336,7 @@ describe("Cross swap - One basket many tests", () => {
     })
 })
 
-describe.only("Cross swap - Single tests", () => {
+describe("Cross swap - Single tests", () => {
     let feederPool: ExposedFeederPool
     let mAsset: ExposedMasset
     let sa: StandardAccounts
