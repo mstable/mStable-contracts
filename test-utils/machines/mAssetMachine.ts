@@ -57,6 +57,58 @@ export class MassetMachine {
         return this
     }
 
+    // 3 bAssets, custom reserve
+    public async deployLite(): Promise<MassetDetails> {
+        const bAssets = await Promise.all([0, 1, 2].map((i) => this.loadBassetProxy(`${i}BASSET`, `${i}BASSET`, 18)))
+
+        const forgeVal = await new InvariantValidator__factory(this.sa.default.signer).deploy(
+            simpleToExactAmount(1, 26),
+            simpleToExactAmount(1, 24),
+        )
+
+        const ManagerFactory = await ethers.getContractFactory("Manager")
+        const managerLib = (await ManagerFactory.deploy()) as Manager
+
+        const nexus = await new MockNexus__factory(this.sa.default.signer).deploy(
+            this.sa.governor.address,
+            this.sa.mockSavingsManager.address,
+        )
+        const MassetFactory = (await (
+            await ethers.getContractFactory("ExposedMasset", {
+                libraries: {
+                    Manager: managerLib.address,
+                },
+            })
+        ).connect(this.sa.default.signer)) as ExposedMasset__factory
+        const impl = (await MassetFactory.deploy(nexus.address)) as ExposedMasset
+
+        const data = impl.interface.encodeFunctionData("initialize", [
+            "mAsset Lite",
+            "mLite",
+            forgeVal.address,
+            bAssets.map((b) => ({
+                addr: b.address,
+                integrator: ZERO_ADDRESS,
+                hasTxFee: false,
+                status: 0,
+            })),
+            {
+                a: BN.from(135),
+                limits: {
+                    min: simpleToExactAmount(5, 16),
+                    max: simpleToExactAmount(75, 16),
+                },
+            },
+        ])
+        const mAsset = await new AssetProxy__factory(this.sa.default.signer).deploy(impl.address, DEAD_ADDRESS, data)
+
+        return {
+            mAsset: (await MassetFactory.attach(mAsset.address)) as ExposedMasset,
+            bAssets,
+            forgeValidator: forgeVal as InvariantValidator,
+        }
+    }
+
     public async deployMasset(useMockValidator = false, useLendingMarkets = false, useTransferFees = false): Promise<MassetDetails> {
         // 1. Bassets
         const bAssets = await this.loadBassetsLocal(useLendingMarkets, useTransferFees)
@@ -139,9 +191,11 @@ export class MassetMachine {
      * @param md Masset details object containing all deployed contracts
      * @param weights Whole numbers of mAsset to mint for each given bAsset
      */
-    public async seedWithWeightings(md: MassetDetails, weights: Array<BN | number>): Promise<void> {
+    public async seedWithWeightings(md: MassetDetails, weights: Array<BN | number>, inputIsInBaseUnits = false): Promise<void> {
         const { mAsset, bAssets } = md
-        const approvals = await Promise.all(bAssets.map((b, i) => this.approveMasset(b, mAsset, weights[i], this.sa.default.signer)))
+        const approvals = await Promise.all(
+            bAssets.map((b, i) => this.approveMasset(b, mAsset, weights[i], this.sa.default.signer, inputIsInBaseUnits)),
+        )
         await mAsset.mintMulti(
             bAssets.map((b) => b.address),
             approvals,

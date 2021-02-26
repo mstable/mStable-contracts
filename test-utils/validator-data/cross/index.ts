@@ -1,8 +1,8 @@
-import fullIntegrationData from "./full/crossIntegrationData.json"
-import fullMintData from "./full/crossMintData.json"
-import fullSwapToFassetData from "./full/swapToFassetData.json"
-import fullSwapToMPassetData from "./full/swapToMPassetData.json"
-import fullRedeemData from "./full/crossRedeemData.json"
+// import fullIntegrationData from "./full/crossIntegrationData.json"
+// import fullMintData from "./full/crossMintData.json"
+// import fullSwapToFassetData from "./full/swapToFassetData.json"
+// import fullSwapToMPassetData from "./full/swapToMPassetData.json"
+// import fullRedeemData from "./full/crossRedeemData.json"
 
 import sampleIntegrationData from "./sample/crossIntegrationData.json"
 import sampleMintData from "./sample/crossMintData.json"
@@ -16,27 +16,27 @@ interface Data {
 }
 
 const integrationData: Data = {
-    full: fullIntegrationData,
+    full: null,
     sample: sampleIntegrationData,
 }
 
 const mintData: Data = {
-    full: fullMintData,
+    full: null,
     sample: sampleMintData,
 }
 
 const swapToFassetData: Data = {
-    full: fullSwapToFassetData,
+    full: null,
     sample: sampleSwapToFassetData,
 }
 
 const swapToMPassetData: Data = {
-    full: fullSwapToMPassetData,
+    full: null,
     sample: sampleSwapToMPassetData,
 }
 
 const redeemData: Data = {
-    full: fullRedeemData,
+    full: null,
     sample: sampleRedeemData,
 }
 
