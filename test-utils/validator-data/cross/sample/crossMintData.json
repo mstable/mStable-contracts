@@ -1,0 +1,568 @@
+[
+  {
+    "mpAssetReserve0": "6668333333333334512631808",
+    "mpAssetReserve1": "500500000000000003145728",
+    "mpAssetReserve2": "2831166666666666390192128",
+    "feederPoolMAssetReserve": "400000000000000033554432",
+    "feederPoolFAssetReserve": "1600000000000000134217728",
+    "mAssetA": 135,
+    "feederPoolA": 80,
+    "LPTokenSupply": "1993126472060959766058788",
+    "hardMin": 200000000000000000,
+    "hardMax": 800000000000000000,
+    "swapFeeRate": 800000000000000,
+    "mints": [
+      {
+        "inputIndex": 0,
+        "inputQty": "10000000000000",
+        "outputQty0": "9794028287942",
+        "outputQty": "10038011730321"
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "1000000000000000",
+        "outputQty0": "979402828792215",
+        "outputQty": "1003801172972808"
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "100000000000000000",
+        "outputQty0": "97940282859702818",
+        "outputQty": "100380116705375650"
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "1000000000000000000",
+        "outputQty0": "979402826822608983",
+        "outputQty": "1003801113244328838"
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "10000000000000000000",
+        "outputQty0": "9794028090784132733",
+        "outputQty": "10038005751622453958"
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "100000000000000000000",
+        "outputQty0": "97940263163607654684",
+        "outputQty": "100379519556042782955"
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "119800000000000002097152",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "239600000000000004194304",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "359400000000000023068672",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "479200000000000008388608",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "598999999999999993708544",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "718800000000000046137344",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "838599999999999964348416",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "958400000000000016777216",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "1078199999999999934988288",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "1197999999999999987417088",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "10000000000000",
+        "outputQty0": "11473790974132",
+        "outputQty": "11759619740058"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "1000000000000000",
+        "outputQty0": "1147379097129850",
+        "outputQty": "1175961973636901"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "100000000000000000",
+        "outputQty0": "114737906879617389",
+        "outputQty": "117596193674844506"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "1000000000000000000",
+        "outputQty0": "1147378811217800971",
+        "outputQty": "1175961601399594322"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "10000000000000000000",
+        "outputQty0": "11473762354834286546",
+        "outputQty": "11759582479847743311"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "100000000000000000000",
+        "outputQty0": "114735048307443739125",
+        "outputQty": "117592472120356391794"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "119800000000000002097152",
+        "outputQty0": "134121514706266135504184",
+        "outputQty": "136643367677993799216255"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "239600000000000004194304",
+        "outputQty0": "263685898035206251319483",
+        "outputQty": "267686283201589470166316"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "359400000000000023068672",
+        "outputQty0": "390560786255217192586622",
+        "outputQty": "395527953726820320871196"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "479200000000000008388608",
+        "outputQty0": "515714837538293948446697",
+        "outputQty": "521349447408873829949507"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "598999999999999993708544",
+        "outputQty0": "639700560052065034250644",
+        "outputQty": "645805992971492530361645"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "718800000000000046137344",
+        "outputQty0": "762856121830495926132966",
+        "outputQty": "769291945333880824928651"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "838599999999999964348416",
+        "outputQty0": "885400098080273679152548",
+        "outputQty": "892059389379940827775357"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "958400000000000016777216",
+        "outputQty0": "1007480039999736068962597",
+        "outputQty": "1014277187146192359302441"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "1078199999999999934988288",
+        "outputQty0": "1129199151225493084583735",
+        "outputQty": "1136062785731889566132444"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "1197999999999999987417088",
+        "outputQty0": "1250631780462026929406175",
+        "outputQty": "1257500439095315444320390"
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "10000000000000",
+        "outputQty0": "9978769848768",
+        "outputQty": "10227355471234"
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "1000000000000000",
+        "outputQty0": "997876984872901",
+        "outputQty": "1022735547059982"
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "100000000000000000",
+        "outputQty0": "99787698448262066",
+        "outputQty": "102273554072319054"
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "1000000000000000000",
+        "outputQty0": "997876980934625296",
+        "outputQty": "1022735483116137693"
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "10000000000000000000",
+        "outputQty0": "9978769454547622554",
+        "outputQty": "10227349070586226479"
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "100000000000000000000",
+        "outputQty0": "99787659066518451424",
+        "outputQty": "102272914778449238465"
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "119800000000000002097152",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "239600000000000004194304",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "359400000000000023068672",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "479200000000000008388608",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "598999999999999993708544",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "718800000000000046137344",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "838599999999999964348416",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "958400000000000016777216",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "1078199999999999934988288",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "1197999999999999987417088",
+        "hardLimitError": true
+      }
+    ]
+  },
+  {
+    "mpAssetReserve0": "6668333333333334512631808",
+    "mpAssetReserve1": "500500000000000003145728",
+    "mpAssetReserve2": "2831166666666666390192128",
+    "feederPoolMAssetReserve": "599999999999999949668352",
+    "feederPoolFAssetReserve": "1399999999999999815450624",
+    "mAssetA": 135,
+    "feederPoolA": 80,
+    "LPTokenSupply": "1997656647380380287953691",
+    "hardMin": 200000000000000000,
+    "hardMax": 800000000000000000,
+    "swapFeeRate": 800000000000000,
+    "mints": [
+      {
+        "inputIndex": 0,
+        "inputQty": "10000000000000",
+        "outputQty0": "9794028287942",
+        "outputQty": "9877848155496"
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "1000000000000000",
+        "outputQty0": "979402828792215",
+        "outputQty": "987784815533504"
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "100000000000000000",
+        "outputQty0": "97940282859702818",
+        "outputQty": "98778481392556234"
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "1000000000000000000",
+        "outputQty0": "979402826822608983",
+        "outputQty": "987784799307939248"
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "10000000000000000000",
+        "outputQty0": "9794028090784132733",
+        "outputQty": "9877846531336075724"
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "100000000000000000000",
+        "outputQty0": "97940263163607654684",
+        "outputQty": "98778319158017533485"
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "119800000000000002097152",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "239600000000000004194304",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "359400000000000023068672",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "479200000000000008388608",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "598999999999999993708544",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "718800000000000046137344",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "838599999999999964348416",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "958400000000000016777216",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "1078199999999999934988288",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "1197999999999999987417088",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "10000000000000",
+        "outputQty0": "11473790974132",
+        "outputQty": "11571986692127"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "1000000000000000",
+        "outputQty0": "1147379097129850",
+        "outputQty": "1157198668907511"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "100000000000000000",
+        "outputQty0": "114737906879617389",
+        "outputQty": "115719863839472956"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "1000000000000000000",
+        "outputQty0": "1147378811217800971",
+        "outputQty": "1157198361006352333"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "10000000000000000000",
+        "outputQty0": "11473762354834286546",
+        "outputQty": "11571955871762802893"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "100000000000000000000",
+        "outputQty0": "114735048307443739125",
+        "outputQty": "115716785424451483807"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "119800000000000002097152",
+        "outputQty0": "134121514706266135504184",
+        "outputQty": "135046863252747019982100"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "239600000000000004194304",
+        "outputQty0": "263685898035206251319483",
+        "outputQty": "265199168974999895917267"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "359400000000000023068672",
+        "outputQty0": "390560786255217192586622",
+        "outputQty": "392458428188672751637086"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "479200000000000008388608",
+        "outputQty0": "515714837538293948446697",
+        "outputQty": "517857368669955482838258"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "598999999999999993708544",
+        "outputQty0": "639700560052065034250644",
+        "outputQty": "641983605459467612881908"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "718800000000000046137344",
+        "outputQty0": "762856121830495926132966",
+        "outputQty": "765196391416458601554004"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "838599999999999964348416",
+        "outputQty0": "885400098080273679152548",
+        "outputQty": "887727834718474314923310"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "958400000000000016777216",
+        "outputQty0": "1007480039999736068962597",
+        "outputQty": "1009734622143197645439752"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "1078199999999999934988288",
+        "outputQty0": "1129199151225493084583735",
+        "outputQty": "1131326374804171455541166"
+      },
+      {
+        "inputIndex": 1,
+        "inputQty": "1197999999999999987417088",
+        "outputQty0": "1250631780462026929406175",
+        "outputQty": "1252582097577260999109885"
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "10000000000000",
+        "outputQty0": "9978769848768",
+        "outputQty": "10064170783142"
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "1000000000000000",
+        "outputQty0": "997876984872901",
+        "outputQty": "1006417078295633"
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "100000000000000000",
+        "outputQty0": "99787698448262066",
+        "outputQty": "100641707643719276"
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "1000000000000000000",
+        "outputQty0": "997876980934625296",
+        "outputQty": "1006417059542309595"
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "10000000000000000000",
+        "outputQty0": "9978769454547622554",
+        "outputQty": "10064168905955870129"
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "100000000000000000000",
+        "outputQty0": "99787659066518451424",
+        "outputQty": "100641520133922997828"
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "119800000000000002097152",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "239600000000000004194304",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "359400000000000023068672",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "479200000000000008388608",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "598999999999999993708544",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "718800000000000046137344",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "838599999999999964348416",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "958400000000000016777216",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "1078199999999999934988288",
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 2,
+        "inputQty": "1197999999999999987417088",
+        "hardLimitError": true
+      }
+    ]
+  }
+]
