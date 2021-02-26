@@ -5,7 +5,7 @@ import { assertBNClosePercent } from "@utils/assertions"
 import { simpleToExactAmount } from "@utils/math"
 import { MassetMachine, StandardAccounts, FeederMachine, FeederDetails } from "@utils/machines"
 
-describe.only("Feeder Pools", () => {
+describe("Feeder Pools", () => {
     let sa: StandardAccounts
     let feederMachine: FeederMachine
     let feeder: FeederDetails
