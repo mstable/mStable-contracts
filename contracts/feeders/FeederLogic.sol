@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.0;
+pragma solidity 0.8.1;
 
 // External
 import { IPlatformIntegration } from "../interfaces/IPlatformIntegration.sol";
@@ -323,10 +323,9 @@ library FeederLogic {
         require(swapOutput > 0, "Zero output quantity");
         // Settle the swap
         // Decrease output bal
-        BassetPersonal memory outputPersonal = _data.bAssetPersonal[_output.idx];
         _withdrawTokens(
             swapOutput,
-            outputPersonal,
+            _data.bAssetPersonal[_output.idx],
             _cachedBassetData[_output.idx],
             _recipient,
             _getCacheDetails(_data, _config.supply)
