@@ -18,7 +18,7 @@ import { assertBNClose, assertBNSlightlyGT } from "@utils/assertions"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
 import { crossData } from "@utils/validator-data"
 
-const { integrationData, mintData, redeemData, swapToFassetData, swapToMPassetData } = crossData
+const { integrationData } = crossData
 
 const config = {
     a: BN.from(80),
@@ -70,7 +70,7 @@ const getData = async (_feederPool: ExposedFeederPool, _mAsset: ExposedMasset): 
         value: await _feederPool.getPrice(),
     },
     mAsset: {
-        totalSupply: await _mAsset.totalSupply(),
+        totalSupply: (await _mAsset.totalSupply()).add(await _mAsset.surplus()),
         vaultBalances: (await _mAsset.getBassets())[1].map((b) => b[1]),
     },
 })
@@ -331,174 +331,6 @@ describe("Cross swap - One basket many tests", () => {
                         assertBNClose(dataEnd.mAsset.totalSupply, cv(testData.mAssetSupply), 100, "Total supply should check out")
                     }
                 })
-            })
-        }
-    })
-})
-
-describe("Cross swap - Single tests", () => {
-    let feederPool: ExposedFeederPool
-    let mAsset: ExposedMasset
-    let sa: StandardAccounts
-    let recipient: string
-    let fpAssetAddresses: string[]
-    let mpAssetAddresses: string[]
-
-    const runSetup = async (testData: any) => {
-        const accounts = await ethers.getSigners()
-        const mAssetMachine = await new MassetMachine().initAccounts(accounts)
-        sa = mAssetMachine.sa
-        recipient = await sa.default.address
-
-        const mAssetDetails = await mAssetMachine.deployLite()
-
-        await mAssetDetails.mAsset.connect(sa.governor.signer).setFees(mAssetFees.swap, mAssetFees.redeem)
-
-        const fAsset = await mAssetMachine.loadBassetProxy("Feeder Asset", "fAST", 18)
-        const bAssets = [mAssetDetails.mAsset as MockERC20, fAsset]
-        fpAssetAddresses = bAssets.map((b) => b.address)
-        mpAssetAddresses = mAssetDetails.bAssets.map((b) => b.address)
-        mAsset = mAssetDetails.mAsset
-
-        const feederLogic = await new FeederLogic__factory(sa.default.signer).deploy()
-        const manager = await new FeederManager__factory(sa.default.signer).deploy()
-        const FeederFactory = (
-            await ethers.getContractFactory("ExposedFeederPool", {
-                libraries: {
-                    FeederManager: manager.address,
-                    FeederLogic: feederLogic.address,
-                },
-            })
-        ).connect(sa.default.signer) as ExposedFeederPool__factory
-        await mAssetMachine.seedWithWeightings(
-            mAssetDetails,
-            getMPReserves(testData).map((r) => r.vaultBalance),
-            true,
-        )
-
-        feederPool = (await FeederFactory.deploy(DEAD_ADDRESS, bAssets[0].address)) as ExposedFeederPool
-        await feederPool.initialize(
-            "mStable mBTC/bBTC Feeder",
-            "bBTC fPool",
-            {
-                addr: bAssets[0].address,
-                integrator: ZERO_ADDRESS,
-                hasTxFee: false,
-                status: 0,
-            },
-            {
-                addr: bAssets[1].address,
-                integrator: ZERO_ADDRESS,
-                hasTxFee: false,
-                status: 0,
-            },
-            mpAssetAddresses,
-            config,
-        )
-        await Promise.all(bAssets.map((b) => b.approve(feederPool.address, MAX_UINT256)))
-        await Promise.all(mAssetDetails.bAssets.map((b) => b.approve(feederPool.address, MAX_UINT256)))
-
-        const reserves = getFPReserves(testData)
-
-        await feederPool.mintMulti(
-            fpAssetAddresses,
-            reserves.map((r) => r.vaultBalance),
-            0,
-            recipient,
-        )
-    }
-
-    describe("Run all the data", () => {
-        let count = 0
-
-        // const testMintData = runLongTests ? mintData.full : mintData.sample
-        // for (const testData of testMintData) {
-        //     describe(`reserves: ${testData.feederPoolMAssetReserve}, ${testData.feederPoolFAssetReserve}`, () => {
-        //         beforeEach(async () => {
-        //             await runSetup(testData)
-        //         })
-        //         for (const testMint of testData.mints) {
-        //             if (testMint.hardLimitError) {
-        //                 it(`${(count += 1)} throws Max Weight error when minting ${testMint.inputQty.toString()} bAssets with index ${
-        //                     testMint.inputIndex
-        //                 }`, async () => {
-        //                     await expect(
-        //                         feederPool.getMintOutput(mpAssetAddresses[testMint.inputIndex], cv(testMint.inputQty)),
-        //                     ).to.be.revertedWith("Exceeds weight limits")
-        //                 })
-        //             } else {
-        //                 it(`${(count += 1)} deposit ${testMint.inputQty.toString()} bAssets with index ${
-        //                     testMint.inputIndex
-        //                 }`, async () => {
-        //                     const mAssetQty = await feederPool.getMintOutput(mpAssetAddresses[testMint.inputIndex], cv(testMint.inputQty))
-        //                     expect(mAssetQty).eq(cv(testMint.outputQty))
-        //                 })
-        //             }
-        //         }
-        //     })
-        // }
-        // const testSwapToFasset = runLongTests ? swapToFassetData.full : swapToFassetData.sample
-        // for (const testData of testSwapToFasset) {
-        //     describe(`reserves: ${testData.feederPoolMAssetReserve}, ${testData.feederPoolFAssetReserve}`, () => {
-        //         beforeEach(async () => {
-        //             await runSetup(testData)
-        //         })
-        //         for (const testSwap of testData.swaps) {
-        //             if (testSwap.hardLimitError) {
-        //                 it(`${(count += 1)} throws Max Weight error when swapping in ${testSwap.inputQty.toString()} bAssets with index ${
-        //                     testSwap.inputIndex
-        //                 }`, async () => {
-        //                     await expect(
-        //                         feederPool.getSwapOutput(mpAssetAddresses[testSwap.inputIndex], fpAssetAddresses[1], cv(testSwap.inputQty)),
-        //                     ).to.be.revertedWith("Exceeds weight limits")
-        //                 })
-        //             } else {
-        //                 it(`${(count += 1)} deposit ${testSwap.inputQty.toString()} bAssets with index ${
-        //                     testSwap.inputIndex
-        //                 }`, async () => {
-        //                     const outputQty = await feederPool.getSwapOutput(
-        //                         mpAssetAddresses[testSwap.inputIndex],
-        //                         fpAssetAddresses[1],
-        //                         cv(testSwap.inputQty),
-        //                     )
-        //                     expect(outputQty).eq(cv(testSwap.outputQty))
-        //                 })
-        //             }
-        //         }
-        //     })
-        // }
-        const testSwapToMPasset = runLongTests ? swapToMPassetData.full : swapToMPassetData.sample
-        for (const testData of testSwapToMPasset) {
-            describe(`reserves: ${testData.feederPoolMAssetReserve}, ${testData.feederPoolFAssetReserve}`, () => {
-                beforeEach(async () => {
-                    await runSetup(testData)
-                })
-                for (const testSwap of testData.swaps) {
-                    if (testSwap.hardLimitError) {
-                        it(`${(count += 1)} throws Max Weight error when swapping in ${testSwap.inputQty.toString()} fAsset for bAsset index ${
-                            testSwap.outputIndex
-                        }`, async () => {
-                            await expect(
-                                feederPool.getSwapOutput(
-                                    fpAssetAddresses[1],
-                                    mpAssetAddresses[testSwap.outputIndex],
-                                    cv(testSwap.inputQty),
-                                ),
-                            ).to.be.revertedWith("Exceeds weight limits")
-                        })
-                    } else {
-                        it(`${(count += 1)} deposit ${testSwap.inputQty.toString()} fAsset for bAsset index ${
-                            testSwap.outputIndex
-                        }`, async () => {
-                            const outputQty = await feederPool.getSwapOutput(
-                                fpAssetAddresses[1],
-                                mpAssetAddresses[testSwap.outputIndex],
-                                cv(testSwap.inputQty),
-                            )
-                            expect(outputQty).eq(cv(testSwap.outputQty))
-                        })
-                    }
-                }
             })
         }
     })
