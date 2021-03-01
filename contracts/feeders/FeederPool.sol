@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.0;
+pragma solidity 0.8.1;
 
 // External
 import { IMasset } from "../interfaces/IMasset.sol";
@@ -19,6 +19,8 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { StableMath } from "../shared/StableMath.sol";
 import { FeederManager } from "./FeederManager.sol";
 import { FeederLogic } from "./FeederLogic.sol";
+
+
 
 contract FeederPool is
     IFeederPool,
@@ -139,13 +141,11 @@ contract FeederPool is
     }
 
     /**
-     * @dev Verifies that the caller is the Savings Manager contract
+     * @dev Verifies that the caller is the Interest Validator contract
      */
     modifier onlyInterestValidator() {
-        // keccak256("InterestValidator") = c10a28f028c7f7282a03c90608e38a4a646e136e614e4b07d119280c5f7f839f
         require(
-            nexus.getModule(0xc10a28f028c7f7282a03c90608e38a4a646e136e614e4b07d119280c5f7f839f) ==
-                msg.sender,
+            nexus.getModule(KEY_INTEREST_VALIDATOR) ==  msg.sender,
             "Only validator"
         );
         _;

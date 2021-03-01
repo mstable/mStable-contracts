@@ -60,7 +60,7 @@
     "prettier": "^2.2.1",
     "prettier-plugin-solidity": "^1.0.0-beta.3",
     "sol-merger": "^3.0.1",
-    "solc": "0.8.0",
+    "solc": "0.8.1",
     "solhint": "^3.3.2",
     "solidity-coverage": "0.7.12",
     "ts-generator": "^0.1.1",

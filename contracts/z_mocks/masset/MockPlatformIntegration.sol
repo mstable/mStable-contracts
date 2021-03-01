@@ -1,4 +1,4 @@
-pragma solidity 0.8.0;
+pragma solidity 0.8.1;
 
 // Internal
 import { IPlatformIntegration } from "../../interfaces/IPlatformIntegration.sol";
