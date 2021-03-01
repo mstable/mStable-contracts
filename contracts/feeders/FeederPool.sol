@@ -269,7 +269,7 @@ contract FeederPool is
         uint256 _inputQuantity,
         uint256 _minOutputQuantity,
         address _recipient
-    ) external override returns (uint256 swapOutput) {
+    ) external override nonReentrant whenInOperation returns (uint256 swapOutput) {
         require(_recipient != address(0), "Invalid recipient");
         require(_input != _output, "Invalid pair");
         require(_inputQuantity > 0, "Qty==0");
@@ -551,22 +551,15 @@ contract FeederPool is
                     GETTERS
     ****************************************/
 
-    function getPrice() public view returns (uint256 price, uint256 k) {
+    function getPrice() public view override returns (uint256 price, uint256 k) {
         return FeederLogic.computePrice(data.bAssetData, _getConfig());
     }
 
     /**
-     * @dev Get data for a all bAssets in basket
-     * @return personal  Struct[] with full bAsset data
-     * @return vaultData      Number of bAssets in the Basket
+     * @dev Gets all config needed for general InvariantValidator calls
      */
-    function getBassets()
-        external
-        view
-        override
-        returns (BassetPersonal[] memory, BassetData[] memory vaultData)
-    {
-        return (data.bAssetPersonal, data.bAssetData);
+    function getConfig() external view override returns (FeederConfig memory config) {
+        return _getConfig();
     }
 
     /**
@@ -588,10 +581,17 @@ contract FeederPool is
     }
 
     /**
-     * @dev Gets all config needed for general InvariantValidator calls
+     * @dev Get data for a all bAssets in basket
+     * @return personal  Struct[] with full bAsset data
+     * @return vaultData      Number of bAssets in the Basket
      */
-    function getConfig() external view returns (FeederConfig memory config) {
-        return _getConfig();
+    function getBassets()
+        external
+        view
+        override
+        returns (BassetPersonal[] memory, BassetData[] memory vaultData)
+    {
+        return (data.bAssetPersonal, data.bAssetData);
     }
 
     /***************************************
@@ -694,7 +694,7 @@ contract FeederPool is
      *      _cacheSize * totalSupply / 2 under normal circumstances.
      * @param _cacheSize Maximum percent of total mAsset supply to hold for each bAsset
      */
-    function setCacheSize(uint256 _cacheSize) external override onlyGovernor {
+    function setCacheSize(uint256 _cacheSize) external onlyGovernor {
         require(_cacheSize <= 2e17, "Must be <= 20%");
 
         data.cacheSize = _cacheSize;
@@ -706,7 +706,7 @@ contract FeederPool is
      * @dev Set the ecosystem fee for sewapping bAssets or redeeming specific bAssets
      * @param _swapFee Fee calculated in (%/100 * 1e18)
      */
-    function setFees(uint256 _swapFee, uint256 _redemptionFee) external override onlyGovernor {
+    function setFees(uint256 _swapFee, uint256 _redemptionFee) external onlyGovernor {
         require(_swapFee <= MAX_FEE, "Swap rate oob");
         require(_redemptionFee <= MAX_FEE, "Redemption rate oob");
 
@@ -739,7 +739,6 @@ contract FeederPool is
      */
     function migrateBassets(address[] calldata _bAssets, address _newIntegration)
         external
-        override
         onlyGovernor
     {
         FeederManager.migrateBassets(data.bAssetPersonal, _bAssets, _newIntegration);

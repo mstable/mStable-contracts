@@ -277,7 +277,7 @@ library FeederLogic {
                 );
             inputData = AssetData(_input.idx, amt, personal);
         } else {
-            inputData = _mpMint(_data, _input, _inputQuantity);
+            inputData = _mpMint(_data, _input, _inputQuantity, _getCacheDetails(_data, _config.supply));
             require(inputData.amt > 0, "Must mint something from mp");
         }
         _data.bAssetData[inputData.idx].vaultBalance =
@@ -289,16 +289,27 @@ library FeederLogic {
     function _mpMint(
         FeederData storage _data,
         Asset memory _input,
-        uint256 _inputQuantity
+        uint256 _inputQuantity,
+        uint256 _maxCache
     ) internal returns (AssetData memory mAssetData) {
-        // TODO - handle tx fees with new massethelpers fns
-        // TODO - consider poking cache here for mAsset deposit?
         mAssetData = AssetData(0, 0, _data.bAssetPersonal[0]);
         IERC20(_input.addr).safeTransferFrom(msg.sender, address(this), _inputQuantity);
-        uint256 balBefore = IERC20(mAssetData.personal.addr).balanceOf(address(this));
-        IMasset(mAssetData.personal.addr).mint(_input.addr, _inputQuantity, 0, address(this));
-        uint256 balAfter = IERC20(mAssetData.personal.addr).balanceOf(address(this));
+
+        address integrator = mAssetData.personal.integrator == address(0) ? address(this) : mAssetData.personal.integrator;
+
+        uint256 balBefore = IERC20(mAssetData.personal.addr).balanceOf(integrator);
+        // Mint will revert if the _input.addr is not whitelisted on that mAsset
+        IMasset(mAssetData.personal.addr).mint(_input.addr, _inputQuantity, 0, integrator);
+        uint256 balAfter = IERC20(mAssetData.personal.addr).balanceOf(integrator);
         mAssetData.amt = balAfter - balBefore;
+
+        // Route the mAsset to platform integration
+        if (integrator != address(this)) {
+            if (balAfter > _maxCache) {
+                uint256 delta = balAfter - (_maxCache / 2);
+                IPlatformIntegration(integrator).deposit(mAssetData.personal.addr, delta, false);
+            }
+        }
     }
 
     function _swapLocal(

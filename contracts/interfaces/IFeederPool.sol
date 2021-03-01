@@ -2,7 +2,7 @@
 pragma solidity 0.8.1;
 pragma abicoder v2;
 
-import { BassetPersonal, BassetData } from "../masset/MassetStructs.sol";
+import "../masset/MassetStructs.sol";
 
 abstract contract IFeederPool {
     // Mint
@@ -80,6 +80,10 @@ abstract contract IFeederPool {
     ) external view virtual returns (uint256 mAssetAmount);
 
     // Views
+    function getPrice() public view virtual returns (uint256 price, uint256 k);
+    
+    function getConfig() external view virtual returns (FeederConfig memory config);
+
     function getBasset(address _token)
         external
         view
@@ -97,11 +101,4 @@ abstract contract IFeederPool {
         external
         virtual
         returns (uint256 mintAmount, uint256 newSupply);
-
-    // Admin
-    function setCacheSize(uint256 _cacheSize) external virtual;
-
-    function setFees(uint256 _swapFee, uint256 _redemptionFee) external virtual;
-
-    function migrateBassets(address[] calldata _bAssets, address _newIntegration) external virtual;
 }
