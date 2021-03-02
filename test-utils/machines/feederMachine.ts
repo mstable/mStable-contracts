@@ -76,9 +76,7 @@ export class FeederMachine {
             __$60670dd84d06e10bb8a5ac6f99a1c0890c$__: manager.address,
             __$7791d1d5b7ea16da359ce352a2ac3a881c$__: feederLogic.address,
         }
-        console.log("i")
         const impl = await new FeederPool__factory(linkedAddress, this.sa.default.signer).deploy(DEAD_ADDRESS, mAssetDetails.mAsset.address)
-        console.log("ii")
         const data = impl.interface.encodeFunctionData("initialize", [
             "mStable mBTC/bBTC Feeder",
             "bBTC fPool",
@@ -103,16 +101,10 @@ export class FeederMachine {
                 },
             },
         ])
-        console.log("iii")
         const poolProxy = await new AssetProxy__factory(this.sa.default.signer).deploy(impl.address, DEAD_ADDRESS, data)
-        console.log("iv")
         const pool = await new FeederPool__factory(linkedAddress, this.sa.default.signer).attach(poolProxy.address)
-        console.log("v")
-        const a = await pool.getConfig()
-        console.log(a)
         if (seedBasket) {
             const approvals = await Promise.all(bAssets.map((b) => this.mAssetMachine.approveMasset(b, pool, 200, this.sa.default.signer)))
-            console.log("vi")
             await pool.mintMulti(
                 bAssets.map((b) => b.address),
                 approvals,

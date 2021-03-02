@@ -36,7 +36,6 @@ export const assertBNClosePercent = (a: BN, b: BN, variance: string | number = "
         .mul(2)
         .mul(fullScale)
         .div(a.add(b))
-    console.log(a.toString(), b.toString())
     const str = reason ? `\n\tReason: ${reason}\n\t${a.toString()} vs ${b.toString()}` : ""
     assert.ok(
         diff.lte(varianceBN),
