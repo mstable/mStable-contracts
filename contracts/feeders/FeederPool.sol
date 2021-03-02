@@ -144,6 +144,7 @@ contract FeederPool is
         data.swapFee = 8e14;
         data.redemptionFee = 4e14;
         data.cacheSize = 1e17;
+        data.govFee = 1e17;
     }
 
     /**
@@ -776,7 +777,7 @@ contract FeederPool is
     {
         uint256 fees = data.pendingFees;
         if (fees > 1) {
-            mintAmount = fees - 1;
+            uint256 mintAmount = fees - 1;
             data.pendingFees = 1;
 
             _mint(msg.sender, mintAmount);

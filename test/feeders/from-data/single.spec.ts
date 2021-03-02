@@ -23,8 +23,8 @@ const { mintData, mintMultiData, redeemData, redeemExactData, redeemProportional
 const config = {
     a: BN.from(8000),
     limits: {
-        min: simpleToExactAmount(5, 16),
-        max: simpleToExactAmount(95, 16),
+        min: simpleToExactAmount(20, 16),
+        max: simpleToExactAmount(80, 16),
     },
 }
 
@@ -63,7 +63,7 @@ describe("Feeder Validator - One basket one test", () => {
         const testMintData = runLongTests ? mintData.full : mintData.sample
         for (const testData of testMintData) {
             const reserves = getReserves(testData)
-            const localConfig = { ...config, supply: testData.mAssetSupply }
+            const localConfig = { ...config, supply: testData.LPTokenSupply }
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}`, () => {
                 for (const testMint of testData.mints) {
                     if (testMint.hardLimitError) {
@@ -96,7 +96,7 @@ describe("Feeder Validator - One basket one test", () => {
         const testMultiMintData = runLongTests ? mintMultiData.full : mintMultiData.sample
         for (const testData of testMultiMintData) {
             const reserves = getReserves(testData)
-            const localConfig = { ...config, supply: testData.mAssetSupply }
+            const localConfig = { ...config, supply: testData.LPTokenSupply }
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}`, () => {
                 for (const testMint of testData.mints) {
                     const qtys = testMint.bAssetQtys.map((b) => cv(b))
@@ -113,7 +113,7 @@ describe("Feeder Validator - One basket one test", () => {
         const testSwapData = runLongTests ? swapData.full : swapData.sample
         for (const testData of testSwapData) {
             const reserves = getReserves(testData)
-            const localConfig = { ...config, supply: testData.mAssetSupply }
+            const localConfig = { ...config, supply: testData.LPTokenSupply }
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}`, () => {
                 for (const testSwap of testData.swaps) {
                     if (testSwap.hardLimitError) {
@@ -155,7 +155,7 @@ describe("Feeder Validator - One basket one test", () => {
         const testRedeemData = runLongTests ? redeemData.full : redeemData.sample
         for (const testData of testRedeemData) {
             const reserves = getReserves(testData)
-            const localConfig = { ...config, supply: testData.mAssetSupply }
+            const localConfig = { ...config, supply: testData.LPTokenSupply }
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}`, () => {
                 for (const testRedeem of testData.redeems) {
                     // Deduct swap fee before performing redemption
@@ -186,7 +186,7 @@ describe("Feeder Validator - One basket one test", () => {
         const testRedeemExactData = runLongTests ? redeemExactData.full : redeemExactData.sample
         for (const testData of testRedeemExactData) {
             const reserves = getReserves(testData)
-            const localConfig = { ...config, supply: testData.mAssetSupply }
+            const localConfig = { ...config, supply: testData.LPTokenSupply }
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}`, () => {
                 for (const testRedeem of testData.redeems) {
                     // Deduct swap fee after performing redemption

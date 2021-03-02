@@ -250,8 +250,9 @@ library FeederLogic {
     {
         // Calculate mAsset redemption quantities
         scaledFee = _inputQuantity.mulTruncate(_data.redemptionFee);
-
-        // Calc cache and total mAsset circulating
+        // config.supply
+        // burn
+        // cache = (config.supply - inputQuantity) * 0.2
         uint256 maxCache = _getCacheDetails(_data, _config.supply - _inputQuantity);
 
         // Load the bAsset data from storage into memory

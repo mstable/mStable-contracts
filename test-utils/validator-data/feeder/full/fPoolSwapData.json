@@ -3,9 +3,9 @@
     "reserve0": "1000000000000000000000000",
     "reserve1": "1000000000000000000000000",
     "A": 80,
-    "mAssetSupply": "2000000000000000000000000",
-    "hardMin": 50000000000000000,
-    "hardMax": 950000000000000000,
+    "LPTokenSupply": "2000000000000000000000000",
+    "hardMin": 200000000000000000,
+    "hardMax": 800000000000000000,
     "swapFeeRate": 800000000000000,
     "swaps": [
       {
@@ -58,71 +58,71 @@
       },
       {
         "inputIndex": 0,
-        "inputQty": "179799999999999993708544",
+        "inputQty": "119800000000000002097152",
         "outputIndex": 1,
-        "outputQty": "179245475062208080621117",
-        "swapFee": "143766269383633079422",
-        "priceReceived": 1.0022915985369545
+        "outputQty": "119524919677130881877432",
+        "swapFee": "95806460434441402597",
+        "priceReceived": 1.0014998869099343
       },
       {
         "inputIndex": 0,
-        "inputQty": "359599999999999987417088",
+        "inputQty": "239600000000000004194304",
         "outputIndex": 1,
-        "outputQty": "357498710433530371313958",
-        "swapFee": "287403056231787088644",
-        "priceReceived": 1.0050738267224466
+        "outputQty": "238660889760196965729006",
+        "swapFee": "191551977891597558079",
+        "priceReceived": 1.0031323031715107
       },
       {
         "inputIndex": 0,
-        "inputQty": "539400000000000014680064",
+        "inputQty": "359400000000000023068672",
         "outputIndex": 1,
-        "outputQty": "534034225735443017541745",
-        "swapFee": "430927976288237360184",
-        "priceReceived": 1.0092406929190216
+        "outputQty": "357301167186441193244637",
+        "swapFee": "287243346838396646270",
+        "priceReceived": 1.005070203047434
       },
       {
         "inputIndex": 0,
-        "inputQty": "719199999999999974834176",
+        "inputQty": "479200000000000008388608",
         "outputIndex": 1,
-        "outputQty": "706347908129541238384745",
-        "swapFee": "574351377657795759083",
-        "priceReceived": 1.0173820016333215
+        "outputQty": "475207671550342640882777",
+        "swapFee": "382885186296770840581",
+        "priceReceived": 1.007595507142351
       },
       {
         "inputIndex": 0,
-        "inputQty": "898999999999999934988288",
+        "inputQty": "598999999999999993708544",
         "outputIndex": 1,
-        "outputQty": "862769167683437024220112",
-        "swapFee": "717679772549127685656",
-        "priceReceived": 1.0411618238970775
+        "outputQty": "591857203648876685634230",
+        "swapFee": "478480752360460504819",
+        "priceReceived": 1.0112600058893877
       },
       {
         "inputIndex": 0,
-        "inputQty": "1078800000000000029360128",
-        "outputIndex": 1,
-        "hardLimitError": true
-      },
-      {
-        "inputIndex": 0,
-        "inputQty": "1258599999999999989514240",
+        "inputQty": "718800000000000046137344",
         "outputIndex": 1,
         "hardLimitError": true
       },
       {
         "inputIndex": 0,
-        "inputQty": "1438399999999999949668352",
+        "inputQty": "838599999999999964348416",
         "outputIndex": 1,
         "hardLimitError": true
       },
       {
         "inputIndex": 0,
-        "inputQty": "1618199999999999909822464",
+        "inputQty": "958400000000000016777216",
         "outputIndex": 1,
         "hardLimitError": true
       },
       {
         "inputIndex": 0,
-        "inputQty": "1797999999999999869976576",
+        "inputQty": "1078199999999999934988288",
+        "outputIndex": 1,
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "1197999999999999987417088",
         "outputIndex": 1,
         "hardLimitError": true
       },
@@ -176,71 +176,71 @@
       },
       {
         "inputIndex": 1,
-        "inputQty": "179799999999999993708544",
+        "inputQty": "119800000000000002097152",
         "outputIndex": 0,
-        "outputQty": "179388871049105055881861",
+        "outputQty": "119620571936897031947422",
         "swapFee": "0",
-        "priceReceived": 1.0022918308615834
+        "priceReceived": 1.001499976636106
       },
       {
         "inputIndex": 1,
-        "inputQty": "359599999999999987417088",
+        "inputQty": "239600000000000004194304",
         "outputIndex": 0,
-        "outputQty": "357784127492509720926433",
+        "outputQty": "238851729689267463793151",
         "swapFee": "0",
-        "priceReceived": 1.005075329976812
+        "priceReceived": 1.003132781628611
       },
       {
         "inputIndex": 1,
-        "inputQty": "539400000000000014680064",
+        "inputQty": "359400000000000023068672",
         "outputIndex": 0,
-        "outputQty": "534457869131374393033777",
+        "outputQty": "357586427581996069445681",
         "swapFee": "0",
-        "priceReceived": 1.0092469980405712
+        "priceReceived": 1.0050717037284311
       },
       {
         "inputIndex": 1,
-        "inputQty": "719199999999999974834176",
+        "inputQty": "479200000000000008388608",
         "outputIndex": 0,
-        "outputQty": "706893886122924412126866",
+        "outputQty": "475585802794305544267290",
         "swapFee": "0",
-        "priceReceived": 1.0174087145449375
+        "priceReceived": 1.0075994640387902
       },
       {
         "inputIndex": 1,
-        "inputQty": "898999999999999934988288",
+        "inputQty": "598999999999999993708544",
         "outputIndex": 0,
-        "outputQty": "863335313419987475606581",
+        "outputQty": "592324489888939572981391",
         "swapFee": "0",
-        "priceReceived": 1.0413103530292669
+        "priceReceived": 1.011270022133159
       },
       {
         "inputIndex": 1,
-        "inputQty": "1078800000000000029360128",
+        "inputQty": "718800000000000046137344",
         "outputIndex": 0,
         "hardLimitError": true
       },
       {
         "inputIndex": 1,
-        "inputQty": "1258599999999999989514240",
+        "inputQty": "838599999999999964348416",
         "outputIndex": 0,
         "hardLimitError": true
       },
       {
         "inputIndex": 1,
-        "inputQty": "1438399999999999949668352",
+        "inputQty": "958400000000000016777216",
         "outputIndex": 0,
         "hardLimitError": true
       },
       {
         "inputIndex": 1,
-        "inputQty": "1618199999999999909822464",
+        "inputQty": "1078199999999999934988288",
         "outputIndex": 0,
         "hardLimitError": true
       },
       {
         "inputIndex": 1,
-        "inputQty": "1797999999999999869976576",
+        "inputQty": "1197999999999999987417088",
         "outputIndex": 0,
         "hardLimitError": true
       }
@@ -250,9 +250,9 @@
     "reserve0": "1000000000000000000000000",
     "reserve1": "1000000000000000000000000",
     "A": 80,
-    "mAssetSupply": "2000000000000000000000000",
-    "hardMin": 50000000000000000,
-    "hardMax": 950000000000000000,
+    "LPTokenSupply": "2000000000000000000000000",
+    "hardMin": 200000000000000000,
+    "hardMax": 800000000000000000,
     "swapFeeRate": 800000000000000,
     "swaps": [
       {
@@ -305,71 +305,71 @@
       },
       {
         "inputIndex": 0,
-        "inputQty": "179799999999999993708544",
+        "inputQty": "119800000000000002097152",
         "outputIndex": 1,
-        "outputQty": "179245475062208080621117",
-        "swapFee": "143766269383633079422",
-        "priceReceived": 1.0022915985369545
+        "outputQty": "119524919677130881877432",
+        "swapFee": "95806460434441402597",
+        "priceReceived": 1.0014998869099343
       },
       {
         "inputIndex": 0,
-        "inputQty": "359599999999999987417088",
+        "inputQty": "239600000000000004194304",
         "outputIndex": 1,
-        "outputQty": "357498710433530371313958",
-        "swapFee": "287403056231787088644",
-        "priceReceived": 1.0050738267224466
+        "outputQty": "238660889760196965729006",
+        "swapFee": "191551977891597558079",
+        "priceReceived": 1.0031323031715107
       },
       {
         "inputIndex": 0,
-        "inputQty": "539400000000000014680064",
+        "inputQty": "359400000000000023068672",
         "outputIndex": 1,
-        "outputQty": "534034225735443017541745",
-        "swapFee": "430927976288237360184",
-        "priceReceived": 1.0092406929190216
+        "outputQty": "357301167186441193244637",
+        "swapFee": "287243346838396646270",
+        "priceReceived": 1.005070203047434
       },
       {
         "inputIndex": 0,
-        "inputQty": "719199999999999974834176",
+        "inputQty": "479200000000000008388608",
         "outputIndex": 1,
-        "outputQty": "706347908129541238384745",
-        "swapFee": "574351377657795759083",
-        "priceReceived": 1.0173820016333215
+        "outputQty": "475207671550342640882777",
+        "swapFee": "382885186296770840581",
+        "priceReceived": 1.007595507142351
       },
       {
         "inputIndex": 0,
-        "inputQty": "898999999999999934988288",
+        "inputQty": "598999999999999993708544",
         "outputIndex": 1,
-        "outputQty": "862769167683437024220112",
-        "swapFee": "717679772549127685656",
-        "priceReceived": 1.0411618238970775
+        "outputQty": "591857203648876685634230",
+        "swapFee": "478480752360460504819",
+        "priceReceived": 1.0112600058893877
       },
       {
         "inputIndex": 0,
-        "inputQty": "1078800000000000029360128",
-        "outputIndex": 1,
-        "hardLimitError": true
-      },
-      {
-        "inputIndex": 0,
-        "inputQty": "1258599999999999989514240",
+        "inputQty": "718800000000000046137344",
         "outputIndex": 1,
         "hardLimitError": true
       },
       {
         "inputIndex": 0,
-        "inputQty": "1438399999999999949668352",
+        "inputQty": "838599999999999964348416",
         "outputIndex": 1,
         "hardLimitError": true
       },
       {
         "inputIndex": 0,
-        "inputQty": "1618199999999999909822464",
+        "inputQty": "958400000000000016777216",
         "outputIndex": 1,
         "hardLimitError": true
       },
       {
         "inputIndex": 0,
-        "inputQty": "1797999999999999869976576",
+        "inputQty": "1078199999999999934988288",
+        "outputIndex": 1,
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "1197999999999999987417088",
         "outputIndex": 1,
         "hardLimitError": true
       },
@@ -423,71 +423,71 @@
       },
       {
         "inputIndex": 1,
-        "inputQty": "179799999999999993708544",
+        "inputQty": "119800000000000002097152",
         "outputIndex": 0,
-        "outputQty": "179388871049105055881861",
+        "outputQty": "119620571936897031947422",
         "swapFee": "0",
-        "priceReceived": 1.0022918308615834
+        "priceReceived": 1.001499976636106
       },
       {
         "inputIndex": 1,
-        "inputQty": "359599999999999987417088",
+        "inputQty": "239600000000000004194304",
         "outputIndex": 0,
-        "outputQty": "357784127492509720926433",
+        "outputQty": "238851729689267463793151",
         "swapFee": "0",
-        "priceReceived": 1.005075329976812
+        "priceReceived": 1.003132781628611
       },
       {
         "inputIndex": 1,
-        "inputQty": "539400000000000014680064",
+        "inputQty": "359400000000000023068672",
         "outputIndex": 0,
-        "outputQty": "534457869131374393033777",
+        "outputQty": "357586427581996069445681",
         "swapFee": "0",
-        "priceReceived": 1.0092469980405712
+        "priceReceived": 1.0050717037284311
       },
       {
         "inputIndex": 1,
-        "inputQty": "719199999999999974834176",
+        "inputQty": "479200000000000008388608",
         "outputIndex": 0,
-        "outputQty": "706893886122924412126866",
+        "outputQty": "475585802794305544267290",
         "swapFee": "0",
-        "priceReceived": 1.0174087145449375
+        "priceReceived": 1.0075994640387902
       },
       {
         "inputIndex": 1,
-        "inputQty": "898999999999999934988288",
+        "inputQty": "598999999999999993708544",
         "outputIndex": 0,
-        "outputQty": "863335313419987475606581",
+        "outputQty": "592324489888939572981391",
         "swapFee": "0",
-        "priceReceived": 1.0413103530292669
+        "priceReceived": 1.011270022133159
       },
       {
         "inputIndex": 1,
-        "inputQty": "1078800000000000029360128",
+        "inputQty": "718800000000000046137344",
         "outputIndex": 0,
         "hardLimitError": true
       },
       {
         "inputIndex": 1,
-        "inputQty": "1258599999999999989514240",
+        "inputQty": "838599999999999964348416",
         "outputIndex": 0,
         "hardLimitError": true
       },
       {
         "inputIndex": 1,
-        "inputQty": "1438399999999999949668352",
+        "inputQty": "958400000000000016777216",
         "outputIndex": 0,
         "hardLimitError": true
       },
       {
         "inputIndex": 1,
-        "inputQty": "1618199999999999909822464",
+        "inputQty": "1078199999999999934988288",
         "outputIndex": 0,
         "hardLimitError": true
       },
       {
         "inputIndex": 1,
-        "inputQty": "1797999999999999869976576",
+        "inputQty": "1197999999999999987417088",
         "outputIndex": 0,
         "hardLimitError": true
       }
@@ -497,9 +497,9 @@
     "reserve0": "1000000000000000000000000",
     "reserve1": "1000000000000000000000000",
     "A": 80,
-    "mAssetSupply": "2000000000000000000000000",
-    "hardMin": 50000000000000000,
-    "hardMax": 950000000000000000,
+    "LPTokenSupply": "2000000000000000000000000",
+    "hardMin": 200000000000000000,
+    "hardMax": 800000000000000000,
     "swapFeeRate": 800000000000000,
     "swaps": [
       {
@@ -552,71 +552,71 @@
       },
       {
         "inputIndex": 0,
-        "inputQty": "179799999999999993708544",
+        "inputQty": "119800000000000002097152",
         "outputIndex": 1,
-        "outputQty": "179245475062208080621117",
-        "swapFee": "143766269383633079422",
-        "priceReceived": 1.0022915985369545
+        "outputQty": "119524919677130881877432",
+        "swapFee": "95806460434441402597",
+        "priceReceived": 1.0014998869099343
       },
       {
         "inputIndex": 0,
-        "inputQty": "359599999999999987417088",
+        "inputQty": "239600000000000004194304",
         "outputIndex": 1,
-        "outputQty": "357498710433530371313958",
-        "swapFee": "287403056231787088644",
-        "priceReceived": 1.0050738267224466
+        "outputQty": "238660889760196965729006",
+        "swapFee": "191551977891597558079",
+        "priceReceived": 1.0031323031715107
       },
       {
         "inputIndex": 0,
-        "inputQty": "539400000000000014680064",
+        "inputQty": "359400000000000023068672",
         "outputIndex": 1,
-        "outputQty": "534034225735443017541745",
-        "swapFee": "430927976288237360184",
-        "priceReceived": 1.0092406929190216
+        "outputQty": "357301167186441193244637",
+        "swapFee": "287243346838396646270",
+        "priceReceived": 1.005070203047434
       },
       {
         "inputIndex": 0,
-        "inputQty": "719199999999999974834176",
+        "inputQty": "479200000000000008388608",
         "outputIndex": 1,
-        "outputQty": "706347908129541238384745",
-        "swapFee": "574351377657795759083",
-        "priceReceived": 1.0173820016333215
+        "outputQty": "475207671550342640882777",
+        "swapFee": "382885186296770840581",
+        "priceReceived": 1.007595507142351
       },
       {
         "inputIndex": 0,
-        "inputQty": "898999999999999934988288",
+        "inputQty": "598999999999999993708544",
         "outputIndex": 1,
-        "outputQty": "862769167683437024220112",
-        "swapFee": "717679772549127685656",
-        "priceReceived": 1.0411618238970775
+        "outputQty": "591857203648876685634230",
+        "swapFee": "478480752360460504819",
+        "priceReceived": 1.0112600058893877
       },
       {
         "inputIndex": 0,
-        "inputQty": "1078800000000000029360128",
-        "outputIndex": 1,
-        "hardLimitError": true
-      },
-      {
-        "inputIndex": 0,
-        "inputQty": "1258599999999999989514240",
+        "inputQty": "718800000000000046137344",
         "outputIndex": 1,
         "hardLimitError": true
       },
       {
         "inputIndex": 0,
-        "inputQty": "1438399999999999949668352",
+        "inputQty": "838599999999999964348416",
         "outputIndex": 1,
         "hardLimitError": true
       },
       {
         "inputIndex": 0,
-        "inputQty": "1618199999999999909822464",
+        "inputQty": "958400000000000016777216",
         "outputIndex": 1,
         "hardLimitError": true
       },
       {
         "inputIndex": 0,
-        "inputQty": "1797999999999999869976576",
+        "inputQty": "1078199999999999934988288",
+        "outputIndex": 1,
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "1197999999999999987417088",
         "outputIndex": 1,
         "hardLimitError": true
       },
@@ -670,71 +670,71 @@
       },
       {
         "inputIndex": 1,
-        "inputQty": "179799999999999993708544",
+        "inputQty": "119800000000000002097152",
         "outputIndex": 0,
-        "outputQty": "179388871049105055881861",
+        "outputQty": "119620571936897031947422",
         "swapFee": "0",
-        "priceReceived": 1.0022918308615834
+        "priceReceived": 1.001499976636106
       },
       {
         "inputIndex": 1,
-        "inputQty": "359599999999999987417088",
+        "inputQty": "239600000000000004194304",
         "outputIndex": 0,
-        "outputQty": "357784127492509720926433",
+        "outputQty": "238851729689267463793151",
         "swapFee": "0",
-        "priceReceived": 1.005075329976812
+        "priceReceived": 1.003132781628611
       },
       {
         "inputIndex": 1,
-        "inputQty": "539400000000000014680064",
+        "inputQty": "359400000000000023068672",
         "outputIndex": 0,
-        "outputQty": "534457869131374393033777",
+        "outputQty": "357586427581996069445681",
         "swapFee": "0",
-        "priceReceived": 1.0092469980405712
+        "priceReceived": 1.0050717037284311
       },
       {
         "inputIndex": 1,
-        "inputQty": "719199999999999974834176",
+        "inputQty": "479200000000000008388608",
         "outputIndex": 0,
-        "outputQty": "706893886122924412126866",
+        "outputQty": "475585802794305544267290",
         "swapFee": "0",
-        "priceReceived": 1.0174087145449375
+        "priceReceived": 1.0075994640387902
       },
       {
         "inputIndex": 1,
-        "inputQty": "898999999999999934988288",
+        "inputQty": "598999999999999993708544",
         "outputIndex": 0,
-        "outputQty": "863335313419987475606581",
+        "outputQty": "592324489888939572981391",
         "swapFee": "0",
-        "priceReceived": 1.0413103530292669
+        "priceReceived": 1.011270022133159
       },
       {
         "inputIndex": 1,
-        "inputQty": "1078800000000000029360128",
+        "inputQty": "718800000000000046137344",
         "outputIndex": 0,
         "hardLimitError": true
       },
       {
         "inputIndex": 1,
-        "inputQty": "1258599999999999989514240",
+        "inputQty": "838599999999999964348416",
         "outputIndex": 0,
         "hardLimitError": true
       },
       {
         "inputIndex": 1,
-        "inputQty": "1438399999999999949668352",
+        "inputQty": "958400000000000016777216",
         "outputIndex": 0,
         "hardLimitError": true
       },
       {
         "inputIndex": 1,
-        "inputQty": "1618199999999999909822464",
+        "inputQty": "1078199999999999934988288",
         "outputIndex": 0,
         "hardLimitError": true
       },
       {
         "inputIndex": 1,
-        "inputQty": "1797999999999999869976576",
+        "inputQty": "1197999999999999987417088",
         "outputIndex": 0,
         "hardLimitError": true
       }
@@ -744,9 +744,9 @@
     "reserve0": "1000000000000000000000000",
     "reserve1": "1000000000000000000000000",
     "A": 80,
-    "mAssetSupply": "2000000000000000000000000",
-    "hardMin": 50000000000000000,
-    "hardMax": 950000000000000000,
+    "LPTokenSupply": "2000000000000000000000000",
+    "hardMin": 200000000000000000,
+    "hardMax": 800000000000000000,
     "swapFeeRate": 800000000000000,
     "swaps": [
       {
@@ -799,71 +799,71 @@
       },
       {
         "inputIndex": 0,
-        "inputQty": "179799999999999993708544",
+        "inputQty": "119800000000000002097152",
         "outputIndex": 1,
-        "outputQty": "179245475062208080621117",
-        "swapFee": "143766269383633079422",
-        "priceReceived": 1.0022915985369545
+        "outputQty": "119524919677130881877432",
+        "swapFee": "95806460434441402597",
+        "priceReceived": 1.0014998869099343
       },
       {
         "inputIndex": 0,
-        "inputQty": "359599999999999987417088",
+        "inputQty": "239600000000000004194304",
         "outputIndex": 1,
-        "outputQty": "357498710433530371313958",
-        "swapFee": "287403056231787088644",
-        "priceReceived": 1.0050738267224466
+        "outputQty": "238660889760196965729006",
+        "swapFee": "191551977891597558079",
+        "priceReceived": 1.0031323031715107
       },
       {
         "inputIndex": 0,
-        "inputQty": "539400000000000014680064",
+        "inputQty": "359400000000000023068672",
         "outputIndex": 1,
-        "outputQty": "534034225735443017541745",
-        "swapFee": "430927976288237360184",
-        "priceReceived": 1.0092406929190216
+        "outputQty": "357301167186441193244637",
+        "swapFee": "287243346838396646270",
+        "priceReceived": 1.005070203047434
       },
       {
         "inputIndex": 0,
-        "inputQty": "719199999999999974834176",
+        "inputQty": "479200000000000008388608",
         "outputIndex": 1,
-        "outputQty": "706347908129541238384745",
-        "swapFee": "574351377657795759083",
-        "priceReceived": 1.0173820016333215
+        "outputQty": "475207671550342640882777",
+        "swapFee": "382885186296770840581",
+        "priceReceived": 1.007595507142351
       },
       {
         "inputIndex": 0,
-        "inputQty": "898999999999999934988288",
+        "inputQty": "598999999999999993708544",
         "outputIndex": 1,
-        "outputQty": "862769167683437024220112",
-        "swapFee": "717679772549127685656",
-        "priceReceived": 1.0411618238970775
+        "outputQty": "591857203648876685634230",
+        "swapFee": "478480752360460504819",
+        "priceReceived": 1.0112600058893877
       },
       {
         "inputIndex": 0,
-        "inputQty": "1078800000000000029360128",
-        "outputIndex": 1,
-        "hardLimitError": true
-      },
-      {
-        "inputIndex": 0,
-        "inputQty": "1258599999999999989514240",
+        "inputQty": "718800000000000046137344",
         "outputIndex": 1,
         "hardLimitError": true
       },
       {
         "inputIndex": 0,
-        "inputQty": "1438399999999999949668352",
+        "inputQty": "838599999999999964348416",
         "outputIndex": 1,
         "hardLimitError": true
       },
       {
         "inputIndex": 0,
-        "inputQty": "1618199999999999909822464",
+        "inputQty": "958400000000000016777216",
         "outputIndex": 1,
         "hardLimitError": true
       },
       {
         "inputIndex": 0,
-        "inputQty": "1797999999999999869976576",
+        "inputQty": "1078199999999999934988288",
+        "outputIndex": 1,
+        "hardLimitError": true
+      },
+      {
+        "inputIndex": 0,
+        "inputQty": "1197999999999999987417088",
         "outputIndex": 1,
         "hardLimitError": true
       },
@@ -917,71 +917,71 @@
       },
       {
         "inputIndex": 1,
-        "inputQty": "179799999999999993708544",
+        "inputQty": "119800000000000002097152",
         "outputIndex": 0,
-        "outputQty": "179388871049105055881861",
+        "outputQty": "119620571936897031947422",
         "swapFee": "0",
-        "priceReceived": 1.0022918308615834
+        "priceReceived": 1.001499976636106
       },
       {
         "inputIndex": 1,
-        "inputQty": "359599999999999987417088",
+        "inputQty": "239600000000000004194304",
         "outputIndex": 0,
-        "outputQty": "357784127492509720926433",
+        "outputQty": "238851729689267463793151",
         "swapFee": "0",
-        "priceReceived": 1.005075329976812
+        "priceReceived": 1.003132781628611
       },
       {
         "inputIndex": 1,
-        "inputQty": "539400000000000014680064",
+        "inputQty": "359400000000000023068672",
         "outputIndex": 0,
-        "outputQty": "534457869131374393033777",
+        "outputQty": "357586427581996069445681",
         "swapFee": "0",
-        "priceReceived": 1.0092469980405712
+        "priceReceived": 1.0050717037284311
       },
       {
         "inputIndex": 1,
-        "inputQty": "719199999999999974834176",
+        "inputQty": "479200000000000008388608",
         "outputIndex": 0,
-        "outputQty": "706893886122924412126866",
+        "outputQty": "475585802794305544267290",
         "swapFee": "0",
-        "priceReceived": 1.0174087145449375
+        "priceReceived": 1.0075994640387902
       },
       {
         "inputIndex": 1,
-        "inputQty": "898999999999999934988288",
+        "inputQty": "598999999999999993708544",
         "outputIndex": 0,
-        "outputQty": "863335313419987475606581",
+        "outputQty": "592324489888939572981391",
         "swapFee": "0",
-        "priceReceived": 1.0413103530292669
+        "priceReceived": 1.011270022133159
       },
       {
         "inputIndex": 1,
-        "inputQty": "1078800000000000029360128",
+        "inputQty": "718800000000000046137344",
         "outputIndex": 0,
         "hardLimitError": true
       },
       {
         "inputIndex": 1,
-        "inputQty": "1258599999999999989514240",
+        "inputQty": "838599999999999964348416",
         "outputIndex": 0,
         "hardLimitError": true
       },
       {
         "inputIndex": 1,
-        "inputQty": "1438399999999999949668352",
+        "inputQty": "958400000000000016777216",
         "outputIndex": 0,
         "hardLimitError": true
       },
       {
         "inputIndex": 1,
-        "inputQty": "1618199999999999909822464",
+        "inputQty": "1078199999999999934988288",
         "outputIndex": 0,
         "hardLimitError": true
       },
       {
         "inputIndex": 1,
-        "inputQty": "1797999999999999869976576",
+        "inputQty": "1197999999999999987417088",
         "outputIndex": 0,
         "hardLimitError": true
       }
