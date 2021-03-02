@@ -4,7 +4,18 @@ pragma solidity 0.8.1;
 import { IFeederPool } from "../interfaces/IFeederPool.sol";
 import { PausableModule } from "../shared/PausableModule.sol";
 
+/**
+ * @title   InterestValidator
+ * @author  mStable
+ * @notice  Simply validates the platform interest collection from the Feeder Pools. Normally this function
+ *          is supported by the SavingsManager, which then distributes the inflated tokens to SAVE contracts.
+ *          However, given that fPools collect value internally, we simply want to provide protections here
+ *          without actually inflating supply. As such, this code is forked from `savings/SavingsManager.sol`.
+ * @dev     VERSION: 1.0
+ *          DATE:    2021-03-01
+ */
 contract InterestValidator is PausableModule {
+
     event InterestCollected(
         address indexed feederPool,
         uint256 interest,
@@ -17,11 +28,16 @@ contract InterestValidator is PausableModule {
     // Theoretical cap on APY to avoid excess inflation
     uint256 private constant MAX_APY = 15e18;
 
-    // Batches are for the platformInterest collection
     mapping(address => uint256) public lastBatchCollected;
 
-    constructor(address _nexus) public PausableModule(_nexus) {}
+    constructor(address _nexus) PausableModule(_nexus) {}
 
+    /**
+     * @notice Collects and validates the interest of n feeder pools.
+     * @dev First calls to calculate the interest that has accrued, and then validates the potential inflation
+     * with respect to the previous timestamp.
+     * @param _feeders     Addresses of the feeder pools on which to accrue interest
+     */
     function collectAndValidateInterest(address[] calldata _feeders) external whenNotPaused {
         uint256 currentTime = block.timestamp;
 

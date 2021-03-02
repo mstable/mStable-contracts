@@ -35,7 +35,7 @@ contract RenWrapper {
         uint256 inputQuantity
     );
 
-    constructor(address _mAsset, address _gatewayRegistry) public {
+    constructor(address _mAsset, address _gatewayRegistry) {
         require(_mAsset != address(0), "Invalid mAsset address");
         mAsset = _mAsset;
         require(_gatewayRegistry != address(0), "Invalid gateway registry address");

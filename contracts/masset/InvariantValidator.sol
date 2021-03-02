@@ -269,7 +269,7 @@ contract InvariantValidator is IInvariantValidator {
         uint256[] memory _x,
         uint256 _sum,
         WeightLimits memory _limits
-    ) internal view returns (bool inBounds) {
+    ) internal pure returns (bool inBounds) {
         uint256 len = _x.length;
         inBounds = true;
         uint256 w;

@@ -15,12 +15,12 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { StableMath } from "../shared/StableMath.sol";
 
 /**
- * @title   Manager
+ * @title   FeederManager
  * @author  mStable
- * @notice  Simply contains logic to perform Basket Manager duties for an mAsset.
- *          Allowing logic can be abstracted here to avoid bytecode inflation.
+ * @notice  Manager contract for fPools. Forked from `masset/Manager.sol`, and performs a subset of functionality
+ *          related to basket management.
  * @dev     VERSION: 1.0
- *          DATE:    2021-01-22
+ *          DATE:    2021-03-01
  */
 library FeederManager {
     using SafeERC20 for IERC20;
@@ -34,8 +34,7 @@ library FeederManager {
     uint256 private constant MAX_A = 1e6;
 
     /**
-     * @dev Collects the interest generated from the Basket, minting a relative
-     *      amount of mAsset and sending it over to the SavingsManager.
+     * @dev Calculates the gains accrued across all lending markets.
      * @param _bAssetPersonal   Basset personal storage array
      * @param _bAssetData       Basset data storage array
      * @return idxs             Array [0,1]
@@ -151,6 +150,10 @@ library FeederManager {
         emit BassetsMigrated(_bAssets, _newIntegration);
     }
 
+    /**
+     * @dev Simply gets the asset index by looping through bAssets. Given there are only
+     * ever 2 assets, should not be gas intensive.
+     */
     function _getAssetIndex(BassetPersonal[] storage _bAssetPersonal, address _asset)
         internal
         view

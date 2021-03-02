@@ -111,8 +111,7 @@ contract SaveWrapper {
      */
     function estimate_saveViaUniswapETH(
         uint256 _ethAmount,
-        address[] calldata _path,
-        int128 _curvePosition
+        address[] calldata _path
     )
         external
         view

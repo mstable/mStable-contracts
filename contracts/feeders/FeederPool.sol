@@ -20,8 +20,15 @@ import { StableMath } from "../shared/StableMath.sol";
 import { FeederManager } from "./FeederManager.sol";
 import { FeederLogic } from "./FeederLogic.sol";
 
-
-
+/**
+ * @title   FeederPool
+ * @author  mStable
+ * @notice  Base contract for Feeder Pools (fPools). Feeder Pools are combined of 50/50 fAsset and mAsset. This supports
+ *          efficient swaps into and out of mAssets and the bAssets in the mAsset basket (a.k.a mpAssets). There is 0
+ *          fee to trade from fAsset into mAsset, providing low cost on-ramps into mAssets.
+ * @dev     VERSION: 1.0
+ *          DATE:    2021-03-01
+ */
 contract FeederPool is
     IFeederPool,
     Initializable,
@@ -76,21 +83,33 @@ contract FeederPool is
     event FeesChanged(uint256 swapFee, uint256 redemptionFee);
     event WeightLimitsChanged(uint128 min, uint128 max);
 
+    // Constants
     uint256 private constant MAX_FEE = 1e16;
     uint256 private constant A_PRECISION = 100;
-
     address public immutable mAsset;
 
+    // Core data storage
     FeederData public data;
 
     /**
      * @dev Constructor to set immutable bytecode
      * @param _nexus   Nexus address
+     * @param _mAsset  Immutable mAsset address
      */
     constructor(address _nexus, address _mAsset) PausableModule(_nexus) {
         mAsset = _mAsset;
     }
 
+    /**
+     * @dev Basic initializer. Sets up core state and importantly provides infinite approvals to the mAsset pool
+     * to support the cross pool swaps. bAssetData and bAssetPersonal are always ordered [mAsset, fAsset].
+     * @param _nameArg     Name of the fPool token (a.k.a. fpToken)
+     * @param _symbolArg   Symbol of the fPool token
+     * @param _mAsset      Details on the base mAsset
+     * @param _fAsset      Details on the attached fAsset
+     * @param _mpAssets    Array of bAssets from the mAsset (to approve)
+     * @param _config      Starting invariant config
+     */
     function initialize(
         string calldata _nameArg,
         string calldata _symbolArg,
@@ -128,7 +147,7 @@ contract FeederPool is
     }
 
     /**
-     * @dev Requires the overall basket composition to be healthy
+     * @dev System will be halted during a recollateralisation event
      */
     modifier whenInOperation() {
         _isOperational();
@@ -144,10 +163,7 @@ contract FeederPool is
      * @dev Verifies that the caller is the Interest Validator contract
      */
     modifier onlyInterestValidator() {
-        require(
-            nexus.getModule(KEY_INTEREST_VALIDATOR) ==  msg.sender,
-            "Only validator"
-        );
+        require(nexus.getModule(KEY_INTEREST_VALIDATOR) == msg.sender, "Only validator");
         _;
     }
 
@@ -156,13 +172,13 @@ contract FeederPool is
     ****************************************/
 
     /**
-     * @dev Mint a single bAsset, at a 1:1 ratio with the bAsset. This contract
-     *      must have approval to spend the senders bAsset
-     * @param _input             Address of the bAsset to deposit for the minted mAsset.
-     * @param _inputQuantity     Quantity in bAsset units
-     * @param _minOutputQuantity Minimum mAsset quanity to be minted. This protects against slippage.
-     * @param _recipient         Receipient of the newly minted mAsset tokens
-     * @return mintOutput        Quantity of newly minted mAssets for the deposited bAsset.
+     * @notice Mint fpTokens with a single bAsset. This contract must have approval to spend the senders bAsset.
+     * Supports either fAsset, mAsset or mpAsset as input - with mpAssets used to mint mAsset before depositing.
+     * @param _input                Address of the bAsset to deposit.
+     * @param _inputQuantity        Quantity in input token units.
+     * @param _minOutputQuantity    Minimum fpToken quantity to be minted. This protects against slippage.
+     * @param _recipient            Receipient of the newly minted fpTokens
+     * @return mintOutput           Quantity of fpToken minted from the deposited bAsset.
      */
     function mint(
         address _input,
@@ -183,11 +199,20 @@ contract FeederPool is
             _minOutputQuantity
         );
 
-        // Mint the LP Token
+        // Mint the fpToken
         _mint(_recipient, mintOutput);
         emit Minted(msg.sender, _recipient, mintOutput, _input, _inputQuantity);
     }
 
+    /**
+     * @notice Mint fpTokens with multiple bAssets. This contract must have approval to spend the senders bAssets.
+     * Supports only fAsset or mAsset as inputs.
+     * @param _inputs               Address of the bAssets to deposit.
+     * @param _inputQuantities      Quantity in input token units.
+     * @param _minOutputQuantity    Minimum fpToken quantity to be minted. This protects against slippage.
+     * @param _recipient            Receipient of the newly minted fpTokens
+     * @return mintOutput           Quantity of fpToken minted from the deposited bAssets.
+     */
     function mintMulti(
         address[] calldata _inputs,
         uint256[] calldata _inputQuantities,
@@ -206,16 +231,16 @@ contract FeederPool is
             _inputQuantities,
             _minOutputQuantity
         );
-        // Mint the LP Token
+        // Mint the fpToken
         _mint(_recipient, mintOutput);
         emit MintedMulti(msg.sender, _recipient, mintOutput, _inputs, _inputQuantities);
     }
 
     /**
-     * @dev Get the projected output of a given mint
-     * @param _input             Address of the bAsset to deposit for the minted mAsset
+     * @notice Get the projected output of a given mint.
+     * @param _input             Address of the bAsset to deposit
      * @param _inputQuantity     Quantity in bAsset units
-     * @return mintOutput        Estimated mint output in mAsset terms
+     * @return mintOutput        Estimated mint output in fpToken terms
      */
     function getMintOutput(address _input, uint256 _inputQuantity)
         external
@@ -235,16 +260,16 @@ contract FeederPool is
                 _getConfig()
             );
         } else {
-            uint256 esimatedMasset = IMasset(mAsset).getMintOutput(_input, _inputQuantity);
-            mintOutput = FeederLogic.computeMint(data.bAssetData, 0, esimatedMasset, _getConfig());
+            uint256 estimatedMasset = IMasset(mAsset).getMintOutput(_input, _inputQuantity);
+            mintOutput = FeederLogic.computeMint(data.bAssetData, 0, estimatedMasset, _getConfig());
         }
     }
 
     /**
-     * @dev Get the projected output of a given mint
+     * @notice Get the projected output of a given mint
      * @param _inputs            Non-duplicate address array of addresses to bAssets to deposit for the minted mAsset tokens.
-     * @param _inputQuantities  Quantity of each bAsset to deposit for the minted mAsset.
-     * @return mintOutput        Estimated mint output in mAsset terms
+     * @param _inputQuantities   Quantity of each bAsset to deposit for the minted fpToken.
+     * @return mintOutput        Estimated mint output in fpToken terms
      */
     function getMintMultiOutput(address[] calldata _inputs, uint256[] calldata _inputQuantities)
         external
@@ -263,6 +288,16 @@ contract FeederPool is
                     SWAPPING
     ****************************************/
 
+    /**
+     * @notice Swaps two assets - either internally between fAsset<>mAsset, or between fAsset<>mpAsset by
+     * first routing through the mAsset pool.
+     * @param _input             Address of bAsset to deposit
+     * @param _output            Address of bAsset to withdraw
+     * @param _inputQuantity     Units of input bAsset to swap in
+     * @param _minOutputQuantity Minimum quantity of the swap output asset. This protects against slippage
+     * @param _recipient         Address to transfer output asset to
+     * @return swapOutput        Quantity of output asset returned from swap
+     */
     function swap(
         address _input,
         address _output,
@@ -293,7 +328,7 @@ contract FeederPool is
     }
 
     /**
-     * @dev Determines both if a trade is valid, and the expected fee or output.
+     * @notice Determines both if a trade is valid, and the expected fee or output.
      * Swap is valid if it does not result in the input asset exceeding its maximum weight.
      * @param _input             Address of bAsset to deposit
      * @param _output            Address of bAsset to receive
@@ -353,6 +388,9 @@ contract FeederPool is
         }
     }
 
+    /**
+     * @dev Checks if a given swap path is valid. Only fAsset<>mAsset & fAsset<>mpAsset swaps are supported.
+     */
     function _pathIsValid(Asset memory _in, Asset memory _out)
         internal
         pure
@@ -374,6 +412,15 @@ contract FeederPool is
                     REDEMPTION
     ****************************************/
 
+    /**
+     * @notice Burns a specified quantity of the senders fpToken in return for a bAsset. The output amount is derived
+     * from the invariant. Supports redemption into either the fAsset, mAsset or assets in the mAsset basket.
+     * @param _output            Address of the bAsset to withdraw
+     * @param _fpTokenQuantity   Quantity of LP Token to burn
+     * @param _minOutputQuantity Minimum bAsset quantity to receive for the burnt fpToken. This protects against slippage.
+     * @param _recipient         Address to transfer the withdrawn bAssets to.
+     * @return outputQuantity    Quanity of bAsset units received for the burnt fpToken
+     */
     function redeem(
         address _output,
         uint256 _fpTokenQuantity,
@@ -411,10 +458,11 @@ contract FeederPool is
 
     /**
      * @dev Credits a recipient with a proportionate amount of bAssets, relative to current vault
-     * balance levels and desired mAsset quantity. Burns the mAsset as payment.
+     * balance levels and desired fpToken quantity. Burns the fpToken as payment. Only fAsset & mAsset are supported in this path.
      * @param _inputQuantity        Quantity of fpToken to redeem
      * @param _minOutputQuantities  Min units of output to receive
      * @param _recipient            Address to credit the withdrawn bAssets
+     * @return outputQuantities     Array of output asset quantities
      */
     function redeemProportionately(
         uint256 _inputQuantity,
@@ -450,12 +498,12 @@ contract FeederPool is
 
     /**
      * @dev Credits a recipient with a certain quantity of selected bAssets, in exchange for burning the
-     *      relative Masset quantity from the sender. Sender also incurs a small fee on the outgoing asset.
-     * @param _outputs           Addresses of the bAssets to receive
-     * @param _outputQuantities  Units of the bAssets to redeem
-     * @param _maxInputQuantity  Maximum mAsset quantity to burn for the received bAssets. This protects against slippage.
-     * @param _recipient         Address to receive the withdrawn bAssets
-     * @return fpTokenQuantity    Quantity of mAsset units burned plus the swap fee to pay for the redeemed bAssets
+     *      relative fpToken quantity from the sender. Only fAsset & mAsset (0,1) are supported in this path.
+     * @param _outputs              Addresses of the bAssets to receive
+     * @param _outputQuantities     Units of the bAssets to receive
+     * @param _maxInputQuantity     Maximum fpToken quantity to burn for the received bAssets. This protects against slippage.
+     * @param _recipient            Address to receive the withdrawn bAssets
+     * @return fpTokenQuantity      Quantity of fpToken units burned as payment
      */
     function redeemExactBassets(
         address[] calldata _outputs,
@@ -496,7 +544,7 @@ contract FeederPool is
      * @notice Gets the estimated output from a given redeem
      * @param _output            Address of the bAsset to receive
      * @param _fpTokenQuantity   Quantity of fpToken to redeem
-     * @return bAssetOutput      Estimated quantity of bAsset units received for the burnt mAssets
+     * @return bAssetOutput      Estimated quantity of bAsset units received for the burnt fpTokens
      */
     function getRedeemOutput(address _output, uint256 _fpTokenQuantity)
         external
@@ -525,7 +573,7 @@ contract FeederPool is
      * @notice Gets the estimated output from a given redeem
      * @param _outputs           Addresses of the bAsset to receive
      * @param _outputQuantities  Quantities of bAsset to redeem
-     * @return fpTokenQuantity    Estimated quantity of mAsset units needed to burn to receive output
+     * @return fpTokenQuantity   Estimated quantity of fpToken units needed to burn to receive output
      */
     function getRedeemExactBassetsOutput(
         address[] calldata _outputs,
@@ -551,21 +599,26 @@ contract FeederPool is
                     GETTERS
     ****************************************/
 
+    /**
+     * @notice Gets the price of the fpToken, and invariant value k
+     * @return price    Price of an fpToken
+     * @return k        Total value of basket, k
+     */
     function getPrice() public view override returns (uint256 price, uint256 k) {
         return FeederLogic.computePrice(data.bAssetData, _getConfig());
     }
 
     /**
-     * @dev Gets all config needed for general InvariantValidator calls
+     * @notice Gets all config needed for general InvariantValidator calls
      */
     function getConfig() external view override returns (FeederConfig memory config) {
         return _getConfig();
     }
 
     /**
-     * @dev Get data for a specific bAsset, if it exists
-     * @param _bAsset   Address of bAsset
-     * @return personal  Struct with full bAsset data
+     * @notice Get data for a specific bAsset, if it exists
+     * @param _bAsset     Address of bAsset
+     * @return personal   Struct with personal data
      * @return vaultData  Struct with full bAsset data
      */
     function getBasset(address _bAsset)
@@ -581,9 +634,9 @@ contract FeederPool is
     }
 
     /**
-     * @dev Get data for a all bAssets in basket
-     * @return personal  Struct[] with full bAsset data
-     * @return vaultData      Number of bAssets in the Basket
+     * @notice Get data for a all bAssets in basket
+     * @return personal    Struct[] with full bAsset data
+     * @return vaultData   Number of bAssets in the Basket
      */
     function getBassets()
         external
@@ -598,6 +651,10 @@ contract FeederPool is
                 GETTERS - INTERNAL
     ****************************************/
 
+    /**
+     * @dev Checks if a given asset exists in basket and return the index.
+     * @return status    Data containing address, index and whether it exists in basket
+     */
     function _getAsset(address _asset) internal view returns (Asset memory status) {
         // if input is mAsset then we know the position
         if (_asset == mAsset) return Asset(0, _asset, true);
@@ -606,6 +663,10 @@ contract FeederPool is
         return Asset(1, _asset, data.bAssetPersonal[1].addr == _asset);
     }
 
+    /**
+     * @dev Validates an array of input assets and returns their indexes. Assets must exist
+     * in order to be valid, as mintMulti and redeemMulti do not support external bAssets.
+     */
     function _getAssets(address[] memory _assets) internal view returns (uint8[] memory indexes) {
         uint256 len = _assets.length;
 
@@ -663,10 +724,10 @@ contract FeederPool is
     ****************************************/
 
     /**
-     * @dev Collects the interest generated from the Basket, minting a relative
-     *      amount of mAsset and sends it over to the SavingsManager.
-     * @return mintAmount   mAsset units generated from interest collected from lending markets
-     * @return newSupply    mAsset total supply after mint
+     * @dev Collects the interest generated from the lending markets, performing a theoretical mint, which
+     * is then validated by the interest validator to protect against accidental hyper inflation.
+     * @return mintAmount   fpToken units generated from interest collected from lending markets
+     * @return newSupply    fpToken total supply after mint
      */
     function collectPlatformInterest()
         external
@@ -682,6 +743,7 @@ contract FeederPool is
         mintAmount = FeederLogic.computeMintMulti(data.bAssetData, idxs, gains, _getConfig());
         newSupply = totalSupply() + mintAmount;
         require(mintAmount > 0, "Must collect something");
+        // Dummy mint event to catch the collections here
         emit MintedMulti(address(this), msg.sender, 0, new address[](0), gains);
     }
 
@@ -692,7 +754,7 @@ contract FeederPool is
     /**
      * @dev Sets the MAX cache size for each bAsset. The cache will actually revolve around
      *      _cacheSize * totalSupply / 2 under normal circumstances.
-     * @param _cacheSize Maximum percent of total mAsset supply to hold for each bAsset
+     * @param _cacheSize Maximum percent of total fpToken supply to hold for each bAsset
      */
     function setCacheSize(uint256 _cacheSize) external onlyGovernor {
         require(_cacheSize <= 2e17, "Must be <= 20%");
@@ -704,7 +766,8 @@ contract FeederPool is
 
     /**
      * @dev Set the ecosystem fee for sewapping bAssets or redeeming specific bAssets
-     * @param _swapFee Fee calculated in (%/100 * 1e18)
+     * @param _swapFee       Fee calculated in (%/100 * 1e18)
+     * @param _redemptionFee Fee calculated in (%/100 * 1e18)
      */
     function setFees(uint256 _swapFee, uint256 _redemptionFee) external onlyGovernor {
         require(_swapFee <= MAX_FEE, "Swap rate oob");
@@ -717,7 +780,7 @@ contract FeederPool is
     }
 
     /**
-     * @dev Set the maximum weight for a given bAsset
+     * @dev Set the maximum weight across all bAssets
      * @param _min Weight where 100% = 1e18
      * @param _max Weight where 100% = 1e18
      */
