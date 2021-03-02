@@ -64,6 +64,8 @@ struct AmpData {
 struct FeederData {
     uint256 swapFee;
     uint256 redemptionFee;
+    uint256 govFee;
+    uint256 pendingFees;
     uint256 cacheSize;
     BassetPersonal[] bAssetPersonal;
     BassetData[] bAssetData;
