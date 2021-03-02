@@ -2,22 +2,20 @@
 pragma solidity 0.8.1;
 pragma abicoder v2;
 
-// Internal
-import { IMasset } from "../../interfaces/IMasset.sol";
-import { FeederPool } from "../FeederPool.sol";
-
-// Libs
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
-// Routes:
-//  1) multiMint and multiRedeem from fPool (fp) to mAsset pools (mp)
-//     e.g.
-//      - mintMulti (fAsset / mpAsset)
-//      - redeemExact (fAsset / mpAsset)
-//  2) swaps between all fPools (fp)
-//     e.g.
-//      - fp a -> fp b
+/**
+ * @title   FeederRouter
+ * @author  mStable
+ * @notice  Routes trades efficiently between n Feeder Pools
+ *          Routes:
+ *           1) multiMint and multiRedeem from fPool (fp) to mAsset pools (mp)
+ *              e.g.
+ *               - mintMulti (fAsset / mpAsset)
+ *               - redeemExact (fAsset / mpAsset)
+ *           2) swaps between all fPools (fp)
+ *              e.g.
+ *               - fp a -> fp b
+ * @dev     ToDo
+ */
 contract FeederRouter {
 
 }

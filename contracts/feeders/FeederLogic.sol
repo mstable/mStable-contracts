@@ -16,8 +16,17 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { MassetHelpers } from "../shared/MassetHelpers.sol";
 import { StableMath } from "../shared/StableMath.sol";
 
-library FeederLogic {
 
+/**
+ * @title   FeederLogic
+ * @author  mStable
+ * @notice  Logic contract for feeder pools that calculates trade output and updates core state.
+ *          Includes modular invariant application code applying the StableSwap invariant first designed
+ *          by Curve Finance and derived for mStable application in MIP-8 (https://mips.mstable.org/MIPS/mip-8)
+ * @dev     VERSION: 1.0
+ *          DATE:    2021-03-01
+ */
+library FeederLogic {
     using StableMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -27,6 +36,16 @@ library FeederLogic {
                     MINT
     ****************************************/
 
+
+    /**
+     * @notice Transfers token in, updates internal balances and computes the fpToken output
+     * @param _data                 Feeder pool storage state
+     * @param _config               Core config for use in the invariant validator
+     * @param _input                Data on the bAsset to deposit for the minted fpToken.
+     * @param _inputQuantity        Quantity in input token units.
+     * @param _minOutputQuantity    Minimum fpToken quantity to be minted. This protects against slippage.
+     * @return mintOutput           Quantity of fpToken minted from the deposited bAsset.
+     */
     function mint(
         FeederData storage _data,
         FeederConfig calldata _config,
@@ -37,11 +56,21 @@ library FeederLogic {
         BassetData[] memory cachedBassetData = _data.bAssetData;
         AssetData memory inputData =
             _transferIn(_data, _config, cachedBassetData, _input, _inputQuantity);
-        // Validation should be after token transfer, as bAssetQty is unknown before
+        // Validation should be after token transfer, as real input amt is unknown before
         mintOutput = computeMint(cachedBassetData, inputData.idx, inputData.amt, _config);
         require(mintOutput >= _minOutputQuantity, "Mint quantity < min qty");
     }
 
+    /**
+     * @notice Transfers tokens in, updates internal balances and computes the fpToken output.
+     * Only fAsset & mAsset are supported in this path.
+     * @param _data                 Feeder pool storage state
+     * @param _config               Core config for use in the invariant validator
+     * @param _indices              Non-duplicate addresses of the bAssets to deposit for the minted fpToken.
+     * @param _inputQuantities      Quantity of each input in input token units.
+     * @param _minOutputQuantity    Minimum fpToken quantity to be minted. This protects against slippage.
+     * @return mintOutput           Quantity of fpToken minted from the deposited bAsset.
+     */
     function mintMulti(
         FeederData storage _data,
         FeederConfig calldata _config,
@@ -54,7 +83,7 @@ library FeederLogic {
         // Load bAssets from storage into memory
         BassetData[] memory allBassets = _data.bAssetData;
         uint256 maxCache = _getCacheDetails(_data, _config.supply);
-        // Transfer the Bassets to the integrator, update storage and calc MassetQ
+        // Transfer the Bassets to the integrator & update storage
         for (uint256 i = 0; i < len; i++) {
             if (_inputQuantities[i] > 0) {
                 uint8 idx = _indices[i];
@@ -81,6 +110,19 @@ library FeederLogic {
                     SWAP
     ****************************************/
 
+    /**
+     * @notice Swaps two assets - either internally between fAsset<>mAsset, or between fAsset<>mpAsset by
+     * first routing through the mAsset pool.
+     * @param _data              Feeder pool storage state
+     * @param _config            Core config for use in the invariant validator
+     * @param _input             Data on bAsset to deposit
+     * @param _output            Data on bAsset to withdraw
+     * @param _inputQuantity     Units of input bAsset to swap in
+     * @param _minOutputQuantity Minimum quantity of the swap output asset. This protects against slippage
+     * @param _recipient         Address to transfer output asset to
+     * @return swapOutput        Quantity of output asset returned from swap
+     * @return localFee          Fee paid, in fpToken terms
+     */
     function swap(
         FeederData storage _data,
         FeederConfig calldata _config,
@@ -132,6 +174,18 @@ library FeederLogic {
                     REDEEM
     ****************************************/
 
+    /**
+     * @notice Burns a specified quantity of the senders fpToken in return for a bAsset. The output amount is derived
+     * from the invariant. Supports redemption into either the fAsset, mAsset or assets in the mAsset basket.
+     * @param _data              Feeder pool storage state
+     * @param _config            Core config for use in the invariant validator
+     * @param _output            Data on bAsset to withdraw
+     * @param _fpTokenQuantity   Quantity of fpToken to burn
+     * @param _minOutputQuantity Minimum bAsset quantity to receive for the burnt fpToken. This protects against slippage.
+     * @param _recipient         Address to transfer the withdrawn bAssets to.
+     * @return outputQuantity    Quanity of bAsset units received for the burnt fpToken
+     * @return localFee          Fee paid, in fpToken terms
+     */
     function redeem(
         FeederData storage _data,
         FeederConfig calldata _config,
@@ -168,6 +222,18 @@ library FeederLogic {
         }
     }
 
+    /**
+     * @dev Credits a recipient with a proportionate amount of bAssets, relative to current vault
+     * balance levels and desired fpToken quantity. Burns the fpToken as payment. Only fAsset & mAsset are supported in this path.
+     * @param _data                 Feeder pool storage state
+     * @param _config               Core config for use in the invariant validator
+     * @param _inputQuantity        Quantity of fpToken to redeem
+     * @param _minOutputQuantities  Min units of output to receive
+     * @param _recipient            Address to credit the withdrawn bAssets
+     * @return scaledFee            Fee collected in fpToken terms
+     * @return outputs              Array of output asset addresses
+     * @return outputQuantities     Array of output asset quantities
+     */
     function redeemProportionately(
         FeederData storage _data,
         FeederConfig calldata _config,
@@ -210,13 +276,25 @@ library FeederLogic {
                 _recipient,
                 maxCache
             );
-            // reduce vaultBalance
+            // Reduce vaultBalance
             _data.bAssetData[i].vaultBalance =
                 allBassets[i].vaultBalance -
                 SafeCast.toUint128(amountOut);
         }
     }
 
+    /**
+     * @dev Credits a recipient with a certain quantity of selected bAssets, in exchange for burning the
+     *      relative fpToken quantity from the sender. Only fAsset & mAsset (0,1) are supported in this path.
+     * @param _data                 Feeder pool storage state
+     * @param _config               Core config for use in the invariant validator
+     * @param _indices              Indices of the bAssets to receive
+     * @param _outputQuantities     Units of the bAssets to receive
+     * @param _maxInputQuantity     Maximum fpToken quantity to burn for the received bAssets. This protects against slippage.
+     * @param _recipient            Address to receive the withdrawn bAssets
+     * @return fpTokenQuantity      Quantity of fpToken units to burn as payment
+     * @return localFee             Fee collected, in fpToken terms
+     */
     function redeemExactBassets(
         FeederData storage _data,
         FeederConfig memory _config,
@@ -238,7 +316,6 @@ library FeederLogic {
         require(fpTokenQuantity <= _maxInputQuantity, "Redeem mAsset qty > max quantity");
 
         // Burn the full amount of Masset
-        // _burn(msg.sender, fpTokenQuantity);
         uint256 maxCache = _getCacheDetails(_data, _config.supply - fpTokenQuantity);
         // Transfer the Bassets to the recipient
         for (uint256 i = 0; i < _outputQuantities.length; i++) {
@@ -259,6 +336,11 @@ library FeederLogic {
                 FORGING - INTERNAL
     ****************************************/
 
+    /**
+     * @dev Transfers an asset in and updates vault balance. Supports fAsset, mAsset and mpAsset.
+     * Transferring an mpAsset requires first a mint in the main pool, and consequent depositing of
+     * the mAsset.
+     */
     function _transferIn(
         FeederData storage _data,
         FeederConfig memory _config,
@@ -266,6 +348,7 @@ library FeederLogic {
         Asset memory _input,
         uint256 _inputQuantity
     ) internal returns (AssetData memory inputData) {
+        // fAsset / mAsset transfers
         if (_input.exists) {
             BassetPersonal memory personal = _data.bAssetPersonal[_input.idx];
             uint256 amt =
@@ -276,8 +359,15 @@ library FeederLogic {
                     _getCacheDetails(_data, _config.supply)
                 );
             inputData = AssetData(_input.idx, amt, personal);
-        } else {
-            inputData = _mpMint(_data, _input, _inputQuantity, _getCacheDetails(_data, _config.supply));
+        }
+        // mpAsset transfers
+        else {
+            inputData = _mpMint(
+                _data,
+                _input,
+                _inputQuantity,
+                _getCacheDetails(_data, _config.supply)
+            );
             require(inputData.amt > 0, "Must mint something from mp");
         }
         _data.bAssetData[inputData.idx].vaultBalance =
@@ -285,7 +375,11 @@ library FeederLogic {
             SafeCast.toUint128(inputData.amt);
     }
 
-    // mint in main pool and log balance
+    /**
+     * @dev Mints an asset in the main mAsset pool. Input asset must be supported by the mAsset
+     * or else the call will revert. After minting, check if the balance exceeds the cache upper limit
+     * and consequently deposit if necessary.
+     */
     function _mpMint(
         FeederData storage _data,
         Asset memory _input,
@@ -295,7 +389,10 @@ library FeederLogic {
         mAssetData = AssetData(0, 0, _data.bAssetPersonal[0]);
         IERC20(_input.addr).safeTransferFrom(msg.sender, address(this), _inputQuantity);
 
-        address integrator = mAssetData.personal.integrator == address(0) ? address(this) : mAssetData.personal.integrator;
+        address integrator =
+            mAssetData.personal.integrator == address(0)
+                ? address(this)
+                : mAssetData.personal.integrator;
 
         uint256 balBefore = IERC20(mAssetData.personal.addr).balanceOf(integrator);
         // Mint will revert if the _input.addr is not whitelisted on that mAsset
@@ -312,6 +409,10 @@ library FeederLogic {
         }
     }
 
+    /**
+     * @dev Performs a swap between fAsset and mAsset. If the output is an mAsset, do not
+     * charge the swap fee.
+     */
     function _swapLocal(
         FeederData storage _data,
         FeederConfig memory _config,
@@ -333,7 +434,6 @@ library FeederLogic {
         require(swapOutput >= _minOutputQuantity, "Output qty < minimum qty");
         require(swapOutput > 0, "Zero output quantity");
         // Settle the swap
-        // Decrease output bal
         _withdrawTokens(
             swapOutput,
             _data.bAssetPersonal[_output.idx],
@@ -341,11 +441,15 @@ library FeederLogic {
             _recipient,
             _getCacheDetails(_data, _config.supply)
         );
+        // Decrease output bal
         _data.bAssetData[_output.idx].vaultBalance =
             _cachedBassetData[_output.idx].vaultBalance -
             SafeCast.toUint128(swapOutput);
     }
 
+    /**
+     * @dev Performs a local redemption into either fAsset or mAsset.
+     */
     function _redeemLocal(
         FeederData storage _data,
         FeederConfig memory _config,
@@ -355,8 +459,9 @@ library FeederLogic {
         address _recipient
     ) internal returns (uint256 outputQuantity, uint256 scaledFee) {
         BassetData[] memory allBassets = _data.bAssetData;
-        // Calculate redemption quantities
+        // Subtract the redemption fee
         scaledFee = _fpTokenQuantity.mulTruncate(_data.redemptionFee);
+        // Calculate redemption quantities
         outputQuantity = computeRedeem(
             allBassets,
             _output.idx,
@@ -366,7 +471,7 @@ library FeederLogic {
         require(outputQuantity >= _minOutputQuantity, "bAsset qty < min qty");
         require(outputQuantity > 0, "Output == 0");
 
-        // Transfer the Bassets to the recipient
+        // Transfer the bAssets to the recipient
         _withdrawTokens(
             outputQuantity,
             _data.bAssetPersonal[_output.idx],
@@ -452,6 +557,8 @@ library FeederLogic {
 
         // 1.0 If there is no integrator, send from here
         if (_personal.integrator == address(0)) {
+            // If this is part of a cross-swap or cross-redeem, and there is no
+            // integrator.. then we don't need to transfer anywhere
             if (_recipient == address(this)) return;
             IERC20(_personal.addr).safeTransfer(_recipient, _quantity);
         }
@@ -498,6 +605,10 @@ library FeederLogic {
         }
     }
 
+    /**
+     * @dev Gets the max cache size, given the supply of fpToken
+     * @return maxCache    Max units of any given bAsset that should be held in the cache
+     */
     function _getCacheDetails(FeederData storage _data, uint256 _supply)
         internal
         view
@@ -511,13 +622,13 @@ library FeederLogic {
     ****************************************/
 
     /**
-     * @notice Compute the amount of mAsset received for minting
+     * @notice Compute the amount of fpToken received for minting
      * with `quantity` amount of bAsset index `i`.
      * @param _bAssets      Array of all bAsset Data
      * @param _i            Index of bAsset with which to mint
      * @param _rawInput     Raw amount of bAsset to use in mint
-     * @param _config       Generalised FeederConfig stored internally
-     * @return mintAmount   Quantity of mAssets minted
+     * @param _config       Generalised FeederConfig stored externally
+     * @return mintAmount   Quantity of fpTokens minted
      */
     function computeMint(
         BassetData[] memory _bAssets,
@@ -530,7 +641,6 @@ library FeederLogic {
         // 2. Get value of reserves according to invariant
         uint256 k0 = _invariant(x, sum, _config.a);
         uint256 scaledInput = (_rawInput * _bAssets[_i].ratio) / 1e8;
-
         // 3. Add deposit to x and sum
         x[_i] += scaledInput;
         sum += scaledInput;
@@ -540,13 +650,13 @@ library FeederLogic {
     }
 
     /**
-     * @notice Compute the amount of mAsset received for minting
+     * @notice Compute the amount of fpToken received for minting
      * with the given array of inputs.
      * @param _bAssets      Array of all bAsset Data
      * @param _indices      Indexes of bAssets with which to mint
      * @param _rawInputs    Raw amounts of bAssets to use in mint
-     * @param _config       Generalised FeederConfig stored internally
-     * @return mintAmount   Quantity of mAssets minted
+     * @param _config       Generalised FeederConfig stored externally
+     * @return mintAmount   Quantity of fpTokens minted
      */
     function computeMintMulti(
         BassetData[] memory _bAssets,
@@ -558,7 +668,6 @@ library FeederLogic {
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
         uint256 k0 = _invariant(x, sum, _config.a);
-
         // 3. Add deposits to x and sum
         uint256 len = _indices.length;
         uint8 idx;
@@ -582,9 +691,9 @@ library FeederLogic {
      * @param _o            Index of bAsset to swap OUT
      * @param _rawInput     Raw amounts of input bAsset to input
      * @param _feeRate      Swap fee rate to apply to output
-     * @param _config       Generalised FeederConfig stored internally
+     * @param _config       Generalised FeederConfig stored externally
      * @return bAssetOutputQuantity   Raw bAsset output quantity
-     * @return scaledSwapFee          Swap fee collected, in mAsset terms
+     * @return scaledSwapFee          Swap fee collected, in fpToken terms
      */
     function computeSwap(
         BassetData[] memory _bAssets,
@@ -602,7 +711,7 @@ library FeederLogic {
         uint256 scaledInput = (_rawInput * _bAssets[_i].ratio) / 1e8;
         x[_i] += scaledInput;
         sum += scaledInput;
-        // 4. Calc total mAsset q
+        // 4. Calc total fpToken q
         uint256 k1 = _invariant(x, sum, _config.a);
         scaledSwapFee = ((k1 - k0) * _feeRate) / 1e18;
         // 5. Calc output bAsset
@@ -617,24 +726,24 @@ library FeederLogic {
 
     /**
      * @notice Compute the amount of bAsset index `i` received for
-     * redeeming `quantity` amount of mAsset.
+     * redeeming `quantity` amount of fpToken.
      * @param _bAssets              Array of all bAsset Data
      * @param _o                    Index of output bAsset
-     * @param _netMassetQuantity    Net amount of mAsset to redeem
-     * @param _config               Generalised FeederConfig stored internally
+     * @param _netRedeemInput       Net amount of fpToken to redeem
+     * @param _config               Generalised FeederConfig stored externally
      * @return rawOutputUnits       Raw bAsset output returned
      */
     function computeRedeem(
         BassetData[] memory _bAssets,
         uint8 _o,
-        uint256 _netMassetQuantity,
+        uint256 _netRedeemInput,
         FeederConfig memory _config
     ) public view returns (uint256 rawOutputUnits) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
         uint256 k0 = _invariant(x, sum, _config.a);
-        uint256 kFinal = (k0 * (_config.supply - _netMassetQuantity)) / _config.supply;
+        uint256 kFinal = (k0 * (_config.supply - _netRedeemInput)) / _config.supply;
         // 3. Compute bAsset output
         uint256 newOutputReserve = _solveInvariant(x, _config.a, _o, kFinal);
         uint256 output = x[_o] - newOutputReserve - 1;
@@ -646,20 +755,20 @@ library FeederLogic {
     }
 
     /**
-     * @notice Compute the amount of mAsset required to redeem
+     * @notice Compute the amount of fpToken required to redeem
      * a given selection of bAssets.
      * @param _bAssets          Array of all bAsset Data
      * @param _indices          Indexes of output bAssets
      * @param _rawOutputs       Desired raw bAsset outputs
-     * @param _config           Generalised FeederConfig stored internally
-     * @return totalmAssets     Amount of mAsset required to redeem bAssets
+     * @param _config           Generalised FeederConfig stored externally
+     * @return redeemInput      Amount of fpToken required to redeem bAssets
      */
     function computeRedeemExact(
         BassetData[] memory _bAssets,
         uint8[] memory _indices,
         uint256[] memory _rawOutputs,
         FeederConfig memory _config
-    ) public view returns (uint256 totalmAssets) {
+    ) public view returns (uint256 redeemInput) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
@@ -675,17 +784,25 @@ library FeederLogic {
         require(_inBounds(x, sum, _config.limits), "Exceeds weight limits");
         // 4. Get new value of reserves according to invariant
         uint256 k1 = _invariant(x, sum, _config.a);
-        // 5. Total mAsset is the difference between values
-        totalmAssets = (_config.supply * (k0 - k1)) / k0;
+        // 5. Total fpToken is the difference between values
+        redeemInput = (_config.supply * (k0 - k1)) / k0;
     }
 
-    function computePrice(
-        BassetData[] memory _bAssets,
-        FeederConfig memory _config
-    ) public view returns (uint256 price, uint256 k) {
+    /**
+     * @notice Gets the price of the fpToken, and invariant value k
+     * @param _bAssets  Array of all bAsset Data
+     * @param _config   Generalised FeederConfig stored externally
+     * @return price    Price of an fpToken
+     * @return k        Total value of basket, k
+     */
+    function computePrice(BassetData[] memory _bAssets, FeederConfig memory _config)
+        public
+        pure
+        returns (uint256 price, uint256 k)
+    {
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         k = _invariant(x, sum, _config.a);
-        price = 1e18 * k / _config.supply;
+        price = (1e18 * k) / _config.supply;
     }
 
     /***************************************
@@ -698,15 +815,15 @@ library FeederLogic {
      * @param _x            Scaled vaultBalances
      * @param _sum          Sum of vaultBalances, to avoid another loop
      * @param _k            Previous value of invariant, k, before addition
-     * @param _config       Generalised FeederConfig stored internally
-     * @return mintAmount   Amount of value added to invariant, in mAsset terms
+     * @param _config       Generalised FeederConfig stored externally
+     * @return mintAmount   Amount of value added to invariant, in fpToken terms
      */
     function _computeMintOutput(
         uint256[] memory _x,
         uint256 _sum,
         uint256 _k,
         FeederConfig memory _config
-    ) internal view returns (uint256 mintAmount) {
+    ) internal pure returns (uint256 mintAmount) {
         // 1. Get value of reserves according to invariant
         uint256 kFinal = _invariant(_x, _sum, _config.a);
         // 2. Total minted is the difference between values, with respect to total supply
@@ -750,7 +867,7 @@ library FeederLogic {
         uint256[] memory _x,
         uint256 _sum,
         WeightLimits memory _limits
-    ) internal view returns (bool inBounds) {
+    ) internal pure returns (bool inBounds) {
         uint256 len = _x.length;
         inBounds = true;
         uint256 w;
