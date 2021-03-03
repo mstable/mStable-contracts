@@ -325,8 +325,10 @@ contract FeederPool is
             _recipient
         );
 
-        if(data.govFee > 0){
-            data.pendingFees += localFee * data.govFee / 1e18;
+        uint256 govFee = data.govFee;
+        if(govFee > 0) {
+            uint256 pendingFees = data.pendingFees;
+            data.pendingFees = pendingFees + (localFee * govFee / 1e18);
         }
 
         emit Swapped(msg.sender, input.addr, output.addr, swapOutput, localFee, _recipient);
@@ -451,8 +453,10 @@ contract FeederPool is
             _recipient
         );
 
-        if(data.govFee > 0){
-            data.pendingFees += localFee * data.govFee / 1e18;
+        uint256 govFee = data.govFee;
+        if(govFee > 0) {
+            uint256 pendingFees = data.pendingFees;
+            data.pendingFees = pendingFees + (localFee * govFee / 1e18);
         }
 
         emit Redeemed(
@@ -495,8 +499,10 @@ contract FeederPool is
             _recipient
         );
 
-        if(data.govFee > 0){
-            data.pendingFees += scaledFee * data.govFee / 1e18;
+        uint256 govFee = data.govFee;
+        if(govFee > 0) {
+            uint256 pendingFees = data.pendingFees;
+            data.pendingFees = pendingFees + (scaledFee * govFee / 1e18);
         }
 
         emit RedeemedMulti(
@@ -542,8 +548,10 @@ contract FeederPool is
         );
 
         _burn(msg.sender, fpTokenQuantity);
-        if(data.govFee > 0){
-            data.pendingFees += localFee * data.govFee / 1e18;
+        uint256 govFee = data.govFee;
+        if(govFee > 0) {
+            uint256 pendingFees = data.pendingFees;
+            data.pendingFees = pendingFees + (localFee * govFee / 1e18);
         }
 
         emit RedeemedMulti(
@@ -760,8 +768,10 @@ contract FeederPool is
         newSupply = totalSupply() + mintAmount;
         require(mintAmount > 0, "Must collect something");
 
-        if(data.govFee > 0){
-            data.pendingFees += mintAmount * data.govFee / 1e18;
+        uint256 govFee = data.govFee;
+        if(govFee > 0) {
+            uint256 pendingFees = data.pendingFees;
+            data.pendingFees = pendingFees + (mintAmount * govFee / 1e18);
         }
 
         // Dummy mint event to catch the collections here

@@ -144,7 +144,7 @@ describe("Feeder Pools", () => {
             )
         })
     })
-    describe.only("testing some swaps", () => {
+    describe("testing some swaps", () => {
         before(async () => {
             await runSetup()
         })
