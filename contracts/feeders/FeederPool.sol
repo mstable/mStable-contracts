@@ -144,6 +144,7 @@ contract FeederPool is
         data.swapFee = 8e14;
         data.redemptionFee = 4e14;
         data.cacheSize = 1e17;
+        data.govFee = 1e17;
     }
 
     /**
@@ -324,6 +325,11 @@ contract FeederPool is
             _recipient
         );
 
+        uint256 govFee = data.govFee;
+        if(govFee > 0) {
+            data.pendingFees += (localFee * govFee / 1e18);
+        }
+
         emit Swapped(msg.sender, input.addr, output.addr, swapOutput, localFee, _recipient);
     }
 
@@ -446,6 +452,11 @@ contract FeederPool is
             _recipient
         );
 
+        uint256 govFee = data.govFee;
+        if(govFee > 0) {
+            data.pendingFees += (localFee * govFee / 1e18);
+        }
+
         emit Redeemed(
             msg.sender,
             _recipient,
@@ -485,6 +496,11 @@ contract FeederPool is
             _minOutputQuantities,
             _recipient
         );
+
+        uint256 govFee = data.govFee;
+        if(govFee > 0) {
+            data.pendingFees += (scaledFee * govFee / 1e18);
+        }
 
         emit RedeemedMulti(
             msg.sender,
@@ -529,6 +545,10 @@ contract FeederPool is
         );
 
         _burn(msg.sender, fpTokenQuantity);
+        uint256 govFee = data.govFee;
+        if(govFee > 0) {
+            data.pendingFees += (localFee * govFee / 1e18);
+        }
 
         emit RedeemedMulti(
             msg.sender,
@@ -688,7 +708,7 @@ contract FeederPool is
      * @dev Gets all config needed for general InvariantValidator calls
      */
     function _getConfig() internal view returns (FeederConfig memory) {
-        return FeederConfig(totalSupply(), _getA(), data.weightLimits);
+        return FeederConfig(totalSupply() + data.pendingFees, _getA(), data.weightLimits);
     }
 
     /**
@@ -743,8 +763,37 @@ contract FeederPool is
         mintAmount = FeederLogic.computeMintMulti(data.bAssetData, idxs, gains, _getConfig());
         newSupply = totalSupply() + mintAmount;
         require(mintAmount > 0, "Must collect something");
+        
+        uint256 govFee = data.govFee;
+        if(govFee > 0) {
+            data.pendingFees += (mintAmount * govFee / 1e18);
+        }
+
         // Dummy mint event to catch the collections here
         emit MintedMulti(address(this), msg.sender, 0, new address[](0), gains);
+    }
+
+    /**
+     * @dev Collects the pending gov fees extracted from swap, redeem and platform interest.
+     */
+    function collectPendingFees()
+        external
+        onlyInterestValidator
+    {
+        uint256 fees = data.pendingFees;
+        if (fees > 1) {
+            uint256 mintAmount = fees - 1;
+            data.pendingFees = 1;
+
+            _mint(msg.sender, mintAmount);
+            emit MintedMulti(
+                address(this),
+                msg.sender,
+                mintAmount,
+                new address[](0),
+                new uint256[](0)
+            );
+        }
     }
 
     /***************************************

@@ -65,7 +65,7 @@ interface Data {
 }
 const getData = async (_feederPool: ExposedFeederPool, _mAsset: ExposedMasset): Promise<Data> => ({
     fp: {
-        totalSupply: await _feederPool.totalSupply(),
+        totalSupply: (await _feederPool.totalSupply()).add((await _feederPool.data()).pendingFees),
         vaultBalances: (await _feederPool.getBassets())[1].map((b) => b[1]),
         value: await _feederPool.getPrice(),
     },

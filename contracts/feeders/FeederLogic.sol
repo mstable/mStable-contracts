@@ -250,8 +250,7 @@ library FeederLogic {
     {
         // Calculate mAsset redemption quantities
         scaledFee = _inputQuantity.mulTruncate(_data.redemptionFee);
-
-        // Calc cache and total mAsset circulating
+        // cache = (config.supply - inputQuantity) * 0.2
         uint256 maxCache = _getCacheDetails(_data, _config.supply - _inputQuantity);
 
         // Load the bAsset data from storage into memory
@@ -716,6 +715,9 @@ library FeederLogic {
         scaledSwapFee = ((k1 - k0) * _feeRate) / 1e18;
         // 5. Calc output bAsset
         uint256 newOutputReserve = _solveInvariant(x, _config.a, _o, k0 + scaledSwapFee);
+        // Convert swap fee to fpToken terms
+        // fpFee = fee * s / k
+        scaledSwapFee = scaledSwapFee * _config.supply / k0;
         uint256 output = x[_o] - newOutputReserve - 1;
         bAssetOutputQuantity = (output * 1e8) / _bAssets[_o].ratio;
         // 6. Check for bounds
