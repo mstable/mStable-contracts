@@ -327,8 +327,7 @@ contract FeederPool is
 
         uint256 govFee = data.govFee;
         if(govFee > 0) {
-            uint256 pendingFees = data.pendingFees;
-            data.pendingFees = pendingFees + (localFee * govFee / 1e18);
+            data.pendingFees += (localFee * govFee / 1e18);
         }
 
         emit Swapped(msg.sender, input.addr, output.addr, swapOutput, localFee, _recipient);
@@ -455,8 +454,7 @@ contract FeederPool is
 
         uint256 govFee = data.govFee;
         if(govFee > 0) {
-            uint256 pendingFees = data.pendingFees;
-            data.pendingFees = pendingFees + (localFee * govFee / 1e18);
+            data.pendingFees += (localFee * govFee / 1e18);
         }
 
         emit Redeemed(
@@ -501,8 +499,7 @@ contract FeederPool is
 
         uint256 govFee = data.govFee;
         if(govFee > 0) {
-            uint256 pendingFees = data.pendingFees;
-            data.pendingFees = pendingFees + (scaledFee * govFee / 1e18);
+            data.pendingFees += (scaledFee * govFee / 1e18);
         }
 
         emit RedeemedMulti(
@@ -550,8 +547,7 @@ contract FeederPool is
         _burn(msg.sender, fpTokenQuantity);
         uint256 govFee = data.govFee;
         if(govFee > 0) {
-            uint256 pendingFees = data.pendingFees;
-            data.pendingFees = pendingFees + (localFee * govFee / 1e18);
+            data.pendingFees += (localFee * govFee / 1e18);
         }
 
         emit RedeemedMulti(
@@ -770,8 +766,7 @@ contract FeederPool is
 
         uint256 govFee = data.govFee;
         if(govFee > 0) {
-            uint256 pendingFees = data.pendingFees;
-            data.pendingFees = pendingFees + (mintAmount * govFee / 1e18);
+            data.pendingFees += (mintAmount * govFee / 1e18);
         }
 
         // Dummy mint event to catch the collections here
