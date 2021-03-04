@@ -763,7 +763,7 @@ contract FeederPool is
         mintAmount = FeederLogic.computeMintMulti(data.bAssetData, idxs, gains, _getConfig());
         newSupply = totalSupply() + mintAmount;
         require(mintAmount > 0, "Must collect something");
-
+        
         uint256 govFee = data.govFee;
         if(govFee > 0) {
             data.pendingFees += (mintAmount * govFee / 1e18);
