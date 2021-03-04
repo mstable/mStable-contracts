@@ -8,6 +8,10 @@ import { simpleToExactAmount, BN, applyRatio } from "@utils/math"
 import { MassetDetails, MassetMachine, StandardAccounts } from "@utils/machines"
 
 import { DEAD_ADDRESS, MAX_UINT256, ONE_DAY, ONE_HOUR, ONE_WEEK, TEN_MINS, ZERO_ADDRESS } from "@utils/constants"
+import { assertBNSlightlyGTPercent } from "@utils/assertions"
+import { keccak256, toUtf8Bytes } from "ethers/lib/utils"
+import { BassetStatus } from "@utils/mstable-objects"
+import { getTimestamp, increaseTime } from "@utils/time"
 import {
     Masset,
     MockNexus,
@@ -16,11 +20,7 @@ import {
     MaliciousAaveIntegration__factory,
     MockERC20,
     MockPlatformIntegration__factory,
-} from "types/generated"
-import { assertBNSlightlyGTPercent } from "@utils/assertions"
-import { keccak256, toUtf8Bytes } from "ethers/lib/utils"
-import { BassetStatus } from "@utils/mstable-objects"
-import { getTimestamp, increaseTime } from "@utils/time"
+} from "../../types/generated"
 
 describe("Masset Admin", () => {
     let sa: StandardAccounts
