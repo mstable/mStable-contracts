@@ -19,6 +19,7 @@ import { StableMath } from "../../../shared/StableMath.sol";
 import { Manager } from "../../../masset/Manager.sol";
 
 // Legacy
+import { Migrator } from "./Migrator.sol";
 import { IBasketManager } from "./IBasketManager.sol";
 import { Basket, Basset } from "./MassetStructsV2.sol";
 import { InitializableModuleV2 } from "./InitializableModuleV2.sol";
@@ -130,11 +131,12 @@ contract MusdV3 is
      * @param _forgeValidator  Address of the AMM implementation
      * @param _config          Configutation for the invariant validator including the
      *                         amplification coefficient (A) and weight limits
+     * 24.515
      */
     function upgrade(
         address _forgeValidator,
         InvariantConfig memory _config
-    ) public nonReentrant whenHealthy {
+    ) public {
         // prevent upgrade being run again by checking the old basket manager
         require(deprecated_basketManager != address(0), "already upgraded");
         // Read the Basket Manager details from the mUSD proxy's storage into memory
@@ -148,41 +150,7 @@ contract MusdV3 is
 
         Basket memory importedBasket = basketManager.getBasket();
 
-        uint256 len = importedBasket.bassets.length;
-        uint256[] memory scaledVaultBalances = new uint[](len);
-        uint256 maxScaledVaultBalance;
-        for (uint8 i = 0; i < len; i++) {
-            Basset memory bAsset = importedBasket.bassets[i];
-            address bAssetAddress = bAsset.addr;
-            bAssetIndexes[bAssetAddress] = i;
-
-            address integratorAddress = basketManager.getBassetIntegrator(bAssetAddress);
-            bAssetPersonal.push(
-                MassetStructs.BassetPersonal({
-                    addr: bAssetAddress,
-                    integrator: integratorAddress,
-                    hasTxFee: false,
-                    status: MassetStructs.BassetStatus.Normal
-                })
-            );
-
-            uint128 ratio = SafeCast.toUint128(bAsset.ratio);
-            uint128 vaultBalance = SafeCast.toUint128(bAsset.vaultBalance);
-            bAssetData.push(
-                MassetStructs.BassetData({ ratio: ratio, vaultBalance: vaultBalance })
-            );
-
-            // caclulate scaled vault bAsset balance and totoal vault balance
-            uint128 scaledVaultBalance = (vaultBalance * ratio) / 1e8;
-            scaledVaultBalances[i] = scaledVaultBalance;
-            maxScaledVaultBalance += scaledVaultBalance;
-        }
-
-        // Check each bAsset is under 25.01% weight
-        maxScaledVaultBalance = maxScaledVaultBalance * 2501 / 10000;
-        for (uint8 i = 0; i < len; i++) {
-            require(scaledVaultBalances[i] < maxScaledVaultBalance, "imbalanced");
-        }
+        Migrator.upgrade(basketManager, bAssetPersonal, bAssetData, bAssetIndexes);
 
         // Set new V3.0 storage variables
         maxBassets = 10;
