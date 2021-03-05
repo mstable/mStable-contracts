@@ -33,7 +33,7 @@ import { InitializableModuleV2 } from "./InitializableModuleV2.sol";
  * @dev     VERSION: 3.0
  *          DATE:    2021-01-22
  */
- contract MusdV3 is
+contract MusdV3 is
     IMasset,
     Initializable,
     InitializableToken,
@@ -127,7 +127,6 @@ import { InitializableModuleV2 } from "./InitializableModuleV2.sol";
     /**
      * @dev Upgrades mUSD from v2.0 to v3.0.
      *      This function should be called via Proxy just after the proxy has been updated.
-     *      To avoid variable shadowing appended `Arg` after arguments name.
      * @param _forgeValidator  Address of the AMM implementation
      * @param _config          Configutation for the invariant validator including the
      *                         amplification coefficient (A) and weight limits
@@ -142,16 +141,18 @@ import { InitializableModuleV2 } from "./InitializableModuleV2.sol";
         IBasketManager basketManager = IBasketManager(deprecated_basketManager);
         // Update the storage of the Basket Manager in the mUSD Proxy
         deprecated_basketManager = address(0);
+        // Set the state to be undergoingRecol in order to pause after upgrade
+        basket.undergoingRecol = true;
 
         forgeValidator = IInvariantValidator(_forgeValidator);
 
-        Basket memory basket = basketManager.getBasket();
+        Basket memory importedBasket = basketManager.getBasket();
 
-        uint256 len = basket.bassets.length;
+        uint256 len = importedBasket.bassets.length;
         uint256[] memory scaledVaultBalances = new uint[](len);
         uint256 maxScaledVaultBalance;
         for (uint8 i = 0; i < len; i++) {
-            Basset memory bAsset = basket.bassets[i];
+            Basset memory bAsset = importedBasket.bassets[i];
             address bAssetAddress = bAsset.addr;
             bAssetIndexes[bAssetAddress] = i;
 
@@ -309,9 +310,9 @@ import { InitializableModuleV2 } from "./InitializableModuleV2.sol";
         return forgeValidator.computeMintMulti(bAssetData, indexes, _inputQuantities, _getConfig());
     }
 
-    // /***************************************
-    //           MINTING (INTERNAL)
-    // ****************************************/
+    /***************************************
+              MINTING (INTERNAL)
+    ****************************************/
 
     /** @dev Mint Single */
     function _mintTo(
