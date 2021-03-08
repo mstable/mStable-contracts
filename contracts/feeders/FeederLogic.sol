@@ -898,41 +898,14 @@ library FeederLogic {
         uint256 len = _x.length;
 
         if (_sum == 0) return 0;
-
-        uint256 nA = _a * len;
-        uint256 kPrev;
-        k = _sum;
-
-        for (uint256 i = 0; i < 256; i++) {
-            uint256 kP = k;
-            for (uint256 j = 0; j < len; j++) {
-                kP = (kP * k) / (_x[j] * len);
-            }
-            kPrev = k;
-            k =
-                (((nA * _sum) / A_PRECISION + (kP * len)) * k) /
-                (((nA - A_PRECISION) * k) / A_PRECISION + ((len + 1) * kP));
-            if (_hasConverged(k, kPrev)) {
-                return k;
-            }
-        }
-
-        revert("Invariant did not converge");
+        
+        uint256 B = _a * 2;
+        uint256 var1 = _x[0] * _x[1];
+        uint256 var2 = B * var1 / (_x[0] + _x[1]);
+        // result = 2 * (sqrt(var2**2 + (B + 1) * var1) - var2)
+        k = 2 * (Root.sqrt((var2 ** 2) + ((B + 1) * var1)) - var2);
     }
 
-    /**
-     * @dev Checks if a given solution has converged within a factor of 1
-     * @param _k              Current solution k
-     * @param _kPrev          Previous iteration solution
-     * @return hasConverged   Bool, true if diff abs(k, kPrev) <= 1
-     */
-    function _hasConverged(uint256 _k, uint256 _kPrev) internal pure returns (bool) {
-        if (_kPrev > _k) {
-            return (_kPrev - _k) <= 1;
-        } else {
-            return (_k - _kPrev) <= 1;
-        }
-    }
 
     /**
      * @dev Solves the invariant for _i with respect to target K, given an array of reserves.
@@ -950,28 +923,13 @@ library FeederLogic {
     ) internal pure returns (uint256 y) {
         uint256 len = _x.length;
         require(_idx >= 0 && _idx < len, "Invalid index");
-
-        (uint256 sum_, uint256 nA, uint256 kP) = (0, _a * len, _targetK);
-
-        for (uint256 i = 0; i < len; i++) {
-            if (i != _idx) {
-                sum_ += _x[i];
-                kP = (kP * _targetK) / (_x[i] * len);
-            }
-        }
-
-        uint256 c = (((kP * _targetK) * A_PRECISION) / nA) / len;
-        uint256 g = (_targetK * (nA - A_PRECISION)) / nA;
-        uint256 b = 0;
-
-        if (g > sum_) {
-            b = g - sum_;
-            y = (Root.sqrt((b**2) + (4 * c)) + b) / 2 + 1;
-        } else {
-            b = sum_ - g;
-            y = (Root.sqrt((b**2) + (4 * c)) - b) / 2 + 1;
-        }
-
-        if (y < 1e8) revert("Invalid solution");
+        uint256 x = _idx == 0 ? _x[1] : _x[0];
+        uint256 B = _a * 2;
+        uint256 var1 = B + 1;
+        uint256 var2 = (_targetK ** 2) / var1;
+        // var3 = var2 // (4 * x) + k * B // var1 - x
+        uint256 var3 = var2 / (4 * x) + ((_targetK * B) / var1) - x;
+        //  result = (sqrt(var3**2 + var2) + var3) // 2
+        y = (Root.sqrt((var3 ** 2) + var2) + var3) / 2;
     }
 }
