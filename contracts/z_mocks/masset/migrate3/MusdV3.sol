@@ -148,8 +148,6 @@ contract MusdV3 is
 
         forgeValidator = IInvariantValidator(_forgeValidator);
 
-        Basket memory importedBasket = basketManager.getBasket();
-
         Migrator.upgrade(basketManager, bAssetPersonal, bAssetData, bAssetIndexes);
 
         // Set new V3.0 storage variables

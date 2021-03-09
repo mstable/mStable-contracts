@@ -1,3 +1,4 @@
+/* eslint-disable no-underscore-dangle */
 /* eslint-disable no-param-reassign */
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -6,23 +7,16 @@ import { expect } from "chai"
 import { Contract, ContractFactory, Signer } from "ethers"
 import { ethers, network } from "hardhat"
 
-import { ONE_WEEK, ratioScale, ZERO_ADDRESS } from "@utils/constants"
+import { ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import { applyDecimals, applyRatio, applyRatioMassetToBasset, BN, simpleToExactAmount } from "@utils/math"
-import {
-    BasketManagerProxy__factory,
-    DelayedProxyAdmin,
-    DelayedProxyAdmin__factory,
-    ERC20__factory,
-    Masset,
-    MusdV3,
-    MusdV3__factory,
-} from "types/generated"
+import { DelayedProxyAdmin, DelayedProxyAdmin__factory, ERC20__factory, Masset, MusdV3, MusdV3__factory } from "types/generated"
+import { MusdV3LibraryAddresses } from "types/generated/factories/MusdV3__factory"
 import { increaseTime } from "@utils/time"
 import { BassetStatus } from "@utils/mstable-objects"
 
-import { IBasketManager } from "types/generated/IBasketManager"
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 import { formatUnits } from "ethers/lib/utils"
+
 import { abi as MusdV2Abi, bytecode as MusdV2Bytecode } from "./MassetV2.json"
 import { abi as BasketManagerV2Abi, bytecode as BasketManagerV2Bytecode } from "./BasketManagerV2.json"
 
@@ -39,11 +33,8 @@ const basketManagerAddress = "0x66126B4aA2a1C07536Ef8E5e8bD4EfDA1FdEA96D"
 const nexusAddress = "0xafce80b19a8ce13dec0739a1aab7a028d6845eb3"
 const delayedProxyAdminAddress = "0x5C8eb57b44C1c6391fC7a8A0cf44d26896f92386"
 const governorMultisigAddress = "0x4186c5aed424876f7ebe52f9148552a45e17f287"
-const oldForgeValidator = "0xbB90D06371030fFa150E463621c22950b212eaa1"
 const invariantValidatorAddress = "0xd36050B5F28126b5292B59128ED25E489a0f2F3f"
-const linkedAddress = {
-    __$1a38b0db2bd175b310a9a3f8697d44eb75$__: "0x1E91F826fa8aA4fa4D3F595898AF3A64dd188848",
-}
+
 const forkBlockNumber = 11880000
 
 const defaultConfig = {
@@ -119,7 +110,7 @@ const impersonateAccounts = async () => {
         mUSDWhale: await impersonate(mUsdWhaleAddress),
     }
 
-    // send some Ether to the impersonated miltisig contract as it doesn't have Ether
+    // send some Ether to the impersonated multisig contract as it doesn't have Ether
     await accounts.ethWhale.sendTransaction({
         to: governorMultisigAddress,
         value: simpleToExactAmount(10),
@@ -128,8 +119,39 @@ const impersonateAccounts = async () => {
     return accounts
 }
 
+const deployMusdV3 = async (deployer: Signer): Promise<{ mUsdV3Proxy: MusdV3; mUsdV3Impl: MusdV3 }> => {
+    // Deploy the Migrator library used by new mUSD implementation
+    const MigratorFactory = await ethers.getContractFactory("Migrator")
+    const migratorLib = await MigratorFactory.connect(deployer).deploy()
+    await migratorLib.deployTransaction.wait()
+    const linkedAddress: MusdV3LibraryAddresses = {
+        __$895b94b42027c754d119631b74bdad7527$__: migratorLib.address, // Migrator library
+        __$1a38b0db2bd175b310a9a3f8697d44eb75$__: "0x1E91F826fa8aA4fa4D3F595898AF3A64dd188848", // Masset Manager
+    }
+
+    // Point to the mUSD contract using the new V3 interface via the existing mUSD proxy
+    const mUsdV3Factory = new MusdV3__factory(linkedAddress, deployer)
+    const mUsdV3Proxy = mUsdV3Factory.attach(mUsdProxyAddress)
+
+    // Check the mUSD V3 implementation contract size
+    const size = mUsdV3Factory.bytecode.length / 2 / 1000
+    if (size > 24.576) {
+        console.error(`Masset size is ${size} kb: ${size - 24.576} kb too big`)
+    } else {
+        console.log(`Masset = ${size} kb`)
+    }
+
+    // Deploy the new mUSD implementation
+    const mUsdV3Impl = await mUsdV3Factory.deploy(nexusAddress)
+
+    return {
+        mUsdV3Proxy,
+        mUsdV3Impl,
+    }
+}
+
 // Test the token storage variables
-const validateTokenStorage = async (token: MusdV3 | Masset) => {
+const validateTokenStorage = async (token: MusdV3 | Masset | Contract) => {
     expect(await token.symbol(), "symbol").to.eq("mUSD")
     expect(await token.name(), "name").to.eq("mStable USD")
     expect(await token.decimals(), "decimals").to.eq(18)
@@ -141,7 +163,7 @@ const validateTokenStorage = async (token: MusdV3 | Masset) => {
     expect(await token.totalSupply(), `totalSupply at block ${forkBlockNumber}`).to.eq("45286852911137226622051552")
 }
 // Test the existing Masset V2 storage variables
-const validateUnchangedMassetStorage = async (mUsd: MusdV3 | Masset) => {
+const validateUnchangedMassetStorage = async (mUsd: MusdV3 | Masset | Contract) => {
     expect(await mUsd.swapFee(), "swap fee").to.eq(simpleToExactAmount(6, 14))
     expect(await mUsd.redemptionFee(), "redemption fee").to.eq(simpleToExactAmount(3, 14))
     expect(await mUsd.cacheSize(), "cache size").to.eq(simpleToExactAmount(3, 16))
@@ -173,8 +195,8 @@ const validateNewMassetStorage = async (mUsd: MusdV3 | Masset, expectVaultBalanc
 
     // Get basket state
     const basketState = await mUsd.basket()
-    expect(basketState.undergoingRecol, "undergoingRecol").to.be.false
-    expect(basketState[0], "basketState[0]").to.be.false
+    expect(basketState.undergoingRecol, "undergoingRecol").to.be.true
+    expect(basketState[0], "basketState[0]").to.be.true
     expect(basketState.failed, "undergoingRecol").to.be.false
     expect(basketState[1], "basketState[1]").to.be.false
 
@@ -203,12 +225,10 @@ const balanceBasset = async (
     // Check the whale has enough input tokens
     const inputTokenContract = new ERC20__factory(signer).attach(inputToken.address)
     const whaleBalance = await inputTokenContract.balanceOf(whaleAddress)
-    console.log(`Whale ${inputToken.symbol} balance: ${formatUnits(whaleBalance, inputToken.decimals)}`)
     expect(whaleBalance, `Whale ${inputToken.symbol} balance`).to.gte(bAssetAmount)
     // whale approves input tokens
     await inputTokenContract.approve(mUsdV2.address, whaleAddress)
 
-    console.log(`About to swap ${formatUnits(bAssetAmount, inputToken.decimals)} ${inputToken.symbol} for ${outputToken.symbol}`)
     const tx = mUsdV2.connect(signer).swap(inputToken.address, outputToken.address, bAssetAmount, whaleAddress)
     await expect(tx).to.emit(mUsdV2, "Swapped")
     scaledVaultBalances[inputToken.index] = scaledVaultBalances[inputToken.index].add(minBassetAmount)
@@ -232,17 +252,6 @@ describe("mUSD V2.0 to V3.0", () => {
         // Point to mUSD contract using the old V2 interface via the proxy
         mUsdV2Factory = new ContractFactory(MusdV2Abi, MusdV2Bytecode, deployer)
         mUsdV2 = mUsdV2Factory.attach(mUsdProxyAddress)
-
-        // Point to the mUSD contract using the new V3 interface via the proxy
-        mUsdV3Factory = new MusdV3__factory(linkedAddress, deployer)
-        mUsdV3 = mUsdV3Factory.attach(mUsdProxyAddress)
-        // Check the mUSD V3 implementation contract size
-        const size = mUsdV3Factory.bytecode.length / 2 / 1000
-        if (size > 24.576) {
-            console.error(`Masset size is ${size} kb: ${size - 24.576} kb too big`)
-        } else {
-            console.log(`Masset = ${size} kb`)
-        }
 
         delayedProxyAdmin = new DelayedProxyAdmin__factory(governorMultisig).attach(delayedProxyAdminAddress)
     })
@@ -275,8 +284,8 @@ describe("mUSD V2.0 to V3.0", () => {
             await delayedProxyAdmin.acceptUpgradeRequest(mUsdProxyAddress)
         })
         it("should preserve storage in mUSD proxy", async () => {
-            await validateTokenStorage(mUsdV3)
-            await validateUnchangedMassetStorage(mUsdV3)
+            await validateTokenStorage(mUsdV2)
+            await validateUnchangedMassetStorage(mUsdV2)
             expect(await mUsdV2.getBasketManager(), "basket manager").to.eq(basketManagerAddress)
         })
     })
@@ -312,15 +321,12 @@ describe("mUSD V2.0 to V3.0", () => {
                 scaledVaultBalances[i] = scaledVaultBalance
                 scaledTotalVaultBalance = scaledTotalVaultBalance.add(scaledVaultBalance)
                 expect(bAssets[i].vaultBalance).to.eq(token.vaultBalance)
-                console.log(`${token.symbol} vault balance: ${formatUnits(bAssets[i].vaultBalance, token.decimals)}`)
             })
             expect(scaledVaultBalances[0].mul(10000).div(scaledTotalVaultBalance)).to.eq(0)
             expect(scaledVaultBalances[1].mul(10000).div(scaledTotalVaultBalance)).to.eq(5115)
             expect(scaledVaultBalances[2].mul(10000).div(scaledTotalVaultBalance)).to.eq(3902)
             expect(scaledVaultBalances[3].mul(10000).div(scaledTotalVaultBalance)).to.eq(981)
             scaledTargetBalance = scaledTotalVaultBalance.div(usdTokens.length)
-            console.log(`Total vault balances: ${formatUnits(scaledTotalVaultBalance)}`)
-            console.log(`Target vault balance: ${formatUnits(scaledTargetBalance)}`)
         })
         it("should update max weights to 25.01%", async () => {
             await basketManager.setBasketWeights(
@@ -338,18 +344,19 @@ describe("mUSD V2.0 to V3.0", () => {
             await balanceBasset(mUsdV2, scaledVaultBalances, scaledTargetBalance, usdTokens[0], usdTokens[1])
         })
         it("should have valid storage before upgrade", async () => {
-            await validateTokenStorage(mUsdV3)
-            await validateUnchangedMassetStorage(mUsdV3) // bAsset personal data
+            await validateTokenStorage(mUsdV2)
+            await validateUnchangedMassetStorage(mUsdV2) // bAsset personal data
 
             // Get new vault balanced after the bAssets have been balanced
             const { bAssets } = await basketManager.getBassets()
             usdTokens.forEach((token, i) => {
                 balancedVaultBalances[i] = bAssets[i].vaultBalance
-                console.log(`${token.symbol} balanced vault balance: ${formatUnits(balancedVaultBalances[i], token.decimals)}`)
             })
         })
         it("Should upgrade balanced mUSD", async () => {
-            const mUsdV3Impl = await mUsdV3Factory.deploy(nexusAddress)
+            const { mUsdV3Proxy, mUsdV3Impl } = await deployMusdV3(deployer)
+            mUsdV3 = mUsdV3Proxy
+
             // Propose upgrade to the mUSD proxy contract using the delayed proxy admin contract
             const proposeUpgradeTx = delayedProxyAdmin.proposeUpgrade(mUsdProxyAddress, mUsdV3Impl.address, "0x")
             await expect(proposeUpgradeTx).to.emit(delayedProxyAdmin, "UpgradeProposed")
@@ -366,6 +373,16 @@ describe("mUSD V2.0 to V3.0", () => {
             await validateTokenStorage(mUsdV3)
             await validateUnchangedMassetStorage(mUsdV3)
             await validateNewMassetStorage(mUsdV3, balancedVaultBalances)
+        })
+        it("Enable mUSD after upgrade", async () => {
+            await mUsdV3.connect(governorMultisig).negateIsolation(usdTokens[0].address)
+
+            // Get basket state
+            const basketState = await mUsdV3.basket()
+            expect(basketState.undergoingRecol, "undergoingRecol").to.be.false
+            expect(basketState[0], "basketState[0]").to.be.false
+            expect(basketState.failed, "undergoingRecol").to.be.false
+            expect(basketState[1], "basketState[1]").to.be.false
         })
         it("Should fail to upgrade mUSD again", async () => {
             await expect(mUsdV3.upgrade(invariantValidatorAddress, defaultConfig)).to.revertedWith("already upgraded")
@@ -401,7 +418,9 @@ describe("mUSD V2.0 to V3.0", () => {
             deployer = accounts.deployer
             governorMultisig = accounts.governorMultisig
 
-            const mUsdV3Impl = await mUsdV3Factory.deploy(nexusAddress)
+            const { mUsdV3Proxy, mUsdV3Impl } = await deployMusdV3(deployer)
+            mUsdV3 = mUsdV3Proxy
+
             // The mUSD implementation will have a blank validator
             expect(await mUsdV3Impl.forgeValidator(), "before old validator").to.eq(ZERO_ADDRESS)
 
@@ -428,7 +447,7 @@ describe("mUSD V2.0 to V3.0", () => {
             await validateNewMassetStorage(mUsdV3)
         })
     })
-    // this can not be run on a forked Hardhat network if the previous test has been run as the contract would have already been upgraded
+    // TODO get this working again. The acceptUpgradeRequest is reverting with no reason
     context.skip("Upgrade of mUSD implementation using upgradeToAndCall from delayed admin proxy", () => {
         before(async () => {
             await network.provider.request({
@@ -447,7 +466,9 @@ describe("mUSD V2.0 to V3.0", () => {
             governorMultisig = accounts.governorMultisig
         })
         it("migrate via time deploy admin contract", async () => {
-            const mUsdV3Impl = await mUsdV3Factory.deploy(nexusAddress)
+            const { mUsdV3Proxy, mUsdV3Impl } = await deployMusdV3(deployer)
+            mUsdV3 = mUsdV3Proxy
+
             // The mUSD implementation will have a blank validator
             expect(await mUsdV3Impl.forgeValidator(), "before old validator").to.eq(ZERO_ADDRESS)
 
