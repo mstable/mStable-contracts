@@ -2,12 +2,12 @@
 pragma solidity 0.8.0;
 pragma abicoder v2;
 
-import { MassetStructs } from "../../../masset/MassetStructs.sol";
+import { MassetStructs } from "../MassetStructs.sol";
 
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-import { IBasketManager } from "./IBasketManager.sol";
-import { Basket, Basset } from "./MassetStructsV2.sol";
+import { IBasketManager } from "../../z_mocks/masset/migrate3/IBasketManager.sol";
+import { Basket, Basset } from "../../z_mocks/masset/migrate3/MassetStructsV2.sol";
 
 
 library Migrator {

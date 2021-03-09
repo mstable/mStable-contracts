@@ -125,7 +125,7 @@ const deployMusdV3 = async (deployer: Signer): Promise<{ mUsdV3Proxy: MusdV3; mU
     const migratorLib = await MigratorFactory.connect(deployer).deploy()
     await migratorLib.deployTransaction.wait()
     const linkedAddress: MusdV3LibraryAddresses = {
-        __$895b94b42027c754d119631b74bdad7527$__: migratorLib.address, // Migrator library
+        __$4ff61640dcfbdf6af5752b96f9de1a9efe$__: migratorLib.address, // Migrator library
         __$1a38b0db2bd175b310a9a3f8697d44eb75$__: "0x1E91F826fa8aA4fa4D3F595898AF3A64dd188848", // Masset Manager
     }
 
@@ -162,6 +162,7 @@ const validateTokenStorage = async (token: MusdV3 | Masset | Contract) => {
     // For block number 11880000
     expect(await token.totalSupply(), `totalSupply at block ${forkBlockNumber}`).to.eq("45286852911137226622051552")
 }
+
 // Test the existing Masset V2 storage variables
 const validateUnchangedMassetStorage = async (mUsd: MusdV3 | Masset | Contract) => {
     expect(await mUsd.swapFee(), "swap fee").to.eq(simpleToExactAmount(6, 14))
@@ -171,7 +172,9 @@ const validateUnchangedMassetStorage = async (mUsd: MusdV3 | Masset | Contract) 
     // maxCache
     expect(await mUsd.surplus(), `surplus at block ${forkBlockNumber}`).to.eq("60000000000000000001")
 }
-const validateMasset = (bAssets, i: number, expectToken: Token, expectVaultBalances?: BN[]) => {
+
+// Check that the bAsset data is what we expect
+const validateBasset = (bAssets, i: number, expectToken: Token, expectVaultBalances?: BN[]) => {
     if (!expectVaultBalances) {
         expectVaultBalances = usdTokens.map((token) => token.vaultBalance)
     }
@@ -179,9 +182,10 @@ const validateMasset = (bAssets, i: number, expectToken: Token, expectVaultBalan
     expect(bAssets.personal[i].integrator, `${expectToken.symbol} integrator`).to.eq(expectToken.integrator) // Compound Vault
     expect(bAssets.personal[i].hasTxFee, `${expectToken.symbol} hasTxFee`).to.be.false
     expect(bAssets.personal[i].status, `${expectToken.symbol} status`).to.eq(BassetStatus.Normal)
-    expect(bAssets.data[i].ratio, `${expectToken.symbol} ratio`).to.eq(simpleToExactAmount(1, 26 - expectToken.decimals))
+    expect(bAssets.data[i].ratio, `${expectToken.symbol} ratio`).to.eq(simpleToExactAmount(1, 8 + (18 - expectToken.decimals)))
     expect(bAssets.data[i].vaultBalance, `${expectToken.symbol} vault`).to.eq(expectVaultBalances[i])
 }
+
 // Test the new Masset V3 storage variables
 const validateNewMassetStorage = async (mUsd: MusdV3 | Masset, expectVaultBalances?: BN[]) => {
     expect(await mUsd.forgeValidator(), "forge validator").to.eq(invariantValidatorAddress)
@@ -190,7 +194,7 @@ const validateNewMassetStorage = async (mUsd: MusdV3 | Masset, expectVaultBalanc
     // bAsset personal data
     const bAssets = await mUsd.getBassets()
     usdTokens.forEach((token, i) => {
-        validateMasset(bAssets, i, token, expectVaultBalances)
+        validateBasset(bAssets, i, token, expectVaultBalances)
     })
 
     // Get basket state
@@ -205,6 +209,7 @@ const validateNewMassetStorage = async (mUsd: MusdV3 | Masset, expectVaultBalanc
     expect(invariantConfig.limits.min, "min limit").to.eq(defaultConfig.limits.min)
     expect(invariantConfig.limits.max, "max limit").to.eq(defaultConfig.limits.max)
 }
+
 const balanceBasset = async (
     mUsdV2: Contract,
     scaledVaultBalances: BN[],
@@ -236,6 +241,37 @@ const balanceBasset = async (
     scaledVaultBalances[outputToken.index] = scaledVaultBalances[outputToken.index].add(minBassetAmount)
 }
 
+/**
+ * TESTING mUSD Upgrade
+ * ------------------------------
+ * Step 1: Upgrade AaveIntegration, CompoundIntegration, BasketManager
+ * Test 1: i) Ensure system still functions as normal
+ *          - Minting
+ *          - Redemption
+ *          - CollectInterest
+ *         ii) Ensure withdrawRaw is protected
+ *
+ * Step 2: Upgrade SavingsManager
+ * Test 2: i) Deposit Liquidated, collect platform interest (breaks)
+ *         ii) Test basic deposit to SAVE
+ *
+ * Step 3: Upgrade Masset
+ * Test 3: i) Ensure system still functions as normal (0 cache size)
+ *         ii) Ensure 1.1 vars still accessible
+ *
+ * Step 4: Set cache size
+ * Test 4: i) Ensure deposit and withdraw works
+ *         ii) Ensure surplus accrues correctly
+ *         iii) Ensure SAVE deposit works
+ *         iv) Ensure collectPlatformInterest works
+ *
+ * Proxy Upgrades
+ * Masset.sol > https://www.diffchecker.com/8nXgYzdi
+ * BasketManager.sol > https://www.diffchecker.com/W6oOQNb7
+ * AaveIntegration.sol > https://www.diffchecker.com/Nt1pEP8b
+ * CompoundIntegration.sol > https://www.diffchecker.com/Ay8DBaZa
+ * SavingsManager.sol > https://www.diffchecker.com/8XJoknka
+ */
 describe("mUSD V2.0 to V3.0", () => {
     let mUsdV2Factory: ContractFactory
     let mUsdV3Factory: MusdV3__factory

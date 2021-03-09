@@ -21,12 +21,7 @@ import "tsconfig-paths/register"
 export const hardhatConfig = {
     networks: {
         hardhat: {
-            allowUnlimitedContractSize: false,
-            blockGasLimit: 9000000,
-            forking: {
-                url: process.env.NODE_URL || "",
-                blockNumber: 11880000,
-            },
+            allowUnlimitedContractSize: true,
         },
         localhost: { url: "http://localhost:8545" },
         fork: {

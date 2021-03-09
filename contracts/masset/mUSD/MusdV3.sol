@@ -3,26 +3,26 @@ pragma solidity 0.8.0;
 pragma abicoder v2;
 
 // External
-import { IInvariantValidator } from "../../../masset/IInvariantValidator.sol";
+import { IInvariantValidator } from "../IInvariantValidator.sol";
 
 // Internal
-import { Initializable } from "../../../shared/@openzeppelin-2.5/Initializable.sol";
-import { InitializableToken } from "../../../shared/InitializableToken.sol";
-import { ImmutableModule } from "../../../shared/ImmutableModule.sol";
-import { InitializableReentrancyGuard } from "../../../shared/InitializableReentrancyGuard.sol";
-import { IMasset, Deprecated_BasketManager } from "../../../interfaces/IMasset.sol";
-import { MassetStructs } from "../../../masset/MassetStructs.sol";
+import { Initializable } from "../../shared/@openzeppelin-2.5/Initializable.sol";
+import { InitializableToken } from "../../shared/InitializableToken.sol";
+import { ImmutableModule } from "../../shared/ImmutableModule.sol";
+import { InitializableReentrancyGuard } from "../../shared/InitializableReentrancyGuard.sol";
+import { IMasset, Deprecated_BasketManager } from "../../interfaces/IMasset.sol";
+import { MassetStructs } from "../MassetStructs.sol";
 
 // Libs
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { StableMath } from "../../../shared/StableMath.sol";
-import { Manager } from "../../../masset/Manager.sol";
+import { StableMath } from "../../shared/StableMath.sol";
+import { Manager } from "../Manager.sol";
+import { Migrator } from "./Migrator.sol";
 
 // Legacy
-import { Migrator } from "./Migrator.sol";
-import { IBasketManager } from "./IBasketManager.sol";
-import { Basket, Basset } from "./MassetStructsV2.sol";
-import { InitializableModuleV2 } from "./InitializableModuleV2.sol";
+import { IBasketManager } from "../../z_mocks/masset/migrate3/IBasketManager.sol";
+import { Basket, Basset } from "../../z_mocks/masset/migrate3/MassetStructsV2.sol";
+import { InitializableModuleV2 } from "../../z_mocks/masset/migrate3/InitializableModuleV2.sol";
 
 /**
  * @title   Masset used to migrate mUSD from V2.0 to V3.0
