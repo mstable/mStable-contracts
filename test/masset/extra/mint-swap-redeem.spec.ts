@@ -19,10 +19,7 @@ describe("Masset", () => {
         const sbtc = await mAssetMachine.loadBassetProxy("Synthetix BTC", "sBTC", 18)
         const wbtc = await mAssetMachine.loadBassetProxy("Wrapped BTC", "wBTC", 12)
         const bAssets = [renBtc, sbtc, wbtc]
-        const forgeVal = await new InvariantValidator__factory(sa.default.signer).deploy(
-            simpleToExactAmount(1, 24),
-            simpleToExactAmount(1, 24),
-        )
+        const forgeVal = await new InvariantValidator__factory(sa.default.signer).deploy()
         const Manager = await ethers.getContractFactory("Manager")
         const managerLib = await Manager.deploy()
         const linkedAddress = {
