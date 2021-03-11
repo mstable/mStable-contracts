@@ -5,8 +5,6 @@ import { InvariantValidator } from "../../masset/InvariantValidator.sol";
 
 contract ExposedInvariantValidator is InvariantValidator {
 
-    constructor(uint256 _startingCap, uint256 _capFactor) InvariantValidator(_startingCap, _capFactor) {
-    }
 
     function getK(
         BassetData[] calldata _bAssets,

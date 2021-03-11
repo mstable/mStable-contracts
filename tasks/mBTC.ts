@@ -7,7 +7,7 @@ import { applyDecimals, applyRatio, BN, simpleToExactAmount } from "@utils/math"
 import { Signer } from "ethers"
 import { formatUnits } from "ethers/lib/utils"
 import { task, types } from "hardhat/config"
-import { InvariantValidator__factory, Masset, Masset__factory } from "types/generated"
+import { ValidatorWithTVLCap__factory, Masset, Masset__factory } from "types/generated"
 
 // This is a rough approximation
 const ONE_DAY_BLOCKS = 6500
@@ -23,9 +23,13 @@ interface Balances {
 }
 
 const getTvlCap = async (signer: Signer): Promise<BN> => {
-    const validator = await new InvariantValidator__factory(signer).attach(contracts.mainnet.InvariantValidator)
+    const validator = await new ValidatorWithTVLCap__factory(signer).attach(contracts.mainnet.InvariantValidator)
     const tvlStartTime = await validator.startTime()
-    const weeksSinceLaunch = BN.from(Date.now()).div(1000).sub(tvlStartTime).mul(fullScale).div(604800)
+    const weeksSinceLaunch = BN.from(Date.now())
+        .div(1000)
+        .sub(tvlStartTime)
+        .mul(fullScale)
+        .div(604800)
     // // e.g. 1e19 + (15e18 * 2.04e36) = 1e19 + 3.06e55
     // // startingCap + (capFactor * weeksSinceLaunch**2 / 1e36);
     return startingCap.add(capFactor.mul(weeksSinceLaunch.pow(2)).div(fullScale.pow(2)))
@@ -69,7 +73,10 @@ const getSwapRates = async (mBTC: Masset) => {
                     const output = await mBTC.getSwapOutput(inputAddress, outputAddress, input)
                     const scaledInput = applyDecimals(input, inputToken.decimals)
                     const scaledOutput = applyDecimals(output, outputToken.decimals)
-                    const percent = scaledOutput.sub(scaledInput).mul(10000).div(scaledInput)
+                    const percent = scaledOutput
+                        .sub(scaledInput)
+                        .mul(10000)
+                        .div(scaledInput)
                     console.log(
                         `${inputStr} ${inputToken.symbol.padEnd(6)} -> ${outputToken.symbol.padEnd(6)} ${formatUnits(
                             output,
@@ -89,7 +96,10 @@ const getBalances = async (mBTC: Masset): Promise<Balances> => {
     const savingBalance = await mBTC.balanceOf(contracts.mainnet.imBTC)
     const sushiPoolBalance = await mBTC.balanceOf(contracts.mainnet.sushiPool)
     const mStableFundManagerBalance = await mBTC.balanceOf(contracts.mainnet.fundManager)
-    const otherBalances = mBtcBalance.sub(savingBalance).sub(sushiPoolBalance).sub(mStableFundManagerBalance)
+    const otherBalances = mBtcBalance
+        .sub(savingBalance)
+        .sub(sushiPoolBalance)
+        .sub(mStableFundManagerBalance)
 
     console.log("\nmBTC Holders")
     console.log(`imBTC                ${formatUnits(savingBalance).padEnd(20)} ${savingBalance.mul(100).div(mBtcBalance)}%`)
@@ -250,7 +260,11 @@ const outputFees = (
     currentTime: Date,
 ) => {
     const totalFees = redeems.fees.add(multiRedeems.fees).add(swaps.fees)
-    const totalTransactions = mints.total.add(multiMints.total).add(redeems.total).add(multiRedeems.total).add(swaps.total)
+    const totalTransactions = mints.total
+        .add(multiMints.total)
+        .add(redeems.total)
+        .add(multiRedeems.total)
+        .add(swaps.total)
     const totalFeeTransactions = redeems.total.add(multiRedeems.total).add(swaps.total)
     console.log(`\nFees since ${startTime.toUTCString()}`)
     console.log("              mBTC Volume\t     Fees\t\t  Fee %")
@@ -277,7 +291,11 @@ const outputFees = (
     )
     const periodSeconds = BN.from(currentTime.valueOf() - startTime.valueOf()).div(1000)
     const liquidityUtilization = totalFeeTransactions.mul(100).div(balances.total)
-    const totalApy = totalFees.mul(100).mul(ONE_YEAR).div(balances.save).div(periodSeconds)
+    const totalApy = totalFees
+        .mul(100)
+        .mul(ONE_YEAR)
+        .div(balances.save)
+        .div(periodSeconds)
     console.log(`Total Txs     ${formatUnits(totalTransactions).padEnd(22)}`)
     console.log(`Savings       ${formatUnits(balances.save).padEnd(22)} ${formatUnits(totalFees).padEnd(20)} APY ${totalApy}%`)
     console.log(

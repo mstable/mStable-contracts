@@ -17,8 +17,6 @@ const config = {
         max: simpleToExactAmount(75, 16),
     },
 }
-const startingCap = simpleToExactAmount(100, 24) // 100 million * 1e18
-const capFactor = simpleToExactAmount(1, 18)
 
 const ratio = simpleToExactAmount(1, 8)
 const swapFeeRate = simpleToExactAmount(6, 14)
@@ -43,7 +41,7 @@ describe("Invariant Validator - One basket one test", () => {
         const accounts = await ethers.getSigners()
         const mAssetMachine = await new MassetMachine().initAccounts(accounts)
         sa = mAssetMachine.sa
-        validator = await new InvariantValidator__factory(sa.default.signer).deploy(startingCap, capFactor)
+        validator = await new InvariantValidator__factory(sa.default.signer).deploy()
     })
     describe("Compute Mint", () => {
         let count = 0
@@ -217,7 +215,7 @@ describe("Invariant Validator - One basket one test", () => {
                     const wBTC = await mAssetMachine.loadBassetProxy("Wrapped BTC", "wBTC", 18)
                     bAssets = [renBTC, sBTC, wBTC]
                     bAssetAddresses = bAssets.map((b) => b.address)
-                    const forgeVal = await new InvariantValidator__factory(sa.default.signer).deploy(startingCap, capFactor)
+                    const forgeVal = await new InvariantValidator__factory(sa.default.signer).deploy()
                     forgeValAddr = forgeVal.address
                     const ManagerFactory = await ethers.getContractFactory("Manager")
                     const managerLib = await ManagerFactory.deploy()

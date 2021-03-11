@@ -21,10 +21,7 @@ describe("Many asset Masset", () => {
         const btc4 = await mAssetMachine.loadBassetProxy("BTC4", "BTC4", 18)
         const btc5 = await mAssetMachine.loadBassetProxy("BTC5", "BTC5", 18)
         const bAssets = [renBtc, sbtc, wbtc, btc4, btc5]
-        const forgeVal = await new InvariantValidator__factory(sa.default.signer).deploy(
-            simpleToExactAmount(1, 24),
-            simpleToExactAmount(1, 24),
-        )
+        const forgeVal = await new InvariantValidator__factory(sa.default.signer).deploy()
         const Manager = await ethers.getContractFactory("Manager")
         const managerLib = await Manager.deploy()
         const linkedAddress = {
