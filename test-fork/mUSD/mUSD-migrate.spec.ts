@@ -22,7 +22,6 @@ import { abi as BasketManagerV2Abi, bytecode as BasketManagerV2Bytecode } from "
 
 // Accounts that are impersonated
 const deployerAddress = "0x19F12C947D25Ff8a3b748829D8001cA09a28D46d"
-const governorMultisigSigner = "0x4186C5AEd424876f7EBe52f9148552A45E17f287"
 const ethWhaleAddress = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 const mUsdWhaleAddress = "0x6595732468A241312bc307F327bA0D64F02b3c20"
 
@@ -35,7 +34,7 @@ const delayedProxyAdminAddress = "0x5C8eb57b44C1c6391fC7a8A0cf44d26896f92386"
 const governorMultisigAddress = "0x4186c5aed424876f7ebe52f9148552a45e17f287"
 const invariantValidatorAddress = "0xd36050B5F28126b5292B59128ED25E489a0f2F3f"
 
-const forkBlockNumber = 11880000
+const forkBlockNumber = 12017855
 
 const defaultConfig = {
     a: 120,
@@ -46,7 +45,7 @@ const defaultConfig = {
 }
 
 interface Token {
-    index: number
+    index?: number
     symbol: string
     address: string
     integrator: string
@@ -54,42 +53,83 @@ interface Token {
     vaultBalance: BN
     whaleAddress: string
 }
-const usdTokens: Token[] = [
+
+const sUSD: Token = {
+    symbol: "sUSD",
+    address: "0x57Ab1ec28D129707052df4dF418D58a2D46d5f51",
+    integrator: "0xf617346A0FB6320e9E578E0C9B2A4588283D9d39", // Aave vault
+    decimals: 18,
+    vaultBalance: BN.from("1510840253989803619708"),
+    whaleAddress: "0x8cA24021E3Ee3B5c241BBfcee0712554D7Dc38a1",
+}
+const USDC: Token = {
+    symbol: "USDC",
+    address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    integrator: "0xD55684f4369040C12262949Ff78299f2BC9dB735", // Compound Vault
+    decimals: 6,
+    vaultBalance: BN.from("23165151348244"),
+    whaleAddress: "0xf977814e90da44bfa03b6295a0616a897441acec", // Binance
+}
+const TUSD: Token = {
+    symbol: "TUSD",
+    address: "0x0000000000085d4780B73119b644AE5ecd22b376",
+    integrator: "0xf617346A0FB6320e9E578E0C9B2A4588283D9d39", // Aave vault
+    decimals: 18,
+    vaultBalance: BN.from("17673157027919657817275871"),
+    whaleAddress: "0xf977814e90da44bfa03b6295a0616a897441acec", // Binance
+}
+const USDT: Token = {
+    symbol: "USDT",
+    address: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+    integrator: "0xf617346A0FB6320e9E578E0C9B2A4588283D9d39", // Aave vault
+    decimals: 6,
+    vaultBalance: BN.from("4447093695923"),
+    whaleAddress: "0xf977814e90da44bfa03b6295a0616a897441acec", // Binance
+}
+const DAI: Token = {
+    symbol: "DAI",
+    address: "0x6b175474e89094c44da98b954eedeac495271d0f",
+    integrator: "0xD55684f4369040C12262949Ff78299f2BC9dB735", // Compound Vault
+    decimals: 18,
+    vaultBalance: BN.from(0),
+    whaleAddress: "0xbe0eb53f46cd790cd13851d5eff43d12404d33e8",
+}
+
+const currentBassets: Token[] = [
     {
         index: 0,
-        symbol: "sUSD",
-        address: "0x57Ab1ec28D129707052df4dF418D58a2D46d5f51",
-        integrator: "0xf617346A0FB6320e9E578E0C9B2A4588283D9d39", // Aave vault
-        decimals: 18,
-        vaultBalance: BN.from("1510840253989803619708"),
-        whaleAddress: "0x8cA24021E3Ee3B5c241BBfcee0712554D7Dc38a1",
+        ...sUSD,
     },
     {
         index: 1,
-        symbol: "USDC",
-        address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-        integrator: "0xD55684f4369040C12262949Ff78299f2BC9dB735", // Compound Vault
-        decimals: 6,
-        vaultBalance: BN.from("23165151348244"),
-        whaleAddress: "0xf977814e90da44bfa03b6295a0616a897441acec", // Binance
+        ...USDC,
     },
     {
         index: 2,
-        symbol: "TUSD",
-        address: "0x0000000000085d4780B73119b644AE5ecd22b376",
-        integrator: "0xf617346A0FB6320e9E578E0C9B2A4588283D9d39", // Aave vault
-        decimals: 18,
-        vaultBalance: BN.from("17673157027919657817275871"),
-        whaleAddress: "0xf977814e90da44bfa03b6295a0616a897441acec", // Binance
+        ...TUSD,
     },
     {
         index: 3,
-        symbol: "USDT",
-        address: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
-        integrator: "0xf617346A0FB6320e9E578E0C9B2A4588283D9d39", // Aave vault
-        decimals: 6,
-        vaultBalance: BN.from("4447093695923"),
-        whaleAddress: "0xf977814e90da44bfa03b6295a0616a897441acec", // Binance
+        ...USDT,
+    },
+]
+
+const finalBassets: Token[] = [
+    {
+        index: 0,
+        ...sUSD,
+    },
+    {
+        index: 1,
+        ...DAI,
+    },
+    {
+        index: 2,
+        ...TUSD,
+    },
+    {
+        index: 3,
+        ...USDT,
     },
 ]
 
@@ -160,7 +200,7 @@ const validateTokenStorage = async (token: MusdV3 | Masset | Contract) => {
         "6971708003000000000000",
     )
     // For block number 11880000
-    expect(await token.totalSupply(), `totalSupply at block ${forkBlockNumber}`).to.eq("45286852911137226622051552")
+    expect(await token.totalSupply(), `totalSupply at block ${forkBlockNumber}`).to.eq("46499970109431651210054546")
 }
 
 // Test the existing Masset V2 storage variables
@@ -168,15 +208,13 @@ const validateUnchangedMassetStorage = async (mUsd: MusdV3 | Masset | Contract) 
     expect(await mUsd.swapFee(), "swap fee").to.eq(simpleToExactAmount(6, 14))
     expect(await mUsd.redemptionFee(), "redemption fee").to.eq(simpleToExactAmount(3, 14))
     expect(await mUsd.cacheSize(), "cache size").to.eq(simpleToExactAmount(3, 16))
-    // vaultBalanceSum
-    // maxCache
     expect(await mUsd.surplus(), `surplus at block ${forkBlockNumber}`).to.eq("60000000000000000001")
 }
 
 // Check that the bAsset data is what we expect
 const validateBasset = (bAssets, i: number, expectToken: Token, expectVaultBalances?: BN[]) => {
     if (!expectVaultBalances) {
-        expectVaultBalances = usdTokens.map((token) => token.vaultBalance)
+        expectVaultBalances = currentBassets.map((token) => token.vaultBalance)
     }
     expect(bAssets.personal[i].addr, `${expectToken.symbol} address`).to.eq(expectToken.address)
     expect(bAssets.personal[i].integrator, `${expectToken.symbol} integrator`).to.eq(expectToken.integrator) // Compound Vault
@@ -193,7 +231,7 @@ const validateNewMassetStorage = async (mUsd: MusdV3 | Masset, expectVaultBalanc
 
     // bAsset personal data
     const bAssets = await mUsd.getBassets()
-    usdTokens.forEach((token, i) => {
+    currentBassets.forEach((token, i) => {
         validateBasset(bAssets, i, token, expectVaultBalances)
     })
 
@@ -244,33 +282,41 @@ const balanceBasset = async (
 /**
  * TESTING mUSD Upgrade
  * ------------------------------
- * Step 1: Upgrade AaveIntegration, CompoundIntegration, BasketManager
- * Test 1: i) Ensure system still functions as normal
- *          - Minting
- *          - Redemption
- *          - CollectInterest
- *         ii) Ensure withdrawRaw is protected
+ * Step 1: Deploy contract and propose upgrade to begin the 1 week countdown
+ * Test 1: i) Deployed mUSDV3 contract has been proposed correctly
  *
- * Step 2: Upgrade SavingsManager
- * Test 2: i) Deposit Liquidated, collect platform interest (breaks)
- *         ii) Test basic deposit to SAVE
+ * ~~ Wait 6 days ~~
  *
- * Step 3: Upgrade Masset
- * Test 3: i) Ensure system still functions as normal (0 cache size)
- *         ii) Ensure 1.1 vars still accessible
+ * Step 2: Achieve equilibrium weights & prep
+ *           1. Add DAI to CompoundIntegration
+ *           2. Add DAI to the basket
+ *           3. Set max weights
+ *           4. Collect interest
+ *           5. Achieve equilibrium weights
+ *             - Ensure it cannot be broken
+ *           6. Pause BasketManager & SavingsManager
+ *           7. Remove TUSD from basket
+ * Test 2: i) State at 2.3
+ *         ii) Mostly on 2.4 execution
+ *         iii) Final state pre-upgrade (everything in place & paused)
  *
- * Step 4: Set cache size
- * Test 4: i) Ensure deposit and withdraw works
- *         ii) Ensure surplus accrues correctly
- *         iii) Ensure SAVE deposit works
- *         iv) Ensure collectPlatformInterest works
+ * Step 3: Upgrade mUSD
+ *           - Accept governance proposal
+ *           - Verify storage & paused
+ *           - Unpause system
+ * Test 3: i) Upgrade works as intended
+ *         ii) All storage has been added & system is paused
+ *         iii) Post-unpause: ensure mint, swap, redeem all work as expected
+ *         iv) Collect interest & platform interest work
+ *         v) Do some admin operations
  *
- * Proxy Upgrades
- * Masset.sol > https://www.diffchecker.com/8nXgYzdi
- * BasketManager.sol > https://www.diffchecker.com/W6oOQNb7
- * AaveIntegration.sol > https://www.diffchecker.com/Nt1pEP8b
- * CompoundIntegration.sol > https://www.diffchecker.com/Ay8DBaZa
- * SavingsManager.sol > https://www.diffchecker.com/8XJoknka
+ * Data
+ * ------------------------------
+ * mUSD proxy address: 0xe2f2a5C287993345a840Db3B0845fbC70f5935a5
+ * Current implementation: 0xe0d0d052d5b1082e52c6b8422acd23415c3df1c4 & https://github.com/mstable/mStable-contracts/blob/6d935eb8c8797e240a7e9fde7603c90d730608ce/contracts/masset/Masset.sol
+ * New implementation: ../../contracts/masset/mUSD/MusdV3.sol
+ * Contract diff vs current implementation: https://www.diffchecker.com/QqxVbKxb
+ * Contract diff vs Masset.sol: https://www.diffchecker.com/jwpfAgVK
  */
 describe("mUSD V2.0 to V3.0", () => {
     let mUsdV2Factory: ContractFactory
@@ -352,7 +398,7 @@ describe("mUSD V2.0 to V3.0", () => {
         it("should get bAssets to check current weights", async () => {
             const { bAssets } = await basketManager.getBassets()
             let scaledTotalVaultBalance = BN.from(0)
-            usdTokens.forEach((token, i) => {
+            currentBassets.forEach((token, i) => {
                 const scaledVaultBalance = applyDecimals(bAssets[i].vaultBalance, token.decimals)
                 scaledVaultBalances[i] = scaledVaultBalance
                 scaledTotalVaultBalance = scaledTotalVaultBalance.add(scaledVaultBalance)
@@ -362,22 +408,22 @@ describe("mUSD V2.0 to V3.0", () => {
             expect(scaledVaultBalances[1].mul(10000).div(scaledTotalVaultBalance)).to.eq(5115)
             expect(scaledVaultBalances[2].mul(10000).div(scaledTotalVaultBalance)).to.eq(3902)
             expect(scaledVaultBalances[3].mul(10000).div(scaledTotalVaultBalance)).to.eq(981)
-            scaledTargetBalance = scaledTotalVaultBalance.div(usdTokens.length)
+            scaledTargetBalance = scaledTotalVaultBalance.div(currentBassets.length)
         })
         it("should update max weights to 25.01%", async () => {
             await basketManager.setBasketWeights(
-                usdTokens.map((token) => token.address),
-                usdTokens.map((token) => simpleToExactAmount(2501, 14)), // 25.01% where 100% = 1e18
+                currentBassets.map((token) => token.address),
+                currentBassets.map((token) => simpleToExactAmount(2501, 14)), // 25.01% where 100% = 1e18
             )
         })
         it("should swap USDT for USDC to balance USDT", async () => {
-            await balanceBasset(mUsdV2, scaledVaultBalances, scaledTargetBalance, usdTokens[3], usdTokens[1])
+            await balanceBasset(mUsdV2, scaledVaultBalances, scaledTargetBalance, currentBassets[3], currentBassets[1])
         })
         it("should swap sUSD for TUSD to balance TUSD", async () => {
-            await balanceBasset(mUsdV2, scaledVaultBalances, scaledTargetBalance, usdTokens[0], usdTokens[2])
+            await balanceBasset(mUsdV2, scaledVaultBalances, scaledTargetBalance, currentBassets[0], currentBassets[2])
         })
         it("should swap sUSD for USDC to balance both sUSD and USDC", async () => {
-            await balanceBasset(mUsdV2, scaledVaultBalances, scaledTargetBalance, usdTokens[0], usdTokens[1])
+            await balanceBasset(mUsdV2, scaledVaultBalances, scaledTargetBalance, currentBassets[0], currentBassets[1])
         })
         it("should have valid storage before upgrade", async () => {
             await validateTokenStorage(mUsdV2)
@@ -385,7 +431,7 @@ describe("mUSD V2.0 to V3.0", () => {
 
             // Get new vault balanced after the bAssets have been balanced
             const { bAssets } = await basketManager.getBassets()
-            usdTokens.forEach((token, i) => {
+            currentBassets.forEach((token, i) => {
                 balancedVaultBalances[i] = bAssets[i].vaultBalance
             })
         })
@@ -411,7 +457,7 @@ describe("mUSD V2.0 to V3.0", () => {
             await validateNewMassetStorage(mUsdV3, balancedVaultBalances)
         })
         it("Enable mUSD after upgrade", async () => {
-            await mUsdV3.connect(governorMultisig).negateIsolation(usdTokens[0].address)
+            await mUsdV3.connect(governorMultisig).negateIsolation(currentBassets[0].address)
 
             // Get basket state
             const basketState = await mUsdV3.basket()
@@ -424,7 +470,7 @@ describe("mUSD V2.0 to V3.0", () => {
             await expect(mUsdV3.upgrade(invariantValidatorAddress, defaultConfig)).to.revertedWith("already upgraded")
         })
         it("Should mint after upgrade", async () => {
-            const token = usdTokens[0]
+            const token = currentBassets[0]
             const signer = await impersonate(token.whaleAddress)
             const tokenContract = new ERC20__factory(signer).attach(token.address)
             const qty = simpleToExactAmount(10000, token.decimals)
@@ -433,9 +479,6 @@ describe("mUSD V2.0 to V3.0", () => {
             const tx = mUsdV3.connect(signer).mint(token.address, qty, 0, await signer.getAddress())
             await expect(tx, "Minted event").to.emit(mUsdV3, "Minted")
         })
-        // TODO add mint, swap and redeem
-        // TODO collect interest
-        // Do some admin operations
     })
     context.skip("Upgrade of mUSD implementation using upgradeTo from delayed admin proxy", () => {
         before(async () => {

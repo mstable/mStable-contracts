@@ -131,7 +131,6 @@ contract MusdV3 is
      * @param _forgeValidator  Address of the AMM implementation
      * @param _config          Configutation for the invariant validator including the
      *                         amplification coefficient (A) and weight limits
-     * 24.515
      */
     function upgrade(
         address _forgeValidator,

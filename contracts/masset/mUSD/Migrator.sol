@@ -51,6 +51,12 @@ library Migrator {
         }
 
         // Check each bAsset is under 25.01% weight
+        uint256 maxWeight = 2501;
+        if(len == 3){
+            maxWeight = 3334;
+        } else if (len != 4){
+            revert("Invalid length");
+        }
         maxScaledVaultBalance = maxScaledVaultBalance * 2501 / 10000;
         for (uint8 i = 0; i < len; i++) {
             require(scaledVaultBalances[i] < maxScaledVaultBalance, "imbalanced");
