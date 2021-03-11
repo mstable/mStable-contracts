@@ -61,9 +61,9 @@ contract InterestValidator is PausableModule {
                     _validateCollection(totalSupply, interestCollected, timeSincePreviousBatch);
 
                 emit InterestCollected(feeder, interestCollected, totalSupply, apy);
+            } else {
+                emit InterestCollected(feeder, interestCollected, totalSupply, 0);
             }
-
-            emit InterestCollected(feeder, interestCollected, totalSupply, 0);
         }
     }
 

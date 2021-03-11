@@ -134,6 +134,8 @@ contract FeederPool is
             BassetData(SafeCast.toUint128(10**(26 - IBasicToken(_fAsset.addr).decimals())), 0)
         );
         for (uint256 i = 0; i < _mpAssets.length; i++) {
+            // Call will fail if bAsset does not exist
+            IMasset(_mAsset.addr).getBasset(_mpAssets[i]);
             IERC20(_mpAssets[i]).approve(_mAsset.addr, 2**255);
         }
 
