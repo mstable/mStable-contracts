@@ -17,8 +17,3 @@ interface ISavingsManager {
     /** @dev Public privs */
     function collectAndDistributeInterest(address _mAsset) external;
 }
-
-interface IRevenueRecipient {
-    /** @dev Recipient */
-    function notifyRedistributionAmount(address _mAsset, uint256 _amount) external;
-}
