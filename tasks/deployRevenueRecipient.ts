@@ -2,50 +2,137 @@
 import "ts-node/register"
 import "tsconfig-paths/register"
 
-import { DEAD_ADDRESS } from "@utils/constants"
 import { task } from "hardhat/config"
-import { RevenueRecipient__factory } from "types/generated"
+import { RevenueRecipient__factory, MockERC20__factory, CRPFactory__factory, ConfigurableRightsPool__factory } from "types/generated"
 import { simpleToExactAmount, BN } from "@utils/math"
 
-interface CommonAddresses {
+interface Config {
+    deployer: string
+    tokens: string[]
+    amounts: BN[]
+    weights: BN[]
+    swapFee: BN
+    bFactory: string
+    factory: string
     mAssets: string[]
     minOuts: BN[]
+    dao: string
+    daoProxy: string
     nexus: string
-    bPool: string
 }
+
+// Fork testing
+// - Move tokens from SAFE to deployer
+// - execute deploy task
+// - make a deposit
 
 task("deployRevenueRecipient", "Deploys an instance of revenue recipient contract").setAction(async (_, hre) => {
     const { ethers, network } = hre
     const [deployer] = await ethers.getSigners()
 
-    if (network.name !== "mainnet" && network.name !== "ropsten") throw Error("Invalid network")
+    if (network.name !== "mainnet") throw Error("Invalid network")
 
-    const addresses: CommonAddresses =
-        network.name === "ropsten"
-            ? {
-                  mAssets: ["0x4E1000616990D83e56f4b5fC6CC8602DcfD20459", "0x4A677A48A790f26eac4c97f495E537558Abf6A79"],
-                  minOuts: [],
-                  nexus: "0xeD04Cd19f50F893792357eA53A549E23Baf3F6cB",
-                  bPool: DEAD_ADDRESS,
-              }
-            : {
-                  mAssets: ["0xe2f2a5C287993345a840Db3B0845fbC70f5935a5", "0x945Facb997494CC2570096c74b5F66A3507330a1"],
-                  minOuts: [simpleToExactAmount(1, 18), simpleToExactAmount(1, 18)], // TODO - add this
-                  nexus: "0xAFcE80b19A8cE13DEc0739a1aaB7A028d6845Eb3",
-                  bPool: DEAD_ADDRESS, // TODO - add this
-              }
+    const config: Config = {
+        deployer: await deployer.getAddress(),
+        tokens: [
+            "0xe2f2a5C287993345a840Db3B0845fbC70f5935a5",
+            "0x945Facb997494CC2570096c74b5F66A3507330a1",
+            "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+            "0xa3BeD4E1c75D00fa6f4E5E6922DB7261B5E9AcD2",
+        ],
+        amounts: [
+            simpleToExactAmount(233),
+            simpleToExactAmount("7.496", 14), // 0.0007496,
+            simpleToExactAmount("5.9", 16), // 0.059,
+            simpleToExactAmount(288),
+        ],
+        weights: [simpleToExactAmount(22), simpleToExactAmount(4), simpleToExactAmount(10), simpleToExactAmount(64)],
+        swapFee: simpleToExactAmount(5, 16),
+        bFactory: "0x9424B1412450D0f8Fc2255FAf6046b98213B76Bd",
+        factory: "0xed52D8E202401645eDAD1c0AA21e872498ce47D0",
+        mAssets: ["0xe2f2a5C287993345a840Db3B0845fbC70f5935a5", "0x945Facb997494CC2570096c74b5F66A3507330a1"],
+        minOuts: [simpleToExactAmount(4, 17), simpleToExactAmount(25000, 18)],
+        dao: "0xF6FF1F7FCEB2cE6d26687EaaB5988b445d0b94a2",
+        daoProxy: "0x7fFAF4ceD81E7c4E71b3531BD7948d7FA8f20329",
+        nexus: "0xAFcE80b19A8cE13DEc0739a1aaB7A028d6845Eb3",
+    }
 
-    // Deploy
-    const recipient = await new RevenueRecipient__factory(deployer).deploy(
-        addresses.nexus,
-        addresses.bPool,
-        addresses.mAssets,
-        addresses.minOuts,
+    const poolRights = {
+        canPauseSwapping: false,
+        canChangeSwapFee: true,
+        canChangeWeights: true,
+        canAddRemoveTokens: true,
+        canWhitelistLPs: true,
+        canChangeCap: false,
+    }
+
+    // Check balances
+    const erc20Factory = await new MockERC20__factory(deployer)
+    const tokens = config.tokens.map((t) => erc20Factory.attach(t))
+    const balances = await Promise.all(tokens.map((t) => t.balanceOf(config.deployer)))
+    console.log("Checking balances...")
+    balances.map((b, i) => {
+        if (b.lt(config.amounts[i])) {
+            throw new Error(`${config.tokens[i]} invalid balance`)
+        }
+        return 0
+    })
+
+    // Deploy step 1
+    const crpFactory = await CRPFactory__factory.connect(config.factory, deployer)
+    let tx = await crpFactory.newCrp(
+        config.bFactory,
+        {
+            poolTokenSymbol: "mBPT1",
+            poolTokenName: "mStable BPT 1",
+            constituentTokens: config.tokens,
+            tokenBalances: config.amounts,
+            tokenWeights: config.weights,
+            swapFee: config.swapFee,
+        },
+        poolRights,
     )
-    const reciept = await recipient.deployTransaction.wait()
-    console.log(`Deployed Recipient to ${recipient.address}. gas used ${reciept.gasUsed}`)
+    console.log("Creating CRP... ", tx.hash)
+    let receipt = await tx.wait()
+    const chosenLog = receipt.logs.find((log) => log.address === config.factory)
+    const poolAddress = `0x${chosenLog.topics[2].substring(26)}`
+    console.log("Pool address: ", poolAddress)
 
-    // Complete setup
+    // Deploy step 2 - just calls createPool() to deploy and fund the BPool
+    tokens.forEach(async (token, i) => {
+        console.log(`Approving ${token.address}...`)
+        const approveTx = await token.approve(poolAddress, config.amounts[i])
+        await approveTx.wait()
+    })
+    const crp = await ConfigurableRightsPool__factory.connect(poolAddress, deployer)
+    tx = await crp.createPool(simpleToExactAmount(1000))
+    console.log(`Creating Pool... ${tx.hash}`)
+    receipt = await tx.wait()
+
+    // Transfer mBPT to DAO
+    const poolToken = await erc20Factory.attach(poolAddress)
+    const balance = await poolToken.balanceOf(config.deployer)
+    tx = await poolToken.transfer(config.dao, balance)
+    console.log(`Transferring tokens to DAO... ${tx.hash}`)
+    await tx.wait()
+
+    // Deploy RevenueRecipient contract
+    const recipient = await new RevenueRecipient__factory(deployer).deploy(config.nexus, poolAddress, config.mAssets, config.minOuts)
+    console.log(`Deploying recipient... ${tx.hash}`)
+    receipt = await recipient.deployTransaction.wait()
+    console.log(`Deployed Recipient to ${recipient.address}. gas used ${receipt.gasUsed}`)
+
+    // Deploy step 3 - Complete setup
+    //  - Whitelist RevenueRecipient as LP
+    tx = await crp.whitelistLiquidityProvider(recipient.address)
+    console.log(`Whitelisting recipient... ${tx.hash}`)
+    receipt = await tx.wait()
+    //  - Transfer ownership to DSProxy
+    tx = await crp.setController(config.daoProxy)
+    console.log(`Transferring ownership... ${tx.hash}`)
+    receipt = await tx.wait()
+
+    // Finalise via governance:
     //  - Update SavingsRate in SavingsManager
     //  - Add RevenueRecipient address in SavingsManager
 })
