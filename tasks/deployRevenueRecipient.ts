@@ -21,11 +21,6 @@ interface Config {
     nexus: string
 }
 
-// Fork testing
-// - Move tokens from SAFE to deployer
-// - execute deploy task
-// - make a deposit
-
 task("deployRevenueRecipient", "Deploys an instance of revenue recipient contract").setAction(async (_, hre) => {
     const { ethers, network } = hre
     const [deployer] = await ethers.getSigners()
@@ -46,7 +41,7 @@ task("deployRevenueRecipient", "Deploys an instance of revenue recipient contrac
             simpleToExactAmount("5.9", 16), // 0.059,
             simpleToExactAmount(288),
         ],
-        weights: [simpleToExactAmount(22), simpleToExactAmount(4), simpleToExactAmount(10), simpleToExactAmount(64)],
+        weights: [simpleToExactAmount(11), simpleToExactAmount(2), simpleToExactAmount(5), simpleToExactAmount(32)],
         swapFee: simpleToExactAmount(5, 16),
         bFactory: "0x9424B1412450D0f8Fc2255FAf6046b98213B76Bd",
         factory: "0xed52D8E202401645eDAD1c0AA21e872498ce47D0",
@@ -99,11 +94,19 @@ task("deployRevenueRecipient", "Deploys an instance of revenue recipient contrac
     console.log("Pool address: ", poolAddress)
 
     // Deploy step 2 - just calls createPool() to deploy and fund the BPool
-    tokens.forEach(async (token, i) => {
-        console.log(`Approving ${token.address}...`)
-        const approveTx = await token.approve(poolAddress, config.amounts[i])
-        await approveTx.wait()
-    })
+    console.log(`Approving ${tokens[0].address}...`)
+    let approveTx = await tokens[0].approve(poolAddress, config.amounts[0])
+    await approveTx.wait()
+    console.log(`Approving ${tokens[1].address}...`)
+    approveTx = await tokens[1].approve(poolAddress, config.amounts[1])
+    await approveTx.wait()
+    console.log(`Approving ${tokens[2].address}...`)
+    approveTx = await tokens[2].approve(poolAddress, config.amounts[2])
+    await approveTx.wait()
+    console.log(`Approving ${tokens[3].address}...`)
+    approveTx = await tokens[3].approve(poolAddress, config.amounts[3])
+    await approveTx.wait()
+
     const crp = await ConfigurableRightsPool__factory.connect(poolAddress, deployer)
     tx = await crp.createPool(simpleToExactAmount(1000))
     console.log(`Creating Pool... ${tx.hash}`)
