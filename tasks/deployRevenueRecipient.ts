@@ -21,6 +21,7 @@ interface Config {
     nexus: string
 }
 
+// TODO - change the mUSD portion due to the rule of only being able to increase a given asset by 50%
 task("deployRevenueRecipient", "Deploys an instance of revenue recipient contract").setAction(async (_, hre) => {
     const { ethers, network } = hre
     const [deployer] = await ethers.getSigners()
