@@ -1,118 +1,71 @@
 pragma solidity 0.8.0;
 
-// Internal
-import { IPlatformIntegration } from "../../interfaces/IPlatformIntegration.sol";
-import { ImmutableModule } from "../../shared/ImmutableModule.sol";
-import { IAaveATokenV2, IAaveLendingPoolV2, ILendingPoolAddressesProviderV2 } from "../../masset/peripheral/IAave.sol";
+// External
+import {
+    IAaveATokenV2,
+    IAaveLendingPoolV2,
+    ILendingPoolAddressesProviderV2
+} from "./IAave.sol";
 
 // Libs
 import { MassetHelpers } from "../../shared/MassetHelpers.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { AbstractIntegration } from "./AbstractIntegration.sol";
 
-
-contract MockPlatformIntegration is
-    IPlatformIntegration,
-    ImmutableModule
-{
+/**
+ * @title   AaveV2Integration
+ * @author  Stability Labs Pty. Ltd.
+ * @notice  A simple connection to deposit and withdraw bAssets from Aave
+ * @dev     VERSION: 1.0
+ *          DATE:    2020-16-11
+ */
+contract AaveV2Integration is AbstractIntegration {
 
     using SafeERC20 for IERC20;
 
-    event PTokenAdded(address indexed _bAsset, address _pToken);
-    event Whitelisted(address indexed _address);
-
-    event Deposit(address indexed _bAsset, address _pToken, uint256 _amount);
-    event Withdrawal(address indexed _bAsset, address _pToken, uint256 _amount);
-    event PlatformWithdrawal(address indexed bAsset, address pToken, uint256 totalAmount, uint256 userAmount);
-
     // Core address for the given platform */
-    address public platformAddress;
+    address public immutable platformAddress;
 
-    // bAsset => pToken (Platform Specific Token Address)
-    mapping(address => address) public override bAssetToPToken;
-    // Full list of all bAssets supported here
-    address[] internal bAssetsMapped;
-
-    mapping(address => bool) public whitelist;
+    event RewardTokenApproved(address rewardToken, address account);
 
     /**
-     * @dev Modifier to allow function calls only from the whitelisted address.
+     * @param _nexus            Address of the Nexus
+     * @param _mAsset           Address of mAsset
+     * @param _platformAddress  Generic platform address
      */
-    modifier onlyWhitelisted() {
-        require(whitelist[msg.sender], "Not a whitelisted address");
-        _;
-    }
-
-    constructor(address _nexus, 
-        address _platformAddress,
-        address[] memory _bAssets,
-        address[] memory _pTokens) ImmutableModule(_nexus) {
+    constructor(
+        address _nexus,
+        address _mAsset,
+        address _platformAddress
+    ) AbstractIntegration(_nexus, _mAsset) {
+        require(_platformAddress != address(0), "Invalid platform address");
         platformAddress = _platformAddress;
-
-        uint256 bAssetCount = _bAssets.length;
-        require(bAssetCount == _pTokens.length, "Invalid input arrays");
-        for(uint256 i = 0; i < bAssetCount; i++){
-            _setPTokenAddress(_bAssets[i], _pTokens[i]);
-        }
     }
-
-    function addWhitelist(
-        address[] memory _whitelisted
-    )
-        external
-    {
-        require(_whitelisted.length > 0, "Empty whitelist array");
-
-        for(uint256 i = 0; i < _whitelisted.length; i++) {
-            _addWhitelist(_whitelisted[i]);
-        }
-    }
-
-    /**
-     * @dev Adds a new whitelist address
-     * @param _address Address to add in whitelist
-     */
-    function _addWhitelist(address _address) internal {
-        require(_address != address(0), "Address is zero");
-        require(! whitelist[_address], "Already whitelisted");
-
-        whitelist[_address] = true;
-
-        emit Whitelisted(_address);
-    }
-
-
 
     /***************************************
-                    CONFIG
+                    ADMIN
     ****************************************/
 
     /**
-     * @dev Provide support for bAsset by passing its pToken address.
-     * This method can only be called by the system Governor
-     * @param _bAsset   Address for the bAsset
-     * @param _pToken   Address for the corresponding platform token
+     * @dev Approves Liquidator to spend reward tokens
      */
-    function setPTokenAddress(address _bAsset, address _pToken)
+    function approveRewardToken()
         external
         onlyGovernor
     {
-        _setPTokenAddress(_bAsset, _pToken);
+        address liquidator = nexus.getModule(keccak256("Liquidator"));
+        require(liquidator != address(0), "Liquidator address cannot be zero");
+
+        // Official checksummed AAVE token address
+        // https://ethplorer.io/address/0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9
+        address aaveToken = address(0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9);
+
+        MassetHelpers.safeInfiniteApprove(aaveToken, liquidator);
+
+        emit RewardTokenApproved(address(aaveToken), liquidator);
     }
 
-    function _setPTokenAddress(address _bAsset, address _pToken)
-        internal
-    {
-        require(bAssetToPToken[_bAsset] == address(0), "pToken already set");
-        require(_bAsset != address(0) && _pToken != address(0), "Invalid addresses");
-
-        bAssetToPToken[_bAsset] = _pToken;
-        bAssetsMapped.push(_bAsset);
-
-        emit PTokenAdded(_bAsset, _pToken);
-
-        _abstractSetPToken(_bAsset, _pToken);
-    }
 
     /***************************************
                     CORE
@@ -134,7 +87,8 @@ contract MockPlatformIntegration is
     )
         external
         override
-        onlyWhitelisted
+        onlyMasset
+        nonReentrant
         returns (uint256 quantityDeposited)
     {
         require(_amount > 0, "Must deposit something");
@@ -171,7 +125,8 @@ contract MockPlatformIntegration is
     )
         external
         override
-        onlyWhitelisted
+        onlyMasset
+        nonReentrant
     {
         _withdraw(_receiver, _bAsset, _amount, _amount, _hasTxFee);
     }
@@ -193,7 +148,8 @@ contract MockPlatformIntegration is
     )
         external
         override
-        onlyWhitelisted
+        onlyMasset
+        nonReentrant
     {
         _withdraw(_receiver, _bAsset, _amount, _totalAmount, _hasTxFee);
     }
@@ -237,12 +193,12 @@ contract MockPlatformIntegration is
     )
         external
         override
-        onlyWhitelisted
+        onlyMasset
+        nonReentrant
     {
         require(_amount > 0, "Must withdraw something");
         require(_receiver != address(0), "Must specify recipient");
 
-        // Send redeemed bAsset to the receiver
         IERC20(_bAsset).safeTransfer(_receiver, _amount);
 
         emit Withdrawal(_bAsset, address(0), _amount);
@@ -270,23 +226,6 @@ contract MockPlatformIntegration is
     ****************************************/
 
     /**
-     * @dev Re-approve the spending of all bAssets by the Aave lending pool core,
-     *      if for some reason is it necessary for example if the address of core changes.
-     *      Only callable through Governance.
-     */
-    function reApproveAllTokens()
-        external
-        onlyGovernor
-    {
-        uint256 bAssetCount = bAssetsMapped.length;
-        address lendingPoolVault = address(_getLendingPool());
-        // approve the pool to spend the bAsset
-        for(uint i = 0; i < bAssetCount; i++){
-            MassetHelpers.safeInfiniteApprove(bAssetsMapped[i], lendingPoolVault);
-        }
-    }
-
-    /**
      * @dev Internal method to respond to the addition of new bAsset / pTokens
      *      We need to approve the Aave lending pool core conrtact and give it permission
      *      to spend the bAsset
@@ -294,6 +233,7 @@ contract MockPlatformIntegration is
      */
     function _abstractSetPToken(address _bAsset, address /*_pToken*/)
         internal
+        override
     {
         address lendingPool = address(_getLendingPool());
         // approve the pool to spend the bAsset
@@ -347,20 +287,5 @@ contract MockPlatformIntegration is
         returns (uint256 balance)
     {
         return _aToken.balanceOf(address(this));
-    }
-
-    /***************************************
-                    HELPERS
-    ****************************************/
-
-    /**
-     * @dev Simple helper func to get the min of two values
-     */
-    function _min(uint256 x, uint256 y)
-        internal
-        pure
-        returns (uint256)
-    {
-        return x > y ? y : x;
     }
 }
