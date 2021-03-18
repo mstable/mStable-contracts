@@ -902,7 +902,6 @@ library FeederLogic {
         uint256 B = _a * 2;
         uint256 var1 = _x[0] * _x[1];
         uint256 var2 = B * var1 / (_x[0] + _x[1]);
-        // result = 2 * (sqrt(var2**2 + (B + 1) * var1) - var2)
         k = 2 * (Root.sqrt((var2 ** 2) + ((B + 1) * var1)) - var2);
     }
 
@@ -922,7 +921,7 @@ library FeederLogic {
         uint256 _targetK
     ) internal pure returns (uint256 y) {
         uint256 len = _x.length;
-        require(_idx >= 0 && _idx < len, "Invalid index");
+        require(_idx == 0 || _idx == 1, "Invalid index");
         uint256 x = _idx == 0 ? _x[1] : _x[0];
         uint256 B = _a * 2;
         uint256 var1 = B + 1;
