@@ -2,7 +2,7 @@ import { ethers } from "hardhat"
 import { expect } from "chai"
 
 import { assertBNClosePercent } from "@utils/assertions"
-import { simpleToExactAmount } from "@utils/math"
+import { BN, simpleToExactAmount } from "@utils/math"
 import { MassetMachine, StandardAccounts, FeederMachine, FeederDetails } from "@utils/machines"
 
 describe("Feeder Pools", () => {
@@ -10,8 +10,13 @@ describe("Feeder Pools", () => {
     let feederMachine: FeederMachine
     let feeder: FeederDetails
 
-    const runSetup = async (seedBasket = true): Promise<void> => {
-        feeder = await feederMachine.deployFeeder(seedBasket)
+    const runSetup = async (
+        useLendingMarkets = false,
+        useInterestValidator = false,
+        feederWeights?: Array<BN | number>,
+        mAssetWeights?: Array<BN | number>,
+    ): Promise<void> => {
+        feeder = await feederMachine.deployFeeder(false, feederWeights, mAssetWeights, useLendingMarkets, useInterestValidator)
     }
 
     before("Init contract", async () => {
@@ -25,7 +30,7 @@ describe("Feeder Pools", () => {
 
     describe("testing some mints", () => {
         before(async () => {
-            await runSetup(true)
+            await runSetup()
         })
         it("should mint multi locally", async () => {
             const { bAssets, pool } = feeder

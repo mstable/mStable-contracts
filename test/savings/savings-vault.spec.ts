@@ -104,7 +104,7 @@ describe("SavingsVault", async () => {
     const lockedRewards = (total: BN): BN => total.div(5).mul(4)
 
     const redeployRewards = async (priceCoefficient = priceCoeff): Promise<BoostedSavingsVault> => {
-        nexus = await (await new MockNexus__factory(sa.default.signer)).deploy(sa.governor.address, DEAD_ADDRESS)
+        nexus = await (await new MockNexus__factory(sa.default.signer)).deploy(sa.governor.address, DEAD_ADDRESS, DEAD_ADDRESS)
         rewardToken = await (await new MockERC20__factory(sa.default.signer)).deploy(
             "Reward",
             "RWD",

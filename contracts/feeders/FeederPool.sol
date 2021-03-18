@@ -77,11 +77,15 @@ contract FeederPool is
         uint256[] outputQuantity,
         uint256 scaledFee
     );
-
     // State Events
     event CacheSizeChanged(uint256 cacheSize);
     event FeesChanged(uint256 swapFee, uint256 redemptionFee);
     event WeightLimitsChanged(uint128 min, uint128 max);
+
+    // FeederManager Events
+    event BassetsMigrated(address[] bAssets, address newIntegrator);
+    event StartRampA(uint256 currentA, uint256 targetA, uint256 startTime, uint256 rampEndTime);
+    event StopRampA(uint256 currentA, uint256 time);
 
     // Constants
     uint256 private constant MAX_FEE = 1e16;
@@ -349,7 +353,7 @@ contract FeederPool is
         uint256 _inputQuantity
     ) external view override returns (uint256 swapOutput) {
         require(_input != _output, "Invalid pair");
-        require(_inputQuantity > 0, "Invalid swap quantity");
+        require(_inputQuantity > 0, "Qty==0");
 
         Asset memory input = _getAsset(_input);
         Asset memory output = _getAsset(_output);
@@ -763,8 +767,7 @@ contract FeederPool is
             FeederManager.calculatePlatformInterest(data.bAssetPersonal, data.bAssetData);
         // Calculate potential mint amount. This will be validated by the interest validator
         mintAmount = FeederLogic.computeMintMulti(data.bAssetData, idxs, gains, _getConfig());
-        newSupply = totalSupply() + mintAmount;
-        require(mintAmount > 0, "Must collect something");
+        newSupply = totalSupply() + data.pendingFees + mintAmount;
         
         uint256 govFee = data.govFee;
         if(govFee > 0) {

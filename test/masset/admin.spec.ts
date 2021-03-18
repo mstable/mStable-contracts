@@ -501,12 +501,13 @@ describe("Masset Admin", () => {
         let transferringAsset: MockERC20
         before(async () => {
             await runSetup(true, false, false, true)
+            const lendingDetail = await mAssetMachine.loadATokens(details.bAssets)
             ;[, , , transferringAsset] = details.bAssets
             newMigration = await (await new MockPlatformIntegration__factory(sa.default.signer)).deploy(
                 DEAD_ADDRESS,
-                details.aavePlatformAddress,
+                lendingDetail.aavePlatformAddress,
                 details.bAssets.map((b) => b.address),
-                details.pTokens,
+                lendingDetail.aTokens.map((a) => a.aToken),
             )
             await newMigration.addWhitelist([details.mAsset.address])
         })
