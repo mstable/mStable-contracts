@@ -3,7 +3,7 @@ import { expect } from "chai"
 import { simpleToExactAmount, BN } from "@utils/math"
 import { assertBNClose, assertBNClosePercent } from "@utils/assertions"
 import { StandardAccounts, MassetDetails, MassetMachine, Account } from "@utils/machines"
-import { fullScale, ZERO_ADDRESS, ZERO, MAX_UINT256, ONE_DAY, ONE_HOUR } from "@utils/constants"
+import { fullScale, ZERO_ADDRESS, ZERO, MAX_UINT256, ONE_DAY, ONE_HOUR, DEAD_ADDRESS } from "@utils/constants"
 import {
     SavingsContract,
     MockERC20__factory,
@@ -125,7 +125,7 @@ describe("SavingsContract", async () => {
 
     const createNewSavingsContract = async (): Promise<void> => {
         // Use a mock Nexus so we can dictate addresses
-        nexus = await (await new MockNexus__factory(sa.default.signer)).deploy(sa.governor.address, manager.address)
+        nexus = await (await new MockNexus__factory(sa.default.signer)).deploy(sa.governor.address, manager.address, DEAD_ADDRESS)
         // Use a mock mAsset so we can dictate the interest generated
         masset = await (await new MockMasset__factory(sa.default.signer)).deploy("MOCK", "MOCK", 18, sa.default.address, 1000000000)
 

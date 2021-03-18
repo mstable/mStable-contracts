@@ -24,12 +24,14 @@ import {
     MockInitializableTokenWithFee__factory,
     Manager,
     AssetProxy,
+    MockNexus,
 } from "types/generated"
 import { BN, minimum, simpleToExactAmount } from "@utils/math"
 import { fullScale, MainnetAccounts, ratioScale, ZERO_ADDRESS, DEAD_ADDRESS } from "@utils/constants"
 import { Basset } from "@utils/mstable-objects"
 import { StandardAccounts } from "./standardAccounts"
-import { ActionDetails, BasketComposition, BassetIntegrationDetails } from "../../types/machines"
+import { ActionDetails, ATokenDetails, BasketComposition, BassetIntegrationDetails } from "../../types/machines"
+import { Address } from "types/common"
 
 export interface MassetDetails {
     mAsset?: ExposedMasset
@@ -39,8 +41,10 @@ export interface MassetDetails {
     proxyAdmin?: DelayedProxyAdmin
     platform?: MockPlatformIntegration
     aavePlatformAddress?: string
+    integrationAddress?: string
     managerLib?: Manager
     wrappedManagerLib?: Manager
+    nexus?: MockNexus
 }
 
 export class MassetMachine {
@@ -72,6 +76,7 @@ export class MassetMachine {
         const nexus = await new MockNexus__factory(this.sa.default.signer).deploy(
             this.sa.governor.address,
             this.sa.mockSavingsManager.address,
+            this.sa.mockInterestValidator.address,
         )
         const MassetFactory = (await (
             await ethers.getContractFactory("ExposedMasset", {
@@ -127,6 +132,7 @@ export class MassetMachine {
         const nexus = await new MockNexus__factory(this.sa.default.signer).deploy(
             this.sa.governor.address,
             this.sa.mockSavingsManager.address,
+            this.sa.mockInterestValidator.address,
         )
         const integrationAddress = useLendingMarkets
             ? (
@@ -175,14 +181,16 @@ export class MassetMachine {
         return {
             mAsset: (await MassetFactory.attach(mAsset.address)) as ExposedMasset,
             bAssets: bAssets.bAssets,
-            pTokens: bAssets.aTokens.map((a) => a.aToken),
             aavePlatformAddress: bAssets.aavePlatformAddress,
+            integrationAddress,
             forgeValidator: forgeVal as InvariantValidator,
             platform: useLendingMarkets
                 ? await new MockPlatformIntegration__factory(this.sa.default.signer).attach(integrationAddress)
                 : null,
+            pTokens: useLendingMarkets ? bAssets.aTokens.map((a) => a.aToken) : [],
             managerLib,
             wrappedManagerLib: (await ManagerFactory.attach(mAsset.address)) as Manager,
+            nexus,
         }
     }
 
@@ -470,45 +478,50 @@ export class MassetMachine {
         // bAssets at index 2 and 3 only have transfer fees if useTransferFees is true
         const bAssetTxFees = bAssets.map((_, i) => useTransferFees && (i === 2 || i === 3))
 
+        // Only deploy Aave mock and A tokens if lending markets are required
+        const lendingProperties = useLendingMarkets ? await this.loadATokens(bAssets) : {}
+
+        return {
+            aavePlatformAddress: ZERO_ADDRESS,
+            aTokens: [],
+            ...lendingProperties,
+            bAssets,
+            bAssetTxFees,
+        }
+    }
+
+    /**
+     * Deploy a mocked Aave contract.
+     * For each bAsset:
+     *   - transfer some bAsset tokens to the Aave mock
+     *   - deploy a new mocked A token for the bAsset
+     *   - add new A token to the mAsset platform integration
+     * @param bAssets
+     * @returns
+     */
+    public async loadATokens(
+        bAssets: MockERC20[],
+    ): Promise<{
+        aavePlatformAddress: Address
+        aTokens?: Array<ATokenDetails>
+    }> {
         //  - Mock Aave integration
         const mockAave = await new MockAaveV2__factory(this.sa.default.signer).deploy()
+        await Promise.all(bAssets.map(async (b) => b.transfer(mockAave.address, (await b.totalSupply()).div(1000))))
 
         //  - Mock aTokens
         const aTokenFactory = new MockATokenV2__factory(this.sa.default.signer)
-        await Promise.all(bAssets.map(async (b) => b.transfer(mockAave.address, (await b.totalSupply()).div(1000))))
-        const mockAToken1 = await aTokenFactory.deploy(mockAave.address, mockBasset1.address)
-        const mockAToken2 = await aTokenFactory.deploy(mockAave.address, mockBasset2.address)
-        const mockAToken3 = await aTokenFactory.deploy(mockAave.address, mockBasset3.address)
-        const mockAToken4 = await aTokenFactory.deploy(mockAave.address, mockBasset4.address)
+        const mockATokens = await Promise.all(bAssets.map((b) => aTokenFactory.deploy(mockAave.address, b.address)))
 
         //  - Add to the Platform
-        await mockAave.addAToken(mockAToken1.address, mockBasset1.address)
-        await mockAave.addAToken(mockAToken2.address, mockBasset2.address)
-        await mockAave.addAToken(mockAToken3.address, mockBasset3.address)
-        await mockAave.addAToken(mockAToken4.address, mockBasset4.address)
+        await Promise.all(bAssets.map((b, i) => mockAave.addAToken(mockATokens[i].address, b.address)))
 
         return {
-            bAssets,
-            bAssetTxFees,
             aavePlatformAddress: mockAave.address,
-            aTokens: [
-                {
-                    bAsset: mockBasset1.address,
-                    aToken: mockAToken1.address,
-                },
-                {
-                    bAsset: mockBasset2.address,
-                    aToken: mockAToken2.address,
-                },
-                {
-                    bAsset: mockBasset3.address,
-                    aToken: mockAToken3.address,
-                },
-                {
-                    bAsset: mockBasset4.address,
-                    aToken: mockAToken4.address,
-                },
-            ],
+            aTokens: bAssets.map((b, i) => ({
+                bAsset: b.address,
+                aToken: mockATokens[i].address,
+            })),
         }
     }
 
@@ -650,11 +663,7 @@ export class MassetMachine {
 
         const balances = rawBalances.map((b, i) => b.add(platformBalances[i]))
         // get overweight
-        const currentVaultUnits = bAssets.map((b) =>
-            BN.from(b.vaultBalance)
-                .mul(BN.from(b.ratio))
-                .div(ratioScale),
-        )
+        const currentVaultUnits = bAssets.map((b) => BN.from(b.vaultBalance).mul(BN.from(b.ratio)).div(ratioScale))
         // get total amount
         const sumOfBassets = currentVaultUnits.reduce((p, c) => p.add(c), BN.from(0))
         return {
@@ -733,12 +742,7 @@ export class MassetMachine {
         const totalSupply = await mAsset.totalSupply()
         const surplus = await mAsset.surplus()
         const cacheSize = await mAsset.cacheSize()
-        const maxC = totalSupply
-            .add(surplus)
-            .mul(ratioScale)
-            .div(BN.from(bAsset.ratio))
-            .mul(cacheSize)
-            .div(fullScale)
+        const maxC = totalSupply.add(surplus).mul(ratioScale).div(BN.from(bAsset.ratio)).mul(cacheSize).div(fullScale)
         const newSum = BN.from(integratorBalBefore).add(amount)
         const expectInteraction = type === "deposit" ? newSum.gte(maxC) : amount.gt(BN.from(integratorBalBefore))
         return {
@@ -748,10 +752,7 @@ export class MassetMachine {
                 type === "deposit"
                     ? newSum.sub(maxC.div(2))
                     : minimum(
-                          maxC
-                              .div(2)
-                              .add(amount)
-                              .sub(BN.from(integratorBalBefore)),
+                          maxC.div(2).add(amount).sub(BN.from(integratorBalBefore)),
                           BN.from(bAsset.vaultBalance).sub(BN.from(integratorBalBefore)),
                       ),
             rawBalance:
