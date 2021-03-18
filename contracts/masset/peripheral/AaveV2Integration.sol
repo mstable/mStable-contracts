@@ -288,5 +288,4 @@ contract AaveV2Integration is AbstractIntegration {
     {
         return _aToken.balanceOf(address(this));
     }
-
 }
