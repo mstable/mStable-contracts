@@ -243,6 +243,7 @@ const validateUnchangedMassetStorage = async (mUsd: MusdV3 | Masset | Contract, 
     expect(await mUsd.redemptionFee(), "redemption fee").to.eq(simpleToExactAmount(3, 14))
     expect(await mUsd.cacheSize(), "cache size").to.eq(simpleToExactAmount(3, 16))
     expect(await mUsd.surplus(), `surplus at block ${forkBlockNumber}`).to.eq(overrideSurplus)
+    expect(await mUsd.nexus(), `nexus at block ${forkBlockNumber}`).to.eq(nexusAddress)
 }
 
 // Check that the bAsset data is what we expect
@@ -320,7 +321,6 @@ const balanceBasset = async (
     const tx = mUsdV2.connect(signer).swap(inputToken.address, outputToken.address, bAssetAmount, whaleAddress)
 
     await expect(tx).to.emit(mUsdV2, "Swapped")
-    // TODO - consider what this is used for and whether to rely on cached settings
     scaledVaultBalances[inputToken.index] = scaledVaultBalances[inputToken.index].add(minBassetAmount)
     // this is not 100% accurate as the outputs are less fees but it's close enough for testing
     scaledVaultBalances[outputToken.index] = scaledVaultBalances[outputToken.index].sub(minBassetAmount)
@@ -379,6 +379,7 @@ describe("mUSD V2.0 to V3.0", () => {
     let governor: Signer
     const balancedVaultBalances: BN[] = []
     let aaveV2: AaveV2Integration
+    let basketManager: Contract
     before("Set-up globals", async () => {
         accounts = await impersonateAccounts()
         deployer = accounts.deployer
@@ -448,7 +449,6 @@ describe("mUSD V2.0 to V3.0", () => {
      *         iii) Final state pre-upgrade (everything in place & paused)
      */
     describe("STEP 2 - Achieve equilibrium weights & prep", () => {
-        let basketManager: Contract
         const scaledVaultBalances: BN[] = []
         let scaledTargetBalance: BN
         before(async () => {
@@ -464,6 +464,7 @@ describe("mUSD V2.0 to V3.0", () => {
             )
             await aaveV2.deployTransaction.wait()
             await aaveV2.connect(governor).setPTokenAddress(sUSD.address, "0x6c5024cd4f8a59110119c56f8933403a539555eb")
+            await aaveV2.connect(governor).setPTokenAddress(USDT.address, "0x3ed3b47dd13ec9a98b44e6204a523e766b225811")
             await basketManager.migrateBassets([sUSD.address], aaveV2.address)
         })
         it("adds DAI to the basket", async () => {
@@ -624,6 +625,9 @@ describe("mUSD V2.0 to V3.0", () => {
                 expect(basketState.failed, "undergoingRecol").to.be.false
                 expect(basketState[1], "basketState[1]").to.be.false
             })
+            // it("moves USDT to V2", async () => {
+            //     await basketManager.migrateBassets([USDT.address], aaveV2.address)
+            // })
             it("Should mint after upgrade", async () => {
                 const token = finalBassets[0]
                 const signer = await impersonate(token.whaleAddress)
