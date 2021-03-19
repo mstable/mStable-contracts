@@ -8,7 +8,14 @@ import { simpleToExactAmount, BN } from "@utils/math"
 import { FeederDetails, FeederMachine, MassetMachine, StandardAccounts } from "@utils/machines"
 
 import { DEAD_ADDRESS, MAX_UINT256, ONE_DAY, ONE_HOUR, ONE_MIN, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
-import { FeederPool, MockERC20, MockPlatformIntegration, MockPlatformIntegration__factory } from "types/generated"
+import {
+    FeederPool,
+    MaliciousAaveIntegration,
+    MaliciousAaveIntegration__factory,
+    MockERC20,
+    MockPlatformIntegration,
+    MockPlatformIntegration__factory,
+} from "types/generated"
 import { BassetStatus } from "@utils/mstable-objects"
 import { getTimestamp, increaseTime } from "@utils/time"
 
@@ -674,6 +681,130 @@ describe("Feeder Admin", () => {
             it("fundManager", async () => {
                 await expect(details.pool.connect(sa.fundManager.signer).collectPendingFees()).to.revertedWith("Only validator")
             })
+        })
+    })
+    describe("migrating bAssets between platforms", () => {
+        let newMigration: MockPlatformIntegration
+        let maliciousIntegration: MaliciousAaveIntegration
+        let transferringAsset: MockERC20
+        before(async () => {
+            // Deploy using lending markets and do not seed the pool
+            await runSetup(true, false, [])
+            const { bAssets, fAsset, mAssetDetails, pool, pTokens } = details
+            const { platform } = details.mAssetDetails
+            transferringAsset = fAsset
+            newMigration = await (await new MockPlatformIntegration__factory(sa.default.signer)).deploy(
+                DEAD_ADDRESS,
+                mAssetDetails.aavePlatformAddress,
+                bAssets.map((b) => b.address),
+                pTokens,
+            )
+            await newMigration.addWhitelist([pool.address])
+            maliciousIntegration = await (await new MaliciousAaveIntegration__factory(sa.default.signer)).deploy(
+                DEAD_ADDRESS,
+                mAssetDetails.aavePlatformAddress,
+                bAssets.map((b) => b.address),
+                pTokens,
+            )
+            await maliciousIntegration.addWhitelist([pool.address])
+            await platform.addWhitelist([sa.governor.address])
+            await transferringAsset.transfer(platform.address, 10000)
+            await platform.connect(sa.governor.signer).deposit(transferringAsset.address, 9000, false)
+        })
+        it("should fail if passed 0 bAssets", async () => {
+            await expect(details.pool.connect(sa.governor.signer).migrateBassets([], newMigration.address)).to.be.revertedWith(
+                "Must migrate some bAssets",
+            )
+        })
+        it("should fail if bAsset does not exist", async () => {
+            await expect(details.pool.connect(sa.governor.signer).migrateBassets([DEAD_ADDRESS], newMigration.address)).to.be.revertedWith(
+                "Invalid asset",
+            )
+        })
+        it("should fail if integrator address is the same", async () => {
+            await expect(
+                details.pool
+                    .connect(sa.governor.signer)
+                    .migrateBassets([transferringAsset.address], details.mAssetDetails.platform.address),
+            ).to.be.revertedWith("Must transfer to new integrator")
+        })
+        it("should fail if new address is a dud", async () => {
+            await expect(details.pool.connect(sa.governor.signer).migrateBassets([transferringAsset.address], DEAD_ADDRESS)).to.be.reverted
+        })
+        it("should fail if the full amount is not transferred and deposited", async () => {
+            await expect(
+                details.pool.connect(sa.governor.signer).migrateBassets([transferringAsset.address], maliciousIntegration.address),
+            ).to.be.revertedWith("Must transfer full amount")
+        })
+        it("should move all bAssets from a to b", async () => {
+            const { pool } = details
+            const { platform } = details.mAssetDetails
+            // get balances before
+            const bal = await platform.callStatic.checkBalance(transferringAsset.address)
+            expect(bal).eq(9000)
+            const rawBal = await transferringAsset.balanceOf(platform.address)
+            expect(rawBal).eq(1000)
+            const integratorAddress = (await details.pool.getBasset(transferringAsset.address))[0][1]
+            expect(integratorAddress).eq(platform.address)
+            // call migrate
+            const tx = pool.connect(sa.governor.signer).migrateBassets([transferringAsset.address], newMigration.address)
+            // emits BassetsMigrated
+            await expect(tx).to.emit(pool, "BassetsMigrated").withArgs([transferringAsset.address], newMigration.address)
+            // moves all bAssets from old to new
+            const migratedBal = await newMigration.callStatic.checkBalance(transferringAsset.address)
+            expect(migratedBal).eq(bal)
+            const migratedRawBal = await transferringAsset.balanceOf(newMigration.address)
+            expect(migratedRawBal).eq(rawBal)
+            // old balances should be empty
+            const newRawBal = await transferringAsset.balanceOf(platform.address)
+            expect(newRawBal).eq(0)
+            // updates the integrator address
+            const [[, newIntegratorAddress]] = await pool.getBasset(transferringAsset.address)
+            expect(newIntegratorAddress).eq(newMigration.address)
+        })
+        it("should pass if either rawBalance or balance are 0", async () => {
+            // Deploy using lending markets and do not seed the pool
+            await runSetup(true, false, [])
+            const { bAssets, fAsset, mAssetDetails, pool, pTokens } = details
+            const { platform } = details.mAssetDetails
+            transferringAsset = fAsset
+            newMigration = await (await new MockPlatformIntegration__factory(sa.default.signer)).deploy(
+                DEAD_ADDRESS,
+                mAssetDetails.aavePlatformAddress,
+                bAssets.map((b) => b.address),
+                pTokens,
+            )
+            await newMigration.addWhitelist([pool.address])
+            maliciousIntegration = await (await new MaliciousAaveIntegration__factory(sa.default.signer)).deploy(
+                DEAD_ADDRESS,
+                mAssetDetails.aavePlatformAddress,
+                bAssets.map((b) => b.address),
+                pTokens,
+            )
+            await maliciousIntegration.addWhitelist([pool.address])
+
+            await transferringAsset.transfer(platform.address, 10000)
+            await platform.addWhitelist([sa.governor.address])
+            await platform.connect(sa.governor.signer).deposit(transferringAsset.address, 10000, false)
+            // get balances before
+            const bal = await platform.callStatic.checkBalance(transferringAsset.address)
+            expect(bal).eq(10000)
+            const rawBal = await transferringAsset.balanceOf(platform.address)
+            expect(rawBal).eq(0)
+            const integratorAddress = (await pool.getBasset(transferringAsset.address))[0][1]
+            expect(integratorAddress).eq(platform.address)
+            // call migrate
+            const tx = pool.connect(sa.governor.signer).migrateBassets([transferringAsset.address], newMigration.address)
+            // emits BassetsMigrated
+            await expect(tx).to.emit(pool, "BassetsMigrated").withArgs([transferringAsset.address], newMigration.address)
+            // moves all bAssets from old to new
+            const migratedBal = await newMigration.callStatic.checkBalance(transferringAsset.address)
+            expect(migratedBal).eq(bal)
+            const migratedRawBal = await transferringAsset.balanceOf(newMigration.address)
+            expect(migratedRawBal).eq(rawBal)
+            // updates the integrator address
+            const [[, newIntegratorAddress]] = await pool.getBasset(transferringAsset.address)
+            expect(newIntegratorAddress).eq(newMigration.address)
         })
     })
     describe("when going from no platform to a platform", () => {
