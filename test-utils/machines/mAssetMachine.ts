@@ -29,9 +29,9 @@ import {
 import { BN, minimum, simpleToExactAmount } from "@utils/math"
 import { fullScale, MainnetAccounts, ratioScale, ZERO_ADDRESS, DEAD_ADDRESS } from "@utils/constants"
 import { Basset } from "@utils/mstable-objects"
+import { Address } from "types/common"
 import { StandardAccounts } from "./standardAccounts"
 import { ActionDetails, ATokenDetails, BasketComposition, BassetIntegrationDetails } from "../../types/machines"
-import { Address } from "types/common"
 
 export interface MassetDetails {
     mAsset?: ExposedMasset

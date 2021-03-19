@@ -36,6 +36,7 @@ export interface FeederDetails {
     // [0] = mAsset
     // [1] = fAsset
     bAssets?: MockERC20[]
+    pTokens?: Array<string>
     mAssetDetails?: MassetDetails
 }
 
@@ -85,11 +86,13 @@ export class FeederMachine {
 
         // - Add fAsset to lending markets
         const platformIntegration = new MockPlatformIntegration__factory(this.sa.governor.signer).attach(mAssetDetails.integrationAddress)
+        const pTokens: string[] = []
         if (useLendingMarkets) {
             //  - Deploy mock aToken for the mAsset and fAsset
             const aTokenFactory = new MockATokenV2__factory(this.sa.default.signer)
             const mockATokenMasset = await aTokenFactory.deploy(mAssetDetails.aavePlatformAddress, mAssetDetails.mAsset.address)
             const mockATokenFasset = await aTokenFactory.deploy(mAssetDetails.aavePlatformAddress, fAsset.address)
+            pTokens.push(mockATokenMasset.address, mockATokenFasset.address)
             // - Transfer some of the mAsset and fAsset supply to the mocked Aave
             await mAssetDetails.mAsset.transfer(mAssetDetails.aavePlatformAddress, (await mAssetDetails.mAsset.totalSupply()).div(1000))
             await fAsset.transfer(mAssetDetails.aavePlatformAddress, (await fAsset.totalSupply()).div(1000))
@@ -143,7 +146,7 @@ export class FeederMachine {
             await platformIntegration.addWhitelist([pool.address])
         }
 
-        if (feederWeights !== undefined) {
+        if (feederWeights?.length > 0) {
             const approvals = await Promise.all(
                 bAssets.map((b, i) => this.mAssetMachine.approveMasset(b, pool, feederWeights[i], this.sa.default.signer)),
             )
@@ -162,6 +165,7 @@ export class FeederMachine {
             mAsset: mAssetDetails.mAsset as MockERC20,
             fAsset,
             bAssets,
+            pTokens,
             mAssetDetails,
         }
     }
