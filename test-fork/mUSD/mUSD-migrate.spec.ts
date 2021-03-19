@@ -9,7 +9,16 @@ import { ethers, network } from "hardhat"
 
 import { ONE_WEEK, ONE_DAY, ZERO_ADDRESS, DEAD_ADDRESS } from "@utils/constants"
 import { applyDecimals, applyRatio, applyRatioMassetToBasset, BN, simpleToExactAmount } from "@utils/math"
-import { DelayedProxyAdmin, DelayedProxyAdmin__factory, ERC20__factory, Masset, MusdV3, MusdV3__factory } from "types/generated"
+import {
+    DelayedProxyAdmin,
+    DelayedProxyAdmin__factory,
+    ERC20__factory,
+    Masset,
+    MusdV3,
+    MusdV3__factory,
+    AaveV2Integration__factory,
+    AaveV2Integration,
+} from "types/generated"
 import { MusdV3LibraryAddresses } from "types/generated/factories/MusdV3__factory"
 import { increaseTime } from "@utils/time"
 import { BassetStatus } from "@utils/mstable-objects"
@@ -34,6 +43,9 @@ const basketManagerAddress = "0x66126B4aA2a1C07536Ef8E5e8bD4EfDA1FdEA96D"
 const nexusAddress = "0xAFcE80b19A8cE13DEc0739a1aaB7A028d6845Eb3"
 const delayedProxyAdminAddress = "0x5C8eb57b44C1c6391fC7a8A0cf44d26896f92386"
 const governorAddress = "0xF6FF1F7FCEB2cE6d26687EaaB5988b445d0b94a2"
+
+// Aave V2
+const aaveAddress = "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5"
 
 const forkBlockNumber = 12043106
 
@@ -247,18 +259,23 @@ const validateBasset = (bAssets, i: number, expectToken: Token, expectVaultBalan
 }
 
 // Test the new Masset V3 storage variables
-const validateNewMassetStorage = async (mUsd: MusdV3 | Masset, validator: string, expectVaultBalances?: BN[]) => {
+const validateNewMassetStorage = async (mUsd: MusdV3 | Masset, validator: string, newPlatform: string, expectVaultBalances?: BN[]) => {
     expect(await mUsd.forgeValidator(), "forge validator").to.eq(validator)
     expect(await mUsd.maxBassets(), "maxBassets").to.eq(10)
 
     // bAsset personal data
     const bAssets = await mUsd.getBassets()
-    finalBassets.forEach(async (token, i) => {
-        validateBasset(bAssets, i, token, expectVaultBalances)
-        expect(await mUsd.bAssetIndexes(token.address)).eq(i)
-        const bAsset = await mUsd.getBasset(token.address)
-        expect(bAsset[0][0]).eq(token.address)
-    })
+    await Promise.all(
+        finalBassets.map(async (token, i) => {
+            if (token.symbol === "sUSD") {
+                token.integrator = newPlatform
+            }
+            validateBasset(bAssets, i, token, expectVaultBalances)
+            expect(await mUsd.bAssetIndexes(token.address)).eq(i)
+            const bAsset = await mUsd.getBasset(token.address)
+            expect(bAsset[0][0]).eq(token.address)
+        }),
+    )
 
     // Get basket state
     const basketState = await mUsd.basket()
@@ -361,6 +378,7 @@ describe("mUSD V2.0 to V3.0", () => {
     let deployer: Signer
     let governor: Signer
     const balancedVaultBalances: BN[] = []
+    let aaveV2: AaveV2Integration
     before("Set-up globals", async () => {
         accounts = await impersonateAccounts()
         deployer = accounts.deployer
@@ -399,7 +417,7 @@ describe("mUSD V2.0 to V3.0", () => {
         it("gets deployed mUSD impl", async () => {
             mUsdV3 = await getMusdv3(deployer)
         })
-        it("proposes mUSD upgrade to proxyadmin", async () => {
+        it("checks the proposed upgrade data", async () => {
             const data = await mUsdV3.impl.interface.encodeFunctionData("upgrade", [validatorAddress, defaultConfig])
 
             const request = await delayedProxyAdmin.requests(mUsdProxyAddress)
@@ -436,6 +454,17 @@ describe("mUSD V2.0 to V3.0", () => {
         before(async () => {
             const basketManagerFactory = new ContractFactory(BasketManagerV2Abi, BasketManagerV2Bytecode, governor)
             basketManager = basketManagerFactory.attach(basketManagerAddress)
+        })
+        it("migrates sUSD to AaveV2", async () => {
+            aaveV2 = await new AaveV2Integration__factory(deployer).deploy(
+                nexusAddress,
+                mUsdProxyAddress,
+                aaveAddress,
+                basketManagerAddress,
+            )
+            await aaveV2.deployTransaction.wait()
+            await aaveV2.connect(governor).setPTokenAddress(sUSD.address, "0x6c5024cd4f8a59110119c56f8933403a539555eb")
+            await basketManager.migrateBassets([sUSD.address], aaveV2.address)
         })
         it("adds DAI to the basket", async () => {
             // 2. Add DAI to basket
@@ -544,10 +573,6 @@ describe("mUSD V2.0 to V3.0", () => {
         before("elapse the time", async () => {
             await increaseTime(ONE_DAY.mul(2))
         })
-        // TODO - ensure all libs are tested:
-        // - migrator
-        // - manager
-        // - validator
         describe("accept proposal and verify storage", () => {
             it("Should upgrade balanced mUSD", async () => {
                 // Approve and execute call to upgradeToAndCall on mUSD proxy which then calls migrate on the new mUSD V3 implementation
@@ -556,7 +581,7 @@ describe("mUSD V2.0 to V3.0", () => {
                 // validate after the upgrade
                 await validateTokenStorage(mUsdV3.proxy, "45324893805990774527261941")
                 await validateUnchangedMassetStorage(mUsdV3.proxy, "1")
-                await validateNewMassetStorage(mUsdV3.proxy, validatorAddress, balancedVaultBalances)
+                await validateNewMassetStorage(mUsdV3.proxy, validatorAddress, aaveV2.address, balancedVaultBalances)
             })
             it("blocks mint/swap/redeem", async () => {
                 // mint/swap = Unhealthy

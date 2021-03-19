@@ -26,6 +26,7 @@ contract AaveV2Integration is AbstractIntegration {
 
     // Core address for the given platform */
     address public immutable platformAddress;
+    address public immutable basketManager;
 
     event RewardTokenApproved(address rewardToken, address account);
 
@@ -37,10 +38,12 @@ contract AaveV2Integration is AbstractIntegration {
     constructor(
         address _nexus,
         address _mAsset,
-        address _platformAddress
+        address _platformAddress,
+        address _basketManager
     ) AbstractIntegration(_nexus, _mAsset) {
         require(_platformAddress != address(0), "Invalid platform address");
         platformAddress = _platformAddress;
+        basketManager = _basketManager;
     }
 
     /***************************************
@@ -72,6 +75,14 @@ contract AaveV2Integration is AbstractIntegration {
     ****************************************/
 
     /**
+     * @dev Modifier to allow function calls only from the Governor.
+     */
+    modifier massetOrManager() {
+        require(msg.sender == mAssetAddress || msg.sender == basketManager, "Only mAsset or basketManager can execute");
+        _;
+    }
+
+    /**
      * @dev Deposit a quantity of bAsset into the platform. Credited aTokens
      *      remain here in the vault. Can only be called by whitelisted addresses
      *      (mAsset and corresponding BasketManager)
@@ -87,7 +98,7 @@ contract AaveV2Integration is AbstractIntegration {
     )
         external
         override
-        onlyMasset
+        massetOrManager
         nonReentrant
         returns (uint256 quantityDeposited)
     {
