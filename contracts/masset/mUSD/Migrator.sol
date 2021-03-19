@@ -44,7 +44,7 @@ library Migrator {
                 MassetStructs.BassetData({ ratio: ratio, vaultBalance: vaultBalance })
             );
 
-            // caclulate scaled vault bAsset balance and totoal vault balance
+            // caclulate scaled vault bAsset balance and total vault balance
             uint128 scaledVaultBalance = (vaultBalance * ratio) / 1e8;
             scaledVaultBalances[i] = scaledVaultBalance;
             maxScaledVaultBalance += scaledVaultBalance;

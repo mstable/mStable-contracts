@@ -7,9 +7,19 @@ import { expect } from "chai"
 import { Contract, ContractFactory, Signer } from "ethers"
 import { ethers, network } from "hardhat"
 
-import { ONE_WEEK, ONE_DAY, ZERO_ADDRESS, DEAD_ADDRESS } from "@utils/constants"
-import { applyDecimals, applyRatio, applyRatioMassetToBasset, BN, simpleToExactAmount } from "@utils/math"
-import { DelayedProxyAdmin, DelayedProxyAdmin__factory, ERC20__factory, Masset, MusdV3, MusdV3__factory } from "types/generated"
+import { DEAD_ADDRESS, ONE_DAY, ONE_WEEK } from "@utils/constants"
+import { applyDecimals, applyRatioMassetToBasset, BN, simpleToExactAmount } from "@utils/math"
+import {
+    DelayedProxyAdmin,
+    DelayedProxyAdmin__factory,
+    ERC20__factory,
+    Masset,
+    MusdV3,
+    MusdV3__factory,
+    MusdV3Upgrade3PoolDyDx__factory,
+    MusdV3Rebalance4Pool__factory,
+    MusdV3Rebalance4Pool,
+} from "types/generated"
 import { MusdV3LibraryAddresses } from "types/generated/factories/MusdV3__factory"
 import { increaseTime } from "@utils/time"
 import { BassetStatus } from "@utils/mstable-objects"
@@ -69,7 +79,7 @@ const USDC: Token = {
     integrator: "0xD55684f4369040C12262949Ff78299f2BC9dB735", // Compound Vault
     decimals: 6,
     vaultBalance: BN.from("190649757940"),
-    whaleAddress: "0xf977814e90da44bfa03b6295a0616a897441acec", // Binance
+    whaleAddress: "0xF977814e90dA44bFA03b6295A0616a897441aceC", // Binance
 }
 const TUSD: Token = {
     symbol: "TUSD",
@@ -77,7 +87,7 @@ const TUSD: Token = {
     integrator: "0xf617346A0FB6320e9E578E0C9B2A4588283D9d39", // Aave vault
     decimals: 18,
     vaultBalance: BN.from("20372453144590237158484978"),
-    whaleAddress: "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be", // Binance
+    whaleAddress: "0xF977814e90dA44bFA03b6295A0616a897441aceC", // Binance
 }
 const USDT: Token = {
     symbol: "USDT",
@@ -85,7 +95,7 @@ const USDT: Token = {
     integrator: "0xf617346A0FB6320e9E578E0C9B2A4588283D9d39", // Aave vault
     decimals: 6,
     vaultBalance: BN.from("24761709994543"),
-    whaleAddress: "0xf977814e90da44bfa03b6295a0616a897441acec", // Binance
+    whaleAddress: "0xF977814e90dA44bFA03b6295A0616a897441aceC", // Binance
 }
 const DAI: Token = {
     symbol: "DAI",
@@ -93,7 +103,7 @@ const DAI: Token = {
     integrator: "0xD55684f4369040C12262949Ff78299f2BC9dB735", // Compound Vault
     decimals: 18,
     vaultBalance: BN.from(0),
-    whaleAddress: "0xbe0eb53f46cd790cd13851d5eff43d12404d33e8",
+    whaleAddress: "0xF977814e90dA44bFA03b6295A0616a897441aceC", // Binance
 }
 
 // bAssets before changes
@@ -221,8 +231,8 @@ const validateTokenStorage = async (token: MusdV3 | Masset | Contract, overrideS
     expect(await token.balanceOf("0x5C80E54f903458edD0723e268377f5768C7869d7"), `mUSD balance at block ${forkBlockNumber}`).to.eq(
         "6971708003000000000000",
     )
-    // For block number 11880000
-    expect(await token.totalSupply(), `totalSupply at block ${forkBlockNumber}`).to.eq(overrideSupply)
+    // For forked block number
+    expect(await token.totalSupply(), `totalSupply at block ${forkBlockNumber}`).to.eq("46499970109431651210054546")
 }
 
 // Test the existing Masset V2 storage variables
@@ -352,7 +362,12 @@ const balanceBasset = async (
  * Contract diff vs Masset.sol: https://www.diffchecker.com/jwpfAgVK
  */
 describe("mUSD V2.0 to V3.0", () => {
-    let accounts
+    let accounts: {
+        deployer: Signer
+        governor: Signer
+        ethWhale: Signer
+        mUSDWhale: Signer
+    }
     let savingsManager: Contract
     let mUsdV2Factory: ContractFactory
     let mUsdV2: Contract
@@ -439,7 +454,7 @@ describe("mUSD V2.0 to V3.0", () => {
         })
         it("adds DAI to the basket", async () => {
             // 2. Add DAI to basket
-            await basketManager.addBasset(DAI.address, "0xD55684f4369040C12262949Ff78299f2BC9dB735", false)
+            await basketManager.addBasset(DAI.address, DAI.integrator, false)
         })
         it("should get bAssets to check current weights", async () => {
             const { bAssets } = await basketManager.getBassets()
@@ -451,6 +466,7 @@ describe("mUSD V2.0 to V3.0", () => {
                 expect(bAssets[i].vaultBalance).to.eq(token.vaultBalance)
             })
             scaledTargetBalance = scaledTotalVaultBalance.div(4)
+            // Test percentage of basket in basis points. eg 2668 = 26.68%
             expect(scaledVaultBalances[0].mul(10000).div(scaledTotalVaultBalance)).to.eq(0)
             expect(scaledVaultBalances[1].mul(10000).div(scaledTotalVaultBalance)).to.eq(42)
             expect(scaledVaultBalances[2].mul(10000).div(scaledTotalVaultBalance)).to.eq(4494)
@@ -458,15 +474,11 @@ describe("mUSD V2.0 to V3.0", () => {
             expect(scaledVaultBalances[4].mul(10000).div(scaledTotalVaultBalance)).to.eq(0)
         })
         it("should update max weights to 25.01%", async () => {
+            // 25.01% where 100% = 1e18
+            const maxWeight = simpleToExactAmount(2501, 14)
             await basketManager.setBasketWeights(
                 intermediaryBassets.map((token) => token.address),
-                [
-                    simpleToExactAmount(2501, 14),
-                    simpleToExactAmount(2501, 14),
-                    0,
-                    simpleToExactAmount(2501, 14),
-                    simpleToExactAmount(2501, 14),
-                ], // 25.01% where 100% = 1e18
+                [maxWeight, maxWeight, 0, maxWeight, maxWeight],
             )
         })
         it("collects interest one last time", async () => {
@@ -740,6 +752,334 @@ describe("mUSD V2.0 to V3.0", () => {
             it("should stream interest after upgrade", async () => {
                 await savingsManager.collectAndStreamInterest(mUsdV3.proxy.address)
             })
+        })
+    })
+
+    context("Add DAI and balance mUSD bAssets on-chain using DyDx flash loans", () => {
+        let basketManager: Contract
+        const scaledVaultBalances: BN[] = []
+        let scaledTargetBalance: BN
+        before(async () => {
+            await network.provider.request({
+                method: "hardhat_reset",
+                params: [
+                    {
+                        forking: {
+                            jsonRpcUrl: process.env.NODE_URL,
+                            blockNumber: 12000000,
+                        },
+                    },
+                ],
+            })
+            accounts = await impersonateAccounts()
+
+            const basketManagerFactory = new ContractFactory(BasketManagerV2Abi, BasketManagerV2Bytecode, accounts.governor)
+            basketManager = basketManagerFactory.attach(basketManagerAddress)
+        })
+        it("should get bAssets to check current weights", async () => {
+            const { bAssets } = await basketManager.getBassets()
+            let scaledTotalVaultBalance = BN.from(0)
+            currentBassets.forEach((token, i) => {
+                const scaledVaultBalance = applyDecimals(bAssets[i].vaultBalance, token.decimals)
+                scaledVaultBalances[i] = scaledVaultBalance
+                scaledTotalVaultBalance = scaledTotalVaultBalance.add(scaledVaultBalance)
+            })
+            expect(scaledVaultBalances[0].mul(10000).div(scaledTotalVaultBalance)).to.eq(0)
+            expect(scaledVaultBalances[1].mul(10000).div(scaledTotalVaultBalance)).to.eq(2965)
+            expect(scaledVaultBalances[2].mul(10000).div(scaledTotalVaultBalance)).to.eq(3986)
+            expect(scaledVaultBalances[3].mul(10000).div(scaledTotalVaultBalance)).to.eq(3047)
+            scaledTargetBalance = scaledTotalVaultBalance.div(currentBassets.length)
+        })
+        it("Add DAI to the mUSD basket", async () => {
+            const tx = basketManager.addBasset(DAI.address, DAI.integrator, false)
+            await expect(tx).to.emit(basketManager, "BassetAdded").withArgs(DAI.address, DAI.integrator)
+            const { bAssets } = await basketManager.getBassets()
+            expect(bAssets).to.length(5)
+            expect(bAssets[4].maxWeight).to.eq(0)
+        })
+        it("should update max weights to 34%", async () => {
+            // 34% where 100% = 1e18
+            const maxWeight = simpleToExactAmount(34, 16)
+            const tx = basketManager.setBasketWeights(
+                [sUSD.address, USDC.address, TUSD.address, USDT.address, DAI.address],
+                [0, maxWeight, 0, maxWeight, maxWeight],
+            )
+            await expect(tx).to.emit(basketManager, "BasketWeightsUpdated")
+            const { bAssets } = await basketManager.getBassets()
+            expect(bAssets).to.length(5)
+            expect(bAssets[0].maxWeight).to.eq(0)
+            expect(bAssets[1].maxWeight).to.eq(maxWeight)
+            expect(bAssets[2].maxWeight).to.eq(0)
+            expect(bAssets[3].maxWeight).to.eq(maxWeight)
+            expect(bAssets[4].maxWeight).to.eq(maxWeight)
+        })
+        it("use DyDx flash loans to balance mUSD bAssets", async () => {
+            const mUsdUpgradeFactory = new MusdV3Upgrade3PoolDyDx__factory(accounts.deployer)
+            const mUsdUpgrade = await mUsdUpgradeFactory.deploy()
+
+            // whale approves upgrade contract to spend their DAI and USDC
+            const whaleSigner = await impersonate(DAI.whaleAddress)
+            const dai = new ERC20__factory(whaleSigner).attach(DAI.address)
+            await dai.approve(mUsdUpgrade.address, simpleToExactAmount(120000999, DAI.decimals))
+            const usdc = new ERC20__factory(whaleSigner).attach(USDC.address)
+            await usdc.approve(mUsdUpgrade.address, simpleToExactAmount(5000, USDC.decimals))
+
+            const tx = mUsdUpgrade.upgrade()
+            await expect(tx).to.emit(mUsdUpgrade, "Balance")
+            const receipt = await (await tx).wait()
+
+            // Get event for DAI loan
+            const daiBalanceEvent = receipt.events.find((e) => e.event === "Balance" && e.args.flashToken === DAI.address)
+            expect(daiBalanceEvent, "no DAI Balance event").to.not.undefined
+            console.log(
+                `mUSD swap: ${formatUnits(daiBalanceEvent?.args?.flashLoanAmount)} DAI -> ${formatUnits(
+                    daiBalanceEvent?.args?.swap1Output,
+                )} TUSD`,
+            )
+            const swapRateTusdDai = daiBalanceEvent?.args?.swap1Output
+                .sub(daiBalanceEvent?.args?.flashLoanBalance)
+                .mul(1000)
+                .div(daiBalanceEvent?.args?.swap1Output)
+            console.log(
+                `Curve Y pool swap: ${formatUnits(daiBalanceEvent?.args?.swap1Output)} TUSD -> ${formatUnits(
+                    daiBalanceEvent?.args?.flashLoanBalance,
+                )} DAI (${swapRateTusdDai} bps swap rate)`,
+            )
+            console.log(`DAI shortfall ${formatUnits(daiBalanceEvent?.args?.flashLoanShortfall)} DAI`)
+
+            // Get event for USDC loan
+            const usdcBalanceEvent = receipt.events.find((e) => e.event === "Balance" && e.args.flashToken === USDC.address)
+            expect(usdcBalanceEvent, "no USDC Balance event").to.not.undefined
+            console.log(`mUSD swap: 2000000 USDC -> 2000000 TUSD`)
+            console.log(`Curve 3pool: 1300000 USDC -> ${formatUnits(usdcBalanceEvent?.args?.swap1Output, 6)} USDT`)
+            console.log(
+                `mUSD swap: ${formatUnits(usdcBalanceEvent?.args?.swap1Output, 6)} USDT -> ${formatUnits(
+                    usdcBalanceEvent?.args?.swap1Output,
+                    6,
+                )} TUSD`,
+            )
+            console.log(
+                `Curve Y pool: ${formatUnits(usdcBalanceEvent?.args?.swap1Output, 6)} TUSD -> ${formatUnits(
+                    usdcBalanceEvent?.args?.flashLoanBalance,
+                    6,
+                )} USDC`,
+            )
+            console.log(`USDC shortfall ${formatUnits(usdcBalanceEvent?.args?.flashLoanShortfall, 6)} USDC`)
+
+            console.log(`tx used ${receipt.gasUsed} gas`)
+        })
+    })
+    context("Add DAI and balance mUSD bAssets on-chain using DyDx flash loans at block 12017855", () => {
+        let basketManager: Contract
+        let mUsdRebalance: MusdV3Rebalance4Pool
+        const scaledVaultBalances: BN[] = []
+        let scaledTargetBalance: BN
+        before(async () => {
+            await network.provider.request({
+                method: "hardhat_reset",
+                params: [
+                    {
+                        forking: {
+                            jsonRpcUrl: process.env.NODE_URL,
+                            blockNumber: forkBlockNumber,
+                        },
+                    },
+                ],
+            })
+            accounts = await impersonateAccounts()
+
+            const basketManagerFactory = new ContractFactory(BasketManagerV2Abi, BasketManagerV2Bytecode, accounts.governor)
+            basketManager = basketManagerFactory.attach(basketManagerAddress)
+        })
+        it("should get bAssets to check current weights", async () => {
+            const { bAssets } = await basketManager.getBassets()
+            let scaledTotalVaultBalance = BN.from(0)
+            currentBassets.forEach((token, i) => {
+                const scaledVaultBalance = applyDecimals(bAssets[i].vaultBalance, token.decimals)
+                scaledVaultBalances[i] = scaledVaultBalance
+                scaledTotalVaultBalance = scaledTotalVaultBalance.add(scaledVaultBalance)
+                expect(bAssets[i].vaultBalance).to.eq(token.vaultBalance)
+            })
+            expect(scaledVaultBalances[0].mul(10000).div(scaledTotalVaultBalance)).to.eq(0)
+            expect(scaledVaultBalances[1].mul(10000).div(scaledTotalVaultBalance)).to.eq(2668)
+            expect(scaledVaultBalances[2].mul(10000).div(scaledTotalVaultBalance)).to.eq(4280)
+            expect(scaledVaultBalances[3].mul(10000).div(scaledTotalVaultBalance)).to.eq(3050)
+            scaledTargetBalance = scaledTotalVaultBalance.div(currentBassets.length)
+        })
+        it("Add DAI to the mUSD basket", async () => {
+            const tx = basketManager.addBasset(DAI.address, DAI.integrator, false)
+            await expect(tx).to.emit(basketManager, "BassetAdded").withArgs(DAI.address, DAI.integrator)
+            const { bAssets } = await basketManager.getBassets()
+            expect(bAssets).to.length(5)
+            expect(bAssets[4].maxWeight).to.eq(0)
+        })
+        it("should update max weights to 25.1%", async () => {
+            // 25.1% where 100% = 1e18
+            const maxWeight = simpleToExactAmount(251, 15)
+            const tx = basketManager.setBasketWeights(
+                [sUSD.address, USDC.address, TUSD.address, USDT.address, DAI.address],
+                [maxWeight, maxWeight, 0, maxWeight, maxWeight],
+            )
+            await expect(tx).to.emit(basketManager, "BasketWeightsUpdated")
+            const { bAssets } = await basketManager.getBassets()
+            expect(bAssets).to.length(5)
+            expect(bAssets[0].maxWeight).to.eq(maxWeight)
+            expect(bAssets[1].maxWeight).to.eq(maxWeight)
+            expect(bAssets[2].maxWeight).to.eq(0)
+            expect(bAssets[3].maxWeight).to.eq(maxWeight)
+            expect(bAssets[4].maxWeight).to.eq(maxWeight)
+        })
+        it("Deploy rebalance contract", async () => {
+            const mUsdUpgradeFactory = new MusdV3Rebalance4Pool__factory(accounts.deployer)
+            mUsdRebalance = await mUsdUpgradeFactory.deploy()
+        })
+        it("whale approves rebalance contract to fund loan shortfalls", async () => {
+            // whale approves upgrade contract to spend their DAI
+            const daiWhaleSigner = await impersonate(DAI.whaleAddress)
+            const dai = new ERC20__factory(daiWhaleSigner).attach(DAI.address)
+            await dai.approve(mUsdRebalance.address, simpleToExactAmount(20000000, DAI.decimals))
+
+            // whale approves upgrade contract to spend their sUSD
+            const sUsdWhaleSigner = await impersonate(sUSD.whaleAddress)
+            const susd = new ERC20__factory(sUsdWhaleSigner).attach(DAI.address)
+            await susd.approve(mUsdRebalance.address, simpleToExactAmount(20000000, sUSD.decimals))
+        })
+        it("use DAI flash loan from DyDx to balance mUSD bAssets", async () => {
+            const tx = mUsdRebalance.rebalance()
+            await expect(tx).to.emit(mUsdRebalance, "Balance")
+            const receipt = await (await tx).wait()
+
+            // Get event for DAI loan
+            const daiBalanceEvent = receipt.events.find((e) => e.event === "Balance" && e.args.flashToken === DAI.address)
+            expect(daiBalanceEvent, "no DAI Balance event").to.not.undefined
+            console.log(
+                `mUSD swap: ${formatUnits(daiBalanceEvent?.args?.flashLoanAmount)} DAI -> ${formatUnits(
+                    daiBalanceEvent?.args?.swap1Output,
+                )} TUSD`,
+            )
+            const swapRateTusdDai = daiBalanceEvent?.args?.swap1Output
+                .sub(daiBalanceEvent?.args?.flashLoanBalance)
+                .mul(1000)
+                .div(daiBalanceEvent?.args?.swap1Output)
+            console.log(
+                `Curve Y pool swap: ${formatUnits(daiBalanceEvent?.args?.swap1Output)} TUSD -> ${formatUnits(
+                    daiBalanceEvent?.args?.flashLoanBalance,
+                )} DAI (${swapRateTusdDai} bps swap rate)`,
+            )
+            console.log(`DAI shortfall ${formatUnits(daiBalanceEvent?.args?.flashLoanShortfall)} DAI`)
+
+            console.log(`tx used ${receipt.gasUsed} gas`)
+        })
+    })
+    context.only("Add DAI and balance mUSD bAssets on-chain using DyDx flash loans at block 1204000", () => {
+        let basketManager: Contract
+        let mUsdRebalance: MusdV3Rebalance4Pool
+        const scaledVaultBalances: BN[] = []
+        let scaledTargetBalance: BN
+        before(async () => {
+            await network.provider.request({
+                method: "hardhat_reset",
+                params: [
+                    {
+                        forking: {
+                            jsonRpcUrl: process.env.NODE_URL,
+                            blockNumber: 12040000,
+                        },
+                    },
+                ],
+            })
+            accounts = await impersonateAccounts()
+
+            const basketManagerFactory = new ContractFactory(BasketManagerV2Abi, BasketManagerV2Bytecode, accounts.governor)
+            basketManager = basketManagerFactory.attach(basketManagerAddress)
+        })
+        it("should get bAssets to check current weights", async () => {
+            const { bAssets } = await basketManager.getBassets()
+            let scaledTotalVaultBalance = BN.from(0)
+            console.log("mUSD bAsset vault balances:")
+            currentBassets.forEach((token, i) => {
+                const scaledVaultBalance = applyDecimals(bAssets[i].vaultBalance, token.decimals)
+                scaledVaultBalances[i] = scaledVaultBalance
+                scaledTotalVaultBalance = scaledTotalVaultBalance.add(scaledVaultBalance)
+                console.log(` ${token.symbol} ${bAssets[i].vaultBalance}`)
+            })
+            console.log(`Total bAssets ${scaledTotalVaultBalance}`)
+            scaledTargetBalance = scaledTotalVaultBalance.div(currentBassets.length)
+            expect(scaledTargetBalance).to.eq("11719219227978821248691365")
+        })
+        it("Add DAI to the mUSD basket", async () => {
+            const tx = basketManager.addBasset(DAI.address, DAI.integrator, false)
+            await expect(tx).to.emit(basketManager, "BassetAdded").withArgs(DAI.address, DAI.integrator)
+            const { bAssets } = await basketManager.getBassets()
+            expect(bAssets).to.length(5)
+            expect(bAssets[4].maxWeight).to.eq(0)
+        })
+        it("should update max weights to 25.1%", async () => {
+            // 25.1% where 100% = 1e18
+            const maxWeight = simpleToExactAmount(251, 15)
+            const tx = basketManager.setBasketWeights(
+                [sUSD.address, USDC.address, TUSD.address, USDT.address, DAI.address],
+                [maxWeight, maxWeight, 0, maxWeight, maxWeight],
+            )
+            await expect(tx).to.emit(basketManager, "BasketWeightsUpdated")
+            const { bAssets } = await basketManager.getBassets()
+            expect(bAssets).to.length(5)
+            expect(bAssets[0].maxWeight).to.eq(maxWeight)
+            expect(bAssets[1].maxWeight).to.eq(maxWeight)
+            expect(bAssets[2].maxWeight).to.eq(0)
+            expect(bAssets[3].maxWeight).to.eq(maxWeight)
+            expect(bAssets[4].maxWeight).to.eq(maxWeight)
+        })
+        it("Add TUSD liquidity to Aave so we can redeem", async () => {
+            const whale = await impersonate(currentBassets[2].whaleAddress)
+            const inputTokenContract = new ERC20__factory(whale).attach(currentBassets[2].address)
+            await inputTokenContract.transfer("0x3dfd23a6c5e8bbcfc9581d2e864a68feb6a076d3", simpleToExactAmount(11000000, 18))
+        })
+        it("Deploy rebalance contract", async () => {
+            const mUsdUpgradeFactory = new MusdV3Rebalance4Pool__factory(accounts.deployer)
+            mUsdRebalance = await mUsdUpgradeFactory.deploy()
+        })
+        it("whale approves rebalance contract to fund loan shortfalls", async () => {
+            // whale approves upgrade contract to spend their sUSD
+            const sUsdWhaleSigner = await impersonate(sUSD.whaleAddress)
+            const susd = new ERC20__factory(sUsdWhaleSigner).attach(sUSD.address)
+            await susd.approve(mUsdRebalance.address, simpleToExactAmount(12000000, sUSD.decimals))
+
+            // whale approves upgrade contract to spend their USDC
+            const usdcWhaleSigner = await impersonate(USDC.whaleAddress)
+            const usdc = new ERC20__factory(usdcWhaleSigner).attach(USDC.address)
+            await usdc.approve(mUsdRebalance.address, simpleToExactAmount(12000000, USDC.decimals))
+
+            // whale approves upgrade contract to spend their DAI
+            const daiWhaleSigner = await impersonate(DAI.whaleAddress)
+            const dai = new ERC20__factory(daiWhaleSigner).attach(DAI.address)
+            await dai.approve(mUsdRebalance.address, simpleToExactAmount(20000000, DAI.decimals))
+        })
+        it("use USDC and DAI flash loan from DyDx to balance mUSD bAssets", async () => {
+            const tx = mUsdRebalance.rebalance()
+            await expect(tx).to.emit(mUsdRebalance, "Balance")
+            const receipt = await (await tx).wait()
+
+            // Get event for DAI loan
+            // const daiBalanceEvent = receipt.events.find((e) => e.event === "Balance" && e.args.flashToken === DAI.address)
+            // expect(daiBalanceEvent, "no DAI Balance event").to.not.undefined
+            // console.log(
+            //     `mUSD swap: ${formatUnits(daiBalanceEvent?.args?.flashLoanAmount)} DAI -> ${formatUnits(
+            //         daiBalanceEvent?.args?.swap1Output,
+            //     )} TUSD`,
+            // )
+            // const swapRateTusdDai = daiBalanceEvent?.args?.swap1Output
+            //     .sub(daiBalanceEvent?.args?.flashLoanBalance)
+            //     .mul(1000)
+            //     .div(daiBalanceEvent?.args?.swap1Output)
+            // console.log(
+            //     `Curve Y pool swap: ${formatUnits(daiBalanceEvent?.args?.swap1Output)} TUSD -> ${formatUnits(
+            //         daiBalanceEvent?.args?.flashLoanBalance,
+            //     )} DAI (${swapRateTusdDai} bps swap rate)`,
+            // )
+            // console.log(`DAI shortfall ${formatUnits(daiBalanceEvent?.args?.flashLoanShortfall)} DAI`)
+
+            console.log(`tx used ${receipt.gasUsed} gas`)
         })
     })
 })
