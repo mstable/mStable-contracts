@@ -516,7 +516,30 @@ describe("Feeder Admin", () => {
             })
         })
     })
-    context("Collect interest", async () => {
+    context("Collect platform interest", async () => {
+        context("with no platform integration", () => {
+            before(async () => {
+                await runSetup()
+            })
+            it("Should collect zero platform interest", async () => {
+                const { pool } = details
+                const tx = pool.connect(sa.mockInterestValidator.signer).collectPlatformInterest()
+                await expect(tx).to.emit(pool, "MintedMulti").withArgs(pool.address, sa.mockInterestValidator.address, 0, [], [0, 0])
+            })
+            it("Should collect zero platform interest even after minting a mAsset", async () => {
+                const { pool, mAsset } = details
+
+                // increase the test chain by 12 hours + 20 seconds
+                await increaseTime(ONE_HOUR.mul(12).add(20))
+
+                // Mint mAsset to generate some interest in the lending market
+                await feederMachine.approveFeeder(mAsset, pool.address, 1000)
+                await pool.mint(mAsset.address, simpleToExactAmount(500), 0, sa.default.address)
+
+                const tx = pool.connect(sa.mockInterestValidator.signer).collectPlatformInterest()
+                await expect(tx).to.emit(pool, "MintedMulti").withArgs(pool.address, sa.mockInterestValidator.address, 0, [], [0, 0])
+            })
+        })
         context("mocking the interest validator", () => {
             before(async () => {
                 // Deploy feeder pool using lending market

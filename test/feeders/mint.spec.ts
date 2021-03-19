@@ -85,12 +85,12 @@ describe("Feeder - Mint", () => {
         poolContract: FeederPool,
         inputAssets: (MockERC20 | string)[],
         inputAssetQuantities: (BN | number | string)[],
+        outputExpected: BN | number | string = undefined,
         minOutputQuantity: BN | number | string = 0,
-        approval = true,
+        quantitiesAreExact = false,
         sender: Signer = sa.default.signer,
         recipient: string = sa.default.address,
-        outputExpected: BN | number | string = undefined,
-        quantitiesAreExact = false,
+        approval = true,
     ): Promise<void> => {
         const pool = poolContract.connect(sender)
         if (approval) {
@@ -229,7 +229,7 @@ describe("Feeder - Mint", () => {
         inputAssetQuantities: Array<BN | number>,
         outputQuantity: BN | number | string,
         minOutputQuantity: BN | number | string = 0,
-        quantitiesAreExact = false,
+        quantitiesAreExact = true,
         recipient: string = sa.default.address,
         sender: Account = sa.default,
     ): Promise<void> => {
@@ -501,12 +501,11 @@ describe("Feeder - Mint", () => {
                         details.pool,
                         details.bAssets,
                         [1, 1],
+                        2,
                         0,
-                        true,
+                        false,
                         sa.default.signer,
                         ZERO_ADDRESS,
-                        2,
-                        false,
                     )
                 })
                 context("with incorrect bAsset array", async () => {
@@ -532,43 +531,13 @@ describe("Feeder - Mint", () => {
                 })
                 context("when all quantities are zero", () => {
                     it("should fail to mint fAsset and mAsset", async () => {
-                        await assertFailedMintMulti(
-                            "Zero mAsset quantity",
-                            details.pool,
-                            details.bAssets,
-                            [0, 0],
-                            0,
-                            true,
-                            sa.default.signer,
-                            sa.default.address,
-                            0,
-                        )
+                        await assertFailedMintMulti("Zero mAsset quantity", details.pool, details.bAssets, [0, 0], 0)
                     })
                     it("should fail to mint feeder asset", async () => {
-                        await assertFailedMintMulti(
-                            "Zero mAsset quantity",
-                            details.pool,
-                            [details.fAsset],
-                            [0],
-                            0,
-                            true,
-                            sa.default.signer,
-                            sa.default.address,
-                            0,
-                        )
+                        await assertFailedMintMulti("Zero mAsset quantity", details.pool, [details.fAsset], [0], 0)
                     })
                     it("should fail to mint mStable asset", async () => {
-                        await assertFailedMintMulti(
-                            "Zero mAsset quantity",
-                            details.pool,
-                            [details.mAsset],
-                            [0],
-                            0,
-                            true,
-                            sa.default.signer,
-                            sa.default.address,
-                            0,
-                        )
+                        await assertFailedMintMulti("Zero mAsset quantity", details.pool, [details.mAsset], [0], 0)
                     })
                 })
                 it("should fail to multi mint if slippage just too big", async () => {
@@ -581,30 +550,9 @@ describe("Feeder - Mint", () => {
                         pool,
                         [bAsset.address],
                         ["100000000000000000000"], // 100
+                        "99896928139875953237", // 100
                         "100000000000000000001", // just over 100
                         true,
-                        sender.signer,
-                        sender.address,
-                        "99896928139875953237", // 100
-                        true,
-                    )
-                })
-                it("should fail if sender doesn't have balance", async () => {
-                    const { bAssets, pool } = details
-                    const bAsset = bAssets[0]
-                    const sender = sa.dummy2
-                    expect(await bAsset.balanceOf(sender.address)).eq(0)
-                    await assertFailedMintMulti(
-                        "ERC20: transfer amount exceeds balance",
-                        pool,
-                        bAssets,
-                        [100, 100],
-                        0,
-                        false,
-                        sender.signer,
-                        sender.address,
-                        200,
-                        false,
                     )
                 })
                 it("should fail when sender doesn't have enough balance", async () => {
@@ -617,11 +565,11 @@ describe("Feeder - Mint", () => {
                         pool,
                         bAssets,
                         [100, 100],
+                        200,
                         0,
                         true,
                         sender.signer,
                         sender.address,
-                        200,
                         false,
                     )
                 })
@@ -636,11 +584,11 @@ describe("Feeder - Mint", () => {
                         pool,
                         bAssets,
                         [100, 100],
+                        200,
                         0,
                         false,
                         sender.signer,
                         sender.address,
-                        200,
                         false,
                     )
                 })
@@ -655,11 +603,11 @@ describe("Feeder - Mint", () => {
                         pool,
                         bAssets,
                         [100, 100],
+                        200,
                         0,
                         false,
                         sender.signer,
                         sender.address,
-                        200,
                         false,
                     )
                 })
@@ -686,11 +634,8 @@ describe("Feeder - Mint", () => {
                             details.pool,
                             [details.fAsset],
                             [simpleToExactAmount(1)],
-                            0,
-                            true,
-                            sa.default.signer,
-                            sa.default.address,
                             "999987654550171574",
+                            0,
                             true,
                         )
                     })
@@ -700,11 +645,8 @@ describe("Feeder - Mint", () => {
                             details.pool,
                             [details.mAsset],
                             [simpleToExactAmount(1)],
-                            0,
-                            true,
-                            sa.default.signer,
-                            sa.default.address,
                             "999987654550171574",
+                            0,
                             true,
                         )
                     })
@@ -716,10 +658,10 @@ describe("Feeder - Mint", () => {
                         await runSetup()
                     })
                     it("should multi mint a single mStable asset", async () => {
-                        await assertMintMulti(details, [details.mAsset], [simpleToExactAmount(1)], "999987654550171574", 0, true)
+                        await assertMintMulti(details, [details.mAsset], [simpleToExactAmount(1)], "999987654550171574", 0)
                     })
                     it("should multi mint a single feeder asset", async () => {
-                        await assertMintMulti(details, [details.fAsset], [simpleToExactAmount(1)], "999987654550171574", 0, true)
+                        await assertMintMulti(details, [details.fAsset], [simpleToExactAmount(1)], "999987654550171574", 0)
                     })
                 })
                 context("when a main pool asset has broken below peg", () => {
@@ -739,14 +681,59 @@ describe("Feeder - Mint", () => {
                         expect(newBasset.personal.status).to.eq(BassetStatus.Normal)
                     })
                     it("should multi mint a single mStable asset", async () => {
-                        await assertMintMulti(details, [details.mAsset], [simpleToExactAmount(1)], "999987654550171574", 0, true)
+                        await assertMintMulti(details, [details.mAsset], [simpleToExactAmount(1)], "999987654550171574", 0)
                     })
                     it("should multi mint a single feeder asset", async () => {
-                        await assertMintMulti(details, [details.fAsset], [simpleToExactAmount(1)], "1000012345449828426", 0, true)
+                        await assertMintMulti(details, [details.fAsset], [simpleToExactAmount(1)], "1000012345449828426", 0)
                     })
                     it("should multi mint mStable and feeder assets", async () => {
-                        await assertMintMulti(details, details.bAssets, [1, 1], 2)
+                        await assertMintMulti(details, details.bAssets, [1, 1], 2, 0, false)
                     })
+                })
+            })
+        })
+        context("when the basket is 5% mAsset, 95% fAsset", () => {
+            beforeEach(async () => {
+                await runSetup(false, false, [50, 950])
+            })
+            it("should multi mint the smallest unit of fAsset", async () => {
+                await assertMintMulti(details, [details.mAsset], [1], 1, 1)
+            })
+            it("should multi mint fAsset to just under max weight", async () => {
+                await assertMintMulti(details, [details.fAsset], [simpleToExactAmount(650)], "614493814881213241322")
+            })
+            it("should fail multi mint fAsset over max weight", async () => {
+                await assertFailedMintMulti(
+                    "Exceeds weight limits",
+                    details.pool,
+                    [details.fAsset],
+                    [simpleToExactAmount(1000)],
+                    undefined,
+                    0,
+                    true,
+                )
+            })
+            context("fAsset is overweight", () => {
+                beforeEach(async () => {
+                    // set new weight limits to 10% and 90% so the fAsset is overweight
+                    await details.pool.connect(sa.governor.signer).setWeightLimits(simpleToExactAmount(10, 16), simpleToExactAmount(90, 16))
+                })
+                it("should fail to multi mint the overweight fAsset", async () => {
+                    await assertFailedMintMulti("Exceeds weight limits", details.pool, [details.fAsset], [1], undefined, 0, true)
+                })
+                it("should fail to multi mint mAsset if fAsset is still overweight", async () => {
+                    await assertFailedMintMulti(
+                        "Exceeds weight limits",
+                        details.pool,
+                        [details.fAsset],
+                        [simpleToExactAmount(1)],
+                        undefined,
+                        0,
+                        true,
+                    )
+                })
+                it("should mint mAsset so fAsset is underweight", async () => {
+                    await assertMintMulti(details, [details.mAsset], [simpleToExactAmount(200)], "216835953177287466623")
                 })
             })
         })
