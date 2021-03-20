@@ -193,11 +193,13 @@ contract MusdV3Rebalance4Pool is DyDxFlashLoan {
 
             // Swap TUSD for flash token using Curve Y pool
             uint256 minOutput = tusdOutput * 99 / 100;
+            uint8 outputIndex = 0;  // DAI
             if (flashToken == USDC) {
+                outputIndex = 1;
                 // Converting from TUSD with 18 decimals to USDC with 6 decimals
                 minOutput = minOutput / 1e12;
             }
-            curveYpool.exchange_underlying(3, 1, tusdOutput, minOutput);
+            curveYpool.exchange_underlying(3, outputIndex, tusdOutput, minOutput);
         }
 
         // If swapping flash token into mUSD for USDT
@@ -211,14 +213,16 @@ contract MusdV3Rebalance4Pool is DyDxFlashLoan {
 
             // Swap USDT for flash token using Curve 3pool
             uint256 minOutput = usdtOutput * 99 / 100;
+            uint8 outputIndex = 1;  // USDC
             if (flashToken == DAI) {
+                outputIndex = 0;
                 // Converting from USDT with 6 decimals to DAI with 18 decimals
-                minOutput = minOutput * 1e12;
+                uint256 minOutput = minOutput * 95 / 100 * 1e12;
             }
-            curve3pool.exchange(2, 1, usdtOutput, minOutput);
+            curve3pool.exchange(2, outputIndex, usdtOutput, minOutput);
         }
 
-        fundLoanShortfall(USDC, flashAmount, funderAccount);
+        fundLoanShortfall(flashToken, flashAmount, funderAccount);
     }
 
     function fundLoanShortfall(address flashToken, uint256 flashAmount, address funderAccount) internal {
