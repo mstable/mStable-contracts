@@ -43,6 +43,7 @@ const basketManagerAddress = "0x66126B4aA2a1C07536Ef8E5e8bD4EfDA1FdEA96D"
 const nexusAddress = "0xAFcE80b19A8cE13DEc0739a1aaB7A028d6845Eb3"
 const delayedProxyAdminAddress = "0x5C8eb57b44C1c6391fC7a8A0cf44d26896f92386"
 const governorAddress = "0xF6FF1F7FCEB2cE6d26687EaaB5988b445d0b94a2"
+const aaveCoreV1Address = "0x3dfd23A6c5E8BbcFc9581d2E864a68feb6a076d3"
 
 const forkBlockNumber = 12043106
 
@@ -89,7 +90,7 @@ const TUSD: Token = {
     integrator: "0xf617346A0FB6320e9E578E0C9B2A4588283D9d39", // Aave vault
     decimals: 18,
     vaultBalance: BN.from("20372453144590237158484978"),
-    whaleAddress: "0xF977814e90dA44bFA03b6295A0616a897441aceC", // Binance
+    whaleAddress: "0x3f5CE5FBFe3E9af3971dD833D26bA9b5C936f0bE", // Binance
 }
 const USDT: Token = {
     symbol: "USDT",
@@ -326,8 +327,7 @@ const validateFlashLoan = async (
     basketManager: Contract,
     mUsdRebalance: MusdV3Rebalance4Pool,
     scaledTargetBalance: BN,
-    tusdBalance: BN,
-    usdtBalance: BN,
+    overweightTokenSplits: BN[], // TUSD and USDC proportions in basis points (bps)
 ): Promise<void> => {
     // Get flash token balance in mUSD to 18 decimal places
     const flashTokenInMusd = await basketManager.getBasset(flashToken.address)
@@ -339,21 +339,12 @@ const validateFlashLoan = async (
         } vault balance`,
     )
 
-    // TUSD 18 to USDC 6 needs to be converted from 18 to 6 decimals. Div by 10 ^ (18 - 6) = 10 ^ 12
-    // TUSD 18 to DAI 18 does not need to be converted. Dev by 10 ^ 18 - 18 = 10 ^ 0 = 1
-    // USDT 6 to USDC 6 does not need to be converted. 10 ^ (-6 + 6) = 10 ^ 0 = 1
-    // USDT 6 to DAI 18 does need to be converted. 10 ^ (-6 + 18) = 10 ^ 12
-    const convertTusd2FlashLoan = BN.from(10).pow(18 - flashToken.decimals)
-    const convertUsdt2FlashLoan = BN.from(10).pow(-6 + flashToken.decimals)
-    const swapInputs = [
-        tusdBalance.div(convertTusd2FlashLoan).div(3),
-        usdtBalance.sub(scaledTargetBalance.div(1e12)).mul(convertUsdt2FlashLoan).div(3),
-    ]
+    const swapInputs = [flashLoanAmount.mul(overweightTokenSplits[0]).div(10000), flashLoanAmount.mul(overweightTokenSplits[1]).div(10000)]
     console.log(
         `Swap inputs ${formatUnits(swapInputs[0], flashToken.decimals)}, ${formatUnits(
             swapInputs[1],
             flashToken.decimals,
-        )}, flash loan ${formatUnits(swapInputs[0].add(swapInputs[1]), flashToken.decimals)}`,
+        )}, flash loan ${formatUnits(flashLoanAmount, flashToken.decimals)}`,
     )
 
     /**
@@ -364,7 +355,7 @@ const validateFlashLoan = async (
      Swap USDT for flash token using Curve 3pool
      Fund the DyDx flash loan shortfall
     */
-    const tx = mUsdRebalance.swapOutTusdAndUsdt(flashToken.address, flashLoanAmount, DAI.whaleAddress, swapInputs)
+    const tx = mUsdRebalance.swapOutTusdAndUsdt(flashToken.address, flashLoanAmount, flashToken.whaleAddress, swapInputs)
     await expect(tx).to.emit(mUsdRebalance, "FlashLoan")
     const resolvedTx = await tx
     const receipt = await resolvedTx.wait()
@@ -615,7 +606,7 @@ describe("mUSD V2.0 to V3.0", () => {
         it("should swap sUSD for TUSD to balance TUSD", async () => {
             const whale = await impersonate(currentBassets[2].whaleAddress)
             const inputTokenContract = new ERC20__factory(whale).attach(currentBassets[2].address)
-            await inputTokenContract.transfer("0x3dfd23a6c5e8bbcfc9581d2e864a68feb6a076d3", simpleToExactAmount(15000000, 18))
+            await inputTokenContract.transfer(aaveCoreV1Address, simpleToExactAmount(15000000, 18))
             await balanceBasset(mUsdV2, scaledVaultBalances, scaledTargetBalance, currentBassets[0], currentBassets[2])
         })
         it("should swap sUSD for USDT to balance sUSD", async () => {
@@ -874,8 +865,7 @@ describe("mUSD V2.0 to V3.0", () => {
         let basketManager: Contract
         let mUsdRebalancer: MusdV3Rebalance4Pool
         let scaledTargetBalance: BN
-        let tusdInMusd: BN
-        let usdtInMusd: BN
+        let overweightTokenSplits: BN[]
         before(async () => {
             await network.provider.request({
                 method: "hardhat_reset",
@@ -883,7 +873,7 @@ describe("mUSD V2.0 to V3.0", () => {
                     {
                         forking: {
                             jsonRpcUrl: process.env.NODE_URL,
-                            blockNumber: 12078800,
+                            blockNumber: 12081810,
                         },
                     },
                 ],
@@ -905,8 +895,16 @@ describe("mUSD V2.0 to V3.0", () => {
             scaledTargetBalance = totalBassets.div(4)
             console.log(`Target bAsset balance ${formatUnits(scaledTargetBalance)} = ${totalBassets} / 4. ${musdTotal} mUSD`)
 
-            tusdInMusd = (await basketManager.getBasset(TUSD.address)).vaultBalance
-            usdtInMusd = (await basketManager.getBasset(USDT.address)).vaultBalance
+            // Calculate this the splits between the overweight tokens TUSD and USDC in basis points
+            const scaledOverweightTusd = (await basketManager.getBasset(TUSD.address)).vaultBalance
+            const usdtInMusd = (await basketManager.getBasset(USDT.address)).vaultBalance
+            const scaledOverweightUsdt = usdtInMusd.mul(1e12).sub(scaledTargetBalance)
+            const scaledOverWeightTotal = scaledOverweightTusd.add(scaledOverweightUsdt)
+            overweightTokenSplits = [
+                scaledOverweightTusd.mul(10000).div(scaledOverWeightTotal),
+                scaledOverweightUsdt.mul(10000).div(scaledOverWeightTotal),
+            ]
+            console.log(`TUSD ${overweightTokenSplits[0]} bps, USDT ${overweightTokenSplits[1]} bps of the overweight tokens`)
         })
         it("Add DAI to the mUSD basket", async () => {
             const tx = basketManager.addBasset(DAI.address, DAI.integrator, false)
@@ -951,30 +949,33 @@ describe("mUSD V2.0 to V3.0", () => {
             const dai = new ERC20__factory(daiWhaleSigner).attach(DAI.address)
             await dai.approve(mUsdRebalancer.address, simpleToExactAmount(3000000, DAI.decimals))
         })
+        it("Add TUSD liquidity to Aave Core V1 for testing", async () => {
+            const whale = await impersonate(TUSD.whaleAddress)
+            const inputTokenContract = new ERC20__factory(whale).attach(TUSD.address)
+            await inputTokenContract.transfer(aaveCoreV1Address, simpleToExactAmount(13000000, 18))
+            const whale2 = await impersonate("0xf977814e90da44bfa03b6295a0616a897441acec") // Binance 8
+            const inputTokenContract2 = new ERC20__factory(whale2).attach(TUSD.address)
+            await inputTokenContract2.transfer(aaveCoreV1Address, simpleToExactAmount(9000000, 18))
+        })
         it("use DAI flash loan from DyDx to balance mUSD bAssets", async () => {
-            await validateFlashLoan(
-                DAI,
-                basketManager,
-                mUsdRebalancer,
-                scaledTargetBalance,
-                tusdInMusd.mul(30).div(100),
-                usdtInMusd.mul(100).div(100),
-            )
+            await validateFlashLoan(DAI, basketManager, mUsdRebalancer, scaledTargetBalance, overweightTokenSplits)
         })
         it("use USDC flash loan from DyDx to balance mUSD bAssets", async () => {
-            await validateFlashLoan(
-                USDC,
-                basketManager,
-                mUsdRebalancer,
-                scaledTargetBalance,
-                tusdInMusd.mul(30).div(100),
-                usdtInMusd.mul(100).div(100),
-            )
+            await validateFlashLoan(USDC, basketManager, mUsdRebalancer, scaledTargetBalance, overweightTokenSplits)
         })
         it("use sUSD to balance TUSD and USDT", async () => {
-            // TUSD 18 to DAI 18 does not need to be converted.
-            // USDT 6 to DAI 18 does need to be converted.
-            const swapInputs = [tusdInMusd.mul(10).div(300), usdtInMusd.mul(50).mul(1e12).sub(scaledTargetBalance).div(300)]
+            // Get sUSD balance in mUSD
+            const susdInMusd = await basketManager.getBasset(sUSD.address)
+            // flash loan amount = target balance - current balance
+            // TODO taking 99% of the loan amount to avoid a "Not enough liquidity" error
+            const loanAmount = scaledTargetBalance.sub(susdInMusd.vaultBalance).mul(990).div(1000)
+            console.log(
+                `sUSD ${formatUnits(loanAmount)} under weight = ${formatUnits(scaledTargetBalance)} target - ${formatUnits(
+                    susdInMusd.vaultBalance,
+                )} vault balance`,
+            )
+
+            const swapInputs = [loanAmount.mul(overweightTokenSplits[0]).div(10000), loanAmount.mul(overweightTokenSplits[1]).div(10000)]
             console.log(
                 `Swap inputs ${formatUnits(swapInputs[0], sUSD.decimals)}, ${formatUnits(
                     swapInputs[1],

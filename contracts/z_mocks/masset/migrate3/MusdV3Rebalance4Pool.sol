@@ -185,7 +185,7 @@ contract MusdV3Rebalance4Pool is DyDxFlashLoan {
         // If swapping flash token into mUSD for TUSD
         if (swapInputs[0] > 0) {
             // Swap flash token for TUSD using mUSD
-            console.log("About to mUSD swap %s flash tokens USDT", swapInputs[0]);
+            console.log("About to mUSD swap %s flash tokens for TUSD", swapInputs[0]);
             uint256 tusdOutput = mUsdV2.swap(flashToken, TUSD, swapInputs[0], address(this));
             console.log("tusdOutput %s", tusdOutput);
 
@@ -202,14 +202,14 @@ contract MusdV3Rebalance4Pool is DyDxFlashLoan {
                 minOutput = minOutput / 1e12;
             }
             console.log("About to swap on Curve Y pool %s TUSD (3) for flash loan (%s)", tusdOutput, outputIndex);
-            curveYpool.exchange_underlying(3, outputIndex, tusdOutput, 0);
+            curveYpool.exchange_underlying(3, outputIndex, tusdOutput, minOutput);
             console.log("Curve Y pool swap");
         }
 
         // If swapping flash token into mUSD for USDT
         if (swapInputs[1] > 0) {
             // Swap flash token for USDT using mUSD
-            console.log("About to mUSD swap %s flash tokens USDT", swapInputs[1]);
+            console.log("About to mUSD swap %s flash tokens for USDT", swapInputs[1]);
             uint256 usdtOutput = mUsdV2.swap(flashToken, USDT, swapInputs[1], address(this));
             console.log("usdtOutput %s", usdtOutput);
 
@@ -282,6 +282,7 @@ contract MusdV3Rebalance4Pool is DyDxFlashLoan {
 
         // Swap sUSD for bAsset using mUSD to balance the bAsset
         for (uint256 i = 0; i < len; i++) {
+            console.log("mUSD swap %s sUSD for %s", amounts[i], bAssets[i]);
             mUsdV2.swap(sUSD, bAssets[i], amounts[i], address(this));
         }
 
