@@ -904,7 +904,7 @@ describe("mUSD V2.0 to V3.0", () => {
                     {
                         forking: {
                             jsonRpcUrl: process.env.NODE_URL,
-                            blockNumber: 12088110,
+                            blockNumber: 12088204,
                         },
                     },
                 ],
@@ -936,8 +936,7 @@ describe("mUSD V2.0 to V3.0", () => {
                 scaledOverweightUsdt.mul(10000).div(scaledOverWeightTotal),
             ]
             console.log(`TUSD ${overweightTokenSplits[0]} bps, USDT ${overweightTokenSplits[1]} bps of the overweight tokens`)
-        })
-        it("Deploy rebalance contract", async () => {
+
             const signer = await impersonate(daiWhaleAddress)
             const mUsdRebalancerFactory = new MusdV3Rebalance4Pool__factory(signer)
             mUsdRebalancer = await mUsdRebalancerFactory.attach(rebalancerAddress)
@@ -953,11 +952,11 @@ describe("mUSD V2.0 to V3.0", () => {
             const dai = new ERC20__factory(daiWhaleSigner).attach(DAI.address)
             await dai.approve(mUsdRebalancer.address, simpleToExactAmount(3000000, DAI.decimals))
         })
-        it("use USDC flash loan from DyDx to balance mUSD bAssets", async () => {
+        it.skip("use USDC flash loan from DyDx to balance mUSD bAssets", async () => {
             await validateFlashLoan(USDC, basketManager, mUsdRebalancer, scaledTargetBalance, overweightTokenSplits)
         })
-        context.skip("use DAI flash loan from DyDx to balance mUSD bAssets", () => {
-            it("Add TUSD liquidity to Aave Core V1 for testing", async () => {
+        context("use DAI flash loan from DyDx to balance mUSD bAssets", () => {
+            it.skip("Add TUSD liquidity to Aave Core V1 for testing", async () => {
                 const whale = await impersonate(TUSD.whaleAddress)
                 const inputTokenContract = new ERC20__factory(whale).attach(TUSD.address)
                 await inputTokenContract.transfer(aaveCoreV1Address, simpleToExactAmount(13000000, 18))
@@ -966,9 +965,9 @@ describe("mUSD V2.0 to V3.0", () => {
                 await inputTokenContract2.transfer(aaveCoreV1Address, simpleToExactAmount(9000000, 18))
             })
             it("first DAI flash loan", async () => {
-                await validateFlashLoan(DAI, basketManager, mUsdRebalancer, scaledTargetBalance, overweightTokenSplits, 52)
+                await validateFlashLoan(DAI, basketManager, mUsdRebalancer, scaledTargetBalance, overweightTokenSplits, 100)
             })
-            it("second DAI flash loan", async () => {
+            it.skip("second DAI flash loan", async () => {
                 await validateFlashLoan(DAI, basketManager, mUsdRebalancer, scaledTargetBalance, overweightTokenSplits, 100)
             })
         })
