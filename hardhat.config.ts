@@ -20,9 +20,13 @@ import "tsconfig-paths/register"
 
 export const hardhatConfig = {
     networks: {
-        hardhat: { allowUnlimitedContractSize: true, blockGasLimit: 9000000 },
+        hardhat: {
+            allowUnlimitedContractSize: true,
+        },
         localhost: { url: "http://localhost:8545" },
-        fork: { url: "http://localhost:7545" },
+        fork: {
+            url: "http://localhost:7545",
+        },
         // export the NODE_URL environment variable to use remote nodes like Alchemy or Infura. eg
         // export NODE_URL=https://eth-mainnet.alchemyapi.io/v2/yourApiKey
         env: { url: process.env.NODE_URL || "" },

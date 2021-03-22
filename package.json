@@ -20,6 +20,7 @@
     "task": "yarn compile && yarn hardhat --config tasks.config.ts",
     "test": "yarn hardhat test",
     "test:long": "LONG_TESTS=true yarn hardhat test",
+    "test-fork": "yarn hardhat --config hardhat-fork.config.ts test ./test-fork/**/*.spec.ts",
     "test-file": "yarn hardhat test",
     "test-file:long": "LONG_TESTS=true yarn hardhat test",
     "compile": "yarn hardhat compile --force",

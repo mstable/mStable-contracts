@@ -45,6 +45,7 @@ describe("AaveIntegration", async () => {
             nexus.address,
             mAsset.address,
             integrationDetails.aavePlatformAddress,
+            sa.mockSavingsManager.address,
         )
         await Promise.all(
             integrationDetails.aTokens.map((a) => aaveIntegration.connect(sa.governor.signer).setPTokenAddress(a.bAsset, a.aToken)),
@@ -98,7 +99,12 @@ describe("AaveIntegration", async () => {
 
         it("should fail when mAsset address invalid", async () => {
             await expect(
-                new AaveV2Integration__factory(sa.default.signer).deploy(nexus.address, ZERO_ADDRESS, sa.other.address),
+                new AaveV2Integration__factory(sa.default.signer).deploy(
+                    nexus.address,
+                    ZERO_ADDRESS,
+                    sa.other.address,
+                    sa.mockSavingsManager.address,
+                ),
             ).to.be.revertedWith("Invalid mAsset address")
         })
 
@@ -115,7 +121,12 @@ describe("AaveIntegration", async () => {
 
         it("should fail if passed incorrect data", async () => {
             await expect(
-                new AaveV2Integration__factory(sa.default.signer).deploy(nexus.address, mAsset.address, ZERO_ADDRESS),
+                new AaveV2Integration__factory(sa.default.signer).deploy(
+                    nexus.address,
+                    mAsset.address,
+                    ZERO_ADDRESS,
+                    sa.mockSavingsManager.address,
+                ),
             ).to.be.revertedWith("Invalid platform address")
         })
     })
@@ -268,7 +279,7 @@ describe("AaveIntegration", async () => {
 
             // Step 1. call deposit
             await expect(aaveIntegration.connect(sa.dummy1.signer).deposit(bAsset.address, amount.toString(), false)).to.be.revertedWith(
-                "Only the mAsset can execute",
+                "Only mAsset or basketManager can execute",
             )
         })
         it("should fail if the bAsset is not supported", async () => {
