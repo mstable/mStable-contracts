@@ -4,7 +4,6 @@ pragma solidity 0.8.0;
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { ITether } from "../../../shared/ITether.sol";
 import { IMassetV2 } from "./IMassetV2.sol";
 
 /**
@@ -25,7 +24,7 @@ contract MusdV3SusdBalancer is Ownable {
     
     /**
     * @notice balances mUSD bAssets like TUSD and USDT using borrowed sUSD.
-    * Assumes the sUSD funding account has already approved a transfer to this contract.
+    *         Assumes the sUSD funding account has already approved a transfer to this contract.
     * @param bAssets address of the tokens the sUSD will be swapped for in the mUSD basket. eg TUSD and USDT.
     * @param amounts sUSD input quantities for each mUSD swap.
     * @param funderAccount account that the sUSD will be borrowed from and swap output returned to.
@@ -40,10 +39,10 @@ contract MusdV3SusdBalancer is Ownable {
         }
 
         // transfer sUSD to this contracts
-        sUSD.transferFrom(funderAccount, address(this), sUsdTotal);
+        sUSD.safeTransferFrom(funderAccount, address(this), sUsdTotal);
 
         // Approve mUSD contract to transfer sUSD from this contract
-        IERC20(sUSD).approve(address(mUsdV2), sUsdTotal);
+        IERC20(sUSD).safeApprove(address(mUsdV2), sUsdTotal);
 
         uint256 output;
         for (uint256 i = 0; i < len; i++) {
@@ -51,13 +50,7 @@ contract MusdV3SusdBalancer is Ownable {
             output = mUsdV2.swap(address(sUSD), bAssets[i], amounts[i], address(this));
 
             // Send the swap output back to the funder account
-            if (bAssets[i] == 0xdAC17F958D2ee523a2206206994597C13D831ec7) {
-                // If USD Tether (USDT) which does not return bool
-                ITether(bAssets[i]).transfer(funderAccount, output);
-            } else {
-                // Standard ERC20 that does return a bool
-                IERC20(bAssets[i]).transfer(funderAccount, output);
-            }
+            IERC20(bAssets[i]).safeTransfer(funderAccount, output);
         }
     }
 }

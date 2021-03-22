@@ -8,7 +8,6 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-import { ITether } from "../../../shared/ITether.sol";
 import { IMassetV2 } from "./IMassetV2.sol";
 import { DyDxFlashLoan } from "./dydx/DyDxFlashLoan.sol";
 import { ICurve } from "../../../interfaces/ICurve.sol";
@@ -156,7 +155,7 @@ contract MusdV3Rebalance4Pool is DyDxFlashLoan, Ownable {
         // Approve mUSD contract to transfer flash token from this contract
         console.log("About to approve mUSD contract to transfer %s flash tokens >= %s %s", flashAmount, swapInputs[0], swapInputs[1]);
         require(flashAmount >= swapInputs[0] + swapInputs[1], "flash loan not >= swap inputs");
-        IERC20(flashToken).approve(address(mUsdV2), flashAmount);
+        IERC20(flashToken).safeApprove(address(mUsdV2), flashAmount);
 
         // If swapping flash token into mUSD for TUSD
         if (swapInputs[0] > 0) {
@@ -167,7 +166,7 @@ contract MusdV3Rebalance4Pool is DyDxFlashLoan, Ownable {
 
             // Convert TUSD back to flash token to repay DyDx flash loan
             // Approve Curve Y pool to transfer all TUSD from this contract
-            IERC20(TUSD).approve(address(curveYpool), tusdOutput);
+            IERC20(TUSD).safeApprove(address(curveYpool), tusdOutput);
 
             // Swap TUSD for flash token using Curve Y pool
             uint256 minOutput = tusdOutput * 99 / 100;
@@ -191,7 +190,7 @@ contract MusdV3Rebalance4Pool is DyDxFlashLoan, Ownable {
 
             // Convert USDT for flash token using Curve 3pool
             // Approve Curve 3pool to transfer all USDT from this contract
-            ITether(USDT).approve(address(curve3pool), usdtOutput);
+            IERC20(USDT).safeApprove(address(curve3pool), usdtOutput);
 
             // Swap USDT for flash token using Curve 3pool
             uint256 minOutput = usdtOutput * 99 / 100;
@@ -242,7 +241,7 @@ contract MusdV3Rebalance4Pool is DyDxFlashLoan, Ownable {
             if (flashToken == USDC) maxShortfall = 30000e6; // 6 decimal places
             require(flashLoanShortfall <= maxShortfall, "flashLoanShortfall too big");
 
-            IERC20(flashToken).transferFrom(funderAccount, address(this), flashLoanShortfall);
+            IERC20(flashToken).safeTransferFrom(funderAccount, address(this), flashLoanShortfall);
         }
         
         emit FlashLoan(flashToken, flashAmount, funderAccount, flashLoanShortfall);
