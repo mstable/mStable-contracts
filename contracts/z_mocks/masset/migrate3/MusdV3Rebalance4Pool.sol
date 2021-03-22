@@ -225,8 +225,8 @@ contract MusdV3Rebalance4Pool is DyDxFlashLoan, Ownable {
         uint256 flashLoanShortfall;
         if (flashAmount + 10 > flashTokenBalance) {
             // Need to add 2 wei to cover the cost of the DyDx flash loan.
-            // using 10 wei just to be safe.
-            flashLoanShortfall = flashAmount + 10 - flashTokenBalance;
+            // using 1000000 wei just to be safe.
+            flashLoanShortfall = flashAmount + 1000000 - flashTokenBalance;
 
             // Transfer flash loan shortfall to this contract from funded account
             uint256 funderAllowance = IERC20(flashToken).allowance(funderAccount, address(this));
@@ -235,6 +235,13 @@ contract MusdV3Rebalance4Pool is DyDxFlashLoan, Ownable {
             uint256 funderBalance = IERC20(flashToken).balanceOf(funderAccount);
             require(funderBalance > flashLoanShortfall, "funder balance < shortfall");
             console.log("flashLoanShortfall %s", flashLoanShortfall);
+
+            // Loan shortfall can not be more than 30k
+            uint256 maxShortfall;
+            if (flashToken == DAI) maxShortfall = 30000e18; // 18 decimal places
+            if (flashToken == USDC) maxShortfall = 30000e6; // 6 decimal places
+            require(flashLoanShortfall <= maxShortfall, "flashLoanShortfall too big");
+
             IERC20(flashToken).transferFrom(funderAccount, address(this), flashLoanShortfall);
         }
         

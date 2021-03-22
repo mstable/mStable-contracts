@@ -931,24 +931,24 @@ describe("mUSD V2.0 to V3.0", () => {
             const dai = new ERC20__factory(daiWhaleSigner).attach(DAI.address)
             await dai.approve(mUsdRebalancer.address, simpleToExactAmount(3000000, DAI.decimals))
         })
-        it("Add TUSD liquidity to Aave Core V1 for testing", async () => {
-            const whale = await impersonate(TUSD.whaleAddress)
-            const inputTokenContract = new ERC20__factory(whale).attach(TUSD.address)
-            await inputTokenContract.transfer(aaveCoreV1Address, simpleToExactAmount(13000000, 18))
-            const whale2 = await impersonate("0xf977814e90da44bfa03b6295a0616a897441acec") // Binance 8
-            const inputTokenContract2 = new ERC20__factory(whale2).attach(TUSD.address)
-            await inputTokenContract2.transfer(aaveCoreV1Address, simpleToExactAmount(9000000, 18))
+        it("use USDC flash loan from DyDx to balance mUSD bAssets", async () => {
+            await validateFlashLoan(USDC, basketManager, mUsdRebalancer, scaledTargetBalance, overweightTokenSplits)
         })
         context("use DAI flash loan from DyDx to balance mUSD bAssets", () => {
             it("first DAI flash loan", async () => {
                 await validateFlashLoan(DAI, basketManager, mUsdRebalancer, scaledTargetBalance, overweightTokenSplits, 52)
             })
+            it("Add TUSD liquidity to Aave Core V1 for testing", async () => {
+                const whale = await impersonate(TUSD.whaleAddress)
+                const inputTokenContract = new ERC20__factory(whale).attach(TUSD.address)
+                await inputTokenContract.transfer(aaveCoreV1Address, simpleToExactAmount(13000000, 18))
+                const whale2 = await impersonate("0xf977814e90da44bfa03b6295a0616a897441acec") // Binance 8
+                const inputTokenContract2 = new ERC20__factory(whale2).attach(TUSD.address)
+                await inputTokenContract2.transfer(aaveCoreV1Address, simpleToExactAmount(9000000, 18))
+            })
             it("second DAI flash loan", async () => {
                 await validateFlashLoan(DAI, basketManager, mUsdRebalancer, scaledTargetBalance, overweightTokenSplits, 100)
             })
-        })
-        it("use USDC flash loan from DyDx to balance mUSD bAssets", async () => {
-            await validateFlashLoan(USDC, basketManager, mUsdRebalancer, scaledTargetBalance, overweightTokenSplits)
         })
         context("Balance sUSD", () => {
             it("Deploy sUSD balancer contract", async () => {
@@ -980,10 +980,10 @@ describe("mUSD V2.0 to V3.0", () => {
                     loanAmount.mul(overweightTokenSplits[1]).div(10000),
                 ]
                 console.log(
-                    `Swap inputs ${formatUnits(swapInputs[0], sUSD.decimals)}, ${formatUnits(
-                        swapInputs[1],
+                    `Borrow ${formatUnits(swapInputs[0].add(swapInputs[1]), sUSD.decimals)} sUSD to mUSD swap ${formatUnits(
+                        swapInputs[0],
                         sUSD.decimals,
-                    )}, borrow ${formatUnits(swapInputs[0].add(swapInputs[1]), sUSD.decimals)} sUSD`,
+                    )} sUSD->TUSD and ${formatUnits(swapInputs[1], sUSD.decimals)} sUSD->USDT `,
                 )
 
                 await susdBalancer.balanceSusd([TUSD.address, USDT.address], swapInputs, sUSD.whaleAddress)
