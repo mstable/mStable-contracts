@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.0;
 
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ITether } from "../../../shared/ITether.sol";
@@ -14,7 +15,7 @@ import { IMassetV2 } from "./IMassetV2.sol";
  * @dev     VERSION: 1.0
  *          DATE:    2021-03-22
  */
-contract MusdV3SusdBalancer {
+contract MusdV3SusdBalancer is Ownable {
 
     using SafeERC20 for IERC20;
 
@@ -29,7 +30,7 @@ contract MusdV3SusdBalancer {
     * @param amounts sUSD input quantities for each mUSD swap.
     * @param funderAccount account that the sUSD will be borrowed from and swap output returned to.
     */
-    function balanceSusd(address[] memory bAssets, uint256[] memory amounts, address funderAccount) public {
+    function balanceSusd(address[] memory bAssets, uint256[] memory amounts, address funderAccount) public  onlyOwner {
         // sum the total sUSD to be swapped on mUSD
         uint256 len = bAssets.length;
         require(amounts.length == len, "bAssets and amounts lengths");

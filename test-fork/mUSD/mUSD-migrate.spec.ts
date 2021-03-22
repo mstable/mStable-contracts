@@ -329,12 +329,19 @@ const validateFlashLoan = async (
     basketManager: Contract,
     mUsdRebalance: MusdV3Rebalance4Pool,
     scaledTargetBalance: BN,
-    overweightTokenSplits: BN[], // TUSD and USDC proportions in basis points (bps)
+    overweightTokenSplits: BN[], // TUSD and USDC proportions in basis points (bps),
+    loanPercentage = 100,
 ): Promise<void> => {
     // Get flash token balance in mUSD to 18 decimal places
     const flashTokenInMusd = await basketManager.getBasset(flashToken.address)
     // flash loan amount = target balance - current balance
-    const flashLoanAmount = scaledTargetBalance.sub(flashTokenInMusd.vaultBalance).div(BN.from(10).pow(18 - flashToken.decimals))
+    const flashLoanAmount = scaledTargetBalance
+        // convert target from 18 to 6 decimals for USDC
+        .div(BN.from(10).pow(18 - flashToken.decimals))
+        .sub(flashTokenInMusd.vaultBalance)
+        // scale down the loan if needed
+        .mul(loanPercentage)
+        .div(100)
     console.log(
         `${flashToken.symbol} ${formatUnits(flashLoanAmount, flashToken.decimals)} under weight = ${scaledTargetBalance} target - ${
             flashTokenInMusd.vaultBalance
@@ -343,10 +350,10 @@ const validateFlashLoan = async (
 
     const swapInputs = [flashLoanAmount.mul(overweightTokenSplits[0]).div(10000), flashLoanAmount.mul(overweightTokenSplits[1]).div(10000)]
     console.log(
-        `Swap inputs ${formatUnits(swapInputs[0], flashToken.decimals)}, ${formatUnits(
-            swapInputs[1],
+        `Flash loan ${formatUnits(flashLoanAmount, flashToken.decimals)} ${flashToken.symbol} for mUSD swaps ${formatUnits(
+            swapInputs[0],
             flashToken.decimals,
-        )}, flash loan ${formatUnits(flashLoanAmount, flashToken.decimals)}`,
+        )} DAI->TUSD and ${formatUnits(swapInputs[1], flashToken.decimals)} DAI->USDT`,
     )
 
     /**
@@ -876,7 +883,7 @@ describe("mUSD V2.0 to V3.0", () => {
                     {
                         forking: {
                             jsonRpcUrl: process.env.NODE_URL,
-                            blockNumber: 12081810,
+                            blockNumber: 12085900,
                         },
                     },
                 ],
@@ -890,7 +897,7 @@ describe("mUSD V2.0 to V3.0", () => {
             const basket = await basketManager.getBassets()
             const totalBassets = basket.bAssets.reduce((total, bAsset, i) => {
                 // Convert bAsset balance up to 18 decimals
-                const scaledBalance = applyDecimals(bAsset.vaultBalance, currentBassets[i].decimals)
+                const scaledBalance = applyDecimals(bAsset.vaultBalance, intermediaryBassets[i].decimals)
                 return total.add(scaledBalance)
             }, BN.from(0))
             const musdTotal = await mUsdV2.totalSupply()
@@ -908,29 +915,6 @@ describe("mUSD V2.0 to V3.0", () => {
                 scaledOverweightUsdt.mul(10000).div(scaledOverWeightTotal),
             ]
             console.log(`TUSD ${overweightTokenSplits[0]} bps, USDT ${overweightTokenSplits[1]} bps of the overweight tokens`)
-        })
-        it("Add DAI to the mUSD basket", async () => {
-            const tx = basketManager.addBasset(DAI.address, DAI.integrator, false)
-            await expect(tx).to.emit(basketManager, "BassetAdded").withArgs(DAI.address, DAI.integrator)
-            const { bAssets } = await basketManager.getBassets()
-            expect(bAssets).to.length(5)
-            expect(bAssets[4].maxWeight).to.eq(0)
-        })
-        it("should update max weights to 25.1%", async () => {
-            // 25.1% where 100% = 1e18
-            const maxWeight = simpleToExactAmount(251, 15)
-            const tx = basketManager.setBasketWeights(
-                [sUSD.address, USDC.address, TUSD.address, USDT.address, DAI.address],
-                [maxWeight, maxWeight, 0, maxWeight, maxWeight],
-            )
-            await expect(tx).to.emit(basketManager, "BasketWeightsUpdated")
-            const { bAssets } = await basketManager.getBassets()
-            expect(bAssets).to.length(5)
-            expect(bAssets[0].maxWeight).to.eq(maxWeight)
-            expect(bAssets[1].maxWeight).to.eq(maxWeight)
-            expect(bAssets[2].maxWeight).to.eq(0)
-            expect(bAssets[3].maxWeight).to.eq(maxWeight)
-            expect(bAssets[4].maxWeight).to.eq(maxWeight)
         })
         it("Deploy rebalance contract", async () => {
             const mUsdRebalancerFactory = new MusdV3Rebalance4Pool__factory(accounts.deployer)
@@ -955,8 +939,13 @@ describe("mUSD V2.0 to V3.0", () => {
             const inputTokenContract2 = new ERC20__factory(whale2).attach(TUSD.address)
             await inputTokenContract2.transfer(aaveCoreV1Address, simpleToExactAmount(9000000, 18))
         })
-        it("use DAI flash loan from DyDx to balance mUSD bAssets", async () => {
-            await validateFlashLoan(DAI, basketManager, mUsdRebalancer, scaledTargetBalance, overweightTokenSplits)
+        context("use DAI flash loan from DyDx to balance mUSD bAssets", () => {
+            it("first DAI flash loan", async () => {
+                await validateFlashLoan(DAI, basketManager, mUsdRebalancer, scaledTargetBalance, overweightTokenSplits, 52)
+            })
+            it("second DAI flash loan", async () => {
+                await validateFlashLoan(DAI, basketManager, mUsdRebalancer, scaledTargetBalance, overweightTokenSplits, 100)
+            })
         })
         it("use USDC flash loan from DyDx to balance mUSD bAssets", async () => {
             await validateFlashLoan(USDC, basketManager, mUsdRebalancer, scaledTargetBalance, overweightTokenSplits)
@@ -972,11 +961,14 @@ describe("mUSD V2.0 to V3.0", () => {
                 await susd.approve(susdBalancer.address, simpleToExactAmount(12000000, sUSD.decimals))
             })
             it("use sUSD to balance TUSD and USDT", async () => {
+                const tusd = new ERC20__factory(accounts.deployer).attach(TUSD.address)
+                const usdt = new ERC20__factory(accounts.deployer).attach(USDT.address)
+                const tusdBefore = await tusd.balanceOf(sUSD.whaleAddress)
+                const usdtBefore = await usdt.balanceOf(sUSD.whaleAddress)
                 // Get sUSD balance in mUSD
                 const susdInMusd = await basketManager.getBasset(sUSD.address)
                 // flash loan amount = target balance - current balance
-                // TODO taking 99% of the loan amount to avoid a "Not enough liquidity" error
-                const loanAmount = scaledTargetBalance.sub(susdInMusd.vaultBalance).mul(990).div(1000)
+                const loanAmount = scaledTargetBalance.sub(susdInMusd.vaultBalance)
                 console.log(
                     `sUSD ${formatUnits(loanAmount)} under weight = ${formatUnits(scaledTargetBalance)} target - ${formatUnits(
                         susdInMusd.vaultBalance,
@@ -995,9 +987,12 @@ describe("mUSD V2.0 to V3.0", () => {
                 )
 
                 await susdBalancer.balanceSusd([TUSD.address, USDT.address], swapInputs, sUSD.whaleAddress)
-                // TODO check sUSD is in the mUSD contract
-                // TODO check TUSD and USDT has been returned to the funder
-                // expect()
+
+                // check more than 9.3m TUSD and 1.3m USDT has been returned to the funder
+                const tusdAfter = await tusd.balanceOf(sUSD.whaleAddress)
+                const usdtAfter = await usdt.balanceOf(sUSD.whaleAddress)
+                expect(tusdAfter).to.gt(tusdBefore.add(simpleToExactAmount(9300000, TUSD.decimals)))
+                expect(usdtAfter).to.gt(usdtBefore.add(simpleToExactAmount(1300000, USDT.decimals)))
             })
         })
     })
