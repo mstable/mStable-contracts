@@ -8,6 +8,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
+import { ITether } from "../../../shared/ITether.sol";
 import { IBasketManager } from "./IBasketManager.sol";
 import { Basket, Basset } from "./MassetStructsV2.sol";
 import { IMassetV2 } from "./IMassetV2.sol";
@@ -15,11 +16,6 @@ import { IMassetV2 } from "./IMassetV2.sol";
 import { DyDxFlashLoan } from "./dydx/DyDxFlashLoan.sol";
 import { MusdV3 } from "../../../masset/mUSD/MusdV3.sol";
 import { ICurve } from "../../../interfaces/ICurve.sol";
-
-interface IUSDT2 {
-    function approve(address spender, uint256 amount) external;
-    function balanceOf(address) external returns (uint256);
-}
 
 /**
  Contract to rebalance mUSD bAssets to new weights for the mUSD V3 upgrade.
@@ -39,7 +35,6 @@ contract MusdV3Rebalance4Pool is DyDxFlashLoan {
     ICurve constant curveYpool = ICurve(0x45F783CCE6B7FF23B2ab2D70e416cdb7D6055f51);
     address constant aaveV1 = 0x3dfd23A6c5E8BbcFc9581d2E864a68feb6a076d3;
     address constant aaveVaultV1 = 0xf617346A0FB6320e9E578E0C9B2A4588283D9d39;
-
 
     event FlashLoan(
         address flashToken,
@@ -215,7 +210,7 @@ contract MusdV3Rebalance4Pool is DyDxFlashLoan {
 
             // Convert USDT for flash token using Curve 3pool
             // Approve Curve 3pool to transfer all USDT from this contract
-            IUSDT2(USDT).approve(address(curve3pool), usdtOutput);
+            ITether(USDT).approve(address(curve3pool), usdtOutput);
 
             // Swap USDT for flash token using Curve 3pool
             uint256 minOutput = usdtOutput * 99 / 100;
@@ -251,41 +246,5 @@ contract MusdV3Rebalance4Pool is DyDxFlashLoan {
         }
         
         emit FlashLoan(flashToken, flashAmount, funderAccount, flashLoanShortfall);
-    }
-    
-    /**
-    * @notice balances mUSD bAssets using sUSD.
-    * Assumes the sUSD funding account has already approved a transfer to this contract.
-    * @dev this function can be simplified if there is only one bAsset to swap for sUSD
-    * at the time of the mUSD upgrade.
-    */
-    function balanceSusd(address[] memory bAssets, uint256[] memory amounts, address funderAccount) public {
-        // sum the total sUSD to be swapped on mUSD
-        uint256 len = bAssets.length;
-        require(amounts.length == len, "bAssets and amounts lengths");
-        uint256 sUsdTotal;
-        for (uint256 i = 0; i < len; i++) {
-            sUsdTotal += amounts[i];
-        }
-
-        // transfer sUSD to this contract
-        console.log("borrow %s sUSD", sUsdTotal);
-        uint256 funderAllowance = IERC20(sUSD).allowance(funderAccount, address(this));
-        require(funderAllowance > sUsdTotal, "funder allowance < borrow amount");
-        uint256 funderBalance = IERC20(sUSD).balanceOf(funderAccount);
-        console.log("Funder has %s sUSD", funderBalance);
-        require(funderBalance > sUsdTotal, "funder balance < borrow amount");
-        IERC20(sUSD).transferFrom(funderAccount, address(this), sUsdTotal);
-
-        // Approve mUSD contract to transfer sUSD from this contract
-        IERC20(sUSD).approve(address(mUsdV2), sUsdTotal);
-
-        // Swap sUSD for bAsset using mUSD to balance the bAsset
-        for (uint256 i = 0; i < len; i++) {
-            console.log("mUSD swap %s sUSD for %s", amounts[i], bAssets[i]);
-            mUsdV2.swap(sUSD, bAssets[i], amounts[i], address(this));
-        }
-
-        // Currently not converting the bAsset back to sUSD
     }
 }

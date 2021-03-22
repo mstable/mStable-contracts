@@ -17,7 +17,9 @@ import {
     MusdV3,
     MusdV3__factory,
     MusdV3Rebalance4Pool__factory,
+    MusdV3SusdBalancer__factory,
     MusdV3Rebalance4Pool,
+    MusdV3SusdBalancer,
 } from "types/generated"
 import { MusdV3LibraryAddresses } from "types/generated/factories/MusdV3__factory"
 import { increaseTime } from "@utils/time"
@@ -864,6 +866,7 @@ describe("mUSD V2.0 to V3.0", () => {
     context.only("Add DAI and balance mUSD bAssets on-chain using DyDx flash loans at block 12072000", () => {
         let basketManager: Contract
         let mUsdRebalancer: MusdV3Rebalance4Pool
+        let susdBalancer: MusdV3SusdBalancer
         let scaledTargetBalance: BN
         let overweightTokenSplits: BN[]
         before(async () => {
@@ -934,11 +937,6 @@ describe("mUSD V2.0 to V3.0", () => {
             mUsdRebalancer = await mUsdRebalancerFactory.deploy()
         })
         it("whales approve rebalance contract to fund loan shortfalls", async () => {
-            // whale approves upgrade contract to spend their sUSD
-            const sUsdWhaleSigner = await impersonate(sUSD.whaleAddress)
-            const susd = new ERC20__factory(sUsdWhaleSigner).attach(sUSD.address)
-            await susd.approve(mUsdRebalancer.address, simpleToExactAmount(20000000, sUSD.decimals))
-
             // whale approves upgrade contract to spend their USDC
             const usdcWhaleSigner = await impersonate(USDC.whaleAddress)
             const usdc = new ERC20__factory(usdcWhaleSigner).attach(USDC.address)
@@ -963,27 +961,44 @@ describe("mUSD V2.0 to V3.0", () => {
         it("use USDC flash loan from DyDx to balance mUSD bAssets", async () => {
             await validateFlashLoan(USDC, basketManager, mUsdRebalancer, scaledTargetBalance, overweightTokenSplits)
         })
-        it("use sUSD to balance TUSD and USDT", async () => {
-            // Get sUSD balance in mUSD
-            const susdInMusd = await basketManager.getBasset(sUSD.address)
-            // flash loan amount = target balance - current balance
-            // TODO taking 99% of the loan amount to avoid a "Not enough liquidity" error
-            const loanAmount = scaledTargetBalance.sub(susdInMusd.vaultBalance).mul(990).div(1000)
-            console.log(
-                `sUSD ${formatUnits(loanAmount)} under weight = ${formatUnits(scaledTargetBalance)} target - ${formatUnits(
-                    susdInMusd.vaultBalance,
-                )} vault balance`,
-            )
+        context("Balance sUSD", () => {
+            it("Deploy sUSD balancer contract", async () => {
+                const susdBalancerFactory = new MusdV3SusdBalancer__factory(accounts.deployer)
+                susdBalancer = await susdBalancerFactory.deploy()
+            })
+            it("sUSD whale approves sUSD balancer contract", async () => {
+                const sUsdWhaleSigner = await impersonate(sUSD.whaleAddress)
+                const susd = new ERC20__factory(sUsdWhaleSigner).attach(sUSD.address)
+                await susd.approve(susdBalancer.address, simpleToExactAmount(12000000, sUSD.decimals))
+            })
+            it("use sUSD to balance TUSD and USDT", async () => {
+                // Get sUSD balance in mUSD
+                const susdInMusd = await basketManager.getBasset(sUSD.address)
+                // flash loan amount = target balance - current balance
+                // TODO taking 99% of the loan amount to avoid a "Not enough liquidity" error
+                const loanAmount = scaledTargetBalance.sub(susdInMusd.vaultBalance).mul(990).div(1000)
+                console.log(
+                    `sUSD ${formatUnits(loanAmount)} under weight = ${formatUnits(scaledTargetBalance)} target - ${formatUnits(
+                        susdInMusd.vaultBalance,
+                    )} vault balance`,
+                )
 
-            const swapInputs = [loanAmount.mul(overweightTokenSplits[0]).div(10000), loanAmount.mul(overweightTokenSplits[1]).div(10000)]
-            console.log(
-                `Swap inputs ${formatUnits(swapInputs[0], sUSD.decimals)}, ${formatUnits(
-                    swapInputs[1],
-                    sUSD.decimals,
-                )}, borrow ${formatUnits(swapInputs[0].add(swapInputs[1]), sUSD.decimals)} sUSD`,
-            )
+                const swapInputs = [
+                    loanAmount.mul(overweightTokenSplits[0]).div(10000),
+                    loanAmount.mul(overweightTokenSplits[1]).div(10000),
+                ]
+                console.log(
+                    `Swap inputs ${formatUnits(swapInputs[0], sUSD.decimals)}, ${formatUnits(
+                        swapInputs[1],
+                        sUSD.decimals,
+                    )}, borrow ${formatUnits(swapInputs[0].add(swapInputs[1]), sUSD.decimals)} sUSD`,
+                )
 
-            await mUsdRebalancer.balanceSusd([TUSD.address, USDT.address], swapInputs, sUSD.whaleAddress)
+                await susdBalancer.balanceSusd([TUSD.address, USDT.address], swapInputs, sUSD.whaleAddress)
+                // TODO check sUSD is in the mUSD contract
+                // TODO check TUSD and USDT has been returned to the funder
+                // expect()
+            })
         })
     })
 })
