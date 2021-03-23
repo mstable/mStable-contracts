@@ -21,7 +21,6 @@ interface Config {
     nexus: string
 }
 
-// TODO - change the mUSD portion due to the rule of only being able to increase a given asset by 50%
 task("deployRevenueRecipient", "Deploys an instance of revenue recipient contract").setAction(async (_, hre) => {
     const { ethers, network } = hre
     const [deployer] = await ethers.getSigners()
@@ -37,17 +36,17 @@ task("deployRevenueRecipient", "Deploys an instance of revenue recipient contrac
             "0xa3BeD4E1c75D00fa6f4E5E6922DB7261B5E9AcD2",
         ],
         amounts: [
-            simpleToExactAmount(233),
-            simpleToExactAmount("7.496", 14), // 0.0007496,
-            simpleToExactAmount("5.9", 16), // 0.059,
-            simpleToExactAmount(288),
+            simpleToExactAmount(4993),
+            simpleToExactAmount("8.50635", 15), // 0.0085,
+            simpleToExactAmount("6.99", 17), // 0.699,
+            simpleToExactAmount(1428),
         ],
-        weights: [simpleToExactAmount(11), simpleToExactAmount(2), simpleToExactAmount(5), simpleToExactAmount(32)],
+        weights: [simpleToExactAmount(25), simpleToExactAmount(2), simpleToExactAmount(6), simpleToExactAmount(17)],
         swapFee: simpleToExactAmount(5, 16),
         bFactory: "0x9424B1412450D0f8Fc2255FAf6046b98213B76Bd",
         factory: "0xed52D8E202401645eDAD1c0AA21e872498ce47D0",
         mAssets: ["0xe2f2a5C287993345a840Db3B0845fbC70f5935a5", "0x945Facb997494CC2570096c74b5F66A3507330a1"],
-        minOuts: [simpleToExactAmount(4, 17), simpleToExactAmount(25000, 18)],
+        minOuts: [simpleToExactAmount(3, 17), simpleToExactAmount(20000, 18)],
         dao: "0xF6FF1F7FCEB2cE6d26687EaaB5988b445d0b94a2",
         daoProxy: "0x7fFAF4ceD81E7c4E71b3531BD7948d7FA8f20329",
         nexus: "0xAFcE80b19A8cE13DEc0739a1aaB7A028d6845Eb3",
@@ -109,7 +108,7 @@ task("deployRevenueRecipient", "Deploys an instance of revenue recipient contrac
     await approveTx.wait()
 
     const crp = await ConfigurableRightsPool__factory.connect(poolAddress, deployer)
-    tx = await crp.createPool(simpleToExactAmount(1000))
+    tx = await crp.createPool(simpleToExactAmount(10000))
     console.log(`Creating Pool... ${tx.hash}`)
     receipt = await tx.wait()
 
