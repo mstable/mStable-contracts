@@ -8,7 +8,7 @@ import "solidity-coverage"
 import "ts-node/register"
 import "tsconfig-paths/register"
 
-// chainId?: number;
+// chainId?: number
 // from?: string;
 // gas: "auto" | number;
 // gasPrice: "auto" | number;
