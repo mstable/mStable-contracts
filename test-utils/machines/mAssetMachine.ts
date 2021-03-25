@@ -62,7 +62,7 @@ export class MassetMachine {
     }
 
     // 3 bAssets, custom reserve
-    public async deployLite(): Promise<MassetDetails> {
+    public async deployLite(a = 135): Promise<MassetDetails> {
         const bAssets = await Promise.all([0, 1, 2].map((i) => this.loadBassetProxy(`${i}BASSET`, `${i}BASSET`, 18)))
 
         const forgeVal = await new InvariantValidator__factory(this.sa.default.signer).deploy()
@@ -95,7 +95,7 @@ export class MassetMachine {
                 status: 0,
             })),
             {
-                a: BN.from(135),
+                a: BN.from(a),
                 limits: {
                     min: simpleToExactAmount(5, 16),
                     max: simpleToExactAmount(75, 16),
@@ -108,10 +108,16 @@ export class MassetMachine {
             mAsset: (await MassetFactory.attach(mAsset.address)) as ExposedMasset,
             bAssets,
             forgeValidator: forgeVal as InvariantValidator,
+            nexus,
         }
     }
 
-    public async deployMasset(useMockValidator = false, useLendingMarkets = false, useTransferFees = false): Promise<MassetDetails> {
+    public async deployMasset(
+        useMockValidator = false,
+        useLendingMarkets = false,
+        useTransferFees = false,
+        a = 100,
+    ): Promise<MassetDetails> {
         // 1. Bassets
         const bAssets = await this.loadBassetsLocal(useLendingMarkets, useTransferFees)
 
@@ -163,7 +169,7 @@ export class MassetMachine {
                 status: 0,
             })),
             {
-                a: simpleToExactAmount(1, 2),
+                a,
                 limits: {
                     min: simpleToExactAmount(5, 16),
                     max: simpleToExactAmount(55, 16),

@@ -79,7 +79,7 @@ contract FeederPool is
     );
     // State Events
     event CacheSizeChanged(uint256 cacheSize);
-    event FeesChanged(uint256 swapFee, uint256 redemptionFee);
+    event FeesChanged(uint256 swapFee, uint256 redemptionFee, uint256 govFee);
     event WeightLimitsChanged(uint128 min, uint128 max);
 
     // FeederManager Events
@@ -822,15 +822,18 @@ contract FeederPool is
      * @dev Set the ecosystem fee for sewapping bAssets or redeeming specific bAssets
      * @param _swapFee       Fee calculated in (%/100 * 1e18)
      * @param _redemptionFee Fee calculated in (%/100 * 1e18)
+     * @param _govFee        Fee calculated in (%/100 * 1e18)
      */
-    function setFees(uint256 _swapFee, uint256 _redemptionFee) external onlyGovernor {
+    function setFees(uint256 _swapFee, uint256 _redemptionFee, uint256 _govFee) external onlyGovernor {
         require(_swapFee <= MAX_FEE, "Swap rate oob");
         require(_redemptionFee <= MAX_FEE, "Redemption rate oob");
+        require(_govFee <= 5e17, "Gov fee rate oob");
 
         data.swapFee = _swapFee;
         data.redemptionFee = _redemptionFee;
+        data.govFee = _govFee;
 
-        emit FeesChanged(_swapFee, _redemptionFee);
+        emit FeesChanged(_swapFee, _redemptionFee, _govFee);
     }
 
     /**

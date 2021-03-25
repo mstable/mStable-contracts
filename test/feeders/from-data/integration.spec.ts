@@ -14,13 +14,13 @@ import { feederData } from "@utils/validator-data"
 const { full, sample } = feederData.integrationData
 
 const config = {
-    a: BN.from(80),
+    a: BN.from(300),
     limits: {
-        min: simpleToExactAmount(5, 16),
-        max: simpleToExactAmount(95, 16),
+        min: simpleToExactAmount(20, 16),
+        max: simpleToExactAmount(80, 16),
     },
 }
-
+const massetA = 300
 const ratio = simpleToExactAmount(1, 8)
 const tolerance = BN.from(10)
 
@@ -46,7 +46,7 @@ describe("Feeder Validation - One basket many tests", () => {
         sa = mAssetMachine.sa
         recipient = await sa.default.address
 
-        const mAssetDetails = await mAssetMachine.deployMasset(false, false, false)
+        const mAssetDetails = await mAssetMachine.deployMasset(false, false, false, massetA)
         await mAssetMachine.seedWithWeightings(mAssetDetails, [25000000, 25000000, 25000000, 25000000])
         const bBtc = await mAssetMachine.loadBassetProxy("Binance BTC", "bBTC", 18)
         const bAssets = [mAssetDetails.mAsset as MockERC20, bBtc]

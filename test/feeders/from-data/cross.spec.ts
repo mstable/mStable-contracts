@@ -20,18 +20,21 @@ import { crossData } from "@utils/validator-data"
 
 const { integrationData } = crossData
 
+// NOTE - CONFIG
+// This must mimic the test data and be input manually
 const config = {
-    a: BN.from(80),
+    a: BN.from(300),
     limits: {
         min: simpleToExactAmount(20, 16),
         max: simpleToExactAmount(80, 16),
     },
 }
+const massetA = 300
+const feederFees = { swap: simpleToExactAmount(8, 14), redeem: simpleToExactAmount(6, 14), gov: simpleToExactAmount(1, 17) }
+const mAssetFees = { swap: simpleToExactAmount(4, 14), redeem: simpleToExactAmount(2, 14) }
 
 const ratio = simpleToExactAmount(1, 8)
 const tolerance = BN.from(10)
-const mAssetFees = { swap: simpleToExactAmount(4, 14), redeem: simpleToExactAmount(2, 14) }
-
 const cv = (n: number | string): BN => BN.from(BigInt(n).toString())
 const getMPReserves = (data: any) =>
     [0, 1, 2, 3, 4, 5]
@@ -82,13 +85,14 @@ describe("Cross swap - One basket many tests", () => {
     let recipient: string
     let fpAssetAddresses: string[]
     let mpAssetAddresses: string[]
+
     before(async () => {
         const accounts = await ethers.getSigners()
         const mAssetMachine = await new MassetMachine().initAccounts(accounts)
         sa = mAssetMachine.sa
         recipient = await sa.default.address
 
-        const mAssetDetails = await mAssetMachine.deployLite()
+        const mAssetDetails = await mAssetMachine.deployLite(massetA)
 
         await mAssetDetails.mAsset.connect(sa.governor.signer).setFees(mAssetFees.swap, mAssetFees.redeem)
 
@@ -115,7 +119,7 @@ describe("Cross swap - One basket many tests", () => {
             true,
         )
 
-        feederPool = (await FeederFactory.deploy(DEAD_ADDRESS, bAssets[0].address)) as ExposedFeederPool
+        feederPool = (await FeederFactory.deploy(mAssetDetails.nexus.address, bAssets[0].address)) as ExposedFeederPool
         await feederPool.initialize(
             "mStable mBTC/bBTC Feeder",
             "bBTC fPool",
@@ -134,6 +138,7 @@ describe("Cross swap - One basket many tests", () => {
             mpAssetAddresses,
             config,
         )
+        await feederPool.connect(sa.governor.signer).setFees(feederFees.swap, feederFees.redeem, feederFees.gov)
         await Promise.all(bAssets.map((b) => b.approve(feederPool.address, MAX_UINT256)))
         await Promise.all(mAssetDetails.bAssets.map((b) => b.approve(feederPool.address, MAX_UINT256)))
 

@@ -897,10 +897,10 @@ library FeederLogic {
     ) internal pure returns (uint256 k) {
         if (_sum == 0) return 0;
 
-        uint256 B = _a * 2;
+        uint256 B = _a;
         uint256 var1 = _x[0] * _x[1];
         uint256 var2 = B * var1 / (_x[0] + _x[1]);
-        k = 2 * (Root.sqrt((var2 ** 2) + ((B + 1) * var1)) - var2);
+        k = 2 * (Root.sqrt((var2 ** 2) + ((B + 1) * var1)) - var2) + 1;
     }
 
 
@@ -921,12 +921,13 @@ library FeederLogic {
         require(_idx == 0 || _idx == 1, "Invalid index");
 
         uint256 x = _idx == 0 ? _x[1] : _x[0];
-        uint256 B = _a * 2;
+        uint256 B = _a;
         uint256 var1 = B + 1;
         uint256 var2 = (_targetK ** 2) / var1;
         // var3 = var2 // (4 * x) + k * B // var1 - x
-        uint256 var3 = var2 / (4 * x) + ((_targetK * B) / var1) - x;
+        uint256 tmp = var2 / (4 * x) + ((_targetK * B) / var1);
+        uint256 var3 = tmp >= x ? tmp - x : x - tmp;
         //  result = (sqrt(var3**2 + var2) + var3) // 2
-        y = (Root.sqrt((var3 ** 2) + var2) + var3) / 2;
+        y = ((Root.sqrt((var3 ** 2) + var2) + var3) / 2) + 1;
     }
 }

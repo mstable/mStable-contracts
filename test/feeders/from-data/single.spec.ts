@@ -21,16 +21,16 @@ import {
 const { mintData, mintMultiData, redeemData, redeemExactData, redeemProportionalData, swapData } = feederData
 
 const config = {
-    a: BN.from(8000),
+    a: BN.from(300),
     limits: {
         min: simpleToExactAmount(20, 16),
         max: simpleToExactAmount(80, 16),
     },
 }
+const swapFeeRate = simpleToExactAmount(8, 14)
+const redemptionFeeRate = simpleToExactAmount(6, 14)
 
 const ratio = simpleToExactAmount(1, 8)
-const swapFeeRate = simpleToExactAmount(8, 14)
-const redemptionFeeRate = simpleToExactAmount(4, 14)
 const tolerance = 1
 
 const cv = (n: number | string): BN => BN.from(BigInt(n).toString())
@@ -216,7 +216,7 @@ describe("Feeder Validator - One basket one test", () => {
         }
     })
 
-    describe("Compute Redeem Masset", () => {
+    describe.only("Compute Redeem Masset", () => {
         let count = 0
         const testRedeemData = runLongTests ? redeemProportionalData.full : redeemProportionalData.sample
         for (const testData of testRedeemData) {
@@ -270,13 +270,7 @@ describe("Feeder Validator - One basket one test", () => {
                             status: 0,
                         },
                         mAssetBassets.map((b) => b.address),
-                        {
-                            a: simpleToExactAmount(1, 2),
-                            limits: {
-                                min: simpleToExactAmount(3, 16),
-                                max: simpleToExactAmount(97, 16),
-                            },
-                        },
+                        config,
                     )
                     await Promise.all(bAssets.map((b) => b.approve(feederPool.address, MAX_UINT256)))
                     await feederPool.mintMulti(
