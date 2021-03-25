@@ -2,7 +2,7 @@
 import "ts-node/register"
 import "tsconfig-paths/register"
 
-import { btcBassets, startingCap, capFactor, config, mBtcName, mBtcSymbol, DeployedBasset } from "@utils/btcConstants"
+import { btcBassets, startingCap, config, mBtcName, mBtcSymbol, DeployedBasset } from "@utils/btcConstants"
 import { DEAD_ADDRESS, ZERO_ADDRESS } from "@utils/constants"
 import { Signer } from "ethers"
 import { task } from "hardhat/config"
@@ -54,8 +54,8 @@ const deployBasset = async (sender: Signer, name: string, symbol: string, decima
 
 const deployMasset = async (sender: Signer, addresses: CommonAddresses, ethers, bAssetContracts: DeployedBasset[]): Promise<Masset> => {
     // Invariant Validator
-    console.log(`Deploying Invariant Validator with startingCap ${startingCap.toString()} and capfactor ${capFactor.toString()}`)
-    const forgeVal = await new InvariantValidator__factory(sender).deploy(startingCap, capFactor)
+    console.log(`Deploying Invariant Validator`)
+    const forgeVal = await new InvariantValidator__factory(sender).deploy()
     const receiptForgeVal = await forgeVal.deployTransaction.wait()
     console.log(`Deployed Invariant Validator to ${forgeVal.address}. gas used ${receiptForgeVal.gasUsed}`)
 

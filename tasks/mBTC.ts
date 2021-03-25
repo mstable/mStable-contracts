@@ -7,7 +7,7 @@ import { applyDecimals, applyRatio, BN, simpleToExactAmount } from "@utils/math"
 import { Signer } from "ethers"
 import { formatUnits } from "ethers/lib/utils"
 import { task, types } from "hardhat/config"
-import { InvariantValidator__factory, Masset, Masset__factory } from "types/generated"
+import { ValidatorWithTVLCap__factory, Masset, Masset__factory } from "types/generated"
 
 // This is a rough approximation
 const ONE_DAY_BLOCKS = 6500
@@ -16,8 +16,14 @@ interface TxSummary {
     fees: BN
 }
 
+interface Balances {
+    total: BN
+    save: BN
+    earn: BN
+}
+
 const getTvlCap = async (signer: Signer): Promise<BN> => {
-    const validator = await new InvariantValidator__factory(signer).attach(contracts.mainnet.InvariantValidator)
+    const validator = await new ValidatorWithTVLCap__factory(signer).attach(contracts.mainnet.InvariantValidator)
     const tvlStartTime = await validator.startTime()
     const weeksSinceLaunch = BN.from(Date.now()).div(1000).sub(tvlStartTime).mul(fullScale).div(604800)
     // // e.g. 1e19 + (15e18 * 2.04e36) = 1e19 + 3.06e55
@@ -45,8 +51,9 @@ const getBasket = async (mBtc: Masset, signer: Signer) => {
     const surplus = await mBtc.surplus()
     console.log(`Surplus  ${formatUnits(surplus)}`)
     const tvlCapPercentage = totalBassets.mul(100).div(tvlCap)
-    console.log(`Total   ${formatUnits(totalBassets).padStart(21)}`)
-    console.log(`TVL cap ${formatUnits(tvlCap).padStart(21)} ${tvlCapPercentage}%`)
+    console.log(`Total BTC ${formatUnits(totalBassets)}`)
+    console.log(`mBTC      ${formatUnits(await mBtc.totalSupply())}`)
+    console.log(`TVL cap   ${formatUnits(tvlCap).padStart(21)} ${tvlCapPercentage}%`)
 }
 
 const getSwapRates = async (mBTC: Masset) => {
@@ -77,7 +84,7 @@ const getSwapRates = async (mBTC: Masset) => {
     }
 }
 
-const getBalances = async (mBTC: Masset) => {
+const getBalances = async (mBTC: Masset): Promise<Balances> => {
     const mBtcBalance = await mBTC.totalSupply()
     const savingBalance = await mBTC.balanceOf(contracts.mainnet.imBTC)
     const sushiPoolBalance = await mBTC.balanceOf(contracts.mainnet.sushiPool)
@@ -91,6 +98,12 @@ const getBalances = async (mBTC: Masset) => {
         `mStable Fund Manager ${formatUnits(mStableFundManagerBalance).padEnd(20)} ${mStableFundManagerBalance.mul(100).div(mBtcBalance)}%`,
     )
     console.log(`Others               ${formatUnits(otherBalances).padEnd(20)} ${otherBalances.mul(100).div(mBtcBalance)}%`)
+
+    return {
+        total: mBtcBalance,
+        save: savingBalance,
+        earn: sushiPoolBalance,
+    }
 }
 
 const getMints = async (mBTC: Masset, fromBlock: number, startTime: Date): Promise<TxSummary> => {
@@ -232,12 +245,17 @@ const outputFees = (
     swaps: TxSummary,
     redeems: TxSummary,
     multiRedeems: TxSummary,
-    totalSupply: BN,
+    balances: Balances,
     startTime: Date,
     currentTime: Date,
 ) => {
     const totalFees = redeems.fees.add(multiRedeems.fees).add(swaps.fees)
-    const totalTotals = mints.total.add(multiMints.total).add(redeems.total).add(multiRedeems.total).add(swaps.total)
+    if (totalFees.eq(0)) {
+        console.log(`\nNo fees since ${startTime.toUTCString()}`)
+        return
+    }
+    const totalTransactions = mints.total.add(multiMints.total).add(redeems.total).add(multiRedeems.total).add(swaps.total)
+    const totalFeeTransactions = redeems.total.add(multiRedeems.total).add(swaps.total)
     console.log(`\nFees since ${startTime.toUTCString()}`)
     console.log("              mBTC Volume\t     Fees\t\t  Fee %")
     console.log(
@@ -262,12 +280,17 @@ const outputFees = (
         `Swaps         ${formatUnits(swaps.total).padEnd(22)} ${formatUnits(swaps.fees).padEnd(20)} ${swaps.fees.mul(100).div(totalFees)}%`,
     )
     const periodSeconds = BN.from(currentTime.valueOf() - startTime.valueOf()).div(1000)
-    const totalApy = totalFees.mul(100).mul(ONE_YEAR).div(totalSupply).div(periodSeconds)
-    console.log(`Total         ${formatUnits(totalTotals).padEnd(22)} ${formatUnits(totalFees).padEnd(20)} APY ${totalApy}%`)
+    const liquidityUtilization = totalFeeTransactions.mul(100).div(balances.total)
+    const totalApy = totalFees.mul(100).mul(ONE_YEAR).div(balances.save).div(periodSeconds)
+    console.log(`Total Txs     ${formatUnits(totalTransactions).padEnd(22)}`)
+    console.log(`Savings       ${formatUnits(balances.save).padEnd(22)} ${formatUnits(totalFees).padEnd(20)} APY ${totalApy}%`)
+    console.log(
+        `${liquidityUtilization}% liquidity utilization  (${formatUnits(totalFeeTransactions)} of ${formatUnits(balances.total)} mBTC)`,
+    )
 }
 
 task("mBTC-snap", "Get the latest data from the mBTC contracts")
-    .addOptionalParam("fromBlock", "Block to query transaction events from. (default: deployment block)", 11840520, types.int)
+    .addOptionalParam("from", "Block to query transaction events from. (default: deployment block)", 11840520, types.int)
     .setAction(async (taskArgs, hre) => {
         const { ethers } = hre
 
@@ -280,13 +303,13 @@ task("mBTC-snap", "Get the latest data from the mBTC contracts")
 
         const currentBlock = await hre.ethers.provider.getBlockNumber()
         const currentTime = new Date()
-        const { fromBlock } = taskArgs
+        const fromBlock = taskArgs.from
         console.log(`Latest block ${currentBlock}, ${currentTime.toUTCString()}`)
         const startBlock = await hre.ethers.provider.getBlock(fromBlock)
         const startTime = new Date(startBlock.timestamp * 1000)
 
         await getBasket(mBtc, signer)
-        await getBalances(mBtc)
+        const balances = await getBalances(mBtc)
         await getSwapRates(mBtc)
 
         const mintSummary = await getMints(mBtc, fromBlock, startTime)
@@ -295,8 +318,7 @@ task("mBTC-snap", "Get the latest data from the mBTC contracts")
         const redeemMultiSummary = await getMultiRedemptions(mBtc, fromBlock, startTime)
         const swapSummary = await getSwaps(mBtc, fromBlock, startTime)
 
-        const totalSupply = await mBtc.totalSupply()
-        outputFees(mintSummary, mintMultiSummary, swapSummary, redeemSummary, redeemMultiSummary, totalSupply, startTime, currentTime)
+        outputFees(mintSummary, mintMultiSummary, swapSummary, redeemSummary, redeemMultiSummary, balances, startTime, currentTime)
     })
 
 module.exports = {}

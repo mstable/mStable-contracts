@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.1;
+pragma solidity 0.8.2;
 
 import { StableMath } from "../../shared/StableMath.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -50,10 +50,10 @@ contract ERC20WithFee is IERC20 {
      * these values are immutable: they can only be set once during
      * construction.
      */
-    function _initialize(string memory name, string memory symbol, uint8 decimals) internal {
-        _name = name;
-        _symbol = symbol;
-        _decimals = decimals;
+    function _initialize(string memory nameArg, string memory symbolArg, uint8 decimalsArg) internal {
+        _name = nameArg;
+        _symbol = symbolArg;
+        _decimals = decimalsArg;
     }
 
     /**
@@ -304,9 +304,7 @@ contract MockERC20WithFee is ERC20WithFee {
         uint8 _decimals,
         address _initialRecipient,
         uint256 _initialMint
-    )
-        public
-    {
+    ) {
         ERC20WithFee._initialize(_name, _symbol, _decimals);
         feeRate = 1e15;
         _mint(_initialRecipient, _initialMint * (10 ** uint256(_decimals)));

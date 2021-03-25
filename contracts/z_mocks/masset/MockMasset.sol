@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.1;
+pragma solidity 0.8.2;
 
 import { MockERC20 } from "../shared/MockERC20.sol";
 
@@ -12,7 +12,6 @@ contract MockMasset is MockERC20 {
         address _initialRecipient,
         uint256 _initialMint
     )
-        public
         MockERC20(
             _name,
             _symbol,
@@ -66,7 +65,6 @@ contract MockMasset1 is MockERC20 {
         address _initialRecipient,
         uint256 _initialMint
     )
-        public
         MockERC20(
             _name,
             _symbol,

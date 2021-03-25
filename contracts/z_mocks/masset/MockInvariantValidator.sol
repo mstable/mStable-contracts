@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.1;
+pragma solidity 0.8.2;
 
 import { IInvariantValidator } from "../../interfaces/IInvariantValidator.sol";
 import "../../masset/MassetStructs.sol";
@@ -27,7 +27,7 @@ contract MockInvariantValidator is IInvariantValidator {
         BassetData[] calldata _bAssets,
         uint8 _i,
         uint256 _rawInput,
-        InvariantConfig memory _config
+        InvariantConfig memory /*_config*/
     ) external view override returns (uint256) {
         uint256 scaledInput = (_rawInput * _bAssets[_i].ratio) / 1e8;
         return _multiplyOutput(scaledInput);
@@ -37,7 +37,7 @@ contract MockInvariantValidator is IInvariantValidator {
         BassetData[] calldata _bAssets,
         uint8[] calldata _indices,
         uint256[] calldata _rawInputs,
-        InvariantConfig memory _config
+        InvariantConfig memory /*_config*/
     ) external view override returns (uint256) {
         uint256 scaledInput;
         uint8 idx;
@@ -56,7 +56,7 @@ contract MockInvariantValidator is IInvariantValidator {
         uint8 _o,
         uint256 _rawInput,
         uint256 _feeRate,
-        InvariantConfig memory _config
+        InvariantConfig memory /*_config*/
     ) external view override returns (uint256 bAssetOutputQuantity, uint256 scaledSwapFee) {
         uint256 totalReceived = (_rawInput * _bAssets[_i].ratio) / 1e8;
         scaledSwapFee = (totalReceived * _feeRate) / 1e18;
@@ -69,7 +69,7 @@ contract MockInvariantValidator is IInvariantValidator {
         BassetData[] calldata _bAssets,
         uint8 _i,
         uint256 _mAssetQuantity,
-        InvariantConfig memory _config
+        InvariantConfig memory /*_config*/
     ) external view override returns (uint256) {
         return _multiplyOutput((_mAssetQuantity * 1e8) / _bAssets[_i].ratio);
     }
@@ -78,7 +78,7 @@ contract MockInvariantValidator is IInvariantValidator {
         BassetData[] calldata _bAssets,
         uint8[] calldata _indices,
         uint256[] calldata _rawOutputs,
-        InvariantConfig memory _config
+        InvariantConfig memory /*_config*/
     ) external view override returns (uint256) {
         uint256 scaledOutput;
         uint8 idx;

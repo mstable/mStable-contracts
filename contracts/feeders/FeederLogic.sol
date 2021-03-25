@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.1;
+pragma solidity 0.8.2;
 
 // External
 import { IPlatformIntegration } from "../interfaces/IPlatformIntegration.sol";
@@ -634,7 +634,7 @@ library FeederLogic {
         uint8 _i,
         uint256 _rawInput,
         FeederConfig memory _config
-    ) public view returns (uint256 mintAmount) {
+    ) public pure returns (uint256 mintAmount) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
@@ -662,7 +662,7 @@ library FeederLogic {
         uint8[] memory _indices,
         uint256[] memory _rawInputs,
         FeederConfig memory _config
-    ) public view returns (uint256 mintAmount) {
+    ) public pure returns (uint256 mintAmount) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
@@ -701,7 +701,7 @@ library FeederLogic {
         uint256 _rawInput,
         uint256 _feeRate,
         FeederConfig memory _config
-    ) public view returns (uint256 bAssetOutputQuantity, uint256 scaledSwapFee) {
+    ) public pure returns (uint256 bAssetOutputQuantity, uint256 scaledSwapFee) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
@@ -740,7 +740,7 @@ library FeederLogic {
         uint8 _o,
         uint256 _netRedeemInput,
         FeederConfig memory _config
-    ) public view returns (uint256 rawOutputUnits) {
+    ) public pure returns (uint256 rawOutputUnits) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
@@ -770,7 +770,7 @@ library FeederLogic {
         uint8[] memory _indices,
         uint256[] memory _rawOutputs,
         FeederConfig memory _config
-    ) public view returns (uint256 redeemInput) {
+    ) public pure returns (uint256 redeemInput) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
@@ -895,10 +895,8 @@ library FeederLogic {
         uint256 _sum,
         uint256 _a
     ) internal pure returns (uint256 k) {
-        uint256 len = _x.length;
-
         if (_sum == 0) return 0;
-        
+
         uint256 B = _a * 2;
         uint256 var1 = _x[0] * _x[1];
         uint256 var2 = B * var1 / (_x[0] + _x[1]);
@@ -920,8 +918,8 @@ library FeederLogic {
         uint8 _idx,
         uint256 _targetK
     ) internal pure returns (uint256 y) {
-        uint256 len = _x.length;
         require(_idx == 0 || _idx == 1, "Invalid index");
+
         uint256 x = _idx == 0 ? _x[1] : _x[0];
         uint256 B = _a * 2;
         uint256 var1 = B + 1;

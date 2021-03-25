@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.1;
+pragma solidity 0.8.2;
 
 import { IERC20, ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IConnector } from "../../../savings/peripheral/IConnector.sol";
@@ -18,7 +18,7 @@ contract MockErroneousConnector1 is IConnector {
     constructor(
         address _save,
         address _mUSD
-    ) public {
+    ) {
         save = _save;
         mUSD = _mUSD;
     }

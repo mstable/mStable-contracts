@@ -194,7 +194,9 @@ describe("Feeder - Redeem", () => {
         expect(redeemEvent.args.scaledFee, "scaledFee in Redeemer event").to.gt(0)
 
         // Burn feeder pool token
-        await expect(tx, "Transfer event").to.emit(pool, "Transfer").withArgs(sender.address, ZERO_ADDRESS, fpTokenQuantityExact)
+        await expect(tx, "Transfer event")
+            .to.emit(pool, "Transfer")
+            .withArgs(sender.address, ZERO_ADDRESS, fpTokenQuantityExact)
 
         // Transfers from lending platform or feeder pool to recipient
         await expect(tx, "Transfer event")
@@ -388,7 +390,7 @@ describe("Feeder - Redeem", () => {
                 })
                 it("should fail when input too small to redeem anything", async () => {
                     const { fAsset, pool } = details
-                    await assertFailedRedeem("Output == 0", pool, fAsset, 1, 0, 0)
+                    await assertFailedRedeem("Output == 0", pool, fAsset, 1, 0, 0, sa.default.signer, sa.default.address, true)
                 })
                 it("should fail to redeem if slippage just too big", async () => {
                     const { pool, fAsset } = details

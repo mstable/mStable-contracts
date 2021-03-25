@@ -21,8 +21,6 @@ const looseConfig = {
         max: simpleToExactAmount(99, 16),
     },
 }
-const startingCap = simpleToExactAmount(100, 24) // 100 million * 1e18
-const capFactor = simpleToExactAmount(1, 18)
 const fee = simpleToExactAmount(6, 15)
 
 const getReserves = (simpleUnits: number[], decimals: number[] = simpleUnits.map(() => 18)) =>
@@ -39,88 +37,19 @@ describe("Invariant Validator", () => {
         const accounts = await ethers.getSigners()
         const mAssetMachine = await new MassetMachine().initAccounts(accounts)
         sa = mAssetMachine.sa
-        validator = await new InvariantValidator__factory(sa.default.signer).deploy(startingCap, capFactor)
+        validator = await new InvariantValidator__factory(sa.default.signer).deploy()
     })
 
-    const redeployValidator = async (starting: BN, factor: BN) => {
-        validator = await new InvariantValidator__factory(sa.default.signer).deploy(starting, factor)
+    const redeployValidator = async () => {
+        validator = await new InvariantValidator__factory(sa.default.signer).deploy()
     }
-
-    // Cap = startingCap + (capFactor * weeksSinceLaunch^2)
-    describe("Enforcing the TVL cap", () => {
-        describe("before 7 weeks", () => {
-            it("should revert if we exceed the cap", async () => {
-                await redeployValidator(simpleToExactAmount(400000), simpleToExactAmount(900000))
-
-                await validator.computeMint(getReserves([90000, 90000, 90000, 90000]), 0, simpleToExactAmount(10000), looseConfig)
-                await expect(
-                    validator.computeMint(getReserves([90000, 90000, 90000, 90000]), 0, simpleToExactAmount(45000), looseConfig),
-                ).to.be.revertedWith("Cannot exceed TVL cap")
-
-                await increaseTime(ONE_WEEK)
-
-                // After 1 week the cap should be 1300e21
-                await validator.computeMint(getReserves([300000, 300000, 300000, 300000]), 0, simpleToExactAmount(50000), looseConfig)
-                await expect(
-                    validator.computeMint(getReserves([300000, 300000, 300000, 300000]), 0, simpleToExactAmount(150000), looseConfig),
-                ).to.be.revertedWith("Cannot exceed TVL cap")
-            })
-            it("should handle configurable parameters", async () => {
-                // Consider Bitcoin has value of ~45k
-                // 400e21 = 9e18, 900e21 = 2e19
-                await redeployValidator(simpleToExactAmount(9, 18), simpleToExactAmount(2, 19))
-
-                await validator.computeMint(getReserves([2, 2, 2, 2]), 0, simpleToExactAmount(1), looseConfig)
-                await expect(validator.computeMint(getReserves([2, 2, 2, 2]), 0, simpleToExactAmount(3), looseConfig)).to.be.revertedWith(
-                    "Cannot exceed TVL cap",
-                )
-
-                await increaseTime(ONE_WEEK)
-
-                // After 1 week the cap should be ~29e18
-                await validator.computeMint(getReserves([6, 6, 6, 6]), 0, simpleToExactAmount(3), looseConfig)
-                await expect(validator.computeMint(getReserves([6, 6, 6, 6]), 0, simpleToExactAmount(10), looseConfig)).to.be.revertedWith(
-                    "Cannot exceed TVL cap",
-                )
-            })
-        })
-        describe("after 7 weeks", () => {
-            it("always passes", async () => {
-                await redeployValidator(simpleToExactAmount(1, 19), simpleToExactAmount(1, 19))
-                await validator.computeMint(getReserves([2, 2, 2, 2]), 0, simpleToExactAmount(1), looseConfig)
-                await expect(validator.computeMint(getReserves([2, 2, 2, 2]), 0, simpleToExactAmount(4), looseConfig)).to.be.revertedWith(
-                    "Cannot exceed TVL cap",
-                )
-
-                await increaseTime(ONE_WEEK.mul(7).sub(20))
-
-                // After 7 weeks the cap should be 1e19 + (1e19 * 49) = 5e20
-                await validator.computeMint(getReserves([120, 120, 120, 120]), 0, simpleToExactAmount(1), looseConfig)
-                await expect(
-                    validator.computeMint(getReserves([120, 120, 120, 120]), 0, simpleToExactAmount(100), looseConfig),
-                ).to.be.revertedWith("Cannot exceed TVL cap")
-
-                // Increase 30 seconds, weeksSinceLaunch > 7, and test passes
-                await increaseTime(30)
-
-                await validator.computeMint(getReserves([120, 120, 120, 120]), 0, simpleToExactAmount(100), looseConfig)
-            })
-            it("passes even with huge amount", async () => {
-                await redeployValidator(simpleToExactAmount(1, 19), simpleToExactAmount(1, 19))
-
-                await increaseTime(ONE_WEEK.mul(7).add(5))
-
-                await validator.computeMint(getReserves([1000, 1000, 1000, 1000]), 0, simpleToExactAmount(1000), looseConfig)
-            })
-        })
-    })
 
     describe("Validating bAssets with different ratios", () => {
         const x1 = getReserves([10, 10, 10, 10], [10, 18, 6, 18])
         const x2 = getReserves([10, 10, 10, 10], [18, 18, 6, 18])
 
         before(async () => {
-            await redeployValidator(simpleToExactAmount(100, 19), simpleToExactAmount(1, 19))
+            await redeployValidator()
         })
         it("should treat them equally in mint", async () => {
             const r1 = await validator.computeMint(x1, 0, simpleToExactAmount(1, 10), looseConfig)
@@ -158,7 +87,7 @@ describe("Invariant Validator", () => {
     describe("With params in different orders", () => {
         const x = getReserves([10, 10, 10, 10], [10, 18, 6, 18])
         before(async () => {
-            await redeployValidator(simpleToExactAmount(100, 19), simpleToExactAmount(1, 19))
+            await redeployValidator()
         })
         it("should treat them equally in mint multi", async () => {
             const r1 = await validator.computeMintMulti(x, [0, 1], [simpleToExactAmount(1, 10), simpleToExactAmount(1, 18)], looseConfig)
@@ -177,7 +106,7 @@ describe("Invariant Validator", () => {
     describe("Exceeding max weights", () => {
         const x = getReserves([30, 10, 10, 10])
         before(async () => {
-            await redeployValidator(simpleToExactAmount(100, 19), simpleToExactAmount(1, 19))
+            await redeployValidator()
         })
         it("should throw in mint multi", async () => {
             // max weight is 55%

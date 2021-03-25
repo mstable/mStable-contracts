@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.1;
+pragma solidity 0.8.2;
 
 import { IMasset } from "../../interfaces/IMasset.sol";
 import { ISavingsContractV1 } from "../../interfaces/ISavingsContract.sol";
@@ -18,7 +18,7 @@ contract MockSavingsManager {
 
         // 1. Collect the new interest from the mAsset
         IMasset mAsset = IMasset(_mAsset);
-        (uint256 interestCollected, uint256 totalSupply) = mAsset.collectInterest();
+        (uint256 interestCollected,) = mAsset.collectInterest();
 
         // 3. Validate that interest is collected correctly and does not exceed max APY
         if(interestCollected > 0) {

@@ -1,10 +1,11 @@
-pragma solidity 0.8.1;
+// SPDX-License-Identifier: GPL-3.0-or-later
+pragma solidity 0.8.2;
 
 import {
     IAaveATokenV2,
     IAaveLendingPoolV2,
     ILendingPoolAddressesProviderV2
-} from "./IAave.sol";
+} from "../../masset/peripheral/IAave.sol";
 
 import { MassetHelpers, SafeERC20 } from "../../shared/MassetHelpers.sol";
 import { IERC20, ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";

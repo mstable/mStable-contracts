@@ -20,8 +20,6 @@ const config = {
         max: simpleToExactAmount(75, 16),
     },
 }
-const startingCap = simpleToExactAmount(1, 29)
-const capFactor = simpleToExactAmount(1, 18)
 
 const ratio = simpleToExactAmount(1, 8)
 const tolerance = BN.from(10)
@@ -53,7 +51,7 @@ describe("Invariant Validator - One basket many tests", () => {
         const wBTC = await mAssetMachine.loadBassetProxy("Wrapped BTC", "wBTC", 18)
         const bAssets = [renBTC, sBTC, wBTC]
         bAssetAddresses = bAssets.map((b) => b.address)
-        const forgeVal = await new ExposedInvariantValidator__factory(sa.default.signer).deploy(startingCap, capFactor)
+        const forgeVal = await new ExposedInvariantValidator__factory(sa.default.signer).deploy()
 
         const ManagerFactory = await ethers.getContractFactory("Manager")
         const managerLib = await ManagerFactory.deploy()

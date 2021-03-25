@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.1;
+pragma solidity 0.8.2;
 
 import { IInvariantValidator } from "../interfaces/IInvariantValidator.sol";
 import { BassetData, InvariantConfig, WeightLimits } from "../masset/MassetStructs.sol";
@@ -17,17 +17,6 @@ import { Root } from "../shared/Root.sol";
  */
 contract InvariantValidator is IInvariantValidator {
     uint256 internal constant A_PRECISION = 100;
-
-    // Data used for determining max TVL during guarded launch
-    uint256 public immutable startTime;
-    uint256 public immutable startingCap;
-    uint256 public immutable capFactor;
-
-    constructor(uint256 _startingCap, uint256 _capFactor) {
-        startTime = block.timestamp;
-        startingCap = _startingCap;
-        capFactor = _capFactor;
-    }
 
     /***************************************
                     EXTERNAL
@@ -207,8 +196,7 @@ contract InvariantValidator is IInvariantValidator {
 
     /**
      * @dev Computes the actual mint output after adding mint inputs
-     * to the vault balances. Also checks that tvl cap does not exceed
-     * the cap, during guarded launch period.
+     * to the vault balances.
      * @param _x            Scaled vaultBalances
      * @param _sum          Sum of vaultBalances, to avoid another loop
      * @param _k            Previous value of invariant, k, before addition
@@ -220,19 +208,10 @@ contract InvariantValidator is IInvariantValidator {
         uint256 _sum,
         uint256 _k,
         uint256 _a
-    ) internal view returns (uint256 mintAmount) {
+    ) internal pure returns (uint256 mintAmount) {
         // 1. Get value of reserves according to invariant
         uint256 kFinal = _invariant(_x, _sum, _a);
-        // 2. Guarded launch - ensure TVL cap is not hit
-        // e.g. 10 days after launch
-        // e.g. 864000e18 / 86400 = 1.4e18 (1.4 weeks)
-        uint256 weeksSinceLaunch = ((block.timestamp - startTime) * 1e18) / 604800;
-        if (weeksSinceLaunch < 7e18) {
-            // e.g. 1e19 + (15e18 * 2.04e36) = 1e19 + 3.06e55
-            uint256 maxK = startingCap + ((capFactor * (weeksSinceLaunch**2)) / 1e36);
-            require(kFinal <= maxK, "Cannot exceed TVL cap");
-        }
-        // 3. Total minted is the difference between values
+        // 2. Total minted is the difference between values
         mintAmount = kFinal - _k;
     }
 

@@ -8354,10 +8354,10 @@ solc@0.7.3:
     semver "^5.5.0"
     tmp "0.0.33"
 
-solc@0.8.1:
-  version "0.8.1"
-  resolved "https://registry.yarnpkg.com/solc/-/solc-0.8.1.tgz#cbdba8fea6fbfae463f382cecb59c51de0269472"
-  integrity sha512-rqB8wlL20I/k+ibCgNGqXaoXBngKTUb3JCsCazwEvxJ9C9RcXNGRsiqgB1xZs37IjINMp0E3xGiuMjGYTBQnUg==
+solc@0.8.2:
+  version "0.8.2"
+  resolved "https://registry.yarnpkg.com/solc/-/solc-0.8.2.tgz#6033d75c6166fd0feb7fe08eddc198aaf52025da"
+  integrity sha512-fMfcAPaePLfsOY82jqONt0RMh5M8m+pK6QtnMGMUFUm8uEDlUmoqnyLxGVFelosJaVfXhygAB+mTlb+HxiV7DQ==
   dependencies:
     command-exists "^1.2.8"
     commander "3.0.2"
