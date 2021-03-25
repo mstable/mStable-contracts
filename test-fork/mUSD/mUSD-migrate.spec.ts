@@ -16,9 +16,9 @@ import {
     Masset,
     MusdV3,
     MusdV3__factory,
-    MusdV3Rebalance4Pool,
+    MusdV3Rebalance__factory,
+    MusdV3Rebalance,
     AaveV2Integration,
-    AaveV2Integration__factory,
 } from "types/generated"
 import { MusdV3LibraryAddresses } from "types/generated/factories/MusdV3__factory"
 import { BassetStatus } from "@utils/mstable-objects"
@@ -332,7 +332,7 @@ const balanceBasset = async (
 const validateFlashLoan = async (
     flashToken: Token,
     basketManager: Contract,
-    mUsdRebalance: MusdV3Rebalance4Pool,
+    mUsdRebalance: MusdV3Rebalance,
     scaledTargetBalance: BN,
     overweightTokenSplits: BN[], // TUSD and USDC proportions in basis points (bps),
     loanPercentage = 100,
@@ -897,6 +897,86 @@ describe("mUSD V2.0 to V3.0", () => {
             })
             it("should collect interest after upgrade", async () => {
                 await savingsManager.collectAndDistributeInterest(mUsdV3.proxy.address)
+            })
+        })
+    })
+    context("Add DAI and balance mUSD bAssets on-chain using DyDx flash loans", () => {
+        let mUsdRebalancer: MusdV3Rebalance
+        let scaledTargetBalance: BN
+        let overweightTokenSplits: BN[]
+        before(async () => {
+            await network.provider.request({
+                method: "hardhat_reset",
+                params: [
+                    {
+                        forking: {
+                            jsonRpcUrl: process.env.NODE_URL,
+                            blockNumber: 12088142,
+                        },
+                    },
+                ],
+            })
+            accounts = await impersonateAccounts()
+
+            const basketManagerFactory = new ContractFactory(BasketManagerV2Abi, BasketManagerV2Bytecode, accounts.governor)
+            basketManager = basketManagerFactory.attach(basketManagerAddress)
+
+            // Sum up the total amount of bAssets in mUSD
+            const basket = await basketManager.getBassets()
+            const totalBassets = basket.bAssets.reduce((total, bAsset, i) => {
+                // Convert bAsset balance up to 18 decimals
+                const scaledBalance = applyDecimals(bAsset.vaultBalance, intermediaryBassets[i].decimals)
+                return total.add(scaledBalance)
+            }, BN.from(0))
+            const musdTotal = await mUsdV2.totalSupply()
+            // 25% of bAssets total
+            scaledTargetBalance = totalBassets.div(4)
+            console.log(`Target bAsset balance ${formatUnits(scaledTargetBalance)} = ${totalBassets} / 4. ${musdTotal} mUSD`)
+
+            // Calculate this the splits between the overweight tokens TUSD and USDC in basis points
+            const scaledOverweightTusd = (await basketManager.getBasset(TUSD.address)).vaultBalance
+            const usdtInMusd = (await basketManager.getBasset(USDT.address)).vaultBalance
+            const scaledOverweightUsdt = usdtInMusd.mul(1e12).sub(scaledTargetBalance)
+            const scaledOverWeightTotal = scaledOverweightTusd.add(scaledOverweightUsdt)
+            overweightTokenSplits = [
+                scaledOverweightTusd.mul(10000).div(scaledOverWeightTotal),
+                scaledOverweightUsdt.mul(10000).div(scaledOverWeightTotal),
+            ]
+            console.log(`TUSD ${overweightTokenSplits[0]} bps, USDT ${overweightTokenSplits[1]} bps of the overweight tokens`)
+
+            const signer = await impersonate(daiWhaleAddress)
+            const mUsdRebalancerFactory = new MusdV3Rebalance__factory(signer)
+            mUsdRebalancer = await mUsdRebalancerFactory.attach(rebalancerAddress)
+        })
+        it("whales approve rebalance contract to fund loan shortfalls", async () => {
+            // whale approves upgrade contract to spend their USDC
+            const usdcWhaleSigner = await impersonate(USDC.whaleAddress)
+            const usdc = new ERC20__factory(usdcWhaleSigner).attach(USDC.address)
+            await usdc.approve(mUsdRebalancer.address, simpleToExactAmount(300000, USDC.decimals))
+
+            // whale approves upgrade contract to spend their DAI
+            const daiWhaleSigner = await impersonate(DAI.whaleAddress)
+            const dai = new ERC20__factory(daiWhaleSigner).attach(DAI.address)
+            await dai.approve(mUsdRebalancer.address, simpleToExactAmount(3000000, DAI.decimals))
+        })
+        it("use USDC flash loan from DyDx to balance mUSD bAssets", async () => {
+            await validateFlashLoan(USDC, basketManager, mUsdRebalancer, scaledTargetBalance, overweightTokenSplits)
+        })
+        context("use DAI flash loan from DyDx to balance mUSD bAssets", () => {
+            it("Add TUSD liquidity to Aave Core V1 for testing", async () => {
+                const whale = await impersonate(TUSD.whaleAddress)
+                const inputTokenContract = new ERC20__factory(whale).attach(TUSD.address)
+                await inputTokenContract.transfer(aaveCoreV1Address, simpleToExactAmount(13000000, 18))
+                const whale2 = await impersonate("0xf977814e90da44bfa03b6295a0616a897441acec") // Binance 8
+                const inputTokenContract2 = new ERC20__factory(whale2).attach(TUSD.address)
+                await inputTokenContract2.transfer(aaveCoreV1Address, simpleToExactAmount(9000000, 18))
+            })
+            it("first DAI flash loan", async () => {
+                await validateFlashLoan(DAI, basketManager, mUsdRebalancer, scaledTargetBalance, overweightTokenSplits, 50)
+            })
+            // For this to work more DAI liquidity is needed in DyDx
+            it.skip("second DAI flash loan", async () => {
+                await validateFlashLoan(DAI, basketManager, mUsdRebalancer, scaledTargetBalance, overweightTokenSplits, 100)
             })
         })
     })
