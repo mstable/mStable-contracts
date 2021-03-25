@@ -323,7 +323,6 @@ const balanceBasset = async (
     const tx = mUsdV2.connect(signer).swap(inputToken.address, outputToken.address, bAssetAmount, whaleAddress)
 
     await expect(tx).to.emit(mUsdV2, "Swapped")
-    // TODO - consider what this is used for and whether to rely on cached settings
     scaledVaultBalances[inputToken.index] = scaledVaultBalances[inputToken.index].add(minBassetAmount)
     // this is not 100% accurate as the outputs are less fees but it's close enough for testing
     scaledVaultBalances[outputToken.index] = scaledVaultBalances[outputToken.index].sub(minBassetAmount)

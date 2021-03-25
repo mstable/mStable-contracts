@@ -1,12 +1,13 @@
 module.exports = {
-  skipFiles: [
-    'interfaces',
-    'integrations',
-    'z_mocks',
-    'shared/InitializableReentrancyGuard.sol',
-    'integrations',
-    'masset/peripheral',
-    'savings/peripheral',
-    'upgradability'
-  ]
-};
+    skipFiles: [
+        "interfaces",
+        "integrations",
+        "z_mocks",
+        "shared/InitializableReentrancyGuard.sol",
+        "integrations",
+        "masset/peripheral",
+        "peripheral",
+        "savings/peripheral",
+        "upgradability",
+    ],
+}
