@@ -16,6 +16,10 @@ import {
     MockInitializableToken__factory,
     BoostedSavingsVault__factory,
     ERC20,
+    BoostedSavingsVault,
+    FeederWrapper,
+    FeederWrapper__factory,
+    Masset__factory,
 } from "types/generated"
 import { simpleToExactAmount, BN } from "@utils/math"
 
@@ -185,7 +189,7 @@ const mint = async (sender: Signer, bAssets: DeployedFasset[], feederPool: Feede
     )
 }
 
-const deployVault = async (sender: Signer, addresses: CommonAddresses, feederPool: FeederPool): Promise<void> => {
+const deployVault = async (sender: Signer, addresses: CommonAddresses, feederPool: FeederPool): Promise<BoostedSavingsVault> => {
     const vImpl = await new BoostedSavingsVault__factory(sender).deploy(
         addresses.nexus,
         feederPool.address,
@@ -202,6 +206,28 @@ const deployVault = async (sender: Signer, addresses: CommonAddresses, feederPoo
     const vProxy = await new AssetProxy__factory(sender).deploy(vImpl.address, addresses.proxyAdmin, vData)
     const receiptVaultProxy = await vProxy.deployTransaction.wait()
     console.log(`Deployed Vault Proxy to ${vProxy.address}. gas used ${receiptVaultProxy.gasUsed}`)
+
+    return BoostedSavingsVault__factory.connect(receiptVaultProxy.contractAddress, sender)
+}
+
+const deployFeederWrapper = async (sender: Signer, feederPool: FeederPool, vault: BoostedSavingsVault): Promise<FeederWrapper> => {
+    // Deploy FeederWrapper
+    const feederWrapper = await new FeederWrapper__factory(sender).deploy()
+    const deployReceipt = await feederWrapper.deployTransaction.wait()
+    console.log(`Deployed FeederWrapper to ${feederWrapper.address}. gas used ${deployReceipt.gasUsed}`)
+
+    // Get tokens to approve
+    const [[{ addr: massetAddr }, { addr: fassetAddr }]] = await feederPool.getBassets()
+    const masset = Masset__factory.connect(massetAddr, sender)
+    const [bassets] = await masset.getBassets()
+    const assets = [massetAddr, fassetAddr, ...bassets.map(({ addr }) => addr)]
+
+    // Make the approval in one tx
+    const approveTx = await feederWrapper["approve(address,address,address[])"](feederPool.address, vault.address, assets)
+    const approveReceipt = await approveTx.wait()
+    console.log(`Approved FeederWrapper tokens. gas used ${approveReceipt.gasUsed}`)
+
+    return feederWrapper
 }
 
 task("fSize", "Gets the bytecode size of the FeederPool.sol contract").setAction(async (_, hre) => {
@@ -291,7 +317,10 @@ task("deployFeeder", "Deploys a feeder pool").setAction(async (_, hre) => {
     await mint(deployer, [deployedMasset, deployedFasset], feederPool)
 
     // 4. Rewards Contract
-    await deployVault(deployer, addresses, feederPool)
+    const vault = await deployVault(deployer, addresses, feederPool)
+
+    // 5. Deploy Feeder Wrapper (TODO: this should only be needed once)
+    await deployFeederWrapper(deployer, feederPool, vault)
 
     // TODO
     // - Fund vault
