@@ -9,8 +9,8 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 import { IMassetV2 } from "./IMassetV2.sol";
-import { DyDxFlashLoan } from "./dydx/DyDxFlashLoan.sol";
-import { ICurve } from "../../../interfaces/ICurve.sol";
+import { DyDxFlashLoan } from "../../../peripheral/dydx/DyDxFlashLoan.sol";
+import { ICurve } from "../../../peripheral/ICurve.sol";
 
  /**
  * @title   Contract to rebalance mUSD bAssets to new weights for the mUSD V3 upgrade.
@@ -21,7 +21,7 @@ import { ICurve } from "../../../interfaces/ICurve.sol";
  * @dev     VERSION: 1.0
  *          DATE:    2021-03-22
  */
-contract MusdV3Rebalance4Pool is DyDxFlashLoan, Ownable {
+contract MusdV3Rebalance is DyDxFlashLoan, Ownable {
 
     using SafeERC20 for IERC20;
 
