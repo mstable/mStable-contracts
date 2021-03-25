@@ -28,5 +28,5 @@
     "./test-fork/**/*.ts",
     "./test-utils/**/*.ts"
   ],
-  "files": ["./hardhat.config.ts", "./hardhat-fork.config.ts", "./tasks.config.ts"]
+  "files": ["./hardhat.config.ts", "./hardhat-fork.config.ts", "./tasks.config.ts", "./tasks-fork.config.ts"]
 }

@@ -1,4 +1,4 @@
-import config from "./hardhat.config"
+import config from "./hardhat-fork.config"
 
 import "./tasks/deployMbtc"
 import "./tasks/mBTC"

@@ -36,7 +36,6 @@ export const assertBNClosePercent = (a: BN, b: BN, variance: string | number = "
         .mul(2)
         .mul(fullScale)
         .div(a.add(b))
-    console.log(a.toString(), b.toString())
     assert.ok(
         diff.lte(varianceBN),
         `Numbers exceed ${variance}% diff (Delta between a and b is ${diff.toString()}%, but variance was only ${varianceBN.toString()})`,
