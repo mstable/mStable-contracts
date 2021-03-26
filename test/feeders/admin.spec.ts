@@ -51,7 +51,9 @@ describe("Feeder Admin", () => {
         describe("should allow changing of the cache size to ", () => {
             it("zero", async () => {
                 const tx = pool.setCacheSize(0)
-                await expect(tx).to.emit(pool, "CacheSizeChanged").withArgs(0)
+                await expect(tx)
+                    .to.emit(pool, "CacheSizeChanged")
+                    .withArgs(0)
                 const poolData = await pool.data()
                 expect(poolData.cacheSize).eq(0)
             })
@@ -60,14 +62,18 @@ describe("Feeder Admin", () => {
                 const oldSize = poolData.cacheSize
                 expect(oldSize).not.eq(newSize)
                 const tx = pool.setCacheSize(newSize)
-                await expect(tx).to.emit(pool, "CacheSizeChanged").withArgs(newSize)
+                await expect(tx)
+                    .to.emit(pool, "CacheSizeChanged")
+                    .withArgs(newSize)
                 poolData = await pool.data()
                 expect(poolData.cacheSize).eq(newSize)
             })
             it("20% (cap limit)", async () => {
                 const capLimit = simpleToExactAmount(20, 16) // 20%
                 const tx = pool.setCacheSize(capLimit)
-                await expect(tx).to.emit(pool, "CacheSizeChanged").withArgs(capLimit)
+                await expect(tx)
+                    .to.emit(pool, "CacheSizeChanged")
+                    .withArgs(capLimit)
                 const poolData = await pool.data()
                 expect(poolData.cacheSize).eq(capLimit)
             })
@@ -94,42 +100,66 @@ describe("Feeder Admin", () => {
                 let poolData = await pool.data()
                 const newSwapFee = simpleToExactAmount(0.5, 16)
                 const newRedemptionFee = simpleToExactAmount(0.25, 16)
+                const newGovFee = simpleToExactAmount(2, 17)
                 expect(poolData.swapFee).not.eq(newSwapFee)
                 expect(poolData.redemptionFee).not.eq(newRedemptionFee)
-                const tx = pool.setFees(newSwapFee, newRedemptionFee)
-                await expect(tx).to.emit(pool, "FeesChanged").withArgs(newSwapFee, newRedemptionFee)
+                expect(poolData.govFee).not.eq(newGovFee)
+                const tx = pool.setFees(newSwapFee, newRedemptionFee, newGovFee)
+                await expect(tx)
+                    .to.emit(pool, "FeesChanged")
+                    .withArgs(newSwapFee, newRedemptionFee, newGovFee)
                 poolData = await pool.data()
                 expect(poolData.swapFee).eq(newSwapFee)
                 expect(poolData.redemptionFee).eq(newRedemptionFee)
+                expect(poolData.govFee).eq(newGovFee)
             })
             it("1% (limit)", async () => {
                 const newFee = simpleToExactAmount(1, 16)
-                await pool.setFees(newFee, newFee)
-                const tx = pool.setFees(newFee, newFee)
-                await expect(tx).to.emit(pool, "FeesChanged").withArgs(newFee, newFee)
+                const tx = pool.setFees(newFee, newFee, newFee)
+                await expect(tx)
+                    .to.emit(pool, "FeesChanged")
+                    .withArgs(newFee, newFee, newFee)
                 const poolData = await pool.data()
                 expect(poolData.swapFee).eq(newFee)
                 expect(poolData.redemptionFee).eq(newFee)
             })
+            it("50% limit for gov fee", async () => {
+                const newFee = simpleToExactAmount(1, 15)
+                const govFee = simpleToExactAmount(5, 17)
+                const tx = pool.setFees(newFee, newFee, govFee)
+                await expect(tx)
+                    .to.emit(pool, "FeesChanged")
+                    .withArgs(newFee, newFee, govFee)
+                const poolData = await pool.data()
+                expect(poolData.swapFee).eq(newFee)
+                expect(poolData.redemptionFee).eq(newFee)
+                expect(poolData.govFee).eq(govFee)
+            })
         })
         describe("should fail to change swap fee rate when", () => {
+            const cap = "10000000000000000"
+            const overCap = "10000000000000001"
+            const overGovCap = "500000000000000000"
             it("not governor", async () => {
                 const fee = simpleToExactAmount(2, 16)
-                await expect(details.pool.setFees(fee, fee)).to.be.revertedWith("Only governor can execute")
+                await expect(details.pool.setFees(fee, fee, fee)).to.be.revertedWith("Only governor can execute")
             })
             it("Swap rate just exceeds 1% cap", async () => {
-                await expect(pool.setFees("10000000000000001", "10000000000000000")).to.be.revertedWith("Swap rate oob")
+                await expect(pool.setFees(overCap, cap, cap)).to.be.revertedWith("Swap rate oob")
             })
             it("Redemption rate just exceeds 1% cap", async () => {
-                await expect(pool.setFees("10000000000000000", "10000000000000001")).to.be.revertedWith("Redemption rate oob")
+                await expect(pool.setFees(cap, overCap, cap)).to.be.revertedWith("Redemption rate oob")
+            })
+            it("Gov rate just exceeds 50% cap", async () => {
+                await expect(pool.setFees(cap, cap, overGovCap)).to.be.revertedWith("Gov fee rate oob")
             })
             it("2% rate exceeds 1% cap", async () => {
                 const fee = simpleToExactAmount(2, 16) // 2%
-                await expect(pool.setFees(fee, fee)).to.be.revertedWith("Swap rate oob")
+                await expect(pool.setFees(fee, fee, cap)).to.be.revertedWith("Swap rate oob")
             })
             it("max rate", async () => {
                 const fee = MAX_UINT256
-                await expect(pool.setFees(fee, fee)).to.be.revertedWith("Swap rate oob")
+                await expect(pool.setFees(fee, fee, fee)).to.be.revertedWith("Swap rate oob")
             })
         })
         it("should set weights", async () => {
@@ -138,7 +168,9 @@ describe("Feeder Admin", () => {
             const newMinWeight = simpleToExactAmount(30, 16)
             const newMaxWeight = simpleToExactAmount(70, 16)
             const tx = pool.setWeightLimits(newMinWeight, newMaxWeight)
-            await expect(tx, "WeightLimitsChanged event").to.emit(pool, "WeightLimitsChanged").withArgs(newMinWeight, newMaxWeight)
+            await expect(tx, "WeightLimitsChanged event")
+                .to.emit(pool, "WeightLimitsChanged")
+                .withArgs(newMinWeight, newMaxWeight)
             await tx
             poolData = await pool.data()
             const afterWeightLimits = poolData.weightLimits
@@ -223,7 +255,9 @@ describe("Feeder Admin", () => {
             const startTime = await getTimestamp()
             const endTime = startTime.add(ONE_WEEK.mul(2))
             const tx = pool.startRampA(120, endTime)
-            await expect(tx).to.emit(pool, "StartRampA").withArgs(10000, 12000, startTime.add(1), endTime)
+            await expect(tx)
+                .to.emit(pool, "StartRampA")
+                .withArgs(10000, 12000, startTime.add(1), endTime)
 
             // after values
             const ampDataAfter = (await pool.data()).ampData
@@ -479,7 +513,9 @@ describe("Feeder Admin", () => {
                 const currentA = config.a
                 const currentTime = await getTimestamp()
                 const tx = pool.stopRampA()
-                await expect(tx).to.emit(pool, "StopRampA").withArgs(currentA, currentTime.add(1))
+                await expect(tx)
+                    .to.emit(pool, "StopRampA")
+                    .withArgs(currentA, currentTime.add(1))
                 config = await details.pool.getConfig()
                 expect(config.a).to.eq(currentA)
 
@@ -524,7 +560,9 @@ describe("Feeder Admin", () => {
             it("Should collect zero platform interest", async () => {
                 const { pool } = details
                 const tx = pool.connect(sa.mockInterestValidator.signer).collectPlatformInterest()
-                await expect(tx).to.emit(pool, "MintedMulti").withArgs(pool.address, sa.mockInterestValidator.address, 0, [], [0, 0])
+                await expect(tx)
+                    .to.emit(pool, "MintedMulti")
+                    .withArgs(pool.address, sa.mockInterestValidator.address, 0, [], [0, 0])
             })
             it("Should collect zero platform interest even after minting a mAsset", async () => {
                 const { pool, mAsset } = details
@@ -537,7 +575,9 @@ describe("Feeder Admin", () => {
                 await pool.mint(mAsset.address, simpleToExactAmount(500), 0, sa.default.address)
 
                 const tx = pool.connect(sa.mockInterestValidator.signer).collectPlatformInterest()
-                await expect(tx).to.emit(pool, "MintedMulti").withArgs(pool.address, sa.mockInterestValidator.address, 0, [], [0, 0])
+                await expect(tx)
+                    .to.emit(pool, "MintedMulti")
+                    .withArgs(pool.address, sa.mockInterestValidator.address, 0, [], [0, 0])
             })
         })
         context("mocking the interest validator", () => {
@@ -772,7 +812,9 @@ describe("Feeder Admin", () => {
             // call migrate
             const tx = pool.connect(sa.governor.signer).migrateBassets([transferringAsset.address], newMigration.address)
             // emits BassetsMigrated
-            await expect(tx).to.emit(pool, "BassetsMigrated").withArgs([transferringAsset.address], newMigration.address)
+            await expect(tx)
+                .to.emit(pool, "BassetsMigrated")
+                .withArgs([transferringAsset.address], newMigration.address)
             // moves all bAssets from old to new
             const migratedBal = await newMigration.callStatic.checkBalance(transferringAsset.address)
             expect(migratedBal).eq(bal)
@@ -819,7 +861,9 @@ describe("Feeder Admin", () => {
             // call migrate
             const tx = pool.connect(sa.governor.signer).migrateBassets([transferringAsset.address], newMigration.address)
             // emits BassetsMigrated
-            await expect(tx).to.emit(pool, "BassetsMigrated").withArgs([transferringAsset.address], newMigration.address)
+            await expect(tx)
+                .to.emit(pool, "BassetsMigrated")
+                .withArgs([transferringAsset.address], newMigration.address)
             // moves all bAssets from old to new
             const migratedBal = await newMigration.callStatic.checkBalance(transferringAsset.address)
             expect(migratedBal).eq(bal)
@@ -854,7 +898,9 @@ describe("Feeder Admin", () => {
             // call migrate
             const tx = pool.connect(sa.governor.signer).migrateBassets([transferringAsset.address], newMigration.address)
             // emits BassetsMigrated
-            await expect(tx).to.emit(pool, "BassetsMigrated").withArgs([transferringAsset.address], newMigration.address)
+            await expect(tx)
+                .to.emit(pool, "BassetsMigrated")
+                .withArgs([transferringAsset.address], newMigration.address)
             // moves all bAssets from old to new
             const migratedBal = await newMigration.callStatic.checkBalance(transferringAsset.address)
             expect(migratedBal).eq(0)

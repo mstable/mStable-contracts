@@ -11,8 +11,6 @@ import { assertBNClose, assertBNSlightlyGT } from "@utils/assertions"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
 import { feederData } from "@utils/validator-data"
 
-const { full, sample } = feederData.integrationData
-
 const config = {
     a: BN.from(300),
     limits: {
@@ -23,6 +21,8 @@ const config = {
 const massetA = 300
 const ratio = simpleToExactAmount(1, 8)
 const tolerance = BN.from(10)
+const maxAction = 100
+const feederFees = { swap: simpleToExactAmount(8, 14), redeem: simpleToExactAmount(6, 14), gov: simpleToExactAmount(1, 17) }
 
 const cv = (n: number | string): BN => BN.from(BigInt(n).toString())
 const getReserves = (data: any) =>
@@ -33,7 +33,7 @@ const getReserves = (data: any) =>
             vaultBalance: cv(data[`reserve${i}`]),
         }))
 
-const chosenTestData = process.env.LONG_TESTS === "true" ? full : sample
+const runLongTests = process.env.LONG_TESTS === "true"
 
 describe("Feeder Validation - One basket many tests", () => {
     let feederPool: ExposedFeederPool
@@ -62,7 +62,7 @@ describe("Feeder Validation - One basket many tests", () => {
             })
         ).connect(sa.default.signer) as ExposedFeederPool__factory
 
-        feederPool = (await FeederFactory.deploy(DEAD_ADDRESS, bAssets[0].address)) as ExposedFeederPool
+        feederPool = (await FeederFactory.deploy(mAssetDetails.nexus.address, bAssets[0].address)) as ExposedFeederPool
         await feederPool.initialize(
             "mStable mBTC/bBTC Feeder",
             "bBTC fPool",
@@ -81,9 +81,10 @@ describe("Feeder Validation - One basket many tests", () => {
             mAssetDetails.bAssets.map((b) => b.address),
             config,
         )
+        await feederPool.connect(sa.governor.signer).setFees(feederFees.swap, feederFees.redeem, feederFees.gov)
         await Promise.all(bAssets.map((b) => b.approve(feederPool.address, MAX_UINT256)))
 
-        const reserves = getReserves(chosenTestData)
+        const reserves = getReserves(feederData.integrationData)
 
         await feederPool.mintMulti(
             bAssetAddresses,
@@ -95,6 +96,7 @@ describe("Feeder Validation - One basket many tests", () => {
 
     interface Data {
         totalSupply: BN
+        fees: BN
         vaultBalances: BN[]
         value: {
             price: BN
@@ -103,6 +105,7 @@ describe("Feeder Validation - One basket many tests", () => {
     }
     const getData = async (_feederPool: ExposedFeederPool): Promise<Data> => ({
         totalSupply: await _feederPool.totalSupply(),
+        fees: (await _feederPool.data()).pendingFees,
         vaultBalances: (await _feederPool.getBassets())[1].map((b) => b[1]),
         value: await _feederPool.getPrice(),
     })
@@ -112,7 +115,10 @@ describe("Feeder Validation - One basket many tests", () => {
         let lastKDiff = BN.from(0)
         let count = 0
 
-        for (const testData of chosenTestData.actions) {
+        for (const testData of feederData.integrationData.actions.slice(
+            0,
+            runLongTests ? feederData.integrationData.actions.length : maxAction,
+        )) {
             describe(`Action ${(count += 1)}`, () => {
                 before(async () => {
                     dataBefore = await getData(feederPool)
@@ -330,8 +336,13 @@ describe("Feeder Validation - One basket many tests", () => {
                         assertBNClose(dataEnd.value.price, dataBefore.value.price, 200, "fpToken price should always go up")
                     }
                     // 3. Supply checks out
-                    if (testData.mAssetSupply) {
-                        assertBNClose(dataEnd.totalSupply, cv(testData.mAssetSupply), 100, "Total supply should check out")
+                    if (testData.LPTokenSupply) {
+                        assertBNClose(
+                            dataEnd.totalSupply.add(dataEnd.fees),
+                            cv(testData.LPTokenSupply),
+                            100,
+                            "Total supply should check out",
+                        )
                     }
                 })
             })

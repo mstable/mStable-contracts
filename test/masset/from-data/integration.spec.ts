@@ -11,8 +11,6 @@ import { assertBNClose, assertBNSlightlyGT } from "@utils/assertions"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
 import { mAssetData } from "@utils/validator-data"
 
-const { full, sample } = mAssetData.integrationData
-
 const config = {
     a: BN.from(120),
     limits: {
@@ -33,7 +31,7 @@ const getReserves = (data: any) =>
             vaultBalance: cv(data[`reserve${i}`]),
         }))
 
-const chosenTestData = process.env.LONG_TESTS === "true" ? full : sample
+const runLongTests = process.env.LONG_TESTS === "true"
 
 describe("Invariant Validator - One basket many tests", () => {
     let mAsset: ExposedMasset
@@ -79,7 +77,7 @@ describe("Invariant Validator - One basket many tests", () => {
 
         await Promise.all(bAssets.map((b) => b.approve(mAsset.address, MAX_UINT256)))
 
-        const reserves = getReserves(chosenTestData)
+        const reserves = getReserves(mAssetData.integrationData)
 
         await mAsset.mintMulti(
             bAssetAddresses,
@@ -107,7 +105,10 @@ describe("Invariant Validator - One basket many tests", () => {
         let lastKDiff = BN.from(0)
         let count = 0
 
-        for (const testData of chosenTestData.actions) {
+        for (const testData of mAssetData.integrationData.actions.slice(
+            0,
+            runLongTests ? mAssetData.integrationData.actions.length : 100,
+        )) {
             describe(`Action ${(count += 1)}`, () => {
                 before(async () => {
                     dataBefore = await getData(mAsset)

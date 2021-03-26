@@ -1,15 +1,5 @@
 // import fullIntegrationData from "./full/crossIntegrationData.json"
 
-import sampleIntegrationData from "./sample/crossIntegrationData.json"
-
-interface Data {
-    full
-    sample
-}
-
-const integrationData: Data = {
-    full: null,
-    sample: sampleIntegrationData,
-}
+import integrationData from "./crossIntegrationData.json"
 
 export default { integrationData }

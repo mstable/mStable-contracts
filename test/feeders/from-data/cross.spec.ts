@@ -30,6 +30,7 @@ const config = {
     },
 }
 const massetA = 300
+const maxAction = 100
 const feederFees = { swap: simpleToExactAmount(8, 14), redeem: simpleToExactAmount(6, 14), gov: simpleToExactAmount(1, 17) }
 const mAssetFees = { swap: simpleToExactAmount(4, 14), redeem: simpleToExactAmount(2, 14) }
 
@@ -50,7 +51,6 @@ const getFPReserves = (data: any) =>
     }))
 
 const runLongTests = process.env.LONG_TESTS === "true"
-const chosenTestData = runLongTests ? integrationData.full : integrationData.sample
 
 interface Data {
     fp: {
@@ -115,7 +115,7 @@ describe("Cross swap - One basket many tests", () => {
 
         await mAssetMachine.seedWithWeightings(
             mAssetDetails,
-            getMPReserves(chosenTestData).map((r) => r.vaultBalance),
+            getMPReserves(integrationData).map((r) => r.vaultBalance),
             true,
         )
 
@@ -142,7 +142,7 @@ describe("Cross swap - One basket many tests", () => {
         await Promise.all(bAssets.map((b) => b.approve(feederPool.address, MAX_UINT256)))
         await Promise.all(mAssetDetails.bAssets.map((b) => b.approve(feederPool.address, MAX_UINT256)))
 
-        const reserves = getFPReserves(chosenTestData)
+        const reserves = getFPReserves(integrationData)
 
         await feederPool.mintMulti(
             fpAssetAddresses,
@@ -156,7 +156,7 @@ describe("Cross swap - One basket many tests", () => {
         let dataBefore: Data
         let count = 0
 
-        for (const testData of chosenTestData.actions) {
+        for (const testData of integrationData.actions.slice(0, runLongTests ? integrationData.actions.length : maxAction)) {
             describe(`Action ${(count += 1)}`, () => {
                 before(async () => {
                     dataBefore = await getData(feederPool, mAsset)
@@ -287,7 +287,7 @@ describe("Cross swap - One basket many tests", () => {
                                     feederPool.getRedeemOutput(mpAssetAddresses[testData.outputIndex], testData.inputQty),
                                 ).to.be.revertedWith("Exceeds weight limits")
                             })
-                        } else if (testData.insufficientLiquidityError) {
+                        } else if (testData["insufficientLiquidityError"]) {
                             it(`throws insufficient liquidity error when redeeming ${testData.inputQty} mAssets for bAsset ${testData.outputIndex}`, async () => {
                                 await expect(
                                     feederPool.redeem(mpAssetAddresses[testData.outputIndex], testData.inputQty, 0, recipient),

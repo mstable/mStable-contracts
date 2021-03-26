@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-loop-func */
 /* eslint-disable no-restricted-syntax */
 import { assertBNClose } from "@utils/assertions"
-import { DEAD_ADDRESS, fullScale, MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
+import { DEAD_ADDRESS, fullScale, MAX_UINT256, ratioScale, ZERO_ADDRESS } from "@utils/constants"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { feederData } from "@utils/validator-data"
@@ -21,7 +21,7 @@ import {
 const { mintData, mintMultiData, redeemData, redeemExactData, redeemProportionalData, swapData } = feederData
 
 const config = {
-    a: BN.from(300),
+    a: BN.from(30000),
     limits: {
         min: simpleToExactAmount(20, 16),
         max: simpleToExactAmount(80, 16),
@@ -60,7 +60,7 @@ describe("Feeder Validator - One basket one test", () => {
     })
     describe("Compute Mint", () => {
         let count = 0
-        const testMintData = runLongTests ? mintData.full : mintData.sample
+        const testMintData = runLongTests ? mintData : mintData.slice(0, 2)
         for (const testData of testMintData) {
             const reserves = getReserves(testData)
             const localConfig = { ...config, supply: testData.LPTokenSupply }
@@ -93,7 +93,7 @@ describe("Feeder Validator - One basket one test", () => {
     })
     describe("Compute Multi Mint", () => {
         let count = 0
-        const testMultiMintData = runLongTests ? mintMultiData.full : mintMultiData.sample
+        const testMultiMintData = runLongTests ? mintMultiData : mintMultiData.slice(0, 2)
         for (const testData of testMultiMintData) {
             const reserves = getReserves(testData)
             const localConfig = { ...config, supply: testData.LPTokenSupply }
@@ -110,7 +110,7 @@ describe("Feeder Validator - One basket one test", () => {
     })
     describe("Compute Swap", () => {
         let count = 0
-        const testSwapData = runLongTests ? swapData.full : swapData.sample
+        const testSwapData = runLongTests ? swapData : swapData.slice(0, 2)
         for (const testData of testSwapData) {
             const reserves = getReserves(testData)
             const localConfig = { ...config, supply: testData.LPTokenSupply }
@@ -152,7 +152,7 @@ describe("Feeder Validator - One basket one test", () => {
     })
     describe("Compute Redeem", () => {
         let count = 0
-        const testRedeemData = runLongTests ? redeemData.full : redeemData.sample
+        const testRedeemData = runLongTests ? redeemData : redeemData.slice(0, 2)
         for (const testData of testRedeemData) {
             const reserves = getReserves(testData)
             const localConfig = { ...config, supply: testData.LPTokenSupply }
@@ -183,7 +183,7 @@ describe("Feeder Validator - One basket one test", () => {
     })
     describe("Compute Exact Redeem", () => {
         let count = 0
-        const testRedeemExactData = runLongTests ? redeemExactData.full : redeemExactData.sample
+        const testRedeemExactData = runLongTests ? redeemExactData : redeemExactData.slice(0, 2)
         for (const testData of testRedeemExactData) {
             const reserves = getReserves(testData)
             const localConfig = { ...config, supply: testData.LPTokenSupply }
@@ -216,9 +216,9 @@ describe("Feeder Validator - One basket one test", () => {
         }
     })
 
-    describe.only("Compute Redeem Masset", () => {
+    describe("Compute Redeem Masset", () => {
         let count = 0
-        const testRedeemData = runLongTests ? redeemProportionalData.full : redeemProportionalData.sample
+        const testRedeemData = runLongTests ? redeemProportionalData : redeemProportionalData.slice(0, 2)
         for (const testData of testRedeemData) {
             const reserves = getReserves(testData)
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}`, () => {
@@ -250,6 +250,11 @@ describe("Feeder Validator - One basket one test", () => {
                             },
                         })
                     ).connect(sa.default.signer) as FeederPool__factory
+
+                    const linkedAddress = {
+                        __$7791d1d5b7ea16da359ce352a2ac3a881c$__: feederLogic.address,
+                    }
+                    exposedFeeder = await new ExposedFeederLogic__factory(linkedAddress, sa.default.signer).deploy()
                 })
 
                 beforeEach(async () => {
@@ -270,7 +275,10 @@ describe("Feeder Validator - One basket one test", () => {
                             status: 0,
                         },
                         mAssetBassets.map((b) => b.address),
-                        config,
+                        {
+                            ...config,
+                            a: config.a.div(100),
+                        },
                     )
                     await Promise.all(bAssets.map((b) => b.approve(feederPool.address, MAX_UINT256)))
                     await feederPool.mintMulti(
@@ -283,7 +291,7 @@ describe("Feeder Validator - One basket one test", () => {
 
                 for (const testRedeem of testData.redeems) {
                     const qtys = testRedeem.bAssetQtys.map((b) => cv(b))
-                    if (testRedeem.insufficientLiquidityError) {
+                    if (testRedeem["insufficientLiquidityError"]) {
                         it(`${(count += 1)} throws throw insufficient liquidity error when redeeming ${
                             testRedeem.mAssetQty
                         } mAsset`, async () => {
@@ -291,7 +299,7 @@ describe("Feeder Validator - One basket one test", () => {
                                 "VM Exception",
                             )
                         })
-                    } else if (testRedeem.hardLimitError) {
+                    } else if (testRedeem["hardLimitError"]) {
                         it(`${(count += 1)} throws Max Weight error when redeeming ${qtys} bAssets`, async () => {
                             await expect(feederPool.redeemProportionately(cv(testRedeem.mAssetQty), qtys, recipient)).to.be.revertedWith(
                                 "Exceeds weight limits",
