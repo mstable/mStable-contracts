@@ -10,7 +10,7 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 import { IMassetV2 } from "./IMassetV2.sol";
 import { DyDxFlashLoan } from "../../../peripheral/dydx/DyDxFlashLoan.sol";
-import { ICurve } from "../../../peripheral/ICurve.sol";
+import { ICurve } from "../../../peripheral/Curve/ICurve.sol";
 
  /**
  * @title   Contract to rebalance mUSD bAssets to new weights for the mUSD V3 upgrade.

@@ -4,7 +4,7 @@
 import "ts-node/register"
 import "tsconfig-paths/register"
 import { task, types } from "hardhat/config"
-import { ContractFactory, Signer } from "ethers"
+import { Contract, ContractFactory, Signer } from "ethers"
 import { formatUnits } from "ethers/lib/utils"
 
 import { Masset } from "types/generated"
@@ -13,6 +13,7 @@ import { BassetStatus } from "@utils/mstable-objects"
 import { MassetLibraryAddresses, Masset__factory } from "types/generated/factories/Masset__factory"
 import { ONE_YEAR } from "@utils/constants"
 import * as MassetV2 from "../test-fork/mUSD/MassetV2.json"
+import CurveRegistryExchangeABI from "../contracts/peripheral/Curve/CurveRegistryExchange.json"
 
 // Mainnet contract addresses
 const mUsdAddress = "0xe2f2a5C287993345a840Db3B0845fbC70f5935a5"
@@ -81,6 +82,12 @@ const DAI: Token = {
 
 const mUSDBassets: Token[] = [sUSD, USDC, DAI, USDT]
 
+const formatUsd = (amount, decimals = 18, pad = 14, displayDecimals = 2): string => {
+    const string2decimals = parseFloat(formatUnits(amount, decimals)).toFixed(displayDecimals)
+    // Add thousands separator
+    return string2decimals.replace(/\B(?=(\d{3})+(?!\d))/g, ",").padStart(pad)
+}
+
 // Test mUSD token storage variables
 const snapTokenStorage = async (token: Masset) => {
     console.log("Symbol: ", (await token.symbol()).toString(), "mUSD")
@@ -128,25 +135,43 @@ const snapMasset = async (mUsd: Masset, validator: string) => {
     console.log("Max: ", invariantConfig.limits.max.toString(), config.limits.max.toString())
 }
 
-const getSwapRates = async (masset: Masset) => {
+const getSwapRates = async (masset: Masset, inputStr = "1000") => {
     console.log("\nSwap rates")
+
+    // Get Curve Exchange
+    const curve = new Contract("0xD1602F68CC7C4c7B59D686243EA35a9C73B0c6a2", CurveRegistryExchangeABI, masset.signer)
+
     for (const inputToken of mUSDBassets) {
         for (const outputToken of mUSDBassets) {
             if (inputToken.symbol !== outputToken.symbol) {
                 const inputAddress = inputToken.address
                 const outputAddress = outputToken.address
                 try {
-                    const inputStr = "1000"
                     const input = simpleToExactAmount(inputStr, inputToken.decimals)
+
+                    // Get mUSD swap rate
                     const output = await masset.getSwapOutput(inputAddress, outputAddress, input)
                     const scaledInput = applyDecimals(input, inputToken.decimals)
                     const scaledOutput = applyDecimals(output, outputToken.decimals)
                     const percent = scaledOutput.sub(scaledInput).mul(10000).div(scaledInput)
+
+                    // Get Curve's best swap rate
+                    const [, curveOutput] = await curve.get_best_rate(inputAddress, outputAddress, input)
+                    const scaledCurveOutput = applyDecimals(curveOutput, outputToken.decimals)
+                    const curvePercent = scaledCurveOutput.sub(scaledInput).mul(10000).div(scaledInput)
+
+                    const diffOutputs = output.sub(curveOutput).mul(10000).div(output)
+
                     console.log(
-                        `${inputStr} ${inputToken.symbol.padEnd(6)} -> ${outputToken.symbol.padEnd(6)} ${formatUnits(
+                        `${inputStr} ${inputToken.symbol.padEnd(5)} -> ${outputToken.symbol.padEnd(5)} ${formatUsd(
                             output,
                             outputToken.decimals,
-                        ).padEnd(21)} ${percent.toString().padStart(4)}bps`,
+                            8,
+                        )} ${percent.toString().padStart(4)}bps\tCurve ${formatUsd(
+                            curveOutput,
+                            outputToken.decimals,
+                            8,
+                        )} ${curvePercent.toString().padStart(4)}bps diff ${diffOutputs.toString().padStart(3)}bps`,
                     )
                 } catch (err) {
                     console.error(`${inputToken.symbol} -> ${outputToken.symbol} ${err.message}`)
@@ -165,19 +190,17 @@ const getBalances = async (masset: Masset): Promise<Balances> => {
     const otherBalances = mUsdBalance.sub(savingBalance).sub(curveMusdBalance).sub(mStableDAOBalance).sub(balancerETHmUSD5050Balance)
 
     console.log("\nmUSD Holders")
-    console.log(`imUSD                      ${formatUnits(savingBalance).padEnd(20)} ${savingBalance.mul(100).div(mUsdBalance)}%`)
-    console.log(`Curve mUSD                 ${formatUnits(curveMusdBalance).padEnd(20)} ${curveMusdBalance.mul(100).div(mUsdBalance)}%`)
-    console.log(`mStable DAO                ${formatUnits(mStableDAOBalance).padEnd(20)} ${mStableDAOBalance.mul(100).div(mUsdBalance)}%`)
+    console.log(`imUSD                      ${formatUsd(savingBalance)} ${savingBalance.mul(100).div(mUsdBalance)}%`)
+    console.log(`Curve mUSD                 ${formatUsd(curveMusdBalance)} ${curveMusdBalance.mul(100).div(mUsdBalance)}%`)
+    console.log(`mStable DAO                ${formatUsd(mStableDAOBalance)} ${mStableDAOBalance.mul(100).div(mUsdBalance)}%`)
     console.log(
-        `Balancer ETH/mUSD 50/50 #2 ${formatUnits(balancerETHmUSD5050Balance).padEnd(20)} ${balancerETHmUSD5050Balance
-            .mul(100)
-            .div(mUsdBalance)}%`,
+        `Balancer ETH/mUSD 50/50 #2 ${formatUsd(balancerETHmUSD5050Balance)} ${balancerETHmUSD5050Balance.mul(100).div(mUsdBalance)}%`,
     )
-    console.log(`Others                     ${formatUnits(otherBalances).padEnd(20)} ${otherBalances.mul(100).div(mUsdBalance)}%`)
+    console.log(`Others                     ${formatUsd(otherBalances)} ${otherBalances.mul(100).div(mUsdBalance)}%`)
 
     const surplus = await masset.surplus()
-    console.log(`Surplus                    ${formatUnits(surplus)}`)
-    console.log(`Total                      ${formatUnits(mUsdBalance)}`)
+    console.log(`Surplus                    ${formatUsd(surplus)}`)
+    console.log(`Total                      ${formatUsd(mUsdBalance)}`)
 
     return {
         total: mUsdBalance,
@@ -200,16 +223,16 @@ const getMints = async (mBTC: Masset, fromBlock: number, startTime: Date): Promi
     const logs = await mBTC.queryFilter(filter, fromBlock)
 
     console.log(`\nMints since block ${fromBlock} at ${startTime.toUTCString()}`)
-    console.log("Block#\t Tx hash\t\t\t\t\t\t\t    bAsset Masset Quantity")
+    console.log("Block#\t Tx hash\t\t\t\t\t\t\t    bAsset     Quantity")
     let total = BN.from(0)
     let count = 0
     logs.forEach((log) => {
         const inputBasset = mUSDBassets.find((b) => b.address === log.args.input)
-        console.log(`${log.blockNumber} ${log.transactionHash} ${inputBasset.symbol.padEnd(6)} ${formatUnits(log.args.mAssetQuantity)}`)
+        console.log(`${log.blockNumber} ${log.transactionHash} ${inputBasset.symbol.padEnd(4)} ${formatUsd(log.args.mAssetQuantity)}`)
         total = total.add(log.args.mAssetQuantity)
         count += 1
     })
-    console.log(`Count ${count}, Total ${formatUnits(total)}`)
+    console.log(`Count ${count}, Total ${formatUsd(total)}`)
     return {
         count,
         total,
@@ -222,21 +245,21 @@ const getMultiMints = async (mBTC: Masset, fromBlock: number, startTime: Date): 
     const logs = await mBTC.queryFilter(filter, fromBlock)
 
     console.log(`\nMulti Mints since block ${fromBlock} at ${startTime.toUTCString()}`)
-    console.log("Block#\t Tx hash\t\t\t\t\t\t\t    Masset Quantity")
+    console.log("Block#\t Tx hash\t\t\t\t\t\t\t\t  Quantity")
     let total = BN.from(0)
     let count = 0
     logs.forEach((log) => {
         // Ignore nMintMulti events from collectInterest and collectPlatformInterest
         if (!log.args.inputs.length) return
         const inputBassets = log.args.inputs.map((input) => mUSDBassets.find((b) => b.address === input))
-        console.log(`${log.blockNumber} ${log.transactionHash} ${formatUnits(log.args.mAssetQuantity)}`)
+        console.log(`${log.blockNumber} ${log.transactionHash} ${formatUsd(log.args.mAssetQuantity)}`)
         inputBassets.forEach((bAsset, i) => {
-            console.log(`   ${bAsset.symbol.padEnd(6)} ${formatUnits(log.args.inputQuantities[i], bAsset.decimals).padEnd(21)}`)
+            console.log(`   ${bAsset.symbol.padEnd(4)} ${formatUsd(log.args.inputQuantities[i], bAsset.decimals)}`)
         })
         total = total.add(log.args.mAssetQuantity)
         count += 1
     })
-    console.log(`Count ${count}, Total ${formatUnits(total)}`)
+    console.log(`Count ${count}, Total ${formatUsd(total)}`)
     return {
         count,
         total,
@@ -249,7 +272,7 @@ const getSwaps = async (mBTC: Masset, fromBlock: number, startTime: Date): Promi
     const logs = await mBTC.queryFilter(filter, fromBlock)
 
     console.log(`\nSwaps since block ${fromBlock} at ${startTime.toUTCString()}`)
-    console.log("Block#\t Tx hash\t\t\t\t\t\t\t    Input  Output Output Quantity\tFee")
+    console.log("Block#\t Tx hash\t\t\t\t\t\t\t    Input Output     Quantity      Fee")
     // Scaled bAsset quantities
     let total = BN.from(0)
     let fees = BN.from(0)
@@ -258,16 +281,16 @@ const getSwaps = async (mBTC: Masset, fromBlock: number, startTime: Date): Promi
         const inputBasset = mUSDBassets.find((b) => b.address === log.args.input)
         const outputBasset = mUSDBassets.find((b) => b.address === log.args.output)
         console.log(
-            `${log.blockNumber} ${log.transactionHash} ${inputBasset.symbol.padEnd(6)} ${outputBasset.symbol.padEnd(6)} ${formatUnits(
+            `${log.blockNumber} ${log.transactionHash} ${inputBasset.symbol.padEnd(4)}  ${outputBasset.symbol.padEnd(4)} ${formatUsd(
                 log.args.outputAmount,
                 outputBasset.decimals,
-            ).padEnd(21)} ${formatUnits(log.args.scaledFee)}`,
+            )} ${formatUsd(log.args.scaledFee, 18, 8)}`,
         )
         total = total.add(applyDecimals(log.args.outputAmount, outputBasset.decimals))
         fees = fees.add(log.args.scaledFee)
         count += 1
     })
-    console.log(`Count ${count}, Total ${formatUnits(total)}`)
+    console.log(`Count ${count}, Total ${formatUsd(total)}`)
 
     return {
         count,
@@ -281,22 +304,24 @@ const getRedemptions = async (mBTC: Masset, fromBlock: number, startTime: Date):
     const logs = await mBTC.queryFilter(filter, fromBlock)
 
     console.log(`\nRedemptions since block ${fromBlock} at ${startTime.toUTCString()}`)
-    console.log("Block#\t Tx hash\t\t\t\t\t\t\t    bAsset Masset Quantity\tFee")
+    console.log("Block#\t Tx hash\t\t\t\t\t\t\t    bAsset     Quantity      Fee")
     let total = BN.from(0)
     let fees = BN.from(0)
     let count = 0
     logs.forEach((log) => {
         const outputBasset = mUSDBassets.find((b) => b.address === log.args.output)
         console.log(
-            `${log.blockNumber} ${log.transactionHash} ${outputBasset.symbol.padEnd(6)} ${formatUnits(
-                log.args.mAssetQuantity,
-            )} ${formatUnits(log.args.scaledFee)}`,
+            `${log.blockNumber} ${log.transactionHash} ${outputBasset.symbol.padEnd(4)} ${formatUsd(log.args.mAssetQuantity)} ${formatUsd(
+                log.args.scaledFee,
+                18,
+                8,
+            )}`,
         )
         total = total.add(log.args.mAssetQuantity)
         fees = fees.add(log.args.scaledFee)
         count += 1
     })
-    console.log(`Count ${count}, Total ${formatUnits(total)}`)
+    console.log(`Count ${count}, Total ${formatUsd(total)}`)
 
     return {
         count,
@@ -310,21 +335,23 @@ const getMultiRedemptions = async (mBTC: Masset, fromBlock: number, startTime: D
     const logs = await mBTC.queryFilter(filter, fromBlock)
 
     console.log(`\nMulti Redemptions since block ${fromBlock} at ${startTime.toUTCString()}`)
-    console.log("Block#\t Tx hash\t\t\t\t\t\t\t    Masset Quantity\t Fee")
+    console.log("Block#\t Tx hash\t\t\t\t\t\t\t\t  Quantity      Fee")
     let total = BN.from(0)
     let fees = BN.from(0)
     let count = 0
     logs.forEach((log) => {
         const outputBassets = log.args.outputs.map((output) => mUSDBassets.find((b) => b.address === output))
-        console.log(`${log.blockNumber} ${log.transactionHash} ${formatUnits(log.args.mAssetQuantity)} ${formatUnits(log.args.scaledFee)}`)
+        console.log(
+            `${log.blockNumber} ${log.transactionHash} ${formatUsd(log.args.mAssetQuantity)} ${formatUsd(log.args.scaledFee, 18, 8)}`,
+        )
         outputBassets.forEach((bAsset, i) => {
-            console.log(`   ${bAsset.symbol.padEnd(6)} ${formatUnits(log.args.outputQuantity[i], bAsset.decimals).padEnd(21)}`)
+            console.log(`   ${bAsset.symbol.padEnd(4)} ${formatUsd(log.args.outputQuantity[i], bAsset.decimals)}`)
         })
         total = total.add(log.args.mAssetQuantity)
         fees = fees.add(log.args.scaledFee)
         count += 1
     })
-    console.log(`Count ${count}, Total ${formatUnits(total)}`)
+    console.log(`Count ${count}, Total ${formatUsd(total)}`)
 
     return {
         count,
@@ -351,43 +378,51 @@ const outputFees = (
     const totalTransactions = mints.total.add(multiMints.total).add(redeems.total).add(multiRedeems.total).add(swaps.total)
     const totalFeeTransactions = redeems.total.add(multiRedeems.total).add(swaps.total)
     console.log(`\nFees since ${startTime.toUTCString()}`)
-    console.log("              #  mUSD Volume\t     Fees\t\t  Fee %")
+    console.log("              #     mUSD Volume      Fees    %")
     console.log(
-        `Mints         ${mints.count.toString().padEnd(2)} ${formatUnits(mints.total).padEnd(22)} ${formatUnits(mints.fees).padEnd(
-            20,
-        )} ${mints.fees.mul(100).div(totalFees)}%`,
+        `Mints         ${mints.count.toString().padEnd(2)} ${formatUsd(mints.total)} ${formatUsd(mints.fees, 18, 9)} ${mints.fees
+            .mul(100)
+            .div(totalFees)
+            .toString()
+            .padStart(3)}%`,
     )
     console.log(
-        `Multi Mints   ${multiMints.count.toString().padEnd(2)} ${formatUnits(multiMints.total).padEnd(22)} ${formatUnits(
+        `Multi Mints   ${multiMints.count.toString().padEnd(2)} ${formatUsd(multiMints.total)} ${formatUsd(
             multiMints.fees,
-        ).padEnd(20)} ${multiMints.fees.mul(100).div(totalFees)}%`,
+            18,
+            9,
+        )} ${multiMints.fees.mul(100).div(totalFees).toString().padStart(3)}%`,
     )
     console.log(
-        `Redeems       ${redeems.count.toString().padEnd(2)} ${formatUnits(redeems.total).padEnd(22)} ${formatUnits(redeems.fees).padEnd(
-            20,
-        )} ${redeems.fees.mul(100).div(totalFees)}%`,
+        `Redeems       ${redeems.count.toString().padEnd(2)} ${formatUsd(redeems.total)} ${formatUsd(
+            redeems.fees,
+            18,
+            9,
+        )} ${redeems.fees.mul(100).div(totalFees).toString().padStart(3)}%`,
     )
     console.log(
-        `Multi Redeems ${multiRedeems.count.toString().padEnd(2)} ${formatUnits(multiRedeems.total).padEnd(22)} ${formatUnits(
+        `Multi Redeems ${multiRedeems.count.toString().padEnd(2)} ${formatUsd(multiRedeems.total)} ${formatUsd(
             multiRedeems.fees,
-        ).padEnd(20)} ${multiRedeems.fees.mul(100).div(totalFees)}%`,
+            18,
+            9,
+        )} ${multiRedeems.fees.mul(100).div(totalFees).toString().padStart(3)}%`,
     )
     console.log(
-        `Swaps         ${swaps.count.toString().padEnd(2)} ${formatUnits(swaps.total).padEnd(22)} ${formatUnits(swaps.fees).padEnd(
-            20,
-        )} ${swaps.fees.mul(100).div(totalFees)}%`,
+        `Swaps         ${swaps.count.toString().padEnd(2)} ${formatUsd(swaps.total)} ${formatUsd(swaps.fees, 18, 9)} ${swaps.fees
+            .mul(100)
+            .div(totalFees)
+            .toString()
+            .padStart(3)}%`,
     )
     const periodSeconds = BN.from(currentTime.valueOf() - startTime.valueOf()).div(1000)
     const liquidityUtilization = totalFeeTransactions.mul(100).div(balances.total)
     const totalApy = totalFees.mul(100).mul(ONE_YEAR).div(balances.save).div(periodSeconds)
-    console.log(`Total Txs     ${formatUnits(totalTransactions).padEnd(22)}`)
-    console.log(`Savings       ${formatUnits(balances.save).padEnd(22)} ${formatUnits(totalFees).padEnd(20)} APY ${totalApy}%`)
-    console.log(
-        `${liquidityUtilization}% liquidity utilization  (${formatUnits(totalFeeTransactions)} of ${formatUnits(balances.total)} mUSD)`,
-    )
+    console.log(`Total Txs        ${formatUsd(totalTransactions)}`)
+    console.log(`Savings          ${formatUsd(balances.save)} ${formatUsd(totalFees, 18, 9)} APY ${totalApy}%`)
+    console.log(`${liquidityUtilization}% liquidity utilization  (${formatUsd(totalFeeTransactions)} of ${formatUsd(balances.total)} mUSD)`)
 }
 
-task("mUSD-snapv2", "Snaps mUSD's V2 storage").setAction(async (hre) => {
+task("mUSD-snapv2", "Snaps mUSD's V2 storage").setAction(async (_, hre) => {
     const { ethers } = hre
     console.log(`Current block number ${await ethers.provider.getBlockNumber()}`)
     const [signer] = await ethers.getSigners()
@@ -400,8 +435,22 @@ task("mUSD-snapv2", "Snaps mUSD's V2 storage").setAction(async (hre) => {
     await getBalances(mUSD)
 })
 
+task("mUSD-snapv3", "Snaps mUSD's V3 storage").setAction(async (_, hre) => {
+    const { ethers } = hre
+    console.log(`Current block number ${await ethers.provider.getBlockNumber()}`)
+    const [signer] = await ethers.getSigners()
+
+    const mUSD = await getMusd(signer)
+
+    await snapTokenStorage(mUSD)
+    await snapConfig(mUSD)
+    await getBalances(mUSD)
+    await snapMasset(mUSD, validatorAddress)
+})
+
 task("mUSD-snap", "Snaps mUSD")
     .addOptionalParam("from", "Block to query transaction events from. (default: deployment block)", 12094461, types.int)
+    .addOptionalParam("swapSize", "Swap size to compare rates with Curve", 1000, types.int)
     .setAction(async (taskArgs, hre) => {
         const { ethers } = hre
         const [signer] = await ethers.getSigners()
@@ -417,7 +466,7 @@ task("mUSD-snap", "Snaps mUSD")
 
         const balances = await getBalances(mUSD)
 
-        await getSwapRates(mUSD)
+        await getSwapRates(mUSD, taskArgs.swapSize)
 
         const mintSummary = await getMints(mUSD, fromBlock, startTime)
         const mintMultiSummary = await getMultiMints(mUSD, fromBlock, startTime)

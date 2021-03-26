@@ -1,0 +1,194 @@
+[
+    {
+        "name": "TokenExchange",
+        "inputs": [
+            { "type": "address", "name": "buyer", "indexed": true },
+            { "type": "address", "name": "receiver", "indexed": true },
+            { "type": "address", "name": "pool", "indexed": true },
+            { "type": "address", "name": "token_sold", "indexed": false },
+            { "type": "address", "name": "token_bought", "indexed": false },
+            { "type": "uint256", "name": "amount_sold", "indexed": false },
+            { "type": "uint256", "name": "amount_bought", "indexed": false }
+        ],
+        "anonymous": false,
+        "type": "event"
+    },
+    {
+        "outputs": [],
+        "inputs": [
+            { "type": "address", "name": "_address_provider" },
+            { "type": "address", "name": "_calculator" }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+    },
+    { "stateMutability": "payable", "type": "fallback" },
+    {
+        "name": "exchange_with_best_rate",
+        "outputs": [{ "type": "uint256", "name": "" }],
+        "inputs": [
+            { "type": "address", "name": "_from" },
+            { "type": "address", "name": "_to" },
+            { "type": "uint256", "name": "_amount" },
+            { "type": "uint256", "name": "_expected" }
+        ],
+        "stateMutability": "payable",
+        "type": "function"
+    },
+    {
+        "name": "exchange_with_best_rate",
+        "outputs": [{ "type": "uint256", "name": "" }],
+        "inputs": [
+            { "type": "address", "name": "_from" },
+            { "type": "address", "name": "_to" },
+            { "type": "uint256", "name": "_amount" },
+            { "type": "uint256", "name": "_expected" },
+            { "type": "address", "name": "_receiver" }
+        ],
+        "stateMutability": "payable",
+        "type": "function"
+    },
+    {
+        "name": "exchange",
+        "outputs": [{ "type": "uint256", "name": "" }],
+        "inputs": [
+            { "type": "address", "name": "_pool" },
+            { "type": "address", "name": "_from" },
+            { "type": "address", "name": "_to" },
+            { "type": "uint256", "name": "_amount" },
+            { "type": "uint256", "name": "_expected" }
+        ],
+        "stateMutability": "payable",
+        "type": "function"
+    },
+    {
+        "name": "exchange",
+        "outputs": [{ "type": "uint256", "name": "" }],
+        "inputs": [
+            { "type": "address", "name": "_pool" },
+            { "type": "address", "name": "_from" },
+            { "type": "address", "name": "_to" },
+            { "type": "uint256", "name": "_amount" },
+            { "type": "uint256", "name": "_expected" },
+            { "type": "address", "name": "_receiver" }
+        ],
+        "stateMutability": "payable",
+        "type": "function"
+    },
+    {
+        "name": "get_best_rate",
+        "outputs": [
+            { "type": "address", "name": "" },
+            { "type": "uint256", "name": "" }
+        ],
+        "inputs": [
+            { "type": "address", "name": "_from" },
+            { "type": "address", "name": "_to" },
+            { "type": "uint256", "name": "_amount" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "name": "get_exchange_amount",
+        "outputs": [{ "type": "uint256", "name": "" }],
+        "inputs": [
+            { "type": "address", "name": "_pool" },
+            { "type": "address", "name": "_from" },
+            { "type": "address", "name": "_to" },
+            { "type": "uint256", "name": "_amount" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "name": "get_input_amount",
+        "outputs": [{ "type": "uint256", "name": "" }],
+        "inputs": [
+            { "type": "address", "name": "_pool" },
+            { "type": "address", "name": "_from" },
+            { "type": "address", "name": "_to" },
+            { "type": "uint256", "name": "_amount" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "name": "get_exchange_amounts",
+        "outputs": [{ "type": "uint256[100]", "name": "" }],
+        "inputs": [
+            { "type": "address", "name": "_pool" },
+            { "type": "address", "name": "_from" },
+            { "type": "address", "name": "_to" },
+            { "type": "uint256[100]", "name": "_amounts" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "name": "get_calculator",
+        "outputs": [{ "type": "address", "name": "" }],
+        "inputs": [{ "type": "address", "name": "_pool" }],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "name": "update_registry_address",
+        "outputs": [{ "type": "bool", "name": "" }],
+        "inputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "name": "set_calculator",
+        "outputs": [{ "type": "bool", "name": "" }],
+        "inputs": [
+            { "type": "address", "name": "_pool" },
+            { "type": "address", "name": "_calculator" }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "name": "set_default_calculator",
+        "outputs": [{ "type": "bool", "name": "" }],
+        "inputs": [{ "type": "address", "name": "_calculator" }],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "name": "claim_balance",
+        "outputs": [{ "type": "bool", "name": "" }],
+        "inputs": [{ "type": "address", "name": "_token" }],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "name": "set_killed",
+        "outputs": [{ "type": "bool", "name": "" }],
+        "inputs": [{ "type": "bool", "name": "_is_killed" }],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "name": "registry",
+        "outputs": [{ "type": "address", "name": "" }],
+        "inputs": [],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "name": "default_calculator",
+        "outputs": [{ "type": "address", "name": "" }],
+        "inputs": [],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "name": "is_killed",
+        "outputs": [{ "type": "bool", "name": "" }],
+        "inputs": [],
+        "stateMutability": "view",
+        "type": "function"
+    }
+]
