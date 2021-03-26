@@ -181,7 +181,9 @@ describe("Feeder - Mint", () => {
         }
 
         // Mint feeder pool token
-        await expect(tx, "Transfer event").to.emit(pool, "Transfer").withArgs(ZERO_ADDRESS, recipient, outputQuantityExact)
+        await expect(tx, "Transfer event")
+            .to.emit(pool, "Transfer")
+            .withArgs(ZERO_ADDRESS, recipient, outputQuantityExact)
 
         // Deposits into lending platform
         const integratorBalAfter = await assetBefore.contract.balanceOf(
@@ -293,7 +295,7 @@ describe("Feeder - Mint", () => {
                         details.pool,
                         details.fAsset,
                         simpleToExactAmount(1),
-                        "999987654550171574",
+                        "999991742447046384",
                         0,
                         sa.default.signer,
                         ZERO_ADDRESS,
@@ -312,7 +314,7 @@ describe("Feeder - Mint", () => {
                         details.pool,
                         bAsset,
                         simpleToExactAmount(100),
-                        "99896928139875953237",
+                        "99931034449956916600",
                         0,
                         sender.signer,
                         sender.address,
@@ -329,7 +331,7 @@ describe("Feeder - Mint", () => {
                         pool,
                         mAsset,
                         simpleToExactAmount(100),
-                        "99896928139875953237",
+                        "99931034449956916600",
                         0,
                         sender.signer,
                         sender.address,
@@ -346,7 +348,7 @@ describe("Feeder - Mint", () => {
                         pool,
                         fAsset,
                         simpleToExactAmount(100),
-                        "99896928139875953237",
+                        "99931034449956916600",
                         0,
                         sender.signer,
                         sender.address,
@@ -362,7 +364,7 @@ describe("Feeder - Mint", () => {
                         details.pool,
                         details.bAssets[0],
                         simpleToExactAmount(1),
-                        "999987654550171574",
+                        "999991742447046384",
                         simpleToExactAmount(1),
                     )
                 })
@@ -380,13 +382,13 @@ describe("Feeder - Mint", () => {
                         expect(await pool.paused(), "after unpause").to.be.false
                     })
                     it("should fail to mint feeder asset", async () => {
-                        await assertFailedMint("Unhealthy", details.pool, details.fAsset, simpleToExactAmount(1), "999987654550171574")
+                        await assertFailedMint("Unhealthy", details.pool, details.fAsset, simpleToExactAmount(1), "999991742447046384")
                     })
                     it("should fail to mint mStable asset", async () => {
-                        await assertFailedMint("Unhealthy", details.pool, details.mAsset, simpleToExactAmount(1), "999987654550171574")
+                        await assertFailedMint("Unhealthy", details.pool, details.mAsset, simpleToExactAmount(1), "999991742447046384")
                     })
                     it("should fail to mint a main pool assets", async () => {
-                        await assertFailedMint("Unhealthy", details.pool, details.bAssets[0], simpleToExactAmount(1), "999987654550171574")
+                        await assertFailedMint("Unhealthy", details.pool, details.bAssets[0], simpleToExactAmount(1), "999991742447046384")
                     })
                 })
             })
@@ -396,16 +398,19 @@ describe("Feeder - Mint", () => {
                         await runSetup()
                     })
                     it("should mint a single mStable asset", async () => {
-                        await assertBasicMint(details, details.mAsset, simpleToExactAmount(1), "999987654550171574")
+                        await assertBasicMint(details, details.mAsset, simpleToExactAmount(1), "999991742447046384")
                     })
                     it("should mint a single feeder asset", async () => {
-                        await assertBasicMint(details, details.fAsset, simpleToExactAmount(1), "999987654550171574")
+                        await assertBasicMint(details, details.fAsset, simpleToExactAmount(1), "999991742447046384")
                     })
                     it("should mint a single main pool asset", async () => {
-                        await assertBasicMint(details, details.mAssetDetails.bAssets[0], simpleToExactAmount(1), "999986169784657127")
+                        await assertBasicMint(details, details.mAssetDetails.bAssets[0], simpleToExactAmount(1), "999990257669407574")
                     })
-                    it("should mint the smallest unit of fp token", async () => {
-                        await assertBasicMint(details, details.fAsset, 1, 1, 1)
+                    it("should mint 1 with the 2 base units of fp token", async () => {
+                        await assertBasicMint(details, details.fAsset, 2, 2, 1)
+                    })
+                    it("should mint nothing with the smallest unit of fp token", async () => {
+                        await assertBasicMint(details, details.fAsset, 1, 0, 0)
                     })
                 })
                 context("when a main pool asset has broken below peg", () => {
@@ -430,35 +435,38 @@ describe("Feeder - Mint", () => {
                             details.pool,
                             details.mAssetDetails.bAssets[0],
                             simpleToExactAmount(1),
-                            "999986169784657127",
+                            "999990257669407574",
                         )
                     })
-                    it("should mint a single mStable asset", async () => {
-                        await assertBasicMint(details, details.mAsset, simpleToExactAmount(1), "999987654550171574")
+                    it("should mint from a single mStable asset", async () => {
+                        await assertBasicMint(details, details.mAsset, simpleToExactAmount(1), "999991742447046384")
                     })
-                    it("should mint a single feeder asset", async () => {
-                        await assertBasicMint(details, details.fAsset, simpleToExactAmount(1), "1000012345449828426")
+                    it("should mint from a single feeder asset", async () => {
+                        await assertBasicMint(details, details.fAsset, simpleToExactAmount(1), "1000008257552953616")
                     })
                 })
             })
         })
-        context("when the basket is 95% mAsset, 5% fAsset", () => {
+        context("when the basket is 75% mAsset, 25% fAsset", () => {
             beforeEach(async () => {
-                await runSetup(false, false, [950, 50])
+                await runSetup(false, false, [75, 25])
             })
-            it("should mint the smallest unit of mAsset", async () => {
-                await assertBasicMint(details, details.mAsset, 1, 1, 1)
+            it("should mint 1 base unit from 2 base units of mAsset", async () => {
+                await assertBasicMint(details, details.mAsset, 2, 2, 1)
+            })
+            it.only("should mint nothing with the smallest unit of mAsset", async () => {
+                await assertBasicMint(details, details.mAsset, 1, 0, 0)
             })
             it("should mint mAsset to just under max weight", async () => {
-                await assertBasicMint(details, details.mAsset, simpleToExactAmount(650), "614493814881213241322")
+                await assertBasicMint(details, details.mAsset, simpleToExactAmount(4), "614493814881213241322")
             })
             it("should fail mint mAsset over max weight", async () => {
-                await assertFailedMint("Exceeds weight limits", details.pool, details.mAsset, simpleToExactAmount(1000))
+                await assertFailedMint("Exceeds weight limits", details.pool, details.mAsset, simpleToExactAmount(5))
             })
             context("mAsset is overweight", () => {
                 beforeEach(async () => {
                     // set new weight limits to 10% and 90% so the mAsset is overweight
-                    await details.pool.connect(sa.governor.signer).setWeightLimits(simpleToExactAmount(10, 16), simpleToExactAmount(90, 16))
+                    await details.pool.connect(sa.governor.signer).setWeightLimits(simpleToExactAmount(30, 16), simpleToExactAmount(70, 16))
                 })
                 it("should fail to mint the overweight mAsset", async () => {
                     await assertFailedMint("Exceeds weight limits", details.pool, details.mAsset, 1)
@@ -467,7 +475,7 @@ describe("Feeder - Mint", () => {
                     await assertFailedMint("Exceeds weight limits", details.pool, details.mAsset, simpleToExactAmount(1))
                 })
                 it("should mint fAsset so mAsset is underweight", async () => {
-                    await assertBasicMint(details, details.fAsset, simpleToExactAmount(200), "216835953177287466623")
+                    await assertBasicMint(details, details.fAsset, simpleToExactAmount(40), "216835953177287466623")
                 })
             })
         })
@@ -478,13 +486,13 @@ describe("Feeder - Mint", () => {
                     await runSetup(true)
                 })
                 it("should mint a single mStable asset", async () => {
-                    await assertBasicMint(details, details.mAsset, simpleToExactAmount(500), "498023970010016562116")
+                    await assertBasicMint(details, details.mAsset, simpleToExactAmount(500), "498673496146378809664")
                 })
                 it("should mint a single feeder asset", async () => {
-                    await assertBasicMint(details, details.fAsset, simpleToExactAmount(500), "498023970010016562116")
+                    await assertBasicMint(details, details.fAsset, simpleToExactAmount(500), "498673496146378809664")
                 })
                 it("should mint a single main pool asset", async () => {
-                    await assertBasicMint(details, details.mAssetDetails.bAssets[0], simpleToExactAmount(500), "497690614261621180942")
+                    await assertBasicMint(details, details.mAssetDetails.bAssets[0], simpleToExactAmount(500), "498339345218159685928")
                 })
             })
         })

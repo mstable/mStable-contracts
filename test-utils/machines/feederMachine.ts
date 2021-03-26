@@ -129,10 +129,10 @@ export class FeederMachine {
             },
             mAssetDetails.bAssets.map((b) => b.address),
             {
-                a: BN.from(100),
+                a: BN.from(300),
                 limits: {
-                    min: simpleToExactAmount(3, 16), // 3%
-                    max: simpleToExactAmount(97, 16), // 97%
+                    min: simpleToExactAmount(20, 16), // 3%
+                    max: simpleToExactAmount(80, 16), // 97%
                 },
             },
         ])
@@ -150,6 +150,7 @@ export class FeederMachine {
             const approvals = await Promise.all(
                 bAssets.map((b, i) => this.mAssetMachine.approveMasset(b, pool, feederWeights[i], this.sa.default.signer)),
             )
+            console.log(approvals[0].toString(), approvals[1].toString())
             await pool.mintMulti(
                 bAssets.map((b) => b.address),
                 approvals,
@@ -257,7 +258,11 @@ export class FeederMachine {
 
         const balances = rawBalances.map((b, i) => b.add(platformBalances[i]))
         // get overweight
-        const currentVaultUnits = bAssets.map((b) => BN.from(b.vaultBalance).mul(BN.from(b.ratio)).div(ratioScale))
+        const currentVaultUnits = bAssets.map((b) =>
+            BN.from(b.vaultBalance)
+                .mul(BN.from(b.ratio))
+                .div(ratioScale),
+        )
         // get total amount
         const sumOfBassets = currentVaultUnits.reduce((p, c) => p.add(c), BN.from(0))
         return {
@@ -316,7 +321,12 @@ export class FeederMachine {
         }
         const totalSupply = await pool.totalSupply()
         const { cacheSize, pendingFees } = await pool.data()
-        const maxC = totalSupply.add(pendingFees).mul(ratioScale).div(BN.from(bAsset.ratio)).mul(cacheSize).div(fullScale)
+        const maxC = totalSupply
+            .add(pendingFees)
+            .mul(ratioScale)
+            .div(BN.from(bAsset.ratio))
+            .mul(cacheSize)
+            .div(fullScale)
         const newSum = BN.from(integratorBalBefore).add(amount)
         const expectInteraction = type === "deposit" ? newSum.gte(maxC) : amount.gt(BN.from(integratorBalBefore))
         return {
@@ -326,7 +336,10 @@ export class FeederMachine {
                 type === "deposit"
                     ? newSum.sub(maxC.div(2))
                     : minimum(
-                          maxC.div(2).add(amount).sub(BN.from(integratorBalBefore)),
+                          maxC
+                              .div(2)
+                              .add(amount)
+                              .sub(BN.from(integratorBalBefore)),
                           BN.from(bAsset.vaultBalance).sub(BN.from(integratorBalBefore)),
                       ),
             rawBalance:

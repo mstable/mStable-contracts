@@ -80,6 +80,7 @@ library FeederLogic {
         uint256[] calldata _inputQuantities,
         uint256 _minOutputQuantity
     ) external returns (uint256 mintOutput) {
+        console.log('mm1');
         uint256 len = _indices.length;
         uint256[] memory quantitiesDeposited = new uint256[](len);
         // Load bAssets from storage into memory
@@ -88,6 +89,7 @@ library FeederLogic {
         // Transfer the Bassets to the integrator & update storage
         for (uint256 i = 0; i < len; i++) {
             if (_inputQuantities[i] > 0) {
+                console.log('mm2', i);
                 uint8 idx = _indices[i];
                 BassetData memory bData = allBassets[idx];
                 quantitiesDeposited[i] = _depositTokens(
@@ -436,6 +438,7 @@ library FeederLogic {
             _output.idx == 0 ? 0 : _data.swapFee,
             _config
         );
+        console.log(swapOutput, scaledFee);
         require(swapOutput >= _minOutputQuantity, "Output qty < minimum qty");
         require(swapOutput > 0, "Zero output quantity");
         // Settle the swap
@@ -641,15 +644,17 @@ library FeederLogic {
         uint256 _rawInput,
         FeederConfig memory _config
     ) public view returns (uint256 mintAmount) {
-        console.log('a', _config.a);
+        console.log(_config.a, _i, _bAssets[_i].vaultBalance, _rawInput);
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
         uint256 k0 = _invariant(x, sum, _config.a);
+        console.log(k0, x[0], x[1], sum);
         uint256 scaledInput = (_rawInput * _bAssets[_i].ratio) / 1e8;
         // 3. Add deposit to x and sum
         x[_i] += scaledInput;
         sum += scaledInput;
+        console.log(x[_i], sum);
         // 4. Finalise mint
         require(_inBounds(x, sum, _config.limits), "Exceeds weight limits");
         mintAmount = _computeMintOutput(x, sum, k0, _config);
@@ -841,6 +846,7 @@ library FeederLogic {
             mintAmount = kFinal - _k;
         } else {
             mintAmount = (_config.supply * (kFinal - _k)) / _k;
+            console.log(mintAmount, kFinal, _k, _config.supply);
         }
     }
 
@@ -907,6 +913,9 @@ library FeederLogic {
 
         uint256 var1 = _x[0] * _x[1];
         uint256 var2 = _a * var1 / (_x[0] + _x[1]) / A_PRECISION;
+        console.log('VARS', var1, var2);
+        // console.log('VARS2', var1, var2);
+        // result = 2 * (isqrt(var2**2 + (A + A_PRECISION) * var1 // A_PRECISION) - var2) + 1
         k = 2 * (Root.sqrt((var2 ** 2) + (((_a + A_PRECISION) * var1) / A_PRECISION)) - var2) + 1;
     }
 

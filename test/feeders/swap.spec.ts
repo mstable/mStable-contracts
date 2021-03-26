@@ -110,6 +110,7 @@ describe("Feeder - Swap", () => {
         quantitiesAreExact = true,
         recipient: string = sa.default.address,
         sender: Account = sa.default,
+        skipEmits = false,
     ): Promise<BN> => {
         const pool = fd.pool.connect(sender.signer)
 
@@ -149,25 +150,29 @@ describe("Feeder - Swap", () => {
         // https://github.com/EthWorks/Waffle/issues/119
         const swapTx = pool.swap(inputAsset.address, outputAsset.address, inputQuantityExact, minOutputQuantityExact, recipient)
         // 4. Validate any basic events that should occur
-        await expect(swapTx).to.emit(pool, "Swapped")
-        // .withArgs(sender.address, inputAsset.address, outputAsset.address, outputExpectedExact, scaledFee, recipient)
-        // Input Transfer event
-        await expect(swapTx, "Transfer event for input asset from sender to platform integration or mAsset")
-            .to.emit(inputAsset, "Transfer")
-            .withArgs(sender.address, inputAssetBefore.integrator ? inputAssetBefore.integratorAddr : pool.address, inputQuantityExact)
-        await expect(swapTx, "Transfer event for output asset from platform integration or mAsset to recipient")
-            .to.emit(outputAsset, "Transfer")
-            .withArgs(outputAssetBefore.integrator ? outputAssetBefore.integratorAddr : pool.address, recipient, outputExpectedExact)
-        await swapTx
+        if (!skipEmits) {
+            await expect(swapTx).to.emit(pool, "Swapped")
+            // .withArgs(sender.address, inputAsset.address, outputAsset.address, outputExpectedExact, scaledFee, recipient)
+            // Input Transfer event
+            await expect(swapTx, "Transfer event for input asset from sender to platform integration or mAsset")
+                .to.emit(inputAsset, "Transfer")
+                .withArgs(sender.address, inputAssetBefore.integrator ? inputAssetBefore.integratorAddr : pool.address, inputQuantityExact)
+            await expect(swapTx, "Transfer event for output asset from platform integration or mAsset to recipient")
+                .to.emit(outputAsset, "Transfer")
+                .withArgs(outputAssetBefore.integrator ? outputAssetBefore.integratorAddr : pool.address, recipient, outputExpectedExact)
+            await swapTx
 
-        const inputIntegratorBalAfter = await inputAssetBefore.contract.balanceOf(
-            inputAssetBefore.integrator ? inputAssetBefore.integratorAddr : pool.address,
-        )
-        expect(inputIntegratorBalAfter, "Input destination raw balance").eq(platformInteractionIn.rawBalance)
-        const outputIntegratorBalAfter = await outputAssetBefore.contract.balanceOf(
-            outputAssetBefore.integrator ? outputAssetBefore.integratorAddr : pool.address,
-        )
-        expect(outputIntegratorBalAfter, "Output source raw balance").eq(platformInteractionOut.rawBalance)
+            const inputIntegratorBalAfter = await inputAssetBefore.contract.balanceOf(
+                inputAssetBefore.integrator ? inputAssetBefore.integratorAddr : pool.address,
+            )
+            expect(inputIntegratorBalAfter, "Input destination raw balance").eq(platformInteractionIn.rawBalance)
+            const outputIntegratorBalAfter = await outputAssetBefore.contract.balanceOf(
+                outputAssetBefore.integrator ? outputAssetBefore.integratorAddr : pool.address,
+            )
+            expect(outputIntegratorBalAfter, "Output source raw balance").eq(platformInteractionOut.rawBalance)
+        } else {
+            await swapTx
+        }
 
         // 5. Validate output state
         //  Input
@@ -216,7 +221,7 @@ describe("Feeder - Swap", () => {
                     await runSetup()
                 })
                 const inputQuantities = [1, 10, 14]
-                const expectedOutputQuantities = ["999950496287036808", "9994044878708993648", "13974622869405262771"]
+                const expectedOutputQuantities = ["999966887694077240", "9996015926097917665", "13983014602503729061"]
                 inputQuantities.forEach((qty, i) => {
                     it(`should swap using ${qty} quantity`, async () => {
                         const { bAssets } = details
@@ -230,19 +235,41 @@ describe("Feeder - Swap", () => {
                 })
                 it("should swap feeder asset for mStable asset", async () => {
                     const { fAsset, mAsset } = details
-                    await assertSwap(details, fAsset, mAsset, simpleToExactAmount(10), "9995039810682797447")
+                    await assertSwap(details, fAsset, mAsset, simpleToExactAmount(10), "9996681629683510749")
                 })
                 it("should swap mStable asset for feeder asset", async () => {
                     const { fAsset, mAsset } = details
-                    await assertSwap(details, mAsset, fAsset, simpleToExactAmount(10), "9987044852367306793")
+                    await assertSwap(details, mAsset, fAsset, simpleToExactAmount(10), "9988685002864007486")
                 })
-                it.skip("should swap feeder asset for main pool asset with 18 decimals", async () => {
+                it("should swap feeder asset for main pool asset with 18 decimals", async () => {
                     const { mAssetDetails, fAsset } = details
-                    await assertSwap(details, fAsset, mAssetDetails.bAssets[0], simpleToExactAmount(10), "9988894254755748581")
+                    await assertSwap(
+                        details,
+                        fAsset,
+                        mAssetDetails.bAssets[0],
+                        simpleToExactAmount(10),
+                        "9990535039807787103",
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        true,
+                    )
                 })
-                it.skip("should swap feeder asset for main pool asset with 6 decimals", async () => {
+                it("should swap feeder asset for main pool asset with 6 decimals", async () => {
                     const { mAssetDetails, fAsset } = details
-                    await assertSwap(details, fAsset, mAssetDetails.bAssets[1], simpleToExactAmount(10), "9988894")
+                    await assertSwap(
+                        details,
+                        fAsset,
+                        mAssetDetails.bAssets[1],
+                        simpleToExactAmount(10),
+                        "9990535",
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        true,
+                    )
                 })
             })
             context("passing invalid arguments", async () => {
@@ -259,7 +286,7 @@ describe("Feeder - Swap", () => {
                 })
                 it("should fail when zero output", async () => {
                     const { fAsset, mAsset } = details
-                    await assertFailedSwap("Zero output quantity", details.pool, mAsset, fAsset, 2, 0, 0, true)
+                    await assertFailedSwap("Zero output quantity", details.pool, mAsset, fAsset, 1, 0, 0, true)
                 })
                 it("should fail if recipient is 0x0", async () => {
                     const { fAsset, mAsset } = details
@@ -270,7 +297,7 @@ describe("Feeder - Swap", () => {
                         fAsset,
                         simpleToExactAmount(1),
                         0,
-                        "999150545856874530",
+                        "999166920850836533",
                         true,
                         sa.default.signer,
                         ZERO_ADDRESS,
@@ -285,7 +312,7 @@ describe("Feeder - Swap", () => {
                         fAsset,
                         simpleToExactAmount(1),
                         0,
-                        "999150545856874530",
+                        "999166920850836533",
                         true,
                         sa.dummy1.signer,
                         sa.dummy1.address,
@@ -305,7 +332,7 @@ describe("Feeder - Swap", () => {
                         bAssets[1],
                         simpleToExactAmount(1),
                         0,
-                        "999150545856874530",
+                        "999166920850836533",
                         true,
                         sender.signer,
                         sender.address,
@@ -333,7 +360,7 @@ describe("Feeder - Swap", () => {
                         details.fAsset,
                         simpleToExactAmount(1),
                         simpleToExactAmount(1),
-                        "999150545856874530",
+                        "999166920850836533",
                         true,
                     )
                 })
