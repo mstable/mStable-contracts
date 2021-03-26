@@ -135,20 +135,24 @@ const snapMasset = async (mUsd: Masset, validator: string) => {
     console.log("Max: ", invariantConfig.limits.max.toString(), config.limits.max.toString())
 }
 
+/**
+                    Swap Rates
+*/
+
 interface SwapRate {
     inputToken: Token
     inputAmountRaw: BN
     outputToken: Token
-    musdOutputRaw: BN
+    mOutputRaw: BN
     curveOutputRaw: BN
 }
 const outputSwapRate = (swap: SwapRate, inverseSwap: SwapRate) => {
-    const { inputToken, outputToken, musdOutputRaw, curveOutputRaw } = swap
+    const { inputToken, outputToken, mOutputRaw: musdOutputRaw, curveOutputRaw } = swap
     const inputScaled = applyDecimals(swap.inputAmountRaw, inputToken.decimals)
 
     // Process mUSD swap output
-    const musdOutputScaled = applyDecimals(musdOutputRaw, outputToken.decimals)
-    const musdPercent = musdOutputScaled.sub(inputScaled).mul(10000).div(inputScaled)
+    const mOutputScaled = applyDecimals(musdOutputRaw, outputToken.decimals)
+    const mBasicPoints = mOutputScaled.sub(inputScaled).mul(10000).div(inputScaled)
 
     // Process Curve's swap output
     const curveOutputScaled = applyDecimals(curveOutputRaw, outputToken.decimals)
@@ -161,12 +165,12 @@ const outputSwapRate = (swap: SwapRate, inverseSwap: SwapRate) => {
     // Note this will split the profit. Ideally all the output from the first mUSD swap would be used
     // as input to the inverse Curve swap. But this takes extra calls to Curve so this will be close enough
     const curveInverseOutputScaled = applyDecimals(inverseSwap.curveOutputRaw, inverseSwap.outputToken.decimals)
-    const arbProfit = musdOutputScaled.add(curveInverseOutputScaled).sub(inputScaled.mul(2))
+    const arbProfit = mOutputScaled.add(curveInverseOutputScaled).sub(inputScaled.mul(2))
 
     console.log(
         `${formatUsd(swap.inputAmountRaw, inputToken.decimals, 9, 0)} ${inputToken.symbol.padEnd(5)} -> ${outputToken.symbol.padEnd(
             5,
-        )} ${formatUsd(musdOutputRaw, outputToken.decimals, 12)} ${musdPercent.toString().padStart(4)}bps Curve ${formatUsd(
+        )} ${formatUsd(musdOutputRaw, outputToken.decimals, 12)} ${mBasicPoints.toString().padStart(4)}bps Curve ${formatUsd(
             curveOutputRaw,
             outputToken.decimals,
             12,
@@ -208,7 +212,7 @@ const getSwapRates = async (masset: Masset, inputAmount = BN.from("1000"), toBlo
                         inputToken,
                         inputAmountRaw,
                         outputToken,
-                        musdOutputRaw: swapResults[0],
+                        mOutputRaw: swapResults[0],
                         curveOutputRaw: swapResults[1][1],
                     })
                 } catch (err) {
@@ -535,6 +539,23 @@ task("mUSD-snap", "Snaps mUSD")
         const redeemMultiSummary = await getMultiRedemptions(mUSD, fromBlock, startTime, toBlockNumber)
 
         outputFees(mintSummary, mintMultiSummary, swapSummary, redeemSummary, redeemMultiSummary, balances, startTime, endTime)
+    })
+
+task("mUSD-rates", "mUSD rate comparison to Curve")
+    .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, types.int)
+    .addOptionalParam("swapSize", "Swap size to compare rates with Curve", 1000, types.int)
+    .setAction(async (taskArgs, hre) => {
+        const { ethers } = hre
+        const [signer] = await ethers.getSigners()
+
+        const mUSD = await getMusd(signer)
+
+        const toBlockNumber = taskArgs.block ? taskArgs.block : await ethers.provider.getBlockNumber()
+        const toBlock = await ethers.provider.getBlock(toBlockNumber)
+        const endTime = new Date(toBlock.timestamp * 1000)
+        console.log(`Block ${toBlockNumber}, ${endTime.toUTCString()}`)
+
+        await getSwapRates(mUSD, BN.from(taskArgs.swapSize), toBlockNumber)
     })
 
 module.exports = {}
