@@ -145,8 +145,9 @@ interface SwapRate {
     outputToken: Token
     mOutputRaw: BN
     curveOutputRaw: BN
+    curveInverseOutputRaw: BN
 }
-const outputSwapRate = (swap: SwapRate, inverseSwap: SwapRate) => {
+const outputSwapRate = (swap: SwapRate) => {
     const { inputToken, outputToken, mOutputRaw: musdOutputRaw, curveOutputRaw } = swap
     const inputScaled = applyDecimals(swap.inputAmountRaw, inputToken.decimals)
 
@@ -161,11 +162,9 @@ const outputSwapRate = (swap: SwapRate, inverseSwap: SwapRate) => {
     // Calculate the difference between the mUSD and Curve outputs in basis points
     const diffOutputs = musdOutputRaw.sub(curveOutputRaw).mul(10000).div(musdOutputRaw)
 
-    // Calculate if there's an arbitrage = mUSD output + inverse curve output - 2 * input
-    // Note this will split the profit. Ideally all the output from the first mUSD swap would be used
-    // as input to the inverse Curve swap. But this takes extra calls to Curve so this will be close enough
-    const curveInverseOutputScaled = applyDecimals(inverseSwap.curveOutputRaw, inverseSwap.outputToken.decimals)
-    const arbProfit = mOutputScaled.add(curveInverseOutputScaled).sub(inputScaled.mul(2))
+    // Calculate if there's an arbitrage = inverse curve output - input
+    const curveInverseOutputScaled = applyDecimals(swap.curveInverseOutputRaw, swap.inputToken.decimals)
+    const arbProfit = curveInverseOutputScaled.sub(inputScaled)
 
     console.log(
         `${formatUsd(swap.inputAmountRaw, inputToken.decimals, 9, 0)} ${inputToken.symbol.padEnd(5)} -> ${outputToken.symbol.padEnd(
@@ -177,51 +176,73 @@ const outputSwapRate = (swap: SwapRate, inverseSwap: SwapRate) => {
         )} ${curvePercent.toString().padStart(4)}bps ${diffOutputs.toString().padStart(3)}bps ${formatUsd(arbProfit, 18, 8)}`,
     )
 }
-const outputSwapeRates = (swaps: SwapRate[], toBlock: number) => {
+const outputSwapRates = (swaps: SwapRate[], toBlock: number) => {
     console.log(`\nSwap rates for block ${toBlock}`)
     console.log("mUSD  Qty Input    Output     Qty Out    Rate             Output    Rate   Diff      Arb$")
     swaps.forEach((swap) => {
-        const inverseSwap = swaps.find(
-            (inverse) => inverse.inputToken.address === swap.outputToken.address && inverse.outputToken.address === swap.inputToken.address,
-        )
-        outputSwapRate(swap, inverseSwap)
+        outputSwapRate(swap)
     })
 }
-const getSwapRates = async (masset: Masset, inputAmount = BN.from("1000"), toBlock: number) => {
+const getSwapRates = async (masset: Masset, toBlock: number, inputAmount = BN.from("1000")): Promise<SwapRate[]> => {
     // Get Curve Exchange
     const curve = new Contract("0xD1602F68CC7C4c7B59D686243EA35a9C73B0c6a2", CurveRegistryExchangeABI, masset.signer)
 
-    const swaps: SwapRate[] = []
+    const pairs = []
+    const musdSwapPromises = []
+    // Get mUSD swap rates
     for (const inputToken of mUSDBassets) {
         for (const outputToken of mUSDBassets) {
             if (inputToken.symbol !== outputToken.symbol) {
-                try {
-                    const inputAmountRaw = simpleToExactAmount(inputAmount, inputToken.decimals)
-                    const swapPromises = [
-                        // Get mUSD swap rate
-                        masset.getSwapOutput(inputToken.address, outputToken.address, inputAmountRaw, {
-                            blockTag: toBlock,
-                        }),
-                        // Get Curve's best swap rate
-                        curve.get_best_rate(inputToken.address, outputToken.address, inputAmountRaw, {
-                            blockTag: toBlock,
-                        }),
-                    ]
-                    const swapResults = await Promise.all(swapPromises)
-                    swaps.push({
-                        inputToken,
-                        inputAmountRaw,
-                        outputToken,
-                        mOutputRaw: swapResults[0],
-                        curveOutputRaw: swapResults[1][1],
-                    })
-                } catch (err) {
-                    console.error(`${inputToken.symbol} -> ${outputToken.symbol} ${err.message}`)
-                }
+                pairs.push({
+                    inputToken,
+                    outputToken,
+                })
+                const inputAmountRaw = simpleToExactAmount(inputAmount, inputToken.decimals)
+                musdSwapPromises.push(
+                    masset.getSwapOutput(inputToken.address, outputToken.address, inputAmountRaw, {
+                        blockTag: toBlock,
+                    }),
+                )
             }
         }
     }
-    outputSwapeRates(swaps, toBlock)
+    // Resolve all the mUSD promises
+    const musdSwaps = await Promise.all(musdSwapPromises)
+
+    // Get Curve's best swap rate for each pair and the inverse swap
+    const curveSwapsPromises = []
+    pairs.forEach(({ inputToken, outputToken }, i) => {
+        // Get the matching Curve swap rate
+        const curveSwapPromise = curve.get_best_rate(
+            inputToken.address,
+            outputToken.address,
+            simpleToExactAmount(inputAmount, inputToken.decimals),
+            {
+                blockTag: toBlock,
+            },
+        )
+        // Get the Curve inverse swap rate using mUSD swap output as the input
+        const curveInverseSwapPromise = curve.get_best_rate(outputToken.address, inputToken.address, musdSwaps[i], {
+            blockTag: toBlock,
+        })
+        curveSwapsPromises.push(curveSwapPromise, curveInverseSwapPromise)
+    })
+    // Resolve all the Curve promises
+    const curveSwaps = await Promise.all(curveSwapsPromises)
+
+    // Merge the mUSD and Curve swaps into one array
+    const swaps: SwapRate[] = pairs.map(({ inputToken, outputToken }, i) => ({
+        inputToken,
+        inputAmountRaw: simpleToExactAmount(inputAmount, inputToken.decimals),
+        outputToken,
+        mOutputRaw: musdSwaps[i],
+        // This first param of the Curve result is the pool address, the second is the output amount
+        curveOutputRaw: curveSwaps[i * 2][1],
+        curveInverseOutputRaw: curveSwaps[i * 2 + 1][1],
+    }))
+    outputSwapRates(swaps, toBlock)
+
+    return swaps
 }
 
 const getBalances = async (masset: Masset, toBlock: number): Promise<Balances> => {
@@ -513,7 +534,6 @@ task("mUSD-snapv3", "Snaps mUSD's V3 storage")
 task("mUSD-snap", "Snaps mUSD")
     .addOptionalParam("from", "Block to query transaction events from. (default: deployment block)", 12094461, types.int)
     .addOptionalParam("to", "Block to query transaction events to. (default: current block)", 0, types.int)
-    .addOptionalParam("swapSize", "Swap size to compare rates with Curve", 1000, types.int)
     .setAction(async (taskArgs, hre) => {
         const { ethers } = hre
         const [signer] = await ethers.getSigners()
@@ -530,8 +550,6 @@ task("mUSD-snap", "Snaps mUSD")
 
         const balances = await getBalances(mUSD, toBlockNumber)
 
-        await getSwapRates(mUSD, BN.from(taskArgs.swapSize), toBlockNumber)
-
         const mintSummary = await getMints(mUSD, fromBlock, startTime, toBlockNumber)
         const mintMultiSummary = await getMultiMints(mUSD, fromBlock, startTime, toBlockNumber)
         const swapSummary = await getSwaps(mUSD, fromBlock, startTime, toBlockNumber)
@@ -543,7 +561,7 @@ task("mUSD-snap", "Snaps mUSD")
 
 task("mUSD-rates", "mUSD rate comparison to Curve")
     .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, types.int)
-    .addOptionalParam("swapSize", "Swap size to compare rates with Curve", 1000, types.int)
+    .addOptionalParam("swapSize", "Swap size to compare rates with Curve", 10000, types.int)
     .setAction(async (taskArgs, hre) => {
         const { ethers } = hre
         const [signer] = await ethers.getSigners()
@@ -555,7 +573,7 @@ task("mUSD-rates", "mUSD rate comparison to Curve")
         const endTime = new Date(toBlock.timestamp * 1000)
         console.log(`Block ${toBlockNumber}, ${endTime.toUTCString()}`)
 
-        await getSwapRates(mUSD, BN.from(taskArgs.swapSize), toBlockNumber)
+        await getSwapRates(mUSD, toBlockNumber, BN.from(taskArgs.swapSize))
     })
 
 module.exports = {}
