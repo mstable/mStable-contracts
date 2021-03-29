@@ -80,7 +80,7 @@ const DAI: Token = {
     ratio: BN.from("100000000"),
 }
 
-const mUSDBassets: Token[] = [sUSD, USDC, DAI, USDT]
+const bAssets: Token[] = [sUSD, USDC, DAI, USDT]
 
 const formatUsd = (amount, decimals = 18, pad = 14, displayDecimals = 2): string => {
     const string2decimals = parseFloat(formatUnits(amount, decimals)).toFixed(displayDecimals)
@@ -111,14 +111,14 @@ const snapMasset = async (mUsd: Masset, validator: string) => {
     console.log("MaxBassets: ", (await mUsd.maxBassets()).toString(), 10)
 
     // bAsset personal data
-    const bAssets = await mUsd.getBassets()
-    mUSDBassets.forEach(async (token, i) => {
-        console.log(`Addr${i}`, bAssets.personal[i].addr.toString(), token.address)
-        console.log(`Integ${i}`, bAssets.personal[i].integrator.toString(), token.integrator)
-        console.log(`TxFee${i}`, bAssets.personal[i].hasTxFee.toString(), "false")
-        console.log(`Status${i}`, bAssets.personal[i].status.toString(), BassetStatus.Normal)
-        console.log(`Ratio${i}`, bAssets.data[i].ratio.toString(), simpleToExactAmount(1, 8 + (18 - token.decimals)).toString())
-        console.log(`Vault${i}`, bAssets.data[i].vaultBalance.toString(), token.vaultBalance.toString())
+    const contractBassets = await mUsd.getBassets()
+    bAssets.forEach(async (token, i) => {
+        console.log(`Addr${i}`, contractBassets.personal[i].addr.toString(), token.address)
+        console.log(`Integ${i}`, contractBassets.personal[i].integrator.toString(), token.integrator)
+        console.log(`TxFee${i}`, contractBassets.personal[i].hasTxFee.toString(), "false")
+        console.log(`Status${i}`, contractBassets.personal[i].status.toString(), BassetStatus.Normal)
+        console.log(`Ratio${i}`, contractBassets.data[i].ratio.toString(), simpleToExactAmount(1, 8 + (18 - token.decimals)).toString())
+        console.log(`Vault${i}`, contractBassets.data[i].vaultBalance.toString(), token.vaultBalance.toString())
         console.log(await mUsd.bAssetIndexes(token.address), i)
         const bAsset = await mUsd.getBasset(token.address)
         console.log("Sanity check: ", bAsset[0][0], token.address)
@@ -148,11 +148,11 @@ interface SwapRate {
     curveInverseOutputRaw: BN
 }
 const outputSwapRate = (swap: SwapRate) => {
-    const { inputToken, outputToken, mOutputRaw: musdOutputRaw, curveOutputRaw } = swap
+    const { inputToken, outputToken, mOutputRaw, curveOutputRaw } = swap
     const inputScaled = applyDecimals(swap.inputAmountRaw, inputToken.decimals)
 
     // Process mUSD swap output
-    const mOutputScaled = applyDecimals(musdOutputRaw, outputToken.decimals)
+    const mOutputScaled = applyDecimals(mOutputRaw, outputToken.decimals)
     const mBasicPoints = mOutputScaled.sub(inputScaled).mul(10000).div(inputScaled)
 
     // Process Curve's swap output
@@ -160,7 +160,7 @@ const outputSwapRate = (swap: SwapRate) => {
     const curvePercent = curveOutputScaled.sub(inputScaled).mul(10000).div(inputScaled)
 
     // Calculate the difference between the mUSD and Curve outputs in basis points
-    const diffOutputs = musdOutputRaw.sub(curveOutputRaw).mul(10000).div(musdOutputRaw)
+    const diffOutputs = mOutputRaw.sub(curveOutputRaw).mul(10000).div(mOutputRaw)
 
     // Calculate if there's an arbitrage = inverse curve output - input
     const curveInverseOutputScaled = applyDecimals(swap.curveInverseOutputRaw, swap.inputToken.decimals)
@@ -169,7 +169,7 @@ const outputSwapRate = (swap: SwapRate) => {
     console.log(
         `${formatUsd(swap.inputAmountRaw, inputToken.decimals, 9, 0)} ${inputToken.symbol.padEnd(5)} -> ${outputToken.symbol.padEnd(
             5,
-        )} ${formatUsd(musdOutputRaw, outputToken.decimals, 12)} ${mBasicPoints.toString().padStart(4)}bps Curve ${formatUsd(
+        )} ${formatUsd(mOutputRaw, outputToken.decimals, 12)} ${mBasicPoints.toString().padStart(4)}bps Curve ${formatUsd(
             curveOutputRaw,
             outputToken.decimals,
             12,
@@ -183,23 +183,23 @@ const outputSwapRates = (swaps: SwapRate[], toBlock: number) => {
         outputSwapRate(swap)
     })
 }
-const getSwapRates = async (masset: Masset, toBlock: number, inputAmount = BN.from("1000")): Promise<SwapRate[]> => {
+const getSwapRates = async (mAsset: Masset, toBlock: number, inputAmount = BN.from("1000")): Promise<SwapRate[]> => {
     // Get Curve Exchange
-    const curve = new Contract("0xD1602F68CC7C4c7B59D686243EA35a9C73B0c6a2", CurveRegistryExchangeABI, masset.signer)
+    const curve = new Contract("0xD1602F68CC7C4c7B59D686243EA35a9C73B0c6a2", CurveRegistryExchangeABI, mAsset.signer)
 
     const pairs = []
-    const musdSwapPromises = []
+    const mAssetSwapPromises = []
     // Get mUSD swap rates
-    for (const inputToken of mUSDBassets) {
-        for (const outputToken of mUSDBassets) {
+    for (const inputToken of bAssets) {
+        for (const outputToken of bAssets) {
             if (inputToken.symbol !== outputToken.symbol) {
                 pairs.push({
                     inputToken,
                     outputToken,
                 })
                 const inputAmountRaw = simpleToExactAmount(inputAmount, inputToken.decimals)
-                musdSwapPromises.push(
-                    masset.getSwapOutput(inputToken.address, outputToken.address, inputAmountRaw, {
+                mAssetSwapPromises.push(
+                    mAsset.getSwapOutput(inputToken.address, outputToken.address, inputAmountRaw, {
                         blockTag: toBlock,
                     }),
                 )
@@ -207,7 +207,7 @@ const getSwapRates = async (masset: Masset, toBlock: number, inputAmount = BN.fr
         }
     }
     // Resolve all the mUSD promises
-    const musdSwaps = await Promise.all(musdSwapPromises)
+    const mAssetSwaps = await Promise.all(mAssetSwapPromises)
 
     // Get Curve's best swap rate for each pair and the inverse swap
     const curveSwapsPromises = []
@@ -222,7 +222,7 @@ const getSwapRates = async (masset: Masset, toBlock: number, inputAmount = BN.fr
             },
         )
         // Get the Curve inverse swap rate using mUSD swap output as the input
-        const curveInverseSwapPromise = curve.get_best_rate(outputToken.address, inputToken.address, musdSwaps[i], {
+        const curveInverseSwapPromise = curve.get_best_rate(outputToken.address, inputToken.address, mAssetSwaps[i], {
             blockTag: toBlock,
         })
         curveSwapsPromises.push(curveSwapPromise, curveInverseSwapPromise)
@@ -235,7 +235,7 @@ const getSwapRates = async (masset: Masset, toBlock: number, inputAmount = BN.fr
         inputToken,
         inputAmountRaw: simpleToExactAmount(inputAmount, inputToken.decimals),
         outputToken,
-        mOutputRaw: musdSwaps[i],
+        mOutputRaw: mAssetSwaps[i],
         // This first param of the Curve result is the pool address, the second is the output amount
         curveOutputRaw: curveSwaps[i * 2][1],
         curveInverseOutputRaw: curveSwaps[i * 2 + 1][1],
@@ -245,48 +245,47 @@ const getSwapRates = async (masset: Masset, toBlock: number, inputAmount = BN.fr
     return swaps
 }
 
-const getBalances = async (masset: Masset, toBlock: number): Promise<Balances> => {
-    const mUsdBalance = await masset.totalSupply({
+const getBalances = async (mAsset: Masset, toBlock: number): Promise<Balances> => {
+    const mAssetBalance = await mAsset.totalSupply({
         blockTag: toBlock,
     })
-    const savingBalance = await masset.balanceOf("0x30647a72dc82d7fbb1123ea74716ab8a317eac19", {
+    const savingBalance = await mAsset.balanceOf("0x30647a72dc82d7fbb1123ea74716ab8a317eac19", {
         blockTag: toBlock,
     })
-    const curveMusdBalance = await masset.balanceOf("0x8474ddbe98f5aa3179b3b3f5942d724afcdec9f6", {
+    const curveMusdBalance = await mAsset.balanceOf("0x8474ddbe98f5aa3179b3b3f5942d724afcdec9f6", {
         blockTag: toBlock,
     })
-    const mStableDAOBalance = await masset.balanceOf("0x3dd46846eed8D147841AE162C8425c08BD8E1b41", {
+    const mStableDAOBalance = await mAsset.balanceOf("0x3dd46846eed8D147841AE162C8425c08BD8E1b41", {
         blockTag: toBlock,
     })
-    const balancerETHmUSD5050Balance = await masset.balanceOf("0xe036cce08cf4e23d33bc6b18e53caf532afa8513", {
+    const balancerETHmUSD5050Balance = await mAsset.balanceOf("0xe036cce08cf4e23d33bc6b18e53caf532afa8513", {
         blockTag: toBlock,
     })
-    const otherBalances = mUsdBalance.sub(savingBalance).sub(curveMusdBalance).sub(mStableDAOBalance).sub(balancerETHmUSD5050Balance)
+    const otherBalances = mAssetBalance.sub(savingBalance).sub(curveMusdBalance).sub(mStableDAOBalance).sub(balancerETHmUSD5050Balance)
 
     console.log("\nmUSD Holders")
-    console.log(`imUSD                      ${formatUsd(savingBalance)} ${savingBalance.mul(100).div(mUsdBalance)}%`)
-    console.log(`Curve mUSD                 ${formatUsd(curveMusdBalance)} ${curveMusdBalance.mul(100).div(mUsdBalance)}%`)
-    console.log(`mStable DAO                ${formatUsd(mStableDAOBalance)} ${mStableDAOBalance.mul(100).div(mUsdBalance)}%`)
+    console.log(`imUSD                      ${formatUsd(savingBalance)} ${savingBalance.mul(100).div(mAssetBalance)}%`)
+    console.log(`Curve mUSD                 ${formatUsd(curveMusdBalance)} ${curveMusdBalance.mul(100).div(mAssetBalance)}%`)
+    console.log(`mStable DAO                ${formatUsd(mStableDAOBalance)} ${mStableDAOBalance.mul(100).div(mAssetBalance)}%`)
     console.log(
-        `Balancer ETH/mUSD 50/50 #2 ${formatUsd(balancerETHmUSD5050Balance)} ${balancerETHmUSD5050Balance.mul(100).div(mUsdBalance)}%`,
+        `Balancer ETH/mUSD 50/50 #2 ${formatUsd(balancerETHmUSD5050Balance)} ${balancerETHmUSD5050Balance.mul(100).div(mAssetBalance)}%`,
     )
-    console.log(`Others                     ${formatUsd(otherBalances)} ${otherBalances.mul(100).div(mUsdBalance)}%`)
+    console.log(`Others                     ${formatUsd(otherBalances)} ${otherBalances.mul(100).div(mAssetBalance)}%`)
 
-    const surplus = await masset.surplus({
+    const surplus = await mAsset.surplus({
         blockTag: toBlock,
     })
     console.log(`Surplus                    ${formatUsd(surplus)}`)
-    console.log(`Total                      ${formatUsd(mUsdBalance)}`)
+    console.log(`Total                      ${formatUsd(mAssetBalance)}`)
 
     return {
-        total: mUsdBalance,
+        total: mAssetBalance,
         save: savingBalance,
         earn: curveMusdBalance,
     }
 }
 
-// Deploys Migrator, pulls Manager address and deploys mUSD implementation
-const getMusd = async (deployer: Signer): Promise<Masset> => {
+const getMasset = (deployer: Signer): Masset => {
     const linkedAddress: MassetLibraryAddresses = {
         __$1a38b0db2bd175b310a9a3f8697d44eb75$__: "0x1E91F826fa8aA4fa4D3F595898AF3A64dd188848", // Masset Manager
     }
@@ -303,7 +302,7 @@ const getMints = async (mBTC: Masset, fromBlock: number, startTime: Date, toBloc
     let total = BN.from(0)
     let count = 0
     logs.forEach((log) => {
-        const inputBasset = mUSDBassets.find((b) => b.address === log.args.input)
+        const inputBasset = bAssets.find((b) => b.address === log.args.input)
         console.log(`${log.blockNumber} ${log.transactionHash} ${inputBasset.symbol.padEnd(4)} ${formatUsd(log.args.mAssetQuantity)}`)
         total = total.add(log.args.mAssetQuantity)
         count += 1
@@ -327,7 +326,7 @@ const getMultiMints = async (mBTC: Masset, fromBlock: number, startTime: Date, t
     logs.forEach((log) => {
         // Ignore nMintMulti events from collectInterest and collectPlatformInterest
         if (!log.args.inputs.length) return
-        const inputBassets = log.args.inputs.map((input) => mUSDBassets.find((b) => b.address === input))
+        const inputBassets = log.args.inputs.map((input) => bAssets.find((b) => b.address === input))
         console.log(`${log.blockNumber} ${log.transactionHash} ${formatUsd(log.args.mAssetQuantity)}`)
         inputBassets.forEach((bAsset, i) => {
             console.log(`   ${bAsset.symbol.padEnd(4)} ${formatUsd(log.args.inputQuantities[i], bAsset.decimals)}`)
@@ -354,8 +353,8 @@ const getSwaps = async (mBTC: Masset, fromBlock: number, startTime: Date, toBloc
     let fees = BN.from(0)
     let count = 0
     logs.forEach((log) => {
-        const inputBasset = mUSDBassets.find((b) => b.address === log.args.input)
-        const outputBasset = mUSDBassets.find((b) => b.address === log.args.output)
+        const inputBasset = bAssets.find((b) => b.address === log.args.input)
+        const outputBasset = bAssets.find((b) => b.address === log.args.output)
         console.log(
             `${log.blockNumber} ${log.transactionHash} ${inputBasset.symbol.padEnd(4)}  ${outputBasset.symbol.padEnd(4)} ${formatUsd(
                 log.args.outputAmount,
@@ -385,7 +384,7 @@ const getRedemptions = async (mBTC: Masset, fromBlock: number, startTime: Date, 
     let fees = BN.from(0)
     let count = 0
     logs.forEach((log) => {
-        const outputBasset = mUSDBassets.find((b) => b.address === log.args.output)
+        const outputBasset = bAssets.find((b) => b.address === log.args.output)
         console.log(
             `${log.blockNumber} ${log.transactionHash} ${outputBasset.symbol.padEnd(4)} ${formatUsd(log.args.mAssetQuantity)} ${formatUsd(
                 log.args.scaledFee,
@@ -416,7 +415,7 @@ const getMultiRedemptions = async (mBTC: Masset, fromBlock: number, startTime: D
     let fees = BN.from(0)
     let count = 0
     logs.forEach((log) => {
-        const outputBassets = log.args.outputs.map((output) => mUSDBassets.find((b) => b.address === output))
+        const outputBassets = log.args.outputs.map((output) => bAssets.find((b) => b.address === output))
         console.log(
             `${log.blockNumber} ${log.transactionHash} ${formatUsd(log.args.mAssetQuantity)} ${formatUsd(log.args.scaledFee, 18, 8)}`,
         )
@@ -523,7 +522,7 @@ task("mUSD-snapv3", "Snaps mUSD's V3 storage")
         console.log(`Block number ${toBlockNumber}`)
         const [signer] = await ethers.getSigners()
 
-        const mUSD = await getMusd(signer)
+        const mUSD = getMasset(signer)
 
         await snapTokenStorage(mUSD)
         await snapConfig(mUSD)
@@ -538,7 +537,7 @@ task("mUSD-snap", "Snaps mUSD")
         const { ethers } = hre
         const [signer] = await ethers.getSigners()
 
-        const mUSD = await getMusd(signer)
+        const mUSD = getMasset(signer)
 
         const toBlockNumber = taskArgs.to ? taskArgs.to : await ethers.provider.getBlockNumber()
         const toBlock = await ethers.provider.getBlock(toBlockNumber)
@@ -566,7 +565,7 @@ task("mUSD-rates", "mUSD rate comparison to Curve")
         const { ethers } = hre
         const [signer] = await ethers.getSigners()
 
-        const mUSD = await getMusd(signer)
+        const mUSD = getMasset(signer)
 
         const toBlockNumber = taskArgs.block ? taskArgs.block : await ethers.provider.getBlockNumber()
         const toBlock = await ethers.provider.getBlock(toBlockNumber)
