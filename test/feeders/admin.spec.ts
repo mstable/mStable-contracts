@@ -139,7 +139,7 @@ describe("Feeder Admin", () => {
         describe("should fail to change swap fee rate when", () => {
             const cap = "10000000000000000"
             const overCap = "10000000000000001"
-            const overGovCap = "500000000000000000"
+            const overGovCap = "500000000000000001"
             it("not governor", async () => {
                 const fee = simpleToExactAmount(2, 16)
                 await expect(details.pool.setFees(fee, fee, fee)).to.be.revertedWith("Only governor can execute")
@@ -207,9 +207,9 @@ describe("Feeder Admin", () => {
         it("get config", async () => {
             const { pool } = details
             const config = await pool.getConfig()
-            expect(config.limits.min, "minWeight").to.eq(simpleToExactAmount(3, 16))
-            expect(config.limits.max, "maxWeight").to.eq(simpleToExactAmount(97, 16))
-            expect(config.a, "a value").to.eq(10000)
+            expect(config.limits.min, "minWeight").to.eq(simpleToExactAmount(20, 16))
+            expect(config.limits.max, "maxWeight").to.eq(simpleToExactAmount(80, 16))
+            expect(config.a, "a value").to.eq(30000)
         })
         it("should get mStable asset", async () => {
             const { pool, mAsset } = details
@@ -247,22 +247,22 @@ describe("Feeder Admin", () => {
             const ampDataBefore = (await pool.data()).ampData
 
             // default values
-            expect(ampDataBefore.initialA, "before initialA").to.eq(10000)
-            expect(ampDataBefore.targetA, "before targetA").to.eq(10000)
+            expect(ampDataBefore.initialA, "before initialA").to.eq(30000)
+            expect(ampDataBefore.targetA, "before targetA").to.eq(30000)
             expect(ampDataBefore.rampStartTime, "before rampStartTime").to.eq(0)
             expect(ampDataBefore.rampEndTime, "before rampEndTime").to.eq(0)
 
             const startTime = await getTimestamp()
             const endTime = startTime.add(ONE_WEEK.mul(2))
-            const tx = pool.startRampA(120, endTime)
+            const tx = pool.startRampA(400, endTime)
             await expect(tx)
                 .to.emit(pool, "StartRampA")
-                .withArgs(10000, 12000, startTime.add(1), endTime)
+                .withArgs(30000, 40000, startTime.add(1), endTime)
 
             // after values
             const ampDataAfter = (await pool.data()).ampData
-            expect(ampDataAfter.initialA, "after initialA").to.eq(10000)
-            expect(ampDataAfter.targetA, "after targetA").to.eq(12000)
+            expect(ampDataAfter.initialA, "after initialA").to.eq(30000)
+            expect(ampDataAfter.targetA, "after targetA").to.eq(40000)
             expect(ampDataAfter.rampStartTime, "after rampStartTime").to.eq(startTime.add(1))
             expect(ampDataAfter.rampEndTime, "after rampEndTime").to.eq(endTime)
         })
@@ -275,48 +275,48 @@ describe("Feeder Admin", () => {
                 pool = details.pool.connect(sa.governor.signer)
                 startTime = await getTimestamp()
                 endTime = startTime.add(ONE_DAY.mul(10))
-                await pool.startRampA(120, endTime)
+                await pool.startRampA(400, endTime)
             })
             it("should succeed getting A just after start", async () => {
                 const config = await pool.getConfig()
-                expect(config.a).to.eq(10000)
+                expect(config.a).to.eq(30000)
             })
             const testsData = [
                 {
                     // 60 * 60 * 24 * 10 / 2000 = 432
                     desc: "just under before increment",
-                    elapsedSeconds: 431,
-                    expectedValaue: 10000,
+                    elapsedSeconds: 61,
+                    expectedValaue: 30000,
                 },
                 {
                     desc: "just under after increment",
                     elapsedSeconds: 434,
-                    expectedValaue: 10001,
+                    expectedValaue: 30005,
                 },
                 {
                     desc: "after 1 day",
                     elapsedSeconds: ONE_DAY.add(1),
-                    expectedValaue: 10200,
+                    expectedValaue: 31000,
                 },
                 {
                     desc: "after 9 days",
                     elapsedSeconds: ONE_DAY.mul(9).add(1),
-                    expectedValaue: 11800,
+                    expectedValaue: 39000,
                 },
                 {
                     desc: "just under 10 days",
                     elapsedSeconds: ONE_DAY.mul(10).sub(2),
-                    expectedValaue: 11999,
+                    expectedValaue: 39999,
                 },
                 {
                     desc: "after 10 days",
                     elapsedSeconds: ONE_DAY.mul(10),
-                    expectedValaue: 12000,
+                    expectedValaue: 40000,
                 },
                 {
                     desc: "after 11 days",
                     elapsedSeconds: ONE_DAY.mul(11),
-                    expectedValaue: 12000,
+                    expectedValaue: 40000,
                 },
             ]
             for (const testData of testsData) {
@@ -378,48 +378,48 @@ describe("Feeder Admin", () => {
                 pool = details.pool.connect(sa.governor.signer)
                 startTime = await getTimestamp()
                 endTime = startTime.add(ONE_DAY.mul(5))
-                await pool.startRampA(50, endTime)
+                await pool.startRampA(150, endTime)
             })
             it("should succeed getting A just after start", async () => {
                 const config = await pool.getConfig()
-                expect(config.a).to.eq(10000)
+                expect(config.a).to.eq(30000)
             })
             const testsData = [
                 {
                     // 60 * 60 * 24 * 5 / 5000 = 86
                     desc: "just under before increment",
-                    elapsedSeconds: 84,
-                    expectedValaue: 10000,
+                    elapsedSeconds: 24,
+                    expectedValaue: 30000,
                 },
                 {
                     desc: "just under after increment",
                     elapsedSeconds: 88,
-                    expectedValaue: 9999,
+                    expectedValaue: 29997,
                 },
                 {
                     desc: "after 1 day",
                     elapsedSeconds: ONE_DAY.add(1),
-                    expectedValaue: 9000,
+                    expectedValaue: 27000,
                 },
                 {
                     desc: "after 4 days",
                     elapsedSeconds: ONE_DAY.mul(4).add(1),
-                    expectedValaue: 6000,
+                    expectedValaue: 18000,
                 },
                 {
                     desc: "just under 5 days",
                     elapsedSeconds: ONE_DAY.mul(5).sub(2),
-                    expectedValaue: 5001,
+                    expectedValaue: 15001,
                 },
                 {
                     desc: "after 5 days",
                     elapsedSeconds: ONE_DAY.mul(5),
-                    expectedValaue: 5000,
+                    expectedValaue: 15000,
                 },
                 {
                     desc: "after 6 days",
                     elapsedSeconds: ONE_DAY.mul(6),
-                    expectedValaue: 5000,
+                    expectedValaue: 15000,
                 },
             ]
             for (const testData of testsData) {
@@ -680,7 +680,7 @@ describe("Feeder Admin", () => {
 
                 // Mint to generate some interest in the lending markets
                 await feederMachine.approveFeeder(fAsset, pool.address, 1000)
-                await pool.mint(fAsset.address, simpleToExactAmount(500), 0, sa.default.address)
+                await pool.mint(fAsset.address, simpleToExactAmount(5), 0, sa.default.address)
 
                 // increase the test chain by 12 hours - 20 seconds
                 await increaseTime(ONE_HOUR.mul(12).sub(20))

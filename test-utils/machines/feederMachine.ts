@@ -150,7 +150,6 @@ export class FeederMachine {
             const approvals = await Promise.all(
                 bAssets.map((b, i) => this.mAssetMachine.approveMasset(b, pool, feederWeights[i], this.sa.default.signer)),
             )
-            console.log(approvals[0].toString(), approvals[1].toString())
             await pool.mintMulti(
                 bAssets.map((b) => b.address),
                 approvals,

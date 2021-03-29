@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.2;
 
-import "hardhat/console.sol";
-
 // External
 import { IPlatformIntegration } from "../interfaces/IPlatformIntegration.sol";
 import { IMasset } from "../interfaces/IMasset.sol";
@@ -80,7 +78,6 @@ library FeederLogic {
         uint256[] calldata _inputQuantities,
         uint256 _minOutputQuantity
     ) external returns (uint256 mintOutput) {
-        console.log('mm1');
         uint256 len = _indices.length;
         uint256[] memory quantitiesDeposited = new uint256[](len);
         // Load bAssets from storage into memory
@@ -89,7 +86,6 @@ library FeederLogic {
         // Transfer the Bassets to the integrator & update storage
         for (uint256 i = 0; i < len; i++) {
             if (_inputQuantities[i] > 0) {
-                console.log('mm2', i);
                 uint8 idx = _indices[i];
                 BassetData memory bData = allBassets[idx];
                 quantitiesDeposited[i] = _depositTokens(
@@ -105,11 +101,7 @@ library FeederLogic {
             }
         }
         // Validate the proposed mint, after token transfer
-        console.log('m', quantitiesDeposited[0], quantitiesDeposited[1]);
-        console.log('m', allBassets[0].vaultBalance, allBassets[1].vaultBalance);
-        console.log('c', _config.supply, _config.a);
         mintOutput = computeMintMulti(allBassets, _indices, quantitiesDeposited, _config);
-        console.log('m', mintOutput);
         require(mintOutput >= _minOutputQuantity, "Mint quantity < min qty");
         require(mintOutput > 0, "Zero mAsset quantity");
     }
@@ -438,7 +430,6 @@ library FeederLogic {
             _output.idx == 0 ? 0 : _data.swapFee,
             _config
         );
-        console.log(swapOutput, scaledFee);
         require(swapOutput >= _minOutputQuantity, "Output qty < minimum qty");
         require(swapOutput > 0, "Zero output quantity");
         // Settle the swap
@@ -643,18 +634,15 @@ library FeederLogic {
         uint8 _i,
         uint256 _rawInput,
         FeederConfig memory _config
-    ) public view returns (uint256 mintAmount) {
-        console.log(_config.a, _i, _bAssets[_i].vaultBalance, _rawInput);
+    ) public pure returns (uint256 mintAmount) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
         uint256 k0 = _invariant(x, sum, _config.a);
-        console.log(k0, x[0], x[1], sum);
         uint256 scaledInput = (_rawInput * _bAssets[_i].ratio) / 1e8;
         // 3. Add deposit to x and sum
         x[_i] += scaledInput;
         sum += scaledInput;
-        console.log(x[_i], sum);
         // 4. Finalise mint
         require(_inBounds(x, sum, _config.limits), "Exceeds weight limits");
         mintAmount = _computeMintOutput(x, sum, k0, _config);
@@ -674,8 +662,7 @@ library FeederLogic {
         uint8[] memory _indices,
         uint256[] memory _rawInputs,
         FeederConfig memory _config
-    ) public view returns (uint256 mintAmount) {
-        console.log('a', _config.a);
+    ) public pure returns (uint256 mintAmount) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
@@ -714,7 +701,7 @@ library FeederLogic {
         uint256 _rawInput,
         uint256 _feeRate,
         FeederConfig memory _config
-    ) public view returns (uint256 bAssetOutputQuantity, uint256 scaledSwapFee) {
+    ) public pure returns (uint256 bAssetOutputQuantity, uint256 scaledSwapFee) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
@@ -753,7 +740,7 @@ library FeederLogic {
         uint8 _o,
         uint256 _netRedeemInput,
         FeederConfig memory _config
-    ) public view returns (uint256 rawOutputUnits) {
+    ) public pure returns (uint256 rawOutputUnits) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
@@ -783,7 +770,7 @@ library FeederLogic {
         uint8[] memory _indices,
         uint256[] memory _rawOutputs,
         FeederConfig memory _config
-    ) public view returns (uint256 redeemInput) {
+    ) public pure returns (uint256 redeemInput) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
@@ -812,7 +799,7 @@ library FeederLogic {
      */
     function computePrice(BassetData[] memory _bAssets, FeederConfig memory _config)
         public
-        view
+        pure
         returns (uint256 price, uint256 k)
     {
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
@@ -838,7 +825,7 @@ library FeederLogic {
         uint256 _sum,
         uint256 _k,
         FeederConfig memory _config
-    ) internal view returns (uint256 mintAmount) {
+    ) internal pure returns (uint256 mintAmount) {
         // 1. Get value of reserves according to invariant
         uint256 kFinal = _invariant(_x, _sum, _config.a);
         // 2. Total minted is the difference between values, with respect to total supply
@@ -846,7 +833,6 @@ library FeederLogic {
             mintAmount = kFinal - _k;
         } else {
             mintAmount = (_config.supply * (kFinal - _k)) / _k;
-            console.log(mintAmount, kFinal, _k, _config.supply);
         }
     }
 
@@ -858,7 +844,7 @@ library FeederLogic {
      */
     function _getReserves(BassetData[] memory _bAssets)
         internal
-        view
+        pure
         returns (uint256[] memory x, uint256 sum)
     {
         uint256 len = _bAssets.length;
@@ -883,7 +869,7 @@ library FeederLogic {
         uint256[] memory _x,
         uint256 _sum,
         WeightLimits memory _limits
-    ) internal view returns (bool inBounds) {
+    ) internal pure returns (bool inBounds) {
         uint256 len = _x.length;
         inBounds = true;
         uint256 w;
@@ -908,13 +894,11 @@ library FeederLogic {
         uint256[] memory _x,
         uint256 _sum,
         uint256 _a
-    ) internal view returns (uint256 k) {
+    ) internal pure returns (uint256 k) {
         if (_sum == 0) return 0;
 
         uint256 var1 = _x[0] * _x[1];
         uint256 var2 = _a * var1 / (_x[0] + _x[1]) / A_PRECISION;
-        console.log('VARS', var1, var2);
-        // console.log('VARS2', var1, var2);
         // result = 2 * (isqrt(var2**2 + (A + A_PRECISION) * var1 // A_PRECISION) - var2) + 1
         k = 2 * (Root.sqrt((var2 ** 2) + (((_a + A_PRECISION) * var1) / A_PRECISION)) - var2) + 1;
     }
@@ -933,7 +917,7 @@ library FeederLogic {
         uint256 _a,
         uint8 _idx,
         uint256 _targetK
-    ) internal view returns (uint256 y) {
+    ) internal pure returns (uint256 y) {
         require(_idx == 0 || _idx == 1, "Invalid index");
 
         uint256 x = _idx == 0 ? _x[1] : _x[0];

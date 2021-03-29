@@ -451,17 +451,15 @@ describe("Feeder - Mint", () => {
             beforeEach(async () => {
                 await runSetup(false, false, [75, 25])
             })
-            it("should mint 1 base unit from 2 base units of mAsset", async () => {
-                await assertBasicMint(details, details.mAsset, 2, 2, 1)
-            })
-            it.only("should mint nothing with the smallest unit of mAsset", async () => {
+            it("rounds between 0 and 2 with the smallest unit of mAsset", async () => {
+                await assertBasicMint(details, details.mAsset, 1, 2, 0)
                 await assertBasicMint(details, details.mAsset, 1, 0, 0)
             })
             it("should mint mAsset to just under max weight", async () => {
-                await assertBasicMint(details, details.mAsset, simpleToExactAmount(4), "614493814881213241322")
+                await assertBasicMint(details, details.mAsset, simpleToExactAmount(4), "3983329877010604242")
             })
             it("should fail mint mAsset over max weight", async () => {
-                await assertFailedMint("Exceeds weight limits", details.pool, details.mAsset, simpleToExactAmount(5))
+                await assertFailedMint("Exceeds weight limits", details.pool, details.mAsset, simpleToExactAmount(40))
             })
             context("mAsset is overweight", () => {
                 beforeEach(async () => {
@@ -475,7 +473,7 @@ describe("Feeder - Mint", () => {
                     await assertFailedMint("Exceeds weight limits", details.pool, details.mAsset, simpleToExactAmount(1))
                 })
                 it("should mint fAsset so mAsset is underweight", async () => {
-                    await assertBasicMint(details, details.fAsset, simpleToExactAmount(40), "216835953177287466623")
+                    await assertBasicMint(details, details.fAsset, simpleToExactAmount(40), "40107755459881495840")
                 })
             })
         })
@@ -558,7 +556,7 @@ describe("Feeder - Mint", () => {
                         pool,
                         [bAsset.address],
                         ["100000000000000000000"], // 100
-                        "99896928139875953237", // 100
+                        "99931034449956916600", // 100
                         "100000000000000000001", // just over 100
                         true,
                     )
@@ -642,7 +640,7 @@ describe("Feeder - Mint", () => {
                             details.pool,
                             [details.fAsset],
                             [simpleToExactAmount(1)],
-                            "999987654550171574",
+                            "999991742447046384",
                             0,
                             true,
                         )
@@ -653,7 +651,7 @@ describe("Feeder - Mint", () => {
                             details.pool,
                             [details.mAsset],
                             [simpleToExactAmount(1)],
-                            "999987654550171574",
+                            "999991742447046384",
                             0,
                             true,
                         )
@@ -666,10 +664,10 @@ describe("Feeder - Mint", () => {
                         await runSetup()
                     })
                     it("should multi mint a single mStable asset", async () => {
-                        await assertMintMulti(details, [details.mAsset], [simpleToExactAmount(1)], "999987654550171574", 0)
+                        await assertMintMulti(details, [details.mAsset], [simpleToExactAmount(1)], "999991742447046384", 0)
                     })
                     it("should multi mint a single feeder asset", async () => {
-                        await assertMintMulti(details, [details.fAsset], [simpleToExactAmount(1)], "999987654550171574", 0)
+                        await assertMintMulti(details, [details.fAsset], [simpleToExactAmount(1)], "999991742447046384", 0)
                     })
                 })
                 context("when a main pool asset has broken below peg", () => {
@@ -689,10 +687,10 @@ describe("Feeder - Mint", () => {
                         expect(newBasset.personal.status).to.eq(BassetStatus.Normal)
                     })
                     it("should multi mint a single mStable asset", async () => {
-                        await assertMintMulti(details, [details.mAsset], [simpleToExactAmount(1)], "999987654550171574", 0)
+                        await assertMintMulti(details, [details.mAsset], [simpleToExactAmount(1)], "999991742447046384", 0)
                     })
                     it("should multi mint a single feeder asset", async () => {
-                        await assertMintMulti(details, [details.fAsset], [simpleToExactAmount(1)], "1000012345449828426", 0)
+                        await assertMintMulti(details, [details.fAsset], [simpleToExactAmount(1)], "1000008257552953616", 0)
                     })
                     it("should multi mint mStable and feeder assets", async () => {
                         await assertMintMulti(details, details.bAssets, [1, 1], 2, 0, false)
@@ -700,22 +698,22 @@ describe("Feeder - Mint", () => {
                 })
             })
         })
-        context("when the basket is 5% mAsset, 95% fAsset", () => {
+        context("when the basket is 21% mAsset, 79% fAsset", () => {
             beforeEach(async () => {
-                await runSetup(false, false, [50, 950])
+                await runSetup(false, false, [21, 79])
             })
-            it("should multi mint the smallest unit of fAsset", async () => {
-                await assertMintMulti(details, [details.mAsset], [1], 1, 1)
+            it("should fail to multi mint the smallest unit of fAsset", async () => {
+                await assertFailedMintMulti("Zero mAsset quantity", details.pool, [details.fAsset], [1], 0, 0, true)
             })
             it("should multi mint fAsset to just under max weight", async () => {
-                await assertMintMulti(details, [details.fAsset], [simpleToExactAmount(650)], "614493814881213241322")
+                await assertMintMulti(details, [details.fAsset], [simpleToExactAmount(1)], "994648380532098808")
             })
             it("should fail multi mint fAsset over max weight", async () => {
                 await assertFailedMintMulti(
                     "Exceeds weight limits",
                     details.pool,
                     [details.fAsset],
-                    [simpleToExactAmount(1000)],
+                    [simpleToExactAmount(15)],
                     undefined,
                     0,
                     true,
@@ -724,10 +722,10 @@ describe("Feeder - Mint", () => {
             context("fAsset is overweight", () => {
                 beforeEach(async () => {
                     // set new weight limits to 10% and 90% so the fAsset is overweight
-                    await details.pool.connect(sa.governor.signer).setWeightLimits(simpleToExactAmount(10, 16), simpleToExactAmount(90, 16))
+                    await details.pool.connect(sa.governor.signer).setWeightLimits(simpleToExactAmount(20, 16), simpleToExactAmount(79, 16))
                 })
                 it("should fail to multi mint the overweight fAsset", async () => {
-                    await assertFailedMintMulti("Exceeds weight limits", details.pool, [details.fAsset], [1], undefined, 0, true)
+                    await assertFailedMintMulti("Exceeds weight limits", details.pool, [details.fAsset], [1], undefined, 0, false)
                 })
                 it("should fail to multi mint mAsset if fAsset is still overweight", async () => {
                     await assertFailedMintMulti(
@@ -741,7 +739,7 @@ describe("Feeder - Mint", () => {
                     )
                 })
                 it("should mint mAsset so fAsset is underweight", async () => {
-                    await assertMintMulti(details, [details.mAsset], [simpleToExactAmount(200)], "216835953177287466623")
+                    await assertMintMulti(details, [details.mAsset], [simpleToExactAmount(30)], "30146363829134129434")
                 })
             })
         })
