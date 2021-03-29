@@ -89,47 +89,59 @@ describe("Feeder Admin", () => {
                 await expect(pool.setCacheSize(MAX_UINT256)).to.be.revertedWith("Must be <= 20%")
             })
         })
-        describe("should change swap and redemption fees to", () => {
-            it("0.5% and 0.25%", async () => {
+        describe("should change swap, redemption and gov fees to", () => {
+            it("0.5% 0.25% and 20%", async () => {
                 let poolData = await pool.data()
                 const newSwapFee = simpleToExactAmount(0.5, 16)
                 const newRedemptionFee = simpleToExactAmount(0.25, 16)
+                const newGovFee = simpleToExactAmount(20, 16)
                 expect(poolData.swapFee).not.eq(newSwapFee)
                 expect(poolData.redemptionFee).not.eq(newRedemptionFee)
-                const tx = pool.setFees(newSwapFee, newRedemptionFee)
-                await expect(tx).to.emit(pool, "FeesChanged").withArgs(newSwapFee, newRedemptionFee)
+                const tx = pool.setFees(newSwapFee, newRedemptionFee, newGovFee)
+                await expect(tx).to.emit(pool, "FeesChanged").withArgs(newSwapFee, newRedemptionFee, newGovFee)
                 poolData = await pool.data()
                 expect(poolData.swapFee).eq(newSwapFee)
                 expect(poolData.redemptionFee).eq(newRedemptionFee)
+                expect(poolData.govFee).eq(newGovFee)
             })
-            it("1% (limit)", async () => {
+            it("1% (limit) for swap and redemption and 50% for gov", async () => {
                 const newFee = simpleToExactAmount(1, 16)
-                await pool.setFees(newFee, newFee)
-                const tx = pool.setFees(newFee, newFee)
-                await expect(tx).to.emit(pool, "FeesChanged").withArgs(newFee, newFee)
+                const govFeeLimit = simpleToExactAmount(50, 16)
+                const tx = pool.setFees(newFee, newFee, govFeeLimit)
+                await expect(tx).to.emit(pool, "FeesChanged").withArgs(newFee, newFee, govFeeLimit)
                 const poolData = await pool.data()
                 expect(poolData.swapFee).eq(newFee)
                 expect(poolData.redemptionFee).eq(newFee)
+                expect(poolData.govFee).eq(govFeeLimit)
             })
         })
         describe("should fail to change swap fee rate when", () => {
             it("not governor", async () => {
                 const fee = simpleToExactAmount(2, 16)
-                await expect(details.pool.setFees(fee, fee)).to.be.revertedWith("Only governor can execute")
+                await expect(details.pool.setFees(fee, fee, fee)).to.be.revertedWith("Only governor can execute")
             })
             it("Swap rate just exceeds 1% cap", async () => {
-                await expect(pool.setFees("10000000000000001", "10000000000000000")).to.be.revertedWith("Swap rate oob")
+                await expect(pool.setFees("10000000000000001", "10000000000000000", "500000000000000000")).to.be.revertedWith(
+                    "Swap rate oob",
+                )
             })
             it("Redemption rate just exceeds 1% cap", async () => {
-                await expect(pool.setFees("10000000000000000", "10000000000000001")).to.be.revertedWith("Redemption rate oob")
+                await expect(pool.setFees("10000000000000000", "10000000000000001", "500000000000000000")).to.be.revertedWith(
+                    "Redemption rate oob",
+                )
+            })
+            it("Gov fee rate just exceeds 50% cap", async () => {
+                await expect(pool.setFees("10000000000000000", "10000000000000000", "500000000000000001")).to.be.revertedWith(
+                    "Gov fee rate oob",
+                )
             })
             it("2% rate exceeds 1% cap", async () => {
                 const fee = simpleToExactAmount(2, 16) // 2%
-                await expect(pool.setFees(fee, fee)).to.be.revertedWith("Swap rate oob")
+                await expect(pool.setFees(fee, fee, fee)).to.be.revertedWith("Swap rate oob")
             })
             it("max rate", async () => {
                 const fee = MAX_UINT256
-                await expect(pool.setFees(fee, fee)).to.be.revertedWith("Swap rate oob")
+                await expect(pool.setFees(fee, fee, fee)).to.be.revertedWith("Swap rate oob")
             })
         })
         it("should set weights", async () => {
