@@ -29,8 +29,9 @@ describe("Feeder - Redeem", () => {
         useInterestValidator = false,
         feederWeights?: Array<BN | number>,
         mAssetWeights?: Array<BN | number>,
+        use2dp = false,
     ): Promise<void> => {
-        details = await feederMachine.deployFeeder(false, feederWeights, mAssetWeights, useLendingMarkets, useInterestValidator)
+        details = await feederMachine.deployFeeder(false, feederWeights, mAssetWeights, useLendingMarkets, useInterestValidator, use2dp)
     }
 
     before("Init contract", async () => {
@@ -378,7 +379,7 @@ describe("Feeder - Redeem", () => {
                         pool,
                         fAsset,
                         simpleToExactAmount(1),
-                        "999591707839220550",
+                        "999591707839220549",
                         0,
                         sa.default.signer,
                         ZERO_ADDRESS,
@@ -390,7 +391,7 @@ describe("Feeder - Redeem", () => {
                 })
                 it("should fail when input too small to redeem anything", async () => {
                     const { fAsset, pool } = details
-                    await assertFailedRedeem("Output == 0", pool, fAsset, 1, 0, 0, sa.default.signer, sa.default.address, true)
+                    await assertFailedRedeem("Must redeem > 1e6 units", pool, fAsset, 1)
                 })
                 it("should fail to redeem if slippage just too big", async () => {
                     const { pool, fAsset } = details
@@ -399,7 +400,7 @@ describe("Feeder - Redeem", () => {
                         pool,
                         fAsset,
                         simpleToExactAmount(1),
-                        "999591707839220550",
+                        "999591707839220549",
                         "999600000000000000", // just over the expected output
                     )
                 })
@@ -413,7 +414,7 @@ describe("Feeder - Redeem", () => {
                         pool,
                         bAsset,
                         simpleToExactAmount(100),
-                        "99836469880460054333",
+                        "99836469880460054332",
                         0,
                         sender.signer,
                         sender.address,
@@ -430,7 +431,7 @@ describe("Feeder - Redeem", () => {
                         pool,
                         mAsset,
                         simpleToExactAmount(100),
-                        "99836469880460054333",
+                        "99836469880460054332",
                         0,
                         sender.signer,
                         sender.address,
@@ -447,7 +448,7 @@ describe("Feeder - Redeem", () => {
                         pool,
                         fAsset,
                         simpleToExactAmount(100),
-                        "99836469880460054333",
+                        "99836469880460054332",
                         0,
                         sender.signer,
                         sender.address,
@@ -474,15 +475,15 @@ describe("Feeder - Redeem", () => {
                     })
                     it("should fail to redeem feeder asset", async () => {
                         const { fAsset, pool } = details
-                        await assertFailedRedeem("Unhealthy", pool, fAsset, simpleToExactAmount(1), "999591707839220550")
+                        await assertFailedRedeem("Unhealthy", pool, fAsset, simpleToExactAmount(1), "999591707839220549")
                     })
                     it("should fail to redeem mStable asset", async () => {
                         const { mAsset, pool } = details
-                        await assertFailedRedeem("Unhealthy", pool, mAsset, simpleToExactAmount(1), "999591707839220550")
+                        await assertFailedRedeem("Unhealthy", pool, mAsset, simpleToExactAmount(1), "999591707839220549")
                     })
                     it("should fail to redeem a main pool assets", async () => {
                         const { bAssets, pool } = details
-                        await assertFailedRedeem("Unhealthy", pool, bAssets[0], simpleToExactAmount(1), "999591707839220550", 0)
+                        await assertFailedRedeem("Unhealthy", pool, bAssets[0], simpleToExactAmount(1), "999591707839220549", 0)
                     })
                 })
             })
@@ -492,11 +493,11 @@ describe("Feeder - Redeem", () => {
                 })
                 it("should redeem a single mStable asset", async () => {
                     const { mAsset } = details
-                    await assertBasicRedeem(details, mAsset, simpleToExactAmount(1), "999591707839220550", "999591707839220550")
+                    await assertBasicRedeem(details, mAsset, simpleToExactAmount(1), "999591707839220549", "999591707839220549")
                 })
                 it("should redeem a single feeder asset", async () => {
                     const { fAsset } = details
-                    await assertBasicRedeem(details, fAsset, simpleToExactAmount(1), "999591707839220550", "999591707839220550")
+                    await assertBasicRedeem(details, fAsset, simpleToExactAmount(1), "999591707839220549", "999591707839220549")
                 })
                 it("should redeem a single main pool asset", async () => {
                     const { mAssetDetails } = details
@@ -504,9 +505,21 @@ describe("Feeder - Redeem", () => {
                         details,
                         mAssetDetails.bAssets[0],
                         simpleToExactAmount(1),
-                        "998990470317456044",
-                        "998990470317456044",
+                        "998990470317456043",
+                        "998990470317456043",
                     )
+                })
+            })
+
+            context("with a bAsset with 2 dp", () => {
+                beforeEach(async () => {
+                    await runSetup(false, false, [50, 50], undefined, true)
+                })
+                it("should redeem 0 for 1e7 base units", async () => {
+                    await assertFailedRedeem("Output == 0", details.pool, details.fAsset, simpleToExactAmount(1, 7), "0")
+                })
+                it("should redeem 1e2 for 1e18 base units", async () => {
+                    await assertBasicRedeem(details, details.fAsset, simpleToExactAmount(1, 18), "99", "99")
                 })
             })
             context("when a main pool asset has broken below peg", () => {
@@ -532,16 +545,16 @@ describe("Feeder - Redeem", () => {
                         pool,
                         mAssetDetails.bAssets[0],
                         simpleToExactAmount(1),
-                        "998990470317456044",
+                        "998990470317456043",
                     )
                 })
                 it("should redeem a single mStable asset", async () => {
                     const { mAsset } = details
-                    await assertBasicRedeem(details, mAsset, simpleToExactAmount(1), "999591707839220550")
+                    await assertBasicRedeem(details, mAsset, simpleToExactAmount(1), "999591707839220549")
                 })
                 it("should redeem a single feeder asset", async () => {
                     const { fAsset } = details
-                    await assertBasicRedeem(details, fAsset, simpleToExactAmount(1), "999609194055423331")
+                    await assertBasicRedeem(details, fAsset, simpleToExactAmount(1), "999609194055423329")
                 })
             })
             context("withdraw from lending markets", () => {
@@ -560,10 +573,10 @@ describe("Feeder - Redeem", () => {
                     )
                 })
                 it("should mint a single mStable asset", async () => {
-                    await assertBasicRedeem(details, details.mAsset, simpleToExactAmount(20), "19989716067001609835")
+                    await assertBasicRedeem(details, details.mAsset, simpleToExactAmount(20), "19989716067001609834")
                 })
                 it("should mint a single feeder asset", async () => {
-                    await assertBasicRedeem(details, details.fAsset, simpleToExactAmount(20), "19989716067001609835")
+                    await assertBasicRedeem(details, details.fAsset, simpleToExactAmount(20), "19989716067001609834")
                 })
             })
         })
@@ -573,13 +586,13 @@ describe("Feeder - Redeem", () => {
             })
             it("should fail redeem as zero output", async () => {
                 const { fAsset, pool } = details
-                await assertFailedRedeem("Output == 0", pool, fAsset, 1)
+                await assertFailedRedeem("Must redeem > 1e6 units", pool, fAsset, 1)
             })
             it("should redeem fAsset to just over min weight of 20%", async () => {
                 const { fAsset } = details
-                await assertBasicRedeem(details, fAsset, simpleToExactAmount(1), "987164765843569219")
+                await assertBasicRedeem(details, fAsset, simpleToExactAmount(1), "987164765843569218")
             })
-            it("should fail redeem fAsset as just under min weight of 3%", async () => {
+            it("should fail redeem fAsset as just under min weight of 20%", async () => {
                 const { pool, fAsset } = details
                 await assertFailedRedeem("Exceeds weight limits", pool, fAsset, simpleToExactAmount(2))
             })
@@ -638,15 +651,15 @@ describe("Feeder - Redeem", () => {
                 context("when all quantities are zero", () => {
                     it("should fail to redeem exact fAsset and mAsset", async () => {
                         const { bAssets, pool } = details
-                        await assertFailedRedeemExact("Must redeem some mAssets", pool, bAssets, [0, 0], 0)
+                        await assertFailedRedeemExact("Must redeem > 1e6 units", pool, bAssets, [0, 0])
                     })
                     it("should fail to redeem exact feeder asset", async () => {
                         const { fAsset, pool } = details
-                        await assertFailedRedeemExact("Must redeem some mAssets", pool, [fAsset], [0], 0)
+                        await assertFailedRedeemExact("Must redeem > 1e6 units", pool, [fAsset], [0])
                     })
                     it("should fail to redeem exact mStable asset", async () => {
                         const { mAsset, pool } = details
-                        await assertFailedRedeemExact("Must redeem some mAssets", pool, [mAsset], [0], 0)
+                        await assertFailedRedeemExact("Must redeem > 1e6 units", pool, [mAsset], [0])
                     })
                 })
                 it("should fail if zero max feed pool token quantity", async () => {
@@ -739,7 +752,18 @@ describe("Feeder - Redeem", () => {
                 })
                 it("should redeem smallest bAsset unit", async () => {
                     const { fAsset } = details
-                    await assertRedeemExact(details, [fAsset], [1], 3, 4)
+                    await assertFailedRedeemExact("Must redeem > 1e6 units", details.pool, [fAsset], [1])
+                })
+            })
+            context("with a bAsset with 2 dp", () => {
+                beforeEach(async () => {
+                    await runSetup(false, false, [50, 50], undefined, true)
+                })
+                it("should redeem 1e16 for 1 base units", async () => {
+                    await assertRedeemExact(details, [details.fAsset], [1], "10004004913554892")
+                })
+                it("should redeem 1e18 for 1e2 base units", async () => {
+                    await assertRedeemExact(details, [details.fAsset], [simpleToExactAmount(1, 2)], "1000433623893269258")
                 })
             })
             context("when a main pool asset has broken below peg", () => {
@@ -774,15 +798,15 @@ describe("Feeder - Redeem", () => {
             beforeEach(async () => {
                 await runSetup(false, false, [79, 21])
             })
-            it("should multi redeem exact the smallest unit of fAsset", async () => {
+            it("should fail to multi redeem exact the smallest unit of fAsset", async () => {
                 const { fAsset } = details
-                await assertRedeemExact(details, [fAsset], [1], 3, 5)
+                await assertFailedRedeemExact("Must redeem > 1e6 units", details.pool, [fAsset], [1])
             })
             it("should multi redeem fAsset to just over min weight of 20%", async () => {
                 const { fAsset } = details
                 await assertRedeemExact(details, [fAsset], [simpleToExactAmount(1)], "1013010034952099562")
             })
-            it("should fail multi redeem fAsset as just under min weight of 3%", async () => {
+            it("should fail multi redeem fAsset as just under min weight of 20%", async () => {
                 const { pool, fAsset } = details
                 await assertFailedRedeemExact("Exceeds weight limits", pool, [fAsset], [simpleToExactAmount(3)])
             })

@@ -29,8 +29,9 @@ describe("Feeder - Mint", () => {
         useInterestValidator = false,
         feederWeights?: Array<BN | number>,
         mAssetWeights?: Array<BN | number>,
+        use2dp = false,
     ): Promise<void> => {
-        details = await feederMachine.deployFeeder(false, feederWeights, mAssetWeights, useLendingMarkets, useInterestValidator)
+        details = await feederMachine.deployFeeder(false, feederWeights, mAssetWeights, useLendingMarkets, useInterestValidator, use2dp)
     }
 
     before("Init contract", async () => {
@@ -406,11 +407,25 @@ describe("Feeder - Mint", () => {
                     it("should mint a single main pool asset", async () => {
                         await assertBasicMint(details, details.mAssetDetails.bAssets[0], simpleToExactAmount(1), "999990257669407574")
                     })
-                    it("should mint 1 with the 2 base units of fp token", async () => {
-                        await assertBasicMint(details, details.fAsset, 2, 2, 1)
-                    })
                     it("should mint nothing with the smallest unit of fp token", async () => {
-                        await assertBasicMint(details, details.fAsset, 1, 0, 0)
+                        await assertFailedMint("Must add > 1e6 units", details.pool, details.fAsset, 1)
+                    })
+                })
+                context("with a bAsset with 2 dp", () => {
+                    beforeEach(async () => {
+                        await runSetup(false, false, [50, 50], undefined, true)
+                    })
+                    it("should mint 1e16 per 1 base unit", async () => {
+                        await assertBasicMint(details, details.fAsset, "1", "9999996689072780", "9999996689072780")
+                    })
+                    it("should mint 1e18 per 1e2 base unit", async () => {
+                        await assertBasicMint(
+                            details,
+                            details.fAsset,
+                            simpleToExactAmount(1, 2),
+                            "999967212071635916",
+                            "999967212071635916",
+                        )
                     })
                 })
                 context("when a main pool asset has broken below peg", () => {
@@ -451,10 +466,6 @@ describe("Feeder - Mint", () => {
             beforeEach(async () => {
                 await runSetup(false, false, [75, 25])
             })
-            it("rounds between 0 and 2 with the smallest unit of mAsset", async () => {
-                await assertBasicMint(details, details.mAsset, 1, 2, 0)
-                await assertBasicMint(details, details.mAsset, 1, 0, 0)
-            })
             it("should mint mAsset to just under max weight", async () => {
                 await assertBasicMint(details, details.mAsset, simpleToExactAmount(4), "3983329877010604242")
             })
@@ -467,7 +478,7 @@ describe("Feeder - Mint", () => {
                     await details.pool.connect(sa.governor.signer).setWeightLimits(simpleToExactAmount(30, 16), simpleToExactAmount(70, 16))
                 })
                 it("should fail to mint the overweight mAsset", async () => {
-                    await assertFailedMint("Exceeds weight limits", details.pool, details.mAsset, 1)
+                    await assertFailedMint("Exceeds weight limits", details.pool, details.mAsset, simpleToExactAmount(1, 7))
                 })
                 it("should fail to mint fAsset if mAsset is still overweight", async () => {
                     await assertFailedMint("Exceeds weight limits", details.pool, details.mAsset, simpleToExactAmount(1))
@@ -668,6 +679,23 @@ describe("Feeder - Mint", () => {
                     })
                     it("should multi mint a single feeder asset", async () => {
                         await assertMintMulti(details, [details.fAsset], [simpleToExactAmount(1)], "999991742447046384", 0)
+                    })
+                })
+                context("with a bAsset with 2 dp", () => {
+                    beforeEach(async () => {
+                        await runSetup(false, false, [50, 50], undefined, true)
+                    })
+                    it("should mint 1e16 per 1 base unit", async () => {
+                        await assertMintMulti(details, [details.fAsset], [1], "9999996689072780", "9999996689072780")
+                    })
+                    it("should mint 1e18 per 1e2 base unit", async () => {
+                        await assertMintMulti(
+                            details,
+                            [details.fAsset],
+                            [simpleToExactAmount(1, 2)],
+                            "999967212071635916",
+                            "999967212071635916",
+                        )
                     })
                 })
                 context("when a main pool asset has broken below peg", () => {

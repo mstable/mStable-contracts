@@ -17,8 +17,9 @@ describe("Feeder - Swap", () => {
         useInterestValidator = false,
         feederWeights?: Array<BN | number>,
         mAssetWeights?: Array<BN | number>,
+        use2dp = false,
     ): Promise<void> => {
-        details = await feederMachine.deployFeeder(false, feederWeights, mAssetWeights, useLendingMarkets, useInterestValidator)
+        details = await feederMachine.deployFeeder(false, feederWeights, mAssetWeights, useLendingMarkets, useInterestValidator, use2dp)
     }
 
     before("Init contract", async () => {
@@ -272,6 +273,18 @@ describe("Feeder - Swap", () => {
                     )
                 })
             })
+
+            context("with a bAsset with 2 dp", () => {
+                beforeEach(async () => {
+                    await runSetup(false, false, [50, 50], undefined, true)
+                })
+                it("should swap out 1e16 per 1 base unit", async () => {
+                    await assertSwap(details, details.fAsset, details.mAsset, "1", "9999986754983904", "9999986754983904")
+                })
+                it("should swap out 1e18 per 1e2 base unit", async () => {
+                    await assertSwap(details, details.fAsset, details.mAsset, "100", "999867514754849931", "999867514754849931")
+                })
+            })
             context("passing invalid arguments", async () => {
                 before(async () => {
                     await runSetup()
@@ -284,9 +297,9 @@ describe("Feeder - Swap", () => {
                     const { fAsset, mAsset } = details
                     await assertFailedSwap("Qty==0", details.pool, mAsset, fAsset, 0)
                 })
-                it("should fail when zero output", async () => {
+                it("should fail when less than 1e6 input", async () => {
                     const { fAsset, mAsset } = details
-                    await assertFailedSwap("Zero output quantity", details.pool, mAsset, fAsset, 1, 0, 0, true)
+                    await assertFailedSwap("Must add > 1e6 units", details.pool, mAsset, fAsset, 100, undefined, undefined, true)
                 })
                 it("should fail if recipient is 0x0", async () => {
                     const { fAsset, mAsset } = details

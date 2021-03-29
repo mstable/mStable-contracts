@@ -63,12 +63,13 @@ export class FeederMachine {
         mAssetWeights: Array<BN | number> = [2500, 2500, 2500, 2500],
         useLendingMarkets = false,
         useInterestValidator = false,
+        use2dp = false,
     ): Promise<FeederDetails> {
         const mAssetDetails = await this.mAssetMachine.deployMasset(useMockValidator, useLendingMarkets, false)
         // Mints 10k mAsset to begin with
         await this.mAssetMachine.seedWithWeightings(mAssetDetails, mAssetWeights)
 
-        const fAsset = await this.mAssetMachine.loadBassetProxy("Binance BTC", "bBTC", 18)
+        const fAsset = await this.mAssetMachine.loadBassetProxy("Binance BTC", "bBTC", use2dp ? 2 : 18)
         const bAssets = [mAssetDetails.mAsset as MockERC20, fAsset]
         const feederLogic = await new FeederLogic__factory(this.sa.default.signer).deploy()
         const feederManager = await new FeederManager__factory(this.sa.default.signer).deploy()

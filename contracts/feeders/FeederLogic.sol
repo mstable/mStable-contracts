@@ -640,6 +640,7 @@ library FeederLogic {
         // 2. Get value of reserves according to invariant
         uint256 k0 = _invariant(x, sum, _config.a);
         uint256 scaledInput = (_rawInput * _bAssets[_i].ratio) / 1e8;
+        require(scaledInput > 1e6, "Must add > 1e6 units");
         // 3. Add deposit to x and sum
         x[_i] += scaledInput;
         sum += scaledInput;
@@ -708,6 +709,7 @@ library FeederLogic {
         uint256 k0 = _invariant(x, sum, _config.a);
         // 3. Add deposits to x and sum
         uint256 scaledInput = (_rawInput * _bAssets[_i].ratio) / 1e8;
+        require(scaledInput > 1e6, "Must add > 1e6 units");
         x[_i] += scaledInput;
         sum += scaledInput;
         // 4. Calc total fpToken q
@@ -741,11 +743,12 @@ library FeederLogic {
         uint256 _netRedeemInput,
         FeederConfig memory _config
     ) public pure returns (uint256 rawOutputUnits) {
+        require(_netRedeemInput > 1e6, "Must redeem > 1e6 units");
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
         uint256 k0 = _invariant(x, sum, _config.a);
-        uint256 kFinal = (k0 * (_config.supply - _netRedeemInput)) / _config.supply;
+        uint256 kFinal = (k0 * (_config.supply - _netRedeemInput)) / _config.supply + 1;
         // 3. Compute bAsset output
         uint256 newOutputReserve = _solveInvariant(x, _config.a, _o, kFinal);
         uint256 output = x[_o] - newOutputReserve - 1;
@@ -788,6 +791,7 @@ library FeederLogic {
         uint256 k1 = _invariant(x, sum, _config.a);
         // 5. Total fpToken is the difference between values
         redeemInput = (_config.supply * (k0 - k1)) / k0;
+        require(redeemInput > 1e6, "Must redeem > 1e6 units");
     }
 
     /**
