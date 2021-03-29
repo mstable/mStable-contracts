@@ -332,8 +332,8 @@ contract FeederPool is
         );
 
         uint256 govFee = data.govFee;
-        if(govFee > 0) {
-            data.pendingFees += (localFee * govFee / 1e18);
+        if (govFee > 0) {
+            data.pendingFees += ((localFee * govFee) / 1e18);
         }
 
         emit Swapped(msg.sender, input.addr, output.addr, swapOutput, localFee, _recipient);
@@ -459,8 +459,8 @@ contract FeederPool is
         );
 
         uint256 govFee = data.govFee;
-        if(govFee > 0) {
-            data.pendingFees += (localFee * govFee / 1e18);
+        if (govFee > 0) {
+            data.pendingFees += ((localFee * govFee) / 1e18);
         }
 
         emit Redeemed(
@@ -504,8 +504,8 @@ contract FeederPool is
         );
 
         uint256 govFee = data.govFee;
-        if(govFee > 0) {
-            data.pendingFees += (scaledFee * govFee / 1e18);
+        if (govFee > 0) {
+            data.pendingFees += ((scaledFee * govFee) / 1e18);
         }
 
         emit RedeemedMulti(
@@ -552,8 +552,8 @@ contract FeederPool is
 
         _burn(msg.sender, fpTokenQuantity);
         uint256 govFee = data.govFee;
-        if(govFee > 0) {
-            data.pendingFees += (localFee * govFee / 1e18);
+        if (govFee > 0) {
+            data.pendingFees += ((localFee * govFee) / 1e18);
         }
 
         emit RedeemedMulti(
@@ -768,10 +768,10 @@ contract FeederPool is
         // Calculate potential mint amount. This will be validated by the interest validator
         mintAmount = FeederLogic.computeMintMulti(data.bAssetData, idxs, gains, _getConfig());
         newSupply = totalSupply() + data.pendingFees + mintAmount;
-        
+
         uint256 govFee = data.govFee;
-        if(govFee > 0) {
-            data.pendingFees += (mintAmount * govFee / 1e18);
+        if (govFee > 0) {
+            data.pendingFees += ((mintAmount * govFee) / 1e18);
         }
 
         // Dummy mint event to catch the collections here
@@ -781,10 +781,7 @@ contract FeederPool is
     /**
      * @dev Collects the pending gov fees extracted from swap, redeem and platform interest.
      */
-    function collectPendingFees()
-        external
-        onlyInterestValidator
-    {
+    function collectPendingFees() external onlyInterestValidator {
         uint256 fees = data.pendingFees;
         if (fees > 1) {
             uint256 mintAmount = fees - 1;
@@ -824,7 +821,11 @@ contract FeederPool is
      * @param _redemptionFee Fee calculated in (%/100 * 1e18)
      * @param _govFee        Fee calculated in (%/100 * 1e18)
      */
-    function setFees(uint256 _swapFee, uint256 _redemptionFee, uint256 _govFee) external onlyGovernor {
+    function setFees(
+        uint256 _swapFee,
+        uint256 _redemptionFee,
+        uint256 _govFee
+    ) external onlyGovernor {
         require(_swapFee <= MAX_FEE, "Swap rate oob");
         require(_redemptionFee <= MAX_FEE, "Redemption rate oob");
         require(_govFee <= 5e17, "Gov fee rate oob");

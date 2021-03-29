@@ -182,9 +182,7 @@ describe("Feeder - Mint", () => {
         }
 
         // Mint feeder pool token
-        await expect(tx, "Transfer event")
-            .to.emit(pool, "Transfer")
-            .withArgs(ZERO_ADDRESS, recipient, outputQuantityExact)
+        await expect(tx, "Transfer event").to.emit(pool, "Transfer").withArgs(ZERO_ADDRESS, recipient, outputQuantityExact)
 
         // Deposits into lending platform
         const integratorBalAfter = await assetBefore.contract.balanceOf(

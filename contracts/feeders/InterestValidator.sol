@@ -15,7 +15,6 @@ import { PausableModule } from "../shared/PausableModule.sol";
  *          DATE:    2021-03-01
  */
 contract InterestValidator is PausableModule {
-
     event InterestCollected(
         address indexed feederPool,
         uint256 interest,

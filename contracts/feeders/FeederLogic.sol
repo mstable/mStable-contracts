@@ -16,7 +16,6 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { MassetHelpers } from "../shared/MassetHelpers.sol";
 import { StableMath } from "../shared/StableMath.sol";
 
-
 /**
  * @title   FeederLogic
  * @author  mStable
@@ -35,7 +34,6 @@ library FeederLogic {
     /***************************************
                     MINT
     ****************************************/
-
 
     /**
      * @notice Transfers token in, updates internal balances and computes the fpToken output
@@ -719,7 +717,7 @@ library FeederLogic {
         uint256 newOutputReserve = _solveInvariant(x, _config.a, _o, k0 + scaledSwapFee);
         // Convert swap fee to fpToken terms
         // fpFee = fee * s / k
-        scaledSwapFee = scaledSwapFee * _config.supply / k0;
+        scaledSwapFee = (scaledSwapFee * _config.supply) / k0;
         uint256 output = x[_o] - newOutputReserve - 1;
         bAssetOutputQuantity = (output * 1e8) / _bAssets[_o].ratio;
         // 6. Check for bounds
@@ -902,11 +900,10 @@ library FeederLogic {
         if (_sum == 0) return 0;
 
         uint256 var1 = _x[0] * _x[1];
-        uint256 var2 = _a * var1 / (_x[0] + _x[1]) / A_PRECISION;
+        uint256 var2 = (_a * var1) / (_x[0] + _x[1]) / A_PRECISION;
         // result = 2 * (isqrt(var2**2 + (A + A_PRECISION) * var1 // A_PRECISION) - var2) + 1
-        k = 2 * (Root.sqrt((var2 ** 2) + (((_a + A_PRECISION) * var1) / A_PRECISION)) - var2) + 1;
+        k = 2 * (Root.sqrt((var2**2) + (((_a + A_PRECISION) * var1) / A_PRECISION)) - var2) + 1;
     }
-
 
     /**
      * @dev Solves the invariant for _i with respect to target K, given an array of reserves.
@@ -926,13 +923,11 @@ library FeederLogic {
 
         uint256 x = _idx == 0 ? _x[1] : _x[0];
         uint256 var1 = _a + A_PRECISION;
-        uint256 var2 = (_targetK ** 2) * A_PRECISION / var1;
+        uint256 var2 = ((_targetK**2) * A_PRECISION) / var1;
         // var3 = var2 // (4 * x) + k * _a // var1 - x
         uint256 tmp = var2 / (4 * x) + ((_targetK * _a) / var1);
         uint256 var3 = tmp >= x ? tmp - x : x - tmp;
         //  result = (sqrt(var3**2 + var2) + var3) // 2
-        y = ((Root.sqrt((var3 ** 2) + var2) + tmp - x) / 2) + 1;
+        y = ((Root.sqrt((var3**2) + var2) + tmp - x) / 2) + 1;
     }
 }
-
-
