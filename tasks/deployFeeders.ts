@@ -22,6 +22,9 @@ import {
     BoostedSavingsVault,
     BoostDirector__factory,
     AaveV2Integration__factory,
+    FeederWrapper__factory,
+    FeederWrapper,
+    Masset__factory,
 } from "types/generated"
 import { simpleToExactAmount, BN } from "@utils/math"
 
@@ -263,7 +266,28 @@ const deployVault = async (
         await deposit.wait()
     }
 
-    return new BoostedSavingsVault__factory(sender).attach(vProxy.address)
+    return BoostedSavingsVault__factory.connect(vProxy.address, sender)
+}
+
+// TODO - pass array of pools
+const deployFeederWrapper = async (sender: Signer, feederPool: FeederPool, vault: BoostedSavingsVault): Promise<FeederWrapper> => {
+    // Deploy FeederWrapper
+    const feederWrapper = await new FeederWrapper__factory(sender).deploy()
+    const deployReceipt = await feederWrapper.deployTransaction.wait()
+    console.log(`Deployed FeederWrapper to ${feederWrapper.address}. gas used ${deployReceipt.gasUsed}`)
+
+    // Get tokens to approve
+    const [[{ addr: massetAddr }, { addr: fassetAddr }]] = await feederPool.getBassets()
+    const masset = Masset__factory.connect(massetAddr, sender)
+    const [bassets] = await masset.getBassets()
+    const assets = [massetAddr, fassetAddr, ...bassets.map(({ addr }) => addr)]
+
+    // Make the approval in one tx
+    const approveTx = await feederWrapper["approve(address,address,address[])"](feederPool.address, vault.address, assets)
+    const approveReceipt = await approveTx.wait()
+    console.log(`Approved FeederWrapper tokens. gas used ${approveReceipt.gasUsed}`)
+
+    return feederWrapper
 }
 
 task("fSize", "Gets the bytecode size of the FeederPool.sol contract").setAction(async (_, hre) => {
