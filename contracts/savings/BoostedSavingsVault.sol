@@ -78,13 +78,13 @@ contract BoostedSavingsVault is
     constructor(
         address _nexus,
         address _stakingToken,
-        address _stakingContract,
+        address _boostDirector,
         uint256 _priceCoeff,
         uint256 _coeff,
         address _rewardsToken
     )
         InitializableRewardsDistributionRecipient(_nexus)
-        BoostedTokenWrapper(_stakingToken, _stakingContract, _priceCoeff, _coeff)
+        BoostedTokenWrapper(_stakingToken, _boostDirector, _priceCoeff, _coeff)
     {
         rewardsToken = IERC20(_rewardsToken);
     }

@@ -23,7 +23,7 @@ export const hardhatConfig = {
         hardhat: {
             allowUnlimitedContractSize: true,
         },
-        localhost: { url: "http://localhost:8545" },
+        localhost: { url: "http://localhost:7545" },
         fork: {
             url: "http://localhost:7545",
         },

@@ -27,7 +27,6 @@ contract AaveV2Integration is AbstractIntegration {
 
     // Core address for the given platform */
     address public immutable platformAddress;
-    address public immutable basketManager;
 
     event RewardTokenApproved(address rewardToken, address account);
 
@@ -39,12 +38,10 @@ contract AaveV2Integration is AbstractIntegration {
     constructor(
         address _nexus,
         address _mAsset,
-        address _platformAddress,
-        address _basketManager
+        address _platformAddress
     ) AbstractIntegration(_nexus, _mAsset) {
         require(_platformAddress != address(0), "Invalid platform address");
         platformAddress = _platformAddress;
-        basketManager = _basketManager;
     }
 
     /***************************************
@@ -75,13 +72,6 @@ contract AaveV2Integration is AbstractIntegration {
                     CORE
     ****************************************/
 
-    /**
-     * @dev Modifier to allow function calls only from the Governor.
-     */
-    modifier massetOrManager() {
-        require(msg.sender == mAssetAddress || msg.sender == basketManager, "Only mAsset or basketManager can execute");
-        _;
-    }
 
     /**
      * @dev Deposit a quantity of bAsset into the platform. Credited aTokens
@@ -99,7 +89,7 @@ contract AaveV2Integration is AbstractIntegration {
     )
         external
         override
-        massetOrManager
+        onlyLP
         nonReentrant
         returns (uint256 quantityDeposited)
     {
@@ -137,7 +127,7 @@ contract AaveV2Integration is AbstractIntegration {
     )
         external
         override
-        onlyMasset
+        onlyLP
         nonReentrant
     {
         _withdraw(_receiver, _bAsset, _amount, _amount, _hasTxFee);
@@ -160,7 +150,7 @@ contract AaveV2Integration is AbstractIntegration {
     )
         external
         override
-        onlyMasset
+        onlyLP
         nonReentrant
     {
         _withdraw(_receiver, _bAsset, _amount, _totalAmount, _hasTxFee);
@@ -205,7 +195,7 @@ contract AaveV2Integration is AbstractIntegration {
     )
         external
         override
-        onlyMasset
+        onlyLP
         nonReentrant
     {
         require(_amount > 0, "Must withdraw something");

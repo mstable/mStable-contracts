@@ -34,7 +34,7 @@ describe("AaveIntegration", async () => {
 
     const ctx: Partial<IModuleBehaviourContext> = {}
 
-    const runSetup = async (enableUSDTFee = false, simulateMint = false) => {
+    const runSetup = async (enableUSDTFee = false, simulateMint = false, skipInit = false) => {
         // SETUP
         // ======
         nexus = await new MockNexus__factory(sa.default.signer).deploy(
@@ -49,26 +49,27 @@ describe("AaveIntegration", async () => {
             nexus.address,
             mAsset.address,
             integrationDetails.aavePlatformAddress,
-            sa.mockSavingsManager.address,
         )
-        await Promise.all(
-            integrationDetails.aTokens.map((a) => aaveIntegration.connect(sa.governor.signer).setPTokenAddress(a.bAsset, a.aToken)),
-        )
-
-        if (simulateMint) {
+        if (!skipInit) {
             await Promise.all(
-                integrationDetails.aTokens.map(async ({ bAsset }) => {
-                    // Step 0. Choose tokens
-                    const b1 = await new MockERC20__factory(mAsset.signer).attach(bAsset)
-                    const decimals = BN.from(await b1.decimals())
-                    const amount = BN.from(enableUSDTFee ? 101 : 100).mul(BN.from(10).pow(decimals.sub(BN.from(1))))
-                    const amountD = BN.from(100).mul(BN.from(10).pow(decimals.sub(BN.from(1))))
-                    // Step 1. xfer tokens to integration
-                    await b1.transfer(aaveIntegration.address, amount.toString())
-                    // Step 2. call deposit
-                    return aaveIntegration.connect(mAsset.signer).deposit(bAsset, amountD.toString(), true)
-                }),
+                integrationDetails.aTokens.map((a) => aaveIntegration.connect(sa.governor.signer).setPTokenAddress(a.bAsset, a.aToken)),
             )
+
+            if (simulateMint) {
+                await Promise.all(
+                    integrationDetails.aTokens.map(async ({ bAsset }) => {
+                        // Step 0. Choose tokens
+                        const b1 = await new MockERC20__factory(mAsset.signer).attach(bAsset)
+                        const decimals = BN.from(await b1.decimals())
+                        const amount = BN.from(enableUSDTFee ? 101 : 100).mul(BN.from(10).pow(decimals.sub(BN.from(1))))
+                        const amountD = BN.from(100).mul(BN.from(10).pow(decimals.sub(BN.from(1))))
+                        // Step 1. xfer tokens to integration
+                        await b1.transfer(aaveIntegration.address, amount.toString())
+                        // Step 2. call deposit
+                        return aaveIntegration.connect(mAsset.signer).deposit(bAsset, amountD.toString(), true)
+                    }),
+                )
+            }
         }
     }
 
@@ -94,7 +95,7 @@ describe("AaveIntegration", async () => {
         it("should properly store valid arguments", async () => {
             // Check for nexus addr
             expect(await aaveIntegration.nexus()).eq(nexus.address)
-            expect(await aaveIntegration.mAssetAddress()).eq(mAsset.address)
+            expect(await aaveIntegration.lpAddress()).eq(mAsset.address)
             // check for platform addr
             expect(await aaveIntegration.platformAddress()).eq(integrationDetails.aavePlatformAddress) // check for pTokens added & events
             expect(integrationDetails.aTokens[0].aToken).eq(await aaveIntegration.bAssetToPToken(integrationDetails.aTokens[0].bAsset))
@@ -103,13 +104,8 @@ describe("AaveIntegration", async () => {
 
         it("should fail when mAsset address invalid", async () => {
             await expect(
-                new AaveV2Integration__factory(sa.default.signer).deploy(
-                    nexus.address,
-                    ZERO_ADDRESS,
-                    sa.other.address,
-                    sa.mockSavingsManager.address,
-                ),
-            ).to.be.revertedWith("Invalid mAsset address")
+                new AaveV2Integration__factory(sa.default.signer).deploy(nexus.address, ZERO_ADDRESS, sa.mockSavingsManager.address),
+            ).to.be.revertedWith("Invalid LP address")
         })
 
         it("should approve spending of the passed bAssets", async () => {
@@ -125,13 +121,58 @@ describe("AaveIntegration", async () => {
 
         it("should fail if passed incorrect data", async () => {
             await expect(
-                new AaveV2Integration__factory(sa.default.signer).deploy(
-                    nexus.address,
-                    mAsset.address,
-                    ZERO_ADDRESS,
-                    sa.mockSavingsManager.address,
-                ),
+                new AaveV2Integration__factory(sa.default.signer).deploy(nexus.address, mAsset.address, ZERO_ADDRESS),
             ).to.be.revertedWith("Invalid platform address")
+        })
+    })
+
+    describe("calling initialize", async () => {
+        beforeEach(async () => {
+            await runSetup(false, false, true)
+        })
+
+        it("should properly store valid arguments", async () => {
+            const { aTokens } = integrationDetails
+            await aaveIntegration.initialize([aTokens[0].bAsset], [aTokens[0].aToken])
+            expect(integrationDetails.aTokens[0].aToken).eq(await aaveIntegration.bAssetToPToken(integrationDetails.aTokens[0].bAsset))
+        })
+
+        it("should approve spending of the passed bAssets", async () => {
+            const { aTokens } = integrationDetails
+            await aaveIntegration.initialize([aTokens[0].bAsset], [aTokens[0].aToken])
+
+            const bAsset = await new MockERC20__factory(sa.default.signer).attach(aTokens[0].bAsset)
+            const addressProvider = await ILendingPoolAddressesProviderV2__factory.connect(
+                integrationDetails.aavePlatformAddress,
+                sa.default.signer,
+            )
+            const approvedAddress = await addressProvider.getLendingPool()
+            const balance = await bAsset.allowance(aaveIntegration.address, approvedAddress)
+            expect(balance).eq(MAX_UINT256)
+        })
+
+        it("should fail when called again", async () => {
+            const { aTokens } = integrationDetails
+            await aaveIntegration.initialize([aTokens[0].bAsset], [aTokens[0].aToken])
+            await expect(aaveIntegration.initialize([aTokens[0].bAsset], [aTokens[0].aToken])).to.be.revertedWith(
+                "Initializable: contract is already initialized",
+            )
+        })
+
+        it("should fail if passed incorrect data", async () => {
+            const { aTokens } = integrationDetails
+            // bAsset and pToken array length are different
+            await expect(aaveIntegration.initialize([aTokens[1].bAsset, sa.dummy1.address], [aTokens[1].aToken])).to.be.revertedWith(
+                "Invalid inputs",
+            )
+            // pToken address is zero
+            await expect(aaveIntegration.initialize([aTokens[1].bAsset], [ZERO_ADDRESS])).to.be.revertedWith("Invalid addresses")
+            // duplicate pToken or bAsset
+            await expect(
+                aaveIntegration.initialize([aTokens[0].bAsset, aTokens[0].bAsset], [aTokens[1].aToken, aTokens[1].aToken]),
+            ).to.be.revertedWith("pToken already set")
+            // invalid bAsset addresses
+            await expect(aaveIntegration.initialize([ZERO_ADDRESS], [aTokens[0].aToken])).to.be.reverted
         })
     })
 
@@ -283,7 +324,7 @@ describe("AaveIntegration", async () => {
 
             // Step 1. call deposit
             await expect(aaveIntegration.connect(sa.dummy1.signer).deposit(bAsset.address, amount.toString(), false)).to.be.revertedWith(
-                "Only mAsset or basketManager can execute",
+                "Only the LP can execute",
             )
         })
         it("should fail if the bAsset is not supported", async () => {
@@ -473,7 +514,7 @@ describe("AaveIntegration", async () => {
                 aaveIntegration
                     .connect(sa.dummy1.signer)
                     ["withdraw(address,address,uint256,bool)"](sa.dummy1.address, bAsset.address, amount.toString(), false),
-            ).to.be.revertedWith("Only the mAsset can execute")
+            ).to.be.revertedWith("Only the LP can execute")
         })
         it("should fail if there is insufficient balance", async () => {
             // Step 0. Choose tokens
@@ -565,7 +606,7 @@ describe("AaveIntegration", async () => {
                     aaveIntegration
                         .connect(sa.dummy1.signer)
                         ["withdraw(address,address,uint256,uint256,bool)"](bAssetRecipient, bAsset.address, amount, totalAmount, false),
-                ).to.be.revertedWith("Only the mAsset can execute")
+                ).to.be.revertedWith("Only the LP can execute")
                 // send the amount
                 const tx = await aaveIntegration["withdraw(address,address,uint256,uint256,bool)"](
                     bAssetRecipient,
@@ -619,7 +660,7 @@ describe("AaveIntegration", async () => {
             const bAsset = await new MockERC20__factory(sa.default.signer).attach(integrationDetails.aTokens[0].bAsset)
             await expect(
                 aaveIntegration.connect(sa.dummy1.signer).withdrawRaw(sa.dummy3.address, bAsset.address, BN.from(1)),
-            ).to.be.revertedWith("Only the mAsset can execute")
+            ).to.be.revertedWith("Only the LP can execute")
         })
         it("should allow the mAsset or BM to withdraw a given bAsset", async () => {
             const bAsset = await new MockERC20__factory(sa.default.signer).attach(integrationDetails.aTokens[0].bAsset)

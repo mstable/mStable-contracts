@@ -92,7 +92,7 @@ contract BoostDirector is IBoostDirector, ImmutableModule {
     function getBalance(address _user) external override returns (uint256) {
         // Get pool details
         uint8 id = _pools[msg.sender];
-        require(id > 0, "Pool not whitelisted");
+        if(id == 0) return 0;
 
         // Get existing bitmap and balance
         uint128 bitmap = _directedBitmap[_user];
