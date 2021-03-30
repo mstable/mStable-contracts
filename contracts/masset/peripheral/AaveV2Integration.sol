@@ -37,7 +37,7 @@ contract AaveV2Integration is AbstractIntegration {
      */
     constructor(
         address _nexus,
-        address _lp
+        address _lp,
         address _platformAddress
     ) AbstractIntegration(_nexus, _lp) {
         require(_platformAddress != address(0), "Invalid platform address");
