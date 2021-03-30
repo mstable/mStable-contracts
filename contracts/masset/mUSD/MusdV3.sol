@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.0;
+pragma solidity 0.8.2;
 pragma abicoder v2;
 
 // External
-import { IInvariantValidator } from "../IInvariantValidator.sol";
+import { IInvariantValidator } from "../../interfaces/IInvariantValidator.sol";
 
 // Internal
 import { Initializable } from "../../shared/@openzeppelin-2.5/Initializable.sol";
@@ -11,7 +11,7 @@ import { InitializableToken } from "../../shared/InitializableToken.sol";
 import { ImmutableModule } from "../../shared/ImmutableModule.sol";
 import { InitializableReentrancyGuard } from "../../shared/InitializableReentrancyGuard.sol";
 import { IMasset, Deprecated_BasketManager } from "../../interfaces/IMasset.sol";
-import { MassetStructs } from "../MassetStructs.sol";
+import "../MassetStructs.sol";
 
 // Libs
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";

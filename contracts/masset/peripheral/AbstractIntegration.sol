@@ -1,7 +1,9 @@
-pragma solidity 0.8.0;
+// SPDX-License-Identifier: GPL-3.0-or-later
+pragma solidity 0.8.2;
 
 // Internal
 import { IPlatformIntegration } from "../../interfaces/IPlatformIntegration.sol";
+import { Initializable } from "@openzeppelin/contracts/utils/Initializable.sol";
 
 // Libs
 import { ImmutableModule } from "../../shared/ImmutableModule.sol";
@@ -17,6 +19,7 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuar
  */
 abstract contract AbstractIntegration is
     IPlatformIntegration,
+    Initializable,
     ImmutableModule,
     ReentrancyGuard
 {
@@ -26,8 +29,8 @@ abstract contract AbstractIntegration is
     event Withdrawal(address indexed _bAsset, address _pToken, uint256 _amount);
     event PlatformWithdrawal(address indexed bAsset, address pToken, uint256 totalAmount, uint256 userAmount);
 
-    // mAsset has write access
-    address public immutable mAssetAddress;
+    // LP has write access
+    address public immutable lpAddress;
 
     // bAsset => pToken (Platform Specific Token Address)
     mapping(address => address) public override bAssetToPToken;
@@ -35,22 +38,36 @@ abstract contract AbstractIntegration is
     address[] internal bAssetsMapped;
 
     /**
-     * @param _nexus            Address of the Nexus
-     * @param _mAsset           Address of mAsset
+     * @param _nexus     Address of the Nexus
+     * @param _lp        Address of LP
      */
     constructor(
         address _nexus,
-        address _mAsset
+        address _lp
     ) ReentrancyGuard() ImmutableModule(_nexus)  {
-        require(_mAsset != address(0), "Invalid mAsset address");
-        mAssetAddress = _mAsset;
+        require(_lp != address(0), "Invalid LP address");
+        lpAddress = _lp;
+    }
+
+    /**
+     * @dev Simple initializer to set first bAsset/pTokens
+     */
+    function initialize(
+        address[] calldata _bAssets,
+        address[] calldata _pTokens
+    ) public initializer {
+        uint256 len = _bAssets.length;
+        require(len == _pTokens.length, "Invalid inputs");
+        for(uint256 i = 0; i < len; i++){
+            _setPTokenAddress(_bAssets[i], _pTokens[i]);
+        }  
     }
 
     /**
      * @dev Modifier to allow function calls only from the Governor.
      */
-    modifier onlyMasset() {
-        require(msg.sender == mAssetAddress, "Only the mAsset can execute");
+    modifier onlyLP() {
+        require(msg.sender == lpAddress, "Only the LP can execute");
         _;
     }
 

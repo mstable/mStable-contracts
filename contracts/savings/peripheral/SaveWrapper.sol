@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.0;
+pragma solidity 0.8.2;
 
 import { ISavingsContractV2 } from "../../interfaces/ISavingsContract.sol";
 import { IMasset } from "../../interfaces/IMasset.sol";
@@ -111,8 +111,7 @@ contract SaveWrapper {
      */
     function estimate_saveViaUniswapETH(
         uint256 _ethAmount,
-        address[] calldata _path,
-        int128 _curvePosition
+        address[] calldata _path
     )
         external
         view

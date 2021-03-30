@@ -22,6 +22,7 @@ import {
     ERC20__factory,
     SaveWrapper__factory,
     RenWrapper__factory,
+    BoostDirector__factory,
 } from "types/generated"
 import { simpleToExactAmount, BN } from "@utils/math"
 
@@ -31,10 +32,13 @@ interface CommonAddresses {
     nexus: string
     proxyAdmin: string
     rewardsDistributor: string
+    boostDirector: string
     uniswap: string
     poker: string
     renGatewayRegistry: string
 }
+
+const COEFF = 45
 
 const deployBasset = async (sender: Signer, name: string, symbol: string, decimals = 18, initialMint = 500000): Promise<MockERC20> => {
     // Implementation
@@ -122,10 +126,15 @@ const mint = async (sender: Signer, bAssets: DeployedBasset[], mBTC: Masset) => 
     const scaledTestQty = startingCap.div(5)
 
     // Approve spending
+    const approvals: BN[] = []
     // eslint-disable-next-line
     for (const bAsset of bAssets) {
         // eslint-disable-next-line
-        const tx = await bAsset.contract.approve(mBTC.address, scaledTestQty)
+        const dec = await bAsset.contract.decimals()
+        const approval = dec === 18 ? scaledTestQty : scaledTestQty.div(simpleToExactAmount(1, BN.from(18).sub(dec)))
+        approvals.push(approval)
+        // eslint-disable-next-line
+        const tx = await bAsset.contract.approve(mBTC.address, approval)
         // eslint-disable-next-line
         const receiptApprove = await tx.wait()
         console.log(
@@ -134,12 +143,16 @@ const mint = async (sender: Signer, bAssets: DeployedBasset[], mBTC: Masset) => 
                 receiptApprove.gasUsed
             }`,
         )
+        console.log(
+            // eslint-disable-next-line
+            `Balance ${(await bAsset.contract.balanceOf(await sender.getAddress())).toString()}`,
+        )
     }
 
     // Mint
     const tx = await mBTC.mintMulti(
         bAssets.map((b) => b.contract.address),
-        bAssets.map(() => scaledTestQty),
+        approvals,
         1,
         await sender.getAddress(),
     )
@@ -182,15 +195,16 @@ const deploySave = async (
         const vImpl = await new BoostedSavingsVault__factory(sender).deploy(
             addresses.nexus,
             savingContract.address,
-            addresses.staking,
+            addresses.boostDirector,
             simpleToExactAmount(3000, 18),
+            COEFF,
             addresses.mta,
         )
         const receiptVaultImpl = await vImpl.deployTransaction.wait()
         console.log(`Deployed Vault Impl to ${sProxy.address}. gas used ${receiptVaultImpl.gasUsed}`)
 
         // Data
-        const vData = vImpl.interface.encodeFunctionData("initialize", [addresses.rewardsDistributor])
+        const vData = vImpl.interface.encodeFunctionData("initialize", [addresses.rewardsDistributor, "imBTC Savings Vault", "v-imBTC"])
         // Proxy
         const vProxy = await new AssetProxy__factory(sender).deploy(vImpl.address, addresses.proxyAdmin, vData)
         const receiptVaultProxy = await vProxy.deployTransaction.wait()
@@ -255,6 +269,7 @@ task("deployMBTC", "Deploys the mBTC contracts").setAction(async (_, hre) => {
                   nexus: "0xeD04Cd19f50F893792357eA53A549E23Baf3F6cB",
                   proxyAdmin: "0x2d369F83E9DC764a759a74e87a9Bc542a2BbfdF0",
                   rewardsDistributor: "0x99B62B75E3565bEAD786ddBE2642E9c40aA33465",
+                  boostDirector: DEAD_ADDRESS,
                   uniswap: DEAD_ADDRESS,
                   poker: DEAD_ADDRESS,
                   renGatewayRegistry: DEAD_ADDRESS,
@@ -265,10 +280,15 @@ task("deployMBTC", "Deploys the mBTC contracts").setAction(async (_, hre) => {
                   nexus: DEAD_ADDRESS,
                   proxyAdmin: DEAD_ADDRESS,
                   rewardsDistributor: DEAD_ADDRESS,
+                  boostDirector: DEAD_ADDRESS,
                   uniswap: DEAD_ADDRESS,
                   poker: DEAD_ADDRESS,
                   renGatewayRegistry: DEAD_ADDRESS,
               }
+
+    const director = await new BoostDirector__factory(deployer).deploy(addresses.nexus, addresses.staking)
+    await director.deployTransaction.wait()
+    addresses.boostDirector = director.address
 
     // 1. Deploy bAssets
     const bAssets: DeployedBasset[] = []
@@ -318,6 +338,7 @@ task("reDeployMBTC", "Re-deploys the mBTC contracts given bAsset addresses").set
                   nexus: "0xeD04Cd19f50F893792357eA53A549E23Baf3F6cB",
                   proxyAdmin: "0x2d369F83E9DC764a759a74e87a9Bc542a2BbfdF0",
                   rewardsDistributor: "0x99B62B75E3565bEAD786ddBE2642E9c40aA33465",
+                  boostDirector: DEAD_ADDRESS,
                   uniswap: DEAD_ADDRESS,
                   poker: DEAD_ADDRESS,
                   renGatewayRegistry: DEAD_ADDRESS,
@@ -328,6 +349,7 @@ task("reDeployMBTC", "Re-deploys the mBTC contracts given bAsset addresses").set
                   nexus: DEAD_ADDRESS,
                   proxyAdmin: DEAD_ADDRESS,
                   rewardsDistributor: DEAD_ADDRESS,
+                  boostDirector: DEAD_ADDRESS,
                   uniswap: DEAD_ADDRESS,
                   poker: DEAD_ADDRESS,
                   renGatewayRegistry: DEAD_ADDRESS,
@@ -350,6 +372,10 @@ task("reDeployMBTC", "Re-deploys the mBTC contracts given bAsset addresses").set
             txFee: false,
         },
     ]
+
+    const director = await new BoostDirector__factory(deployer).deploy(addresses.nexus, addresses.staking)
+    await director.deployTransaction.wait()
+    addresses.boostDirector = director.address
 
     // 1. Fetch bAssets
     const erc20Factory = await new ERC20__factory(deployer)
@@ -396,6 +422,7 @@ task("deployMBTC-mainnet", "Deploys the mBTC contracts to Mainnet").setAction(as
         nexus: "0xafce80b19a8ce13dec0739a1aab7a028d6845eb3",
         proxyAdmin: "0x5c8eb57b44c1c6391fc7a8a0cf44d26896f92386",
         rewardsDistributor: "0x04dfdfa471b79cc9e6e8c355e6c71f8ec4916c50",
+        boostDirector: DEAD_ADDRESS,
         uniswap: "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
         poker: "0x0C2eF8a1b3Bc00Bf676053732F31a67ebbA5bD81",
         renGatewayRegistry: DEAD_ADDRESS,
@@ -417,6 +444,10 @@ task("deployMBTC-mainnet", "Deploys the mBTC contracts to Mainnet").setAction(as
             txFee: false,
         },
     ]
+
+    const director = await new BoostDirector__factory(deployer).deploy(addresses.nexus, addresses.staking)
+    await director.deployTransaction.wait()
+    addresses.boostDirector = director.address
 
     // 1. Fetch bAssets
     const erc20Factory = await new ERC20__factory(deployer)

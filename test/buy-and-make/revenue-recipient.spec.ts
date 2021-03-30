@@ -26,7 +26,11 @@ describe("Masset", () => {
     const runSetup = async (): Promise<void> => {
         mXYZ = await mAssetMachine.loadBassetProxy("mStable XYZ", "mXYZ", 18)
 
-        nexus = await new MockNexus__factory(sa.default.signer).deploy(sa.governor.address, sa.mockSavingsManager.address)
+        nexus = await new MockNexus__factory(sa.default.signer).deploy(
+            sa.governor.address,
+            sa.mockSavingsManager.address,
+            sa.mockInterestValidator.address,
+        )
         bPool = await new MockBPool__factory(sa.default.signer).deploy(simpleToExactAmount(1, 17), [mXYZ.address], "Mock mBPT", "mBPT")
         revenueRecipient = await new RevenueRecipient__factory(sa.default.signer).deploy(
             nexus.address,

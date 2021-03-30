@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.0;
+pragma solidity 0.8.2;
 
 // import "hardhat/console.sol";
 
@@ -70,14 +70,13 @@ contract MusdV3Rebalance is DyDxFlashLoan, Ownable {
     /**
      * @notice Convert TUSD and USDT in the mUSD basket to USDC or DAI using a DyDx flash loan.
      * @param flashToken DAI or USDC token address.
-     * @param flashAmount Amount to flash loan. For USDC is 6 decimal places. DAI is 18 decimals places.
      * @param funderAccount Account that will fund the shortfall of the DyDx USDC flash loan.
      * @param swapInputs This mUSD swap inputs from the flash token to TUSD (at index 0) and USDT (at index 1).
      * @dev Assumes the funder has already approved this contract to transferFrom the shortfall from their account.
      */
     function swapOutTusdAndUsdt(
         address flashToken,
-        uint256 flashAmount,
+        uint256 /*flashAmount*/,
         address funderAccount,
         uint256[] memory swapInputs
     ) external onlyOwner {
@@ -175,7 +174,7 @@ contract MusdV3Rebalance is DyDxFlashLoan, Ownable {
 
             // Swap TUSD for flash token using Curve TUSD pool
             uint256 minOutput = halfTusdOutput * 99 / 100;
-            uint8 outputIndex = 0;  // DAI
+            int128 outputIndex = 0;  // DAI
             if (flashToken == USDC) {
                 outputIndex = 1;
                 // Converting from TUSD with 18 decimals to USDC with 6 decimals
@@ -215,11 +214,11 @@ contract MusdV3Rebalance is DyDxFlashLoan, Ownable {
 
             // Swap USDT for flash token using Curve 3pool
             uint256 minOutput = usdtOutput * 99 / 100;
-            uint8 outputIndex = 1;  // USDC
+            int128 outputIndex = 1;  // USDC
             if (flashToken == DAI) {
                 outputIndex = 0;
                 // Converting from USDT with 6 decimals to DAI with 18 decimals
-                uint256 minOutput = minOutput * 99 / 100 * 1e12;
+                minOutput = minOutput * 99 / 100 * 1e12;
             }
             curve3pool.exchange(2, outputIndex, usdtOutput, minOutput);
             // console.log("Curve 3pool swap");

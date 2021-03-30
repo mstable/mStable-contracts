@@ -8,7 +8,7 @@ import "solidity-coverage"
 import "ts-node/register"
 import "tsconfig-paths/register"
 
-// chainId?: number;
+// chainId?: number
 // from?: string;
 // gas: "auto" | number;
 // gasPrice: "auto" | number;
@@ -23,7 +23,7 @@ export const hardhatConfig = {
         hardhat: {
             allowUnlimitedContractSize: true,
         },
-        localhost: { url: "http://localhost:8545" },
+        localhost: { url: "http://localhost:7545" },
         fork: {
             url: "http://localhost:7545",
         },
@@ -38,11 +38,17 @@ export const hardhatConfig = {
         },
     },
     solidity: {
-        version: "0.8.0",
+        version: "0.8.2",
         settings: {
             optimizer: {
                 enabled: true,
                 runs: 200,
+            },
+            outputSelection: {
+                "*": {
+                    Masset: ["storageLayout"],
+                    FeederPool: ["storageLayout"],
+                },
             },
         },
     },

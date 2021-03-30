@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.0;
+pragma solidity 0.8.2;
 pragma abicoder v2;
 
-import { MassetStructs } from "../MassetStructs.sol";
+import "../MassetStructs.sol";
 
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
@@ -14,8 +14,8 @@ library Migrator {
 
     function upgrade(
         IBasketManager basketManager,
-        MassetStructs.BassetPersonal[] storage bAssetPersonal,
-        MassetStructs.BassetData[] storage bAssetData,
+        BassetPersonal[] storage bAssetPersonal,
+        BassetData[] storage bAssetData,
         mapping(address => uint8) storage bAssetIndexes
     ) external {
         Basket memory importedBasket = basketManager.getBasket();
@@ -30,18 +30,18 @@ library Migrator {
 
             address integratorAddress = basketManager.getBassetIntegrator(bAssetAddress);
             bAssetPersonal.push(
-                MassetStructs.BassetPersonal({
+                BassetPersonal({
                     addr: bAssetAddress,
                     integrator: integratorAddress,
                     hasTxFee: false,
-                    status: MassetStructs.BassetStatus.Normal
+                    status: BassetStatus.Normal
                 })
             );
 
             uint128 ratio = SafeCast.toUint128(bAsset.ratio);
             uint128 vaultBalance = SafeCast.toUint128(bAsset.vaultBalance);
             bAssetData.push(
-                MassetStructs.BassetData({ ratio: ratio, vaultBalance: vaultBalance })
+                BassetData({ ratio: ratio, vaultBalance: vaultBalance })
             );
 
             // caclulate scaled vault bAsset balance and total vault balance

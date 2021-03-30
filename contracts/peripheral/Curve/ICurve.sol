@@ -1,18 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.0;
+pragma solidity 0.8.2;
 
 interface ICurve {
     function get_virtual_price() external returns (uint256 out);
 
     function add_liquidity(uint256[2] calldata amounts, uint256 deadline) external;
 
-    function get_dy(int128 i, int128 j, uint256 dx)
-        external
-        returns (uint256 out);
+    function get_dy(
+        int128 i,
+        int128 j,
+        uint256 dx
+    ) external returns (uint256 out);
 
-    function get_dy_underlying(int128 i, int128 j, uint256 dx)
-        external
-        returns (uint256 out);
+    function get_dy_underlying(
+        int128 i,
+        int128 j,
+        uint256 dx
+    ) external returns (uint256 out);
 
     function exchange(
         int128 i,
@@ -50,8 +54,7 @@ interface ICurve {
         uint256[2] calldata min_amounts
     ) external;
 
-    function remove_liquidity_imbalance(uint256[2] calldata amounts, uint256 deadline)
-        external;
+    function remove_liquidity_imbalance(uint256[2] calldata amounts, uint256 deadline) external;
 
     function commit_new_parameters(
         int128 amplification,

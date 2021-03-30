@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.0;
+pragma solidity 0.8.2;
 
 // Internal
 import { IBoostedVaultWithLockup } from "../interfaces/IBoostedVaultWithLockup.sol";
@@ -47,7 +47,7 @@ contract BoostedSavingsVault is
     // Length of token lockup, after rewards are earned
     uint256 public constant LOCKUP = 26 weeks;
     // Percentage of earned tokens unlocked immediately
-    uint64 public constant UNLOCK = 2e17;
+    uint64 public constant UNLOCK = 33e16;
 
     // Timestamp for current period finish
     uint256 public periodFinish;
@@ -78,12 +78,13 @@ contract BoostedSavingsVault is
     constructor(
         address _nexus,
         address _stakingToken,
-        address _stakingContract,
+        address _boostDirector,
         uint256 _priceCoeff,
+        uint256 _coeff,
         address _rewardsToken
     )
         InitializableRewardsDistributionRecipient(_nexus)
-        BoostedTokenWrapper(_stakingToken, _stakingContract, _priceCoeff)
+        BoostedTokenWrapper(_stakingToken, _boostDirector, _priceCoeff, _coeff)
     {
         rewardsToken = IERC20(_rewardsToken);
     }
@@ -92,9 +93,9 @@ contract BoostedSavingsVault is
      * @dev StakingRewards is a TokenWrapper and RewardRecipient
      * Constants added to bytecode at deployTime to reduce SLOAD cost
      */
-    function initialize(address _rewardsDistributor) external initializer {
+    function initialize(address _rewardsDistributor, string calldata _nameArg, string calldata _symbolArg) external initializer {
         InitializableRewardsDistributionRecipient._initialize(_rewardsDistributor);
-        BoostedTokenWrapper._initialize();
+        BoostedTokenWrapper._initialize(_nameArg, _symbolArg);
     }
 
     /**

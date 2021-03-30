@@ -32,7 +32,7 @@ export interface Basset {
     status: BN | BassetStatus
     isTransferFeeCharged: boolean
     ratio: BN | string
-    vaultBalance: BN | string
+    vaultBalance: BN
     pToken?: string
     integratorAddr?: string
     contract?: MockERC20
@@ -57,7 +57,7 @@ export const createBasset = (
     addr: ZERO_ADDRESS,
     isTransferFeeCharged,
     ratio: createMultiple(decimals).toString(),
-    vaultBalance: simpleToExactAmount(vaultBalance, decimals).toString(),
+    vaultBalance: simpleToExactAmount(vaultBalance, decimals),
     status,
 })
 

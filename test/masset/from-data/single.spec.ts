@@ -4,11 +4,13 @@ import { assertBNClose } from "@utils/assertions"
 import { DEAD_ADDRESS, fullScale, MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
 import { BN, simpleToExactAmount } from "@utils/math"
-import { mintData, mintMultiData, redeemData, redeemExactData, redeemMassetData, swapData } from "@utils/validator-data"
+import { mAssetData } from "@utils/validator-data"
 
 import { expect } from "chai"
 import { ethers } from "hardhat"
 import { InvariantValidator, InvariantValidator__factory, Masset, Masset__factory, MockERC20 } from "types/generated"
+
+const { mintData, mintMultiData, redeemData, redeemExactData, redeemMassetData, swapData } = mAssetData
 
 const config = {
     a: BN.from(12000),
@@ -45,7 +47,7 @@ describe("Invariant Validator - One basket one test", () => {
     })
     describe("Compute Mint", () => {
         let count = 0
-        const testMintData = runLongTests ? mintData.full : mintData.sample
+        const testMintData = runLongTests ? mintData : mintData.slice(0, 1)
         for (const testData of testMintData) {
             const reserves = getReserves(testData)
 
@@ -73,7 +75,7 @@ describe("Invariant Validator - One basket one test", () => {
     })
     describe("Compute Multi Mint", () => {
         let count = 0
-        const testMultiMintData = runLongTests ? mintMultiData.full : mintMultiData.sample
+        const testMultiMintData = runLongTests ? mintMultiData : mintMultiData.slice(0, 1)
         for (const testData of testMultiMintData) {
             const reserves = getReserves(testData)
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}, ${testData.reserve2}`, () => {
@@ -89,7 +91,7 @@ describe("Invariant Validator - One basket one test", () => {
     })
     describe("Compute Swap", () => {
         let count = 0
-        const testSwapData = runLongTests ? swapData.full : swapData.sample
+        const testSwapData = runLongTests ? swapData : swapData.slice(0, 1)
         for (const testData of testSwapData) {
             const reserves = getReserves(testData)
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}, ${testData.reserve2}`, () => {
@@ -130,13 +132,15 @@ describe("Invariant Validator - One basket one test", () => {
     })
     describe("Compute Redeem", () => {
         let count = 0
-        const testRedeemData = runLongTests ? redeemData.full : redeemData.sample
+        const testRedeemData = runLongTests ? redeemData : redeemData.slice(0, 1)
         for (const testData of testRedeemData) {
             const reserves = getReserves(testData)
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}, ${testData.reserve2}`, () => {
                 for (const testRedeem of testData.redeems) {
                     // Deduct swap fee before performing redemption
-                    const netInput = cv(testRedeem.mAssetQty).mul(fullScale.sub(swapFeeRate)).div(fullScale)
+                    const netInput = cv(testRedeem.mAssetQty)
+                        .mul(fullScale.sub(swapFeeRate))
+                        .div(fullScale)
 
                     if (testRedeem.hardLimitError) {
                         it(`${(count += 1)} throws Max Weight error when redeeming ${testRedeem.mAssetQty} mAssets for bAsset ${
@@ -158,7 +162,7 @@ describe("Invariant Validator - One basket one test", () => {
     })
     describe("Compute Exact Redeem", () => {
         let count = 0
-        const testRedeemExactData = runLongTests ? redeemExactData.full : redeemExactData.sample
+        const testRedeemExactData = runLongTests ? redeemExactData : redeemExactData.slice(0, 1)
         for (const testData of testRedeemExactData) {
             const reserves = getReserves(testData)
 
@@ -194,7 +198,7 @@ describe("Invariant Validator - One basket one test", () => {
     // This causes the redeem amounts to be lower, because we are redeeming a lower proportion of the basket
     describe("Compute Redeem Masset", () => {
         let count = 0
-        const testRedeemData = runLongTests ? redeemMassetData.full : redeemMassetData.sample
+        const testRedeemData = runLongTests ? redeemMassetData : redeemMassetData.slice(0, 1)
         for (const testData of testRedeemData) {
             const reserves = getReserves(testData)
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}, ${testData.reserve2}`, () => {
@@ -260,13 +264,13 @@ describe("Invariant Validator - One basket one test", () => {
 
                 for (const testRedeem of testData.redeems) {
                     const qtys = testRedeem.bAssetQtys.map((b) => cv(b))
-                    if (testRedeem.insufficientLiquidityError) {
+                    if (testRedeem["insufficientLiquidityError"]) {
                         it(`${(count += 1)} throws throw insufficient liquidity error when redeeming ${
                             testRedeem.mAssetQty
                         } mAsset`, async () => {
                             await expect(mAsset.redeemMasset(cv(testRedeem.mAssetQty), qtys, recipient)).to.be.revertedWith("VM Exception")
                         })
-                    } else if (testRedeem.hardLimitError) {
+                    } else if (testRedeem["hardLimitError"]) {
                         it(`${(count += 1)} throws Max Weight error when redeeming ${qtys} bAssets`, async () => {
                             await expect(mAsset.redeemMasset(cv(testRedeem.mAssetQty), qtys, recipient)).to.be.revertedWith(
                                 "Exceeds weight limits",

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.0;
+pragma solidity 0.8.2;
 
-import { IInvariantValidator } from "./IInvariantValidator.sol";
+import { IInvariantValidator } from "../interfaces/IInvariantValidator.sol";
+import { BassetData, InvariantConfig, WeightLimits } from "../masset/MassetStructs.sol";
 import { Root } from "../shared/Root.sol";
 
 /**
@@ -207,7 +208,7 @@ contract InvariantValidator is IInvariantValidator {
         uint256 _sum,
         uint256 _k,
         uint256 _a
-    ) internal view returns (uint256 mintAmount) {
+    ) internal pure returns (uint256 mintAmount) {
         // 1. Get value of reserves according to invariant
         uint256 kFinal = _invariant(_x, _sum, _a);
         // 2. Total minted is the difference between values

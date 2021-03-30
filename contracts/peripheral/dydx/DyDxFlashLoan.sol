@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.2;
 
 import "./DyDx.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -26,7 +26,7 @@ contract DyDxFlashLoan is Structs {
     
     mapping(address => uint256) public currencies;
 
-    constructor() public {
+    constructor() {
         currencies[WETH] = 1;
         currencies[SAI] = 2;
         currencies[USDC] = 3;

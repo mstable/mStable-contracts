@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.0;
+pragma solidity 0.8.2;
 
 /**
  * @title  ModuleKeys
@@ -42,4 +42,7 @@ contract ModuleKeys {
     // keccak256("Liquidator");
     bytes32 internal constant KEY_LIQUIDATOR =
         0x1e9cb14d7560734a61fa5ff9273953e971ff3cd9283c03d8346e3264617933d4;
+    // keccak256("InterestValidator");
+    bytes32 internal constant KEY_INTEREST_VALIDATOR =
+        0xc10a28f028c7f7282a03c90608e38a4a646e136e614e4b07d119280c5f7f839f;
 }

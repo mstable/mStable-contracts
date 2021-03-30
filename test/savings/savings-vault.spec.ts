@@ -1,3 +1,5 @@
+/* eslint-disable prefer-destructuring */
+/* eslint-disable no-underscore-dangle */
 /* eslint-disable no-await-in-loop */
 
 import { ethers } from "hardhat"
@@ -20,6 +22,10 @@ import {
     MockNexus,
     MockNexus__factory,
     AssetProxy__factory,
+    BoostDirector__factory,
+    BoostDirector,
+    MockBoostedSavingsVault,
+    MockBoostedSavingsVault__factory,
 } from "types/generated"
 import {
     shouldBehaveLikeDistributionRecipient,
@@ -74,64 +80,61 @@ describe("SavingsVault", async () => {
     let rewardsDistributor: Account
 
     let rewardToken: MockERC20
-    let iMasset: MockERC20
+    let imAsset: MockERC20
     let nexus: MockNexus
     let savingsVault: BoostedSavingsVault
     let stakingContract: MockStakingContract
+    let boostDirector: BoostDirector
 
-    const minBoost = simpleToExactAmount(5, 17)
-    const maxBoost = simpleToExactAmount(15, 17)
-    const coeff = 60
+    const maxVMTA = simpleToExactAmount(300000, 18)
+    const maxBoost = simpleToExactAmount(4, 18)
+    const minBoost = simpleToExactAmount(1, 18)
+    const floor = simpleToExactAmount(95, 16)
+    const coeff = BN.from(45)
     const priceCoeff = simpleToExactAmount(1, 17)
     const lockupPeriod = ONE_WEEK.mul(26)
 
     const boost = (raw: BN, boostAmt: BN): BN => raw.mul(boostAmt).div(fullScale)
 
     const calcBoost = (raw: BN, vMTA: BN, priceCoefficient = priceCoeff): BN => {
-        // min(d + c * vMTA^a / imUSD^b, m)
+        // min(m, max(d, (d * 0.95) + c * min(vMTA, f) / USD^b))
         const scaledBalance = raw.mul(priceCoefficient).div(simpleToExactAmount(1, 18))
 
         if (scaledBalance.lt(simpleToExactAmount(1, 18))) return minBoost
 
         let denom = parseFloat(utils.formatUnits(scaledBalance))
         denom **= 0.875
-        const lhs = minBoost.add(vMTA.mul(coeff).div(10).mul(fullScale).div(simpleToExactAmount(denom)))
-        return lhs.gt(maxBoost) ? maxBoost : lhs
+        const flooredMTA = vMTA.gt(maxVMTA) ? maxVMTA : vMTA
+        let rhs = floor.add(flooredMTA.mul(coeff).div(10).mul(fullScale).div(simpleToExactAmount(denom)))
+        rhs = rhs.gt(minBoost) ? rhs : minBoost
+        return rhs.gt(maxBoost) ? maxBoost : rhs
     }
 
-    const unlockedRewards = (total: BN): BN => total.div(5)
+    const unlockedRewards = (total: BN): BN => total.div(100).mul(33)
 
-    const lockedRewards = (total: BN): BN => total.div(5).mul(4)
+    const lockedRewards = (total: BN): BN => total.div(100).mul(67)
 
     const redeployRewards = async (priceCoefficient = priceCoeff): Promise<BoostedSavingsVault> => {
-        nexus = await (await new MockNexus__factory(sa.default.signer)).deploy(sa.governor.address, DEAD_ADDRESS)
-        rewardToken = await (await new MockERC20__factory(sa.default.signer)).deploy(
-            "Reward",
-            "RWD",
-            18,
-            rewardsDistributor.address,
-            10000000,
-        )
-        iMasset = await (await new MockERC20__factory(sa.default.signer)).deploy(
-            "Interest bearing mUSD",
-            "imUSD",
-            18,
-            sa.default.address,
-            1000000,
-        )
-        stakingContract = await (await new MockStakingContract__factory(sa.default.signer)).deploy()
+        nexus = await new MockNexus__factory(sa.default.signer).deploy(sa.governor.address, DEAD_ADDRESS, DEAD_ADDRESS)
+        rewardToken = await new MockERC20__factory(sa.default.signer).deploy("Reward", "RWD", 18, rewardsDistributor.address, 10000000)
+        imAsset = await new MockERC20__factory(sa.default.signer).deploy("Interest bearing mUSD", "imUSD", 18, sa.default.address, 1000000)
+        stakingContract = await new MockStakingContract__factory(sa.default.signer).deploy()
+
+        boostDirector = await new BoostDirector__factory(sa.default.signer).deploy(nexus.address, stakingContract.address)
 
         const vaultFactory = await new BoostedSavingsVault__factory(sa.default.signer)
-        const impl = await vaultFactory.deploy(
+        const vaultImpl = await vaultFactory.deploy(
             nexus.address,
-            iMasset.address,
-            stakingContract.address,
+            imAsset.address,
+            boostDirector.address,
             priceCoefficient,
+            coeff,
             rewardToken.address,
         )
-        const data = impl.interface.encodeFunctionData("initialize", [rewardsDistributor.address])
-        const proxy = await (await new AssetProxy__factory(sa.default.signer)).deploy(impl.address, sa.dummy4.address, data)
-        return vaultFactory.attach(proxy.address)
+        const data = vaultImpl.interface.encodeFunctionData("initialize", [rewardsDistributor.address, "Vault A", "vA"])
+        const vaultProxy = await new AssetProxy__factory(sa.default.signer).deploy(vaultImpl.address, sa.dummy4.address, data)
+        await boostDirector.initialize([vaultProxy.address])
+        return vaultFactory.attach(vaultProxy.address)
     }
 
     const snapshotStakingData = async (sender = sa.default, beneficiary = sa.default): Promise<StakingData> => {
@@ -152,8 +155,8 @@ describe("SavingsVault", async () => {
                 totalSupply: await savingsVault.totalSupply(),
             },
             tokenBalance: {
-                sender: await iMasset.balanceOf(sender.address),
-                contract: await iMasset.balanceOf(savingsVault.address),
+                sender: await imAsset.balanceOf(sender.address),
+                contract: await imAsset.balanceOf(savingsVault.address),
             },
             vMTABalance: await stakingContract.balanceOf(beneficiary.address),
             userData: {
@@ -194,8 +197,8 @@ describe("SavingsVault", async () => {
         it("should set all initial state", async () => {
             // Set in constructor
             expect(await savingsVault.nexus()).to.eq(nexus.address)
-            expect(await savingsVault.stakingToken()).to.eq(iMasset.address)
-            expect(await savingsVault.stakingContract()).to.eq(stakingContract.address)
+            expect(await savingsVault.stakingToken()).to.eq(imAsset.address)
+            expect(await savingsVault.boostDirector()).to.eq(boostDirector.address)
             expect(await savingsVault.rewardsToken()).to.eq(rewardToken.address)
             expect(await savingsVault.rewardsDistributor()).to.eq(rewardsDistributor.address)
 
@@ -305,7 +308,7 @@ describe("SavingsVault", async () => {
             expect(isExistingStaker).eq(true)
         }
         // 2. Approve staking token spending and send the TX
-        await iMasset.connect(sender.signer).approve(savingsVault.address, stakeAmount)
+        await imAsset.connect(sender.signer).approve(savingsVault.address, stakeAmount)
         const tx = senderIsBeneficiary
             ? savingsVault.connect(sender.signer)["stake(uint256)"](stakeAmount)
             : savingsVault.connect(sender.signer)["stake(address,uint256)"](beneficiary.address, stakeAmount)
@@ -442,7 +445,7 @@ describe("SavingsVault", async () => {
             })
 
             it("should fail if staker has insufficient balance", async () => {
-                await iMasset.connect(sa.dummy2.signer).approve(savingsVault.address, 1)
+                await imAsset.connect(sa.dummy2.signer).approve(savingsVault.address, 1)
                 await expect(savingsVault.connect(sa.dummy2.signer)["stake(uint256)"](1)).to.be.revertedWith("VM Exception")
             })
         })
@@ -485,7 +488,7 @@ describe("SavingsVault", async () => {
             expect(afterData.contractData.rewardRate).to.be.eq(BN.from(0))
             expect(afterData.contractData.rewardPerTokenStored).to.be.eq(BN.from(0))
             expect(afterData.userData.rewards).to.be.eq(BN.from(0))
-            expect(afterData.boostBalance.totalSupply).to.be.eq(stakeAmount)
+            expect(afterData.boostBalance.totalSupply).to.be.eq(stakeAmount.mul(2))
             expect(afterData.contractData.lastTimeRewardApplicable).to.be.eq(BN.from(0))
         })
     })
@@ -501,24 +504,24 @@ describe("SavingsVault", async () => {
             it("should calculate boost for 10k imUSD stake and 250 vMTA", async () => {
                 const deposit = simpleToExactAmount(3333, 14)
                 const stake = simpleToExactAmount(250, 18)
-                const expectedBoost = simpleToExactAmount(49995, 13)
+                const expectedBoost = simpleToExactAmount(12067, 14)
 
                 await expectSuccessfulStake(deposit)
                 await stakingContract.setBalanceOf(sa.default.address, stake)
                 await savingsVault.pokeBoost(sa.default.address)
 
                 const balance = await savingsVault.balanceOf(sa.default.address)
-                expect(balance).to.be.eq(expectedBoost)
-                expect(boost(deposit, calcBoost(deposit, stake, priceCoeffOverride))).to.be.eq(expectedBoost)
+                assertBNClosePercent(balance, expectedBoost, "0.1")
+                assertBNClosePercent(boost(deposit, calcBoost(deposit, stake, priceCoeffOverride)), expectedBoost, "0.1")
 
                 const ratio = await savingsVault.getBoost(sa.default.address)
-                expect(ratio).to.be.eq(maxBoost)
+                assertBNClosePercent(ratio, simpleToExactAmount(3.621))
             })
             // 10k imUSD = 1k $ = 0.33 imBTC
             it("should calculate boost for 10k imUSD stake and 50 vMTA", async () => {
                 const deposit = simpleToExactAmount(3333, 14)
                 const stake = simpleToExactAmount(50, 18)
-                const expectedBoost = simpleToExactAmount("4036.263", 14)
+                const expectedBoost = simpleToExactAmount(4947, 14)
 
                 await expectSuccessfulStake(deposit)
                 await stakingContract.setBalanceOf(sa.default.address, stake)
@@ -529,13 +532,13 @@ describe("SavingsVault", async () => {
                 assertBNClosePercent(boost(deposit, calcBoost(deposit, stake, priceCoeffOverride)), expectedBoost, "0.1")
 
                 const ratio = await savingsVault.getBoost(sa.default.address)
-                assertBNClosePercent(ratio, simpleToExactAmount(1.211, 18), "0.1")
+                assertBNClosePercent(ratio, simpleToExactAmount(1.484, 18), "0.1")
             })
             // 100k imUSD = 10k $ = 3.33 imBTC
             it("should calculate boost for 100k imUSD stake and 500 vMTA", async () => {
                 const deposit = simpleToExactAmount(3333, 15)
                 const stake = simpleToExactAmount(500, 18)
-                const expectedBoost = simpleToExactAmount("4829.517", 15)
+                const expectedBoost = simpleToExactAmount("5539.9446", 15)
 
                 await expectSuccessfulStake(deposit)
                 await stakingContract.setBalanceOf(sa.default.address, stake)
@@ -546,7 +549,7 @@ describe("SavingsVault", async () => {
                 assertBNClosePercent(boost(deposit, calcBoost(deposit, stake, priceCoeffOverride)), expectedBoost, "0.1")
 
                 const ratio = await savingsVault.getBoost(sa.default.address)
-                assertBNClosePercent(ratio, simpleToExactAmount(1.449, 18), "0.1")
+                assertBNClosePercent(ratio, simpleToExactAmount(1.662, 18), "0.1")
             })
         })
 
@@ -558,23 +561,22 @@ describe("SavingsVault", async () => {
                 it("should calculate boost for 10k imUSD stake and 250 vMTA", async () => {
                     const deposit = simpleToExactAmount(10000)
                     const stake = simpleToExactAmount(250, 18)
-                    const expectedBoost = simpleToExactAmount(15000)
+                    const expectedBoost = simpleToExactAmount(36210)
 
                     await expectSuccessfulStake(deposit)
                     await stakingContract.setBalanceOf(sa.default.address, stake)
                     await savingsVault.pokeBoost(sa.default.address)
 
                     const balance = await savingsVault.balanceOf(sa.default.address)
-                    expect(balance).to.be.eq(expectedBoost)
-                    expect(boost(deposit, calcBoost(deposit, stake))).to.be.eq(expectedBoost)
-
+                    assertBNClosePercent(balance, expectedBoost)
+                    assertBNClosePercent(boost(deposit, calcBoost(deposit, stake)), expectedBoost, 0.1)
                     const ratio = await savingsVault.getBoost(sa.default.address)
-                    expect(ratio).to.be.eq(maxBoost)
+                    assertBNClosePercent(ratio, simpleToExactAmount(3.621))
                 })
                 it("should calculate boost for 10k imUSD stake and 50 vMTA", async () => {
                     const deposit = simpleToExactAmount(10000, 18)
                     const stake = simpleToExactAmount(50, 18)
-                    const expectedBoost = simpleToExactAmount(12110, 18)
+                    const expectedBoost = simpleToExactAmount(14840, 18)
 
                     await expectSuccessfulStake(deposit)
                     await stakingContract.setBalanceOf(sa.default.address, stake)
@@ -584,12 +586,12 @@ describe("SavingsVault", async () => {
                     assertBNClosePercent(balance, expectedBoost, "1")
                     assertBNClosePercent(boost(deposit, calcBoost(deposit, stake)), expectedBoost, "0.1")
                     const ratio = await savingsVault.getBoost(sa.default.address)
-                    assertBNClosePercent(ratio, simpleToExactAmount(1.211, 18), "0.1")
+                    assertBNClosePercent(ratio, simpleToExactAmount(1.484, 18), "0.1")
                 })
                 it("should calculate boost for 100k imUSD stake and 500 vMTA", async () => {
                     const deposit = simpleToExactAmount(100000, 18)
                     const stake = simpleToExactAmount(500, 18)
-                    const expectedBoost = simpleToExactAmount(144900, 18)
+                    const expectedBoost = simpleToExactAmount(166200, 18)
 
                     await expectSuccessfulStake(deposit)
                     await stakingContract.setBalanceOf(sa.default.address, stake)
@@ -600,14 +602,14 @@ describe("SavingsVault", async () => {
                     assertBNClosePercent(boost(deposit, calcBoost(deposit, stake)), expectedBoost, "0.1")
 
                     const ratio = await savingsVault.getBoost(sa.default.address)
-                    assertBNClosePercent(ratio, simpleToExactAmount(1.449, 18), "0.1")
+                    assertBNClosePercent(ratio, simpleToExactAmount(1.662, 18), "0.1")
                 })
             })
             describe("when saving with low staking balance and high vMTA", () => {
                 it("should give no boost due to below min threshold", async () => {
                     const deposit = simpleToExactAmount(5, 17)
                     const stake = simpleToExactAmount(800, 18)
-                    const expectedBoost = simpleToExactAmount(25, 16)
+                    const expectedBoost = simpleToExactAmount(5, 17)
 
                     await expectSuccessfulStake(deposit)
                     await stakingContract.setBalanceOf(sa.default.address, stake)
@@ -624,13 +626,12 @@ describe("SavingsVault", async () => {
             describe("when saving and with staking balance = 0", () => {
                 it("should give no boost", async () => {
                     const deposit = simpleToExactAmount(100, 18)
-                    const expectedBoost = simpleToExactAmount(50, 18)
 
                     await expectSuccessfulStake(deposit)
 
                     const balance = await savingsVault.balanceOf(sa.default.address)
-                    assertBNClosePercent(balance, expectedBoost, "1")
-                    assertBNClosePercent(boost(deposit, minBoost), expectedBoost, "0.1")
+                    assertBNClosePercent(balance, deposit, "1")
+                    assertBNClosePercent(boost(deposit, minBoost), deposit, "0.1")
 
                     const ratio = await savingsVault.getBoost(sa.default.address)
                     assertBNClosePercent(ratio, minBoost, "0.1")
@@ -700,7 +701,7 @@ describe("SavingsVault", async () => {
                     const aliceData = await snapshotStakingData(alice, alice)
                     const bobData = await snapshotStakingData(bob, bob)
 
-                    assertBNClosePercent(aliceData.userRewards[1].rate, bobData.userRewards[1].rate.mul(3), "0.1")
+                    assertBNClosePercent(aliceData.userRewards[1].rate, bobData.userRewards[1].rate.mul(4), "0.1")
                 })
             })
         })
@@ -775,8 +776,8 @@ describe("SavingsVault", async () => {
                 savingsVault = await redeployRewards()
                 staker2 = sa.dummy1
                 staker3 = sa.dummy2
-                await iMasset.transfer(staker2.address, staker2Stake)
-                await iMasset.transfer(staker3.address, staker3Stake)
+                await imAsset.transfer(staker2.address, staker2Stake)
+                await imAsset.transfer(staker3.address, staker3Stake)
             })
             it("should accrue rewards on a pro rata basis", async () => {
                 /*
@@ -882,27 +883,31 @@ describe("SavingsVault", async () => {
 
     context("using staking / reward tokens with diff decimals", () => {
         before(async () => {
-            rewardToken = await (await new MockERC20__factory(sa.default.signer)).deploy(
-                "Reward",
-                "RWD",
-                12,
-                rewardsDistributor.address,
-                10000000,
-            )
-            iMasset = await (await new MockERC20__factory(sa.default.signer)).deploy(
+            rewardToken = await new MockERC20__factory(sa.default.signer).deploy("Reward", "RWD", 12, rewardsDistributor.address, 10000000)
+            imAsset = await new MockERC20__factory(sa.default.signer).deploy(
                 "Interest bearing mUSD",
                 "imUSD",
                 16,
                 sa.default.address,
                 1000000,
             )
-            stakingContract = await (await new MockStakingContract__factory(sa.default.signer)).deploy()
+            stakingContract = await new MockStakingContract__factory(sa.default.signer).deploy()
 
-            const vaultFactory = await new BoostedSavingsVault__factory(sa.default.signer)
-            const impl = await vaultFactory.deploy(nexus.address, iMasset.address, stakingContract.address, priceCoeff, rewardToken.address)
-            const data = impl.interface.encodeFunctionData("initialize", [rewardsDistributor.address])
-            const proxy = await (await new AssetProxy__factory(sa.default.signer)).deploy(impl.address, sa.dummy4.address, data)
+            boostDirector = await new BoostDirector__factory(sa.default.signer).deploy(nexus.address, stakingContract.address)
+
+            const vaultFactory = new BoostedSavingsVault__factory(sa.default.signer)
+            const impl = await vaultFactory.deploy(
+                nexus.address,
+                imAsset.address,
+                boostDirector.address,
+                priceCoeff,
+                coeff,
+                rewardToken.address,
+            )
+            const data = impl.interface.encodeFunctionData("initialize", [rewardsDistributor.address, "Vault A", "vA"])
+            const proxy = await new AssetProxy__factory(sa.default.signer).deploy(impl.address, sa.dummy4.address, data)
             savingsVault = vaultFactory.attach(proxy.address)
+            await boostDirector.initialize([proxy.address])
         })
         it("should not affect the pro rata payouts", async () => {
             // Add 100 reward tokens
@@ -1354,7 +1359,7 @@ describe("SavingsVault", async () => {
         context("with raw balance", async () => {
             it("withdraws everything and claims unlocked rewards", async () => {
                 const beforeData = await snapshotStakingData()
-                expect(beforeData.boostBalance.totalSupply).to.be.eq(simpleToExactAmount(50, 18))
+                expect(beforeData.boostBalance.totalSupply).to.be.eq(simpleToExactAmount(100, 18))
                 await savingsVault["exit()"]()
                 const afterData = await snapshotStakingData()
                 expect(afterData.userData.userClaim).to.be.eq(afterData.userData.lastAction)
@@ -1510,6 +1515,311 @@ describe("SavingsVault", async () => {
                 const actualRewardRateAfter = await savingsVault.rewardRate()
                 const expectedRewardRateAfter = expectedRewardRate.mul(2)
                 expect(actualRewardRateAfter).to.be.eq(expectedRewardRateAfter)
+            })
+        })
+    })
+    context("Govern boost director", () => {
+        let vaultA: Account
+        let vaultB: Account
+        let vaultC: Account
+        let vaultD: Account
+        let vaultUnlisted: Account
+        let user1NoStake: Account
+        let user2Staked: Account
+        let user3Staked: Account
+        before(async () => {
+            vaultA = sa.dummy1
+            vaultB = sa.dummy2
+            vaultC = sa.dummy3
+            vaultD = sa.dummy4
+            vaultUnlisted = sa.all[10]
+            user1NoStake = sa.all[11]
+            user2Staked = sa.all[12]
+            user3Staked = sa.all[13]
+
+            rewardToken = await new MockERC20__factory(sa.default.signer).deploy("Reward", "RWD", 18, rewardsDistributor.address, 10000000)
+            stakingContract = await new MockStakingContract__factory(sa.default.signer).deploy()
+            await stakingContract.setBalanceOf(user2Staked.address, 20000)
+            await stakingContract.setBalanceOf(user3Staked.address, 30000)
+        })
+        context("Whitelisting boost savings vaults", () => {
+            before(async () => {
+                boostDirector = await new BoostDirector__factory(sa.default.signer).deploy(nexus.address, stakingContract.address)
+                await boostDirector.initialize([vaultA.address])
+            })
+            it("should get first vault A", async () => {
+                expect(await boostDirector._vaults(vaultA.address)).to.eq(1)
+            })
+            it("should fail if not governor", async () => {
+                let tx = boostDirector.connect(sa.default.signer).whitelistVaults([vaultB.address])
+                await expect(tx).to.revertedWith("Only governor can execute")
+                tx = boostDirector.connect(sa.fundManager.signer).whitelistVaults([vaultB.address])
+                await expect(tx).to.revertedWith("Only governor can execute")
+            })
+            it("should succeed in whitelisting no boost savings vault", async () => {
+                const tx = boostDirector.connect(sa.governor.signer).whitelistVaults([])
+                await expect(tx).to.revertedWith("Must be at least one vault")
+            })
+            it("should succeed in whitelisting one boost savings vault", async () => {
+                const tx = boostDirector.connect(sa.governor.signer).whitelistVaults([vaultB.address])
+                await expect(tx).to.emit(boostDirector, "Whitelisted").withArgs(vaultB.address, 2)
+                expect(await boostDirector._vaults(vaultB.address)).to.eq(2)
+            })
+            it("should fail if already whitelisted", async () => {
+                const tx = boostDirector.connect(sa.governor.signer).whitelistVaults([vaultB.address])
+                await expect(tx).to.revertedWith("Vault already whitelisted")
+            })
+            it("should succeed in whitelisting two boost savings vault", async () => {
+                const tx = boostDirector.connect(sa.governor.signer).whitelistVaults([vaultC.address, vaultD.address])
+                await expect(tx).to.emit(boostDirector, "Whitelisted").withArgs(vaultC.address, 3)
+                await expect(tx).to.emit(boostDirector, "Whitelisted").withArgs(vaultD.address, 4)
+                expect(await boostDirector._vaults(vaultC.address)).to.eq(3)
+                expect(await boostDirector._vaults(vaultD.address)).to.eq(4)
+            })
+        })
+        context("get boost balance", () => {
+            let boostDirectorVaultA: BoostDirector
+            let boostDirectorVaultB: BoostDirector
+            let boostDirectorVaultC: BoostDirector
+            let boostDirectorVaultD: BoostDirector
+            before(async () => {
+                boostDirector = await new BoostDirector__factory(sa.default.signer).deploy(nexus.address, stakingContract.address)
+                await boostDirector.initialize([vaultA.address, vaultB.address, vaultC.address, vaultD.address])
+                boostDirectorVaultA = boostDirector.connect(vaultA.signer)
+                boostDirectorVaultB = boostDirector.connect(vaultB.signer)
+                boostDirectorVaultC = boostDirector.connect(vaultC.signer)
+                boostDirectorVaultD = boostDirector.connect(vaultD.signer)
+            })
+            context("called from vault A", () => {
+                context("for user 1 with nothing staked", () => {
+                    it("should get zero balance", async () => {
+                        const bal = await boostDirectorVaultA.callStatic.getBalance(user1NoStake.address)
+                        expect(bal).to.eq(0)
+                    })
+                    it("should add user to boost director", async () => {
+                        const tx = boostDirectorVaultA.getBalance(user1NoStake.address)
+                        await expect(tx).to.emit(boostDirector, "Directed").withArgs(user1NoStake.address, vaultA.address)
+                    })
+                    it("should fail to add user to boost director again", async () => {
+                        const tx = boostDirectorVaultA.getBalance(user1NoStake.address)
+                        await expect(tx).to.not.emit(boostDirector, "Directed")
+                    })
+                    it("should get user zero balance after being added", async () => {
+                        const bal = await boostDirectorVaultA.callStatic.getBalance(user1NoStake.address)
+                        expect(bal).to.eq(0)
+                    })
+                })
+                context("for user 2 with 20,000 staked", () => {
+                    it("should get user 2 balance", async () => {
+                        const bal = await boostDirectorVaultA.callStatic.getBalance(user2Staked.address)
+                        expect(bal).to.eq(20000)
+                    })
+                    it("should add user 2 to boost director", async () => {
+                        const tx = boostDirectorVaultA.getBalance(user2Staked.address)
+                        await expect(tx).to.emit(boostDirector, "Directed").withArgs(user2Staked.address, vaultA.address)
+                    })
+                    it("should fail to add user to boost director again", async () => {
+                        const tx = boostDirectorVaultA.getBalance(user2Staked.address)
+                        await expect(tx).to.not.emit(boostDirector, "Directed")
+                    })
+                    it("should get user 2 balance after being added", async () => {
+                        const bal = await boostDirectorVaultA.callStatic.getBalance(user2Staked.address)
+                        expect(bal).to.eq(20000)
+                    })
+                })
+            })
+            context("user 3 with 30,000 staked added to vaults A, B and C but not D", () => {
+                const userStakedBalance = 30000
+                it("vault A should get user balance before being added to any vaults", async () => {
+                    const bal = await boostDirectorVaultA.callStatic.getBalance(user3Staked.address)
+                    expect(bal).to.eq(userStakedBalance)
+                })
+                it("vault A should add user to boost director", async () => {
+                    const tx = boostDirectorVaultA.getBalance(user3Staked.address)
+                    await expect(tx).to.emit(boostDirector, "Directed").withArgs(user3Staked.address, vaultA.address)
+                })
+                it("vault B should add user to boost director", async () => {
+                    const tx = boostDirectorVaultB.getBalance(user3Staked.address)
+                    await expect(tx).to.emit(boostDirector, "Directed").withArgs(user3Staked.address, vaultB.address)
+                })
+                it("vault C should add user to boost director", async () => {
+                    const tx = boostDirectorVaultC.getBalance(user3Staked.address)
+                    await expect(tx).to.emit(boostDirector, "Directed").withArgs(user3Staked.address, vaultC.address)
+                })
+                it("vault C should get user balance after user added", async () => {
+                    const bal = await boostDirectorVaultC.callStatic.getBalance(user3Staked.address)
+                    expect(bal).to.eq(userStakedBalance)
+                })
+                it("vault D should fail to add user as its the fourth", async () => {
+                    const tx = boostDirectorVaultD.getBalance(user3Staked.address)
+                    await expect(tx).to.not.emit(boostDirector, "Directed")
+                })
+                it("vault D should get zero balance for the user", async () => {
+                    const bal = await boostDirectorVaultD.callStatic.getBalance(user3Staked.address)
+                    expect(bal).to.eq(0)
+                })
+                it("vault A should still user balance", async () => {
+                    const bal = await boostDirectorVaultA.callStatic.getBalance(user3Staked.address)
+                    expect(bal).to.eq(userStakedBalance)
+                })
+                it("vault B should still fer user balance", async () => {
+                    const bal = await boostDirectorVaultB.callStatic.getBalance(user3Staked.address)
+                    expect(bal).to.eq(userStakedBalance)
+                })
+                it("vault C should still user balance", async () => {
+                    const bal = await boostDirectorVaultC.callStatic.getBalance(user3Staked.address)
+                    expect(bal).to.eq(userStakedBalance)
+                })
+            })
+            context("adding non whitelisted vaults", () => {
+                it("should fail to add user from unlisted vault", async () => {
+                    const tx = boostDirector.connect(vaultUnlisted.signer).getBalance(user2Staked.address)
+                    await expect(tx).to.not.emit(boostDirector, "Directed")
+                })
+                it("should get zero balance for unlisted vault", async () => {
+                    const bal = await boostDirector.connect(vaultUnlisted.signer).callStatic.getBalance(user3Staked.address)
+                    expect(bal).to.eq(0)
+                })
+                it("should fail for user to add themselves as a vault", async () => {
+                    const tx = boostDirector.connect(user2Staked.signer).getBalance(user2Staked.address)
+                    await expect(tx).to.not.emit(boostDirector, "Directed")
+                })
+            })
+        })
+        context("redirect staked rewards to new boost savings vault", () => {
+            let mockedVaults: MockBoostedSavingsVault[]
+            before(async () => {
+                boostDirector = await new BoostDirector__factory(sa.default.signer).deploy(nexus.address, stakingContract.address)
+
+                const mockedVaultsPromises = [1, 2, 3, 4, 5].map(() =>
+                    new MockBoostedSavingsVault__factory(sa.default.signer).deploy(boostDirector.address),
+                )
+                mockedVaults = await Promise.all(mockedVaultsPromises)
+                const mockedVaultAddresses = mockedVaults.map((vault) => vault.address)
+                await boostDirector.initialize(mockedVaultAddresses)
+
+                // For user 1, add the first three vaults to the Boost Director.
+                await mockedVaults[0].testGetBalance(user1NoStake.address)
+                await mockedVaults[1].testGetBalance(user1NoStake.address)
+                await mockedVaults[2].testGetBalance(user1NoStake.address)
+                // For user 2, add the first two vaults to the Boost Director.
+                await mockedVaults[0].testGetBalance(user2Staked.address)
+                await mockedVaults[1].testGetBalance(user2Staked.address)
+                await mockedVaults[2].testGetBalance(user2Staked.address)
+                // For user 3, just add the first vault
+                await mockedVaults[0].testGetBalance(user3Staked.address)
+            })
+            it("should get initial balancers", async () => {
+                expect(await mockedVaults[0].callStatic.testGetBalance(user1NoStake.address)).to.eq(0)
+                expect(await mockedVaults[1].callStatic.testGetBalance(user1NoStake.address)).to.eq(0)
+                expect(await mockedVaults[2].callStatic.testGetBalance(user1NoStake.address)).to.eq(0)
+                expect(await mockedVaults[3].callStatic.testGetBalance(user1NoStake.address)).to.eq(0)
+                expect(await mockedVaults[4].callStatic.testGetBalance(user1NoStake.address)).to.eq(0)
+
+                expect(await mockedVaults[0].callStatic.testGetBalance(user2Staked.address)).to.eq(20000)
+                expect(await mockedVaults[1].callStatic.testGetBalance(user2Staked.address)).to.eq(20000)
+                expect(await mockedVaults[2].callStatic.testGetBalance(user2Staked.address)).to.eq(20000)
+                expect(await mockedVaults[3].callStatic.testGetBalance(user2Staked.address)).to.eq(0)
+                expect(await mockedVaults[4].callStatic.testGetBalance(user2Staked.address)).to.eq(0)
+
+                // This will always return the staked balance as the changes are not persisted
+                expect(await mockedVaults[0].callStatic.testGetBalance(user3Staked.address)).to.eq(30000)
+                expect(await mockedVaults[1].callStatic.testGetBalance(user3Staked.address)).to.eq(30000)
+                expect(await mockedVaults[2].callStatic.testGetBalance(user3Staked.address)).to.eq(30000)
+                expect(await mockedVaults[3].callStatic.testGetBalance(user3Staked.address)).to.eq(30000)
+                expect(await mockedVaults[4].callStatic.testGetBalance(user3Staked.address)).to.eq(30000)
+            })
+            it("should fail as old vault is not whitelisted", async () => {
+                const tx = boostDirector.connect(user1NoStake.signer).setDirection(sa.dummy1.address, mockedVaults[3].address, false)
+                await expect(tx).to.revertedWith("Vaults not whitelisted")
+            })
+            it("should fail as user 1 has not been added to the old vault 4", async () => {
+                const tx = boostDirector.connect(user1NoStake.signer).setDirection(mockedVaults[4].address, mockedVaults[3].address, false)
+                await expect(tx).to.revertedWith("No need to replace old")
+            })
+            it("should fail as new vault is not whitelisted", async () => {
+                const tx = boostDirector.connect(user1NoStake.signer).setDirection(mockedVaults[0].address, sa.dummy1.address, false)
+                await expect(tx).to.revertedWith("Vaults not whitelisted")
+            })
+            it("user 1 should succeed in replacing vault 1 with vault 4 that is not poked", async () => {
+                const tx = boostDirector.connect(user1NoStake.signer).setDirection(mockedVaults[0].address, mockedVaults[3].address, false)
+                await expect(tx).to.emit(mockedVaults[0], "Poked").withArgs(user1NoStake.address)
+                await expect(tx).to.not.emit(mockedVaults[3], "Poked")
+                await expect(tx)
+                    .to.emit(boostDirector, "RedirectedBoost")
+                    .withArgs(user1NoStake.address, mockedVaults[3].address, mockedVaults[0].address)
+            })
+            it("user 1 should succeed in replacing vault 2 vault 5 that is poked", async () => {
+                const tx = boostDirector.connect(user1NoStake.signer).setDirection(mockedVaults[1].address, mockedVaults[4].address, true)
+                await expect(tx).to.emit(mockedVaults[1], "Poked").withArgs(user1NoStake.address)
+                await expect(tx).to.emit(mockedVaults[4], "Poked").withArgs(user1NoStake.address)
+                await expect(tx)
+                    .to.emit(boostDirector, "RedirectedBoost")
+                    .withArgs(user1NoStake.address, mockedVaults[4].address, mockedVaults[1].address)
+            })
+            it("user 2 should succeed in replacing vault 1 with vault 4 that is not poked", async () => {
+                expect(await mockedVaults[0].callStatic.testGetBalance(user2Staked.address)).to.eq(20000)
+                expect(await mockedVaults[1].callStatic.testGetBalance(user2Staked.address)).to.eq(20000)
+                expect(await mockedVaults[2].callStatic.testGetBalance(user2Staked.address)).to.eq(20000)
+                expect(await mockedVaults[3].callStatic.testGetBalance(user2Staked.address)).to.eq(0)
+                expect(await mockedVaults[4].callStatic.testGetBalance(user2Staked.address)).to.eq(0)
+
+                const tx = boostDirector.connect(user2Staked.signer).setDirection(mockedVaults[0].address, mockedVaults[3].address, false)
+                await expect(tx).to.emit(mockedVaults[0], "Poked").withArgs(user2Staked.address)
+                await expect(tx).to.not.emit(mockedVaults[3], "Poked")
+                await expect(tx)
+                    .to.emit(boostDirector, "RedirectedBoost")
+                    .withArgs(user2Staked.address, mockedVaults[3].address, mockedVaults[0].address)
+
+                expect(await mockedVaults[0].callStatic.testGetBalance(user2Staked.address)).to.eq(0)
+                expect(await mockedVaults[1].callStatic.testGetBalance(user2Staked.address)).to.eq(20000)
+                expect(await mockedVaults[2].callStatic.testGetBalance(user2Staked.address)).to.eq(20000)
+                expect(await mockedVaults[3].callStatic.testGetBalance(user2Staked.address)).to.eq(20000)
+                expect(await mockedVaults[4].callStatic.testGetBalance(user2Staked.address)).to.eq(0)
+            })
+            it("user 2 should succeed in replacing vault 2 vault 5 that is poked", async () => {
+                expect(await mockedVaults[0].callStatic.testGetBalance(user2Staked.address)).to.eq(0)
+                expect(await mockedVaults[1].callStatic.testGetBalance(user2Staked.address)).to.eq(20000)
+                expect(await mockedVaults[2].callStatic.testGetBalance(user2Staked.address)).to.eq(20000)
+                expect(await mockedVaults[3].callStatic.testGetBalance(user2Staked.address)).to.eq(20000)
+                expect(await mockedVaults[4].callStatic.testGetBalance(user2Staked.address)).to.eq(0)
+
+                const tx = boostDirector.connect(user2Staked.signer).setDirection(mockedVaults[1].address, mockedVaults[4].address, true)
+                await expect(tx).to.emit(mockedVaults[1], "Poked").withArgs(user2Staked.address)
+                await expect(tx).to.emit(mockedVaults[4], "Poked").withArgs(user2Staked.address)
+                await expect(tx)
+                    .to.emit(boostDirector, "RedirectedBoost")
+                    .withArgs(user2Staked.address, mockedVaults[4].address, mockedVaults[1].address)
+
+                expect(await mockedVaults[0].callStatic.testGetBalance(user2Staked.address)).to.eq(0)
+                expect(await mockedVaults[1].callStatic.testGetBalance(user2Staked.address)).to.eq(0)
+                expect(await mockedVaults[2].callStatic.testGetBalance(user2Staked.address)).to.eq(20000)
+                expect(await mockedVaults[3].callStatic.testGetBalance(user2Staked.address)).to.eq(20000)
+                expect(await mockedVaults[4].callStatic.testGetBalance(user2Staked.address)).to.eq(20000)
+            })
+            it("user 2 should succeed in replacing vault 5 back to vault 2 that is poked", async () => {
+                expect(await mockedVaults[0].callStatic.testGetBalance(user2Staked.address)).to.eq(0)
+                expect(await mockedVaults[1].callStatic.testGetBalance(user2Staked.address)).to.eq(0)
+                expect(await mockedVaults[2].callStatic.testGetBalance(user2Staked.address)).to.eq(20000)
+                expect(await mockedVaults[3].callStatic.testGetBalance(user2Staked.address)).to.eq(20000)
+                expect(await mockedVaults[4].callStatic.testGetBalance(user2Staked.address)).to.eq(20000)
+
+                const tx = boostDirector.connect(user2Staked.signer).setDirection(mockedVaults[4].address, mockedVaults[1].address, true)
+                await expect(tx).to.emit(mockedVaults[4], "Poked").withArgs(user2Staked.address)
+                await expect(tx).to.emit(mockedVaults[1], "Poked").withArgs(user2Staked.address)
+                await expect(tx)
+                    .to.emit(boostDirector, "RedirectedBoost")
+                    .withArgs(user2Staked.address, mockedVaults[1].address, mockedVaults[4].address)
+
+                expect(await mockedVaults[0].callStatic.testGetBalance(user2Staked.address)).to.eq(0)
+                expect(await mockedVaults[1].callStatic.testGetBalance(user2Staked.address)).to.eq(20000)
+                expect(await mockedVaults[2].callStatic.testGetBalance(user2Staked.address)).to.eq(20000)
+                expect(await mockedVaults[3].callStatic.testGetBalance(user2Staked.address)).to.eq(20000)
+                expect(await mockedVaults[4].callStatic.testGetBalance(user2Staked.address)).to.eq(0)
+            })
+            it("should fail as user 3 only has 1 vault", async () => {
+                const tx = boostDirector.connect(user3Staked.signer).setDirection(mockedVaults[0].address, mockedVaults[3].address, false)
+                await expect(tx).to.revertedWith("No need to replace old")
             })
         })
     })
