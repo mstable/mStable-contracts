@@ -24,6 +24,8 @@ import {
     AssetProxy__factory,
     BoostDirector__factory,
     BoostDirector,
+    MockBoostedSavingsVault,
+    MockBoostedSavingsVault__factory,
 } from "types/generated"
 import {
     shouldBehaveLikeDistributionRecipient,
@@ -1675,6 +1677,55 @@ describe("SavingsVault", async () => {
                     const tx = boostDirector.connect(user2Staked.signer).getBalance(user2Staked.address)
                     await expect(tx).to.revertedWith("Pool not whitelisted")
                 })
+            })
+        })
+        context("redirect staked rewards to new boost savings vault", () => {
+            let mockedVaults: MockBoostedSavingsVault[]
+            before(async () => {
+                boostDirector = await new BoostDirector__factory(sa.default.signer).deploy(nexus.address, stakingContract.address)
+
+                const mockedVaultsPromises = [1, 2, 3, 4, 5].map(() =>
+                    new MockBoostedSavingsVault__factory(sa.default.signer).deploy(boostDirector.address),
+                )
+                mockedVaults = await Promise.all(mockedVaultsPromises)
+                const mockedVaultAddresses = mockedVaults.map((vault) => vault.address)
+                await boostDirector.initialize(mockedVaultAddresses)
+
+                // For user 1, add the first three vaults to the Boost Director.
+                await mockedVaults[0].testGetBalance(user1NoStake.address)
+                await mockedVaults[1].testGetBalance(user1NoStake.address)
+                await mockedVaults[2].testGetBalance(user1NoStake.address)
+                // For user 2, add the first two vaults to the Boost Director.
+                await mockedVaults[0].testGetBalance(user2Staked.address)
+                await mockedVaults[1].testGetBalance(user2Staked.address)
+                // For user 3, just add the first vault
+                await mockedVaults[0].testGetBalance(user3Staked.address)
+            })
+            it("should fail as old vault is not whitelisted", async () => {
+                const tx = boostDirector.connect(user1NoStake.signer).setDirection(sa.dummy1.address, mockedVaults[3].address, false)
+                await expect(tx).to.revertedWith("Pools not whitelisted")
+            })
+            it("should fail as user 1 has not been added to the old vault 4", async () => {
+                const tx = boostDirector.connect(user1NoStake.signer).setDirection(mockedVaults[4].address, mockedVaults[3].address, false)
+                await expect(tx).to.revertedWith("No need to replace old")
+            })
+            it("should fail as new vault is not whitelisted", async () => {
+                const tx = boostDirector.connect(user1NoStake.signer).setDirection(mockedVaults[0].address, sa.dummy1.address, false)
+                await expect(tx).to.revertedWith("Pools not whitelisted")
+            })
+            it("user 1 should succeed in replacing vault 1 with vault 4 that is not poked", async () => {
+                await boostDirector.connect(user1NoStake.signer).setDirection(mockedVaults[0].address, mockedVaults[3].address, false)
+            })
+            it("user 1 should succeed in replacing vault 2 vault 5 that is poked", async () => {
+                await boostDirector.connect(user1NoStake.signer).setDirection(mockedVaults[1].address, mockedVaults[4].address, true)
+            })
+            it("should fail as user 2 only has 2 vault", async () => {
+                const tx = boostDirector.connect(user2Staked.signer).setDirection(mockedVaults[0].address, mockedVaults[3].address, false)
+                await expect(tx).to.revertedWith("No need to replace old")
+            })
+            it("should fail as user 3 only has 1 vault", async () => {
+                const tx = boostDirector.connect(user3Staked.signer).setDirection(mockedVaults[0].address, mockedVaults[3].address, false)
+                await expect(tx).to.revertedWith("No need to replace old")
             })
         })
     })
