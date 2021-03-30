@@ -9,7 +9,7 @@ import { DEAD_ADDRESS, ZERO_ADDRESS } from "@utils/constants"
 import { Signer } from "ethers"
 import { ethers, network } from "hardhat"
 import { task } from "hardhat/config"
-import { formatEther } from "ethers/lib/utils"
+import { formatEther, formatUnits } from "ethers/lib/utils"
 import {
     FeederPool,
     FeederPool__factory,
@@ -378,7 +378,9 @@ context("deploying feeder", () => {
         //      - Run on Mainnet fork
 
         // 1.    Deploy boostDirector & Libraries
+        const start = await deployer.getBalance()
         console.log(`\n~~~~~ PHASE 1 - LIBS ~~~~~\n\n`)
+        console.log("Remaining ETH in deployer: ", formatUnits(await deployer.getBalance()))
         console.log(`Deploying BoostDirector with ${addresses.nexus}, ${addresses.staking}`)
         const director = await new BoostDirector__factory(deployer).deploy(addresses.nexus, addresses.staking)
         await director.deployTransaction.wait()
@@ -400,6 +402,7 @@ context("deploying feeder", () => {
 
         // 2.1   Deploy imBTC vault & deposit
         console.log(`\n~~~~~ PHASE 2 - POOLS ~~~~~\n\n`)
+        console.log("Remaining ETH in deployer: ", formatUnits(await deployer.getBalance()))
         const imBTC = await deployVault(
             deployer,
             addresses,
@@ -455,6 +458,7 @@ context("deploying feeder", () => {
         // eslint-disable-next-line
         for (const poolData of data) {
             console.log(`\n~~~~~ POOL ${poolData.symbol} ~~~~~\n\n`)
+            console.log("Remaining ETH in deployer: ", formatUnits(await deployer.getBalance()))
             // Deploy Feeder Pool
             const feederPool = await deployFeederPool(deployer, addresses, poolData)
             poolData.pool = feederPool
@@ -476,6 +480,7 @@ context("deploying feeder", () => {
         // 3.    Clean
         //        - initialize boostDirector with pools
         console.log(`\n~~~~~ PHASE 3 - ETC ~~~~~\n\n`)
+        console.log("Remaining ETH in deployer: ", formatUnits(await deployer.getBalance()))
         console.log(
             `Initializing BoostDirector...`,
             data.map((d) => d.vault.address),
@@ -492,6 +497,7 @@ context("deploying feeder", () => {
         const gov = await impersonate(governorAddress)
         // eslint-disable-next-line
         for (const poolData of data) {
+            await impersonate(deployerAddress)
             if (poolData.aToken !== ZERO_ADDRESS) {
                 const integration = await new AaveV2Integration__factory(deployer).deploy(
                     addresses.nexus,
@@ -502,13 +508,19 @@ context("deploying feeder", () => {
                 await integration.deployTransaction.wait()
                 console.log(`Deployed integration to ${integration.address}`)
 
+                console.log(`Initializing pToken ${poolData.aToken} for bAsset ${poolData.fAsset.address}...`)
+                const init = await integration.initialize([poolData.fAsset.address], [poolData.aToken])
+                await init.wait()
+
                 console.log("Migrating funds...")
 
+                await impersonate(governorAddress)
                 const migrate = await poolData.pool.connect(gov).migrateBassets([poolData.fAsset.address], integration.address)
                 await migrate.wait()
                 console.log("Migrated!")
             }
         }
+        await impersonate(deployerAddress)
         //        - deploy feederRouter
         console.log("Deploying feederRouter...")
         await deployFeederWrapper(
@@ -525,6 +537,9 @@ context("deploying feeder", () => {
         //        -  migrate GUSD & bUSD to aave
         //        -  Add InterestValidator as a module
         //        -  Fund vaults
+        console.log("Remaining ETH in deployer: ", formatUnits(await deployer.getBalance()))
+        const end = await deployer.getBalance()
+        console.log("Total ETH used: ", formatUnits(end.sub(start)))
     })
 })
 

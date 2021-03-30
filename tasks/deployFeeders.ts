@@ -588,6 +588,10 @@ task("deployFeeder-mainnet", "Deploys all the feeder pools and required contract
             console.log(`Deploying integration for ${poolData.symbol} at pool ${poolData.pool.address}`)
             await integration.deployTransaction.wait()
             console.log(`Deployed integration to ${integration.address}`)
+
+            console.log(`Initializing pToken ${poolData.aToken} for bAsset ${poolData.fAsset.address}...`)
+            const init = await integration.initialize([poolData.fAsset.address], [poolData.aToken])
+            await init.wait()
         }
     }
     //        - deploy feederRouter
