@@ -41,9 +41,8 @@ contract BoostedTokenWrapper is InitializableReentrancyGuard {
     uint256 private constant MAX_BOOST = 4e18;
     uint256 private constant MIN_BOOST = 1e18;
     uint256 private constant FLOOR = 95e16;
-    uint256 private immutable boostCoeff; // scaled by 10
-
-    uint256 private immutable priceCoeff;
+    uint256 public immutable boostCoeff; // scaled by 10
+    uint256 public immutable priceCoeff;
 
     /**
      * @dev TokenWrapper constructor

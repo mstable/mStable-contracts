@@ -25,6 +25,7 @@ import {
     FeederWrapper__factory,
     FeederWrapper,
     Masset__factory,
+    InterestValidator__factory,
 } from "types/generated"
 import { simpleToExactAmount, BN } from "@utils/math"
 
@@ -34,6 +35,7 @@ interface CommonAddresses {
     staking: string
     mta: string
     rewardsDistributor: string
+    aave?: string
     boostDirector?: string
     feederManager?: FeederManager
     feederLogic?: FeederLogic
@@ -269,23 +271,26 @@ const deployVault = async (
     return BoostedSavingsVault__factory.connect(vProxy.address, sender)
 }
 
-// TODO - pass array of pools
-const deployFeederWrapper = async (sender: Signer, feederPool: FeederPool, vault: BoostedSavingsVault): Promise<FeederWrapper> => {
+const deployFeederWrapper = async (sender: Signer, feederPools: FeederPool[], vaults: BoostedSavingsVault[]): Promise<FeederWrapper> => {
     // Deploy FeederWrapper
     const feederWrapper = await new FeederWrapper__factory(sender).deploy()
     const deployReceipt = await feederWrapper.deployTransaction.wait()
     console.log(`Deployed FeederWrapper to ${feederWrapper.address}. gas used ${deployReceipt.gasUsed}`)
 
     // Get tokens to approve
-    const [[{ addr: massetAddr }, { addr: fassetAddr }]] = await feederPool.getBassets()
-    const masset = Masset__factory.connect(massetAddr, sender)
-    const [bassets] = await masset.getBassets()
-    const assets = [massetAddr, fassetAddr, ...bassets.map(({ addr }) => addr)]
+    const len = feederPools.length
+    // eslint-disable-next-line
+    for (let i = 0; i < len; i++) {
+        const [[{ addr: massetAddr }, { addr: fassetAddr }]] = await feederPools[i].getBassets()
+        const masset = Masset__factory.connect(massetAddr, sender)
+        const [bassets] = await masset.getBassets()
+        const assets = [massetAddr, fassetAddr, ...bassets.map(({ addr }) => addr)]
 
-    // Make the approval in one tx
-    const approveTx = await feederWrapper["approve(address,address,address[])"](feederPool.address, vault.address, assets)
-    const approveReceipt = await approveTx.wait()
-    console.log(`Approved FeederWrapper tokens. gas used ${approveReceipt.gasUsed}`)
+        // Make the approval in one tx
+        const approveTx = await feederWrapper["approve(address,address,address[])"](feederPools[i].address, vaults[i].address, assets)
+        const approveReceipt = await approveTx.wait()
+        console.log(`Approved FeederWrapper tokens. gas used ${approveReceipt.gasUsed}`)
+    }
 
     return feederWrapper
 }
@@ -428,6 +433,7 @@ task("deployFeeder-mainnet", "Deploys all the feeder pools and required contract
         nexus: "0xafce80b19a8ce13dec0739a1aab7a028d6845eb3",
         proxyAdmin: "0x5c8eb57b44c1c6391fc7a8a0cf44d26896f92386",
         rewardsDistributor: "0x04dfdfa471b79cc9e6e8c355e6c71f8ec4916c50",
+        aave: "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5",
     }
 
     const pairs: Pair[] = [
@@ -468,6 +474,8 @@ task("deployFeeder-mainnet", "Deploys all the feeder pools and required contract
     // TODO - PRE-DEPLOY
     //      - Remove govFEE & set swap/redemptionFees
     //      - check over settings in vault
+    //      - check everything has await
+    //      - Run on Mainnet fork
 
     // 1.    Deploy boostDirector & Libraries
     console.log(`Deploying BoostDirector with ${addresses.nexus}, ${addresses.staking}`)
@@ -494,7 +502,7 @@ task("deployFeeder-mainnet", "Deploys all the feeder pools and required contract
         deployer,
         addresses,
         "0x17d8cbb6bce8cee970a4027d1198f6700a7a6c24",
-        simpleToExactAmount(5000),
+        simpleToExactAmount(5800),
         "imBTC Vault",
         "v-imBTC",
         simpleToExactAmount(3, 15),
@@ -544,27 +552,61 @@ task("deployFeeder-mainnet", "Deploys all the feeder pools and required contract
     //        - create fPool (nexus, mAsset, name, integrator, config)
     // eslint-disable-next-line
     for (const poolData of data) {
-        // 2. Deploy Feeder Pool
-        // const feederPool = await deployFeederPool(deployer, addresses, ethers, feederData)
-        // feederData.pool = feederPool
-        // // 3. Mint initial supply
-        // await mint(deployer, [deployedMasset, deployedFasset], feederData)
-        // // 4. Rewards Contract
-        // await deployVault(deployer, addresses, feederData.pool.address, feederData.priceCoeff, feederData.vaultName, feederData.vaultSymbol)
+        // Deploy Feeder Pool
+        const feederPool = await deployFeederPool(deployer, addresses, ethers, poolData)
+        poolData.pool = feederPool
+        // Mint initial supply
+        await mint(deployer, [poolData.mAsset, poolData.fAsset], poolData)
+        // Rewards Contract
+        const bal = await feederPool.balanceOf(await deployer.getAddress())
+        const vault = await deployVault(
+            deployer,
+            addresses,
+            poolData.pool.address,
+            poolData.priceCoeff,
+            poolData.vaultName,
+            poolData.vaultSymbol,
+            bal,
+        )
+        poolData.vault = vault
     }
-    //        - initialize fPool
-    //        - approve & mintMulti
-    //        - create vault
-    //        - approve & deposit
     // 3.    Clean
     //        - initialize boostDirector with pools
+    console.log(
+        `Initializing BoostDirector...`,
+        data.map((d) => d.vault.address),
+    )
+    const directorInit = await director.initialize(data.map((d) => d.vault.address))
+    await directorInit.wait()
     //        - if aToken != 0: deploy integrator & initialize with fPool & aToken addr
+    // eslint-disable-next-line
+    for (const poolData of data) {
+        if (poolData.aToken !== ZERO_ADDRESS) {
+            const integration = await new AaveV2Integration__factory(deployer).deploy(
+                addresses.nexus,
+                poolData.pool.address,
+                addresses.aave,
+            )
+            console.log(`Deploying integration for ${poolData.symbol} at pool ${poolData.pool.address}`)
+            await integration.deployTransaction.wait()
+            console.log(`Deployed integration to ${integration.address}`)
+        }
+    }
     //        - deploy feederRouter
+    console.log("Deploying feederRouter...")
+    await deployFeederWrapper(
+        deployer,
+        data.map((d) => d.pool),
+        data.map((d) => d.vault),
+    )
     //        - deploy interestValidator
+    const interestValidator = await new InterestValidator__factory(deployer).deploy(addresses.nexus)
+    const deployReceipt = await interestValidator.deployTransaction.wait()
+    console.log(`Deployed Interest Validator to ${interestValidator.address}. gas used ${deployReceipt.gasUsed}`)
     // 4.    Post
-    //        -  Fund vaults
-    //        -  Add InterestValidator as a module
     //        -  migrate GUSD & bUSD to aave
+    //        -  Add InterestValidator as a module
+    //        -  Fund vaults
 })
 
 module.exports = {}
