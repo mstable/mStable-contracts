@@ -10,5 +10,5 @@ interface IBoostDirector {
         bool _pokeNew
     ) external;
 
-    function whitelistPools(address[] calldata _pools) external;
+    function whitelistVaults(address[] calldata _vaults) external;
 }

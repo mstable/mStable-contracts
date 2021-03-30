@@ -1547,34 +1547,34 @@ describe("SavingsVault", async () => {
                 boostDirector = await new BoostDirector__factory(sa.default.signer).deploy(nexus.address, stakingContract.address)
                 await boostDirector.initialize([vaultA.address])
             })
-            it("should get first vault A pool", async () => {
-                expect(await boostDirector._pools(vaultA.address)).to.eq(1)
+            it("should get first vault A", async () => {
+                expect(await boostDirector._vaults(vaultA.address)).to.eq(1)
             })
             it("should fail if not governor", async () => {
-                let tx = boostDirector.connect(sa.default.signer).whitelistPools([vaultB.address])
+                let tx = boostDirector.connect(sa.default.signer).whitelistVaults([vaultB.address])
                 await expect(tx).to.revertedWith("Only governor can execute")
-                tx = boostDirector.connect(sa.fundManager.signer).whitelistPools([vaultB.address])
+                tx = boostDirector.connect(sa.fundManager.signer).whitelistVaults([vaultB.address])
                 await expect(tx).to.revertedWith("Only governor can execute")
             })
             it("should succeed in whitelisting no boost savings vault", async () => {
-                const tx = boostDirector.connect(sa.governor.signer).whitelistPools([])
-                await expect(tx).to.revertedWith("Must be at least one pool")
+                const tx = boostDirector.connect(sa.governor.signer).whitelistVaults([])
+                await expect(tx).to.revertedWith("Must be at least one vault")
             })
             it("should succeed in whitelisting one boost savings vault", async () => {
-                const tx = boostDirector.connect(sa.governor.signer).whitelistPools([vaultB.address])
+                const tx = boostDirector.connect(sa.governor.signer).whitelistVaults([vaultB.address])
                 await expect(tx).to.emit(boostDirector, "Whitelisted").withArgs(vaultB.address, 2)
-                expect(await boostDirector._pools(vaultB.address)).to.eq(2)
+                expect(await boostDirector._vaults(vaultB.address)).to.eq(2)
             })
             it("should fail if already whitelisted", async () => {
-                const tx = boostDirector.connect(sa.governor.signer).whitelistPools([vaultB.address])
-                await expect(tx).to.revertedWith("Pool already whitelisted")
+                const tx = boostDirector.connect(sa.governor.signer).whitelistVaults([vaultB.address])
+                await expect(tx).to.revertedWith("Vault already whitelisted")
             })
             it("should succeed in whitelisting two boost savings vault", async () => {
-                const tx = boostDirector.connect(sa.governor.signer).whitelistPools([vaultC.address, vaultD.address])
+                const tx = boostDirector.connect(sa.governor.signer).whitelistVaults([vaultC.address, vaultD.address])
                 await expect(tx).to.emit(boostDirector, "Whitelisted").withArgs(vaultC.address, 3)
                 await expect(tx).to.emit(boostDirector, "Whitelisted").withArgs(vaultD.address, 4)
-                expect(await boostDirector._pools(vaultC.address)).to.eq(3)
-                expect(await boostDirector._pools(vaultD.address)).to.eq(4)
+                expect(await boostDirector._vaults(vaultC.address)).to.eq(3)
+                expect(await boostDirector._vaults(vaultD.address)).to.eq(4)
             })
         })
         context("get boost balance", () => {
@@ -1710,7 +1710,7 @@ describe("SavingsVault", async () => {
             })
             it("should fail as old vault is not whitelisted", async () => {
                 const tx = boostDirector.connect(user1NoStake.signer).setDirection(sa.dummy1.address, mockedVaults[3].address, false)
-                await expect(tx).to.revertedWith("Pools not whitelisted")
+                await expect(tx).to.revertedWith("Vaults not whitelisted")
             })
             it("should fail as user 1 has not been added to the old vault 4", async () => {
                 const tx = boostDirector.connect(user1NoStake.signer).setDirection(mockedVaults[4].address, mockedVaults[3].address, false)
@@ -1718,7 +1718,7 @@ describe("SavingsVault", async () => {
             })
             it("should fail as new vault is not whitelisted", async () => {
                 const tx = boostDirector.connect(user1NoStake.signer).setDirection(mockedVaults[0].address, sa.dummy1.address, false)
-                await expect(tx).to.revertedWith("Pools not whitelisted")
+                await expect(tx).to.revertedWith("Vaults not whitelisted")
             })
             it("user 1 should succeed in replacing vault 1 with vault 4 that is not poked", async () => {
                 await boostDirector.connect(user1NoStake.signer).setDirection(mockedVaults[0].address, mockedVaults[3].address, false)
