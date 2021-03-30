@@ -71,7 +71,7 @@ interface FeederData {
     vault?: BoostedSavingsVault
 }
 
-const COEFF = 45
+const COEFF = 43
 
 interface Config {
     a: BN
@@ -263,8 +263,8 @@ const deployVault = async (
         await approval.wait()
 
         console.log(`Depositing to vault...`)
-        const vault = await new BoostedSavingsVault__factory(sender).attach(vProxy.address)
-        const deposit = await vault.stake(depositAmt)
+        const vault = new BoostedSavingsVault__factory(sender).attach(vProxy.address)
+        const deposit = await vault["stake(uint256)"](depositAmt)
         await deposit.wait()
     }
 
@@ -471,13 +471,8 @@ task("deployFeeder-mainnet", "Deploys all the feeder pools and required contract
         },
     ]
 
-    // TODO - PRE-DEPLOY
-    //      - Remove govFEE & set swap/redemptionFees
-    //      - check over settings in vault
-    //      - check everything has await
-    //      - Run on Mainnet fork
-
     // 1.    Deploy boostDirector & Libraries
+    console.log(`\n~~~~~ PHASE 1 - LIBS ~~~~~\n\n`)
     console.log(`Deploying BoostDirector with ${addresses.nexus}, ${addresses.staking}`)
     const director = await new BoostDirector__factory(deployer).deploy(addresses.nexus, addresses.staking)
     await director.deployTransaction.wait()
@@ -498,6 +493,7 @@ task("deployFeeder-mainnet", "Deploys all the feeder pools and required contract
     addresses.feederManager = managerLib as FeederManager
 
     // 2.1   Deploy imBTC vault & deposit
+    console.log(`\n~~~~~ PHASE 2 - POOLS ~~~~~\n\n`)
     const imBTC = await deployVault(
         deployer,
         addresses,
@@ -552,6 +548,7 @@ task("deployFeeder-mainnet", "Deploys all the feeder pools and required contract
     //        - create fPool (nexus, mAsset, name, integrator, config)
     // eslint-disable-next-line
     for (const poolData of data) {
+        console.log(`\n~~~~~ POOL ${poolData.symbol} ~~~~~\n\n`)
         // Deploy Feeder Pool
         const feederPool = await deployFeederPool(deployer, addresses, ethers, poolData)
         poolData.pool = feederPool
@@ -572,6 +569,7 @@ task("deployFeeder-mainnet", "Deploys all the feeder pools and required contract
     }
     // 3.    Clean
     //        - initialize boostDirector with pools
+    console.log(`\n~~~~~ PHASE 3 - ETC ~~~~~\n\n`)
     console.log(
         `Initializing BoostDirector...`,
         data.map((d) => d.vault.address),
@@ -603,6 +601,7 @@ task("deployFeeder-mainnet", "Deploys all the feeder pools and required contract
     const interestValidator = await new InterestValidator__factory(deployer).deploy(addresses.nexus)
     const deployReceipt = await interestValidator.deployTransaction.wait()
     console.log(`Deployed Interest Validator to ${interestValidator.address}. gas used ${deployReceipt.gasUsed}`)
+    console.log(`\n~~~~~ 🥳 CONGRATS! Time for Phase 4 🥳 ~~~~~\n\n`)
     // 4.    Post
     //        -  migrate GUSD & bUSD to aave
     //        -  Add InterestValidator as a module

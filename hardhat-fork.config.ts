@@ -9,7 +9,7 @@ export default {
             blockGasLimit: 9000000,
             forking: {
                 url: process.env.NODE_URL || "",
-                blockNumber: 12094381,
+                blockNumber: 12142090,
             },
         },
     },

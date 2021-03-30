@@ -15,6 +15,7 @@ import { IBasicToken } from "../shared/IBasicToken.sol";
 
 // Libs
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { StableMath } from "../shared/StableMath.sol";
 import { FeederManager } from "./FeederManager.sol";
@@ -36,6 +37,7 @@ contract FeederPool is
     PausableModule,
     InitializableReentrancyGuard
 {
+    using SafeERC20 for IERC20;
     using StableMath for uint256;
 
     // Forging Events
@@ -140,17 +142,17 @@ contract FeederPool is
         for (uint256 i = 0; i < _mpAssets.length; i++) {
             // Call will fail if bAsset does not exist
             IMasset(_mAsset.addr).getBasset(_mpAssets[i]);
-            IERC20(_mpAssets[i]).approve(_mAsset.addr, 2**255);
+            IERC20(_mpAssets[i]).safeApprove(_mAsset.addr, 2**255);
         }
 
         uint64 startA = SafeCast.toUint64(_config.a * A_PRECISION);
         data.ampData = AmpData(startA, startA, 0, 0);
         data.weightLimits = _config.limits;
 
-        data.swapFee = 8e14;
-        data.redemptionFee = 4e14;
+        data.swapFee = 4e14;
+        data.redemptionFee = 1e15;
         data.cacheSize = 1e17;
-        data.govFee = 1e17;
+        data.govFee = 0;
     }
 
     /**
