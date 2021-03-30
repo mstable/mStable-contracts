@@ -160,7 +160,7 @@ contract BoostDirector is IBoostDirector, ImmutableModule {
             unchecked {
                 // id is either the one that is passed, or existing
                 id = _pos == i ? _id : uint8(_bitmap >> (i * 8));
-                step = uint128(id << (i * 8));
+                step = uint128(uint128(id) << (i * 8));
             }
             newMap |= step;
         }

@@ -20,6 +20,8 @@ import {
     MockNexus,
     MockNexus__factory,
     AssetProxy__factory,
+    BoostDirector__factory,
+    BoostDirector,
 } from "types/generated"
 import {
     shouldBehaveLikeDistributionRecipient,
@@ -78,30 +80,41 @@ describe("SavingsVault", async () => {
     let nexus: MockNexus
     let savingsVault: BoostedSavingsVault
     let stakingContract: MockStakingContract
+    let boostDirector: BoostDirector
 
-    const minBoost = simpleToExactAmount(5, 17)
-    const maxBoost = simpleToExactAmount(15, 17)
-    const coeff = 60
+    const maxVMTA = simpleToExactAmount(300000, 18)
+    const maxBoost = simpleToExactAmount(4, 18)
+    const minBoost = simpleToExactAmount(1, 18)
+    const floor = simpleToExactAmount(95, 16)
+    const coeff = BN.from(45)
     const priceCoeff = simpleToExactAmount(1, 17)
     const lockupPeriod = ONE_WEEK.mul(26)
 
     const boost = (raw: BN, boostAmt: BN): BN => raw.mul(boostAmt).div(fullScale)
 
     const calcBoost = (raw: BN, vMTA: BN, priceCoefficient = priceCoeff): BN => {
-        // min(d + c * vMTA^a / imUSD^b, m)
+        // min(m, max(d, (d * 0.95) + c * min(vMTA, f) / USD^b))
         const scaledBalance = raw.mul(priceCoefficient).div(simpleToExactAmount(1, 18))
 
         if (scaledBalance.lt(simpleToExactAmount(1, 18))) return minBoost
 
         let denom = parseFloat(utils.formatUnits(scaledBalance))
         denom **= 0.875
-        const lhs = minBoost.add(vMTA.mul(coeff).div(10).mul(fullScale).div(simpleToExactAmount(denom)))
-        return lhs.gt(maxBoost) ? maxBoost : lhs
+        const flooredMTA = vMTA.gt(maxVMTA) ? maxVMTA : vMTA
+        let rhs = floor.add(
+            flooredMTA
+                .mul(coeff)
+                .div(10)
+                .mul(fullScale)
+                .div(simpleToExactAmount(denom)),
+        )
+        rhs = rhs.gt(minBoost) ? rhs : minBoost
+        return rhs.gt(maxBoost) ? maxBoost : rhs
     }
 
-    const unlockedRewards = (total: BN): BN => total.div(5)
+    const unlockedRewards = (total: BN): BN => total.div(100).mul(33)
 
-    const lockedRewards = (total: BN): BN => total.div(5).mul(4)
+    const lockedRewards = (total: BN): BN => total.div(100).mul(67)
 
     const redeployRewards = async (priceCoefficient = priceCoeff): Promise<BoostedSavingsVault> => {
         nexus = await (await new MockNexus__factory(sa.default.signer)).deploy(sa.governor.address, DEAD_ADDRESS, DEAD_ADDRESS)
@@ -121,16 +134,20 @@ describe("SavingsVault", async () => {
         )
         stakingContract = await (await new MockStakingContract__factory(sa.default.signer)).deploy()
 
+        boostDirector = await (await new BoostDirector__factory(sa.default.signer)).deploy(nexus.address, stakingContract.address)
+
         const vaultFactory = await new BoostedSavingsVault__factory(sa.default.signer)
         const impl = await vaultFactory.deploy(
             nexus.address,
             iMasset.address,
-            stakingContract.address,
+            boostDirector.address,
             priceCoefficient,
+            coeff,
             rewardToken.address,
         )
-        const data = impl.interface.encodeFunctionData("initialize", [rewardsDistributor.address])
+        const data = impl.interface.encodeFunctionData("initialize", [rewardsDistributor.address, "Vault A", "vA"])
         const proxy = await (await new AssetProxy__factory(sa.default.signer)).deploy(impl.address, sa.dummy4.address, data)
+        await boostDirector.initialize([proxy.address])
         return vaultFactory.attach(proxy.address)
     }
 
@@ -195,7 +212,7 @@ describe("SavingsVault", async () => {
             // Set in constructor
             expect(await savingsVault.nexus()).to.eq(nexus.address)
             expect(await savingsVault.stakingToken()).to.eq(iMasset.address)
-            expect(await savingsVault.stakingContract()).to.eq(stakingContract.address)
+            expect(await savingsVault.boostDirector()).to.eq(boostDirector.address)
             expect(await savingsVault.rewardsToken()).to.eq(rewardToken.address)
             expect(await savingsVault.rewardsDistributor()).to.eq(rewardsDistributor.address)
 
@@ -244,7 +261,10 @@ describe("SavingsVault", async () => {
             : timeAfter.sub(beforeData.contractData.lastUpdateTime)
         const increaseInRewardPerToken = beforeData.boostBalance.totalSupply.eq(BN.from(0))
             ? BN.from(0)
-            : beforeData.contractData.rewardRate.mul(timeApplicableToRewards).mul(fullScale).div(beforeData.boostBalance.totalSupply)
+            : beforeData.contractData.rewardRate
+                  .mul(timeApplicableToRewards)
+                  .mul(fullScale)
+                  .div(beforeData.boostBalance.totalSupply)
         expect(beforeData.contractData.rewardPerTokenStored.add(increaseInRewardPerToken)).to.be.eq(
             afterData.contractData.rewardPerTokenStored,
         )
@@ -309,7 +329,9 @@ describe("SavingsVault", async () => {
         const tx = senderIsBeneficiary
             ? savingsVault.connect(sender.signer)["stake(uint256)"](stakeAmount)
             : savingsVault.connect(sender.signer)["stake(address,uint256)"](beneficiary.address, stakeAmount)
-        await expect(tx).to.emit(savingsVault, "Staked").withArgs(beneficiary.address, stakeAmount, sender.address)
+        await expect(tx)
+            .to.emit(savingsVault, "Staked")
+            .withArgs(beneficiary.address, stakeAmount, sender.address)
 
         // 3. Ensure rewards are accrued to the beneficiary
         const afterData = await snapshotStakingData(sender, beneficiary)
@@ -335,7 +357,9 @@ describe("SavingsVault", async () => {
     const expectSuccesfulFunding = async (rewardUnits: BN): Promise<void> => {
         const beforeData = await snapshotStakingData()
         const tx = savingsVault.connect(rewardsDistributor.signer).notifyRewardAmount(rewardUnits)
-        await expect(tx).to.emit(savingsVault, "RewardAdded").withArgs(rewardUnits)
+        await expect(tx)
+            .to.emit(savingsVault, "RewardAdded")
+            .withArgs(rewardUnits)
 
         const cur = BN.from(await getTimestamp())
         const leftOverRewards = beforeData.contractData.rewardRate.mul(
@@ -377,7 +401,9 @@ describe("SavingsVault", async () => {
 
         // 2. Send withdrawal tx
         const tx = savingsVault.connect(sender.signer).withdraw(withdrawAmount)
-        await expect(tx).to.emit(savingsVault, "Withdrawn").withArgs(sender.address, withdrawAmount)
+        await expect(tx)
+            .to.emit(savingsVault, "Withdrawn")
+            .withArgs(sender.address, withdrawAmount)
 
         // 3. Expect Rewards to accrue to the beneficiary
         //    StakingToken balance of sender
@@ -485,7 +511,7 @@ describe("SavingsVault", async () => {
             expect(afterData.contractData.rewardRate).to.be.eq(BN.from(0))
             expect(afterData.contractData.rewardPerTokenStored).to.be.eq(BN.from(0))
             expect(afterData.userData.rewards).to.be.eq(BN.from(0))
-            expect(afterData.boostBalance.totalSupply).to.be.eq(stakeAmount)
+            expect(afterData.boostBalance.totalSupply).to.be.eq(stakeAmount.mul(2))
             expect(afterData.contractData.lastTimeRewardApplicable).to.be.eq(BN.from(0))
         })
     })
@@ -501,24 +527,24 @@ describe("SavingsVault", async () => {
             it("should calculate boost for 10k imUSD stake and 250 vMTA", async () => {
                 const deposit = simpleToExactAmount(3333, 14)
                 const stake = simpleToExactAmount(250, 18)
-                const expectedBoost = simpleToExactAmount(49995, 13)
+                const expectedBoost = simpleToExactAmount(12067, 14)
 
                 await expectSuccessfulStake(deposit)
                 await stakingContract.setBalanceOf(sa.default.address, stake)
                 await savingsVault.pokeBoost(sa.default.address)
 
                 const balance = await savingsVault.balanceOf(sa.default.address)
-                expect(balance).to.be.eq(expectedBoost)
-                expect(boost(deposit, calcBoost(deposit, stake, priceCoeffOverride))).to.be.eq(expectedBoost)
+                assertBNClosePercent(balance, expectedBoost, "0.1")
+                assertBNClosePercent(boost(deposit, calcBoost(deposit, stake, priceCoeffOverride)), expectedBoost, "0.1")
 
                 const ratio = await savingsVault.getBoost(sa.default.address)
-                expect(ratio).to.be.eq(maxBoost)
+                assertBNClosePercent(ratio, simpleToExactAmount(3.621))
             })
             // 10k imUSD = 1k $ = 0.33 imBTC
             it("should calculate boost for 10k imUSD stake and 50 vMTA", async () => {
                 const deposit = simpleToExactAmount(3333, 14)
                 const stake = simpleToExactAmount(50, 18)
-                const expectedBoost = simpleToExactAmount("4036.263", 14)
+                const expectedBoost = simpleToExactAmount(4947, 14)
 
                 await expectSuccessfulStake(deposit)
                 await stakingContract.setBalanceOf(sa.default.address, stake)
@@ -529,13 +555,13 @@ describe("SavingsVault", async () => {
                 assertBNClosePercent(boost(deposit, calcBoost(deposit, stake, priceCoeffOverride)), expectedBoost, "0.1")
 
                 const ratio = await savingsVault.getBoost(sa.default.address)
-                assertBNClosePercent(ratio, simpleToExactAmount(1.211, 18), "0.1")
+                assertBNClosePercent(ratio, simpleToExactAmount(1.484, 18), "0.1")
             })
             // 100k imUSD = 10k $ = 3.33 imBTC
             it("should calculate boost for 100k imUSD stake and 500 vMTA", async () => {
                 const deposit = simpleToExactAmount(3333, 15)
                 const stake = simpleToExactAmount(500, 18)
-                const expectedBoost = simpleToExactAmount("4829.517", 15)
+                const expectedBoost = simpleToExactAmount("5539.9446", 15)
 
                 await expectSuccessfulStake(deposit)
                 await stakingContract.setBalanceOf(sa.default.address, stake)
@@ -546,7 +572,7 @@ describe("SavingsVault", async () => {
                 assertBNClosePercent(boost(deposit, calcBoost(deposit, stake, priceCoeffOverride)), expectedBoost, "0.1")
 
                 const ratio = await savingsVault.getBoost(sa.default.address)
-                assertBNClosePercent(ratio, simpleToExactAmount(1.449, 18), "0.1")
+                assertBNClosePercent(ratio, simpleToExactAmount(1.662, 18), "0.1")
             })
         })
 
@@ -558,23 +584,22 @@ describe("SavingsVault", async () => {
                 it("should calculate boost for 10k imUSD stake and 250 vMTA", async () => {
                     const deposit = simpleToExactAmount(10000)
                     const stake = simpleToExactAmount(250, 18)
-                    const expectedBoost = simpleToExactAmount(15000)
+                    const expectedBoost = simpleToExactAmount(36210)
 
                     await expectSuccessfulStake(deposit)
                     await stakingContract.setBalanceOf(sa.default.address, stake)
                     await savingsVault.pokeBoost(sa.default.address)
 
                     const balance = await savingsVault.balanceOf(sa.default.address)
-                    expect(balance).to.be.eq(expectedBoost)
-                    expect(boost(deposit, calcBoost(deposit, stake))).to.be.eq(expectedBoost)
-
+                    assertBNClosePercent(balance, expectedBoost)
+                    assertBNClosePercent(boost(deposit, calcBoost(deposit, stake)), expectedBoost, 0.1)
                     const ratio = await savingsVault.getBoost(sa.default.address)
-                    expect(ratio).to.be.eq(maxBoost)
+                    assertBNClosePercent(ratio, simpleToExactAmount(3.621))
                 })
                 it("should calculate boost for 10k imUSD stake and 50 vMTA", async () => {
                     const deposit = simpleToExactAmount(10000, 18)
                     const stake = simpleToExactAmount(50, 18)
-                    const expectedBoost = simpleToExactAmount(12110, 18)
+                    const expectedBoost = simpleToExactAmount(14840, 18)
 
                     await expectSuccessfulStake(deposit)
                     await stakingContract.setBalanceOf(sa.default.address, stake)
@@ -584,12 +609,12 @@ describe("SavingsVault", async () => {
                     assertBNClosePercent(balance, expectedBoost, "1")
                     assertBNClosePercent(boost(deposit, calcBoost(deposit, stake)), expectedBoost, "0.1")
                     const ratio = await savingsVault.getBoost(sa.default.address)
-                    assertBNClosePercent(ratio, simpleToExactAmount(1.211, 18), "0.1")
+                    assertBNClosePercent(ratio, simpleToExactAmount(1.484, 18), "0.1")
                 })
                 it("should calculate boost for 100k imUSD stake and 500 vMTA", async () => {
                     const deposit = simpleToExactAmount(100000, 18)
                     const stake = simpleToExactAmount(500, 18)
-                    const expectedBoost = simpleToExactAmount(144900, 18)
+                    const expectedBoost = simpleToExactAmount(166200, 18)
 
                     await expectSuccessfulStake(deposit)
                     await stakingContract.setBalanceOf(sa.default.address, stake)
@@ -600,14 +625,14 @@ describe("SavingsVault", async () => {
                     assertBNClosePercent(boost(deposit, calcBoost(deposit, stake)), expectedBoost, "0.1")
 
                     const ratio = await savingsVault.getBoost(sa.default.address)
-                    assertBNClosePercent(ratio, simpleToExactAmount(1.449, 18), "0.1")
+                    assertBNClosePercent(ratio, simpleToExactAmount(1.662, 18), "0.1")
                 })
             })
             describe("when saving with low staking balance and high vMTA", () => {
                 it("should give no boost due to below min threshold", async () => {
                     const deposit = simpleToExactAmount(5, 17)
                     const stake = simpleToExactAmount(800, 18)
-                    const expectedBoost = simpleToExactAmount(25, 16)
+                    const expectedBoost = simpleToExactAmount(5, 17)
 
                     await expectSuccessfulStake(deposit)
                     await stakingContract.setBalanceOf(sa.default.address, stake)
@@ -624,13 +649,12 @@ describe("SavingsVault", async () => {
             describe("when saving and with staking balance = 0", () => {
                 it("should give no boost", async () => {
                     const deposit = simpleToExactAmount(100, 18)
-                    const expectedBoost = simpleToExactAmount(50, 18)
 
                     await expectSuccessfulStake(deposit)
 
                     const balance = await savingsVault.balanceOf(sa.default.address)
-                    assertBNClosePercent(balance, expectedBoost, "1")
-                    assertBNClosePercent(boost(deposit, minBoost), expectedBoost, "0.1")
+                    assertBNClosePercent(balance, deposit, "1")
+                    assertBNClosePercent(boost(deposit, minBoost), deposit, "0.1")
 
                     const ratio = await savingsVault.getBoost(sa.default.address)
                     assertBNClosePercent(ratio, minBoost, "0.1")
@@ -700,7 +724,7 @@ describe("SavingsVault", async () => {
                     const aliceData = await snapshotStakingData(alice, alice)
                     const bobData = await snapshotStakingData(bob, bob)
 
-                    assertBNClosePercent(aliceData.userRewards[1].rate, bobData.userRewards[1].rate.mul(3), "0.1")
+                    assertBNClosePercent(aliceData.userRewards[1].rate, bobData.userRewards[1].rate.mul(4), "0.1")
                 })
             })
         })
@@ -898,11 +922,21 @@ describe("SavingsVault", async () => {
             )
             stakingContract = await (await new MockStakingContract__factory(sa.default.signer)).deploy()
 
+            boostDirector = await (await new BoostDirector__factory(sa.default.signer)).deploy(nexus.address, stakingContract.address)
+
             const vaultFactory = await new BoostedSavingsVault__factory(sa.default.signer)
-            const impl = await vaultFactory.deploy(nexus.address, iMasset.address, stakingContract.address, priceCoeff, rewardToken.address)
-            const data = impl.interface.encodeFunctionData("initialize", [rewardsDistributor.address])
+            const impl = await vaultFactory.deploy(
+                nexus.address,
+                iMasset.address,
+                boostDirector.address,
+                priceCoeff,
+                coeff,
+                rewardToken.address,
+            )
+            const data = impl.interface.encodeFunctionData("initialize", [rewardsDistributor.address, "Vault A", "vA"])
             const proxy = await (await new AssetProxy__factory(sa.default.signer)).deploy(impl.address, sa.dummy4.address, data)
             savingsVault = vaultFactory.attach(proxy.address)
+            await boostDirector.initialize([proxy.address])
         })
         it("should not affect the pro rata payouts", async () => {
             // Add 100 reward tokens
@@ -920,8 +954,13 @@ describe("SavingsVault", async () => {
             const rewardPerToken = await savingsVault.rewardPerToken()
             assertBNClose(
                 rewardPerToken,
-                ONE_WEEK.mul(rewardRate).mul(fullScale).div(boosted),
-                BN.from(1).mul(rewardRate).mul(fullScale).div(boosted),
+                ONE_WEEK.mul(rewardRate)
+                    .mul(fullScale)
+                    .div(boosted),
+                BN.from(1)
+                    .mul(rewardRate)
+                    .mul(fullScale)
+                    .div(boosted),
             )
 
             // Calc estimated unclaimed reward for the user
@@ -1354,7 +1393,7 @@ describe("SavingsVault", async () => {
         context("with raw balance", async () => {
             it("withdraws everything and claims unlocked rewards", async () => {
                 const beforeData = await snapshotStakingData()
-                expect(beforeData.boostBalance.totalSupply).to.be.eq(simpleToExactAmount(50, 18))
+                expect(beforeData.boostBalance.totalSupply).to.be.eq(simpleToExactAmount(100, 18))
                 await savingsVault["exit()"]()
                 const afterData = await snapshotStakingData()
                 expect(afterData.userData.userClaim).to.be.eq(afterData.userData.lastAction)
@@ -1375,7 +1414,9 @@ describe("SavingsVault", async () => {
                 // claims all immediate unlocks
                 const tx = savingsVault["exit(uint256,uint256)"](first, last)
                 await expect(tx).to.emit(savingsVault, "RewardPaid")
-                await expect(tx).to.emit(savingsVault, "Withdrawn").withArgs(sa.default.address, hunnit)
+                await expect(tx)
+                    .to.emit(savingsVault, "Withdrawn")
+                    .withArgs(sa.default.address, hunnit)
             })
         })
     })
