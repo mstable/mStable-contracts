@@ -18,7 +18,7 @@ contract BoostDirector is IBoostDirector, ImmutableModule {
 
     event Directed(address user, address boosted);
     event RedirectedBoost(address user, address boosted, address replaced);
-    event Whitelisted(address pool);
+    event Whitelisted(address poolAddress, uint8 poolId);
 
     // Read the vMTA balance from here
     IIncentivisedVotingLockup public immutable stakingContract;
@@ -62,6 +62,7 @@ contract BoostDirector is IBoostDirector, ImmutableModule {
      */
     function _whitelistPools(address[] calldata _newPools) internal {
         uint256 len = _newPools.length;
+        require(len > 0, "Must be at least one pool");
         for (uint256 i = 0; i < len; i++) {
             uint8 id = _pools[_newPools[i]];
             require(id == 0, "Pool already whitelisted");
@@ -69,7 +70,7 @@ contract BoostDirector is IBoostDirector, ImmutableModule {
             poolCount += 1;
             _pools[_newPools[i]] = poolCount;
 
-            emit Whitelisted(_newPools[i]);
+            emit Whitelisted(_newPools[i], poolCount);
         }
     }
 
