@@ -14,8 +14,8 @@ contract MockBoostedSavingsVault {
         boostDirector = IBoostDirector(_boostDirector);
     }
 
-    function pokeBoost(address _account) external {
-        emit Poked(_account);
+    function pokeBoost(address _user) external {
+        emit Poked(_user);
     }
 
     function testGetBalance(address _user) external returns (uint256 balance) {
