@@ -1539,13 +1539,14 @@ describe("SavingsVault", async () => {
 
             rewardToken = await new MockERC20__factory(sa.default.signer).deploy("Reward", "RWD", 18, rewardsDistributor.address, 10000000)
             stakingContract = await new MockStakingContract__factory(sa.default.signer).deploy()
-            boostDirector = await new BoostDirector__factory(sa.default.signer).deploy(nexus.address, stakingContract.address)
-            await boostDirector.initialize([vaultA.address])
-
             await stakingContract.setBalanceOf(user2Staked.address, 20000)
             await stakingContract.setBalanceOf(user3Staked.address, 30000)
         })
         context("Whitelisting boost savings vaults", () => {
+            before(async () => {
+                boostDirector = await new BoostDirector__factory(sa.default.signer).deploy(nexus.address, stakingContract.address)
+                await boostDirector.initialize([vaultA.address])
+            })
             it("should get first vault A pool", async () => {
                 expect(await boostDirector._pools(vaultA.address)).to.eq(1)
             })
@@ -1582,6 +1583,8 @@ describe("SavingsVault", async () => {
             let boostDirectorVaultC: BoostDirector
             let boostDirectorVaultD: BoostDirector
             before(async () => {
+                boostDirector = await new BoostDirector__factory(sa.default.signer).deploy(nexus.address, stakingContract.address)
+                await boostDirector.initialize([vaultA.address, vaultB.address, vaultC.address, vaultD.address])
                 boostDirectorVaultA = boostDirector.connect(vaultA.signer)
                 boostDirectorVaultB = boostDirector.connect(vaultB.signer)
                 boostDirectorVaultC = boostDirector.connect(vaultC.signer)
@@ -1627,43 +1630,43 @@ describe("SavingsVault", async () => {
             })
             context("user 3 with 30,000 staked added to vaults A, B and C but not D", () => {
                 const userStakedBalance = 30000
-                it("should get user balance before being added to any vaults", async () => {
+                it("vault A should get user balance before being added to any vaults", async () => {
                     const bal = await boostDirectorVaultA.callStatic.getBalance(user3Staked.address)
                     expect(bal).to.eq(userStakedBalance)
                 })
-                it("should add user to boost director from vault A", async () => {
+                it("vault A should add user to boost director", async () => {
                     const tx = boostDirectorVaultA.getBalance(user3Staked.address)
                     await expect(tx).to.emit(boostDirector, "Directed").withArgs(user3Staked.address, vaultA.address)
                 })
-                it("should add user to boost director from vault B", async () => {
+                it("vault B should add user to boost director", async () => {
                     const tx = boostDirectorVaultB.getBalance(user3Staked.address)
                     await expect(tx).to.emit(boostDirector, "Directed").withArgs(user3Staked.address, vaultB.address)
                 })
-                it("should add user to boost director from vault C", async () => {
+                it("vault C should add user to boost director", async () => {
                     const tx = boostDirectorVaultC.getBalance(user3Staked.address)
                     await expect(tx).to.emit(boostDirector, "Directed").withArgs(user3Staked.address, vaultC.address)
                 })
-                it("should get user balance after from vault C", async () => {
+                it("vault C should get user balance after user added", async () => {
                     const bal = await boostDirectorVaultC.callStatic.getBalance(user3Staked.address)
                     expect(bal).to.eq(userStakedBalance)
                 })
-                it("should fail to add user to fourth vault D", async () => {
+                it("vault D should fail to add user as its the fourth", async () => {
                     const tx = boostDirectorVaultD.getBalance(user3Staked.address)
                     await expect(tx).to.not.emit(boostDirector, "Directed")
                 })
-                it("should get zero balance from fourth vault D", async () => {
+                it("vault D should get zero balance for the user", async () => {
                     const bal = await boostDirectorVaultD.callStatic.getBalance(user3Staked.address)
                     expect(bal).to.eq(0)
                 })
-                it("should still user balance from first vault A", async () => {
+                it("vault A should still user balance", async () => {
                     const bal = await boostDirectorVaultA.callStatic.getBalance(user3Staked.address)
                     expect(bal).to.eq(userStakedBalance)
                 })
-                it("should still user balance from second vault B", async () => {
+                it("vault B should still fer user balance", async () => {
                     const bal = await boostDirectorVaultB.callStatic.getBalance(user3Staked.address)
                     expect(bal).to.eq(userStakedBalance)
                 })
-                it("should still user balance from third vault C", async () => {
+                it("vault C should still user balance", async () => {
                     const bal = await boostDirectorVaultC.callStatic.getBalance(user3Staked.address)
                     expect(bal).to.eq(userStakedBalance)
                 })
@@ -1671,11 +1674,15 @@ describe("SavingsVault", async () => {
             context("adding non whitelisted vaults", () => {
                 it("should fail to add user from unlisted vault", async () => {
                     const tx = boostDirector.connect(vaultUnlisted.signer).getBalance(user2Staked.address)
-                    await expect(tx).to.revertedWith("Pool not whitelisted")
+                    await expect(tx).to.not.emit(boostDirector, "Directed")
+                })
+                it("should get zero balance for unlisted vault", async () => {
+                    const bal = await boostDirector.connect(vaultUnlisted.signer).callStatic.getBalance(user3Staked.address)
+                    expect(bal).to.eq(0)
                 })
                 it("should fail for user to add themselves as a vault", async () => {
                     const tx = boostDirector.connect(user2Staked.signer).getBalance(user2Staked.address)
-                    await expect(tx).to.revertedWith("Pool not whitelisted")
+                    await expect(tx).to.not.emit(boostDirector, "Directed")
                 })
             })
         })
