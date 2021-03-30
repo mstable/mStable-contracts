@@ -12,22 +12,22 @@ import { ImmutableModule } from "../shared/ImmutableModule.sol";
  * @title  BoostDirector
  * @author mStable
  * @notice Supports the directing of vMTA balance from Staking up to X accounts
- * @dev    Uses a bitmap to store the id's of a given users chosen pools in a gas efficient manner.
+ * @dev    Uses a bitmap to store the id's of a given users chosen vaults in a gas efficient manner.
  */
 contract BoostDirector is IBoostDirector, ImmutableModule {
 
     event Directed(address user, address boosted);
     event RedirectedBoost(address user, address boosted, address replaced);
-    event Whitelisted(address pool);
+    event Whitelisted(address vaultAddress, uint8 vaultId);
 
     // Read the vMTA balance from here
     IIncentivisedVotingLockup public immutable stakingContract;
 
-    // Whitelisted pools set by governance (only these pools can read balances)
-    uint8 private poolCount;
-    // Pool address -> internal id for tracking
-    mapping(address => uint8) public _pools;
-    // uint128 packed with up to 16 uint8's. Each uint is a pool ID
+    // Whitelisted vaults set by governance (only these vaults can read balances)
+    uint8 private vaultCount;
+    // Vault address -> internal id for tracking
+    mapping(address => uint8) public _vaults;
+    // uint128 packed with up to 16 uint8's. Each uint is a vault ID
     mapping(address => uint128) public _directedBitmap;
 
 
@@ -41,57 +41,55 @@ contract BoostDirector is IBoostDirector, ImmutableModule {
     }
 
     /**
-     * @dev Initialize function - simply sets the initial array of whitelisted pools
+     * @dev Initialize function - simply sets the initial array of whitelisted vaults
      */
-    function initialize(address[] calldata _newPools) external {
-        require(poolCount == 0, "Already initialized");
-        _whitelistPools(_newPools);
+    function initialize(address[] calldata _newVaults) external {
+        require(vaultCount == 0, "Already initialized");
+        _whitelistVaults(_newVaults);
     }
 
     /**
-     * @dev Whitelist pools - only callable by governance. Whitelists pools, unless they
+     * @dev Whitelist vaults - only callable by governance. Whitelists vaults, unless they
      * have already been whitelisted
      */
-    function whitelistPools(address[] calldata _newPools) external override onlyGovernor {
-        _whitelistPools(_newPools);
+    function whitelistVaults(address[] calldata _newVaults) external override onlyGovernor {
+        _whitelistVaults(_newVaults);
     }
 
     /**
-     * @dev Takes an array of newPools. For each, determines if it is already whitelisted.
-     * If not, then increment poolCount and same the pool with new ID
+     * @dev Takes an array of newVaults. For each, determines if it is already whitelisted.
+     * If not, then increment vaultCount and same the vault with new ID
      */
-    function _whitelistPools(address[] calldata _newPools) internal {
-        uint256 len = _newPools.length;
+    function _whitelistVaults(address[] calldata _newVaults) internal {
+        uint256 len = _newVaults.length;
+        require(len > 0, "Must be at least one vault");
         for (uint256 i = 0; i < len; i++) {
-            uint8 id = _pools[_newPools[i]];
-            require(id == 0, "Pool already whitelisted");
+            uint8 id = _vaults[_newVaults[i]];
+            require(id == 0, "Vault already whitelisted");
 
-            poolCount += 1;
-            _pools[_newPools[i]] = poolCount;
+            vaultCount += 1;
+            _vaults[_newVaults[i]] = vaultCount;
 
-            emit Whitelisted(_newPools[i]);
+            emit Whitelisted(_newVaults[i], vaultCount);
         }
     }
 
 
     /***************************************
-                      POOL
+                      Vault
     ****************************************/
 
-    // A view methods for getBalance.. necessary?
-    // function readBalance(address _pool, address _user) external view returns (uint256) {
-    // }
-
     /**
-     * @dev Gets the balance of a user that has been directed to the caller (a pool).
-     * If the user has not directed to this pool, or there are less than 3 directed,
+     * @dev Gets the balance of a user that has been directed to the caller (a vault).
+     * If the user has not directed to this vault, or there are less than 3 directed,
      * then add this to the list
      * @param _user     Address of the user for which to get balance
      * @return Directed balance
      */
     function getBalance(address _user) external override returns (uint256) {
-        // Get pool details
-        uint8 id = _pools[msg.sender];
+        // Get vault details
+        uint8 id = _vaults[msg.sender];
+        // If vault has not been whitelisted, just return zero
         if(id == 0) return 0;
 
         // Get existing bitmap and balance
@@ -112,21 +110,21 @@ contract BoostDirector is IBoostDirector, ImmutableModule {
     }
 
     /**
-     * @dev Directs rewards to a pool, and removes them from the old pool. Provided
-     * that old is active and the new pool is whitelisted.
-     * @param _old     Address of the old pool that will no longer get boosted
-     * @param _new     Address of the new pool that will get boosted
-     * @param _pokeNew Bool to say if we should poke the boost on the new pool
+     * @dev Directs rewards to a vault, and removes them from the old vault. Provided
+     * that old is active and the new vault is whitelisted.
+     * @param _old     Address of the old vault that will no longer get boosted
+     * @param _new     Address of the new vault that will get boosted
+     * @param _pokeNew Bool to say if we should poke the boost on the new vault
      */
     function setDirection(
         address _old,
         address _new,
         bool _pokeNew
     ) external override {
-        uint8 idOld = _pools[_old];
-        uint8 idNew = _pools[_new];
+        uint8 idOld = _vaults[_old];
+        uint8 idNew = _vaults[_new];
 
-        require(idOld > 0 && idNew > 0, "Pools not whitelisted");
+        require(idOld > 0 && idNew > 0, "Vaults not whitelisted");
 
         uint128 bitmap = _directedBitmap[msg.sender];
         (bool isWhitelisted, uint8 count, uint8 pos) = _indexExists(bitmap, idOld);
