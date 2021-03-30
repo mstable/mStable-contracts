@@ -1,5 +1,5 @@
-import { BoostDirector__factory } from "./../types/generated/factories/BoostDirector__factory"
 /* eslint-disable no-console */
+/* eslint-disable no-await-in-loop */
 import "ts-node/register"
 import "tsconfig-paths/register"
 
@@ -20,6 +20,8 @@ import {
     FeederManager,
     FeederLogic,
     BoostedSavingsVault,
+    BoostDirector__factory,
+    AaveV2Integration__factory,
 } from "types/generated"
 import { simpleToExactAmount, BN } from "@utils/math"
 
@@ -411,7 +413,7 @@ task("deployFeeder-mainnet", "Deploys all the feeder pools and required contract
             fAsset: "0x0316EB71485b0Ab14103307bf65a021042c6d380",
             aToken: ZERO_ADDRESS,
             priceCoeff: simpleToExactAmount(58000),
-            A: BN.from(100), // TODO - set
+            A: BN.from(325),
         },
         // mBTC / tBTC
         {
@@ -419,7 +421,7 @@ task("deployFeeder-mainnet", "Deploys all the feeder pools and required contract
             fAsset: "0x8dAEBADE922dF735c38C80C7eBD708Af50815fAa",
             aToken: ZERO_ADDRESS,
             priceCoeff: simpleToExactAmount(58000),
-            A: BN.from(100), // TODO - set
+            A: BN.from(175),
         },
         // mUSD / bUSD
         {
@@ -427,7 +429,7 @@ task("deployFeeder-mainnet", "Deploys all the feeder pools and required contract
             fAsset: "0x4fabb145d64652a948d72533023f6e7a623c7c53",
             aToken: "0xa361718326c15715591c299427c62086f69923d9",
             priceCoeff: simpleToExactAmount(1),
-            A: BN.from(100), // TODO - set
+            A: BN.from(500),
         },
         // mUSD / GUSD
         {
@@ -435,7 +437,7 @@ task("deployFeeder-mainnet", "Deploys all the feeder pools and required contract
             fAsset: "0x056fd409e1d7a124bd7017459dfea2f387b6d5cd",
             aToken: "0xD37EE7e4f452C6638c96536e68090De8cBcdb583",
             priceCoeff: simpleToExactAmount(1),
-            A: BN.from(100), // TODO - set
+            A: BN.from(225),
         },
     ]
 
@@ -443,10 +445,25 @@ task("deployFeeder-mainnet", "Deploys all the feeder pools and required contract
     //      - Remove govFEE & set swap/redemptionFees
     //      - check over settings in vault
 
-    // 1.    Deploy boostDirector
+    // 1.    Deploy boostDirector & Libraries
+    console.log(`Deploying BoostDirector with ${addresses.nexus}, ${addresses.staking}`)
     const director = await new BoostDirector__factory(deployer).deploy(addresses.nexus, addresses.staking)
     await director.deployTransaction.wait()
+    console.log(`Deployed Director to ${director.address}`)
     addresses.boostDirector = director.address
+
+    console.log(`Deploying FeederLogic`)
+    const feederLogic = await new FeederLogic__factory(deployer).deploy()
+    const receiptFeederLogic = await feederLogic.deployTransaction.wait()
+    console.log(`Deployed FeederLogic to ${feederLogic.address}. gas used ${receiptFeederLogic.gasUsed}`)
+    addresses.feederLogic = feederLogic
+
+    // External linked library
+    const Manager = await ethers.getContractFactory("FeederManager")
+    const managerLib = await Manager.deploy()
+    const receiptManager = await managerLib.deployTransaction.wait()
+    console.log(`Deployed FeederManager library to ${managerLib.address}. gas used ${receiptManager.gasUsed}`)
+    addresses.feederManager = managerLib as FeederManager
 
     // 2.1   Deploy imBTC vault & deposit
     const imBTC = await deployVault(
@@ -458,22 +475,72 @@ task("deployFeeder-mainnet", "Deploys all the feeder pools and required contract
         "v-imBTC",
         simpleToExactAmount(3, 15),
     )
-    console.log("imBTC vault deployed")
+    console.log(`imBTC vault deployed to ${imBTC.address}`)
 
     // 2.2   For each fAsset
     //        - fetch fAsset & mAsset
-    //        - if aToken != 0: deploy integrator & initialize with aToken addr
+    const data: FeederData[] = []
+
+    // eslint-disable-next-line
+    for (const pair of pairs) {
+        const mAssetContract = await new MockERC20__factory(deployer).attach(pair.mAsset)
+        const fAssetContract = await new MockERC20__factory(deployer).attach(pair.fAsset)
+        const deployedMasset: DeployedFasset = {
+            integrator: ZERO_ADDRESS,
+            txFee: false,
+            contract: mAssetContract,
+            address: pair.mAsset,
+            symbol: await mAssetContract.symbol(),
+        }
+        const deployedFasset: DeployedFasset = {
+            integrator: ZERO_ADDRESS,
+            txFee: false,
+            contract: fAssetContract,
+            address: pair.fAsset,
+            symbol: await fAssetContract.symbol(),
+        }
+        data.push({
+            mAsset: deployedMasset,
+            fAsset: deployedFasset,
+            aToken: pair.aToken,
+            name: `${deployedMasset.symbol}/${deployedFasset.symbol} Feeder Pool`,
+            symbol: `fP${deployedMasset.symbol}/${deployedFasset.symbol}`,
+            config: {
+                a: pair.A,
+                limits: {
+                    min: simpleToExactAmount(10, 16),
+                    max: simpleToExactAmount(90, 16),
+                },
+            },
+            vaultName: `${deployedMasset.symbol}/${deployedFasset.symbol} fPool Vault`,
+            vaultSymbol: `v-fP${deployedMasset.symbol}/${deployedFasset.symbol}`,
+            priceCoeff: pair.priceCoeff,
+        })
+    }
     //        - create fPool (nexus, mAsset, name, integrator, config)
+    // eslint-disable-next-line
+    for (const poolData of data) {
+        // 2. Deploy Feeder Pool
+        // const feederPool = await deployFeederPool(deployer, addresses, ethers, feederData)
+        // feederData.pool = feederPool
+        // // 3. Mint initial supply
+        // await mint(deployer, [deployedMasset, deployedFasset], feederData)
+        // // 4. Rewards Contract
+        // await deployVault(deployer, addresses, feederData.pool.address, feederData.priceCoeff, feederData.vaultName, feederData.vaultSymbol)
+    }
+    //        - initialize fPool
     //        - approve & mintMulti
     //        - create vault
     //        - approve & deposit
     // 3.    Clean
     //        - initialize boostDirector with pools
+    //        - if aToken != 0: deploy integrator & initialize with fPool & aToken addr
     //        - deploy feederRouter
     //        - deploy interestValidator
     // 4.    Post
     //        -  Fund vaults
-    //        -  add InterestValidator as a module
+    //        -  Add InterestValidator as a module
+    //        -  migrate GUSD & bUSD to aave
 })
 
 module.exports = {}

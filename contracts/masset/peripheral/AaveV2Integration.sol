@@ -32,14 +32,14 @@ contract AaveV2Integration is AbstractIntegration {
 
     /**
      * @param _nexus            Address of the Nexus
-     * @param _mAsset           Address of mAsset
+     * @param _lp               Address of LP
      * @param _platformAddress  Generic platform address
      */
     constructor(
         address _nexus,
-        address _mAsset,
+        address _lp
         address _platformAddress
-    ) AbstractIntegration(_nexus, _mAsset) {
+    ) AbstractIntegration(_nexus, _lp) {
         require(_platformAddress != address(0), "Invalid platform address");
         platformAddress = _platformAddress;
     }
