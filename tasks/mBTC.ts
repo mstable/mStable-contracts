@@ -9,7 +9,7 @@ import { formatUnits } from "ethers/lib/utils"
 import { task, types } from "hardhat/config"
 import { Masset, Masset__factory } from "types/generated"
 import CurveRegistryExchangeABI from "../contracts/peripheral/Curve/CurveRegistryExchange.json"
-import { getBasket, snapConfig, snapMassetStorage, snapTokenStorage } from "./utils/snap-utils"
+import { getBasket, snapConfig, dumpTokenStorage, dumpBassetStorage, dumpConfigStorage } from "./utils/snap-utils"
 
 interface TxSummary {
     total: BN
@@ -368,12 +368,12 @@ const outputFees = (
     )
 }
 
-const getMasset = (signer: Signer): Masset => {
+const getMasset = (signer: Signer, contractAddress = "0x945Facb997494CC2570096c74b5F66A3507330a1"): Masset => {
     const linkedAddress = {
         __$1a38b0db2bd175b310a9a3f8697d44eb75$__: contracts.mainnet.Manager,
     }
     const mMassetFactory = new Masset__factory(linkedAddress, signer)
-    return mMassetFactory.attach(contracts.mainnet.mBTC)
+    return mMassetFactory.attach(contractAddress)
 }
 
 task("mBTC-storage", "Dumps mBTC's storage data")
@@ -387,8 +387,9 @@ task("mBTC-storage", "Dumps mBTC's storage data")
 
         const mAsset = getMasset(signer)
 
-        await snapTokenStorage(mAsset, toBlockNumber)
-        await snapMassetStorage(mAsset, toBlockNumber)
+        await dumpTokenStorage(mAsset, toBlockNumber)
+        await dumpBassetStorage(mAsset, toBlockNumber)
+        await dumpConfigStorage(mAsset, toBlockNumber)
     })
 
 task("mBTC-snap", "Get the latest data from the mBTC contracts")

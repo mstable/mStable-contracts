@@ -9,22 +9,10 @@ import { formatUnits } from "ethers/lib/utils"
 
 import { Masset } from "types/generated"
 import { BN, simpleToExactAmount, applyDecimals } from "@utils/math"
-import { BassetStatus } from "@utils/mstable-objects"
 import { MassetLibraryAddresses, Masset__factory } from "types/generated/factories/Masset__factory"
 import { ONE_YEAR } from "@utils/constants"
 import CurveRegistryExchangeABI from "../contracts/peripheral/Curve/CurveRegistryExchange.json"
-import { getBasket, snapConfig, snapMassetStorage, snapTokenStorage } from "./utils/snap-utils"
-
-// Mainnet contract addresses
-const mUsdAddress = "0xe2f2a5C287993345a840Db3B0845fbC70f5935a5"
-
-const config = {
-    a: 135,
-    limits: {
-        min: simpleToExactAmount(5, 16),
-        max: simpleToExactAmount(65, 16),
-    },
-}
+import { getBasket, snapConfig, dumpBassetStorage, dumpConfigStorage, dumpTokenStorage } from "./utils/snap-utils"
 
 interface TxSummary {
     count: number
@@ -237,12 +225,12 @@ const getBalances = async (mAsset: Masset, toBlock: number): Promise<Balances> =
     }
 }
 
-const getMasset = (deployer: Signer): Masset => {
+const getMasset = (deployer: Signer, contractAddress = "0xe2f2a5C287993345a840Db3B0845fbC70f5935a5"): Masset => {
     const linkedAddress: MassetLibraryAddresses = {
         __$1a38b0db2bd175b310a9a3f8697d44eb75$__: "0x1E91F826fa8aA4fa4D3F595898AF3A64dd188848", // Masset Manager
     }
     const mUsdV3Factory = new Masset__factory(linkedAddress, deployer)
-    return mUsdV3Factory.attach(mUsdAddress)
+    return mUsdV3Factory.attach(contractAddress)
 }
 
 const getMints = async (mAsset: Masset, fromBlock: number, startTime: Date, toBlock: number): Promise<TxSummary> => {
@@ -460,8 +448,9 @@ task("mUSD-storage", "Dumps mUSD's storage data")
 
         const mAsset = getMasset(signer)
 
-        await snapTokenStorage(mAsset, toBlockNumber)
-        await snapMassetStorage(mAsset, toBlockNumber)
+        await dumpTokenStorage(mAsset, toBlockNumber)
+        await dumpBassetStorage(mAsset, toBlockNumber)
+        await dumpConfigStorage(mAsset, toBlockNumber)
     })
 
 task("mUSD-snap", "Snaps mUSD")
