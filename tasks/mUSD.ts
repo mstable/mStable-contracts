@@ -14,6 +14,7 @@ import { MassetLibraryAddresses, Masset__factory } from "types/generated/factori
 import { ONE_YEAR } from "@utils/constants"
 import * as MassetV2 from "../test-fork/mUSD/MassetV2.json"
 import CurveRegistryExchangeABI from "../contracts/peripheral/Curve/CurveRegistryExchange.json"
+import { getBasket, snapConfig } from "./utils/snap-utils"
 
 // Mainnet contract addresses
 const mUsdAddress = "0xe2f2a5C287993345a840Db3B0845fbC70f5935a5"
@@ -98,11 +99,11 @@ const snapTokenStorage = async (token: Masset) => {
 }
 
 // Test the existing Masset V2 storage variables
-const snapConfig = async (token: Masset) => {
-    console.log("SwapFee: ", (await token.swapFee()).toString(), simpleToExactAmount(6, 14).toString())
-    console.log("RedemptionFee: ", (await token.redemptionFee()).toString(), simpleToExactAmount(3, 14).toString())
-    console.log("CacheSize: ", (await token.cacheSize()).toString(), simpleToExactAmount(3, 16).toString())
-    console.log("Surplus: ", (await token.surplus()).toString())
+const snapFeeConfig = async (mAsset: Masset) => {
+    console.log("SwapFee: ", (await mAsset.swapFee()).toString(), simpleToExactAmount(6, 14).toString())
+    console.log("RedemptionFee: ", (await mAsset.redemptionFee()).toString(), simpleToExactAmount(3, 14).toString())
+    console.log("CacheSize: ", (await mAsset.cacheSize()).toString(), simpleToExactAmount(3, 16).toString())
+    console.log("Surplus: ", (await mAsset.surplus()).toString())
 }
 
 // Test the new Masset V3 storage variables
@@ -293,9 +294,9 @@ const getMasset = (deployer: Signer): Masset => {
     return mUsdV3Factory.attach(mUsdAddress)
 }
 
-const getMints = async (mBTC: Masset, fromBlock: number, startTime: Date, toBlock: number): Promise<TxSummary> => {
-    const filter = await mBTC.filters.Minted(null, null, null, null, null)
-    const logs = await mBTC.queryFilter(filter, fromBlock, toBlock)
+const getMints = async (mAsset: Masset, fromBlock: number, startTime: Date, toBlock: number): Promise<TxSummary> => {
+    const filter = await mAsset.filters.Minted(null, null, null, null, null)
+    const logs = await mAsset.queryFilter(filter, fromBlock, toBlock)
 
     console.log(`\nMints since block ${fromBlock} at ${startTime.toUTCString()}`)
     console.log("Block#\t Tx hash\t\t\t\t\t\t\t    bAsset     Quantity")
@@ -315,9 +316,9 @@ const getMints = async (mBTC: Masset, fromBlock: number, startTime: Date, toBloc
     }
 }
 
-const getMultiMints = async (mBTC: Masset, fromBlock: number, startTime: Date, toBlock: number): Promise<TxSummary> => {
-    const filter = await mBTC.filters.MintedMulti(null, null, null, null, null)
-    const logs = await mBTC.queryFilter(filter, fromBlock, toBlock)
+const getMultiMints = async (mAsset: Masset, fromBlock: number, startTime: Date, toBlock: number): Promise<TxSummary> => {
+    const filter = await mAsset.filters.MintedMulti(null, null, null, null, null)
+    const logs = await mAsset.queryFilter(filter, fromBlock, toBlock)
 
     console.log(`\nMulti Mints since block ${fromBlock} at ${startTime.toUTCString()}`)
     console.log("Block#\t Tx hash\t\t\t\t\t\t\t\t  Quantity")
@@ -342,9 +343,9 @@ const getMultiMints = async (mBTC: Masset, fromBlock: number, startTime: Date, t
     }
 }
 
-const getSwaps = async (mBTC: Masset, fromBlock: number, startTime: Date, toBlock: number): Promise<TxSummary> => {
-    const filter = await mBTC.filters.Swapped(null, null, null, null, null, null)
-    const logs = await mBTC.queryFilter(filter, fromBlock, toBlock)
+const getSwaps = async (mAsset: Masset, fromBlock: number, startTime: Date, toBlock: number): Promise<TxSummary> => {
+    const filter = await mAsset.filters.Swapped(null, null, null, null, null, null)
+    const logs = await mAsset.queryFilter(filter, fromBlock, toBlock)
 
     console.log(`\nSwaps since block ${fromBlock} at ${startTime.toUTCString()}`)
     console.log("Block#\t Tx hash\t\t\t\t\t\t\t    Input Output     Quantity      Fee")
@@ -374,9 +375,9 @@ const getSwaps = async (mBTC: Masset, fromBlock: number, startTime: Date, toBloc
     }
 }
 
-const getRedemptions = async (mBTC: Masset, fromBlock: number, startTime: Date, toBlock: number): Promise<TxSummary> => {
-    const filter = await mBTC.filters.Redeemed(null, null, null, null, null, null)
-    const logs = await mBTC.queryFilter(filter, fromBlock, toBlock)
+const getRedemptions = async (mAsset: Masset, fromBlock: number, startTime: Date, toBlock: number): Promise<TxSummary> => {
+    const filter = await mAsset.filters.Redeemed(null, null, null, null, null, null)
+    const logs = await mAsset.queryFilter(filter, fromBlock, toBlock)
 
     console.log(`\nRedemptions since block ${fromBlock} at ${startTime.toUTCString()}`)
     console.log("Block#\t Tx hash\t\t\t\t\t\t\t    bAsset     Quantity      Fee")
@@ -405,9 +406,9 @@ const getRedemptions = async (mBTC: Masset, fromBlock: number, startTime: Date, 
     }
 }
 
-const getMultiRedemptions = async (mBTC: Masset, fromBlock: number, startTime: Date, toBlock: number): Promise<TxSummary> => {
-    const filter = await mBTC.filters.RedeemedMulti(null, null, null, null, null, null)
-    const logs = await mBTC.queryFilter(filter, fromBlock, toBlock)
+const getMultiRedemptions = async (mAsset: Masset, fromBlock: number, startTime: Date, toBlock: number): Promise<TxSummary> => {
+    const filter = await mAsset.filters.RedeemedMulti(null, null, null, null, null, null)
+    const logs = await mAsset.queryFilter(filter, fromBlock, toBlock)
 
     console.log(`\nMulti Redemptions since block ${fromBlock} at ${startTime.toUTCString()}`)
     console.log("Block#\t Tx hash\t\t\t\t\t\t\t\t  Quantity      Fee")
@@ -509,7 +510,7 @@ task("mUSD-snapv2", "Snaps mUSD's V2 storage")
         const mUSD = mUsdV2Factory.attach(mUsdAddress) as Masset
 
         await snapTokenStorage(mUSD)
-        await snapConfig(mUSD)
+        await snapFeeConfig(mUSD)
         await getBalances(mUSD, toBlockNumber)
     })
 
@@ -525,7 +526,7 @@ task("mUSD-snapv3", "Snaps mUSD's V3 storage")
         const mUSD = getMasset(signer)
 
         await snapTokenStorage(mUSD)
-        await snapConfig(mUSD)
+        await snapFeeConfig(mUSD)
         await getBalances(mUSD, toBlockNumber)
         await snapMasset(mUSD, validatorAddress)
     })
@@ -546,6 +547,13 @@ task("mUSD-snap", "Snaps mUSD")
         console.log(`To block ${toBlockNumber}, ${endTime.toUTCString()}`)
         const startBlock = await ethers.provider.getBlock(fromBlock)
         const startTime = new Date(startBlock.timestamp * 1000)
+
+        await getBasket(
+            mUSD,
+            bAssets.map((b) => b.symbol),
+            "mUSD",
+        )
+        await snapConfig(mUSD, toBlockNumber)
 
         const balances = await getBalances(mUSD, toBlockNumber)
 
