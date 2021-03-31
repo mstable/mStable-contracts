@@ -7,10 +7,10 @@ export default {
         hardhat: {
             allowUnlimitedContractSize: false,
             blockGasLimit: 9000000,
-            gasPrice: 50000000000,
+            gasPrice: 151000000000,
             forking: {
                 url: process.env.NODE_URL || "",
-                blockNumber: 12142090,
+                blockNumber: 12146547,
             },
         },
     },

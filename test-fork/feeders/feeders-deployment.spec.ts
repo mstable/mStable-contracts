@@ -88,7 +88,7 @@ interface FeederData {
     vault?: BoostedSavingsVault
 }
 
-const COEFF = 45
+const COEFF = 48
 
 interface Config {
     a: BN
@@ -96,22 +96,6 @@ interface Config {
         min: BN
         max: BN
     }
-}
-
-const deployFasset = async (sender: Signer, name: string, symbol: string, decimals = 18, initialMint = 500000): Promise<MockERC20> => {
-    // Implementation
-    const impl = await new MockInitializableToken__factory(sender).deploy()
-    await impl.deployTransaction.wait()
-
-    // Initialization Data
-    const data = impl.interface.encodeFunctionData("initialize", [name, symbol, decimals, await sender.getAddress(), initialMint])
-    // Proxy
-    const proxy = await new AssetProxy__factory(sender).deploy(impl.address, DEAD_ADDRESS, data)
-    const receipt = await proxy.deployTransaction.wait()
-
-    console.log(`Deployed ${name} (${symbol}) to address ${proxy.address}. gas used ${receipt.gasUsed}`)
-
-    return new MockERC20__factory(sender).attach(proxy.address)
 }
 
 const deployFeederPool = async (sender: Signer, addresses: CommonAddresses, feederData: FeederData): Promise<FeederPool> => {
@@ -152,10 +136,13 @@ const deployFeederPool = async (sender: Signer, addresses: CommonAddresses, feed
 
     // Initialization Data
     const mpAssets = (await feederPoolFactory.attach(feederData.mAsset.address).getBassets())[0].map((p) => p[0])
+    console.log(`mpAssets. count = ${mpAssets.length}, list: `, mpAssets)
     console.log(
-        `Initializing FeederPool with: ${feederData.name}, ${feederData.symbol}, ${feederData.mAsset.address}, ${
+        `Initializing FeederPool with: ${feederData.name}, ${feederData.symbol}, mAsset ${feederData.mAsset.address}, fAsset ${
             feederData.fAsset.contract.address
-        }, ${feederData.config.a.toString()}, ${feederData.config.limits.min.toString()}, ${feederData.config.limits.max.toString()}`,
+        }, A: ${feederData.config.a.toString()}, min: ${formatEther(feederData.config.limits.min)}, max: ${formatEther(
+            feederData.config.limits.max,
+        )}`,
     )
     const data = impl.interface.encodeFunctionData("initialize", [
         feederData.name,
@@ -207,7 +194,7 @@ const mint = async (sender: Signer, bAssets: DeployedFasset[], feederData: Feede
         const receiptApprove = await tx.wait()
         console.log(
             // eslint-disable-next-line
-            `Approved FeederPool to transfer ${approval.toString()} ${bAsset.symbol} from ${await sender.getAddress()}. gas used ${
+            `Approved FeederPool to transfer ${formatUnits(approval, dec)} ${bAsset.symbol} from ${await sender.getAddress()}. gas used ${
                 receiptApprove.gasUsed
             }`,
         )
@@ -250,6 +237,11 @@ const deployVault = async (
     vaultSymbol: string,
     depositAmt = BN.from(0),
 ): Promise<BoostedSavingsVault> => {
+    console.log(
+        `Deploying Vault Impl with LP token ${lpToken}, director ${addresses.boostDirector}, priceCoeff ${formatEther(
+            priceCoeff,
+        )}, coeff ${COEFF}, mta: ${addresses.mta}}`,
+    )
     const vImpl = await new BoostedSavingsVault__factory(sender).deploy(
         addresses.nexus,
         lpToken,
@@ -262,7 +254,9 @@ const deployVault = async (
     console.log(`Deployed Vault Impl to ${vImpl.address}. gas used ${receiptVaultImpl.gasUsed}`)
 
     // Data
-    console.log(`Initializing Vault with: ${addresses.rewardsDistributor}, ${vaultName}, ${vaultSymbol}`)
+    console.log(
+        `Initializing Vault with: distributor: ${addresses.rewardsDistributor}, admin ${addresses.proxyAdmin}, ${vaultName}, ${vaultSymbol}`,
+    )
     const vData = vImpl.interface.encodeFunctionData("initialize", [addresses.rewardsDistributor, vaultName, vaultSymbol])
     // Proxy
     const vProxy = await new AssetProxy__factory(sender).deploy(vImpl.address, addresses.proxyAdmin, vData)
@@ -320,7 +314,7 @@ context("deploying feeder", () => {
                 {
                     forking: {
                         jsonRpcUrl: process.env.NODE_URL,
-                        blockNumber: 12142090,
+                        blockNumber: 12146547,
                     },
                 },
             ],
@@ -371,11 +365,6 @@ context("deploying feeder", () => {
                 A: BN.from(225),
             },
         ]
-
-        // TODO - PRE-DEPLOY
-        //      - finalise vault settings & check config
-        //      - change COEFF here
-        //      - Run on Mainnet fork
 
         // 1.    Deploy boostDirector & Libraries
         const start = await deployer.getBalance()
@@ -481,23 +470,12 @@ context("deploying feeder", () => {
         //        - initialize boostDirector with pools
         console.log(`\n~~~~~ PHASE 3 - ETC ~~~~~\n\n`)
         console.log("Remaining ETH in deployer: ", formatUnits(await deployer.getBalance()))
-        console.log(
-            `Initializing BoostDirector...`,
-            data.map((d) => d.vault.address),
-        )
+        console.log(`Initializing BoostDirector...`, [...data.map((d) => d.vault.address), imBTC.address])
         const directorInit = await director.initialize(data.map((d) => d.vault.address))
         await directorInit.wait()
         //        - if aToken != 0: deploy integrator & initialize with fPool & aToken addr
-        const whale = await impersonate(ethWhaleAddress)
-        await whale.sendTransaction({
-            to: governorAddress,
-            value: simpleToExactAmount(10),
-        })
-
-        const gov = await impersonate(governorAddress)
         // eslint-disable-next-line
         for (const poolData of data) {
-            await impersonate(deployerAddress)
             if (poolData.aToken !== ZERO_ADDRESS) {
                 const integration = await new AaveV2Integration__factory(deployer).deploy(
                     addresses.nexus,
@@ -511,16 +489,8 @@ context("deploying feeder", () => {
                 console.log(`Initializing pToken ${poolData.aToken} for bAsset ${poolData.fAsset.address}...`)
                 const init = await integration.initialize([poolData.fAsset.address], [poolData.aToken])
                 await init.wait()
-
-                console.log("Migrating funds...")
-
-                await impersonate(governorAddress)
-                const migrate = await poolData.pool.connect(gov).migrateBassets([poolData.fAsset.address], integration.address)
-                await migrate.wait()
-                console.log("Migrated!")
             }
         }
-        await impersonate(deployerAddress)
         //        - deploy feederRouter
         console.log("Deploying feederRouter...")
         await deployFeederWrapper(

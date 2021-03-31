@@ -6,7 +6,7 @@ import "tsconfig-paths/register"
 import { DEAD_ADDRESS, ZERO_ADDRESS } from "@utils/constants"
 import { Signer } from "ethers"
 import { task } from "hardhat/config"
-import { formatEther } from "ethers/lib/utils"
+import { formatEther, formatUnits } from "ethers/lib/utils"
 import {
     FeederPool,
     FeederPool__factory,
@@ -71,7 +71,7 @@ interface FeederData {
     vault?: BoostedSavingsVault
 }
 
-const COEFF = 43
+const COEFF = 48
 
 interface Config {
     a: BN
@@ -135,10 +135,13 @@ const deployFeederPool = async (sender: Signer, addresses: CommonAddresses, ethe
 
     // Initialization Data
     const mpAssets = (await feederPoolFactory.attach(feederData.mAsset.address).getBassets())[0].map((p) => p[0])
+    console.log(`mpAssets. count = ${mpAssets.length}, list: `, mpAssets)
     console.log(
-        `Initializing FeederPool with: ${feederData.name}, ${feederData.symbol}, ${feederData.mAsset.address}, ${
+        `Initializing FeederPool with: ${feederData.name}, ${feederData.symbol}, mAsset ${feederData.mAsset.address}, fAsset ${
             feederData.fAsset.contract.address
-        }, ${feederData.config.a.toString()}, ${feederData.config.limits.min.toString()}, ${feederData.config.limits.max.toString()}`,
+        }, A: ${feederData.config.a.toString()}, min: ${formatEther(feederData.config.limits.min)}, max: ${formatEther(
+            feederData.config.limits.max,
+        )}`,
     )
     const data = impl.interface.encodeFunctionData("initialize", [
         feederData.name,
@@ -190,7 +193,7 @@ const mint = async (sender: Signer, bAssets: DeployedFasset[], feederData: Feede
         const receiptApprove = await tx.wait()
         console.log(
             // eslint-disable-next-line
-            `Approved FeederPool to transfer ${approval.toString()} ${bAsset.symbol} from ${await sender.getAddress()}. gas used ${
+            `Approved FeederPool to transfer ${formatUnits(approval, dec)} ${bAsset.symbol} from ${await sender.getAddress()}. gas used ${
                 receiptApprove.gasUsed
             }`,
         )
@@ -233,6 +236,11 @@ const deployVault = async (
     vaultSymbol: string,
     depositAmt = BN.from(0),
 ): Promise<BoostedSavingsVault> => {
+    console.log(
+        `Deploying Vault Impl with LP token ${lpToken}, director ${addresses.boostDirector}, priceCoeff ${formatEther(
+            priceCoeff,
+        )}, coeff ${COEFF}, mta: ${addresses.mta}}`,
+    )
     const vImpl = await new BoostedSavingsVault__factory(sender).deploy(
         addresses.nexus,
         lpToken,
@@ -245,7 +253,9 @@ const deployVault = async (
     console.log(`Deployed Vault Impl to ${vImpl.address}. gas used ${receiptVaultImpl.gasUsed}`)
 
     // Data
-    console.log(`Initializing Vault with: ${addresses.rewardsDistributor}, ${vaultName}, ${vaultSymbol}`)
+    console.log(
+        `Initializing Vault with: distributor: ${addresses.rewardsDistributor}, admin ${addresses.proxyAdmin}, ${vaultName}, ${vaultSymbol}`,
+    )
     const vData = vImpl.interface.encodeFunctionData("initialize", [addresses.rewardsDistributor, vaultName, vaultSymbol])
     // Proxy
     const vProxy = await new AssetProxy__factory(sender).deploy(vImpl.address, addresses.proxyAdmin, vData)
@@ -421,7 +431,6 @@ task("deployFeeder", "Deploys a feeder pool").setAction(async (_, hre) => {
     // - deploy feederRouter
     // - add InterestValidator as a module
 })
-
 task("deployFeeder-mainnet", "Deploys all the feeder pools and required contracts").setAction(async (_, hre) => {
     const { ethers, network } = hre
     if (network.name !== "mainnet") throw Error("Must be mainnet")
@@ -472,7 +481,9 @@ task("deployFeeder-mainnet", "Deploys all the feeder pools and required contract
     ]
 
     // 1.    Deploy boostDirector & Libraries
+    const start = await deployer.getBalance()
     console.log(`\n~~~~~ PHASE 1 - LIBS ~~~~~\n\n`)
+    console.log("Remaining ETH in deployer: ", formatUnits(await deployer.getBalance()))
     console.log(`Deploying BoostDirector with ${addresses.nexus}, ${addresses.staking}`)
     const director = await new BoostDirector__factory(deployer).deploy(addresses.nexus, addresses.staking)
     await director.deployTransaction.wait()
@@ -494,6 +505,7 @@ task("deployFeeder-mainnet", "Deploys all the feeder pools and required contract
 
     // 2.1   Deploy imBTC vault & deposit
     console.log(`\n~~~~~ PHASE 2 - POOLS ~~~~~\n\n`)
+    console.log("Remaining ETH in deployer: ", formatUnits(await deployer.getBalance()))
     const imBTC = await deployVault(
         deployer,
         addresses,
@@ -549,6 +561,7 @@ task("deployFeeder-mainnet", "Deploys all the feeder pools and required contract
     // eslint-disable-next-line
     for (const poolData of data) {
         console.log(`\n~~~~~ POOL ${poolData.symbol} ~~~~~\n\n`)
+        console.log("Remaining ETH in deployer: ", formatUnits(await deployer.getBalance()))
         // Deploy Feeder Pool
         const feederPool = await deployFeederPool(deployer, addresses, ethers, poolData)
         poolData.pool = feederPool
@@ -570,10 +583,8 @@ task("deployFeeder-mainnet", "Deploys all the feeder pools and required contract
     // 3.    Clean
     //        - initialize boostDirector with pools
     console.log(`\n~~~~~ PHASE 3 - ETC ~~~~~\n\n`)
-    console.log(
-        `Initializing BoostDirector...`,
-        data.map((d) => d.vault.address),
-    )
+    console.log("Remaining ETH in deployer: ", formatUnits(await deployer.getBalance()))
+    console.log(`Initializing BoostDirector...`, [...data.map((d) => d.vault.address), imBTC.address])
     const directorInit = await director.initialize(data.map((d) => d.vault.address))
     await directorInit.wait()
     //        - if aToken != 0: deploy integrator & initialize with fPool & aToken addr
@@ -607,9 +618,13 @@ task("deployFeeder-mainnet", "Deploys all the feeder pools and required contract
     console.log(`Deployed Interest Validator to ${interestValidator.address}. gas used ${deployReceipt.gasUsed}`)
     console.log(`\n~~~~~ 🥳 CONGRATS! Time for Phase 4 🥳 ~~~~~\n\n`)
     // 4.    Post
+    //        -  Fund small amt to vaults
     //        -  migrate GUSD & bUSD to aave
     //        -  Add InterestValidator as a module
     //        -  Fund vaults
+    console.log("Remaining ETH in deployer: ", formatUnits(await deployer.getBalance()))
+    const end = await deployer.getBalance()
+    console.log("Total ETH used: ", formatUnits(end.sub(start)))
 })
 
 module.exports = {}
