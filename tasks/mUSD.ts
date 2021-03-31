@@ -4,7 +4,7 @@
 import "ts-node/register"
 import "tsconfig-paths/register"
 import { task, types } from "hardhat/config"
-import { Contract, ContractFactory, Signer } from "ethers"
+import { Contract, Signer } from "ethers"
 import { formatUnits } from "ethers/lib/utils"
 
 import { Masset } from "types/generated"
@@ -12,13 +12,11 @@ import { BN, simpleToExactAmount, applyDecimals } from "@utils/math"
 import { BassetStatus } from "@utils/mstable-objects"
 import { MassetLibraryAddresses, Masset__factory } from "types/generated/factories/Masset__factory"
 import { ONE_YEAR } from "@utils/constants"
-import * as MassetV2 from "../test-fork/mUSD/MassetV2.json"
 import CurveRegistryExchangeABI from "../contracts/peripheral/Curve/CurveRegistryExchange.json"
-import { getBasket, snapConfig } from "./utils/snap-utils"
+import { getBasket, snapConfig, snapMassetStorage, snapTokenStorage } from "./utils/snap-utils"
 
 // Mainnet contract addresses
 const mUsdAddress = "0xe2f2a5C287993345a840Db3B0845fbC70f5935a5"
-const validatorAddress = "0xCa480D596e6717C95a62a4DC1bD4fbD7b7E7d705"
 
 const config = {
     a: 135,
@@ -87,53 +85,6 @@ const formatUsd = (amount, decimals = 18, pad = 14, displayDecimals = 2): string
     const string2decimals = parseFloat(formatUnits(amount, decimals)).toFixed(displayDecimals)
     // Add thousands separator
     return string2decimals.replace(/\B(?=(\d{3})+(?!\d))/g, ",").padStart(pad)
-}
-
-// Test mUSD token storage variables
-const snapTokenStorage = async (token: Masset) => {
-    console.log("Symbol: ", (await token.symbol()).toString(), "mUSD")
-    console.log("Name: ", (await token.name()).toString(), "mStable USD")
-    console.log("Decimals: ", (await token.decimals()).toString(), 18)
-    console.log("UserBal: ", (await token.balanceOf("0x5C80E54f903458edD0723e268377f5768C7869d7")).toString(), "6971708003000000000000")
-    console.log("Supply: ", (await token.totalSupply()).toString(), simpleToExactAmount(43000000).toString())
-}
-
-// Test the existing Masset V2 storage variables
-const snapFeeConfig = async (mAsset: Masset) => {
-    console.log("SwapFee: ", (await mAsset.swapFee()).toString(), simpleToExactAmount(6, 14).toString())
-    console.log("RedemptionFee: ", (await mAsset.redemptionFee()).toString(), simpleToExactAmount(3, 14).toString())
-    console.log("CacheSize: ", (await mAsset.cacheSize()).toString(), simpleToExactAmount(3, 16).toString())
-    console.log("Surplus: ", (await mAsset.surplus()).toString())
-}
-
-// Test the new Masset V3 storage variables
-const snapMasset = async (mUsd: Masset, validator: string) => {
-    console.log("ForgeValidator: ", (await mUsd.forgeValidator()).toString(), validator)
-    console.log("MaxBassets: ", (await mUsd.maxBassets()).toString(), 10)
-
-    // bAsset personal data
-    const contractBassets = await mUsd.getBassets()
-    bAssets.forEach(async (token, i) => {
-        console.log(`Addr${i}`, contractBassets.personal[i].addr.toString(), token.address)
-        console.log(`Integ${i}`, contractBassets.personal[i].integrator.toString(), token.integrator)
-        console.log(`TxFee${i}`, contractBassets.personal[i].hasTxFee.toString(), "false")
-        console.log(`Status${i}`, contractBassets.personal[i].status.toString(), BassetStatus.Normal)
-        console.log(`Ratio${i}`, contractBassets.data[i].ratio.toString(), simpleToExactAmount(1, 8 + (18 - token.decimals)).toString())
-        console.log(`Vault${i}`, contractBassets.data[i].vaultBalance.toString(), token.vaultBalance.toString())
-        console.log(await mUsd.bAssetIndexes(token.address), i)
-        const bAsset = await mUsd.getBasset(token.address)
-        console.log("Sanity check: ", bAsset[0][0], token.address)
-    })
-
-    // Get basket state
-    const basketState = await mUsd.basket()
-    console.log("UndergoingRecol: ", basketState.undergoingRecol, "true")
-    console.log("Failed: ", basketState.failed, "false")
-
-    const invariantConfig = await mUsd.getConfig()
-    console.log("A: ", invariantConfig.a.toString(), config.a * 100)
-    console.log("Min: ", invariantConfig.limits.min.toString(), config.limits.min.toString())
-    console.log("Max: ", invariantConfig.limits.max.toString(), config.limits.max.toString())
 }
 
 /**
@@ -498,24 +449,8 @@ const outputFees = (
     console.log(`${liquidityUtilization}% liquidity utilization  (${formatUsd(totalFeeTransactions)} of ${formatUsd(balances.total)} mUSD)`)
 }
 
-task("mUSD-snapv2", "Snaps mUSD's V2 storage")
-    .addOptionalParam("to", "Block to query transaction events to. (default: current block)", 0, types.int)
-    .setAction(async (taskArgs, hre) => {
-        const { ethers } = hre
-        const toBlockNumber = taskArgs.to ? taskArgs.to : await ethers.provider.getBlockNumber()
-        console.log(`Block number ${toBlockNumber}`)
-        const [signer] = await ethers.getSigners()
-
-        const mUsdV2Factory = new ContractFactory(MassetV2.abi, MassetV2.bytecode, signer)
-        const mUSD = mUsdV2Factory.attach(mUsdAddress) as Masset
-
-        await snapTokenStorage(mUSD)
-        await snapFeeConfig(mUSD)
-        await getBalances(mUSD, toBlockNumber)
-    })
-
-task("mUSD-snapv3", "Snaps mUSD's V3 storage")
-    .addOptionalParam("to", "Block to query transaction events to. (default: current block)", 0, types.int)
+task("mUSD-storage", "Dumps mUSD's storage data")
+    .addOptionalParam("block", "Block number to get storage from. (default: current block)", 0, types.int)
     .setAction(async (taskArgs, hre) => {
         const { ethers } = hre
 
@@ -523,12 +458,10 @@ task("mUSD-snapv3", "Snaps mUSD's V3 storage")
         console.log(`Block number ${toBlockNumber}`)
         const [signer] = await ethers.getSigners()
 
-        const mUSD = getMasset(signer)
+        const mAsset = getMasset(signer)
 
-        await snapTokenStorage(mUSD)
-        await snapFeeConfig(mUSD)
-        await getBalances(mUSD, toBlockNumber)
-        await snapMasset(mUSD, validatorAddress)
+        await snapTokenStorage(mAsset, toBlockNumber)
+        await snapMassetStorage(mAsset, toBlockNumber)
     })
 
 task("mUSD-snap", "Snaps mUSD")

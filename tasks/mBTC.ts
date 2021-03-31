@@ -9,7 +9,7 @@ import { formatUnits } from "ethers/lib/utils"
 import { task, types } from "hardhat/config"
 import { Masset, Masset__factory } from "types/generated"
 import CurveRegistryExchangeABI from "../contracts/peripheral/Curve/CurveRegistryExchange.json"
-import { getBasket, snapConfig } from "./utils/snap-utils"
+import { getBasket, snapConfig, snapMassetStorage, snapTokenStorage } from "./utils/snap-utils"
 
 interface TxSummary {
     total: BN
@@ -375,6 +375,21 @@ const getMasset = (signer: Signer): Masset => {
     const mMassetFactory = new Masset__factory(linkedAddress, signer)
     return mMassetFactory.attach(contracts.mainnet.mBTC)
 }
+
+task("mBTC-storage", "Dumps mBTC's storage data")
+    .addOptionalParam("block", "Block number to get storage from. (default: current block)", 0, types.int)
+    .setAction(async (taskArgs, hre) => {
+        const { ethers } = hre
+
+        const toBlockNumber = taskArgs.to ? taskArgs.to : await ethers.provider.getBlockNumber()
+        console.log(`Block number ${toBlockNumber}`)
+        const [signer] = await ethers.getSigners()
+
+        const mAsset = getMasset(signer)
+
+        await snapTokenStorage(mAsset, toBlockNumber)
+        await snapMassetStorage(mAsset, toBlockNumber)
+    })
 
 task("mBTC-snap", "Get the latest data from the mBTC contracts")
     .addOptionalParam("from", "Block to query transaction events from. (default: deployment block)", 11840520, types.int)

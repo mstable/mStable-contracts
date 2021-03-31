@@ -72,3 +72,53 @@ export const getBasket = async (mAsset: Masset, bAssetSymbols: string[], mAssetN
         console.log(`TVL cap   ${formatUnits(tvlCap).padStart(21)} ${tvlCapPercentage}%`)
     }
 }
+
+// Get mAsset token storage variables
+export const snapTokenStorage = async (mAsset: Masset, toBlock: number) => {
+    const override = {
+        blockTag: toBlock,
+    }
+    console.log("\nSymbol: ", (await mAsset.symbol(override)).toString())
+    console.log("Name: ", (await mAsset.name(override)).toString())
+    console.log("Decimals: ", (await mAsset.decimals(override)).toString())
+    console.log("Supply: ", (await mAsset.totalSupply(override)).toString())
+}
+
+// Get Masset storage variables
+export const snapMassetStorage = async (mAsset: Masset, toBlock: number) => {
+    const override = {
+        blockTag: toBlock,
+    }
+    console.log("\nForgeValidator: ", (await mAsset.forgeValidator(override)).toString())
+    console.log("MaxBassets: ", (await mAsset.maxBassets(override)).toString())
+
+    // bAsset personal data
+    console.log("\nbAssets")
+    const contractBassets = await mAsset.getBassets(override)
+    contractBassets.forEach(async (_, i) => {
+        console.log(`Addr${i}`, contractBassets.personal[i].addr.toString())
+        console.log(`Integ${i}`, contractBassets.personal[i].integrator.toString())
+        console.log(`TxFee${i}`, contractBassets.personal[i].hasTxFee.toString())
+        console.log(`Status${i}`, contractBassets.personal[i].status.toString())
+        console.log(`Ratio${i}`, contractBassets.data[i].ratio.toString())
+        console.log(`Vault${i}`, contractBassets.data[i].vaultBalance.toString())
+        console.log("\n")
+    })
+
+    // Get basket state
+    const basketState = await mAsset.basket(override)
+    console.log("UndergoingRecol: ", basketState.undergoingRecol)
+    console.log("Failed: ", basketState.failed)
+
+    const invariantConfig = await mAsset.getConfig(override)
+    console.log("A: ", invariantConfig.a.toString())
+    console.log("Min: ", invariantConfig.limits.min.toString())
+    console.log("Max: ", invariantConfig.limits.max.toString())
+
+    console.log("\nFees")
+    console.log("SwapFee: ", (await mAsset.swapFee(override)).toString())
+    console.log("RedemptionFee: ", (await mAsset.redemptionFee(override)).toString())
+
+    console.log("CacheSize: ", (await mAsset.cacheSize(override)).toString())
+    console.log("Surplus: ", (await mAsset.surplus(override)).toString())
+}
