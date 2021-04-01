@@ -6,6 +6,7 @@ export interface Token {
     quantityFormatter: string
     parent?: string
     feederPool?: string
+    saving?: string
 }
 
 // mStable
@@ -59,12 +60,13 @@ export const DAI: Token = {
 // USD Feeder Pool Assets
 export const GUSD: Token = {
     symbol: "GUSD",
-    address: "0x056fd409e1d7a124bd7017459dfea2f387b6d5cd",
+    address: "0x056Fd409E1d7A124BD7017459dFEa2F387b6d5Cd",
     integrator: "0x85306936842Eb09D9Cea45BffAEc7A81D126508D",
     decimals: 2,
     quantityFormatter: "USD",
     parent: "mUSD",
     feederPool: "0x4fB30C5A3aC8e85bC32785518633303C4590752d",
+    saving: "0xAdeeDD3e5768F7882572Ad91065f93BA88343C99",
 }
 export const BUSD: Token = {
     symbol: "BUSD",
@@ -74,6 +76,7 @@ export const BUSD: Token = {
     quantityFormatter: "USD",
     parent: "mUSD",
     feederPool: "0xfE842e95f8911dcc21c943a1dAA4bd641a1381c6",
+    saving: "0xD124B55f70D374F58455c8AEdf308E52Cf2A6207",
 }
 
 // BTC
@@ -107,6 +110,7 @@ export const HBTC: Token = {
     parent: "mBTC",
     quantityFormatter: "BTC",
     feederPool: "0x48c59199Da51B7E30Ea200a74Ea07974e62C4bA7",
+    saving: "0xF65D53AA6e2E4A5f4F026e73cb3e22C22D75E35C",
 }
 export const TBTC: Token = {
     symbol: "TBTC",
@@ -115,6 +119,7 @@ export const TBTC: Token = {
     parent: "mBTC",
     quantityFormatter: "BTC",
     feederPool: "0xb61A6F928B3f069A68469DDb670F20eEeB4921e0",
+    saving: "0x760ea8CfDcC4e78d8b9cA3088ECD460246DC0731",
 }
 
 export const tokens = [mUSD, mBTC, sUSD, USDC, USDT, DAI, GUSD, BUSD, renBTC, sBTC, WBTC, HBTC, TBTC]

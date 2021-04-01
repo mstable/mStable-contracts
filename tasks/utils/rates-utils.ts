@@ -7,19 +7,7 @@ import { applyDecimals, BN, simpleToExactAmount } from "@utils/math"
 import { FeederPool, Masset } from "types/generated"
 import CurveRegistryExchangeABI from "../../contracts/peripheral/Curve/CurveRegistryExchange.json"
 import { QuantityFormatter } from "./quantity-formatters"
-
-export interface TxSummary {
-    count: number
-    total: BN
-    fees: BN
-}
-export interface Token {
-    symbol: string
-    address: string
-    integrator?: string
-    decimals: number
-    mainPool?: string
-}
+import { Token } from "./tokens"
 
 export interface Balances {
     total: BN
