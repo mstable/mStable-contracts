@@ -3,154 +3,22 @@
 /* eslint-disable no-console */
 import { Bassets, btcBassets, capFactor, contracts, getBassetFromAddress, startingCap } from "@utils/btcConstants"
 import { ONE_YEAR } from "@utils/constants"
-import { applyDecimals, BN, simpleToExactAmount } from "@utils/math"
-import { Contract, Signer } from "ethers"
+import { applyDecimals, BN } from "@utils/math"
+import { Signer } from "ethers"
 import { formatUnits } from "ethers/lib/utils"
 import { task, types } from "hardhat/config"
 import { Masset, Masset__factory } from "types/generated"
-import CurveRegistryExchangeABI from "../contracts/peripheral/Curve/CurveRegistryExchange.json"
-import { getBasket, snapConfig, dumpTokenStorage, dumpBassetStorage, dumpConfigStorage } from "./utils/snap-utils"
+import { dumpBassetStorage, dumpConfigStorage, dumpTokenStorage } from "./utils/storage-utils"
+import { getBlockRange, getBasket, getBlock, snapConfig, Balances, TxSummary } from "./utils/snap-utils"
+import { Token, renBTC, sBTC, WBTC } from "./utils/tokens"
+import { getSwapRates } from "./utils/rates-utils"
 
-interface TxSummary {
-    total: BN
-    fees: BN
-}
+const mBtcBassets: Token[] = [renBTC, sBTC, WBTC]
 
-interface Token {
-    symbol: string
-    address: string
-    integrator: string
-    decimals: number
-    vaultBalance: BN
-    ratio: BN
-}
-interface Balances {
-    total: BN
-    save: BN
-    earn: BN
-}
-
-const formatBtc = (amount, decimals = 18, pad = 7, displayDecimals = 3): string => {
+const btcFormatter = (amount, decimals = 18, pad = 7, displayDecimals = 3): string => {
     const string2decimals = parseFloat(formatUnits(amount, decimals)).toFixed(displayDecimals)
     // Add thousands separator
     return string2decimals.replace(/\B(?=(\d{3})+(?!\d))/g, ",").padStart(pad)
-}
-
-/**
-                    Swap Rates
-*/
-
-interface SwapRate {
-    inputToken: Token
-    inputAmountRaw: BN
-    outputToken: Token
-    mOutputRaw: BN
-    curveOutputRaw: BN
-    curveInverseOutputRaw: BN
-}
-const outputSwapRate = (swap: SwapRate) => {
-    const { inputToken, outputToken, mOutputRaw, curveOutputRaw } = swap
-    const inputScaled = applyDecimals(swap.inputAmountRaw, inputToken.decimals)
-
-    // Process mUSD swap output
-    const mOutputScaled = applyDecimals(mOutputRaw, outputToken.decimals)
-    const mBasicPoints = mOutputScaled.sub(inputScaled).mul(10000).div(inputScaled)
-
-    // Process Curve's swap output
-    const curveOutputScaled = applyDecimals(curveOutputRaw, outputToken.decimals)
-    const curvePercent = curveOutputScaled.sub(inputScaled).mul(10000).div(inputScaled)
-
-    // Calculate the difference between the mUSD and Curve outputs in basis points
-    const diffOutputs = mOutputRaw.sub(curveOutputRaw).mul(10000).div(mOutputRaw)
-
-    // Calculate if there's an arbitrage = inverse curve output - input
-    const curveInverseOutputScaled = applyDecimals(swap.curveInverseOutputRaw, swap.inputToken.decimals)
-    const arbProfit = curveInverseOutputScaled.sub(inputScaled)
-
-    console.log(
-        `${formatBtc(swap.inputAmountRaw, inputToken.decimals, 3, 0)} ${inputToken.symbol.padEnd(6)} -> ${outputToken.symbol.padEnd(
-            6,
-        )} ${formatBtc(mOutputRaw, outputToken.decimals)} ${mBasicPoints.toString().padStart(4)}bps Curve ${formatBtc(
-            curveOutputRaw,
-            outputToken.decimals,
-        )} ${curvePercent.toString().padStart(4)}bps ${diffOutputs.toString().padStart(4)}bps ${formatBtc(arbProfit, 18)}`,
-    )
-}
-const outputSwapRates = (swaps: SwapRate[], toBlock: number) => {
-    console.log(`\nSwap rates for block ${toBlock}`)
-    console.log("Qty  Input    Output Qty Out    Rate        Output    Rate    Diff    Arb$")
-    swaps.forEach((swap) => {
-        outputSwapRate(swap)
-    })
-}
-const getSwapRates = async (mAsset: Masset, toBlock: number, inputAmount = BN.from("1000")): Promise<SwapRate[]> => {
-    // Get Curve Exchange
-    const curve = new Contract("0xD1602F68CC7C4c7B59D686243EA35a9C73B0c6a2", CurveRegistryExchangeABI, mAsset.signer)
-
-    const pairs = []
-    const mStableSwapPromises = []
-    // Get mUSD swap rates
-    for (const inputToken of btcBassets) {
-        for (const outputToken of btcBassets) {
-            if (inputToken.symbol !== outputToken.symbol) {
-                const inputAddress = contracts.mainnet[inputToken.symbol]
-                const outputAddress = contracts.mainnet[outputToken.symbol]
-                pairs.push({
-                    inputToken: {
-                        ...inputToken,
-                        address: inputAddress,
-                    },
-                    outputToken: {
-                        ...outputToken,
-                        address: outputAddress,
-                    },
-                })
-                const inputAmountRaw = simpleToExactAmount(inputAmount, inputToken.decimals)
-                mStableSwapPromises.push(
-                    mAsset.getSwapOutput(inputAddress, outputAddress, inputAmountRaw, {
-                        blockTag: toBlock,
-                    }),
-                )
-            }
-        }
-    }
-    // Resolve all the mUSD promises
-    const mStableSwaps = await Promise.all(mStableSwapPromises)
-
-    // Get Curve's best swap rate for each pair and the inverse swap
-    const curveSwapsPromises = []
-    pairs.forEach(({ inputToken, outputToken }, i) => {
-        // Get the matching Curve swap rate
-        const curveSwapPromise = curve.get_best_rate(
-            inputToken.address,
-            outputToken.address,
-            simpleToExactAmount(inputAmount, inputToken.decimals),
-            {
-                blockTag: toBlock,
-            },
-        )
-        // Get the Curve inverse swap rate using mUSD swap output as the input
-        const curveInverseSwapPromise = curve.get_best_rate(outputToken.address, inputToken.address, mStableSwaps[i], {
-            blockTag: toBlock,
-        })
-        curveSwapsPromises.push(curveSwapPromise, curveInverseSwapPromise)
-    })
-    // Resolve all the Curve promises
-    const curveSwaps = await Promise.all(curveSwapsPromises)
-
-    // Merge the mUSD and Curve swaps into one array
-    const swaps: SwapRate[] = pairs.map(({ inputToken, outputToken }, i) => ({
-        inputToken,
-        inputAmountRaw: simpleToExactAmount(inputAmount, inputToken.decimals),
-        outputToken,
-        mOutputRaw: mStableSwaps[i],
-        // This first param of the Curve result is the pool address, the second is the output amount
-        curveOutputRaw: curveSwaps[i * 2][1],
-        curveInverseOutputRaw: curveSwaps[i * 2 + 1][1],
-    }))
-    outputSwapRates(swaps, toBlock)
-
-    return swaps
 }
 
 const getBalances = async (mAsset: Masset, toBlock: number): Promise<Balances> => {
@@ -201,6 +69,7 @@ const getMints = async (mAsset: Masset, fromBlock: number, startTime: Date, toBl
     })
     console.log(`Count ${count}, Total ${formatUnits(total)}`)
     return {
+        count,
         total,
         fees: BN.from(0),
     }
@@ -227,6 +96,7 @@ const getMultiMints = async (mAsset: Masset, fromBlock: number, startTime: Date,
     })
     console.log(`Count ${count}, Total ${formatUnits(total)}`)
     return {
+        count,
         total,
         fees: BN.from(0),
     }
@@ -255,6 +125,7 @@ const getRedemptions = async (mAsset: Masset, fromBlock: number, startTime: Date
     console.log(`Count ${count}, Total ${formatUnits(total)}`)
 
     return {
+        count,
         total,
         fees,
     }
@@ -282,6 +153,7 @@ const getMultiRedemptions = async (mAsset: Masset, fromBlock: number, startTime:
     console.log(`Count ${count}, Total ${formatUnits(total)}`)
 
     return {
+        count,
         total,
         fees,
     }
@@ -313,6 +185,7 @@ const getSwaps = async (mAsset: Masset, fromBlock: number, startTime: Date, toBl
     console.log(`Count ${count}, Total ${formatUnits(total)}`)
 
     return {
+        count,
         total,
         fees,
     }
@@ -336,27 +209,31 @@ const outputFees = (
     const totalTransactions = mints.total.add(multiMints.total).add(redeems.total).add(multiRedeems.total).add(swaps.total)
     const totalFeeTransactions = redeems.total.add(multiRedeems.total).add(swaps.total)
     console.log(`\nFees since ${startTime.toUTCString()}`)
-    console.log("              mBTC Volume\t     Fees\t\t  Fee %")
+    console.log("              #  mBTC Volume\t     Fees\t\t  Fee %")
     console.log(
-        `Mints         ${formatUnits(mints.total).padEnd(22)} ${formatUnits(mints.fees).padEnd(20)} ${mints.fees.mul(100).div(totalFees)}%`,
+        `Mints         ${mints.count.toString().padEnd(2)} ${formatUnits(mints.total).padEnd(22)} ${formatUnits(mints.fees).padEnd(
+            20,
+        )} ${mints.fees.mul(100).div(totalFees)}%`,
     )
     console.log(
-        `Multi Mints   ${formatUnits(multiMints.total).padEnd(22)} ${formatUnits(multiMints.fees).padEnd(20)} ${multiMints.fees
-            .mul(100)
-            .div(totalFees)}%`,
+        `Multi Mints   ${multiMints.count.toString().padEnd(2)} ${formatUnits(multiMints.total).padEnd(22)} ${formatUnits(
+            multiMints.fees,
+        ).padEnd(20)} ${multiMints.fees.mul(100).div(totalFees)}%`,
     )
     console.log(
-        `Redeems       ${formatUnits(redeems.total).padEnd(22)} ${formatUnits(redeems.fees).padEnd(20)} ${redeems.fees
-            .mul(100)
-            .div(totalFees)}%`,
+        `Redeems       ${redeems.count.toString().padEnd(2)} ${formatUnits(redeems.total).padEnd(22)} ${formatUnits(redeems.fees).padEnd(
+            20,
+        )} ${redeems.fees.mul(100).div(totalFees)}%`,
     )
     console.log(
-        `Multi Redeems ${formatUnits(multiRedeems.total).padEnd(22)} ${formatUnits(multiRedeems.fees).padEnd(20)} ${multiRedeems.fees
-            .mul(100)
-            .div(totalFees)}%`,
+        `Multi Redeems ${multiRedeems.count.toString().padEnd(2)} ${formatUnits(multiRedeems.total).padEnd(22)} ${formatUnits(
+            multiRedeems.fees,
+        ).padEnd(20)} ${multiRedeems.fees.mul(100).div(totalFees)}%`,
     )
     console.log(
-        `Swaps         ${formatUnits(swaps.total).padEnd(22)} ${formatUnits(swaps.fees).padEnd(20)} ${swaps.fees.mul(100).div(totalFees)}%`,
+        `Swaps         ${swaps.count.toString().padEnd(2)} ${formatUnits(swaps.total).padEnd(22)} ${formatUnits(swaps.fees).padEnd(
+            20,
+        )} ${swaps.fees.mul(100).div(totalFees)}%`,
     )
     const periodSeconds = BN.from(currentTime.valueOf() - startTime.valueOf()).div(1000)
     const liquidityUtilization = totalFeeTransactions.mul(100).div(balances.total)
@@ -402,12 +279,7 @@ task("mBTC-snap", "Get the latest data from the mBTC contracts")
 
         const mAsset = getMasset(signer)
 
-        const toBlockNumber = taskArgs.to ? taskArgs.to : await ethers.provider.getBlockNumber()
-        const currentTime = new Date()
-        const fromBlock = taskArgs.from
-        console.log(`Latest block ${toBlockNumber}, ${currentTime.toUTCString()}`)
-        const startBlock = await hre.ethers.provider.getBlock(fromBlock)
-        const startTime = new Date(startBlock.timestamp * 1000)
+        const { fromBlock, toBlock } = await getBlockRange(ethers, taskArgs.from, taskArgs.to)
 
         const tvlConfig = {
             startingCap,
@@ -418,36 +290,46 @@ task("mBTC-snap", "Get the latest data from the mBTC contracts")
             mAsset,
             btcBassets.map((b) => b.symbol),
             "mBTC",
+            btcFormatter,
             tvlConfig,
         )
-        await snapConfig(mAsset, toBlockNumber)
+        await snapConfig(mAsset, fromBlock.blockNumber)
 
-        const balances = await getBalances(mAsset, toBlockNumber)
+        const balances = await getBalances(mAsset, fromBlock.blockNumber)
 
-        const mintSummary = await getMints(mAsset, fromBlock, startTime, toBlockNumber)
-        const mintMultiSummary = await getMultiMints(mAsset, fromBlock, startTime, toBlockNumber)
-        const redeemSummary = await getRedemptions(mAsset, fromBlock, startTime, toBlockNumber)
-        const redeemMultiSummary = await getMultiRedemptions(mAsset, fromBlock, startTime, toBlockNumber)
-        const swapSummary = await getSwaps(mAsset, fromBlock, startTime, toBlockNumber)
+        const mintSummary = await getMints(mAsset, fromBlock.blockNumber, fromBlock.blockTime, toBlock.blockNumber)
+        const mintMultiSummary = await getMultiMints(mAsset, fromBlock.blockNumber, fromBlock.blockTime, toBlock.blockNumber)
+        const redeemSummary = await getRedemptions(mAsset, fromBlock.blockNumber, fromBlock.blockTime, toBlock.blockNumber)
+        const redeemMultiSummary = await getMultiRedemptions(mAsset, fromBlock.blockNumber, fromBlock.blockTime, toBlock.blockNumber)
+        const swapSummary = await getSwaps(mAsset, fromBlock.blockNumber, fromBlock.blockTime, toBlock.blockNumber)
 
-        outputFees(mintSummary, mintMultiSummary, swapSummary, redeemSummary, redeemMultiSummary, balances, startTime, currentTime)
+        outputFees(
+            mintSummary,
+            mintMultiSummary,
+            swapSummary,
+            redeemSummary,
+            redeemMultiSummary,
+            balances,
+            fromBlock.blockTime,
+            toBlock.blockTime,
+        )
     })
 
 task("mBTC-rates", "mBTC rate comparison to Curve")
     .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, types.int)
-    .addOptionalParam("swapSize", "Swap size to compare rates with Curve", 10000, types.int)
+    .addOptionalParam("swapSize", "Swap size to compare rates with Curve", 1, types.int)
     .setAction(async (taskArgs, hre) => {
         const { ethers } = hre
         const [signer] = await ethers.getSigners()
 
         const mAsset = await getMasset(signer)
+        const block = await getBlock(ethers, taskArgs.block)
 
-        const toBlockNumber = taskArgs.block ? taskArgs.block : await ethers.provider.getBlockNumber()
-        const toBlock = await ethers.provider.getBlock(toBlockNumber)
-        const endTime = new Date(toBlock.timestamp * 1000)
-        console.log(`Block ${toBlockNumber}, ${endTime.toUTCString()}`)
+        console.log(`\nGetting rates for mBTC at block ${block.blockNumber}, ${block.blockTime.toUTCString()}`)
 
-        await getSwapRates(mAsset, toBlockNumber, BN.from(taskArgs.swapSize))
+        console.log("      Qty Input     Output      Qty Out    Rate             Output    Rate   Diff      Arb$")
+        await getSwapRates(mBtcBassets, mBtcBassets, mAsset, block.blockNumber, btcFormatter, BN.from(taskArgs.swapSize))
+        await snapConfig(mAsset, block.blockNumber)
     })
 
 module.exports = {}

@@ -1,18 +1,85 @@
+/* eslint-disable no-restricted-syntax */
 /* eslint-disable import/prefer-default-export */
 /* eslint-disable no-console */
 
+import { Signer } from "ethers"
 import { fullScale } from "@utils/constants"
 import { applyRatio, BN } from "@utils/math"
-import { Signer } from "ethers"
 import { formatUnits } from "ethers/lib/utils"
 import { FeederPool, Masset, ValidatorWithTVLCap__factory } from "types/generated"
+import { QuantityFormatter } from "./quantity-formatters"
+import { Token } from "./tokens"
+
+export interface TxSummary {
+    count: number
+    total: BN
+    fees: BN
+}
+export interface Balances {
+    total: BN
+    save: BN
+    earn: BN
+}
+
+export interface BlockInfo {
+    blockNumber: number
+    blockTime: Date
+}
+
+export interface BlockRange {
+    fromBlock: BlockInfo
+    toBlock: BlockInfo
+}
+export interface SwapRate {
+    inputToken: Token
+    inputAmountRaw: BN
+    outputToken: Token
+    mOutputRaw: BN
+    curveOutputRaw: BN
+    curveInverseOutputRaw: BN
+}
+
+export const getBlock = async (ethers, _blockNumber?: number): Promise<BlockInfo> => {
+    const blockNumber = _blockNumber || (await ethers.provider.getBlockNumber())
+    const toBlock = await ethers.provider.getBlock(blockNumber)
+    const blockTime = new Date(toBlock.timestamp * 1000)
+
+    return {
+        blockNumber,
+        blockTime,
+    }
+}
+
+export const getBlockRange = async (ethers, fromBlockNumber: number, _toBlockNumber?: number): Promise<BlockRange> => {
+    const toBlockNumber = _toBlockNumber || (await ethers.provider.getBlockNumber())
+    // const toBlock = await ethers.provider.getBlock(toBlockNumber)
+    // const endTime = new Date(toBlock.timestamp * 1000)
+    const toBlock = await getBlock(ethers, _toBlockNumber)
+    const fromBlock = await getBlock(ethers, fromBlockNumber)
+    console.log(
+        `Between blocks ${
+            fromBlock.blockNumber
+        } and ${toBlockNumber}. ${fromBlock.blockTime.toUTCString()} and ${toBlock.blockTime.toUTCString()}`,
+    )
+
+    return {
+        fromBlock,
+        toBlock,
+    }
+}
 
 export const snapConfig = async (mAsset: Masset | FeederPool, toBlock: number): Promise<void> => {
-    const ampData = await mAsset.ampData()
+    let ampData
+    if (mAsset.redeemProportionately) {
+        const fpData = await (mAsset as FeederPool).data()
+        ampData = fpData.ampData
+    } else {
+        ampData = await (mAsset as Masset).ampData()
+    }
     const conf = await mAsset.getConfig({
         blockTag: toBlock,
     })
-    console.log(`\nAmplification coefficient (A): current ${formatUnits(conf.a, 2)}`)
+    console.log(`\nAmplification coefficient (A): ${formatUnits(conf.a, 2)}`)
     const startDate = new Date(ampData.rampStartTime.toNumber() * 1000)
     const endDate = new Date(ampData.rampEndTime.toNumber() * 1000)
     if (startDate.valueOf() !== endDate.valueOf()) {
@@ -40,6 +107,7 @@ export const getBasket = async (
     mAsset: Masset | FeederPool,
     bAssetSymbols: string[],
     mAssetName = "mBTC",
+    quantityFormatter: QuantityFormatter,
     tvlConfig?: TvlConfig,
 ): Promise<void> => {
     const bAssets = await mAsset.getBassets()
@@ -54,19 +122,19 @@ export const getBasket = async (
     console.log(`\n${mAssetName} basket`)
     bAssetSymbols.forEach((symbol, i) => {
         const percentage = bAssetTotals[i].mul(100).div(bAssetsTotal)
-        console.log(`  ${symbol.padEnd(7)}  ${formatUnits(bAssetTotals[i]).padEnd(20)} ${percentage.toString().padStart(2)}%`)
+        console.log(`  ${symbol.padEnd(7)}  ${quantityFormatter(bAssetTotals[i]).padEnd(20)} ${percentage.toString().padStart(2)}%`)
     })
-    console.log(`Total (K)  ${formatUnits(bAssetsTotal)}`)
+    console.log(`Total (K)  ${quantityFormatter(bAssetsTotal)}`)
     const mAssetSurplus = await mAsset.surplus()
     const mAssetSupply = await mAsset.totalSupply()
-    console.log(`Surplus    ${formatUnits(mAssetSurplus)}`)
-    console.log(`${mAssetName}       ${formatUnits(mAssetSupply)}`)
+    console.log(`Surplus    ${quantityFormatter(mAssetSurplus)}`)
+    console.log(`${mAssetName}       ${quantityFormatter(mAssetSupply)}`)
     const mAssetTotal = mAssetSupply.add(mAssetSurplus)
     // Sum of base assets less mAsset total supply less mAsset surplus
     const bAssetMassetDiff = bAssetsTotal.sub(mAssetTotal)
     const bAssetMassetDiffBasisPoints = bAssetMassetDiff.mul(10000).div(mAssetTotal)
     console.log(
-        `Total ${mAssetName} ${formatUnits(mAssetTotal)} (${formatUnits(
+        `Total ${mAssetName} ${quantityFormatter(mAssetTotal)} (${quantityFormatter(
             bAssetMassetDiff,
         )} ${bAssetMassetDiffBasisPoints}bps over collateralize)`,
     )
@@ -74,83 +142,6 @@ export const getBasket = async (
     if (tvlConfig) {
         const tvlCap = await getTvlCap(mAsset.signer, tvlConfig)
         const tvlCapPercentage = bAssetsTotal.mul(100).div(tvlCap)
-        console.log(`TVL cap   ${formatUnits(tvlCap).padStart(21)} ${tvlCapPercentage}%`)
+        console.log(`TVL cap   ${quantityFormatter(tvlCap).padStart(21)} ${tvlCapPercentage}%`)
     }
-}
-
-// Get mAsset token storage variables
-export const dumpTokenStorage = async (token: Masset | FeederPool, toBlock: number): Promise<void> => {
-    const override = {
-        blockTag: toBlock,
-    }
-    console.log("\nSymbol: ", (await token.symbol(override)).toString())
-    console.log("Name    : ", (await token.name(override)).toString())
-    console.log("Decimals: ", (await token.decimals(override)).toString())
-    console.log("Supply  : ", (await token.totalSupply(override)).toString())
-}
-
-// Get bAsset storage variables
-export const dumpBassetStorage = async (mAsset: Masset, toBlock: number): Promise<void> => {
-    const override = {
-        blockTag: toBlock,
-    }
-
-    console.log("\nbAssets")
-    const bAssets = await mAsset.getBassets(override)
-    bAssets.forEach(async (_, i) => {
-        console.log(`bAsset with index ${i}`)
-        console.log(` Address    :`, bAssets.personal[i].addr.toString())
-        console.log(` Integration:`, bAssets.personal[i].integrator.toString())
-        console.log(` Tx fee     :`, bAssets.personal[i].hasTxFee.toString())
-        console.log(` Status     :`, bAssets.personal[i].status.toString())
-        console.log(` Ratio      :`, bAssets.data[i].ratio.toString())
-        console.log(` Vault      :`, bAssets.data[i].vaultBalance.toString())
-        console.log("\n")
-    })
-}
-
-// Get fAsset storage variables
-export const dumpFassetStorage = async (pool: FeederPool, toBlock: number): Promise<void> => {
-    const override = {
-        blockTag: toBlock,
-    }
-
-    console.log("\nbAssets")
-    const fAssets = await pool.getBassets(override)
-    fAssets.forEach(async (_, i) => {
-        console.log(`bAsset with index ${i}`)
-        console.log(` Address    :`, fAssets[0][i].addr.toString())
-        console.log(` Integration:`, fAssets[0][i].integrator.toString())
-        console.log(` Tx fee     :`, fAssets[0][i].hasTxFee.toString())
-        console.log(` Status     :`, fAssets[0][i].status.toString())
-        console.log(` Ratio      :`, fAssets[1][i].ratio.toString())
-        console.log(` Vault      :`, fAssets[1][i].vaultBalance.toString())
-        console.log("\n")
-    })
-}
-
-// Get Masset storage variables
-export const dumpConfigStorage = async (mAsset: Masset | FeederPool, toBlock: number): Promise<void> => {
-    const override = {
-        blockTag: toBlock,
-    }
-    console.log("\nForgeValidator : ", (await mAsset.forgeValidator(override)).toString())
-    console.log("MaxBassets     : ", (await mAsset.maxBassets(override)).toString())
-
-    // Get basket state
-    const basketState = await mAsset.basket(override)
-    console.log("UndergoingRecol: ", basketState.undergoingRecol)
-    console.log("Failed         : ", basketState.failed)
-
-    const invariantConfig = await mAsset.getConfig(override)
-    console.log("A              : ", invariantConfig.a.toString())
-    console.log("Min            : ", invariantConfig.limits.min.toString())
-    console.log("Max            : ", invariantConfig.limits.max.toString())
-
-    console.log("SwapFee        : ", (await mAsset.swapFee(override)).toString())
-    console.log("RedemptionFee  : ", (await mAsset.redemptionFee(override)).toString())
-    // console.log("GovFee: ", (await mAsset.redemptionFee(override)).toString())
-
-    console.log("CacheSize      : ", (await mAsset.cacheSize(override)).toString())
-    console.log("Surplus        : ", (await mAsset.surplus(override)).toString())
 }
