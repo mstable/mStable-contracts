@@ -18,10 +18,12 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 contract RevenueRecipient is IRevenueRecipient, ImmutableModule {
     using SafeERC20 for IERC20;
 
-    event RevenueReceived(address indexed mAsset, uint256 amountIn, uint256 amountOut);
+    event RevenueReceived(address indexed mAsset, uint256 amountIn);
+    event RevenueDeposited(address indexed mAsset, uint256 amountIn, uint256 amountOut);
 
     // BPT To which all revenue should be deposited
     IConfigurableRightsPool public immutable mBPT;
+    IERC20 public immutable BAL;
 
     // Minimum output units per 1e18 input units
     mapping(address => uint256) public minOut;
@@ -30,17 +32,19 @@ contract RevenueRecipient is IRevenueRecipient, ImmutableModule {
      * @dev Creates the RevenueRecipient contract
      * @param _nexus      mStable system Nexus address
      * @param _targetPool Balancer pool to which all revenue should be deposited
+     * @param _balToken   Address of $BAL
      * @param _assets     Initial list of supported mAssets
      * @param _minOut     Minimum BPT out per mAsset unit
      */
     constructor(
         address _nexus,
         address _targetPool,
+        address _balToken,
         address[] memory _assets,
         uint256[] memory _minOut
     ) ImmutableModule(_nexus) {
         mBPT = IConfigurableRightsPool(_targetPool);
-
+        BAL = IERC20(_balToken);
         uint256 len = _assets.length;
         for (uint256 i = 0; i < len; i++) {
             minOut[_assets[i]] = _minOut[i];
@@ -49,7 +53,7 @@ contract RevenueRecipient is IRevenueRecipient, ImmutableModule {
     }
 
     /**
-     * @dev Called by SavingsManager after revenue has accrued
+     * @dev Simply transfers the mAsset from the sender to here
      * @param _mAsset Address of mAsset
      * @param _amount Units of mAsset collected
      */
@@ -57,37 +61,99 @@ contract RevenueRecipient is IRevenueRecipient, ImmutableModule {
         // Transfer from sender to here
         IERC20(_mAsset).safeTransferFrom(msg.sender, address(this), _amount);
 
-        // Deposit into pool
-        uint256 minBPT = (_amount * minOut[_mAsset]) / 1e18;
-        uint256 poolAmountOut = mBPT.joinswapExternAmountIn(_mAsset, _amount, minBPT);
-
-        emit RevenueReceived(_mAsset, _amount, poolAmountOut);
+        emit RevenueReceived(_mAsset, _amount);
     }
 
     /**
-     * @dev Simply approves spending of a given mAsset by BPT
-     * @param _mAsset Address of mAsset to approve
+     * @dev Called by anyone to deposit to the balancer pool
+     * @param _mAssets Addresses of assets to deposit
+     * @param _percentages 1e18 scaled percentages of the current balance to deposit
      */
-    function approveAsset(address _mAsset) external onlyGovernor {
-        IERC20(_mAsset).safeApprove(address(mBPT), 0);
-        IERC20(_mAsset).safeApprove(address(mBPT), 2**256 - 1);
+    function depositToPool(address[] calldata _mAssets, uint256[] calldata _percentages)
+        external
+        override
+    {
+        uint256 len = _mAssets.length;
+        require(len > 0 && len == _percentages.length, "Invalid args");
+
+        for (uint256 i = 0; i < len; i++) {
+            uint256 pct = _percentages[i];
+            require(pct > 1e15 && pct < 1e18, "Invalid pct");
+            address mAsset = _mAssets[i];
+            uint256 bal = IERC20(mAsset).balanceOf(address(this));
+            // e.g. 1 * 5e17 / 1e18 = 5e17
+            uint256 deposit = (bal * pct) / 1e18;
+            require(minOut[mAsset] > 0, "Invalid minout");
+            uint256 minBPT = (deposit * minOut[mAsset]) / 1e18;
+            uint256 poolAmountOut = mBPT.joinswapExternAmountIn(mAsset, deposit, minBPT);
+
+            emit RevenueDeposited(mAsset, deposit, poolAmountOut);
+        }
     }
 
     /**
-     * @dev Sets the minimum amount of BPT to receive for a given mAsset
-     * @param _mAsset Address of mAsset
+     * @dev Simply approves spending of a given asset by BPT
+     * @param asset Address of asset to approve
+     */
+    function approveAsset(address asset) external onlyGovernor {
+        IERC20(asset).safeApprove(address(mBPT), 0);
+        IERC20(asset).safeApprove(address(mBPT), 2**256 - 1);
+    }
+
+    /**
+     * @dev Sets the minimum amount of BPT to receive for a given asset
+     * @param _asset Address of mAsset
      * @param _minOut Scaled amount to receive per 1e18 mAsset units
      */
-    function updateAmountOut(address _mAsset, uint256 _minOut) external onlyGovernor {
-        minOut[_mAsset] = _minOut;
+    function updateAmountOut(address _asset, uint256 _minOut) external onlyGovernor {
+        minOut[_asset] = _minOut;
     }
 
     /**
-     * @dev Migrates BPT to a new revenue recipient
+     * @dev Migrates BPT and BAL to a new revenue recipient
      * @param _recipient Address of recipient
      */
-    function migrateBPT(address _recipient) external onlyGovernor {
+    function migrate(address _recipient) external onlyGovernor {
         IERC20 mBPT_ = IERC20(address(mBPT));
         mBPT_.safeTransfer(_recipient, mBPT_.balanceOf(address(this)));
+        BAL.safeTransfer(_recipient, BAL.balanceOf(address(this)));
+    }
+
+    /**
+     * @dev Reinvests any accrued $BAL tokens back into the pool
+     * @param _pool         Address of the bPool to swap into
+     * @param _output       Token to receive out of the swap (must be in mBPT)
+     * @param _minAmountOut TOTAL amount out for the $BAL -> _output swap
+     * @param _maxPrice     MaxPrice for the output (req by bPool)
+     * @param _pct          Percentage of all BAL held here to liquidate
+     */
+    function reinvestBAL(
+        address _pool,
+        address _output,
+        uint256 _minAmountOut,
+        uint256 _maxPrice,
+        uint256 _pct
+    ) external onlyGovernor {
+        require(minOut[_output] > 0, "Invalid output");
+        require(_pct > 1e15 && _pct < 1e18, "Invalid pct");
+        uint256 balance = BAL.balanceOf(address(this));
+        // 1. Convert BAL to ETH
+        (uint256 tokenAmountOut, ) =
+            IConfigurableRightsPool(_pool).swapExactAmountIn(
+                address(BAL),
+                (balance * _pct) / 1e18,
+                _output,
+                _minAmountOut,
+                _maxPrice
+            );
+        // 2. Deposit ETH to mBPT
+        uint256 poolAmountOut =
+            mBPT.joinswapExternAmountIn(
+                _output,
+                tokenAmountOut,
+                (tokenAmountOut * minOut[_output]) / 1e18
+            );
+
+        emit RevenueDeposited(_output, tokenAmountOut, poolAmountOut);
     }
 }

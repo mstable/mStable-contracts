@@ -90,7 +90,7 @@ contract FeederPool is
     // Constants
     uint256 private constant MAX_FEE = 1e16;
     uint256 private constant A_PRECISION = 100;
-    address public immutable mAsset;
+    address public immutable override mAsset;
 
     // Core data storage
     FeederData public data;
@@ -781,7 +781,7 @@ contract FeederPool is
     /**
      * @dev Collects the pending gov fees extracted from swap, redeem and platform interest.
      */
-    function collectPendingFees() external onlyInterestValidator {
+    function collectPendingFees() external override onlyInterestValidator {
         uint256 fees = data.pendingFees;
         if (fees > 1) {
             uint256 mintAmount = fees - 1;

@@ -156,7 +156,7 @@ contract BoostedTokenWrapper is InitializableReentrancyGuard {
             _totalBoostedSupply = _totalBoostedSupply - boostedBalance + newBoostedBalance;
             _boostedBalances[_account] = newBoostedBalance;
 
-            if(newBoostedBalance > boostedBalance) {
+            if (newBoostedBalance > boostedBalance) {
                 emit Transfer(address(0), _account, newBoostedBalance - boostedBalance);
             } else {
                 emit Transfer(_account, address(0), boostedBalance - newBoostedBalance);
@@ -190,7 +190,9 @@ contract BoostedTokenWrapper is InitializableReentrancyGuard {
             denominator *
             denominator;
         denominator /= 1e3;
-        boost = (((StableMath.min(_votingWeight, MAX_VMTA) * boostCoeff) / 10) * 1e18) / denominator;
+        boost =
+            (((StableMath.min(_votingWeight, MAX_VMTA) * boostCoeff) / 10) * 1e18) /
+            denominator;
         boost = StableMath.min(MAX_BOOST, StableMath.max(MIN_BOOST, FLOOR + boost));
     }
 }

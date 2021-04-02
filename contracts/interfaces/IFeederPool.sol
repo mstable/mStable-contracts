@@ -50,13 +50,13 @@ abstract contract IFeederPool {
     // Redemption
     function redeem(
         address _output,
-        uint256 _mAssetQuantity,
+        uint256 _fpTokenQuantity,
         uint256 _minOutputQuantity,
         address _recipient
     ) external virtual returns (uint256 outputQuantity);
 
     function redeemProportionately(
-        uint256 _mAssetQuantity,
+        uint256 _fpTokenQuantity,
         uint256[] calldata _minOutputQuantities,
         address _recipient
     ) external virtual returns (uint256[] memory outputQuantities);
@@ -68,7 +68,7 @@ abstract contract IFeederPool {
         address _recipient
     ) external virtual returns (uint256 mAssetRedeemed);
 
-    function getRedeemOutput(address _output, uint256 _mAssetQuantity)
+    function getRedeemOutput(address _output, uint256 _fpTokenQuantity)
         external
         view
         virtual
@@ -80,6 +80,8 @@ abstract contract IFeederPool {
     ) external view virtual returns (uint256 mAssetAmount);
 
     // Views
+    function mAsset() external view virtual returns (address);
+
     function getPrice() public view virtual returns (uint256 price, uint256 k);
 
     function getConfig() external view virtual returns (FeederConfig memory config);
@@ -101,4 +103,6 @@ abstract contract IFeederPool {
         external
         virtual
         returns (uint256 mintAmount, uint256 newSupply);
+
+    function collectPendingFees() external virtual;
 }

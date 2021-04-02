@@ -7,7 +7,6 @@ import { IBoostedVaultWithLockup } from "../interfaces/IBoostedVaultWithLockup.s
 import { IBoostDirector } from "../interfaces/IBoostDirector.sol";
 import { ImmutableModule } from "../shared/ImmutableModule.sol";
 
-
 /**
  * @title  BoostDirector
  * @author mStable
@@ -15,7 +14,6 @@ import { ImmutableModule } from "../shared/ImmutableModule.sol";
  * @dev    Uses a bitmap to store the id's of a given users chosen vaults in a gas efficient manner.
  */
 contract BoostDirector is IBoostDirector, ImmutableModule {
-
     event Directed(address user, address boosted);
     event RedirectedBoost(address user, address boosted, address replaced);
     event Whitelisted(address vaultAddress, uint8 vaultId);
@@ -29,7 +27,6 @@ contract BoostDirector is IBoostDirector, ImmutableModule {
     mapping(address => uint8) public _vaults;
     // uint128 packed with up to 16 uint8's. Each uint is a vault ID
     mapping(address => uint128) public _directedBitmap;
-
 
     /***************************************
                       ADMIN
@@ -74,7 +71,6 @@ contract BoostDirector is IBoostDirector, ImmutableModule {
         }
     }
 
-
     /***************************************
                       Vault
     ****************************************/
@@ -90,7 +86,7 @@ contract BoostDirector is IBoostDirector, ImmutableModule {
         // Get vault details
         uint8 id = _vaults[msg.sender];
         // If vault has not been whitelisted, just return zero
-        if(id == 0) return 0;
+        if (id == 0) return 0;
 
         // Get existing bitmap and balance
         uint128 bitmap = _directedBitmap[_user];

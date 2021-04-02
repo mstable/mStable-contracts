@@ -7,4 +7,12 @@ interface IConfigurableRightsPool {
         uint256 tokenAmountIn,
         uint256 minPoolAmountOut
     ) external returns (uint256 poolAmountOut);
+
+    function swapExactAmountIn(
+        address tokenIn,
+        uint256 tokenAmountIn,
+        address tokenOut,
+        uint256 minAmountOut,
+        uint256 maxPrice
+    ) external returns (uint256 tokenAmountOut, uint256 spotPriceAfter);
 }

@@ -15,16 +15,26 @@ import {
 } from "types/generated"
 import { MAX_UINT256 } from "@utils/constants"
 
+// TODO: test changes
+//   - Change notify fn to only transfer
+//   - (addr, %) deposit fn
+//   - Support BAL sending by GOV
+//   - re-invest BAL? BAL -> ETH -> Pool
+// GOVERNANCE
+//   - distributeInterest -> calls distributeUnallocated on an array
+//     - takes a % and calls the recipient
 describe("Masset", () => {
     let sa: StandardAccounts
     let mAssetMachine: MassetMachine
     let nexus: MockNexus
     let revenueRecipient: RevenueRecipient
     let mXYZ: MockERC20
+    let BAL: MockERC20
     let bPool: MockBPool
 
     const runSetup = async (): Promise<void> => {
         mXYZ = await mAssetMachine.loadBassetProxy("mStable XYZ", "mXYZ", 18)
+        BAL = await mAssetMachine.loadBassetProxy("Balance Gov Token", "BAL", 18)
 
         nexus = await new MockNexus__factory(sa.default.signer).deploy(
             sa.governor.address,
@@ -35,6 +45,7 @@ describe("Masset", () => {
         revenueRecipient = await new RevenueRecipient__factory(sa.default.signer).deploy(
             nexus.address,
             bPool.address,
+            BAL.address,
             [mXYZ.address],
             [simpleToExactAmount(99, 15)],
         )

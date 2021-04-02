@@ -3,6 +3,8 @@ pragma solidity 0.8.2;
 
 import { IFeederPool } from "../interfaces/IFeederPool.sol";
 import { PausableModule } from "../shared/PausableModule.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @title   InterestValidator
@@ -21,6 +23,7 @@ contract InterestValidator is PausableModule {
         uint256 newTotalSupply,
         uint256 apy
     );
+    event GovFeeCollected(address indexed feederPool, address mAsset, uint256 amount);
 
     // Utils to help keep interest under check
     uint256 private constant SECONDS_IN_YEAR = 365 days;
@@ -35,15 +38,15 @@ contract InterestValidator is PausableModule {
      * @notice Collects and validates the interest of n feeder pools.
      * @dev First calls to calculate the interest that has accrued, and then validates the potential inflation
      * with respect to the previous timestamp.
-     * @param _feeders     Addresses of the feeder pools on which to accrue interest
+     * @param _fPools     Addresses of the feeder pools on which to accrue interest
      */
-    function collectAndValidateInterest(address[] calldata _feeders) external whenNotPaused {
+    function collectAndValidateInterest(address[] calldata _fPools) external whenNotPaused {
         uint256 currentTime = block.timestamp;
 
-        uint256 len = _feeders.length;
+        uint256 len = _fPools.length;
 
         for (uint256 i = 0; i < len; i++) {
-            address feeder = _feeders[i];
+            address feeder = _fPools[i];
 
             uint256 previousBatch = lastBatchCollected[feeder];
             uint256 timeSincePreviousBatch = currentTime - previousBatch;
@@ -62,6 +65,30 @@ contract InterestValidator is PausableModule {
                 emit InterestCollected(feeder, interestCollected, totalSupply, apy);
             } else {
                 emit InterestCollected(feeder, interestCollected, totalSupply, 0);
+            }
+        }
+    }
+
+    /**
+     * @dev Collects gov fees from fPools in the form of fPtoken, then converts to
+     * mAsset and sends directly to the SavingsManager, where it will be picked up and
+     * converted to mBPT upon the next collection
+     */
+    function collectGovFees(address[] calldata _fPools) external onlyGovernor {
+        uint256 len = _fPools.length;
+
+        address savingsManager = _savingsManager();
+        for (uint256 i = 0; i < len; i++) {
+            address fPool = _fPools[i];
+            // 1. Collect pending fees
+            IFeederPool(fPool).collectPendingFees();
+            uint256 fpTokenBal = IERC20(fPool).balanceOf(address(this));
+            // 2. If fpTokenBal > 0, convert to mAsset and transfer to savingsManager
+            if (fpTokenBal > 0) {
+                address mAsset = IFeederPool(fPool).mAsset();
+                uint256 outputAmt =
+                    IFeederPool(fPool).redeem(mAsset, fpTokenBal, (fpTokenBal * 7) / 10, savingsManager);
+                emit GovFeeCollected(fPool, mAsset, outputAmt);
             }
         }
     }
