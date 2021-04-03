@@ -30,6 +30,8 @@ task("deployAaveIntegration", "Deploys an instance of AaveV2Integration contract
         addresses.nexus,
         addresses.mAsset,
         addresses.aave,
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
         addresses.basketManager,
     )
     const reciept = await impl.deployTransaction.wait()
