@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-loop-func */
 /* eslint-disable no-restricted-syntax */
 import { assertBNClose } from "@utils/assertions"
-import { DEAD_ADDRESS, fullScale, MAX_UINT256, ratioScale, ZERO_ADDRESS } from "@utils/constants"
+import { DEAD_ADDRESS, fullScale, MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { feederData } from "@utils/validator-data"
@@ -159,9 +159,7 @@ describe("Feeder Validator - One basket one test", () => {
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}`, () => {
                 for (const testRedeem of testData.redeems) {
                     // Deduct swap fee before performing redemption
-                    const netInput = cv(testRedeem.mAssetQty)
-                        .mul(fullScale.sub(redemptionFeeRate))
-                        .div(fullScale)
+                    const netInput = cv(testRedeem.mAssetQty).mul(fullScale.sub(redemptionFeeRate)).div(fullScale)
 
                     if (testRedeem.hardLimitError) {
                         it(`${(count += 1)} throws Max Weight error when redeeming ${testRedeem.mAssetQty} mAssets for bAsset ${

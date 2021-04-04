@@ -5,7 +5,7 @@ import { ethers } from "hardhat"
 import { expect } from "chai"
 
 import { simpleToExactAmount, BN } from "@utils/math"
-import { DEAD_ADDRESS, MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
+import { MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
 import {
     ExposedFeederPool,
     ExposedFeederPool__factory,
@@ -14,7 +14,7 @@ import {
     MockERC20,
     FeederManager__factory,
 } from "types/generated"
-import { assertBNClose, assertBNSlightlyGT } from "@utils/assertions"
+import { assertBNClose } from "@utils/assertions"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
 import { crossData } from "@utils/validator-data"
 

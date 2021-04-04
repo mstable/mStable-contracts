@@ -1,3 +1,4 @@
+/* eslint-disable import/no-extraneous-dependencies */
 import { Signer } from "ethers"
 
 export interface Account {

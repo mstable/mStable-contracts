@@ -1,3 +1,4 @@
+/* eslint-disable import/no-extraneous-dependencies */
 import { expect } from "chai"
 import { BN, createMultiple, percentToWeight, simpleToExactAmount } from "@utils/math"
 import { IPlatformIntegration, MockERC20 } from "types/generated"

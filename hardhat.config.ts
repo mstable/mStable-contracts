@@ -1,3 +1,4 @@
+/* eslint-disable import/no-extraneous-dependencies */
 import "@nomiclabs/hardhat-ethers"
 import "@nomiclabs/hardhat-waffle"
 import "@tenderly/hardhat-tenderly"

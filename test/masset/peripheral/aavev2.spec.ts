@@ -249,9 +249,7 @@ describe("AaveIntegration", async () => {
 
             // Step 3. Check for things:
             // 3.0 Check that return value is cool (via event)
-            await expect(tx)
-                .to.emit(aaveIntegration, "Deposit")
-                .withArgs(bAsset.address, aToken.address, amount)
+            await expect(tx).to.emit(aaveIntegration, "Deposit").withArgs(bAsset.address, aToken.address, amount)
             await (await tx).wait()
             // 3.1 Check that lending pool has bAssets
             expect(await bAsset.balanceOf(bAssetRecipient)).eq(bAssetRecipientBalBefore.add(amount))

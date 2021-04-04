@@ -5,9 +5,9 @@ import { ethers } from "hardhat"
 import { expect } from "chai"
 
 import { simpleToExactAmount, BN } from "@utils/math"
-import { DEAD_ADDRESS, MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
+import { MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
 import { ExposedFeederPool, ExposedFeederPool__factory, FeederLogic__factory, MockERC20, FeederManager__factory } from "types/generated"
-import { assertBNClose, assertBNSlightlyGT } from "@utils/assertions"
+import { assertBNClose } from "@utils/assertions"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
 import { feederData } from "@utils/validator-data"
 
@@ -112,7 +112,6 @@ describe("Feeder Validation - One basket many tests", () => {
 
     describe("Run all the data", () => {
         let dataBefore: Data
-        let lastKDiff = BN.from(0)
         let count = 0
 
         for (const testData of feederData.integrationData.actions.slice(

@@ -2,7 +2,7 @@ import { ethers } from "hardhat"
 import { expect } from "chai"
 import { simpleToExactAmount, BN } from "@utils/math"
 import { assertBNClose, assertBNClosePercent } from "@utils/assertions"
-import { StandardAccounts, MassetDetails, MassetMachine, Account } from "@utils/machines"
+import { StandardAccounts, MassetMachine, Account } from "@utils/machines"
 import { fullScale, ZERO_ADDRESS, ZERO, MAX_UINT256, ONE_DAY, ONE_HOUR, DEAD_ADDRESS } from "@utils/constants"
 import {
     SavingsContract,

@@ -1,3 +1,4 @@
+/* eslint-disable import/no-extraneous-dependencies */
 /* eslint-disable class-methods-use-this */
 /* eslint-disable no-nested-ternary */
 
@@ -143,7 +144,7 @@ export class MassetMachine {
                       nexus.address,
                       bAssets.aavePlatformAddress,
                       bAssets.bAssets.map((b) => b.address),
-                      bAssets.aTokens.map((a) => a.aToken),
+                      bAssets.aTokens.map((aTokenDetails) => aTokenDetails.aToken),
                   )
               ).address
             : ZERO_ADDRESS
@@ -190,7 +191,7 @@ export class MassetMachine {
             platform: useLendingMarkets
                 ? await new MockPlatformIntegration__factory(this.sa.default.signer).attach(integrationAddress)
                 : null,
-            pTokens: useLendingMarkets ? bAssets.aTokens.map((a) => a.aToken) : [],
+            pTokens: useLendingMarkets ? bAssets.aTokens.map((aTokenDetails) => aTokenDetails.aToken) : [],
             managerLib,
             wrappedManagerLib: (await ManagerFactory.attach(mAsset.address)) as Manager,
             nexus,
@@ -663,11 +664,7 @@ export class MassetMachine {
 
         const balances = rawBalances.map((b, i) => b.add(platformBalances[i]))
         // get overweight
-        const currentVaultUnits = bAssets.map((b) =>
-            BN.from(b.vaultBalance)
-                .mul(BN.from(b.ratio))
-                .div(ratioScale),
-        )
+        const currentVaultUnits = bAssets.map((b) => BN.from(b.vaultBalance).mul(BN.from(b.ratio)).div(ratioScale))
         // get total amount
         const sumOfBassets = currentVaultUnits.reduce((p, c) => p.add(c), BN.from(0))
         return {
@@ -746,12 +743,7 @@ export class MassetMachine {
         const totalSupply = await mAsset.totalSupply()
         const surplus = await mAsset.surplus()
         const cacheSize = await mAsset.cacheSize()
-        const maxC = totalSupply
-            .add(surplus)
-            .mul(ratioScale)
-            .div(BN.from(bAsset.ratio))
-            .mul(cacheSize)
-            .div(fullScale)
+        const maxC = totalSupply.add(surplus).mul(ratioScale).div(BN.from(bAsset.ratio)).mul(cacheSize).div(fullScale)
         const newSum = BN.from(integratorBalBefore).add(amount)
         const expectInteraction = type === "deposit" ? newSum.gte(maxC) : amount.gt(BN.from(integratorBalBefore))
         return {
@@ -761,10 +753,7 @@ export class MassetMachine {
                 type === "deposit"
                     ? newSum.sub(maxC.div(2))
                     : minimum(
-                          maxC
-                              .div(2)
-                              .add(amount)
-                              .sub(BN.from(integratorBalBefore)),
+                          maxC.div(2).add(amount).sub(BN.from(integratorBalBefore)),
                           BN.from(bAsset.vaultBalance).sub(BN.from(integratorBalBefore)),
                       ),
             rawBalance:

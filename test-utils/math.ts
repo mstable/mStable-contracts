@@ -1,3 +1,4 @@
+/* eslint-disable import/no-extraneous-dependencies */
 import { BigNumber as BN } from "ethers"
 import { ratioScale } from "./constants"
 
@@ -68,19 +69,13 @@ export const applyDecimals = (inputQuantity: number | string | BN, decimals = 18
         .pow(18 - decimals)
         .mul(inputQuantity)
 
-export const percentToWeight = (percent: number | string | BN): BN => {
-    return simpleToExactAmount(percent, 16)
-}
+export const percentToWeight = (percent: number | string | BN): BN => simpleToExactAmount(percent, 16)
 
 // How many bAssets is this mAsset worth
-export const applyRatioMassetToBasset = (input: BN, ratio: BN | string): BN => {
-    return input.mul(ratioScale).div(ratio)
-}
+export const applyRatioMassetToBasset = (input: BN, ratio: BN | string): BN => input.mul(ratioScale).div(ratio)
 
 // How many mAssets is this bAsset worth
-export const applyRatio = (bAssetQ: BN | string | number, ratio: BN | string): BN => {
-    return BN.from(bAssetQ).mul(ratio).div(ratioScale)
-}
+export const applyRatio = (bAssetQ: BN | string | number, ratio: BN | string): BN => BN.from(bAssetQ).mul(ratio).div(ratioScale)
 
 // How many mAssets is this bAsset worth
 export const applyRatioCeil = (bAssetQ: BN | string, ratio: BN | string): BN => {

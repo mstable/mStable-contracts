@@ -1,3 +1,4 @@
+/* eslint-disable import/no-extraneous-dependencies */
 import { MassetMachine, MassetDetails } from "@utils/machines"
 import { assert, expect } from "chai"
 import { BN, simpleToExactAmount } from "./math"
@@ -30,12 +31,7 @@ export const assertBNClose = (actual: BN, expected: BN, variance: BN | number = 
 export const assertBNClosePercent = (a: BN, b: BN, variance: string | number = "0.02", reason: string = null): void => {
     if (a.eq(b)) return
     const varianceBN = simpleToExactAmount(variance.toString().substr(0, 6), 16)
-    const diff = a
-        .sub(b)
-        .abs()
-        .mul(2)
-        .mul(fullScale)
-        .div(a.add(b))
+    const diff = a.sub(b).abs().mul(2).mul(fullScale).div(a.add(b))
     const str = reason ? `\n\tReason: ${reason}\n\t${a.toString()} vs ${b.toString()}` : ""
     assert.ok(
         diff.lte(varianceBN),

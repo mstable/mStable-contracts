@@ -1,3 +1,4 @@
+/* eslint-disable import/no-extraneous-dependencies */
 /* eslint-disable no-console */
 import "ts-node/register"
 import "tsconfig-paths/register"

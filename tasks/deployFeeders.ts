@@ -1,3 +1,4 @@
+/* eslint-disable import/no-extraneous-dependencies */
 /* eslint-disable no-console */
 /* eslint-disable no-await-in-loop */
 import "ts-node/register"
@@ -172,9 +173,7 @@ const deployFeederPool = async (sender: Signer, addresses: CommonAddresses, ethe
 const mint = async (sender: Signer, bAssets: DeployedFasset[], feederData: FeederData) => {
     // e.e. $4e18 * 1e18 / 1e18 = 4e18
     // e.g. 4e18 * 1e18 / 5e22 = 8e13 or 0.00008
-    const scaledTestQty = simpleToExactAmount(4)
-        .mul(simpleToExactAmount(1))
-        .div(feederData.priceCoeff)
+    const scaledTestQty = simpleToExactAmount(4).mul(simpleToExactAmount(1)).div(feederData.priceCoeff)
 
     // Approve spending
     const approvals: BN[] = []
