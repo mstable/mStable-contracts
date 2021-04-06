@@ -698,6 +698,40 @@ describe("Feeder Admin", () => {
                 await expect(tx).to.emit(pool, "MintedMulti")
             })
         })
+
+        context("using the interest validator contract to collect pending govFees", () => {
+            before(async () => {
+                await runSetup(false, true)
+            })
+            it("redeems fpTokens for mAsset and then sends to savingsManager", async () => {
+                const { interestValidator, pool, bAssets, mAsset } = details
+                // Accrue some fees for gov
+                await pool.redeem(bAssets[0].address, simpleToExactAmount(10), 0, sa.default.address)
+                const data = await pool.data()
+                expect(data.pendingFees).gt(simpleToExactAmount(1, 13))
+                const expectedOutput = await pool["getRedeemOutput(address,uint256)"](mAsset.address, data.pendingFees)
+                // Get balance of SM
+                const balBefore = await mAsset.balanceOf(sa.mockSavingsManager.address)
+
+                const tx = interestValidator.connect(sa.governor.signer).collectGovFees([pool.address])
+                await expect(tx)
+                    .to.emit(interestValidator, "GovFeeCollected")
+                    .withArgs(pool.address, mAsset.address, expectedOutput)
+                await (await tx).wait()
+                const dataAfter = await pool.data()
+                const balAfter = await mAsset.balanceOf(sa.mockSavingsManager.address)
+                expect(dataAfter.pendingFees).lt(data.pendingFees)
+                expect(balAfter).eq(balBefore.add(expectedOutput))
+            })
+            it("fails if given invalid fPool addr", async () => {
+                const { interestValidator, pool } = details
+                await expect(interestValidator.collectGovFees([pool.address])).to.revertedWith("Only governor")
+            })
+            it("fails if not called by governor", async () => {
+                const { interestValidator } = details
+                await expect(interestValidator.collectGovFees([sa.default.address])).to.reverted
+            })
+        })
     })
     context("Collect pending fees", async () => {
         before(async () => {

@@ -15,7 +15,7 @@ import {
 } from "types/generated"
 import { MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
 
-describe("Masset", () => {
+describe("RevenueRecipient", () => {
     let sa: StandardAccounts
     let mAssetMachine: MassetMachine
     let nexus: MockNexus
