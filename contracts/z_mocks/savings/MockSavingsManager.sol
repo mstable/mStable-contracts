@@ -10,7 +10,7 @@ contract MockSavingsManager {
 
     address public immutable save;
     IRevenueRecipient public recipient;
-    uint256 public rate;
+    uint256 public rate = 1e18;
 
     constructor(address _save) {
         save = _save;
