@@ -8,7 +8,6 @@ import { AaveV2Integration__factory } from "types/generated"
 interface CommonAddresses {
     nexus: string
     mAsset: string
-    basketManager: string
     aave: string
 }
 
@@ -20,20 +19,12 @@ task("deployAaveIntegration", "Deploys an instance of AaveV2Integration contract
 
     const addresses: CommonAddresses = {
         mAsset: "0xe2f2a5C287993345a840Db3B0845fbC70f5935a5",
-        basketManager: "0x66126B4aA2a1C07536Ef8E5e8bD4EfDA1FdEA96D",
         nexus: "0xAFcE80b19A8cE13DEc0739a1aaB7A028d6845Eb3",
         aave: "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5",
     }
 
     // Deploy
-    const impl = await new AaveV2Integration__factory(deployer).deploy(
-        addresses.nexus,
-        addresses.mAsset,
-        addresses.aave,
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        addresses.basketManager,
-    )
+    const impl = await new AaveV2Integration__factory(deployer).deploy(addresses.nexus, addresses.mAsset, addresses.aave)
     const reciept = await impl.deployTransaction.wait()
     console.log(`Deployed Integration to ${impl.address}. gas used ${reciept.gasUsed}`)
 
