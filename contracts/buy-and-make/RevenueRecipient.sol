@@ -2,7 +2,7 @@
 pragma solidity 0.8.2;
 
 import { IRevenueRecipient } from "../interfaces/IRevenueRecipient.sol";
-import { IConfigurableRightsPool } from "./IConfigurableRightsPool.sol";
+import { IBPool } from "./IBPool.sol";
 import { ImmutableModule } from "../shared/ImmutableModule.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -11,9 +11,9 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
  * @title   RevenueRecipient
  * @author  mStable
  * @notice  Simply receives mAssets and then deposits to a pre-defined Balancer
- *          ConfigurableRightsPool.
- * @dev     VERSION: 1.0
- *          DATE:    2021-03-08
+ *          Bpool.
+ * @dev     VERSION: 2.0
+ *          DATE:    2021-04-06
  */
 contract RevenueRecipient is IRevenueRecipient, ImmutableModule {
     using SafeERC20 for IERC20;
@@ -22,7 +22,7 @@ contract RevenueRecipient is IRevenueRecipient, ImmutableModule {
     event RevenueDeposited(address indexed mAsset, uint256 amountIn, uint256 amountOut);
 
     // BPT To which all revenue should be deposited
-    IConfigurableRightsPool public immutable mBPT;
+    IBPool public immutable mBPT;
     IERC20 public immutable BAL;
 
     // Minimum output units per 1e18 input units
@@ -43,7 +43,7 @@ contract RevenueRecipient is IRevenueRecipient, ImmutableModule {
         address[] memory _assets,
         uint256[] memory _minOut
     ) ImmutableModule(_nexus) {
-        mBPT = IConfigurableRightsPool(_targetPool);
+        mBPT = IBPool(_targetPool);
         BAL = IERC20(_balToken);
         uint256 len = _assets.length;
         for (uint256 i = 0; i < len; i++) {
@@ -78,7 +78,7 @@ contract RevenueRecipient is IRevenueRecipient, ImmutableModule {
 
         for (uint256 i = 0; i < len; i++) {
             uint256 pct = _percentages[i];
-            require(pct > 1e15 && pct < 1e18, "Invalid pct");
+            require(pct > 1e15 && pct <= 1e18, "Invalid pct");
             address mAsset = _mAssets[i];
             uint256 bal = IERC20(mAsset).balanceOf(address(this));
             // e.g. 1 * 5e17 / 1e18 = 5e17
@@ -135,13 +135,15 @@ contract RevenueRecipient is IRevenueRecipient, ImmutableModule {
         uint256 _pct
     ) external onlyGovernor {
         require(minOut[_output] > 0, "Invalid output");
-        require(_pct > 1e15 && _pct < 1e18, "Invalid pct");
+        require(_pct > 1e15 && _pct <= 1e18, "Invalid pct");
         uint256 balance = BAL.balanceOf(address(this));
+        uint256 balDeposit = (balance * _pct) / 1e18;
         // 1. Convert BAL to ETH
+        BAL.approve(_pool, balDeposit);
         (uint256 tokenAmountOut, ) =
-            IConfigurableRightsPool(_pool).swapExactAmountIn(
+            IBPool(_pool).swapExactAmountIn(
                 address(BAL),
-                (balance * _pct) / 1e18,
+                balDeposit,
                 _output,
                 _minAmountOut,
                 _maxPrice

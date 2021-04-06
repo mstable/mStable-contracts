@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.2;
-import { IConfigurableRightsPool } from "../../buy-and-make/IConfigurableRightsPool.sol";
+import { IBPool } from "../../buy-and-make/IBPool.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 
-contract MockBPool is ERC20, IConfigurableRightsPool {
+contract MockBPool is ERC20, IBPool {
 
     // output = input * ratio / 1e18
     uint256 inputToOutputRatio;
