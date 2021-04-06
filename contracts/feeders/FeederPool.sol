@@ -149,10 +149,10 @@ contract FeederPool is
         data.ampData = AmpData(startA, startA, 0, 0);
         data.weightLimits = _config.limits;
 
-        data.swapFee = 4e14;
-        data.redemptionFee = 1e15;
+        data.swapFee = 8e14;
+        data.redemptionFee = 4e14;
         data.cacheSize = 1e17;
-        data.govFee = 0;
+        data.govFee = 1e17;
     }
 
     /**
