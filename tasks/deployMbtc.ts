@@ -201,7 +201,7 @@ const deploySave = async (
             addresses.mta,
         )
         const receiptVaultImpl = await vImpl.deployTransaction.wait()
-        console.log(`Deployed Vault Impl to ${sProxy.address}. gas used ${receiptVaultImpl.gasUsed}`)
+        console.log(`Deployed Vault Impl to ${vImpl.address}. gas used ${receiptVaultImpl.gasUsed}`)
 
         // Data
         const vData = vImpl.interface.encodeFunctionData("initialize", [addresses.rewardsDistributor, "imBTC Savings Vault", "v-imBTC"])
@@ -212,29 +212,27 @@ const deploySave = async (
         console.log(`Deployed Vault Proxy to ${vProxy.address}. gas used ${receiptVaultProxy.gasUsed}`)
 
         // SaveWrapper
-        const wrapper = await new SaveWrapper__factory(sender).deploy(
+        const wrapper = await new SaveWrapper__factory(sender).deploy()
+        const receiptSavingWrapper = await wrapper.deployTransaction.wait()
+        console.log(`Deployed Save Wrapper to address ${wrapper.address}. gas used ${receiptSavingWrapper.gasUsed}`)
+
+        const bassets = (await mBTC.getBassets())[0].map((p) => p[0])
+        const approveTx = await wrapper["approve(address,address,address,address[])"](
+            mBTC.address,
             savingContract.address,
             savingsVault.address,
-            mBTC.address,
-            bAssets,
-            addresses.uniswap,
+            bassets,
         )
-        const receiptSavingWrapper = await wrapper.deployTransaction.wait()
-        console.log(`Deployed Savings Wrapper to address ${wrapper.address}. gas used ${receiptSavingWrapper.gasUsed}`)
+        const approveTxReceipt = await approveTx.wait()
+        console.log(`Approve mAsset on SaveWrapper. gas used ${approveTxReceipt.gasUsed}`)
 
         return { savingContract, savingsVault }
     }
     // SaveWrapper
     console.log(`Deploying Wrapper...`)
-    const wrapper = await new SaveWrapper__factory(sender).deploy(
-        savingContract.address,
-        DEAD_ADDRESS,
-        mBTC.address,
-        bAssets,
-        addresses.uniswap,
-    )
+    const wrapper = await new SaveWrapper__factory(sender).deploy()
     const receiptSavingWrapper = await wrapper.deployTransaction.wait()
-    console.log(`Deployed Savings Wrapper to address ${wrapper.address}. gas used ${receiptSavingWrapper.gasUsed}`)
+    console.log(`Deployed Save Wrapper to address ${wrapper.address}. gas used ${receiptSavingWrapper.gasUsed}`)
 
     return { savingContract, savingsVault: null }
 }
