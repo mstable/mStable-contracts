@@ -14,8 +14,8 @@ task("BoostedSavingsVault.deploy", "Deploys a BoostedSavingsVault")
     .addParam("rewardsToken", "Rewards token address", undefined, params.address, false)
     .addParam("vaultName", "Vault name", undefined, types.string, false)
     .addParam("vaultSymbol", "Vault symbol", undefined, types.string, false)
-    .addParam("boostCoefficient", "Boost coefficient", (45).toString(), types.string, false)
-    .addParam("priceCoefficient", "Price coefficient", (1e18).toString(), types.string, false)
+    .addParam("boostCoefficient", "Boost coefficient", undefined, types.string, false)
+    .addParam("priceCoefficient", "Price coefficient", undefined, types.string, false)
     .setAction(
         async (
             {

@@ -232,6 +232,10 @@ context("upgrading buy & make and collecting yield", () => {
         const balAfter = await mUSD.balanceOf(savingsManager.address)
         expect(balAfter).gt(balBefore)
         console.log("bals: ", formatEther(balAfter.sub(balBefore)))
+
+        await collector.distributeInterest([config.tokens[0]], false)
+        const balEnd = await mUSD.balanceOf(savingsManager.address)
+        expect(balEnd).eq(0)
     })
     // Simply accrue more BAL and transfer elsewhere
     it("migrates BAL & BPT later", async () => {
