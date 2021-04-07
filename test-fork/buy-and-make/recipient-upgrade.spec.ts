@@ -1,46 +1,35 @@
-// Upgrades the revenueRecipient x2
-// Migrates BPT
-// Upgrades Governance module (collector)
-// Upgrades InterestValidator module
-// Collects from collector
-// deposits to pool
-// re-invests BAL through BAL/WETH pool
-// interestvalidator:
-//  - sets gov fee
-//  - collects gov fee
-
 import { expect } from "chai"
-import { DEAD_ADDRESS, ZERO_ADDRESS } from "@utils/constants"
-import { Signer } from "ethers"
+import { ONE_DAY, ONE_WEEK } from "@utils/constants"
+import { Signer, ContractFactory, Contract } from "ethers"
 import { ethers, network } from "hardhat"
-import { task } from "hardhat/config"
-import { formatEther, formatUnits } from "ethers/lib/utils"
+import { formatEther, keccak256, toUtf8Bytes } from "ethers/lib/utils"
+import { increaseTime } from "@utils/time"
 import {
-    FeederPool,
     FeederPool__factory,
-    FeederLogic__factory,
-    AssetProxy__factory,
     MockERC20,
     MockERC20__factory,
-    MockInitializableToken__factory,
-    BoostedSavingsVault__factory,
-    ERC20,
-    FeederManager,
-    FeederLogic,
-    BoostedSavingsVault,
-    BoostDirector__factory,
-    AaveV2Integration__factory,
-    FeederWrapper__factory,
-    FeederWrapper,
-    Masset__factory,
     InterestValidator__factory,
+    RevenueRecipient,
+    INexus__factory,
+    INexus,
+    RevenueRecipient__factory,
+    MockBPool,
+    MockBPool__factory,
+    Collector,
+    Collector__factory,
+    InterestValidator,
+    ConfigurableRightsPool__factory,
+    RevenueRecipientV1__factory,
 } from "types/generated"
 import { simpleToExactAmount, BN } from "@utils/math"
+import { abi as SavingsManagerAbi, bytecode as SavingsManagerBytecode } from "./SavingsManager.json"
 
 // Accounts that are impersonated
 const ethWhaleAddress = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 const governorAddress = "0xF6FF1F7FCEB2cE6d26687EaaB5988b445d0b94a2"
-const deployerAddress = "0x19F12C947D25Ff8a3b748829D8001cA09a28D46d"
+const mUsdWhaleAddress = "0x6595732468A241312bc307F327bA0D64F02b3c20"
+const balWhale = "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be"
+const nullAddr = "0xAf40dA2DcE68Bf82bd4C5eE7dA22B2F7bb7ba265"
 
 // impersonates a specific account
 const impersonate = async (addr): Promise<Signer> => {
@@ -50,471 +39,219 @@ const impersonate = async (addr): Promise<Signer> => {
     })
     return ethers.provider.getSigner(addr)
 }
-
-interface CommonAddresses {
+interface Config {
+    oldRecipient: string
     nexus: string
     proxyAdmin: string
-    staking: string
-    mta: string
-    rewardsDistributor: string
-    aave?: string
-    boostDirector?: string
-    feederManager?: FeederManager
-    feederLogic?: FeederLogic
+    crp: string
+    bal: string
+    tokens: string[]
+    minOuts: BN[]
+    fPools: string[]
 }
 
-interface DeployedFasset {
-    integrator: string
-    txFee: boolean
-    contract: ERC20
-    address: string
-    symbol: string
+const config: Config = {
+    oldRecipient: "0xffe2cdce7babb1422d5976c2fc27448f226b6bec",
+    nexus: "0xafce80b19a8ce13dec0739a1aab7a028d6845eb3",
+    proxyAdmin: "0x5c8eb57b44c1c6391fc7a8a0cf44d26896f92386",
+    crp: "0xc079e4321ecdc2fd3447bf7db629e0c294fb7a10",
+    bal: "0xba100000625a3754423978a60c9317c58a424e3d",
+    tokens: [
+        "0xe2f2a5C287993345a840Db3B0845fbC70f5935a5",
+        "0x945Facb997494CC2570096c74b5F66A3507330a1",
+        "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+    ],
+    minOuts: [simpleToExactAmount(3, 17), simpleToExactAmount(20000), simpleToExactAmount(1000)],
+    fPools: ["0x4fb30c5a3ac8e85bc32785518633303c4590752d", "0xfe842e95f8911dcc21c943a1daa4bd641a1381c6"],
 }
 
-interface Pair {
-    mAsset: string
-    fAsset: string
-    aToken: string
-    priceCoeff: BN
-    A: BN
-}
-
-interface FeederData {
-    mAsset: DeployedFasset
-    fAsset: DeployedFasset
-    aToken: string
-    name: string
-    symbol: string
-    config: Config
-    vaultName: string
-    vaultSymbol: string
-    priceCoeff: BN
-    pool?: FeederPool
-    vault?: BoostedSavingsVault
-}
-
-const COEFF = 48
-
-interface Config {
-    a: BN
-    limits: {
-        min: BN
-        max: BN
-    }
-}
-
-const deployFeederPool = async (sender: Signer, addresses: CommonAddresses, feederData: FeederData): Promise<FeederPool> => {
-    // Invariant Validator
-    let feederPoolFactory: FeederPool__factory
-    if (addresses.feederLogic && addresses.feederManager) {
-        console.log(`Using FeederLogic ${addresses.feederLogic.address} and FeederManager ${addresses.feederManager.address}`)
-        const linkedAddress = {
-            __$60670dd84d06e10bb8a5ac6f99a1c0890c$__: addresses.feederManager.address,
-            __$7791d1d5b7ea16da359ce352a2ac3a881c$__: addresses.feederLogic.address,
-        }
-        // Implementation
-        feederPoolFactory = new FeederPool__factory(linkedAddress, sender)
-    } else {
-        console.log(`Deploying FeederLogic`)
-        const feederLogic = await new FeederLogic__factory(sender).deploy()
-        const receiptFeederLogic = await feederLogic.deployTransaction.wait()
-        console.log(`Deployed FeederLogic to ${feederLogic.address}. gas used ${receiptFeederLogic.gasUsed}`)
-
-        // External linked library
-        const Manager = await ethers.getContractFactory("FeederManager")
-        const managerLib = await Manager.deploy()
-        const receiptManager = await managerLib.deployTransaction.wait()
-        console.log(`Deployed FeederManager library to ${managerLib.address}. gas used ${receiptManager.gasUsed}`)
-
-        const linkedAddress = {
-            __$60670dd84d06e10bb8a5ac6f99a1c0890c$__: managerLib.address,
-            __$7791d1d5b7ea16da359ce352a2ac3a881c$__: feederLogic.address,
-        }
-        // Implementation
-        feederPoolFactory = new FeederPool__factory(linkedAddress, sender)
-    }
-
-    console.log(`Deploying FeederPool impl with Nexus ${addresses.nexus} and mAsset ${feederData.mAsset.address}`)
-    const impl = await feederPoolFactory.deploy(addresses.nexus, feederData.mAsset.address)
-    const receiptImpl = await impl.deployTransaction.wait()
-    console.log(`Deployed FeederPool impl to ${impl.address}. gas used ${receiptImpl.gasUsed}`)
-
-    // Initialization Data
-    const mpAssets = (await feederPoolFactory.attach(feederData.mAsset.address).getBassets())[0].map((p) => p[0])
-    console.log(`mpAssets. count = ${mpAssets.length}, list: `, mpAssets)
-    console.log(
-        `Initializing FeederPool with: ${feederData.name}, ${feederData.symbol}, mAsset ${feederData.mAsset.address}, fAsset ${
-            feederData.fAsset.contract.address
-        }, A: ${feederData.config.a.toString()}, min: ${formatEther(feederData.config.limits.min)}, max: ${formatEther(
-            feederData.config.limits.max,
-        )}`,
-    )
-    const data = impl.interface.encodeFunctionData("initialize", [
-        feederData.name,
-        feederData.symbol,
-        {
-            addr: feederData.mAsset.address,
-            integrator: ZERO_ADDRESS,
-            hasTxFee: false,
-            status: 0,
-        },
-        {
-            addr: feederData.fAsset.address,
-            integrator: feederData.fAsset.integrator,
-            hasTxFee: false,
-            status: 0,
-        },
-        mpAssets,
-        feederData.config,
-    ])
-
-    console.log(`Deploying FeederPool proxy with impl: ${impl.address} and admin ${addresses.proxyAdmin}`)
-    const feederPoolProxy = await new AssetProxy__factory(sender).deploy(impl.address, addresses.proxyAdmin, data)
-    const receiptProxy = await feederPoolProxy.deployTransaction.wait()
-
-    console.log(`Deployed FeederPool proxy to address ${feederPoolProxy.address}. gas used ${receiptProxy.gasUsed}`)
-
-    // Create a FeederPool contract pointing to the deployed proxy contract
-    return feederPoolFactory.attach(feederPoolProxy.address)
-}
-
-const mint = async (sender: Signer, bAssets: DeployedFasset[], feederData: FeederData) => {
-    // e.e. $4e18 * 1e18 / 1e18 = 4e18
-    // e.g. 4e18 * 1e18 / 5e22 = 8e13 or 0.00008
-    const scaledTestQty = simpleToExactAmount(4)
-        .mul(simpleToExactAmount(1))
-        .div(feederData.priceCoeff)
-
-    // Approve spending
-    const approvals: BN[] = []
-    // eslint-disable-next-line
-    for (const bAsset of bAssets) {
-        // eslint-disable-next-line
-        const dec = await bAsset.contract.decimals()
-        const approval = dec === 18 ? scaledTestQty : scaledTestQty.div(simpleToExactAmount(1, BN.from(18).sub(dec)))
-        approvals.push(approval)
-        // eslint-disable-next-line
-        const tx = await bAsset.contract.approve(feederData.pool.address, approval)
-        // eslint-disable-next-line
-        const receiptApprove = await tx.wait()
-        console.log(
-            // eslint-disable-next-line
-            `Approved FeederPool to transfer ${formatUnits(approval, dec)} ${bAsset.symbol} from ${await sender.getAddress()}. gas used ${
-                receiptApprove.gasUsed
-            }`,
-        )
-    }
-
-    // Mint
-    console.log(
-        bAssets.map(() => scaledTestQty.toString()),
-        await Promise.all(
-            bAssets.map(async (b) => (await b.contract.allowance(await sender.getAddress(), feederData.pool.address)).toString()),
-        ),
-        await Promise.all(bAssets.map(async (b) => (await b.contract.balanceOf(await sender.getAddress())).toString())),
-        bAssets.map((b) => b.address),
-        (await feederData.pool.getBassets())[0].map((b) => b[0]),
-        await feederData.pool.mAsset(),
-    )
-    const tx = await feederData.pool.mintMulti(
-        bAssets.map((b) => b.address),
-        approvals,
-        1,
-        await sender.getAddress(),
-    )
-    const receiptMint = await tx.wait()
-
-    // Log minted amount
-    const mAssetAmount = formatEther(await feederData.pool.totalSupply())
-    console.log(
-        `Minted ${mAssetAmount} fpToken from ${formatEther(scaledTestQty)} Units for each [mAsset, fAsset]. gas used ${
-            receiptMint.gasUsed
-        }`,
-    )
-}
-
-const deployVault = async (
-    sender: Signer,
-    addresses: CommonAddresses,
-    lpToken: string,
-    priceCoeff: BN,
-    vaultName: string,
-    vaultSymbol: string,
-    depositAmt = BN.from(0),
-): Promise<BoostedSavingsVault> => {
-    console.log(
-        `Deploying Vault Impl with LP token ${lpToken}, director ${addresses.boostDirector}, priceCoeff ${formatEther(
-            priceCoeff,
-        )}, coeff ${COEFF}, mta: ${addresses.mta}}`,
-    )
-    const vImpl = await new BoostedSavingsVault__factory(sender).deploy(
-        addresses.nexus,
-        lpToken,
-        addresses.boostDirector,
-        priceCoeff,
-        COEFF,
-        addresses.mta,
-    )
-    const receiptVaultImpl = await vImpl.deployTransaction.wait()
-    console.log(`Deployed Vault Impl to ${vImpl.address}. gas used ${receiptVaultImpl.gasUsed}`)
-
-    // Data
-    console.log(
-        `Initializing Vault with: distributor: ${addresses.rewardsDistributor}, admin ${addresses.proxyAdmin}, ${vaultName}, ${vaultSymbol}`,
-    )
-    const vData = vImpl.interface.encodeFunctionData("initialize", [addresses.rewardsDistributor, vaultName, vaultSymbol])
-    // Proxy
-    const vProxy = await new AssetProxy__factory(sender).deploy(vImpl.address, addresses.proxyAdmin, vData)
-    const receiptVaultProxy = await vProxy.deployTransaction.wait()
-    console.log(`Deployed Vault Proxy to ${vProxy.address}. gas used ${receiptVaultProxy.gasUsed}`)
-
-    if (depositAmt.gt(0)) {
-        const erc20 = await new MockERC20__factory(sender).attach(lpToken)
-        console.log(
-            `Approving the vault deposit of ${depositAmt.toString()}. Your balance: ${(
-                await erc20.balanceOf(await sender.getAddress())
-            ).toString()}`,
-        )
-        const approval = await erc20.approve(vProxy.address, depositAmt)
-        await approval.wait()
-
-        console.log(`Depositing to vault...`)
-        const vault = new BoostedSavingsVault__factory(sender).attach(vProxy.address)
-        const deposit = await vault["stake(uint256)"](depositAmt)
-        await deposit.wait()
-    }
-
-    return BoostedSavingsVault__factory.connect(vProxy.address, sender)
-}
-
-const deployFeederWrapper = async (sender: Signer, feederPools: FeederPool[], vaults: BoostedSavingsVault[]): Promise<FeederWrapper> => {
-    // Deploy FeederWrapper
-    const feederWrapper = await new FeederWrapper__factory(sender).deploy()
-    const deployReceipt = await feederWrapper.deployTransaction.wait()
-    console.log(`Deployed FeederWrapper to ${feederWrapper.address}. gas used ${deployReceipt.gasUsed}`)
-
-    // Get tokens to approve
-    const len = feederPools.length
-    // eslint-disable-next-line
-    for (let i = 0; i < len; i++) {
-        const [[{ addr: massetAddr }, { addr: fassetAddr }]] = await feederPools[i].getBassets()
-        const masset = Masset__factory.connect(massetAddr, sender)
-        const [bassets] = await masset.getBassets()
-        const assets = [massetAddr, fassetAddr, ...bassets.map(({ addr }) => addr)]
-
-        // Make the approval in one tx
-        const approveTx = await feederWrapper["approve(address,address,address[])"](feederPools[i].address, vaults[i].address, assets)
-        const approveReceipt = await approveTx.wait()
-        console.log(`Approved FeederWrapper tokens. gas used ${approveReceipt.gasUsed}`)
-    }
-
-    return feederWrapper
-}
-
-context("deploying feeder", () => {
-    it("deploys everything", async () => {
+context("upgrading buy & make and collecting yield", () => {
+    let recipientv2: RevenueRecipient
+    let nexus: INexus
+    let savingsManager: Contract
+    let governor: Signer
+    let pool: MockBPool
+    let collector: Collector
+    let interestValidator: InterestValidator
+    let balToken: MockERC20
+    before("reset block number", async () => {
         await network.provider.request({
             method: "hardhat_reset",
             params: [
                 {
                     forking: {
                         jsonRpcUrl: process.env.NODE_URL,
-                        blockNumber: 12146547,
+                        blockNumber: 12192277,
                     },
                 },
             ],
         })
-
-        const deployer = await impersonate(deployerAddress)
-
-        const addresses: CommonAddresses = {
-            mta: "0xa3BeD4E1c75D00fa6f4E5E6922DB7261B5E9AcD2",
-            staking: "0xae8bc96da4f9a9613c323478be181fdb2aa0e1bf",
-            nexus: "0xafce80b19a8ce13dec0739a1aab7a028d6845eb3",
-            proxyAdmin: "0x5c8eb57b44c1c6391fc7a8a0cf44d26896f92386",
-            rewardsDistributor: "0x04dfdfa471b79cc9e6e8c355e6c71f8ec4916c50",
-            aave: "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5",
-        }
-
-        const pairs: Pair[] = [
-            // mBTC / hBTC
-            {
-                mAsset: "0x945facb997494cc2570096c74b5f66a3507330a1",
-                fAsset: "0x0316EB71485b0Ab14103307bf65a021042c6d380",
-                aToken: ZERO_ADDRESS,
-                priceCoeff: simpleToExactAmount(58000),
-                A: BN.from(325),
-            },
-            // mBTC / tBTC
-            {
-                mAsset: "0x945facb997494cc2570096c74b5f66a3507330a1",
-                fAsset: "0x8dAEBADE922dF735c38C80C7eBD708Af50815fAa",
-                aToken: ZERO_ADDRESS,
-                priceCoeff: simpleToExactAmount(58000),
-                A: BN.from(175),
-            },
-            // mUSD / bUSD
-            {
-                mAsset: "0xe2f2a5C287993345a840Db3B0845fbC70f5935a5",
-                fAsset: "0x4fabb145d64652a948d72533023f6e7a623c7c53",
-                aToken: "0xa361718326c15715591c299427c62086f69923d9",
-                priceCoeff: simpleToExactAmount(1),
-                A: BN.from(500),
-            },
-            // mUSD / GUSD
-            {
-                mAsset: "0xe2f2a5C287993345a840Db3B0845fbC70f5935a5",
-                fAsset: "0x056fd409e1d7a124bd7017459dfea2f387b6d5cd",
-                aToken: "0xD37EE7e4f452C6638c96536e68090De8cBcdb583",
-                priceCoeff: simpleToExactAmount(1),
-                A: BN.from(225),
-            },
-        ]
-
-        // 1.    Deploy boostDirector & Libraries
-        const start = await deployer.getBalance()
-        console.log(`\n~~~~~ PHASE 1 - LIBS ~~~~~\n\n`)
-        console.log("Remaining ETH in deployer: ", formatUnits(await deployer.getBalance()))
-        console.log(`Deploying BoostDirector with ${addresses.nexus}, ${addresses.staking}`)
-        const director = await new BoostDirector__factory(deployer).deploy(addresses.nexus, addresses.staking)
-        await director.deployTransaction.wait()
-        console.log(`Deployed Director to ${director.address}`)
-        addresses.boostDirector = director.address
-
-        console.log(`Deploying FeederLogic`)
-        const feederLogic = await new FeederLogic__factory(deployer).deploy()
-        const receiptFeederLogic = await feederLogic.deployTransaction.wait()
-        console.log(`Deployed FeederLogic to ${feederLogic.address}. gas used ${receiptFeederLogic.gasUsed}`)
-        addresses.feederLogic = feederLogic
-
-        // External linked library
-        const Manager = await ethers.getContractFactory("FeederManager")
-        const managerLib = await Manager.deploy()
-        const receiptManager = await managerLib.deployTransaction.wait()
-        console.log(`Deployed FeederManager library to ${managerLib.address}. gas used ${receiptManager.gasUsed}`)
-        addresses.feederManager = managerLib as FeederManager
-
-        // 2.1   Deploy imBTC vault & deposit
-        console.log(`\n~~~~~ PHASE 2 - POOLS ~~~~~\n\n`)
-        console.log("Remaining ETH in deployer: ", formatUnits(await deployer.getBalance()))
-        const imBTC = await deployVault(
-            deployer,
-            addresses,
-            "0x17d8cbb6bce8cee970a4027d1198f6700a7a6c24",
-            simpleToExactAmount(5800),
-            "imBTC Vault",
-            "v-imBTC",
-            simpleToExactAmount(3, 15),
+        const ethWhale = await impersonate(ethWhaleAddress)
+        await ethWhale.sendTransaction({
+            to: governorAddress,
+            value: simpleToExactAmount(10),
+        })
+        await ethWhale.sendTransaction({
+            to: "0x7fFAF4ceD81E7c4E71b3531BD7948d7FA8f20329",
+            value: simpleToExactAmount(10),
+        })
+        governor = await impersonate(governorAddress)
+        nexus = INexus__factory.connect(config.nexus, governor)
+        const savingsManagerFactory = new ContractFactory(SavingsManagerAbi, SavingsManagerBytecode, governor)
+        savingsManager = savingsManagerFactory.attach("0x9781C4E9B9cc6Ac18405891DF20Ad3566FB6B301")
+        pool = MockBPool__factory.connect(config.crp, governor)
+    })
+    // Deploy recipient
+    // Upgrade both mUSD and mBTC in governance
+    it("deploys and upgrades recipientv2", async () => {
+        recipientv2 = await new RevenueRecipient__factory(governor).deploy(
+            config.nexus,
+            config.crp,
+            config.bal,
+            config.tokens,
+            config.minOuts,
         )
-        console.log(`imBTC vault deployed to ${imBTC.address}`)
+        await savingsManager.setRevenueRecipient(config.tokens[0], recipientv2.address)
+        await savingsManager.setRevenueRecipient(config.tokens[1], recipientv2.address)
 
-        // 2.2   For each fAsset
-        //        - fetch fAsset & mAsset
-        const data: FeederData[] = []
+        const proxy = await impersonate("0x7fFAF4ceD81E7c4E71b3531BD7948d7FA8f20329")
 
-        // eslint-disable-next-line
-        for (const pair of pairs) {
-            const mAssetContract = await new MockERC20__factory(deployer).attach(pair.mAsset)
-            const fAssetContract = await new MockERC20__factory(deployer).attach(pair.fAsset)
-            const deployedMasset: DeployedFasset = {
-                integrator: ZERO_ADDRESS,
-                txFee: false,
-                contract: mAssetContract,
-                address: pair.mAsset,
-                symbol: await mAssetContract.symbol(),
-            }
-            const deployedFasset: DeployedFasset = {
-                integrator: ZERO_ADDRESS,
-                txFee: false,
-                contract: fAssetContract,
-                address: pair.fAsset,
-                symbol: await fAssetContract.symbol(),
-            }
-            data.push({
-                mAsset: deployedMasset,
-                fAsset: deployedFasset,
-                aToken: pair.aToken,
-                name: `${deployedMasset.symbol}/${deployedFasset.symbol} Feeder Pool`,
-                symbol: `fP${deployedMasset.symbol}/${deployedFasset.symbol}`,
-                config: {
-                    a: pair.A,
-                    limits: {
-                        min: simpleToExactAmount(10, 16),
-                        max: simpleToExactAmount(90, 16),
-                    },
-                },
-                vaultName: `${deployedMasset.symbol}/${deployedFasset.symbol} fPool Vault`,
-                vaultSymbol: `v-fP${deployedMasset.symbol}/${deployedFasset.symbol}`,
-                priceCoeff: pair.priceCoeff,
-            })
-        }
-        //        - create fPool (nexus, mAsset, name, integrator, config)
-        // eslint-disable-next-line
-        for (const poolData of data) {
-            console.log(`\n~~~~~ POOL ${poolData.symbol} ~~~~~\n\n`)
-            console.log("Remaining ETH in deployer: ", formatUnits(await deployer.getBalance()))
-            // Deploy Feeder Pool
-            const feederPool = await deployFeederPool(deployer, addresses, poolData)
-            poolData.pool = feederPool
-            // Mint initial supply
-            await mint(deployer, [poolData.mAsset, poolData.fAsset], poolData)
-            // Rewards Contract
-            const bal = await feederPool.balanceOf(await deployer.getAddress())
-            const vault = await deployVault(
-                deployer,
-                addresses,
-                poolData.pool.address,
-                poolData.priceCoeff,
-                poolData.vaultName,
-                poolData.vaultSymbol,
-                bal,
-            )
-            poolData.vault = vault
-        }
-        // 3.    Clean
-        //        - initialize boostDirector with pools
-        console.log(`\n~~~~~ PHASE 3 - ETC ~~~~~\n\n`)
-        console.log("Remaining ETH in deployer: ", formatUnits(await deployer.getBalance()))
-        console.log(`Initializing BoostDirector...`, [...data.map((d) => d.vault.address), imBTC.address])
-        const directorInit = await director.initialize(data.map((d) => d.vault.address))
-        await directorInit.wait()
-        //        - if aToken != 0: deploy integrator & initialize with fPool & aToken addr
-        // eslint-disable-next-line
-        for (const poolData of data) {
-            if (poolData.aToken !== ZERO_ADDRESS) {
-                const integration = await new AaveV2Integration__factory(deployer).deploy(
-                    addresses.nexus,
-                    poolData.pool.address,
-                    addresses.aave,
-                )
-                console.log(`Deploying integration for ${poolData.symbol} at pool ${poolData.pool.address}`)
-                await integration.deployTransaction.wait()
-                console.log(`Deployed integration to ${integration.address}`)
+        const crp = await ConfigurableRightsPool__factory.connect(config.crp, proxy)
+        await crp.whitelistLiquidityProvider(recipientv2.address)
+        governor = await impersonate(governorAddress)
+    })
+    // Called by governance to migrate from v1 to v2
+    it("migrates BPT from v1 to v2", async () => {
+        const v1BalBefore = await pool.balanceOf(config.oldRecipient)
+        const v2BalBefore = await pool.balanceOf(recipientv2.address)
+        expect(v2BalBefore).eq(0)
 
-                console.log(`Initializing pToken ${poolData.aToken} for bAsset ${poolData.fAsset.address}...`)
-                const init = await integration.initialize([poolData.fAsset.address], [poolData.aToken])
-                await init.wait()
-            }
-        }
-        //        - deploy feederRouter
-        console.log("Deploying feederRouter...")
-        await deployFeederWrapper(
-            deployer,
-            data.map((d) => d.pool),
-            data.map((d) => d.vault),
+        const recipientv1 = RevenueRecipientV1__factory.connect(config.oldRecipient, governor)
+        await recipientv1.migrateBPT(recipientv2.address)
+
+        const v1BalAfter = await pool.balanceOf(config.oldRecipient)
+        const v2BalAfter = await pool.balanceOf(recipientv2.address)
+        expect(v1BalAfter).eq(0)
+        expect(v2BalAfter).eq(v1BalBefore)
+    })
+    // Add Collector
+    // Cancel InterestValidator old
+    // Add InterestValidator new
+    it("proposes the Collector and Interest Validator as modules in Nexus", async () => {
+        collector = await new Collector__factory(governor).deploy(config.nexus)
+        interestValidator = await new InterestValidator__factory(governor).deploy(config.nexus)
+
+        await nexus.proposeModule(keccak256(toUtf8Bytes("Governance")), collector.address)
+        await nexus.cancelProposedModule(keccak256(toUtf8Bytes("InterestValidator")))
+        await nexus.proposeModule(keccak256(toUtf8Bytes("InterestValidator")), interestValidator.address)
+    })
+    // Wait 1 week
+    // Accept both modules
+    it("upgrades the modules after a week delay", async () => {
+        await increaseTime(ONE_WEEK)
+
+        await nexus.acceptProposedModules([keccak256(toUtf8Bytes("InterestValidator")), keccak256(toUtf8Bytes("Governance"))])
+    })
+    // Call both mUSD and mBTC collections via the collector
+    it("collects from both assets using the collector", async () => {
+        await collector.distributeInterest([config.tokens[0], config.tokens[1]], true)
+    })
+    // Call 100%
+    it("fails to deposit all to the pool", async () => {
+        await expect(
+            recipientv2.depositToPool([config.tokens[0], config.tokens[1]], [simpleToExactAmount(1), simpleToExactAmount(1)]),
+        ).to.be.revertedWith("ERR_MAX_IN_RATIO")
+    })
+    // Call 20%
+    it("deposits a % to pool", async () => {
+        await recipientv2.depositToPool([config.tokens[0], config.tokens[1]], [simpleToExactAmount(2, 17), simpleToExactAmount(2, 17)])
+    })
+    // Call multiple more 20%'s
+    it("deposits all to pool", async () => {
+        await recipientv2.depositToPool([config.tokens[0], config.tokens[1]], [simpleToExactAmount(2, 17), simpleToExactAmount(2, 17)])
+
+        await recipientv2.depositToPool([config.tokens[0], config.tokens[1]], [simpleToExactAmount(4, 17), simpleToExactAmount(4, 17)])
+
+        await recipientv2.depositToPool([config.tokens[0], config.tokens[1]], [simpleToExactAmount(1), simpleToExactAmount(1)])
+    })
+    // Deposit BAL to the contract
+    // Call reinvest via the BAL/WETH pool
+    it("reinvests all BAL back into the pool via WETH", async () => {
+        const balWhaleS = await impersonate(balWhale)
+        balToken = MockERC20__factory.connect(config.bal, balWhaleS)
+        await balToken.transfer(recipientv2.address, simpleToExactAmount(10, 18))
+
+        const balBefore = await pool.balanceOf(recipientv2.address)
+
+        await recipientv2.reinvestBAL(
+            "0x59a19d8c652fa0284f44113d0ff9aba70bd46fb4",
+            "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+            simpleToExactAmount(1, 17),
+            simpleToExactAmount(600),
+            simpleToExactAmount(5, 17),
         )
-        //        - deploy interestValidator
-        const interestValidator = await new InterestValidator__factory(deployer).deploy(addresses.nexus)
-        const deployReceipt = await interestValidator.deployTransaction.wait()
-        console.log(`Deployed Interest Validator to ${interestValidator.address}. gas used ${deployReceipt.gasUsed}`)
-        console.log(`\n~~~~~ 🥳 CONGRATS! Time for Phase 4 🥳 ~~~~~\n\n`)
-        // 4.    Post
-        //        -  migrate GUSD & bUSD to aave
-        //        -  Add InterestValidator as a module
-        //        -  Fund vaults
-        console.log("Remaining ETH in deployer: ", formatUnits(await deployer.getBalance()))
-        const end = await deployer.getBalance()
-        console.log("Total ETH used: ", formatUnits(end.sub(start)))
+        await recipientv2.reinvestBAL(
+            "0x59a19d8c652fa0284f44113d0ff9aba70bd46fb4",
+            "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+            simpleToExactAmount(1, 17),
+            simpleToExactAmount(600),
+            simpleToExactAmount(1),
+        )
+        const balAfter = await pool.balanceOf(recipientv2.address)
+        expect(balAfter).gt(balBefore.add(200))
+    })
+    // Set govFee to 50%
+    // Do some swaps & increase time
+    // Collect platform interest
+    it("accrues gov fees in feeder pools", async () => {
+        let fPool1 = FeederPool__factory.connect(config.fPools[0], governor)
+        let fPool2 = FeederPool__factory.connect(config.fPools[1], governor)
+        await fPool1.setFees(simpleToExactAmount(1, 16), simpleToExactAmount(1, 16), simpleToExactAmount(5, 17))
+        await fPool2.setFees(simpleToExactAmount(1, 16), simpleToExactAmount(1, 16), simpleToExactAmount(5, 17))
+
+        const mUSDWhale = await impersonate(mUsdWhaleAddress)
+        fPool1 = FeederPool__factory.connect(config.fPools[0], mUSDWhale)
+        fPool2 = FeederPool__factory.connect(config.fPools[1], mUSDWhale)
+        const mUSD = MockERC20__factory.connect(config.tokens[0], mUSDWhale)
+        await mUSD.approve(fPool1.address, simpleToExactAmount(1000))
+        await fPool1.swap(mUSD.address, "0x056fd409e1d7a124bd7017459dfea2f387b6d5cd", simpleToExactAmount(1000), 1, mUsdWhaleAddress)
+        await mUSD.approve(fPool2.address, simpleToExactAmount(1000))
+        await fPool2.swap(mUSD.address, "0x4fabb145d64652a948d72533023f6e7a623c7c53", simpleToExactAmount(1000), 1, mUsdWhaleAddress)
+
+        await increaseTime(ONE_DAY)
+
+        await interestValidator.collectAndValidateInterest([fPool1.address])
+    })
+    // Collect all, and check the balance in the SavingsManager
+    it("collects gov fees from the feeder pools", async () => {
+        const mUSDWhale = await impersonate(mUsdWhaleAddress)
+        const mUSD = MockERC20__factory.connect(config.tokens[0], mUSDWhale)
+
+        const balBefore = await mUSD.balanceOf(savingsManager.address)
+        await interestValidator.collectGovFees(config.fPools)
+        const balAfter = await mUSD.balanceOf(savingsManager.address)
+        expect(balAfter).gt(balBefore)
+        console.log("bals: ", formatEther(balAfter.sub(balBefore)))
+    })
+    // Simply accrue more BAL and transfer elsewhere
+    it("migrates BAL & BPT later", async () => {
+        const v1BalBefore = await pool.balanceOf(recipientv2.address)
+        const v1BalBeforeB = await balToken.balanceOf(recipientv2.address)
+        const v2BalBefore = await pool.balanceOf(nullAddr)
+        const v2BalBeforeB = await balToken.balanceOf(nullAddr)
+        expect(v2BalBefore).eq(0)
+        expect(v2BalBeforeB).eq(0)
+
+        await recipientv2.migrate(nullAddr)
+
+        const v1BalAfter = await pool.balanceOf(recipientv2.address)
+        const v1BalAfterB = await balToken.balanceOf(recipientv2.address)
+        const v2BalAfter = await pool.balanceOf(nullAddr)
+        const v2BalAfterB = await balToken.balanceOf(nullAddr)
+        expect(v1BalAfter).eq(0)
+        expect(v2BalAfter).eq(v1BalBefore)
+        expect(v1BalAfterB).eq(0)
+        expect(v2BalAfterB).eq(v1BalBeforeB)
     })
 })
 
