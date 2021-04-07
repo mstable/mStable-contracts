@@ -1,5 +1,3 @@
-/* eslint-disable no-console */
-/* eslint-disable no-await-in-loop */
 import "ts-node/register"
 import "tsconfig-paths/register"
 

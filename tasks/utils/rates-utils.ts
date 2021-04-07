@@ -1,7 +1,3 @@
-/* eslint-disable no-restricted-syntax */
-/* eslint-disable import/prefer-default-export */
-/* eslint-disable no-console */
-
 import { Contract } from "ethers"
 import { applyDecimals, BN, simpleToExactAmount } from "@utils/math"
 import { FeederPool, Masset } from "types/generated"
@@ -37,14 +33,23 @@ export const outputSwapRate = (swap: SwapRate, quantityFormatter: QuantityFormat
 
     // Process mUSD swap output
     const mOutputScaled = applyDecimals(mOutputRaw, outputToken.decimals)
-    const mBasicPoints = mOutputScaled.sub(inputScaled).mul(10000).div(inputScaled)
+    const mBasicPoints = mOutputScaled
+        .sub(inputScaled)
+        .mul(10000)
+        .div(inputScaled)
 
     // Process Curve's swap output
     const curveOutputScaled = applyDecimals(curveOutputRaw, outputToken.decimals)
-    const curvePercent = curveOutputScaled.sub(inputScaled).mul(10000).div(inputScaled)
+    const curvePercent = curveOutputScaled
+        .sub(inputScaled)
+        .mul(10000)
+        .div(inputScaled)
 
     // Calculate the difference between the mUSD and Curve outputs in basis points
-    const diffOutputs = mOutputRaw.sub(curveOutputRaw).mul(10000).div(mOutputRaw)
+    const diffOutputs = mOutputRaw
+        .sub(curveOutputRaw)
+        .mul(10000)
+        .div(mOutputRaw)
 
     // Calculate if there's an arbitrage = inverse curve output - input
     const curveInverseOutputScaled = applyDecimals(swap.curveInverseOutputRaw, swap.inputToken.decimals)

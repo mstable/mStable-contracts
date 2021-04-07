@@ -1,6 +1,3 @@
-/* eslint-disable import/prefer-default-export */
-/* eslint-disable no-console */
-
 import { FeederPool, Masset } from "types/generated"
 
 // Get mAsset token storage variables

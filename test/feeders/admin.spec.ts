@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-loop-func */
-/* eslint-disable no-restricted-syntax */
-/* eslint-disable @typescript-eslint/no-unused-expressions */
 import { ethers } from "hardhat"
 import { expect } from "chai"
 

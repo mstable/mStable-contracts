@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions */
-/* eslint-disable no-await-in-loop */
-
 import { expect } from "chai"
 import { Signer } from "ethers"
 import { ethers } from "hardhat"
@@ -195,7 +192,9 @@ describe("Feeder - Redeem", () => {
         expect(redeemEvent.args.scaledFee, "scaledFee in Redeemed event").to.gte(0)
 
         // Burn feeder pool token
-        await expect(tx, "Transfer event").to.emit(pool, "Transfer").withArgs(sender.address, ZERO_ADDRESS, fpTokenQuantityExact)
+        await expect(tx, "Transfer event")
+            .to.emit(pool, "Transfer")
+            .withArgs(sender.address, ZERO_ADDRESS, fpTokenQuantityExact)
 
         // Transfers from lending platform or feeder pool to recipient
         await expect(tx, "Transfer event")

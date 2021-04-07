@@ -1,7 +1,5 @@
-/* eslint-disable @typescript-eslint/no-loop-func */
-/* eslint-disable no-restricted-syntax */
 import { assertBNClose } from "@utils/assertions"
-import { DEAD_ADDRESS, fullScale, MAX_UINT256, ratioScale, ZERO_ADDRESS } from "@utils/constants"
+import { DEAD_ADDRESS, fullScale, MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { feederData } from "@utils/validator-data"
