@@ -81,7 +81,7 @@ context("upgrading buy & make and collecting yield", () => {
                 {
                     forking: {
                         jsonRpcUrl: process.env.NODE_URL,
-                        blockNumber: 12192277,
+                        blockNumber: 12193385,
                     },
                 },
             ],
@@ -104,13 +104,7 @@ context("upgrading buy & make and collecting yield", () => {
     // Deploy recipient
     // Upgrade both mUSD and mBTC in governance
     it("deploys and upgrades recipientv2", async () => {
-        recipientv2 = await new RevenueRecipient__factory(governor).deploy(
-            config.nexus,
-            config.crp,
-            config.bal,
-            config.tokens,
-            config.minOuts,
-        )
+        recipientv2 = RevenueRecipient__factory.connect("0xA7824292efDee1177a1C1BED0649cfdD6114fed5", governor)
         await savingsManager.setRevenueRecipient(config.tokens[0], recipientv2.address)
         await savingsManager.setRevenueRecipient(config.tokens[1], recipientv2.address)
 
@@ -138,8 +132,8 @@ context("upgrading buy & make and collecting yield", () => {
     // Cancel InterestValidator old
     // Add InterestValidator new
     it("proposes the Collector and Interest Validator as modules in Nexus", async () => {
-        collector = await new Collector__factory(governor).deploy(config.nexus)
-        interestValidator = await new InterestValidator__factory(governor).deploy(config.nexus)
+        collector = Collector__factory.connect("0x3F63e5bbB53e46F8B21F67C25Bf2dd78BC6C0e43", governor)
+        interestValidator = InterestValidator__factory.connect("0xf1049aeD858C4eAd6df1de4dbE63EF607CfF3262", governor)
 
         await nexus.proposeModule(keccak256(toUtf8Bytes("Governance")), collector.address)
         await nexus.cancelProposedModule(keccak256(toUtf8Bytes("InterestValidator")))
