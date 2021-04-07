@@ -155,7 +155,7 @@ describe("Feeder - Mint", () => {
             : simpleToExactAmount(minOutputAssetQuantity, 18)
         const outputQuantityExact = quantitiesAreExact ? BN.from(outputQuantity) : simpleToExactAmount(outputQuantity, 18)
 
-        const platformInteraction = await feederMachine.getPlatformInteraction(pool, "deposit", assetQuantityExact, assetBefore)
+        const platformInteraction = await FeederMachine.getPlatformInteraction(pool, "deposit", assetQuantityExact, assetBefore)
         const integratorBalBefore = await assetBefore.contract.balanceOf(
             assetBefore.integrator ? assetBefore.integratorAddr : assetBefore.feederPoolOrMassetContract.address,
         )
@@ -179,7 +179,9 @@ describe("Feeder - Mint", () => {
         }
 
         // Mint feeder pool token
-        await expect(tx, "Transfer event").to.emit(pool, "Transfer").withArgs(ZERO_ADDRESS, recipient, outputQuantityExact)
+        await expect(tx, "Transfer event")
+            .to.emit(pool, "Transfer")
+            .withArgs(ZERO_ADDRESS, recipient, outputQuantityExact)
 
         // Deposits into lending platform
         const integratorBalAfter = await assetBefore.contract.balanceOf(

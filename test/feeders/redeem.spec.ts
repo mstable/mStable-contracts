@@ -165,7 +165,7 @@ describe("Feeder - Redeem", () => {
             ? BN.from(outputQuantityExpected)
             : simpleToExactAmount(outputQuantityExpected, outputAssetDecimals)
 
-        const platformInteraction = await feederMachine.getPlatformInteraction(pool, "withdrawal", fpTokenQuantityExact, assetBefore)
+        const platformInteraction = await FeederMachine.getPlatformInteraction(pool, "withdrawal", fpTokenQuantityExact, assetBefore)
         const integratorBalBefore = await assetBefore.contract.balanceOf(
             assetBefore.integrator ? assetBefore.integratorAddr : assetBefore.feederPoolOrMassetContract.address,
         )

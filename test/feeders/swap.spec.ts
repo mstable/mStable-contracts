@@ -139,8 +139,8 @@ describe("Feeder - Swap", () => {
         expect(swapOutput, "swap output").to.eq(outputExpectedExact)
 
         //     Expect to be used in cache
-        const platformInteractionIn = await feederMachine.getPlatformInteraction(pool, "deposit", inputQuantityExact, inputAssetBefore)
-        const platformInteractionOut = await feederMachine.getPlatformInteraction(
+        const platformInteractionIn = await FeederMachine.getPlatformInteraction(pool, "deposit", inputQuantityExact, inputAssetBefore)
+        const platformInteractionOut = await FeederMachine.getPlatformInteraction(
             pool,
             "withdrawal",
             outputExpectedExact,

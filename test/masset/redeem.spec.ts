@@ -176,7 +176,7 @@ describe("Masset - Redeem", () => {
 
         const bAssetQuantityExact = await mAsset.getRedeemOutput(bAsset.address, mAssetQuantityExact)
 
-        const platformInteraction = await mAssetMachine.getPlatformInteraction(mAsset, "withdrawal", bAssetQuantityExact, bAssetBefore)
+        const platformInteraction = await MassetMachine.getPlatformInteraction(mAsset, "withdrawal", bAssetQuantityExact, bAssetBefore)
 
         // Execute the redemption
         const tx = mAsset.redeem(bAsset.address, mAssetQuantityExact, minBassetOutputExact, recipient)
@@ -193,7 +193,9 @@ describe("Masset - Redeem", () => {
             await expect(tx, "PlatformWithdrawal event").to.emit(platform, "PlatformWithdrawal")
             // .withArgs(bAsset.address, bAssetBefore.pToken, platformInteraction.amount, bAssetQuantityExact)
         } else if (platformInteraction.hasLendingMarket) {
-            await expect(tx, "Withdrawal event").to.emit(platform, "Withdrawal").withArgs(bAsset.address, bAssetQuantityExact)
+            await expect(tx, "Withdrawal event")
+                .to.emit(platform, "Withdrawal")
+                .withArgs(bAsset.address, bAssetQuantityExact)
         }
         // Transfer events
         await expect(tx, "Transfer event to burn the redeemed mAssets")
@@ -781,7 +783,9 @@ describe("Masset - Redeem", () => {
                     // VaultBalance should update for this bAsset
                     const bAssetAfter = await mAsset.getBasset(bAsset.address)
                     expect(BN.from(bAssetAfter.data.vaultBalance), "before != after + fee").eq(
-                        BN.from(bAssetBefore.data.vaultBalance).sub(oneBasset).add(bAssetFee),
+                        BN.from(bAssetBefore.data.vaultBalance)
+                            .sub(oneBasset)
+                            .add(bAssetFee),
                     )
                 })
                 it("should send less output to user if fee unexpected", async () => {
