@@ -1,6 +1,3 @@
-/* eslint-disable class-methods-use-this */
-/* eslint-disable no-nested-ternary */
-
 import { Signer } from "ethers"
 import { ethers } from "hardhat"
 import {
@@ -143,7 +140,7 @@ export class MassetMachine {
                       nexus.address,
                       bAssets.aavePlatformAddress,
                       bAssets.bAssets.map((b) => b.address),
-                      bAssets.aTokens.map((a) => a.aToken),
+                      bAssets.aTokens.map((at) => at.aToken),
                   )
               ).address
             : ZERO_ADDRESS
@@ -190,7 +187,7 @@ export class MassetMachine {
             platform: useLendingMarkets
                 ? await new MockPlatformIntegration__factory(this.sa.default.signer).attach(integrationAddress)
                 : null,
-            pTokens: useLendingMarkets ? bAssets.aTokens.map((a) => a.aToken) : [],
+            pTokens: useLendingMarkets ? bAssets.aTokens.map((at) => at.aToken) : [],
             managerLib,
             wrappedManagerLib: (await ManagerFactory.attach(mAsset.address)) as Manager,
             nexus,
@@ -719,7 +716,7 @@ export class MassetMachine {
         return result
     }
 
-    public async getPlatformInteraction(
+    public static async getPlatformInteraction(
         mAsset: Masset | ExposedMasset,
         type: "deposit" | "withdrawal",
         amount: BN,

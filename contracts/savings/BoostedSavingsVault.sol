@@ -93,7 +93,11 @@ contract BoostedSavingsVault is
      * @dev StakingRewards is a TokenWrapper and RewardRecipient
      * Constants added to bytecode at deployTime to reduce SLOAD cost
      */
-    function initialize(address _rewardsDistributor, string calldata _nameArg, string calldata _symbolArg) external initializer {
+    function initialize(
+        address _rewardsDistributor,
+        string calldata _nameArg,
+        string calldata _symbolArg
+    ) external initializer {
         InitializableRewardsDistributionRecipient._initialize(_rewardsDistributor);
         BoostedTokenWrapper._initialize(_nameArg, _symbolArg);
     }

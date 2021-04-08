@@ -1,9 +1,6 @@
 /* eslint-disable max-classes-per-file */
-/* eslint-disable lines-between-class-members */
-
-import { utils } from "ethers"
+import { utils, BigNumber as BN } from "ethers"
 import { Address } from "../types/common"
-import { BN } from "./math"
 
 /**
  * @notice This file contains constants relevant across the mStable test suite

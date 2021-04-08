@@ -1,6 +1,3 @@
-/* eslint-disable class-methods-use-this */
-/* eslint-disable no-nested-ternary */
-
 import { Signer } from "ethers"
 import { ethers } from "hardhat"
 import {
@@ -295,7 +292,7 @@ export class FeederMachine {
         return approvalAmount
     }
 
-    public async getPlatformInteraction(
+    public static async getPlatformInteraction(
         pool: FeederPool,
         type: "deposit" | "withdrawal",
         amount: BN,

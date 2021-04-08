@@ -1,6 +1,3 @@
-/* eslint-disable no-await-in-loop */
-/* eslint-disable no-restricted-syntax */
-/* eslint-disable no-console */
 import { btcBassets, capFactor, contracts, startingCap } from "@utils/btcConstants"
 import { Signer } from "ethers"
 import { formatUnits } from "ethers/lib/utils"

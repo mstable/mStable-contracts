@@ -1,6 +1,3 @@
-/* eslint-disable no-await-in-loop */
-/* eslint-disable no-restricted-syntax */
-/* eslint-disable no-console */
 import "ts-node/register"
 import "tsconfig-paths/register"
 import { task, types } from "hardhat/config"

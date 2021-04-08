@@ -1,23 +1,13 @@
-/* eslint-disable no-underscore-dangle */
-/* eslint-disable no-param-reassign */
-/* eslint-disable no-await-in-loop */
-/* eslint-disable @typescript-eslint/no-unused-expressions */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-import { expect } from "chai"
-import { DEAD_ADDRESS, ZERO_ADDRESS } from "@utils/constants"
+import { ZERO_ADDRESS } from "@utils/constants"
 import { Signer } from "ethers"
 import { ethers, network } from "hardhat"
-import { task } from "hardhat/config"
 import { formatEther, formatUnits } from "ethers/lib/utils"
 import {
     FeederPool,
     FeederPool__factory,
     FeederLogic__factory,
     AssetProxy__factory,
-    MockERC20,
     MockERC20__factory,
-    MockInitializableToken__factory,
     BoostedSavingsVault__factory,
     ERC20,
     FeederManager,
@@ -33,8 +23,6 @@ import {
 import { simpleToExactAmount, BN } from "@utils/math"
 
 // Accounts that are impersonated
-const ethWhaleAddress = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
-const governorAddress = "0xF6FF1F7FCEB2cE6d26687EaaB5988b445d0b94a2"
 const deployerAddress = "0x19F12C947D25Ff8a3b748829D8001cA09a28D46d"
 
 // impersonates a specific account

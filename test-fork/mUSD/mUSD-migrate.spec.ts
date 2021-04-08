@@ -1,8 +1,3 @@
-/* eslint-disable no-underscore-dangle */
-/* eslint-disable no-param-reassign */
-/* eslint-disable @typescript-eslint/no-unused-expressions */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
 import { expect } from "chai"
 import { Contract, ContractFactory, Signer } from "ethers"
 import { ethers, network } from "hardhat"
@@ -25,7 +20,6 @@ import { BassetStatus } from "@utils/mstable-objects"
 import { increaseTime } from "@utils/time"
 import { assertBNClosePercent } from "@utils/assertions"
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 import { formatUnits } from "ethers/lib/utils"
 
 import { abi as MusdV2Abi, bytecode as MusdV2Bytecode } from "./MassetV2.json"
@@ -254,6 +248,7 @@ const validateUnchangedMassetStorage = async (mUsd: MusdV3 | Masset | Contract, 
 // Check that the bAsset data is what we expect
 const validateBasset = (bAssets, i: number, expectToken: Token, expectVaultBalances?: BN[]) => {
     if (!expectVaultBalances) {
+        /* eslint-disable-next-line no-param-reassign */
         expectVaultBalances = currentBassets.map((token) => token.vaultBalance)
     }
     expect(bAssets.personal[i].addr, `${expectToken.symbol} address`).to.eq(expectToken.address)
@@ -307,6 +302,7 @@ const balanceBasset = async (
     const inputDiffToTarget = scaledTargetBalance.sub(scaledVaultBalances[inputToken.index])
     // output scaled balance - scaled target weight
     // If output is TUSD then simply set the baseline to 0
+    /* eslint-disable-next-line no-param-reassign */
     scaledTargetBalance = outputToken.symbol === "TUSD" ? BN.from(0) : scaledTargetBalance
     const outputDiffToTarget = scaledVaultBalances[outputToken.index].sub(scaledTargetBalance)
     const minBassetAmount = inputDiffToTarget.lt(outputDiffToTarget) ? inputDiffToTarget : outputDiffToTarget
@@ -323,8 +319,10 @@ const balanceBasset = async (
     const tx = mUsdV2.connect(signer).swap(inputToken.address, outputToken.address, bAssetAmount, whaleAddress)
 
     await expect(tx).to.emit(mUsdV2, "Swapped")
+    /* eslint-disable-next-line no-param-reassign */
     scaledVaultBalances[inputToken.index] = scaledVaultBalances[inputToken.index].add(minBassetAmount)
     // this is not 100% accurate as the outputs are less fees but it's close enough for testing
+    /* eslint-disable-next-line no-param-reassign */
     scaledVaultBalances[outputToken.index] = scaledVaultBalances[outputToken.index].sub(minBassetAmount)
 }
 

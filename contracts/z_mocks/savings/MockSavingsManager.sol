@@ -3,11 +3,14 @@ pragma solidity 0.8.2;
 
 import { IMasset } from "../../interfaces/IMasset.sol";
 import { ISavingsContractV1 } from "../../interfaces/ISavingsContract.sol";
+import { IRevenueRecipient } from "../../interfaces/IRevenueRecipient.sol";
 import { IERC20 } from "../shared/MockERC20.sol";
 
 contract MockSavingsManager {
 
     address public immutable save;
+    IRevenueRecipient public recipient;
+    uint256 public rate = 1e18;
 
     constructor(address _save) {
         save = _save;
@@ -25,7 +28,21 @@ contract MockSavingsManager {
 
             IERC20(_mAsset).approve(save, interestCollected);
 
-            ISavingsContractV1(save).depositInterest(interestCollected);
+            ISavingsContractV1(save).depositInterest(interestCollected * rate / 1e18);
         }
+    }
+
+    function setRecipient(address _recipient, uint256 _rate) public {
+        recipient = IRevenueRecipient(_recipient);
+        rate = _rate;
+    }
+
+    function distributeUnallocatedInterest(address _mAsset) public {
+        require(save != address(0), "Must have a valid savings contract");
+
+        uint256 bal = IERC20(_mAsset).balanceOf(address(this));
+        IERC20(_mAsset).approve(save, bal);
+
+        recipient.notifyRedistributionAmount(_mAsset, bal);
     }
 }

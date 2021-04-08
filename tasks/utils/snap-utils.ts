@@ -1,7 +1,3 @@
-/* eslint-disable no-restricted-syntax */
-/* eslint-disable import/prefer-default-export */
-/* eslint-disable no-console */
-
 import { Signer } from "ethers"
 import { fullScale, ONE_YEAR } from "@utils/constants"
 import { applyDecimals, applyRatio, BN } from "@utils/math"

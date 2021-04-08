@@ -166,13 +166,16 @@ describe("Masset - Swap", () => {
             feeRate = await mAsset.swapFee()
             expect(feeRate, "fee rate > 0").gt(BN.from(0))
             expect(feeRate, "fee rate < fullScale / 50").lt(fullScale.div(BN.from(50)))
-            fee = expectedOutputValue.mul(fullScale).div(fullScale.sub(feeRate)).sub(expectedOutputValue)
+            fee = expectedOutputValue
+                .mul(fullScale)
+                .div(fullScale.sub(feeRate))
+                .sub(expectedOutputValue)
             expect(fee, "fee > 0").gt(BN.from(0))
             scaledFee = fee.mul(BN.from(outputBassetBefore.ratio)).div(ratioScale)
         }
         //     Expect to be used in cache
-        const platformInteractionIn = await mAssetMachine.getPlatformInteraction(mAsset, "deposit", approval0, inputBassetBefore)
-        const platformInteractionOut = await mAssetMachine.getPlatformInteraction(
+        const platformInteractionIn = await MassetMachine.getPlatformInteraction(mAsset, "deposit", approval0, inputBassetBefore)
+        const platformInteractionOut = await MassetMachine.getPlatformInteraction(
             mAsset,
             "withdrawal",
             expectedOutputValue,
@@ -228,7 +231,9 @@ describe("Masset - Swap", () => {
                 .to.emit(platform, "PlatformWithdrawal")
                 .withArgs(outputAsset.address, outputBassetBefore.pToken, platformInteractionOut.amount, expectedOutputValue)
         } else if (platformInteractionOut.hasLendingMarket) {
-            await expect(swapTx).to.emit(platform, "Withdrawal").withArgs(outputAsset.address, ZERO_ADDRESS, expectedOutputValue)
+            await expect(swapTx)
+                .to.emit(platform, "Withdrawal")
+                .withArgs(outputAsset.address, ZERO_ADDRESS, expectedOutputValue)
         }
         //    Recipient should have output asset quantity after (minus fee)
         const recipientBalAfter = await outputAsset.balanceOf(recipient)
