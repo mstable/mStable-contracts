@@ -111,7 +111,9 @@ export const deployTx = async <C>(
     await deployment.deployed()
     const receipt = await deployment.deployTransaction.wait()
 
-    console.log(chalk.blue(`Deploy transaction: ${chalk.yellow(receipt.transactionHash)}. Gas used ${chalk.yellow(receipt.gasUsed)}`))
+    console.log(
+        chalk.blue(`Deploy transaction: ${chalk.yellow(receipt.transactionHash)}. Gas used ${chalk.yellow(receipt.gasUsed.toString())}`),
+    )
 
     console.log(chalk.greenBright(`Deployed to ${chalk.yellow(receipt.contractAddress)}`))
 
