@@ -113,7 +113,7 @@ task("mUSD-snap", "Snaps mUSD")
             undefined,
             exposedValidator,
         )
-        await snapConfig(mAsset, fromBlock.blockNumber)
+        await snapConfig(mAsset, toBlock.blockNumber)
 
         const balances = await getBalances(mAsset, toBlock.blockNumber)
 
