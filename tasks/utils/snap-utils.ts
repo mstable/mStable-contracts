@@ -2,7 +2,7 @@ import { Signer } from "ethers"
 import { fullScale, ONE_YEAR } from "@utils/constants"
 import { applyDecimals, applyRatio, BN } from "@utils/math"
 import { formatUnits } from "ethers/lib/utils"
-import { FeederPool, Masset, ValidatorWithTVLCap__factory } from "types/generated"
+import { FeederPool, Masset, ValidatorWithTVLCap__factory, ExposedInvariantValidator } from "types/generated"
 import { QuantityFormatter } from "./quantity-formatters"
 import { Token } from "./tokens"
 
@@ -114,6 +114,7 @@ export const getBasket = async (
     mAssetName = "mBTC",
     quantityFormatter: QuantityFormatter,
     tvlConfig?: TvlConfig,
+    exposedValidator?: ExposedInvariantValidator,
 ): Promise<void> => {
     const bAssets = await asset.getBassets()
     const bAssetTotals: BN[] = []
@@ -129,21 +130,26 @@ export const getBasket = async (
         const percentage = bAssetTotals[i].mul(100).div(bAssetsTotal)
         console.log(`  ${symbol.padEnd(7)}  ${quantityFormatter(bAssetTotals[i]).padEnd(20)} ${percentage.toString().padStart(2)}%`)
     })
-    console.log(`Total (K)  ${formatUnits(bAssetsTotal)}`)
 
     const mAssetSurplus = isFeederPool(asset) ? BN.from(0) : await asset.surplus()
     const mAssetSupply = await asset.totalSupply()
     console.log(`Surplus    ${formatUnits(mAssetSurplus)}`)
     console.log(`${mAssetName}       ${formatUnits(mAssetSupply)}`)
     const mAssetTotal = mAssetSupply.add(mAssetSurplus)
-    // Sum of base assets less mAsset total supply less mAsset surplus
-    const bAssetMassetDiff = bAssetsTotal.sub(mAssetTotal)
-    const bAssetMassetDiffBasisPoints = bAssetMassetDiff.mul(10000).div(mAssetTotal)
-    console.log(
-        `Total ${mAssetName} ${formatUnits(mAssetTotal)} (${formatUnits(
-            bAssetMassetDiff,
-        )} ${bAssetMassetDiffBasisPoints}bps over collateralize)`,
-    )
+
+    if (exposedValidator) {
+        const k = await exposedValidator.getK(bAssets[1], await asset.getConfig())
+        console.log(`Total (K)  ${formatUnits(k)}`)
+
+        // Sum of base assets less mAsset total supply less mAsset surplus
+        const bAssetMassetDiff = k.sub(mAssetTotal)
+        const bAssetMassetDiffBasisPoints = bAssetMassetDiff.mul(10000).div(mAssetTotal)
+        console.log(
+            `Total ${mAssetName} ${formatUnits(mAssetTotal)} (${formatUnits(
+                bAssetMassetDiff,
+            )} ${bAssetMassetDiffBasisPoints}bps over-collateralised)`,
+        )
+    }
 
     if (tvlConfig) {
         const tvlCap = await getTvlCap(asset.signer, tvlConfig)

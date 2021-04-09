@@ -3,9 +3,8 @@ import "tsconfig-paths/register"
 import { task, types } from "hardhat/config"
 import { Signer } from "ethers"
 
-import { Masset } from "types/generated"
+import { Masset, ExposedInvariantValidator__factory, Masset__factory } from "types/generated"
 import { BN } from "@utils/math"
-import { Masset__factory } from "types/generated/factories/Masset__factory"
 import { dumpBassetStorage, dumpConfigStorage, dumpTokenStorage } from "./utils/storage-utils"
 import {
     getMultiRedemptions,
@@ -93,8 +92,14 @@ task("mUSD-snap", "Snaps mUSD")
     .addOptionalParam("from", "Block to query transaction events from. (default: deployment block)", 12094461, types.int)
     .addOptionalParam("to", "Block to query transaction events to. (default: current block)", 0, types.int)
     .setAction(async (taskArgs, hre) => {
-        const { ethers } = hre
+        const { ethers, network } = hre
         const [signer] = await ethers.getSigners()
+
+        let exposedValidator
+        if (network.name !== "mainnet") {
+            console.log("Not mainnet")
+            exposedValidator = await new ExposedInvariantValidator__factory(signer).deploy()
+        }
 
         const mAsset = getMasset(signer)
 
@@ -105,6 +110,8 @@ task("mUSD-snap", "Snaps mUSD")
             mUsdBassets.map((b) => b.symbol),
             "mUSD",
             usdFormatter,
+            undefined,
+            exposedValidator,
         )
         await snapConfig(mAsset, fromBlock.blockNumber)
 

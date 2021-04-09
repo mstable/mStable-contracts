@@ -2,7 +2,7 @@ import { btcBassets, capFactor, contracts, startingCap } from "@utils/btcConstan
 import { Signer } from "ethers"
 import { formatUnits } from "ethers/lib/utils"
 import { task, types } from "hardhat/config"
-import { Masset, Masset__factory } from "types/generated"
+import { Masset, Masset__factory, ExposedInvariantValidator__factory } from "types/generated"
 import { BN } from "@utils/math"
 import { dumpBassetStorage, dumpConfigStorage, dumpTokenStorage } from "./utils/storage-utils"
 import {
@@ -84,12 +84,18 @@ task("mBTC-storage", "Dumps mBTC's storage data")
     })
 
 task("mBTC-snap", "Get the latest data from the mBTC contracts")
-    .addOptionalParam("from", "Block to query transaction events from. (default: deployment block)", 11840520, types.int)
+    .addOptionalParam("from", "Block to query transaction events from. (default: deployment block)", 12094461, types.int)
     .addOptionalParam("to", "Block to query transaction events to. (default: current block)", 0, types.int)
     .setAction(async (taskArgs, hre) => {
-        const { ethers } = hre
+        const { ethers, network } = hre
 
         const [signer] = await ethers.getSigners()
+
+        let exposedValidator
+        if (network.name !== "mainnet") {
+            console.log("Not mainnet")
+            exposedValidator = await new ExposedInvariantValidator__factory(signer).deploy()
+        }
 
         const mAsset = getMasset(signer)
 
@@ -106,10 +112,11 @@ task("mBTC-snap", "Get the latest data from the mBTC contracts")
             "mBTC",
             btcFormatter,
             tvlConfig,
+            exposedValidator,
         )
-        await snapConfig(mAsset, fromBlock.blockNumber)
+        await snapConfig(mAsset, toBlock.blockNumber)
 
-        const balances = await getBalances(mAsset, fromBlock.blockNumber)
+        const balances = await getBalances(mAsset, toBlock.blockNumber)
 
         const mintSummary = await getMints(mBtcBassets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, btcFormatter)
         const mintMultiSummary = await getMultiMints(mBtcBassets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, btcFormatter)
