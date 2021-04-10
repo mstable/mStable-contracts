@@ -14,6 +14,8 @@ task("SaveWrapper.approveMasset", "Sets approvals for a new mAsset")
     .addParam("saveWrapper", "SaveWrapper address", undefined, params.address, false)
     .addParam("masset", "mAsset address", undefined, params.address, false)
     .addParam("bassets", "bAsset addresses", undefined, params.addressArray, false)
+    .addParam("fPools", "Feeder Pool addresses", undefined, params.addressArray, false)
+    .addParam("fAssets", "fAsset addresses (corresponding to fPools)", undefined, params.addressArray, false)
     .addParam("save", "Save contract address (i.e. imAsset)", undefined, params.address, false)
     .addParam("vault", "BoostedSavingsVault contract address", undefined, params.address, false)
     .setAction(
@@ -23,19 +25,23 @@ task("SaveWrapper.approveMasset", "Sets approvals for a new mAsset")
                 masset,
                 vault,
                 bassets,
+                fassets,
+                fPools,
                 save,
-            }: { saveWrapper: string; masset: string; bassets: string[]; save: string; vault: string },
+            }: { saveWrapper: string; masset: string; bassets: string[]; save: string; vault: string; fassets: string[]; fPools: string[] },
             { ethers },
         ) => {
             const [deployer] = await ethers.getSigners()
             await sendTx(
                 SaveWrapper__factory.connect(saveWrapper, deployer),
-                "approve(address,address,address,address[])",
+                "approve(address,address[],address[],address[],address,address)",
                 "Approve mAsset and other assets",
                 masset,
+                bassets,
+                fPools,
+                fassets,
                 save,
                 vault,
-                bassets,
             )
         },
     )
