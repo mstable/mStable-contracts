@@ -7,6 +7,7 @@ import "./tasks/feeder"
 import "./tasks/mBTC"
 import "./tasks/mUSD"
 import "./tasks/SaveWrapper"
+import "./tasks/FeederWrapper"
 import "./tasks/BoostedSavingsVault"
 
 export default config

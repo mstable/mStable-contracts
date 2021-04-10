@@ -32,7 +32,7 @@ contract FeederWrapper is Ownable {
         uint256 _minOutputQuantity
     ) external {
         // 0. Transfer the asset here
-        IERC20(_input).transferFrom(msg.sender, address(this), _inputQuantity);
+        IERC20(_input).safeTransferFrom(msg.sender, address(this), _inputQuantity);
 
         // 1. Mint the fpToken and transfer here
         uint256 fpTokenAmt =
@@ -61,7 +61,7 @@ contract FeederWrapper is Ownable {
 
         // 0. Transfer the assets here
         for (uint256 i = 0; i < _inputs.length; i++) {
-            IERC20(_inputs[i]).transferFrom(msg.sender, address(this), _inputQuantities[i]);
+            IERC20(_inputs[i]).safeTransferFrom(msg.sender, address(this), _inputQuantities[i]);
         }
 
         // 1. Mint the fpToken and transfer here
@@ -90,17 +90,17 @@ contract FeederWrapper is Ownable {
     }
 
     /**
-     * @dev Approve one asset
+     * @dev Approve one token/spender
      */
-    function approve(address _feeder, address _asset) external onlyOwner {
-        _approve(_asset, _feeder);
+    function approve(address _token, address _spender) external onlyOwner {
+        _approve(_token, _spender);
     }
 
     /**
-     * @dev Approve multiple assets
+     * @dev Approve multiple tokens/one spender
      */
-    function approve(address _feeder, address[] calldata _assets) external onlyOwner {
-        _approve(_assets, _feeder);
+    function approve(address[] calldata _tokens, address _spender) external onlyOwner {
+        _approve(_tokens, _spender);
     }
 
     function _approve(address _token, address _spender) internal {

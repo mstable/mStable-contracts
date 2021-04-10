@@ -3,6 +3,8 @@ pragma solidity 0.8.2;
 
 import { ISavingsContractV2 } from "../../interfaces/ISavingsContract.sol";
 import { IMasset } from "../../interfaces/IMasset.sol";
+import { IFeederPool } from "../../interfaces/IFeederPool.sol";
+import { IBoostedVaultWithLockup } from "../../interfaces/IBoostedVaultWithLockup.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -11,14 +13,11 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IUniswapV2Router02 } from "../../interfaces/IUniswapV2Router02.sol";
 import { IBasicToken } from "../../shared/IBasicToken.sol";
 
-interface IBoostedSavingsVault {
-    function stake(address _beneficiary, uint256 _amount) external;
-}
-
-// 3 FLOWS
-// 0 - SAVE
-// 1 - MINT AND SAVE
-// 2 - BUY AND SAVE (ETH via Uni)
+// FLOWS
+// 0 - mAsset -> Savings Vault
+// 1 - bAsset -> Save/Savings Vault via Mint
+// 2 - fAsset -> Save/Savings Vault via Feeder Pool
+// 3 - ETH    -> Save/Savings Vault via Uniswap
 contract SaveWrapper is Ownable {
     using SafeERC20 for IERC20;
 
@@ -40,14 +39,14 @@ contract SaveWrapper is Ownable {
         require(_vault != address(0), "Invalid vault");
 
         // 1. Get the input mAsset
-        IERC20(_mAsset).transferFrom(msg.sender, address(this), _amount);
+        IERC20(_mAsset).safeTransferFrom(msg.sender, address(this), _amount);
 
         // 2. Mint imAsset and stake in vault
         _saveAndStake(_save, _vault, _amount, true);
     }
 
     /**
-     * @dev 1. Mints an mAsset and then deposits to SAVE
+     * @dev 1. Mints an mAsset and then deposits to Save/Savings Vault
      * @param _mAsset       mAsset address
      * @param _bAsset       bAsset address
      * @param _save         Save address
@@ -71,7 +70,7 @@ contract SaveWrapper is Ownable {
         require(_bAsset != address(0), "Invalid bAsset");
 
         // 1. Get the input bAsset
-        IERC20(_bAsset).transferFrom(msg.sender, address(this), _amount);
+        IERC20(_bAsset).safeTransferFrom(msg.sender, address(this), _amount);
 
         // 2. Mint
         uint256 massetsMinted = IMasset(_mAsset).mint(_bAsset, _amount, _minOut, address(this));
@@ -81,7 +80,51 @@ contract SaveWrapper is Ownable {
     }
 
     /**
-     * @dev 2. Buys a bAsset on Uniswap with ETH, then mints imAsset via mAsset,
+     * @dev 2. Swaps fAsset for mAsset and then deposits to Save/Savings Vault
+     * @param _mAsset             mAsset address
+     * @param _save               Save address
+     * @param _vault              Boosted Savings Vault address
+     * @param _feeder             Feeder Pool address
+     * @param _fAsset             fAsset address
+     * @param _fAssetQuantity     Quantity of fAsset sent
+     * @param _minOutputQuantity  Min amount of mAsset to be swapped and deposited
+     * @param _stake              Deposit the imAsset in the Savings Vault?
+     */
+    function saveViaSwap(
+        address _mAsset,
+        address _save,
+        address _vault,
+        address _feeder,
+        address _fAsset,
+        uint256 _fAssetQuantity,
+        uint256 _minOutputQuantity,
+        bool _stake
+    ) external {
+        require(_feeder != address(0), "Invalid feeder");
+        require(_mAsset != address(0), "Invalid mAsset");
+        require(_save != address(0), "Invalid save");
+        require(_vault != address(0), "Invalid vault");
+        require(_fAsset != address(0), "Invalid input");
+
+        // 0. Transfer the fAsset here
+        IERC20(_fAsset).safeTransferFrom(msg.sender, address(this), _fAssetQuantity);
+
+        // 1. Swap the fAsset for mAsset with the feeder pool
+        uint256 mAssetQuantity =
+            IFeederPool(_feeder).swap(
+                _fAsset,
+                _mAsset,
+                _fAssetQuantity,
+                _minOutputQuantity,
+                address(this)
+            );
+
+        // 2. Deposit the mAsset into Save and optionally stake in the vault
+        _saveAndStake(_save, _vault, mAssetQuantity, _stake);
+    }
+
+    /**
+     * @dev 3. Buys a bAsset on Uniswap with ETH, then mints imAsset via mAsset,
      *         optionally staking in the Boosted Savings Vault
      * @param _mAsset         mAsset address
      * @param _save           Save address
@@ -154,7 +197,7 @@ contract SaveWrapper is Ownable {
      * @param _vault      Boosted vault address
      * @param _amount     Amount of mAsset to deposit
      * @param _stake          Add the imAsset to the Savings Vault?
-    */
+     */
     function _saveAndStake(
         address _save,
         address _vault,
@@ -163,7 +206,7 @@ contract SaveWrapper is Ownable {
     ) internal {
         if (_stake) {
             uint256 credits = ISavingsContractV2(_save).depositSavings(_amount, address(this));
-            IBoostedSavingsVault(_vault).stake(msg.sender, credits);
+            IBoostedVaultWithLockup(_vault).stake(msg.sender, credits);
         } else {
             ISavingsContractV2(_save).depositSavings(_amount, msg.sender);
         }
@@ -180,17 +223,24 @@ contract SaveWrapper is Ownable {
     }
 
     /**
-     * @dev Approve mAsset, Save and multiple bAssets
+     * @dev Approve mAsset and bAssets, Feeder Pools and fAssets, and Save/vault
      */
     function approve(
         address _mAsset,
+        address[] calldata _bAssets,
+        address[] calldata _fPools,
+        address[] calldata _fAssets,
         address _save,
-        address _vault,
-        address[] calldata _bAssets
+        address _vault
     ) external onlyOwner {
         _approve(_mAsset, _save);
         _approve(_save, _vault);
         _approve(_bAssets, _mAsset);
+
+        require(_fPools.length == _fAssets.length, "Mismatching fPools/fAssets");
+        for (uint256 i = 0; i < _fPools.length; i++) {
+            _approve(_fAssets[i], _fPools[i]);
+        }
     }
 
     /**
