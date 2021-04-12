@@ -9,5 +9,6 @@ import "./tasks/mUSD"
 import "./tasks/SaveWrapper"
 import "./tasks/FeederWrapper"
 import "./tasks/BoostedSavingsVault"
+import "./tasks/ops"
 
 export default config
