@@ -46,6 +46,7 @@
     "@typescript-eslint/eslint-plugin": "^4.14.0",
     "@typescript-eslint/eslint-plugin-tslint": "^4.14.0",
     "@typescript-eslint/parser": "^4.14.0",
+    "axios": "^0.21.1",
     "chai": "^4.2.0",
     "chalk": "^4.1.0",
     "csv-parse": "^4.15.0",
@@ -85,5 +86,6 @@
   "homepage": "https://github.com/mstable/mstable-contracts#readme",
   "directories": {
     "test": "test"
-  }
+  },
+  "dependencies": {}
 }
