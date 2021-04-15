@@ -38,7 +38,7 @@ const logTxDetails = async (tx: ContractTransaction, method: string): Promise<vo
 }
 
 task("eject-stakers", "Ejects expired stakers from Meta staking contract (vMTA)")
-    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "safeLow", types.string)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
     .setAction(async (taskArgs) => {
         const signer = await getDefenderSigner(taskArgs.speed)
 
@@ -54,6 +54,7 @@ task("eject-stakers", "Ejects expired stakers from Meta staking contract (vMTA)"
             console.error(`No stakers to eject`)
             process.exit(0)
         }
+        console.log(`${stakers.length} stakers to be ejected: ${stakers}`)
         const tx = await ejector.ejectMany(stakers)
         await logTxDetails(tx, "ejectMany")
     })
@@ -66,7 +67,7 @@ task("collect-interest", "Collects and streams interest from platforms")
         types.string,
         false,
     )
-    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "safeLow", types.string)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
     .setAction(async (taskArgs) => {
         const asset = tokens.find((t) => t.symbol === taskArgs.asset)
         if (!asset) {
