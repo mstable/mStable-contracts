@@ -92,11 +92,5 @@
   "directories": {
     "test": "test"
   },
-  "dependencies": {},
-  "husky": {
-    "hooks": {
-      "pre-commit": "yarn lint:fix",
-      "commit-msg": "yarn commitlint -E HUSKY_GIT_PARAMS"
-    }
-  }
+  "dependencies": {}
 }
