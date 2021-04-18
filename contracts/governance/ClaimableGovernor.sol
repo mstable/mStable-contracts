@@ -13,7 +13,6 @@ import { Governable } from "./Governable.sol";
  *          DATE:    2021-04-15
  */
 contract ClaimableGovernor is Governable {
-
     event GovernorChangeClaimed(address indexed proposedGovernor);
     event GovernorChangeCancelled(address indexed governor, address indexed proposed);
     event GovernorChangeRequested(address indexed governor, address indexed proposed);

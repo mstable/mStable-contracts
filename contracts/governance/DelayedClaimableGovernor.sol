@@ -13,7 +13,6 @@ import { ClaimableGovernor } from "./ClaimableGovernor.sol";
  *          DATE:    2021-04-15
  */
 contract DelayedClaimableGovernor is ClaimableGovernor {
-
     uint256 public delay = 0;
     uint256 public requestTime = 0;
 
@@ -22,9 +21,7 @@ contract DelayedClaimableGovernor is ClaimableGovernor {
      * @param _governorAddr Initial governor
      * @param _delay    Delay in seconds for 2 way handshake
      */
-    constructor(address _governorAddr, uint256 _delay)
-        ClaimableGovernor(_governorAddr)
-    {
+    constructor(address _governorAddr, uint256 _delay) ClaimableGovernor(_governorAddr) {
         require(_delay > 0, "Delay must be greater than zero");
         delay = _delay;
     }

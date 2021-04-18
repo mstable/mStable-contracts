@@ -76,9 +76,7 @@ describe("RevenueRecipient", () => {
             await mXYZ.approve(revenueRecipient.address, notificationAmount)
             // call
             const tx = revenueRecipient.notifyRedistributionAmount(mXYZ.address, notificationAmount)
-            await expect(tx)
-                .to.emit(revenueRecipient, "RevenueReceived")
-                .withArgs(mXYZ.address, notificationAmount)
+            await expect(tx).to.emit(revenueRecipient, "RevenueReceived").withArgs(mXYZ.address, notificationAmount)
 
             const senderBalAfter = await mXYZ.balanceOf(sa.default.address)
             const revenueRecipientBalAfter = await mXYZ.balanceOf(revenueRecipient.address)
@@ -112,9 +110,7 @@ describe("RevenueRecipient", () => {
             // call
             const tx = revenueRecipient.depositToPool([mXYZ.address], [simpleToExactAmount(5, 17)])
             const expectedDeposit = rawBalBefore.div(2)
-            await expect(tx)
-                .to.emit(revenueRecipient, "RevenueDeposited")
-                .withArgs(mXYZ.address, expectedDeposit, expectedDeposit.div(10))
+            await expect(tx).to.emit(revenueRecipient, "RevenueDeposited").withArgs(mXYZ.address, expectedDeposit, expectedDeposit.div(10))
 
             const rawBalAfter = await mXYZ.balanceOf(revenueRecipient.address)
             const bPoolBalAfter = await mXYZ.balanceOf(bPool.address)
@@ -138,9 +134,7 @@ describe("RevenueRecipient", () => {
 
             // call
             const tx = revenueRecipient.depositToPool([mXYZ.address], [simpleToExactAmount(1)])
-            await expect(tx)
-                .to.emit(revenueRecipient, "RevenueDeposited")
-                .withArgs(mXYZ.address, rawBalBefore, rawBalBefore.div(10))
+            await expect(tx).to.emit(revenueRecipient, "RevenueDeposited").withArgs(mXYZ.address, rawBalBefore, rawBalBefore.div(10))
 
             const rawBalAfter = await mXYZ.balanceOf(revenueRecipient.address)
             const bPoolBalAfter = await mXYZ.balanceOf(bPool.address)
@@ -289,9 +283,7 @@ describe("RevenueRecipient", () => {
                 const tx = revenueRecipient
                     .connect(sa.governor.signer)
                     .reinvestBAL(bPool2.address, weth.address, simpleToExactAmount(99), simpleToExactAmount(1), simpleToExactAmount(1))
-                await expect(tx)
-                    .to.emit(revenueRecipient, "RevenueDeposited")
-                    .withArgs(weth.address, expectedWeth, expectedWeth.div(10))
+                await expect(tx).to.emit(revenueRecipient, "RevenueDeposited").withArgs(weth.address, expectedWeth, expectedWeth.div(10))
 
                 const rawBalAfter = await BAL.balanceOf(revenueRecipient.address)
                 const bPoolBalAfter = await weth.balanceOf(bPool.address)

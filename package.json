@@ -13,6 +13,7 @@
   ],
   "scripts": {
     "lint": "yarn run lint-ts; yarn run lint-sol",
+    "lint:fix": "yarn lint && yarn prettify",
     "lint-ts": "yarn eslint ./test --ext .ts --fix --quiet",
     "lint-sol": "solhint 'contracts/**/*.sol'",
     "coverage": "yarn hardhat compile --force && node --max_old_space_size=6144 node_modules/.bin/hardhat coverage --temp 'build/contracts' --testfiles 'test/**/*.spec.ts' --show-stack-traces",
@@ -35,6 +36,8 @@
     "url": "git+https://github.com/mstable/mstable-contracts.git"
   },
   "devDependencies": {
+    "@commitlint/cli": "^12.1.1",
+    "@commitlint/config-conventional": "^12.1.1",
     "@nomiclabs/hardhat-ethers": "^2.0.1",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
     "@openzeppelin/contracts": "4.0.0-beta.0",
@@ -64,6 +67,7 @@
     "hardhat-gas-reporter": "^1.0.1",
     "hardhat-typechain": "0.3.3",
     "humanize-duration": "^3.21.0",
+    "husky": "^6.0.0",
     "mocha": "^8.2.1",
     "prettier": "^2.2.1",
     "prettier-plugin-solidity": "^1.0.0-beta.3",
@@ -87,5 +91,11 @@
   "directories": {
     "test": "test"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "husky": {
+    "hooks": {
+      "pre-commit": "yarn lint:fix",
+      "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
+    }
+  }
 }
