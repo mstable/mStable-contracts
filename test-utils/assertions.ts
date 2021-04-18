@@ -8,16 +8,17 @@ import { fullScale } from "./constants"
  *  @param actual The BN.js instance you received
  *  @param expected The BN.js amount you expected to receive, allowing a varience of +/- 10 units
  */
-export const assertBNClose = (actual: BN, expected: BN, variance: BN | number = BN.from(10), reason: string = null): void => {
-    const actualDelta = actual.gt(expected) ? actual.sub(expected) : expected.sub(actual)
+export const assertBNClose = (actual: BN | string, expected: BN, variance: BN | number = BN.from(10), reason: string = null): void => {
+    const actualBN = BN.from(actual)
+    const actualDelta = actualBN.gt(expected) ? actualBN.sub(expected) : expected.sub(actualBN)
 
-    const str = reason ? `\n\tReason: ${reason}\n\t${actual.toString()} vs ${expected.toString()}` : ""
+    const str = reason ? `\n\tReason: ${reason}\n\t${actualBN.toString()} vs ${expected.toString()}` : ""
     assert.ok(
-        actual.gte(expected.sub(variance)),
+        actualBN.gte(expected.sub(variance)),
         `Number is too small to be close (Delta between actual and expected is ${actualDelta.toString()}, but variance was only ${variance.toString()}${str}`,
     )
     assert.ok(
-        actual.lte(expected.add(variance)),
+        actualBN.lte(expected.add(variance)),
         `Number is too large to be close (Delta between actual and expected is ${actualDelta.toString()}, but variance was only ${variance.toString()})${str}`,
     )
 }

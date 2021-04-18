@@ -36,4 +36,8 @@ contract MockNexus is ModuleKeys {
     function setInterestValidator(address _interestValidator) external {
         modules[KEY_INTEREST_VALIDATOR] = _interestValidator;
     }
+
+    function setLiquidator(address _liquidator) external {
+        modules[KEY_LIQUIDATOR] = _liquidator;
+    }
 }
