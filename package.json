@@ -52,6 +52,7 @@
     "axios": "^0.21.1",
     "chai": "^4.2.0",
     "chalk": "^4.1.0",
+    "commitlint": "^12.1.1",
     "csv-parse": "^4.15.0",
     "defender-relay-client": "^1.5.1",
     "eslint": "^7.18.0",
@@ -95,7 +96,7 @@
   "husky": {
     "hooks": {
       "pre-commit": "yarn lint:fix",
-      "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
+      "commit-msg": "yarn commitlint -E HUSKY_GIT_PARAMS"
     }
   }
 }
