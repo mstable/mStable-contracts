@@ -136,7 +136,7 @@ contract InvariantValidator is IInvariantValidator {
     ) internal pure returns (uint256 k2, uint256 scaledSwapFee) {
         uint256 minted = _k1 - _k0;
         // Under col? Deduct fee
-        if(_config.supply > _k0) {
+        if (_config.supply > _k0) {
             minted -= ((minted * 5e13) / 1e18);
         }
         // base swap fee
@@ -166,7 +166,7 @@ contract InvariantValidator is IInvariantValidator {
         // 2. Get value of reserves according to invariant
         uint256 k0 = _invariant(x, sum, _config.a);
         uint256 redemption = _netMassetQuantity;
-        if(_config.supply > k0) {
+        if (_config.supply > k0) {
             redemption -= ((redemption * 8e13) / 1e18);
         }
         uint256 kFinal = (k0 * (_config.supply - redemption)) / _config.supply;
@@ -213,11 +213,10 @@ contract InvariantValidator is IInvariantValidator {
         // 5. Total mAsset is the difference between values
         totalmAssets = (_config.supply * (k0 - k1)) / k0;
         require(totalmAssets > 1e6, "Must redeem > 1e6 units");
-        if(_config.supply > k0) {
+        if (_config.supply > k0) {
             totalmAssets += ((totalmAssets * 8e13) / 1e18);
         }
     }
-
 
     /**
      * @notice Gets the price of the fpToken, and invariant value k
@@ -228,15 +227,14 @@ contract InvariantValidator is IInvariantValidator {
      */
     function computePrice(BassetData[] memory _bAssets, InvariantConfig memory _config)
         public
-        override
         pure
+        override
         returns (uint256 price, uint256 k)
     {
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         k = _invariant(x, sum, _config.a);
         price = (1e18 * k) / _config.supply;
     }
-
 
     /***************************************
                     INTERNAL
@@ -266,7 +264,7 @@ contract InvariantValidator is IInvariantValidator {
             mintAmount = (_config.supply * (kFinal - _k)) / _k;
         }
         // 3. Deviation? deduct recolFee of 0.5 bps
-        if(_config.supply > _k) {
+        if (_config.supply > _k) {
             mintAmount -= ((mintAmount * 5e13) / 1e18);
         }
     }
