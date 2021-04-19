@@ -29,17 +29,13 @@ export function shouldBehaveLikePausableModule(ctx: IPausableModuleBehaviourCont
     it("should allow pausing and unpausing by governor", async () => {
         // Pause
         let tx = ctx.module.connect(ctx.sa.governor.signer).pause()
-        await expect(tx)
-            .to.emit(ctx.module, "Paused")
-            .withArgs(ctx.sa.governor.address)
+        await expect(tx).to.emit(ctx.module, "Paused").withArgs(ctx.sa.governor.address)
         // Fail if already paused
         await expect(ctx.module.connect(ctx.sa.governor.signer).pause()).to.be.revertedWith("Pausable: paused")
 
         // Unpause
         tx = ctx.module.connect(ctx.sa.governor.signer).unpause()
-        await expect(tx)
-            .to.emit(ctx.module, "Unpaused")
-            .withArgs(ctx.sa.governor.address)
+        await expect(tx).to.emit(ctx.module, "Unpaused").withArgs(ctx.sa.governor.address)
 
         // Fail to unpause twice
         await expect(ctx.module.connect(ctx.sa.governor.signer).unpause()).to.be.revertedWith("Pausable: not paused")

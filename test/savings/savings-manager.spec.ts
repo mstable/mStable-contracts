@@ -144,9 +144,7 @@ describe("SavingsManager", async () => {
             savingsContractAddr = await savingsManager.savingsContracts(mockMasset.address)
             expect(ZERO_ADDRESS).to.equal(savingsContractAddr)
             const tx = savingsManager.connect(sa.governor.signer).addSavingsContract(mockMasset.address, mockSavingsContract.address)
-            await expect(tx)
-                .to.emit(savingsManager, "SavingsContractAdded")
-                .withArgs(mockMasset.address, mockSavingsContract.address)
+            await expect(tx).to.emit(savingsManager, "SavingsContractAdded").withArgs(mockMasset.address, mockSavingsContract.address)
 
             savingsContractAddr = await savingsManager.savingsContracts(mUSD.address)
             expect(savingsContractAddr).to.equal(savingsContract.address)
@@ -187,9 +185,7 @@ describe("SavingsManager", async () => {
 
             const tx = savingsManager.connect(sa.governor.signer).updateSavingsContract(mUSD.address, sa.other.address)
 
-            await expect(tx)
-                .to.emit(savingsManager, "SavingsContractUpdated")
-                .withArgs(mUSD.address, sa.other.address)
+            await expect(tx).to.emit(savingsManager, "SavingsContractUpdated").withArgs(mUSD.address, sa.other.address)
 
             savingsContractAddr = await savingsManager.savingsContracts(mUSD.address)
             expect(sa.other.address).to.equal(savingsContractAddr)
@@ -216,9 +212,7 @@ describe("SavingsManager", async () => {
         })
         it("should simply update the recipient and emit an event", async () => {
             const tx = savingsManager.connect(sa.governor.signer).setRevenueRecipient(mUSD.address, sa.fundManager.address)
-            await expect(tx)
-                .to.emit(savingsManager, "RevenueRecipientSet")
-                .withArgs(mUSD.address, sa.fundManager.address)
+            await expect(tx).to.emit(savingsManager, "RevenueRecipientSet").withArgs(mUSD.address, sa.fundManager.address)
             const recipient = await savingsManager.revenueRecipients(mUSD.address)
             expect(recipient).eq(sa.fundManager.address)
         })
@@ -245,18 +239,14 @@ describe("SavingsManager", async () => {
             const newRate = simpleToExactAmount(6, 17)
             const tx = savingsManager.connect(sa.governor.signer).setSavingsRate(newRate)
 
-            await expect(tx)
-                .to.emit(savingsManager, "SavingsRateChanged")
-                .withArgs(newRate)
+            await expect(tx).to.emit(savingsManager, "SavingsRateChanged").withArgs(newRate)
         })
 
         it("should succeed when in valid range (max value)", async () => {
             const newRate = simpleToExactAmount(1, 18)
             const tx = savingsManager.connect(sa.governor.signer).setSavingsRate(newRate)
 
-            await expect(tx)
-                .to.emit(savingsManager, "SavingsRateChanged")
-                .withArgs(newRate)
+            await expect(tx).to.emit(savingsManager, "SavingsRateChanged").withArgs(newRate)
         })
     })
 
@@ -345,9 +335,7 @@ describe("SavingsManager", async () => {
                 await mUSD.connect(liquidator.signer).approve(savingsManager.address, liquidated1)
 
                 const tx = savingsManager.connect(liquidator.signer).depositLiquidation(mUSD.address, liquidated1)
-                await expect(tx)
-                    .to.emit(savingsManager, "LiquidatorDeposited")
-                    .withArgs(mUSD.address, liquidated1)
+                await expect(tx).to.emit(savingsManager, "LiquidatorDeposited").withArgs(mUSD.address, liquidated1)
                 const t0 = await getTimestamp()
 
                 const after = await snapshotData()
@@ -481,9 +469,7 @@ describe("SavingsManager", async () => {
                 const before = await snapshotData()
                 const bal = await mUSD.totalSupply()
                 const tx = savingsManager.collectAndStreamInterest(mUSD.address)
-                await expect(tx)
-                    .to.emit(savingsManager, "InterestCollected")
-                    .withArgs(mUSD.address, BN.from(0), bal, BN.from(0))
+                await expect(tx).to.emit(savingsManager, "InterestCollected").withArgs(mUSD.address, BN.from(0), bal, BN.from(0))
                 const timeAfter = await getTimestamp()
                 const after = await snapshotData()
                 expect(before.yieldStream.rate).eq(after.yieldStream.rate)
@@ -982,9 +968,7 @@ describe("SavingsManager", async () => {
             await savingsManager.connect(sa.governor.signer).setRevenueRecipient(mUSD.address, recipient.address)
             const tx = savingsManager.connect(sa.governor.signer).distributeUnallocatedInterest(mUSD.address)
 
-            await expect(tx)
-                .to.emit(savingsManager, "RevenueRedistributed")
-                .withArgs(mUSD.address, recipient.address, amount)
+            await expect(tx).to.emit(savingsManager, "RevenueRedistributed").withArgs(mUSD.address, recipient.address, amount)
 
             const balanceAfter = await mUSD.balanceOf(recipient.address)
             expect(amount).to.equal(balanceAfter)
@@ -1007,12 +991,7 @@ describe("SavingsManager", async () => {
             // Deposit to SAVE
             await savingsManager.collectAndDistributeInterest(mUSD.address)
             // Redistribution should net (interest + 3/7 of liquidation) * 0.2
-            const expectedRedistribution = liquidationAmount
-                .mul(3)
-                .div(7)
-                .add(swapFeesAmount)
-                .mul(2)
-                .div(10)
+            const expectedRedistribution = liquidationAmount.mul(3).div(7).add(swapFeesAmount).mul(2).div(10)
 
             await savingsManager.connect(sa.governor.signer).distributeUnallocatedInterest(mUSD.address)
             const balance00 = await mUSD.balanceOf(recipient.address)
