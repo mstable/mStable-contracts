@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.2;
 
-import { ERC205 } from "./@openzeppelin-2.5/ERC205.sol";
+import { ERC205, IERC20 } from "./@openzeppelin-2.5/ERC205.sol";
 import { InitializableERC20Detailed } from "./InitializableERC20Detailed.sol";
 
 /**
