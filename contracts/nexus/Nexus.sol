@@ -15,7 +15,6 @@ import { DelayedClaimableGovernor } from "../governance/DelayedClaimableGovernor
  *          DATE:    2021-04-15
  */
 contract Nexus is INexus, DelayedClaimableGovernor {
-
     event ModuleProposed(bytes32 indexed key, address addr, uint256 timestamp);
     event ModuleAdded(bytes32 indexed key, address addr, bool isLocked);
     event ModuleCancelled(bytes32 indexed key);
@@ -25,14 +24,14 @@ contract Nexus is INexus, DelayedClaimableGovernor {
 
     /** @dev Struct to store information about current modules */
     struct Module {
-        address addr;       // Module address
-        bool isLocked;      // Module lock status
+        address addr; // Module address
+        bool isLocked; // Module lock status
     }
 
     /** @dev Struct to store information about proposed modules */
     struct Proposal {
         address newAddress; // Proposed Module address
-        uint256 timestamp;  // Timestamp when module upgrade was proposed
+        uint256 timestamp; // Timestamp when module upgrade was proposed
     }
 
     // 1 week delayed upgrade period
@@ -62,12 +61,10 @@ contract Nexus is INexus, DelayedClaimableGovernor {
      * @dev Initialises the Nexus and adds the core data to the Kernel (itself and governor)
      * @param _governorAddr Governor address
      */
-    constructor(address _governorAddr)
-        DelayedClaimableGovernor(_governorAddr, UPGRADE_DELAY)
-    {}
+    constructor(address _governorAddr) DelayedClaimableGovernor(_governorAddr, UPGRADE_DELAY) {}
 
     // FIXME can this function be avoided as it just calls the super function
-    function governor() public view override (Governable, INexus) returns (address) {
+    function governor() public view override(Governable, INexus) returns (address) {
         return super.governor();
     }
 
@@ -86,22 +83,17 @@ contract Nexus is INexus, DelayedClaimableGovernor {
         address[] calldata _addresses,
         bool[] calldata _isLocked,
         address _governorAddr
-    )
-        external
-        onlyGovernor
-        whenNotInitialized
-        returns (bool)
-    {
+    ) external onlyGovernor whenNotInitialized returns (bool) {
         uint256 len = _keys.length;
         require(len > 0, "No keys provided");
         require(len == _addresses.length, "Insufficient address data");
         require(len == _isLocked.length, "Insufficient locked statuses");
 
-        for(uint256 i = 0 ; i < len; i++) {
+        for (uint256 i = 0; i < len; i++) {
             _publishModule(_keys[i], _addresses[i], _isLocked[i]);
         }
 
-        if(_governorAddr != governor()) _changeGovernor(_governorAddr);
+        if (_governorAddr != governor()) _changeGovernor(_governorAddr);
 
         initialized = true;
         return true;
@@ -116,11 +108,7 @@ contract Nexus is INexus, DelayedClaimableGovernor {
      * @param _key  Key of the module
      * @param _addr Address of the module
      */
-    function proposeModule(bytes32 _key, address _addr)
-        external
-        override
-        onlyGovernor
-    {
+    function proposeModule(bytes32 _key, address _addr) external override onlyGovernor {
         require(_key != bytes32(0x0), "Key must not be zero");
         require(_addr != address(0), "Module address must not be 0");
         require(!modules[_key].isLocked, "Module must be unlocked");
@@ -137,11 +125,7 @@ contract Nexus is INexus, DelayedClaimableGovernor {
      * @dev Cancel a proposed module request
      * @param _key Key of the module
      */
-    function cancelProposedModule(bytes32 _key)
-        external
-        override
-        onlyGovernor
-    {
+    function cancelProposedModule(bytes32 _key) external override onlyGovernor {
         uint256 timestamp = proposedModules[_key].timestamp;
         require(timestamp > 0, "Proposed module not found");
 
@@ -153,11 +137,7 @@ contract Nexus is INexus, DelayedClaimableGovernor {
      * @dev Accept and publish an already proposed module
      * @param _key Key of the module
      */
-    function acceptProposedModule(bytes32 _key)
-        external
-        override
-        onlyGovernor
-    {
+    function acceptProposedModule(bytes32 _key) external override onlyGovernor {
         _acceptProposedModule(_key);
     }
 
@@ -165,15 +145,11 @@ contract Nexus is INexus, DelayedClaimableGovernor {
      * @dev Accept and publish already proposed modules
      * @param _keys Keys array of the modules
      */
-    function acceptProposedModules(bytes32[] calldata _keys)
-        external
-        override
-        onlyGovernor
-    {
+    function acceptProposedModules(bytes32[] calldata _keys) external override onlyGovernor {
         uint256 len = _keys.length;
         require(len > 0, "Keys array empty");
 
-        for(uint256 i = 0 ; i < len; i++) {
+        for (uint256 i = 0; i < len; i++) {
             _acceptProposedModule(_keys[i]);
         }
     }
@@ -196,12 +172,16 @@ contract Nexus is INexus, DelayedClaimableGovernor {
      * @param _addr     Contract address of the new module
      * @param _isLocked Flag to lock a module
      */
-    function _publishModule(bytes32 _key, address _addr, bool _isLocked) internal {
+    function _publishModule(
+        bytes32 _key,
+        address _addr,
+        bool _isLocked
+    ) internal {
         require(addressToModule[_addr] == bytes32(0x0), "Modules must have unique addr");
         require(!modules[_key].isLocked, "Module must be unlocked");
         // Old no longer points to a moduleAddress
         address oldModuleAddr = modules[_key].addr;
-        if(oldModuleAddr != address(0x0)) {
+        if (oldModuleAddr != address(0x0)) {
             addressToModule[oldModuleAddr] = bytes32(0x0);
         }
         modules[_key].addr = _addr;
@@ -218,11 +198,7 @@ contract Nexus is INexus, DelayedClaimableGovernor {
      * @dev Request to lock an existing module
      * @param _key Key of the module
      */
-    function requestLockModule(bytes32 _key)
-        external
-        override
-        onlyGovernor
-    {
+    function requestLockModule(bytes32 _key) external override onlyGovernor {
         require(moduleExists(_key), "Module must exist");
         require(!modules[_key].isLocked, "Module must be unlocked");
         require(proposedLockModules[_key] == 0, "Lock already proposed");
@@ -235,11 +211,7 @@ contract Nexus is INexus, DelayedClaimableGovernor {
      * @dev Cancel a lock module request
      * @param _key Key of the module
      */
-    function cancelLockModule(bytes32 _key)
-        external
-        override
-        onlyGovernor
-    {
+    function cancelLockModule(bytes32 _key) external override onlyGovernor {
         require(proposedLockModules[_key] > 0, "Module lock request not found");
 
         delete proposedLockModules[_key];
@@ -250,11 +222,7 @@ contract Nexus is INexus, DelayedClaimableGovernor {
      * @dev Permanently lock a module to its current settings
      * @param _key Bytes32 key of the module
      */
-    function lockModule(bytes32 _key)
-        external
-        override
-        onlyGovernor
-    {
+    function lockModule(bytes32 _key) external override onlyGovernor {
         require(_isDelayOver(proposedLockModules[_key]), "Delay not over");
 
         modules[_key].isLocked = true;
@@ -272,8 +240,7 @@ contract Nexus is INexus, DelayedClaimableGovernor {
      * @return      Returns 'true' when a module exists, otherwise 'false'
      */
     function moduleExists(bytes32 _key) public view returns (bool) {
-        if(_key != 0 && modules[_key].addr != address(0))
-            return true;
+        if (_key != 0 && modules[_key].addr != address(0)) return true;
         return false;
     }
 
@@ -292,8 +259,7 @@ contract Nexus is INexus, DelayedClaimableGovernor {
      * @return              Return 'true' when delay is over, otherwise 'false'
      */
     function _isDelayOver(uint256 _timestamp) private view returns (bool) {
-        if(_timestamp > 0 && block.timestamp >= _timestamp + UPGRADE_DELAY)
-            return true;
+        if (_timestamp > 0 && block.timestamp >= _timestamp + UPGRADE_DELAY) return true;
         return false;
     }
 }

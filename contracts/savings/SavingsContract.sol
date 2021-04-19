@@ -14,6 +14,7 @@ import { Initializable } from "../shared/@openzeppelin-2.5/Initializable.sol";
 // Libs
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { StableMath } from "../shared/StableMath.sol";
+import { YieldValidator } from "../shared/YieldValidator.sol";
 
 /**
  * @title   SavingsContract
@@ -509,10 +510,12 @@ contract SavingsContract is ISavingsContractV2, Initializable, InitializableToke
             require(connectorBalance >= lastBalance_, "Invalid yield");
             if (connectorBalance > 0) {
                 //  Validate the collection by ensuring that the APY is not ridiculous
-                _validateCollection(
+                YieldValidator.validateCollection(
                     connectorBalance,
                     connectorBalance - lastBalance_,
-                    timeSinceLastPoke
+                    timeSinceLastPoke,
+                    MAX_APY,
+                    1e15
                 );
             }
 
@@ -574,37 +577,6 @@ contract SavingsContract is ISavingsContractV2, Initializable, InitializableToke
             newExchangeRate,
             _realSum > totalCredited ? _realSum - totalCredited : 0
         );
-    }
-
-    /**
-     * FORKED DIRECTLY FROM SAVINGSMANAGER.sol
-     * ---------------------------------------
-     * @dev Validates that an interest collection does not exceed a maximum APY. If last collection
-     * was under 30 mins ago, simply check it does not exceed 10bps
-     * @param _newBalance              New balance of the underlying
-     * @param _interest                Increase in total supply since last collection
-     * @param _timeSinceLastCollection Seconds since last collection
-     */
-    function _validateCollection(
-        uint256 _newBalance,
-        uint256 _interest,
-        uint256 _timeSinceLastCollection
-    ) internal pure returns (uint256 extrapolatedAPY) {
-        // Protect against division by 0
-        uint256 protectedTime = StableMath.max(1, _timeSinceLastCollection);
-
-        uint256 oldSupply = _newBalance - _interest;
-        uint256 percentageIncrease = _interest.divPrecisely(oldSupply);
-
-        uint256 yearsSinceLastCollection = protectedTime.divPrecisely(SECONDS_IN_YEAR);
-
-        extrapolatedAPY = percentageIncrease.divPrecisely(yearsSinceLastCollection);
-
-        if (protectedTime > 30 minutes) {
-            require(extrapolatedAPY < MAX_APY, "Interest protected from inflating past maxAPY");
-        } else {
-            require(percentageIncrease < 1e15, "Interest protected from inflating past 10 Bps");
-        }
     }
 
     /***************************************
