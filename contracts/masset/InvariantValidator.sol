@@ -48,7 +48,7 @@ contract InvariantValidator is IInvariantValidator {
         sum += scaledInput;
         // 4. Finalise mint
         require(_inBounds(x, sum, _config.limits), "Exceeds weight limits");
-        mintAmount = _computeMintOutput(x, sum, k0, _config.a);
+        mintAmount = _computeMintOutput(x, sum, k0, _config);
     }
 
     /**
@@ -83,7 +83,7 @@ contract InvariantValidator is IInvariantValidator {
         }
         // 4. Finalise mint
         require(_inBounds(x, sum, _config.limits), "Exceeds weight limits");
-        mintAmount = _computeMintOutput(x, sum, k0, _config.a);
+        mintAmount = _computeMintOutput(x, sum, k0, _config);
     }
 
     /**
@@ -115,16 +115,35 @@ contract InvariantValidator is IInvariantValidator {
         x[_i] += scaledInput;
         sum += scaledInput;
         // 4. Calc total mAsset q
-        uint256 k1 = _invariant(x, sum, _config.a);
-        scaledSwapFee = ((k1 - k0) * _feeRate) / 1e18;
+        uint256 k2;
+        (k2, scaledSwapFee) = _getSwapFee(k0, _invariant(x, sum, _config.a), _feeRate, _config);
         // 5. Calc output bAsset
-        uint256 newOutputReserve = _solveInvariant(x, _config.a, _o, k0 + scaledSwapFee);
+        uint256 newOutputReserve = _solveInvariant(x, _config.a, _o, k2);
         uint256 output = x[_o] - newOutputReserve - 1;
         bAssetOutputQuantity = (output * 1e8) / _bAssets[_o].ratio;
         // 6. Check for bounds
         x[_o] -= output;
         sum -= output;
         require(_inBounds(x, sum, _config.limits), "Exceeds weight limits");
+    }
+
+    /** @dev Gets swap fee and scales to avoid stack depth errors in computeSwap */
+    function _getSwapFee(
+        uint256 _k0,
+        uint256 _k1,
+        uint256 _feeRate,
+        InvariantConfig memory _config
+    ) internal pure returns (uint256 k2, uint256 scaledSwapFee) {
+        uint256 minted = _k1 - _k0;
+        // Under col? Deduct fee
+        if(_config.supply > _k0) {
+            minted -= ((minted * 5e13) / 1e18);
+        }
+        // base swap fee
+        scaledSwapFee = (minted * _feeRate) / 1e18;
+        k2 = _k1 + minted - scaledSwapFee;
+        // swap fee in lpToken terms
+        scaledSwapFee = (scaledSwapFee * _config.supply) / _k0;
     }
 
     /**
@@ -146,8 +165,13 @@ contract InvariantValidator is IInvariantValidator {
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
         uint256 k0 = _invariant(x, sum, _config.a);
+        uint256 redemption = _netMassetQuantity;
+        if(_config.supply > k0) {
+            redemption -= ((redemption * 8e13) / 1e18);
+        }
+        uint256 kFinal = (k0 * (_config.supply - redemption)) / _config.supply;
         // 3. Compute bAsset output
-        uint256 newOutputReserve = _solveInvariant(x, _config.a, _o, k0 - _netMassetQuantity);
+        uint256 newOutputReserve = _solveInvariant(x, _config.a, _o, kFinal);
         uint256 output = x[_o] - newOutputReserve - 1;
         rawOutputUnits = (output * 1e8) / _bAssets[_o].ratio;
         // 4. Check for max weight
@@ -187,7 +211,11 @@ contract InvariantValidator is IInvariantValidator {
         // 4. Get new value of reserves according to invariant
         uint256 k1 = _invariant(x, sum, _config.a);
         // 5. Total mAsset is the difference between values
-        totalmAssets = k0 - k1;
+        totalmAssets = (_config.supply * (k0 - k1)) / k0;
+        require(totalmAssets > 1e6, "Must redeem > 1e6 units");
+        if(_config.supply > k0) {
+            totalmAssets += ((totalmAssets * 8e13) / 1e18);
+        }
     }
 
 
@@ -220,19 +248,27 @@ contract InvariantValidator is IInvariantValidator {
      * @param _x            Scaled vaultBalances
      * @param _sum          Sum of vaultBalances, to avoid another loop
      * @param _k            Previous value of invariant, k, before addition
-     * @param _a                Precise amplification coefficient
+     * @param _config       Generalised InvariantConfig stored externally
      * @return mintAmount   Amount of value added to invariant, in mAsset terms
      */
     function _computeMintOutput(
         uint256[] memory _x,
         uint256 _sum,
         uint256 _k,
-        uint256 _a
+        InvariantConfig memory _config
     ) internal pure returns (uint256 mintAmount) {
         // 1. Get value of reserves according to invariant
-        uint256 kFinal = _invariant(_x, _sum, _a);
-        // 2. Total minted is the difference between values
-        mintAmount = kFinal - _k;
+        uint256 kFinal = _invariant(_x, _sum, _config.a);
+        // 2. Total minted is the difference between values, with respect to total supply
+        if (_config.supply == 0) {
+            mintAmount = kFinal - _k;
+        } else {
+            mintAmount = (_config.supply * (kFinal - _k)) / _k;
+        }
+        // 3. Deviation? deduct recolFee of 0.5 bps
+        if(_config.supply > _k) {
+            mintAmount -= ((mintAmount * 5e13) / 1e18);
+        }
     }
 
     /**

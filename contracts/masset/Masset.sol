@@ -668,6 +668,7 @@ contract Masset is
         );
     }
 
+
     /**
      * @dev Redeem mAsset for proportional amount of bAssets
      */
@@ -680,8 +681,7 @@ contract Masset is
         require(_inputQuantity > 0, "Qty==0");
 
         // Calculate mAsset redemption quantities
-        uint256 scaledFee = _inputQuantity.mulTruncate(redemptionFee);
-        uint256 mAssetRedemptionAmount = _inputQuantity - scaledFee;
+        (uint256 deductedInput, uint256 scaledFee) = _getDeducted(_inputQuantity);
 
         // Burn mAsset quantity
         _burn(msg.sender, _inputQuantity);
@@ -690,7 +690,7 @@ contract Masset is
         // Calc cache and total mAsset circulating
         InvariantConfig memory config = _getConfig();
         // Total mAsset = (totalSupply + _inputQuantity - scaledFee) + surplus
-        uint256 totalMasset = config.supply + mAssetRedemptionAmount;
+        uint256 totalMasset = config.supply + (_inputQuantity - scaledFee);
 
         // Load the bAsset data from storage into memory
         BassetData[] memory allBassets = bAssetData;
@@ -701,7 +701,7 @@ contract Masset is
         for (uint256 i = 0; i < len; i++) {
             // Get amount out, proportionate to redemption quantity
             // Use `cache.sum` here as the total mAsset supply is actually totalSupply + surplus
-            uint256 amountOut = (allBassets[i].vaultBalance * mAssetRedemptionAmount) / totalMasset;
+            uint256 amountOut = (allBassets[i].vaultBalance * deductedInput) / totalMasset;
             require(amountOut > 1, "Output == 0");
             amountOut -= 1;
             require(amountOut >= _minOutputQuantities[i], "bAsset qty < min qty");
@@ -727,6 +727,18 @@ contract Masset is
             outputQuantities,
             scaledFee
         );
+    }
+
+    /** @dev Internal func to get the deducted input to avoid stack depth error */
+    function _getDeducted(uint256 _input) internal view returns (uint256 deductedInput, uint256 scaledFee) {
+        deductedInput = _input;
+        // If supply > k, deduct recolFee
+        (uint256 price, ) = forgeValidator.computePrice(bAssetData, _getConfig());
+        if(price < 1e18){
+            deductedInput -= ((_input * 8e13) / 1e18);
+        }
+        scaledFee = deductedInput.mulTruncate(redemptionFee);
+        deductedInput -= scaledFee;
     }
 
     /** @dev Redeem mAsset for one or more bAssets */
