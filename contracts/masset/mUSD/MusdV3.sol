@@ -7,7 +7,7 @@ import { IInvariantValidator } from "../../interfaces/IInvariantValidator.sol";
 
 // Internal
 import { Initializable } from "../../shared/@openzeppelin-2.5/Initializable.sol";
-import { InitializableToken } from "../../shared/InitializableToken.sol";
+import { InitializableToken, IERC20 } from "../../shared/InitializableToken.sol";
 import { ImmutableModule } from "../../shared/ImmutableModule.sol";
 import { InitializableReentrancyGuard } from "../../shared/InitializableReentrancyGuard.sol";
 import { IMasset, Deprecated_BasketManager } from "../../interfaces/IMasset.sol";
@@ -89,6 +89,8 @@ contract MusdV3 is
     event FeesChanged(uint256 swapFee, uint256 redemptionFee);
     event WeightLimitsChanged(uint128 min, uint128 max);
     event ForgeValidatorChanged(address forgeValidator);
+    event DeficitMinted(uint256 amt);
+    event SurplusBurned(address creditor, uint256 amt);
 
     // Release 1.0 VARS
     IInvariantValidator public forgeValidator;
@@ -290,21 +292,22 @@ contract MusdV3 is
         require(_inputQuantity > 0, "Qty==0");
         BassetData[] memory allBassets = bAssetData;
         (uint8 bAssetIndex, BassetPersonal memory personal) = _getAsset(_input);
-        Cache memory cache = _getCacheDetails();
+        InvariantConfig memory config = _getConfig();
+        uint256 maxCache = _getCacheDetails(config.supply);
         // Transfer collateral to the platform integration address and call deposit
         uint256 quantityDeposited =
             Manager.depositTokens(
                 personal,
                 allBassets[bAssetIndex].ratio,
                 _inputQuantity,
-                cache.maxCache
+                maxCache
             );
         // Validation should be after token transfer, as bAssetQty is unknown before
         mAssetMinted = forgeValidator.computeMint(
             allBassets,
             bAssetIndex,
             quantityDeposited,
-            _getConfig()
+            config
         );
         require(mAssetMinted >= _minMassetQuantity, "Mint quantity < min qty");
         // Log the Vault increase - can only be done when basket is healthy
@@ -329,7 +332,8 @@ contract MusdV3 is
         // Load bAssets from storage into memory
         (uint8[] memory indexes, BassetPersonal[] memory personals) = _getBassets(_inputs);
         BassetData[] memory allBassets = bAssetData;
-        Cache memory cache = _getCacheDetails();
+        InvariantConfig memory config = _getConfig();
+        uint256 maxCache = _getCacheDetails(config.supply);
         uint256[] memory quantitiesDeposited = new uint256[](len);
         // Transfer the Bassets to the integrator, update storage and calc MassetQ
         for (uint256 i = 0; i < len; i++) {
@@ -339,7 +343,7 @@ contract MusdV3 is
                 BassetData memory data = allBassets[idx];
                 BassetPersonal memory personal = personals[i];
                 uint256 quantityDeposited =
-                    Manager.depositTokens(personal, data.ratio, bAssetQuantity, cache.maxCache);
+                    Manager.depositTokens(personal, data.ratio, bAssetQuantity, maxCache);
                 quantitiesDeposited[i] = quantityDeposited;
                 bAssetData[idx].vaultBalance =
                     data.vaultBalance +
@@ -351,7 +355,7 @@ contract MusdV3 is
             allBassets,
             indexes,
             quantitiesDeposited,
-            _getConfig()
+            config
         );
         require(mAssetMinted >= _minMassetQuantity, "Mint quantity < min qty");
         require(mAssetMinted > 0, "Zero mAsset quantity");
@@ -438,14 +442,14 @@ contract MusdV3 is
         (uint8 inputIdx, BassetPersonal memory inputPersonal) = _getAsset(_input);
         (uint8 outputIdx, BassetPersonal memory outputPersonal) = _getAsset(_output);
         // 2. Load cache
-        Cache memory cache = _getCacheDetails();
+        InvariantConfig memory config = _getConfig();
         // 3. Deposit the input tokens
         uint256 quantityDeposited =
             Manager.depositTokens(
                 inputPersonal,
                 allBassets[inputIdx].ratio,
                 _inputQuantity,
-                cache.maxCache
+                _getCacheDetails(config.supply)
             );
         // 3.1. Update the input balance
         bAssetData[inputIdx].vaultBalance =
@@ -460,7 +464,7 @@ contract MusdV3 is
             outputIdx,
             quantityDeposited,
             swapFee,
-            _getConfig()
+            config
         );
         require(swapOutput >= _minOutputQuantity, "Output qty < minimum qty");
         require(swapOutput > 0, "Zero output quantity");
@@ -471,13 +475,13 @@ contract MusdV3 is
             outputPersonal,
             allBassets[outputIdx],
             _recipient,
-            cache.maxCache
+            _getCacheDetails(config.supply)
         );
         bAssetData[outputIdx].vaultBalance =
             allBassets[outputIdx].vaultBalance -
             SafeCast.toUint128(swapOutput);
         // Save new surplus to storage
-        surplus = cache.surplus + scaledFee;
+        surplus += scaledFee;
         emit Swapped(
             msg.sender,
             inputPersonal.addr,
@@ -616,13 +620,14 @@ contract MusdV3 is
         // Load the bAsset data from storage into memory
         BassetData[] memory allBassets = bAssetData;
         (uint8 bAssetIndex, BassetPersonal memory personal) = _getAsset(_output);
+        InvariantConfig memory config = _getConfig();
         // Calculate redemption quantities
         uint256 scaledFee = _inputQuantity.mulTruncate(swapFee);
         bAssetQuantity = forgeValidator.computeRedeem(
             allBassets,
             bAssetIndex,
             _inputQuantity - scaledFee,
-            _getConfig()
+            config
         );
         require(bAssetQuantity >= _minOutputQuantity, "bAsset qty < min qty");
         require(bAssetQuantity > 0, "Output == 0");
@@ -630,14 +635,14 @@ contract MusdV3 is
         // 1.0. Burn the full amount of Masset
         _burn(msg.sender, _inputQuantity);
         surplus += scaledFee;
-        Cache memory cache = _getCacheDetails();
+        config.supply -= (_inputQuantity - scaledFee);
         // 2.0. Transfer the Bassets to the recipient
         Manager.withdrawTokens(
             bAssetQuantity,
             personal,
             allBassets[bAssetIndex],
             _recipient,
-            cache.maxCache
+            _getCacheDetails(config.supply)
         );
         // 3.0. Set vault balance
         bAssetData[bAssetIndex].vaultBalance =
@@ -654,6 +659,7 @@ contract MusdV3 is
         );
     }
 
+
     /**
      * @dev Redeem mAsset for proportional amount of bAssets
      */
@@ -666,17 +672,16 @@ contract MusdV3 is
         require(_inputQuantity > 0, "Qty==0");
 
         // Calculate mAsset redemption quantities
-        uint256 scaledFee = _inputQuantity.mulTruncate(redemptionFee);
-        uint256 mAssetRedemptionAmount = _inputQuantity - scaledFee;
+        (uint256 deductedInput, uint256 scaledFee) = _getDeducted(_inputQuantity);
 
         // Burn mAsset quantity
         _burn(msg.sender, _inputQuantity);
         surplus += scaledFee;
 
         // Calc cache and total mAsset circulating
-        Cache memory cache = _getCacheDetails();
+        InvariantConfig memory config = _getConfig();
         // Total mAsset = (totalSupply + _inputQuantity - scaledFee) + surplus
-        uint256 totalMasset = cache.vaultBalanceSum + mAssetRedemptionAmount;
+        uint256 totalMasset = config.supply + (_inputQuantity - scaledFee);
 
         // Load the bAsset data from storage into memory
         BassetData[] memory allBassets = bAssetData;
@@ -687,7 +692,7 @@ contract MusdV3 is
         for (uint256 i = 0; i < len; i++) {
             // Get amount out, proportionate to redemption quantity
             // Use `cache.sum` here as the total mAsset supply is actually totalSupply + surplus
-            uint256 amountOut = (allBassets[i].vaultBalance * mAssetRedemptionAmount) / totalMasset;
+            uint256 amountOut = (allBassets[i].vaultBalance * deductedInput) / totalMasset;
             require(amountOut > 1, "Output == 0");
             amountOut -= 1;
             require(amountOut >= _minOutputQuantities[i], "bAsset qty < min qty");
@@ -699,7 +704,7 @@ contract MusdV3 is
                 bAssetPersonal[i],
                 allBassets[i],
                 _recipient,
-                cache.maxCache
+                _getCacheDetails(config.supply)
             );
             // reduce vaultBalance
             bAssetData[i].vaultBalance = allBassets[i].vaultBalance - SafeCast.toUint128(amountOut);
@@ -713,6 +718,18 @@ contract MusdV3 is
             outputQuantities,
             scaledFee
         );
+    }
+
+    /** @dev Internal func to get the deducted input to avoid stack depth error */
+    function _getDeducted(uint256 _input) internal view returns (uint256 deductedInput, uint256 scaledFee) {
+        deductedInput = _input;
+        // If supply > k, deduct recolFee
+        (uint256 price, ) = forgeValidator.computePrice(bAssetData, _getConfig());
+        if(price < 1e18){
+            deductedInput -= ((_input * 8e13) / 1e18);
+        }
+        scaledFee = deductedInput.mulTruncate(redemptionFee);
+        deductedInput -= scaledFee;
     }
 
     /** @dev Redeem mAsset for one or more bAssets */
@@ -731,8 +748,9 @@ contract MusdV3 is
         // Load bAsset data from storage to memory
         BassetData[] memory allBassets = bAssetData;
         // Validate redemption
+        InvariantConfig memory config = _getConfig();
         uint256 mAssetRequired =
-            forgeValidator.computeRedeemExact(allBassets, indexes, _outputQuantities, _getConfig());
+            forgeValidator.computeRedeemExact(allBassets, indexes, _outputQuantities, config);
         mAssetQuantity = mAssetRequired.divPrecisely(1e18 - swapFee);
         uint256 fee = mAssetQuantity - mAssetRequired;
         require(mAssetQuantity > 0, "Must redeem some mAssets");
@@ -742,7 +760,7 @@ contract MusdV3 is
         // 1.0. Burn the full amount of Masset
         _burn(msg.sender, mAssetQuantity);
         surplus += fee;
-        Cache memory cache = _getCacheDetails();
+        config.supply -= (mAssetQuantity - fee);
         // 2.0. Transfer the Bassets to the recipient and count fees
         for (uint256 i = 0; i < len; i++) {
             uint8 idx = indexes[i];
@@ -751,7 +769,7 @@ contract MusdV3 is
                 personal[i],
                 allBassets[idx],
                 _recipient,
-                cache.maxCache
+                _getCacheDetails(config.supply)
             );
             bAssetData[idx].vaultBalance =
                 allBassets[idx].vaultBalance -
@@ -818,30 +836,26 @@ contract MusdV3 is
         return _getConfig();
     }
 
+    /**
+     * @notice Gets the price of the fpToken, and invariant value k
+     * @return price    Price of an fpToken
+     * @return k        Total value of basket, k
+     */
+    function getPrice() external view override returns (uint256 price, uint256 k) {
+        return forgeValidator.computePrice(bAssetData, _getConfig());
+    }
+
     /***************************************
                 GETTERS - INTERNAL
     ****************************************/
 
     /**
-     * vaultBalanceSum = totalSupply + 'surplus'
-     * maxCache = vaultBalanceSum * (cacheSize / 1e18)
-     * surplus is simply surplus, to reduce SLOADs
-     */
-    struct Cache {
-        uint256 vaultBalanceSum;
-        uint256 maxCache;
-        uint256 surplus;
-    }
-
-    /**
      * @dev Gets the supply and cache details for the mAsset, taking into account the surplus
-     * @return Cache containing (tracked) sum of vault balances, ideal cache size and surplus
+     * @return maxCache
      */
-    function _getCacheDetails() internal view returns (Cache memory) {
+    function _getCacheDetails(uint256 _supply) internal view returns (uint256 maxCache) {
         // read surplus from storage into memory
-        uint256 _surplus = surplus;
-        uint256 sum = totalSupply() + _surplus;
-        return Cache(sum, sum.mulTruncate(cacheSize), _surplus);
+        maxCache = _supply.mulTruncate(cacheSize);
     }
 
     /**
@@ -889,7 +903,7 @@ contract MusdV3 is
      * @dev Gets all config needed for general InvariantValidator calls
      */
     function _getConfig() internal view returns (InvariantConfig memory) {
-        return InvariantConfig(_getA(), weightLimits);
+        return InvariantConfig(totalSupply() + surplus, _getA(), weightLimits);
     }
 
     /**
@@ -1103,5 +1117,35 @@ contract MusdV3 is
      */
     function stopRampA() external onlyGovernor {
         Manager.stopRampA(ampData, _getA());
+    }
+
+    /**
+     * @dev Mints deficit to SAVE if k > token supply
+     */
+    function mintDeficit() external returns (uint256 mintAmount) {
+        require(msg.sender == _governor() || msg.sender == _proxyAdmin(), "Gov or ProxyAdmin");
+
+        InvariantConfig memory config = _getConfig();
+        (, uint256 k) = forgeValidator.computePrice(bAssetData, config);
+        require(k > config.supply, "No deficit");
+        mintAmount = k - config.supply;
+        surplus += mintAmount;
+    
+        emit DeficitMinted(mintAmount);
+    }
+
+    /**
+     * @dev Burns surplus if token supply > k
+     */
+    function burnSurplus() external returns (uint256 burnAmount) {
+        InvariantConfig memory config = _getConfig();
+        (, uint256 k) = forgeValidator.computePrice(bAssetData, config);
+        require(config.supply > k, "No surplus");
+        burnAmount = config.supply - k;
+        // Transfer to ensure approval has been given
+        IERC20(address(this)).transferFrom(msg.sender, address(this), burnAmount);
+
+        _burn(address(this), burnAmount);
+        emit SurplusBurned(msg.sender, burnAmount);
     }
 }

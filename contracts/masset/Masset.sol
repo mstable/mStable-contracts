@@ -670,7 +670,6 @@ contract Masset is
         );
     }
 
-
     /**
      * @dev Redeem mAsset for proportional amount of bAssets
      */
@@ -732,11 +731,15 @@ contract Masset is
     }
 
     /** @dev Internal func to get the deducted input to avoid stack depth error */
-    function _getDeducted(uint256 _input) internal view returns (uint256 deductedInput, uint256 scaledFee) {
+    function _getDeducted(uint256 _input)
+        internal
+        view
+        returns (uint256 deductedInput, uint256 scaledFee)
+    {
         deductedInput = _input;
         // If supply > k, deduct recolFee
         (uint256 price, ) = forgeValidator.computePrice(bAssetData, _getConfig());
-        if(price < 1e18){
+        if (price < 1e18) {
             deductedInput -= ((_input * 8e13) / 1e18);
         }
         scaledFee = deductedInput.mulTruncate(redemptionFee);
@@ -1141,7 +1144,7 @@ contract Masset is
         require(k > config.supply, "No deficit");
         mintAmount = k - config.supply;
         surplus += mintAmount;
-    
+
         emit DeficitMinted(mintAmount);
     }
 
