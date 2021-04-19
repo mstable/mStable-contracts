@@ -7,7 +7,7 @@ import { IInvariantValidator } from "../interfaces/IInvariantValidator.sol";
 
 // Internal
 import { Initializable } from "../shared/@openzeppelin-2.5/Initializable.sol";
-import { InitializableToken } from "../shared/InitializableToken.sol";
+import { InitializableToken, IERC20 } from "../shared/InitializableToken.sol";
 import { ImmutableModule } from "../shared/ImmutableModule.sol";
 import { InitializableReentrancyGuard } from "../shared/InitializableReentrancyGuard.sol";
 import { IMasset, Deprecated_BasketManager } from "../interfaces/IMasset.sol";
@@ -82,6 +82,8 @@ contract Masset is
     event FeesChanged(uint256 swapFee, uint256 redemptionFee);
     event WeightLimitsChanged(uint128 min, uint128 max);
     event ForgeValidatorChanged(address forgeValidator);
+    event DeficitMinted(uint256 amt);
+    event SurplusBurned(address creditor, uint256 amt);
 
     // Release 1.0 VARS
     IInvariantValidator public forgeValidator;
@@ -1126,5 +1128,35 @@ contract Masset is
      */
     function stopRampA() external onlyGovernor {
         Manager.stopRampA(ampData, _getA());
+    }
+
+    /**
+     * @dev Mints deficit to SAVE if k > token supply
+     */
+    function mintDeficit() external returns (uint256 mintAmount) {
+        require(msg.sender == _governor() || msg.sender == _proxyAdmin(), "Gov or ProxyAdmin");
+
+        InvariantConfig memory config = _getConfig();
+        (, uint256 k) = forgeValidator.computePrice(bAssetData, config);
+        require(k > config.supply, "No deficit");
+        mintAmount = k - config.supply;
+        surplus += mintAmount;
+    
+        emit DeficitMinted(mintAmount);
+    }
+
+    /**
+     * @dev Burns surplus if token supply > k
+     */
+    function burnSurplus() external returns (uint256 burnAmount) {
+        InvariantConfig memory config = _getConfig();
+        (, uint256 k) = forgeValidator.computePrice(bAssetData, config);
+        require(config.supply > k, "No surplus");
+        burnAmount = config.supply - k;
+        // Transfer to ensure approval has been given
+        IERC20(address(this)).transferFrom(msg.sender, address(this), burnAmount);
+
+        _burn(address(this), burnAmount);
+        emit SurplusBurned(msg.sender, burnAmount);
     }
 }
