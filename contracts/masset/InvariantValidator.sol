@@ -190,6 +190,26 @@ contract InvariantValidator is IInvariantValidator {
         totalmAssets = k0 - k1;
     }
 
+
+    /**
+     * @notice Gets the price of the fpToken, and invariant value k
+     * @param _bAssets  Array of all bAsset Data
+     * @param _config   Generalised InvariantConfig stored externally
+     * @return price    Price of an fpToken
+     * @return k        Total value of basket, k
+     */
+    function computePrice(BassetData[] memory _bAssets, InvariantConfig memory _config)
+        public
+        override
+        pure
+        returns (uint256 price, uint256 k)
+    {
+        (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
+        k = _invariant(x, sum, _config.a);
+        price = (1e18 * k) / _config.supply;
+    }
+
+
     /***************************************
                     INTERNAL
     ****************************************/

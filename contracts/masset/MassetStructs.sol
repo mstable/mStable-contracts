@@ -39,6 +39,7 @@ struct BasketState {
 }
 
 struct InvariantConfig {
+    uint256 supply;
     uint256 a;
     WeightLimits limits;
 }
@@ -46,12 +47,6 @@ struct InvariantConfig {
 struct WeightLimits {
     uint128 min;
     uint128 max;
-}
-
-struct FeederConfig {
-    uint256 supply;
-    uint256 a;
-    WeightLimits limits;
 }
 
 struct AmpData {
