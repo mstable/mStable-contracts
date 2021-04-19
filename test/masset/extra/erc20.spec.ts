@@ -1,4 +1,4 @@
-import { MassetMachine, MassetDetails, Account } from "@utils/machines"
+import { MassetMachine } from "@utils/machines"
 import { simpleToExactAmount } from "@utils/math"
 import { ethers } from "hardhat"
 import { ERC20 } from "types/generated/ERC20"
