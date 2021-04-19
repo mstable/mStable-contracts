@@ -89,4 +89,13 @@ contract MockInvariantValidator is IInvariantValidator {
         }
         return _multiplyOutput(scaledOutput);
     }
+
+    function computePrice(BassetData[] memory /*_bAssets*/, InvariantConfig memory /*_config*/)
+        public
+        override
+        pure
+        returns (uint256 price, uint256 k)
+    {
+        return (1, 0);
+    }
 }

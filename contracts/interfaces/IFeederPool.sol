@@ -84,7 +84,7 @@ abstract contract IFeederPool {
 
     function getPrice() public view virtual returns (uint256 price, uint256 k);
 
-    function getConfig() external view virtual returns (FeederConfig memory config);
+    function getConfig() external view virtual returns (InvariantConfig memory config);
 
     function getBasset(address _token)
         external

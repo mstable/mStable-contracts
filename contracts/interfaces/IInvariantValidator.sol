@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.2;
 
-import { BassetData, InvariantConfig } from "../masset/MassetStructs.sol";
+import "../masset/MassetStructs.sol";
 
 abstract contract IInvariantValidator {
     // Mint
@@ -43,4 +43,10 @@ abstract contract IInvariantValidator {
         uint256[] calldata _rawOutputs,
         InvariantConfig memory _config
     ) external view virtual returns (uint256);
+
+    function computePrice(BassetData[] memory _bAssets, InvariantConfig memory _config)
+        public
+        virtual
+        pure
+        returns (uint256 price, uint256 k);
 }

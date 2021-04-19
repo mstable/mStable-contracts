@@ -96,6 +96,8 @@ abstract contract IMasset {
 
     function bAssetIndexes(address) external view virtual returns (uint8);
 
+    function getPrice() external view virtual returns (uint256 price, uint256 k);
+
     // SavingsManager
     function collectInterest() external virtual returns (uint256 swapFeesGained, uint256 newSupply);
 
