@@ -55,14 +55,13 @@ export class FeederMachine {
     }
 
     public async deployFeeder(
-        useMockValidator = false,
         feederWeights: Array<BN | number> = [200, 200],
         mAssetWeights: Array<BN | number> = [2500, 2500, 2500, 2500],
         useLendingMarkets = false,
         useInterestValidator = false,
         use2dp = false,
     ): Promise<FeederDetails> {
-        const mAssetDetails = await this.mAssetMachine.deployMasset(useMockValidator, useLendingMarkets, false)
+        const mAssetDetails = await this.mAssetMachine.deployMasset(useLendingMarkets, false)
         // Mints 10k mAsset to begin with
         await this.mAssetMachine.seedWithWeightings(mAssetDetails, mAssetWeights)
 
@@ -127,7 +126,6 @@ export class FeederMachine {
             },
             mAssetDetails.bAssets.map((b) => b.address),
             {
-                supply: 0,
                 a: BN.from(300),
                 limits: {
                     min: simpleToExactAmount(20, 16), // 3%

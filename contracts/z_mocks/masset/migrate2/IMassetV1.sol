@@ -4,7 +4,7 @@ pragma solidity 0.8.2;
 /**
  * @title mUSD interface before upgrade to V3
  */
-interface IMassetV2 {
+interface IMassetV1 {
 
     /** @dev Calc interest */
     function collectInterest() external returns (uint256 swapFeesGained, uint256 newTotalSupply);

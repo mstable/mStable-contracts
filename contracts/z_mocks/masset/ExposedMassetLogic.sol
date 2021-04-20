@@ -54,4 +54,9 @@ contract ExposedMassetLogic {
     ) public view returns (uint256 grossMasset, uint256 fee) {
         return MassetLogic.computeRedeemExact(_bAssets, _indices, _rawOutputs, _config, _feeRate);
     }
+
+    function getK(
+        BassetData[] memory _bAssets, InvariantConfig memory _config) external view returns (uint256 k) {
+        (, k) = MassetLogic.computePrice(_bAssets, _config);
+    }
 }

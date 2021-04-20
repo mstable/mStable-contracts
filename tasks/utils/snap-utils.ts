@@ -2,7 +2,7 @@ import { Signer } from "ethers"
 import { fullScale, ONE_YEAR } from "@utils/constants"
 import { applyDecimals, applyRatio, BN } from "@utils/math"
 import { formatUnits } from "ethers/lib/utils"
-import { FeederPool, Masset, ValidatorWithTVLCap__factory, ExposedInvariantValidator } from "types/generated"
+import { ExposedMassetLogic, FeederPool, Masset, ValidatorWithTVLCap__factory } from "types/generated"
 import { QuantityFormatter } from "./quantity-formatters"
 import { Token } from "./tokens"
 
@@ -114,7 +114,7 @@ export const getBasket = async (
     mAssetName = "mBTC",
     quantityFormatter: QuantityFormatter,
     tvlConfig?: TvlConfig,
-    exposedValidator?: ExposedInvariantValidator,
+    exposedLogic?: ExposedMassetLogic,
 ): Promise<void> => {
     const bAssets = await asset.getBassets()
     const bAssetTotals: BN[] = []
@@ -137,8 +137,8 @@ export const getBasket = async (
     console.log(`${mAssetName}       ${formatUnits(mAssetSupply)}`)
     const mAssetTotal = mAssetSupply.add(mAssetSurplus)
 
-    if (exposedValidator) {
-        const k = await exposedValidator.getK(bAssets[1], await asset.getConfig())
+    if (exposedLogic) {
+        const k = await exposedLogic.getK(bAssets[1], await asset.getConfig())
         console.log(`Total (K)  ${formatUnits(k)}`)
 
         // Sum of base assets less mAsset total supply less mAsset surplus

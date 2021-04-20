@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.2;
 
-import { Basket } from "./MassetStructsV2.sol";
+import { Basket } from "./MassetStructsV1.sol";
 
 /**
  * @notice  Is the Basket Manager V2.0 interface used in the upgrade of mUSD from V2.0 to V3.0.

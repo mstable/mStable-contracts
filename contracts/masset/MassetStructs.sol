@@ -44,6 +44,11 @@ struct InvariantConfig {
     WeightLimits limits;
 }
 
+struct BasicConfig {
+    uint256 a;
+    WeightLimits limits;
+}
+
 struct WeightLimits {
     uint128 min;
     uint128 max;

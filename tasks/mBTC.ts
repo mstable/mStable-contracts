@@ -2,7 +2,7 @@ import { btcBassets, capFactor, contracts, startingCap } from "@utils/btcConstan
 import { Signer } from "ethers"
 import { formatUnits } from "ethers/lib/utils"
 import { task, types } from "hardhat/config"
-import { Masset, Masset__factory, ExposedInvariantValidator__factory } from "types/generated"
+import { Masset, Masset__factory, ExposedMassetLogic__factory } from "types/generated"
 import { BN } from "@utils/math"
 import { dumpBassetStorage, dumpConfigStorage, dumpTokenStorage } from "./utils/storage-utils"
 import {
@@ -94,7 +94,16 @@ task("mBTC-snap", "Get the latest data from the mBTC contracts")
         let exposedValidator
         if (network.name !== "mainnet") {
             console.log("Not mainnet")
-            exposedValidator = await new ExposedInvariantValidator__factory(signer).deploy()
+
+            const LogicFactory = await ethers.getContractFactory("MassetLogic")
+            const logicLib = await LogicFactory.deploy()
+            const linkedAddress = {
+                libraries: {
+                    MassetLogic: logicLib.address,
+                },
+            }
+            const massetFactory = await ethers.getContractFactory("ExposedMassetLogic", linkedAddress)
+            exposedValidator = await massetFactory.deploy()
         }
 
         const mAsset = getMasset(signer)
