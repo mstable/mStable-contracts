@@ -10,7 +10,7 @@ import { IBasketManager } from "../../z_mocks/masset/migrate3/IBasketManager.sol
 import { Basket, Basset } from "../../z_mocks/masset/migrate3/MassetStructsV2.sol";
 
 
-library Migrator {
+library MV1Migrator {
 
     function upgrade(
         IBasketManager basketManager,

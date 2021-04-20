@@ -2,14 +2,14 @@
 pragma solidity 0.8.2;
 
 import { Masset } from "../../masset/Masset.sol";
-import { ExposedInvariantValidator } from "./ExposedInvariantValidator.sol";
+import { MassetLogic } from "../../masset/MassetLogic.sol";
 
 contract ExposedMasset is Masset {
 
     constructor(address _nexus) Masset(_nexus) {}
 
     function getK() external view returns (uint256 k) {
-        k = ExposedInvariantValidator(address(forgeValidator)).getK(bAssetData, _getConfig());
+        (, k) = MassetLogic.computePrice(data.bAssetData, _getConfig());
     }
 
     function getA() public view returns (uint256) {
