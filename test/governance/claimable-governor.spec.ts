@@ -1,4 +1,5 @@
 import { ethers } from "hardhat"
+import { expect } from "chai"
 
 import { MassetMachine } from "@utils/machines"
 import { ClaimableGovernor__factory } from "types/generated"
