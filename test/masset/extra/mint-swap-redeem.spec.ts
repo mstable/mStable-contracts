@@ -44,7 +44,6 @@ describe("Masset", () => {
                 status: 0,
             })),
             {
-                supply: 0,
                 a: simpleToExactAmount(1, 2),
                 limits: {
                     min: simpleToExactAmount(5, 16),

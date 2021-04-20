@@ -10,6 +10,7 @@ import {
     FeederLogic__factory,
     MockERC20,
     FeederManager__factory,
+    Masset,
 } from "types/generated"
 import { assertBNClose } from "@utils/assertions"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
@@ -63,7 +64,7 @@ interface Data {
         vaultBalances: BN[]
     }
 }
-const getData = async (_feederPool: ExposedFeederPool, _mAsset: ExposedMasset): Promise<Data> => ({
+const getData = async (_feederPool: ExposedFeederPool, _mAsset: Masset | ExposedMasset): Promise<Data> => ({
     fp: {
         totalSupply: (await _feederPool.totalSupply()).add((await _feederPool.data()).pendingFees),
         vaultBalances: (await _feederPool.getBassets())[1].map((b) => b[1]),
@@ -77,7 +78,7 @@ const getData = async (_feederPool: ExposedFeederPool, _mAsset: ExposedMasset): 
 
 describe("Cross swap - One basket many tests", () => {
     let feederPool: ExposedFeederPool
-    let mAsset: ExposedMasset
+    let mAsset: Masset | ExposedMasset
     let sa: StandardAccounts
     let recipient: string
     let fpAssetAddresses: string[]

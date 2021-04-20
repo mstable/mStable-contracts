@@ -6,7 +6,7 @@ import { mAssetData } from "@utils/validator-data"
 
 import { expect } from "chai"
 import { ethers } from "hardhat"
-import { InvariantValidator, InvariantValidator__factory, Masset, Masset__factory, MockERC20 } from "types/generated"
+import { Masset, Masset__factory, MockERC20 } from "types/generated"
 
 const { mintData, mintMultiData, redeemData, redeemExactData, redeemMassetData, swapData } = mAssetData
 
@@ -217,15 +217,17 @@ describe("Invariant Validator - One basket one test", () => {
                     const wBTC = await mAssetMachine.loadBassetProxy("Wrapped BTC", "wBTC", 18)
                     bAssets = [renBTC, sBTC, wBTC]
                     bAssetAddresses = bAssets.map((b) => b.address)
-                    const forgeVal = await new InvariantValidator__factory(sa.default.signer).deploy()
-                    forgeValAddr = forgeVal.address
-                    const ManagerFactory = await ethers.getContractFactory("Manager")
-                    const managerLib = await ManagerFactory.deploy()
+                    const LogicFactory = await ethers.getContractFactory("MassetLogic")
+                    const logicLib = (await LogicFactory.deploy()) as MassetLogic
+
+                    const ManagerFactory = await ethers.getContractFactory("MassetManager")
+                    const managerLib = (await ManagerFactory.deploy()) as MassetManager
 
                     massetFactory = (
                         await ethers.getContractFactory("Masset", {
                             libraries: {
-                                Manager: managerLib.address,
+                                MassetLogic: logicLib.address,
+                                MassetManager: managerLib.address,
                             },
                         })
                     ).connect(sa.default.signer) as Masset__factory
@@ -236,7 +238,6 @@ describe("Invariant Validator - One basket one test", () => {
                     await mAsset.initialize(
                         "mStable Asset",
                         "mAsset",
-                        forgeValAddr,
                         bAssets.map((b) => ({
                             addr: b.address,
                             integrator: ZERO_ADDRESS,

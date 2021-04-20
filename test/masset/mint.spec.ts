@@ -24,7 +24,7 @@ describe("Masset - Mint", () => {
     let details: MassetDetails
 
     const runSetup = async (seedBasket = true, useTransferFees = false, useLendingMarkets = false): Promise<void> => {
-        details = await mAssetMachine.deployMasset(true, useLendingMarkets, useTransferFees)
+        details = await mAssetMachine.deployMasset(useLendingMarkets, useTransferFees)
         if (seedBasket) {
             await mAssetMachine.seedWithWeightings(details, [25, 25, 25, 25])
         }
@@ -194,7 +194,9 @@ describe("Masset - Mint", () => {
         expect(senderBassetBalAfter, "senderBassetBal after").eq(senderBassetBalBefore.sub(bAssetQuantityExact))
         // VaultBalance should update for this bAsset
         const bAssetAfter = await mAsset.getBasset(bAsset.address)
-        expect(BN.from(bAssetAfter.data.vaultBalance), "vaultBalance after").eq(BN.from(bAssetBefore.vaultBalance).add(bAssetQuantityExact))
+        expect(BN.from(bAssetAfter.bData.vaultBalance), "vaultBalance after").eq(
+            BN.from(bAssetBefore.vaultBalance).add(bAssetQuantityExact),
+        )
 
         // Complete basket should remain in healthy state
         if (!ignoreHealthAssertions) await assertBasketIsHealthy(mAssetMachine, md)
@@ -214,8 +216,8 @@ describe("Masset - Mint", () => {
                     await runSetup()
                 })
                 it("should send mUSD when recipient is a contract", async () => {
-                    const { bAssets, forgeValidator } = details
-                    const recipient = forgeValidator.address
+                    const { bAssets, managerLib } = details
+                    const recipient = managerLib.address
                     await assertBasicMint(details, bAssets[0], 1, 0, recipient)
                 })
                 it("should send mUSD when the recipient is an EOA", async () => {
@@ -285,7 +287,7 @@ describe("Masset - Mint", () => {
                     expect(minterBassetBalAfter).eq(minterBassetBalBefore.sub(bAssetQuantity))
                     // VaultBalance should update for this bAsset
                     const bAssetAfter = await mAsset.getBasset(bAsset.address)
-                    expect(BN.from(bAssetAfter.data.vaultBalance)).eq(recipientBalAfter)
+                    expect(BN.from(bAssetAfter.bData.vaultBalance)).eq(recipientBalAfter)
 
                     // Complete basket should remain in healthy state
                     // await assertBasketIsHealthy(mAssetMachine, details);
@@ -440,7 +442,7 @@ describe("Masset - Mint", () => {
             // VaultBalance should updated for this bAsset
             const bAssetAfter = await Promise.all(bAssets.map((b) => mAsset.getBasset(b.address)))
             bAssetAfter.map((b, i) =>
-                expect(BN.from(b.data.vaultBalance)).eq(BN.from(bAssetBefore[i].data.vaultBalance).add(bAssetQuantities[i])),
+                expect(BN.from(b.bData.vaultBalance)).eq(BN.from(bAssetBefore[i].bData.vaultBalance).add(bAssetQuantities[i])),
             )
 
             // Complete basket should remain in healthy state
@@ -463,8 +465,8 @@ describe("Masset - Mint", () => {
                     expect(comp.bAssets[3].vaultBalance).eq(compAfter.bAssets[3].vaultBalance)
                 })
                 it("should send mUSD when recipient is a contract", async () => {
-                    const { bAssets, forgeValidator } = details
-                    const recipient = forgeValidator.address
+                    const { bAssets, managerLib } = details
+                    const recipient = managerLib.address
                     await assertMintMulti(details, [1], [bAssets[0]], recipient)
                 })
                 it("should send mUSD when the recipient is an EOA", async () => {
@@ -557,7 +559,7 @@ describe("Masset - Mint", () => {
                     expect(minterBassetBalAfter).eq(minterBassetBalBefore.sub(bAssetQuantity))
                     // VaultBalance should update for this bAsset
                     const bAssetAfter = await mAsset.getBasset(bAsset.address)
-                    expect(BN.from(bAssetAfter.data.vaultBalance)).eq(recipientBalAfter)
+                    expect(BN.from(bAssetAfter.bData.vaultBalance)).eq(recipientBalAfter)
 
                     // Complete basket should remain in healthy state
                     await assertBasketIsHealthy(mAssetMachine, details)

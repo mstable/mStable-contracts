@@ -11,7 +11,6 @@ import {
     SavingsContract,
     Masset,
     Masset__factory,
-    InvariantValidator__factory,
     AssetProxy__factory,
     MockERC20,
     MockERC20__factory,
@@ -59,9 +58,10 @@ const deployBasset = async (sender: Signer, name: string, symbol: string, decima
 const deployMasset = async (sender: Signer, addresses: CommonAddresses, ethers, bAssetContracts: DeployedBasset[]): Promise<Masset> => {
     // Invariant Validator
     console.log(`Deploying Invariant Validator`)
-    const forgeVal = await new InvariantValidator__factory(sender).deploy()
-    const receiptForgeVal = await forgeVal.deployTransaction.wait()
-    console.log(`Deployed Invariant Validator to ${forgeVal.address}. gas used ${receiptForgeVal.gasUsed}`)
+    const LogicFactory = await ethers.getContractFactory("MassetLogic")
+    const logicLib = await LogicFactory.deploy()
+    const receiptForgeVal = await logicLib.deployTransaction.wait()
+    console.log(`Deployed Invariant Validator to ${logicLib.address}. gas used ${receiptForgeVal.gasUsed}`)
 
     // External linked library
     const Manager = await ethers.getContractFactory("Manager")
@@ -70,10 +70,12 @@ const deployMasset = async (sender: Signer, addresses: CommonAddresses, ethers, 
     console.log(`Deployed Manager library to ${managerLib.address}. gas used ${receiptManager.gasUsed}`)
 
     const linkedAddress = {
-        __$1a38b0db2bd175b310a9a3f8697d44eb75$__: managerLib.address,
+        libraries: {
+            MassetLogic: logicLib.address,
+            MassetManager: managerLib.address,
+        },
     }
-    // Implementation
-    const massetFactory = new Masset__factory(linkedAddress, sender)
+    const massetFactory = await ethers.getContractFactory("Masset", linkedAddress)
     const size = massetFactory.bytecode.length / 2 / 1000
     if (size > 24.576) {
         console.error(`Masset size is ${size} kb: ${size - 24.576} kb too big`)
@@ -87,7 +89,7 @@ const deployMasset = async (sender: Signer, addresses: CommonAddresses, ethers, 
 
     // Initialization Data
     console.log(
-        `Initializing Masset with: ${mBtcName}, ${mBtcSymbol}, ${forgeVal.address}, [${bAssetContracts.map(
+        `Initializing Masset with: ${mBtcName}, ${mBtcSymbol}, [${bAssetContracts.map(
             // eslint-disable-next-line
             (b) => "{" + b.contract.address + ", " + b.integrator + ", " + b.txFee + ", " + 0 + "}",
         )} ] , ${config.a.toString()}, ${config.limits.min.toString()}, ${config.limits.max.toString()}`,
@@ -95,7 +97,6 @@ const deployMasset = async (sender: Signer, addresses: CommonAddresses, ethers, 
     const data = impl.interface.encodeFunctionData("initialize", [
         mBtcName,
         mBtcSymbol,
-        forgeVal.address,
         bAssetContracts.map((b) => ({
             addr: b.contract.address,
             integrator: b.integrator,
@@ -118,7 +119,7 @@ const deployMasset = async (sender: Signer, addresses: CommonAddresses, ethers, 
     }
 
     // Create a Masset contract pointing to the deployed proxy contract
-    return new Masset__factory(linkedAddress, sender).attach(mBtcProxy.address)
+    return massetFactory.attach(mBtcProxy.address)
 }
 
 const mint = async (sender: Signer, bAssets: DeployedBasset[], mBTC: Masset) => {
@@ -482,6 +483,7 @@ task("initMBTC", "Initializes the mBTC and imBTC implementations").setAction(asy
     console.log(`Connecting using ${await deployer.getAddress()} and url ${network.name}`)
 
     const addresses = {
+        mBtcLogic: "0x1E91F826fa8aA4fa4D3F595898AF3A64dd188848",
         mBtcManager: "0x1E91F826fa8aA4fa4D3F595898AF3A64dd188848",
         mBtcImpl: "0x69AD1387dA6b2Ab2eA4bF2BEE68246bc042B587f",
         imBtcImpl: "0x1C728F1bda86CD8d19f56E36eb9e24ED3E572A39",
@@ -490,13 +492,16 @@ task("initMBTC", "Initializes the mBTC and imBTC implementations").setAction(asy
 
     // mBTC Implementation
     const linkedAddress = {
-        __$1a38b0db2bd175b310a9a3f8697d44eb75$__: addresses.mBtcManager,
+        libraries: {
+            MassetLogic: addresses.mBtcLogic,
+            MassetManager: addresses.mBtcManager,
+        },
     }
-    const mBtcImpl = await new Masset__factory(linkedAddress, deployer).attach(addresses.mBtcImpl)
+    const massetFactory = await ethers.getContractFactory("Masset", linkedAddress)
+    const mBtcImpl = massetFactory.attach(addresses.mBtcImpl)
     const tx1 = await mBtcImpl.initialize(
         "DEAD",
         "DEAD",
-        DEAD_ADDRESS,
         [
             {
                 addr: addresses.deadToken,

@@ -91,7 +91,6 @@ export class MassetMachine {
                 status: 0,
             })),
             {
-                supply: 0,
                 a: BN.from(a),
                 limits: {
                     min: simpleToExactAmount(5, 16),
@@ -109,12 +108,7 @@ export class MassetMachine {
         }
     }
 
-    public async deployMasset(
-        useMockValidator = false,
-        useLendingMarkets = false,
-        useTransferFees = false,
-        a = 100,
-    ): Promise<MassetDetails> {
+    public async deployMasset(useLendingMarkets = false, useTransferFees = false, a = 100): Promise<MassetDetails> {
         // 1. Bassets
         const bAssets = await this.loadBassetsLocal(useLendingMarkets, useTransferFees)
 
@@ -163,11 +157,10 @@ export class MassetMachine {
                 status: 0,
             })),
             {
-                supply: 0,
                 a,
                 limits: {
                     min: simpleToExactAmount(5, 16),
-                    max: simpleToExactAmount(55, 16),
+                    max: simpleToExactAmount(65, 16),
                 },
             },
         ])

@@ -19,7 +19,7 @@ describe("Feeder - Swap", () => {
         mAssetWeights?: Array<BN | number>,
         use2dp = false,
     ): Promise<void> => {
-        details = await feederMachine.deployFeeder(false, feederWeights, mAssetWeights, useLendingMarkets, useInterestValidator, use2dp)
+        details = await feederMachine.deployFeeder(feederWeights, mAssetWeights, useLendingMarkets, useInterestValidator, use2dp)
     }
 
     before("Init contract", async () => {

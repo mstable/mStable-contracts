@@ -27,10 +27,9 @@ describe("Masset - Swap", () => {
         seedBasket = true,
         useTransferFees = false,
         useLendingMarkets = false,
-        useMockValidator = true,
         weights: number[] = [25, 25, 25, 25],
     ): Promise<void> => {
-        details = await mAssetMachine.deployMasset(useMockValidator, useLendingMarkets, useTransferFees)
+        details = await mAssetMachine.deployMasset(useLendingMarkets, useTransferFees)
         if (seedBasket) {
             await mAssetMachine.seedWithWeightings(details, weights)
         }
@@ -220,7 +219,7 @@ describe("Masset - Swap", () => {
         expect(swapperBassetBalAfter, "swapperBassetBalAfter incorrect").eq(swapperInputBalBefore.sub(inputQuantityExact))
         //    VaultBalance should update for input bAsset
         const inputBassetAfter = await mAsset.getBasset(inputBasset.address)
-        expect(BN.from(inputBassetAfter.data.vaultBalance), "inputBassetAfter incorrect").eq(
+        expect(BN.from(inputBassetAfter.bData.vaultBalance), "inputBassetAfter incorrect").eq(
             BN.from(inputBassetBefore.vaultBalance).add(inputQuantityExact),
         )
 
@@ -242,7 +241,7 @@ describe("Masset - Swap", () => {
         expect(expectedOutputValue, "expectedOutputValue incorrect").eq(recipientBalAfter.sub(recipientOutputBalBefore))
         //    VaultBalance should update for output bAsset
         const outputBassetAfter = await mAsset.getBasset(outputAsset.address)
-        expect(BN.from(outputBassetAfter.data.vaultBalance), "outputBassetAfter incorrect").eq(
+        expect(BN.from(outputBassetAfter.bData.vaultBalance), "outputBassetAfter incorrect").eq(
             BN.from(outputBassetBefore.vaultBalance).sub(expectedOutputValue),
         )
 
@@ -276,24 +275,24 @@ describe("Masset - Swap", () => {
             })
             it("should swap out asset when recipient is a contract", async () => {
                 const { bAssets } = details
-                await assertSwap(details, bAssets[0], bAssets[1], 3, true, details.forgeValidator.address)
+                await assertSwap(details, bAssets[0], bAssets[1], 3, true, details.managerLib.address)
             })
             context("when bAssets have different decimals", () => {
                 it("should swap 6 decimals bAsset for 12 decimal bAsset", async () => {
                     const { bAssets } = details
-                    await assertSwap(details, bAssets[1], bAssets[2], 10, true, details.forgeValidator.address)
+                    await assertSwap(details, bAssets[1], bAssets[2], 10, true, details.managerLib.address)
                 })
                 it("should swap 12 decimals bAsset for 6 decimal bAsset", async () => {
                     const { bAssets } = details
-                    await assertSwap(details, bAssets[2], bAssets[1], 10, true, details.forgeValidator.address)
+                    await assertSwap(details, bAssets[2], bAssets[1], 10, true, details.managerLib.address)
                 })
                 it("should swap 6 decimals bAsset for 18 decimal bAsset", async () => {
                     const { bAssets } = details
-                    await assertSwap(details, bAssets[1], bAssets[3], 10, true, details.forgeValidator.address)
+                    await assertSwap(details, bAssets[1], bAssets[3], 10, true, details.managerLib.address)
                 })
                 it("should swap 18 decimals bAsset for 18 decimal bAsset", async () => {
                     const { bAssets } = details
-                    await assertSwap(details, bAssets[0], bAssets[3], 10, true, details.forgeValidator.address)
+                    await assertSwap(details, bAssets[0], bAssets[3], 10, true, details.managerLib.address)
                 })
             })
             it("should swap with min qty same as qty less swap fee", async () => {
@@ -500,7 +499,7 @@ describe("Masset - Swap", () => {
                             // 3. Calculate expected responses
                             const inputQuantityExact = simpleToExactAmount(swapQuantity, await inputBasset.decimals())
                             const scaledInputQuantity = simpleToExactAmount(swapQuantity, 18)
-                            const expectedOutputValue = scaledInputQuantity.mul(ratioScale).div(outputBassetBefore.data.ratio)
+                            const expectedOutputValue = scaledInputQuantity.mul(ratioScale).div(outputBassetBefore.bData.ratio)
 
                             const feeRate = await mAsset.swapFee()
                             const fee = expectedOutputValue.mul(feeRate).div(fullScale)
@@ -514,7 +513,7 @@ describe("Masset - Swap", () => {
                             // Assert that only >99.7 && <100% of the asset got added to the vault
                             assertBNSlightlyGTPercent(
                                 inputQuantityExact,
-                                BN.from(inputBassetAfter.data.vaultBalance).sub(inputBassetBefore.data.vaultBalance),
+                                BN.from(inputBassetAfter.bData.vaultBalance).sub(inputBassetBefore.bData.vaultBalance),
                                 "0.3",
                                 true,
                             )
@@ -565,7 +564,7 @@ describe("Masset - Swap", () => {
                             // 3. Calculate expected responses
                             const inputQuantityExact = simpleToExactAmount(swapQuantity, await inputBasset.decimals())
                             const scaledInputQuantity = simpleToExactAmount(swapQuantity, 18)
-                            const expectedOutputValue = scaledInputQuantity.mul(ratioScale).div(outputBassetBefore.data.ratio)
+                            const expectedOutputValue = scaledInputQuantity.mul(ratioScale).div(outputBassetBefore.bData.ratio)
 
                             const feeRate = await mAsset.swapFee()
                             const fee = expectedOutputValue.mul(feeRate).div(fullScale)
@@ -579,7 +578,7 @@ describe("Masset - Swap", () => {
                             // Assert that only >99.7 && <100% of the asset got added to the vault
                             assertBNSlightlyGTPercent(
                                 inputQuantityExact,
-                                BN.from(inputBassetAfter.data.vaultBalance).sub(inputBassetBefore.data.vaultBalance),
+                                BN.from(inputBassetAfter.bData.vaultBalance).sub(inputBassetBefore.bData.vaultBalance),
                                 "0.3",
                                 true,
                             )
@@ -644,7 +643,7 @@ describe("Masset - Swap", () => {
                         // 3. Calculate expected responses
                         const inputQuantityExact = simpleToExactAmount(swapQuantity, await inputBasset.decimals())
                         const scaledInputQuantity = simpleToExactAmount(swapQuantity, 18)
-                        const expectedOutputValue = scaledInputQuantity.mul(ratioScale).div(outputBassetBefore.data.ratio)
+                        const expectedOutputValue = scaledInputQuantity.mul(ratioScale).div(outputBassetBefore.bData.ratio)
 
                         const feeRate = await mAsset.swapFee()
                         const fee = expectedOutputValue.mul(feeRate).div(fullScale)
@@ -655,8 +654,8 @@ describe("Masset - Swap", () => {
                         expect(swapperBassetBalAfter).eq(swapperInputBalBefore.sub(inputQuantityExact))
                         //    VaultBalance should update for input bAsset
                         const inputBassetAfter = await mAsset.getBasset(inputBasset.address)
-                        expect(BN.from(inputBassetAfter.data.vaultBalance)).eq(
-                            BN.from(inputBassetBefore.data.vaultBalance).add(inputQuantityExact),
+                        expect(BN.from(inputBassetAfter.bData.vaultBalance)).eq(
+                            BN.from(inputBassetBefore.bData.vaultBalance).add(inputQuantityExact),
                         )
                         //  Output
                         //    Recipient should have output asset quantity after (minus fee)
@@ -697,7 +696,7 @@ describe("Masset - Swap", () => {
                         // 3. Calculate expected responses
                         const inputQuantityExact = simpleToExactAmount(swapQuantity, await inputBasset.decimals())
                         const scaledInputQuantity = simpleToExactAmount(swapQuantity, 18)
-                        const expectedOutputValue = scaledInputQuantity.mul(ratioScale).div(outputBassetBefore.data.ratio)
+                        const expectedOutputValue = scaledInputQuantity.mul(ratioScale).div(outputBassetBefore.bData.ratio)
 
                         const feeRate = await mAsset.swapFee()
                         const fee = expectedOutputValue.mul(feeRate).div(fullScale)
@@ -708,8 +707,8 @@ describe("Masset - Swap", () => {
                         expect(swapperBassetBalAfter).eq(swapperInputBalBefore.sub(inputQuantityExact))
                         //    VaultBalance should update for input bAsset
                         const inputBassetAfter = await mAsset.getBasset(inputBasset.address)
-                        expect(BN.from(inputBassetAfter.data.vaultBalance)).eq(
-                            BN.from(inputBassetBefore.data.vaultBalance).add(inputQuantityExact),
+                        expect(BN.from(inputBassetAfter.bData.vaultBalance)).eq(
+                            BN.from(inputBassetBefore.bData.vaultBalance).add(inputQuantityExact),
                         )
                         //  Output
                         //    Recipient should have output asset quantity after (minus fee)

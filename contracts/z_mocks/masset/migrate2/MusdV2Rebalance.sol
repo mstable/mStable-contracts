@@ -8,7 +8,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-import { IMassetV2 } from "./IMassetV2.sol";
+import { IMassetV1 } from "./IMassetV1.sol";
 import { DyDxFlashLoan } from "../../../peripheral/dydx/DyDxFlashLoan.sol";
 import { ICurve } from "../../../peripheral/Curve/ICurve.sol";
 
@@ -21,12 +21,12 @@ import { ICurve } from "../../../peripheral/Curve/ICurve.sol";
  * @dev     VERSION: 1.0
  *          DATE:    2021-03-22
  */
-contract MusdV3Rebalance is DyDxFlashLoan, Ownable {
+contract MusdV2Rebalance is DyDxFlashLoan, Ownable {
 
     using SafeERC20 for IERC20;
 
     // Contracts that are called to execute swaps
-    IMassetV2 constant mUsdV2 = IMassetV2(0xe2f2a5C287993345a840Db3B0845fbC70f5935a5);
+    IMassetV1 constant mUsdV1 = IMassetV1(0xe2f2a5C287993345a840Db3B0845fbC70f5935a5);
     ICurve constant curve3pool = ICurve(0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7);
     ICurve constant curveYpool = ICurve(0x45F783CCE6B7FF23B2ab2D70e416cdb7D6055f51);
     ICurve constant curveTUSDpool = ICurve(0xEcd5e75AFb02eFa118AF914515D6521aaBd189F1);
@@ -155,13 +155,13 @@ contract MusdV3Rebalance is DyDxFlashLoan, Ownable {
         // Approve mUSD contract to transfer flash token from this contract
         // console.log("About to approve mUSD contract to transfer %s flash tokens >= %s %s", flashAmount, swapInputs[0], swapInputs[1]);
         require(flashAmount >= swapInputs[0] + swapInputs[1], "flash loan not >= swap inputs");
-        IERC20(flashToken).safeApprove(address(mUsdV2), flashAmount);
+        IERC20(flashToken).safeApprove(address(mUsdV1), flashAmount);
 
         // If swapping flash token into mUSD for TUSD
         if (swapInputs[0] > 0) {
             // Swap flash token for TUSD using mUSD
             // console.log("About to mUSD swap %s flash tokens for TUSD", swapInputs[0]);
-            uint256 tusdOutput = mUsdV2.swap(flashToken, TUSD, swapInputs[0], address(this));
+            uint256 tusdOutput = mUsdV1.swap(flashToken, TUSD, swapInputs[0], address(this));
             // console.log("tusdOutput %s", tusdOutput);
 
             uint256 halfTusdOutput = tusdOutput / 2;
@@ -205,7 +205,7 @@ contract MusdV3Rebalance is DyDxFlashLoan, Ownable {
         if (swapInputs[1] > 0) {
             // Swap flash token for USDT using mUSD
             // console.log("About to mUSD swap %s flash tokens for USDT", swapInputs[1]);
-            uint256 usdtOutput = mUsdV2.swap(flashToken, USDT, swapInputs[1], address(this));
+            uint256 usdtOutput = mUsdV1.swap(flashToken, USDT, swapInputs[1], address(this));
             // console.log("usdtOutput %s", usdtOutput);
 
             // Convert USDT for flash token using Curve 3pool

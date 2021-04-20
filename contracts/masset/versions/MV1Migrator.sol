@@ -6,8 +6,8 @@ import "../MassetStructs.sol";
 
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-import { IBasketManager } from "../../z_mocks/masset/migrate3/IBasketManager.sol";
-import { Basket, Basset } from "../../z_mocks/masset/migrate3/MassetStructsV2.sol";
+import { IBasketManager } from "../../z_mocks/masset/migrate2/IBasketManager.sol";
+import { Basket, Basset } from "../../z_mocks/masset/migrate2/MassetStructsV1.sol";
 
 
 library MV1Migrator {

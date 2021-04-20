@@ -43,7 +43,7 @@ describe("Feeder Validation - One basket many tests", () => {
         sa = mAssetMachine.sa
         recipient = await sa.default.address
 
-        const mAssetDetails = await mAssetMachine.deployMasset(false, false, false, massetA)
+        const mAssetDetails = await mAssetMachine.deployMasset(false, false, massetA)
         await mAssetMachine.seedWithWeightings(mAssetDetails, [25000000, 25000000, 25000000, 25000000])
         const bBtc = await mAssetMachine.loadBassetProxy("Binance BTC", "bBTC", 18)
         const bAssets = [mAssetDetails.mAsset as MockERC20, bBtc]

@@ -16,7 +16,7 @@ describe("Feeder Pools", () => {
         feederWeights?: Array<BN | number>,
         mAssetWeights?: Array<BN | number>,
     ): Promise<void> => {
-        feeder = await feederMachine.deployFeeder(false, feederWeights, mAssetWeights, useLendingMarkets, useInterestValidator)
+        feeder = await feederMachine.deployFeeder(feederWeights, mAssetWeights, useLendingMarkets, useInterestValidator)
     }
 
     before("Init contract", async () => {
