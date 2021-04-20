@@ -1,5 +1,5 @@
 import { ethers } from "hardhat"
-import { MassetMachine, MassetDetails, Account } from "@utils/machines"
+import { MassetMachine } from "@utils/machines"
 import { MockGovernable__factory } from "types/generated"
 import { shouldBehaveLikeGovernable, IGovernableBehaviourContext } from "./Governable.behaviour"
 

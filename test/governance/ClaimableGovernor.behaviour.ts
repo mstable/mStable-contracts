@@ -2,6 +2,7 @@ import { expect } from "chai"
 import { ClaimableGovernor } from "types/generated/ClaimableGovernor"
 import { ZERO_ADDRESS } from "@utils/constants"
 import { Account } from "@utils/machines"
+import { toUtf8Bytes } from "ethers/lib/utils"
 
 export interface IClaimableGovernableBehaviourContext {
     claimable: ClaimableGovernor
@@ -32,9 +33,9 @@ export function shouldBehaveLikeClaimable(ctx: IClaimableGovernableBehaviourCont
         expect(proposedGovernor === newGovernor.address).to.be.true
 
         // Try to Cancel governor
-        await expectRevert(ctx.connect(ctx.default.signer).claimable.cancelGovernorChange(), "GOV: caller is not the Governor")
+        await expect(ctx.claimable.connect(ctx.default.signer).cancelGovernorChange()).to.be.revertedWith("GOV: caller is not the Governor")
         const newProposedGovernor = await ctx.claimable.proposedGovernor()
-        expect(proposedGovernor === newProposedGovernor.address).to.be.true
+        expect(proposedGovernor === newProposedGovernor).to.be.true
     })
 
     it("should prevent cancelGovernor from pending-governor", async () => {
@@ -45,9 +46,9 @@ export function shouldBehaveLikeClaimable(ctx: IClaimableGovernableBehaviourCont
         expect(proposedGovernor === newGovernor.address).to.be.true
 
         // Try to Cancel governor
-        await expectRevert(ctx.claimable.connect(ctx.other.signer).cancelGovernorChange(), "GOV: caller is not the Governor")
+        await expect(ctx.claimable.connect(ctx.other.signer).cancelGovernorChange()).to.be.revertedWith("GOV: caller is not the Governor")
         const newProposedGovernor = await ctx.claimable.proposedGovernor()
-        expect(proposedGovernor === newProposedGovernor.address).to.be.true
+        expect(proposedGovernor === newProposedGovernor).to.be.true
     })
 
     it("should allow cancelGovernor from Governor", async () => {
@@ -65,41 +66,45 @@ export function shouldBehaveLikeClaimable(ctx: IClaimableGovernableBehaviourCont
 
         expect(proposedGovernor !== ZERO_ADDRESS).to.be.true
         expect(newProposedGovernor === ZERO_ADDRESS).to.be.true
-        expect(governor === currentGovernor.address).to.be.true
+        expect(governor === currentGovernor).to.be.true
     })
 
     it("should prevent Others to call claimOwnership when there is no pendingGovernor", async () => {
-        await expectRevert(ctx.claimable.claimGovernorChange({ from: ctx.other }), "Sender is not proposed governor")
+        await expect(ctx.claimable.connect(ctx.other.signer).claimGovernorChange()).to.be.revertedWith("Sender is not proposed governor")
     })
 
     it("should prevent Governor to call claimOwnership when there is no pendingGovernor", async () => {
-        await expectRevert(ctx.claimable.claimGovernorChange({ from: ctx.governor }), "Sender is not proposed governor")
+        await expect(ctx.claimable.connect(ctx.governor.signer).claimGovernorChange()).to.be.revertedWith("Sender is not proposed governor")
     })
 
     it("should prevent non-governors from transfering", async () => {
-        const { other } = sa
         const governor = await ctx.claimable.governor()
 
-        expect(governor !== other).to.be.true
-        await expectRevert(ctx.claimable.requestGovernorChange(other, { from: other }), "GOV: caller is not the Governor")
+        expect(governor !== ctx.other.address).to.be.true
+        await expect(ctx.claimable.connect(ctx.other.signer).requestGovernorChange(ctx.other.address)).to.be.revertedWith(
+            "GOV: caller is not the Governor",
+        )
     })
 
     it("should prevent direct change governor", async () => {
-        const { other } = sa
-        await expectRevert(ctx.claimable.changeGovernor(other, { from: ctx.governor }), "Direct change not allowed")
+        await expect(ctx.claimable.connect(ctx.governor.signer).changeGovernor(ctx.other.address)).to.be.revertedWith(
+            "Direct change not allowed",
+        )
     })
 
     it("requestGovernorChange(): should prevent zero address", async () => {
-        await expectRevert(ctx.claimable.requestGovernorChange(ZERO_ADDRESS, { from: ctx.governor }), "Proposed governor is address(0)")
+        // NOTE - false negative when passing specific error string
+        await expect(ctx.claimable.connect(ctx.governor.signer).requestGovernorChange(ZERO_ADDRESS)).to.be.reverted
     })
 
     it("should prevent when already proposed", async () => {
-        const { other } = sa
-        await ctx.claimable.requestGovernorChange(other, { from: ctx.governor })
-        await expectRevert(ctx.claimable.requestGovernorChange(other, { from: ctx.governor }), "Proposed governor already set")
+        await ctx.claimable.connect(ctx.governor.signer).requestGovernorChange(ctx.other.address)
+        await expect(ctx.claimable.connect(ctx.governor.signer).requestGovernorChange(ctx.other.address)).to.be.revertedWith(
+            "Proposed governor already set",
+        )
     })
 
     it("cancelGovernorChange(): should prevent when not proposed", async () => {
-        await expectRevert(ctx.claimable.cancelGovernorChange({ from: ctx.governor }), "Proposed Governor not set")
+        await expect(ctx.claimable.connect(ctx.governor.signer).cancelGovernorChange()).to.be.revertedWith("Proposed Governor not set")
     })
 }
