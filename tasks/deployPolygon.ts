@@ -119,7 +119,7 @@ const deployMasset = async (
     mAssetName: string,
     bAssets: DeployedBasset[],
 ): Promise<Masset> => {
-    const mAssetImpl = await deployContract<Masset>(new Masset__factory(linkedAddress, deployer), "Masset", [nexus.address])
+    const mAssetImpl = await deployContract<Masset>(new Masset__factory(linkedAddress, deployer), "Masset Impl", [nexus.address])
     const config = {
         a: 120,
         limits: {
@@ -139,7 +139,11 @@ const deployMasset = async (
         })),
         config,
     ])
-    const mAssetProxy = await new AssetProxy__factory(deployer).deploy(mAssetImpl.address, delayedProxyAdmin.address, mUsdInitializeData)
+    const mAssetProxy = await deployContract<AssetProxy>(new AssetProxy__factory(deployer), "Masset Proxy", [
+        mAssetImpl.address,
+        delayedProxyAdmin.address,
+        mUsdInitializeData,
+    ])
 
     return new Masset__factory(linkedAddress, deployer).attach(mAssetProxy.address)
 }
@@ -153,12 +157,16 @@ const deployInterestBearingMasset = async (
     symbol: string,
     name: string,
 ): Promise<SavingsContract> => {
-    const impl = await deployContract<SavingsContract>(new SavingsContract__factory(deployer), "SavingsContract", [
+    const impl = await deployContract<SavingsContract>(new SavingsContract__factory(deployer), "SavingsContract Impl", [
         nexus.address,
         mUsd.address,
     ])
     const initializeData = impl.interface.encodeFunctionData("initialize", [poker, name, symbol])
-    const proxy = await new AssetProxy__factory(deployer).deploy(impl.address, delayedProxyAdmin.address, initializeData)
+    const proxy = await deployContract<AssetProxy>(new AssetProxy__factory(deployer), "SavingsContract Proxy", [
+        impl.address,
+        delayedProxyAdmin.address,
+        initializeData,
+    ])
 
     return new SavingsContract__factory(deployer).attach(proxy.address)
 }

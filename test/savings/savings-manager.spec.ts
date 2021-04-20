@@ -46,7 +46,13 @@ describe("SavingsManager", async () => {
         savingsContract = await savingsFactory.deploy(nexus.address, mUSD.address)
         await savingsContract.initialize(sa.default.address, "Savings Credit", "imUSD")
 
-        savingsManager = await new SavingsManager__factory(sa.default.signer).deploy(nexus.address, mUSD.address, savingsContract.address)
+        savingsManager = await new SavingsManager__factory(sa.default.signer).deploy(
+            nexus.address,
+            mUSD.address,
+            savingsContract.address,
+            simpleToExactAmount(1),
+            ONE_WEEK,
+        )
         // Set new SavingsManager address in Nexus
         await nexus.setSavingsManager(savingsManager.address)
         await nexus.setLiquidator(liquidator.address)
@@ -80,19 +86,37 @@ describe("SavingsManager", async () => {
     describe("constructor", async () => {
         it("should fail when nexus address is zero", async () => {
             await expect(
-                new SavingsManager__factory(sa.default.signer).deploy(ZERO_ADDRESS, mUSD.address, savingsContract.address),
+                new SavingsManager__factory(sa.default.signer).deploy(
+                    ZERO_ADDRESS,
+                    mUSD.address,
+                    savingsContract.address,
+                    simpleToExactAmount(1),
+                    ONE_WEEK,
+                ),
             ).to.be.revertedWith("Nexus address is zero")
         })
 
         it("should fail when mAsset address is zero", async () => {
             await expect(
-                new SavingsManager__factory(sa.default.signer).deploy(nexus.address, ZERO_ADDRESS, savingsContract.address),
+                new SavingsManager__factory(sa.default.signer).deploy(
+                    nexus.address,
+                    ZERO_ADDRESS,
+                    savingsContract.address,
+                    simpleToExactAmount(1),
+                    ONE_WEEK,
+                ),
             ).to.be.revertedWith("Must be valid address")
         })
 
         it("should fail when savingsContract address is zero", async () => {
             await expect(
-                new SavingsManager__factory(sa.default.signer).deploy(nexus.address, mUSD.address, ZERO_ADDRESS),
+                new SavingsManager__factory(sa.default.signer).deploy(
+                    nexus.address,
+                    mUSD.address,
+                    ZERO_ADDRESS,
+                    simpleToExactAmount(1),
+                    ONE_WEEK,
+                ),
             ).to.be.revertedWith("Must be valid address")
         })
 
@@ -945,11 +969,6 @@ describe("SavingsManager", async () => {
     })
 
     describe("distributing unallocated Interest", async () => {
-        it("should fail when not called by governor", async () => {
-            await expect(savingsManager.connect(sa.other.signer).distributeUnallocatedInterest(mUSD.address)).to.be.revertedWith(
-                "Only governance can execute",
-            )
-        })
         it("should fail without a valid recipient", async () => {
             await expect(savingsManager.connect(sa.governor.signer).distributeUnallocatedInterest(mUSD.address)).to.be.revertedWith(
                 "Must have valid recipient",
