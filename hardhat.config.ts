@@ -38,10 +38,7 @@ export const hardhatConfig = {
         },
         mumbai_testnet: {
             url: "https://rpc-mumbai.maticvigil.com",
-            accounts:
-                process.env.MUMBAI_PRIVATE_KEY1 && process.env.MUMBAI_PRIVATE_KEY2
-                    ? [process.env.MUMBAI_PRIVATE_KEY1, process.env.MUMBAI_PRIVATE_KEY2]
-                    : [],
+            accounts: process.env.MUMBAI_PRIVATE_KEY1 ? [process.env.MUMBAI_PRIVATE_KEY1] : [],
         },
     },
     solidity: {
