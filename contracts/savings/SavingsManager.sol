@@ -53,10 +53,10 @@ contract SavingsManager is ISavingsManager, PausableModule {
     mapping(address => uint256) public lastCollection;
     mapping(address => uint256) public periodYield;
 
-    // Amount of collected interest that will be sent to Savings Contract (100%)
-    uint256 private savingsRate = 1e18;
+    // Amount of collected interest that will be sent to Savings Contract (1e18 = 100%)
+    uint256 private savingsRate;
     // Streaming liquidated tokens
-    uint256 private constant DURATION = 7 days;
+    uint256 private immutable DURATION; // measure in days. eg 1 days or 7 days
     uint256 private constant ONE_DAY = 1 days;
     uint256 private constant THIRTY_MINUTES = 30 minutes;
     // Streams
@@ -78,10 +78,15 @@ contract SavingsManager is ISavingsManager, PausableModule {
     constructor(
         address _nexus,
         address _mUSD,
-        address _savingsContract
+        address _savingsContract,
+        uint256 _savingsRate,
+        uint256 _duration
+
     ) PausableModule(_nexus) {
         _updateSavingsContract(_mUSD, _savingsContract);
         emit SavingsContractAdded(_mUSD, _savingsContract);
+        savingsRate = _savingsRate;
+        DURATION = _duration;
     }
 
     modifier onlyLiquidator() {
@@ -231,9 +236,9 @@ contract SavingsManager is ISavingsManager, PausableModule {
             _initialiseStream(_mAsset, StreamType.yield, interestCollected + leftover, ONE_DAY);
 
             emit InterestCollected(_mAsset, interestCollected, totalSupply, apy);
+        } else {
+            emit InterestCollected(_mAsset, interestCollected, totalSupply, 0);
         }
-
-        emit InterestCollected(_mAsset, interestCollected, totalSupply, 0);
     }
 
     /**
@@ -413,7 +418,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
      * the siphoned assets to be used elsewhere in the system
      * @param _mAsset  mAsset to collect
      */
-    function distributeUnallocatedInterest(address _mAsset) external override onlyGovernance {
+    function distributeUnallocatedInterest(address _mAsset) external override {
         IRevenueRecipient recipient = revenueRecipients[_mAsset];
         require(address(recipient) != address(0), "Must have valid recipient");
 
