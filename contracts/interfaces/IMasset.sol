@@ -109,13 +109,9 @@ abstract contract IMasset {
     // Admin
     function setCacheSize(uint256 _cacheSize) external virtual;
 
-    function upgradeForgeValidator(address _newForgeValidator) external virtual;
-
     function setFees(uint256 _swapFee, uint256 _redemptionFee) external virtual;
 
     function setTransferFeesFlag(address _bAsset, bool _flag) external virtual;
 
     function migrateBassets(address[] calldata _bAssets, address _newIntegration) external virtual;
 }
-
-abstract contract Deprecated_BasketManager {}

@@ -1,14 +1,11 @@
 import { Signer } from "ethers"
 import { ethers } from "hardhat"
 import {
-    InvariantValidator__factory,
-    MockInvariantValidator__factory,
     AssetProxy__factory,
     MockNexus__factory,
     ExposedMasset,
     ExposedMasset__factory,
     Masset,
-    InvariantValidator,
     MockERC20,
     DelayedProxyAdmin,
     MockInitializableToken,
@@ -19,9 +16,10 @@ import {
     IPlatformIntegration,
     MockInitializableToken__factory,
     MockInitializableTokenWithFee__factory,
-    Manager,
     AssetProxy,
     MockNexus,
+    MassetLogic,
+    MassetManager,
 } from "types/generated"
 import { BN, minimum, simpleToExactAmount } from "@utils/math"
 import { fullScale, MainnetAccounts, ratioScale, ZERO_ADDRESS, DEAD_ADDRESS } from "@utils/constants"
@@ -31,16 +29,16 @@ import { StandardAccounts } from "./standardAccounts"
 import { ActionDetails, ATokenDetails, BasketComposition, BassetIntegrationDetails } from "../../types/machines"
 
 export interface MassetDetails {
-    mAsset?: ExposedMasset
-    forgeValidator?: InvariantValidator
+    mAsset?: ExposedMasset | Masset
     bAssets?: Array<MockERC20>
     pTokens?: Array<string>
     proxyAdmin?: DelayedProxyAdmin
     platform?: MockPlatformIntegration
     aavePlatformAddress?: string
     integrationAddress?: string
-    managerLib?: Manager
-    wrappedManagerLib?: Manager
+    logicLib?: MassetLogic
+    managerLib?: MassetManager
+    wrappedManagerLib?: MassetManager
     nexus?: MockNexus
 }
 
@@ -62,10 +60,11 @@ export class MassetMachine {
     public async deployLite(a = 135): Promise<MassetDetails> {
         const bAssets = await Promise.all([0, 1, 2].map((i) => this.loadBassetProxy(`${i}BASSET`, `${i}BASSET`, 18)))
 
-        const forgeVal = await new InvariantValidator__factory(this.sa.default.signer).deploy()
+        const LogicFactory = await ethers.getContractFactory("MassetLogic")
+        const logicLib = (await LogicFactory.deploy()) as MassetLogic
 
-        const ManagerFactory = await ethers.getContractFactory("Manager")
-        const managerLib = (await ManagerFactory.deploy()) as Manager
+        const ManagerFactory = await ethers.getContractFactory("MassetManager")
+        const managerLib = (await ManagerFactory.deploy()) as MassetManager
 
         const nexus = await new MockNexus__factory(this.sa.default.signer).deploy(
             this.sa.governor.address,
@@ -75,7 +74,8 @@ export class MassetMachine {
         const MassetFactory = (await (
             await ethers.getContractFactory("ExposedMasset", {
                 libraries: {
-                    Manager: managerLib.address,
+                    MassetLogic: logicLib.address,
+                    MassetManager: managerLib.address,
                 },
             })
         ).connect(this.sa.default.signer)) as ExposedMasset__factory
@@ -84,7 +84,6 @@ export class MassetMachine {
         const data = impl.interface.encodeFunctionData("initialize", [
             "mAsset Lite",
             "mLite",
-            forgeVal.address,
             bAssets.map((b) => ({
                 addr: b.address,
                 integrator: ZERO_ADDRESS,
@@ -92,6 +91,7 @@ export class MassetMachine {
                 status: 0,
             })),
             {
+                supply: 0,
                 a: BN.from(a),
                 limits: {
                     min: simpleToExactAmount(5, 16),
@@ -104,7 +104,7 @@ export class MassetMachine {
         return {
             mAsset: (await MassetFactory.attach(mAsset.address)) as ExposedMasset,
             bAssets,
-            forgeValidator: forgeVal as InvariantValidator,
+            logicLib: logicLib as MassetLogic,
             nexus,
         }
     }
@@ -119,15 +119,12 @@ export class MassetMachine {
         const bAssets = await this.loadBassetsLocal(useLendingMarkets, useTransferFees)
 
         // 2. Invariant Validator
-        // If mocks enabled, uses mock which returns 1:1 on all actions
-        const forgeVal = await (useMockValidator
-            ? new MockInvariantValidator__factory(this.sa.default.signer).deploy()
-            : new InvariantValidator__factory(this.sa.default.signer).deploy())
+        const LogicFactory = await ethers.getContractFactory("MassetLogic")
+        const logicLib = (await LogicFactory.deploy()) as MassetLogic
 
-        // 3. Masset
-        // 3.1. Dependencies
-        const ManagerFactory = await ethers.getContractFactory("Manager")
-        const managerLib = (await ManagerFactory.deploy()) as Manager
+        // 3. Invariant Validator
+        const ManagerFactory = await ethers.getContractFactory("MassetManager")
+        const managerLib = (await ManagerFactory.deploy()) as MassetManager
 
         const nexus = await new MockNexus__factory(this.sa.default.signer).deploy(
             this.sa.governor.address,
@@ -149,16 +146,16 @@ export class MassetMachine {
         const MassetFactory = (await (
             await ethers.getContractFactory("ExposedMasset", {
                 libraries: {
-                    Manager: managerLib.address,
+                    MassetLogic: logicLib.address,
+                    MassetManager: managerLib.address,
                 },
             })
         ).connect(this.sa.default.signer)) as ExposedMasset__factory
-        const impl = (await MassetFactory.deploy(nexus.address)) as ExposedMasset
+        const impl = (await MassetFactory.deploy(nexus.address)) as Masset
 
         const data = impl.interface.encodeFunctionData("initialize", [
             "mStable BTC",
             "mBTC",
-            forgeVal.address,
             bAssets.bAssets.map((b, i) => ({
                 addr: b.address,
                 integrator: integrationAddress,
@@ -166,6 +163,7 @@ export class MassetMachine {
                 status: 0,
             })),
             {
+                supply: 0,
                 a,
                 limits: {
                     min: simpleToExactAmount(5, 16),
@@ -183,13 +181,13 @@ export class MassetMachine {
             bAssets: bAssets.bAssets,
             aavePlatformAddress: bAssets.aavePlatformAddress,
             integrationAddress,
-            forgeValidator: forgeVal as InvariantValidator,
             platform: useLendingMarkets
                 ? await new MockPlatformIntegration__factory(this.sa.default.signer).attach(integrationAddress)
                 : null,
             pTokens: useLendingMarkets ? bAssets.aTokens.map((at) => at.aToken) : [],
+            logicLib,
             managerLib,
-            wrappedManagerLib: (await ManagerFactory.attach(mAsset.address)) as Manager,
+            wrappedManagerLib: (await ManagerFactory.attach(mAsset.address)) as MassetManager,
             nexus,
         }
     }
@@ -631,8 +629,8 @@ export class MassetMachine {
             addr: bAsset.personal.addr,
             status: bAsset.personal.status,
             isTransferFeeCharged: bAsset.personal.hasTxFee,
-            ratio: BN.from(bAsset.data.ratio),
-            vaultBalance: BN.from(bAsset.data.vaultBalance),
+            ratio: BN.from(bAsset.bData.ratio),
+            vaultBalance: BN.from(bAsset.bData.vaultBalance),
             integratorAddr: bAsset.personal.integrator,
             contract: bAssetContract,
             pToken: integrator ? await integrator.callStatic["bAssetToPToken(address)"](bAsset.personal.addr) : null,
@@ -647,7 +645,8 @@ export class MassetMachine {
         const [failed, undergoingRecol] = await mAssetDetails.mAsset.getBasket()
         // total supply of mAsset
         const supply = await mAssetDetails.mAsset.totalSupply()
-        const surplus = await mAssetDetails.mAsset.surplus()
+        const data = await mAssetDetails.mAsset.data()
+        const { surplus } = data
         // get actual balance of each bAsset
         const rawBalances = await Promise.all(
             bAssets.map((b) =>

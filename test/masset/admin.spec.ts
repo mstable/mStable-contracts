@@ -96,20 +96,6 @@ describe("Masset Admin", () => {
                 await expect(mAsset.setCacheSize(MAX_UINT256)).to.be.revertedWith("Must be <= 20%")
             })
         })
-        it("should allow upgrade of the ForgeValidator by governor", async () => {
-            const otherAddress = sa.other.address
-            const tx = mAsset.upgradeForgeValidator(otherAddress)
-            await expect(tx).to.emit(mAsset, "ForgeValidatorChanged").withArgs(otherAddress)
-            expect(await mAsset.forgeValidator()).eq(otherAddress)
-        })
-        describe("should fail to upgrade the ForgeValidator if", () => {
-            it("not governor", async () => {
-                await expect(details.mAsset.upgradeForgeValidator(sa.dummy2.address)).to.be.revertedWith("Only governor can execute")
-            })
-            it("zero contract address", async () => {
-                await expect(mAsset.upgradeForgeValidator(ZERO_ADDRESS)).to.be.revertedWith("Null address")
-            })
-        })
         describe("should change swap and redemption fees to", () => {
             it("0.5% and 0.25%", async () => {
                 const oldSwapFee = await mAsset.swapFee()

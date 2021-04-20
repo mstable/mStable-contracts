@@ -127,6 +127,7 @@ export class FeederMachine {
             },
             mAssetDetails.bAssets.map((b) => b.address),
             {
+                supply: 0,
                 a: BN.from(300),
                 limits: {
                     min: simpleToExactAmount(20, 16), // 3%

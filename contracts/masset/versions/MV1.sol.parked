@@ -2,22 +2,21 @@
 pragma solidity 0.8.2;
 pragma abicoder v2;
 
-// External
-import { IInvariantValidator } from "../../interfaces/IInvariantValidator.sol";
 
 // Internal
 import { Initializable } from "../../shared/@openzeppelin-2.5/Initializable.sol";
 import { InitializableToken, IERC20 } from "../../shared/InitializableToken.sol";
 import { ImmutableModule } from "../../shared/ImmutableModule.sol";
 import { InitializableReentrancyGuard } from "../../shared/InitializableReentrancyGuard.sol";
-import { IMasset, Deprecated_BasketManager } from "../../interfaces/IMasset.sol";
+import { IMasset } from "../../interfaces/IMasset.sol";
 import "../MassetStructs.sol";
 
 // Libs
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { StableMath } from "../../shared/StableMath.sol";
-import { Manager } from "../Manager.sol";
-import { Migrator } from "./Migrator.sol";
+import { MassetManager } from "../MassetManager.sol";
+import { MassetLogic } from "../MassetLogic.sol";
+import { MV1Migrator } from "./MV1Migrator.sol";
 
 // Legacy
 import { IBasketManager } from "../../z_mocks/masset/migrate3/IBasketManager.sol";
@@ -1022,7 +1021,7 @@ contract MusdV3 is
      *      only while ForgeValidator is unlocked.
      * @param _newForgeValidator Address of the new ForgeValidator
      */
-    function upgradeForgeValidator(address _newForgeValidator) external override onlyGovernor {
+    function upgradeForgeValidator(address _newForgeValidator) external onlyGovernor {
         require(!forgeValidatorLocked, "ForgeVal locked");
         require(_newForgeValidator != address(0), "Null address");
 

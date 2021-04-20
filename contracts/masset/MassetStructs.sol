@@ -68,6 +68,18 @@ struct FeederData {
     WeightLimits weightLimits;
 }
 
+struct MassetData {
+    uint256 swapFee;
+    uint256 redemptionFee;
+    uint256 cacheSize;
+    uint256 surplus;
+    BassetPersonal[] bAssetPersonal;
+    BassetData[] bAssetData;
+    BasketState basket;
+    AmpData ampData;
+    WeightLimits weightLimits;
+}
+
 struct AssetData {
     uint8 idx;
     uint256 amt;
