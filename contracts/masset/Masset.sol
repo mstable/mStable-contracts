@@ -86,6 +86,7 @@ contract Masset is
     // Amplification Data
     uint256 private constant MAX_FEE = 1e16;
     uint256 private constant A_PRECISION = 100;
+    uint256 private immutable RECOL_FEE;
     // Core data storage
     mapping(address => uint8) public override bAssetIndexes;
     MassetData public data;
@@ -94,7 +95,10 @@ contract Masset is
      * @dev Constructor to set immutable bytecode
      * @param _nexus   Nexus address
      */
-    constructor(address _nexus) ImmutableModule(_nexus) {}
+    constructor(address _nexus, uint256 _recolFee) ImmutableModule(_nexus) {
+        require(_recolFee <= 5e13, "RecolFee too high");
+        RECOL_FEE = _recolFee;
+    }
 
     /**
      * @dev Initialization function for upgradable proxy contract.
@@ -655,7 +659,7 @@ contract Masset is
      * @dev Gets all config needed for general InvariantValidator calls
      */
     function _getConfig() internal view returns (InvariantConfig memory) {
-        return InvariantConfig(totalSupply() + data.surplus, _getA(), data.weightLimits);
+        return InvariantConfig(totalSupply() + data.surplus, _getA(), data.weightLimits, RECOL_FEE);
     }
 
     /**

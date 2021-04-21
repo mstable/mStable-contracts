@@ -10,7 +10,7 @@ contract ExposedFeederLogic {
         BassetData[] memory _bAssets,
         uint8 _i,
         uint256 _rawInput,
-        InvariantConfig memory _config
+        FeederConfig memory _config
     ) public view returns (uint256 mintAmount) {
         return FeederLogic.computeMint(_bAssets, _i, _rawInput, _config);
     }
@@ -19,7 +19,7 @@ contract ExposedFeederLogic {
         BassetData[] memory _bAssets,
         uint8[] memory _indices,
         uint256[] memory _rawInputs,
-        InvariantConfig memory _config
+        FeederConfig memory _config
     ) public view returns (uint256 mintAmount) {
         return FeederLogic.computeMintMulti(_bAssets, _indices, _rawInputs, _config);
     }
@@ -30,7 +30,7 @@ contract ExposedFeederLogic {
         uint8 _o,
         uint256 _rawInput,
         uint256 _feeRate,
-        InvariantConfig memory _config
+        FeederConfig memory _config
     ) public view returns (uint256 bAssetOutputQuantity, uint256 scaledSwapFee) {
         return FeederLogic.computeSwap(_bAssets, _i, _o, _rawInput, _feeRate, _config);
     }
@@ -39,7 +39,7 @@ contract ExposedFeederLogic {
         BassetData[] memory _bAssets,
         uint8 _o,
         uint256 _netMassetQuantity,
-        InvariantConfig memory _config
+        FeederConfig memory _config
     ) public view returns (uint256 rawOutputUnits) {
         return FeederLogic.computeRedeem(_bAssets, _o, _netMassetQuantity, _config);
     }
@@ -48,7 +48,7 @@ contract ExposedFeederLogic {
         BassetData[] memory _bAssets,
         uint8[] memory _indices,
         uint256[] memory _rawOutputs,
-        InvariantConfig memory _config
+        FeederConfig memory _config
     ) public view returns (uint256 totalmAssets) {
         return FeederLogic.computeRedeemExact(_bAssets, _indices, _rawOutputs, _config);
     }

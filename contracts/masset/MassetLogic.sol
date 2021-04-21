@@ -320,7 +320,7 @@ library MassetLogic {
         // If supply > k, deduct recolFee
         (uint256 price, ) = computePrice(_bData, _config);
         if (price < 1e18) {
-            deductedInput -= ((_input * 5e13) / 1e18);
+            deductedInput -= ((_input * _config.recolFee) / 1e18);
         }
         scaledFee = deductedInput.mulTruncate(_redemptionFee);
         deductedInput -= scaledFee;
@@ -624,7 +624,7 @@ library MassetLogic {
         uint256 minted = _k1 - _k0;
         // Under col? Deduct fee
         if (_config.supply > _k0) {
-            minted -= ((minted * 5e13) / 1e18);
+            minted -= ((minted * _config.recolFee) / 1e18);
         }
         // base swap fee
         scaledSwapFee = (minted * _feeRate) / 1e18;
@@ -674,7 +674,7 @@ library MassetLogic {
     ) internal pure returns (uint256 redemption, uint256 scaledFee) {
         redemption = _grossMassetQuantity;
         if (_config.supply > _k0) {
-            redemption -= ((redemption * 5e13) / 1e18);
+            redemption -= ((redemption * _config.recolFee) / 1e18);
         }
         scaledFee = redemption.mulTruncate(_feeRate);
         redemption -= scaledFee;
@@ -719,7 +719,7 @@ library MassetLogic {
         fee = grossMasset - redeemed;
         grossMasset += 1;
         if (_config.supply > k0) {
-            grossMasset = ((grossMasset * 1e18) / (1e18 - 5e13));
+            grossMasset = ((grossMasset * 1e18) / (1e18 - _config.recolFee));
         }
     }
 
@@ -769,7 +769,7 @@ library MassetLogic {
         }
         // 3. Deviation? deduct recolFee of 0.5 bps
         if (_config.supply > _k) {
-            mintAmount -= ((mintAmount * 5e13) / 1e18);
+            mintAmount -= ((mintAmount * _config.recolFee) / 1e18);
         }
     }
 

@@ -79,7 +79,7 @@ export class MassetMachine {
             __$3b19b776afde68cd758db0cae1b8e49f94$__: managerLib.address,
         }
         const MassetFactory = new ExposedMasset__factory(mAssetFactoryLibs, this.sa.default.signer)
-        const impl = (await MassetFactory.deploy(nexus.address)) as ExposedMasset
+        const impl = (await MassetFactory.deploy(nexus.address, simpleToExactAmount(5, 13))) as ExposedMasset
 
         const data = impl.interface.encodeFunctionData("initialize", [
             "mAsset Lite",
@@ -141,7 +141,7 @@ export class MassetMachine {
             __$3b19b776afde68cd758db0cae1b8e49f94$__: managerLib.address,
         }
         const MassetFactory = new ExposedMasset__factory(mAssetFactoryLibs, this.sa.default.signer)
-        const impl = (await MassetFactory.deploy(nexus.address)) as Masset
+        const impl = (await MassetFactory.deploy(nexus.address, simpleToExactAmount(5, 13))) as Masset
 
         const data = impl.interface.encodeFunctionData("initialize", [
             "mStable BTC",

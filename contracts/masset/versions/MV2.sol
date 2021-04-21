@@ -110,18 +110,58 @@ contract MV2 is
     uint256 private constant A_PRECISION = 100;
     AmpData public deprecated_ampData;
     WeightLimits public deprecated_weightLimits;
-
-    // Release 3.0 VARS
+    // Core data storage
+    uint256 private immutable RECOL_FEE;
     MassetData public data;
 
     /**
      * @dev Constructor to set immutable bytecode
      * @param _nexus   Nexus address
      */
-    constructor(address _nexus) ImmutableModule(_nexus) {}
+    constructor(address _nexus, uint256 _recolFee) ImmutableModule(_nexus) {
+        require(_recolFee <= 5e13, "RecolFee too high");
+        RECOL_FEE = _recolFee;
+    }
 
-    function upgrade(
-    ) public {
+    /**
+     * @dev Initialization function for upgradable proxy contract.
+     *      This function should be called via Proxy just after contract deployment.
+     *      To avoid variable shadowing appended `Arg` after arguments name.
+     * @param _nameArg          Name of the mAsset
+     * @param _symbolArg        Symbol of the mAsset
+     * @param _bAssets          Array of Basset data
+     */
+    function initialize(
+        string calldata _nameArg,
+        string calldata _symbolArg,
+        BassetPersonal[] calldata _bAssets,
+        BasicConfig memory _config
+    ) public initializer {
+        InitializableToken._initialize(_nameArg, _symbolArg);
+
+        _initializeReentrancyGuard();
+
+        uint256 len = _bAssets.length;
+        require(len > 0, "No bAssets");
+        for (uint256 i = 0; i < len; i++) {
+            MassetManager.addBasset(
+                data.bAssetPersonal,
+                data.bAssetData,
+                bAssetIndexes,
+                _bAssets[i].addr,
+                _bAssets[i].integrator,
+                1e8,
+                _bAssets[i].hasTxFee
+            );
+        }
+
+        uint64 startA = SafeCast.toUint64(_config.a * A_PRECISION);
+        data.ampData = AmpData(startA, startA, 0, 0);
+        data.weightLimits = _config.limits;
+
+        data.swapFee = 6e14;
+        data.redemptionFee = 3e14;
+        data.cacheSize = 1e17;
     }
 
     /**
@@ -642,7 +682,7 @@ contract MV2 is
      * @dev Gets all config needed for general InvariantValidator calls
      */
     function _getConfig() internal view returns (InvariantConfig memory) {
-        return InvariantConfig(totalSupply() + data.surplus, _getA(), data.weightLimits);
+        return InvariantConfig(totalSupply() + data.surplus, _getA(), data.weightLimits, RECOL_FEE);
     }
 
     /**
