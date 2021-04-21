@@ -2,7 +2,7 @@ import { expect } from "chai"
 import { Signer } from "ethers"
 import { ethers } from "hardhat"
 
-import { assertBasketIsHealthy, assertBNSlightlyGTPercent } from "@utils/assertions"
+import { assertBasketIsHealthy, assertBNClosePercent, assertBNSlightlyGTPercent } from "@utils/assertions"
 import { applyRatio, BN, simpleToExactAmount } from "@utils/math"
 import { Account, MassetDetails, MassetMachine, StandardAccounts } from "@utils/machines"
 import { BassetStatus } from "@utils/mstable-objects"
@@ -163,13 +163,22 @@ describe("Masset - Mint", () => {
         await mAssetMachine.approveMasset(bAsset, mAsset, bAssetQuantityExact, sender.signer, quantitiesAreExact)
 
         const mAssetOutput = await mAsset.getMintOutput(bAsset.address, bAssetQuantityExact)
-        expect(mAssetOutput, "mAssetOutput").to.eq(mAssetQuantityExact)
+        assertBNClosePercent(mAssetOutput, mAssetQuantityExact, "0.02", "mAssetOutput")
 
         const tx = mAsset.mint(bAsset.address, bAssetQuantityExact, minMassetQuantityExact, recipient)
 
+        // Minted event
         await expect(tx, "Minted event")
             .to.emit(mAsset, "Minted")
-            .withArgs(sender.address, recipient, mAssetQuantityExact, bAsset.address, bAssetQuantityExact)
+            .withArgs(sender.address, recipient, mAssetOutput, bAsset.address, bAssetQuantityExact)
+        // const { events } = await (await tx).wait()
+        // const mintedEvent = events.find((e) => e.event === "Minted")
+        // expect(mintedEvent.args[0]).to.eq(sender.address)
+        // expect(mintedEvent.args[1]).to.eq(recipient)
+        // expect(mintedEvent.args[2]).to.eq(mAssetOutput)
+        // expect(mintedEvent.args[3]).to.eq(bAsset.address)
+        // expect(mintedEvent.args[4]).to.eq(bAssetQuantityExact)
+
         // Transfers to lending platform
         await expect(tx, "Transfer event")
             .to.emit(bAsset, "Transfer")
@@ -186,7 +195,7 @@ describe("Masset - Mint", () => {
 
         // Recipient should have mAsset quantity after
         const recipientBalAfter = await mAsset.balanceOf(recipient)
-        expect(recipientBalAfter, "recipientBal after").eq(recipientBalBefore.add(mAssetQuantityExact))
+        expect(recipientBalAfter, "recipientBal after").eq(recipientBalBefore.add(mAssetOutput))
         // Sender should have less bAsset after
         const senderBassetBalAfter = await bAsset.balanceOf(sender.address)
         expect(senderBassetBalAfter, "senderBassetBal after").eq(senderBassetBalBefore.sub(bAssetQuantityExact))
@@ -242,7 +251,7 @@ describe("Masset - Mint", () => {
             })
             context("using bAssets with transfer fees", async () => {
                 before(async () => {
-                    await runSetup(false, true, true)
+                    await runSetup(true, true, true)
                 })
                 it("should handle tokens with transfer fees", async () => {
                     const { bAssets, mAsset, platform } = details
@@ -280,13 +289,7 @@ describe("Masset - Mint", () => {
                     assertBNSlightlyGTPercent(recipientBalBefore.add(mAssetQuantity), recipientBalAfter, "0.3", true)
                     // Sender should have less bAsset after
                     const minterBassetBalAfter = await bAsset.balanceOf(sa.default.address)
-                    expect(minterBassetBalAfter).eq(minterBassetBalBefore.sub(bAssetQuantity))
-                    // VaultBalance should update for this bAsset
-                    const bAssetAfter = await mAsset.getBasset(bAsset.address)
-                    expect(BN.from(bAssetAfter.bData.vaultBalance)).eq(recipientBalAfter)
-
-                    // Complete basket should remain in healthy state
-                    // await assertBasketIsHealthy(mAssetMachine, details);
+                    expect(minterBassetBalAfter, "minterBassetBalAfter").eq(minterBassetBalBefore.sub(bAssetQuantity))
                 })
                 it("should fail if the token charges a fee but we don't know about it", async () => {
                     const { bAssets, mAsset } = details
@@ -316,7 +319,19 @@ describe("Masset - Mint", () => {
                     await mAsset.connect(sa.governor.signer).handlePegLoss(bAsset.address, true)
                     const newBasset = await mAsset.getBasset(bAsset.address)
                     expect(newBasset.personal.status).to.eq(BassetStatus.BrokenBelowPeg)
-                    await assertFailedMint("Unhealthy", mAsset, bAsset, 1, 0, true, sa.default.signer, sa.default.address, false, 1)
+                    await assertFailedMint(
+                        "Unhealthy",
+                        mAsset,
+                        bAsset,
+                        "1000000000000000000",
+                        0,
+                        true,
+                        sa.default.signer,
+                        sa.default.address,
+                        false,
+                        "1000746841283429855",
+                        true,
+                    )
                 })
             })
             context("passing invalid arguments", async () => {
@@ -420,6 +435,17 @@ describe("Masset - Mint", () => {
             const approvals: Array<BN> = await Promise.all(
                 bAssets.map((b, i) => mAssetMachine.approveMasset(b, mAsset, mAssetMintAmounts[i])),
             )
+
+            const mAssetOutput = await mAsset.getMintMultiOutput(
+                bAssetBefore.map((b) => b.personal.addr),
+                approvals,
+            )
+            const mAssetQuantity = simpleToExactAmount(
+                mAssetMintAmounts.reduce((p, c) => BN.from(p).add(BN.from(c)), BN.from(0)),
+                18,
+            )
+            assertBNClosePercent(mAssetOutput, mAssetQuantity, "0.25", "mAssetOutput")
+
             const tx = mAsset.connect(sender.signer).mintMulti(
                 bAssetBefore.map((b) => b.personal.addr),
                 approvals,
@@ -427,16 +453,12 @@ describe("Masset - Mint", () => {
                 recipient,
             )
 
-            const mAssetQuantity = simpleToExactAmount(
-                mAssetMintAmounts.reduce((p, c) => BN.from(p).add(BN.from(c)), BN.from(0)),
-                18,
-            )
             await expect(tx)
                 .to.emit(mAsset, "MintedMulti")
                 .withArgs(
                     sender.address,
                     recipient,
-                    mAssetQuantity,
+                    mAssetOutput,
                     bAssetBefore.map((b) => b.personal.addr),
                     approvals,
                 )
@@ -444,14 +466,14 @@ describe("Masset - Mint", () => {
             const bAssetQuantities = mAssetMintAmounts.map((m, i) => simpleToExactAmount(m, bAssetDecimals[i]))
             // Recipient should have mAsset quantity after
             const recipientBalAfter = await mAsset.balanceOf(recipient)
-            expect(recipientBalAfter).eq(recipientBalBefore.add(mAssetQuantity))
+            expect(recipientBalAfter, "recipientBalAfter").eq(recipientBalBefore.add(mAssetOutput))
             // Sender should have less bAsset after
             const minterBassetBalAfter = await Promise.all(bAssets.map((b) => b.balanceOf(sender.address)))
-            minterBassetBalAfter.map((b, i) => expect(b).eq(minterBassetBalBefore[i].sub(bAssetQuantities[i])))
+            minterBassetBalAfter.map((b, i) => expect(b, `minter bAsset ${i} bal`).eq(minterBassetBalBefore[i].sub(bAssetQuantities[i])))
             // VaultBalance should updated for this bAsset
             const bAssetAfter = await Promise.all(bAssets.map((b) => mAsset.getBasset(b.address)))
             bAssetAfter.map((b, i) =>
-                expect(BN.from(b.bData.vaultBalance)).eq(BN.from(bAssetBefore[i].bData.vaultBalance).add(bAssetQuantities[i])),
+                expect(b.bData.vaultBalance, `vault balance ${i}`).eq(BN.from(bAssetBefore[i].bData.vaultBalance).add(bAssetQuantities[i])),
             )
 
             // Complete basket should remain in healthy state
@@ -467,11 +489,11 @@ describe("Masset - Mint", () => {
                     await runSetup()
                 })
                 it("should mint selected bAssets only", async () => {
-                    const comp = await mAssetMachine.getBasketComposition(details)
+                    const compBefore = await mAssetMachine.getBasketComposition(details)
                     await assertMintMulti(details, [5, 10], [details.bAssets[2], details.bAssets[0]])
                     const compAfter = await mAssetMachine.getBasketComposition(details)
-                    expect(comp.bAssets[1].vaultBalance).eq(compAfter.bAssets[1].vaultBalance)
-                    expect(comp.bAssets[3].vaultBalance).eq(compAfter.bAssets[3].vaultBalance)
+                    expect(compBefore.bAssets[1].vaultBalance).eq(compAfter.bAssets[1].vaultBalance)
+                    expect(compBefore.bAssets[3].vaultBalance).eq(compAfter.bAssets[3].vaultBalance)
                 })
                 it("should send mUSD when recipient is a contract", async () => {
                     const { bAssets, managerLib } = details
@@ -516,7 +538,7 @@ describe("Masset - Mint", () => {
             })
             context("using bAssets with transfer fees", async () => {
                 before(async () => {
-                    await runSetup(false, true, true)
+                    await runSetup(true, true, true)
                 })
                 it("should handle tokens with transfer fees", async () => {
                     const { bAssets, mAsset, platform } = details
@@ -557,12 +579,9 @@ describe("Masset - Mint", () => {
                     const recipientBalAfter = await mAsset.balanceOf(recipient.address)
                     // Assert that we minted gt 99% of the bAsset
                     assertBNSlightlyGTPercent(recipientBalBefore.add(mAssetQuantity), recipientBalAfter, "0.3")
-                    // Sender should have less bAsset afterz
+                    // Sender should have less bAsset after
                     const minterBassetBalAfter = await bAsset.balanceOf(sa.default.address)
-                    expect(minterBassetBalAfter).eq(minterBassetBalBefore.sub(bAssetQuantity))
-                    // VaultBalance should update for this bAsset
-                    const bAssetAfter = await mAsset.getBasset(bAsset.address)
-                    expect(BN.from(bAssetAfter.bData.vaultBalance)).eq(recipientBalAfter)
+                    expect(minterBassetBalAfter, "minterBassetBalAfter").eq(minterBassetBalBefore.sub(bAssetQuantity))
 
                     // Complete basket should remain in healthy state
                     await assertBasketIsHealthy(mAssetMachine, details)
@@ -600,13 +619,14 @@ describe("Masset - Mint", () => {
                         "Unhealthy",
                         mAsset,
                         [bAsset.address],
-                        [1],
+                        ["1000000000000000000"],
                         0,
                         true,
                         sa.default.signer,
                         sa.default.address,
                         false,
-                        1,
+                        "1000746841283429855",
+                        true,
                     )
                 })
             })
@@ -787,7 +807,12 @@ describe("Masset - Mint", () => {
                         sa.default.address,
                     )
                     const mUsdBalAfter = await mAsset.balanceOf(sa.default.address)
-                    expect(mUsdBalAfter, "Must mint 4 full units of mUSD").eq(mUsdBalBefore.add(simpleToExactAmount(4, 18)))
+                    assertBNClosePercent(
+                        mUsdBalAfter,
+                        mUsdBalBefore.add(simpleToExactAmount(4, 18)),
+                        "0.0001",
+                        "Must mint 4 full units of mUSD",
+                    )
                 })
                 it("should mint using 2 bAssets", async () => {
                     const { bAssets, mAsset } = details
