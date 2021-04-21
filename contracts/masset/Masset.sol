@@ -2,6 +2,8 @@
 pragma solidity 0.8.2;
 pragma abicoder v2;
 
+import "hardhat/console.sol";
+
 // Internal
 import { Initializable } from "../shared/@openzeppelin-2.5/Initializable.sol";
 import { InitializableToken, IERC20 } from "../shared/InitializableToken.sol";
@@ -884,10 +886,9 @@ contract Masset is
         (, uint256 k) = MassetLogic.computePrice(data.bAssetData, config);
         require(config.supply > k, "No surplus");
         burnAmount = config.supply - k;
-        // Transfer to ensure approval has been given
-        transferFrom(msg.sender, address(this), burnAmount);
 
-        _burn(address(this), burnAmount);
+        _burn(msg.sender, burnAmount);
+
         emit SurplusBurned(msg.sender, burnAmount);
     }
 }

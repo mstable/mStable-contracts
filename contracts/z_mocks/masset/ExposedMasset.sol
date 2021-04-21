@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.2;
 
-import { Masset } from "../../masset/Masset.sol";
+import { Masset, InvariantConfig } from "../../masset/Masset.sol";
 import { MassetLogic } from "../../masset/MassetLogic.sol";
 
 contract ExposedMasset is Masset {
@@ -15,4 +15,18 @@ contract ExposedMasset is Masset {
     function getA() public view returns (uint256) {
         return super._getA();
     }
+
+    function simulateRedeemMasset(uint256 _amt, uint256[] calldata _minOut, uint256 _recolFee)
+        external {
+        // Get config before burning. Burn > CacheSize
+        InvariantConfig memory config = _getConfig();
+        config.recolFee = _recolFee;
+        MassetLogic.redeemProportionately(
+            data,
+            config,
+            _amt,
+            _minOut,
+            msg.sender
+        );
+        }
 }
