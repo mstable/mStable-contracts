@@ -224,7 +224,9 @@ describe("Masset - Swap", () => {
                 .to.emit(platform, "PlatformWithdrawal")
                 .withArgs(outputAsset.address, outputBassetBefore.pToken, platformInteractionOut.amount, expectedOutputValue)
         } else if (platformInteractionOut.hasLendingMarket) {
-            await expect(swapTx).to.emit(platform, "Withdrawal").withArgs(outputAsset.address, ZERO_ADDRESS, expectedOutputValue)
+            await expect(swapTx)
+                .to.emit(platform, "Withdrawal")
+                .withArgs(outputAsset.address, ZERO_ADDRESS, expectedOutputValue)
         }
         //    Recipient should have output asset quantity after (minus fee)
         const recipientBalAfter = await outputAsset.balanceOf(recipient)
@@ -334,19 +336,17 @@ describe("Masset - Swap", () => {
                     const output = bAssets[1]
                     expect(await input.decimals()).eq(18)
                     expect(await output.decimals()).eq(6)
-                    const outputQuantity = await mAsset.getSwapOutput(input.address, output.address, 1)
-                    expect(outputQuantity, "output quantity not zero").to.eq(0)
                     await assertFailedSwap(
                         mAsset,
                         input,
                         output,
                         1,
                         0,
-                        "Zero output quantity",
+                        "Zero swap output",
                         sa.default.signer,
                         sa.default.address,
                         false,
-                        false,
+                        true,
                         undefined,
                         true,
                     )

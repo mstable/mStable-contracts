@@ -351,8 +351,6 @@ library MassetLogic {
 
         (mAssetQuantity, fee) =
             computeRedeemExact(cachedBassetData, _indices, _outputQuantities, _config, _data.swapFee);
-        require(mAssetQuantity > 0, "Must redeem some mAssets");
-        mAssetQuantity += 1;
         require(mAssetQuantity <= _maxMassetQuantity, "Redeem mAsset qty > max quantity");
         // Apply fees, burn mAsset and return bAsset to recipient
         _data.surplus += fee;
@@ -607,6 +605,7 @@ library MassetLogic {
         (k2, scaledSwapFee) = _getSwapFee(k0, _invariant(x, sum, _config.a), _feeRate, _config);
         // 5. Calc output bAsset
         uint256 newOutputReserve = _solveInvariant(x, _config.a, _o, k2);
+        require(newOutputReserve < x[_o], "Zero swap output");
         uint256 output = x[_o] - newOutputReserve - 1;
         bAssetOutputQuantity = (output * 1e8) / _bAssets[_o].ratio;
         // 6. Check for bounds
@@ -718,6 +717,7 @@ library MassetLogic {
         require(redeemed > 1e6, "Must redeem > 1e6 units");
         grossMasset = redeemed.divPrecisely(1e18 - _feeRate);
         fee = grossMasset - redeemed;
+        grossMasset += 1;
         if (_config.supply > k0) {
             grossMasset += ((grossMasset * 1e18) / (1e18 - 8e13));
         }

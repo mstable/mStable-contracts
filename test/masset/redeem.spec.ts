@@ -6,7 +6,7 @@ import { simpleToExactAmount, BN, applyRatio } from "@utils/math"
 import { MassetDetails, MassetMachine, StandardAccounts, Account } from "@utils/machines"
 import { MockERC20, Masset } from "types/generated"
 import { fullScale, ZERO_ADDRESS } from "@utils/constants"
-import { assertBasketIsHealthy, assertBNSlightlyGTPercent } from "@utils/assertions"
+import { assertBasketIsHealthy, assertBNClosePercent, assertBNSlightlyGTPercent } from "@utils/assertions"
 import { BassetStatus } from "@utils/mstable-objects"
 
 describe("Masset - Redeem", () => {
@@ -70,7 +70,7 @@ describe("Masset - Redeem", () => {
             ).to.be.revertedWith(expectedReason)
         } else {
             const redeemedBassetQuantity = await mAsset.getRedeemOutput(bAssetAddress, mAssetRedeemQuantityExact)
-            expect(redeemedBassetQuantity, "getRedeemOutput call output").eq(expectedBassetQuantityExact)
+            assertBNClosePercent(redeemedBassetQuantity, expectedBassetQuantityExact, "0.1", "getRedeemOutput call output")
         }
     }
     const assertFailedMassetRedemption = async (
@@ -131,7 +131,12 @@ describe("Masset - Redeem", () => {
             ).to.be.revertedWith(expectedReason)
         } else {
             const redeemedMassetQuantity = await mAsset.getRedeemExactBassetsOutput(bAssetAddresses, bAssetRedeemQuantitiesExact)
-            expect(redeemedMassetQuantity, "getRedeemExactBassetsOutput call output").eq(expectedMassetQuantityExact)
+            assertBNClosePercent(
+                redeemedMassetQuantity,
+                BN.from(expectedMassetQuantityExact),
+                "0.1",
+                "getRedeemExactBassetsOutput call output",
+            )
         }
     }
 
@@ -190,7 +195,9 @@ describe("Masset - Redeem", () => {
             await expect(tx, "PlatformWithdrawal event").to.emit(platform, "PlatformWithdrawal")
             // .withArgs(bAsset.address, bAssetBefore.pToken, platformInteraction.amount, bAssetQuantityExact)
         } else if (platformInteraction.hasLendingMarket) {
-            await expect(tx, "Withdrawal event").to.emit(platform, "Withdrawal").withArgs(bAsset.address, bAssetQuantityExact)
+            await expect(tx, "Withdrawal event")
+                .to.emit(platform, "Withdrawal")
+                .withArgs(bAsset.address, bAssetQuantityExact)
         }
         // Transfer events
         await expect(tx, "Transfer event to burn the redeemed mAssets")
@@ -268,11 +275,7 @@ describe("Masset - Redeem", () => {
         const recipientBassetBalsBefore: BN[] = await Promise.all(bAssets.map((b) => b.balanceOf(recipient)))
         const { surplus: surplusBefore } = await mAsset.data()
 
-        // Convert mBasset quantities to mAsset quantity
-        const mAssetsBurnt = bAssetRedeemQuantitiesExact.reduce((acc, bAssetRedeemQuantityExact, i) => {
-            const mAssetQuantity = applyRatio(bAssetRedeemQuantityExact, bAssetsBefore[i].ratio)
-            return acc.add(mAssetQuantity)
-        }, BN.from(0))
+        const mAssetQuantityExact = await mAsset.getRedeemExactBassetsOutput(bAssetAddresses, bAssetRedeemQuantitiesExact)
 
         // Calculate redemption fee
         let scaledFee = BN.from(0)
@@ -281,13 +284,10 @@ describe("Masset - Redeem", () => {
             const { swapFee: feeRate } = await mAsset.data()
             expect(feeRate, "fee rate > 0").gt(BN.from(0))
             expect(feeRate, "fee rate < fullScale / 50").lt(fullScale.div(BN.from(50)))
-            // fee = mAsset qty * feeRate / (1 - feeRate)
-            scaledFee = mAssetsBurnt.mul(feeRate).div(fullScale.sub(feeRate))
+            // fee = mAsset qty - (mAsset qty * feeRate / 1e18)
+            scaledFee = mAssetQuantityExact.mul(feeRate).div(fullScale)
             expect(scaledFee, "scaled fee > 0").gt(BN.from(0))
         }
-
-        const mAssetQuantityExact = await mAsset.getRedeemExactBassetsOutput(bAssetAddresses, bAssetRedeemQuantitiesExact)
-        expect(mAssetQuantityExact, "mAssetQuantityExact").to.eq(mAssetsBurnt.add(scaledFee).add(1))
 
         // Execute the redemption
         const tx = mAsset.redeemExactBassets(bAssetAddresses, bAssetRedeemQuantitiesExact, maxMassetBurntQuantityExact, recipient)
@@ -295,14 +295,7 @@ describe("Masset - Redeem", () => {
         // Check the emitted events
         await expect(tx)
             .to.emit(mAsset, "RedeemedMulti")
-            .withArgs(
-                sender.address,
-                recipient,
-                mAssetsBurnt.add(scaledFee).add(1),
-                bAssetAddresses,
-                bAssetRedeemQuantitiesExact,
-                scaledFee,
-            )
+            .withArgs(sender.address, recipient, mAssetQuantityExact, bAssetAddresses, bAssetRedeemQuantitiesExact, scaledFee)
         // Transfer events
         await expect(tx, "Transfer event to burn the redeemed mAssets")
             .to.emit(mAsset, "Transfer")
@@ -537,44 +530,40 @@ describe("Masset - Redeem", () => {
                 it("should deduct the suitable fee", async () => {
                     const { bAssets, mAsset } = details
                     const bAsset = bAssets[0]
-                    const bAssetBefore = await mAsset.getBasset(bAsset.address)
                     // Set a new fee recipient
                     const newSwapFee = simpleToExactAmount("8.1", 15)
                     const newRedemptionFee = simpleToExactAmount("5.234234", 15)
                     await mAsset.connect(sa.governor.signer).setFees(newSwapFee, newRedemptionFee)
                     // Calc mAsset burn amounts based on bAsset quantities
-                    const bAssetQuantity = simpleToExactAmount(BN.from(1), await bAsset.decimals())
-                    const mAssetQuantity = applyRatio(bAssetQuantity, bAssetBefore.bData.ratio)
-                    const bAssetFee = bAssetQuantity.mul(newSwapFee).div(fullScale)
+                    const mAssetQuantity = simpleToExactAmount(1)
+                    const fee = mAssetQuantity.mul(newSwapFee).div(fullScale)
                     const massetBalBefore = await mAsset.balanceOf(sa.default.address)
-                    const bassetBalBefore = await bAsset.balanceOf(sa.default.address)
+                    const { surplus: surplusBefore } = await mAsset.data()
                     // Run the redemption
                     await assertBasicRedemption(details, bAsset, BN.from(1), BN.from(0))
                     const massetBalAfter = await mAsset.balanceOf(sa.default.address)
-                    const bassetBalAfter = await bAsset.balanceOf(sa.default.address)
+                    const { surplus: surplusAfter } = await mAsset.data()
                     // Assert balance increase
                     expect(massetBalAfter).eq(massetBalBefore.sub(mAssetQuantity))
-                    expect(bassetBalAfter).eq(bassetBalBefore.add(bAssetQuantity).sub(bAssetFee))
+                    expect(surplusAfter).eq(surplusBefore.add(fee))
                 })
                 it("should deduct nothing if the fee is 0", async () => {
                     const { bAssets, mAsset } = details
                     const bAsset = bAssets[0]
-                    const bAssetBefore = await mAsset.getBasset(bAsset.address)
                     // Set a new fee recipient
                     const newFee = BN.from(0)
                     await mAsset.connect(sa.governor.signer).setFees(newFee, newFee)
                     // Calc mAsset burn amounts based on bAsset quantities
-                    const bAssetQuantity = simpleToExactAmount(BN.from(1), await bAsset.decimals())
-                    const mAssetQuantity = applyRatio(bAssetQuantity, bAssetBefore.bData.ratio)
+                    const mAssetQuantity = simpleToExactAmount(1)
                     const massetBalBefore = await mAsset.balanceOf(sa.default.address)
-                    const bassetBalBefore = await bAsset.balanceOf(sa.default.address)
+                    const { surplus: surplusBefore } = await mAsset.data()
                     // Run the redemption
-                    await assertBasicRedemption(details, bAsset, BN.from(1), BN.from(0), false)
+                    await assertBasicRedemption(details, bAsset, 1, 0, false)
                     const massetBalAfter = await mAsset.balanceOf(sa.default.address)
-                    const bassetBalAfter = await bAsset.balanceOf(sa.default.address)
+                    const { surplus: surplusAfter } = await mAsset.data()
                     // Assert balance increase
                     expect(massetBalAfter).eq(massetBalBefore.sub(mAssetQuantity))
-                    expect(bassetBalAfter).eq(bassetBalBefore.add(bAssetQuantity))
+                    expect(surplusAfter).eq(surplusBefore)
                 })
             })
             context("passing invalid arguments", async () => {
@@ -632,13 +621,13 @@ describe("Masset - Redeem", () => {
                         "VM Exception while processing transaction: revert",
                         mAsset,
                         bAssets[0],
-                        "10000000000000000000",
+                        simpleToExactAmount(1),
                         "9900000000000000000",
                         sender.signer,
                         undefined,
+                        true,
                         false,
-                        false,
-                        "9994000000000000000",
+                        simpleToExactAmount(999, 15),
                     )
                 })
             })
@@ -753,25 +742,21 @@ describe("Masset - Redeem", () => {
                     expect(recipientBassetBalBefore).eq(0)
 
                     // 3.0 Do the redemption
+                    const expectedBassetQuantity = await mAsset.getRedeemOutput(bAsset.address, simpleToExactAmount(1))
                     await assertBasicRedemption(details, bAsset, 1, BN.from(0), true, recipient.address, sa.default, false, false, true)
-                    // const tx = await mAsset.redeemTo(bAsset.address, oneBasset, recipient)
-                    const expectedBassetQuantity = applyRatio(oneBasset, bAssetBefore.bData.ratio)
-                    // expect(actualBassetQuantity, "bAsset quantity").to.eq(expectedBassetQuantity)
-                    const { swapFee } = await mAsset.data()
-                    const bAssetFee = oneBasset.mul(swapFee).div(fullScale)
 
                     // 4.0 Total supply goes down, and recipient bAsset goes up slightly
                     const recipientBassetBalAfter = await bAsset.balanceOf(recipient.address)
                     // Assert that we redeemed gt 99% of the bAsset
-                    assertBNSlightlyGTPercent(recipientBassetBalBefore.add(oneBasset.sub(bAssetFee)), recipientBassetBalAfter, "0.4", true)
+                    assertBNSlightlyGTPercent(recipientBassetBalBefore.add(expectedBassetQuantity), recipientBassetBalAfter, "0.4", true)
                     // Total supply goes down full amount
                     const totalSupplyAfter = await mAsset.totalSupply()
-                    expect(totalSupplyAfter, "after total supply").eq(totalSupplyBefore.sub(expectedBassetQuantity))
+                    expect(totalSupplyAfter, "after total supply").eq(totalSupplyBefore.sub(simpleToExactAmount(1)))
 
                     // VaultBalance should update for this bAsset
                     const bAssetAfter = await mAsset.getBasset(bAsset.address)
                     expect(BN.from(bAssetAfter.bData.vaultBalance), "before != after + fee").eq(
-                        BN.from(bAssetBefore.bData.vaultBalance).sub(oneBasset).add(bAssetFee),
+                        BN.from(bAssetBefore.bData.vaultBalance).sub(expectedBassetQuantity),
                     )
                 })
                 it("should send less output to user if fee unexpected", async () => {
@@ -812,24 +797,6 @@ describe("Masset - Redeem", () => {
                 const { bAssets } = details
                 const recipient = details.managerLib.address
                 await assertExactBassetsRedemption(details, bAssets, [0, 0, 0, 10], 11, true, recipient)
-            })
-            it("should redeem when max equals mAsset redeem quantity", async () => {
-                const { bAssets } = details
-                const recipient = details.managerLib.address
-                await assertExactBassetsRedemption(
-                    details,
-                    bAssets,
-                    ["1000000000000000000", "2000000", "3000000000000", "4000000000000000000"],
-                    // mAsset = 10 / (1 - 0.06 / 100) = 10.00600360216129677807
-                    // but solidity calculate its to be 10.006003602161296778
-                    // and then 1 is added to give 10.006003602161296779
-                    "10006003602161296779",
-                    true,
-                    recipient,
-                    undefined,
-                    undefined,
-                    true,
-                )
             })
         })
         context("passing invalid arguments", async () => {
@@ -883,7 +850,7 @@ describe("Masset - Redeem", () => {
             it("should fail when all quantities are 0", async () => {
                 const { bAssets, mAsset } = details
                 await assertFailedExactBassetsRedemption(
-                    "Must redeem some mAssets",
+                    "Must redeem > 1e6 units",
                     mAsset,
                     bAssets,
                     [0, 0, 0, 0],
@@ -891,7 +858,7 @@ describe("Masset - Redeem", () => {
                     undefined,
                     undefined,
                     false,
-                    false,
+                    true,
                 )
             })
             it("should fail when max quantity is 0", async () => {
@@ -952,12 +919,12 @@ describe("Masset - Redeem", () => {
                         bAssets,
                         ["1000000000000000000", "2000000", "3000000000000", "7000000000000000000"],
                         // 13 * (1 - 0.06 / 100) = 13.00780468280968581149
-                        "13007804682809685811",
+                        simpleToExactAmount(13),
                         undefined,
                         undefined,
                         true,
                         false,
-                        "13007804682809685812",
+                        simpleToExactAmount(13),
                     )
                 })
             })

@@ -1,3 +1,6 @@
+/* eslint-disable no-restricted-syntax */
+/* eslint-disable @typescript-eslint/no-loop-func */
+
 import { assertBNClose } from "@utils/assertions"
 import { DEAD_ADDRESS, fullScale, MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
@@ -6,7 +9,7 @@ import { mAssetData } from "@utils/validator-data"
 
 import { expect } from "chai"
 import { ethers } from "hardhat"
-import { Masset, Masset__factory, MockERC20 } from "types/generated"
+import { Masset, Masset__factory, MockERC20, ExposedMassetLogic } from "types/generated"
 
 const { mintData, mintMultiData, redeemData, redeemExactData, redeemMassetData, swapData } = mAssetData
 
@@ -33,15 +36,23 @@ const getReserves = (data: any) =>
 
 const runLongTests = process.env.LONG_TESTS === "true"
 
-describe("Invariant Validator - One basket one test", () => {
-    let validator: InvariantValidator
+describe("Feeder Logic - One basket one test", () => {
+    let validator: ExposedMassetLogic
     let sa: StandardAccounts
 
     before(async () => {
         const accounts = await ethers.getSigners()
         const mAssetMachine = await new MassetMachine().initAccounts(accounts)
         sa = mAssetMachine.sa
-        validator = await new InvariantValidator__factory(sa.default.signer).deploy()
+        const LogicFactory = await ethers.getContractFactory("MassetLogic")
+        const logicLib = await LogicFactory.deploy()
+        const linkedAddress = {
+            libraries: {
+                MassetLogic: logicLib.address,
+            },
+        }
+        const massetFactory = await ethers.getContractFactory("ExposedMassetLogic", linkedAddress)
+        validator = (await massetFactory.deploy()) as ExposedMassetLogic
     })
     describe("Compute Mint", () => {
         let count = 0
@@ -144,13 +155,13 @@ describe("Invariant Validator - One basket one test", () => {
                         it(`${(count += 1)} throws Max Weight error when redeeming ${testRedeem.mAssetQty} mAssets for bAsset ${
                             testRedeem.bAssetIndex
                         }`, async () => {
-                            await expect(validator.computeRedeem(reserves, testRedeem.bAssetIndex, netInput, config)).to.be.revertedWith(
-                                "Exceeds weight limits",
-                            )
+                            await expect(
+                                validator.computeRedeem(reserves, testRedeem.bAssetIndex, netInput, config, swapFeeRate),
+                            ).to.be.revertedWith("Exceeds weight limits")
                         })
                     } else {
                         it(`${(count += 1)} redeem ${testRedeem.mAssetQty} mAssets for bAsset ${testRedeem.bAssetIndex}`, async () => {
-                            const bAssetQty = await validator.computeRedeem(reserves, testRedeem.bAssetIndex, netInput, config)
+                            const bAssetQty = await validator.computeRedeem(reserves, testRedeem.bAssetIndex, netInput, config, swapFeeRate)
                             assertBNClose(bAssetQty, cv(testRedeem.outputQty), 2)
                         })
                     }
@@ -172,17 +183,19 @@ describe("Invariant Validator - One basket one test", () => {
 
                     if (testRedeem.insufficientLiquidityError) {
                         it(`${(count += 1)} throws throw insufficient liquidity error when redeeming ${qtys} bAssets`, async () => {
-                            await expect(validator.computeRedeemExact(reserves, [0, 1, 2], qtys, config)).to.be.revertedWith("VM Exception")
+                            await expect(validator.computeRedeemExact(reserves, [0, 1, 2], qtys, config, swapFeeRate)).to.be.revertedWith(
+                                "VM Exception",
+                            )
                         })
                     } else if (testRedeem.hardLimitError) {
                         it(`${(count += 1)} throws Max Weight error when redeeming ${qtys} bAssets`, async () => {
-                            await expect(validator.computeRedeemExact(reserves, [0, 1, 2], qtys, config)).to.be.revertedWith(
+                            await expect(validator.computeRedeemExact(reserves, [0, 1, 2], qtys, config, swapFeeRate)).to.be.revertedWith(
                                 "Exceeds weight limits",
                             )
                         })
                     } else {
                         it(`${(count += 1)} redeem ${qtys} bAssets`, async () => {
-                            const mAssetQty = await validator.computeRedeemExact(reserves, [0, 1, 2], qtys, config)
+                            const mAssetQty = await validator.computeRedeemExact(reserves, [0, 1, 2], qtys, config, swapFeeRate)
                             assertBNClose(applyFee(mAssetQty), cv(testRedeem.mAssetQty), tolerance)
                         })
                     }
