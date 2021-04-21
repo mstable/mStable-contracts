@@ -27,13 +27,13 @@ const config = {
         max: simpleToExactAmount(80, 16),
     },
 }
-const massetA = 300
+const massetA = 120
 const maxAction = 100
 const feederFees = { swap: simpleToExactAmount(8, 14), redeem: simpleToExactAmount(6, 14), gov: simpleToExactAmount(1, 17) }
-const mAssetFees = { swap: simpleToExactAmount(4, 14), redeem: simpleToExactAmount(2, 14) }
+const mAssetFees = { swap: simpleToExactAmount(6, 14), redeem: simpleToExactAmount(3, 14) }
 
 const ratio = simpleToExactAmount(1, 8)
-const tolerance = BN.from(10)
+const tolerance = BN.from(20)
 const cv = (n: number | string): BN => BN.from(BigInt(n).toString())
 const getMPReserves = (data: any) =>
     [0, 1, 2, 3, 4, 5]
