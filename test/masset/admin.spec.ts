@@ -243,6 +243,7 @@ describe("Feeder Admin", () => {
             expect(config.limits.min, "minWeight").to.eq(simpleToExactAmount(5, 16))
             expect(config.limits.max, "maxWeight").to.eq(simpleToExactAmount(65, 16))
             expect(config.a, "a value").to.eq(10000)
+            expect(config.recolFee, "a value").to.eq(simpleToExactAmount(5, 13))
         })
         it("should get bAsset", async () => {
             const { mAsset, bAssets } = details
