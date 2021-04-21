@@ -606,9 +606,7 @@ describe("Masset - Redeem", () => {
                         undefined,
                         true,
                         false,
-                        // Assuming 0.06% swap fee = 6 bps
-                        // 10 * (1 - 0.06 / 100) = 9.994
-                        "9994000000000000000",
+                        "9973332263398093325",
                     )
                 })
                 it("should fail if recipient is 0x0", async () => {
@@ -623,9 +621,7 @@ describe("Masset - Redeem", () => {
                         ZERO_ADDRESS,
                         true,
                         false,
-                        // Assuming 0.06% swap fee = 6 bps
-                        // 10 * (1 - 0.06 / 100) = 9.994
-                        "9994000000000000000",
+                        "9973332263398093325",
                     )
                 })
                 it("should fail if sender doesn't have mAsset balance", async () => {
@@ -633,7 +629,7 @@ describe("Masset - Redeem", () => {
                     const sender = sa.dummy1
                     expect(await mAsset.balanceOf(sender.address)).eq(0)
                     await assertFailedBasicRedemption(
-                        "ERC20: burn amount exceeds balance",
+                        "VM Exception while processing transaction: revert",
                         mAsset,
                         bAssets[0],
                         "10000000000000000000",
@@ -660,13 +656,13 @@ describe("Masset - Redeem", () => {
                         "In recol",
                         mAsset,
                         bAsset,
-                        1,
+                        "1000000000000000000",
                         0,
                         sa.default.signer,
                         sa.default.address,
+                        true,
                         false,
-                        false,
-                        0.9994,
+                        "999248095248405016",
                     )
                 })
                 it("should fail if bAsset in basket is broken below peg", async () => {
@@ -686,7 +682,7 @@ describe("Masset - Redeem", () => {
                         sa.default.address,
                         false,
                         false,
-                        0.9994,
+                        0.999248,
                     )
                 })
                 it("should fail if other bAssets in basket have broken peg", async () => {
@@ -1024,7 +1020,7 @@ describe("Masset - Redeem", () => {
         })
         context("uneven bAsset weights", () => {
             before(async () => {
-                await runSetup(true, false, false, [1, 4, 30, 15])
+                await runSetup(true, false, false, [3, 4, 30, 15])
             })
             it("should redeem", async () => {
                 const recipient = details.managerLib.address
