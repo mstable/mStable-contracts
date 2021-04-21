@@ -320,7 +320,7 @@ library MassetLogic {
         // If supply > k, deduct recolFee
         (uint256 price, ) = computePrice(_bData, _config);
         if (price < 1e18) {
-            deductedInput -= ((_input * 8e13) / 1e18);
+            deductedInput -= ((_input * 5e13) / 1e18);
         }
         scaledFee = deductedInput.mulTruncate(_redemptionFee);
         deductedInput -= scaledFee;
@@ -655,7 +655,7 @@ library MassetLogic {
         uint256 k0 = _invariant(x, sum, _config.a);
         uint256 redemption;
         (redemption, scaledFee) = _getFee(_grossMassetQuantity, _config, _feeRate, k0);
-        uint256 kFinal = (k0 * (_config.supply - redemption)) / _config.supply;
+        uint256 kFinal = (k0 * (_config.supply - redemption)) / _config.supply + 1;
         // 3. Compute bAsset output
         uint256 newOutputReserve = _solveInvariant(x, _config.a, _o, kFinal);
         uint256 output = x[_o] - newOutputReserve - 1;
@@ -671,10 +671,10 @@ library MassetLogic {
         InvariantConfig memory _config,
         uint256 _feeRate,
         uint256 _k0
-    ) internal view returns (uint256 redemption, uint256 scaledFee) {
+    ) internal pure returns (uint256 redemption, uint256 scaledFee) {
         redemption = _grossMassetQuantity;
         if (_config.supply > _k0) {
-            redemption -= ((redemption * 8e13) / 1e18);
+            redemption -= ((redemption * 5e13) / 1e18);
         }
         scaledFee = redemption.mulTruncate(_feeRate);
         redemption -= scaledFee;
@@ -719,7 +719,7 @@ library MassetLogic {
         fee = grossMasset - redeemed;
         grossMasset += 1;
         if (_config.supply > k0) {
-            grossMasset += ((grossMasset * 1e18) / (1e18 - 8e13));
+            grossMasset = ((grossMasset * 1e18) / (1e18 - 5e13));
         }
     }
 

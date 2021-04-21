@@ -19,7 +19,7 @@ import { keccak256, toUtf8Bytes } from "ethers/lib/utils"
 import { BassetStatus } from "@utils/mstable-objects"
 import { getTimestamp, increaseTime } from "@utils/time"
 
-describe("Masset Admin", () => {
+describe("Feeder Admin", () => {
     let sa: StandardAccounts
     let mAssetMachine: MassetMachine
     let details: MassetDetails
@@ -735,7 +735,7 @@ describe("Masset Admin", () => {
                 // target = current * 10 / 100
                 // the 100 is the precision
                 const targetA = currentA.div(10)
-                details.mAsset.connect(sa.governor.signer).startRampA(targetA, endTime)
+                await details.mAsset.connect(sa.governor.signer).startRampA(targetA, endTime)
 
                 const { ampData: ampDataAfter } = await details.mAsset.data()
                 expect(ampDataAfter.targetA, "after targetA").to.eq(targetA.mul(100))

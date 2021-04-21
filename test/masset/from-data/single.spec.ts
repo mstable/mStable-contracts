@@ -9,11 +9,12 @@ import { mAssetData } from "@utils/validator-data"
 
 import { expect } from "chai"
 import { ethers } from "hardhat"
-import { Masset, Masset__factory, MockERC20, ExposedMassetLogic } from "types/generated"
+import { Masset, Masset__factory, MockERC20, ExposedMassetLogic, MassetLogic, MassetManager } from "types/generated"
 
 const { mintData, mintMultiData, redeemData, redeemExactData, redeemMassetData, swapData } = mAssetData
 
-const config = {
+let config = {
+    supply: BN.from(0),
     a: BN.from(12000),
     limits: {
         min: simpleToExactAmount(5, 16),
@@ -59,7 +60,10 @@ describe("Feeder Logic - One basket one test", () => {
         const testMintData = runLongTests ? mintData : mintData.slice(0, 1)
         for (const testData of testMintData) {
             const reserves = getReserves(testData)
-
+            config = {
+                ...config,
+                supply: cv(testData.mAssetSupply),
+            }
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}, ${testData.reserve2}`, () => {
                 for (const testMint of testData.mints) {
                     if (testMint.hardLimitError) {
@@ -87,6 +91,10 @@ describe("Feeder Logic - One basket one test", () => {
         const testMultiMintData = runLongTests ? mintMultiData : mintMultiData.slice(0, 1)
         for (const testData of testMultiMintData) {
             const reserves = getReserves(testData)
+            config = {
+                ...config,
+                supply: cv(testData.mAssetSupply),
+            }
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}, ${testData.reserve2}`, () => {
                 for (const testMint of testData.mints) {
                     const qtys = testMint.bAssetQtys.map((b) => cv(b))
@@ -103,6 +111,10 @@ describe("Feeder Logic - One basket one test", () => {
         const testSwapData = runLongTests ? swapData : swapData.slice(0, 1)
         for (const testData of testSwapData) {
             const reserves = getReserves(testData)
+            config = {
+                ...config,
+                supply: cv(testData.mAssetSupply),
+            }
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}, ${testData.reserve2}`, () => {
                 for (const testSwap of testData.swaps) {
                     if (testSwap.hardLimitError) {
@@ -144,24 +156,30 @@ describe("Feeder Logic - One basket one test", () => {
         const testRedeemData = runLongTests ? redeemData : redeemData.slice(0, 1)
         for (const testData of testRedeemData) {
             const reserves = getReserves(testData)
+            config = {
+                ...config,
+                supply: cv(testData.mAssetSupply),
+            }
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}, ${testData.reserve2}`, () => {
                 for (const testRedeem of testData.redeems) {
                     // Deduct swap fee before performing redemption
-                    const netInput = cv(testRedeem.mAssetQty)
-                        .mul(fullScale.sub(swapFeeRate))
-                        .div(fullScale)
-
                     if (testRedeem.hardLimitError) {
                         it(`${(count += 1)} throws Max Weight error when redeeming ${testRedeem.mAssetQty} mAssets for bAsset ${
                             testRedeem.bAssetIndex
                         }`, async () => {
                             await expect(
-                                validator.computeRedeem(reserves, testRedeem.bAssetIndex, netInput, config, swapFeeRate),
+                                validator.computeRedeem(reserves, testRedeem.bAssetIndex, cv(testRedeem.mAssetQty), config, swapFeeRate),
                             ).to.be.revertedWith("Exceeds weight limits")
                         })
                     } else {
                         it(`${(count += 1)} redeem ${testRedeem.mAssetQty} mAssets for bAsset ${testRedeem.bAssetIndex}`, async () => {
-                            const bAssetQty = await validator.computeRedeem(reserves, testRedeem.bAssetIndex, netInput, config, swapFeeRate)
+                            const [bAssetQty] = await validator.computeRedeem(
+                                reserves,
+                                testRedeem.bAssetIndex,
+                                cv(testRedeem.mAssetQty),
+                                config,
+                                swapFeeRate,
+                            )
                             assertBNClose(bAssetQty, cv(testRedeem.outputQty), 2)
                         })
                     }
@@ -174,11 +192,13 @@ describe("Feeder Logic - One basket one test", () => {
         const testRedeemExactData = runLongTests ? redeemExactData : redeemExactData.slice(0, 1)
         for (const testData of testRedeemExactData) {
             const reserves = getReserves(testData)
-
+            config = {
+                ...config,
+                supply: cv(testData.mAssetSupply),
+            }
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}, ${testData.reserve2}`, () => {
                 for (const testRedeem of testData.redeems) {
                     // Deduct swap fee after performing redemption
-                    const applyFee = (m: BN): BN => m.mul(fullScale).div(fullScale.sub(swapFeeRate))
                     const qtys = testRedeem.bAssetQtys.map((b) => cv(b))
 
                     if (testRedeem.insufficientLiquidityError) {
@@ -195,8 +215,8 @@ describe("Feeder Logic - One basket one test", () => {
                         })
                     } else {
                         it(`${(count += 1)} redeem ${qtys} bAssets`, async () => {
-                            const mAssetQty = await validator.computeRedeemExact(reserves, [0, 1, 2], qtys, config, swapFeeRate)
-                            assertBNClose(applyFee(mAssetQty), cv(testRedeem.mAssetQty), tolerance)
+                            const [mAssetQty] = await validator.computeRedeemExact(reserves, [0, 1, 2], qtys, config, swapFeeRate)
+                            assertBNClose(mAssetQty, cv(testRedeem.mAssetQty), tolerance)
                         })
                     }
                 }
