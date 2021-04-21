@@ -71,7 +71,7 @@ const getData = async (_feederPool: ExposedFeederPool, _mAsset: Masset | Exposed
         value: await _feederPool.getPrice(),
     },
     mAsset: {
-        totalSupply: (await _mAsset.totalSupply()).add(await _mAsset.surplus()),
+        totalSupply: (await _mAsset.getConfig()).supply, // gets the total supply plus any surplus
         vaultBalances: (await _mAsset.getBassets())[1].map((b) => b[1]),
     },
 })

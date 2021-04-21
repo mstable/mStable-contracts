@@ -98,11 +98,7 @@ export interface TvlConfig {
 const getTvlCap = async (signer: Signer, tvlConfig: TvlConfig): Promise<BN> => {
     const validator = await new ValidatorWithTVLCap__factory(signer).attach(tvlConfig.invariantValidatorAddress)
     const tvlStartTime = await validator.startTime()
-    const weeksSinceLaunch = BN.from(Date.now())
-        .div(1000)
-        .sub(tvlStartTime)
-        .mul(fullScale)
-        .div(604800)
+    const weeksSinceLaunch = BN.from(Date.now()).div(1000).sub(tvlStartTime).mul(fullScale).div(604800)
     // // e.g. 1e19 + (15e18 * 2.04e36) = 1e19 + 3.06e55
     // // startingCap + (capFactor * weeksSinceLaunch**2 / 1e36);
     return tvlConfig.startingCap.add(tvlConfig.capFactor.mul(weeksSinceLaunch.pow(2)).div(fullScale.pow(2)))
@@ -131,7 +127,7 @@ export const getBasket = async (
         console.log(`  ${symbol.padEnd(7)}  ${quantityFormatter(bAssetTotals[i]).padEnd(20)} ${percentage.toString().padStart(2)}%`)
     })
 
-    const mAssetSurplus = isFeederPool(asset) ? BN.from(0) : await asset.surplus()
+    const mAssetSurplus = isFeederPool(asset) ? BN.from(0) : (await asset.data()).surplus
     const mAssetSupply = await asset.totalSupply()
     console.log(`Surplus    ${formatUnits(mAssetSurplus)}`)
     console.log(`${mAssetName}       ${formatUnits(mAssetSupply)}`)
@@ -355,11 +351,7 @@ export const outputFees = (
         console.log(`\nNo fees since ${startTime.toUTCString()}`)
         return
     }
-    const totalTransactions = mints.total
-        .add(multiMints.total)
-        .add(redeems.total)
-        .add(multiRedeems.total)
-        .add(swaps.total)
+    const totalTransactions = mints.total.add(multiMints.total).add(redeems.total).add(multiRedeems.total).add(swaps.total)
     const totalFeeTransactions = redeems.total.add(multiRedeems.total).add(swaps.total)
     console.log(`\nFees since ${startTime.toUTCString()}`)
     console.log("              #          Volume      Fees    %")
@@ -368,63 +360,39 @@ export const outputFees = (
             mints.fees,
             18,
             9,
-        )} ${mints.fees
-            .mul(100)
-            .div(totalFees)
-            .toString()
-            .padStart(3)}%`,
+        )} ${mints.fees.mul(100).div(totalFees).toString().padStart(3)}%`,
     )
     console.log(
         `Multi Mints   ${multiMints.count.toString().padEnd(2)} ${quantityFormatter(multiMints.total)} ${quantityFormatter(
             multiMints.fees,
             18,
             9,
-        )} ${multiMints.fees
-            .mul(100)
-            .div(totalFees)
-            .toString()
-            .padStart(3)}%`,
+        )} ${multiMints.fees.mul(100).div(totalFees).toString().padStart(3)}%`,
     )
     console.log(
         `Redeems       ${redeems.count.toString().padEnd(2)} ${quantityFormatter(redeems.total)} ${quantityFormatter(
             redeems.fees,
             18,
             9,
-        )} ${redeems.fees
-            .mul(100)
-            .div(totalFees)
-            .toString()
-            .padStart(3)}%`,
+        )} ${redeems.fees.mul(100).div(totalFees).toString().padStart(3)}%`,
     )
     console.log(
         `Multi Redeems ${multiRedeems.count.toString().padEnd(2)} ${quantityFormatter(multiRedeems.total)} ${quantityFormatter(
             multiRedeems.fees,
             18,
             9,
-        )} ${multiRedeems.fees
-            .mul(100)
-            .div(totalFees)
-            .toString()
-            .padStart(3)}%`,
+        )} ${multiRedeems.fees.mul(100).div(totalFees).toString().padStart(3)}%`,
     )
     console.log(
         `Swaps         ${swaps.count.toString().padEnd(2)} ${quantityFormatter(swaps.total)} ${quantityFormatter(
             swaps.fees,
             18,
             9,
-        )} ${swaps.fees
-            .mul(100)
-            .div(totalFees)
-            .toString()
-            .padStart(3)}%`,
+        )} ${swaps.fees.mul(100).div(totalFees).toString().padStart(3)}%`,
     )
     const periodSeconds = BN.from(endTime.valueOf() - startTime.valueOf()).div(1000)
     const liquidityUtilization = totalFeeTransactions.mul(100).div(balances.total)
-    const totalApy = totalFees
-        .mul(100)
-        .mul(ONE_YEAR)
-        .div(balances.save)
-        .div(periodSeconds)
+    const totalApy = totalFees.mul(100).mul(ONE_YEAR).div(balances.save).div(periodSeconds)
     console.log(`Total Txs        ${quantityFormatter(totalTransactions)}`)
     console.log(`Savings          ${quantityFormatter(balances.save)} ${quantityFormatter(totalFees, 18, 9)} APY ${totalApy}%`)
     console.log(
