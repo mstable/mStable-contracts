@@ -14,6 +14,7 @@ const config = {
         min: simpleToExactAmount(5, 16),
         max: simpleToExactAmount(55, 16),
     },
+    recolFee: simpleToExactAmount(5, 13),
 }
 const looseConfig = {
     supply: BN.from(0),
@@ -22,6 +23,7 @@ const looseConfig = {
         min: simpleToExactAmount(1, 16),
         max: simpleToExactAmount(99, 16),
     },
+    recolFee: simpleToExactAmount(5, 13),
 }
 const fee = simpleToExactAmount(6, 15)
 

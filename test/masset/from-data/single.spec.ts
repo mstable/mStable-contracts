@@ -20,6 +20,7 @@ let config = {
         min: simpleToExactAmount(5, 16),
         max: simpleToExactAmount(75, 16),
     },
+    recolFee: simpleToExactAmount(5, 13),
 }
 
 const ratio = simpleToExactAmount(1, 8)
@@ -267,7 +268,7 @@ describe("Feeder Logic - One basket one test", () => {
                 })
 
                 beforeEach(async () => {
-                    mAsset = (await massetFactory.deploy(DEAD_ADDRESS)) as Masset
+                    mAsset = (await massetFactory.deploy(DEAD_ADDRESS, simpleToExactAmount(5, 13))) as Masset
                     await mAsset.initialize(
                         "mStable Asset",
                         "mAsset",

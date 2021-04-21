@@ -46,7 +46,7 @@ library FeederLogic {
      */
     function mint(
         FeederData storage _data,
-        InvariantConfig calldata _config,
+        FeederConfig calldata _config,
         Asset calldata _input,
         uint256 _inputQuantity,
         uint256 _minOutputQuantity
@@ -71,7 +71,7 @@ library FeederLogic {
      */
     function mintMulti(
         FeederData storage _data,
-        InvariantConfig calldata _config,
+        FeederConfig calldata _config,
         uint8[] calldata _indices,
         uint256[] calldata _inputQuantities,
         uint256 _minOutputQuantity
@@ -123,7 +123,7 @@ library FeederLogic {
      */
     function swap(
         FeederData storage _data,
-        InvariantConfig calldata _config,
+        FeederConfig calldata _config,
         Asset calldata _input,
         Asset calldata _output,
         uint256 _inputQuantity,
@@ -186,7 +186,7 @@ library FeederLogic {
      */
     function redeem(
         FeederData storage _data,
-        InvariantConfig calldata _config,
+        FeederConfig calldata _config,
         Asset calldata _output,
         uint256 _fpTokenQuantity,
         uint256 _minOutputQuantity,
@@ -234,7 +234,7 @@ library FeederLogic {
      */
     function redeemProportionately(
         FeederData storage _data,
-        InvariantConfig calldata _config,
+        FeederConfig calldata _config,
         uint256 _inputQuantity,
         uint256[] calldata _minOutputQuantities,
         address _recipient
@@ -294,7 +294,7 @@ library FeederLogic {
      */
     function redeemExactBassets(
         FeederData storage _data,
-        InvariantConfig memory _config,
+        FeederConfig memory _config,
         uint8[] calldata _indices,
         uint256[] calldata _outputQuantities,
         uint256 _maxInputQuantity,
@@ -340,7 +340,7 @@ library FeederLogic {
      */
     function _transferIn(
         FeederData storage _data,
-        InvariantConfig memory _config,
+        FeederConfig memory _config,
         BassetData[] memory _cachedBassetData,
         Asset memory _input,
         uint256 _inputQuantity
@@ -412,7 +412,7 @@ library FeederLogic {
      */
     function _swapLocal(
         FeederData storage _data,
-        InvariantConfig memory _config,
+        FeederConfig memory _config,
         BassetData[] memory _cachedBassetData,
         AssetData memory _inputData,
         Asset memory _output,
@@ -449,7 +449,7 @@ library FeederLogic {
      */
     function _redeemLocal(
         FeederData storage _data,
-        InvariantConfig memory _config,
+        FeederConfig memory _config,
         Asset memory _output,
         uint256 _fpTokenQuantity,
         uint256 _minOutputQuantity,
@@ -624,14 +624,14 @@ library FeederLogic {
      * @param _bAssets      Array of all bAsset Data
      * @param _i            Index of bAsset with which to mint
      * @param _rawInput     Raw amount of bAsset to use in mint
-     * @param _config       Generalised InvariantConfig stored externally
+     * @param _config       Generalised FeederConfig stored externally
      * @return mintAmount   Quantity of fpTokens minted
      */
     function computeMint(
         BassetData[] memory _bAssets,
         uint8 _i,
         uint256 _rawInput,
-        InvariantConfig memory _config
+        FeederConfig memory _config
     ) public pure returns (uint256 mintAmount) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
@@ -653,14 +653,14 @@ library FeederLogic {
      * @param _bAssets      Array of all bAsset Data
      * @param _indices      Indexes of bAssets with which to mint
      * @param _rawInputs    Raw amounts of bAssets to use in mint
-     * @param _config       Generalised InvariantConfig stored externally
+     * @param _config       Generalised FeederConfig stored externally
      * @return mintAmount   Quantity of fpTokens minted
      */
     function computeMintMulti(
         BassetData[] memory _bAssets,
         uint8[] memory _indices,
         uint256[] memory _rawInputs,
-        InvariantConfig memory _config
+        FeederConfig memory _config
     ) public pure returns (uint256 mintAmount) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
@@ -689,7 +689,7 @@ library FeederLogic {
      * @param _o            Index of bAsset to swap OUT
      * @param _rawInput     Raw amounts of input bAsset to input
      * @param _feeRate      Swap fee rate to apply to output
-     * @param _config       Generalised InvariantConfig stored externally
+     * @param _config       Generalised FeederConfig stored externally
      * @return bAssetOutputQuantity   Raw bAsset output quantity
      * @return scaledSwapFee          Swap fee collected, in fpToken terms
      */
@@ -699,7 +699,7 @@ library FeederLogic {
         uint8 _o,
         uint256 _rawInput,
         uint256 _feeRate,
-        InvariantConfig memory _config
+        FeederConfig memory _config
     ) public pure returns (uint256 bAssetOutputQuantity, uint256 scaledSwapFee) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
@@ -732,14 +732,14 @@ library FeederLogic {
      * @param _bAssets              Array of all bAsset Data
      * @param _o                    Index of output bAsset
      * @param _netRedeemInput       Net amount of fpToken to redeem
-     * @param _config               Generalised InvariantConfig stored externally
+     * @param _config               Generalised FeederConfig stored externally
      * @return rawOutputUnits       Raw bAsset output returned
      */
     function computeRedeem(
         BassetData[] memory _bAssets,
         uint8 _o,
         uint256 _netRedeemInput,
-        InvariantConfig memory _config
+        FeederConfig memory _config
     ) public pure returns (uint256 rawOutputUnits) {
         require(_netRedeemInput > 1e6, "Must redeem > 1e6 units");
         // 1. Get raw reserves
@@ -763,14 +763,14 @@ library FeederLogic {
      * @param _bAssets          Array of all bAsset Data
      * @param _indices          Indexes of output bAssets
      * @param _rawOutputs       Desired raw bAsset outputs
-     * @param _config           Generalised InvariantConfig stored externally
+     * @param _config           Generalised FeederConfig stored externally
      * @return redeemInput      Amount of fpToken required to redeem bAssets
      */
     function computeRedeemExact(
         BassetData[] memory _bAssets,
         uint8[] memory _indices,
         uint256[] memory _rawOutputs,
-        InvariantConfig memory _config
+        FeederConfig memory _config
     ) public pure returns (uint256 redeemInput) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
@@ -795,11 +795,11 @@ library FeederLogic {
     /**
      * @notice Gets the price of the fpToken, and invariant value k
      * @param _bAssets  Array of all bAsset Data
-     * @param _config   Generalised InvariantConfig stored externally
+     * @param _config   Generalised FeederConfig stored externally
      * @return price    Price of an fpToken
      * @return k        Total value of basket, k
      */
-    function computePrice(BassetData[] memory _bAssets, InvariantConfig memory _config)
+    function computePrice(BassetData[] memory _bAssets, FeederConfig memory _config)
         public
         pure
         returns (uint256 price, uint256 k)
@@ -819,14 +819,14 @@ library FeederLogic {
      * @param _x            Scaled vaultBalances
      * @param _sum          Sum of vaultBalances, to avoid another loop
      * @param _k            Previous value of invariant, k, before addition
-     * @param _config       Generalised InvariantConfig stored externally
+     * @param _config       Generalised FeederConfig stored externally
      * @return mintAmount   Amount of value added to invariant, in fpToken terms
      */
     function _computeMintOutput(
         uint256[] memory _x,
         uint256 _sum,
         uint256 _k,
-        InvariantConfig memory _config
+        FeederConfig memory _config
     ) internal pure returns (uint256 mintAmount) {
         // 1. Get value of reserves according to invariant
         uint256 kFinal = _invariant(_x, _sum, _config.a);

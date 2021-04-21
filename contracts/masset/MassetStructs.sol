@@ -38,10 +38,17 @@ struct BasketState {
     bool failed;
 }
 
+struct FeederConfig {
+    uint256 supply;
+    uint256 a;
+    WeightLimits limits;
+}
+
 struct InvariantConfig {
     uint256 supply;
     uint256 a;
     WeightLimits limits;
+    uint256 recolFee;
 }
 
 struct BasicConfig {

@@ -447,7 +447,7 @@ contract FeederPool is
         Asset memory output = _getAsset(_output);
 
         // Get config before burning. Config > Burn > CacheSize
-        InvariantConfig memory config = _getConfig();
+        FeederConfig memory config = _getConfig();
         _burn(msg.sender, _fpTokenQuantity);
 
         uint256 localFee;
@@ -492,7 +492,7 @@ contract FeederPool is
         require(_inputQuantity > 0, "Qty==0");
 
         // Get config before burning. Burn > CacheSize
-        InvariantConfig memory config = _getConfig();
+        FeederConfig memory config = _getConfig();
         _burn(msg.sender, _inputQuantity);
 
         address[] memory outputs;
@@ -639,7 +639,7 @@ contract FeederPool is
     /**
      * @notice Gets all config needed for general InvariantValidator calls
      */
-    function getConfig() external view override returns (InvariantConfig memory config) {
+    function getConfig() external view override returns (FeederConfig memory config) {
         return _getConfig();
     }
 
@@ -715,8 +715,8 @@ contract FeederPool is
     /**
      * @dev Gets all config needed for general InvariantValidator calls
      */
-    function _getConfig() internal view returns (InvariantConfig memory) {
-        return InvariantConfig(totalSupply() + data.pendingFees, _getA(), data.weightLimits);
+    function _getConfig() internal view returns (FeederConfig memory) {
+        return FeederConfig(totalSupply() + data.pendingFees, _getA(), data.weightLimits);
     }
 
     /**
