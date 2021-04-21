@@ -9,7 +9,7 @@ import { DEAD_ADDRESS, ZERO_ADDRESS } from "@utils/constants"
 import { AssetProxy__factory, Masset, MassetLogic, MassetManager } from "types/generated"
 import { BasketComposition } from "types"
 
-describe("Masset", () => {
+describe("Masset - basic fns", () => {
     let sa: StandardAccounts
     let mAssetMachine: MassetMachine
     let details: MassetDetails
@@ -33,7 +33,7 @@ describe("Masset", () => {
             },
         }
         const factory = await ethers.getContractFactory("Masset", libs)
-        const impl = await factory.deploy(DEAD_ADDRESS)
+        const impl = await factory.deploy(DEAD_ADDRESS, simpleToExactAmount(5, 13))
         const data = impl.interface.encodeFunctionData("initialize", [
             "mStable BTC",
             "mBTC",

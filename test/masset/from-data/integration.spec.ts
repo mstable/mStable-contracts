@@ -65,7 +65,7 @@ describe("Invariant Validator - One basket many tests", () => {
                 },
             })
         ).connect(sa.default.signer)
-        mAsset = (await MassetFactory.deploy(DEAD_ADDRESS)) as ExposedMasset
+        mAsset = (await MassetFactory.deploy(DEAD_ADDRESS, simpleToExactAmount(5, 13))) as ExposedMasset
         await mAsset.initialize(
             "mStable Asset",
             "mAsset",
