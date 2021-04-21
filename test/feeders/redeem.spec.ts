@@ -186,8 +186,8 @@ describe("Feeder - Redeem", () => {
         expect(redeemEvent.args.recipient, "recipient in Redeemer event").to.eq(recipient)
         expect(redeemEvent.args.mAssetQuantity, "mAssetQuantity in Redeemer event").to.eq(fpTokenQuantityExact)
         expect(redeemEvent.args.output, "output in Redeemer event").to.eq(outputAsset.address)
-        if (outputQuantityExpectedExact.gte(0)) {
-            expect(redeemEvent.args.outputQuantity, "outputQuantity in Redeemer event").to.eq(outputQuantityExpectedExact)
+        if (outputActual.gte(0)) {
+            expect(redeemEvent.args.outputQuantity, "outputQuantity in Redeemer event").to.eq(outputActual)
         }
         expect(redeemEvent.args.scaledFee, "scaledFee in Redeemed event").to.gte(0)
 
@@ -202,7 +202,7 @@ describe("Feeder - Redeem", () => {
             .withArgs(
                 assetBefore.integrator ? assetBefore.integratorAddr : assetBefore.feederPoolOrMassetContract.address,
                 recipient,
-                outputQuantityExpectedExact,
+                outputActual,
             )
 
         // Withdraw from lending platform, feeder pool or main pool
@@ -215,23 +215,21 @@ describe("Feeder - Redeem", () => {
                 .to.emit(fd.mAssetDetails.platform, "Withdraw")
                 .withArgs(outputAsset.address, assetBefore.pToken, platformInteraction.amount)
         } else {
-            expect(integratorBalAfter, "integrator balance after").eq(integratorBalBefore.sub(outputQuantityExpectedExact))
+            expect(integratorBalAfter, "integrator balance after").eq(integratorBalBefore.sub(outputActual))
         }
 
         // Recipient should have redeemed asset after
         const recipientBalAfter = await outputAsset.balanceOf(recipient)
-        expect(recipientBalAfter, "recipient balance after").eq(recipientBalBefore.add(outputQuantityExpectedExact))
+        expect(recipientBalAfter, "recipient balance after").eq(recipientBalBefore.add(outputActual))
         // Sender should have less asset after
         const senderFpTokenBalAfter = await pool.balanceOf(sender.address)
         expect(senderFpTokenBalAfter, "sender balance after").eq(senderFpTokenBalBefore.sub(fpTokenQuantityExact))
         // VaultBalance should update for this asset
         const assetAfter = await feederMachine.getAsset(details, outputAsset.address)
-        expect(BN.from(assetAfter.vaultBalance), "vault balance after").eq(
-            BN.from(assetBefore.vaultBalance).sub(outputQuantityExpectedExact),
-        )
+        expect(BN.from(assetAfter.vaultBalance), "vault balance after").eq(BN.from(assetBefore.vaultBalance).sub(outputActual))
 
         return {
-            outputQuantity: outputQuantityExpectedExact,
+            outputQuantity: outputActual,
             senderBassetBalBefore: senderFpTokenBalBefore,
             senderBassetBalAfter: senderFpTokenBalAfter,
             recipientBalBefore,
@@ -498,13 +496,7 @@ describe("Feeder - Redeem", () => {
                 })
                 it("should redeem a single main pool asset", async () => {
                     const { mAssetDetails } = details
-                    await assertBasicRedeem(
-                        details,
-                        mAssetDetails.bAssets[0],
-                        simpleToExactAmount(1),
-                        "998990470317456043",
-                        "998990470317456043",
-                    )
+                    await assertBasicRedeem(details, mAssetDetails.bAssets[0], simpleToExactAmount(1))
                 })
             })
 
@@ -542,7 +534,7 @@ describe("Feeder - Redeem", () => {
                         pool,
                         mAssetDetails.bAssets[0],
                         simpleToExactAmount(1),
-                        "998990470317456043",
+                        "998990470317456042",
                     )
                 })
                 it("should redeem a single mStable asset", async () => {

@@ -6,6 +6,7 @@ import { simpleToExactAmount, BN } from "@utils/math"
 import { MassetMachine, StandardAccounts, Account, FeederMachine, FeederDetails } from "@utils/machines"
 import { FeederPool, MockERC20 } from "types/generated"
 import { ZERO_ADDRESS } from "@utils/constants"
+import { assertBNClosePercent } from "@utils/assertions"
 
 describe("Feeder - Swap", () => {
     let sa: StandardAccounts
@@ -112,6 +113,7 @@ describe("Feeder - Swap", () => {
         recipient: string = sa.default.address,
         sender: Account = sa.default,
         skipEmits = false,
+        looseAmounts = false,
     ): Promise<BN> => {
         const pool = fd.pool.connect(sender.signer)
 
@@ -136,16 +138,15 @@ describe("Feeder - Swap", () => {
 
         //    Call the swap output function to check if results match
         const swapOutput = await pool.getSwapOutput(inputAsset.address, outputAsset.address, inputQuantityExact)
-        expect(swapOutput, "swap output").to.eq(outputExpectedExact)
+        if (looseAmounts) {
+            assertBNClosePercent(swapOutput, outputExpectedExact, "0.1")
+        } else {
+            expect(swapOutput, "swap output").to.eq(outputExpectedExact)
+        }
 
         //     Expect to be used in cache
         const platformInteractionIn = await FeederMachine.getPlatformInteraction(pool, "deposit", inputQuantityExact, inputAssetBefore)
-        const platformInteractionOut = await FeederMachine.getPlatformInteraction(
-            pool,
-            "withdrawal",
-            outputExpectedExact,
-            outputAssetBefore,
-        )
+        const platformInteractionOut = await FeederMachine.getPlatformInteraction(pool, "withdrawal", swapOutput, outputAssetBefore)
 
         // FIXME can await when Waffle 3.2.2 is included in @nomiclabs/hardhat-waffle
         // https://github.com/EthWorks/Waffle/issues/119
@@ -160,7 +161,7 @@ describe("Feeder - Swap", () => {
                 .withArgs(sender.address, inputAssetBefore.integrator ? inputAssetBefore.integratorAddr : pool.address, inputQuantityExact)
             await expect(swapTx, "Transfer event for output asset from platform integration or mAsset to recipient")
                 .to.emit(outputAsset, "Transfer")
-                .withArgs(outputAssetBefore.integrator ? outputAssetBefore.integratorAddr : pool.address, recipient, outputExpectedExact)
+                .withArgs(outputAssetBefore.integrator ? outputAssetBefore.integratorAddr : pool.address, recipient, swapOutput)
             await swapTx
 
             const inputIntegratorBalAfter = await inputAssetBefore.contract.balanceOf(
@@ -203,16 +204,14 @@ describe("Feeder - Swap", () => {
         // }
         //    Recipient should have output asset quantity after (minus fee)
         const recipientBalAfter = await outputAsset.balanceOf(recipient)
-        expect(recipientBalAfter, "recipientBalAfter").eq(recipientOutputBalBefore.add(outputExpectedExact))
+        expect(recipientBalAfter, "recipientBalAfter").eq(recipientOutputBalBefore.add(swapOutput))
         //    Swap estimation should match up
-        expect(outputExpectedExact, "expectedOutputValue").eq(recipientBalAfter.sub(recipientOutputBalBefore))
+        expect(swapOutput, "expectedOutputValue").eq(recipientBalAfter.sub(recipientOutputBalBefore))
         //    VaultBalance should update for output asset
         const outputAssetAfter = await feederMachine.getAsset(details, outputAsset.address)
-        expect(BN.from(outputAssetAfter.vaultBalance), "output asset after").eq(
-            BN.from(outputAssetBefore.vaultBalance).sub(outputExpectedExact),
-        )
+        expect(BN.from(outputAssetAfter.vaultBalance), "output asset after").eq(BN.from(outputAssetBefore.vaultBalance).sub(swapOutput))
 
-        return outputExpectedExact
+        return swapOutput
     }
 
     describe("swapping assets", () => {
@@ -249,11 +248,12 @@ describe("Feeder - Swap", () => {
                         fAsset,
                         mAssetDetails.bAssets[0],
                         simpleToExactAmount(10),
-                        "9990535039807787103",
+                        simpleToExactAmount(10),
                         undefined,
                         undefined,
                         undefined,
                         undefined,
+                        true,
                         true,
                     )
                 })
