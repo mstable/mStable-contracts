@@ -120,7 +120,6 @@ describe("Masset - Swap", () => {
         inputBasset: MockERC20,
         outputAsset: MockERC20,
         inputQuantity: BN | number,
-        expectSwapFee = true,
         recipient: string = sa.default.address,
         sender: Account = sa.default,
         ignoreHealthAssertions = false,
@@ -140,7 +139,7 @@ describe("Masset - Swap", () => {
         //    Get basic before data on the swap assets
         const inputBassetBefore = await mAssetMachine.getBasset(details, inputBasset.address)
         const outputBassetBefore = await mAssetMachine.getBasset(details, outputAsset.address)
-        const { surplus: surplusBefore, swapFee: feeRate } = await mAsset.data()
+        const { surplus: surplusBefore } = await mAsset.data()
 
         // 2. Do the necessary approvals and make the calls
         const approval0: BN = await mAssetMachine.approveMasset(
@@ -157,16 +156,6 @@ describe("Masset - Swap", () => {
         // 3. Calculate expected responses
         const inputQuantityExact = approval0
 
-        let fee = BN.from(0)
-        let scaledFee = BN.from(0)
-        //    If there is a fee expected, then deduct it from output
-        if (expectSwapFee) {
-            expect(feeRate, "fee rate > 0").gt(BN.from(0))
-            expect(feeRate, "fee rate < fullScale / 50").lt(fullScale.div(BN.from(50)))
-            fee = expectedOutputValue.mul(fullScale).div(fullScale.sub(feeRate)).sub(expectedOutputValue)
-            expect(fee, "fee > 0").gt(BN.from(0))
-            scaledFee = fee.mul(BN.from(outputBassetBefore.ratio)).div(ratioScale)
-        }
         //     Expect to be used in cache
         const platformInteractionIn = await MassetMachine.getPlatformInteraction(mAsset, "deposit", approval0, inputBassetBefore)
         const platformInteractionOut = await MassetMachine.getPlatformInteraction(
@@ -179,10 +168,20 @@ describe("Masset - Swap", () => {
         // FIXME can await when Waffle 3.2.2 is included in @nomiclabs/hardhat-waffle
         // https://github.com/EthWorks/Waffle/issues/119
         const swapTx = mAsset.swap(inputBasset.address, outputAsset.address, approval0, minOutputQuantity, recipient)
+
         // 4. Validate any basic events that should occur
-        await expect(swapTx)
-            .to.emit(mAsset, "Swapped")
-            .withArgs(sender.address, inputBasset.address, outputAsset.address, expectedOutputValue, scaledFee, recipient)
+        // Swapped event
+        await expect(swapTx).to.emit(mAsset, "Swapped")
+        // .withArgs(sender.address, inputBasset.address, outputAsset.address, expectedOutputValue, scaledFee, recipient)
+        const { events } = await (await swapTx).wait()
+        const swappedEvent = events.find((e) => e.event === "Swapped")
+        expect(swappedEvent.args[0]).to.eq(sender.address)
+        expect(swappedEvent.args[1]).to.eq(inputBasset.address)
+        expect(swappedEvent.args[2]).to.eq(outputAsset.address)
+        expect(swappedEvent.args[3]).to.eq(expectedOutputValue)
+        const scaledFee = swappedEvent.args[4]
+        expect(swappedEvent.args[5]).to.eq(recipient)
+
         // Input Transfer event
         await expect(swapTx, "Transfer event for input bAsset from sender to platform integration or mAsset")
             .to.emit(inputBasset, "Transfer")
@@ -254,7 +253,7 @@ describe("Masset - Swap", () => {
                 before(async () => {
                     await runSetup()
                 })
-                const testQuantities = [1, 10, 14]
+                const testQuantities = [1, 10, 4]
                 testQuantities.forEach((qty) => {
                     it(`should swap using ${qty} quantity`, async () => {
                         const { bAssets } = details
@@ -292,7 +291,6 @@ describe("Masset - Swap", () => {
                     inputBasset,
                     outputBasset,
                     inputQty,
-                    true,
                     undefined,
                     undefined,
                     undefined,
@@ -302,28 +300,28 @@ describe("Masset - Swap", () => {
             })
             it("should swap using a different recipient to the sender", async () => {
                 const { bAssets } = details
-                await assertSwap(details, bAssets[0], bAssets[1], 2, true, sa.dummy1.address)
+                await assertSwap(details, bAssets[0], bAssets[1], 2, sa.dummy1.address)
             })
             it("should swap out asset when recipient is a contract", async () => {
                 const { bAssets } = details
-                await assertSwap(details, bAssets[0], bAssets[1], 3, true, details.managerLib.address)
+                await assertSwap(details, bAssets[0], bAssets[1], 3, details.managerLib.address)
             })
             context("when bAssets have different decimals", () => {
                 it("should swap 6 decimals bAsset for 12 decimal bAsset", async () => {
                     const { bAssets } = details
-                    await assertSwap(details, bAssets[1], bAssets[2], 10, true, details.managerLib.address)
+                    await assertSwap(details, bAssets[1], bAssets[2], 10, details.managerLib.address)
                 })
                 it("should swap 12 decimals bAsset for 6 decimal bAsset", async () => {
                     const { bAssets } = details
-                    await assertSwap(details, bAssets[2], bAssets[1], 10, true, details.managerLib.address)
+                    await assertSwap(details, bAssets[2], bAssets[1], 10, details.managerLib.address)
                 })
                 it("should swap 6 decimals bAsset for 18 decimal bAsset", async () => {
                     const { bAssets } = details
-                    await assertSwap(details, bAssets[1], bAssets[3], 10, true, details.managerLib.address)
+                    await assertSwap(details, bAssets[1], bAssets[3], 10, details.managerLib.address)
                 })
                 it("should swap 18 decimals bAsset for 18 decimal bAsset", async () => {
                     const { bAssets } = details
-                    await assertSwap(details, bAssets[0], bAssets[3], 10, true, details.managerLib.address)
+                    await assertSwap(details, bAssets[0], bAssets[3], 10, details.managerLib.address)
                 })
             })
             context("and specifying one bAsset base unit", async () => {
@@ -359,7 +357,7 @@ describe("Masset - Swap", () => {
                     const output = bAssets[0]
                     expect(await input.decimals()).eq(6)
                     expect(await output.decimals()).eq(18)
-                    await assertSwap(details, input, output, 1, true, undefined, undefined, false, true)
+                    await assertSwap(details, input, output, 1, undefined, undefined, false, true)
                 })
             })
             context("passing invalid arguments", async () => {
