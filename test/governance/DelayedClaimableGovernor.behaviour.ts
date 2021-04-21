@@ -52,12 +52,8 @@ export function shouldBehaveLikeDelayedClaimable(ctx: IGovernableBehaviourContex
         const previousGov = await ctx.claimable.governor()
         const newGovernor = ctx.other
         const tx = ctx.claimable.connect(newGovernor.signer).claimGovernorChange()
-        await expect(tx)
-            .to.emit(ctx.claimable, "GovernorChangeClaimed")
-            .withArgs(newGovernor.address)
-        await expect(tx)
-            .to.emit(ctx.claimable, "GovernorChanged")
-            .withArgs(previousGov, newGovernor.address)
+        await expect(tx).to.emit(ctx.claimable, "GovernorChangeClaimed").withArgs(newGovernor.address)
+        await expect(tx).to.emit(ctx.claimable, "GovernorChanged").withArgs(previousGov, newGovernor.address)
 
         const owner = await ctx.claimable.governor()
         const requestTime = await ctx.claimable.requestTime()

@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+pragma solidity 0.8.2;
+
+import { MassetHelpers } from "../../shared/MassetHelpers.sol";
+import { ImmutableModule } from "../../shared/ImmutableModule.sol";
+
+// Overrides approveRewardToken
+contract MockRewardToken is ImmutableModule {
+    event RewardTokenApproved(address token, address spender);
+
+    address rewardToken;
+
+    constructor(address _nexus) ImmutableModule(_nexus) {}
+
+    // @override
+    function approveRewardToken() external {
+        address liquidator = nexus.getModule(keccak256("Liquidator"));
+        require(liquidator != address(0), "Liquidator address cannot be zero");
+
+        MassetHelpers.safeInfiniteApprove(rewardToken, liquidator);
+
+        emit RewardTokenApproved(rewardToken, liquidator);
+    }
+
+    function setRewardToken(address _token) external {
+        rewardToken = _token;
+    }
+}
