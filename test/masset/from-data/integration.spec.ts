@@ -1,3 +1,6 @@
+/* eslint-disable no-restricted-syntax */
+/* eslint-disable @typescript-eslint/no-loop-func */
+
 import { ethers } from "hardhat"
 import { expect } from "chai"
 
@@ -91,13 +94,16 @@ describe("Invariant Validator - One basket many tests", () => {
         totalSupply: BN
         surplus: BN
         vaultBalances: BN[]
-        k: BN
+        priceData: {
+            price: BN
+            k: BN
+        }
     }
     const getData = async (_mAsset: ExposedMasset): Promise<Data> => ({
         totalSupply: await _mAsset.totalSupply(),
-        surplus: await _mAsset.surplus(),
+        surplus: (await _mAsset.data()).surplus,
         vaultBalances: (await _mAsset.getBassets())[1].map((b) => b[1]),
-        k: await _mAsset.getK(),
+        priceData: await _mAsset.getPrice(),
     })
 
     describe("Run all the data", () => {
@@ -329,18 +335,19 @@ describe("Invariant Validator - One basket many tests", () => {
                     //    After each action, this property should hold true, proving 100% that mint/swap/redeem hold,
                     //    and fees are being paid 100% accurately. This should show that the redeemBasset holds.
                     assertBNSlightlyGT(
-                        dataEnd.k,
+                        dataEnd.priceData.k,
                         dataEnd.surplus.add(dataEnd.totalSupply),
                         BN.from(1000000000000),
                         false,
                         "K does not hold",
                     )
                     //    The dust collected should always increase in favour of the system
-                    const newKDiff = dataEnd.k.sub(dataEnd.surplus.add(dataEnd.totalSupply))
+                    const newKDiff = dataEnd.priceData.k.sub(dataEnd.surplus.add(dataEnd.totalSupply))
                     const cachedLastDiff = lastKDiff
                     lastKDiff = newKDiff
                     if (testData.type !== "redeemMasset") {
-                        expect(newKDiff, "Dust can only accumulate in favour of the system").gte(cachedLastDiff)
+                        // 50 base unit tolerance on dust increase
+                        expect(newKDiff, "Dust can only accumulate in favour of the system").gte(cachedLastDiff.sub(50))
                     } else if (newKDiff < cachedLastDiff) {
                         assertBNClose(newKDiff, cachedLastDiff, BN.from(200), "K dust accrues on redeemMasset")
                     }
