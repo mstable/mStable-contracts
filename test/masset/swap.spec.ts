@@ -140,7 +140,7 @@ describe("Masset - Swap", () => {
         //    Get basic before data on the swap assets
         const inputBassetBefore = await mAssetMachine.getBasset(details, inputBasset.address)
         const outputBassetBefore = await mAssetMachine.getBasset(details, outputAsset.address)
-        const surplusBefore = await mAsset.surplus()
+        const { surplus: surplusBefore, swapFee: feeRate } = await mAsset.data()
 
         // 2. Do the necessary approvals and make the calls
         const approval0: BN = await mAssetMachine.approveMasset(
@@ -159,16 +159,11 @@ describe("Masset - Swap", () => {
 
         let fee = BN.from(0)
         let scaledFee = BN.from(0)
-        let feeRate = BN.from(0)
         //    If there is a fee expected, then deduct it from output
         if (expectSwapFee) {
-            feeRate = await mAsset.swapFee()
             expect(feeRate, "fee rate > 0").gt(BN.from(0))
             expect(feeRate, "fee rate < fullScale / 50").lt(fullScale.div(BN.from(50)))
-            fee = expectedOutputValue
-                .mul(fullScale)
-                .div(fullScale.sub(feeRate))
-                .sub(expectedOutputValue)
+            fee = expectedOutputValue.mul(fullScale).div(fullScale.sub(feeRate)).sub(expectedOutputValue)
             expect(fee, "fee > 0").gt(BN.from(0))
             scaledFee = fee.mul(BN.from(outputBassetBefore.ratio)).div(ratioScale)
         }
@@ -230,9 +225,7 @@ describe("Masset - Swap", () => {
                 .to.emit(platform, "PlatformWithdrawal")
                 .withArgs(outputAsset.address, outputBassetBefore.pToken, platformInteractionOut.amount, expectedOutputValue)
         } else if (platformInteractionOut.hasLendingMarket) {
-            await expect(swapTx)
-                .to.emit(platform, "Withdrawal")
-                .withArgs(outputAsset.address, ZERO_ADDRESS, expectedOutputValue)
+            await expect(swapTx).to.emit(platform, "Withdrawal").withArgs(outputAsset.address, ZERO_ADDRESS, expectedOutputValue)
         }
         //    Recipient should have output asset quantity after (minus fee)
         const recipientBalAfter = await outputAsset.balanceOf(recipient)
@@ -247,7 +240,7 @@ describe("Masset - Swap", () => {
 
         // Global
         //   Fees should accrue to surplus
-        const surplusAfter = await mAsset.surplus()
+        const { surplus: surplusAfter } = await mAsset.data()
         expect(BN.from(surplusAfter), "surplusAfter incorrect").eq(BN.from(surplusBefore).add(scaledFee))
 
         if (!ignoreHealthAssertions) await assertBasketIsHealthy(mAssetMachine, md)
@@ -501,7 +494,7 @@ describe("Masset - Swap", () => {
                             const scaledInputQuantity = simpleToExactAmount(swapQuantity, 18)
                             const expectedOutputValue = scaledInputQuantity.mul(ratioScale).div(outputBassetBefore.bData.ratio)
 
-                            const feeRate = await mAsset.swapFee()
+                            const { swapFee: feeRate } = await mAsset.data()
                             const fee = expectedOutputValue.mul(feeRate).div(fullScale)
 
                             //  Input
@@ -566,7 +559,7 @@ describe("Masset - Swap", () => {
                             const scaledInputQuantity = simpleToExactAmount(swapQuantity, 18)
                             const expectedOutputValue = scaledInputQuantity.mul(ratioScale).div(outputBassetBefore.bData.ratio)
 
-                            const feeRate = await mAsset.swapFee()
+                            const { swapFee: feeRate } = await mAsset.data()
                             const fee = expectedOutputValue.mul(feeRate).div(fullScale)
 
                             //  Input
@@ -645,7 +638,7 @@ describe("Masset - Swap", () => {
                         const scaledInputQuantity = simpleToExactAmount(swapQuantity, 18)
                         const expectedOutputValue = scaledInputQuantity.mul(ratioScale).div(outputBassetBefore.bData.ratio)
 
-                        const feeRate = await mAsset.swapFee()
+                        const { swapFee: feeRate } = await mAsset.data()
                         const fee = expectedOutputValue.mul(feeRate).div(fullScale)
 
                         //  Input
@@ -698,7 +691,7 @@ describe("Masset - Swap", () => {
                         const scaledInputQuantity = simpleToExactAmount(swapQuantity, 18)
                         const expectedOutputValue = scaledInputQuantity.mul(ratioScale).div(outputBassetBefore.bData.ratio)
 
-                        const feeRate = await mAsset.swapFee()
+                        const { swapFee: feeRate } = await mAsset.data()
                         const fee = expectedOutputValue.mul(feeRate).div(fullScale)
 
                         //  Input

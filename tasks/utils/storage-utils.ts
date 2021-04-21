@@ -44,7 +44,7 @@ export const dumpBassetStorage = async (mAsset: Masset, toBlock: number): Promis
     console.log("RedemptionFee  : ", (await mAsset.redemptionFee(override)).toString())
     // console.log("GovFee: ", (await mAsset.redemptionFee(override)).toString())
 
-    console.log("Surplus        : ", (await mAsset.surplus(override)).toString())
+    console.log("Surplus        : ", (await mAsset.data(override)).surplus.toString())
 }
 
 // Get fAsset storage variables
