@@ -36,7 +36,7 @@ describe("Many asset Masset", () => {
                 },
             })
         ).connect(sa.default.signer)
-        const impl = await factory.deploy(DEAD_ADDRESS)
+        const impl = await factory.deploy(DEAD_ADDRESS, simpleToExactAmount(5, 13))
         const data = impl.interface.encodeFunctionData("initialize", [
             "mStable BTC",
             "mBTC",
