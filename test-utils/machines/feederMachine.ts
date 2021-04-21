@@ -225,8 +225,8 @@ export class FeederMachine {
             addr: asset.personal.addr,
             status: asset.personal.status,
             isTransferFeeCharged: asset.personal.hasTxFee,
-            ratio: isMpAsset ? BN.from(asset.data.ratio) : BN.from(asset.vaultData.ratio),
-            vaultBalance: isMpAsset ? BN.from(asset.data.vaultBalance) : BN.from(asset.vaultData.vaultBalance),
+            ratio: isMpAsset ? BN.from(asset.bData.ratio) : BN.from(asset.vaultData.ratio),
+            vaultBalance: isMpAsset ? BN.from(asset.bData.vaultBalance) : BN.from(asset.vaultData.vaultBalance),
             integratorAddr: asset.personal.integrator,
             contract: assetContract,
             pToken: integrator ? await integrator.callStatic["bAssetToPToken(address)"](asset.personal.addr) : null,
@@ -254,11 +254,7 @@ export class FeederMachine {
 
         const balances = rawBalances.map((b, i) => b.add(platformBalances[i]))
         // get overweight
-        const currentVaultUnits = bAssets.map((b) =>
-            BN.from(b.vaultBalance)
-                .mul(BN.from(b.ratio))
-                .div(ratioScale),
-        )
+        const currentVaultUnits = bAssets.map((b) => BN.from(b.vaultBalance).mul(BN.from(b.ratio)).div(ratioScale))
         // get total amount
         const sumOfBassets = currentVaultUnits.reduce((p, c) => p.add(c), BN.from(0))
         return {
@@ -317,12 +313,7 @@ export class FeederMachine {
         }
         const totalSupply = await pool.totalSupply()
         const { cacheSize, pendingFees } = await pool.data()
-        const maxC = totalSupply
-            .add(pendingFees)
-            .mul(ratioScale)
-            .div(BN.from(bAsset.ratio))
-            .mul(cacheSize)
-            .div(fullScale)
+        const maxC = totalSupply.add(pendingFees).mul(ratioScale).div(BN.from(bAsset.ratio)).mul(cacheSize).div(fullScale)
         const newSum = BN.from(integratorBalBefore).add(amount)
         const expectInteraction = type === "deposit" ? newSum.gte(maxC) : amount.gt(BN.from(integratorBalBefore))
         return {
@@ -332,10 +323,7 @@ export class FeederMachine {
                 type === "deposit"
                     ? newSum.sub(maxC.div(2))
                     : minimum(
-                          maxC
-                              .div(2)
-                              .add(amount)
-                              .sub(BN.from(integratorBalBefore)),
+                          maxC.div(2).add(amount).sub(BN.from(integratorBalBefore)),
                           BN.from(bAsset.vaultBalance).sub(BN.from(integratorBalBefore)),
                       ),
             rawBalance:
