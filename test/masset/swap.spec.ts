@@ -262,6 +262,44 @@ describe("Masset - Swap", () => {
                     })
                 })
             })
+            it("should fail if min qty < output qty", async () => {
+                const { bAssets, mAsset } = details
+                await assertFailedSwap(
+                    mAsset,
+                    bAssets[2], // wBTC 12 decimal places
+                    bAssets[1], // sBTC 6 decimal places
+                    simpleToExactAmount(5, 12), // sBTC input qty
+                    simpleToExactAmount(4.986727, 6), // min output qty = 0.06% of input + a bit
+                    "Output qty < minimum qty",
+                    sa.default.signer,
+                    sa.default.address,
+                    false,
+                    false,
+                    undefined,
+                    true, // exact units
+                )
+            })
+            it("should swap with min qty same as qty less swap fee", async () => {
+                const { bAssets, mAsset } = details
+                const inputBasset = bAssets[2] // wBTC 12 decimal places
+                const outputBasset = bAssets[1] // sBTC 6 decimal places
+                const inputQty = simpleToExactAmount(5, 12) // wBTC input qty
+                const expectedOutputQty = simpleToExactAmount(4.986726, 6) // min output qty ~= 0.06% of input
+                const outputQty = await mAsset.getSwapOutput(inputBasset.address, outputBasset.address, inputQty)
+                expect(outputQty, "incorrect swap output quantity").to.eq(expectedOutputQty)
+                await assertSwap(
+                    details,
+                    inputBasset,
+                    outputBasset,
+                    inputQty,
+                    true,
+                    undefined,
+                    undefined,
+                    undefined,
+                    true, // exact units
+                    expectedOutputQty, // min output qty
+                )
+            })
             it("should swap using a different recipient to the sender", async () => {
                 const { bAssets } = details
                 await assertSwap(details, bAssets[0], bAssets[1], 2, true, sa.dummy1.address)
@@ -287,44 +325,6 @@ describe("Masset - Swap", () => {
                     const { bAssets } = details
                     await assertSwap(details, bAssets[0], bAssets[3], 10, true, details.managerLib.address)
                 })
-            })
-            it("should swap with min qty same as qty less swap fee", async () => {
-                const { bAssets, mAsset } = details
-                const inputBasset = bAssets[2] // wBTC 12 decimal places
-                const outputBasset = bAssets[1] // sBTC 6 decimal places
-                const inputQty = simpleToExactAmount(5, 12) // wBTC input qty
-                const expectedOutputQty = simpleToExactAmount(4.997, 6) // min output qty = 0.06% of input
-                const outputQty = await mAsset.getSwapOutput(inputBasset.address, outputBasset.address, inputQty)
-                expect(outputQty, "incorrect swap output quantity").to.eq(expectedOutputQty)
-                await assertSwap(
-                    details,
-                    inputBasset,
-                    outputBasset,
-                    inputQty,
-                    true,
-                    undefined,
-                    undefined,
-                    undefined,
-                    true, // exact units
-                    expectedOutputQty, // min output qty
-                )
-            })
-            it("should fail if min qty < output qty", async () => {
-                const { bAssets, mAsset } = details
-                await assertFailedSwap(
-                    mAsset,
-                    bAssets[2], // wBTC 12 decimal places
-                    bAssets[1], // sBTC 6 decimal places
-                    simpleToExactAmount(5, 12), // sBTC input qty
-                    simpleToExactAmount(4.9971, 6), // min output qty = 0.06% of input + a bit
-                    "Output qty < minimum qty",
-                    sa.default.signer,
-                    sa.default.address,
-                    false,
-                    false,
-                    undefined,
-                    true, // exact units
-                )
             })
             context("and specifying one bAsset base unit", async () => {
                 before(async () => {
@@ -400,7 +400,7 @@ describe("Masset - Swap", () => {
                         ZERO_ADDRESS,
                         true,
                         false,
-                        0.9994,
+                        0.999003,
                     )
                 })
                 it("should fail if sender doesn't have sufficient liquidity", async () => {
@@ -416,7 +416,7 @@ describe("Masset - Swap", () => {
                         sa.dummy1.address,
                         true,
                         false,
-                        0.9994,
+                        0.999003,
                     )
                 })
                 it("should fail if sender doesn't give approval", async () => {
@@ -732,7 +732,7 @@ describe("Masset - Swap", () => {
                     expect(inputBasset.personal.status).to.eq(BassetStatus.BrokenBelowPeg)
                     const outputBasset = await mAsset.getBasset(output.address)
                     expect(outputBasset.personal.status).to.eq(BassetStatus.Normal)
-                    await assertFailedSwap(mAsset, input, output, 1, 0, "Unhealthy", undefined, undefined, true, false, 0.9994)
+                    await assertFailedSwap(mAsset, input, output, 1, 0, "Unhealthy", undefined, undefined, true, false, 0.999003)
                 })
                 it("should fail if output basset has lost its peg", async () => {
                     const { bAssets, mAsset } = details
@@ -746,7 +746,7 @@ describe("Masset - Swap", () => {
                     expect(inputBasset.personal.status).to.eq(BassetStatus.Normal)
                     const outputBasset = await mAsset.getBasset(output.address)
                     expect(outputBasset.personal.status).to.eq(BassetStatus.BrokenBelowPeg)
-                    await assertFailedSwap(mAsset, input, output, 1, 0, "Unhealthy", undefined, undefined, true, false, 0.9994)
+                    await assertFailedSwap(mAsset, input, output, 1, 0, "Unhealthy", undefined, undefined, true, false, 0.999003)
                 })
             })
         })
