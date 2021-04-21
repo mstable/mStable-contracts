@@ -44,11 +44,7 @@ const getBalances = async (mAsset: Masset, toBlock: number): Promise<Balances> =
     const balancerETHmUSD5050Balance = await mAsset.balanceOf("0xe036cce08cf4e23d33bc6b18e53caf532afa8513", {
         blockTag: toBlock,
     })
-    const otherBalances = mAssetBalance
-        .sub(savingBalance)
-        .sub(curveMusdBalance)
-        .sub(mStableDAOBalance)
-        .sub(balancerETHmUSD5050Balance)
+    const otherBalances = mAssetBalance.sub(savingBalance).sub(curveMusdBalance).sub(mStableDAOBalance).sub(balancerETHmUSD5050Balance)
 
     console.log("\nmUSD Holders")
     console.log(`imUSD                      ${usdFormatter(savingBalance)} ${savingBalance.mul(100).div(mAssetBalance)}%`)
@@ -59,7 +55,7 @@ const getBalances = async (mAsset: Masset, toBlock: number): Promise<Balances> =
     )
     console.log(`Others                     ${usdFormatter(otherBalances)} ${otherBalances.mul(100).div(mAssetBalance)}%`)
 
-    const surplus = await mAsset.surplus({
+    const { surplus } = await mAsset.data({
         blockTag: toBlock,
     })
     console.log(`Surplus                    ${usdFormatter(surplus)}`)

@@ -161,13 +161,11 @@ describe("Masset - Redeem", () => {
         const bAssetDecimals = await bAsset.decimals()
         const mAssetQuantityExact = quantitiesAreExact ? BN.from(mAssetBurnQuantity) : simpleToExactAmount(mAssetBurnQuantity, 18)
         const minBassetOutputExact = quantitiesAreExact ? BN.from(minBassetOutput) : simpleToExactAmount(minBassetOutput, bAssetDecimals)
-        const surplusBefore = await mAsset.surplus()
+        const { surplus: surplusBefore, swapFee: feeRate } = await mAsset.data()
 
         let scaledFee = BN.from(0)
-        let feeRate = BN.from(0)
         //    If there is a fee expected, then deduct it from output
         if (expectFee) {
-            feeRate = await mAsset.swapFee()
             expect(feeRate, "fee rate > 0").gt(0)
             expect(feeRate, "fee rate < fullScale / 50").lt(fullScale.div(50))
             scaledFee = mAssetQuantityExact.mul(feeRate).div(fullScale)
@@ -192,9 +190,7 @@ describe("Masset - Redeem", () => {
             await expect(tx, "PlatformWithdrawal event").to.emit(platform, "PlatformWithdrawal")
             // .withArgs(bAsset.address, bAssetBefore.pToken, platformInteraction.amount, bAssetQuantityExact)
         } else if (platformInteraction.hasLendingMarket) {
-            await expect(tx, "Withdrawal event")
-                .to.emit(platform, "Withdrawal")
-                .withArgs(bAsset.address, bAssetQuantityExact)
+            await expect(tx, "Withdrawal event").to.emit(platform, "Withdrawal").withArgs(bAsset.address, bAssetQuantityExact)
         }
         // Transfer events
         await expect(tx, "Transfer event to burn the redeemed mAssets")
@@ -230,7 +226,7 @@ describe("Masset - Redeem", () => {
         expect(BN.from(bAssetAfter.vaultBalance), "bAssetAfter.vaultBalance").eq(
             BN.from(bAssetBefore.vaultBalance).sub(bAssetQuantityExact),
         )
-        const surplusAfter = await mAsset.surplus()
+        const { surplus: surplusAfter } = await mAsset.data()
         expect(surplusAfter, "surplusAfter").eq(surplusBefore.add(scaledFee))
 
         // Complete basket should remain in healthy state
@@ -270,7 +266,7 @@ describe("Masset - Redeem", () => {
         const senderMassetBalBefore = await mAsset.balanceOf(sender.address)
         const mAssetSupplyBefore = await mAsset.totalSupply()
         const recipientBassetBalsBefore: BN[] = await Promise.all(bAssets.map((b) => b.balanceOf(recipient)))
-        const surplusBefore = await mAsset.surplus()
+        const { surplus: surplusBefore } = await mAsset.data()
 
         // Convert mBasset quantities to mAsset quantity
         const mAssetsBurnt = bAssetRedeemQuantitiesExact.reduce((acc, bAssetRedeemQuantityExact, i) => {
@@ -280,10 +276,9 @@ describe("Masset - Redeem", () => {
 
         // Calculate redemption fee
         let scaledFee = BN.from(0)
-        let feeRate = BN.from(0)
         //    If there is a fee expected, then deduct it from output
         if (expectFee) {
-            feeRate = await mAsset.swapFee()
+            const { swapFee: feeRate } = await mAsset.data()
             expect(feeRate, "fee rate > 0").gt(BN.from(0))
             expect(feeRate, "fee rate < fullScale / 50").lt(fullScale.div(BN.from(50)))
             // fee = mAsset qty * feeRate / (1 - feeRate)
@@ -350,7 +345,7 @@ describe("Masset - Redeem", () => {
                 BN.from(bAssetsBefore[i].vaultBalance).sub(bAssetRedeemQuantitiesExact[i]),
             )
         })
-        const surplusAfter = await mAsset.surplus()
+        const { surplus: surplusAfter } = await mAsset.data()
         expect(surplusAfter, "surplusAfter").eq(surplusBefore.add(scaledFee))
 
         // Complete basket should remain in healthy state
@@ -387,14 +382,12 @@ describe("Masset - Redeem", () => {
         const senderMassetBalBefore = await mAsset.balanceOf(sender.address)
         const mAssetSupplyBefore = await mAsset.totalSupply()
         const recipientBassetBalsBefore: BN[] = await Promise.all(bAssets.map((b) => b.balanceOf(recipient)))
-        const surplusBefore = await mAsset.surplus()
+        const { surplus: surplusBefore, redemptionFee: feeRate } = await mAsset.data()
 
         // Calculate redemption fee
         let scaledFee = BN.from(0)
-        let feeRate = BN.from(0)
         //    If there is a fee expected, then deduct it from output
         if (expectFee) {
-            feeRate = await mAsset.redemptionFee()
             expect(feeRate, "fee rate > 0").gt(BN.from(0))
             expect(feeRate, "fee rate < fullScale / 50").lt(fullScale.div(BN.from(50)))
             // fee = mAsset qty * fee rate
@@ -460,7 +453,7 @@ describe("Masset - Redeem", () => {
                 BN.from(bAssetsBefore[i].vaultBalance).sub(bAssetRedeemQuantitiesExact[i]),
             )
         })
-        const surplusAfter = await mAsset.surplus()
+        const { surplus: surplusAfter } = await mAsset.data()
         expect(surplusAfter, "surplusAfter").eq(surplusBefore.add(scaledFee))
 
         // Complete basket should remain in healthy state
@@ -768,8 +761,8 @@ describe("Masset - Redeem", () => {
                     // const tx = await mAsset.redeemTo(bAsset.address, oneBasset, recipient)
                     const expectedBassetQuantity = applyRatio(oneBasset, bAssetBefore.bData.ratio)
                     // expect(actualBassetQuantity, "bAsset quantity").to.eq(expectedBassetQuantity)
-                    const feeRate = await mAsset.swapFee()
-                    const bAssetFee = oneBasset.mul(feeRate).div(fullScale)
+                    const { swapFee } = await mAsset.data()
+                    const bAssetFee = oneBasset.mul(swapFee).div(fullScale)
 
                     // 4.0 Total supply goes down, and recipient bAsset goes up slightly
                     const recipientBassetBalAfter = await bAsset.balanceOf(recipient.address)
@@ -782,9 +775,7 @@ describe("Masset - Redeem", () => {
                     // VaultBalance should update for this bAsset
                     const bAssetAfter = await mAsset.getBasset(bAsset.address)
                     expect(BN.from(bAssetAfter.bData.vaultBalance), "before != after + fee").eq(
-                        BN.from(bAssetBefore.bData.vaultBalance)
-                            .sub(oneBasset)
-                            .add(bAssetFee),
+                        BN.from(bAssetBefore.bData.vaultBalance).sub(oneBasset).add(bAssetFee),
                     )
                 })
                 it("should send less output to user if fee unexpected", async () => {
@@ -797,8 +788,8 @@ describe("Masset - Redeem", () => {
                     const basket = await mAssetMachine.getBasketComposition(details)
                     const bAssetDecimals = await bAsset.decimals()
                     const oneBasset = simpleToExactAmount(1, bAssetDecimals)
-                    const feeRate = await mAsset.swapFee()
-                    const bAssetFee = oneBasset.mul(feeRate).div(fullScale)
+                    const { swapFee } = await mAsset.data()
+                    const bAssetFee = oneBasset.mul(swapFee).div(fullScale)
                     expect(basket.bAssets[3].isTransferFeeCharged).to.eq(true)
                     await mAsset.connect(sa.governor.signer).setTransferFeesFlag(bAsset.address, false)
                     const recipientBassetBalBefore = await bAsset.balanceOf(recipient.address)
