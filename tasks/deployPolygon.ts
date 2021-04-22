@@ -17,6 +17,8 @@ import {
     MockInitializableToken__factory,
     Nexus,
     Nexus__factory,
+    PAaveIntegration,
+    PAaveIntegration__factory,
     SaveWrapper,
     SaveWrapper__factory,
     SavingsContract,
@@ -34,6 +36,10 @@ import { SavingsManager } from "types/generated/SavingsManager"
 import { SavingsManager__factory } from "types/generated/factories/SavingsManager__factory"
 import { formatUnits } from "@ethersproject/units"
 
+// FIXME: this import does not work for some reason
+// import { sleep } from "@utils/time"
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+const sleepTime = 2000 // milliseconds
 const multiSigAddress = "0xE1304aA964C5119C98E8AE554F031Bf3B21eC836"
 
 export const mUsdBassets: Bassets[] = [
@@ -61,11 +67,6 @@ export const mUsdBassets: Bassets[] = [
         txFee: false,
         initialMint: 10000,
     },
-]
-export const usdBassetAddresses = [
-    "0x4fa81E591dC5dAf1CDA8f21e811BAEc584831673",
-    "0xD84574BFE3294b472C74D7a7e3d3bB2E92894B48",
-    "0x872093ee2BCb9951b1034a4AAC7f489215EDa7C2",
 ]
 
 const deployContract = async <T extends Contract>(
@@ -189,6 +190,16 @@ const deployInterestBearingMasset = async (
     return new SavingsContract__factory(deployer).attach(proxy.address)
 }
 
+const deployAaveIntegration = async (deployer: SignerWithAddress, nexus: Nexus) => {
+    const integration = await deployContract<PAaveIntegration>(new PAaveIntegration__factory(deployer), "PAaveIntegration", [
+        nexus.address,
+        DEAD_ADDRESS,
+        DEAD_ADDRESS,
+        DEAD_ADDRESS,
+        DEAD_ADDRESS,
+    ])
+}
+
 const mint = async (sender: SignerWithAddress, bAssets: DeployedBasset[], mAsset: Masset, scaledMintQty: BN) => {
     // Approve spending
     const approvals: BN[] = []
@@ -245,9 +256,22 @@ task("deploy-polly", "Deploys mUSD, mBTC and Feeder pools to a Polygon network")
         nexus.address,
     ])
 
-    // Deploy mocked base USD assets
-    // const deployedUsdBassets = await deployBassets(deployer, mUsdBassets)
-    const deployedUsdBassets = attachBassets(deployer, mUsdBassets, usdBassetAddresses)
+    await sleep(sleepTime)
+
+    let deployedUsdBassets: DeployedBasset[]
+    if (hre.network.name === "hardhat") {
+        // Deploy mocked base USD assets
+        deployedUsdBassets = await deployBassets(deployer, mUsdBassets)
+    } else if (hre.network.name === "mumbai_testnet") {
+        // Attach to already deployed mocked bAssets
+        deployedUsdBassets = attachBassets(deployer, mUsdBassets, [
+            "0x4fa81E591dC5dAf1CDA8f21e811BAEc584831673",
+            "0xD84574BFE3294b472C74D7a7e3d3bB2E92894B48",
+            "0x872093ee2BCb9951b1034a4AAC7f489215EDa7C2",
+        ])
+    }
+
+    await sleep(sleepTime)
 
     // Deploy mAsset dependencies
     const massetLogic = await deployContract<MassetLogic>(new MassetLogic__factory(deployer), "MassetLogic")
@@ -260,6 +284,8 @@ task("deploy-polly", "Deploys mUSD, mBTC and Feeder pools to a Polygon network")
     // Deploy mUSD Masset
     const mUsd = await deployMasset(deployer, linkedAddress, nexus, delayedProxyAdmin, "POS-mUSD", "(PoS) mStable USD", deployedUsdBassets)
 
+    await sleep(sleepTime)
+
     // Deploy Interest Bearing mUSD
     const imUsd = await deployInterestBearingMasset(
         deployer,
@@ -270,6 +296,8 @@ task("deploy-polly", "Deploys mUSD, mBTC and Feeder pools to a Polygon network")
         "POS-imUSD",
         "(PoS) interest bearing mStable USD",
     )
+
+    await sleep(sleepTime)
 
     // Deploy Save Wrapper
     const saveWrapper = await deployContract<SaveWrapper>(new SaveWrapper__factory(deployer), "SaveWrapper")
@@ -283,6 +311,8 @@ task("deploy-polly", "Deploys mUSD, mBTC and Feeder pools to a Polygon network")
         ONE_DAY,
     ])
 
+    await sleep(sleepTime)
+
     // SaveWrapper contract approves the savings contract (imUSD) to spend its USD mAsset tokens (mUSD)
     await saveWrapper["approve(address,address)"](mUsd.address, imUsd.address)
     // SaveWrapper approves the bAsset contracts to spend its USD mAsset tokens (mUSD)
@@ -290,14 +320,22 @@ task("deploy-polly", "Deploys mUSD, mBTC and Feeder pools to a Polygon network")
     await saveWrapper["approve(address[],address)"](bAssetAddresses, mUsd.address)
     console.log("Successful token approvals from the SaveWrapper")
 
+    await sleep(sleepTime)
+
     // Initialize Nexus Modules
     const moduleKeys = [KEY_SAVINGS_MANAGER, KEY_PROXY_ADMIN]
     const moduleAddresses = [savingsManager.address, delayedProxyAdmin.address]
     const moduleIsLocked = [false, true]
     await nexus.connect(deployer).initialize(moduleKeys, moduleAddresses, moduleIsLocked, multiSigAddress)
 
-    await mint(deployer, deployedUsdBassets, mUsd, simpleToExactAmount(2000))
-    await save(deployer, mUsd, imUsd, simpleToExactAmount(1500))
+    await deployAaveIntegration(deployer, nexus)
+
+    await sleep(sleepTime)
+
+    if (hre.network.name !== "polygon_mainnet") {
+        await mint(deployer, deployedUsdBassets, mUsd, simpleToExactAmount(2000))
+        await save(deployer, mUsd, imUsd, simpleToExactAmount(1500))
+    }
 })
 
 module.exports = {}
