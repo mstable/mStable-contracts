@@ -7,10 +7,8 @@ import {
     AssetProxy__factory,
     DelayedProxyAdmin,
     DelayedProxyAdmin__factory,
-    InvariantValidator,
-    InvariantValidator__factory,
-    Manager,
-    Manager__factory,
+    MassetManager,
+    MassetManager__factory,
     Masset,
     Masset__factory,
     MockERC20,
@@ -23,6 +21,8 @@ import {
     SaveWrapper__factory,
     SavingsContract,
     SavingsContract__factory,
+    MassetLogic,
+    MassetLogic__factory,
 } from "types/generated"
 import { Contract, ContractFactory } from "@ethersproject/contracts"
 import { Bassets, DeployedBasset } from "@utils/btcConstants"
@@ -61,6 +61,11 @@ export const mUsdBassets: Bassets[] = [
         txFee: false,
         initialMint: 10000,
     },
+]
+export const usdBassetAddresses = [
+    "0x4fa81E591dC5dAf1CDA8f21e811BAEc584831673",
+    "0xD84574BFE3294b472C74D7a7e3d3bB2E92894B48",
+    "0x872093ee2BCb9951b1034a4AAC7f489215EDa7C2",
 ]
 
 const deployContract = async <T extends Contract>(
@@ -109,17 +114,31 @@ const deployBassets = async (deployer: SignerWithAddress, bAssetsProps: Bassets[
     return bAssets
 }
 
+const attachBassets = (deployer: SignerWithAddress, bAssetsProps: Bassets[], bAssetAddresses: string[]): DeployedBasset[] => {
+    const bAssets: DeployedBasset[] = []
+    bAssetsProps.forEach((basset, i) => {
+        const contract = new MockERC20__factory(deployer).attach(bAssetAddresses[i])
+        bAssets.push({
+            contract,
+            integrator: basset.integrator,
+            txFee: basset.txFee,
+            symbol: basset.symbol,
+        })
+    })
+    return bAssets
+}
+
 const deployMasset = async (
     deployer: SignerWithAddress,
     linkedAddress: MassetLibraryAddresses,
     nexus: Nexus,
-    invariantValidator: InvariantValidator,
     delayedProxyAdmin: DelayedProxyAdmin,
     mAssetSymbol: string,
     mAssetName: string,
     bAssets: DeployedBasset[],
+    recolFee = 5e13,
 ): Promise<Masset> => {
-    const mAssetImpl = await deployContract<Masset>(new Masset__factory(linkedAddress, deployer), "Masset Impl", [nexus.address])
+    const mAssetImpl = await deployContract<Masset>(new Masset__factory(linkedAddress, deployer), "Masset Impl", [nexus.address, recolFee])
     const config = {
         a: 120,
         limits: {
@@ -130,7 +149,6 @@ const deployMasset = async (
     const mUsdInitializeData = mAssetImpl.interface.encodeFunctionData("initialize", [
         mAssetName,
         mAssetSymbol,
-        invariantValidator.address,
         bAssets.map((b) => ({
             addr: b.contract.address,
             integrator: b.integrator,
@@ -227,27 +245,20 @@ task("deploy-polly", "Deploys mUSD, mBTC and Feeder pools to a Polygon network")
         nexus.address,
     ])
 
+    // Deploy mocked base USD assets
+    // const deployedUsdBassets = await deployBassets(deployer, mUsdBassets)
+    const deployedUsdBassets = attachBassets(deployer, mUsdBassets, usdBassetAddresses)
+
     // Deploy mAsset dependencies
-    const invariantValidator = await deployContract<InvariantValidator>(new InvariantValidator__factory(deployer), "InvariantValidator")
-    const managerLib = await deployContract<Manager>(new Manager__factory(deployer), "Manager")
+    const massetLogic = await deployContract<MassetLogic>(new MassetLogic__factory(deployer), "MassetLogic")
+    const managerLib = await deployContract<MassetManager>(new MassetManager__factory(deployer), "MassetManager")
     const linkedAddress = {
-        __$1a38b0db2bd175b310a9a3f8697d44eb75$__: managerLib.address,
+        __$6a4be19f34d71a078def5cee18ccebcd10$__: massetLogic.address,
+        __$3b19b776afde68cd758db0cae1b8e49f94$__: managerLib.address,
     }
 
-    // Deploy mocked base USD assets
-    const deployedUsdBassets = await deployBassets(deployer, mUsdBassets)
-
     // Deploy mUSD Masset
-    const mUsd = await deployMasset(
-        deployer,
-        linkedAddress,
-        nexus,
-        invariantValidator,
-        delayedProxyAdmin,
-        "POS-mUSD",
-        "(PoS) mStable USD",
-        deployedUsdBassets,
-    )
+    const mUsd = await deployMasset(deployer, linkedAddress, nexus, delayedProxyAdmin, "POS-mUSD", "(PoS) mStable USD", deployedUsdBassets)
 
     // Deploy Interest Bearing mUSD
     const imUsd = await deployInterestBearingMasset(
