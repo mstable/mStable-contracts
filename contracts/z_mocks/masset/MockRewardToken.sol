@@ -2,15 +2,20 @@
 pragma solidity 0.8.2;
 
 import { MassetHelpers } from "../../shared/MassetHelpers.sol";
-import { ImmutableModule } from "../../shared/ImmutableModule.sol";
+import { MockPlatformIntegration } from "./MockPlatformIntegration.sol";
 
 // Overrides approveRewardToken
-contract MockRewardToken is ImmutableModule {
+contract MockPlatformIntegrationWithToken is MockPlatformIntegration {
     event RewardTokenApproved(address token, address spender);
 
     address rewardToken;
 
-    constructor(address _nexus) ImmutableModule(_nexus) {}
+    constructor(
+        address _nexus,
+        address _platformAddress,
+        address[] memory _bAssets,
+        address[] memory _pTokens
+    ) MockPlatformIntegration(_nexus, _platformAddress, _bAssets, _pTokens) {}
 
     // @override
     function approveRewardToken() external {

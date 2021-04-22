@@ -18,8 +18,8 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @author  mStable
  * @notice  The Liquidator allows rewards to be swapped for another token and sent
  *          to SavingsManager for distribution
- * @dev     VERSION: 1.2
- *          DATE:    2020-12-16
+ * @dev     VERSION: 1.0
+ *          DATE:    2021-04-22
  */
 contract PLiquidator is Initializable, ImmutableModule {
     using SafeERC20 for IERC20;
@@ -39,7 +39,6 @@ contract PLiquidator is Initializable, ImmutableModule {
         address bAsset;
         address[] uniswapPath;
         uint256 lastTriggered;
-        uint256 trancheAmount; // The amount of bAsset units to buy each tranche, with token decimals
     }
 
     constructor(
@@ -47,7 +46,9 @@ contract PLiquidator is Initializable, ImmutableModule {
         address _quickswapRouter,
         address _mUSD
     ) ImmutableModule(_nexus) {
+        require(_quickswapRouter != address(0), "Invalid quickSwap address");
         quickSwap = IUniswapV2Router02(_quickswapRouter);
+        require(_mUSD != address(0), "Invalid mUSD address");
         mUSD = _mUSD;
     }
 
@@ -61,7 +62,6 @@ contract PLiquidator is Initializable, ImmutableModule {
      * @param _sellToken Token harvested from the integration contract
      * @param _bAsset The asset to buy on Uniswap
      * @param _uniswapPath The Uniswap path as an array of addresses e.g. [COMP, WETH, DAI]
-     * @param _trancheAmount The amount of bAsset units to buy in each weekly tranche
      * @param _minReturn Minimum exact amount of bAsset to get for each (whole) sellToken unit
      */
     function createLiquidation(
@@ -69,7 +69,6 @@ contract PLiquidator is Initializable, ImmutableModule {
         address _sellToken,
         address _bAsset,
         address[] calldata _uniswapPath,
-        uint256 _trancheAmount,
         uint256 _minReturn
     ) external onlyGovernance {
         require(
@@ -91,8 +90,7 @@ contract PLiquidator is Initializable, ImmutableModule {
             sellToken: _sellToken,
             bAsset: _bAsset,
             uniswapPath: _uniswapPath,
-            lastTriggered: 0,
-            trancheAmount: _trancheAmount
+            lastTriggered: 0
         });
         minReturn[_integration] = _minReturn;
 
@@ -104,14 +102,12 @@ contract PLiquidator is Initializable, ImmutableModule {
      * @param _integration The integration contract in question
      * @param _bAsset New asset to buy on Uniswap
      * @param _uniswapPath The Uniswap path as an array of addresses e.g. [COMP, WETH, DAI]
-     * @param _trancheAmount The amount of bAsset units to buy in each weekly tranche
      * @param _minReturn Minimum exact amount of bAsset to get for each (whole) sellToken unit
      */
     function updateBasset(
         address _integration,
         address _bAsset,
         address[] calldata _uniswapPath,
-        uint256 _trancheAmount,
         uint256 _minReturn
     ) external onlyGovernance {
         PLiquidation memory liquidation = liquidations[_integration];
@@ -128,7 +124,6 @@ contract PLiquidator is Initializable, ImmutableModule {
 
         liquidations[_integration].bAsset = _bAsset;
         liquidations[_integration].uniswapPath = _uniswapPath;
-        liquidations[_integration].trancheAmount = _trancheAmount;
         minReturn[_integration] = _minReturn;
 
         emit LiquidationModified(_integration);
@@ -169,7 +164,7 @@ contract PLiquidator is Initializable, ImmutableModule {
     /**
      * @dev Triggers a liquidation, flow (once per week):
      *    - Sells $COMP for $USDC (or other) on Uniswap (up to trancheAmount)
-     *    - Sell USDC for mUSD on Curve
+     *    - Mint mUSD from USDC
      *    - Send to SavingsManager
      * @param _integration Integration for which to trigger liquidation
      */
@@ -187,7 +182,6 @@ contract PLiquidator is Initializable, ImmutableModule {
 
         // Cache variables
         address sellToken = liquidation.sellToken;
-        address[] memory uniswapPath = liquidation.uniswapPath;
 
         // 1. Transfer sellTokens from integration contract if there are some
         //    Assumes infinite approval
@@ -200,32 +194,22 @@ contract PLiquidator is Initializable, ImmutableModule {
         //    Check contract balance
         uint256 sellTokenBal = IERC20(sellToken).balanceOf(address(this));
         require(sellTokenBal > 0, "No sell tokens to liquidate");
-        require(liquidation.trancheAmount > 0, "Liquidation has been paused");
-        //    Calc amounts for max tranche
-        uint256[] memory amountsIn = quickSwap.getAmountsIn(liquidation.trancheAmount, uniswapPath);
-        uint256 sellAmount = amountsIn[0];
-
-        if (sellTokenBal < sellAmount) {
-            sellAmount = sellTokenBal;
-        }
-
         // 3. Make the swap
         // 3.1 Approve Uniswap and make the swap
         IERC20(sellToken).safeApprove(address(quickSwap), 0);
-        IERC20(sellToken).safeApprove(address(quickSwap), sellAmount);
+        IERC20(sellToken).safeApprove(address(quickSwap), sellTokenBal);
         // 3.2. Make the sale > https://uniswap.org/docs/v2/smart-contracts/router02/#swapexacttokensfortokens
-
         // min amount out = sellAmount * priceFloor / 1e18
         // e.g. 1e18 * 100e6 / 1e18 = 100e6
         // e.g. 30e8 * 100e6 / 1e8 = 3000e6
         // e.g. 30e18 * 100e18 / 1e18 = 3000e18
         uint256 sellTokenDec = IBasicToken(sellToken).decimals();
-        uint256 minOut = (sellAmount * minReturn[_integration]) / (10**sellTokenDec);
+        uint256 minOut = (sellTokenBal * minReturn[_integration]) / (10**sellTokenDec);
         require(minOut > 0, "Must have some price floor");
         quickSwap.swapExactTokensForTokens(
-            sellAmount,
+            sellTokenBal,
             minOut,
-            uniswapPath,
+            liquidation.uniswapPath,
             address(this),
             block.timestamp + 1800
         );
