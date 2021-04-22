@@ -2,8 +2,6 @@
 pragma solidity 0.8.2;
 pragma abicoder v2;
 
-import "hardhat/console.sol";
-
 // Internal
 import { Initializable } from "../shared/@openzeppelin-2.5/Initializable.sol";
 import { InitializableToken, IERC20 } from "../shared/InitializableToken.sol";
