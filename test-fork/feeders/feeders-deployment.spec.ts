@@ -41,6 +41,7 @@ interface CommonAddresses {
     mta: string
     rewardsDistributor: string
     aave?: string
+    aaveToken?: string
     boostDirector?: string
     feederManager?: FeederManager
     feederLogic?: FeederLogic
@@ -317,6 +318,7 @@ context("deploying feeder", () => {
             proxyAdmin: "0x5c8eb57b44c1c6391fc7a8a0cf44d26896f92386",
             rewardsDistributor: "0x04dfdfa471b79cc9e6e8c355e6c71f8ec4916c50",
             aave: "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5",
+            aaveToken: "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9",
         }
 
         const pairs: Pair[] = [
@@ -469,6 +471,7 @@ context("deploying feeder", () => {
                     addresses.nexus,
                     poolData.pool.address,
                     addresses.aave,
+                    addresses.aaveToken,
                 )
                 console.log(`Deploying integration for ${poolData.symbol} at pool ${poolData.pool.address}`)
                 await integration.deployTransaction.wait()

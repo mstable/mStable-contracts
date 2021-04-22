@@ -2,11 +2,7 @@
 pragma solidity 0.8.2;
 
 // External
-import {
-    IAaveATokenV2,
-    IAaveLendingPoolV2,
-    ILendingPoolAddressesProviderV2
-} from "./IAave.sol";
+import { IAaveATokenV2, IAaveLendingPoolV2, ILendingPoolAddressesProviderV2 } from "./IAave.sol";
 
 // Libs
 import { MassetHelpers } from "../../shared/MassetHelpers.sol";
@@ -22,11 +18,11 @@ import { AbstractIntegration } from "./AbstractIntegration.sol";
  *          DATE:    2020-16-11
  */
 contract AaveV2Integration is AbstractIntegration {
-
     using SafeERC20 for IERC20;
 
     // Core address for the given platform */
     address public immutable platformAddress;
+    address public immutable rewardToken;
 
     event RewardTokenApproved(address rewardToken, address account);
 
@@ -34,14 +30,19 @@ contract AaveV2Integration is AbstractIntegration {
      * @param _nexus            Address of the Nexus
      * @param _lp               Address of LP
      * @param _platformAddress  Generic platform address
+     * @param _rewardToken      Reward token, if any
      */
     constructor(
         address _nexus,
         address _lp,
-        address _platformAddress
+        address _platformAddress,
+        address _rewardToken
     ) AbstractIntegration(_nexus, _lp) {
         require(_platformAddress != address(0), "Invalid platform address");
+
         platformAddress = _platformAddress;
+
+        rewardToken = _rewardToken;
     }
 
     /***************************************
@@ -51,27 +52,18 @@ contract AaveV2Integration is AbstractIntegration {
     /**
      * @dev Approves Liquidator to spend reward tokens
      */
-    function approveRewardToken()
-        external
-        onlyGovernor
-    {
+    function approveRewardToken() external onlyGovernor {
         address liquidator = nexus.getModule(keccak256("Liquidator"));
         require(liquidator != address(0), "Liquidator address cannot be zero");
 
-        // Official checksummed AAVE token address
-        // https://ethplorer.io/address/0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9
-        address aaveToken = address(0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9);
+        MassetHelpers.safeInfiniteApprove(rewardToken, liquidator);
 
-        MassetHelpers.safeInfiniteApprove(aaveToken, liquidator);
-
-        emit RewardTokenApproved(address(aaveToken), liquidator);
+        emit RewardTokenApproved(rewardToken, liquidator);
     }
-
 
     /***************************************
                     CORE
     ****************************************/
-
 
     /**
      * @dev Deposit a quantity of bAsset into the platform. Credited aTokens
@@ -86,20 +78,14 @@ contract AaveV2Integration is AbstractIntegration {
         address _bAsset,
         uint256 _amount,
         bool _hasTxFee
-    )
-        external
-        override
-        onlyLP
-        nonReentrant
-        returns (uint256 quantityDeposited)
-    {
+    ) external override onlyLP nonReentrant returns (uint256 quantityDeposited) {
         require(_amount > 0, "Must deposit something");
 
         IAaveATokenV2 aToken = _getATokenFor(_bAsset);
 
         quantityDeposited = _amount;
 
-        if(_hasTxFee) {
+        if (_hasTxFee) {
             // If we charge a fee, account for it
             uint256 prevBal = _checkBalance(aToken);
             _getLendingPool().deposit(_bAsset, _amount, address(this), 36);
@@ -124,12 +110,7 @@ contract AaveV2Integration is AbstractIntegration {
         address _bAsset,
         uint256 _amount,
         bool _hasTxFee
-    )
-        external
-        override
-        onlyLP
-        nonReentrant
-    {
+    ) external override onlyLP nonReentrant {
         _withdraw(_receiver, _bAsset, _amount, _amount, _hasTxFee);
     }
 
@@ -147,12 +128,7 @@ contract AaveV2Integration is AbstractIntegration {
         uint256 _amount,
         uint256 _totalAmount,
         bool _hasTxFee
-    )
-        external
-        override
-        onlyLP
-        nonReentrant
-    {
+    ) external override onlyLP nonReentrant {
         _withdraw(_receiver, _bAsset, _amount, _totalAmount, _hasTxFee);
     }
 
@@ -163,14 +139,12 @@ contract AaveV2Integration is AbstractIntegration {
         uint256 _amount,
         uint256 _totalAmount,
         bool _hasTxFee
-    )
-        internal
-    {
+    ) internal {
         require(_totalAmount > 0, "Must withdraw something");
 
         IAaveATokenV2 aToken = _getATokenFor(_bAsset);
 
-        if(_hasTxFee) {
+        if (_hasTxFee) {
             require(_amount == _totalAmount, "Cache inactive for assets with fee");
             _getLendingPool().withdraw(_bAsset, _amount, _receiver);
         } else {
@@ -192,12 +166,7 @@ contract AaveV2Integration is AbstractIntegration {
         address _receiver,
         address _bAsset,
         uint256 _amount
-    )
-        external
-        override
-        onlyLP
-        nonReentrant
-    {
+    ) external override onlyLP nonReentrant {
         require(_amount > 0, "Must withdraw something");
         require(_receiver != address(0), "Must specify recipient");
 
@@ -213,11 +182,7 @@ contract AaveV2Integration is AbstractIntegration {
      * @param _bAsset     Address of the bAsset
      * @return balance    Total value of the bAsset in the platform
      */
-    function checkBalance(address _bAsset)
-        external
-        override
-        returns (uint256 balance)
-    {
+    function checkBalance(address _bAsset) external override returns (uint256 balance) {
         // balance is always with token aToken decimals
         IAaveATokenV2 aToken = _getATokenFor(_bAsset);
         return _checkBalance(aToken);
@@ -233,10 +198,10 @@ contract AaveV2Integration is AbstractIntegration {
      *      to spend the bAsset
      * @param _bAsset Address of the bAsset to approve
      */
-    function _abstractSetPToken(address _bAsset, address /*_pToken*/)
-        internal
-        override
-    {
+    function _abstractSetPToken(
+        address _bAsset,
+        address /*_pToken*/
+    ) internal override {
         address lendingPool = address(_getLendingPool());
         // approve the pool to spend the bAsset
         MassetHelpers.safeInfiniteApprove(_bAsset, lendingPool);
@@ -251,16 +216,11 @@ contract AaveV2Integration is AbstractIntegration {
      *      depositing.
      * @return Current lending pool implementation
      */
-    function _getLendingPool()
-        internal
-        view
-        returns (IAaveLendingPoolV2)
-    {
+    function _getLendingPool() internal view returns (IAaveLendingPoolV2) {
         address lendingPool = ILendingPoolAddressesProviderV2(platformAddress).getLendingPool();
         require(lendingPool != address(0), "Lending pool does not exist");
         return IAaveLendingPoolV2(lendingPool);
     }
-
 
     /**
      * @dev Get the pToken wrapped in the IAaveAToken interface for this bAsset, to use
@@ -268,11 +228,7 @@ contract AaveV2Integration is AbstractIntegration {
      * @param _bAsset  Address of the bAsset
      * @return aToken  Corresponding to this bAsset
      */
-    function _getATokenFor(address _bAsset)
-        internal
-        view
-        returns (IAaveATokenV2)
-    {
+    function _getATokenFor(address _bAsset) internal view returns (IAaveATokenV2) {
         address aToken = bAssetToPToken[_bAsset];
         require(aToken != address(0), "aToken does not exist");
         return IAaveATokenV2(aToken);
@@ -283,11 +239,7 @@ contract AaveV2Integration is AbstractIntegration {
      * @param _aToken     aToken for which to check balance
      * @return balance    Total value of the bAsset in the platform
      */
-    function _checkBalance(IAaveATokenV2 _aToken)
-        internal
-        view
-        returns (uint256 balance)
-    {
+    function _checkBalance(IAaveATokenV2 _aToken) internal view returns (uint256 balance) {
         return _aToken.balanceOf(address(this));
     }
 }

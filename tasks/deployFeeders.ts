@@ -591,6 +591,7 @@ task("deployFeeder-mainnet", "Deploys all the feeder pools and required contract
                 addresses.nexus,
                 poolData.pool.address,
                 addresses.aave,
+                DEAD_ADDRESS
             )
             console.log(`Deploying integration for ${poolData.symbol} at pool ${poolData.pool.address}`)
             await integration.deployTransaction.wait()
