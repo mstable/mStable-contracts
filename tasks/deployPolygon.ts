@@ -25,6 +25,8 @@ import {
     SavingsContract__factory,
     MassetLogic,
     MassetLogic__factory,
+    PLiquidator,
+    PLiquidator__factory,
 } from "types/generated"
 import { Contract, ContractFactory } from "@ethersproject/contracts"
 import { Bassets, DeployedBasset } from "@utils/btcConstants"
@@ -134,37 +136,16 @@ const deployMasset = async (
     linkedAddress: MassetLibraryAddresses,
     nexus: Nexus,
     delayedProxyAdmin: DelayedProxyAdmin,
-    mAssetSymbol: string,
-    mAssetName: string,
-    bAssets: DeployedBasset[],
     recolFee = 5e13,
 ): Promise<Masset> => {
-    const mAssetImpl = await deployContract<Masset>(new Masset__factory(linkedAddress, deployer), "Masset Impl", [nexus.address, recolFee])
-    const config = {
-        a: 120,
-        limits: {
-            min: simpleToExactAmount(5, 16),
-            max: simpleToExactAmount(75, 16),
-        },
-    }
-    const mUsdInitializeData = mAssetImpl.interface.encodeFunctionData("initialize", [
-        mAssetName,
-        mAssetSymbol,
-        bAssets.map((b) => ({
-            addr: b.contract.address,
-            integrator: b.integrator,
-            hasTxFee: b.txFee,
-            status: 0,
-        })),
-        config,
-    ])
-    const mAssetProxy = await deployContract<AssetProxy>(new AssetProxy__factory(deployer), "Masset Proxy", [
-        mAssetImpl.address,
+    const mAssetFactory = new Masset__factory(linkedAddress, deployer)
+    const impl = await deployContract<Masset>(mAssetFactory, "Masset Impl", [nexus.address, recolFee])
+    const proxy = await deployContract<AssetProxy>(new AssetProxy__factory(deployer), "Masset Proxy", [
+        impl.address,
         delayedProxyAdmin.address,
-        mUsdInitializeData,
+        "0x", // Passing zero bytes as we'll initialize the proxy contract later
     ])
-
-    return new Masset__factory(linkedAddress, deployer).attach(mAssetProxy.address)
+    return mAssetFactory.attach(proxy.address)
 }
 
 const deployInterestBearingMasset = async (
@@ -190,14 +171,39 @@ const deployInterestBearingMasset = async (
     return new SavingsContract__factory(deployer).attach(proxy.address)
 }
 
-const deployAaveIntegration = async (deployer: SignerWithAddress, nexus: Nexus) => {
-    const integration = await deployContract<PAaveIntegration>(new PAaveIntegration__factory(deployer), "PAaveIntegration", [
+const deployAaveIntegration = async (
+    deployer: SignerWithAddress,
+    nexus: Nexus,
+    mAsset: Masset,
+    networkName: string,
+): Promise<PAaveIntegration> => {
+    let platformAddress = DEAD_ADDRESS
+    let rewardTokenAddress = DEAD_ADDRESS
+    let rewardControllerAddress = DEAD_ADDRESS
+
+    if (networkName === "polygon_mainnet") {
+        platformAddress = "0xd05e3E715d945B59290df0ae8eF85c1BdB684744"
+        rewardTokenAddress = "0x8dF3aad3a84da6b69A4DA8aeC3eA40d9091B2Ac4"
+        rewardControllerAddress = "0x357D51124f59836DeD84c8a1730D72B749d8BC23"
+    }
+
+    const aaveIntegration = await deployContract<PAaveIntegration>(new PAaveIntegration__factory(deployer), "PAaveIntegration", [
         nexus.address,
-        DEAD_ADDRESS,
-        DEAD_ADDRESS,
-        DEAD_ADDRESS,
-        DEAD_ADDRESS,
+        mAsset.address,
+        platformAddress,
+        rewardTokenAddress,
+        rewardControllerAddress,
     ])
+
+    // Deploy Liquidator
+    const quickSwapRouter = networkName !== "polygon_mainnet" ? DEAD_ADDRESS : "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff"
+    const liquidator = await deployContract<PLiquidator>(new PLiquidator__factory(deployer), "PLiquidator", [
+        nexus.address,
+        quickSwapRouter,
+        mAsset.address,
+    ])
+
+    return aaveIntegration
 }
 
 const mint = async (sender: SignerWithAddress, bAssets: DeployedBasset[], mAsset: Masset, scaledMintQty: BN) => {
@@ -246,6 +252,7 @@ const save = async (sender: SignerWithAddress, mAsset: Masset, imAsset: SavingsC
 }
 
 task("deploy-polly", "Deploys mUSD, mBTC and Feeder pools to a Polygon network").setAction(async (_, hre) => {
+    const { network } = hre
     const [deployer] = await hre.ethers.getSigners()
 
     // Deploy Nexus
@@ -259,15 +266,22 @@ task("deploy-polly", "Deploys mUSD, mBTC and Feeder pools to a Polygon network")
     await sleep(sleepTime)
 
     let deployedUsdBassets: DeployedBasset[]
-    if (hre.network.name === "hardhat") {
+    if (network.name === "hardhat") {
         // Deploy mocked base USD assets
         deployedUsdBassets = await deployBassets(deployer, mUsdBassets)
-    } else if (hre.network.name === "mumbai_testnet") {
+    } else if (network.name === "polygon_testnet") {
         // Attach to already deployed mocked bAssets
         deployedUsdBassets = attachBassets(deployer, mUsdBassets, [
             "0x4fa81E591dC5dAf1CDA8f21e811BAEc584831673",
             "0xD84574BFE3294b472C74D7a7e3d3bB2E92894B48",
             "0x872093ee2BCb9951b1034a4AAC7f489215EDa7C2",
+        ])
+    } else if (network.name === "polygon_mainnet") {
+        // Attach to 3rd party bAssets
+        deployedUsdBassets = attachBassets(deployer, mUsdBassets, [
+            "0x1a13F4Ca1d028320A707D99520AbFefca3998b7F",
+            "0x27F8D03b3a2196956ED754baDc28D73be8830A6e",
+            "0x60D55F02A771d515e077c9C2403a1ef324885CeC",
         ])
     }
 
@@ -282,7 +296,28 @@ task("deploy-polly", "Deploys mUSD, mBTC and Feeder pools to a Polygon network")
     }
 
     // Deploy mUSD Masset
-    const mUsd = await deployMasset(deployer, linkedAddress, nexus, delayedProxyAdmin, "POS-mUSD", "(PoS) mStable USD", deployedUsdBassets)
+    const mUsd = await deployMasset(deployer, linkedAddress, nexus, delayedProxyAdmin)
+
+    const aaveIntegration = await deployAaveIntegration(deployer, nexus, mUsd, network.name)
+
+    const config = {
+        a: 120,
+        limits: {
+            min: simpleToExactAmount(5, 16),
+            max: simpleToExactAmount(75, 16),
+        },
+    }
+    await mUsd.initialize(
+        "POS-mUSD",
+        "(PoS) mStable USD",
+        deployedUsdBassets.map((b) => ({
+            addr: b.contract.address,
+            integrator: network.name === "polygon_mainnet" ? aaveIntegration.address : ZERO_ADDRESS,
+            hasTxFee: b.txFee,
+            status: 0,
+        })),
+        config,
+    )
 
     await sleep(sleepTime)
 
@@ -328,13 +363,11 @@ task("deploy-polly", "Deploys mUSD, mBTC and Feeder pools to a Polygon network")
     const moduleIsLocked = [false, true]
     await nexus.connect(deployer).initialize(moduleKeys, moduleAddresses, moduleIsLocked, multiSigAddress)
 
-    await deployAaveIntegration(deployer, nexus)
-
     await sleep(sleepTime)
 
     if (hre.network.name !== "polygon_mainnet") {
-        await mint(deployer, deployedUsdBassets, mUsd, simpleToExactAmount(2000))
-        await save(deployer, mUsd, imUsd, simpleToExactAmount(1500))
+        await mint(deployer, deployedUsdBassets, mUsd, simpleToExactAmount(20))
+        await save(deployer, mUsd, imUsd, simpleToExactAmount(15))
     }
 })
 

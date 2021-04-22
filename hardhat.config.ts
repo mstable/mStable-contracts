@@ -36,9 +36,13 @@ export const hardhatConfig = {
             gasPrice: 30000000000,
             gasLimit: 8000000,
         },
-        mumbai_testnet: {
+        polygon_testnet: {
             url: "https://rpc-mumbai.maticvigil.com",
             accounts: process.env.MUMBAI_PRIVATE_KEY1 ? [process.env.MUMBAI_PRIVATE_KEY1] : [],
+        },
+        polygon_mainnet: {
+            url: "https://rpc-mainnet.maticvigil.com/",
+            accounts: process.env.POLYGON_PRIVATE_KEY1 ? [process.env.POLYGON_PRIVATE_KEY1] : [],
         },
     },
     solidity: {
