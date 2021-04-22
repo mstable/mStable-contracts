@@ -146,7 +146,7 @@ contract Masset is IMasset, Initializable, InitializableToken2771, Initializable
 
     // Internal fn for modifier to reduce deployment size
     function _isSavingsManager() internal view {
-        require(_savingsManager() == _msgSender(), "Must be savings manager");
+        require(_savingsManager() == msg.sender, "Must be savings manager");
     }
 
     /**
@@ -865,7 +865,7 @@ contract Masset is IMasset, Initializable, InitializableToken2771, Initializable
      * @dev Mints deficit to SAVE if k > token supply
      */
     function mintDeficit() external returns (uint256 mintAmount) {
-        require(_msgSender() == _governor() || _msgSender() == _proxyAdmin(), "Gov or ProxyAdmin");
+        require(msg.sender == _governor() || msg.sender == _proxyAdmin(), "Gov or ProxyAdmin");
 
         InvariantConfig memory config = _getConfig();
         (, uint256 k) = MassetLogic.computePrice(data.bAssetData, config);
@@ -885,8 +885,8 @@ contract Masset is IMasset, Initializable, InitializableToken2771, Initializable
         require(config.supply > k, "No surplus");
         burnAmount = config.supply - k;
 
-        _burn(_msgSender(), burnAmount);
+        _burn(msg.sender, burnAmount);
 
-        emit SurplusBurned(_msgSender(), burnAmount);
+        emit SurplusBurned(msg.sender, burnAmount);
     }
 }

@@ -100,7 +100,7 @@ contract SavingsContract is ISavingsContractV2, Initializable, InitializableToke
 
     /** @dev Only the savings managaer (pulled from Nexus) can execute this */
     modifier onlySavingsManager() {
-        require(_msgSender() == _savingsManager(), "Only savings manager can execute");
+        require(msg.sender == _savingsManager(), "Only savings manager can execute");
         _;
     }
 
@@ -409,7 +409,7 @@ contract SavingsContract is ISavingsContractV2, Initializable, InitializableToke
 
     /** @dev Modifier allowing only the designated poker to execute the fn */
     modifier onlyPoker() {
-        require(_msgSender() == poker, "Only poker can execute");
+        require(msg.sender == poker, "Only poker can execute");
         _;
     }
 
