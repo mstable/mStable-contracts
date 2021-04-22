@@ -2,27 +2,25 @@
 pragma solidity 0.8.2;
 pragma abicoder v2;
 
-// External
-import { IInvariantValidator } from "../../interfaces/IInvariantValidator.sol";
-
 // Internal
 import { Initializable } from "../../shared/@openzeppelin-2.5/Initializable.sol";
-import { InitializableToken } from "../../shared/InitializableToken.sol";
+import { InitializableToken, IERC20 } from "../../shared/InitializableToken.sol";
 import { ImmutableModule } from "../../shared/ImmutableModule.sol";
 import { InitializableReentrancyGuard } from "../../shared/InitializableReentrancyGuard.sol";
-import { IMasset, Deprecated_BasketManager } from "../../interfaces/IMasset.sol";
+import { IMasset } from "../../interfaces/IMasset.sol";
 import "../MassetStructs.sol";
 
 // Libs
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { StableMath } from "../../shared/StableMath.sol";
-import { Manager } from "../Manager.sol";
-import { Migrator } from "./Migrator.sol";
+import { MassetManager } from "../MassetManager.sol";
+import { MassetLogic } from "../MassetLogic.sol";
+import { MV1Migrator } from "./MV1Migrator.sol";
 
 // Legacy
-import { IBasketManager } from "../../z_mocks/masset/migrate3/IBasketManager.sol";
-import { Basket, Basset } from "../../z_mocks/masset/migrate3/MassetStructsV2.sol";
-import { InitializableModuleV2 } from "../../z_mocks/masset/migrate3/InitializableModuleV2.sol";
+import { IBasketManager } from "../../z_mocks/masset/migrate2/IBasketManager.sol";
+import { Basket, Basset } from "../../z_mocks/masset/migrate2/MassetStructsV1.sol";
+import { InitializableModuleV1 } from "../../z_mocks/masset/migrate2/InitializableModuleV1.sol";
 
 /**
  * @title   Masset used to migrate mUSD from V2.0 to V3.0
@@ -34,11 +32,11 @@ import { InitializableModuleV2 } from "../../z_mocks/masset/migrate3/Initializab
  * @dev     VERSION: 3.0
  *          DATE:    2021-01-22
  */
-contract MusdV3 is
+contract MV1 is
     IMasset,
     Initializable,
     InitializableToken,
-    InitializableModuleV2,
+    InitializableModuleV1,
     InitializableReentrancyGuard,
     ImmutableModule
 {
@@ -89,9 +87,11 @@ contract MusdV3 is
     event FeesChanged(uint256 swapFee, uint256 redemptionFee);
     event WeightLimitsChanged(uint128 min, uint128 max);
     event ForgeValidatorChanged(address forgeValidator);
+    event DeficitMinted(uint256 amt);
+    event SurplusBurned(address creditor, uint256 amt);
 
     // Release 1.0 VARS
-    IInvariantValidator public forgeValidator;
+    address public forgeValidator;
     bool private forgeValidatorLocked;
     // Deprecated - maintain for storage layout in mUSD
     address private deprecated_basketManager;
@@ -103,11 +103,11 @@ contract MusdV3 is
     // Release 1.1 VARS
     uint256 public redemptionFee;
 
-    // Release 2.0 VARS
+    // Release 1.2 VARS
     uint256 public cacheSize;
     uint256 public surplus;
 
-    // Release 3.0 VARS
+    // Release 2.0 VARS
     // Struct holding Basket details
     BassetPersonal[] public bAssetPersonal;
     BassetData[] public bAssetData;
@@ -119,41 +119,58 @@ contract MusdV3 is
     AmpData public ampData;
     WeightLimits public weightLimits;
 
+    // Release 3.0 VARS
+    uint256 private immutable RECOL_FEE;
+    MassetData public data;
+
     /**
      * @dev Constructor to set immutable bytecode
      * @param _nexus   Nexus address
      */
-    constructor(address _nexus) ImmutableModule(_nexus) {}
+    constructor(address _nexus, uint256 _recolFee) ImmutableModule(_nexus) {
+        require(_recolFee <= 5e13, "RecolFee too high");
+        RECOL_FEE = _recolFee;
+    }
 
     /**
-     * @dev Upgrades mUSD from v2.0 to v3.0.
-     *      This function should be called via Proxy just after the proxy has been updated.
-     * @param _forgeValidator  Address of the AMM implementation
-     * @param _config          Configutation for the invariant validator including the
-     *                         amplification coefficient (A) and weight limits
+     * @dev Initialization function for upgradable proxy contract.
+     *      This function should be called via Proxy just after contract deployment.
+     *      To avoid variable shadowing appended `Arg` after arguments name.
+     * @param _nameArg          Name of the mAsset
+     * @param _symbolArg        Symbol of the mAsset
+     * @param _bAssets          Array of Basset data
      */
-    function upgrade(
-        address _forgeValidator,
-        InvariantConfig memory _config
-    ) public {
-        // prevent upgrade being run again by checking the old basket manager
-        require(deprecated_basketManager != address(0), "already upgraded");
-        // Read the Basket Manager details from the mUSD proxy's storage into memory
-        IBasketManager basketManager = IBasketManager(deprecated_basketManager);
-        // Update the storage of the Basket Manager in the mUSD Proxy
-        deprecated_basketManager = address(0);
-        // Set the state to be undergoingRecol in order to pause after upgrade
-        basket.undergoingRecol = true;
+    function initialize(
+        string calldata _nameArg,
+        string calldata _symbolArg,
+        BassetPersonal[] calldata _bAssets,
+        BasicConfig memory _config
+    ) public initializer {
+        InitializableToken._initialize(_nameArg, _symbolArg);
 
-        forgeValidator = IInvariantValidator(_forgeValidator);
+        _initializeReentrancyGuard();
 
-        Migrator.upgrade(basketManager, bAssetPersonal, bAssetData, bAssetIndexes);
+        uint256 len = _bAssets.length;
+        require(len > 0, "No bAssets");
+        for (uint256 i = 0; i < len; i++) {
+            MassetManager.addBasset(
+                data.bAssetPersonal,
+                data.bAssetData,
+                bAssetIndexes,
+                _bAssets[i].addr,
+                _bAssets[i].integrator,
+                1e8,
+                _bAssets[i].hasTxFee
+            );
+        }
 
-        // Set new V3.0 storage variables
-        maxBassets = 10;
         uint64 startA = SafeCast.toUint64(_config.a * A_PRECISION);
-        ampData = AmpData(startA, startA, 0, 0);
-        weightLimits = _config.limits;
+        data.ampData = AmpData(startA, startA, 0, 0);
+        data.weightLimits = _config.limits;
+
+        data.swapFee = 6e14;
+        data.redemptionFee = 3e14;
+        data.cacheSize = 1e17;
     }
 
     /**
@@ -179,7 +196,7 @@ contract MusdV3 is
 
     // Internal fn for modifier to reduce deployment size
     function _isHealthy() internal view {
-        BasketState memory basket_ = basket;
+        BasketState memory basket_ = data.basket;
         require(!basket_.undergoingRecol && !basket_.failed, "Unhealthy");
     }
 
@@ -193,7 +210,7 @@ contract MusdV3 is
 
     // Internal fn for modifier to reduce deployment size
     function _noRecol() internal view {
-        BasketState memory basket_ = basket;
+        BasketState memory basket_ = data.basket;
         require(!basket_.undergoingRecol, "In recol");
     }
 
@@ -216,7 +233,22 @@ contract MusdV3 is
         uint256 _minOutputQuantity,
         address _recipient
     ) external override nonReentrant whenHealthy returns (uint256 mintOutput) {
-        mintOutput = _mintTo(_input, _inputQuantity, _minOutputQuantity, _recipient);
+        require(_recipient != address(0), "Invalid recipient");
+        require(_inputQuantity > 0, "Qty==0");
+
+        Asset memory input = _getAsset(_input);
+
+        mintOutput = MassetLogic.mint(
+            data,
+            _getConfig(),
+            input,
+            _inputQuantity,
+            _minOutputQuantity
+        );
+
+        // Mint the Masset
+        _mint(_recipient, mintOutput);
+        emit Minted(msg.sender, _recipient, mintOutput, _input, _inputQuantity);
     }
 
     /**
@@ -235,7 +267,22 @@ contract MusdV3 is
         uint256 _minOutputQuantity,
         address _recipient
     ) external override nonReentrant whenHealthy returns (uint256 mintOutput) {
-        mintOutput = _mintMulti(_inputs, _inputQuantities, _minOutputQuantity, _recipient);
+        require(_recipient != address(0), "Invalid recipient");
+        uint256 len = _inputQuantities.length;
+        require(len > 0 && len == _inputs.length, "Input array mismatch");
+
+        uint8[] memory indexes = _getAssets(_inputs);
+        mintOutput = MassetLogic.mintMulti(
+            data,
+            _getConfig(),
+            indexes,
+            _inputQuantities,
+            _minOutputQuantity
+        );
+
+        // Mint the Masset
+        _mint(_recipient, mintOutput);
+        emit MintedMulti(msg.sender, _recipient, mintOutput, _inputs, _inputQuantities);
     }
 
     /**
@@ -252,9 +299,14 @@ contract MusdV3 is
     {
         require(_inputQuantity > 0, "Qty==0");
 
-        (uint8 idx, ) = _getAsset(_input);
+        Asset memory input = _getAsset(_input);
 
-        mintOutput = forgeValidator.computeMint(bAssetData, idx, _inputQuantity, _getConfig());
+        mintOutput = MassetLogic.computeMint(
+            data.bAssetData,
+            input.idx,
+            _inputQuantity,
+            _getConfig()
+        );
     }
 
     /**
@@ -271,94 +323,9 @@ contract MusdV3 is
     {
         uint256 len = _inputQuantities.length;
         require(len > 0 && len == _inputs.length, "Input array mismatch");
-        (uint8[] memory indexes, ) = _getBassets(_inputs);
-        return forgeValidator.computeMintMulti(bAssetData, indexes, _inputQuantities, _getConfig());
-    }
-
-    /***************************************
-              MINTING (INTERNAL)
-    ****************************************/
-
-    /** @dev Mint Single */
-    function _mintTo(
-        address _input,
-        uint256 _inputQuantity,
-        uint256 _minMassetQuantity,
-        address _recipient
-    ) internal returns (uint256 mAssetMinted) {
-        require(_recipient != address(0), "Invalid recipient");
-        require(_inputQuantity > 0, "Qty==0");
-        BassetData[] memory allBassets = bAssetData;
-        (uint8 bAssetIndex, BassetPersonal memory personal) = _getAsset(_input);
-        Cache memory cache = _getCacheDetails();
-        // Transfer collateral to the platform integration address and call deposit
-        uint256 quantityDeposited =
-            Manager.depositTokens(
-                personal,
-                allBassets[bAssetIndex].ratio,
-                _inputQuantity,
-                cache.maxCache
-            );
-        // Validation should be after token transfer, as bAssetQty is unknown before
-        mAssetMinted = forgeValidator.computeMint(
-            allBassets,
-            bAssetIndex,
-            quantityDeposited,
-            _getConfig()
-        );
-        require(mAssetMinted >= _minMassetQuantity, "Mint quantity < min qty");
-        // Log the Vault increase - can only be done when basket is healthy
-        bAssetData[bAssetIndex].vaultBalance =
-            allBassets[bAssetIndex].vaultBalance +
-            SafeCast.toUint128(quantityDeposited);
-        // Mint the Masset
-        _mint(_recipient, mAssetMinted);
-        emit Minted(msg.sender, _recipient, mAssetMinted, _input, quantityDeposited);
-    }
-
-    /** @dev Mint Multi */
-    function _mintMulti(
-        address[] memory _inputs,
-        uint256[] memory _inputQuantities,
-        uint256 _minMassetQuantity,
-        address _recipient
-    ) internal returns (uint256 mAssetMinted) {
-        require(_recipient != address(0), "Invalid recipient");
-        uint256 len = _inputQuantities.length;
-        require(len > 0 && len == _inputs.length, "Input array mismatch");
-        // Load bAssets from storage into memory
-        (uint8[] memory indexes, BassetPersonal[] memory personals) = _getBassets(_inputs);
-        BassetData[] memory allBassets = bAssetData;
-        Cache memory cache = _getCacheDetails();
-        uint256[] memory quantitiesDeposited = new uint256[](len);
-        // Transfer the Bassets to the integrator, update storage and calc MassetQ
-        for (uint256 i = 0; i < len; i++) {
-            uint256 bAssetQuantity = _inputQuantities[i];
-            if (bAssetQuantity > 0) {
-                uint8 idx = indexes[i];
-                BassetData memory data = allBassets[idx];
-                BassetPersonal memory personal = personals[i];
-                uint256 quantityDeposited =
-                    Manager.depositTokens(personal, data.ratio, bAssetQuantity, cache.maxCache);
-                quantitiesDeposited[i] = quantityDeposited;
-                bAssetData[idx].vaultBalance =
-                    data.vaultBalance +
-                    SafeCast.toUint128(quantityDeposited);
-            }
-        }
-        // Validate the proposed mint, after token transfer
-        mAssetMinted = forgeValidator.computeMintMulti(
-            allBassets,
-            indexes,
-            quantitiesDeposited,
-            _getConfig()
-        );
-        require(mAssetMinted >= _minMassetQuantity, "Mint quantity < min qty");
-        require(mAssetMinted > 0, "Zero mAsset quantity");
-
-        // Mint the Masset
-        _mint(_recipient, mAssetMinted);
-        emit MintedMulti(msg.sender, _recipient, mAssetMinted, _inputs, _inputQuantities);
+        uint8[] memory indexes = _getAssets(_inputs);
+        return
+            MassetLogic.computeMintMulti(data.bAssetData, indexes, _inputQuantities, _getConfig());
     }
 
     /***************************************
@@ -382,7 +349,25 @@ contract MusdV3 is
         uint256 _minOutputQuantity,
         address _recipient
     ) external override nonReentrant whenHealthy returns (uint256 swapOutput) {
-        swapOutput = _swap(_input, _output, _inputQuantity, _minOutputQuantity, _recipient);
+        require(_recipient != address(0), "Invalid recipient");
+        require(_input != _output, "Invalid pair");
+        require(_inputQuantity > 0, "Invalid swap quantity");
+
+        Asset memory input = _getAsset(_input);
+        Asset memory output = _getAsset(_output);
+
+        uint256 scaledFee;
+        (swapOutput, scaledFee) = MassetLogic.swap(
+            data,
+            _getConfig(),
+            input,
+            output,
+            _inputQuantity,
+            _minOutputQuantity,
+            _recipient
+        );
+
+        emit Swapped(msg.sender, input.addr, output.addr, swapOutput, scaledFee, _recipient);
     }
 
     /**
@@ -401,90 +386,18 @@ contract MusdV3 is
         require(_input != _output, "Invalid pair");
         require(_inputQuantity > 0, "Invalid swap quantity");
 
-        // 1. Load the bAssets from storage into memory
-        BassetData[] memory allBassets = bAssetData;
-        (uint8 inputIdx, ) = _getAsset(_input);
-        (uint8 outputIdx, ) = _getAsset(_output);
+        // 1. Load the bAssets from storage
+        Asset memory input = _getAsset(_input);
+        Asset memory output = _getAsset(_output);
 
         // 2. If a bAsset swap, calculate the validity, output and fee
-        (swapOutput, ) = forgeValidator.computeSwap(
-            allBassets,
-            inputIdx,
-            outputIdx,
+        (swapOutput, ) = MassetLogic.computeSwap(
+            data.bAssetData,
+            input.idx,
+            output.idx,
             _inputQuantity,
-            swapFee,
+            data.swapFee,
             _getConfig()
-        );
-    }
-
-    /***************************************
-              SWAP (INTERNAL)
-    ****************************************/
-
-    /** @dev Swap single */
-    function _swap(
-        address _input,
-        address _output,
-        uint256 _inputQuantity,
-        uint256 _minOutputQuantity,
-        address _recipient
-    ) internal returns (uint256 swapOutput) {
-        require(_recipient != address(0), "Invalid recipient");
-        require(_input != _output, "Invalid pair");
-        require(_inputQuantity > 0, "Invalid swap quantity");
-
-        // 1. Load the bAssets from storage into memory
-        BassetData[] memory allBassets = bAssetData;
-        (uint8 inputIdx, BassetPersonal memory inputPersonal) = _getAsset(_input);
-        (uint8 outputIdx, BassetPersonal memory outputPersonal) = _getAsset(_output);
-        // 2. Load cache
-        Cache memory cache = _getCacheDetails();
-        // 3. Deposit the input tokens
-        uint256 quantityDeposited =
-            Manager.depositTokens(
-                inputPersonal,
-                allBassets[inputIdx].ratio,
-                _inputQuantity,
-                cache.maxCache
-            );
-        // 3.1. Update the input balance
-        bAssetData[inputIdx].vaultBalance =
-            allBassets[inputIdx].vaultBalance +
-            SafeCast.toUint128(quantityDeposited);
-
-        // 3. Validate the swap
-        uint256 scaledFee;
-        (swapOutput, scaledFee) = forgeValidator.computeSwap(
-            allBassets,
-            inputIdx,
-            outputIdx,
-            quantityDeposited,
-            swapFee,
-            _getConfig()
-        );
-        require(swapOutput >= _minOutputQuantity, "Output qty < minimum qty");
-        require(swapOutput > 0, "Zero output quantity");
-        //4. Settle the swap
-        //4.1. Decrease output bal
-        Manager.withdrawTokens(
-            swapOutput,
-            outputPersonal,
-            allBassets[outputIdx],
-            _recipient,
-            cache.maxCache
-        );
-        bAssetData[outputIdx].vaultBalance =
-            allBassets[outputIdx].vaultBalance -
-            SafeCast.toUint128(swapOutput);
-        // Save new surplus to storage
-        surplus = cache.surplus + scaledFee;
-        emit Swapped(
-            msg.sender,
-            inputPersonal.addr,
-            outputPersonal.addr,
-            swapOutput,
-            scaledFee,
-            _recipient
         );
     }
 
@@ -510,7 +423,33 @@ contract MusdV3 is
         uint256 _minOutputQuantity,
         address _recipient
     ) external override nonReentrant whenNoRecol returns (uint256 outputQuantity) {
-        outputQuantity = _redeem(_output, _mAssetQuantity, _minOutputQuantity, _recipient);
+        require(_recipient != address(0), "Invalid recipient");
+        require(_mAssetQuantity > 0, "Qty==0");
+
+        Asset memory output = _getAsset(_output);
+
+        // Get config before burning. Config > Burn > CacheSize
+        InvariantConfig memory config = _getConfig();
+        _burn(msg.sender, _mAssetQuantity);
+
+        uint256 scaledFee;
+        (outputQuantity, scaledFee) = MassetLogic.redeem(
+            data,
+            config,
+            output,
+            _mAssetQuantity,
+            _minOutputQuantity,
+            _recipient
+        );
+
+        emit Redeemed(
+            msg.sender,
+            _recipient,
+            _mAssetQuantity,
+            output.addr,
+            outputQuantity,
+            scaledFee
+        );
     }
 
     /**
@@ -525,7 +464,31 @@ contract MusdV3 is
         uint256[] calldata _minOutputQuantities,
         address _recipient
     ) external override nonReentrant whenNoRecol returns (uint256[] memory outputQuantities) {
-        outputQuantities = _redeemMasset(_mAssetQuantity, _minOutputQuantities, _recipient);
+        require(_recipient != address(0), "Invalid recipient");
+        require(_mAssetQuantity > 0, "Qty==0");
+
+        // Get config before burning. Burn > CacheSize
+        InvariantConfig memory config = _getConfig();
+        _burn(msg.sender, _mAssetQuantity);
+
+        address[] memory outputs;
+        uint256 scaledFee;
+        (scaledFee, outputs, outputQuantities) = MassetLogic.redeemProportionately(
+            data,
+            config,
+            _mAssetQuantity,
+            _minOutputQuantities,
+            _recipient
+        );
+
+        emit RedeemedMulti(
+            msg.sender,
+            _recipient,
+            _mAssetQuantity,
+            outputs,
+            outputQuantities,
+            scaledFee
+        );
     }
 
     /**
@@ -543,11 +506,32 @@ contract MusdV3 is
         uint256 _maxMassetQuantity,
         address _recipient
     ) external override nonReentrant whenNoRecol returns (uint256 mAssetQuantity) {
-        mAssetQuantity = _redeemExactBassets(
-            _outputs,
+        require(_recipient != address(0), "Invalid recipient");
+        uint256 len = _outputQuantities.length;
+        require(len > 0 && len == _outputs.length, "Invalid array input");
+        require(_maxMassetQuantity > 0, "Qty==0");
+
+        uint8[] memory indexes = _getAssets(_outputs);
+
+        uint256 fee;
+        (mAssetQuantity, fee) = MassetLogic.redeemExactBassets(
+            data,
+            _getConfig(),
+            indexes,
             _outputQuantities,
             _maxMassetQuantity,
             _recipient
+        );
+
+        _burn(msg.sender, mAssetQuantity);
+
+        emit RedeemedMulti(
+            msg.sender,
+            _recipient,
+            mAssetQuantity,
+            _outputs,
+            _outputQuantities,
+            fee
         );
     }
 
@@ -565,14 +549,14 @@ contract MusdV3 is
     {
         require(_mAssetQuantity > 0, "Qty==0");
 
-        (uint8 idx, ) = _getAsset(_output);
+        Asset memory output = _getAsset(_output);
 
-        uint256 scaledFee = _mAssetQuantity.mulTruncate(swapFee);
-        bAssetOutput = forgeValidator.computeRedeem(
-            bAssetData,
-            idx,
-            _mAssetQuantity - scaledFee,
-            _getConfig()
+        (bAssetOutput, ) = MassetLogic.computeRedeem(
+            data.bAssetData,
+            output.idx,
+            _mAssetQuantity,
+            _getConfig(),
+            data.swapFee
         );
     }
 
@@ -589,181 +573,15 @@ contract MusdV3 is
         uint256 len = _outputQuantities.length;
         require(len > 0 && len == _outputs.length, "Invalid array input");
 
-        (uint8[] memory indexes, ) = _getBassets(_outputs);
+        uint8[] memory indexes = _getAssets(_outputs);
 
         // calculate the value of mAssets need to cover the value of bAssets being redeemed
-        uint256 mAssetRedeemed =
-            forgeValidator.computeRedeemExact(bAssetData, indexes, _outputQuantities, _getConfig());
-        mAssetQuantity = mAssetRedeemed.divPrecisely(1e18 - swapFee) + 1;
-    }
-
-    /***************************************
-                REDEMPTION (INTERNAL)
-    ****************************************/
-
-    /**
-     * @dev Redeem mAsset for a single bAsset
-     */
-    function _redeem(
-        address _output,
-        uint256 _inputQuantity,
-        uint256 _minOutputQuantity,
-        address _recipient
-    ) internal returns (uint256 bAssetQuantity) {
-        require(_recipient != address(0), "Invalid recipient");
-        require(_inputQuantity > 0, "Qty==0");
-
-        // Load the bAsset data from storage into memory
-        BassetData[] memory allBassets = bAssetData;
-        (uint8 bAssetIndex, BassetPersonal memory personal) = _getAsset(_output);
-        // Calculate redemption quantities
-        uint256 scaledFee = _inputQuantity.mulTruncate(swapFee);
-        bAssetQuantity = forgeValidator.computeRedeem(
-            allBassets,
-            bAssetIndex,
-            _inputQuantity - scaledFee,
-            _getConfig()
-        );
-        require(bAssetQuantity >= _minOutputQuantity, "bAsset qty < min qty");
-        require(bAssetQuantity > 0, "Output == 0");
-        // Apply fees, burn mAsset and return bAsset to recipient
-        // 1.0. Burn the full amount of Masset
-        _burn(msg.sender, _inputQuantity);
-        surplus += scaledFee;
-        Cache memory cache = _getCacheDetails();
-        // 2.0. Transfer the Bassets to the recipient
-        Manager.withdrawTokens(
-            bAssetQuantity,
-            personal,
-            allBassets[bAssetIndex],
-            _recipient,
-            cache.maxCache
-        );
-        // 3.0. Set vault balance
-        bAssetData[bAssetIndex].vaultBalance =
-            allBassets[bAssetIndex].vaultBalance -
-            SafeCast.toUint128(bAssetQuantity);
-
-        emit Redeemed(
-            msg.sender,
-            _recipient,
-            _inputQuantity,
-            personal.addr,
-            bAssetQuantity,
-            scaledFee
-        );
-    }
-
-    /**
-     * @dev Redeem mAsset for proportional amount of bAssets
-     */
-    function _redeemMasset(
-        uint256 _inputQuantity,
-        uint256[] calldata _minOutputQuantities,
-        address _recipient
-    ) internal returns (uint256[] memory outputQuantities) {
-        require(_recipient != address(0), "Invalid recipient");
-        require(_inputQuantity > 0, "Qty==0");
-
-        // Calculate mAsset redemption quantities
-        uint256 scaledFee = _inputQuantity.mulTruncate(redemptionFee);
-        uint256 mAssetRedemptionAmount = _inputQuantity - scaledFee;
-
-        // Burn mAsset quantity
-        _burn(msg.sender, _inputQuantity);
-        surplus += scaledFee;
-
-        // Calc cache and total mAsset circulating
-        Cache memory cache = _getCacheDetails();
-        // Total mAsset = (totalSupply + _inputQuantity - scaledFee) + surplus
-        uint256 totalMasset = cache.vaultBalanceSum + mAssetRedemptionAmount;
-
-        // Load the bAsset data from storage into memory
-        BassetData[] memory allBassets = bAssetData;
-
-        uint256 len = allBassets.length;
-        address[] memory outputs = new address[](len);
-        outputQuantities = new uint256[](len);
-        for (uint256 i = 0; i < len; i++) {
-            // Get amount out, proportionate to redemption quantity
-            // Use `cache.sum` here as the total mAsset supply is actually totalSupply + surplus
-            uint256 amountOut = (allBassets[i].vaultBalance * mAssetRedemptionAmount) / totalMasset;
-            require(amountOut > 1, "Output == 0");
-            amountOut -= 1;
-            require(amountOut >= _minOutputQuantities[i], "bAsset qty < min qty");
-            // Set output in array
-            (outputQuantities[i], outputs[i]) = (amountOut, bAssetPersonal[i].addr);
-            // Transfer the bAsset to the recipient
-            Manager.withdrawTokens(
-                amountOut,
-                bAssetPersonal[i],
-                allBassets[i],
-                _recipient,
-                cache.maxCache
-            );
-            // reduce vaultBalance
-            bAssetData[i].vaultBalance = allBassets[i].vaultBalance - SafeCast.toUint128(amountOut);
-        }
-
-        emit RedeemedMulti(
-            msg.sender,
-            _recipient,
-            _inputQuantity,
-            outputs,
-            outputQuantities,
-            scaledFee
-        );
-    }
-
-    /** @dev Redeem mAsset for one or more bAssets */
-    function _redeemExactBassets(
-        address[] memory _outputs,
-        uint256[] memory _outputQuantities,
-        uint256 _maxMassetQuantity,
-        address _recipient
-    ) internal returns (uint256 mAssetQuantity) {
-        require(_recipient != address(0), "Invalid recipient");
-        uint256 len = _outputQuantities.length;
-        require(len > 0 && len == _outputs.length, "Invalid array input");
-        require(_maxMassetQuantity > 0, "Qty==0");
-
-        (uint8[] memory indexes, BassetPersonal[] memory personal) = _getBassets(_outputs);
-        // Load bAsset data from storage to memory
-        BassetData[] memory allBassets = bAssetData;
-        // Validate redemption
-        uint256 mAssetRequired =
-            forgeValidator.computeRedeemExact(allBassets, indexes, _outputQuantities, _getConfig());
-        mAssetQuantity = mAssetRequired.divPrecisely(1e18 - swapFee);
-        uint256 fee = mAssetQuantity - mAssetRequired;
-        require(mAssetQuantity > 0, "Must redeem some mAssets");
-        mAssetQuantity += 1;
-        require(mAssetQuantity <= _maxMassetQuantity, "Redeem mAsset qty > max quantity");
-        // Apply fees, burn mAsset and return bAsset to recipient
-        // 1.0. Burn the full amount of Masset
-        _burn(msg.sender, mAssetQuantity);
-        surplus += fee;
-        Cache memory cache = _getCacheDetails();
-        // 2.0. Transfer the Bassets to the recipient and count fees
-        for (uint256 i = 0; i < len; i++) {
-            uint8 idx = indexes[i];
-            Manager.withdrawTokens(
-                _outputQuantities[i],
-                personal[i],
-                allBassets[idx],
-                _recipient,
-                cache.maxCache
-            );
-            bAssetData[idx].vaultBalance =
-                allBassets[idx].vaultBalance -
-                SafeCast.toUint128(_outputQuantities[i]);
-        }
-        emit RedeemedMulti(
-            msg.sender,
-            _recipient,
-            mAssetQuantity,
-            _outputs,
+        (mAssetQuantity, ) = MassetLogic.computeRedeemExact(
+            data.bAssetData,
+            indexes,
             _outputQuantities,
-            fee
+            _getConfig(),
+            data.swapFee
         );
     }
 
@@ -776,39 +594,39 @@ contract MusdV3 is
      * @return b   Basket struct
      */
     function getBasket() external view override returns (bool, bool) {
-        return (basket.undergoingRecol, basket.failed);
+        return (data.basket.undergoingRecol, data.basket.failed);
     }
 
     /**
      * @dev Get data for a all bAssets in basket
      * @return personal  Struct[] with full bAsset data
-     * @return data      Number of bAssets in the Basket
+     * @return bData      Number of bAssets in the Basket
      */
     function getBassets()
         external
         view
         override
-        returns (BassetPersonal[] memory personal, BassetData[] memory data)
+        returns (BassetPersonal[] memory personal, BassetData[] memory bData)
     {
-        return (bAssetPersonal, bAssetData);
+        return (data.bAssetPersonal, data.bAssetData);
     }
 
     /**
      * @dev Get data for a specific bAsset, if it exists
      * @param _bAsset   Address of bAsset
      * @return personal  Struct with full bAsset data
-     * @return data  Struct with full bAsset data
+     * @return bData  Struct with full bAsset data
      */
     function getBasset(address _bAsset)
         external
         view
         override
-        returns (BassetPersonal memory personal, BassetData memory data)
+        returns (BassetPersonal memory personal, BassetData memory bData)
     {
         uint8 idx = bAssetIndexes[_bAsset];
-        personal = bAssetPersonal[idx];
+        personal = data.bAssetPersonal[idx];
         require(personal.addr == _bAsset, "Invalid asset");
-        data = bAssetData[idx];
+        bData = data.bAssetData[idx];
     }
 
     /**
@@ -818,66 +636,45 @@ contract MusdV3 is
         return _getConfig();
     }
 
+    /**
+     * @notice Gets the price of the fpToken, and invariant value k
+     * @return price    Price of an fpToken
+     * @return k        Total value of basket, k
+     */
+    function getPrice() external view override returns (uint256 price, uint256 k) {
+        return MassetLogic.computePrice(data.bAssetData, _getConfig());
+    }
+
     /***************************************
                 GETTERS - INTERNAL
     ****************************************/
 
     /**
-     * vaultBalanceSum = totalSupply + 'surplus'
-     * maxCache = vaultBalanceSum * (cacheSize / 1e18)
-     * surplus is simply surplus, to reduce SLOADs
-     */
-    struct Cache {
-        uint256 vaultBalanceSum;
-        uint256 maxCache;
-        uint256 surplus;
-    }
-
-    /**
-     * @dev Gets the supply and cache details for the mAsset, taking into account the surplus
-     * @return Cache containing (tracked) sum of vault balances, ideal cache size and surplus
-     */
-    function _getCacheDetails() internal view returns (Cache memory) {
-        // read surplus from storage into memory
-        uint256 _surplus = surplus;
-        uint256 sum = totalSupply() + _surplus;
-        return Cache(sum, sum.mulTruncate(cacheSize), _surplus);
-    }
-
-    /**
      * @dev Gets a bAsset from storage
-     * @param _asset        Address of the asset
-     * @return idx        Index of the asset
-     * @return personal   Personal details for the asset
+     * @param _asset      Address of the asset
+     * @return asset      Struct containing bAsset details (idx, data)
      */
-    function _getAsset(address _asset)
-        internal
-        view
-        returns (uint8 idx, BassetPersonal memory personal)
-    {
-        idx = bAssetIndexes[_asset];
-        personal = bAssetPersonal[idx];
-        require(personal.addr == _asset, "Invalid asset");
+    function _getAsset(address _asset) internal view returns (Asset memory asset) {
+        asset.idx = bAssetIndexes[_asset];
+        asset.addr = _asset;
+        asset.exists = data.bAssetPersonal[asset.idx].addr == _asset;
+        require(asset.exists, "Invalid asset");
     }
 
     /**
      * @dev Gets a an array of bAssets from storage and protects against duplicates
      * @param _bAssets    Addresses of the assets
      * @return indexes    Indexes of the assets
-     * @return personal   Personal details for the assets
      */
-    function _getBassets(address[] memory _bAssets)
-        internal
-        view
-        returns (uint8[] memory indexes, BassetPersonal[] memory personal)
-    {
+    function _getAssets(address[] memory _bAssets) internal view returns (uint8[] memory indexes) {
         uint256 len = _bAssets.length;
 
         indexes = new uint8[](len);
-        personal = new BassetPersonal[](len);
 
+        Asset memory input_;
         for (uint256 i = 0; i < len; i++) {
-            (indexes[i], personal[i]) = _getAsset(_bAssets[i]);
+            input_ = _getAsset(_bAssets[i]);
+            indexes[i] = input_.idx;
 
             for (uint256 j = i + 1; j < len; j++) {
                 require(_bAssets[i] != _bAssets[j], "Duplicate asset");
@@ -889,14 +686,14 @@ contract MusdV3 is
      * @dev Gets all config needed for general InvariantValidator calls
      */
     function _getConfig() internal view returns (InvariantConfig memory) {
-        return InvariantConfig(_getA(), weightLimits);
+        return InvariantConfig(totalSupply() + data.surplus, _getA(), data.weightLimits, RECOL_FEE);
     }
 
     /**
      * @dev Gets current amplification var A
      */
     function _getA() internal view returns (uint256) {
-        AmpData memory ampData_ = ampData;
+        AmpData memory ampData_ = data.ampData;
 
         uint64 endA = ampData_.targetA;
         uint64 endTime = ampData_.rampEndTime;
@@ -938,10 +735,10 @@ contract MusdV3 is
         // Set the surplus variable to 1 to optimise for SSTORE costs.
         // If setting to 0 here, it would save 5k per savings deposit, but cost 20k for the
         // first surplus call (a SWAP or REDEEM).
-        uint256 surplusFees = surplus;
+        uint256 surplusFees = data.surplus;
         if (surplusFees > 1) {
             mintAmount = surplusFees - 1;
-            surplus = 1;
+            data.surplus = 1;
 
             // mint new mAsset to savings manager
             _mint(msg.sender, mintAmount);
@@ -958,7 +755,7 @@ contract MusdV3 is
 
     /**
      * @dev Collects the interest generated from the Basket, minting a relative
-     *      amount of mAsset and sends it over to the SavingsManager.
+     *      amount of mAsset and sends it over to the SavingsMassetManager.
      * @return mintAmount   mAsset units generated from interest collected from lending markets
      * @return newSupply    mAsset total supply after mint
      */
@@ -970,13 +767,10 @@ contract MusdV3 is
         nonReentrant
         returns (uint256 mintAmount, uint256 newSupply)
     {
-        uint256[] memory gains;
-        (mintAmount, gains) = Manager.collectPlatformInterest(
-            bAssetPersonal,
-            bAssetData,
-            forgeValidator,
-            _getConfig()
-        );
+        (uint8[] memory idxs, uint256[] memory gains) =
+            MassetManager.collectPlatformInterest(data.bAssetPersonal, data.bAssetData);
+
+        mintAmount = MassetLogic.computeMintMulti(data.bAssetData, idxs, gains, _getConfig());
 
         require(mintAmount > 0, "Must collect something");
 
@@ -998,23 +792,9 @@ contract MusdV3 is
     function setCacheSize(uint256 _cacheSize) external override onlyGovernor {
         require(_cacheSize <= 2e17, "Must be <= 20%");
 
-        cacheSize = _cacheSize;
+        data.cacheSize = _cacheSize;
 
         emit CacheSizeChanged(_cacheSize);
-    }
-
-    /**
-     * @dev Upgrades the version of ForgeValidator protocol. Governor can do this
-     *      only while ForgeValidator is unlocked.
-     * @param _newForgeValidator Address of the new ForgeValidator
-     */
-    function upgradeForgeValidator(address _newForgeValidator) external override onlyGovernor {
-        require(!forgeValidatorLocked, "ForgeVal locked");
-        require(_newForgeValidator != address(0), "Null address");
-
-        forgeValidator = IInvariantValidator(_newForgeValidator);
-
-        emit ForgeValidatorChanged(_newForgeValidator);
     }
 
     /**
@@ -1025,8 +805,8 @@ contract MusdV3 is
         require(_swapFee <= MAX_FEE, "Swap rate oob");
         require(_redemptionFee <= MAX_FEE, "Redemption rate oob");
 
-        swapFee = _swapFee;
-        redemptionFee = _redemptionFee;
+        data.swapFee = _swapFee;
+        data.redemptionFee = _redemptionFee;
 
         emit FeesChanged(_swapFee, _redemptionFee);
     }
@@ -1037,10 +817,10 @@ contract MusdV3 is
      * @param _max Weight where 100% = 1e18
      */
     function setWeightLimits(uint128 _min, uint128 _max) external onlyGovernor {
-        require(_min <= 1e18 / (bAssetData.length * 2), "Min weight oob");
-        require(_max >= 1e18 / (bAssetData.length - 1), "Max weight oob");
+        require(_min <= 1e18 / (data.bAssetData.length * 2), "Min weight oob");
+        require(_max >= 1e18 / (data.bAssetData.length - 1), "Max weight oob");
 
-        weightLimits = WeightLimits(_min, _max);
+        data.weightLimits = WeightLimits(_min, _max);
 
         emit WeightLimitsChanged(_min, _max);
     }
@@ -1051,7 +831,7 @@ contract MusdV3 is
      * @param _flag         Charge transfer fee when its set to 'true', otherwise 'false'
      */
     function setTransferFeesFlag(address _bAsset, bool _flag) external override onlyGovernor {
-        Manager.setTransferFeesFlag(bAssetPersonal, bAssetIndexes, _bAsset, _flag);
+        MassetManager.setTransferFeesFlag(data.bAssetPersonal, bAssetIndexes, _bAsset, _flag);
     }
 
     /**
@@ -1067,7 +847,7 @@ contract MusdV3 is
         override
         onlyGovernor
     {
-        Manager.migrateBassets(bAssetPersonal, bAssetIndexes, _bAssets, _newIntegration);
+        MassetManager.migrateBassets(data.bAssetPersonal, bAssetIndexes, _bAssets, _newIntegration);
     }
 
     /**
@@ -1077,7 +857,13 @@ contract MusdV3 is
      *                         or above (f)
      */
     function handlePegLoss(address _bAsset, bool _belowPeg) external onlyGovernor {
-        Manager.handlePegLoss(basket, bAssetPersonal, bAssetIndexes, _bAsset, _belowPeg);
+        MassetManager.handlePegLoss(
+            data.basket,
+            data.bAssetPersonal,
+            bAssetIndexes,
+            _bAsset,
+            _belowPeg
+        );
     }
 
     /**
@@ -1085,7 +871,7 @@ contract MusdV3 is
      * @param _bAsset Address of the bAsset
      */
     function negateIsolation(address _bAsset) external onlyGovernor {
-        Manager.negateIsolation(basket, bAssetPersonal, bAssetIndexes, _bAsset);
+        MassetManager.negateIsolation(data.basket, data.bAssetPersonal, bAssetIndexes, _bAsset);
     }
 
     /**
@@ -1094,7 +880,7 @@ contract MusdV3 is
      * @param _rampEndTime  Time at which A will arrive at _targetA
      */
     function startRampA(uint256 _targetA, uint256 _rampEndTime) external onlyGovernor {
-        Manager.startRampA(ampData, _targetA, _rampEndTime, _getA(), A_PRECISION);
+        MassetManager.startRampA(data.ampData, _targetA, _rampEndTime, _getA(), A_PRECISION);
     }
 
     /**
@@ -1102,6 +888,36 @@ contract MusdV3 is
      * it to whatever the current value is.
      */
     function stopRampA() external onlyGovernor {
-        Manager.stopRampA(ampData, _getA());
+        MassetManager.stopRampA(data.ampData, _getA());
+    }
+
+    /**
+     * @dev Mints deficit to SAVE if k > token supply
+     */
+    function mintDeficit() external returns (uint256 mintAmount) {
+        require(msg.sender == _governor() || msg.sender == _proxyAdmin(), "Gov or ProxyAdmin");
+
+        InvariantConfig memory config = _getConfig();
+        (, uint256 k) = MassetLogic.computePrice(data.bAssetData, config);
+        require(k > config.supply, "No deficit");
+        mintAmount = k - config.supply;
+        data.surplus += mintAmount;
+
+        emit DeficitMinted(mintAmount);
+    }
+
+    /**
+     * @dev Burns surplus if token supply > k
+     */
+    function burnSurplus() external returns (uint256 burnAmount) {
+        InvariantConfig memory config = _getConfig();
+        (, uint256 k) = MassetLogic.computePrice(data.bAssetData, config);
+        require(config.supply > k, "No surplus");
+        burnAmount = config.supply - k;
+        // Transfer to ensure approval has been given
+        transferFrom(msg.sender, address(this), burnAmount);
+
+        _burn(address(this), burnAmount);
+        emit SurplusBurned(msg.sender, burnAmount);
     }
 }

@@ -3,18 +3,18 @@ pragma solidity 0.8.2;
 pragma abicoder v2;
 
 // Internal
-import { Initializable } from "../shared/@openzeppelin-2.5/Initializable.sol";
-import { InitializableToken, IERC20 } from "../shared/InitializableToken.sol";
-import { ImmutableModule } from "../shared/ImmutableModule.sol";
-import { InitializableReentrancyGuard } from "../shared/InitializableReentrancyGuard.sol";
-import { IMasset } from "../interfaces/IMasset.sol";
-import "./MassetStructs.sol";
+import { Initializable } from "../../shared/@openzeppelin-2.5/Initializable.sol";
+import { InitializableToken, IERC20 } from "../../shared/InitializableToken.sol";
+import { ImmutableModule } from "../../shared/ImmutableModule.sol";
+import { InitializableReentrancyGuard } from "../../shared/InitializableReentrancyGuard.sol";
+import { IMasset } from "../../interfaces/IMasset.sol";
+import "../MassetStructs.sol";
 
 // Libs
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { StableMath } from "../shared/StableMath.sol";
-import { MassetLogic } from "./MassetLogic.sol";
-import { MassetManager } from "./MassetManager.sol";
+import { StableMath } from "../../shared/StableMath.sol";
+import { MassetLogic } from "../MassetLogic.sol";
+import { MassetManager } from "../MassetManager.sol";
 
 /**
  * @title   Masset
@@ -26,7 +26,7 @@ import { MassetManager } from "./MassetManager.sol";
  * @dev     VERSION: 3.0
  *          DATE:    2021-01-22
  */
-contract Masset is
+contract MV2 is
     IMasset,
     Initializable,
     InitializableToken,
@@ -82,13 +82,36 @@ contract Masset is
     event ForgeValidatorChanged(address forgeValidator);
     event DeficitMinted(uint256 amt);
     event SurplusBurned(address creditor, uint256 amt);
+    // Release 1.0 VARS
+    address public deprecated_forgeValidator;
+    bool private deprecated_forgeValidatorLocked;
+    // Deprecated - maintain for storage layout in mUSD
+    address private deprecated_basketManager;
 
-    // Amplification Data
-    uint256 private constant MAX_FEE = 1e16;
-    uint256 private constant A_PRECISION = 100;
-    uint256 private immutable RECOL_FEE;
-    // Core data storage
+    // Basic redemption fee information
+    uint256 public deprecated_swapFee;
+    uint256 private MAX_FEE;
+
+    // Release 1.1 VARS
+    uint256 public deprecated_redemptionFee;
+
+    // Release 1.2 VARS
+    uint256 public deprecated_cacheSize;
+    uint256 public deprecated_surplus;
+
+    // Release 2.0 VARS
+    // Struct holding Basket details
+    BassetPersonal[] public deprecated_bAssetPersonal;
+    BassetData[] public deprecated_bAssetData;
     mapping(address => uint8) public override bAssetIndexes;
+    uint8 public deprecated_maxBassets;
+    BasketState public deprecated_basket;
+    // Amplification Data
+    uint256 private constant A_PRECISION = 100;
+    AmpData public deprecated_ampData;
+    WeightLimits public deprecated_weightLimits;
+    // Core data storage
+    uint256 private immutable RECOL_FEE;
     MassetData public data;
 
     /**
@@ -882,9 +905,10 @@ contract Masset is
         (, uint256 k) = MassetLogic.computePrice(data.bAssetData, config);
         require(config.supply > k, "No surplus");
         burnAmount = config.supply - k;
+        // Transfer to ensure approval has been given
+        transferFrom(msg.sender, address(this), burnAmount);
 
-        _burn(msg.sender, burnAmount);
-
+        _burn(address(this), burnAmount);
         emit SurplusBurned(msg.sender, burnAmount);
     }
 }

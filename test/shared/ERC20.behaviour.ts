@@ -239,10 +239,11 @@ export function shouldBehaveLikeERC20(ctx: IERC20BehaviourContext, errorPrefix: 
                         })
 
                         it("emits an approval event", async () => {
+                            const beforeAllowance = await ctx.token.allowance(spender.address, to.address)
                             const tx = ctx.token.connect(spender.signer).approve(to.address, amount)
                             await expect(tx)
                                 .to.emit(ctx.token, "Approval")
-                                .withArgs(spender.address, to.address, await ctx.token.allowance(spender.address, to.address))
+                                .withArgs(spender.address, to.address, beforeAllowance.add(amount))
                         })
                     })
 

@@ -3,7 +3,7 @@ import "tsconfig-paths/register"
 import { task, types } from "hardhat/config"
 import { Signer } from "ethers"
 
-import { Masset, ExposedInvariantValidator__factory, Masset__factory } from "types/generated"
+import { Masset, Masset__factory } from "types/generated"
 import { BN } from "@utils/math"
 import { dumpBassetStorage, dumpConfigStorage, dumpTokenStorage } from "./utils/storage-utils"
 import {
@@ -44,11 +44,7 @@ const getBalances = async (mAsset: Masset, toBlock: number): Promise<Balances> =
     const balancerETHmUSD5050Balance = await mAsset.balanceOf("0xe036cce08cf4e23d33bc6b18e53caf532afa8513", {
         blockTag: toBlock,
     })
-    const otherBalances = mAssetBalance
-        .sub(savingBalance)
-        .sub(curveMusdBalance)
-        .sub(mStableDAOBalance)
-        .sub(balancerETHmUSD5050Balance)
+    const otherBalances = mAssetBalance.sub(savingBalance).sub(curveMusdBalance).sub(mStableDAOBalance).sub(balancerETHmUSD5050Balance)
 
     console.log("\nmUSD Holders")
     console.log(`imUSD                      ${usdFormatter(savingBalance)} ${savingBalance.mul(100).div(mAssetBalance)}%`)
@@ -59,7 +55,7 @@ const getBalances = async (mAsset: Masset, toBlock: number): Promise<Balances> =
     )
     console.log(`Others                     ${usdFormatter(otherBalances)} ${otherBalances.mul(100).div(mAssetBalance)}%`)
 
-    const surplus = await mAsset.surplus({
+    const { surplus } = await mAsset.data({
         blockTag: toBlock,
     })
     console.log(`Surplus                    ${usdFormatter(surplus)}`)
@@ -98,7 +94,16 @@ task("mUSD-snap", "Snaps mUSD")
         let exposedValidator
         if (network.name !== "mainnet") {
             console.log("Not mainnet")
-            exposedValidator = await new ExposedInvariantValidator__factory(signer).deploy()
+
+            const LogicFactory = await ethers.getContractFactory("MassetLogic")
+            const logicLib = await LogicFactory.deploy()
+            const linkedAddress = {
+                libraries: {
+                    MassetLogic: logicLib.address,
+                },
+            }
+            const massetFactory = await ethers.getContractFactory("ExposedMassetLogic", linkedAddress)
+            exposedValidator = await massetFactory.deploy()
         }
 
         const mAsset = getMasset(signer)

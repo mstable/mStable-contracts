@@ -96,6 +96,8 @@ abstract contract IMasset {
 
     function bAssetIndexes(address) external view virtual returns (uint8);
 
+    function getPrice() external view virtual returns (uint256 price, uint256 k);
+
     // SavingsManager
     function collectInterest() external virtual returns (uint256 swapFeesGained, uint256 newSupply);
 
@@ -107,13 +109,9 @@ abstract contract IMasset {
     // Admin
     function setCacheSize(uint256 _cacheSize) external virtual;
 
-    function upgradeForgeValidator(address _newForgeValidator) external virtual;
-
     function setFees(uint256 _swapFee, uint256 _redemptionFee) external virtual;
 
     function setTransferFeesFlag(address _bAsset, bool _flag) external virtual;
 
     function migrateBassets(address[] calldata _bAssets, address _newIntegration) external virtual;
 }
-
-abstract contract Deprecated_BasketManager {}

@@ -85,4 +85,12 @@ abstract contract ImmutableModule is ModuleKeys {
     function _liquidator() internal view returns (address) {
         return nexus.getModule(KEY_LIQUIDATOR);
     }
+
+    /**
+     * @dev Return ProxyAdmin Module address from the Nexus
+     * @return Address of the ProxyAdmin Module contract
+     */
+    function _proxyAdmin() internal view returns (address) {
+        return nexus.getModule(KEY_PROXY_ADMIN);
+    }
 }

@@ -185,10 +185,7 @@ describe("Liquidator", () => {
         describe("triggering a liquidation", () => {
             it("should sell COMP for bAsset and deposit to SavingsManager", async () => {
                 const before = await snapshotData()
-                await compIntegration
-                    .connect(sa.governor.signer)
-                    .connect(sa.governor.signer)
-                    .approveRewardToken()
+                await compIntegration.connect(sa.governor.signer).connect(sa.governor.signer).approveRewardToken()
                 await liquidator.triggerLiquidation(compIntegration.address)
                 const after = await snapshotData()
                 expect(after.savingsManagerBal).gt(before.savingsManagerBal as any)
@@ -348,9 +345,7 @@ describe("Liquidator", () => {
                         simpleToExactAmount(123, 18),
                         simpleToExactAmount(70, 18),
                     )
-                await expect(tx)
-                    .to.emit(liquidator, "LiquidationModified")
-                    .withArgs(compIntegration.address)
+                await expect(tx).to.emit(liquidator, "LiquidationModified").withArgs(compIntegration.address)
                 const liquidation = await getLiquidation(compIntegration.address)
                 expect(liquidation.sellToken).eq(compToken.address)
                 expect(liquidation.bAsset).eq(bAsset2.address)
@@ -367,9 +362,7 @@ describe("Liquidator", () => {
             it("should delete the liquidation", async () => {
                 // update uniswap path, bAsset, tranch amount
                 const tx = liquidator.connect(sa.governor.signer).deleteLiquidation(compIntegration.address)
-                await expect(tx)
-                    .to.emit(liquidator, "LiquidationEnded")
-                    .withArgs(compIntegration.address)
+                await expect(tx).to.emit(liquidator, "LiquidationEnded").withArgs(compIntegration.address)
                 const oldLiq = await getLiquidation(compIntegration.address)
                 expect(oldLiq.bAsset).eq("0x0000000000000000000000000000000000000000")
                 expect(oldLiq.curvePosition).eq(BN.from(0))

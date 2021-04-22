@@ -122,7 +122,7 @@ contract FeederPool is
         BassetPersonal calldata _mAsset,
         BassetPersonal calldata _fAsset,
         address[] calldata _mpAssets,
-        InvariantConfig memory _config
+        BasicConfig memory _config
     ) public initializer {
         InitializableToken._initialize(_nameArg, _symbolArg);
 

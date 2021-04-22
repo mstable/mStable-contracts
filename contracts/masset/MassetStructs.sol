@@ -38,7 +38,20 @@ struct BasketState {
     bool failed;
 }
 
+struct FeederConfig {
+    uint256 supply;
+    uint256 a;
+    WeightLimits limits;
+}
+
 struct InvariantConfig {
+    uint256 supply;
+    uint256 a;
+    WeightLimits limits;
+    uint256 recolFee;
+}
+
+struct BasicConfig {
     uint256 a;
     WeightLimits limits;
 }
@@ -46,12 +59,6 @@ struct InvariantConfig {
 struct WeightLimits {
     uint128 min;
     uint128 max;
-}
-
-struct FeederConfig {
-    uint256 supply;
-    uint256 a;
-    WeightLimits limits;
 }
 
 struct AmpData {
@@ -69,6 +76,18 @@ struct FeederData {
     uint256 cacheSize;
     BassetPersonal[] bAssetPersonal;
     BassetData[] bAssetData;
+    AmpData ampData;
+    WeightLimits weightLimits;
+}
+
+struct MassetData {
+    uint256 swapFee;
+    uint256 redemptionFee;
+    uint256 cacheSize;
+    uint256 surplus;
+    BassetPersonal[] bAssetPersonal;
+    BassetData[] bAssetData;
+    BasketState basket;
     AmpData ampData;
     WeightLimits weightLimits;
 }

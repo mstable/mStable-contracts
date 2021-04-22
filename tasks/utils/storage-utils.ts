@@ -25,8 +25,8 @@ export const dumpBassetStorage = async (mAsset: Masset, toBlock: number): Promis
         console.log(` Integration:`, bAssets.personal[i].integrator.toString())
         console.log(` Tx fee     :`, bAssets.personal[i].hasTxFee.toString())
         console.log(` Status     :`, bAssets.personal[i].status.toString())
-        console.log(` Ratio      :`, bAssets.data[i].ratio.toString())
-        console.log(` Vault      :`, bAssets.data[i].vaultBalance.toString())
+        console.log(` Ratio      :`, bAssets.bData[i].ratio.toString())
+        console.log(` Vault      :`, bAssets.bData[i].vaultBalance.toString())
         console.log("\n")
     })
 
@@ -44,7 +44,7 @@ export const dumpBassetStorage = async (mAsset: Masset, toBlock: number): Promis
     console.log("RedemptionFee  : ", (await mAsset.redemptionFee(override)).toString())
     // console.log("GovFee: ", (await mAsset.redemptionFee(override)).toString())
 
-    console.log("Surplus        : ", (await mAsset.surplus(override)).toString())
+    console.log("Surplus        : ", (await mAsset.data(override)).surplus.toString())
 }
 
 // Get fAsset storage variables

@@ -8,11 +8,11 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-import { IMassetV2 } from "./IMassetV2.sol";
+import { IMassetV1 } from "./IMassetV1.sol";
 import { DyDxFlashLoan } from "../../../peripheral/dydx/DyDxFlashLoan.sol";
 import { ICurve } from "../../../peripheral/Curve/ICurve.sol";
 
- /**
+/**
  * @title   Contract to rebalance mUSD bAssets to new weights for the mUSD V3 upgrade.
  * @author  mStable
  * @notice  Either DAI or USDC is flash loaned from DyDx to swap for TUSD or USDT in mUSD.
@@ -21,12 +21,11 @@ import { ICurve } from "../../../peripheral/Curve/ICurve.sol";
  * @dev     VERSION: 1.0
  *          DATE:    2021-03-22
  */
-contract MusdV3Rebalance is DyDxFlashLoan, Ownable {
-
+contract MusdV2Rebalance is DyDxFlashLoan, Ownable {
     using SafeERC20 for IERC20;
 
     // Contracts that are called to execute swaps
-    IMassetV2 constant mUsdV2 = IMassetV2(0xe2f2a5C287993345a840Db3B0845fbC70f5935a5);
+    IMassetV1 constant mUsdV1 = IMassetV1(0xe2f2a5C287993345a840Db3B0845fbC70f5935a5);
     ICurve constant curve3pool = ICurve(0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7);
     ICurve constant curveYpool = ICurve(0x45F783CCE6B7FF23B2ab2D70e416cdb7D6055f51);
     ICurve constant curveTUSDpool = ICurve(0xEcd5e75AFb02eFa118AF914515D6521aaBd189F1);
@@ -35,16 +34,35 @@ contract MusdV3Rebalance is DyDxFlashLoan, Ownable {
         address flashToken,
         uint256 flashLoanAmount,
         address funderAccount,
-        uint256 flashLoanShortfall);
+        uint256 flashLoanShortfall
+    );
 
     // Events from dependant contracts so Ethers can parse the topics
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
     // mUSD
-    event Swapped(address indexed swapper, address input, address output, uint256 outputAmount, address recipient);
+    event Swapped(
+        address indexed swapper,
+        address input,
+        address output,
+        uint256 outputAmount,
+        address recipient
+    );
     // Curve
-    event TokenExchange(address indexed buyer, int128 sold_id, uint256 tokens_sold, int128 bought_id, uint256 tokens_bought);
-    event TokenExchangeUnderlying(address indexed buyer, int128 sold_id, uint256 tokens_sold, int128 bought_id, uint256 tokens_bought);
+    event TokenExchange(
+        address indexed buyer,
+        int128 sold_id,
+        uint256 tokens_sold,
+        int128 bought_id,
+        uint256 tokens_bought
+    );
+    event TokenExchangeUnderlying(
+        address indexed buyer,
+        int128 sold_id,
+        uint256 tokens_sold,
+        int128 bought_id,
+        uint256 tokens_bought
+    );
 
     /***************************************
                 Swap (PUBLIC)
@@ -76,7 +94,7 @@ contract MusdV3Rebalance is DyDxFlashLoan, Ownable {
      */
     function swapOutTusdAndUsdt(
         address flashToken,
-        uint256 /*flashAmount*/,
+        uint256, /*flashAmount*/
         address funderAccount,
         uint256[] memory swapInputs
     ) external onlyOwner {
@@ -118,8 +136,12 @@ contract MusdV3Rebalance is DyDxFlashLoan, Ownable {
         Info calldata, /* accountInfo */
         bytes calldata data
     ) external onlyPool {
-        (address flashToken, uint256 balanceBefore, address funderAccount, uint256[] memory swapInputs) = abi
-            .decode(data, (address, uint256, address, uint256[]));
+        (
+            address flashToken,
+            uint256 balanceBefore,
+            address funderAccount,
+            uint256[] memory swapInputs
+        ) = abi.decode(data, (address, uint256, address, uint256[]));
         uint256 balanceAfter = IERC20(flashToken).balanceOf(address(this));
         require(
             balanceAfter - balanceBefore == swapInputs[0] + swapInputs[1],
@@ -155,26 +177,26 @@ contract MusdV3Rebalance is DyDxFlashLoan, Ownable {
         // Approve mUSD contract to transfer flash token from this contract
         // console.log("About to approve mUSD contract to transfer %s flash tokens >= %s %s", flashAmount, swapInputs[0], swapInputs[1]);
         require(flashAmount >= swapInputs[0] + swapInputs[1], "flash loan not >= swap inputs");
-        IERC20(flashToken).safeApprove(address(mUsdV2), flashAmount);
+        IERC20(flashToken).safeApprove(address(mUsdV1), flashAmount);
 
         // If swapping flash token into mUSD for TUSD
         if (swapInputs[0] > 0) {
             // Swap flash token for TUSD using mUSD
             // console.log("About to mUSD swap %s flash tokens for TUSD", swapInputs[0]);
-            uint256 tusdOutput = mUsdV2.swap(flashToken, TUSD, swapInputs[0], address(this));
+            uint256 tusdOutput = mUsdV1.swap(flashToken, TUSD, swapInputs[0], address(this));
             // console.log("tusdOutput %s", tusdOutput);
 
             uint256 halfTusdOutput = tusdOutput / 2;
 
             // Convert TUSD back to flash token to repay DyDx flash loan
 
-            // Curve Y pool 
+            // Curve Y pool
             // Approve Curve Y pool to transfer all TUSD from this contract
             IERC20(TUSD).safeApprove(address(curveYpool), halfTusdOutput);
 
             // Swap TUSD for flash token using Curve TUSD pool
-            uint256 minOutput = halfTusdOutput * 99 / 100;
-            int128 outputIndex = 0;  // DAI
+            uint256 minOutput = (halfTusdOutput * 99) / 100;
+            int128 outputIndex = 0; // DAI
             if (flashToken == USDC) {
                 outputIndex = 1;
                 // Converting from TUSD with 18 decimals to USDC with 6 decimals
@@ -184,13 +206,13 @@ contract MusdV3Rebalance is DyDxFlashLoan, Ownable {
             curveYpool.exchange_underlying(3, outputIndex, halfTusdOutput, minOutput);
             // console.log("Curve TUSD pool swap");
 
-            // Curve TUSD pool 
+            // Curve TUSD pool
             // Approve Curve TUSD pool to transfer all TUSD from this contract
             IERC20(TUSD).safeApprove(address(curveTUSDpool), halfTusdOutput);
 
             // Swap TUSD for flash token using Curve TUSD pool
-            minOutput = halfTusdOutput * 99 / 100;
-            outputIndex = 1;  // DAI
+            minOutput = (halfTusdOutput * 99) / 100;
+            outputIndex = 1; // DAI
             if (flashToken == USDC) {
                 outputIndex = 2;
                 // Converting from TUSD with 18 decimals to USDC with 6 decimals
@@ -205,7 +227,7 @@ contract MusdV3Rebalance is DyDxFlashLoan, Ownable {
         if (swapInputs[1] > 0) {
             // Swap flash token for USDT using mUSD
             // console.log("About to mUSD swap %s flash tokens for USDT", swapInputs[1]);
-            uint256 usdtOutput = mUsdV2.swap(flashToken, USDT, swapInputs[1], address(this));
+            uint256 usdtOutput = mUsdV1.swap(flashToken, USDT, swapInputs[1], address(this));
             // console.log("usdtOutput %s", usdtOutput);
 
             // Convert USDT for flash token using Curve 3pool
@@ -213,12 +235,12 @@ contract MusdV3Rebalance is DyDxFlashLoan, Ownable {
             IERC20(USDT).safeApprove(address(curve3pool), usdtOutput);
 
             // Swap USDT for flash token using Curve 3pool
-            uint256 minOutput = usdtOutput * 99 / 100;
-            int128 outputIndex = 1;  // USDC
+            uint256 minOutput = (usdtOutput * 99) / 100;
+            int128 outputIndex = 1; // USDC
             if (flashToken == DAI) {
                 outputIndex = 0;
                 // Converting from USDT with 6 decimals to DAI with 18 decimals
-                minOutput = minOutput * 99 / 100 * 1e12;
+                minOutput = ((minOutput * 99) / 100) * 1e12;
             }
             curve3pool.exchange(2, outputIndex, usdtOutput, minOutput);
             // console.log("Curve 3pool swap");
@@ -266,7 +288,7 @@ contract MusdV3Rebalance is DyDxFlashLoan, Ownable {
             IERC20(flashToken).safeTransferFrom(funderAccount, address(this), flashLoanShortfall);
             // console.log("shortfall has been repaid");
         }
-        
+
         emit FlashLoan(flashToken, flashAmount, funderAccount, flashLoanShortfall);
     }
 }

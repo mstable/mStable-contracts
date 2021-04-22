@@ -6,6 +6,7 @@ module.exports = {
         "shared/InitializableReentrancyGuard.sol",
         "integrations",
         "masset/peripheral",
+        "masset/versions",
         "peripheral",
         "savings/peripheral",
         "upgradability",

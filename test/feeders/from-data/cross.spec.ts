@@ -10,6 +10,7 @@ import {
     FeederLogic__factory,
     MockERC20,
     FeederManager__factory,
+    Masset,
 } from "types/generated"
 import { assertBNClose } from "@utils/assertions"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
@@ -26,13 +27,13 @@ const config = {
         max: simpleToExactAmount(80, 16),
     },
 }
-const massetA = 300
+const massetA = 120
 const maxAction = 100
 const feederFees = { swap: simpleToExactAmount(8, 14), redeem: simpleToExactAmount(6, 14), gov: simpleToExactAmount(1, 17) }
-const mAssetFees = { swap: simpleToExactAmount(4, 14), redeem: simpleToExactAmount(2, 14) }
+const mAssetFees = { swap: simpleToExactAmount(6, 14), redeem: simpleToExactAmount(3, 14) }
 
 const ratio = simpleToExactAmount(1, 8)
-const tolerance = BN.from(10)
+const tolerance = BN.from(20)
 const cv = (n: number | string): BN => BN.from(BigInt(n).toString())
 const getMPReserves = (data: any) =>
     [0, 1, 2, 3, 4, 5]
@@ -63,21 +64,21 @@ interface Data {
         vaultBalances: BN[]
     }
 }
-const getData = async (_feederPool: ExposedFeederPool, _mAsset: ExposedMasset): Promise<Data> => ({
+const getData = async (_feederPool: ExposedFeederPool, _mAsset: Masset | ExposedMasset): Promise<Data> => ({
     fp: {
         totalSupply: (await _feederPool.totalSupply()).add((await _feederPool.data()).pendingFees),
         vaultBalances: (await _feederPool.getBassets())[1].map((b) => b[1]),
         value: await _feederPool.getPrice(),
     },
     mAsset: {
-        totalSupply: (await _mAsset.totalSupply()).add(await _mAsset.surplus()),
+        totalSupply: (await _mAsset.getConfig()).supply, // gets the total supply plus any surplus
         vaultBalances: (await _mAsset.getBassets())[1].map((b) => b[1]),
     },
 })
 
 describe("Cross swap - One basket many tests", () => {
     let feederPool: ExposedFeederPool
-    let mAsset: ExposedMasset
+    let mAsset: Masset | ExposedMasset
     let sa: StandardAccounts
     let recipient: string
     let fpAssetAddresses: string[]

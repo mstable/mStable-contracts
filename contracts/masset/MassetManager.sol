@@ -25,7 +25,7 @@ import { MassetHelpers } from "../shared/MassetHelpers.sol";
  * @dev     VERSION: 1.0
  *          DATE:    2021-01-22
  */
-library Manager {
+library MassetManager {
     using SafeERC20 for IERC20;
     using StableMath for uint256;
 
@@ -45,7 +45,6 @@ library Manager {
      * @param _bAssetPersonal   Basset data storage array
      * @param _bAssetData       Basset data storage array
      * @param _bAssetIndexes    Mapping of bAsset address to their index
-     * @param _maxBassets       Max size of the basket
      * @param _bAsset           Address of the ERC20 token to add to the Basket
      * @param _integration      Address of the Platform Integration
      * @param _mm               Base 1e8 var to determine measurement ratio
@@ -55,7 +54,6 @@ library Manager {
         BassetPersonal[] storage _bAssetPersonal,
         BassetData[] storage _bAssetData,
         mapping(address => uint8) storage _bAssetIndexes,
-        uint8 _maxBassets,
         address _bAsset,
         address _integration,
         uint256 _mm,
@@ -63,7 +61,6 @@ library Manager {
     ) external {
         require(_bAsset != address(0), "bAsset address must be valid");
         uint8 bAssetCount = uint8(_bAssetPersonal.length);
-        require(bAssetCount < _maxBassets, "Max bAssets in Basket");
 
         uint8 idx = _bAssetIndexes[_bAsset];
         require(
@@ -106,20 +103,17 @@ library Manager {
      *      amount of mAsset and sending it over to the SavingsManager.
      * @param _bAssetPersonal   Basset personal storage array
      * @param _bAssetData       Basset data storage array
-     * @param _forgeValidator   Link to the current InvariantValidator
-     * @return mintAmount       Lending market interest collected
+     * @return indices          Array of bAsset idxs [0,1...]
      * @return rawGains         Raw increases in vault Balance
      */
     function collectPlatformInterest(
         BassetPersonal[] memory _bAssetPersonal,
-        BassetData[] storage _bAssetData,
-        IInvariantValidator _forgeValidator,
-        InvariantConfig memory _config
-    ) external returns (uint256 mintAmount, uint256[] memory rawGains) {
+        BassetData[] storage _bAssetData
+    ) external returns (uint8[] memory indices, uint256[] memory rawGains) {
         // Get basket details
         BassetData[] memory bAssetData_ = _bAssetData;
         uint256 count = bAssetData_.length;
-        uint8[] memory indices = new uint8[](count);
+        indices = new uint8[](count);
         rawGains = new uint256[](count);
         // 1. Calculate rawGains in each bAsset, in comparison to current vault balance
         for (uint256 i = 0; i < count; i++) {
@@ -144,7 +138,6 @@ library Manager {
                 rawGains[i] = 0;
             }
         }
-        mintAmount = _forgeValidator.computeMintMulti(bAssetData_, indices, rawGains, _config);
     }
 
     /**
@@ -374,126 +367,5 @@ library Manager {
     ) internal view returns (uint8 idx) {
         idx = _bAssetIndexes[_asset];
         require(_bAssetPersonal[idx].addr == _asset, "Invalid asset input");
-    }
-
-    /***************************************
-                    FORGING
-    ****************************************/
-
-    /**
-     * @dev Deposits a given asset to the system. If there is sufficient room for the asset
-     * in the cache, then just transfer, otherwise reset the cache to the desired mid level by
-     * depositing the delta in the platform
-     */
-    function depositTokens(
-        BassetPersonal memory _bAsset,
-        uint256 _bAssetRatio,
-        uint256 _quantity,
-        uint256 _maxCache
-    ) external returns (uint256 quantityDeposited) {
-        // 0. If integration is 0, short circuit
-        if (_bAsset.integrator == address(0)) {
-            (uint256 received, ) =
-                MassetHelpers.transferReturnBalance(
-                    msg.sender,
-                    address(this),
-                    _bAsset.addr,
-                    _quantity
-                );
-            return received;
-        }
-
-        // 1 - Send all to PI, using the opportunity to get the cache balance and net amount transferred
-        uint256 cacheBal;
-        (quantityDeposited, cacheBal) = MassetHelpers.transferReturnBalance(
-            msg.sender,
-            _bAsset.integrator,
-            _bAsset.addr,
-            _quantity
-        );
-
-        // 2 - Deposit X if necessary
-        // 2.1 - Deposit if xfer fees
-        if (_bAsset.hasTxFee) {
-            uint256 deposited =
-                IPlatformIntegration(_bAsset.integrator).deposit(
-                    _bAsset.addr,
-                    quantityDeposited,
-                    true
-                );
-
-            return StableMath.min(deposited, quantityDeposited);
-        }
-        // 2.2 - Else Deposit X if Cache > %
-        // This check is in place to ensure that any token with a txFee is rejected
-        require(quantityDeposited == _quantity, "Asset not fully transferred");
-
-        uint256 relativeMaxCache = _maxCache.divRatioPrecisely(_bAssetRatio);
-
-        if (cacheBal > relativeMaxCache) {
-            uint256 delta = cacheBal - (relativeMaxCache / 2);
-            IPlatformIntegration(_bAsset.integrator).deposit(_bAsset.addr, delta, false);
-        }
-    }
-
-    /**
-     * @dev Withdraws a given asset from its platformIntegration. If there is sufficient liquidity
-     * in the cache, then withdraw from there, otherwise withdraw from the lending market and reset the
-     * cache to the mid level.
-     */
-    function withdrawTokens(
-        uint256 _quantity,
-        BassetPersonal memory _personal,
-        BassetData memory _data,
-        address _recipient,
-        uint256 _maxCache
-    ) external {
-        if (_quantity == 0) return;
-
-        // 1.0 If there is no integrator, send from here
-        if (_personal.integrator == address(0)) {
-            IERC20(_personal.addr).safeTransfer(_recipient, _quantity);
-        }
-        // 1.1 If txFee then short circuit - there is no cache
-        else if (_personal.hasTxFee) {
-            IPlatformIntegration(_personal.integrator).withdraw(
-                _recipient,
-                _personal.addr,
-                _quantity,
-                _quantity,
-                true
-            );
-        }
-        // 1.2. Else, withdraw from either cache or main vault
-        else {
-            uint256 cacheBal = IERC20(_personal.addr).balanceOf(_personal.integrator);
-            // 2.1 - If balance b in cache, simply withdraw
-            if (cacheBal >= _quantity) {
-                IPlatformIntegration(_personal.integrator).withdrawRaw(
-                    _recipient,
-                    _personal.addr,
-                    _quantity
-                );
-            }
-            // 2.2 - Else reset the cache to X, or as far as possible
-            //       - Withdraw X+b from platform
-            //       - Send b to user
-            else {
-                uint256 relativeMidCache = _maxCache.divRatioPrecisely(_data.ratio) / 2;
-                uint256 totalWithdrawal =
-                    StableMath.min(
-                        relativeMidCache + _quantity - cacheBal,
-                        _data.vaultBalance - SafeCast.toUint128(cacheBal)
-                    );
-
-                IPlatformIntegration(_personal.integrator).withdraw(
-                    _recipient,
-                    _personal.addr,
-                    _quantity,
-                    totalWithdrawal,
-                    false
-                );
-            }
-        }
     }
 }

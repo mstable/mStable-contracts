@@ -18,7 +18,7 @@ interface Config {
     dao: string
     daoProxy: string
     nexus: string
-    balancer: string
+    balToken: string
 }
 
 task("deployRevenueRecipient", "Deploys an instance of revenue recipient contract").setAction(async (_, hre) => {
@@ -50,7 +50,7 @@ task("deployRevenueRecipient", "Deploys an instance of revenue recipient contrac
         dao: "0xF6FF1F7FCEB2cE6d26687EaaB5988b445d0b94a2",
         daoProxy: "0x7fFAF4ceD81E7c4E71b3531BD7948d7FA8f20329",
         nexus: "0xAFcE80b19A8cE13DEc0739a1aaB7A028d6845Eb3",
-        balancer: "0xba100000625a3754423978a60c9317c58a424e3d",
+        balToken: "0xba100000625a3754423978a60c9317c58a424e3D",
     }
 
     const poolRights = {
@@ -124,7 +124,7 @@ task("deployRevenueRecipient", "Deploys an instance of revenue recipient contrac
     const recipient = await new RevenueRecipient__factory(deployer).deploy(
         config.nexus,
         poolAddress,
-        config.balancer,
+        config.balToken,
         config.mAssets,
         config.minOuts,
     )

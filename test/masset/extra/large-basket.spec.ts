@@ -6,7 +6,7 @@ import { MassetDetails, MassetMachine, StandardAccounts } from "@utils/machines"
 
 import { DEAD_ADDRESS, ZERO_ADDRESS } from "@utils/constants"
 import { BasketComposition } from "types"
-import { InvariantValidator__factory, Masset__factory, AssetProxy__factory, ExposedMasset__factory } from "types/generated"
+import { Masset__factory, AssetProxy__factory, ExposedMasset__factory, MassetLogic, MassetManager, Masset } from "types/generated"
 import { assertBNClosePercent } from "@utils/assertions"
 
 describe("Many asset Masset", () => {
@@ -21,17 +21,25 @@ describe("Many asset Masset", () => {
         const btc4 = await mAssetMachine.loadBassetProxy("BTC4", "BTC4", 18)
         const btc5 = await mAssetMachine.loadBassetProxy("BTC5", "BTC5", 18)
         const bAssets = [renBtc, sbtc, wbtc, btc4, btc5]
-        const forgeVal = await new InvariantValidator__factory(sa.default.signer).deploy()
-        const Manager = await ethers.getContractFactory("Manager")
-        const managerLib = await Manager.deploy()
-        const linkedAddress = {
-            __$1a38b0db2bd175b310a9a3f8697d44eb75$__: managerLib.address,
-        }
-        const impl = await new Masset__factory(linkedAddress, sa.default.signer).deploy(DEAD_ADDRESS)
+
+        const LogicFactory = await ethers.getContractFactory("MassetLogic")
+        const logicLib = (await LogicFactory.deploy()) as MassetLogic
+
+        const ManagerFactory = await ethers.getContractFactory("MassetManager")
+        const managerLib = (await ManagerFactory.deploy()) as MassetManager
+
+        const factory = (
+            await ethers.getContractFactory("ExposedMasset", {
+                libraries: {
+                    MassetLogic: logicLib.address,
+                    MassetManager: managerLib.address,
+                },
+            })
+        ).connect(sa.default.signer)
+        const impl = await factory.deploy(DEAD_ADDRESS, simpleToExactAmount(5, 13))
         const data = impl.interface.encodeFunctionData("initialize", [
             "mStable BTC",
             "mBTC",
-            forgeVal.address,
             bAssets.map((b) => ({
                 addr: b.address,
                 integrator: ZERO_ADDRESS,
@@ -48,7 +56,7 @@ describe("Many asset Masset", () => {
         ])
         const mAsset = await new AssetProxy__factory(sa.default.signer).deploy(impl.address, DEAD_ADDRESS, data)
         details = {
-            mAsset: await new ExposedMasset__factory(linkedAddress, sa.default.signer).attach(mAsset.address),
+            mAsset: (await factory.attach(mAsset.address)) as Masset,
             bAssets,
         }
     }

@@ -28,7 +28,7 @@ describe("Feeder Admin", () => {
         feederWeights?: Array<BN | number>,
         mAssetWeights?: Array<BN | number>,
     ): Promise<void> => {
-        details = await feederMachine.deployFeeder(false, feederWeights, mAssetWeights, useLendingMarkets, useInterestValidator)
+        details = await feederMachine.deployFeeder(feederWeights, mAssetWeights, useLendingMarkets, useInterestValidator)
     }
 
     before("Init contract", async () => {
@@ -49,24 +49,23 @@ describe("Feeder Admin", () => {
             it("zero", async () => {
                 const tx = pool.setCacheSize(0)
                 await expect(tx).to.emit(pool, "CacheSizeChanged").withArgs(0)
-                const poolData = await pool.data()
-                expect(poolData.cacheSize).eq(0)
+                const { cacheSize } = await pool.data()
+                expect(cacheSize).eq(0)
             })
             it("1%", async () => {
-                let poolData = await pool.data()
-                const oldSize = poolData.cacheSize
+                const { cacheSize: oldSize } = await pool.data()
                 expect(oldSize).not.eq(newSize)
                 const tx = pool.setCacheSize(newSize)
                 await expect(tx).to.emit(pool, "CacheSizeChanged").withArgs(newSize)
-                poolData = await pool.data()
-                expect(poolData.cacheSize).eq(newSize)
+                const { cacheSize } = await pool.data()
+                expect(cacheSize).eq(newSize)
             })
             it("20% (cap limit)", async () => {
                 const capLimit = simpleToExactAmount(20, 16) // 20%
                 const tx = pool.setCacheSize(capLimit)
                 await expect(tx).to.emit(pool, "CacheSizeChanged").withArgs(capLimit)
-                const poolData = await pool.data()
-                expect(poolData.cacheSize).eq(capLimit)
+                const { cacheSize } = await pool.data()
+                expect(cacheSize).eq(capLimit)
             })
         })
         describe("should fail changing the cache size if", () => {
@@ -88,7 +87,7 @@ describe("Feeder Admin", () => {
         })
         describe("should change swap and redemption fees to", () => {
             it("0.5% and 0.25%", async () => {
-                let poolData = await pool.data()
+                const poolData = await pool.data()
                 const newSwapFee = simpleToExactAmount(0.5, 16)
                 const newRedemptionFee = simpleToExactAmount(0.25, 16)
                 const newGovFee = simpleToExactAmount(2, 17)
@@ -97,28 +96,28 @@ describe("Feeder Admin", () => {
                 expect(poolData.govFee).not.eq(newGovFee)
                 const tx = pool.setFees(newSwapFee, newRedemptionFee, newGovFee)
                 await expect(tx).to.emit(pool, "FeesChanged").withArgs(newSwapFee, newRedemptionFee, newGovFee)
-                poolData = await pool.data()
-                expect(poolData.swapFee).eq(newSwapFee)
-                expect(poolData.redemptionFee).eq(newRedemptionFee)
-                expect(poolData.govFee).eq(newGovFee)
+                const { swapFee, redemptionFee, govFee } = await pool.data()
+                expect(swapFee).eq(newSwapFee)
+                expect(redemptionFee).eq(newRedemptionFee)
+                expect(govFee).eq(newGovFee)
             })
             it("1% (limit)", async () => {
                 const newFee = simpleToExactAmount(1, 16)
                 const tx = pool.setFees(newFee, newFee, newFee)
                 await expect(tx).to.emit(pool, "FeesChanged").withArgs(newFee, newFee, newFee)
-                const poolData = await pool.data()
-                expect(poolData.swapFee).eq(newFee)
-                expect(poolData.redemptionFee).eq(newFee)
+                const { swapFee, redemptionFee } = await pool.data()
+                expect(swapFee).eq(newFee)
+                expect(redemptionFee).eq(newFee)
             })
             it("50% limit for gov fee", async () => {
                 const newFee = simpleToExactAmount(1, 15)
-                const govFee = simpleToExactAmount(5, 17)
-                const tx = pool.setFees(newFee, newFee, govFee)
-                await expect(tx).to.emit(pool, "FeesChanged").withArgs(newFee, newFee, govFee)
-                const poolData = await pool.data()
-                expect(poolData.swapFee).eq(newFee)
-                expect(poolData.redemptionFee).eq(newFee)
-                expect(poolData.govFee).eq(govFee)
+                const newGovFee = simpleToExactAmount(5, 17)
+                const tx = pool.setFees(newFee, newFee, newGovFee)
+                await expect(tx).to.emit(pool, "FeesChanged").withArgs(newFee, newFee, newGovFee)
+                const { swapFee, redemptionFee, govFee } = await pool.data()
+                expect(swapFee).eq(newFee)
+                expect(redemptionFee).eq(newFee)
+                expect(govFee).eq(newGovFee)
             })
         })
         describe("should fail to change swap fee rate when", () => {
@@ -227,7 +226,7 @@ describe("Feeder Admin", () => {
         })
         it("should succeed in starting increase over 2 weeks", async () => {
             const pool = details.pool.connect(sa.governor.signer)
-            const ampDataBefore = (await pool.data()).ampData
+            const { ampData: ampDataBefore } = await pool.data()
 
             // default values
             expect(ampDataBefore.initialA, "before initialA").to.eq(30000)
@@ -241,7 +240,7 @@ describe("Feeder Admin", () => {
             await expect(tx).to.emit(pool, "StartRampA").withArgs(30000, 40000, startTime.add(1), endTime)
 
             // after values
-            const ampDataAfter = (await pool.data()).ampData
+            const { ampData: ampDataAfter } = await pool.data()
             expect(ampDataAfter.initialA, "after initialA").to.eq(30000)
             expect(ampDataAfter.targetA, "after targetA").to.eq(40000)
             expect(ampDataAfter.rampStartTime, "after rampStartTime").to.eq(startTime.add(1))
@@ -323,7 +322,7 @@ describe("Feeder Admin", () => {
             })
             it("should increase target A 10x", async () => {
                 const { pool } = details
-                const ampDataBefore = (await details.pool.data()).ampData
+                const { ampData: ampDataBefore } = await details.pool.data()
                 expect(ampDataBefore.initialA, "before initialA").to.eq(currentA)
                 expect(ampDataBefore.targetA, "before targetA").to.eq(currentA)
 
@@ -331,13 +330,13 @@ describe("Feeder Admin", () => {
                 const tx = details.pool.connect(sa.governor.signer).startRampA(targetA, endTime)
                 await expect(tx).to.emit(pool, "StartRampA")
 
-                const ampDataAfter = (await details.pool.data()).ampData
+                const { ampData: ampDataAfter } = await details.pool.data()
                 expect(ampDataAfter.initialA, "after initialA").to.eq(currentA)
                 expect(ampDataAfter.targetA, "after targetA").to.eq(currentA.mul(10))
             })
             it("should decrease target A 10x", async () => {
                 const { pool } = details
-                const ampDataBefore = (await details.pool.data()).ampData
+                const { ampData: ampDataBefore } = await details.pool.data()
                 expect(ampDataBefore.initialA, "before initialA").to.eq(currentA)
                 expect(ampDataBefore.targetA, "before targetA").to.eq(currentA)
 
@@ -345,7 +344,7 @@ describe("Feeder Admin", () => {
                 const tx = details.pool.connect(sa.governor.signer).startRampA(targetA, endTime)
                 await expect(tx).to.emit(pool, "StartRampA")
 
-                const ampDataAfter = (await details.pool.data()).ampData
+                const { ampData: ampDataAfter } = await details.pool.data()
                 expect(ampDataAfter.initialA, "after initialA").to.eq(currentA)
                 expect(ampDataAfter.targetA, "after targetA").to.eq(currentA.div(10))
             })
@@ -498,7 +497,7 @@ describe("Feeder Admin", () => {
                 config = await details.pool.getConfig()
                 expect(config.a).to.eq(currentA)
 
-                const ampDataAfter = (await pool.data()).ampData
+                const { ampData: ampDataAfter } = await pool.data()
                 expect(ampDataAfter.initialA, "after initialA").to.eq(currentA)
                 expect(ampDataAfter.targetA, "after targetA").to.eq(currentA)
                 expect(ampDataAfter.rampStartTime.toNumber(), "after rampStartTime").to.within(
@@ -682,18 +681,18 @@ describe("Feeder Admin", () => {
                 const { interestValidator, pool, bAssets, mAsset } = details
                 // Accrue some fees for gov
                 await pool.redeem(bAssets[0].address, simpleToExactAmount(10), 0, sa.default.address)
-                const data = await pool.data()
-                expect(data.pendingFees).gt(simpleToExactAmount(1, 13))
-                const expectedOutput = await pool["getRedeemOutput(address,uint256)"](mAsset.address, data.pendingFees)
+                const { pendingFees: beforePendingFees } = await pool.data()
+                expect(beforePendingFees).gt(simpleToExactAmount(1, 13))
+                const expectedOutput = await pool["getRedeemOutput(address,uint256)"](mAsset.address, beforePendingFees)
                 // Get balance of SM
                 const balBefore = await mAsset.balanceOf(sa.mockSavingsManager.address)
 
                 const tx = interestValidator.connect(sa.governor.signer).collectGovFees([pool.address])
                 await expect(tx).to.emit(interestValidator, "GovFeeCollected").withArgs(pool.address, mAsset.address, expectedOutput)
                 await (await tx).wait()
-                const dataAfter = await pool.data()
+                const { pendingFees: afterPendingFees } = await pool.data()
                 const balAfter = await mAsset.balanceOf(sa.mockSavingsManager.address)
-                expect(dataAfter.pendingFees).lt(data.pendingFees)
+                expect(afterPendingFees).lt(beforePendingFees)
                 expect(balAfter).eq(balBefore.add(expectedOutput))
             })
             it("fails if given invalid fPool addr", async () => {

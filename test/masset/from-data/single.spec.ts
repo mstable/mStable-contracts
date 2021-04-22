@@ -1,3 +1,6 @@
+/* eslint-disable no-restricted-syntax */
+/* eslint-disable @typescript-eslint/no-loop-func */
+
 import { assertBNClose } from "@utils/assertions"
 import { DEAD_ADDRESS, fullScale, MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
@@ -6,16 +9,18 @@ import { mAssetData } from "@utils/validator-data"
 
 import { expect } from "chai"
 import { ethers } from "hardhat"
-import { InvariantValidator, InvariantValidator__factory, Masset, Masset__factory, MockERC20 } from "types/generated"
+import { Masset, Masset__factory, MockERC20, ExposedMassetLogic, MassetLogic, MassetManager } from "types/generated"
 
 const { mintData, mintMultiData, redeemData, redeemExactData, redeemMassetData, swapData } = mAssetData
 
-const config = {
+let config = {
+    supply: BN.from(0),
     a: BN.from(12000),
     limits: {
         min: simpleToExactAmount(5, 16),
         max: simpleToExactAmount(75, 16),
     },
+    recolFee: simpleToExactAmount(5, 13),
 }
 
 const ratio = simpleToExactAmount(1, 8)
@@ -33,22 +38,33 @@ const getReserves = (data: any) =>
 
 const runLongTests = process.env.LONG_TESTS === "true"
 
-describe("Invariant Validator - One basket one test", () => {
-    let validator: InvariantValidator
+describe("Feeder Logic - One basket one test", () => {
+    let validator: ExposedMassetLogic
     let sa: StandardAccounts
 
     before(async () => {
         const accounts = await ethers.getSigners()
         const mAssetMachine = await new MassetMachine().initAccounts(accounts)
         sa = mAssetMachine.sa
-        validator = await new InvariantValidator__factory(sa.default.signer).deploy()
+        const LogicFactory = await ethers.getContractFactory("MassetLogic")
+        const logicLib = await LogicFactory.deploy()
+        const linkedAddress = {
+            libraries: {
+                MassetLogic: logicLib.address,
+            },
+        }
+        const massetFactory = await ethers.getContractFactory("ExposedMassetLogic", linkedAddress)
+        validator = (await massetFactory.deploy()) as ExposedMassetLogic
     })
     describe("Compute Mint", () => {
         let count = 0
         const testMintData = runLongTests ? mintData : mintData.slice(0, 1)
         for (const testData of testMintData) {
             const reserves = getReserves(testData)
-
+            config = {
+                ...config,
+                supply: cv(testData.mAssetSupply),
+            }
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}, ${testData.reserve2}`, () => {
                 for (const testMint of testData.mints) {
                     if (testMint.hardLimitError) {
@@ -76,6 +92,10 @@ describe("Invariant Validator - One basket one test", () => {
         const testMultiMintData = runLongTests ? mintMultiData : mintMultiData.slice(0, 1)
         for (const testData of testMultiMintData) {
             const reserves = getReserves(testData)
+            config = {
+                ...config,
+                supply: cv(testData.mAssetSupply),
+            }
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}, ${testData.reserve2}`, () => {
                 for (const testMint of testData.mints) {
                     const qtys = testMint.bAssetQtys.map((b) => cv(b))
@@ -92,6 +112,10 @@ describe("Invariant Validator - One basket one test", () => {
         const testSwapData = runLongTests ? swapData : swapData.slice(0, 1)
         for (const testData of testSwapData) {
             const reserves = getReserves(testData)
+            config = {
+                ...config,
+                supply: cv(testData.mAssetSupply),
+            }
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}, ${testData.reserve2}`, () => {
                 for (const testSwap of testData.swaps) {
                     if (testSwap.hardLimitError) {
@@ -133,24 +157,30 @@ describe("Invariant Validator - One basket one test", () => {
         const testRedeemData = runLongTests ? redeemData : redeemData.slice(0, 1)
         for (const testData of testRedeemData) {
             const reserves = getReserves(testData)
+            config = {
+                ...config,
+                supply: cv(testData.mAssetSupply),
+            }
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}, ${testData.reserve2}`, () => {
                 for (const testRedeem of testData.redeems) {
                     // Deduct swap fee before performing redemption
-                    const netInput = cv(testRedeem.mAssetQty)
-                        .mul(fullScale.sub(swapFeeRate))
-                        .div(fullScale)
-
                     if (testRedeem.hardLimitError) {
                         it(`${(count += 1)} throws Max Weight error when redeeming ${testRedeem.mAssetQty} mAssets for bAsset ${
                             testRedeem.bAssetIndex
                         }`, async () => {
-                            await expect(validator.computeRedeem(reserves, testRedeem.bAssetIndex, netInput, config)).to.be.revertedWith(
-                                "Exceeds weight limits",
-                            )
+                            await expect(
+                                validator.computeRedeem(reserves, testRedeem.bAssetIndex, cv(testRedeem.mAssetQty), config, swapFeeRate),
+                            ).to.be.revertedWith("Exceeds weight limits")
                         })
                     } else {
                         it(`${(count += 1)} redeem ${testRedeem.mAssetQty} mAssets for bAsset ${testRedeem.bAssetIndex}`, async () => {
-                            const bAssetQty = await validator.computeRedeem(reserves, testRedeem.bAssetIndex, netInput, config)
+                            const [bAssetQty] = await validator.computeRedeem(
+                                reserves,
+                                testRedeem.bAssetIndex,
+                                cv(testRedeem.mAssetQty),
+                                config,
+                                swapFeeRate,
+                            )
                             assertBNClose(bAssetQty, cv(testRedeem.outputQty), 2)
                         })
                     }
@@ -163,27 +193,31 @@ describe("Invariant Validator - One basket one test", () => {
         const testRedeemExactData = runLongTests ? redeemExactData : redeemExactData.slice(0, 1)
         for (const testData of testRedeemExactData) {
             const reserves = getReserves(testData)
-
+            config = {
+                ...config,
+                supply: cv(testData.mAssetSupply),
+            }
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}, ${testData.reserve2}`, () => {
                 for (const testRedeem of testData.redeems) {
                     // Deduct swap fee after performing redemption
-                    const applyFee = (m: BN): BN => m.mul(fullScale).div(fullScale.sub(swapFeeRate))
                     const qtys = testRedeem.bAssetQtys.map((b) => cv(b))
 
                     if (testRedeem.insufficientLiquidityError) {
                         it(`${(count += 1)} throws throw insufficient liquidity error when redeeming ${qtys} bAssets`, async () => {
-                            await expect(validator.computeRedeemExact(reserves, [0, 1, 2], qtys, config)).to.be.revertedWith("VM Exception")
+                            await expect(validator.computeRedeemExact(reserves, [0, 1, 2], qtys, config, swapFeeRate)).to.be.revertedWith(
+                                "VM Exception",
+                            )
                         })
                     } else if (testRedeem.hardLimitError) {
                         it(`${(count += 1)} throws Max Weight error when redeeming ${qtys} bAssets`, async () => {
-                            await expect(validator.computeRedeemExact(reserves, [0, 1, 2], qtys, config)).to.be.revertedWith(
+                            await expect(validator.computeRedeemExact(reserves, [0, 1, 2], qtys, config, swapFeeRate)).to.be.revertedWith(
                                 "Exceeds weight limits",
                             )
                         })
                     } else {
                         it(`${(count += 1)} redeem ${qtys} bAssets`, async () => {
-                            const mAssetQty = await validator.computeRedeemExact(reserves, [0, 1, 2], qtys, config)
-                            assertBNClose(applyFee(mAssetQty), cv(testRedeem.mAssetQty), tolerance)
+                            const [mAssetQty] = await validator.computeRedeemExact(reserves, [0, 1, 2], qtys, config, swapFeeRate)
+                            assertBNClose(mAssetQty, cv(testRedeem.mAssetQty), tolerance)
                         })
                     }
                 }
@@ -217,26 +251,27 @@ describe("Invariant Validator - One basket one test", () => {
                     const wBTC = await mAssetMachine.loadBassetProxy("Wrapped BTC", "wBTC", 18)
                     bAssets = [renBTC, sBTC, wBTC]
                     bAssetAddresses = bAssets.map((b) => b.address)
-                    const forgeVal = await new InvariantValidator__factory(sa.default.signer).deploy()
-                    forgeValAddr = forgeVal.address
-                    const ManagerFactory = await ethers.getContractFactory("Manager")
-                    const managerLib = await ManagerFactory.deploy()
+                    const LogicFactory = await ethers.getContractFactory("MassetLogic")
+                    const logicLib = (await LogicFactory.deploy()) as MassetLogic
+
+                    const ManagerFactory = await ethers.getContractFactory("MassetManager")
+                    const managerLib = (await ManagerFactory.deploy()) as MassetManager
 
                     massetFactory = (
                         await ethers.getContractFactory("Masset", {
                             libraries: {
-                                Manager: managerLib.address,
+                                MassetLogic: logicLib.address,
+                                MassetManager: managerLib.address,
                             },
                         })
                     ).connect(sa.default.signer) as Masset__factory
                 })
 
                 beforeEach(async () => {
-                    mAsset = (await massetFactory.deploy(DEAD_ADDRESS)) as Masset
+                    mAsset = (await massetFactory.deploy(DEAD_ADDRESS, simpleToExactAmount(5, 13))) as Masset
                     await mAsset.initialize(
                         "mStable Asset",
                         "mAsset",
-                        forgeValAddr,
                         bAssets.map((b) => ({
                             addr: b.address,
                             integrator: ZERO_ADDRESS,

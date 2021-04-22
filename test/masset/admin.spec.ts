@@ -19,7 +19,7 @@ import { keccak256, toUtf8Bytes } from "ethers/lib/utils"
 import { BassetStatus } from "@utils/mstable-objects"
 import { getTimestamp, increaseTime } from "@utils/time"
 
-describe("Masset Admin", () => {
+describe("Feeder Admin", () => {
     let sa: StandardAccounts
     let mAssetMachine: MassetMachine
     let details: MassetDetails
@@ -33,10 +33,9 @@ describe("Masset Admin", () => {
         seedBasket = true,
         useTransferFees = false,
         useLendingMarkets = false,
-        useMockValidator = true,
         weights: number[] = [25, 25, 25, 25],
     ): Promise<void> => {
-        details = await mAssetMachine.deployMasset(useMockValidator, useLendingMarkets, useTransferFees)
+        details = await mAssetMachine.deployMasset(useLendingMarkets, useTransferFees)
         if (seedBasket) {
             await mAssetMachine.seedWithWeightings(details, weights)
         }
@@ -61,20 +60,23 @@ describe("Masset Admin", () => {
             it("zero", async () => {
                 const tx = mAsset.setCacheSize(0)
                 await expect(tx).to.emit(mAsset, "CacheSizeChanged").withArgs(0)
-                expect(await mAsset.cacheSize()).eq(0)
+                const { cacheSize } = await mAsset.data()
+                expect(cacheSize).eq(0)
             })
             it("1%", async () => {
-                const oldSize = await mAsset.cacheSize()
+                const { cacheSize: oldSize } = await mAsset.data()
                 expect(oldSize).not.eq(newSize)
                 const tx = mAsset.setCacheSize(newSize)
                 await expect(tx).to.emit(mAsset, "CacheSizeChanged").withArgs(newSize)
-                expect(await mAsset.cacheSize()).eq(newSize)
+                const { cacheSize } = await mAsset.data()
+                expect(cacheSize).eq(newSize)
             })
             it("20% (cap limit)", async () => {
                 const capLimit = simpleToExactAmount(20, 16) // 20%
                 const tx = mAsset.setCacheSize(capLimit)
                 await expect(tx).to.emit(mAsset, "CacheSizeChanged").withArgs(capLimit)
-                expect(await mAsset.cacheSize()).eq(capLimit)
+                const { cacheSize } = await mAsset.data()
+                expect(cacheSize).eq(capLimit)
             })
         })
         describe("should fail changing the cache size if", () => {
@@ -96,54 +98,41 @@ describe("Masset Admin", () => {
                 await expect(mAsset.setCacheSize(MAX_UINT256)).to.be.revertedWith("Must be <= 20%")
             })
         })
-        it("should allow upgrade of the ForgeValidator by governor", async () => {
-            const otherAddress = sa.other.address
-            const tx = mAsset.upgradeForgeValidator(otherAddress)
-            await expect(tx).to.emit(mAsset, "ForgeValidatorChanged").withArgs(otherAddress)
-            expect(await mAsset.forgeValidator()).eq(otherAddress)
-        })
-        describe("should fail to upgrade the ForgeValidator if", () => {
-            it("not governor", async () => {
-                await expect(details.mAsset.upgradeForgeValidator(sa.dummy2.address)).to.be.revertedWith("Only governor can execute")
-            })
-            it("zero contract address", async () => {
-                await expect(mAsset.upgradeForgeValidator(ZERO_ADDRESS)).to.be.revertedWith("Null address")
-            })
-        })
         describe("should change swap and redemption fees to", () => {
             it("0.5% and 0.25%", async () => {
-                const oldSwapFee = await mAsset.swapFee()
-                const oldRedemptionFee = await mAsset.redemptionFee()
+                const { swapFee: oldSwapFee, redemptionFee: oldRedemptionFee } = await mAsset.data()
                 const newSwapFee = simpleToExactAmount(0.5, 16)
                 const newRedemptionFee = simpleToExactAmount(0.25, 16)
                 expect(oldSwapFee).not.eq(newSwapFee)
                 expect(oldRedemptionFee).not.eq(newRedemptionFee)
                 const tx = mAsset.setFees(newSwapFee, newRedemptionFee)
                 await expect(tx).to.emit(mAsset, "FeesChanged").withArgs(newSwapFee, newRedemptionFee)
-                expect(await mAsset.swapFee()).eq(newSwapFee)
-                expect(await mAsset.redemptionFee()).eq(newRedemptionFee)
+                const { swapFee, redemptionFee } = await mAsset.data()
+                expect(swapFee).eq(newSwapFee)
+                expect(redemptionFee).eq(newRedemptionFee)
             })
-            it("2% (limit)", async () => {
-                const newFee = simpleToExactAmount(2, 16)
+            it("1% (limit)", async () => {
+                const newFee = simpleToExactAmount(1, 16)
                 await mAsset.setFees(newFee, newFee)
                 const tx = mAsset.setFees(newFee, newFee)
                 await expect(tx).to.emit(mAsset, "FeesChanged").withArgs(newFee, newFee)
-                expect(await mAsset.swapFee()).eq(newFee)
-                expect(await mAsset.redemptionFee()).eq(newFee)
+                const { swapFee, redemptionFee } = await mAsset.data()
+                expect(swapFee).eq(newFee)
+                expect(redemptionFee).eq(newFee)
             })
         })
         describe("should fail to change swap fee rate when", () => {
             it("not governor", async () => {
-                const fee = simpleToExactAmount(2, 16)
+                const fee = simpleToExactAmount(1, 16)
                 await expect(details.mAsset.setFees(fee, fee)).to.be.revertedWith("Only governor can execute")
             })
-            it("Swap rate just exceeds 2% cap", async () => {
-                await expect(mAsset.setFees("20000000000000001", "20000000000000000")).to.be.revertedWith("Swap rate oob")
+            it("Swap rate just exceeds 1% cap", async () => {
+                await expect(mAsset.setFees("10000000000000001", "10000000000000000")).to.be.revertedWith("Swap rate oob")
             })
-            it("Redemption rate just exceeds 2% cap", async () => {
-                await expect(mAsset.setFees("20000000000000000", "20000000000000001")).to.be.revertedWith("Redemption rate oob")
+            it("Redemption rate just exceeds 1% cap", async () => {
+                await expect(mAsset.setFees("10000000000000000", "10000000000000001")).to.be.revertedWith("Redemption rate oob")
             })
-            it("3% rate exceeds 2% cap", async () => {
+            it("3% rate exceeds 1% cap", async () => {
                 const fee = simpleToExactAmount(3, 16) // 3%
                 await expect(mAsset.setFees(fee, fee)).to.be.revertedWith("Swap rate oob")
             })
@@ -152,49 +141,14 @@ describe("Masset Admin", () => {
                 await expect(mAsset.setFees(fee, fee)).to.be.revertedWith("Swap rate oob")
             })
         })
-        describe("should set transfer fee flag", async () => {
-            it("when no integration balance", async () => {
-                let personalData = await mAsset.bAssetPersonal(3)
-                expect(personalData.hasTxFee).to.be.false
-
-                const tx = mAsset.connect(sa.governor.signer).setTransferFeesFlag(personalData.addr, true)
-                await expect(tx).to.emit(details.wrappedManagerLib, "TransferFeeEnabled").withArgs(personalData.addr, true)
-                personalData = await mAsset.bAssetPersonal(3)
-                expect(personalData.hasTxFee).to.be.true
-
-                // restore the flag back to false
-                const tx2 = mAsset.connect(sa.governor.signer).setTransferFeesFlag(personalData.addr, false)
-                await expect(tx2).to.emit(details.wrappedManagerLib, "TransferFeeEnabled").withArgs(personalData.addr, false)
-                await tx2
-                personalData = await mAsset.bAssetPersonal(3)
-                expect(personalData.hasTxFee).to.be.false
-            })
-            it("when an integration balance", async () => {
-                await runSetup(true, false, true)
-
-                const personalData = await details.mAsset.bAssetPersonal(2)
-                expect(personalData.hasTxFee).to.be.false
-
-                const tx = details.mAsset.connect(sa.governor.signer).setTransferFeesFlag(personalData.addr, true)
-                await expect(tx).to.emit(details.wrappedManagerLib, "TransferFeeEnabled").withArgs(personalData.addr, true)
-                const personalDataAfter = await details.mAsset.bAssetPersonal(2)
-                expect(personalDataAfter.hasTxFee).to.be.true
-
-                // restore the flag back to false
-                const tx2 = details.mAsset.connect(sa.governor.signer).setTransferFeesFlag(personalData.addr, false)
-                await expect(tx2).to.emit(details.wrappedManagerLib, "TransferFeeEnabled").withArgs(personalData.addr, false)
-                const personalDataAfterRestore = await details.mAsset.bAssetPersonal(2)
-                expect(personalDataAfterRestore.hasTxFee).to.be.false
-            })
-        })
         it("should set max weight", async () => {
-            const beforeWeightLimits = await mAsset.weightLimits()
+            const { weightLimits: beforeWeightLimits } = await mAsset.data()
             const newMinWeight = simpleToExactAmount(1, 16)
             const newMaxWeight = simpleToExactAmount(334, 15)
             const tx = mAsset.setWeightLimits(newMinWeight, newMaxWeight)
             await expect(tx, "WeightLimitsChanged event").to.emit(mAsset, "WeightLimitsChanged").withArgs(newMinWeight, newMaxWeight)
             await tx
-            const afterWeightLimits = await mAsset.weightLimits()
+            const { weightLimits: afterWeightLimits } = await mAsset.data()
             expect(afterWeightLimits.min, "before and after min weight not equal").not.to.eq(beforeWeightLimits.min)
             expect(afterWeightLimits.max, "before and after max weight not equal").not.to.eq(beforeWeightLimits.max)
             expect(afterWeightLimits.min, "min weight set").to.eq(newMinWeight)
@@ -220,6 +174,44 @@ describe("Masset Admin", () => {
                 await expect(mAsset.setWeightLimits(simpleToExactAmount(14, 16), newMaxWeight)).to.revertedWith("Min weight oob")
             })
         })
+        describe("should set transfer fee flag", async () => {
+            before(async () => {
+                await runSetup(true, false, true)
+            })
+            it("when no integration balance", async () => {
+                const { personal } = await details.mAsset.getBasset(details.bAssets[3].address)
+                expect(personal.hasTxFee).to.be.false
+
+                const tx = details.mAsset.connect(sa.governor.signer).setTransferFeesFlag(personal.addr, true)
+                await expect(tx).to.emit(details.wrappedManagerLib, "TransferFeeEnabled").withArgs(personal.addr, true)
+                const { personal: after } = await details.mAsset.getBasset(details.bAssets[3].address)
+                expect(after.hasTxFee).to.be.true
+
+                // restore the flag back to false
+                const tx2 = details.mAsset.connect(sa.governor.signer).setTransferFeesFlag(personal.addr, false)
+                await expect(tx2).to.emit(details.wrappedManagerLib, "TransferFeeEnabled").withArgs(personal.addr, false)
+                await tx2
+                const { personal: end } = await details.mAsset.getBasset(details.bAssets[3].address)
+                expect(end.hasTxFee).to.be.false
+            })
+            it("when an integration balance", async () => {
+                const { personal } = await details.mAsset.getBasset(details.bAssets[2].address)
+                expect(personal.hasTxFee).to.be.false
+
+                const tx = details.mAsset.connect(sa.governor.signer).setTransferFeesFlag(personal.addr, true)
+                await expect(tx).to.emit(details.wrappedManagerLib, "TransferFeeEnabled").withArgs(personal.addr, true)
+
+                const { personal: after } = await details.mAsset.getBasset(details.bAssets[2].address)
+                expect(after.hasTxFee).to.be.true
+
+                // restore the flag back to false
+                const tx2 = details.mAsset.connect(sa.governor.signer).setTransferFeesFlag(personal.addr, false)
+                await expect(tx2).to.emit(details.wrappedManagerLib, "TransferFeeEnabled").withArgs(personal.addr, false)
+
+                const { personal: end } = await details.mAsset.getBasset(details.bAssets[2].address)
+                expect(end.hasTxFee).to.be.false
+            })
+        })
     })
     context("getters without setters", () => {
         before("init basset", async () => {
@@ -229,8 +221,9 @@ describe("Masset Admin", () => {
             const { mAsset } = details
             const config = await mAsset.getConfig()
             expect(config.limits.min, "minWeight").to.eq(simpleToExactAmount(5, 16))
-            expect(config.limits.max, "maxWeight").to.eq(simpleToExactAmount(55, 16))
+            expect(config.limits.max, "maxWeight").to.eq(simpleToExactAmount(65, 16))
             expect(config.a, "a value").to.eq(10000)
+            expect(config.recolFee, "a value").to.eq(simpleToExactAmount(5, 13))
         })
         it("should get bAsset", async () => {
             const { mAsset, bAssets } = details
@@ -248,9 +241,9 @@ describe("Masset Admin", () => {
         })
     })
     context("collecting interest", async () => {
-        const unbalancedWeights = [0, 1, 200, 300]
+        const unbalancedWeights = [50, 50, 200, 300]
         beforeEach("init basset with vaults", async () => {
-            await runSetup(true, false, true, true, unbalancedWeights)
+            await runSetup(true, false, true, unbalancedWeights)
             // 1.0 Simulate some activity on the lending markets
             // Fast forward a bit so platform interest can be collected
             await increaseTime(TEN_MINS.toNumber())
@@ -259,7 +252,8 @@ describe("Masset Admin", () => {
             const { mAsset } = details
 
             // 1.0 Get all balances and data before
-            expect(await mAsset.surplus()).to.eq(0)
+            const { surplus } = await mAsset.data()
+            expect(surplus).to.eq(0)
             const totalSupplyBefore = await mAsset.totalSupply()
 
             // 2.0 Static call collectInterest to validate the return values
@@ -272,7 +266,8 @@ describe("Masset Admin", () => {
             await expect(tx).to.not.emit(mAsset, "MintedMulti")
 
             // 4.0 Check outputs
-            expect(await mAsset.surplus()).to.eq(0)
+            const { surplus: after } = await mAsset.data()
+            expect(after).to.eq(0)
         })
         it("should collect interest after fees generated from swap", async () => {
             const { bAssets, mAsset } = details
@@ -283,7 +278,7 @@ describe("Masset Admin", () => {
             await mAsset.swap(bAssets[3].address, bAssets[2].address, simpleToExactAmount(20, 18), 0, sa.dummy1.address)
 
             // 2.0 Get all balances and data before
-            const surplus = await mAsset.surplus()
+            const { surplus } = await mAsset.data()
             const mAssetBalBefore = await mAsset.balanceOf(sa.mockSavingsManager.address)
             const totalSupplyBefore = await mAsset.totalSupply()
 
@@ -306,7 +301,8 @@ describe("Masset Admin", () => {
             await tx
 
             // 7.0 Check outputs
-            expect(await mAsset.surplus(), "after surplus").to.eq(1)
+            const { surplus: surplusEnd } = await mAsset.data()
+            expect(surplusEnd, "after surplus").to.eq(1)
             expect(await mAsset.balanceOf(sa.mockSavingsManager.address), "after Saving Manager balance").eq(
                 mAssetBalBefore.add(surplus).sub(1),
             )
@@ -356,7 +352,6 @@ describe("Masset Admin", () => {
                     expect(b.vaultBalance, `balance of bAsset[${i}] not increased`).gt(bassetsBefore[i].vaultBalance)
                 }
             })
-            const sumOfVaultsAfter = bassetsAfter.reduce((p, c) => p.add(applyRatio(c.vaultBalance, c.ratio)), BN.from(0))
             const totalSupplyAfter = await details.mAsset.totalSupply()
             expect(newSupply).to.eq(totalSupplyAfter)
 
@@ -365,7 +360,6 @@ describe("Masset Admin", () => {
             assertBNSlightlyGTPercent(totalSupplyAfter, totalSupplyBefore, "0.01", true)
             // 6.2 check that increase in vault balance is equivalent to total balance
             const increasedTotalSupply = totalSupplyAfter.sub(totalSupplyBefore)
-            expect(increasedTotalSupply, "increasedTotalSupply").eq(sumOfVaultsAfter.sub(sumOfVaultsBefore))
             expect(mintAmount).to.eq(increasedTotalSupply)
             // 6.3 Ensure that the SavingsManager received the mAsset
             expect(mAssetBalAfter, "mAssetBalAfter").eq(mAssetBalBefore.add(increasedTotalSupply))
@@ -393,7 +387,7 @@ describe("Masset Admin", () => {
         let maliciousIntegration: MaliciousAaveIntegration
         let transferringAsset: MockERC20
         beforeEach(async () => {
-            await runSetup(false, false, true, true)
+            await runSetup(false, false, true)
             ;[, , , transferringAsset] = details.bAssets
             newMigration = await (await new MockPlatformIntegration__factory(sa.default.signer)).deploy(
                 DEAD_ADDRESS,
@@ -497,7 +491,7 @@ describe("Masset Admin", () => {
         let newMigration: MockPlatformIntegration
         let transferringAsset: MockERC20
         before(async () => {
-            await runSetup(true, false, false, true)
+            await runSetup(true, false, false)
             const lendingDetail = await mAssetMachine.loadATokens(details.bAssets)
             ;[, , , transferringAsset] = details.bAssets
             newMigration = await (await new MockPlatformIntegration__factory(sa.default.signer)).deploy(
@@ -619,7 +613,7 @@ describe("Masset Admin", () => {
         })
         it("should succeed in starting increase over 2 weeks", async () => {
             const mAsset = details.mAsset.connect(sa.governor.signer)
-            const ampDataBefore = await mAsset.ampData()
+            const { ampData: ampDataBefore } = await mAsset.data()
 
             // default values
             expect(ampDataBefore.initialA, "before initialA").to.eq(10000)
@@ -633,7 +627,7 @@ describe("Masset Admin", () => {
             await expect(tx).to.emit(details.wrappedManagerLib, "StartRampA").withArgs(10000, 12000, startTime.add(1), endTime)
 
             // after values
-            const ampDataAfter = await mAsset.ampData()
+            const { ampData: ampDataAfter } = await mAsset.data()
             expect(ampDataAfter.initialA, "after initialA").to.eq(10000)
             expect(ampDataAfter.targetA, "after targetA").to.eq(12000)
             expect(ampDataAfter.rampStartTime, "after rampStartTime").to.eq(startTime.add(1))
@@ -714,18 +708,18 @@ describe("Masset Admin", () => {
                 // target = current * 10 / 100
                 // the 100 is the precision
                 const targetA = currentA.div(10)
-                details.mAsset.connect(sa.governor.signer).startRampA(targetA, endTime)
+                await details.mAsset.connect(sa.governor.signer).startRampA(targetA, endTime)
 
-                const ampDataAfter = await details.mAsset.ampData()
+                const { ampData: ampDataAfter } = await details.mAsset.data()
                 expect(ampDataAfter.targetA, "after targetA").to.eq(targetA.mul(100))
             })
             it("should decrease target A 10x", async () => {
                 // target = current / 100 / 10
                 // the 100 is the precision
                 const targetA = currentA.div(1000)
-                details.mAsset.connect(sa.governor.signer).startRampA(targetA, endTime)
+                await details.mAsset.connect(sa.governor.signer).startRampA(targetA, endTime)
 
-                const ampDataAfter = await details.mAsset.ampData()
+                const { ampData: ampDataAfter } = await details.mAsset.data()
                 expect(ampDataAfter.targetA, "after targetA").to.eq(targetA.mul(100))
             })
         })
@@ -871,7 +865,7 @@ describe("Masset Admin", () => {
                 await expect(tx).to.emit(details.wrappedManagerLib, "StopRampA").withArgs(currentA, currentTime.add(1))
                 expect(await mAsset.getA()).to.eq(currentA)
 
-                const ampDataAfter = await mAsset.ampData()
+                const { ampData: ampDataAfter } = await mAsset.data()
                 expect(ampDataAfter.initialA, "after initialA").to.eq(currentA)
                 expect(ampDataAfter.targetA, "after targetA").to.eq(currentA)
                 expect(ampDataAfter.rampStartTime.toNumber(), "after rampStartTime").to.within(
