@@ -1,64 +1,53 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.2;
-import { ICurveMetaPool } from "./ICurveMetaPool.sol";
-import { IUniswapV2Router02 } from "../../interfaces/IUniswapV2Router02.sol";
-import { ISavingsManager } from "../../interfaces/ISavingsManager.sol";
+
+import { IUniswapV2Router02 } from "../interfaces/IUniswapV2Router02.sol";
+import { ISavingsManager } from "../interfaces/ISavingsManager.sol";
+import { IMasset } from "../interfaces/IMasset.sol";
 
 import { Initializable } from "@openzeppelin/contracts/utils/Initializable.sol";
-import { ImmutableModule } from "../../shared/ImmutableModule.sol";
-import { ILiquidator } from "./ILiquidator.sol";
+import { ImmutableModule } from "../shared/ImmutableModule.sol";
+import { ILiquidator } from "../masset/liquidator/ILiquidator.sol";
 
-import { IBasicToken } from "../../shared/IBasicToken.sol";
+import { IBasicToken } from "../shared/IBasicToken.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
- * @title   Liquidator
+ * @title   PLiquidator
  * @author  mStable
- * @notice  The Liquidator allows rewards to be swapped for another token
- *          and returned to a calling contract
+ * @notice  The Liquidator allows rewards to be swapped for another token and sent
+ *          to SavingsManager for distribution
  * @dev     VERSION: 1.2
  *          DATE:    2020-12-16
  */
-contract Liquidator is ILiquidator, Initializable, ImmutableModule {
+contract PLiquidator is Initializable, ImmutableModule {
     using SafeERC20 for IERC20;
 
     event LiquidationModified(address indexed integration);
     event LiquidationEnded(address indexed integration);
     event Liquidated(address indexed sellToken, address mUSD, uint256 mUSDAmount, address buyToken);
 
-    address public mUSD;
-    ICurveMetaPool public curve;
-    IUniswapV2Router02 public uniswap;
-    // Deprecated var, but kept around to mirror storage layout
-    uint256 private interval = 7 days;
+    address public immutable mUSD;
+    IUniswapV2Router02 public immutable quickSwap;
 
-    mapping(address => Liquidation) public liquidations;
+    mapping(address => PLiquidation) public liquidations;
     mapping(address => uint256) public minReturn;
 
-    struct Liquidation {
+    struct PLiquidation {
         address sellToken;
         address bAsset;
-        int128 curvePosition;
         address[] uniswapPath;
         uint256 lastTriggered;
-        uint256 trancheAmount; // The amount of bAsset units to buy each week, with token decimals
+        uint256 trancheAmount; // The amount of bAsset units to buy each tranche, with token decimals
     }
 
-    constructor(address _nexus) ImmutableModule(_nexus) {}
-
-    function initialize(
-        address _uniswap,
-        address _curve,
+    constructor(
+        address _nexus,
+        address _quickswapRouter,
         address _mUSD
-    ) external initializer {
-        require(_uniswap != address(0), "Invalid uniswap address");
-        uniswap = IUniswapV2Router02(_uniswap);
-
-        require(_curve != address(0), "Invalid curve address");
-        curve = ICurveMetaPool(_curve);
-
-        require(_mUSD != address(0), "Invalid mUSD address");
+    ) ImmutableModule(_nexus) {
+        quickSwap = IUniswapV2Router02(_quickswapRouter);
         mUSD = _mUSD;
     }
 
@@ -71,7 +60,6 @@ contract Liquidator is ILiquidator, Initializable, ImmutableModule {
      * @param _integration The integration contract address from which to receive sellToken
      * @param _sellToken Token harvested from the integration contract
      * @param _bAsset The asset to buy on Uniswap
-     * @param _curvePosition Position of the bAsset in Curves MetaPool
      * @param _uniswapPath The Uniswap path as an array of addresses e.g. [COMP, WETH, DAI]
      * @param _trancheAmount The amount of bAsset units to buy in each weekly tranche
      * @param _minReturn Minimum exact amount of bAsset to get for each (whole) sellToken unit
@@ -80,11 +68,10 @@ contract Liquidator is ILiquidator, Initializable, ImmutableModule {
         address _integration,
         address _sellToken,
         address _bAsset,
-        int128 _curvePosition,
         address[] calldata _uniswapPath,
         uint256 _trancheAmount,
         uint256 _minReturn
-    ) external override onlyGovernance {
+    ) external onlyGovernance {
         require(
             liquidations[_integration].sellToken == address(0),
             "Liquidation exists for this bAsset"
@@ -100,10 +87,9 @@ contract Liquidator is ILiquidator, Initializable, ImmutableModule {
         );
         require(_validUniswapPath(_sellToken, _bAsset, _uniswapPath), "Invalid uniswap path");
 
-        liquidations[_integration] = Liquidation({
+        liquidations[_integration] = PLiquidation({
             sellToken: _sellToken,
             bAsset: _bAsset,
-            curvePosition: _curvePosition,
             uniswapPath: _uniswapPath,
             lastTriggered: 0,
             trancheAmount: _trancheAmount
@@ -117,7 +103,6 @@ contract Liquidator is ILiquidator, Initializable, ImmutableModule {
      * @dev Update a liquidation
      * @param _integration The integration contract in question
      * @param _bAsset New asset to buy on Uniswap
-     * @param _curvePosition Position of the bAsset in Curves MetaPool
      * @param _uniswapPath The Uniswap path as an array of addresses e.g. [COMP, WETH, DAI]
      * @param _trancheAmount The amount of bAsset units to buy in each weekly tranche
      * @param _minReturn Minimum exact amount of bAsset to get for each (whole) sellToken unit
@@ -125,12 +110,11 @@ contract Liquidator is ILiquidator, Initializable, ImmutableModule {
     function updateBasset(
         address _integration,
         address _bAsset,
-        int128 _curvePosition,
         address[] calldata _uniswapPath,
         uint256 _trancheAmount,
         uint256 _minReturn
-    ) external override onlyGovernance {
-        Liquidation memory liquidation = liquidations[_integration];
+    ) external onlyGovernance {
+        PLiquidation memory liquidation = liquidations[_integration];
 
         address oldBasset = liquidation.bAsset;
         require(oldBasset != address(0), "Liquidation does not exist");
@@ -143,7 +127,6 @@ contract Liquidator is ILiquidator, Initializable, ImmutableModule {
         );
 
         liquidations[_integration].bAsset = _bAsset;
-        liquidations[_integration].curvePosition = _curvePosition;
         liquidations[_integration].uniswapPath = _uniswapPath;
         liquidations[_integration].trancheAmount = _trancheAmount;
         minReturn[_integration] = _minReturn;
@@ -169,8 +152,8 @@ contract Liquidator is ILiquidator, Initializable, ImmutableModule {
     /**
      * @dev Delete a liquidation
      */
-    function deleteLiquidation(address _integration) external override onlyGovernance {
-        Liquidation memory liquidation = liquidations[_integration];
+    function deleteLiquidation(address _integration) external onlyGovernance {
+        PLiquidation memory liquidation = liquidations[_integration];
         require(liquidation.bAsset != address(0), "Liquidation does not exist");
 
         delete liquidations[_integration];
@@ -190,16 +173,16 @@ contract Liquidator is ILiquidator, Initializable, ImmutableModule {
      *    - Send to SavingsManager
      * @param _integration Integration for which to trigger liquidation
      */
-    function triggerLiquidation(address _integration) external override {
+    function triggerLiquidation(address _integration) external {
         // solium-disable-next-line security/no-tx-origin
         require(tx.origin == msg.sender, "Must be EOA");
 
-        Liquidation memory liquidation = liquidations[_integration];
+        PLiquidation memory liquidation = liquidations[_integration];
 
         address bAsset = liquidation.bAsset;
         require(bAsset != address(0), "Liquidation does not exist");
 
-        require(block.timestamp > liquidation.lastTriggered + 7 days, "Must wait for interval");
+        require(block.timestamp > liquidation.lastTriggered + 22 hours, "Must wait for interval");
         liquidations[_integration].lastTriggered = block.timestamp;
 
         // Cache variables
@@ -219,7 +202,7 @@ contract Liquidator is ILiquidator, Initializable, ImmutableModule {
         require(sellTokenBal > 0, "No sell tokens to liquidate");
         require(liquidation.trancheAmount > 0, "Liquidation has been paused");
         //    Calc amounts for max tranche
-        uint256[] memory amountsIn = uniswap.getAmountsIn(liquidation.trancheAmount, uniswapPath);
+        uint256[] memory amountsIn = quickSwap.getAmountsIn(liquidation.trancheAmount, uniswapPath);
         uint256 sellAmount = amountsIn[0];
 
         if (sellTokenBal < sellAmount) {
@@ -228,8 +211,8 @@ contract Liquidator is ILiquidator, Initializable, ImmutableModule {
 
         // 3. Make the swap
         // 3.1 Approve Uniswap and make the swap
-        IERC20(sellToken).safeApprove(address(uniswap), 0);
-        IERC20(sellToken).safeApprove(address(uniswap), sellAmount);
+        IERC20(sellToken).safeApprove(address(quickSwap), 0);
+        IERC20(sellToken).safeApprove(address(quickSwap), sellAmount);
         // 3.2. Make the sale > https://uniswap.org/docs/v2/smart-contracts/router02/#swapexacttokensfortokens
 
         // min amount out = sellAmount * priceFloor / 1e18
@@ -239,7 +222,7 @@ contract Liquidator is ILiquidator, Initializable, ImmutableModule {
         uint256 sellTokenDec = IBasicToken(sellToken).decimals();
         uint256 minOut = (sellAmount * minReturn[_integration]) / (10**sellTokenDec);
         require(minOut > 0, "Must have some price floor");
-        uniswap.swapExactTokensForTokens(
+        quickSwap.swapExactTokensForTokens(
             sellAmount,
             minOut,
             uniswapPath,
@@ -247,29 +230,26 @@ contract Liquidator is ILiquidator, Initializable, ImmutableModule {
             block.timestamp + 1800
         );
 
-        // 3.3. Trade on Curve
-        uint256 purchased = _sellOnCrv(bAsset, liquidation.curvePosition);
+        // 3.3. Mint via mUSD
+        uint256 minted = _mint(bAsset, mUSD);
 
         // 4.0. Send to SavingsManager
         address savings = _savingsManager();
         IERC20(mUSD).safeApprove(savings, 0);
-        IERC20(mUSD).safeApprove(savings, purchased);
-        ISavingsManager(savings).depositLiquidation(mUSD, purchased);
+        IERC20(mUSD).safeApprove(savings, minted);
+        ISavingsManager(savings).depositLiquidation(mUSD, minted);
 
-        emit Liquidated(sellToken, mUSD, purchased, bAsset);
+        emit Liquidated(sellToken, mUSD, minted, bAsset);
     }
 
-    function _sellOnCrv(address _bAsset, int128 _curvePosition)
-        internal
-        returns (uint256 purchased)
-    {
+    function _mint(address _bAsset, address _mUSD) internal returns (uint256 minted) {
         uint256 bAssetBal = IERC20(_bAsset).balanceOf(address(this));
+        IERC20(_bAsset).safeApprove(_mUSD, 0);
+        IERC20(_bAsset).safeApprove(_mUSD, bAssetBal);
 
-        IERC20(_bAsset).safeApprove(address(curve), 0);
-        IERC20(_bAsset).safeApprove(address(curve), bAssetBal);
         uint256 bAssetDec = IBasicToken(_bAsset).decimals();
         // e.g. 100e6 * 95e16 / 1e6 = 100e18
-        uint256 minOutCrv = (bAssetBal * 95e16) / (10**bAssetDec);
-        purchased = curve.exchange_underlying(_curvePosition, 0, bAssetBal, minOutCrv);
+        uint256 minOut = (bAssetBal * 90e16) / (10**bAssetDec);
+        minted = IMasset(_mUSD).mint(_bAsset, bAssetBal, minOut, address(this));
     }
 }

@@ -2,7 +2,6 @@
 pragma solidity 0.8.2;
 
 interface ILiquidator {
-
     function createLiquidation(
         address _integration,
         address _sellToken,
@@ -11,8 +10,7 @@ interface ILiquidator {
         address[] calldata _uniswapPath,
         uint256 _trancheAmount,
         uint256 _minReturn
-    )
-        external;
+    ) external;
 
     function updateBasset(
         address _integration,
@@ -21,9 +19,8 @@ interface ILiquidator {
         address[] calldata _uniswapPath,
         uint256 _trancheAmount,
         uint256 _minReturn
-    )
-        external;
-        
+    ) external;
+
     function deleteLiquidation(address _integration) external;
 
     function triggerLiquidation(address _integration) external;

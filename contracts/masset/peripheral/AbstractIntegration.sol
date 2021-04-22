@@ -11,7 +11,7 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuar
 
 /**
  * @title   AbstractIntegration
- * @author  Stability Labs Pty. Ltd.
+ * @author  mStable
  * @notice  A generalised platform integration contract from which to inherit
  * @dev     Contains functionality for managing access to a specific lending
  *          platform. pTokens are the generic name given to platform tokens e.g. cDai
@@ -27,7 +27,12 @@ abstract contract AbstractIntegration is
 
     event Deposit(address indexed _bAsset, address _pToken, uint256 _amount);
     event Withdrawal(address indexed _bAsset, address _pToken, uint256 _amount);
-    event PlatformWithdrawal(address indexed bAsset, address pToken, uint256 totalAmount, uint256 userAmount);
+    event PlatformWithdrawal(
+        address indexed bAsset,
+        address pToken,
+        uint256 totalAmount,
+        uint256 userAmount
+    );
 
     // LP has write access
     address public immutable lpAddress;
@@ -41,10 +46,7 @@ abstract contract AbstractIntegration is
      * @param _nexus     Address of the Nexus
      * @param _lp        Address of LP
      */
-    constructor(
-        address _nexus,
-        address _lp
-    ) ReentrancyGuard() ImmutableModule(_nexus)  {
+    constructor(address _nexus, address _lp) ReentrancyGuard() ImmutableModule(_nexus) {
         require(_lp != address(0), "Invalid LP address");
         lpAddress = _lp;
     }
@@ -52,15 +54,15 @@ abstract contract AbstractIntegration is
     /**
      * @dev Simple initializer to set first bAsset/pTokens
      */
-    function initialize(
-        address[] calldata _bAssets,
-        address[] calldata _pTokens
-    ) public initializer {
+    function initialize(address[] calldata _bAssets, address[] calldata _pTokens)
+        public
+        initializer
+    {
         uint256 len = _bAssets.length;
         require(len == _pTokens.length, "Invalid inputs");
-        for(uint256 i = 0; i < len; i++){
+        for (uint256 i = 0; i < len; i++) {
             _setPTokenAddress(_bAssets[i], _pTokens[i]);
-        }  
+        }
     }
 
     /**
@@ -70,7 +72,6 @@ abstract contract AbstractIntegration is
         require(msg.sender == lpAddress, "Only the LP can execute");
         _;
     }
-
 
     /***************************************
                     CONFIG
@@ -82,10 +83,7 @@ abstract contract AbstractIntegration is
      * @param _bAsset   Address for the bAsset
      * @param _pToken   Address for the corresponding platform token
      */
-    function setPTokenAddress(address _bAsset, address _pToken)
-        external
-        onlyGovernor
-    {
+    function setPTokenAddress(address _bAsset, address _pToken) external onlyGovernor {
         _setPTokenAddress(_bAsset, _pToken);
     }
 
@@ -96,9 +94,7 @@ abstract contract AbstractIntegration is
      * @param _bAsset   Address for the bAsset
      * @param _pToken   Address for the corresponding platform token
      */
-    function _setPTokenAddress(address _bAsset, address _pToken)
-        internal
-    {
+    function _setPTokenAddress(address _bAsset, address _pToken) internal {
         require(bAssetToPToken[_bAsset] == address(0), "pToken already set");
         require(_bAsset != address(0) && _pToken != address(0), "Invalid addresses");
 
@@ -115,11 +111,7 @@ abstract contract AbstractIntegration is
     /**
      * @dev Simple helper func to get the min of two values
      */
-    function _min(uint256 x, uint256 y)
-        internal
-        pure
-        returns (uint256)
-    {
+    function _min(uint256 x, uint256 y) internal pure returns (uint256) {
         return x > y ? y : x;
     }
 }

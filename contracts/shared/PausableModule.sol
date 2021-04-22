@@ -5,7 +5,7 @@ import { ImmutableModule } from "./ImmutableModule.sol";
 
 /**
  * @title   PausableModule
- * @author  Stability Labs Pty. Ltd.
+ * @author  mStable
  * @dev     Forked from @openzeppelin/contracts/lifecycle/pausable
  *          Changes: `onlyGovernor` can pause
  */

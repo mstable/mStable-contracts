@@ -5,7 +5,7 @@ import { ClaimableGovernor } from "./ClaimableGovernor.sol";
 
 /**
  * @title   DelayedClaimableGovernor
- * @author  Stability Labs Pty. Ltd.
+ * @author  mStable
  * @notice  Current Governor can initiate governance change request.
  *          After a defined delay, proposed Governor can claim governance
  *          ownership.
