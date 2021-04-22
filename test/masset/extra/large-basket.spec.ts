@@ -53,6 +53,7 @@ describe("Many asset Masset", () => {
                     max: simpleToExactAmount(37, 16),
                 },
             },
+            DEAD_ADDRESS,
         ])
         const mAsset = await new AssetProxy__factory(sa.default.signer).deploy(impl.address, DEAD_ADDRESS, data)
         details = {

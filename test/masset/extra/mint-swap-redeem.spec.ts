@@ -50,6 +50,7 @@ describe("Masset - basic fns", () => {
                     max: simpleToExactAmount(55, 16),
                 },
             },
+            DEAD_ADDRESS,
         ])
         const mAsset = await new AssetProxy__factory(sa.default.signer).deploy(impl.address, DEAD_ADDRESS, data)
         details = {
