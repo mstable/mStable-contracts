@@ -1,5 +1,5 @@
 import { Signer } from "ethers"
-import { fullScale, ONE_YEAR } from "@utils/constants"
+import { DEAD_ADDRESS, fullScale, ONE_YEAR } from "@utils/constants"
 import { applyDecimals, applyRatio, BN } from "@utils/math"
 import { formatUnits } from "ethers/lib/utils"
 import { ExposedMassetLogic, FeederPool, Masset, ValidatorWithTVLCap__factory } from "types/generated"
@@ -137,6 +137,7 @@ export const getBasket = async (
         const config = {
             ...(await asset.getConfig()),
             recolFee: 0,
+            sender: DEAD_ADDRESS,
         }
         const k = await exposedLogic.getK(bAssets[1], config)
         console.log(`Total (K)  ${formatUnits(k)}`)

@@ -49,6 +49,7 @@ struct InvariantConfig {
     uint256 a;
     WeightLimits limits;
     uint256 recolFee;
+    address sender;
 }
 
 struct BasicConfig {

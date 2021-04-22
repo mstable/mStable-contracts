@@ -97,6 +97,7 @@ export class MassetMachine {
                     max: simpleToExactAmount(75, 16),
                 },
             },
+            DEAD_ADDRESS,
         ])
         const mAsset = await new AssetProxy__factory(this.sa.default.signer).deploy(impl.address, DEAD_ADDRESS, data)
 
@@ -159,6 +160,7 @@ export class MassetMachine {
                     max: simpleToExactAmount(65, 16),
                 },
             },
+            DEAD_ADDRESS,
         ])
         const mAsset = await new AssetProxy__factory(this.sa.default.signer).deploy(impl.address, DEAD_ADDRESS, data)
 
@@ -647,7 +649,11 @@ export class MassetMachine {
 
         const balances = rawBalances.map((b, i) => b.add(platformBalances[i]))
         // get overweight
-        const currentVaultUnits = bAssets.map((b) => BN.from(b.vaultBalance).mul(BN.from(b.ratio)).div(ratioScale))
+        const currentVaultUnits = bAssets.map((b) =>
+            BN.from(b.vaultBalance)
+                .mul(BN.from(b.ratio))
+                .div(ratioScale),
+        )
         // get total amount
         const sumOfBassets = currentVaultUnits.reduce((p, c) => p.add(c), BN.from(0))
         return {
@@ -725,7 +731,12 @@ export class MassetMachine {
         }
         const totalSupply = await mAsset.totalSupply()
         const { cacheSize, surplus } = await mAsset.data()
-        const maxC = totalSupply.add(surplus).mul(ratioScale).div(BN.from(bAsset.ratio)).mul(cacheSize).div(fullScale)
+        const maxC = totalSupply
+            .add(surplus)
+            .mul(ratioScale)
+            .div(BN.from(bAsset.ratio))
+            .mul(cacheSize)
+            .div(fullScale)
         const newSum = BN.from(integratorBalBefore).add(amount)
         const expectInteraction = type === "deposit" ? newSum.gte(maxC) : amount.gt(BN.from(integratorBalBefore))
         return {
@@ -735,7 +746,10 @@ export class MassetMachine {
                 type === "deposit"
                     ? newSum.sub(maxC.div(2))
                     : minimum(
-                          maxC.div(2).add(amount).sub(BN.from(integratorBalBefore)),
+                          maxC
+                              .div(2)
+                              .add(amount)
+                              .sub(BN.from(integratorBalBefore)),
                           BN.from(bAsset.vaultBalance).sub(BN.from(integratorBalBefore)),
                       ),
             rawBalance:

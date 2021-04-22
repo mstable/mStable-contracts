@@ -21,6 +21,7 @@ let config = {
         max: simpleToExactAmount(75, 16),
     },
     recolFee: simpleToExactAmount(5, 13),
+    sender: DEAD_ADDRESS,
 }
 
 const ratio = simpleToExactAmount(1, 8)
@@ -285,6 +286,7 @@ describe("Feeder Logic - One basket one test", () => {
                                 max: simpleToExactAmount(75, 16),
                             },
                         },
+                        DEAD_ADDRESS,
                     )
                     await Promise.all(bAssets.map((b) => b.approve(mAsset.address, MAX_UINT256)))
                     await mAsset.mintMulti(

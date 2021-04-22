@@ -138,6 +138,7 @@ const deployMasset = async (
             status: 0,
         })),
         config,
+        DEAD_ADDRESS
     ])
     const mAssetProxy = await deployContract<AssetProxy>(new AssetProxy__factory(deployer), "Masset Proxy", [
         mAssetImpl.address,
@@ -161,7 +162,7 @@ const deployInterestBearingMasset = async (
         nexus.address,
         mUsd.address,
     ])
-    const initializeData = impl.interface.encodeFunctionData("initialize", [poker, name, symbol])
+    const initializeData = impl.interface.encodeFunctionData("initialize", [poker, name, symbol, DEAD_ADDRESS])
     const proxy = await deployContract<AssetProxy>(new AssetProxy__factory(deployer), "SavingsContract Proxy", [
         impl.address,
         delayedProxyAdmin.address,

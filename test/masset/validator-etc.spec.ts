@@ -2,9 +2,8 @@ import { ethers } from "hardhat"
 import { expect } from "chai"
 
 import { simpleToExactAmount, BN } from "@utils/math"
-import { ONE_WEEK } from "@utils/constants"
+import { DEAD_ADDRESS } from "@utils/constants"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
-import { increaseTime } from "@utils/time"
 import { ExposedMassetLogic } from "types/generated"
 
 const config = {
@@ -15,6 +14,7 @@ const config = {
         max: simpleToExactAmount(55, 16),
     },
     recolFee: simpleToExactAmount(5, 13),
+    sender: DEAD_ADDRESS,
 }
 const looseConfig = {
     supply: BN.from(0),
@@ -24,6 +24,7 @@ const looseConfig = {
         max: simpleToExactAmount(99, 16),
     },
     recolFee: simpleToExactAmount(5, 13),
+    sender: DEAD_ADDRESS,
 }
 const fee = simpleToExactAmount(6, 15)
 

@@ -124,47 +124,6 @@ contract MV2 is
     }
 
     /**
-     * @dev Initialization function for upgradable proxy contract.
-     *      This function should be called via Proxy just after contract deployment.
-     *      To avoid variable shadowing appended `Arg` after arguments name.
-     * @param _nameArg          Name of the mAsset
-     * @param _symbolArg        Symbol of the mAsset
-     * @param _bAssets          Array of Basset data
-     */
-    function initialize(
-        string calldata _nameArg,
-        string calldata _symbolArg,
-        BassetPersonal[] calldata _bAssets,
-        BasicConfig memory _config
-    ) public initializer {
-        InitializableToken._initialize(_nameArg, _symbolArg);
-
-        _initializeReentrancyGuard();
-
-        uint256 len = _bAssets.length;
-        require(len > 0, "No bAssets");
-        for (uint256 i = 0; i < len; i++) {
-            MassetManager.addBasset(
-                data.bAssetPersonal,
-                data.bAssetData,
-                bAssetIndexes,
-                _bAssets[i].addr,
-                _bAssets[i].integrator,
-                1e8,
-                _bAssets[i].hasTxFee
-            );
-        }
-
-        uint64 startA = SafeCast.toUint64(_config.a * A_PRECISION);
-        data.ampData = AmpData(startA, startA, 0, 0);
-        data.weightLimits = _config.limits;
-
-        data.swapFee = 6e14;
-        data.redemptionFee = 3e14;
-        data.cacheSize = 1e17;
-    }
-
-    /**
      * @dev Verifies that the caller is the Savings Manager contract
      */
     modifier onlySavingsManager() {
@@ -174,7 +133,7 @@ contract MV2 is
 
     // Internal fn for modifier to reduce deployment size
     function _isSavingsManager() internal view {
-        require(_savingsManager() == msg.sender, "Must be savings manager");
+        require(_savingsManager() == _msgSender(), "Must be savings manager");
     }
 
     /**
@@ -239,7 +198,7 @@ contract MV2 is
 
         // Mint the Masset
         _mint(_recipient, mintOutput);
-        emit Minted(msg.sender, _recipient, mintOutput, _input, _inputQuantity);
+        emit Minted(_msgSender(), _recipient, mintOutput, _input, _inputQuantity);
     }
 
     /**
@@ -273,7 +232,7 @@ contract MV2 is
 
         // Mint the Masset
         _mint(_recipient, mintOutput);
-        emit MintedMulti(msg.sender, _recipient, mintOutput, _inputs, _inputQuantities);
+        emit MintedMulti(_msgSender(), _recipient, mintOutput, _inputs, _inputQuantities);
     }
 
     /**
@@ -358,7 +317,7 @@ contract MV2 is
             _recipient
         );
 
-        emit Swapped(msg.sender, input.addr, output.addr, swapOutput, scaledFee, _recipient);
+        emit Swapped(_msgSender(), input.addr, output.addr, swapOutput, scaledFee, _recipient);
     }
 
     /**
@@ -421,7 +380,7 @@ contract MV2 is
 
         // Get config before burning. Config > Burn > CacheSize
         InvariantConfig memory config = _getConfig();
-        _burn(msg.sender, _mAssetQuantity);
+        _burn(_msgSender(), _mAssetQuantity);
 
         uint256 scaledFee;
         (outputQuantity, scaledFee) = MassetLogic.redeem(
@@ -434,7 +393,7 @@ contract MV2 is
         );
 
         emit Redeemed(
-            msg.sender,
+            _msgSender(),
             _recipient,
             _mAssetQuantity,
             output.addr,
@@ -460,7 +419,7 @@ contract MV2 is
 
         // Get config before burning. Burn > CacheSize
         InvariantConfig memory config = _getConfig();
-        _burn(msg.sender, _mAssetQuantity);
+        _burn(_msgSender(), _mAssetQuantity);
 
         address[] memory outputs;
         uint256 scaledFee;
@@ -473,7 +432,7 @@ contract MV2 is
         );
 
         emit RedeemedMulti(
-            msg.sender,
+            _msgSender(),
             _recipient,
             _mAssetQuantity,
             outputs,
@@ -514,10 +473,10 @@ contract MV2 is
             _recipient
         );
 
-        _burn(msg.sender, mAssetQuantity);
+        _burn(_msgSender(), mAssetQuantity);
 
         emit RedeemedMulti(
-            msg.sender,
+            _msgSender(),
             _recipient,
             mAssetQuantity,
             _outputs,
@@ -677,7 +636,14 @@ contract MV2 is
      * @dev Gets all config needed for general InvariantValidator calls
      */
     function _getConfig() internal view returns (InvariantConfig memory) {
-        return InvariantConfig(totalSupply() + data.surplus, _getA(), data.weightLimits, RECOL_FEE);
+        return
+            InvariantConfig(
+                totalSupply() + data.surplus,
+                _getA(),
+                data.weightLimits,
+                RECOL_FEE,
+                _msgSender()
+            );
     }
 
     /**
@@ -732,10 +698,10 @@ contract MV2 is
             data.surplus = 1;
 
             // mint new mAsset to savings manager
-            _mint(msg.sender, mintAmount);
+            _mint(_msgSender(), mintAmount);
             emit MintedMulti(
                 address(this),
-                msg.sender,
+                _msgSender(),
                 mintAmount,
                 new address[](0),
                 new uint256[](0)
@@ -765,8 +731,8 @@ contract MV2 is
 
         require(mintAmount > 0, "Must collect something");
 
-        _mint(msg.sender, mintAmount);
-        emit MintedMulti(address(this), msg.sender, mintAmount, new address[](0), gains);
+        _mint(_msgSender(), mintAmount);
+        emit MintedMulti(address(this), _msgSender(), mintAmount, new address[](0), gains);
 
         newSupply = totalSupply();
     }
@@ -886,7 +852,7 @@ contract MV2 is
      * @dev Mints deficit to SAVE if k > token supply
      */
     function mintDeficit() external returns (uint256 mintAmount) {
-        require(msg.sender == _governor() || msg.sender == _proxyAdmin(), "Gov or ProxyAdmin");
+        require(_msgSender() == _governor() || _msgSender() == _proxyAdmin(), "Gov or ProxyAdmin");
 
         InvariantConfig memory config = _getConfig();
         (, uint256 k) = MassetLogic.computePrice(data.bAssetData, config);
@@ -905,10 +871,9 @@ contract MV2 is
         (, uint256 k) = MassetLogic.computePrice(data.bAssetData, config);
         require(config.supply > k, "No surplus");
         burnAmount = config.supply - k;
-        // Transfer to ensure approval has been given
-        transferFrom(msg.sender, address(this), burnAmount);
 
-        _burn(address(this), burnAmount);
-        emit SurplusBurned(msg.sender, burnAmount);
+        _burn(_msgSender(), burnAmount);
+
+        emit SurplusBurned(_msgSender(), burnAmount);
     }
 }

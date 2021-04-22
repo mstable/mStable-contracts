@@ -76,6 +76,7 @@ describe("Invariant Validator - One basket many tests", () => {
                 status: 0,
             })),
             config,
+            DEAD_ADDRESS,
         )
 
         await Promise.all(bAssets.map((b) => b.approve(mAsset.address, MAX_UINT256)))

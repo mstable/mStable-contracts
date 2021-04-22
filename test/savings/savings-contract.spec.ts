@@ -131,7 +131,7 @@ describe("SavingsContract", async () => {
 
         savingsFactory = await new SavingsContract__factory(sa.default.signer)
         const impl = await savingsFactory.deploy(nexus.address, masset.address)
-        const data = impl.interface.encodeFunctionData("initialize", [sa.default.address, "Savings Credit", "imUSD"])
+        const data = impl.interface.encodeFunctionData("initialize", [sa.default.address, "Savings Credit", "imUSD", DEAD_ADDRESS])
         const proxy = await (await new AssetProxy__factory(sa.default.signer)).deploy(impl.address, sa.dummy4.address, data)
         savingsContract = await savingsFactory.attach(proxy.address)
 
@@ -167,7 +167,9 @@ describe("SavingsContract", async () => {
             await expect(savingsFactory.deploy(nexus.address, ZERO_ADDRESS)).to.be.revertedWith("mAsset address is zero")
 
             savingsContract = await savingsFactory.deploy(nexus.address, masset.address)
-            await expect(savingsContract.initialize(ZERO_ADDRESS, "Savings Credit", "imUSD")).to.be.revertedWith("Invalid poker address")
+            await expect(savingsContract.initialize(ZERO_ADDRESS, "Savings Credit", "imUSD", DEAD_ADDRESS)).to.be.revertedWith(
+                "Invalid poker address",
+            )
         })
 
         it("should succeed and set valid parameters", async () => {

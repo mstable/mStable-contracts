@@ -3,7 +3,7 @@ import { ethers } from "hardhat"
 
 import { BN, simpleToExactAmount } from "@utils/math"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
-import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
+import { DEAD_ADDRESS, ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import {
     AssetProxy__factory,
     MockERC20,
@@ -97,7 +97,7 @@ describe("Liquidator", () => {
         liquidator = await Liquidator__factory.connect(proxy.address, sa.default.signer)
 
         const save = await new SavingsContract__factory(sa.default.signer).deploy(nexus.address, mUSD.address)
-        await save.initialize(sa.default.address, "Savings Credit", "imUSD")
+        await save.initialize(sa.default.address, "Savings Credit", "imUSD", DEAD_ADDRESS)
         savings = await new SavingsManager__factory(sa.default.signer).deploy(
             nexus.address,
             mUSD.address,

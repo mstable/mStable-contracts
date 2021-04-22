@@ -56,6 +56,7 @@ library MassetLogic {
         uint256 quantityDeposited =
             _depositTokens(
                 _data.bAssetPersonal[_input.idx],
+                _config.sender,
                 cachedBassetData[_input.idx].ratio,
                 _inputQuantity,
                 _getCacheDetails(_data, _config.supply)
@@ -97,6 +98,7 @@ library MassetLogic {
                 BassetData memory bData = cachedBassetData[idx];
                 quantitiesDeposited[i] = _depositTokens(
                     _data.bAssetPersonal[idx],
+                    _config.sender,
                     bData.ratio,
                     _inputQuantities[i],
                     maxCache
@@ -140,32 +142,18 @@ library MassetLogic {
         address _recipient
     ) external returns (uint256 swapOutput, uint256 scaledFee) {
         BassetData[] memory cachedBassetData = _data.bAssetData;
-        // 3. Deposit the input tokens
-        uint256 quantityDeposited =
-            _depositTokens(
-                _data.bAssetPersonal[_input.idx],
-                cachedBassetData[_input.idx].ratio,
-                _inputQuantity,
-                _getCacheDetails(_data, _config.supply)
-            );
-        // 3.1. Update the input balance
-        _data.bAssetData[_input.idx].vaultBalance =
-            cachedBassetData[_input.idx].vaultBalance +
-            SafeCast.toUint128(quantityDeposited);
-
-        // 3. Validate the swap
-        (swapOutput, scaledFee) = computeSwap(
+        (swapOutput, scaledFee) = _swapIn(
+            _data,
+            _config,
             cachedBassetData,
             _input.idx,
             _output.idx,
-            quantityDeposited,
-            _data.swapFee,
-            _config
+            _inputQuantity
         );
         require(swapOutput >= _minOutputQuantity, "Output qty < minimum qty");
         require(swapOutput > 0, "Zero output quantity");
-        //4. Settle the swap
-        //4.1. Decrease output bal
+        // 4. Settle the swap
+        // 4.1. Decrease output bal
         uint256 maxCache = _getCacheDetails(_data, _config.supply);
         _withdrawTokens(
             swapOutput,
@@ -179,6 +167,40 @@ library MassetLogic {
             SafeCast.toUint128(swapOutput);
         // Save new surplus to storage
         _data.surplus += scaledFee;
+    }
+
+    /** @dev Internal func to get the swap output to avoid stack depth error */
+    function _swapIn(
+        MassetData storage _data,
+        InvariantConfig calldata _config,
+        BassetData[] memory cachedBassetData,
+        uint8 _i,
+        uint8 _o,
+        uint256 _inputQuantity
+    ) internal returns (uint256 swapOutput, uint256 scaledFee) {
+        // 3. Deposit the input tokens
+        uint256 quantityDeposited =
+            _depositTokens(
+                _data.bAssetPersonal[_i],
+                _config.sender,
+                cachedBassetData[_i].ratio,
+                _inputQuantity,
+                _getCacheDetails(_data, _config.supply)
+            );
+        // 3.1. Update the input balance
+        _data.bAssetData[_i].vaultBalance =
+            cachedBassetData[_i].vaultBalance +
+            SafeCast.toUint128(quantityDeposited);
+
+        // 3. Validate the swap
+        (swapOutput, scaledFee) = computeSwap(
+            cachedBassetData,
+            _i,
+            _o,
+            quantityDeposited,
+            _data.swapFee,
+            _config
+        );
     }
 
     /***************************************
@@ -376,6 +398,7 @@ library MassetLogic {
      */
     function _depositTokens(
         BassetPersonal memory _bAsset,
+        address _sender,
         uint256 _bAssetRatio,
         uint256 _quantity,
         uint256 _maxCache
@@ -384,7 +407,7 @@ library MassetLogic {
         if (_bAsset.integrator == address(0)) {
             (uint256 received, ) =
                 MassetHelpers.transferReturnBalance(
-                    msg.sender,
+                    _sender,
                     address(this),
                     _bAsset.addr,
                     _quantity
@@ -395,7 +418,7 @@ library MassetLogic {
         // 1 - Send all to PI, using the opportunity to get the cache balance and net amount transferred
         uint256 cacheBal;
         (quantityDeposited, cacheBal) = MassetHelpers.transferReturnBalance(
-            msg.sender,
+            _sender,
             _bAsset.integrator,
             _bAsset.addr,
             _quantity

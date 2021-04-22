@@ -6,7 +6,7 @@ import { ISavingsManager } from "../interfaces/ISavingsManager.sol";
 
 // Internal
 import { ISavingsContractV2 } from "../interfaces/ISavingsContract.sol";
-import { InitializableToken } from "../shared/InitializableToken.sol";
+import { InitializableToken2771 } from "../shared/InitializableToken2771.sol";
 import { ImmutableModule } from "../shared/ImmutableModule.sol";
 import { IConnector } from "./peripheral/IConnector.sol";
 import { Initializable } from "../shared/@openzeppelin-2.5/Initializable.sol";
@@ -25,7 +25,7 @@ import { YieldValidator } from "../shared/YieldValidator.sol";
  * @dev     VERSION: 2.0
  *          DATE:    2020-12-15
  */
-contract SavingsContract is ISavingsContractV2, Initializable, InitializableToken, ImmutableModule {
+contract SavingsContract is ISavingsContractV2, Initializable, InitializableToken2771 {
     using StableMath for uint256;
 
     // Core events for depositing and withdrawing
@@ -76,7 +76,7 @@ contract SavingsContract is ISavingsContractV2, Initializable, InitializableToke
     uint256 private constant MAX_APY = 4e18;
     uint256 private constant SECONDS_IN_YEAR = 365 days;
 
-    constructor(address _nexus, address _underlying) ImmutableModule(_nexus) {
+    constructor(address _nexus, address _underlying) InitializableToken2771(_nexus) {
         require(address(_underlying) != address(0), "mAsset address is zero");
         underlying = IERC20(_underlying);
     }
@@ -85,9 +85,10 @@ contract SavingsContract is ISavingsContractV2, Initializable, InitializableToke
     function initialize(
         address _poker,
         string calldata _nameArg,
-        string calldata _symbolArg
+        string calldata _symbolArg,
+        address _forwarder
     ) external initializer {
-        InitializableToken._initialize(_nameArg, _symbolArg);
+        InitializableToken2771._initialize(_nameArg, _symbolArg, _forwarder);
 
         require(_poker != address(0), "Invalid poker address");
         poker = _poker;
@@ -99,7 +100,7 @@ contract SavingsContract is ISavingsContractV2, Initializable, InitializableToke
 
     /** @dev Only the savings managaer (pulled from Nexus) can execute this */
     modifier onlySavingsManager() {
-        require(msg.sender == _savingsManager(), "Only savings manager can execute");
+        require(_msgSender() == _savingsManager(), "Only savings manager can execute");
         _;
     }
 
@@ -161,7 +162,10 @@ contract SavingsContract is ISavingsContractV2, Initializable, InitializableToke
         require(_amount > 0, "Must deposit something");
 
         // Transfer the interest from sender to here
-        require(underlying.transferFrom(msg.sender, address(this), _amount), "Must receive tokens");
+        require(
+            underlying.transferFrom(_msgSender(), address(this), _amount),
+            "Must receive tokens"
+        );
 
         // Calc new exchange rate, protect against initialisation case
         uint256 totalCredits = totalSupply();
@@ -210,7 +214,7 @@ contract SavingsContract is ISavingsContractV2, Initializable, InitializableToke
      * @return creditsIssued   Units of credits (imUSD) issued
      */
     function depositSavings(uint256 _underlying) external override returns (uint256 creditsIssued) {
-        return _deposit(_underlying, msg.sender, true);
+        return _deposit(_underlying, _msgSender(), true);
     }
 
     /**
@@ -248,7 +252,10 @@ contract SavingsContract is ISavingsContractV2, Initializable, InitializableToke
         }
 
         // Transfer tokens from sender to here
-        require(mAsset.transferFrom(msg.sender, address(this), _underlying), "Must receive tokens");
+        require(
+            mAsset.transferFrom(_msgSender(), address(this), _underlying),
+            "Must receive tokens"
+        );
 
         // Calc how many credits they receive based on currentRatio
         (creditsIssued, ) = _underlyingToCredits(_underlying);
@@ -326,7 +333,7 @@ contract SavingsContract is ISavingsContractV2, Initializable, InitializableToke
     }
 
     /**
-     * @dev Internally burn the credits and send the underlying to msg.sender
+     * @dev Internally burn the credits and send the underlying to _msgSender()
      */
     function _redeem(uint256 _amt, bool _isCreditAmt)
         internal
@@ -348,10 +355,10 @@ contract SavingsContract is ISavingsContractV2, Initializable, InitializableToke
         }
 
         // Burn required credits from the sender FIRST
-        _burn(msg.sender, credits_);
+        _burn(_msgSender(), credits_);
 
         // Transfer tokens from here to sender
-        require(underlying.transfer(msg.sender, underlying_), "Must send tokens");
+        require(underlying.transfer(_msgSender(), underlying_), "Must send tokens");
 
         // If this withdrawal pushes the portion of stored collateral in the `connector` over a certain
         // threshold (fraction + 20%), then this should trigger a _poke on the connector. This is to avoid
@@ -363,7 +370,7 @@ contract SavingsContract is ISavingsContractV2, Initializable, InitializableToke
             _poke(cachedData, false);
         }
 
-        emit CreditsRedeemed(msg.sender, credits_, underlying_);
+        emit CreditsRedeemed(_msgSender(), credits_, underlying_);
 
         return (credits_, underlying_);
     }
@@ -402,7 +409,7 @@ contract SavingsContract is ISavingsContractV2, Initializable, InitializableToke
 
     /** @dev Modifier allowing only the designated poker to execute the fn */
     modifier onlyPoker() {
-        require(msg.sender == poker, "Only poker can execute");
+        require(_msgSender() == poker, "Only poker can execute");
         _;
     }
 

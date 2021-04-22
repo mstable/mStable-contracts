@@ -4,7 +4,7 @@ pragma abicoder v2;
 
 // Internal
 import { Initializable } from "../shared/@openzeppelin-2.5/Initializable.sol";
-import { InitializableToken, IERC20 } from "../shared/InitializableToken.sol";
+import { InitializableToken2771, IERC20 } from "../shared/InitializableToken2771.sol";
 import { ImmutableModule } from "../shared/ImmutableModule.sol";
 import { InitializableReentrancyGuard } from "../shared/InitializableReentrancyGuard.sol";
 import { IMasset } from "../interfaces/IMasset.sol";
@@ -26,13 +26,7 @@ import { MassetManager } from "./MassetManager.sol";
  * @dev     VERSION: 3.0
  *          DATE:    2021-01-22
  */
-contract Masset is
-    IMasset,
-    Initializable,
-    InitializableToken,
-    ImmutableModule,
-    InitializableReentrancyGuard
-{
+contract Masset is IMasset, Initializable, InitializableToken2771, InitializableReentrancyGuard {
     using StableMath for uint256;
 
     // Forging Events
@@ -95,7 +89,7 @@ contract Masset is
      * @dev Constructor to set immutable bytecode
      * @param _nexus   Nexus address
      */
-    constructor(address _nexus, uint256 _recolFee) ImmutableModule(_nexus) {
+    constructor(address _nexus, uint256 _recolFee) InitializableToken2771(_nexus) {
         require(_recolFee <= 5e13, "RecolFee too high");
         RECOL_FEE = _recolFee;
     }
@@ -112,9 +106,10 @@ contract Masset is
         string calldata _nameArg,
         string calldata _symbolArg,
         BassetPersonal[] calldata _bAssets,
-        BasicConfig memory _config
+        BasicConfig memory _config,
+        address _forwarder
     ) public initializer {
-        InitializableToken._initialize(_nameArg, _symbolArg);
+        InitializableToken2771._initialize(_nameArg, _symbolArg, _forwarder);
 
         _initializeReentrancyGuard();
 
@@ -151,7 +146,7 @@ contract Masset is
 
     // Internal fn for modifier to reduce deployment size
     function _isSavingsManager() internal view {
-        require(_savingsManager() == msg.sender, "Must be savings manager");
+        require(_savingsManager() == _msgSender(), "Must be savings manager");
     }
 
     /**
@@ -216,7 +211,7 @@ contract Masset is
 
         // Mint the Masset
         _mint(_recipient, mintOutput);
-        emit Minted(msg.sender, _recipient, mintOutput, _input, _inputQuantity);
+        emit Minted(_msgSender(), _recipient, mintOutput, _input, _inputQuantity);
     }
 
     /**
@@ -250,7 +245,7 @@ contract Masset is
 
         // Mint the Masset
         _mint(_recipient, mintOutput);
-        emit MintedMulti(msg.sender, _recipient, mintOutput, _inputs, _inputQuantities);
+        emit MintedMulti(_msgSender(), _recipient, mintOutput, _inputs, _inputQuantities);
     }
 
     /**
@@ -335,7 +330,7 @@ contract Masset is
             _recipient
         );
 
-        emit Swapped(msg.sender, input.addr, output.addr, swapOutput, scaledFee, _recipient);
+        emit Swapped(_msgSender(), input.addr, output.addr, swapOutput, scaledFee, _recipient);
     }
 
     /**
@@ -398,7 +393,7 @@ contract Masset is
 
         // Get config before burning. Config > Burn > CacheSize
         InvariantConfig memory config = _getConfig();
-        _burn(msg.sender, _mAssetQuantity);
+        _burn(_msgSender(), _mAssetQuantity);
 
         uint256 scaledFee;
         (outputQuantity, scaledFee) = MassetLogic.redeem(
@@ -411,7 +406,7 @@ contract Masset is
         );
 
         emit Redeemed(
-            msg.sender,
+            _msgSender(),
             _recipient,
             _mAssetQuantity,
             output.addr,
@@ -437,7 +432,7 @@ contract Masset is
 
         // Get config before burning. Burn > CacheSize
         InvariantConfig memory config = _getConfig();
-        _burn(msg.sender, _mAssetQuantity);
+        _burn(_msgSender(), _mAssetQuantity);
 
         address[] memory outputs;
         uint256 scaledFee;
@@ -450,7 +445,7 @@ contract Masset is
         );
 
         emit RedeemedMulti(
-            msg.sender,
+            _msgSender(),
             _recipient,
             _mAssetQuantity,
             outputs,
@@ -491,10 +486,10 @@ contract Masset is
             _recipient
         );
 
-        _burn(msg.sender, mAssetQuantity);
+        _burn(_msgSender(), mAssetQuantity);
 
         emit RedeemedMulti(
-            msg.sender,
+            _msgSender(),
             _recipient,
             mAssetQuantity,
             _outputs,
@@ -654,7 +649,14 @@ contract Masset is
      * @dev Gets all config needed for general InvariantValidator calls
      */
     function _getConfig() internal view returns (InvariantConfig memory) {
-        return InvariantConfig(totalSupply() + data.surplus, _getA(), data.weightLimits, RECOL_FEE);
+        return
+            InvariantConfig(
+                totalSupply() + data.surplus,
+                _getA(),
+                data.weightLimits,
+                RECOL_FEE,
+                _msgSender()
+            );
     }
 
     /**
@@ -709,10 +711,10 @@ contract Masset is
             data.surplus = 1;
 
             // mint new mAsset to savings manager
-            _mint(msg.sender, mintAmount);
+            _mint(_msgSender(), mintAmount);
             emit MintedMulti(
                 address(this),
-                msg.sender,
+                _msgSender(),
                 mintAmount,
                 new address[](0),
                 new uint256[](0)
@@ -742,8 +744,8 @@ contract Masset is
 
         require(mintAmount > 0, "Must collect something");
 
-        _mint(msg.sender, mintAmount);
-        emit MintedMulti(address(this), msg.sender, mintAmount, new address[](0), gains);
+        _mint(_msgSender(), mintAmount);
+        emit MintedMulti(address(this), _msgSender(), mintAmount, new address[](0), gains);
 
         newSupply = totalSupply();
     }
@@ -863,7 +865,7 @@ contract Masset is
      * @dev Mints deficit to SAVE if k > token supply
      */
     function mintDeficit() external returns (uint256 mintAmount) {
-        require(msg.sender == _governor() || msg.sender == _proxyAdmin(), "Gov or ProxyAdmin");
+        require(_msgSender() == _governor() || _msgSender() == _proxyAdmin(), "Gov or ProxyAdmin");
 
         InvariantConfig memory config = _getConfig();
         (, uint256 k) = MassetLogic.computePrice(data.bAssetData, config);
@@ -883,8 +885,8 @@ contract Masset is
         require(config.supply > k, "No surplus");
         burnAmount = config.supply - k;
 
-        _burn(msg.sender, burnAmount);
+        _burn(_msgSender(), burnAmount);
 
-        emit SurplusBurned(msg.sender, burnAmount);
+        emit SurplusBurned(_msgSender(), burnAmount);
     }
 }

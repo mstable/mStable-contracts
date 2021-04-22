@@ -44,7 +44,7 @@ describe("SavingsManager", async () => {
 
         const savingsFactory = await new SavingsContract__factory(sa.default.signer)
         savingsContract = await savingsFactory.deploy(nexus.address, mUSD.address)
-        await savingsContract.initialize(sa.default.address, "Savings Credit", "imUSD")
+        await savingsContract.initialize(sa.default.address, "Savings Credit", "imUSD", DEAD_ADDRESS)
 
         savingsManager = await new SavingsManager__factory(sa.default.signer).deploy(
             nexus.address,
