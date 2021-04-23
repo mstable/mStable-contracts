@@ -226,7 +226,8 @@ const deployAaveIntegration = async (
         rewardControllerAddress,
     ])
     // initialize Aave integration with bAssets and pTokens
-    await aaveIntegration.initialize(bAssetAddresses, pTokenAddresses)
+    const tx = await aaveIntegration.initialize(bAssetAddresses, pTokenAddresses)
+    await tx.wait()
 
     // Deploy Liquidator
     const liquidator = await deployContract<PLiquidator>(new PLiquidator__factory(deployer), "PLiquidator", [
@@ -365,7 +366,7 @@ task("deploy-polly", "Deploys mUSD & System to a Polygon network").setAction(asy
             max: simpleToExactAmount(75, 16),
         },
     }
-    await mUsd.initialize(
+    const txMusd = await mUsd.initialize(
         "mUSD",
         "mStable USD (Polygon PoS)",
         deployedUsdBassets.map((b) => ({
@@ -376,6 +377,9 @@ task("deploy-polly", "Deploys mUSD & System to a Polygon network").setAction(asy
         })),
         config,
     )
+    console.log(`mUSD initialize tx ${txMusd.hash}`)
+    const receiptMusd = await txMusd.wait()
+    console.log(`mUSD initialize status ${receiptMusd.status} from receipt`)
 
     await sleep(sleepTime)
 
@@ -419,7 +423,9 @@ task("deploy-polly", "Deploys mUSD & System to a Polygon network").setAction(asy
     const moduleKeys = [KEY_SAVINGS_MANAGER, KEY_PROXY_ADMIN, KEY_LIQUIDATOR]
     const moduleAddresses = [savingsManager.address, delayedProxyAdmin.address, liquidator.address]
     const moduleIsLocked = [false, true, false]
-    await nexus.connect(deployer).initialize(moduleKeys, moduleAddresses, moduleIsLocked, multiSigAddress)
+    const nexusTx = await nexus.connect(deployer).initialize(moduleKeys, moduleAddresses, moduleIsLocked, multiSigAddress)
+    const nexusReceipt = await nexusTx.wait()
+    console.log(`Nexus initialize status ${nexusReceipt.status} from receipt`)
 
     await sleep(sleepTime)
 
