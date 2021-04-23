@@ -347,7 +347,7 @@ task("deploy-polly", "Deploys mUSD & System to a Polygon network").setAction(asy
     }
 
     // Deploy mUSD Masset
-    const mUsd = await deployMasset(deployer, linkedAddress, nexus, delayedProxyAdmin) // TODO - set redemptionFee to 6e14 and cacheSize to 0 temporarily in init fn
+    const mUsd = await deployMasset(deployer, linkedAddress, nexus, delayedProxyAdmin)
 
     const { integrator, liquidator } = await deployAaveIntegration(
         deployer,
@@ -423,10 +423,13 @@ task("deploy-polly", "Deploys mUSD & System to a Polygon network").setAction(asy
 
     await sleep(sleepTime)
 
-    // TODO - do a mintMulti & save deposit on mainnet using deployer funds
     if (hre.network.name !== "polygon_mainnet") {
         await mint(deployer, deployedUsdBassets, mUsd, simpleToExactAmount(20))
         await save(deployer, mUsd, imUsd, simpleToExactAmount(15))
+    } else if (hre.network.name === "polygon_mainnet") {
+        // Multimint 2 USD and then save 4
+        await mint(deployer, deployedUsdBassets, mUsd, simpleToExactAmount(2))
+        await save(deployer, mUsd, imUsd, simpleToExactAmount(4))
     }
 })
 

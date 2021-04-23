@@ -136,9 +136,9 @@ contract Masset is
         data.ampData = AmpData(startA, startA, 0, 0);
         data.weightLimits = _config.limits;
 
-        data.swapFee = 6e14;
-        data.redemptionFee = 3e14;
-        data.cacheSize = 1e17;
+        data.swapFee = 6e14;    // 0.06% or 6 bps
+        data.redemptionFee = 6e14;  // normally 3e14 0.03% or 3 bps
+        data.cacheSize = 0; // normally 1e17 (10%)
     }
 
     /**
