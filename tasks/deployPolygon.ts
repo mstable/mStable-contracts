@@ -1,3 +1,4 @@
+/* eslint-disable no-await-in-loop */
 /* eslint-disable no-console */
 import "ts-node/register"
 import "tsconfig-paths/register"
@@ -27,9 +28,9 @@ import {
     MassetLogic__factory,
     PLiquidator,
     PLiquidator__factory,
+    ERC20,
 } from "types/generated"
 import { Contract, ContractFactory } from "@ethersproject/contracts"
-import { Bassets, DeployedBasset } from "@utils/btcConstants"
 import { DEAD_ADDRESS, KEY_LIQUIDATOR, KEY_PROXY_ADMIN, KEY_SAVINGS_MANAGER, ONE_DAY, ZERO_ADDRESS } from "@utils/constants"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address"
@@ -41,7 +42,20 @@ import { formatUnits } from "@ethersproject/units"
 // FIXME: this import does not work for some reason
 // import { sleep } from "@utils/time"
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
-const sleepTime = 2000 // milliseconds
+const sleepTime = 5000 // milliseconds
+
+interface Bassets {
+    name: string
+    symbol: string
+    decimals: number
+    integrator: string
+    initialMint: number
+}
+
+interface DeployedBasset extends Bassets {
+    bAssetContract: ERC20
+    pTokenContract: ERC20
+}
 
 export const mUsdBassets: Bassets[] = [
     {
@@ -49,24 +63,21 @@ export const mUsdBassets: Bassets[] = [
         symbol: "PoS-USDC",
         decimals: 6,
         integrator: ZERO_ADDRESS,
-        txFee: false,
-        initialMint: 10000,
+        initialMint: 1000000,
     },
     {
         name: "(PoS) Dai Stablecoin",
         symbol: "PoS-DAI",
         decimals: 18,
         integrator: ZERO_ADDRESS,
-        txFee: false,
-        initialMint: 10000,
+        initialMint: 1000000,
     },
     {
         name: "(PoS) Tether USD",
         symbol: "PoS-USDT",
         decimals: 6,
         integrator: ZERO_ADDRESS,
-        txFee: false,
-        initialMint: 10000,
+        initialMint: 1000000,
     },
 ]
 
@@ -95,7 +106,7 @@ const deployBasset = async (
     // Deploy Implementation
     const impl = await deployContract<MockInitializableToken>(new MockInitializableToken__factory(deployer), `${symbol} impl`)
     // Initialization Implementation
-    const data = impl.interface.encodeFunctionData("initialize", [name, symbol, decimals, await deployer.getAddress(), initialMint])
+    const data = impl.interface.encodeFunctionData("initialize", [name, symbol, decimals, deployer.address, initialMint])
     // Deploy Proxy
     const proxy = await deployContract<AssetProxy>(new AssetProxy__factory(deployer), `${symbol} proxy`, [impl.address, DEAD_ADDRESS, data])
 
@@ -104,29 +115,44 @@ const deployBasset = async (
 
 const deployBassets = async (deployer: SignerWithAddress, bAssetsProps: Bassets[]): Promise<DeployedBasset[]> => {
     const bAssets: DeployedBasset[] = []
+    let i = 0
     // eslint-disable-next-line
     for (const basset of bAssetsProps) {
-        // eslint-disable-next-line
-        const contract = await deployBasset(deployer, basset.name, basset.symbol, basset.decimals, basset.initialMint)
+        const bAssetContract = await deployBasset(deployer, basset.name, basset.symbol, basset.decimals, basset.initialMint)
+
+        await sleep(sleepTime)
+
+        const pTokenContract = await deployContract<MockERC20>(new MockERC20__factory(deployer), `pToken for ${basset.symbol}`, [
+            `Aave Matic Market ${basset.name}`,
+            `am${basset.symbol}`,
+            basset.decimals,
+            deployer.address,
+            0,
+        ])
         bAssets.push({
-            contract,
-            integrator: basset.integrator,
-            txFee: basset.txFee,
-            symbol: basset.symbol,
+            ...bAssetsProps[i],
+            bAssetContract,
+            pTokenContract,
         })
+        i += 1
     }
     return bAssets
 }
 
-const attachBassets = (deployer: SignerWithAddress, bAssetsProps: Bassets[], bAssetAddresses: string[]): DeployedBasset[] => {
+const attachBassets = (
+    deployer: SignerWithAddress,
+    bAssetsProps: Bassets[],
+    bAssetAddresses: string[],
+    pTokenAddresses: string[],
+): DeployedBasset[] => {
     const bAssets: DeployedBasset[] = []
     bAssetsProps.forEach((basset, i) => {
-        const contract = new MockERC20__factory(deployer).attach(bAssetAddresses[i])
+        const bAssetContract = new MockERC20__factory(deployer).attach(bAssetAddresses[i])
+        const pTokenContract = new MockERC20__factory(deployer).attach(pTokenAddresses[i])
         bAssets.push({
-            contract,
-            integrator: basset.integrator,
-            txFee: basset.txFee,
-            symbol: basset.symbol,
+            ...bAssetsProps[i],
+            bAssetContract,
+            pTokenContract,
         })
     })
     return bAssets
@@ -176,6 +202,8 @@ const deployAaveIntegration = async (
     deployer: SignerWithAddress,
     nexus: Nexus,
     mAsset: Masset,
+    bAssetAddresses: string[],
+    pTokenAddresses: string[],
     networkName: string,
 ): Promise<{ integrator: PAaveIntegration; liquidator: PLiquidator }> => {
     let platformAddress = DEAD_ADDRESS
@@ -197,6 +225,8 @@ const deployAaveIntegration = async (
         rewardTokenAddress,
         rewardControllerAddress,
     ])
+    // initialize Aave integration with bAssets and pTokens
+    await aaveIntegration.initialize(bAssetAddresses, pTokenAddresses)
 
     // Deploy Liquidator
     const liquidator = await deployContract<PLiquidator>(new PLiquidator__factory(deployer), "PLiquidator", [
@@ -216,28 +246,22 @@ const mint = async (sender: SignerWithAddress, bAssets: DeployedBasset[], mAsset
     const approvals: BN[] = []
     // eslint-disable-next-line
     for (const bAsset of bAssets) {
-        // eslint-disable-next-line
-        const dec = await bAsset.contract.decimals()
+        const dec = bAsset.decimals
         const approval = dec === 18 ? scaledMintQty : scaledMintQty.div(simpleToExactAmount(1, BN.from(18).sub(dec)))
         approvals.push(approval)
-        // eslint-disable-next-line
-        const tx = await bAsset.contract.approve(mAsset.address, approval)
-        // eslint-disable-next-line
+        const tx = await bAsset.bAssetContract.approve(mAsset.address, approval)
         const receiptApprove = await tx.wait()
         console.log(
             `Approved mAsset to transfer ${formatUnits(scaledMintQty)} ${bAsset.symbol} from ${sender.address}. gas used ${
                 receiptApprove.gasUsed
             }`,
         )
-        console.log(
-            // eslint-disable-next-line
-            `Balance ${(await bAsset.contract.balanceOf(await sender.getAddress())).toString()}`,
-        )
+        console.log(`Balance ${(await bAsset.bAssetContract.balanceOf(await sender.getAddress())).toString()}`)
     }
 
     // Mint
     const tx = await mAsset.mintMulti(
-        bAssets.map((b) => b.contract.address),
+        bAssets.map((b) => b.bAssetContract.address),
         approvals,
         1,
         await sender.getAddress(),
@@ -279,19 +303,37 @@ task("deploy-polly", "Deploys mUSD, mBTC and Feeder pools to a Polygon network")
     } else if (network.name === "polygon_testnet") {
         multiSigAddress = "0xE1304aA964C5119C98E8AE554F031Bf3B21eC836"
         // Attach to already deployed mocked bAssets
-        deployedUsdBassets = attachBassets(deployer, mUsdBassets, [
-            "0x4fa81E591dC5dAf1CDA8f21e811BAEc584831673",
-            "0xD84574BFE3294b472C74D7a7e3d3bB2E92894B48",
-            "0x872093ee2BCb9951b1034a4AAC7f489215EDa7C2",
-        ])
+        deployedUsdBassets = attachBassets(
+            deployer,
+            mUsdBassets,
+            [
+                "0x4fa81E591dC5dAf1CDA8f21e811BAEc584831673",
+                "0xD84574BFE3294b472C74D7a7e3d3bB2E92894B48",
+                "0x872093ee2BCb9951b1034a4AAC7f489215EDa7C2",
+            ],
+            [
+                "0xA2De18B8AE0450D918EA5Bf5890CBA5dD7055A4f",
+                "0x85581E4BDeDB67840876DF20eFeaA6926dfFa11E",
+                "0xAD209ADbCDF8B6917E69E6BcF9D05592388B8ada",
+            ],
+        )
     } else if (network.name === "polygon_mainnet") {
         multiSigAddress = "0xEdE10699339ceC9b6799319C585066FfBCA938b8"
         // Attach to 3rd party bAssets
-        deployedUsdBassets = attachBassets(deployer, mUsdBassets, [
-            "0x1a13F4Ca1d028320A707D99520AbFefca3998b7F",
-            "0x27F8D03b3a2196956ED754baDc28D73be8830A6e",
-            "0x60D55F02A771d515e077c9C2403a1ef324885CeC",
-        ])
+        deployedUsdBassets = attachBassets(
+            deployer,
+            mUsdBassets,
+            [
+                "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+                "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
+                "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+            ],
+            [
+                "0x1a13F4Ca1d028320A707D99520AbFefca3998b7F",
+                "0x27F8D03b3a2196956ED754baDc28D73be8830A6e",
+                "0x60D55F02A771d515e077c9C2403a1ef324885CeC",
+            ],
+        )
     }
 
     await sleep(sleepTime)
@@ -307,22 +349,29 @@ task("deploy-polly", "Deploys mUSD, mBTC and Feeder pools to a Polygon network")
     // Deploy mUSD Masset
     const mUsd = await deployMasset(deployer, linkedAddress, nexus, delayedProxyAdmin)
 
-    const { integrator, liquidator } = await deployAaveIntegration(deployer, nexus, mUsd, network.name)
+    const { integrator, liquidator } = await deployAaveIntegration(
+        deployer,
+        nexus,
+        mUsd,
+        deployedUsdBassets.map((b) => b.bAssetContract.address),
+        deployedUsdBassets.map((b) => b.pTokenContract.address),
+        network.name,
+    )
 
     const config = {
-        a: 120,
+        a: 250,
         limits: {
             min: simpleToExactAmount(5, 16),
             max: simpleToExactAmount(75, 16),
         },
     }
     await mUsd.initialize(
-        "POS-mUSD",
-        "(PoS) mStable USD",
+        "mUSD",
+        "mStable USD (Polygon PoS)",
         deployedUsdBassets.map((b) => ({
-            addr: b.contract.address,
+            addr: b.bAssetContract.address,
             integrator: network.name === "polygon_mainnet" ? integrator.address : ZERO_ADDRESS,
-            hasTxFee: b.txFee,
+            hasTxFee: false,
             status: 0,
         })),
         config,
@@ -337,8 +386,8 @@ task("deploy-polly", "Deploys mUSD, mBTC and Feeder pools to a Polygon network")
         mUsd,
         delayedProxyAdmin,
         DEAD_ADDRESS,
-        "POS-imUSD",
-        "(PoS) interest bearing mStable USD",
+        "imUSD",
+        "interest bearing mStable USD (Polygon PoS)",
     )
 
     await sleep(sleepTime)
@@ -360,7 +409,7 @@ task("deploy-polly", "Deploys mUSD, mBTC and Feeder pools to a Polygon network")
     // SaveWrapper contract approves the savings contract (imUSD) to spend its USD mAsset tokens (mUSD)
     await saveWrapper["approve(address,address)"](mUsd.address, imUsd.address)
     // SaveWrapper approves the bAsset contracts to spend its USD mAsset tokens (mUSD)
-    const bAssetAddresses = deployedUsdBassets.map((b) => b.contract.address)
+    const bAssetAddresses = deployedUsdBassets.map((b) => b.bAssetContract.address)
     await saveWrapper["approve(address[],address)"](bAssetAddresses, mUsd.address)
     console.log("Successful token approvals from the SaveWrapper")
 
