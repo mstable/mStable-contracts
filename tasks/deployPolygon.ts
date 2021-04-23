@@ -301,7 +301,7 @@ task("deploy-polly", "Deploys mUSD & System to a Polygon network").setAction(asy
         // Deploy mocked base USD assets
         deployedUsdBassets = await deployBassets(deployer, mUsdBassets)
     } else if (network.name === "polygon_testnet") {
-        multiSigAddress = "0x4aA2Dd5D5387E4b8dcf9b6Bfa4D9236038c3AD43" // 4/8 Multisig
+        multiSigAddress = "0xE1304aA964C5119C98E8AE554F031Bf3B21eC836" // 1/3 Multisig
         // Attach to already deployed mocked bAssets
         deployedUsdBassets = attachBassets(
             deployer,
@@ -318,7 +318,7 @@ task("deploy-polly", "Deploys mUSD & System to a Polygon network").setAction(asy
             ],
         )
     } else if (network.name === "polygon_mainnet") {
-        multiSigAddress = "0x4aA2Dd5D5387E4b8dcf9b6Bfa4D9236038c3AD43" // TODO - set
+        multiSigAddress = "0x4aA2Dd5D5387E4b8dcf9b6Bfa4D9236038c3AD43" // 4/8 Multisig
         // Attach to 3rd party bAssets
         deployedUsdBassets = attachBassets(
             deployer,
