@@ -42,7 +42,6 @@ import { formatUnits } from "@ethersproject/units"
 // import { sleep } from "@utils/time"
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 const sleepTime = 2000 // milliseconds
-const multiSigAddress = "0xE1304aA964C5119C98E8AE554F031Bf3B21eC836"
 
 export const mUsdBassets: Bassets[] = [
     {
@@ -80,7 +79,9 @@ const deployContract = async <T extends Contract>(
     const contract = (await contractFactory.deploy(...contractorArgs)) as T
     const contractReceipt = await contract.deployTransaction.wait()
     const ethUsed = contractReceipt.gasUsed.mul(contract.deployTransaction.gasPrice)
+    const abiEncodedConstructorArgs = contract.interface.encodeDeploy(contractorArgs)
     console.log(`Deployed ${contractName} to ${contract.address}, gas used ${contractReceipt.gasUsed}, eth ${formatUnits(ethUsed)}`)
+    console.log(`ABI encoded args: ${abiEncodedConstructorArgs}`)
     return contract
 }
 
@@ -180,11 +181,13 @@ const deployAaveIntegration = async (
     let platformAddress = DEAD_ADDRESS
     let rewardTokenAddress = DEAD_ADDRESS
     let rewardControllerAddress = DEAD_ADDRESS
+    let quickSwapRouter = DEAD_ADDRESS
 
     if (networkName === "polygon_mainnet") {
-        platformAddress = "0xd05e3E715d945B59290df0ae8eF85c1BdB684744"
-        rewardTokenAddress = "0x8dF3aad3a84da6b69A4DA8aeC3eA40d9091B2Ac4"
-        rewardControllerAddress = "0x357D51124f59836DeD84c8a1730D72B749d8BC23"
+        platformAddress = "0xd05e3E715d945B59290df0ae8eF85c1BdB684744" // Aave lendingPoolAddressProvider
+        rewardTokenAddress = "0x8dF3aad3a84da6b69A4DA8aeC3eA40d9091B2Ac4" // wMatic
+        rewardControllerAddress = "0x357D51124f59836DeD84c8a1730D72B749d8BC23" // Aave AaveIncentivesController
+        quickSwapRouter = "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff"
     }
 
     const aaveIntegration = await deployContract<PAaveIntegration>(new PAaveIntegration__factory(deployer), "PAaveIntegration", [
@@ -196,12 +199,7 @@ const deployAaveIntegration = async (
     ])
 
     // Deploy Liquidator
-    const quickSwapRouter = networkName !== "polygon_mainnet" ? DEAD_ADDRESS : "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff"
-    const liquidator = await deployContract<PLiquidator>(new PLiquidator__factory(deployer), "PLiquidator", [
-        nexus.address,
-        quickSwapRouter,
-        mAsset.address,
-    ])
+    await deployContract<PLiquidator>(new PLiquidator__factory(deployer), "PLiquidator", [nexus.address, quickSwapRouter, mAsset.address])
 
     return aaveIntegration
 }
@@ -266,10 +264,13 @@ task("deploy-polly", "Deploys mUSD, mBTC and Feeder pools to a Polygon network")
     await sleep(sleepTime)
 
     let deployedUsdBassets: DeployedBasset[]
+    let multiSigAddress: string
     if (network.name === "hardhat") {
+        multiSigAddress = deployer.address
         // Deploy mocked base USD assets
         deployedUsdBassets = await deployBassets(deployer, mUsdBassets)
     } else if (network.name === "polygon_testnet") {
+        multiSigAddress = "0xE1304aA964C5119C98E8AE554F031Bf3B21eC836"
         // Attach to already deployed mocked bAssets
         deployedUsdBassets = attachBassets(deployer, mUsdBassets, [
             "0x4fa81E591dC5dAf1CDA8f21e811BAEc584831673",
@@ -277,6 +278,7 @@ task("deploy-polly", "Deploys mUSD, mBTC and Feeder pools to a Polygon network")
             "0x872093ee2BCb9951b1034a4AAC7f489215EDa7C2",
         ])
     } else if (network.name === "polygon_mainnet") {
+        multiSigAddress = "0xEdE10699339ceC9b6799319C585066FfBCA938b8"
         // Attach to 3rd party bAssets
         deployedUsdBassets = attachBassets(deployer, mUsdBassets, [
             "0x1a13F4Ca1d028320A707D99520AbFefca3998b7F",
