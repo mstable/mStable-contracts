@@ -24,7 +24,7 @@ import { MassetManager } from "./MassetManager.sol";
  *          stablecoin (mAsset) and redirects lending market interest and swap fees to the savings
  *          contract, producing a second yield bearing asset.
  * @dev     VERSION: 3.0
- *          DATE:    2021-01-22
+ *          DATE:    2021-04-22
  */
 contract Masset is
     IMasset,

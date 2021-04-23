@@ -16,14 +16,14 @@ import { MassetHelpers } from "../shared/MassetHelpers.sol";
 import { StableMath } from "../shared/StableMath.sol";
 
 /**
- * @title   InvariantValidator
+ * @title   MassetLogic
  * @author  mStable
  * @notice  Builds on and enforces the StableSwap invariant conceived by Michael Egorov. (https://www.curve.fi/stableswap-paper.pdf)
  *          Derived by mStable and adapted for the needs of an mAsset, as described in MIP-7 (http://mips.mstable.org/MIPS/mip-7)
  *          Calculates and validates the result of Masset operations with respect to the invariant.
  *          This supports low slippage swaps and applies penalties towards min and max regions.
  * @dev     VERSION: 1.0
- *          DATE:    2021-02-04
+ *          DATE:    2021-04-23
  */
 library MassetLogic {
     using StableMath for uint256;
