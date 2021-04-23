@@ -30,7 +30,7 @@ import {
 } from "types/generated"
 import { Contract, ContractFactory } from "@ethersproject/contracts"
 import { Bassets, DeployedBasset } from "@utils/btcConstants"
-import { DEAD_ADDRESS, KEY_PROXY_ADMIN, KEY_SAVINGS_MANAGER, ONE_DAY, ZERO_ADDRESS } from "@utils/constants"
+import { DEAD_ADDRESS, KEY_LIQUIDATOR, KEY_PROXY_ADMIN, KEY_SAVINGS_MANAGER, ONE_DAY, ZERO_ADDRESS } from "@utils/constants"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address"
 import { MassetLibraryAddresses } from "types/generated/factories/Masset__factory"
@@ -177,7 +177,7 @@ const deployAaveIntegration = async (
     nexus: Nexus,
     mAsset: Masset,
     networkName: string,
-): Promise<PAaveIntegration> => {
+): Promise<{ integrator: PAaveIntegration; liquidator: PLiquidator }> => {
     let platformAddress = DEAD_ADDRESS
     let rewardTokenAddress = DEAD_ADDRESS
     let rewardControllerAddress = DEAD_ADDRESS
@@ -199,9 +199,16 @@ const deployAaveIntegration = async (
     ])
 
     // Deploy Liquidator
-    await deployContract<PLiquidator>(new PLiquidator__factory(deployer), "PLiquidator", [nexus.address, quickSwapRouter, mAsset.address])
+    const liquidator = await deployContract<PLiquidator>(new PLiquidator__factory(deployer), "PLiquidator", [
+        nexus.address,
+        quickSwapRouter,
+        mAsset.address,
+    ])
 
-    return aaveIntegration
+    return {
+        integrator: aaveIntegration,
+        liquidator,
+    }
 }
 
 const mint = async (sender: SignerWithAddress, bAssets: DeployedBasset[], mAsset: Masset, scaledMintQty: BN) => {
@@ -300,7 +307,7 @@ task("deploy-polly", "Deploys mUSD, mBTC and Feeder pools to a Polygon network")
     // Deploy mUSD Masset
     const mUsd = await deployMasset(deployer, linkedAddress, nexus, delayedProxyAdmin)
 
-    const aaveIntegration = await deployAaveIntegration(deployer, nexus, mUsd, network.name)
+    const { integrator, liquidator } = await deployAaveIntegration(deployer, nexus, mUsd, network.name)
 
     const config = {
         a: 120,
@@ -314,7 +321,7 @@ task("deploy-polly", "Deploys mUSD, mBTC and Feeder pools to a Polygon network")
         "(PoS) mStable USD",
         deployedUsdBassets.map((b) => ({
             addr: b.contract.address,
-            integrator: network.name === "polygon_mainnet" ? aaveIntegration.address : ZERO_ADDRESS,
+            integrator: network.name === "polygon_mainnet" ? integrator.address : ZERO_ADDRESS,
             hasTxFee: b.txFee,
             status: 0,
         })),
@@ -360,9 +367,9 @@ task("deploy-polly", "Deploys mUSD, mBTC and Feeder pools to a Polygon network")
     await sleep(sleepTime)
 
     // Initialize Nexus Modules
-    const moduleKeys = [KEY_SAVINGS_MANAGER, KEY_PROXY_ADMIN]
-    const moduleAddresses = [savingsManager.address, delayedProxyAdmin.address]
-    const moduleIsLocked = [false, true]
+    const moduleKeys = [KEY_SAVINGS_MANAGER, KEY_PROXY_ADMIN, KEY_LIQUIDATOR]
+    const moduleAddresses = [savingsManager.address, delayedProxyAdmin.address, liquidator.address]
+    const moduleIsLocked = [false, true, false]
     await nexus.connect(deployer).initialize(moduleKeys, moduleAddresses, moduleIsLocked, multiSigAddress)
 
     await sleep(sleepTime)
