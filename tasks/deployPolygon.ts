@@ -163,7 +163,7 @@ const deployMasset = async (
     linkedAddress: MassetLibraryAddresses,
     nexus: Nexus,
     delayedProxyAdmin: DelayedProxyAdmin,
-    recolFee = 5e13,
+    recolFee = simpleToExactAmount(5, 13),
 ): Promise<Masset> => {
     const mAssetFactory = new Masset__factory(linkedAddress, deployer)
     const impl = await deployContract<Masset>(mAssetFactory, "Masset Impl", [nexus.address, recolFee])
@@ -213,7 +213,7 @@ const deployAaveIntegration = async (
 
     if (networkName === "polygon_mainnet") {
         platformAddress = "0xd05e3E715d945B59290df0ae8eF85c1BdB684744" // Aave lendingPoolAddressProvider
-        rewardTokenAddress = "0x8dF3aad3a84da6b69A4DA8aeC3eA40d9091B2Ac4" // wMatic
+        rewardTokenAddress = "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270" // wMatic
         rewardControllerAddress = "0x357D51124f59836DeD84c8a1730D72B749d8BC23" // Aave AaveIncentivesController
         quickSwapRouter = "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff"
     }
@@ -280,7 +280,7 @@ const save = async (sender: SignerWithAddress, mAsset: Masset, imAsset: SavingsC
     console.log(`Saved ${formatUnits(scaledSaveQty)} mAssets to interest bearing mAssets`)
 }
 
-task("deploy-polly", "Deploys mUSD, mBTC and Feeder pools to a Polygon network").setAction(async (_, hre) => {
+task("deploy-polly", "Deploys mUSD & System to a Polygon network").setAction(async (_, hre) => {
     const { network } = hre
     const [deployer] = await hre.ethers.getSigners()
 
@@ -318,7 +318,7 @@ task("deploy-polly", "Deploys mUSD, mBTC and Feeder pools to a Polygon network")
             ],
         )
     } else if (network.name === "polygon_mainnet") {
-        multiSigAddress = "0xEdE10699339ceC9b6799319C585066FfBCA938b8"
+        multiSigAddress = "0x4aA2Dd5D5387E4b8dcf9b6Bfa4D9236038c3AD43" // TODO - set
         // Attach to 3rd party bAssets
         deployedUsdBassets = attachBassets(
             deployer,
@@ -347,7 +347,7 @@ task("deploy-polly", "Deploys mUSD, mBTC and Feeder pools to a Polygon network")
     }
 
     // Deploy mUSD Masset
-    const mUsd = await deployMasset(deployer, linkedAddress, nexus, delayedProxyAdmin)
+    const mUsd = await deployMasset(deployer, linkedAddress, nexus, delayedProxyAdmin) // TODO - set redemptionFee to 6e14 and cacheSize to 0 temporarily in init fn
 
     const { integrator, liquidator } = await deployAaveIntegration(
         deployer,
@@ -387,7 +387,7 @@ task("deploy-polly", "Deploys mUSD, mBTC and Feeder pools to a Polygon network")
         delayedProxyAdmin,
         DEAD_ADDRESS,
         "imUSD",
-        "interest bearing mStable USD (Polygon PoS)",
+        "Interest bearing mStable USD (Polygon PoS)",
     )
 
     await sleep(sleepTime)
@@ -408,7 +408,7 @@ task("deploy-polly", "Deploys mUSD, mBTC and Feeder pools to a Polygon network")
 
     // SaveWrapper contract approves the savings contract (imUSD) to spend its USD mAsset tokens (mUSD)
     await saveWrapper["approve(address,address)"](mUsd.address, imUsd.address)
-    // SaveWrapper approves the bAsset contracts to spend its USD mAsset tokens (mUSD)
+    // SaveWrapper approves the mUSD contract to spend its bAsset tokens
     const bAssetAddresses = deployedUsdBassets.map((b) => b.bAssetContract.address)
     await saveWrapper["approve(address[],address)"](bAssetAddresses, mUsd.address)
     console.log("Successful token approvals from the SaveWrapper")
@@ -423,6 +423,7 @@ task("deploy-polly", "Deploys mUSD, mBTC and Feeder pools to a Polygon network")
 
     await sleep(sleepTime)
 
+    // TODO - do a mintMulti & save deposit on mainnet using deployer funds
     if (hre.network.name !== "polygon_mainnet") {
         await mint(deployer, deployedUsdBassets, mUsd, simpleToExactAmount(20))
         await save(deployer, mUsd, imUsd, simpleToExactAmount(15))
