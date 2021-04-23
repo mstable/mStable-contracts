@@ -5,7 +5,6 @@ import { IUniswapV2Router02 } from "../interfaces/IUniswapV2Router02.sol";
 import { ISavingsManager } from "../interfaces/ISavingsManager.sol";
 import { IMasset } from "../interfaces/IMasset.sol";
 
-import { Initializable } from "@openzeppelin/contracts/utils/Initializable.sol";
 import { ImmutableModule } from "../shared/ImmutableModule.sol";
 import { ILiquidator } from "../masset/liquidator/ILiquidator.sol";
 
@@ -21,7 +20,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @dev     VERSION: 1.0
  *          DATE:    2021-04-22
  */
-contract PLiquidator is Initializable, ImmutableModule {
+contract PLiquidator is ImmutableModule {
     using SafeERC20 for IERC20;
 
     event LiquidationModified(address indexed integration);
