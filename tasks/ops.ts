@@ -3,7 +3,14 @@ import { ContractTransaction, Signer } from "ethers"
 import { task, types } from "hardhat/config"
 import { Speed } from "defender-relay-client"
 import { DefenderRelayProvider, DefenderRelaySigner } from "defender-relay-client/lib/ethers"
-import { ISavingsManager, ISavingsManager__factory, IEjector__factory } from "types/generated"
+import {
+    ISavingsManager,
+    ISavingsManager__factory,
+    IEjector__factory,
+    PAaveIntegration__factory,
+    PLiquidator__factory,
+    SavingsManager__factory,
+} from "types/generated"
 import { formatUnits } from "@ethersproject/units"
 import { tokens } from "./utils/tokens"
 
@@ -90,6 +97,26 @@ task("collect-interest", "Collects and streams interest from platforms")
 
         const tx = await savingManager.collectAndStreamInterest(asset.address)
         await logTxDetails(tx, "collectAndStreamInterest")
+    })
+
+task("polly-daily", "Runs the daily jobs against the contracts on Polygon mainnet")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs) => {
+        const signer = await getDefenderSigner(taskArgs.speed)
+
+        const aave = new PAaveIntegration__factory(signer).attach("0xeab7831c96876433dB9B8953B4e7e8f66c3125c3")
+        const aaveTx = await aave.claimRewards({ gasLimit: 200000 })
+        await logTxDetails(aaveTx, "claimRewards")
+
+        const liquidator = new PLiquidator__factory(signer).attach("0x9F1C06CC13EDc7691a2Cf02E31FaAA64d57867e2")
+        const liquidatorTx = await liquidator.triggerLiquidation("0xeab7831c96876433dB9B8953B4e7e8f66c3125c3", { gasLimit: 2000000 })
+        await logTxDetails(liquidatorTx, "triggerLiquidation")
+
+        const savingsManager = new SavingsManager__factory(signer).attach("0x10bFcCae079f31c451033798a4Fd9D2c33Ea5487")
+        const savingsManagerTx = await savingsManager.collectAndStreamInterest("0xE840B73E5287865EEc17d250bFb1536704B43B21", {
+            gasLimit: 2000000,
+        })
+        await logTxDetails(savingsManagerTx, "collectAndStreamInterest")
     })
 
 module.exports = {}
