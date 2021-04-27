@@ -1,6 +1,6 @@
 import { Contract } from "ethers"
 import { applyDecimals, BN, simpleToExactAmount } from "@utils/math"
-import { FeederPool, Masset } from "types/generated"
+import { FeederPool, Masset, MusdEth } from "types/generated"
 import CurveRegistryExchangeABI from "../../contracts/peripheral/Curve/CurveRegistryExchange.json"
 import { QuantityFormatter } from "./quantity-formatters"
 import { Token } from "./tokens"
@@ -72,7 +72,7 @@ export const outputSwapRate = (swap: SwapRate, quantityFormatter: QuantityFormat
 export const getSwapRates = async (
     inputTokens: Token[],
     outputTokens: Token[],
-    mAsset: Masset | FeederPool,
+    mAsset: Masset | MusdEth | FeederPool,
     toBlock: number,
     quantityFormatter: QuantityFormatter,
     inputAmount: BN | number | string = BN.from("1000"),
