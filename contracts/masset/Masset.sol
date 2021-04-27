@@ -24,7 +24,7 @@ import { MassetManager } from "./MassetManager.sol";
  *          stablecoin (mAsset) and redirects lending market interest and swap fees to the savings
  *          contract, producing a second yield bearing asset.
  * @dev     VERSION: 3.0
- *          DATE:    2021-01-22
+ *          DATE:    2021-04-22
  */
 contract Masset is
     IMasset,
@@ -136,9 +136,9 @@ contract Masset is
         data.ampData = AmpData(startA, startA, 0, 0);
         data.weightLimits = _config.limits;
 
-        data.swapFee = 6e14;
-        data.redemptionFee = 3e14;
-        data.cacheSize = 1e17;
+        data.swapFee = 6e14; // 0.06% or 6 bps
+        data.redemptionFee = 3e14; // normally 3e14 0.03% or 3 bps
+        data.cacheSize = 1e17; // normally 1e17 (10%)
     }
 
     /**
@@ -269,7 +269,12 @@ contract Masset is
 
         Asset memory input = _getAsset(_input);
 
-        mintOutput = MassetLogic.computeMint(data.bAssetData, input.idx, _inputQuantity, _getConfig());
+        mintOutput = MassetLogic.computeMint(
+            data.bAssetData,
+            input.idx,
+            _inputQuantity,
+            _getConfig()
+        );
     }
 
     /**
@@ -287,7 +292,8 @@ contract Masset is
         uint256 len = _inputQuantities.length;
         require(len > 0 && len == _inputs.length, "Input array mismatch");
         uint8[] memory indexes = _getAssets(_inputs);
-        return MassetLogic.computeMintMulti(data.bAssetData, indexes, _inputQuantities, _getConfig());
+        return
+            MassetLogic.computeMintMulti(data.bAssetData, indexes, _inputQuantities, _getConfig());
     }
 
     /***************************************
@@ -329,14 +335,7 @@ contract Masset is
             _recipient
         );
 
-        emit Swapped(
-            msg.sender,
-            input.addr,
-            output.addr,
-            swapOutput,
-            scaledFee,
-            _recipient
-        );
+        emit Swapped(msg.sender, input.addr, output.addr, swapOutput, scaledFee, _recipient);
     }
 
     /**
@@ -409,7 +408,7 @@ contract Masset is
             _mAssetQuantity,
             _minOutputQuantity,
             _recipient
-        );        
+        );
 
         emit Redeemed(
             msg.sender,
@@ -545,8 +544,13 @@ contract Masset is
         uint8[] memory indexes = _getAssets(_outputs);
 
         // calculate the value of mAssets need to cover the value of bAssets being redeemed
-        (mAssetQuantity, ) =
-            MassetLogic.computeRedeemExact(data.bAssetData, indexes, _outputQuantities, _getConfig(), data.swapFee);
+        (mAssetQuantity, ) = MassetLogic.computeRedeemExact(
+            data.bAssetData,
+            indexes,
+            _outputQuantities,
+            _getConfig(),
+            data.swapFee
+        );
     }
 
     /***************************************
@@ -618,28 +622,19 @@ contract Masset is
      * @param _asset      Address of the asset
      * @return asset      Struct containing bAsset details (idx, data)
      */
-    function _getAsset(address _asset)
-        internal
-        view
-        returns (Asset memory asset)
-    {
+    function _getAsset(address _asset) internal view returns (Asset memory asset) {
         asset.idx = bAssetIndexes[_asset];
         asset.addr = _asset;
         asset.exists = data.bAssetPersonal[asset.idx].addr == _asset;
         require(asset.exists, "Invalid asset");
     }
-    
 
     /**
      * @dev Gets a an array of bAssets from storage and protects against duplicates
      * @param _bAssets    Addresses of the assets
      * @return indexes    Indexes of the assets
      */
-    function _getAssets(address[] memory _bAssets)
-        internal
-        view
-        returns (uint8[] memory indexes)
-    {
+    function _getAssets(address[] memory _bAssets) internal view returns (uint8[] memory indexes) {
         uint256 len = _bAssets.length;
 
         indexes = new uint8[](len);
@@ -740,10 +735,8 @@ contract Masset is
         nonReentrant
         returns (uint256 mintAmount, uint256 newSupply)
     {
-        (uint8[] memory idxs, uint256[] memory gains) = MassetManager.collectPlatformInterest(
-            data.bAssetPersonal,
-            data.bAssetData
-        );
+        (uint8[] memory idxs, uint256[] memory gains) =
+            MassetManager.collectPlatformInterest(data.bAssetPersonal, data.bAssetData);
 
         mintAmount = MassetLogic.computeMintMulti(data.bAssetData, idxs, gains, _getConfig());
 
@@ -771,7 +764,6 @@ contract Masset is
 
         emit CacheSizeChanged(_cacheSize);
     }
-
 
     /**
      * @dev Set the ecosystem fee for sewapping bAssets or redeeming specific bAssets
@@ -833,7 +825,13 @@ contract Masset is
      *                         or above (f)
      */
     function handlePegLoss(address _bAsset, bool _belowPeg) external onlyGovernor {
-        MassetManager.handlePegLoss(data.basket, data.bAssetPersonal, bAssetIndexes, _bAsset, _belowPeg);
+        MassetManager.handlePegLoss(
+            data.basket,
+            data.bAssetPersonal,
+            bAssetIndexes,
+            _bAsset,
+            _belowPeg
+        );
     }
 
     /**

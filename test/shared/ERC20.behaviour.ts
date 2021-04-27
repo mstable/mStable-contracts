@@ -46,9 +46,7 @@ const shouldBehaveLikeERC20Transfer = (
 
             it("emits a transfer event", async () => {
                 const tx = transfer(ctx.token, ctx.initialHolder, ctx.recipient.address, amount)
-                await expect(tx)
-                    .to.emit(ctx.token, "Transfer")
-                    .withArgs(ctx.initialHolder.address, ctx.recipient.address, amount)
+                await expect(tx).to.emit(ctx.token, "Transfer").withArgs(ctx.initialHolder.address, ctx.recipient.address, amount)
             })
         })
 
@@ -66,9 +64,7 @@ const shouldBehaveLikeERC20Transfer = (
             it("emits a transfer event", async () => {
                 const tx = transfer(ctx.token, ctx.initialHolder, ctx.recipient.address, amount)
 
-                await expect(tx)
-                    .to.emit(ctx.token, "Transfer")
-                    .withArgs(ctx.initialHolder.address, ctx.recipient.address, amount)
+                await expect(tx).to.emit(ctx.token, "Transfer").withArgs(ctx.initialHolder.address, ctx.recipient.address, amount)
             })
         })
     })
@@ -101,9 +97,7 @@ const shouldBehaveLikeERC20Approve = (
             it("emits an approval event", async () => {
                 const tx = approve(owner, spender.address, amount)
 
-                await expect(tx)
-                    .to.emit(ctx.token, "Approval")
-                    .withArgs(owner.address, spender.address, amount)
+                await expect(tx).to.emit(ctx.token, "Approval").withArgs(owner.address, spender.address, amount)
             })
 
             describe("when there was no approved amount before", () => {
@@ -133,9 +127,7 @@ const shouldBehaveLikeERC20Approve = (
             it("emits an approval event", async () => {
                 const tx = approve(owner, spender.address, amount)
 
-                await expect(tx)
-                    .to.emit(ctx.token, "Approval")
-                    .withArgs(owner.address, spender.address, amount)
+                await expect(tx).to.emit(ctx.token, "Approval").withArgs(owner.address, spender.address, amount)
             })
 
             describe("when there was no approved amount before", () => {
@@ -243,9 +235,7 @@ export function shouldBehaveLikeERC20(ctx: IERC20BehaviourContext, errorPrefix: 
 
                         it("emits a transfer event", async () => {
                             const tx = ctx.token.connect(spender.signer).transferFrom(tokenOwner.address, to.address, amount)
-                            await expect(tx)
-                                .to.emit(ctx.token, "Transfer")
-                                .withArgs(tokenOwner.address, to.address, amount)
+                            await expect(tx).to.emit(ctx.token, "Transfer").withArgs(tokenOwner.address, to.address, amount)
                         })
 
                         it("emits an approval event", async () => {

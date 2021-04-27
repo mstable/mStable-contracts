@@ -15,21 +15,24 @@ import { IMassetV1 } from "./IMassetV1.sol";
  *          DATE:    2021-03-22
  */
 contract MusdV2SusdBalancer is Ownable {
-
     using SafeERC20 for IERC20;
 
     // address immutable private owner;
     IMassetV1 constant mUsdV1 = IMassetV1(0xe2f2a5C287993345a840Db3B0845fbC70f5935a5);
     IERC20 constant sUSD = IERC20(0x57Ab1ec28D129707052df4dF418D58a2D46d5f51);
-    
+
     /**
-    * @notice balances mUSD bAssets like TUSD and USDT using borrowed sUSD.
-    *         Assumes the sUSD funding account has already approved a transfer to this contract.
-    * @param bAssets address of the tokens the sUSD will be swapped for in the mUSD basket. eg TUSD and USDT.
-    * @param amounts sUSD input quantities for each mUSD swap.
-    * @param funderAccount account that the sUSD will be borrowed from and swap output returned to.
-    */
-    function balanceSusd(address[] memory bAssets, uint256[] memory amounts, address funderAccount) public  onlyOwner {
+     * @notice balances mUSD bAssets like TUSD and USDT using borrowed sUSD.
+     *         Assumes the sUSD funding account has already approved a transfer to this contract.
+     * @param bAssets address of the tokens the sUSD will be swapped for in the mUSD basket. eg TUSD and USDT.
+     * @param amounts sUSD input quantities for each mUSD swap.
+     * @param funderAccount account that the sUSD will be borrowed from and swap output returned to.
+     */
+    function balanceSusd(
+        address[] memory bAssets,
+        uint256[] memory amounts,
+        address funderAccount
+    ) public onlyOwner {
         // sum the total sUSD to be swapped on mUSD
         uint256 len = bAssets.length;
         require(amounts.length == len, "bAssets and amounts lengths");

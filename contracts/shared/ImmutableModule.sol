@@ -47,22 +47,6 @@ abstract contract ImmutableModule is ModuleKeys {
     }
 
     /**
-     * @dev Modifier to allow function calls only from the ProxyAdmin.
-     */
-    modifier onlyProxyAdmin() {
-        require(msg.sender == _proxyAdmin(), "Only ProxyAdmin can execute");
-        _;
-    }
-
-    /**
-     * @dev Modifier to allow function calls only from the Manager.
-     */
-    modifier onlyManager() {
-        require(msg.sender == _manager(), "Only manager can execute");
-        _;
-    }
-
-    /**
      * @dev Returns Governor address from the Nexus
      * @return Address of Governor Contract
      */
@@ -79,46 +63,6 @@ abstract contract ImmutableModule is ModuleKeys {
     }
 
     /**
-     * @dev Return Staking Module address from the Nexus
-     * @return Address of the Staking Module contract
-     */
-    function _staking() internal view returns (address) {
-        return nexus.getModule(KEY_STAKING);
-    }
-
-    /**
-     * @dev Return ProxyAdmin Module address from the Nexus
-     * @return Address of the ProxyAdmin Module contract
-     */
-    function _proxyAdmin() internal view returns (address) {
-        return nexus.getModule(KEY_PROXY_ADMIN);
-    }
-
-    /**
-     * @dev Return MetaToken Module address from the Nexus
-     * @return Address of the MetaToken Module contract
-     */
-    function _metaToken() internal view returns (address) {
-        return nexus.getModule(KEY_META_TOKEN);
-    }
-
-    /**
-     * @dev Return OracleHub Module address from the Nexus
-     * @return Address of the OracleHub Module contract
-     */
-    function _oracleHub() internal view returns (address) {
-        return nexus.getModule(KEY_ORACLE_HUB);
-    }
-
-    /**
-     * @dev Return Manager Module address from the Nexus
-     * @return Address of the Manager Module contract
-     */
-    function _manager() internal view returns (address) {
-        return nexus.getModule(KEY_MANAGER);
-    }
-
-    /**
      * @dev Return SavingsManager Module address from the Nexus
      * @return Address of the SavingsManager Module contract
      */
@@ -132,5 +76,21 @@ abstract contract ImmutableModule is ModuleKeys {
      */
     function _recollateraliser() internal view returns (address) {
         return nexus.getModule(KEY_RECOLLATERALISER);
+    }
+
+    /**
+     * @dev Return Recollateraliser Module address from the Nexus
+     * @return  Address of the Recollateraliser Module contract (Phase 2)
+     */
+    function _liquidator() internal view returns (address) {
+        return nexus.getModule(KEY_LIQUIDATOR);
+    }
+
+    /**
+     * @dev Return ProxyAdmin Module address from the Nexus
+     * @return Address of the ProxyAdmin Module contract
+     */
+    function _proxyAdmin() internal view returns (address) {
+        return nexus.getModule(KEY_PROXY_ADMIN);
     }
 }

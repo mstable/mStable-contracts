@@ -5,7 +5,6 @@ import { Masset, InvariantConfig } from "../../masset/Masset.sol";
 import { MassetLogic } from "../../masset/MassetLogic.sol";
 
 contract ExposedMasset is Masset {
-
     constructor(address _nexus, uint256 _recolFee) Masset(_nexus, _recolFee) {}
 
     function getK() external view returns (uint256 k) {
@@ -16,17 +15,14 @@ contract ExposedMasset is Masset {
         return super._getA();
     }
 
-    function simulateRedeemMasset(uint256 _amt, uint256[] calldata _minOut, uint256 _recolFee)
-        external {
+    function simulateRedeemMasset(
+        uint256 _amt,
+        uint256[] calldata _minOut,
+        uint256 _recolFee
+    ) external {
         // Get config before burning. Burn > CacheSize
         InvariantConfig memory config = _getConfig();
         config.recolFee = _recolFee;
-        MassetLogic.redeemProportionately(
-            data,
-            config,
-            _amt,
-            _minOut,
-            msg.sender
-        );
-        }
+        MassetLogic.redeemProportionately(data, config, _amt, _minOut, msg.sender);
+    }
 }

@@ -195,9 +195,7 @@ describe("Masset - Redeem", () => {
             await expect(tx, "PlatformWithdrawal event").to.emit(platform, "PlatformWithdrawal")
             // .withArgs(bAsset.address, bAssetBefore.pToken, platformInteraction.amount, bAssetQuantityExact)
         } else if (platformInteraction.hasLendingMarket) {
-            await expect(tx, "Withdrawal event")
-                .to.emit(platform, "Withdrawal")
-                .withArgs(bAsset.address, bAssetQuantityExact)
+            await expect(tx, "Withdrawal event").to.emit(platform, "Withdrawal").withArgs(bAsset.address, bAssetQuantityExact)
         }
         // Transfer events
         await expect(tx, "Transfer event to burn the redeemed mAssets")

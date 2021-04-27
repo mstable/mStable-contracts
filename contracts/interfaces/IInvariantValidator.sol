@@ -46,7 +46,7 @@ abstract contract IInvariantValidator {
 
     function computePrice(BassetData[] memory _bAssets, InvariantConfig memory _config)
         public
-        virtual
         pure
+        virtual
         returns (uint256 price, uint256 k);
 }

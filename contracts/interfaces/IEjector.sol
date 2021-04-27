@@ -8,5 +8,5 @@ pragma solidity 0.8.2;
 interface IEjector {
     function ejectMany(address[] calldata _users) external;
 
-    function votingLockup() view external returns (address);
+    function votingLockup() external view returns (address);
 }

@@ -4,19 +4,18 @@ pragma solidity 0.8.2;
 // Internal
 import { IPlatformIntegration } from "../../interfaces/IPlatformIntegration.sol";
 import { ImmutableModule } from "../../shared/ImmutableModule.sol";
-import { IAaveATokenV2, IAaveLendingPoolV2, ILendingPoolAddressesProviderV2 } from "../../masset/peripheral/IAave.sol";
+import {
+    IAaveATokenV2,
+    IAaveLendingPoolV2,
+    ILendingPoolAddressesProviderV2
+} from "../../masset/peripheral/IAave.sol";
 
 // Libs
 import { MassetHelpers } from "../../shared/MassetHelpers.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-
-contract MockPlatformIntegration is
-    IPlatformIntegration,
-    ImmutableModule
-{
-
+contract MockPlatformIntegration is IPlatformIntegration, ImmutableModule {
     using SafeERC20 for IERC20;
 
     event PTokenAdded(address indexed _bAsset, address _pToken);
@@ -24,7 +23,12 @@ contract MockPlatformIntegration is
 
     event Deposit(address indexed _bAsset, address _pToken, uint256 _amount);
     event Withdrawal(address indexed _bAsset, address _pToken, uint256 _amount);
-    event PlatformWithdrawal(address indexed bAsset, address pToken, uint256 totalAmount, uint256 userAmount);
+    event PlatformWithdrawal(
+        address indexed bAsset,
+        address pToken,
+        uint256 totalAmount,
+        uint256 userAmount
+    );
 
     // Core address for the given platform */
     address public platformAddress;
@@ -44,27 +48,25 @@ contract MockPlatformIntegration is
         _;
     }
 
-    constructor(address _nexus, 
+    constructor(
+        address _nexus,
         address _platformAddress,
         address[] memory _bAssets,
-        address[] memory _pTokens) ImmutableModule(_nexus) {
+        address[] memory _pTokens
+    ) ImmutableModule(_nexus) {
         platformAddress = _platformAddress;
 
         uint256 bAssetCount = _bAssets.length;
         require(bAssetCount == _pTokens.length, "Invalid input arrays");
-        for(uint256 i = 0; i < bAssetCount; i++){
+        for (uint256 i = 0; i < bAssetCount; i++) {
             _setPTokenAddress(_bAssets[i], _pTokens[i]);
         }
     }
 
-    function addWhitelist(
-        address[] memory _whitelisted
-    )
-        external
-    {
+    function addWhitelist(address[] memory _whitelisted) external {
         require(_whitelisted.length > 0, "Empty whitelist array");
 
-        for(uint256 i = 0; i < _whitelisted.length; i++) {
+        for (uint256 i = 0; i < _whitelisted.length; i++) {
             _addWhitelist(_whitelisted[i]);
         }
     }
@@ -75,14 +77,12 @@ contract MockPlatformIntegration is
      */
     function _addWhitelist(address _address) internal {
         require(_address != address(0), "Address is zero");
-        require(! whitelist[_address], "Already whitelisted");
+        require(!whitelist[_address], "Already whitelisted");
 
         whitelist[_address] = true;
 
         emit Whitelisted(_address);
     }
-
-
 
     /***************************************
                     CONFIG
@@ -94,16 +94,11 @@ contract MockPlatformIntegration is
      * @param _bAsset   Address for the bAsset
      * @param _pToken   Address for the corresponding platform token
      */
-    function setPTokenAddress(address _bAsset, address _pToken)
-        external
-        onlyGovernor
-    {
+    function setPTokenAddress(address _bAsset, address _pToken) external onlyGovernor {
         _setPTokenAddress(_bAsset, _pToken);
     }
 
-    function _setPTokenAddress(address _bAsset, address _pToken)
-        internal
-    {
+    function _setPTokenAddress(address _bAsset, address _pToken) internal {
         require(bAssetToPToken[_bAsset] == address(0), "pToken already set");
         require(_bAsset != address(0) && _pToken != address(0), "Invalid addresses");
 
@@ -132,19 +127,14 @@ contract MockPlatformIntegration is
         address _bAsset,
         uint256 _amount,
         bool _hasTxFee
-    )
-        external
-        override
-        onlyWhitelisted
-        returns (uint256 quantityDeposited)
-    {
+    ) external override onlyWhitelisted returns (uint256 quantityDeposited) {
         require(_amount > 0, "Must deposit something");
 
         IAaveATokenV2 aToken = _getATokenFor(_bAsset);
 
         quantityDeposited = _amount;
 
-        if(_hasTxFee) {
+        if (_hasTxFee) {
             // If we charge a fee, account for it
             uint256 prevBal = _checkBalance(aToken);
             _getLendingPool().deposit(_bAsset, _amount, address(this), 36);
@@ -169,11 +159,7 @@ contract MockPlatformIntegration is
         address _bAsset,
         uint256 _amount,
         bool _hasTxFee
-    )
-        external
-        override
-        onlyWhitelisted
-    {
+    ) external override onlyWhitelisted {
         _withdraw(_receiver, _bAsset, _amount, _amount, _hasTxFee);
     }
 
@@ -191,11 +177,7 @@ contract MockPlatformIntegration is
         uint256 _amount,
         uint256 _totalAmount,
         bool _hasTxFee
-    )
-        external
-        override
-        onlyWhitelisted
-    {
+    ) external override onlyWhitelisted {
         _withdraw(_receiver, _bAsset, _amount, _totalAmount, _hasTxFee);
     }
 
@@ -206,14 +188,12 @@ contract MockPlatformIntegration is
         uint256 _amount,
         uint256 _totalAmount,
         bool _hasTxFee
-    )
-        internal
-    {
+    ) internal {
         require(_totalAmount > 0, "Must withdraw something");
 
         IAaveATokenV2 aToken = _getATokenFor(_bAsset);
 
-        if(_hasTxFee) {
+        if (_hasTxFee) {
             require(_amount == _totalAmount, "Cache inactive for assets with fee");
             _getLendingPool().withdraw(_bAsset, _amount, _receiver);
         } else {
@@ -235,11 +215,7 @@ contract MockPlatformIntegration is
         address _receiver,
         address _bAsset,
         uint256 _amount
-    )
-        external
-        override
-        onlyWhitelisted
-    {
+    ) external override onlyWhitelisted {
         require(_amount > 0, "Must withdraw something");
         require(_receiver != address(0), "Must specify recipient");
 
@@ -256,11 +232,7 @@ contract MockPlatformIntegration is
      * @param _bAsset     Address of the bAsset
      * @return balance    Total value of the bAsset in the platform
      */
-    function checkBalance(address _bAsset)
-        external
-        override
-        returns (uint256 balance)
-    {
+    function checkBalance(address _bAsset) external override returns (uint256 balance) {
         // balance is always with token aToken decimals
         IAaveATokenV2 aToken = _getATokenFor(_bAsset);
         return _checkBalance(aToken);
@@ -275,14 +247,11 @@ contract MockPlatformIntegration is
      *      if for some reason is it necessary for example if the address of core changes.
      *      Only callable through Governance.
      */
-    function reApproveAllTokens()
-        external
-        onlyGovernor
-    {
+    function reApproveAllTokens() external onlyGovernor {
         uint256 bAssetCount = bAssetsMapped.length;
         address lendingPoolVault = address(_getLendingPool());
         // approve the pool to spend the bAsset
-        for(uint i = 0; i < bAssetCount; i++){
+        for (uint256 i = 0; i < bAssetCount; i++) {
             MassetHelpers.safeInfiniteApprove(bAssetsMapped[i], lendingPoolVault);
         }
     }
@@ -293,9 +262,10 @@ contract MockPlatformIntegration is
      *      to spend the bAsset
      * @param _bAsset Address of the bAsset to approve
      */
-    function _abstractSetPToken(address _bAsset, address /*_pToken*/)
-        internal
-    {
+    function _abstractSetPToken(
+        address _bAsset,
+        address /*_pToken*/
+    ) internal {
         address lendingPool = address(_getLendingPool());
         // approve the pool to spend the bAsset
         MassetHelpers.safeInfiniteApprove(_bAsset, lendingPool);
@@ -310,16 +280,11 @@ contract MockPlatformIntegration is
      *      depositing.
      * @return Current lending pool implementation
      */
-    function _getLendingPool()
-        internal
-        view
-        returns (IAaveLendingPoolV2)
-    {
+    function _getLendingPool() internal view returns (IAaveLendingPoolV2) {
         address lendingPool = ILendingPoolAddressesProviderV2(platformAddress).getLendingPool();
         require(lendingPool != address(0), "Lending pool does not exist");
         return IAaveLendingPoolV2(lendingPool);
     }
-
 
     /**
      * @dev Get the pToken wrapped in the IAaveAToken interface for this bAsset, to use
@@ -327,11 +292,7 @@ contract MockPlatformIntegration is
      * @param _bAsset  Address of the bAsset
      * @return aToken  Corresponding to this bAsset
      */
-    function _getATokenFor(address _bAsset)
-        internal
-        view
-        returns (IAaveATokenV2)
-    {
+    function _getATokenFor(address _bAsset) internal view returns (IAaveATokenV2) {
         address aToken = bAssetToPToken[_bAsset];
         require(aToken != address(0), "aToken does not exist");
         return IAaveATokenV2(aToken);
@@ -342,11 +303,7 @@ contract MockPlatformIntegration is
      * @param _aToken     aToken for which to check balance
      * @return balance    Total value of the bAsset in the platform
      */
-    function _checkBalance(IAaveATokenV2 _aToken)
-        internal
-        view
-        returns (uint256 balance)
-    {
+    function _checkBalance(IAaveATokenV2 _aToken) internal view returns (uint256 balance) {
         return _aToken.balanceOf(address(this));
     }
 
@@ -357,11 +314,7 @@ contract MockPlatformIntegration is
     /**
      * @dev Simple helper func to get the min of two values
      */
-    function _min(uint256 x, uint256 y)
-        internal
-        pure
-        returns (uint256)
-    {
+    function _min(uint256 x, uint256 y) internal pure returns (uint256) {
         return x > y ? y : x;
     }
 }

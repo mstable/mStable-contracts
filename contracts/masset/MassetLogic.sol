@@ -16,14 +16,14 @@ import { MassetHelpers } from "../shared/MassetHelpers.sol";
 import { StableMath } from "../shared/StableMath.sol";
 
 /**
- * @title   InvariantValidator
+ * @title   MassetLogic
  * @author  mStable
  * @notice  Builds on and enforces the StableSwap invariant conceived by Michael Egorov. (https://www.curve.fi/stableswap-paper.pdf)
  *          Derived by mStable and adapted for the needs of an mAsset, as described in MIP-7 (http://mips.mstable.org/MIPS/mip-7)
  *          Calculates and validates the result of Masset operations with respect to the invariant.
  *          This supports low slippage swaps and applies penalties towards min and max regions.
  * @dev     VERSION: 1.0
- *          DATE:    2021-02-04
+ *          DATE:    2021-04-23
  */
 library MassetLogic {
     using StableMath for uint256;
@@ -61,12 +61,7 @@ library MassetLogic {
                 _getCacheDetails(_data, _config.supply)
             );
         // Validation should be after token transfer, as bAssetQty is unknown before
-        mintOutput = computeMint(
-            cachedBassetData,
-            _input.idx,
-            quantityDeposited,
-            _config
-        );
+        mintOutput = computeMint(cachedBassetData, _input.idx, quantityDeposited, _config);
         require(mintOutput >= _minOutputQuantity, "Mint quantity < min qty");
         // Log the Vault increase - can only be done when basket is healthy
         _data.bAssetData[_input.idx].vaultBalance =
@@ -100,9 +95,12 @@ library MassetLogic {
             if (_inputQuantities[i] > 0) {
                 uint8 idx = _indices[i];
                 BassetData memory bData = cachedBassetData[idx];
-                quantitiesDeposited[i] =
-                    _depositTokens(_data.bAssetPersonal[idx], bData.ratio, _inputQuantities[i], maxCache);
-
+                quantitiesDeposited[i] = _depositTokens(
+                    _data.bAssetPersonal[idx],
+                    bData.ratio,
+                    _inputQuantities[i],
+                    maxCache
+                );
 
                 _data.bAssetData[idx].vaultBalance =
                     bData.vaultBalance +
@@ -110,12 +108,7 @@ library MassetLogic {
             }
         }
         // Validate the proposed mint, after token transfer
-        mintOutput = computeMintMulti(
-            cachedBassetData,
-            _indices,
-            quantitiesDeposited,
-            _config
-        );
+        mintOutput = computeMintMulti(cachedBassetData, _indices, quantitiesDeposited, _config);
         require(mintOutput >= _minOutputQuantity, "Mint quantity < min qty");
         require(mintOutput > 0, "Zero mAsset quantity");
     }
@@ -272,7 +265,12 @@ library MassetLogic {
 
         // Calculate mAsset redemption quantities
         uint256 deductedInput;
-        (deductedInput, scaledFee) = _getDeducted(cachedBassetData, _config, _inputQuantity, _data.redemptionFee);
+        (deductedInput, scaledFee) = _getDeducted(
+            cachedBassetData,
+            _config,
+            _inputQuantity,
+            _data.redemptionFee
+        );
 
         _data.surplus += scaledFee;
 
@@ -289,21 +287,16 @@ library MassetLogic {
             amountOut -= 1;
             require(amountOut >= _minOutputQuantities[i], "bAsset qty < min qty");
             // reduce vaultBalance
-            _data.bAssetData[i].vaultBalance = cachedBassetData[i].vaultBalance - SafeCast.toUint128(amountOut);
+            _data.bAssetData[i].vaultBalance =
+                cachedBassetData[i].vaultBalance -
+                SafeCast.toUint128(amountOut);
             // Set output in array
             BassetPersonal memory personal = _data.bAssetPersonal[i];
             (outputQuantities[i], outputs[i]) = (amountOut, personal.addr);
             // Transfer the bAsset to the recipient
-            _withdrawTokens(
-                amountOut,
-                personal,
-                cachedBassetData[i],
-                _recipient,
-                maxCache
-            );
+            _withdrawTokens(amountOut, personal, cachedBassetData[i], _recipient, maxCache);
         }
     }
-
 
     /** @dev Internal func to get the deducted input to avoid stack depth error */
     function _getDeducted(
@@ -311,11 +304,7 @@ library MassetLogic {
         InvariantConfig memory _config,
         uint256 _input,
         uint256 _redemptionFee
-    )
-        internal
-        pure
-        returns (uint256 deductedInput, uint256 scaledFee)
-    {
+    ) internal pure returns (uint256 deductedInput, uint256 scaledFee) {
         deductedInput = _input;
         // If supply > k, deduct recolFee
         (uint256 price, ) = computePrice(_bData, _config);
@@ -349,8 +338,13 @@ library MassetLogic {
         // Load bAsset data from storage to memory
         BassetData[] memory cachedBassetData = _data.bAssetData;
 
-        (mAssetQuantity, fee) =
-            computeRedeemExact(cachedBassetData, _indices, _outputQuantities, _config, _data.swapFee);
+        (mAssetQuantity, fee) = computeRedeemExact(
+            cachedBassetData,
+            _indices,
+            _outputQuantities,
+            _config,
+            _data.swapFee
+        );
         require(mAssetQuantity <= _maxMassetQuantity, "Redeem mAsset qty > max quantity");
         // Apply fees, burn mAsset and return bAsset to recipient
         _data.surplus += fee;

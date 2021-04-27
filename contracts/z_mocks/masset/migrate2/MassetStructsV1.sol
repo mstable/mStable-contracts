@@ -15,7 +15,6 @@ struct Basket {
     bool undergoingRecol;
     bool failed;
     uint256 collateralisationRatio;
-
 }
 
 /** @dev Stores bAsset info. The struct takes 5 storage slots per Basset */
@@ -26,7 +25,6 @@ struct Basset {
     uint256 ratio;
     uint256 maxWeight;
     uint256 vaultBalance;
-
 }
 
 /** @dev Status of the Basset - has it broken its peg? */

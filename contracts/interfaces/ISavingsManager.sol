@@ -18,5 +18,5 @@ interface ISavingsManager {
     function collectAndDistributeInterest(address _mAsset) external;
 
     /** @dev getter for public lastBatchCollected mapping */
-    function lastBatchCollected(address _mAsset) view external returns (uint256);
+    function lastBatchCollected(address _mAsset) external view returns (uint256);
 }

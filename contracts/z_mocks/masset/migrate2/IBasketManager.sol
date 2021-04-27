@@ -10,13 +10,7 @@ import { Basket } from "./MassetStructsV1.sol";
  *          DATE:    2021-02-23
  */
 interface IBasketManager {
-    function getBassetIntegrator(address _bAsset)
-        external
-        view
-        returns (address integrator);
+    function getBassetIntegrator(address _bAsset) external view returns (address integrator);
 
-    function getBasket()
-        external
-        view
-        returns (Basket memory b);
+    function getBasket() external view returns (Basket memory b);
 }

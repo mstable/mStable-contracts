@@ -149,7 +149,7 @@ task("feeder-snap", "Gets feeder transactions over a period of time")
 task("feeder-rates", "Feeder rate comparison to Curve")
     .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, types.int)
     .addOptionalParam("swapSize", "Swap size to compare rates with Curve", undefined, types.float)
-    .addParam("fasset", "Token symbol of the feeder pool asset.", undefined, types.string, false)
+    .addParam("fasset", "Token symbol of the feeder pool asset. eg HBTC, TBTC, GUSD or BUSD", undefined, types.string, false)
     .setAction(async (taskArgs, hre) => {
         const { ethers } = hre
         const [signer] = await ethers.getSigners()

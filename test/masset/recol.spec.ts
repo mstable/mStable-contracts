@@ -197,9 +197,7 @@ describe("Recol functions", () => {
                 const diff = await k.sub(supply.add(surplus))
 
                 const tx = mAsset.connect(sa.governor.signer).mintDeficit()
-                await expect(tx)
-                    .to.emit(mAsset, "DeficitMinted")
-                    .withArgs(diff)
+                await expect(tx).to.emit(mAsset, "DeficitMinted").withArgs(diff)
 
                 const { surplus: surplusAfter } = await mAsset.data()
                 supply = await mAsset.totalSupply()
@@ -236,9 +234,7 @@ describe("Recol functions", () => {
                 const diff = await supplyBefore.add(surplus).sub(k)
 
                 const tx = mAsset.connect(sa.default.signer).burnSurplus()
-                await expect(tx)
-                    .to.emit(mAsset, "SurplusBurned")
-                    .withArgs(sa.default.address, diff)
+                await expect(tx).to.emit(mAsset, "SurplusBurned").withArgs(sa.default.address, diff)
 
                 const balAfter = await mAsset.balanceOf(sa.default.address)
                 const { surplus: surplusAfter } = await mAsset.data()
