@@ -1,8 +1,10 @@
+/* eslint-disable no-await-in-loop */
+/* eslint-disable no-restricted-syntax */
 import { Signer } from "ethers"
 import { fullScale, ONE_YEAR } from "@utils/constants"
 import { applyDecimals, applyRatio, BN } from "@utils/math"
 import { formatUnits } from "ethers/lib/utils"
-import { ExposedMassetLogic, FeederPool, Masset, ValidatorWithTVLCap__factory } from "types/generated"
+import { ExposedMassetLogic, FeederPool, Masset, MusdEth, MV1, MV2, ValidatorWithTVLCap__factory } from "types/generated"
 import { QuantityFormatter } from "./quantity-formatters"
 import { Token } from "./tokens"
 
@@ -36,8 +38,13 @@ export interface SwapRate {
 }
 
 // Only the FeederPool has the redeemProportionately function
-function isFeederPool(asset: Masset | FeederPool): asset is FeederPool {
+export function isFeederPool(asset: Masset | MV1 | MV2 | MusdEth | FeederPool): asset is FeederPool {
     return (asset as FeederPool).redeemProportionately !== undefined
+}
+
+// Only the mUSD deployed to Ethereum mainnet has the surplus function
+export function isMusdEth(asset: Masset | MV1 | MV2 | MusdEth | FeederPool): asset is MusdEth {
+    return (asset as MusdEth).surplus !== undefined
 }
 
 export const getBlock = async (ethers, _blockNumber?: number): Promise<BlockInfo> => {
@@ -69,13 +76,13 @@ export const getBlockRange = async (ethers, fromBlockNumber: number, _toBlockNum
     }
 }
 
-export const snapConfig = async (asset: Masset | FeederPool, toBlock: number): Promise<void> => {
+export const snapConfig = async (asset: Masset | MusdEth | FeederPool, toBlock: number): Promise<void> => {
     let ampData
-    if (isFeederPool(asset)) {
+    if (isMusdEth(asset)) {
+        ampData = await asset.ampData()
+    } else {
         const fpData = await asset.data()
         ampData = fpData.ampData
-    } else {
-        ampData = await asset.ampData()
     }
     const conf = await asset.getConfig({
         blockTag: toBlock,
@@ -105,7 +112,7 @@ const getTvlCap = async (signer: Signer, tvlConfig: TvlConfig): Promise<BN> => {
 }
 
 export const getBasket = async (
-    asset: Masset | FeederPool,
+    asset: Masset | MV1 | MV2 | MusdEth | FeederPool,
     bAssetSymbols: string[],
     mAssetName = "mBTC",
     quantityFormatter: QuantityFormatter,
@@ -116,7 +123,14 @@ export const getBasket = async (
     const bAssetTotals: BN[] = []
     let bAssetsTotal = BN.from(0)
     bAssetSymbols.forEach((_, i) => {
-        const scaledBassetQuantity = applyRatio(bAssets[1][i].vaultBalance, bAssets[1][i].ratio)
+        let scaledBassetQuantity: BN
+        if (isMusdEth(asset)) {
+            scaledBassetQuantity = applyRatio(bAssets[1][i].vaultBalance, bAssets[1][i].ratio)
+        } else {
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            scaledBassetQuantity = applyRatio(bAssets.bData[i].vaultBalance, bAssets.bData[i].ratio)
+        }
         bAssetTotals.push(scaledBassetQuantity)
         bAssetsTotal = bAssetsTotal.add(scaledBassetQuantity)
     })
@@ -127,13 +141,18 @@ export const getBasket = async (
         console.log(`  ${symbol.padEnd(7)}  ${quantityFormatter(bAssetTotals[i]).padEnd(20)} ${percentage.toString().padStart(2)}%`)
     })
 
-    const mAssetSurplus = isFeederPool(asset) ? BN.from(0) : (await asset.data()).surplus
+    let mAssetSurplus = BN.from(0)
+    if (asset.surplus) {
+        mAssetSurplus = await asset.surplus()
+    } else if (!isFeederPool(asset)) {
+        mAssetSurplus = (await asset.data()).surplus
+    }
     const mAssetSupply = await asset.totalSupply()
     console.log(`Surplus    ${formatUnits(mAssetSurplus)}`)
     console.log(`${mAssetName}       ${formatUnits(mAssetSupply)}`)
     const mAssetTotal = mAssetSupply.add(mAssetSurplus)
 
-    if (exposedLogic) {
+    if (exposedLogic && !isMusdEth(asset)) {
         const config = {
             ...(await asset.getConfig()),
             recolFee: 0,
@@ -158,9 +177,51 @@ export const getBasket = async (
     }
 }
 
+export const getBalances = async (
+    mAsset: Masset | MusdEth,
+    accounts: { name: string; address: string }[],
+    quantityFormatter: QuantityFormatter,
+    toBlock: number,
+): Promise<Balances> => {
+    const mAssetBalance = await mAsset.totalSupply({
+        blockTag: toBlock,
+    })
+    console.log("\nHolders")
+    const balanceSum = BN.from(0)
+    const balances: BN[] = []
+    for (const account of accounts) {
+        const balance = await mAsset.balanceOf(account.address, {
+            blockTag: toBlock,
+        })
+        console.log(`${account.name.padEnd(26)} ${quantityFormatter(balance)} ${balance.mul(100).div(mAssetBalance)}%`)
+        balanceSum.add(balance)
+        balances.push(balance)
+    }
+    const otherBalances = mAssetBalance.sub(balanceSum)
+    console.log(`${"Other".padEnd(26)} ${quantityFormatter(otherBalances)} ${otherBalances.mul(100).div(mAssetBalance)}%`)
+
+    const surplus = isMusdEth(mAsset)
+        ? await mAsset.surplus({
+              blockTag: toBlock,
+          })
+        : (
+              await mAsset.data({
+                  blockTag: toBlock,
+              })
+          ).surplus
+    console.log(`Surplus                    ${quantityFormatter(surplus)}`)
+    console.log(`Total                      ${quantityFormatter(mAssetBalance)}`)
+
+    return {
+        total: mAssetBalance,
+        save: balances[0],
+        earn: balances[1],
+    }
+}
+
 export const getMints = async (
     bAssets: Token[],
-    mAsset: Masset | FeederPool,
+    mAsset: Masset | MV1 | MV2 | MusdEth | FeederPool,
     fromBlock: number,
     toBlock: number,
     quantityFormatter: QuantityFormatter,
@@ -193,7 +254,7 @@ export const getMints = async (
 
 export const getMultiMints = async (
     bAssets: Token[],
-    mAsset: Masset | FeederPool,
+    mAsset: Masset | MV1 | MV2 | MusdEth | FeederPool,
     fromBlock: number,
     toBlock: number,
     quantityFormatter: QuantityFormatter,
@@ -228,7 +289,7 @@ export const getMultiMints = async (
 
 export const getSwaps = async (
     bAssets: Token[],
-    mAsset: Masset | FeederPool,
+    mAsset: Masset | MV1 | MV2 | MusdEth | FeederPool,
     fromBlock: number,
     toBlock: number,
     quantityFormatter: QuantityFormatter,
@@ -266,7 +327,7 @@ export const getSwaps = async (
 
 export const getRedemptions = async (
     bAssets: Token[],
-    mAsset: Masset | FeederPool,
+    mAsset: Masset | MV1 | MV2 | MusdEth | FeederPool,
     fromBlock: number,
     toBlock: number,
     quantityFormatter: QuantityFormatter,
@@ -301,7 +362,7 @@ export const getRedemptions = async (
 
 export const getMultiRedemptions = async (
     bAssets: Token[],
-    mAsset: Masset | FeederPool,
+    mAsset: Masset | MV1 | MV2 | MusdEth | FeederPool,
     fromBlock: number,
     toBlock: number,
     quantityFormatter: QuantityFormatter,

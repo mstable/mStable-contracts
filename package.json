@@ -12,6 +12,7 @@
         "/types/**/*.ts"
     ],
     "scripts": {
+        "compile-abis": "typechain --target=ethers-v5 --outDir types/generated \"?(contracts|build)/!(build-info)/**/+([a-zA-Z0-9]).json\"",
         "lint": "yarn run lint-ts; yarn run lint-sol",
         "lint:fix": "yarn pretty-quick --pattern '**/*.*(sol|json)' --staged --verbose",
         "lint-ts": "yarn eslint ./test --ext .ts --fix --quiet",
@@ -26,7 +27,7 @@
         "test:file:fork": "yarn hardhat --config hardhat-fork.config.ts test",
         "test:file": "yarn hardhat test",
         "test:file:long": "LONG_TESTS=true yarn hardhat test",
-        "compile": "yarn hardhat compile --force",
+        "compile": "yarn hardhat compile --force && yarn run compile-abis",
         "prettify": "prettier --write tasks/**/*.ts test/**/*.ts types/*.ts contracts/**/*.sol",
         "flatten": "sol-merger \"./contracts/**/*.sol\" ./_flat",
         "prepublishOnly": "yarn run compile"
@@ -71,7 +72,7 @@
         "husky": "^6.0.0",
         "mocha": "^8.2.1",
         "prettier": "^2.2.1",
-        "prettier-plugin-solidity": "^1.0.0-beta.3",
+        "prettier-plugin-solidity": "^1.0.0-beta.10",
         "pretty-quick": "^3.1.0",
         "sol-merger": "^3.0.1",
         "solc": "0.8.2",
@@ -80,8 +81,8 @@
         "ts-generator": "^0.1.1",
         "ts-node": "^9.1.1",
         "tsconfig-paths": "^3.9.0",
-        "typechain": "4.0.0",
-        "typescript": "^4.1.3"
+        "typechain": "4.0.3",
+        "typescript": "^4.2.4"
     },
     "_moduleAliases": {
         "@utils": "transpiled/test-utils"

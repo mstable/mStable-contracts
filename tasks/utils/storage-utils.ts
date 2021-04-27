@@ -1,7 +1,8 @@
-import { FeederPool, Masset } from "types/generated"
+import { FeederPool, Masset, MusdEth } from "types/generated"
+import { isMusdEth } from "./snap-utils"
 
 // Get mAsset token storage variables
-export const dumpTokenStorage = async (token: Masset | FeederPool, toBlock: number): Promise<void> => {
+export const dumpTokenStorage = async (token: Masset | MusdEth | FeederPool, toBlock: number): Promise<void> => {
     const override = {
         blockTag: toBlock,
     }
@@ -12,7 +13,7 @@ export const dumpTokenStorage = async (token: Masset | FeederPool, toBlock: numb
 }
 
 // Get bAsset storage variables
-export const dumpBassetStorage = async (mAsset: Masset, toBlock: number): Promise<void> => {
+export const dumpBassetStorage = async (mAsset: Masset | MusdEth, toBlock: number): Promise<void> => {
     const override = {
         blockTag: toBlock,
     }
@@ -25,8 +26,13 @@ export const dumpBassetStorage = async (mAsset: Masset, toBlock: number): Promis
         console.log(` Integration:`, bAssets.personal[i].integrator.toString())
         console.log(` Tx fee     :`, bAssets.personal[i].hasTxFee.toString())
         console.log(` Status     :`, bAssets.personal[i].status.toString())
-        console.log(` Ratio      :`, bAssets.bData[i].ratio.toString())
-        console.log(` Vault      :`, bAssets.bData[i].vaultBalance.toString())
+        // if (isMusdEth(mAsset)) {
+        //     console.log(` Ratio      :`, bAssets.data![i].ratio.toString())
+        //     console.log(` Vault      :`, bAssets.data![i].vaultBalance.toString())
+        // } else {
+        //     console.log(` Ratio      :`, bAssets.bData![i].ratio.toString())
+        //     console.log(` Vault      :`, bAssets.bData![i].vaultBalance.toString())
+        // }
         console.log("\n")
     })
 
@@ -68,7 +74,7 @@ export const dumpFassetStorage = async (pool: FeederPool, toBlock: number): Prom
 }
 
 // Get Masset storage variables
-export const dumpConfigStorage = async (mAsset: Masset | FeederPool, toBlock: number): Promise<void> => {
+export const dumpConfigStorage = async (mAsset: Masset | MusdEth | FeederPool, toBlock: number): Promise<void> => {
     const override = {
         blockTag: toBlock,
     }

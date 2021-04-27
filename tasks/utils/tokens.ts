@@ -9,7 +9,7 @@ export interface Token {
     saving?: string
 }
 
-// mStable
+// mStable on mainnet
 export const mUSD: Token = {
     symbol: "mUSD",
     address: "0xe2f2a5C287993345a840Db3B0845fbC70f5935a5",
@@ -23,7 +23,15 @@ export const mBTC: Token = {
     quantityFormatter: "USD",
 }
 
-// USD Main Pool Assets
+// mStable on Polygon mainnet
+export const PmUSD: Token = {
+    symbol: "mUSD",
+    address: "0xE840B73E5287865EEc17d250bFb1536704B43B21",
+    decimals: 18,
+    quantityFormatter: "USD",
+}
+
+// USD Main Pool Assets on Mainnet
 export const sUSD: Token = {
     symbol: "sUSD",
     address: "0x57Ab1ec28D129707052df4dF418D58a2D46d5f51",
@@ -57,11 +65,37 @@ export const DAI: Token = {
     parent: "mUSD",
 }
 
+// USD Main Pool Assets on Mainnet
+export const PUSDC: Token = {
+    symbol: "USDC",
+    address: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+    integrator: "0xeab7831c96876433dB9B8953B4e7e8f66c3125c3",
+    decimals: 6,
+    quantityFormatter: "USD",
+    parent: "mUSD",
+}
+export const PUSDT: Token = {
+    symbol: "USDT",
+    address: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+    integrator: "0xeab7831c96876433dB9B8953B4e7e8f66c3125c3",
+    decimals: 6,
+    quantityFormatter: "USD",
+    parent: "mUSD",
+}
+export const PDAI: Token = {
+    symbol: "DAI",
+    address: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
+    integrator: "0xeab7831c96876433dB9B8953B4e7e8f66c3125c3",
+    decimals: 18,
+    quantityFormatter: "USD",
+    parent: "mUSD",
+}
+
 // USD Feeder Pool Assets
 export const GUSD: Token = {
     symbol: "GUSD",
     address: "0x056Fd409E1d7A124BD7017459dFEa2F387b6d5Cd",
-    integrator: "0x85306936842Eb09D9Cea45BffAEc7A81D126508D",
+    integrator: "0xeab7831c96876433dB9B8953B4e7e8f66c3125c3",
     decimals: 2,
     quantityFormatter: "USD",
     parent: "mUSD",

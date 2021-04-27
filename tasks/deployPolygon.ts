@@ -310,9 +310,9 @@ task("deploy-polly", "Deploys mUSD & System to a Polygon network").setAction(asy
             deployer,
             mUsdBassets,
             [
-                "0x4fa81E591dC5dAf1CDA8f21e811BAEc584831673",
-                "0xD84574BFE3294b472C74D7a7e3d3bB2E92894B48",
-                "0x872093ee2BCb9951b1034a4AAC7f489215EDa7C2",
+                "0x4fa81E591dC5dAf1CDA8f21e811BAEc584831673", // USDC
+                "0xD84574BFE3294b472C74D7a7e3d3bB2E92894B48", // DAI
+                "0x872093ee2BCb9951b1034a4AAC7f489215EDa7C2", // Tether
             ],
             [
                 "0xA2De18B8AE0450D918EA5Bf5890CBA5dD7055A4f",
@@ -327,9 +327,9 @@ task("deploy-polly", "Deploys mUSD & System to a Polygon network").setAction(asy
             deployer,
             mUsdBassets,
             [
-                "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
-                "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
-                "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+                "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174", // USDC
+                "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063", // DAI
+                "0xc2132D05D31c914a87C6611C10748AEb04B58e8F", // Tether
             ],
             [
                 "0x1a13F4Ca1d028320A707D99520AbFefca3998b7F",
