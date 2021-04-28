@@ -21,6 +21,7 @@ import {
     getRedemptions,
     outputFees,
     getBalances,
+    snapSave,
 } from "./utils/snap-utils"
 import { Token, sUSD, USDC, DAI, USDT, PUSDT, PUSDC, PDAI } from "./utils/tokens"
 import { usdFormatter } from "./utils/quantity-formatters"
@@ -142,6 +143,8 @@ task("mUSD-snap", "Snaps mUSD")
         )
 
         const balances = await getBalances(mAsset, accounts, usdFormatter, toBlock.blockNumber)
+
+        await snapSave(signer, hre.network.name, toBlock.blockNumber)
 
         outputFees(
             mintSummary,

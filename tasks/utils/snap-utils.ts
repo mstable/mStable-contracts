@@ -4,7 +4,17 @@ import { Signer } from "ethers"
 import { fullScale, ONE_YEAR } from "@utils/constants"
 import { applyDecimals, applyRatio, BN } from "@utils/math"
 import { formatUnits } from "ethers/lib/utils"
-import { ExposedMassetLogic, FeederPool, Masset, MusdEth, MV1, MV2, ValidatorWithTVLCap__factory } from "types/generated"
+import {
+    ExposedMassetLogic,
+    FeederPool,
+    Masset,
+    MusdEth,
+    MV1,
+    MV2,
+    SavingsContract,
+    SavingsContract__factory,
+    ValidatorWithTVLCap__factory,
+} from "types/generated"
 import { QuantityFormatter } from "./quantity-formatters"
 import { Token } from "./tokens"
 
@@ -95,6 +105,16 @@ export const snapConfig = async (asset: Masset | MusdEth | FeederPool, toBlock: 
         console.log(`Ramp A: start ${startDate.toUTCString()}; end ${endDate.toUTCString()}`)
     }
     console.log(`Weights: min ${formatUnits(conf.limits.min, 16)}% max ${formatUnits(conf.limits.max, 16)}%`)
+}
+
+export const snapSave = async (signer: Signer, networkName: string, toBlock: number): Promise<void> => {
+    const savingManagerAddress =
+        networkName === "mainnet" ? "0x30647a72dc82d7fbb1123ea74716ab8a317eac19" : "0x5290Ad3d83476CA6A2b178Cd9727eE1EF72432af"
+    const savingsManager = new SavingsContract__factory(signer).attach(savingManagerAddress)
+    const exchangeRate = await savingsManager.exchangeRate({
+        blockTag: toBlock,
+    })
+    console.log(`\nSave rate ${formatUnits(exchangeRate)}`)
 }
 
 export interface TvlConfig {
