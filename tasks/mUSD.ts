@@ -86,16 +86,6 @@ task("mUSD-snap", "Snaps mUSD")
 
         const bAssets = hre.network.name.includes("polygon") ? mUsdPolygonBassets : mUsdBassets
 
-        await getBasket(
-            mAsset,
-            bAssets.map((b) => b.symbol),
-            "mUSD",
-            usdFormatter,
-            undefined,
-            exposedValidator,
-        )
-        await snapConfig(mAsset, toBlock.blockNumber)
-
         let accounts = []
         if (network.name === "mainnet") {
             accounts = [
@@ -106,6 +96,14 @@ task("mUSD-snap", "Snaps mUSD")
                 {
                     name: "Curve mUSD",
                     address: "0x8474ddbe98f5aa3179b3b3f5942d724afcdec9f6",
+                },
+                {
+                    name: "BUSD Feeder Pool",
+                    address: "0xfe842e95f8911dcc21c943a1daa4bd641a1381c6",
+                },
+                {
+                    name: "GUSD Feeder Pool",
+                    address: "0x4fb30c5a3ac8e85bc32785518633303c4590752d",
                 },
                 {
                     name: "mStable DAO",
@@ -125,13 +123,25 @@ task("mUSD-snap", "Snaps mUSD")
             ]
         }
 
-        const balances = await getBalances(mAsset, accounts, usdFormatter, toBlock.blockNumber)
-
         const mintSummary = await getMints(bAssets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, usdFormatter)
         const mintMultiSummary = await getMultiMints(bAssets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, usdFormatter)
         const swapSummary = await getSwaps(bAssets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, usdFormatter)
         const redeemSummary = await getRedemptions(bAssets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, usdFormatter)
         const redeemMultiSummary = await getMultiRedemptions(bAssets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, usdFormatter)
+
+        await snapConfig(mAsset, toBlock.blockNumber)
+
+        await getBasket(
+            mAsset,
+            bAssets.map((b) => b.symbol),
+            "mUSD",
+            usdFormatter,
+            toBlock.blockNumber,
+            undefined,
+            exposedValidator,
+        )
+
+        const balances = await getBalances(mAsset, accounts, usdFormatter, toBlock.blockNumber)
 
         outputFees(
             mintSummary,
@@ -158,8 +168,10 @@ task("mUSD-rates", "mUSD rate comparison to Curve")
 
         console.log(`\nGetting rates for mUSD at block ${block.blockNumber}, ${block.blockTime.toUTCString()}`)
 
+        const bAssets = hre.network.name.includes("polygon") ? mUsdPolygonBassets : mUsdBassets
+
         console.log("      Qty Input     Output      Qty Out    Rate             Output    Rate   Diff      Arb$")
-        await getSwapRates(mUsdBassets, mUsdBassets, mAsset, block.blockNumber, usdFormatter, BN.from(taskArgs.swapSize))
+        await getSwapRates(bAssets, bAssets, mAsset, block.blockNumber, usdFormatter, hre.network.name, BN.from(taskArgs.swapSize))
         await snapConfig(mAsset, block.blockNumber)
     })
 

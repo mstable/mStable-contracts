@@ -102,9 +102,11 @@ export interface TvlConfig {
     capFactor: BN
     invariantValidatorAddress: string
 }
-const getTvlCap = async (signer: Signer, tvlConfig: TvlConfig): Promise<BN> => {
+const getTvlCap = async (signer: Signer, tvlConfig: TvlConfig, toBlock: number): Promise<BN> => {
     const validator = await new ValidatorWithTVLCap__factory(signer).attach(tvlConfig.invariantValidatorAddress)
-    const tvlStartTime = await validator.startTime()
+    const tvlStartTime = await validator.startTime({
+        blockTag: toBlock,
+    })
     const weeksSinceLaunch = BN.from(Date.now()).div(1000).sub(tvlStartTime).mul(fullScale).div(604800)
     // // e.g. 1e19 + (15e18 * 2.04e36) = 1e19 + 3.06e55
     // // startingCap + (capFactor * weeksSinceLaunch**2 / 1e36);
@@ -116,10 +118,13 @@ export const getBasket = async (
     bAssetSymbols: string[],
     mAssetName = "mBTC",
     quantityFormatter: QuantityFormatter,
+    toBlock: number,
     tvlConfig?: TvlConfig,
     exposedLogic?: ExposedMassetLogic,
 ): Promise<void> => {
-    const bAssets = await asset.getBassets()
+    const bAssets = await asset.getBassets({
+        blockTag: toBlock,
+    })
     const bAssetTotals: BN[] = []
     let bAssetsTotal = BN.from(0)
     bAssetSymbols.forEach((_, i) => {
@@ -143,18 +148,28 @@ export const getBasket = async (
 
     let mAssetSurplus = BN.from(0)
     if (asset.surplus) {
-        mAssetSurplus = await asset.surplus()
+        mAssetSurplus = await asset.surplus({
+            blockTag: toBlock,
+        })
     } else if (!isFeederPool(asset)) {
-        mAssetSurplus = (await asset.data()).surplus
+        mAssetSurplus = (
+            await asset.data({
+                blockTag: toBlock,
+            })
+        ).surplus
     }
-    const mAssetSupply = await asset.totalSupply()
+    const mAssetSupply = await asset.totalSupply({
+        blockTag: toBlock,
+    })
     console.log(`Surplus    ${formatUnits(mAssetSurplus)}`)
     console.log(`${mAssetName}       ${formatUnits(mAssetSupply)}`)
     const mAssetTotal = mAssetSupply.add(mAssetSurplus)
 
     if (exposedLogic && !isMusdEth(asset)) {
         const config = {
-            ...(await asset.getConfig()),
+            ...(await asset.getConfig({
+                blockTag: toBlock,
+            })),
             recolFee: 0,
         }
         const k = await exposedLogic.getK(bAssets[1], config)
@@ -171,7 +186,7 @@ export const getBasket = async (
     }
 
     if (tvlConfig) {
-        const tvlCap = await getTvlCap(asset.signer, tvlConfig)
+        const tvlCap = await getTvlCap(asset.signer, tvlConfig, toBlock)
         const tvlCapPercentage = bAssetsTotal.mul(100).div(tvlCap)
         console.log(`TVL cap   ${quantityFormatter(tvlCap)} ${tvlCapPercentage}%`)
     }
@@ -457,9 +472,11 @@ export const outputFees = (
     )
     const periodSeconds = BN.from(endTime.valueOf() - startTime.valueOf()).div(1000)
     const liquidityUtilization = totalFeeTransactions.mul(100).div(balances.total)
-    const totalApy = totalFees.mul(100).mul(ONE_YEAR).div(balances.save).div(periodSeconds)
+    const totalApy = totalFees.mul(10000).mul(ONE_YEAR).div(balances.save).div(periodSeconds)
     console.log(`Total Txs        ${quantityFormatter(totalTransactions)}`)
-    console.log(`Savings          ${quantityFormatter(balances.save)} ${quantityFormatter(totalFees, 18, 9)} APY ${totalApy}%`)
+    console.log(
+        `Savings          ${quantityFormatter(balances.save)} ${quantityFormatter(totalFees, 18, 9)} APY ${formatUnits(totalApy, 2)}%`,
+    )
     console.log(
         `${liquidityUtilization}% liquidity utilization  (${quantityFormatter(totalFeeTransactions)} of ${quantityFormatter(
             balances.total,

@@ -1,7 +1,5 @@
-import { Contract } from "ethers"
 import { applyDecimals, BN, simpleToExactAmount } from "@utils/math"
-import { FeederPool, Masset, MusdEth } from "types/generated"
-import CurveRegistryExchangeABI from "../../contracts/peripheral/Curve/CurveRegistryExchange.json"
+import { CurveRegistryExchange__factory, FeederPool, ICurve__factory, Masset, MusdEth } from "types/generated"
 import { QuantityFormatter } from "./quantity-formatters"
 import { Token } from "./tokens"
 
@@ -75,11 +73,9 @@ export const getSwapRates = async (
     mAsset: Masset | MusdEth | FeederPool,
     toBlock: number,
     quantityFormatter: QuantityFormatter,
+    networkName: string,
     inputAmount: BN | number | string = BN.from("1000"),
 ): Promise<SwapRate[]> => {
-    // Get Curve Exchange
-    const curve = new Contract("0xD1602F68CC7C4c7B59D686243EA35a9C73B0c6a2", CurveRegistryExchangeABI, mAsset.signer)
-
     const callOverride = {
         blockTag: toBlock,
     }
@@ -104,16 +100,47 @@ export const getSwapRates = async (
     // Get Curve's best swap rate for each pair and the inverse swap
     const curveSwapsPromises = []
     pairs.forEach(({ inputToken, outputToken }, i) => {
-        // Get the matching Curve swap rate
-        const curveSwapPromise = curve.get_best_rate(
-            inputToken.address,
-            outputToken.address,
-            simpleToExactAmount(inputAmount, inputToken.decimals),
-            callOverride,
-        )
-        // Get the Curve inverse swap rate using mUSD swap output as the input
-        const curveInverseSwapPromise = curve.get_best_rate(outputToken.address, inputToken.address, mAssetSwaps[i], callOverride)
-        curveSwapsPromises.push(curveSwapPromise, curveInverseSwapPromise)
+        if (networkName === "mainnet") {
+            const curveRegistryExchange = CurveRegistryExchange__factory.connect(
+                "0xD1602F68CC7C4c7B59D686243EA35a9C73B0c6a2",
+                mAsset.signer,
+            )
+            // Get the matching Curve swap rate
+            const curveSwapPromise = curveRegistryExchange.get_best_rate(
+                inputToken.address,
+                outputToken.address,
+                simpleToExactAmount(inputAmount, inputToken.decimals),
+                callOverride,
+            )
+            // Get the Curve inverse swap rate using mUSD swap output as the input
+            const curveInverseSwapPromise = curveRegistryExchange.get_best_rate(
+                outputToken.address,
+                inputToken.address,
+                mAssetSwaps[i],
+                callOverride,
+            )
+            curveSwapsPromises.push(curveSwapPromise, curveInverseSwapPromise)
+        } else if (networkName === "polygon_mainnet") {
+            const curvePool = ICurve__factory.connect("0x445FE580eF8d70FF569aB36e80c647af338db351", mAsset.signer)
+            // Just hard code the mapping for now
+            const curveIndexMap = {
+                "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063": 0, // DAI
+                "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174": 1, // USDC
+                "0xc2132D05D31c914a87C6611C10748AEb04B58e8F": 2, // Tether
+            }
+            const inputIndex = curveIndexMap[inputToken.address]
+            const outputIndex = curveIndexMap[outputToken.address]
+            // Get the matching Curve swap rate
+            const curveSwapPromise = curvePool.get_dy(
+                inputIndex,
+                outputIndex,
+                simpleToExactAmount(inputAmount, inputToken.decimals),
+                callOverride,
+            )
+            // Get the Curve inverse swap rate using mUSD swap output as the input
+            const curveInverseSwapPromise = curvePool.get_dy(outputIndex, inputIndex, mAssetSwaps[i], callOverride)
+            curveSwapsPromises.push(curveSwapPromise, curveInverseSwapPromise)
+        }
     })
     // Resolve all the Curve promises
     const curveSwaps = await Promise.all(curveSwapsPromises)
@@ -125,9 +152,9 @@ export const getSwapRates = async (
         inputDisplay: inputAmount.toString(),
         outputToken,
         mOutputRaw: mAssetSwaps[i],
-        // This first param of the Curve result is the pool address, the second is the output amount
-        curveOutputRaw: curveSwaps[i * 2][1],
-        curveInverseOutputRaw: curveSwaps[i * 2 + 1][1],
+        // For mainnet, this first param of the Curve result is the pool address, the second is the output amount
+        curveOutputRaw: networkName === "mainnet" ? curveSwaps[i * 2][1] : curveSwaps[i * 2],
+        curveInverseOutputRaw: networkName === "mainnet" ? curveSwaps[i * 2 + 1][1] : curveSwaps[i * 2 + 1],
     }))
     swaps.forEach((swap) => {
         outputSwapRate(swap, quantityFormatter)
