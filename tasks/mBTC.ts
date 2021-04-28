@@ -2,7 +2,7 @@ import { btcBassets, capFactor, contracts, startingCap } from "@utils/btcConstan
 import { Signer } from "ethers"
 import { formatUnits } from "ethers/lib/utils"
 import { task, types } from "hardhat/config"
-import { Masset, Masset__factory, ExposedMassetLogic__factory } from "types/generated"
+import { MusdEth__factory, MusdEth } from "types/generated"
 import { BN } from "@utils/math"
 import { dumpBassetStorage, dumpConfigStorage, dumpTokenStorage } from "./utils/storage-utils"
 import {
@@ -11,12 +11,12 @@ import {
     getBasket,
     getBlock,
     snapConfig,
-    Balances,
     getMints,
     getMultiMints,
     getRedemptions,
     getSwaps,
     outputFees,
+    getBalances,
 } from "./utils/snap-utils"
 import { Token, renBTC, sBTC, WBTC } from "./utils/tokens"
 import { getSwapRates } from "./utils/rates-utils"
@@ -29,43 +29,8 @@ const btcFormatter = (amount, decimals = 18, pad = 7, displayDecimals = 3): stri
     return string2decimals.replace(/\B(?=(\d{3})+(?!\d))/g, ",").padStart(pad)
 }
 
-const getBalances = async (mAsset: Masset, toBlock: number): Promise<Balances> => {
-    const mAssetBalance = await mAsset.totalSupply({
-        blockTag: toBlock,
-    })
-    const savingBalance = await mAsset.balanceOf(contracts.mainnet.imBTC, {
-        blockTag: toBlock,
-    })
-    const sushiPoolBalance = await mAsset.balanceOf(contracts.mainnet.sushiPool, {
-        blockTag: toBlock,
-    })
-    const mStableFundManagerBalance = await mAsset.balanceOf(contracts.mainnet.fundManager, {
-        blockTag: toBlock,
-    })
-    const otherBalances = mAssetBalance
-        .sub(savingBalance)
-        .sub(sushiPoolBalance)
-        .sub(mStableFundManagerBalance)
-
-    console.log("\nmBTC Holders")
-    console.log(`imBTC                ${formatUnits(savingBalance).padEnd(20)} ${savingBalance.mul(100).div(mAssetBalance)}%`)
-    console.log(`Sushi Pool           ${formatUnits(sushiPoolBalance).padEnd(20)} ${sushiPoolBalance.mul(100).div(mAssetBalance)}%`)
-    console.log(
-        `mStable Fund Manager ${formatUnits(mStableFundManagerBalance).padEnd(20)} ${mStableFundManagerBalance
-            .mul(100)
-            .div(mAssetBalance)}%`,
-    )
-    console.log(`Others               ${formatUnits(otherBalances).padEnd(20)} ${otherBalances.mul(100).div(mAssetBalance)}%`)
-
-    return {
-        total: mAssetBalance,
-        save: savingBalance,
-        earn: sushiPoolBalance,
-    }
-}
-
-const getMasset = (signer: Signer, contractAddress = "0x945Facb997494CC2570096c74b5F66A3507330a1"): Masset =>
-    Masset__factory.connect(contractAddress, signer)
+const getMasset = (signer: Signer, contractAddress = "0x945Facb997494CC2570096c74b5F66A3507330a1"): MusdEth =>
+    MusdEth__factory.connect(contractAddress, signer)
 
 task("mBTC-storage", "Dumps mBTC's storage data")
     .addOptionalParam("block", "Block number to get storage from. (default: current block)", 0, types.int)
@@ -110,6 +75,12 @@ task("mBTC-snap", "Get the latest data from the mBTC contracts")
 
         const { fromBlock, toBlock } = await getBlockRange(ethers, taskArgs.from, taskArgs.to)
 
+        const mintSummary = await getMints(mBtcBassets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, btcFormatter)
+        const mintMultiSummary = await getMultiMints(mBtcBassets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, btcFormatter)
+        const redeemSummary = await getRedemptions(mBtcBassets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, btcFormatter)
+        const redeemMultiSummary = await getMultiRedemptions(mBtcBassets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, btcFormatter)
+        const swapSummary = await getSwaps(mBtcBassets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, btcFormatter)
+
         const tvlConfig = {
             startingCap,
             capFactor,
@@ -120,18 +91,38 @@ task("mBTC-snap", "Get the latest data from the mBTC contracts")
             btcBassets.map((b) => b.symbol),
             "mBTC",
             btcFormatter,
+            toBlock.blockNumber,
             tvlConfig,
             exposedValidator,
         )
         await snapConfig(mAsset, toBlock.blockNumber)
 
-        const balances = await getBalances(mAsset, toBlock.blockNumber)
-
-        const mintSummary = await getMints(mBtcBassets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, btcFormatter)
-        const mintMultiSummary = await getMultiMints(mBtcBassets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, btcFormatter)
-        const redeemSummary = await getRedemptions(mBtcBassets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, btcFormatter)
-        const redeemMultiSummary = await getMultiRedemptions(mBtcBassets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, btcFormatter)
-        const swapSummary = await getSwaps(mBtcBassets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, btcFormatter)
+        let accounts = []
+        if (network.name === "mainnet") {
+            accounts = [
+                {
+                    name: "imBTC",
+                    address: contracts.mainnet.imBTC,
+                },
+                {
+                    name: "Sushi Pool",
+                    address: contracts.mainnet.sushiPool,
+                },
+                {
+                    name: "tBTC Feeder Pool",
+                    address: "0xb61a6f928b3f069a68469ddb670f20eeeb4921e0",
+                },
+                {
+                    name: "HBTC Feeder Pool",
+                    address: "0x48c59199da51b7e30ea200a74ea07974e62c4ba7",
+                },
+                {
+                    name: "mStable Fund Manager",
+                    address: contracts.mainnet.fundManager,
+                },
+            ]
+        }
+        const balances = await getBalances(mAsset, accounts, btcFormatter, toBlock.blockNumber)
 
         outputFees(
             mintSummary,
@@ -159,7 +150,7 @@ task("mBTC-rates", "mBTC rate comparison to Curve")
         console.log(`\nGetting rates for mBTC at block ${block.blockNumber}, ${block.blockTime.toUTCString()}`)
 
         console.log("      Qty Input     Output      Qty Out    Rate             Output    Rate   Diff      Arb$")
-        await getSwapRates(mBtcBassets, mBtcBassets, mAsset, block.blockNumber, btcFormatter, BN.from(taskArgs.swapSize))
+        await getSwapRates(mBtcBassets, mBtcBassets, mAsset, block.blockNumber, btcFormatter, hre.network.name, BN.from(taskArgs.swapSize))
         await snapConfig(mAsset, block.blockNumber)
     })
 

@@ -116,6 +116,7 @@ task("feeder-snap", "Gets feeder transactions over a period of time")
             fpAssets.map((b) => b.symbol),
             mAsset.symbol,
             usdFormatter,
+            toBlock.blockNumber,
         )
         await snapConfig(feederPool, toBlock.blockNumber)
 
@@ -174,9 +175,9 @@ task("feeder-rates", "Feeder rate comparison to Curve")
         const { quantityFormatter, swapSize } = getQuantities(fAsset, taskArgs.swapSize)
 
         console.log("      Qty Input     Output      Qty Out    Rate             Output    Rate   Diff      Arb$")
-        await getSwapRates(fpAssets, fpAssets, feederPool, block.blockNumber, quantityFormatter, swapSize)
-        await getSwapRates([fAsset], mpAssets, feederPool, block.blockNumber, quantityFormatter, swapSize)
-        await getSwapRates(mpAssets, [fAsset], feederPool, block.blockNumber, quantityFormatter, swapSize)
+        await getSwapRates(fpAssets, fpAssets, feederPool, block.blockNumber, quantityFormatter, hre.network.name, swapSize)
+        await getSwapRates([fAsset], mpAssets, feederPool, block.blockNumber, quantityFormatter, hre.network.name, swapSize)
+        await getSwapRates(mpAssets, [fAsset], feederPool, block.blockNumber, quantityFormatter, hre.network.name, swapSize)
         await snapConfig(feederPool, block.blockNumber)
     })
 
