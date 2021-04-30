@@ -5,7 +5,7 @@ import "tsconfig-paths/register"
 import { task, types } from "hardhat/config"
 import { Contract, Signer } from "ethers"
 
-import { Masset, Masset__factory, MusdEth } from "types/generated"
+import { Masset, Masset__factory, MusdEth, SavingsManager, SavingsManager__factory } from "types/generated"
 import { BN } from "@utils/math"
 import mUsdEthAbi from "../contracts/masset/versions/mUsdEth.json"
 import { dumpBassetStorage, dumpConfigStorage, dumpTokenStorage } from "./utils/storage-utils"
@@ -22,6 +22,7 @@ import {
     outputFees,
     getBalances,
     snapSave,
+    getCollectedInterest,
 } from "./utils/snap-utils"
 import { Token, sUSD, USDC, DAI, USDT, PUSDT, PUSDC, PDAI } from "./utils/tokens"
 import { usdFormatter } from "./utils/quantity-formatters"
@@ -41,6 +42,13 @@ const getMasset = (signer: Signer, networkName: string): Masset | MusdEth => {
         return new Contract("0x4E1000616990D83e56f4b5fC6CC8602DcfD20459", mUsdEthAbi, signer) as MusdEth
     }
     return new Contract("0xe2f2a5C287993345a840Db3B0845fbC70f5935a5", mUsdEthAbi, signer) as MusdEth
+}
+
+const getSavingsManager = (signer: Signer, networkName: string): SavingsManager => {
+    if (networkName === "polygon_mainnet") {
+        return SavingsManager__factory.connect("0x10bFcCae079f31c451033798a4Fd9D2c33Ea5487", signer)
+    }
+    return SavingsManager__factory.connect("0x9781C4E9B9cc6Ac18405891DF20Ad3566FB6B301", signer)
 }
 
 task("mUSD-storage", "Dumps mUSD's storage data")
@@ -82,6 +90,7 @@ task("mUSD-snap", "Snaps mUSD")
         }
 
         const mAsset = getMasset(signer, hre.network.name)
+        const savingsManager = getSavingsManager(signer, hre.network.name)
 
         const { fromBlock, toBlock } = await getBlockRange(ethers, taskArgs.from, taskArgs.to)
 
@@ -143,6 +152,16 @@ task("mUSD-snap", "Snaps mUSD")
         )
 
         const balances = await getBalances(mAsset, accounts, usdFormatter, toBlock.blockNumber)
+
+        const collectedInterestSummary = await getCollectedInterest(
+            bAssets,
+            mAsset,
+            savingsManager,
+            fromBlock,
+            toBlock,
+            usdFormatter,
+            balances.save,
+        )
 
         await snapSave(signer, hre.network.name, toBlock.blockNumber)
 

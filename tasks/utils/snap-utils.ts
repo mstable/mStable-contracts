@@ -11,8 +11,9 @@ import {
     MusdEth,
     MV1,
     MV2,
-    SavingsContract,
     SavingsContract__factory,
+    SavingsManager,
+    SavingsManager__factory,
     ValidatorWithTVLCap__factory,
 } from "types/generated"
 import { QuantityFormatter } from "./quantity-formatters"
@@ -302,7 +303,7 @@ export const getMultiMints = async (
     let total = BN.from(0)
     let count = 0
     logs.forEach((log) => {
-        // Ignore nMintMulti events from collectInterest and collectPlatformInterest
+        // Ignore MintMulti events from collectInterest and collectPlatformInterest
         if (!log.args.inputs.length) return
         const inputBassets = log.args.inputs.map((input) => bAssets.find((b) => b.address === input))
         // mAssetQuantity is for Masset. output is for FeederPool
@@ -435,6 +436,12 @@ export const getMultiRedemptions = async (
     }
 }
 
+// Returns the APY in basis points which is the percentage to 2 decimal places
+export const calcApy = (startTime: Date, endTime: Date, quantity: BN, saveBalance: BN): BN => {
+    const periodSeconds = BN.from(endTime.valueOf() - startTime.valueOf()).div(1000)
+    return quantity.mul(10000).mul(ONE_YEAR).div(saveBalance).div(periodSeconds)
+}
+
 export const outputFees = (
     mints: TxSummary,
     multiMints: TxSummary,
@@ -490,9 +497,8 @@ export const outputFees = (
             9,
         )} ${swaps.fees.mul(100).div(totalFees).toString().padStart(3)}%`,
     )
-    const periodSeconds = BN.from(endTime.valueOf() - startTime.valueOf()).div(1000)
+    const totalApy = calcApy(startTime, endTime, totalFees, balances.save)
     const liquidityUtilization = totalFeeTransactions.mul(100).div(balances.total)
-    const totalApy = totalFees.mul(10000).mul(ONE_YEAR).div(balances.save).div(periodSeconds)
     console.log(`Total Txs        ${quantityFormatter(totalTransactions)}`)
     console.log(
         `Savings          ${quantityFormatter(balances.save)} ${quantityFormatter(totalFees, 18, 9)} APY ${formatUnits(totalApy, 2)}%`,
@@ -502,4 +508,122 @@ export const outputFees = (
             balances.total,
         )} mAssets)`,
     )
+}
+
+export const getLiquidatorInterest = async (
+    mAsset: Masset | MV1 | MV2 | MusdEth | FeederPool,
+    savingsManager: SavingsManager,
+    fromBlock: BlockInfo,
+    toBlock: BlockInfo,
+    quantityFormatter: QuantityFormatter,
+): Promise<{ total: BN; count: number }> => {
+    const filter = await savingsManager.filters.LiquidatorDeposited(mAsset.address, null)
+    const logs = await savingsManager.queryFilter(filter, fromBlock.blockNumber, toBlock.blockNumber)
+
+    let total = BN.from(0)
+    let count = 0
+    logs.forEach((log) => {
+        console.log(`${log.blockNumber} ${log.transactionHash} ${quantityFormatter(log.args.amount)}`)
+        count += 1
+        total = total.add(log.args.amount)
+    })
+
+    return { total, count }
+}
+
+export const getCollectedInterest = async (
+    bAssets: Token[],
+    mAsset: Masset | MV1 | MV2 | MusdEth | FeederPool,
+    savingsManager: SavingsManager,
+    fromBlock: BlockInfo,
+    toBlock: BlockInfo,
+    quantityFormatter: QuantityFormatter,
+    savingsBalance: BN,
+): Promise<TxSummary> => {
+    // Get MintedMulti events where the mAsset is the minter
+    const filter = await mAsset.filters.MintedMulti(mAsset.address, null, null, null, null)
+    const logs = await mAsset.queryFilter(filter, fromBlock.blockNumber, toBlock.blockNumber)
+
+    console.log("\nCollected Interest")
+    console.log("Block#\t Tx hash\t\t\t\t\t\t\t\t  Quantity")
+    let total = BN.from(0)
+    let tradingFees = BN.from(0)
+    let countTradingFees = 0
+    const platformFees: BN[] = bAssets.map(() => BN.from(0))
+    let totalPlatformInterest = BN.from(0)
+    let countPlatformInterest = 0
+    let count = 0
+    logs.forEach((log) => {
+        // Ignore MintMulti events not from collectInterest and collectPlatformInterest
+        if (log.args.inputs.length) return
+        // mAssetQuantity is for Masset. output is for FeederPool
+        const quantity = log.args.mAssetQuantity || log.args.output
+        console.log(`${log.blockNumber} ${log.transactionHash} ${quantityFormatter(quantity)}`)
+        if (log.args.inputQuantities.length) {
+            countPlatformInterest += 1
+            log.args.inputQuantities.forEach((inputQuantity, i) => {
+                const scaledFee = applyDecimals(inputQuantity, bAssets[i].decimals)
+                platformFees[i] = platformFees[i].add(scaledFee)
+                totalPlatformInterest = totalPlatformInterest.add(scaledFee)
+                console.log(`   ${bAssets[i].symbol.padEnd(4)} ${quantityFormatter(inputQuantity, bAssets[i].decimals)}`)
+            })
+        } else {
+            countTradingFees += 1
+            tradingFees = tradingFees.add(quantity)
+        }
+
+        total = total.add(quantity)
+        count += 1
+    })
+    const { total: liquidatorInterest, count: countLiquidator } = await getLiquidatorInterest(
+        mAsset,
+        savingsManager,
+        fromBlock,
+        toBlock,
+        quantityFormatter,
+    )
+    total = total.add(liquidatorInterest)
+
+    const tradingFeesApy = calcApy(fromBlock.blockTime, toBlock.blockTime, tradingFees, savingsBalance)
+    console.log(
+        `Trading fees           ${quantityFormatter(tradingFees)} ${formatUnits(tradingFees.mul(10000).div(total), 2)}% ${formatUnits(
+            tradingFeesApy,
+            2,
+        )}APY`,
+    )
+    const totalPlatformApy = calcApy(fromBlock.blockTime, toBlock.blockTime, totalPlatformInterest, savingsBalance)
+    console.log(
+        `Platform interest      ${quantityFormatter(totalPlatformInterest)} ${formatUnits(
+            totalPlatformInterest.mul(10000).div(total),
+            2,
+        )}% ${formatUnits(totalPlatformApy, 2)}APY`,
+    )
+    bAssets.forEach((bAsset, i) => {
+        const platformFeeApy = calcApy(fromBlock.blockTime, toBlock.blockTime, platformFees[i], savingsBalance)
+        console.log(
+            `   ${bAsset.symbol.padEnd(4)} ${quantityFormatter(platformFees[i])} ${formatUnits(
+                platformFees[i].mul(10000).div(totalPlatformInterest),
+                2,
+            )}% ${formatUnits(platformFeeApy, 2)}APY`,
+        )
+    })
+
+    const totalLiquidatorApy = calcApy(fromBlock.blockTime, toBlock.blockTime, liquidatorInterest, savingsBalance)
+    console.log(
+        `Liquidator interest    ${quantityFormatter(liquidatorInterest)} ${formatUnits(
+            liquidatorInterest.mul(10000).div(total),
+            2,
+        )}% ${formatUnits(totalLiquidatorApy, 2)}APY`,
+    )
+
+    const totalApy = calcApy(fromBlock.blockTime, toBlock.blockTime, total, savingsBalance)
+    console.log(`Total interest         ${quantityFormatter(total)} ${formatUnits(totalApy, 2)}APY`)
+    console.log(
+        `Interest collections: ${countTradingFees} trading fee, ${countPlatformInterest} platform interest, ${countLiquidator} liquidator`,
+    )
+    return {
+        count,
+        total,
+        fees: BN.from(0),
+    }
 }
