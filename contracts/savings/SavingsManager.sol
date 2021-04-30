@@ -173,7 +173,7 @@ contract SavingsManager is ISavingsManager, PausableModule {
     }
 
     /**
-     * @dev Allows the liquidator to deposit proceeds from iquidated gov tokens.
+     * @dev Allows the liquidator to deposit proceeds from liquidated gov tokens.
      * Transfers proceeds on a second by second basis to the Savings Contract over 1 week.
      * @param _mAsset The mAsset to transfer and distribute
      * @param _liquidated Units of mAsset to distribute
