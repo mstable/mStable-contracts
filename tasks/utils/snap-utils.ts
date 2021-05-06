@@ -152,6 +152,10 @@ export const getBasket = async (
         let scaledBassetQuantity: BN
         if (isMusdEth(asset)) {
             scaledBassetQuantity = applyRatio(bAssets[1][i].vaultBalance, bAssets[1][i].ratio)
+        } else if (isFeederPool(asset)) {
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            scaledBassetQuantity = applyRatio(bAssets.vaultData[i].vaultBalance, bAssets.vaultData[i].ratio)
         } else {
             // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore
