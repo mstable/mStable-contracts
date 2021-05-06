@@ -35,22 +35,6 @@ export const dumpBassetStorage = async (mAsset: Masset | MusdEth, toBlock: numbe
         // }
         console.log("\n")
     })
-
-    console.log("\nForgeValidator : ", (await mAsset.forgeValidator(override)).toString())
-    console.log("MaxBassets     : ", (await mAsset.maxBassets(override)).toString())
-
-    // Get basket state
-    const basketState = await mAsset.basket(override)
-    console.log("UndergoingRecol: ", basketState.undergoingRecol)
-    console.log("Failed         : ", basketState.failed)
-
-    console.log("CacheSize      : ", (await mAsset.cacheSize(override)).toString())
-
-    console.log("SwapFee        : ", (await mAsset.swapFee(override)).toString())
-    console.log("RedemptionFee  : ", (await mAsset.redemptionFee(override)).toString())
-    // console.log("GovFee: ", (await mAsset.redemptionFee(override)).toString())
-
-    console.log("Surplus        : ", (await mAsset.data(override)).surplus.toString())
 }
 
 // Get fAsset storage variables
