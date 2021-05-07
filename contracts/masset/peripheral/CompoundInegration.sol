@@ -299,7 +299,7 @@ contract CompoundIntegration is AbstractIntegration {
         uint256 cTokenBalance = _cToken.balanceOf(address(this));
         uint256 exchangeRate = _cToken.exchangeRateStored();
         // e.g. 50e8*205316390724364402565641705 / 1e18 = 1.0265..e18
-        balance = cTokenBalance * exchangeRate / 1e18;
+        balance = (cTokenBalance * exchangeRate) / 1e18;
     }
 
     /**
@@ -317,6 +317,6 @@ contract CompoundIntegration is AbstractIntegration {
         uint256 exchangeRate = _cToken.exchangeRateStored();
         // e.g. 1e18*1e18 / 205316390724364402565641705 = 50e8
         // e.g. 1e8*1e18 / 205316390724364402565641705 = 0.45 or 0
-        amount = _underlying * 1e18 / exchangeRate;
+        amount = (_underlying * 1e18) / exchangeRate;
     }
 }
