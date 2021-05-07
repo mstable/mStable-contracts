@@ -602,6 +602,8 @@ export const getCollectedInterest = async (
             2,
         )}% ${formatUnits(totalPlatformApy, 2)}APY`,
     )
+    // Avoid div by 0
+    totalPlatformInterest = totalPlatformInterest.gt(0) ? totalPlatformInterest : BN.from(1)
     bAssets.forEach((bAsset, i) => {
         const platformFeeApy = calcApy(fromBlock.blockTime, toBlock.blockTime, platformFees[i], savingsBalance)
         console.log(
