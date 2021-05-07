@@ -33,11 +33,11 @@ import {
     SavingsManager,
 } from "types/generated"
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address"
-import { Contract, ContractFactory } from "@ethersproject/contracts"
 import { DEAD_ADDRESS, KEY_LIQUIDATOR, KEY_PROXY_ADMIN, KEY_SAVINGS_MANAGER, ONE_DAY, ZERO_ADDRESS } from "@utils/constants"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { formatUnits } from "@ethersproject/units"
 import { MassetLibraryAddresses } from "types/generated/factories/Masset__factory"
+import { deployContract } from "./utils/deploy-utils"
 
 // FIXME: this import does not work for some reason
 // import { sleep } from "@utils/time"
@@ -80,21 +80,6 @@ export const mUsdBassets: Bassets[] = [
         initialMint: 1000000,
     },
 ]
-
-const deployContract = async <T extends Contract>(
-    contractFactory: ContractFactory,
-    contractName = "Contract",
-    contractorArgs: Array<unknown> = [],
-): Promise<T> => {
-    console.log(`Deploying ${contractName}`)
-    const contract = (await contractFactory.deploy(...contractorArgs)) as T
-    const contractReceipt = await contract.deployTransaction.wait()
-    const ethUsed = contractReceipt.gasUsed.mul(contract.deployTransaction.gasPrice)
-    const abiEncodedConstructorArgs = contract.interface.encodeDeploy(contractorArgs)
-    console.log(`Deployed ${contractName} to ${contract.address}, gas used ${contractReceipt.gasUsed}, eth ${formatUnits(ethUsed)}`)
-    console.log(`ABI encoded args: ${abiEncodedConstructorArgs}`)
-    return contract
-}
 
 const deployBasset = async (
     deployer: SignerWithAddress,
