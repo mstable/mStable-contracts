@@ -39,12 +39,20 @@ contract MockCToken is ERC20, ICERC20 {
     function mint(uint mintAmount) external override returns (uint) {
         // Pretend to inflate the cTokenExchangeRate
         // updateExchangeRate(); 
+
+        // Get the bAsset bal of this cToken contract before transfer
+        uint256 bAssetsBefore = underlyingToken.balanceOf(address(this));
     
         // Take their reserve
         underlyingToken.transferFrom(msg.sender, address(this), mintAmount);
 
-        // Credit them with cToken
-        uint256 cTokens = _convertUnderlyingToCToken(mintAmount);
+        // Get the bAsset bal of this cToken contract after transfer
+        uint256 bAssetsAfter = underlyingToken.balanceOf(address(this));
+        // calculate bAsset deposit amount after any transfer fees
+        uint256 bAssetsDeposited = bAssetsAfter - bAssetsBefore;
+
+        // Credit new cTokens for the deposited bAssets
+        uint256 cTokens = _convertUnderlyingToCToken(bAssetsDeposited);
         _mint(msg.sender, cTokens);
         return 0;
     }
