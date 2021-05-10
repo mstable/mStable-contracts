@@ -27,8 +27,8 @@ describe("CompoundIntegration", () => {
 
     let nexus: MockNexus
     let mAsset: Account
-    let bAsset: MockERC20
-    let cToken: MockCToken
+    let bAssets: MockERC20[]
+    let cTokens: MockCToken[]
     let compoundIntegration: CompoundIntegration
 
     let integrationDetails: BassetIntegrationDetails
@@ -45,26 +45,37 @@ describe("CompoundIntegration", () => {
         )
         // Deploy the bAssets without the lending markets, which is Compound
         integrationDetails = await mAssetMachine.loadBassetsLocal(false, enableUSDTFee)
-        bAsset = integrationDetails.bAssets[0]
+        bAssets = integrationDetails.bAssets
 
-        // Deploy Compound Token contract linked to the first bAsset
-        cToken = await new MockCToken__factory(sa.default.signer).deploy("Compound mAsset", "cymAsset", bAsset.address)
+        // Deploy Compound Token contract linked to the bAssets
+        const cTokensPromises = bAssets.map((bAsset) =>
+            new MockCToken__factory(sa.default.signer).deploy("Compound Token", "cToken", bAsset.address),
+        )
+        cTokens = await Promise.all(cTokensPromises)
+
         // Deploy Compound Integration contract
         compoundIntegration = await new CompoundIntegration__factory(sa.default.signer).deploy(nexus.address, mAsset.address, DEAD_ADDRESS)
 
         if (!skipInit) {
-            await compoundIntegration.connect(sa.governor.signer).setPTokenAddress(bAsset.address, cToken.address)
+            // set bAsset and cToken on the Compound Integration contract for the mAsset
+            await Promise.all(
+                cTokens.map((cToken, i) =>
+                    compoundIntegration.connect(sa.governor.signer).setPTokenAddress(bAssets[i].address, cToken.address),
+                ),
+            )
 
             if (simulateMint) {
-                // Step 0. Choose tokens
-                const b1 = await new MockERC20__factory(mAsset.signer).attach(bAsset.address)
-                const decimals = BN.from(await b1.decimals())
-                const amount = BN.from(enableUSDTFee ? 101 : 100).mul(BN.from(10).pow(decimals.sub(BN.from(1))))
-                const amountD = BN.from(100).mul(BN.from(10).pow(decimals.sub(BN.from(1))))
-                // Step 1. xfer tokens to integration
-                await b1.transfer(compoundIntegration.address, amount)
-                // Step 2. call deposit
-                return compoundIntegration.connect(mAsset.signer).deposit(bAsset.address, amountD.toString(), true)
+                await Promise.all(
+                    bAssets.map(async (bAsset) => {
+                        const decimals = BN.from(await bAsset.decimals())
+                        const amount = BN.from(enableUSDTFee ? 101 : 100).mul(BN.from(10).pow(decimals.sub(BN.from(1))))
+                        const amountD = BN.from(100).mul(BN.from(10).pow(decimals.sub(BN.from(1))))
+                        // Step 1. xfer tokens to integration
+                        await bAsset.transfer(compoundIntegration.address, amount)
+                        // Step 2. call deposit
+                        return compoundIntegration.connect(mAsset.signer).deposit(bAsset.address, amountD.toString(), true)
+                    }),
+                )
             }
         }
     }
@@ -74,8 +85,6 @@ describe("CompoundIntegration", () => {
         mAssetMachine = await new MassetMachine().initAccounts(accounts)
         sa = mAssetMachine.sa
         mAsset = sa.mockMasset
-
-        // await runSetup()
     })
 
     describe("Compound constructor", async () => {
@@ -103,30 +112,30 @@ describe("CompoundIntegration", () => {
         })
 
         it("should properly store valid arguments", async () => {
-            await compoundIntegration.initialize([bAsset.address], [cToken.address])
-            expect(cToken.address).eq(await compoundIntegration.bAssetToPToken(bAsset.address))
+            await compoundIntegration.initialize([bAssets[0].address], [cTokens[0].address])
+            expect(cTokens[0].address).eq(await compoundIntegration.bAssetToPToken(bAssets[0].address))
         })
 
         it("should fail when called again", async () => {
-            await compoundIntegration.initialize([bAsset.address], [cToken.address])
-            await expect(compoundIntegration.initialize([bAsset.address], [cToken.address])).to.be.revertedWith(
+            await compoundIntegration.initialize([bAssets[0].address], [cTokens[0].address])
+            await expect(compoundIntegration.initialize([bAssets[0].address], [cTokens[0].address])).to.be.revertedWith(
                 "Initializable: contract is already initialized",
             )
         })
 
         it("should fail if passed incorrect data", async () => {
             await expect(
-                compoundIntegration.initialize([bAsset.address, sa.dummy1.address], [cToken.address]),
+                compoundIntegration.initialize([bAssets[0].address, sa.dummy1.address], [cTokens[0].address]),
                 "bAsset and pToken array length are different",
             ).to.be.revertedWith("Invalid inputs")
-            await expect(compoundIntegration.initialize([cToken.address], [ZERO_ADDRESS]), "pToken address is zero").to.be.revertedWith(
+            await expect(compoundIntegration.initialize([cTokens[0].address], [ZERO_ADDRESS]), "pToken address is zero").to.be.revertedWith(
                 "Invalid addresses",
             )
             await expect(
-                compoundIntegration.initialize([bAsset.address, bAsset.address], [cToken.address, cToken.address]),
+                compoundIntegration.initialize([bAssets[0].address, bAssets[0].address], [cTokens[0].address, cTokens[0].address]),
                 "duplicate pToken or bAsset",
             ).to.be.revertedWith("pToken already set")
-            await expect(compoundIntegration.initialize([ZERO_ADDRESS], [cToken.address]), "invalid bAsset addresses").to.be.reverted
+            await expect(compoundIntegration.initialize([ZERO_ADDRESS], [cTokens[0].address]), "invalid bAsset addresses").to.be.reverted
         })
     })
 
@@ -162,92 +171,125 @@ describe("CompoundIntegration", () => {
         })
     })
 
-    describe.only("calling deposit", async () => {
+    describe("calling deposit", async () => {
         beforeEach("init mocks", async () => {
             await runSetup()
         })
         it("should deposit tokens to Compound", async () => {
-            // Step 1. mint amount = 1 with 18 decimal places
+            // Step 1: Choose the test tokens
+            const bAsset = bAssets[0]
+            const cToken = cTokens[0]
+
+            // Step 2. mint amount = 1 with 18 decimal places
             const bAssetDecimals = await bAsset.decimals()
             const amount = simpleToExactAmount(1, bAssetDecimals)
 
-            // Step 2. Get balances before
-            const bAssetRecipientBalBefore = await bAsset.balanceOf(cToken.address)
-            const compoundIntegrationBalBefore = await cToken.balanceOf(compoundIntegration.address)
+            // Step 3. Get balances before
+            const bAssetBalInCTokenContractBefore = await bAsset.balanceOf(cToken.address)
+            const cTokenBalInIntegrationContractBefore = await cToken.balanceOf(compoundIntegration.address)
             // Cross that match with the `checkBalance` call
             expect(await compoundIntegration.callStatic.checkBalance(bAsset.address), "bAsset bal of integration before").eq(
-                compoundIntegrationBalBefore,
+                cTokenBalInIntegrationContractBefore,
             )
 
-            // Step 3. Simulate mAsset transferring bAsset to integration contract
+            // Step 4. Simulate mAsset calling deposit on the integration contract from a mint
+            // Transfer the mAsset some bAsset tokens. This would normally happen in a mAsset mint.
             await bAsset.transfer(compoundIntegration.address, amount)
-
-            // Step 4. Simulate mAsset calling deposit on the integration contract
+            // mAsset calls deposit on the Compound integration contract
             const tx = compoundIntegration.connect(mAsset.signer).deposit(bAsset.address, amount, false)
 
-            // Step 5. Check for things:
-            // 5.0 Check that return value is cool (via event)
+            // Step 5. Post deposit checks
+            // 5.0 Check the Deposit event from the Compound Integration contract
             await expect(tx, "Deposit event").to.emit(compoundIntegration, "Deposit").withArgs(bAsset.address, cToken.address, amount)
-            // 5.1 Check that Compound has bAssets
-            expect(await bAsset.balanceOf(cToken.address), "bAsset bal of cToken").eq(bAssetRecipientBalBefore.add(amount))
-            // 5.2 Check that Compound integration has cTokens
+            // 5.1 Check bAssets in the cToken contract
+            expect(await bAsset.balanceOf(cToken.address), "bAsset bal in cToken after").eq(bAssetBalInCTokenContractBefore.add(amount))
+            // 5.1 Check bAssets are no longer in integration contract
+            expect(await bAsset.balanceOf(compoundIntegration.address), "no bAssets in integration after").eq(0)
+            // 5.2 Check cTokens in the Compound integration
             // cToken amount is x100 the bAsset amount but to 8 decimals places
-            expect(await cToken.balanceOf(compoundIntegration.address), "cToken bal of integration after").to.eq(
-                compoundIntegrationBalBefore.add(await convertUnderlyingToCToken(cToken, amount)),
+            expect(await cToken.balanceOf(compoundIntegration.address), "cToken bal in integration after").to.eq(
+                cTokenBalInIntegrationContractBefore.add(await convertUnderlyingToCToken(cToken, amount)),
             )
-            // Cross that match with the `checkBalance` call
-            expect(await compoundIntegration.callStatic.checkBalance(bAsset.address), "integration checkBalance of bAsset").eq(
-                bAssetRecipientBalBefore.add(amount),
+            // Cross that match bAssets in cToken with the `checkBalance` call
+            expect(await compoundIntegration.callStatic.checkBalance(bAsset.address), "checkBalance of bAsset in integration contract").eq(
+                bAssetBalInCTokenContractBefore.add(amount),
             )
         })
 
-        it.skip("should handle the fee calculations", async () => {
-            // Enable transfer fee on 3rd and 4th bAsset (index 2 and 3)
+        it("should handle the fee calculations", async () => {
+            // Step 0. Choose tokens with transfer fee on 3rd and 4th bAsset (index 2 and 3)
             await runSetup(true)
+            const bAsset = bAssets[3]
+            const cToken = cTokens[3]
 
             // Step 1. mint amount = 1000 with 18 decimal places
             const bAssetDecimals = await bAsset.decimals()
             const amount = simpleToExactAmount(1000, bAssetDecimals)
 
             // Step 2 Get balance before
-            const bAssetRecipientBalBefore = await bAsset.balanceOf(cToken.address)
-            const compoundIntegrationBalBefore = await cToken.balanceOf(compoundIntegration.address)
+            const bAssetBalInCTokenContractBefore = await bAsset.balanceOf(cToken.address)
+            const bAssetBalInIntegrationContractBefore = await bAsset.balanceOf(compoundIntegration.address)
+            const cTokenBalInIntegrationContractBefore = await cToken.balanceOf(compoundIntegration.address)
             // Cross that match with the `checkBalance` call
             expect(await compoundIntegration.callStatic.checkBalance(bAsset.address), "bAsset bal of integration before").eq(
-                compoundIntegrationBalBefore,
+                cTokenBalInIntegrationContractBefore,
             )
 
-            const bal1 = await bAsset.balanceOf(compoundIntegration.address)
-
-            // Step 1. xfer tokens to integration
+            // Step 1. simulate mAsset transferring bAsset tokens to integration contract as part of a mint
             await bAsset.transfer(compoundIntegration.address, amount)
 
-            const bal2 = await bAsset.balanceOf(compoundIntegration.address)
-            const receivedAmount = bal2.sub(bal1)
-            // Ensure fee is being deducted
-            expect(receivedAmount).lt(amount)
-            // fee = initialAmount - receivedAmount
-            const fee = amount.sub(receivedAmount)
-            // feeRate = fee/amount (base 1e18)
-            const feeRate = fee.mul(simpleToExactAmount(1)).div(amount)
-            // expectedDeposit = receivedAmount - (receivedAmount*feeRate)
-            const expectedDeposit = receivedAmount.sub(receivedAmount.mul(feeRate).div(simpleToExactAmount(1)))
+            // Step 2. Check balances and fees after first transfer from the mint
+            const bAssetBalInIntegrationContractAfterFirstTransfer = await bAsset.balanceOf(compoundIntegration.address)
+            const firstTransferReceivedAmount = bAssetBalInIntegrationContractAfterFirstTransfer.sub(bAssetBalInIntegrationContractBefore)
 
-            // Step 2. call deposit
-            await compoundIntegration.connect(mAsset.signer).deposit(bAsset.address, receivedAmount, true)
+            const feeRate = simpleToExactAmount(1, 15)
+            // Ensure fee is being deducted = amount * feeRate / base (1e18)
+            // if fee is 0.1%, fee = amount / 1000 = amount * 1e15 / 1e18
+            const firstTransferFeeExpected = amount.mul(feeRate).div(fullScale)
+            const firstTransferAmountExpected = amount.sub(firstTransferFeeExpected)
+            expect(firstTransferReceivedAmount, "Fee needs to be removed from bAsset").eq(firstTransferAmountExpected)
 
-            // Step 3. Check for things:
-            const compoundIntegrationBalAfter = await cToken.balanceOf(compoundIntegration.address)
-            // 3.1 Check that lending pool has bAssets
-            expect(await bAsset.balanceOf(cToken.address)).eq(bAssetRecipientBalBefore.add(expectedDeposit))
-            // 3.2 Check that Compound integration has cTokens
-            assertBNClose(compoundIntegrationBalAfter, compoundIntegrationBalBefore.add(expectedDeposit), fee)
-            // Cross that match with the `checkBalance` call
-            expect(await compoundIntegration.callStatic.checkBalance(bAsset.address)).eq(compoundIntegrationBalAfter)
+            // Step 3. simulate mAsset calling deposit on the Integration contract
+            const tx = compoundIntegration.connect(mAsset.signer).deposit(bAsset.address, firstTransferReceivedAmount, true)
+
+            const secondTransferFeeExpected = firstTransferAmountExpected.mul(feeRate).div(fullScale)
+            const secondTransferAmountExpected = firstTransferAmountExpected.sub(secondTransferFeeExpected)
+
+            // Step 5. Check emitted events
+            // 5.1 Check the Deposit event on the integration contract
+            await expect(tx, "Deposit event from Compound Integration")
+                .to.emit(compoundIntegration, "Deposit")
+                .withArgs(bAsset.address, cToken.address, secondTransferAmountExpected)
+
+            // 5.2 Check the Transfer event on the cToken from the mint
+            const newCTokens = await convertUnderlyingToCToken(cToken, secondTransferAmountExpected)
+            await expect(tx, "Transfer event from cToken")
+                .to.emit(cToken, "Transfer")
+                .withArgs(ZERO_ADDRESS, compoundIntegration.address, newCTokens)
+
+            // Step 6. Check token balances
+            // 6.1 Check bAssets in cToken contract
+            const bAssetBalInCTokenContractAfterDeposit = await bAsset.balanceOf(cToken.address)
+            expect(bAssetBalInCTokenContractAfterDeposit, "bAssets in cToken after deposit").eq(
+                bAssetBalInCTokenContractBefore.add(secondTransferAmountExpected),
+            )
+            // 6.2 Cross that match with the `checkBalance` call
+            expect(await compoundIntegration.callStatic.checkBalance(bAsset.address), "checkBalance of bAssets in Integration").eq(
+                bAssetBalInCTokenContractAfterDeposit,
+            )
+
+            // 6.3 Check the cTokens in the compound integration contract
+            const cTokenBalInIntegrationContractAfterDeposit = await cToken.balanceOf(compoundIntegration.address)
+            expect(cTokenBalInIntegrationContractAfterDeposit, "cTokens in Integration contract after deposit").to.eq(
+                cTokenBalInIntegrationContractBefore.add(await convertUnderlyingToCToken(cToken, secondTransferAmountExpected)),
+            )
+            // 6.4 Check no bAssets are left in the Integration contract
+            expect(await bAsset.balanceOf(compoundIntegration.address), "no bAssets in Integration after deposit").to.eq(0)
+            // assertBNClose(cTokenBalInIntegrationContractAfter, cTokenBalInIntegrationContractBefore.add(firstTransferAmountExpected))
         })
         it("should only allow the liquidity provider to call function", async () => {
             await expect(
-                compoundIntegration.connect(sa.dummy1.signer).deposit(bAsset.address, simpleToExactAmount(10), false),
+                compoundIntegration.connect(sa.dummy1.signer).deposit(bAssets[0].address, simpleToExactAmount(10), false),
             ).to.be.revertedWith("Only the LP can execute")
         })
         it("should fail if the bAsset is not supported", async () => {
@@ -263,17 +305,16 @@ describe("CompoundIntegration", () => {
             // const aToken = await new MockATokenV2__factory(sa.default.signer).attach(integrationDetails.aTokens[0].aToken)
 
             // Step 2. call deposit
-            await expect(compoundIntegration.connect(mAsset.signer).deposit(bAsset.address, amount, false)).to.be.revertedWith(
+            await expect(compoundIntegration.connect(mAsset.signer).deposit(bAssets[0].address, amount, false)).to.be.revertedWith(
                 "ERC20: transfer amount exceeds balance",
             )
         })
         it("should fail if we try to deposit too much", async () => {
             // Step 0. Choose tokens
-            // const bAsset = await new MockERC20__factory(sa.default.signer).attach(integrationDetails.aTokens[1].bAsset)
+            const bAsset = bAssets[0]
             const bAssetDecimals = await bAsset.decimals()
             const amount = BN.from(10).mul(BN.from(10).pow(bAssetDecimals))
             const amountHigh = BN.from(11).mul(BN.from(10).pow(bAssetDecimals))
-            // const aToken = await new MockATokenV2__factory(sa.default.signer).attach(integrationDetails.aTokens[1].aToken)
 
             // Step 1. xfer low tokens to integration
             await bAsset.transfer(compoundIntegration.address, amount)
@@ -283,17 +324,12 @@ describe("CompoundIntegration", () => {
                 compoundIntegration.connect(mAsset.signer).deposit(bAsset.address, amountHigh.toString(), false),
             ).to.be.revertedWith("ERC20: transfer amount exceeds balance")
         })
-        it.skip("should fail with broken arguments", async () => {
-            // Step 0. Choose tokens
-            // const bAsset = await new MockERC20__factory(sa.default.signer).attach(integrationDetails.aTokens[0].bAsset)
+        it("should fail with broken arguments", async () => {
+            // Step 0. Choose tokens with no transfer fee
+            const bAsset = bAssets[0]
+            const cToken = cTokens[0]
             const bAssetDecimals = await bAsset.decimals()
             const amount = BN.from(10).pow(bAssetDecimals)
-            // const aToken = await new MockATokenV2__factory(sa.default.signer).attach(integrationDetails.aTokens[0].aToken)
-
-            // 0.1 Get balance before
-            const bAssetRecipient = cToken.address
-            const bAssetRecipientBalBefore = await bAsset.balanceOf(bAssetRecipient)
-            const compoundIntegrationBalBefore = await cToken.balanceOf(compoundIntegration.address)
 
             // Step 1. xfer low tokens to integration
             await bAsset.transfer(compoundIntegration.address, amount)
@@ -307,20 +343,10 @@ describe("CompoundIntegration", () => {
                 "Must deposit something",
             )
             // Succeeds with Incorrect bool (defaults to false)
-            await compoundIntegration.connect(mAsset.signer).deposit(bAsset.address, amount, undefined)
+            const tx = compoundIntegration.connect(mAsset.signer).deposit(bAsset.address, amount, undefined)
 
-            // Step 3. Check for things:
-            // 3.1 Check that lending pool has bAssets
-            expect(await bAsset.balanceOf(bAssetRecipient)).eq(bAssetRecipientBalBefore.add(amount))
-            // 3.2 Check that compound integration has cTokens
-            const newBal = await cToken.balanceOf(compoundIntegration.address)
-            assertBNSlightlyGT(newBal, compoundIntegrationBalBefore.add(amount), BN.from(1000))
-            // Cross that match with the `checkBalance` call
-            const directBalance = await compoundIntegration.callStatic.checkBalance(bAsset.address)
-            expect(directBalance).eq(newBal)
-
-            // 3.3 Check that return value is cool (via event)
-            // expectEvent(tx.receipt, "Deposit", { _amount: amount })
+            // Check the Deposit event
+            await expect(tx).to.emit(compoundIntegration, "Deposit").withArgs(bAsset.address, cToken.address, amount)
         })
     })
 
