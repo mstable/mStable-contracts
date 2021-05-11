@@ -1,8 +1,6 @@
 import axios from "axios"
-import { ContractTransaction, Signer } from "ethers"
+import { Signer } from "ethers"
 import { task, types } from "hardhat/config"
-import { Speed } from "defender-relay-client"
-import { DefenderRelayProvider, DefenderRelaySigner } from "defender-relay-client/lib/ethers"
 import {
     ISavingsManager,
     ISavingsManager__factory,
@@ -11,38 +9,12 @@ import {
     PLiquidator__factory,
     SavingsManager__factory,
 } from "types/generated"
-import { formatUnits } from "@ethersproject/units"
 import { tokens } from "./utils/tokens"
+import { getDefenderSigner } from "./utils/defender-utils"
+import { logTxDetails } from "./utils/deploy-utils"
 
 const getSavingsManager = (signer: Signer, contractAddress = "0x9781c4e9b9cc6ac18405891df20ad3566fb6b301"): ISavingsManager =>
     ISavingsManager__factory.connect(contractAddress, signer)
-
-const getDefenderSigner = async (speed: Speed = "safeLow"): Promise<Signer> => {
-    if (!process.env.DEFENDER_API_KEY || !process.env.DEFENDER_API_SECRET) {
-        console.error(`Defender env vars DEFENDER_API_KEY and/or DEFENDER_API_SECRET have not been set`)
-        process.exit(1)
-    }
-    if (!["safeLow", "average", "fast", "fastest"].includes(speed)) {
-        console.error(`Defender Relay Speed param must be either 'safeLow', 'average', 'fast' or 'fastest'. Not "${speed}"`)
-        process.exit(2)
-    }
-    const credentials = {
-        apiKey: process.env.DEFENDER_API_KEY,
-        apiSecret: process.env.DEFENDER_API_SECRET,
-    }
-    const provider = new DefenderRelayProvider(credentials)
-    const signer = new DefenderRelaySigner(credentials, provider, { speed })
-    return signer
-}
-
-const logTxDetails = async (tx: ContractTransaction, method: string): Promise<void> => {
-    console.log(`Send ${method} transaction with hash ${tx.hash} from ${tx.from} with gas price ${tx.gasPrice.toNumber() / 1e9} Gwei`)
-    const receipt = await tx.wait()
-
-    // Calculate tx cost in Wei
-    const txCost = receipt.gasUsed.mul(tx.gasPrice)
-    console.log(`Processed ${method} tx in block ${receipt.blockNumber}, using ${receipt.gasUsed} gas costing ${formatUnits(txCost)} ETH`)
-}
 
 task("eject-stakers", "Ejects expired stakers from Meta staking contract (vMTA)")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)

@@ -19,4 +19,16 @@ contract MockAaveIncentivesController is IAaveIncentivesController {
         IERC20(rewardsToken).transfer(msg.sender, 1e20);
         return 1e20;
     }
+
+    function getRewardsBalance(address[] calldata assets, address user)
+        external
+        view
+        override
+        returns (uint256) {
+        return 1e20;
+    }
+
+    function getUserUnclaimedRewards(address user) external view override returns (uint256) {
+        return 1e20;
+    }
 }
