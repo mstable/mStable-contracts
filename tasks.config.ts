@@ -1,5 +1,6 @@
 import config from "./hardhat.config"
 
+import "./tasks/deployAaveIntegration"
 import "./tasks/deployMbtc"
 import "./tasks/deployFeeders"
 import "./tasks/deployMV3"
