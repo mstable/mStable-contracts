@@ -2,8 +2,9 @@ import "ts-node/register"
 import "tsconfig-paths/register"
 
 import { task } from "hardhat/config"
-import { AaveV2Integration__factory } from "types/generated"
-import { DEAD_ADDRESS } from "@utils/constants"
+import { AaveV2Integration__factory, MusdEth__factory, PAaveIntegration, PAaveIntegration__factory } from "types/generated"
+import { deployContract, logTxDetails } from "./utils/deploy-utils"
+import { getDefenderSigner } from "./utils/defender-utils"
 
 interface CommonAddresses {
     nexus: string
@@ -37,6 +38,72 @@ task("deployAaveIntegration", "Deploys an instance of AaveV2Integration contract
 
     // Complete setup
     //  - Set pToken addresses via governance
+})
+
+task("deployPAaveIntegration", "Deploys mUSD and mBTC instances of PAaveIntegration").setAction(async (_, hre) => {
+    const { ethers, network } = hre
+    // const [deployer] = await ethers.getSigners()
+    const deployer = await getDefenderSigner()
+
+    if (network.name !== "mainnet") throw Error("Invalid network")
+
+    const nexusAddress = "0xafce80b19a8ce13dec0739a1aab7a028d6845eb3"
+    const lendingPoolAddressProviderAddress = "0xb53c1a33016b2dc2ff3653530bff1848a515c8c5"
+    // Also called Incentives Controller
+    const aaveRewardControllerAddress = "0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5"
+
+    // Reward token
+    const stkAaveTokenAddress = "0x4da27a545c0c5b758a6ba100e3a049001de870f5"
+    // mAssets
+    const mUsdAddress = "0xe2f2a5c287993345a840db3b0845fbc70f5935a5"
+    const mBtcAddress = "0x945Facb997494CC2570096c74b5F66A3507330a1"
+
+    // bAssets
+    const daiAddress = "0x6b175474e89094c44da98b954eedeac495271d0f"
+    const usdtAddress = "0xdac17f958d2ee523a2206206994597c13d831ec7"
+    const sUsdAddress = "0x57Ab1ec28D129707052df4dF418D58a2D46d5f51"
+    const wBtcAddress = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599"
+    // Aave aTokens
+    const aDaiAddress = "0x028171bCA77440897B824Ca71D1c56caC55b68A3"
+    const aUsdtAddress = "0x3Ed3B47Dd13EC9a98b44e6204A523E766B225811"
+    const asUsdAddress = "0x6C5024Cd4F8A59110119C56f8933403A539555EB"
+    const aWBtcAddress = "0x9ff58f4fFB29fA2266Ab25e75e2A8b3503311656"
+
+    // Deploy
+    const mUsdPAaveIntegration = await deployContract<PAaveIntegration>(
+        new PAaveIntegration__factory(deployer),
+        "PAaveIntegration for mUSD",
+        [nexusAddress, mUsdAddress, lendingPoolAddressProviderAddress, stkAaveTokenAddress, aaveRewardControllerAddress],
+    )
+    let tx = await mUsdPAaveIntegration.initialize([daiAddress, usdtAddress, sUsdAddress], [aDaiAddress, aUsdtAddress, asUsdAddress])
+    await logTxDetails(tx, "mUsdPAaveIntegration.initialize")
+
+    const mBtcPAaveIntegration = await deployContract<PAaveIntegration>(
+        new PAaveIntegration__factory(deployer),
+        "PAaveIntegration for mBTC",
+        [nexusAddress, mBtcAddress, lendingPoolAddressProviderAddress, stkAaveTokenAddress, aaveRewardControllerAddress],
+    )
+    tx = await mBtcPAaveIntegration.initialize([wBtcAddress], [aWBtcAddress])
+    await logTxDetails(tx, "mBtcPAaveIntegration.initialize")
+
+    const approveRewardTokenData = mUsdPAaveIntegration.interface.encodeFunctionData("approveRewardToken")
+    console.log(`\napproveRewardToken data: ${approveRewardTokenData}`)
+
+    const mBtc = await MusdEth__factory.connect(mBtcAddress, deployer)
+    const mUsd = await MusdEth__factory.connect(mUsdAddress, deployer)
+
+    console.log(`\nGovernor tx data`)
+    const mBtcMigrateWbtcData = mBtc.interface.encodeFunctionData("migrateBassets", [[wBtcAddress], mBtcPAaveIntegration.address])
+    console.log(`mBTC migrateBassetsData WBTC data: ${mBtcMigrateWbtcData}`)
+
+    const mUsdMigrateDaiData = mUsd.interface.encodeFunctionData("migrateBassets", [[daiAddress], mUsdPAaveIntegration.address])
+    console.log(`mUSD migrateBassetsData DAI data: ${mUsdMigrateDaiData}`)
+
+    const mUsdMigrateUsdtSusdData = mUsd.interface.encodeFunctionData("migrateBassets", [
+        [usdtAddress, sUsdAddress],
+        mUsdPAaveIntegration.address,
+    ])
+    console.log(`mUSD migrateBassetsData USDT and sUSD data: ${mUsdMigrateUsdtSusdData}`)
 })
 
 module.exports = {}
