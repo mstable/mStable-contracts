@@ -21,6 +21,9 @@ const governorAddress = "0xF6FF1F7FCEB2cE6d26687EaaB5988b445d0b94a2"
 const deployerAddress = "0xb81473f20818225302b8fffb905b53d58a793d84"
 const ethWhaleAddress = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 const wbtcWhaleAddress = "0x6daB3bCbFb336b29d06B9C793AEF7eaA57888922"
+const daiWhaleAddress = "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be"
+const sUsdWhaleAddress = "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be"
+const usdtWhaleAddress = "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be"
 
 const nexusAddress = "0xafce80b19a8ce13dec0739a1aab7a028d6845eb3"
 const lendingPoolAddressProviderAddress = "0xb53c1a33016b2dc2ff3653530bff1848a515c8c5"
@@ -64,6 +67,9 @@ context("DAI and WBTC migration to integration that can claim stkAave", () => {
     let deployer: Signer
     let ethWhale: Signer
     let wbtcWhale: Signer
+    let daiWhale: Signer
+    let sUsdWhale: Signer
+    let usdtWhale: Signer
     let mUsd: MusdEth
     let mBtc: MusdEth
     let stkAave: IERC20
@@ -91,6 +97,9 @@ context("DAI and WBTC migration to integration that can claim stkAave", () => {
         governor = await impersonate(governorAddress)
         ethWhale = await impersonate(ethWhaleAddress)
         wbtcWhale = await impersonate(wbtcWhaleAddress)
+        daiWhale = await impersonate(daiWhaleAddress)
+        sUsdWhale = await impersonate(sUsdWhaleAddress)
+        usdtWhale = await impersonate(usdtWhaleAddress)
 
         // send some Ether to the impersonated multisig contract as it doesn't have Ether
         await ethWhale.sendTransaction({
@@ -108,6 +117,12 @@ context("DAI and WBTC migration to integration that can claim stkAave", () => {
 
         stkAave = await IERC20__factory.connect(stkAaveTokenAddress, governor)
         aaveIncentivesController = await IAaveIncentivesController__factory.connect(aaveRewardControllerAddress, governor)
+
+        // whales approve spending by mAssets
+        await dai.connect(daiWhale).approve(mUsdAddress, simpleToExactAmount(1000))
+        await susd.connect(sUsdWhale).approve(mUsdAddress, simpleToExactAmount(1000))
+        await usdt.connect(usdtWhale).approve(mUsdAddress, simpleToExactAmount(1000, 6))
+        await wbtc.connect(wbtcWhale).approve(mBtcAddress, simpleToExactAmount(100, 8))
     })
     it("Test connectivity", async () => {
         const currentBlock = await ethers.provider.getBlockNumber()
@@ -177,11 +192,8 @@ context("DAI and WBTC migration to integration that can claim stkAave", () => {
         it("Mint some mBTC using 10 WBTC", async () => {
             const { data: wbtcDataBefore } = await mBtc.getBasset(wBtcAddress)
 
-            // WBTC whale approves mBTC to transfer 10 WBTC
-            const mintAmount = simpleToExactAmount(10, 8)
-            await wbtc.connect(wbtcWhale).approve(mBtcAddress, mintAmount)
-
             // WBTC whale mints mBTC using 10 WBTC
+            const mintAmount = simpleToExactAmount(10, 8)
             await mBtc.connect(wbtcWhale).mint(wBtcAddress, mintAmount, 0, wbtcWhaleAddress)
 
             const { data: wbtcDataAfter } = await mBtc.getBasset(wBtcAddress)
@@ -256,16 +268,23 @@ context("DAI and WBTC migration to integration that can claim stkAave", () => {
             expect(daiBalInATokenAfter.sub(daiBalInATokenBefore).add(daiCachedInAaveIntegrationAfter), "No DAI was lost").to.eq(
                 daiBalInCTokenBefore.sub(daiBalInCTokenAfter).add(daiCachedInCompoundIntegrationBefore),
             )
-            // TODO why don't these match?
-            // expect(daiBalInCTokenBefore.sub(daiBalInCTokenAfter).add(daiCachedInCompoundIntegrationBefore), "DAI migrated from Compound").to.eq(
-            //     daiMigrationAmount,
-            // )
-            // expect(daiBalInATokenAfter.sub(daiBalInATokenBefore).add(daiCachedInAaveIntegrationAfter), "DAI migrated to Aave").to.eq(
-            //     daiMigrationAmount,
-            // )
-
             const { data: bAssetDataAfter } = await mUsd.getBasset(daiAddress)
             expect(bAssetDataBefore.vaultBalance, "Before and after mUSD DAI vault balances").to.eq(bAssetDataAfter.vaultBalance)
+        })
+        it("Swap 10 DAI for USDT", async () => {
+            const { data: daiDataBefore } = await mUsd.getBasset(daiAddress)
+
+            // whale swaps 10 DAI for USDT
+            const swapAmount = simpleToExactAmount(10)
+            await mUsd.connect(daiWhale).swap(daiAddress, usdtAddress, swapAmount, 0, daiWhaleAddress)
+
+            const { data: daiDataAfter } = await mUsd.getBasset(daiAddress)
+            expect(daiDataAfter.vaultBalance, "DAI Vault balances").to.eq(daiDataBefore.vaultBalance.add(swapAmount))
+        })
+        it("Swap 10 USDT for DAI", async () => {
+            // whale swaps 10 USDT for DAI
+            const swapAmount = simpleToExactAmount(10, 6)
+            await mUsd.connect(usdtWhale).swap(usdtAddress, daiAddress, swapAmount, 0, usdtWhaleAddress)
         })
     })
     context("USDT and sUSD in mUSD", () => {
@@ -307,6 +326,20 @@ context("DAI and WBTC migration to integration that can claim stkAave", () => {
 
             const { data: bAssetDataAfter } = await mUsd.getBasset(usdtAddress)
             expect(bAssetDataBefore.vaultBalance, "Before and after mUSD USDT vault balances").to.eq(bAssetDataAfter.vaultBalance)
+        })
+        it("Swap 10 sUSD for USDT", async () => {
+            const { data: sUsdDataBefore } = await mUsd.getBasset(sUsdAddress)
+
+            // whale swaps 10 sUSD for USDT
+            const swapAmount = simpleToExactAmount(10)
+            await mUsd.connect(daiWhale).swap(sUsdAddress, usdtAddress, swapAmount, 0, sUsdWhaleAddress)
+
+            const { data: sUsdDataAfter } = await mUsd.getBasset(sUsdAddress)
+            expect(sUsdDataAfter.vaultBalance, "DAI Vault balances").to.eq(sUsdDataBefore.vaultBalance.add(swapAmount))
+        })
+        it("Swap 10 USDT for sUSD", async () => {
+            const swapAmount = simpleToExactAmount(10, 6)
+            await mUsd.connect(usdtWhale).swap(usdtAddress, sUsdAddress, swapAmount, 0, usdtWhaleAddress)
         })
     })
 })
