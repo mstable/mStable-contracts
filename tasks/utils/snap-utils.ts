@@ -227,14 +227,14 @@ export const getBalances = async (
         blockTag: toBlock,
     })
     console.log("\nHolders")
-    const balanceSum = BN.from(0)
+    let balanceSum = BN.from(0)
     const balances: BN[] = []
     for (const account of accounts) {
         const balance = await mAsset.balanceOf(account.address, {
             blockTag: toBlock,
         })
         console.log(`${account.name.padEnd(26)} ${quantityFormatter(balance)} ${balance.mul(100).div(mAssetBalance)}%`)
-        balanceSum.add(balance)
+        balanceSum = balanceSum.add(balance)
         balances.push(balance)
     }
     const otherBalances = mAssetBalance.sub(balanceSum)
