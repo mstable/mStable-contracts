@@ -87,6 +87,13 @@ export const getBlockRange = async (ethers, fromBlockNumber: number, _toBlockNum
     }
 }
 
+export const getSavingsManager = (signer: Signer, networkName: string): SavingsManager => {
+    if (networkName === "polygon_mainnet") {
+        return SavingsManager__factory.connect("0x10bFcCae079f31c451033798a4Fd9D2c33Ea5487", signer)
+    }
+    return SavingsManager__factory.connect("0x9781C4E9B9cc6Ac18405891DF20Ad3566FB6B301", signer)
+}
+
 export const snapConfig = async (asset: Masset | MusdEth | FeederPool, toBlock: number): Promise<void> => {
     let ampData
     if (isMusdEth(asset)) {
@@ -587,6 +594,15 @@ export const getCollectedInterest = async (
         quantityFormatter,
     )
     total = total.add(liquidatorInterest)
+
+    if (total.eq(0)) {
+        console.log("No interest was collected")
+        return {
+            count,
+            total,
+            fees: BN.from(0),
+        }
+    }
 
     const tradingFeesApy = calcApy(fromBlock.blockTime, toBlock.blockTime, tradingFees, savingsBalance)
     console.log(

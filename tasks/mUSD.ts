@@ -23,6 +23,7 @@ import {
     getBalances,
     snapSave,
     getCollectedInterest,
+    getSavingsManager,
 } from "./utils/snap-utils"
 import { Token, sUSD, USDC, DAI, USDT, PUSDT, PUSDC, PDAI } from "./utils/tokens"
 import { usdFormatter } from "./utils/quantity-formatters"
@@ -42,13 +43,6 @@ const getMasset = (signer: Signer, networkName: string): Masset | MusdEth => {
         return new Contract("0x4E1000616990D83e56f4b5fC6CC8602DcfD20459", mUsdEthAbi, signer) as MusdEth
     }
     return new Contract("0xe2f2a5C287993345a840Db3B0845fbC70f5935a5", mUsdEthAbi, signer) as MusdEth
-}
-
-const getSavingsManager = (signer: Signer, networkName: string): SavingsManager => {
-    if (networkName === "polygon_mainnet") {
-        return SavingsManager__factory.connect("0x10bFcCae079f31c451033798a4Fd9D2c33Ea5487", signer)
-    }
-    return SavingsManager__factory.connect("0x9781C4E9B9cc6Ac18405891DF20Ad3566FB6B301", signer)
 }
 
 task("mUSD-storage", "Dumps mUSD's storage data")
