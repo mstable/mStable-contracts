@@ -20,12 +20,12 @@ export const dumpBassetStorage = async (mAsset: Masset | MusdEth, toBlock: numbe
 
     console.log("\nbAssets")
     const bAssets = await mAsset.getBassets(override)
-    bAssets.forEach(async (_, i) => {
+    bAssets.personal.forEach(async (personal, i) => {
         console.log(`bAsset with index ${i}`)
-        console.log(` Address    :`, bAssets.personal[i].addr.toString())
-        console.log(` Integration:`, bAssets.personal[i].integrator.toString())
-        console.log(` Tx fee     :`, bAssets.personal[i].hasTxFee.toString())
-        console.log(` Status     :`, bAssets.personal[i].status.toString())
+        console.log(` Address    :`, personal.addr.toString())
+        console.log(` Integration:`, personal.integrator.toString())
+        console.log(` Tx fee     :`, personal.hasTxFee.toString())
+        console.log(` Status     :`, personal.status.toString())
         // if (isMusdEth(mAsset)) {
         //     console.log(` Ratio      :`, bAssets.data![i].ratio.toString())
         //     console.log(` Vault      :`, bAssets.data![i].vaultBalance.toString())
