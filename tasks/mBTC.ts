@@ -17,11 +17,13 @@ import {
     getSwaps,
     outputFees,
     getBalances,
+    getCollectedInterest,
+    getSavingsManager,
 } from "./utils/snap-utils"
 import { Token, renBTC, sBTC, WBTC } from "./utils/tokens"
 import { getSwapRates } from "./utils/rates-utils"
 
-const mBtcBassets: Token[] = [renBTC, sBTC, WBTC]
+const bAssets: Token[] = [renBTC, sBTC, WBTC]
 
 const btcFormatter = (amount, decimals = 18, pad = 7, displayDecimals = 3): string => {
     const string2decimals = parseFloat(formatUnits(amount, decimals)).toFixed(displayDecimals)
@@ -72,14 +74,15 @@ task("mBTC-snap", "Get the latest data from the mBTC contracts")
         }
 
         const mAsset = getMasset(signer)
+        const savingsManager = getSavingsManager(signer, hre.network.name)
 
         const { fromBlock, toBlock } = await getBlockRange(ethers, taskArgs.from, taskArgs.to)
 
-        const mintSummary = await getMints(mBtcBassets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, btcFormatter)
-        const mintMultiSummary = await getMultiMints(mBtcBassets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, btcFormatter)
-        const redeemSummary = await getRedemptions(mBtcBassets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, btcFormatter)
-        const redeemMultiSummary = await getMultiRedemptions(mBtcBassets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, btcFormatter)
-        const swapSummary = await getSwaps(mBtcBassets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, btcFormatter)
+        const mintSummary = await getMints(bAssets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, btcFormatter)
+        const mintMultiSummary = await getMultiMints(bAssets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, btcFormatter)
+        const redeemSummary = await getRedemptions(bAssets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, btcFormatter)
+        const redeemMultiSummary = await getMultiRedemptions(bAssets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, btcFormatter)
+        const swapSummary = await getSwaps(bAssets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, btcFormatter)
 
         const tvlConfig = {
             startingCap,
@@ -124,6 +127,8 @@ task("mBTC-snap", "Get the latest data from the mBTC contracts")
         }
         const balances = await getBalances(mAsset, accounts, btcFormatter, toBlock.blockNumber)
 
+        await getCollectedInterest(bAssets, mAsset, savingsManager, fromBlock, toBlock, btcFormatter, balances.save)
+
         outputFees(
             mintSummary,
             mintMultiSummary,
@@ -150,7 +155,7 @@ task("mBTC-rates", "mBTC rate comparison to Curve")
         console.log(`\nGetting rates for mBTC at block ${block.blockNumber}, ${block.blockTime.toUTCString()}`)
 
         console.log("      Qty Input     Output      Qty Out    Rate             Output    Rate   Diff      Arb$")
-        await getSwapRates(mBtcBassets, mBtcBassets, mAsset, block.blockNumber, btcFormatter, hre.network.name, BN.from(taskArgs.swapSize))
+        await getSwapRates(bAssets, bAssets, mAsset, block.blockNumber, btcFormatter, hre.network.name, BN.from(taskArgs.swapSize))
         await snapConfig(mAsset, block.blockNumber)
     })
 
