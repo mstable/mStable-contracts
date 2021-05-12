@@ -88,7 +88,7 @@ context("DAI and WBTC migration to integration that can claim stkAave", () => {
                 {
                     forking: {
                         jsonRpcUrl: process.env.NODE_URL,
-                        blockNumber: 12367735,
+                        blockNumber: 12416000,
                     },
                 },
             ],
@@ -287,8 +287,8 @@ context("DAI and WBTC migration to integration that can claim stkAave", () => {
             await mUsd.connect(usdtWhale).swap(usdtAddress, daiAddress, swapAmount, 0, usdtWhaleAddress)
         })
     })
-    context("USDT and sUSD in mUSD", () => {
-        it("Migrate USDT and sUSD from old Aave to new Aave", async () => {
+    context("USDT in mUSD", () => {
+        it("Migrate USDT from old Aave to new Aave", async () => {
             // Before migration checks
             const usdtBalInATokenBefore = await usdt.balanceOf(aUsdtAddress)
             const { data: bAssetDataBefore } = await mUsd.getBasset(usdtAddress)
@@ -306,9 +306,9 @@ context("DAI and WBTC migration to integration that can claim stkAave", () => {
             expect(await usdt.balanceOf(mUsdAddress), "No USDT in mUSD before").to.eq(0)
             expect(await usdt.balanceOf(mUsdPAaveIntegration.address), "No USDT in new PAaveIntegration before").to.eq(0)
 
-            // Migrate USDT and sUSD in mUSD from old Aave V2 Integration to new PAaveIntegration contract
-            const tx = await mUsd.connect(governor).migrateBassets([usdtAddress, sUsdAddress], mUsdPAaveIntegration.address)
-            console.log(`USDT and sUSD migrateBassets tx data: ${tx.data}`)
+            // Migrate USDT in mUSD from old Aave V2 Integration to new PAaveIntegration contract
+            const tx = await mUsd.connect(governor).migrateBassets([usdtAddress], mUsdPAaveIntegration.address)
+            console.log(`USDT migrateBassets tx data: ${tx.data}`)
 
             // All USDT in mUSD should have moved to the PAaveIntegration contract
             expect(await usdt.balanceOf(oldAaveIntegrationAddress), "No USDT in old Aave Integration after").to.eq(0)
@@ -326,6 +326,59 @@ context("DAI and WBTC migration to integration that can claim stkAave", () => {
 
             const { data: bAssetDataAfter } = await mUsd.getBasset(usdtAddress)
             expect(bAssetDataBefore.vaultBalance, "Before and after mUSD USDT vault balances").to.eq(bAssetDataAfter.vaultBalance)
+        })
+        it("Swap 10 sUSD for USDT", async () => {
+            const { data: sUsdDataBefore } = await mUsd.getBasset(sUsdAddress)
+
+            // whale swaps 10 sUSD for USDT
+            const swapAmount = simpleToExactAmount(10)
+            await mUsd.connect(daiWhale).swap(sUsdAddress, usdtAddress, swapAmount, 0, sUsdWhaleAddress)
+
+            const { data: sUsdDataAfter } = await mUsd.getBasset(sUsdAddress)
+            expect(sUsdDataAfter.vaultBalance, "DAI Vault balances").to.eq(sUsdDataBefore.vaultBalance.add(swapAmount))
+        })
+        it("Swap 10 USDT for sUSD", async () => {
+            const swapAmount = simpleToExactAmount(10, 6)
+            await mUsd.connect(usdtWhale).swap(usdtAddress, sUsdAddress, swapAmount, 0, usdtWhaleAddress)
+        })
+    })
+    context("sUSD in mUSD", () => {
+        it("Migrate sUSD from old Aave to new Aave", async () => {
+            // Before migration checks
+            const sUsdBalInATokenBefore = await susd.balanceOf(sUsdAddress)
+            const { data: bAssetDataBefore } = await mUsd.getBasset(sUsdAddress)
+            const sUsdMigrationAmount = bAssetDataBefore.vaultBalance
+            expect(sUsdMigrationAmount, "Over 2m sUSD in mUSD").to.gt(simpleToExactAmount(2000000))
+            console.log(`sUSD to be migrated ${formatUnits(sUsdMigrationAmount, 6)}`)
+
+            // All mUSD's sUSD is in Aave's asUSD or cached in old Aave integration contract
+            const sUsdCachedInOldIntegrationBefore = await susd.balanceOf(oldAaveIntegrationAddress)
+            console.log(`${formatUnits(sUsdCachedInOldIntegrationBefore, 6)} sUSD cached in old Aave Integration before `)
+            expect(sUsdCachedInOldIntegrationBefore, "> 2k sUSD cached in old Aave integration before").to.gt(simpleToExactAmount(2000))
+            expect(await susd.balanceOf(asUsdAddress), "> 10m sUSD in asUSD before").to.gt(simpleToExactAmount(10, 12))
+            expect(await susd.balanceOf(mUsdAddress), "No sUSD in mUSD before").to.eq(0)
+            expect(await susd.balanceOf(mUsdPAaveIntegration.address), "No sUSD in new PAaveIntegration before").to.eq(0)
+
+            // Migrate sUSD and sUSD in mUSD from old Aave V2 Integration to new PAaveIntegration contract
+            const tx = await mUsd.connect(governor).migrateBassets([sUsdAddress], mUsdPAaveIntegration.address)
+            console.log(`sUSD and sUSD migrateBassets tx data: ${tx.data}`)
+
+            // All sUSD in mUSD should have moved to the PAaveIntegration contract
+            expect(await susd.balanceOf(oldAaveIntegrationAddress), "No sUSD in old Aave Integration after").to.eq(0)
+            expect(await susd.balanceOf(mUsdAddress), "No sUSD in mUSD after").to.eq(0)
+            const susdCachedInAaveIntegrationAfter = await susd.balanceOf(mUsdPAaveIntegration.address)
+            const susdBalInATokenAfter = await susd.balanceOf(asUsdAddress)
+            console.log(`susdBalInATokenAfter ${susdBalInATokenAfter}`)
+            console.log(`susdCachedInAaveIntegrationAfter ${susdCachedInAaveIntegrationAfter}`)
+            console.log(`susdBalInATokenBefore ${sUsdBalInATokenBefore}`)
+            console.log(`susdCachedInOldIntegrationBefore ${sUsdCachedInOldIntegrationBefore}`)
+            // sUSD in aToken after + new Aave integration after = aToken before + old Aave integration before
+            expect(susdBalInATokenAfter.add(susdCachedInAaveIntegrationAfter), "No sUSD was lost").to.eq(
+                sUsdBalInATokenBefore.add(sUsdCachedInOldIntegrationBefore),
+            )
+
+            const { data: bAssetDataAfter } = await mUsd.getBasset(sUsdAddress)
+            expect(bAssetDataBefore.vaultBalance, "Before and after mUSD sUSD vault balances").to.eq(bAssetDataAfter.vaultBalance)
         })
         it("Swap 10 sUSD for USDT", async () => {
             const { data: sUsdDataBefore } = await mUsd.getBasset(sUsdAddress)

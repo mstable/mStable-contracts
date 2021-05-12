@@ -94,16 +94,16 @@ task("deployPAaveIntegration", "Deploys mUSD and mBTC instances of PAaveIntegrat
 
     console.log(`\nGovernor tx data`)
     const mBtcMigrateWbtcData = mBtc.interface.encodeFunctionData("migrateBassets", [[wBtcAddress], mBtcPAaveIntegration.address])
-    console.log(`mBTC migrateBassetsData WBTC data: ${mBtcMigrateWbtcData}`)
+    console.log(`mBTC migrateBassets WBTC data: ${mBtcMigrateWbtcData}`)
 
     const mUsdMigrateDaiData = mUsd.interface.encodeFunctionData("migrateBassets", [[daiAddress], mUsdPAaveIntegration.address])
-    console.log(`mUSD migrateBassetsData DAI data: ${mUsdMigrateDaiData}`)
+    console.log(`mUSD migrateBassets DAI data: ${mUsdMigrateDaiData}`)
 
-    const mUsdMigrateUsdtSusdData = mUsd.interface.encodeFunctionData("migrateBassets", [
-        [usdtAddress, sUsdAddress],
-        mUsdPAaveIntegration.address,
-    ])
-    console.log(`mUSD migrateBassetsData USDT and sUSD data: ${mUsdMigrateUsdtSusdData}`)
+    const mUsdMigrateUsdtData = mUsd.interface.encodeFunctionData("migrateBassets", [[usdtAddress], mUsdPAaveIntegration.address])
+    console.log(`mUSD migrateBassets USDT data: ${mUsdMigrateUsdtData}`)
+
+    const mUsdMigrateSusdData = mUsd.interface.encodeFunctionData("migrateBassets", [[sUsdAddress], mUsdPAaveIntegration.address])
+    console.log(`mUSD migrateBassets sUSD data: ${mUsdMigrateSusdData}`)
 })
 
 module.exports = {}
