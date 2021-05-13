@@ -80,7 +80,7 @@ library StableMath {
     ) internal pure returns (uint256) {
         // e.g. assume scale = fullScale
         // z = 10e18 * 9e17 = 9e36
-        // return 9e38 / 1e18 = 9e18
+        // return 9e36 / 1e18 = 9e18
         return (x * y) / scale;
     }
 
