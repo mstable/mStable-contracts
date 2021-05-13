@@ -18,6 +18,8 @@ import {
     getSwaps,
     getRedemptions,
     outputFees,
+    getSavingsManager,
+    getCollectedInterest,
 } from "./utils/snap-utils"
 import { Token, tokens } from "./utils/tokens"
 import { btcFormatter, QuantityFormatter, usdFormatter } from "./utils/quantity-formatters"
@@ -73,15 +75,20 @@ const getQuantities = (fAsset: Token, _swapSize?: number): { quantityFormatter: 
 
 task("feeder-storage", "Dumps feeder contract storage data")
     .addOptionalParam("block", "Block number to get storage from. (default: current block)", 0, types.int)
-    .addOptionalParam("address", "Contract address of the feeder pool.", "0x48c59199Da51B7E30Ea200a74Ea07974e62C4bA7", types.string)
+    .addParam("fasset", "Token symbol of the feeder pool asset.  eg HBTC, TBTC, GUSD or BUSD", undefined, types.string, false)
     .setAction(async (taskArgs, hre) => {
         const { ethers } = hre
-        console.log(`Feeder snap for address ${taskArgs.address}`)
+
+        const fAsset = tokens.find((t) => t.symbol === taskArgs.fasset)
+        if (!fAsset) {
+            console.error(`Failed to find feeder pool asset with token symbol ${taskArgs.fasset}`)
+            process.exit(1)
+        }
 
         const { blockNumber } = await getBlock(ethers, taskArgs.block)
 
         const [signer] = await ethers.getSigners()
-        const pool = getFeederPool(signer, taskArgs.address)
+        const pool = getFeederPool(signer, fAsset.feederPool)
 
         await dumpTokenStorage(pool, blockNumber)
         await dumpFassetStorage(pool, blockNumber)
@@ -91,7 +98,7 @@ task("feeder-storage", "Dumps feeder contract storage data")
 task("feeder-snap", "Gets feeder transactions over a period of time")
     .addOptionalParam("from", "Block to query transaction events from. (default: deployment block)", 12146627, types.int)
     .addOptionalParam("to", "Block to query transaction events to. (default: current block)", 0, types.int)
-    .addParam("fasset", "Token symbol of the feeder pool asset.", undefined, types.string, false)
+    .addParam("fasset", "Token symbol of the feeder pool asset. eg HBTC, TBTC, GUSD or BUSD", undefined, types.string, false)
     .setAction(async (taskArgs, hre) => {
         const { ethers } = hre
 
@@ -105,22 +112,12 @@ task("feeder-snap", "Gets feeder transactions over a period of time")
         }
         console.log(`\nGetting snap for feeder pool ${fAsset.symbol} from block ${fromBlock.blockNumber}, to ${toBlock.blockNumber}`)
         const mAsset = tokens.find((t) => t.symbol === fAsset.parent)
-        const fpAssets = [fAsset, mAsset]
+        const fpAssets = [mAsset, fAsset]
 
         const feederPool = getFeederPool(signer, fAsset.feederPool)
+        const savingsManager = getSavingsManager(signer, hre.network.name)
 
         const { quantityFormatter } = getQuantities(fAsset, taskArgs.swapSize)
-
-        await getBasket(
-            feederPool,
-            fpAssets.map((b) => b.symbol),
-            mAsset.symbol,
-            usdFormatter,
-            toBlock.blockNumber,
-        )
-        await snapConfig(feederPool, toBlock.blockNumber)
-
-        const balances = await getBalances(feederPool, toBlock.blockNumber, fAsset)
 
         const mintSummary = await getMints(tokens, feederPool, fromBlock.blockNumber, toBlock.blockNumber, quantityFormatter)
         const mintMultiSummary = await getMultiMints(tokens, feederPool, fromBlock.blockNumber, toBlock.blockNumber, quantityFormatter)
@@ -132,6 +129,27 @@ task("feeder-snap", "Gets feeder transactions over a period of time")
             fromBlock.blockNumber,
             toBlock.blockNumber,
             quantityFormatter,
+        )
+
+        await snapConfig(feederPool, toBlock.blockNumber)
+        await getBasket(
+            feederPool,
+            fpAssets.map((b) => b.symbol),
+            mAsset.symbol,
+            usdFormatter,
+            toBlock.blockNumber,
+        )
+
+        const balances = await getBalances(feederPool, toBlock.blockNumber, fAsset)
+
+        const collectedInterestSummary = await getCollectedInterest(
+            fpAssets,
+            feederPool,
+            savingsManager,
+            fromBlock,
+            toBlock,
+            quantityFormatter,
+            balances.save,
         )
 
         outputFees(
@@ -166,7 +184,7 @@ task("feeder-rates", "Feeder rate comparison to Curve")
         const feederPool = getFeederPool(signer, fAsset.feederPool)
 
         const mAsset = tokens.find((t) => t.symbol === fAsset.parent)
-        const fpAssets = [fAsset, mAsset]
+        const fpAssets = [mAsset, fAsset]
 
         // Get the bAssets for the main pool. eg bAssets in mUSD or mBTC
         // These are the assets that are not feeder pools and parent matches the fAsset's parent

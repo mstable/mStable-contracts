@@ -555,7 +555,7 @@ export const getCollectedInterest = async (
     const filter = await mAsset.filters.MintedMulti(mAsset.address, null, null, null, null)
     const logs = await mAsset.queryFilter(filter, fromBlock.blockNumber, toBlock.blockNumber)
 
-    console.log("\nCollected Interest")
+    console.log(`\nCollected Interest between ${fromBlock.blockTime.toUTCString()} and ${toBlock.blockTime.toUTCString()}`)
     console.log("Block#\t Tx hash\t\t\t\t\t\t\t\t  Quantity")
     let total = BN.from(0)
     let tradingFees = BN.from(0)
@@ -567,8 +567,21 @@ export const getCollectedInterest = async (
     logs.forEach((log) => {
         // Ignore MintMulti events not from collectInterest and collectPlatformInterest
         if (log.args.inputs.length) return
-        // mAssetQuantity is for Masset. output is for FeederPool
-        const quantity = log.args.mAssetQuantity || log.args.output
+        // Calculate the quantity of interest collected
+        // For mAssets:
+        // - Trading fees = mAssetQuantity
+        // - Platform fees = mAssetQuantity
+        // For Feeder Pools:
+        // - Trading fees = log.args.output
+        // - Platform fees = sum of the input quantities as log.args.output is 0
+        let quantity = BN.from(0)
+        if (log.args.mAssetQuantity !== undefined) {
+            quantity = log.args.mAssetQuantity
+        } else if (log.args.output && log.args.output.gt(0)) {
+            quantity = log.args.output
+        } else {
+            quantity = log.args.inputQuantities.reduce((sum, input) => sum + input, 0)
+        }
         console.log(`${log.blockNumber} ${log.transactionHash} ${quantityFormatter(quantity)}`)
         if (log.args.inputQuantities.length) {
             countPlatformInterest += 1
