@@ -156,4 +156,12 @@ export const TBTC: Token = {
     saving: "0x760ea8CfDcC4e78d8b9cA3088ECD460246DC0731",
 }
 
+export const MTA: Token = {
+    symbol: "MTA",
+    address: "0xa3BeD4E1c75D00fa6f4E5E6922DB7261B5E9AcD2",
+    decimals: 18,
+    quantityFormatter: "USD",
+    saving: "0xaE8bC96DA4F9A9613c323478BE181FDb2Aa0E1BF",
+}
+
 export const tokens = [mUSD, mBTC, sUSD, USDC, USDT, DAI, GUSD, BUSD, renBTC, sBTC, WBTC, HBTC, TBTC]
