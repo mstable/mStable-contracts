@@ -1,3 +1,5 @@
+/* eslint-disable no-await-in-loop */
+/* eslint-disable no-restricted-syntax */
 import { formatUnits } from "@ethersproject/units"
 import { fullScale } from "@utils/constants"
 import { BN, simpleToExactAmount } from "@utils/math"
@@ -5,6 +7,7 @@ import { Signer } from "ethers"
 import { Contract, Provider } from "ethers-multicall"
 import { gql, GraphQLClient } from "graphql-request"
 import { task, types } from "hardhat/config"
+import { BoostedSavingsVault__factory } from "types/generated"
 import { getDefenderSigner } from "./utils/defender-utils"
 import { logTxDetails } from "./utils/deploy-utils"
 import { MTA } from "./utils/tokens"
@@ -13,10 +16,10 @@ const maxVMTA = simpleToExactAmount(300000, 18)
 const maxBoost = simpleToExactAmount(4, 18)
 const minBoost = simpleToExactAmount(1, 18)
 const floor = simpleToExactAmount(95, 16)
-const coeff = BN.from(45)
-const priceCoeff = simpleToExactAmount(1, 17)
+// const coeff = BN.from(48)
+// const priceCoeff = simpleToExactAmount(58000)
 
-const calcBoost = (raw: BN, vMTA: BN, priceCoefficient = priceCoeff, decimals = 18): BN => {
+const calcBoost = (raw: BN, vMTA: BN, priceCoefficient: BN, boostCoeff: BN, decimals = 18): BN => {
     // min(m, max(d, (d * 0.95) + c * min(vMTA, f) / USD^b))
     const scaledBalance = raw.mul(priceCoefficient).div(simpleToExactAmount(1, decimals))
 
@@ -25,7 +28,7 @@ const calcBoost = (raw: BN, vMTA: BN, priceCoefficient = priceCoeff, decimals = 
     let denom = parseFloat(formatUnits(scaledBalance))
     denom **= 0.875
     const flooredMTA = vMTA.gt(maxVMTA) ? maxVMTA : vMTA
-    let rhs = floor.add(flooredMTA.mul(coeff).div(10).mul(fullScale).div(simpleToExactAmount(denom)))
+    let rhs = floor.add(flooredMTA.mul(boostCoeff).div(10).mul(fullScale).div(simpleToExactAmount(denom)))
     rhs = rhs.gt(minBoost) ? rhs : minBoost
     return rhs.gt(maxBoost) ? maxBoost : rhs
 }
@@ -89,19 +92,25 @@ task("over-boost", "Pokes accounts that are over boosted")
         const vMtcBalancesMap = await getAccountBalanceMap(accountsUnique, MTA.saving, signer)
 
         // For each Boosted Vault
-        gqlData.boostedSavingsVaults.forEach((vault) => {
-            console.log(`\nVault with id ${vault.id} for token ${vault.stakingToken.symbol}, ${vault.accounts.length} accounts`)
-            console.log("Account, Raw Balance, Boosted Balance, rewardPerTokenPaid, boost, vMTA balance")
+        for (const vault of gqlData.boostedSavingsVaults) {
+            const boostVault = BoostedSavingsVault__factory.connect(vault.id, signer)
+            const priceCoeff = await boostVault.priceCoeff()
+            const boostCoeff = await boostVault.boostCoeff()
+
+            console.log(
+                `\nVault with id ${vault.id} for token ${vault.stakingToken.symbol}, ${vault.accounts.length} accounts, price coeff ${priceCoeff}, boost coeff ${boostCoeff}`,
+            )
+            console.log("Account, Raw Balance, Boosted Balance, rewardPerTokenPaid, vMTA balance, boost")
 
             vault.accounts.forEach((account, i) => {
-                const boost = calcBoost(BN.from(account.rawBalance), vMtcBalancesMap[account.account.id])
+                const boost = calcBoost(BN.from(account.rawBalance), priceCoeff, boostCoeff, vMtcBalancesMap[account.account.id])
                 console.log(
                     `${account.account.id}, ${formatUnits(account.rawBalance)}, ${formatUnits(account.boostedBalance)}, ${formatUnits(
                         account.rewardPerTokenPaid,
-                    )}, ${formatUnits(boost)}, ${formatUnits(vMtcBalancesMap[account.account.id])}`,
+                    )}, ${formatUnits(vMtcBalancesMap[account.account.id])}, ${formatUnits(boost)}`,
                 )
             })
-        })
+        }
     })
 
 module.exports = {}
