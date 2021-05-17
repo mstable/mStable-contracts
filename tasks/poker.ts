@@ -7,17 +7,15 @@ import { Signer } from "ethers"
 import { Contract, Provider } from "ethers-multicall"
 import { gql, GraphQLClient } from "graphql-request"
 import { task, types } from "hardhat/config"
-import { BoostedSavingsVault__factory } from "types/generated"
+import { BoostedSavingsVault__factory, Poker, Poker__factory } from "types/generated"
 import { getDefenderSigner } from "./utils/defender-utils"
-import { logTxDetails } from "./utils/deploy-utils"
+import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { MTA } from "./utils/tokens"
 
 const maxVMTA = simpleToExactAmount(300000, 18)
 const maxBoost = simpleToExactAmount(4, 18)
 const minBoost = simpleToExactAmount(1, 18)
 const floor = simpleToExactAmount(95, 16)
-// const coeff = BN.from(48)
-// const priceCoeff = simpleToExactAmount(58000)
 
 const calcBoost = (raw: BN, vMTA: BN, priceCoefficient: BN, boostCoeff: BN, decimals = 18): BN => {
     // min(m, max(d, (d * 0.95) + c * min(vMTA, f) / USD^b))
@@ -80,9 +78,18 @@ task("over-boost", "Pokes accounts that are over boosted")
                         lastAction
                     }
                 }
+                _meta {
+                    block {
+                        number
+                    }
+                }
             }
         `
         const gqlData = await gqlClient.request(query)
+
+        // eslint-disable-next-line no-underscore-dangle
+        const blockNumber = gqlData._meta.block.number
+        console.log(`Results for block number ${blockNumber}`)
 
         // Maps GQL to a list if accounts (addresses) in each vault
         const vaultAccounts = gqlData.boostedSavingsVaults.map((vault) => vault.accounts.map((account) => account.account.id))
@@ -97,20 +104,69 @@ task("over-boost", "Pokes accounts that are over boosted")
             const priceCoeff = await boostVault.priceCoeff()
             const boostCoeff = await boostVault.boostCoeff()
 
+            const overBoosted: any[] = []
+
             console.log(
                 `\nVault with id ${vault.id} for token ${vault.stakingToken.symbol}, ${vault.accounts.length} accounts, price coeff ${priceCoeff}, boost coeff ${boostCoeff}`,
             )
-            console.log("Account, Raw Balance, Boosted Balance, rewardPerTokenPaid, vMTA balance, boost")
+            console.log("Account, Raw Balance, Boosted Balance, vMTA balance, vMTA diff, Boost Actual, Boost Expected, Boost Diff")
 
             vault.accounts.forEach((account, i) => {
-                const boost = calcBoost(BN.from(account.rawBalance), priceCoeff, boostCoeff, vMtcBalancesMap[account.account.id])
+                const boostActual = BN.from(account.boostedBalance).mul(1000).div(account.rawBalance).toNumber()
+                const boostExpected = calcBoost(BN.from(account.rawBalance), vMtcBalancesMap[account.account.id], priceCoeff, boostCoeff)
+                    .div(BN.from(10).pow(15))
+                    .toNumber()
+                const boostDiff = boostActual - boostExpected
+                const vMtaExtra = vMtcBalancesMap[account.account.id].mul(boostDiff).div(1000)
+                if (vMtaExtra.gt(simpleToExactAmount(100))) {
+                    overBoosted.push({
+                        ...account,
+                        boostActual,
+                        boostExpected,
+                        boostDiff,
+                        vMtaExtra,
+                    })
+                }
                 console.log(
                     `${account.account.id}, ${formatUnits(account.rawBalance)}, ${formatUnits(account.boostedBalance)}, ${formatUnits(
-                        account.rewardPerTokenPaid,
-                    )}, ${formatUnits(vMtcBalancesMap[account.account.id])}, ${formatUnits(boost)}`,
+                        vMtcBalancesMap[account.account.id],
+                    )}, ${formatUnits(vMtaExtra)}, ${formatUnits(boostActual, 3)}, ${formatUnits(boostExpected, 3)}, ${formatUnits(
+                        boostDiff,
+                        3,
+                    )}`,
                 )
             })
+
+            console.log(`${overBoosted.length} of ${vault.accounts.length} over boosted`)
+            overBoosted.forEach((account) => {
+                console.log(`${account.account.id} ${formatUnits(account.boostDiff, 3)}, ${formatUnits(account.vMtaExtra)}`)
+            })
+            const pokeAccounts = overBoosted.map((account) => account.account.id)
+            console.log(pokeAccounts)
         }
     })
+
+task("deployPoker", "Deploys the Poker contract").setAction(async (_, hre) => {
+    const { network } = hre
+    // const [deployer] = await ethers.getSigners()
+    const deployer = await getDefenderSigner()
+
+    if (network.name !== "mainnet") throw Error("Invalid network")
+
+    await deployContract<Poker>(new Poker__factory(deployer), "Poker")
+})
+
+task("vault-balance", "Pokes accounts that are over boosted").setAction(async (taskArgs) => {
+    const signer = await getDefenderSigner(taskArgs.speed)
+
+    const vaultAddress = "0xf38522f63f40f9dd81abafd2b8efc2ec958a3016"
+    const accountAddress = "0x25953c127efd1e15f4d2be82b753d49b12d626d7"
+    const blockNumber = 12449878
+    const boostVault = BoostedSavingsVault__factory.connect(vaultAddress, signer)
+    const balance = await boostVault.balanceOf(accountAddress, {
+        blockTag: blockNumber,
+    })
+    console.log(`Block number ${blockNumber}, vault ${vaultAddress}, account ${accountAddress}, balance ${formatUnits(balance)}`)
+})
 
 module.exports = {}
