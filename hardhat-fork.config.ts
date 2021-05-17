@@ -6,11 +6,11 @@ export default {
         ...hardhatConfig.networks,
         hardhat: {
             allowUnlimitedContractSize: false,
-            blockGasLimit: 9000000,
-            gasPrice: 151000000000,
+            blockGasLimit: 15000000,
+            gasPrice: 52000000000,
             forking: {
                 url: process.env.NODE_URL || "",
-                blockNumber: 12205156,
+                blockNumber: 12450700,
             },
         },
     },
