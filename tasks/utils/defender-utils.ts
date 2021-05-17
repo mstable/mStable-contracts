@@ -2,7 +2,7 @@ import { Speed } from "defender-relay-client"
 import { Signer } from "ethers"
 import { DefenderRelayProvider, DefenderRelaySigner } from "defender-relay-client/lib/ethers"
 
-export const getDefenderSigner = async (speed: Speed = "average"): Promise<Signer> => {
+export const getDefenderSigner = async (speed: Speed = "fast"): Promise<Signer> => {
     if (!process.env.DEFENDER_API_KEY || !process.env.DEFENDER_API_SECRET) {
         console.error(`Defender env vars DEFENDER_API_KEY and/or DEFENDER_API_SECRET have not been set`)
         process.exit(1)

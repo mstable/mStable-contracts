@@ -17,7 +17,7 @@ const maxBoost = simpleToExactAmount(4, 18)
 const minBoost = simpleToExactAmount(1, 18)
 const floor = simpleToExactAmount(95, 16)
 
-const pokerAddress = "0x13CCB28f9Bd369B321844c528c0C1C288Ac1387E"
+const pokerAddress = "0x8E1Fd7F5ea7f7760a83222d3d470dFBf8493A03F"
 
 const calcBoost = (raw: BN, vMTA: BN, priceCoefficient: BN, boostCoeff: BN, decimals = 18): BN => {
     // min(m, max(d, (d * 0.95) + c * min(vMTA, f) / USD^b))
@@ -54,7 +54,7 @@ const getAccountBalanceMap = async (accounts: string[], tokenAddress: string, si
 
 task("over-boost", "Pokes accounts that are over boosted")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
-    .addOptionalParam("update", "Will send a poke transactions to the Poker contract", false, types.boolean)
+    .addFlag("update", "Will send a poke transactions to the Poker contract")
     .addOptionalParam("minMtaDiff", "Min amount of vMTA over boosted", 500, types.int)
     .setAction(async (taskArgs) => {
         const minMtaDiff = simpleToExactAmount(taskArgs.minMtaDiff)
@@ -153,11 +153,11 @@ task("over-boost", "Pokes accounts that are over boosted")
                 boostVault: vault.id,
                 accounts: pokeAccounts,
             })
-            if (taskArgs.update) {
-                const poker = Poker__factory.connect(pokerAddress, signer)
-                const tx = await poker.poke(pokeVaultAccounts)
-                await logTxDetails(tx, "poke Poker")
-            }
+        }
+        if (taskArgs.update) {
+            const poker = Poker__factory.connect(pokerAddress, signer)
+            const tx = await poker.poke(pokeVaultAccounts)
+            await logTxDetails(tx, "poke Poker")
         }
     })
 

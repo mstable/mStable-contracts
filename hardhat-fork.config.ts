@@ -10,7 +10,7 @@ export default {
             gasPrice: 52000000000,
             forking: {
                 url: process.env.NODE_URL || "",
-                blockNumber: 12450700,
+                blockNumber: 12452435,
             },
         },
     },
