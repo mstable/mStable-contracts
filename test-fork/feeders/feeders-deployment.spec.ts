@@ -21,18 +21,10 @@ import {
     InterestValidator__factory,
 } from "types/generated"
 import { simpleToExactAmount, BN } from "@utils/math"
+import { impersonate } from "@utils/fork"
 
 // Accounts that are impersonated
 const deployerAddress = "0x19F12C947D25Ff8a3b748829D8001cA09a28D46d"
-
-// impersonates a specific account
-const impersonate = async (addr): Promise<Signer> => {
-    await network.provider.request({
-        method: "hardhat_impersonateAccount",
-        params: [addr],
-    })
-    return ethers.provider.getSigner(addr)
-}
 
 interface CommonAddresses {
     nexus: string
@@ -165,9 +157,7 @@ const deployFeederPool = async (sender: Signer, addresses: CommonAddresses, feed
 const mint = async (sender: Signer, bAssets: DeployedFasset[], feederData: FeederData) => {
     // e.e. $4e18 * 1e18 / 1e18 = 4e18
     // e.g. 4e18 * 1e18 / 5e22 = 8e13 or 0.00008
-    const scaledTestQty = simpleToExactAmount(4)
-        .mul(simpleToExactAmount(1))
-        .div(feederData.priceCoeff)
+    const scaledTestQty = simpleToExactAmount(4).mul(simpleToExactAmount(1)).div(feederData.priceCoeff)
 
     // Approve spending
     const approvals: BN[] = []

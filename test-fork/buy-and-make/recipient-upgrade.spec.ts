@@ -1,7 +1,7 @@
 import { expect } from "chai"
 import { ONE_DAY, ONE_WEEK } from "@utils/constants"
 import { Signer, ContractFactory, Contract } from "ethers"
-import { ethers, network } from "hardhat"
+import { network } from "hardhat"
 import { formatEther, keccak256, toUtf8Bytes } from "ethers/lib/utils"
 import { increaseTime } from "@utils/time"
 import {
@@ -23,6 +23,7 @@ import {
 } from "types/generated"
 import { simpleToExactAmount, BN } from "@utils/math"
 import { abi as SavingsManagerAbi, bytecode as SavingsManagerBytecode } from "./SavingsManager.json"
+import { impersonate } from "@utils/fork"
 
 // Accounts that are impersonated
 const ethWhaleAddress = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
@@ -31,14 +32,6 @@ const mUsdWhaleAddress = "0x6595732468A241312bc307F327bA0D64F02b3c20"
 const balWhale = "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be"
 const nullAddr = "0xAf40dA2DcE68Bf82bd4C5eE7dA22B2F7bb7ba265"
 
-// impersonates a specific account
-const impersonate = async (addr): Promise<Signer> => {
-    await network.provider.request({
-        method: "hardhat_impersonateAccount",
-        params: [addr],
-    })
-    return ethers.provider.getSigner(addr)
-}
 interface Config {
     oldRecipient: string
     nexus: string
