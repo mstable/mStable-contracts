@@ -1,3 +1,4 @@
+import { impersonate } from "@utils/fork"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { expect } from "chai"
 import { Signer } from "ethers"
@@ -24,15 +25,6 @@ const liquidatorAddress = "0xe595D67181D701A5356e010D9a58EB9A341f1DbD"
 
 // Not sure why this is 2**96 - 1 and not 2**256 - 1 for CREAM
 const safeInfinity = BN.from(2).pow(96).sub(1)
-
-// impersonates a specific account
-const impersonate = async (addr): Promise<Signer> => {
-    await network.provider.request({
-        method: "hardhat_impersonateAccount",
-        params: [addr],
-    })
-    return ethers.provider.getSigner(addr)
-}
 
 context("mUSD Feeder Pool integration to CREAM", () => {
     let governor: Signer
