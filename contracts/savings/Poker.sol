@@ -23,14 +23,19 @@ contract Poker {
      * @dev For each boosted vault, poke all the over boosted accounts.
      * @param _vaultAccounts     An array of PokeVaultAccounts structs
      */
-    function poker(PokeVaultAccounts[] calldata _vaultAccounts) external {
+    function poke(PokeVaultAccounts[] memory _vaultAccounts) external {
         uint vaultCount = _vaultAccounts.length;
         for(uint i = 0; i < vaultCount; i++) {
-            IBoostedVaultWithLockup boostVault = IBoostedVaultWithLockup(_vaultAccounts[i].boostVault);
+            PokeVaultAccounts memory vaultAccounts = _vaultAccounts[i];
+            address boostVaultAddress = vaultAccounts.boostVault;
+            require(boostVaultAddress != address(0), "blank vault address");
+            IBoostedVaultWithLockup boostVault = IBoostedVaultWithLockup(boostVaultAddress);
 
-            uint accountsLength = _vaultAccounts[i].accounts.length;
-            for(uint j = 0; i < accountsLength; j++) {
-                boostVault.pokeBoost(_vaultAccounts[i].accounts[j]);
+            uint accountsLength = vaultAccounts.accounts.length;
+            for(uint j = 0; j < accountsLength; j++) {
+                address accountAddress = vaultAccounts.accounts[j];
+                require(accountAddress != address(0), "blank address");
+                boostVault.pokeBoost(accountAddress);
             }
         }
     }

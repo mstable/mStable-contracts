@@ -17,6 +17,8 @@ const maxBoost = simpleToExactAmount(4, 18)
 const minBoost = simpleToExactAmount(1, 18)
 const floor = simpleToExactAmount(95, 16)
 
+const pokerAddress = "0x13CCB28f9Bd369B321844c528c0C1C288Ac1387E"
+
 const calcBoost = (raw: BN, vMTA: BN, priceCoefficient: BN, boostCoeff: BN, decimals = 18): BN => {
     // min(m, max(d, (d * 0.95) + c * min(vMTA, f) / USD^b))
     const scaledBalance = raw.mul(priceCoefficient).div(simpleToExactAmount(1, decimals))
@@ -52,11 +54,15 @@ const getAccountBalanceMap = async (accounts: string[], tokenAddress: string, si
 
 task("over-boost", "Pokes accounts that are over boosted")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .addOptionalParam("update", "Will send a poke transactions to the Poker contract", false, types.boolean)
+    .addOptionalParam("minMtaDiff", "Min amount of vMTA over boosted", 500, types.int)
     .setAction(async (taskArgs) => {
+        const minMtaDiff = simpleToExactAmount(taskArgs.minMtaDiff)
         const signer = await getDefenderSigner(taskArgs.speed)
+        // const [signer] = await ethers.getSigners()
+        // const signer = await impersonate("0x2f2Db75C5276481E2B018Ac03e968af7763Ed118")
 
         const gqlClient = new GraphQLClient("https://api.thegraph.com/subgraphs/name/mstable/mstable-feeder-pools")
-
         const query = gql`
             {
                 boostedSavingsVaults {
@@ -95,9 +101,11 @@ task("over-boost", "Pokes accounts that are over boosted")
         const vaultAccounts = gqlData.boostedSavingsVaults.map((vault) => vault.accounts.map((account) => account.account.id))
         const accountsWithDuplicates = vaultAccounts.flat()
         const accountsUnique = [...new Set<string>(accountsWithDuplicates)]
-
-        const vMtcBalancesMap = await getAccountBalanceMap(accountsUnique, MTA.saving, signer)
-
+        const vMtaBalancesMap = await getAccountBalanceMap(accountsUnique, MTA.saving, signer)
+        const pokeVaultAccounts: {
+            boostVault: string
+            accounts: string[]
+        }[] = []
         // For each Boosted Vault
         for (const vault of gqlData.boostedSavingsVaults) {
             const boostVault = BoostedSavingsVault__factory.connect(vault.id, signer)
@@ -105,20 +113,19 @@ task("over-boost", "Pokes accounts that are over boosted")
             const boostCoeff = await boostVault.boostCoeff()
 
             const overBoosted: any[] = []
-
             console.log(
                 `\nVault with id ${vault.id} for token ${vault.stakingToken.symbol}, ${vault.accounts.length} accounts, price coeff ${priceCoeff}, boost coeff ${boostCoeff}`,
             )
             console.log("Account, Raw Balance, Boosted Balance, vMTA balance, vMTA diff, Boost Actual, Boost Expected, Boost Diff")
-
             vault.accounts.forEach((account, i) => {
                 const boostActual = BN.from(account.boostedBalance).mul(1000).div(account.rawBalance).toNumber()
-                const boostExpected = calcBoost(BN.from(account.rawBalance), vMtcBalancesMap[account.account.id], priceCoeff, boostCoeff)
+                const boostExpected = calcBoost(BN.from(account.rawBalance), vMtaBalancesMap[account.account.id], priceCoeff, boostCoeff)
                     .div(BN.from(10).pow(15))
                     .toNumber()
                 const boostDiff = boostActual - boostExpected
-                const vMtaExtra = vMtcBalancesMap[account.account.id].mul(boostDiff).div(1000)
-                if (vMtaExtra.gt(simpleToExactAmount(100))) {
+                // Calculate how much extra MTA is being distributed = vMTA balance * (actual boost - expected boost)
+                const vMtaExtra = vMtaBalancesMap[account.account.id].mul(boostDiff).div(1000)
+                if (vMtaExtra.gt(minMtaDiff)) {
                     overBoosted.push({
                         ...account,
                         boostActual,
@@ -129,20 +136,28 @@ task("over-boost", "Pokes accounts that are over boosted")
                 }
                 console.log(
                     `${account.account.id}, ${formatUnits(account.rawBalance)}, ${formatUnits(account.boostedBalance)}, ${formatUnits(
-                        vMtcBalancesMap[account.account.id],
+                        vMtaBalancesMap[account.account.id],
                     )}, ${formatUnits(vMtaExtra)}, ${formatUnits(boostActual, 3)}, ${formatUnits(boostExpected, 3)}, ${formatUnits(
                         boostDiff,
                         3,
                     )}`,
                 )
             })
-
-            console.log(`${overBoosted.length} of ${vault.accounts.length} over boosted`)
+            console.log(`${overBoosted.length} of ${vault.accounts.length} over boosted for ${vault.id}`)
             overBoosted.forEach((account) => {
                 console.log(`${account.account.id} ${formatUnits(account.boostDiff, 3)}, ${formatUnits(account.vMtaExtra)}`)
             })
             const pokeAccounts = overBoosted.map((account) => account.account.id)
             console.log(pokeAccounts)
+            pokeVaultAccounts.push({
+                boostVault: vault.id,
+                accounts: pokeAccounts,
+            })
+            if (taskArgs.update) {
+                const poker = Poker__factory.connect(pokerAddress, signer)
+                const tx = await poker.poke(pokeVaultAccounts)
+                await logTxDetails(tx, "poke Poker")
+            }
         }
     })
 
