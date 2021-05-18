@@ -2,10 +2,25 @@ import "ts-node/register"
 import "tsconfig-paths/register"
 
 import { task } from "hardhat/config"
-import { AaveV2Integration__factory, MusdEth__factory, PAaveIntegration, PAaveIntegration__factory } from "types/generated"
+import {
+    AaveV2Integration__factory,
+    FeederPool__factory,
+    MusdEth__factory,
+    PAaveIntegration,
+    PAaveIntegration__factory,
+} from "types/generated"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { getDefenderSigner } from "./utils/defender-utils"
 
+// mStable contracts
+const nexusAddress = "0xafce80b19a8ce13dec0739a1aab7a028d6845eb3"
+
+// Aave contracts
+const lendingPoolAddressProviderAddress = "0xb53c1a33016b2dc2ff3653530bff1848a515c8c5"
+// Also called Incentives Controller
+const aaveRewardControllerAddress = "0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5"
+// Reward token
+const stkAaveTokenAddress = "0x4da27a545c0c5b758a6ba100e3a049001de870f5"
 interface CommonAddresses {
     nexus: string
     mAsset: string
@@ -42,18 +57,8 @@ task("deployAaveIntegration", "Deploys an instance of AaveV2Integration contract
 
 task("deployPAaveIntegration", "Deploys mUSD and mBTC instances of PAaveIntegration").setAction(async (_, hre) => {
     const { ethers, network } = hre
-    // const [deployer] = await ethers.getSigners()
-    const deployer = await getDefenderSigner()
+    const deployer = network.name === "mainnet" ? await getDefenderSigner() : (await ethers.getSigners())[0]
 
-    if (network.name !== "mainnet") throw Error("Invalid network")
-
-    const nexusAddress = "0xafce80b19a8ce13dec0739a1aab7a028d6845eb3"
-    const lendingPoolAddressProviderAddress = "0xb53c1a33016b2dc2ff3653530bff1848a515c8c5"
-    // Also called Incentives Controller
-    const aaveRewardControllerAddress = "0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5"
-
-    // Reward token
-    const stkAaveTokenAddress = "0x4da27a545c0c5b758a6ba100e3a049001de870f5"
     // mAssets
     const mUsdAddress = "0xe2f2a5c287993345a840db3b0845fbc70f5935a5"
     const mBtcAddress = "0x945Facb997494CC2570096c74b5F66A3507330a1"
@@ -104,6 +109,52 @@ task("deployPAaveIntegration", "Deploys mUSD and mBTC instances of PAaveIntegrat
 
     const mUsdMigrateSusdData = mUsd.interface.encodeFunctionData("migrateBassets", [[sUsdAddress], mUsdPAaveIntegration.address])
     console.log(`mUSD migrateBassets sUSD data: ${mUsdMigrateSusdData}`)
+})
+
+task("deployFPAaveIntegration", "Deploys mUSD feeder pool instances of PAaveIntegration").setAction(async (_, hre) => {
+    const { ethers, network } = hre
+    const deployer = network.name === "mainnet" ? await getDefenderSigner() : (await ethers.getSigners())[0]
+
+    // fpAssets
+    const bUsdFpAddress = "0xfE842e95f8911dcc21c943a1dAA4bd641a1381c6"
+    const gUsdFpAddress = "0x945Facb997494CC2570096c74b5F66A3507330a1"
+
+    // fAssets
+    const bUsdAddress = "0x4Fabb145d64652a948d72533023f6E7A623C7C53"
+    const gUsdAddress = "0x056Fd409E1d7A124BD7017459dFEa2F387b6d5Cd"
+    // Aave aTokens
+    const abUsdAddress = "0xA361718326c15715591c299427c62086F69923D9"
+    const agUsdAddress = "0xD37EE7e4f452C6638c96536e68090De8cBcdb583"
+
+    // Deploy
+    const bUsdPAaveIntegration = await deployContract<PAaveIntegration>(
+        new PAaveIntegration__factory(deployer),
+        "PAaveIntegration for BUSD Feeder Pool",
+        [nexusAddress, bUsdFpAddress, lendingPoolAddressProviderAddress, stkAaveTokenAddress, aaveRewardControllerAddress],
+    )
+    let tx = await bUsdPAaveIntegration.initialize([bUsdAddress], [abUsdAddress])
+    await logTxDetails(tx, "bUsdPAaveIntegration.initialize")
+
+    const gUsdPAaveIntegration = await deployContract<PAaveIntegration>(
+        new PAaveIntegration__factory(deployer),
+        "PAaveIntegration for GUSD Feeder Pool",
+        [nexusAddress, gUsdFpAddress, lendingPoolAddressProviderAddress, stkAaveTokenAddress, aaveRewardControllerAddress],
+    )
+    tx = await gUsdPAaveIntegration.initialize([gUsdAddress], [agUsdAddress])
+    await logTxDetails(tx, "gUsdPAaveIntegration.initialize")
+
+    const approveRewardTokenData = bUsdPAaveIntegration.interface.encodeFunctionData("approveRewardToken")
+    console.log(`\napproveRewardToken data: ${approveRewardTokenData}`)
+
+    const bUsdFp = await FeederPool__factory.connect(bUsdFpAddress, deployer)
+    const gUsdFp = await FeederPool__factory.connect(gUsdFpAddress, deployer)
+
+    console.log(`\nGovernor tx data`)
+    const bUsdMigrateWbtcData = bUsdFp.interface.encodeFunctionData("migrateBassets", [[bUsdAddress], bUsdPAaveIntegration.address])
+    console.log(`Feeder Pool migrateBassets BUSD data: ${bUsdMigrateWbtcData}`)
+
+    const gUsdMigrateDaiData = gUsdFp.interface.encodeFunctionData("migrateBassets", [[gUsdAddress], gUsdPAaveIntegration.address])
+    console.log(`Feeder Pool migrateBassets GUSD data: ${gUsdMigrateDaiData}`)
 })
 
 module.exports = {}
