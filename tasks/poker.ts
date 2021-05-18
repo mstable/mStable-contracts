@@ -171,17 +171,4 @@ task("deployPoker", "Deploys the Poker contract").setAction(async (_, hre) => {
     await deployContract<Poker>(new Poker__factory(deployer), "Poker")
 })
 
-task("vault-balance", "Pokes accounts that are over boosted").setAction(async (taskArgs) => {
-    const signer = await getDefenderSigner(taskArgs.speed)
-
-    const vaultAddress = "0xf38522f63f40f9dd81abafd2b8efc2ec958a3016"
-    const accountAddress = "0x25953c127efd1e15f4d2be82b753d49b12d626d7"
-    const blockNumber = 12449878
-    const boostVault = BoostedSavingsVault__factory.connect(vaultAddress, signer)
-    const balance = await boostVault.balanceOf(accountAddress, {
-        blockTag: blockNumber,
-    })
-    console.log(`Block number ${blockNumber}, vault ${vaultAddress}, account ${accountAddress}, balance ${formatUnits(balance)}`)
-})
-
 module.exports = {}
