@@ -117,7 +117,7 @@ task("deployFPAaveIntegration", "Deploys mUSD feeder pool instances of PAaveInte
 
     // fpAssets
     const bUsdFpAddress = "0xfE842e95f8911dcc21c943a1dAA4bd641a1381c6"
-    const gUsdFpAddress = "0x945Facb997494CC2570096c74b5F66A3507330a1"
+    const gUsdFpAddress = "0x4fB30C5A3aC8e85bC32785518633303C4590752d"
 
     // fAssets
     const bUsdAddress = "0x4Fabb145d64652a948d72533023f6E7A623C7C53"
