@@ -116,36 +116,38 @@ task("over-boost", "Pokes accounts that are over boosted")
             console.log(
                 `\nVault with id ${vault.id} for token ${vault.stakingToken.symbol}, ${vault.accounts.length} accounts, price coeff ${priceCoeff}, boost coeff ${boostCoeff}`,
             )
-            console.log("Account, Raw Balance, Boosted Balance, vMTA balance, vMTA diff, Boost Actual, Boost Expected, Boost Diff")
-            vault.accounts.forEach((account, i) => {
+            console.log("Account, Raw Balance, Boosted Balance, Boost Balance USD, vMTA balance, Boost Actual, Boost Expected, Boost Diff")
+            // For each account in the boosted savings vault
+            vault.accounts.forEach((account) => {
                 const boostActual = BN.from(account.boostedBalance).mul(1000).div(account.rawBalance).toNumber()
                 const boostExpected = calcBoost(BN.from(account.rawBalance), vMtaBalancesMap[account.account.id], priceCoeff, boostCoeff)
-                    .div(BN.from(10).pow(15))
+                    .div(simpleToExactAmount(1, 15))
                     .toNumber()
                 const boostDiff = boostActual - boostExpected
-                // Calculate how much extra MTA is being distributed = vMTA balance * (actual boost - expected boost)
-                const vMtaExtra = vMtaBalancesMap[account.account.id].mul(boostDiff).div(1000)
-                if (vMtaExtra.gt(minMtaDiff)) {
+                // Calculate how much the boost balance is in USD = balance balance * price coefficient / 1e18
+                const boostBalanceUsd = BN.from(account.boostedBalance).mul(priceCoeff).div(simpleToExactAmount(1))
+                // Identify accounts with more than 20% over their boost and boost balance > 50,000 USD
+                if (boostDiff > 200 && boostBalanceUsd.gt(simpleToExactAmount(50000))) {
                     overBoosted.push({
                         ...account,
                         boostActual,
                         boostExpected,
                         boostDiff,
-                        vMtaExtra,
+                        boostBalanceUsd,
                     })
                 }
                 console.log(
                     `${account.account.id}, ${formatUnits(account.rawBalance)}, ${formatUnits(account.boostedBalance)}, ${formatUnits(
-                        vMtaBalancesMap[account.account.id],
-                    )}, ${formatUnits(vMtaExtra)}, ${formatUnits(boostActual, 3)}, ${formatUnits(boostExpected, 3)}, ${formatUnits(
-                        boostDiff,
+                        boostBalanceUsd,
+                    )}, ${formatUnits(vMtaBalancesMap[account.account.id])}, ${formatUnits(boostActual, 3)}, ${formatUnits(
+                        boostExpected,
                         3,
-                    )}`,
+                    )}, ${formatUnits(boostDiff, 3)}`,
                 )
             })
             console.log(`${overBoosted.length} of ${vault.accounts.length} over boosted for ${vault.id}`)
             overBoosted.forEach((account) => {
-                console.log(`${account.account.id} ${formatUnits(account.boostDiff, 3)}, ${formatUnits(account.vMtaExtra)}`)
+                console.log(`${account.account.id} ${formatUnits(account.boostDiff, 3)}, ${formatUnits(account.boostBalanceUsd)}`)
             })
             const pokeAccounts = overBoosted.map((account) => account.account.id)
             console.log(pokeAccounts)
