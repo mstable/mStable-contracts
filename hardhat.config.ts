@@ -41,7 +41,7 @@ export const hardhatConfig = {
             accounts: process.env.MUMBAI_PRIVATE_KEY1 ? [process.env.MUMBAI_PRIVATE_KEY1] : [],
         },
         polygon_mainnet: {
-            url: "https://rpc-mainnet.maticvigil.com/",
+            url: "https://rpc-mainnet.matic.quiknode.pro",
             accounts: process.env.POLYGON_PRIVATE_KEY1 ? [process.env.POLYGON_PRIVATE_KEY1] : [],
         },
     },
