@@ -2,15 +2,10 @@ import "ts-node/register"
 import "tsconfig-paths/register"
 
 import { task } from "hardhat/config"
-import {
-    AaveV2Integration__factory,
-    FeederPool__factory,
-    MusdEth__factory,
-    PAaveIntegration,
-    PAaveIntegration__factory,
-} from "types/generated"
-import { deployContract, logTxDetails } from "./utils/deploy-utils"
+import { AaveV2Integration__factory, FeederPool__factory, PAaveIntegration, PAaveIntegration__factory } from "types/generated"
+import { MusdEth__factory } from "types/generated/factories/MusdEth__factory"
 import { getDefenderSigner } from "./utils/defender-utils"
+import { deployContract, logTxDetails } from "./utils/deploy-utils"
 
 // mStable contracts
 const nexusAddress = "0xafce80b19a8ce13dec0739a1aab7a028d6845eb3"

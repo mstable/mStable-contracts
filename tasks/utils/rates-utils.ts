@@ -1,5 +1,7 @@
 import { applyDecimals, BN, simpleToExactAmount } from "@utils/math"
-import { CurveRegistryExchange__factory, FeederPool, ICurve__factory, Masset, MusdEth } from "types/generated"
+import { FeederPool, ICurve__factory, Masset } from "types/generated"
+import { CurveRegistryExchange__factory } from "types/generated/factories/CurveRegistryExchange__factory"
+import { MusdEth } from "types/generated/MusdEth"
 import { QuantityFormatter } from "./quantity-formatters"
 import { Token } from "./tokens"
 
