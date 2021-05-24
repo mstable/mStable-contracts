@@ -8,7 +8,6 @@ import {
     ExposedMassetLogic,
     FeederPool,
     Masset,
-    MusdEth,
     MV1,
     MV2,
     SavingsContract__factory,
@@ -16,6 +15,7 @@ import {
     SavingsManager__factory,
     ValidatorWithTVLCap__factory,
 } from "types/generated"
+import { MusdEth } from "types/generated/MusdEth"
 import { QuantityFormatter } from "./quantity-formatters"
 import { Token } from "./tokens"
 
@@ -194,7 +194,7 @@ export const getBasket = async (
         blockTag: toBlock,
     })
     console.log(`Surplus    ${formatUnits(mAssetSurplus)}`)
-    console.log(`${mAssetName}       ${formatUnits(mAssetSupply)}`)
+    console.log(`${mAssetName}       ${quantityFormatter(mAssetSupply)}`)
     const mAssetTotal = mAssetSupply.add(mAssetSurplus)
 
     if (exposedLogic && !isMusdEth(asset)) {

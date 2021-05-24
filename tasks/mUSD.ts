@@ -5,8 +5,9 @@ import "tsconfig-paths/register"
 import { task, types } from "hardhat/config"
 import { Contract, Signer } from "ethers"
 
-import { Masset, Masset__factory, MusdEth, SavingsManager, SavingsManager__factory } from "types/generated"
+import { Masset, Masset__factory } from "types/generated"
 import { BN } from "@utils/math"
+import { MusdEth } from "types/generated/MusdEth"
 import mUsdEthAbi from "../contracts/masset/versions/mUsdEth.json"
 import { dumpBassetStorage, dumpConfigStorage, dumpTokenStorage } from "./utils/storage-utils"
 import {

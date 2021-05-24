@@ -2,8 +2,9 @@ import { btcBassets, capFactor, contracts, startingCap } from "@utils/btcConstan
 import { Signer } from "ethers"
 import { formatUnits } from "ethers/lib/utils"
 import { task, types } from "hardhat/config"
-import { MusdEth__factory, MusdEth } from "types/generated"
 import { BN } from "@utils/math"
+import { MusdEth__factory } from "types/generated/factories/MusdEth__factory"
+import { MusdEth } from "types/generated/MusdEth"
 import { dumpBassetStorage, dumpConfigStorage, dumpTokenStorage } from "./utils/storage-utils"
 import {
     getMultiRedemptions,

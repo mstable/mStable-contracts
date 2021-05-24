@@ -1,5 +1,5 @@
-import { FeederPool, Masset, MusdEth } from "types/generated"
-import { isMusdEth } from "./snap-utils"
+import { FeederPool, Masset } from "types/generated"
+import { MusdEth } from "types/generated/MusdEth"
 
 // Get mAsset token storage variables
 export const dumpTokenStorage = async (token: Masset | MusdEth | FeederPool, toBlock: number): Promise<void> => {
@@ -26,13 +26,6 @@ export const dumpBassetStorage = async (mAsset: Masset | MusdEth, toBlock: numbe
         console.log(` Integration:`, personal.integrator.toString())
         console.log(` Tx fee     :`, personal.hasTxFee.toString())
         console.log(` Status     :`, personal.status.toString())
-        // if (isMusdEth(mAsset)) {
-        //     console.log(` Ratio      :`, bAssets.data![i].ratio.toString())
-        //     console.log(` Vault      :`, bAssets.data![i].vaultBalance.toString())
-        // } else {
-        //     console.log(` Ratio      :`, bAssets.bData![i].ratio.toString())
-        //     console.log(` Vault      :`, bAssets.bData![i].vaultBalance.toString())
-        // }
         console.log("\n")
     })
 }
