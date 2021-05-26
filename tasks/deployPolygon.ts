@@ -616,4 +616,19 @@ task("deploy-polly-sub", "Deploys mUSD & System to a Polygon network").setAction
     }
 })
 
+task("liquidator-snap", "Dumps the config details of the liquidator on Polygon").setAction(async (_, hre) => {
+    const { network } = hre
+    const [signer] = await hre.ethers.getSigners()
+
+    if (network.name !== "polygon_mainnet") throw Error("Not connected to polygon_mainnet")
+
+    // Polygon addresses
+    const liquidatorAddress = "0x9F1C06CC13EDc7691a2Cf02E31FaAA64d57867e2"
+    const integrationAddress = "0xeab7831c96876433dB9B8953B4e7e8f66c3125c3"
+    const liquidator = PLiquidator__factory.connect(liquidatorAddress, signer)
+
+    const liquidationConfig = await liquidator.liquidations(integrationAddress)
+    console.log(liquidationConfig)
+})
+
 module.exports = {}

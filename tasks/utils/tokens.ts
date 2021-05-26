@@ -1,7 +1,8 @@
 export interface Token {
     symbol: string
     address: string
-    integrator?: string
+    integrator?: string // Platform integration contract address
+    liquidityProvider?: string // liquidity provider token address for Aave and Compound
     decimals: number
     quantityFormatter: string
     parent?: string
@@ -35,7 +36,8 @@ export const PmUSD: Token = {
 export const sUSD: Token = {
     symbol: "sUSD",
     address: "0x57Ab1ec28D129707052df4dF418D58a2D46d5f51",
-    integrator: "0xb9b0cfa90436c3fcbf8d8eb6ed8d0c2e3da47ca9",
+    integrator: "0xb9b0cfa90436c3fcbf8d8eb6ed8d0c2e3da47ca9", // Old Aave V2
+    liquidityProvider: "0x35f6B052C598d933D69A4EEC4D04c73A191fE6c2", // aSUSD
     decimals: 18,
     quantityFormatter: "USD",
     parent: "mUSD",
@@ -43,7 +45,8 @@ export const sUSD: Token = {
 export const USDC: Token = {
     symbol: "USDC",
     address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-    integrator: "0xD55684f4369040C12262949Ff78299f2BC9dB735",
+    integrator: "0xD55684f4369040C12262949Ff78299f2BC9dB735", // Compound
+    liquidityProvider: "0x39aa39c021dfbae8fac545936693ac917d5e7563", // cUSDC
     decimals: 6,
     quantityFormatter: "USD",
     parent: "mUSD",
@@ -51,7 +54,8 @@ export const USDC: Token = {
 export const USDT: Token = {
     symbol: "USDT",
     address: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
-    integrator: "0xf617346A0FB6320e9E578E0C9B2A4588283D9d39",
+    integrator: "0xA2a3CAe63476891AB2d640d9a5A800755Ee79d6E", // Aave
+    liquidityProvider: "0x3Ed3B47Dd13EC9a98b44e6204A523E766B225811", // aUSDT
     decimals: 6,
     quantityFormatter: "USD",
     parent: "mUSD",
@@ -59,7 +63,8 @@ export const USDT: Token = {
 export const DAI: Token = {
     symbol: "DAI",
     address: "0x6B175474E89094C44Da98b954EedeAC495271d0F",
-    integrator: "0xD55684f4369040C12262949Ff78299f2BC9dB735",
+    integrator: "0xA2a3CAe63476891AB2d640d9a5A800755Ee79d6E", // Aave
+    liquidityProvider: "0x028171bCA77440897B824Ca71D1c56caC55b68A3", // aDAI
     decimals: 18,
     quantityFormatter: "USD",
     parent: "mUSD",
@@ -95,7 +100,7 @@ export const PDAI: Token = {
 export const GUSD: Token = {
     symbol: "GUSD",
     address: "0x056Fd409E1d7A124BD7017459dFEa2F387b6d5Cd",
-    integrator: "0xeab7831c96876433dB9B8953B4e7e8f66c3125c3",
+    integrator: "0xd51f062104D7c8eE7dB100878A454451ADFD2811", // Aave
     decimals: 2,
     quantityFormatter: "USD",
     parent: "mUSD",
@@ -105,7 +110,7 @@ export const GUSD: Token = {
 export const BUSD: Token = {
     symbol: "BUSD",
     address: "0x4Fabb145d64652a948d72533023f6E7A623C7C53",
-    integrator: "0x875d56e691A4c85b32E13d6aC846f6A84Bc57384",
+    integrator: "0xac98ffc901d6bB634be06f6d3fE63893b1aF6535", // Aave
     decimals: 18,
     quantityFormatter: "USD",
     parent: "mUSD",
@@ -131,6 +136,8 @@ export const sBTC: Token = {
 export const WBTC: Token = {
     symbol: "WBTC",
     address: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+    integrator: "0xC9451a4483d1752a3E9A3f5D6b1C7A6c34621fC6", // Aave
+    liquidityProvider: "0x9ff58f4fFB29fA2266Ab25e75e2A8b3503311656", // aWBTC
     decimals: 8,
     quantityFormatter: "BTC",
     parent: "mBTC",
@@ -162,6 +169,27 @@ export const MTA: Token = {
     decimals: 18,
     quantityFormatter: "USD",
     saving: "0xaE8bC96DA4F9A9613c323478BE181FDb2Aa0E1BF",
+}
+
+export const aave: Token = {
+    symbol: "Aave",
+    address: "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9",
+    decimals: 18,
+    quantityFormatter: "USD",
+    liquidityProvider: "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9",
+}
+export const stkAave: Token = {
+    symbol: "stkAave",
+    address: "0x4da27a545c0c5b758a6ba100e3a049001de870f5",
+    decimals: 18,
+    quantityFormatter: "USD",
+}
+
+export const COMP: Token = {
+    symbol: "COMP",
+    address: "0xc00e94Cb662C3520282E6f5717214004A7f26888",
+    decimals: 18,
+    quantityFormatter: "USD",
 }
 
 export const tokens = [mUSD, mBTC, sUSD, USDC, USDT, DAI, GUSD, BUSD, renBTC, sBTC, WBTC, HBTC, TBTC]
