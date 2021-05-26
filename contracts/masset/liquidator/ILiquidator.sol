@@ -9,7 +9,8 @@ interface ILiquidator {
         int128 _curvePosition,
         address[] calldata _uniswapPath,
         uint256 _trancheAmount,
-        uint256 _minReturn
+        uint256 _minReturn,
+        address _mAsset
     ) external;
 
     function updateBasset(
