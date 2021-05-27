@@ -17,9 +17,6 @@ import { IBasicToken } from "../../shared/IBasicToken.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-// TODO remove before prod deploy
-import "hardhat/console.sol";
-
 /**
  * @title   Liquidator
  * @author  mStable
@@ -67,7 +64,7 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
     struct Liquidation {
         address sellToken;
         address bAsset;
-        int128 curvePosition;
+        int128 curvePosition;   // no longer used
         address[] uniswapPath;
         uint256 lastTriggered;
         uint256 trancheAmount; // The amount of bAsset units to buy each week, with token decimals
@@ -90,7 +87,39 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
         uniswap = IUniswapV2Router02(_uniswap);
     }
 
-    function approvals() external {
+    /**
+     * @dev Upgrades existing liquidations to new contract structure
+     * and perform necessary approvals
+     * @param _integration The integration contract address. eg COMP integration for mUSD
+     * @param _mAsset mAsset address linked to the integration contract. eg mUSD for USDC in Compound
+     */
+    function upgrade(address _integration, address _mAsset) external {
+
+        Liquidation memory liquidation = liquidations[_integration];
+        address bAsset = liquidation.bAsset;
+        require(bAsset != address(0), "Liquidation does not exist");
+        // Set the mAsset for an existing liquidation.
+        // eg mUSD for the COMP integration
+        require(mAssets[_integration] == address(0), "Already upgraded");
+        mAssets[_integration] = _mAsset;
+
+        // This Liquidator contract approves Uniswap to transfer the sellToken to swap.
+        // eg COMP to swap for USDC
+        address sellToken = liquidation.sellToken;
+        IERC20(sellToken).safeApprove(address(uniswap), 0);
+        IERC20(sellToken).safeApprove(address(uniswap), MAX_UINT);
+
+        // This Liquidator contract approves the mAsset to transfer bAssets for mint.
+        // eg USDC to mUSD
+        IERC20(bAsset).safeApprove(_mAsset, MAX_UINT);
+
+        // TODO can we assume the savings manager will not change?
+        // This Liquidator contract approves the Savings Manager to transfer mAssets
+        // for depositLiquidation. eg mUSD
+        address savings = _savingsManager();
+        IERC20(_mAsset).safeApprove(savings, 0);
+        IERC20(_mAsset).safeApprove(savings, MAX_UINT);
+
         // Approve Uniswap to transfer Aave tokens from this liquidator
         IERC20(aaveToken).safeApprove(address(uniswap), MAX_UINT);
     }
@@ -152,6 +181,13 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
             // eg USDC in mUSD or WBTC in mBTC
             IERC20(_bAsset).safeApprove(_mAsset, 0);
             IERC20(_bAsset).safeApprove(_mAsset, MAX_UINT);
+
+            // TODO can we assume the savings manager will not change?
+            // This Liquidator contract approves the Savings Manager to transfer mAssets
+            // for depositLiquidation. eg mUSD
+            address savings = _savingsManager();
+            IERC20(_mAsset).safeApprove(savings, 0);
+            IERC20(_mAsset).safeApprove(savings, MAX_UINT);
         } else {
             // This Liquidator contract approves the integration contract to transfer bAssets for deposits.
             // eg GUSD as part of the GUSD Feeder Pool.
@@ -277,11 +313,7 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
         }
 
         // 3. Make the swap
-        // 3.1 Approve Uniswap and make the swap
-        IERC20(sellToken).safeApprove(address(uniswap), 0);
-        IERC20(sellToken).safeApprove(address(uniswap), sellAmount);
-        // 3.2. Make the sale > https://uniswap.org/docs/v2/smart-contracts/router02/#swapexacttokensfortokens
-
+        // Uniswap V2 > https://uniswap.org/docs/v2/smart-contracts/router02/#swapexacttokensfortokens
         // min amount out = sellAmount * priceFloor / 1e18
         // e.g. 1e18 * 100e6 / 1e18 = 100e6
         // e.g. 30e8 * 100e6 / 1e8 = 3000e6
@@ -297,14 +329,14 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
             block.timestamp + 1800
         );
 
-        // 4. Mint mAsset using purchaed bAsset
+        // 4. Mint mAsset using purchased bAsset
         address mAsset = mAssets[_integration];
         uint256 minted = _mint(bAsset, mAsset);
 
         // 4.0. Send to SavingsManager
         address savings = _savingsManager();
-        IERC20(mAsset).safeApprove(savings, minted);
-        // ISavingsManager(savings).depositLiquidation(mAsset, minted);
+        // IERC20(mAsset).safeApprove(savings, minted);
+        ISavingsManager(savings).depositLiquidation(mAsset, minted);
 
         emit Liquidated(sellToken, mAsset, minted, bAsset);
     }
@@ -381,8 +413,6 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
             // e.g. 30e8 * 100e6 / 1e8 = 3000e6
             // e.g. 30e18 * 100e18 / 1e18 = 3000e18
             uint256 minOut = (integrationAaveBalance * minReturn[_integration]) / 1e18;
-            console.log("Integration %s Uniswap path %s %s", _integration, liquidation.uniswapPath[0], liquidation.uniswapPath[1]);
-            console.log("minOut %s, integrationAaveBalance %s, minReturn %s", minOut, integrationAaveBalance, minReturn[_integration]);
             require(minOut > 0, "Must have some price floor");
             uniswap.swapExactTokensForTokens(
                 integrationAaveBalance,
@@ -400,7 +430,7 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
 
                 // 6. Send to SavingsManager to streamed to the savings vault. eg imUSD or imBTC
                 address savings = _savingsManager();
-                IERC20(mAsset).safeApprove(savings, minted);
+                // IERC20(mAsset).safeApprove(savings, minted);
                 ISavingsManager(savings).depositLiquidation(mAsset, minted);
 
                 emit Liquidated(aaveToken, mAsset, minted, bAsset);
@@ -416,8 +446,6 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
             }
         }
 
-        console.log("Unallocated Aave after liquidation %s", aaveUnallocated);
-
         // All the Aave should be now be accounted. If stkAave or Aave was transferred into the liquidator
         // from another source, then just allocated it to the first integration contract for processing next liquidation.
         if (aaveUnallocated > 0) {
@@ -427,7 +455,6 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
 
     function _mint(address _bAsset, address _mAsset) internal returns (uint256 minted) {
         uint256 bAssetBal = IERC20(_bAsset).balanceOf(address(this));
-        console.log("bAssets to mint from Uniswap output %s", bAssetBal);
 
         uint256 bAssetDec = IBasicToken(_bAsset).decimals();
         // e.g. 100e6 * 95e16 / 1e6 = 100e18
