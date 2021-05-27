@@ -526,8 +526,15 @@ context("Liquidator", () => {
             expect(compLiquidation.curvePosition, "Curve position").to.eq(2)
             expect(compLiquidation.trancheAmount, "Tranche amount").to.eq(simpleToExactAmount(20000, USDC.decimals))
 
-            const liquidationSlot = await ethers.provider.getStorageAt(liquidatorAddress, 14)
-            console.log(`liquidationSlot ${liquidationSlot}`)
+            // eslint-disable-next-line no-plusplus
+            for (let i = 50; i < 70; i++) {
+                const slot = await ethers.provider.getStorageAt(liquidatorAddress, i)
+                console.log(`liquidator slot ${i} ${slot}`)
+            }
+            for (let i = 100; i < 120; i++) {
+                const slot = await ethers.provider.getStorageAt(liquidatorAddress, i)
+                console.log(`liquidator before slot ${i} ${slot}`)
+            }
         })
         it("Liquidate COMP before upgrade", async () => {
             await increaseTime(ONE_WEEK)
@@ -554,7 +561,10 @@ context("Liquidator", () => {
             // Connect to the proxy with the Liquidator ABI
             liquidator = Liquidator__factory.connect(liquidatorAddress, ops.signer)
 
-            expect(await ethers.provider.getStorageAt(liquidatorAddress, 14)).to.eq(liquidationSlotBefore)
+            for (let i = 50; i < 65; i++) {
+                const liquidationSlot = await ethers.provider.getStorageAt(liquidatorAddress, i)
+                console.log(`liquidation after slot ${i} ${liquidationSlot}`)
+            }
 
             // Public immutable values
             expect(await liquidator.nexus(), "nexus address").to.eq(nexusAddress)
