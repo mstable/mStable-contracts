@@ -417,10 +417,11 @@ context("Liquidator", () => {
                 stkAave.address,
                 aave.address,
                 uniswapRouterV2Address,
+                COMP.address,
             ])
 
             // Update the Liquidator proxy to point to the new implementation using the delayed proxy admin
-            const data = liquidatorImpl.interface.encodeFunctionData("upgrade", [compoundIntegrationAddress, mUSD.address])
+            const data = liquidatorImpl.interface.encodeFunctionData("upgrade")
             await delayedProxyAdmin.proposeUpgrade(liquidatorAddress, liquidatorImpl.address, data)
             await increaseTime(ONE_WEEK.add(60))
             await delayedProxyAdmin.acceptUpgradeRequest(liquidatorAddress)
@@ -437,7 +438,6 @@ context("Liquidator", () => {
                     aaveMusdIntegrationAddress,
                     aave.address,
                     USDC.address,
-                    0,
                     [aave.address, uniswapEthToken, USDC.address],
                     0,
                     simpleToExactAmount(50, USDC.decimals),
@@ -451,7 +451,6 @@ context("Liquidator", () => {
                     aaveMbtcIntegrationAddress,
                     aave.address,
                     WBTC.address,
-                    0,
                     [aave.address, uniswapEthToken, WBTC.address],
                     0,
                     simpleToExactAmount(2, WBTC.decimals - 3),
@@ -465,7 +464,6 @@ context("Liquidator", () => {
                     GUSD.integrator,
                     aave.address,
                     GUSD.address,
-                    0,
                     [aave.address, uniswapEthToken, GUSD.address],
                     0,
                     simpleToExactAmount(50, GUSD.decimals),
@@ -515,14 +513,6 @@ context("Liquidator", () => {
         it("Read functions before upgrade", async () => {
             expect(await liquidator.nexus(), "nexus address").to.eq(nexusAddress)
             expect(await liquidator.uniswap(), "Uniswap address").to.eq(uniswapRouterV2Address)
-            // expect(await liquidator.mUSD(), "mUSD address").to.eq(mUSD.address)
-            // expect(await liquidator.curve(), "Curve address").to.eq("0x8474ddbe98f5aa3179b3b3f5942d724afcdec9f6")
-
-            const compLiquidation = await liquidator.liquidations(compoundIntegrationAddress)
-            expect(compLiquidation.sellToken, "sell token").to.eq(COMP.address)
-            expect(compLiquidation.bAsset, "bAsset").to.eq(USDC.address)
-            expect(compLiquidation.curvePosition, "Curve position").to.eq(2)
-            expect(compLiquidation.trancheAmount, "Tranche amount").to.eq(simpleToExactAmount(20000, USDC.decimals))
         })
         it("Liquidate COMP before upgrade", async () => {
             await increaseTime(ONE_WEEK)
@@ -537,10 +527,11 @@ context("Liquidator", () => {
                 stkAave.address,
                 aave.address,
                 uniswapRouterV2Address,
+                COMP.address,
             ])
 
             // Update the Liquidator proxy to point to the new implementation using the delayed proxy admin
-            const data = liquidatorImpl.interface.encodeFunctionData("upgrade", [compoundIntegrationAddress, mUSD.address])
+            const data = liquidatorImpl.interface.encodeFunctionData("upgrade")
             await delayedProxyAdmin.proposeUpgrade(liquidatorAddress, liquidatorImpl.address, data)
             await increaseTime(ONE_WEEK.add(60))
             await delayedProxyAdmin.acceptUpgradeRequest(liquidatorAddress)
@@ -553,13 +544,19 @@ context("Liquidator", () => {
             expect(await liquidator.uniswap(), "Uniswap address").to.eq(uniswapRouterV2Address)
             expect(await liquidator.aaveToken(), "Aave address").to.eq(aave.address)
             expect(await liquidator.stkAave(), "Staked Aave address").to.eq(stkAave.address)
-
-            // Old liquidation still exists
-            const compLiquidation = await liquidator.liquidations(compoundIntegrationAddress)
-            expect(compLiquidation.sellToken, "sell token").to.eq(COMP.address)
-            expect(compLiquidation.bAsset, "bAsset").to.eq(USDC.address)
-            expect(compLiquidation.curvePosition, "Curve position").to.eq(2)
-            expect(compLiquidation.trancheAmount, "Tranche amount").to.eq(simpleToExactAmount(20000, USDC.decimals))
+        })
+        it("Added liquidation for mUSD Compound integration", async () => {
+            await liquidator
+                .connect(governor.signer)
+                .createLiquidation(
+                    compoundIntegrationAddress,
+                    COMP.address,
+                    USDC.address,
+                    [COMP.address, uniswapEthToken, USDC.address],
+                    simpleToExactAmount(20000, USDC.decimals),
+                    simpleToExactAmount(50, USDC.decimals),
+                    mUSD.address,
+                )
         })
         it("Liquidate COMP after upgrade", async () => {
             await increaseTime(ONE_WEEK)

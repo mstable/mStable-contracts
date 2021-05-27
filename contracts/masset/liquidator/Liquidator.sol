@@ -11,7 +11,6 @@ import { PAaveIntegration } from "../../polygon/PAaveIntegration.sol";
 import { Initializable } from "../../shared/@openzeppelin-2.5/Initializable.sol";
 import { ModuleKeysStorage } from "../../shared/ModuleKeysStorage.sol";
 import { ImmutableModule } from "../../shared/ImmutableModule.sol";
-import { ILiquidator } from "./ILiquidator.sol";
 
 import { IBasicToken } from "../../shared/IBasicToken.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -25,7 +24,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @dev     VERSION: 1.2
  *          DATE:    2020-12-16
  */
-contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableModule {
+contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
     using SafeERC20 for IERC20;
 
     event LiquidationModified(address indexed integration);
@@ -40,16 +39,13 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
     address public deprecated_curve;
     address public deprecated_uniswap;
     uint256 private deprecated_interval = 7 days;
-
     // map of integration addresses to liquidations
-    mapping(address => Liquidation) public liquidations;
+    mapping(address => DeprecatedLiquidation) public deprecated_liquidations;
     // map of integration addresses to minimum exact amount of bAsset to get for each (whole) sellToken unit
-    mapping(address => uint256) public minReturn;
-    // map of integration addresses to mAssets like mUSD or mBTC.
-    // Is not used if the integration contract is connected to a Feeder Pool.
-    mapping(address => address) public mAssets;
-    // map of integration addresses to aave balances
-    mapping(address => uint256) public aaveBalances;
+    mapping(address => uint256) public deprecated_minReturn;
+
+    // new mapping of integration addresses to liquidation data
+    mapping(address => Liquidation) public liquidations;
     // Array of integration contracts used to loop through the Aave balances
     address[] public integrations;
 
@@ -57,11 +53,13 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
     address public immutable stkAave;
     address public immutable aaveToken;
     IUniswapV2Router02 public immutable uniswap;
+    address public immutable compToken;
 
     // Constants
     uint256 private constant MAX_UINT = 2**256-1;
 
-    struct Liquidation {
+    // No longer used
+    struct DeprecatedLiquidation {
         address sellToken;
         address bAsset;
         int128 curvePosition;   // no longer used
@@ -70,11 +68,23 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
         uint256 trancheAmount; // The amount of bAsset units to buy each week, with token decimals
     }
 
+    struct Liquidation {
+        address sellToken;
+        address bAsset;
+        address[] uniswapPath;
+        uint256 lastTriggered;
+        uint256 trancheAmount; // The amount of bAsset units to buy each week, with token decimals
+        uint256 minReturn;
+        address mAsset;
+        uint256 aaveBalance;
+    }
+
     constructor(
         address _nexus,
         address _stkAave,
         address _aaveToken,
-        address _uniswap)
+        address _uniswap,
+        address _compToken)
         ImmutableModule(_nexus)
     {
         require(_stkAave != address(0), "Invalid stkAave address");
@@ -85,44 +95,20 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
 
         require(_uniswap != address(0), "Invalid Uniswap address");
         uniswap = IUniswapV2Router02(_uniswap);
+
+        require(_compToken != address(0), "Invalid COMP address");
+        compToken = _compToken;
     }
 
     /**
-     * @dev Upgrades existing liquidations to new contract structure
-     * and perform necessary approvals
-     * @param _integration The integration contract address. eg COMP integration for mUSD
-     * @param _mAsset mAsset address linked to the integration contract. eg mUSD for USDC in Compound
+     * @dev Liquidator approves Uniswap to transfer Aave and COMP tokens
      */
-    function upgrade(address _integration, address _mAsset) external {
-
-        Liquidation memory liquidation = liquidations[_integration];
-        address bAsset = liquidation.bAsset;
-        require(bAsset != address(0), "Liquidation does not exist");
-        // Set the mAsset for an existing liquidation.
-        // eg mUSD for the COMP integration
-        require(mAssets[_integration] == address(0), "Already upgraded");
-        mAssets[_integration] = _mAsset;
-
-        // This Liquidator contract approves Uniswap to transfer the sellToken to swap.
-        // eg COMP to swap for USDC
-        address sellToken = liquidation.sellToken;
-        IERC20(sellToken).safeApprove(address(uniswap), 0);
-        IERC20(sellToken).safeApprove(address(uniswap), MAX_UINT);
-
-        // This Liquidator contract approves the mAsset to transfer bAssets for mint.
-        // eg USDC to mUSD
-        IERC20(bAsset).safeApprove(_mAsset, MAX_UINT);
-
-        // TODO can we assume the savings manager will not change?
-        // This Liquidator contract approves the Savings Manager to transfer mAssets
-        // for depositLiquidation. eg mUSD
-        address savings = _savingsManager();
-        IERC20(_mAsset).safeApprove(savings, 0);
-        IERC20(_mAsset).safeApprove(savings, MAX_UINT);
-
-        // Approve Uniswap to transfer Aave tokens from this liquidator
+    function upgrade() external {
         IERC20(aaveToken).safeApprove(address(uniswap), MAX_UINT);
+        IERC20(compToken).safeApprove(address(uniswap), MAX_UINT);
     }
+
+    // TODO add approval to savings manager if it ever changed
 
     /***************************************
                     GOVERNANCE
@@ -133,7 +119,6 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
      * @param _integration The integration contract address from which to receive sellToken
      * @param _sellToken Token harvested from the integration contract. eg COMP or stkAave.
      * @param _bAsset The asset to buy on Uniswap. eg USDC or WBTC
-     * @param _curvePosition deprecated
      * @param _uniswapPath The Uniswap path as an array of addresses e.g. [COMP, WETH, USDC]
      * @param _trancheAmount The max amount of bAsset units to buy in each weekly tranche.
      * @param _minReturn Minimum exact amount of bAsset to get for each (whole) sellToken unit
@@ -143,12 +128,11 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
         address _integration,
         address _sellToken,
         address _bAsset,
-        int128 _curvePosition,
         address[] calldata _uniswapPath,
         uint256 _trancheAmount,
         uint256 _minReturn,
         address _mAsset
-    ) external override onlyGovernance {
+    ) external onlyGovernance {
         require(
             liquidations[_integration].sellToken == address(0),
             "Liquidation exists for this bAsset"
@@ -167,13 +151,13 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
         liquidations[_integration] = Liquidation({
             sellToken: _sellToken,
             bAsset: _bAsset,
-            curvePosition: _curvePosition,
             uniswapPath: _uniswapPath,
             lastTriggered: 0,
-            trancheAmount: _trancheAmount
+            trancheAmount: _trancheAmount,
+            minReturn: _minReturn,
+            mAsset: _mAsset,
+            aaveBalance: 0
         });
-        minReturn[_integration] = _minReturn;
-        mAssets[_integration] = _mAsset;
         integrations.push(_integration);
 
         if (_mAsset != address(0)) {
@@ -202,7 +186,6 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
      * @dev Update a liquidation
      * @param _integration The integration contract in question
      * @param _bAsset New asset to buy on Uniswap
-     * @param _curvePosition Position of the bAsset in Curves MetaPool
      * @param _uniswapPath The Uniswap path as an array of addresses e.g. [COMP, WETH, DAI]
      * @param _trancheAmount The max amount of bAsset units to buy in each weekly tranche.
      * @param _minReturn Minimum exact amount of bAsset to get for each (whole) sellToken unit
@@ -210,11 +193,10 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
     function updateBasset(
         address _integration,
         address _bAsset,
-        int128 _curvePosition,
         address[] calldata _uniswapPath,
         uint256 _trancheAmount,
         uint256 _minReturn
-    ) external override onlyGovernance {
+    ) external onlyGovernance {
         Liquidation memory liquidation = liquidations[_integration];
 
         address oldBasset = liquidation.bAsset;
@@ -228,10 +210,9 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
         );
 
         liquidations[_integration].bAsset = _bAsset;
-        // liquidations[_integration].curvePosition = _curvePosition;
         liquidations[_integration].uniswapPath = _uniswapPath;
         liquidations[_integration].trancheAmount = _trancheAmount;
-        minReturn[_integration] = _minReturn;
+        liquidations[_integration].minReturn = _minReturn;
 
         emit LiquidationModified(_integration);
     }
@@ -254,13 +235,11 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
     /**
      * @dev Delete a liquidation
      */
-    function deleteLiquidation(address _integration) external override onlyGovernance {
+    function deleteLiquidation(address _integration) external onlyGovernance {
         Liquidation memory liquidation = liquidations[_integration];
         require(liquidation.bAsset != address(0), "Liquidation does not exist");
 
         delete liquidations[_integration];
-        delete minReturn[_integration];
-        delete mAssets[_integration];
 
         emit LiquidationEnded(_integration);
     }
@@ -276,7 +255,7 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
      *    - Send to SavingsManager
      * @param _integration Integration for which to trigger liquidation
      */
-    function triggerLiquidation(address _integration) external override {
+    function triggerLiquidation(address _integration) external {
         // solium-disable-next-line security/no-tx-origin
         require(tx.origin == msg.sender, "Must be EOA");
 
@@ -319,23 +298,22 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
         // e.g. 30e8 * 100e6 / 1e8 = 3000e6
         // e.g. 30e18 * 100e18 / 1e18 = 3000e18
         uint256 sellTokenDec = IBasicToken(sellToken).decimals();
-        uint256 minOut = (sellAmount * minReturn[_integration]) / (10**sellTokenDec);
+        uint256 minOut = (sellAmount * liquidation.minReturn) / (10**sellTokenDec);
         require(minOut > 0, "Must have some price floor");
         uniswap.swapExactTokensForTokens(
             sellAmount,
             minOut,
             uniswapPath,
             address(this),
-            block.timestamp + 1800
+            block.timestamp + 1
         );
 
         // 4. Mint mAsset using purchased bAsset
-        address mAsset = mAssets[_integration];
+        address mAsset = liquidation.mAsset;
         uint256 minted = _mint(bAsset, mAsset);
 
         // 4.0. Send to SavingsManager
         address savings = _savingsManager();
-        // IERC20(mAsset).safeApprove(savings, minted);
         ISavingsManager(savings).depositLiquidation(mAsset, minted);
 
         emit Liquidated(sellToken, mAsset, minted, bAsset);
@@ -364,7 +342,7 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
             IERC20(stkAave).safeTransferFrom(_integration, address(this), integrationBal);
         }
         // Increase the integration contract's staked Aave balance.
-        aaveBalances[_integration] += integrationBal;
+        liquidations[_integration].aaveBalance += integrationBal;
 
         // Restart the cool down as the start timestamp would have been reset to zero after the last redeem
         IStakedAave(stkAave).cooldown();
@@ -390,21 +368,19 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
         uint256 len = integrations.length;
         for (uint256 i = 0; i < len; i++) {
             address _integration = integrations[i];
+            Liquidation memory liquidation = liquidations[_integration];
 
             // 3. Get the amount of Aave tokens for this integration contract from the stkAave balance
-            uint256 integrationAaveBalance = aaveBalances[_integration];
-            aaveBalances[_integration] = 0;
-            aaveUnallocated -= integrationAaveBalance;
-
+            uint256 integrationAaveBalance = liquidation.aaveBalance;
+            address bAsset = liquidation.bAsset;
             // If there's no Aave tokens to liquidate for this integration contract
+            // or the liquidation has been deleted for the integration
             // then just move to the next integration contract.
-            if (integrationAaveBalance == 0) {
+            if (integrationAaveBalance == 0 || bAsset == address(0)) {
                 continue;
             }
-
-            Liquidation memory liquidation = liquidations[_integration];
-            address bAsset = liquidation.bAsset;
-            require(bAsset != address(0), "Liquidation does not exist");
+            liquidations[_integration].aaveBalance = 0;
+            aaveUnallocated -= integrationAaveBalance;
 
             // 4. Make the swap of Aave for the bAsset
             // Make the sale > https://uniswap.org/docs/v2/smart-contracts/router02/#swapexacttokensfortokens
@@ -412,7 +388,7 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
             // e.g. 1e18 * 100e6 / 1e18 = 100e6
             // e.g. 30e8 * 100e6 / 1e8 = 3000e6
             // e.g. 30e18 * 100e18 / 1e18 = 3000e18
-            uint256 minOut = (integrationAaveBalance * minReturn[_integration]) / 1e18;
+            uint256 minOut = (integrationAaveBalance * liquidation.minReturn) / 1e18;
             require(minOut > 0, "Must have some price floor");
             uniswap.swapExactTokensForTokens(
                 integrationAaveBalance,
@@ -422,7 +398,7 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
                 block.timestamp + 1
             );
 
-            address mAsset = mAssets[_integration];
+            address mAsset = liquidation.mAsset;
             // If the integration contract is connected to a mAsset like mUSD or mBTC
             if (mAsset != address(0)) {
                 // 5a. Mint mAsset using bAsset from the Uniswap swap
@@ -449,7 +425,7 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
         // All the Aave should be now be accounted. If stkAave or Aave was transferred into the liquidator
         // from another source, then just allocated it to the first integration contract for processing next liquidation.
         if (aaveUnallocated > 0) {
-            aaveBalances[integrations[0]] += aaveUnallocated;
+            liquidations[integrations[0]].aaveBalance += aaveUnallocated;
         }
     }
 
