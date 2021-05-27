@@ -50,14 +50,14 @@ context("Liquidator", () => {
     let aaveStakedToken: AaveStakedTokenV2
     let compToken: ERC20
 
-    before("reset block number", async () => {
+    async function runSetup(blockNumber: number) {
         await network.provider.request({
             method: "hardhat_reset",
             params: [
                 {
                     forking: {
                         jsonRpcUrl: process.env.NODE_URL,
-                        blockNumber: 12510100,
+                        blockNumber,
                     },
                 },
             ],
@@ -78,14 +78,16 @@ context("Liquidator", () => {
         aaveToken = ERC20__factory.connect(aave.address, ops.signer)
         aaveStakedToken = AaveStakedTokenV2__factory.connect(stkAave.address, stkAaveWhale.signer)
         compToken = ERC20__factory.connect(COMP.address, ops.signer)
-    })
+    }
+
     it("Test connectivity", async () => {
         const currentBlock = await ethers.provider.getBlockNumber()
         console.log(`Current block ${currentBlock}`)
-        const startEther = await ops.signer.getBalance()
-        console.log(`Deployer ${opsAddress} has ${startEther} Ether`)
     })
-    context("Staked Aave rewards", () => {
+    context.skip("Staked Aave rewards", () => {
+        before("reset block number", async () => {
+            await runSetup(12493000)
+        })
         context("claim Aave rewards from stkAave", () => {
             before(async () => {
                 const coolDownStartTimestamp = await aaveStakedToken.stakersCooldowns(stkAaveWhaleAddress)
@@ -127,10 +129,12 @@ context("Liquidator", () => {
                         claimAmount,
                     )}, new unclaimed amount ${formatUnits(newUnclaimedAmount)}`,
                 )
-                expect(claimAmount, "claim amount > rewards unclaimed < rewards total").to.gt(unclaimedRewards)
+                expect(claimAmount, "claim amount > rewards unclaimed").to.gt(unclaimedRewards)
+                expect(claimAmount, "claim amount < rewards total").to.lt(totalRewards)
                 expect(await aaveStakedToken.stakersCooldowns(stkAaveWhaleAddress), "cool down not activated").to.eq(0)
 
-                await aaveStakedToken.claimRewards(stkAaveWhaleAddress, claimAmount)
+                const tx = await aaveStakedToken.claimRewards(stkAaveWhaleAddress, claimAmount)
+                const receipt = await tx.wait()
 
                 expect(await aaveToken.balanceOf(stkAaveWhaleAddress), "aave tokens = before balance + claim amount").to.eq(
                     aaveBalanceBefore.add(claimAmount),
@@ -165,7 +169,7 @@ context("Liquidator", () => {
                 expect(await aaveStakedToken.getTotalRewardsBalance(stkAaveWhaleAddress), "no total rewards").to.eq(0)
                 expect(await aaveStakedToken.stakersCooldowns(stkAaveWhaleAddress), "cool down not activated").to.eq(0)
             })
-            context("redeem stkAave", () => {
+            context.skip("redeem stkAave", () => {
                 let stkAaveAmount: BN
                 const remainingStakeAmount = simpleToExactAmount(10)
                 const remainingStakeAmount2 = simpleToExactAmount(2)
@@ -240,7 +244,7 @@ context("Liquidator", () => {
                     expect(await aaveStakedToken.balanceOf(stkAaveWhaleAddress)).to.eq(remainingStakeAmount2)
                 })
             })
-            context("stake Aave", () => {
+            context.skip("stake Aave", () => {
                 const stakeAmount = simpleToExactAmount(95000)
                 it("stake some Aave", async () => {
                     const aaveBalanceBefore = await aaveToken.balanceOf(stkAaveWhaleAddress)
@@ -305,7 +309,7 @@ context("Liquidator", () => {
                     await aaveStakedToken.redeem(stkAaveWhaleAddress, stakeAmount.mul(10))
                 })
             })
-            context("Claim more rewards from Aave incentives", () => {
+            context.skip("Claim more rewards from Aave incentives", () => {
                 const firstClaimAmount = simpleToExactAmount(2)
                 const secondClaimAmount = simpleToExactAmount(4)
                 let firstCoolDownAmount: BN
@@ -401,8 +405,11 @@ context("Liquidator", () => {
             })
         })
     })
-    context.only("Aave liquidation", () => {
+    context("Aave liquidation", () => {
         let liquidator: Liquidator
+        before("reset block number", async () => {
+            await runSetup(12510100)
+        })
         it("Deploy and upgrade new liquidator contract", async () => {
             // Deploy the new implementation
             const liquidatorImpl = await deployContract<Liquidator>(new Liquidator__factory(ops.signer), "Liquidator", [
@@ -499,7 +506,71 @@ context("Liquidator", () => {
             const tx = liquidator.triggerLiquidationAave()
             await expect(tx).revertedWith("UNSTAKE_WINDOW_FINISHED")
         })
-        it.skip("Liquidate COMP", async () => {
+    })
+    context.only("Compound liquidation", () => {
+        let liquidator: Liquidator
+        let liquidationSlotBefore: string
+        before("reset block number", async () => {
+            await runSetup(12500000)
+            liquidator = Liquidator__factory.connect(liquidatorAddress, ops.signer)
+        })
+        it("Read functions before upgrade", async () => {
+            expect(await liquidator.nexus(), "nexus address").to.eq(nexusAddress)
+            expect(await liquidator.uniswap(), "Uniswap address").to.eq(uniswapRouterV2Address)
+            // expect(await liquidator.mUSD(), "mUSD address").to.eq(mUSD.address)
+            // expect(await liquidator.curve(), "Curve address").to.eq("0x8474ddbe98f5aa3179b3b3f5942d724afcdec9f6")
+
+            const compLiquidation = await liquidator.liquidations(compoundIntegrationAddress)
+            expect(compLiquidation.sellToken, "sell token").to.eq(COMP.address)
+            expect(compLiquidation.bAsset, "bAsset").to.eq(USDC.address)
+            expect(compLiquidation.curvePosition, "Curve position").to.eq(2)
+            expect(compLiquidation.trancheAmount, "Tranche amount").to.eq(simpleToExactAmount(20000, USDC.decimals))
+
+            const liquidationSlot = await ethers.provider.getStorageAt(liquidatorAddress, 14)
+            console.log(`liquidationSlot ${liquidationSlot}`)
+        })
+        it("Liquidate COMP before upgrade", async () => {
+            await increaseTime(ONE_WEEK)
+            const compBalanceBefore = await compToken.balanceOf(liquidatorAddress)
+            await liquidator.triggerLiquidation(compoundIntegrationAddress)
+            expect(await compToken.balanceOf(liquidatorAddress), "Less COMP").lt(compBalanceBefore)
+        })
+        it("Deploy and upgrade new liquidator contract", async () => {
+            // Deploy the new implementation
+            const liquidatorImpl = await deployContract<Liquidator>(new Liquidator__factory(ops.signer), "Liquidator", [
+                nexusAddress,
+                stkAave.address,
+                aave.address,
+                uniswapRouterV2Address,
+            ])
+
+            // Update the Liquidator proxy to point to the new implementation using the delayed proxy admin
+            const data = liquidatorImpl.interface.encodeFunctionData("approvals")
+            // const data = "0x"
+            await delayedProxyAdmin.proposeUpgrade(liquidatorAddress, liquidatorImpl.address, data)
+            await increaseTime(ONE_WEEK.add(60))
+            await delayedProxyAdmin.acceptUpgradeRequest(liquidatorAddress)
+
+            // Connect to the proxy with the Liquidator ABI
+            liquidator = Liquidator__factory.connect(liquidatorAddress, ops.signer)
+
+            expect(await ethers.provider.getStorageAt(liquidatorAddress, 14)).to.eq(liquidationSlotBefore)
+
+            // Public immutable values
+            expect(await liquidator.nexus(), "nexus address").to.eq(nexusAddress)
+            expect(await liquidator.uniswap(), "Uniswap address").to.eq(uniswapRouterV2Address)
+            expect(await liquidator.aaveToken(), "Aave address").to.eq(aave.address)
+            expect(await liquidator.stkAave(), "Staked Aave address").to.eq(stkAave.address)
+
+            // Old liquidation still exists
+            const compLiquidation = await liquidator.liquidations(compoundIntegrationAddress)
+            expect(compLiquidation.sellToken, "sell token").to.eq(COMP.address)
+            expect(compLiquidation.bAsset, "bAsset").to.eq(USDC.address)
+            expect(compLiquidation.curvePosition, "Curve position").to.eq(2)
+            expect(compLiquidation.trancheAmount, "Tranche amount").to.eq(simpleToExactAmount(20000, USDC.decimals))
+        })
+        it("Liquidate COMP after upgrade", async () => {
+            await increaseTime(ONE_WEEK)
             const compBalanceBefore = await compToken.balanceOf(liquidatorAddress)
             await liquidator.triggerLiquidation(compoundIntegrationAddress)
             expect(await compToken.balanceOf(liquidatorAddress), "Less COMP").lt(compBalanceBefore)

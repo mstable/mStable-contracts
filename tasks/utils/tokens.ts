@@ -180,7 +180,7 @@ export const aave: Token = {
 }
 export const stkAave: Token = {
     symbol: "stkAave",
-    address: "0x4da27a545c0c5b758a6ba100e3a049001de870f5",
+    address: "0x4da27a545c0c5B758a6BA100e3a049001de870f5",
     decimals: 18,
     quantityFormatter: "USD",
 }
