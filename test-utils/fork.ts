@@ -11,14 +11,14 @@ export const impersonate = async (addr: string): Promise<Signer> => {
     return ethers.provider.getSigner(addr)
 }
 
-export const impersonateAccount = async (addr: string): Promise<Account> => {
+export const impersonateAccount = async (address: string): Promise<Account> => {
     await network.provider.request({
         method: "hardhat_impersonateAccount",
-        params: [addr],
+        params: [address],
     })
-    const signer = ethers.provider.getSigner(addr)
+    const signer = ethers.provider.getSigner(address)
     return {
         signer,
-        address: await signer.getAddress(),
+        address,
     }
 }

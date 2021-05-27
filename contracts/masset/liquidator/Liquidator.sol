@@ -47,13 +47,13 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
     mapping(address => Liquidation) public liquidations;
     // map of integration addresses to minimum exact amount of bAsset to get for each (whole) sellToken unit
     mapping(address => uint256) public minReturn;
-    // map of integration addresses to mAssets like mUSD or mBTC.
-    // Is not used if the integration contract is connected to a Feeder Pool.
-    mapping(address => address) public mAssets;
-    // map of integration addresses to aave balances
-    mapping(address => uint256) public aaveBalances;
-    // Array of integration contracts used to loop through the Aave balances
-    address[] public integrations;
+    // // map of integration addresses to mAssets like mUSD or mBTC.
+    // // Is not used if the integration contract is connected to a Feeder Pool.
+    // mapping(address => address) public mAssets;
+    // // map of integration addresses to aave balances
+    // mapping(address => uint256) public aaveBalances;
+    // // Array of integration contracts used to loop through the Aave balances
+    // address[] public integrations;
 
     // Immutable variables set in the constructor
     address public immutable stkAave;
@@ -143,8 +143,8 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
             trancheAmount: _trancheAmount
         });
         minReturn[_integration] = _minReturn;
-        mAssets[_integration] = _mAsset;
-        integrations.push(_integration);
+        // mAssets[_integration] = _mAsset;
+        // integrations.push(_integration);
 
         if (_mAsset != address(0)) {
             // This Liquidator contract approves the mAsset to transfer bAssets for mint.
@@ -223,7 +223,7 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
 
         delete liquidations[_integration];
         delete minReturn[_integration];
-        delete mAssets[_integration];
+        // delete mAssets[_integration];
 
         emit LiquidationEnded(_integration);
     }
@@ -299,141 +299,141 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
         // 4. Trade on Curve
         // uint256 purchased = _sellOnCrv(bAsset, liquidation.curvePosition);
 
-        // 4. Mint mAsset using purchaed bAsset
-        address mAsset = mAssets[_integration];
-        uint256 minted = _mint(bAsset, mAsset);
+        // // 4. Mint mAsset using purchaed bAsset
+        // address mAsset = mAssets[_integration];
+        // uint256 minted = _mint(bAsset, mAsset);
 
-        // 4.0. Send to SavingsManager
-        address savings = _savingsManager();
-        IERC20(mAsset).safeApprove(savings, minted);
-        ISavingsManager(savings).depositLiquidation(mAsset, minted);
+        // // 4.0. Send to SavingsManager
+        // address savings = _savingsManager();
+        // IERC20(mAsset).safeApprove(savings, minted);
+        // ISavingsManager(savings).depositLiquidation(mAsset, minted);
 
-        emit Liquidated(sellToken, mAsset, minted, bAsset);
+        // emit Liquidated(sellToken, mAsset, minted, bAsset);
     }
 
-    /**
-     * @dev Claims token rewards from the integration contract and
-     * then transfers all reward tokens to the liquidator contract.
-     * 
-     * @param _integration Integration for which to claim the rewards tokens
-     */
-    function claimStakedAave(address _integration)
-        external
-    {
-        // solium-disable-next-line security/no-tx-origin
-        require(tx.origin == msg.sender, "Must be EOA");
+    // /**
+    //  * @dev Claims token rewards from the integration contract and
+    //  * then transfers all reward tokens to the liquidator contract.
+    //  * 
+    //  * @param _integration Integration for which to claim the rewards tokens
+    //  */
+    // function claimStakedAave(address _integration)
+    //     external
+    // {
+    //     // solium-disable-next-line security/no-tx-origin
+    //     require(tx.origin == msg.sender, "Must be EOA");
 
-        // 1. Claim the platform rewards on the integration contract. eg stkAave
-        PAaveIntegration integration = PAaveIntegration(_integration);
-        integration.claimRewards();
+    //     // 1. Claim the platform rewards on the integration contract. eg stkAave
+    //     PAaveIntegration integration = PAaveIntegration(_integration);
+    //     integration.claimRewards();
 
-        // 2. Transfer sell token from integration contract if there are some
-        //    Assumes the integration contract has already given infinite approval to this liquidator contract.
-        uint256 integrationBal = IERC20(stkAave).balanceOf(_integration);
-        if (integrationBal > 0) {
-            IERC20(stkAave).safeTransferFrom(_integration, address(this), integrationBal);
-        }
-        // Increase the integration contract's staked Aave balance.
-        aaveBalances[_integration] += integrationBal;
+    //     // 2. Transfer sell token from integration contract if there are some
+    //     //    Assumes the integration contract has already given infinite approval to this liquidator contract.
+    //     uint256 integrationBal = IERC20(stkAave).balanceOf(_integration);
+    //     if (integrationBal > 0) {
+    //         IERC20(stkAave).safeTransferFrom(_integration, address(this), integrationBal);
+    //     }
+    //     // Increase the integration contract's staked Aave balance.
+    //     aaveBalances[_integration] += integrationBal;
 
-        // Restart the cool down as the start timestamp would have been reset to zero after the last redeem
-        IStakedAave(stkAave).cooldown();
+    //     // Restart the cool down as the start timestamp would have been reset to zero after the last redeem
+    //     IStakedAave(stkAave).cooldown();
 
-        emit ClaimedStakedAave(_integration, integrationBal);
-    }
+    //     emit ClaimedStakedAave(_integration, integrationBal);
+    // }
 
-    /**
-     * @dev 
-     */
-    function triggerLiquidationAave() external {
-        // solium-disable-next-line security/no-tx-origin
-        require(tx.origin == msg.sender, "Must be EOA");
+    // /**
+    //  * @dev 
+    //  */
+    // function triggerLiquidationAave() external {
+    //     // solium-disable-next-line security/no-tx-origin
+    //     require(tx.origin == msg.sender, "Must be EOA");
 
-        // 1. Redeem as many stkAave as we can for Aave
-        IStakedAave(stkAave).redeem(address(this), MAX_UINT);
+    //     // 1. Redeem as many stkAave as we can for Aave
+    //     IStakedAave(stkAave).redeem(address(this), MAX_UINT);
 
-        // 2. Get the amount of Aave tokens to sell
-        uint256 aaveUnallocated = IERC20(aaveToken).balanceOf(address(this));
-        require(aaveUnallocated > 0, "No Aave redeemed from stkAave");
+    //     // 2. Get the amount of Aave tokens to sell
+    //     uint256 aaveUnallocated = IERC20(aaveToken).balanceOf(address(this));
+    //     require(aaveUnallocated > 0, "No Aave redeemed from stkAave");
 
-         // for each integration contract
-        uint256 len = integrations.length;
-        for (uint256 i = 0; i < len; i++) {
-            address _integration = integrations[i];
+    //      // for each integration contract
+    //     uint256 len = integrations.length;
+    //     for (uint256 i = 0; i < len; i++) {
+    //         address _integration = integrations[i];
 
-            // 3. Get the amount of Aave tokens for this integration contract from the stkAave balance
-            uint256 integrationAaveBalance = aaveBalances[_integration];
-            aaveBalances[_integration] = 0;
-            aaveUnallocated -= integrationAaveBalance;
+    //         // 3. Get the amount of Aave tokens for this integration contract from the stkAave balance
+    //         uint256 integrationAaveBalance = aaveBalances[_integration];
+    //         aaveBalances[_integration] = 0;
+    //         aaveUnallocated -= integrationAaveBalance;
 
-            // If there's no Aave tokens to liquidate for this integration contract
-            // then just move to the next integration contract.
-            if (integrationAaveBalance == 0) {
-                continue;
-            }
+    //         // If there's no Aave tokens to liquidate for this integration contract
+    //         // then just move to the next integration contract.
+    //         if (integrationAaveBalance == 0) {
+    //             continue;
+    //         }
 
-            Liquidation memory liquidation = liquidations[_integration];
-            address bAsset = liquidation.bAsset;
-            require(bAsset != address(0), "Liquidation does not exist");
+    //         Liquidation memory liquidation = liquidations[_integration];
+    //         address bAsset = liquidation.bAsset;
+    //         require(bAsset != address(0), "Liquidation does not exist");
 
-            // 4. Make the swap of Aave for the bAsset
-            // Make the sale > https://uniswap.org/docs/v2/smart-contracts/router02/#swapexacttokensfortokens
-            // min amount out = Aave amount * priceFloor / 1e18
-            // e.g. 1e18 * 100e6 / 1e18 = 100e6
-            // e.g. 30e8 * 100e6 / 1e8 = 3000e6
-            // e.g. 30e18 * 100e18 / 1e18 = 3000e18
-            uint256 minOut = (integrationAaveBalance * minReturn[_integration]) / 1e18;
-            console.log("Integration %s Uniswap path %s %s", _integration, liquidation.uniswapPath[0], liquidation.uniswapPath[1]);
-            console.log("minOut %s, integrationAaveBalance %s, minReturn %s", minOut, integrationAaveBalance, minReturn[_integration]);
-            require(minOut > 0, "Must have some price floor");
-            uniswap.swapExactTokensForTokens(
-                integrationAaveBalance,
-                minOut,
-                liquidation.uniswapPath,
-                address(this),
-                block.timestamp + 1
-            );
+    //         // 4. Make the swap of Aave for the bAsset
+    //         // Make the sale > https://uniswap.org/docs/v2/smart-contracts/router02/#swapexacttokensfortokens
+    //         // min amount out = Aave amount * priceFloor / 1e18
+    //         // e.g. 1e18 * 100e6 / 1e18 = 100e6
+    //         // e.g. 30e8 * 100e6 / 1e8 = 3000e6
+    //         // e.g. 30e18 * 100e18 / 1e18 = 3000e18
+    //         uint256 minOut = (integrationAaveBalance * minReturn[_integration]) / 1e18;
+    //         console.log("Integration %s Uniswap path %s %s", _integration, liquidation.uniswapPath[0], liquidation.uniswapPath[1]);
+    //         console.log("minOut %s, integrationAaveBalance %s, minReturn %s", minOut, integrationAaveBalance, minReturn[_integration]);
+    //         require(minOut > 0, "Must have some price floor");
+    //         uniswap.swapExactTokensForTokens(
+    //             integrationAaveBalance,
+    //             minOut,
+    //             liquidation.uniswapPath,
+    //             address(this),
+    //             block.timestamp + 1
+    //         );
 
-            address mAsset = mAssets[_integration];
-            // If the integration contract is connected to a mAsset like mUSD or mBTC
-            if (mAsset != address(0)) {
-                // 5a. Mint mAsset using bAsset from the Uniswap swap
-                uint256 minted = _mint(bAsset, mAsset);
+    //         address mAsset = mAssets[_integration];
+    //         // If the integration contract is connected to a mAsset like mUSD or mBTC
+    //         if (mAsset != address(0)) {
+    //             // 5a. Mint mAsset using bAsset from the Uniswap swap
+    //             uint256 minted = _mint(bAsset, mAsset);
 
-                // 6. Send to SavingsManager to streamed to the savings vault. eg imUSD or imBTC
-                address savings = _savingsManager();
-                IERC20(mAsset).safeApprove(savings, minted);
-                ISavingsManager(savings).depositLiquidation(mAsset, minted);
+    //             // 6. Send to SavingsManager to streamed to the savings vault. eg imUSD or imBTC
+    //             address savings = _savingsManager();
+    //             IERC20(mAsset).safeApprove(savings, minted);
+    //             ISavingsManager(savings).depositLiquidation(mAsset, minted);
 
-                emit Liquidated(aaveToken, mAsset, minted, bAsset);
-            // If a feeder pool like GUSD
-            } else {
-                // 5b. transfer bAsset directly to the integration contract.
-                // this will then increase the boosted savings vault price.
-                IERC20 bAssetToken = IERC20(bAsset);
-                uint256 bAssetBal = bAssetToken.balanceOf(address(this));
-                bAssetToken.transfer(_integration, bAssetBal);
+    //             emit Liquidated(aaveToken, mAsset, minted, bAsset);
+    //         // If a feeder pool like GUSD
+    //         } else {
+    //             // 5b. transfer bAsset directly to the integration contract.
+    //             // this will then increase the boosted savings vault price.
+    //             IERC20 bAssetToken = IERC20(bAsset);
+    //             uint256 bAssetBal = bAssetToken.balanceOf(address(this));
+    //             bAssetToken.transfer(_integration, bAssetBal);
 
-                emit Liquidated(aaveToken, mAsset, bAssetBal, bAsset);
-            }
-        }
+    //             emit Liquidated(aaveToken, mAsset, bAssetBal, bAsset);
+    //         }
+    //     }
 
-        console.log("Unallocated Aave after liquidation %s", aaveUnallocated);
+    //     console.log("Unallocated Aave after liquidation %s", aaveUnallocated);
 
-        // All the Aave should be now be accounted. If stkAave or Aave was transferred into the liquidator
-        // from another source, then just allocated it to the first integration contract for processing next liquidation.
-        if (aaveUnallocated > 0) {
-            aaveBalances[integrations[0]] += aaveUnallocated;
-        }
-    }
+    //     // All the Aave should be now be accounted. If stkAave or Aave was transferred into the liquidator
+    //     // from another source, then just allocated it to the first integration contract for processing next liquidation.
+    //     if (aaveUnallocated > 0) {
+    //         aaveBalances[integrations[0]] += aaveUnallocated;
+    //     }
+    // }
 
-    function _mint(address _bAsset, address _mAsset) internal returns (uint256 minted) {
-        uint256 bAssetBal = IERC20(_bAsset).balanceOf(address(this));
-        console.log("bAssets to mint from Uniswap output %s", bAssetBal);
+    // function _mint(address _bAsset, address _mAsset) internal returns (uint256 minted) {
+    //     uint256 bAssetBal = IERC20(_bAsset).balanceOf(address(this));
+    //     console.log("bAssets to mint from Uniswap output %s", bAssetBal);
 
-        uint256 bAssetDec = IBasicToken(_bAsset).decimals();
-        // e.g. 100e6 * 95e16 / 1e6 = 100e18
-        uint256 minOut = (bAssetBal * 90e16) / (10**bAssetDec);
-        minted = IMasset(_mAsset).mint(_bAsset, bAssetBal, minOut, address(this));
-    }
+    //     uint256 bAssetDec = IBasicToken(_bAsset).decimals();
+    //     // e.g. 100e6 * 95e16 / 1e6 = 100e18
+    //     uint256 minOut = (bAssetBal * 90e16) / (10**bAssetDec);
+    //     minted = IMasset(_mAsset).mint(_bAsset, bAssetBal, minOut, address(this));
+    // }
 }
