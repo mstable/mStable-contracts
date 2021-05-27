@@ -420,8 +420,7 @@ context("Liquidator", () => {
             ])
 
             // Update the Liquidator proxy to point to the new implementation using the delayed proxy admin
-            const data = liquidatorImpl.interface.encodeFunctionData("approvals")
-            // const data = "0x"
+            const data = liquidatorImpl.interface.encodeFunctionData("upgrade", [compoundIntegrationAddress, mUSD.address])
             await delayedProxyAdmin.proposeUpgrade(liquidatorAddress, liquidatorImpl.address, data)
             await increaseTime(ONE_WEEK.add(60))
             await delayedProxyAdmin.acceptUpgradeRequest(liquidatorAddress)
@@ -507,9 +506,8 @@ context("Liquidator", () => {
             await expect(tx).revertedWith("UNSTAKE_WINDOW_FINISHED")
         })
     })
-    context.only("Compound liquidation", () => {
+    context("Compound liquidation", () => {
         let liquidator: Liquidator
-        let liquidationSlotBefore: string
         before("reset block number", async () => {
             await runSetup(12500000)
             liquidator = Liquidator__factory.connect(liquidatorAddress, ops.signer)
@@ -525,16 +523,6 @@ context("Liquidator", () => {
             expect(compLiquidation.bAsset, "bAsset").to.eq(USDC.address)
             expect(compLiquidation.curvePosition, "Curve position").to.eq(2)
             expect(compLiquidation.trancheAmount, "Tranche amount").to.eq(simpleToExactAmount(20000, USDC.decimals))
-
-            // eslint-disable-next-line no-plusplus
-            for (let i = 50; i < 70; i++) {
-                const slot = await ethers.provider.getStorageAt(liquidatorAddress, i)
-                console.log(`liquidator slot ${i} ${slot}`)
-            }
-            for (let i = 100; i < 120; i++) {
-                const slot = await ethers.provider.getStorageAt(liquidatorAddress, i)
-                console.log(`liquidator before slot ${i} ${slot}`)
-            }
         })
         it("Liquidate COMP before upgrade", async () => {
             await increaseTime(ONE_WEEK)
@@ -552,19 +540,13 @@ context("Liquidator", () => {
             ])
 
             // Update the Liquidator proxy to point to the new implementation using the delayed proxy admin
-            const data = liquidatorImpl.interface.encodeFunctionData("approvals")
-            // const data = "0x"
+            const data = liquidatorImpl.interface.encodeFunctionData("upgrade", [compoundIntegrationAddress, mUSD.address])
             await delayedProxyAdmin.proposeUpgrade(liquidatorAddress, liquidatorImpl.address, data)
             await increaseTime(ONE_WEEK.add(60))
             await delayedProxyAdmin.acceptUpgradeRequest(liquidatorAddress)
 
             // Connect to the proxy with the Liquidator ABI
             liquidator = Liquidator__factory.connect(liquidatorAddress, ops.signer)
-
-            for (let i = 50; i < 65; i++) {
-                const liquidationSlot = await ethers.provider.getStorageAt(liquidatorAddress, i)
-                console.log(`liquidation after slot ${i} ${liquidationSlot}`)
-            }
 
             // Public immutable values
             expect(await liquidator.nexus(), "nexus address").to.eq(nexusAddress)
