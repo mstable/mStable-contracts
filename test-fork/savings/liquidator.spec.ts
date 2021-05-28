@@ -442,6 +442,7 @@ context("Liquidator", () => {
                     0,
                     simpleToExactAmount(50, USDC.decimals),
                     mUSD.address,
+                    true,
                 )
         })
         it("Added liquidation for mBTC Aave integration", async () => {
@@ -455,6 +456,7 @@ context("Liquidator", () => {
                     0,
                     simpleToExactAmount(2, WBTC.decimals - 3),
                     mBTC.address,
+                    true,
                 )
         })
         it("Added liquidation for GUSD Feeder Pool Aave integration", async () => {
@@ -468,28 +470,17 @@ context("Liquidator", () => {
                     0,
                     simpleToExactAmount(50, GUSD.decimals),
                     ZERO_ADDRESS,
+                    true,
                 )
         })
-        it("Claim stkAave from mUSD integration", async () => {
+        it("Claim stkAave from each integration contract", async () => {
             const aaveBalanceBefore = await aaveStakedToken.balanceOf(liquidatorAddress)
-            await liquidator.claimStakedAave(aaveMusdIntegrationAddress)
+            await liquidator.claimStakedAave()
             expect(await aaveStakedToken.balanceOf(liquidatorAddress), "Liquidator's stkAave increased").gt(aaveBalanceBefore)
         })
-        it("Claim stkAave from mUSD integration again", async () => {
-            const aaveBalanceBefore = await aaveStakedToken.balanceOf(liquidatorAddress)
-            await liquidator.claimStakedAave(aaveMusdIntegrationAddress)
-            expect(await aaveStakedToken.balanceOf(liquidatorAddress), "Liquidator's stkAave increased").gt(aaveBalanceBefore)
-        })
-        it("Claim stkAave from mBTC integration", async () => {
-            const aaveBalanceBefore = await aaveStakedToken.balanceOf(liquidatorAddress)
-            await liquidator.claimStakedAave(aaveMbtcIntegrationAddress)
-            expect(await aaveStakedToken.balanceOf(liquidatorAddress), "Liquidator's stkAave increased").gt(aaveBalanceBefore)
-        })
-        it("Claim stkAave from GUSD integration", async () => {
-            await increaseTime(ONE_WEEK)
-            const aaveBalanceBefore = await aaveStakedToken.balanceOf(liquidatorAddress)
-            await liquidator.claimStakedAave(GUSD.integrator)
-            expect(await aaveStakedToken.balanceOf(liquidatorAddress), "Liquidator's stkAave increased").gt(aaveBalanceBefore)
+        it("Fail to claim stkAave again before liquidation", async () => {
+            const tx = liquidator.claimStakedAave()
+            await expect(tx).revertedWith("Must liquidate last claim")
         })
         it("trigger liquidation of Aave after 11 days", async () => {
             await increaseTime(ONE_DAY.mul(11))
@@ -501,7 +492,7 @@ context("Liquidator", () => {
         })
         it("Fail to trigger liquidation of Aave again", async () => {
             const tx = liquidator.triggerLiquidationAave()
-            await expect(tx).revertedWith("UNSTAKE_WINDOW_FINISHED")
+            await expect(tx).revertedWith("Must claim before liquidation")
         })
     })
     context("Compound liquidation", () => {
@@ -556,6 +547,7 @@ context("Liquidator", () => {
                     simpleToExactAmount(20000, USDC.decimals),
                     simpleToExactAmount(50, USDC.decimals),
                     mUSD.address,
+                    false,
                 )
         })
         it("Liquidate COMP after upgrade", async () => {
@@ -563,6 +555,94 @@ context("Liquidator", () => {
             const compBalanceBefore = await compToken.balanceOf(liquidatorAddress)
             await liquidator.triggerLiquidation(compoundIntegrationAddress)
             expect(await compToken.balanceOf(liquidatorAddress), "Less COMP").lt(compBalanceBefore)
+        })
+    })
+    context("Negative tests", () => {
+        let liquidator: Liquidator
+        before("reset block number", async () => {
+            await runSetup(12500000)
+            liquidator = Liquidator__factory.connect(liquidatorAddress, ops.signer)
+
+            // Deploy the new implementation
+            const liquidatorImpl = await deployContract<Liquidator>(new Liquidator__factory(ops.signer), "Liquidator", [
+                nexusAddress,
+                stkAave.address,
+                aave.address,
+                uniswapRouterV2Address,
+                COMP.address,
+            ])
+
+            // Update the Liquidator proxy to point to the new implementation using the delayed proxy admin
+            const data = liquidatorImpl.interface.encodeFunctionData("upgrade")
+            await delayedProxyAdmin.proposeUpgrade(liquidatorAddress, liquidatorImpl.address, data)
+            await increaseTime(ONE_WEEK.add(60))
+            await delayedProxyAdmin.acceptUpgradeRequest(liquidatorAddress)
+
+            // Connect to the proxy with the Liquidator ABI
+            liquidator = Liquidator__factory.connect(liquidatorAddress, ops.signer)
+        })
+        it("Fail to call upgrade again", async () => {
+            const tx = liquidator.upgrade()
+            await expect(tx).revertedWith("SafeERC20: approve from non-zero to non-zero allowance")
+        })
+        it("short Uniswap path", async () => {
+            const tx = liquidator
+                .connect(governor.signer)
+                .createLiquidation(
+                    aaveMusdIntegrationAddress,
+                    aave.address,
+                    USDC.address,
+                    [aave.address],
+                    0,
+                    simpleToExactAmount(50, USDC.decimals),
+                    mUSD.address,
+                    true,
+                )
+            await expect(tx).revertedWith("Invalid inputs")
+        })
+        it("reversed Uniswap path", async () => {
+            const tx = liquidator
+                .connect(governor.signer)
+                .createLiquidation(
+                    aaveMusdIntegrationAddress,
+                    aave.address,
+                    USDC.address,
+                    [USDC.address, uniswapEthToken, aave.address],
+                    0,
+                    simpleToExactAmount(50, USDC.decimals),
+                    mUSD.address,
+                    true,
+                )
+            await expect(tx).revertedWith("Invalid uniswap path")
+        })
+        it("Added liquidation for mUSD Aave integration", async () => {
+            await liquidator
+                .connect(governor.signer)
+                .createLiquidation(
+                    aaveMusdIntegrationAddress,
+                    aave.address,
+                    USDC.address,
+                    [aave.address, uniswapEthToken, USDC.address],
+                    0,
+                    simpleToExactAmount(50, USDC.decimals),
+                    mUSD.address,
+                    true,
+                )
+        })
+        it("Fail to add duplicate liquidation", async () => {
+            const tx = liquidator
+                .connect(governor.signer)
+                .createLiquidation(
+                    aaveMusdIntegrationAddress,
+                    aave.address,
+                    USDC.address,
+                    [aave.address, uniswapEthToken, USDC.address],
+                    0,
+                    simpleToExactAmount(50, USDC.decimals),
+                    mUSD.address,
+                    true,
+                )
+            await expect(tx).revertedWith("Liquidation already exists")
         })
     })
 })
