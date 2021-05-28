@@ -42,10 +42,7 @@ contract CompoundIntegration is AbstractIntegration {
     /**
      * @dev Approves Liquidator to spend reward tokens
      */
-    function approveRewardToken()
-        external
-        onlyGovernor
-    {
+    function approveRewardToken() external onlyGovernor {
         address liquidator = nexus.getModule(keccak256("Liquidator"));
         require(liquidator != address(0), "Liquidator address is zero");
 
@@ -71,13 +68,7 @@ contract CompoundIntegration is AbstractIntegration {
         address _bAsset,
         uint256 _amount,
         bool isTokenFeeCharged
-    )
-        external
-        override
-        onlyLP
-        nonReentrant
-        returns (uint256 quantityDeposited)
-    {
+    ) external override onlyLP nonReentrant returns (uint256 quantityDeposited) {
         require(_amount > 0, "Must deposit something");
 
         // Get the Target token
@@ -85,7 +76,7 @@ contract CompoundIntegration is AbstractIntegration {
 
         quantityDeposited = _amount;
 
-        if(isTokenFeeCharged) {
+        if (isTokenFeeCharged) {
             // If we charge a fee, account for it
             uint256 prevBal = _checkBalance(cToken);
             require(cToken.mint(_amount) == 0, "cToken mint failed");
@@ -99,7 +90,6 @@ contract CompoundIntegration is AbstractIntegration {
         emit Deposit(_bAsset, address(cToken), quantityDeposited);
     }
 
-
     /**
      * @dev Withdraw a quantity of bAsset from Compound
      * @param _receiver     Address to which the withdrawn bAsset should be sent
@@ -112,12 +102,7 @@ contract CompoundIntegration is AbstractIntegration {
         address _bAsset,
         uint256 _amount,
         bool _hasTxFee
-    )
-        external
-        override
-        onlyLP
-        nonReentrant
-    {
+    ) external override onlyLP nonReentrant {
         _withdraw(_receiver, _bAsset, _amount, _amount, _hasTxFee);
     }
 
@@ -135,12 +120,7 @@ contract CompoundIntegration is AbstractIntegration {
         uint256 _amount,
         uint256 _totalAmount,
         bool _hasTxFee
-    )
-        external
-        override
-        onlyLP
-        nonReentrant
-    {
+    ) external override onlyLP nonReentrant {
         _withdraw(_receiver, _bAsset, _amount, _totalAmount, _hasTxFee);
     }
 
@@ -150,9 +130,7 @@ contract CompoundIntegration is AbstractIntegration {
         uint256 _amount,
         uint256 _totalAmount,
         bool _hasTxFee
-    )
-        internal
-    {
+    ) internal {
         require(_totalAmount > 0, "Must withdraw something");
         require(_receiver != address(0), "Must specify recipient");
 
@@ -162,14 +140,14 @@ contract CompoundIntegration is AbstractIntegration {
         // If redeeming 0 cTokens, just skip, else COMP will revert
         // Reason for skipping: to ensure that redeemMasset is always able to execute
         uint256 cTokensToRedeem = _convertUnderlyingToCToken(cToken, _totalAmount);
-        if(cTokensToRedeem == 0) {
+        if (cTokensToRedeem == 0) {
             emit SkippedWithdrawal(_bAsset, _totalAmount);
             return;
         }
 
         uint256 userWithdrawal = _amount;
 
-        if(_hasTxFee) {
+        if (_hasTxFee) {
             require(_amount == _totalAmount, "Cache inactive with tx fee");
             IERC20 b = IERC20(_bAsset);
             uint256 prevBal = b.balanceOf(address(this));
@@ -187,7 +165,6 @@ contract CompoundIntegration is AbstractIntegration {
         emit PlatformWithdrawal(_bAsset, address(cToken), _totalAmount, _amount);
     }
 
-
     /**
      * @dev Withdraw a quantity of bAsset from the cache.
      * @param _receiver     Address to which the bAsset should be sent
@@ -198,12 +175,7 @@ contract CompoundIntegration is AbstractIntegration {
         address _receiver,
         address _bAsset,
         uint256 _amount
-    )
-        external
-        override
-        onlyLP
-        nonReentrant
-    {
+    ) external override onlyLP nonReentrant {
         require(_amount > 0, "Must withdraw something");
         require(_receiver != address(0), "Must specify recipient");
 
@@ -220,12 +192,7 @@ contract CompoundIntegration is AbstractIntegration {
      * @param _bAsset     Address of the bAsset
      * @return balance    Total value of the bAsset in the platform
      */
-    function checkBalance(address _bAsset)
-        external
-        override
-        view
-        returns (uint256 balance)
-    {
+    function checkBalance(address _bAsset) external view override returns (uint256 balance) {
         // balance is always with token cToken decimals
         ICERC20 cToken = _getCTokenFor(_bAsset);
         balance = _checkBalance(cToken);
@@ -239,12 +206,9 @@ contract CompoundIntegration is AbstractIntegration {
      * @dev Re-approve the spending of all bAssets by their corresponding cToken,
      *      if for some reason is it necessary. Only callable through Governance.
      */
-    function reApproveAllTokens()
-        external
-        onlyGovernor
-    {
+    function reApproveAllTokens() external onlyGovernor {
         uint256 bAssetCount = bAssetsMapped.length;
-        for(uint i = 0; i < bAssetCount; i++){
+        for (uint256 i = 0; i < bAssetCount; i++) {
             address bAsset = bAssetsMapped[i];
             address cToken = bAssetToPToken[bAsset];
             MassetHelpers.safeInfiniteApprove(bAsset, cToken);
@@ -257,10 +221,7 @@ contract CompoundIntegration is AbstractIntegration {
      * @param _bAsset Address of the bAsset to approve
      * @param _cToken This cToken has the approval approval
      */
-    function _abstractSetPToken(address _bAsset, address _cToken)
-        internal
-        override
-    {
+    function _abstractSetPToken(address _bAsset, address _cToken) internal override {
         // approve the pool to spend the bAsset
         MassetHelpers.safeInfiniteApprove(_bAsset, _cToken);
     }
@@ -275,11 +236,7 @@ contract CompoundIntegration is AbstractIntegration {
      * @param _bAsset   Address of the bAsset
      * @return cToken   Corresponding cToken to this bAsset
      */
-    function _getCTokenFor(address _bAsset)
-        internal
-        view
-        returns (ICERC20 cToken)
-    {
+    function _getCTokenFor(address _bAsset) internal view returns (ICERC20 cToken) {
         address cTokenAddress = bAssetToPToken[_bAsset];
         require(cTokenAddress != address(0), "cToken does not exist");
         cToken = ICERC20(cTokenAddress);
@@ -291,11 +248,7 @@ contract CompoundIntegration is AbstractIntegration {
      * @param _cToken     cToken for which to check balance
      * @return balance    Total value of the bAsset in the platform
      */
-    function _checkBalance(ICERC20 _cToken)
-        internal
-        view
-        returns (uint256 balance)
-    {
+    function _checkBalance(ICERC20 _cToken) internal view returns (uint256 balance) {
         uint256 cTokenBalance = _cToken.balanceOf(address(this));
         uint256 exchangeRate = _cToken.exchangeRateStored();
         // e.g. 50e8*205316390724364402565641705 / 1e18 = 1.0265..e18

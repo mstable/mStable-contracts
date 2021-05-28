@@ -565,7 +565,7 @@ context("Liquidator", () => {
         it("Claim stkAave again after unstake period", async () => {
             const aaveBalanceBefore = await aaveStakedToken.balanceOf(liquidatorAddress)
             await liquidator.claimStakedAave()
-            expect(await aaveStakedToken.balanceOf(liquidatorAddress), "Liquidator's stkAave does not increased").gt(aaveBalanceBefore)
+            expect(await aaveStakedToken.balanceOf(liquidatorAddress), "Liquidator's stkAave has increased").gt(aaveBalanceBefore)
         })
         it("trigger liquidation of Aave after 11 days", async () => {
             await increaseTime(ONE_DAY.mul(11))
@@ -576,6 +576,11 @@ context("Liquidator", () => {
 
             expect(await aaveStakedToken.balanceOf(liquidatorAddress), "Liquidator has no stkAave after").eq(0)
             expect(await aaveToken.balanceOf(liquidatorAddress), "Liquidator has no Aave after").eq(0)
+        })
+        it("Claim stkAave after liquidation", async () => {
+            const aaveBalanceBefore = await aaveStakedToken.balanceOf(liquidatorAddress)
+            await liquidator.claimStakedAave()
+            expect(await aaveStakedToken.balanceOf(liquidatorAddress), "Liquidator's stkAave increased").gt(aaveBalanceBefore)
         })
     })
     context("Compound liquidation", () => {
