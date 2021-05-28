@@ -480,19 +480,102 @@ context("Liquidator", () => {
         })
         it("Fail to claim stkAave again before liquidation", async () => {
             const tx = liquidator.claimStakedAave()
-            await expect(tx).revertedWith("Must liquidate last claim")
+            await expect(tx).revertedWith("Last claim cooldown not ended")
         })
         it("trigger liquidation of Aave after 11 days", async () => {
             await increaseTime(ONE_DAY.mul(11))
             expect(await aaveStakedToken.balanceOf(liquidatorAddress), "Liquidator has some stkAave before").gt(0)
             expect(await aaveToken.balanceOf(liquidatorAddress), "Liquidator has no Aave before").eq(0)
+
             await liquidator.triggerLiquidationAave()
+
             expect(await aaveStakedToken.balanceOf(liquidatorAddress), "Liquidator has no stkAave after").eq(0)
             expect(await aaveToken.balanceOf(liquidatorAddress), "Liquidator has no Aave after").eq(0)
         })
         it("Fail to trigger liquidation of Aave again", async () => {
             const tx = liquidator.triggerLiquidationAave()
             await expect(tx).revertedWith("Must claim before liquidation")
+        })
+    })
+    context("Aave liquidation", () => {
+        let liquidator: Liquidator
+        before("reset block number", async () => {
+            await runSetup(12510100)
+        })
+        it("Deploy and upgrade new liquidator contract", async () => {
+            // Deploy the new implementation
+            const liquidatorImpl = await deployContract<Liquidator>(new Liquidator__factory(ops.signer), "Liquidator", [
+                nexusAddress,
+                stkAave.address,
+                aave.address,
+                uniswapRouterV2Address,
+                COMP.address,
+            ])
+
+            // Update the Liquidator proxy to point to the new implementation using the delayed proxy admin
+            const data = liquidatorImpl.interface.encodeFunctionData("upgrade")
+            await delayedProxyAdmin.proposeUpgrade(liquidatorAddress, liquidatorImpl.address, data)
+            await increaseTime(ONE_WEEK.add(60))
+            await delayedProxyAdmin.acceptUpgradeRequest(liquidatorAddress)
+
+            // Connect to the proxy with the Liquidator ABI
+            liquidator = Liquidator__factory.connect(liquidatorAddress, ops.signer)
+        })
+        it("Added liquidation for mUSD Aave integration", async () => {
+            await liquidator
+                .connect(governor.signer)
+                .createLiquidation(
+                    aaveMusdIntegrationAddress,
+                    aave.address,
+                    USDC.address,
+                    [aave.address, uniswapEthToken, USDC.address],
+                    0,
+                    simpleToExactAmount(50, USDC.decimals),
+                    mUSD.address,
+                    true,
+                )
+        })
+        it("Claim stkAave from each integration contract", async () => {
+            const totalAaveClaimedBefore = await liquidator.totalAaveBalance()
+            expect(totalAaveClaimedBefore, "totalAaveBalance before").to.eq(0)
+            const aaveBalanceBefore = await aaveStakedToken.balanceOf(liquidatorAddress)
+
+            await liquidator.claimStakedAave()
+
+            const liquidatorStkAaveBalance = await aaveStakedToken.balanceOf(liquidatorAddress)
+            expect(liquidatorStkAaveBalance, "Liquidator's stkAave increased").gt(aaveBalanceBefore)
+            expect(await liquidator.totalAaveBalance(), "totalAaveBalance after").to.eq(liquidatorStkAaveBalance)
+        })
+        it("Fail to claim stkAave during cool down period", async () => {
+            const tx = liquidator.claimStakedAave()
+            await expect(tx).revertedWith("Last claim cooldown not ended")
+        })
+        it("Fail to claim stkAave during unstake period", async () => {
+            // Move time past the 10 day cooldown period
+            await increaseTime(ONE_DAY.mul(10).add(60))
+            const tx = liquidator.claimStakedAave()
+            await expect(tx).revertedWith("Must liquidate last claim")
+        })
+        it("Fail to trigger liquidation of Aave after cooldown and unstake periods", async () => {
+            // Move time past the 2 day unstake period
+            await increaseTime(ONE_DAY.mul(3))
+            const tx = liquidator.triggerLiquidationAave()
+            await expect(tx).revertedWith("UNSTAKE_WINDOW_FINISHED")
+        })
+        it("Claim stkAave again after unstake period", async () => {
+            const aaveBalanceBefore = await aaveStakedToken.balanceOf(liquidatorAddress)
+            await liquidator.claimStakedAave()
+            expect(await aaveStakedToken.balanceOf(liquidatorAddress), "Liquidator's stkAave does not increased").gt(aaveBalanceBefore)
+        })
+        it("trigger liquidation of Aave after 11 days", async () => {
+            await increaseTime(ONE_DAY.mul(11))
+            expect(await aaveStakedToken.balanceOf(liquidatorAddress), "Liquidator has some stkAave before").gt(0)
+            expect(await aaveToken.balanceOf(liquidatorAddress), "Liquidator has no Aave before").eq(0)
+
+            await liquidator.triggerLiquidationAave()
+
+            expect(await aaveStakedToken.balanceOf(liquidatorAddress), "Liquidator has no stkAave after").eq(0)
+            expect(await aaveToken.balanceOf(liquidatorAddress), "Liquidator has no Aave after").eq(0)
         })
     })
     context("Compound liquidation", () => {

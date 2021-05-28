@@ -16,6 +16,8 @@ import { IBasicToken } from "../../shared/IBasicToken.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+import "hardhat/console.sol";
+
 /**
  * @title   Liquidator
  * @author  mStable
@@ -319,17 +321,31 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
     /**
      * @dev Claims stake Aave token rewards from each Aave integration contract
      * and then transfers all reward tokens to the liquidator contract.
+     * Can only claim more stkAave if the last claim's unstake window has ended.
      */
     function claimStakedAave() external {
         // solium-disable-next-line security/no-tx-origin
         require(tx.origin == msg.sender, "Must be EOA");
 
-        // Can not claim more stkAave rewards if the last claim has not yet been liquidated.
-        require(totalAaveBalance == 0, "Must liquidate last claim");
+        // If the last claim has not yet been liquidated
+        uint256 totalAaveBalanceMemory = totalAaveBalance;
+        if (totalAaveBalanceMemory > 0) {
+            // Check unstake period has expired for this liquidator contract
+            IStakedAave stkAaveContract = IStakedAave(stkAave);
+            uint256 cooldownStartTime = stkAaveContract.stakersCooldowns(address(this));
+            uint256 cooldownPeriod = stkAaveContract.COOLDOWN_SECONDS();
+            uint256 unstakeWindow = stkAaveContract.UNSTAKE_WINDOW();
+
+            // Can not claim more stkAave rewards if the last unstake window has not ended
+            // Wait until the cooldown ends and liquidate
+            require(block.timestamp > cooldownStartTime + cooldownPeriod, "Last claim cooldown not ended");
+            // or liquidate now as currently in the 
+            require(block.timestamp > cooldownStartTime + cooldownPeriod + unstakeWindow, "Must liquidate last claim");
+            // else the current time is past the unstake window so claim more stkAave and reactivate the cool down
+        }
 
         // 1. For each Aave integration contract
         uint256 len = aaveIntegrations.length;
-        uint256 totalAaveBalanceMemory = 0;
         for (uint256 i = 0; i < len; i++) {
             address integrationAdddress = aaveIntegrations[i];
 
@@ -346,8 +362,8 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
                     integrationBal
                 );
             }
-            // Set the integration contract's staked Aave balance.
-            liquidations[integrationAdddress].aaveBalance = integrationBal;
+            // Increate the integration contract's staked Aave balance.
+            liquidations[integrationAdddress].aaveBalance += integrationBal;
             totalAaveBalanceMemory += integrationBal;
         }
 
