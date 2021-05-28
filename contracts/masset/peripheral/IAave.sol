@@ -59,11 +59,12 @@ interface IAaveLendingPoolV2 {
 }
 
 interface IStakedAave {
+  function COOLDOWN_SECONDS() external returns (uint256);
+  function UNSTAKE_WINDOW() external returns (uint256);
+
   function stake(address to, uint256 amount) external;
-
   function redeem(address to, uint256 amount) external;
-
   function cooldown() external;
-
   function claimRewards(address to, uint256 amount) external;
+  function stakersCooldowns(address staker) external returns (uint256);
 }
