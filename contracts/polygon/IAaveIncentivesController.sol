@@ -19,7 +19,7 @@ interface IAaveIncentivesController {
      * @dev Returns the total of rewards of an user, already accrued + not yet accrued
      * @param user The address of the user
      * @return The rewards
-    **/
+     **/
     function getRewardsBalance(address[] calldata assets, address user)
         external
         view

@@ -57,12 +57,12 @@ contract RenWrapper {
         bytes32 pHash = keccak256(abi.encode(_recipient, _minOutputAmount));
 
         uint256 mintedAmount =
-        IGatewayRegistry(gatewayRegistry).getGatewayBySymbol("BTC").mint(
-            pHash,
-            _amount,
-            _nHash,
-            _sig
-        );
+            IGatewayRegistry(gatewayRegistry).getGatewayBySymbol("BTC").mint(
+                pHash,
+                _amount,
+                _nHash,
+                _sig
+            );
 
         require(mintedAmount > _minOutputAmount, "Minted asset must be > min output");
 

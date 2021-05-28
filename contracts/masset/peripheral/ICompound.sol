@@ -6,7 +6,6 @@ pragma solidity 0.8.2;
  * Documentation: https://compound.finance/developers/ctokens
  */
 interface ICERC20 {
-
     /**
      * @notice The mint function transfers an asset into the protocol, which begins accumulating
      * interest based on the current Supply Rate for the asset. The user receives a quantity of
@@ -14,7 +13,7 @@ interface ICERC20 {
      * @param mintAmount The amount of the asset to be supplied, in units of the underlying asset.
      * @return 0 on success, otherwise an Error codes
      */
-    function mint(uint mintAmount) external returns (uint);
+    function mint(uint256 mintAmount) external returns (uint256);
 
     /**
      * @notice The redeem underlying function converts cTokens into a specified quantity of the underlying
@@ -24,7 +23,7 @@ interface ICERC20 {
      * @param redeemAmount The amount of underlying to be redeemed.
      * @return 0 on success, otherwise an Error codes
      */
-    function redeemUnderlying(uint redeemAmount) external returns (uint);
+    function redeemUnderlying(uint256 redeemAmount) external returns (uint256);
 
     /**
      * @notice The user's underlying balance, representing their assets in the protocol, is equal to
@@ -32,14 +31,14 @@ interface ICERC20 {
      * @param owner The account to get the underlying balance of.
      * @return The amount of underlying currently owned by the account.
      */
-    function balanceOfUnderlying(address owner) external returns (uint);
+    function balanceOfUnderlying(address owner) external returns (uint256);
 
     /**
      * @notice Calculates the exchange rate from the underlying to the CToken
      * @dev This function does not accrue interest before calculating the exchange rate
      * @return Calculated exchange rate scaled by 1e18
      */
-    function exchangeRateStored() external view returns (uint);
+    function exchangeRateStored() external view returns (uint256);
 
     /**
      * @notice Get the token balance of the `owner`

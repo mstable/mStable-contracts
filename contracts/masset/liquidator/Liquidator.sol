@@ -338,9 +338,15 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
 
             // Can not claim more stkAave rewards if the last unstake window has not ended
             // Wait until the cooldown ends and liquidate
-            require(block.timestamp > cooldownStartTime + cooldownPeriod, "Last claim cooldown not ended");
-            // or liquidate now as currently in the 
-            require(block.timestamp > cooldownStartTime + cooldownPeriod + unstakeWindow, "Must liquidate last claim");
+            require(
+                block.timestamp > cooldownStartTime + cooldownPeriod,
+                "Last claim cooldown not ended"
+            );
+            // or liquidate now as currently in the
+            require(
+                block.timestamp > cooldownStartTime + cooldownPeriod + unstakeWindow,
+                "Must liquidate last claim"
+            );
             // else the current time is past the unstake window so claim more stkAave and reactivate the cool down
         }
 
