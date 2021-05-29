@@ -171,15 +171,15 @@ export const MTA: Token = {
     saving: "0xaE8bC96DA4F9A9613c323478BE181FDb2Aa0E1BF",
 }
 
-export const aave: Token = {
-    symbol: "Aave",
+export const AAVE: Token = {
+    symbol: "AAVE",
     address: "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9",
     decimals: 18,
     quantityFormatter: "USD",
     liquidityProvider: "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9",
 }
-export const stkAave: Token = {
-    symbol: "stkAave",
+export const stkAAVE: Token = {
+    symbol: "stkAAVE",
     address: "0x4da27a545c0c5B758a6BA100e3a049001de870f5",
     decimals: 18,
     quantityFormatter: "USD",
