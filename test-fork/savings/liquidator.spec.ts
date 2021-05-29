@@ -2,7 +2,7 @@ import { impersonateAccount } from "@utils/fork"
 import { ethers, network } from "hardhat"
 import { Account } from "@utils/machines"
 import { deployContract } from "tasks/utils/deploy-utils"
-import { aave, stkAave, DAI, mBTC, mUSD, USDC, USDT, WBTC, COMP, GUSD } from "tasks/utils/tokens"
+import { AAVE, stkAAVE, DAI, mBTC, mUSD, USDC, USDT, WBTC, COMP, GUSD } from "tasks/utils/tokens"
 import {
     DelayedProxyAdmin,
     DelayedProxyAdmin__factory,
@@ -75,8 +75,8 @@ context("Liquidator", () => {
 
         delayedProxyAdmin = DelayedProxyAdmin__factory.connect(delayedAdminAddress, governor.signer)
         aaveIncentivesController = IAaveIncentivesController__factory.connect(aaveIncentivesControllerAddress, ops.signer)
-        aaveToken = ERC20__factory.connect(aave.address, ops.signer)
-        aaveStakedToken = AaveStakedTokenV2__factory.connect(stkAave.address, stkAaveWhale.signer)
+        aaveToken = ERC20__factory.connect(AAVE.address, ops.signer)
+        aaveStakedToken = AaveStakedTokenV2__factory.connect(stkAAVE.address, stkAaveWhale.signer)
         compToken = ERC20__factory.connect(COMP.address, ops.signer)
     }
 
@@ -181,7 +181,7 @@ context("Liquidator", () => {
                     expect(await aaveStakedToken.stakerRewardsToClaim(stkAaveWhaleAddress), "no unclaimed rewards").to.eq(0)
                     expect(await aaveStakedToken.getTotalRewardsBalance(stkAaveWhaleAddress), "no total rewards").to.eq(0)
                     expect(await aaveStakedToken.stakersCooldowns(stkAaveWhaleAddress), "cool down not activated").to.eq(0)
-                    const tx = aaveStakedToken.redeem(stkAave.address, stkAaveAmount)
+                    const tx = aaveStakedToken.redeem(stkAAVE.address, stkAaveAmount)
                     await expect(tx).to.revertedWith("UNSTAKE_WINDOW_FINISHED")
                 })
                 it("Activate cool down", async () => {
@@ -239,7 +239,7 @@ context("Liquidator", () => {
                 it("Failed to redeem remaining stkAave after 2 day unstake window", async () => {
                     // unstake window is 2 days
                     await increaseTime(ONE_DAY.mul(2))
-                    const tx = aaveStakedToken.redeem(stkAave.address, remainingStakeAmount2)
+                    const tx = aaveStakedToken.redeem(stkAAVE.address, remainingStakeAmount2)
                     await expect(tx).to.revertedWith("UNSTAKE_WINDOW_FINISHED")
                     expect(await aaveStakedToken.balanceOf(stkAaveWhaleAddress)).to.eq(remainingStakeAmount2)
                 })
@@ -250,7 +250,7 @@ context("Liquidator", () => {
                     const aaveBalanceBefore = await aaveToken.balanceOf(stkAaveWhaleAddress)
                     const stkAaveBalanceBefore = await aaveStakedToken.balanceOf(stkAaveWhaleAddress)
                     console.log(`Before stake: ${formatUnits(aaveBalanceBefore)} Aave, ${formatUnits(stkAaveBalanceBefore)} stkAave`)
-                    await aaveToken.connect(stkAaveWhale.signer).approve(stkAave.address, stakeAmount)
+                    await aaveToken.connect(stkAaveWhale.signer).approve(stkAAVE.address, stakeAmount)
                     await aaveStakedToken.stake(stkAaveWhaleAddress, stakeAmount)
                     expect(await aaveToken.balanceOf(stkAaveWhaleAddress), "aave balance after = before - staked Aave amount").to.eq(
                         aaveBalanceBefore.sub(stakeAmount),
@@ -414,8 +414,8 @@ context("Liquidator", () => {
             // Deploy the new implementation
             const liquidatorImpl = await deployContract<Liquidator>(new Liquidator__factory(ops.signer), "Liquidator", [
                 nexusAddress,
-                stkAave.address,
-                aave.address,
+                stkAAVE.address,
+                AAVE.address,
                 uniswapRouterV2Address,
                 COMP.address,
             ])
@@ -436,9 +436,9 @@ context("Liquidator", () => {
                 .connect(governor.signer)
                 .createLiquidation(
                     aaveMusdIntegrationAddress,
-                    aave.address,
+                    AAVE.address,
                     USDC.address,
-                    [aave.address, uniswapEthToken, USDC.address],
+                    [AAVE.address, uniswapEthToken, USDC.address],
                     0,
                     simpleToExactAmount(50, USDC.decimals),
                     mUSD.address,
@@ -450,9 +450,9 @@ context("Liquidator", () => {
                 .connect(governor.signer)
                 .createLiquidation(
                     aaveMbtcIntegrationAddress,
-                    aave.address,
+                    AAVE.address,
                     WBTC.address,
-                    [aave.address, uniswapEthToken, WBTC.address],
+                    [AAVE.address, uniswapEthToken, WBTC.address],
                     0,
                     simpleToExactAmount(2, WBTC.decimals - 3),
                     mBTC.address,
@@ -464,9 +464,9 @@ context("Liquidator", () => {
                 .connect(governor.signer)
                 .createLiquidation(
                     GUSD.integrator,
-                    aave.address,
+                    AAVE.address,
                     GUSD.address,
-                    [aave.address, uniswapEthToken, GUSD.address],
+                    [AAVE.address, uniswapEthToken, GUSD.address],
                     0,
                     simpleToExactAmount(50, GUSD.decimals),
                     ZERO_ADDRESS,
@@ -506,8 +506,8 @@ context("Liquidator", () => {
             // Deploy the new implementation
             const liquidatorImpl = await deployContract<Liquidator>(new Liquidator__factory(ops.signer), "Liquidator", [
                 nexusAddress,
-                stkAave.address,
-                aave.address,
+                stkAAVE.address,
+                AAVE.address,
                 uniswapRouterV2Address,
                 COMP.address,
             ])
@@ -526,9 +526,9 @@ context("Liquidator", () => {
                 .connect(governor.signer)
                 .createLiquidation(
                     aaveMusdIntegrationAddress,
-                    aave.address,
+                    AAVE.address,
                     USDC.address,
-                    [aave.address, uniswapEthToken, USDC.address],
+                    [AAVE.address, uniswapEthToken, USDC.address],
                     0,
                     simpleToExactAmount(50, USDC.decimals),
                     mUSD.address,
@@ -603,8 +603,8 @@ context("Liquidator", () => {
             // Deploy the new implementation
             const liquidatorImpl = await deployContract<Liquidator>(new Liquidator__factory(ops.signer), "Liquidator", [
                 nexusAddress,
-                stkAave.address,
-                aave.address,
+                stkAAVE.address,
+                AAVE.address,
                 uniswapRouterV2Address,
                 COMP.address,
             ])
@@ -621,8 +621,8 @@ context("Liquidator", () => {
             // Public immutable values
             expect(await liquidator.nexus(), "nexus address").to.eq(nexusAddress)
             expect(await liquidator.uniswap(), "Uniswap address").to.eq(uniswapRouterV2Address)
-            expect(await liquidator.aaveToken(), "Aave address").to.eq(aave.address)
-            expect(await liquidator.stkAave(), "Staked Aave address").to.eq(stkAave.address)
+            expect(await liquidator.aaveToken(), "Aave address").to.eq(AAVE.address)
+            expect(await liquidator.stkAave(), "Staked Aave address").to.eq(stkAAVE.address)
         })
         it("Added liquidation for mUSD Compound integration", async () => {
             await liquidator
@@ -654,8 +654,8 @@ context("Liquidator", () => {
             // Deploy the new implementation
             const liquidatorImpl = await deployContract<Liquidator>(new Liquidator__factory(ops.signer), "Liquidator", [
                 nexusAddress,
-                stkAave.address,
-                aave.address,
+                stkAAVE.address,
+                AAVE.address,
                 uniswapRouterV2Address,
                 COMP.address,
             ])
@@ -678,9 +678,9 @@ context("Liquidator", () => {
                 .connect(governor.signer)
                 .createLiquidation(
                     aaveMusdIntegrationAddress,
-                    aave.address,
+                    AAVE.address,
                     USDC.address,
-                    [aave.address],
+                    [AAVE.address],
                     0,
                     simpleToExactAmount(50, USDC.decimals),
                     mUSD.address,
@@ -693,9 +693,9 @@ context("Liquidator", () => {
                 .connect(governor.signer)
                 .createLiquidation(
                     aaveMusdIntegrationAddress,
-                    aave.address,
+                    AAVE.address,
                     USDC.address,
-                    [USDC.address, uniswapEthToken, aave.address],
+                    [USDC.address, uniswapEthToken, AAVE.address],
                     0,
                     simpleToExactAmount(50, USDC.decimals),
                     mUSD.address,
@@ -708,9 +708,9 @@ context("Liquidator", () => {
                 .connect(governor.signer)
                 .createLiquidation(
                     aaveMusdIntegrationAddress,
-                    aave.address,
+                    AAVE.address,
                     USDC.address,
-                    [aave.address, uniswapEthToken, USDC.address],
+                    [AAVE.address, uniswapEthToken, USDC.address],
                     0,
                     simpleToExactAmount(50, USDC.decimals),
                     mUSD.address,
@@ -722,9 +722,9 @@ context("Liquidator", () => {
                 .connect(governor.signer)
                 .createLiquidation(
                     aaveMusdIntegrationAddress,
-                    aave.address,
+                    AAVE.address,
                     USDC.address,
-                    [aave.address, uniswapEthToken, USDC.address],
+                    [AAVE.address, uniswapEthToken, USDC.address],
                     0,
                     simpleToExactAmount(50, USDC.decimals),
                     mUSD.address,

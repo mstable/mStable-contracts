@@ -86,16 +86,16 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
         address _uniswap,
         address _compToken
     ) ImmutableModule(_nexus) {
-        require(_stkAave != address(0), "Invalid stkAave address");
+        require(_stkAave != address(0), "Invalid stkAAVE address");
         stkAave = _stkAave;
 
-        require(_aaveToken != address(0), "Invalid Aave Token address");
+        require(_aaveToken != address(0), "Invalid AAVE address");
         aaveToken = _aaveToken;
 
         require(_uniswap != address(0), "Invalid Uniswap address");
         uniswap = IUniswapV2Router02(_uniswap);
 
-        require(_compToken != address(0), "Invalid Compound address");
+        require(_compToken != address(0), "Invalid COMP address");
         compToken = _compToken;
     }
 

@@ -3,7 +3,7 @@ import { ethers } from "hardhat"
 
 import { BN, simpleToExactAmount } from "@utils/math"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
-import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
+import { DEAD_ADDRESS, ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import {
     AssetProxy__factory,
     MockERC20,
@@ -40,6 +40,8 @@ describe("Liquidator", () => {
     let mUSD: MockMasset
     let compIntegration: MockRewardToken
     let compToken: MockERC20
+    let aaveToken: MockERC20
+    let stkAaveToken: MockERC20
     let savings: SavingsManager
     let uniswap: MockUniswap
     let curve: MockCurveMetaPool
@@ -47,11 +49,11 @@ describe("Liquidator", () => {
     interface Liquidation {
         sellToken: string
         bAsset: string
-        curvePosition: BN
         uniswapPath?: string[]
         lastTriggered: BN
-        sellTranche: BN
+        trancheAmount: BN
         minReturn: BN
+        mAsset: string
     }
 
     interface Balance {
@@ -87,12 +89,26 @@ describe("Liquidator", () => {
         await mUSD.connect(sa.fundManager.signer).transfer(curve.address, simpleToExactAmount(100000, 18))
         // Create COMP token and assign, then approve the liquidator
         compToken = await new MockERC20__factory(sa.default.signer).deploy("Compound Gov", "COMP", 18, sa.fundManager.address, 100000000)
+        aaveToken = await new MockERC20__factory(sa.default.signer).deploy("Aave Gov", "AAVE", 18, sa.fundManager.address, 100000000)
+        stkAaveToken = await new MockERC20__factory(sa.default.signer).deploy(
+            "Staked Aave",
+            "stkAAVE",
+            18,
+            sa.fundManager.address,
+            100000000,
+        )
         await compIntegration.setRewardToken(compToken.address)
         await compToken.connect(sa.fundManager.signer).transfer(compIntegration.address, simpleToExactAmount(10, 18))
         // Add the module
         // Liquidator
-        const impl = await new Liquidator__factory(sa.default.signer).deploy(nexus.address)
-        const data: string = impl.interface.encodeFunctionData("initialize", [uniswap.address, curve.address, mUSD.address])
+        const impl = await new Liquidator__factory(sa.default.signer).deploy(
+            nexus.address,
+            stkAaveToken.address,
+            aaveToken.address,
+            uniswap.address,
+            compToken.address,
+        )
+        const data: string = impl.interface.encodeFunctionData("upgrade")
         const proxy = await new AssetProxy__factory(sa.default.signer).deploy(impl.address, sa.other.address, data)
         liquidator = await Liquidator__factory.connect(proxy.address, sa.default.signer)
 
@@ -109,20 +125,8 @@ describe("Liquidator", () => {
         await nexus.setLiquidator(liquidator.address)
     }
 
-    const getLiquidation = async (addr: string): Promise<Liquidation> => {
-        const liquidation = await liquidator.liquidations(addr)
-        const minReturn = await liquidator.minReturn(addr)
-        return {
-            sellToken: liquidation[0],
-            bAsset: liquidation[1],
-            curvePosition: liquidation[2],
-            lastTriggered: liquidation[3],
-            sellTranche: liquidation[4],
-            minReturn,
-        }
-    }
     const snapshotData = async (): Promise<Data> => {
-        const liquidation = await getLiquidation(liquidator.address)
+        const liquidation = await liquidator.liquidations(liquidator.address)
         const sellBalIntegration = await compToken.balanceOf(compIntegration.address)
         const sellBalLiquidator = await compToken.balanceOf(liquidator.address)
         const savingsManagerBal = await mUSD.balanceOf(savings.address)
@@ -152,10 +156,10 @@ describe("Liquidator", () => {
         shouldBehaveLikeModule(ctx as Required<typeof ctx>)
 
         it("should properly store valid arguments", async () => {
-            expect(await liquidator.nexus()).eq(nexus.address)
-            expect(await liquidator.uniswap()).eq(uniswap.address)
-            expect(await liquidator.curve()).eq(curve.address)
-            expect(await liquidator.mUSD()).eq(mUSD.address)
+            expect(await liquidator.nexus(), "nexus").eq(nexus.address)
+            expect(await liquidator.uniswap(), "Uniswap").eq(uniswap.address)
+            expect(await liquidator.stkAave(), "stkAave").eq(stkAaveToken.address)
+            expect(await liquidator.aaveToken(), "aaveToken").eq(aaveToken.address)
         })
     })
 
@@ -168,36 +172,69 @@ describe("Liquidator", () => {
                         compIntegration.address,
                         compToken.address,
                         bAsset.address,
-                        1,
                         [compToken.address, ZERO_ADDRESS, bAsset.address],
                         simpleToExactAmount(1000, 18),
                         simpleToExactAmount(70, 18),
+                        mUSD.address,
+                        false,
                     )
-                const liquidation = await getLiquidation(compIntegration.address)
-                expect(liquidation.sellToken).eq(compToken.address)
-                expect(liquidation.bAsset).eq(bAsset.address)
-                expect(liquidation.curvePosition).eq(BN.from(1))
-                expect(liquidation.lastTriggered).eq(BN.from(0))
-                expect(liquidation.sellTranche).eq(simpleToExactAmount(1000, 18))
-                expect(liquidation.minReturn).eq(simpleToExactAmount(70, 18))
+                const liquidation = await liquidator.liquidations(compIntegration.address)
+                expect(liquidation.sellToken, "sellToken").eq(compToken.address)
+                expect(liquidation.bAsset, "bAsset").eq(bAsset.address)
+                expect(liquidation.lastTriggered, "lastTriggered").eq(BN.from(0))
+                expect(liquidation.trancheAmount, "trancheAmount").eq(simpleToExactAmount(1000, 18))
+                expect(liquidation.minReturn, "minReturn").eq(simpleToExactAmount(70, 18))
+                expect(liquidation.mAsset, "mAsset").eq(mUSD.address)
+                expect(liquidation.aaveBalance, "aaveBalance").eq(0)
             })
         })
         describe("triggering a liquidation", () => {
             it("should sell COMP for bAsset and deposit to SavingsManager", async () => {
-                const before = await snapshotData()
-                await compIntegration.connect(sa.governor.signer).connect(sa.governor.signer).approveRewardToken()
+                const savingsManagerBalBefore = await mUSD.balanceOf(savings.address)
+                await compIntegration.connect(sa.governor.signer).approveRewardToken()
                 await liquidator.triggerLiquidation(compIntegration.address)
-                const after = await snapshotData()
-                expect(after.savingsManagerBal).gt(before.savingsManagerBal as any)
+                expect(await mUSD.balanceOf(savings.address), "Savings Manager mUSD bal increased").gt(savingsManagerBalBefore)
             })
         })
     })
     context("calling constructor", () => {
         it("should fail if any inputs are null", async () => {
-            const lq = await new Liquidator__factory(sa.default.signer).deploy(nexus.address)
-            await expect(lq.initialize(ZERO_ADDRESS, curve.address, mUSD.address)).to.be.revertedWith("Invalid uniswap address")
-            await expect(lq.initialize(uniswap.address, ZERO_ADDRESS, mUSD.address)).to.be.revertedWith("Invalid curve address")
-            await expect(lq.initialize(uniswap.address, curve.address, ZERO_ADDRESS)).to.be.revertedWith("Invalid mUSD address")
+            await expect(
+                new Liquidator__factory(sa.default.signer).deploy(
+                    nexus.address,
+                    ZERO_ADDRESS,
+                    aaveToken.address,
+                    uniswap.address,
+                    compToken.address,
+                ),
+            ).to.be.revertedWith("Invalid stkAAVE address")
+            await expect(
+                new Liquidator__factory(sa.default.signer).deploy(
+                    nexus.address,
+                    stkAaveToken.address,
+                    ZERO_ADDRESS,
+                    uniswap.address,
+                    compToken.address,
+                ),
+            ).to.be.revertedWith("Invalid AAVE address")
+            await expect(
+                new Liquidator__factory(sa.default.signer).deploy(
+                    nexus.address,
+                    stkAaveToken.address,
+                    aaveToken.address,
+                    ZERO_ADDRESS,
+                    compToken.address,
+                ),
+            ).to.be.revertedWith("Invalid Uniswap address")
+            await expect(
+                new Liquidator__factory(sa.default.signer).deploy(
+                    nexus.address,
+                    stkAaveToken.address,
+                    aaveToken.address,
+                    uniswap.address,
+                    ZERO_ADDRESS,
+                ),
+            ).to.be.revertedWith("Invalid COMP address")
         })
     })
     context("creating a new liquidation", () => {
@@ -212,10 +249,11 @@ describe("Liquidator", () => {
                         ZERO_ADDRESS,
                         compToken.address,
                         bAsset.address,
-                        1,
-                        [compToken.address, ZERO_ADDRESS, bAsset.address],
+                        [compToken.address, DEAD_ADDRESS, bAsset.address],
                         simpleToExactAmount(1, 18),
                         simpleToExactAmount(70, 18),
+                        mUSD.address,
+                        false,
                     ),
             ).to.be.revertedWith("Invalid inputs")
         })
@@ -227,13 +265,13 @@ describe("Liquidator", () => {
                         compIntegration.address,
                         compToken.address,
                         bAsset.address,
-                        1,
-                        [compToken.address, ZERO_ADDRESS, bAsset2.address],
+                        [compToken.address, DEAD_ADDRESS, bAsset2.address],
                         simpleToExactAmount(1, 18),
                         simpleToExactAmount(70, 18),
+                        mUSD.address,
+                        false,
                     ),
             ).to.be.revertedWith("Invalid uniswap path")
-
             await expect(
                 liquidator
                     .connect(sa.governor.signer)
@@ -241,10 +279,11 @@ describe("Liquidator", () => {
                         compIntegration.address,
                         compToken.address,
                         bAsset.address,
-                        1,
                         [compToken.address, ZERO_ADDRESS],
                         simpleToExactAmount(1, 18),
                         simpleToExactAmount(70, 18),
+                        mUSD.address,
+                        false,
                     ),
             ).to.be.revertedWith("Invalid uniswap path")
         })
@@ -255,17 +294,17 @@ describe("Liquidator", () => {
                     compIntegration.address,
                     compToken.address,
                     bAsset.address,
-                    1,
                     [compToken.address, ZERO_ADDRESS, bAsset.address],
                     simpleToExactAmount(1000, 18),
                     simpleToExactAmount(70, 18),
+                    mUSD.address,
+                    false,
                 )
-            const liquidation = await getLiquidation(compIntegration.address)
+            const liquidation = await liquidator.liquidations(compIntegration.address)
             expect(liquidation.sellToken).eq(compToken.address)
             expect(liquidation.bAsset).eq(bAsset.address)
-            expect(liquidation.curvePosition).eq(BN.from(1))
             expect(liquidation.lastTriggered).eq(BN.from(0))
-            expect(liquidation.sellTranche).eq(simpleToExactAmount(1000, 18))
+            expect(liquidation.trancheAmount).eq(simpleToExactAmount(1000, 18))
             expect(liquidation.minReturn).eq(simpleToExactAmount(70, 18))
             await expect(
                 liquidator
@@ -274,12 +313,13 @@ describe("Liquidator", () => {
                         compIntegration.address,
                         compToken.address,
                         bAsset.address,
-                        1,
                         [compToken.address, ZERO_ADDRESS, bAsset.address],
                         simpleToExactAmount(1000, 18),
                         simpleToExactAmount(70, 18),
+                        mUSD.address,
+                        false,
                     ),
-            ).to.be.revertedWith("Liquidation exists for this bAsset")
+            ).to.be.revertedWith("Liquidation already exists")
         })
     })
     context("updating an existing liquidation", () => {
@@ -291,10 +331,11 @@ describe("Liquidator", () => {
                     compIntegration.address,
                     compToken.address,
                     bAsset.address,
-                    1,
                     [compToken.address, ZERO_ADDRESS, bAsset.address],
                     simpleToExactAmount(1000, 18),
                     simpleToExactAmount(70, 18),
+                    mUSD.address,
+                    false,
                 )
         })
         describe("changing the bAsset", () => {
@@ -302,21 +343,14 @@ describe("Liquidator", () => {
                 await expect(
                     liquidator
                         .connect(sa.governor.signer)
-                        .updateBasset(sa.dummy2.address, bAsset.address, 1, [], simpleToExactAmount(1, 18), simpleToExactAmount(70, 18)),
+                        .updateBasset(sa.dummy2.address, bAsset.address, [], simpleToExactAmount(1, 18), simpleToExactAmount(70, 18)),
                 ).to.be.revertedWith("Liquidation does not exist")
             })
             it("should fail if bAsset is null", async () => {
                 await expect(
                     liquidator
                         .connect(sa.governor.signer)
-                        .updateBasset(
-                            compIntegration.address,
-                            ZERO_ADDRESS,
-                            1,
-                            [],
-                            simpleToExactAmount(1, 18),
-                            simpleToExactAmount(70, 18),
-                        ),
+                        .updateBasset(compIntegration.address, ZERO_ADDRESS, [], simpleToExactAmount(1, 18), simpleToExactAmount(70, 18)),
                 ).to.be.revertedWith("Invalid bAsset")
             })
             it("should fail if uniswap path is invalid", async () => {
@@ -326,7 +360,6 @@ describe("Liquidator", () => {
                         .updateBasset(
                             compIntegration.address,
                             bAsset.address,
-                            1,
                             [bAsset2.address],
                             simpleToExactAmount(1, 18),
                             simpleToExactAmount(70, 18),
@@ -340,17 +373,15 @@ describe("Liquidator", () => {
                     .updateBasset(
                         compIntegration.address,
                         bAsset2.address,
-                        2,
                         [compToken.address, ZERO_ADDRESS, bAsset2.address],
                         simpleToExactAmount(123, 18),
                         simpleToExactAmount(70, 18),
                     )
                 await expect(tx).to.emit(liquidator, "LiquidationModified").withArgs(compIntegration.address)
-                const liquidation = await getLiquidation(compIntegration.address)
+                const liquidation = await liquidator.liquidations(compIntegration.address)
                 expect(liquidation.sellToken).eq(compToken.address)
                 expect(liquidation.bAsset).eq(bAsset2.address)
-                expect(liquidation.curvePosition).eq(BN.from(2))
-                expect(liquidation.sellTranche).eq(simpleToExactAmount(123, 18))
+                expect(liquidation.trancheAmount).eq(simpleToExactAmount(123, 18))
             })
         })
         describe("removing the liquidation altogether", () => {
@@ -363,9 +394,8 @@ describe("Liquidator", () => {
                 // update uniswap path, bAsset, tranch amount
                 const tx = liquidator.connect(sa.governor.signer).deleteLiquidation(compIntegration.address)
                 await expect(tx).to.emit(liquidator, "LiquidationEnded").withArgs(compIntegration.address)
-                const oldLiq = await getLiquidation(compIntegration.address)
+                const oldLiq = await liquidator.liquidations(compIntegration.address)
                 expect(oldLiq.bAsset).eq("0x0000000000000000000000000000000000000000")
-                expect(oldLiq.curvePosition).eq(BN.from(0))
             })
         })
     })
@@ -378,10 +408,11 @@ describe("Liquidator", () => {
                     compIntegration.address,
                     compToken.address,
                     bAsset.address,
-                    1,
                     [compToken.address, ZERO_ADDRESS, bAsset.address],
                     simpleToExactAmount(1000, 18),
                     simpleToExactAmount(70, 18),
+                    mUSD.address,
+                    false,
                 )
             await compIntegration.connect(sa.governor.signer).approveRewardToken()
         })
@@ -398,13 +429,6 @@ describe("Liquidator", () => {
             await uniswap.setRatio(71)
             await liquidator.triggerLiquidation(compIntegration.address)
         })
-
-        it("should fail if Curve price is below the floor", async () => {
-            await curve.setRatio(simpleToExactAmount(9, 17))
-            await expect(liquidator.triggerLiquidation(compIntegration.address)).to.be.revertedWith("CRV: Output amount not enough")
-            await curve.setRatio(simpleToExactAmount(96, 16))
-            await liquidator.triggerLiquidation(compIntegration.address)
-        })
         it("should sell everything if the liquidator has less balance than tranche size", async () => {
             const s0 = await snapshotData()
             await liquidator
@@ -412,7 +436,6 @@ describe("Liquidator", () => {
                 .updateBasset(
                     compIntegration.address,
                     bAsset.address,
-                    1,
                     [compToken.address, ZERO_ADDRESS, bAsset.address],
                     simpleToExactAmount(1, 30),
                     simpleToExactAmount(70, 18),
@@ -433,7 +456,6 @@ describe("Liquidator", () => {
                 .updateBasset(
                     compIntegration.address,
                     bAsset.address,
-                    1,
                     [compToken.address, ZERO_ADDRESS, bAsset.address],
                     BN.from(0),
                     simpleToExactAmount(70, 18),
