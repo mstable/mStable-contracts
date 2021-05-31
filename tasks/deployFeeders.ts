@@ -3,7 +3,7 @@ import "tsconfig-paths/register"
 
 import { DEAD_ADDRESS, ZERO_ADDRESS } from "@utils/constants"
 import { Signer } from "ethers"
-import { task } from "hardhat/config"
+import { task, types } from "hardhat/config"
 import { formatEther, formatUnits } from "ethers/lib/utils"
 import {
     FeederPool,
@@ -24,8 +24,13 @@ import {
     FeederWrapper,
     Masset__factory,
     InterestValidator__factory,
+    CompoundIntegration__factory,
+    CompoundIntegration,
 } from "types/generated"
 import { simpleToExactAmount, BN } from "@utils/math"
+import { BUSD, CREAM, cyMUSD, GUSD, mUSD } from "./utils/tokens"
+import { deployContract, logTxDetails } from "./utils/deploy-utils"
+import { getDefenderSigner } from "./utils/defender-utils"
 
 interface CommonAddresses {
     nexus: string
@@ -591,7 +596,7 @@ task("deployFeeder-mainnet", "Deploys all the feeder pools and required contract
                 addresses.nexus,
                 poolData.pool.address,
                 addresses.aave,
-                DEAD_ADDRESS
+                DEAD_ADDRESS,
             )
             console.log(`Deploying integration for ${poolData.symbol} at pool ${poolData.pool.address}`)
             await integration.deployTransaction.wait()
@@ -623,5 +628,54 @@ task("deployFeeder-mainnet", "Deploys all the feeder pools and required contract
     const end = await deployer.getBalance()
     console.log("Total ETH used: ", formatUnits(end.sub(start)))
 })
+
+task("deployIronBank", "Deploys mUSD Iron Bank (CREAM) integration contracts for GUSD and BUSD Feeder Pools")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const nexusAddress = "0xafce80b19a8ce13dec0739a1aab7a028d6845eb3"
+
+        let deployer: Signer
+        if (hre.network.name === "mainnet") {
+            deployer = await getDefenderSigner(taskArgs.speed)
+        } else {
+            ;[deployer] = await hre.ethers.getSigners()
+        }
+
+        // CREAM's ABI is the same as Compound so can use the CompoundIntegration contract
+        const gusdIntegration = await deployContract<CompoundIntegration>(
+            new CompoundIntegration__factory(deployer),
+            "CREAM Integration for GUSD FP",
+            [nexusAddress, GUSD.feederPool, CREAM.address],
+        )
+        let tx = await gusdIntegration.initialize([mUSD.address], [cyMUSD.address])
+        await logTxDetails(tx, "initialize GUSD Iron Bank integration")
+
+        const busdIntegration = await deployContract<CompoundIntegration>(
+            new CompoundIntegration__factory(deployer),
+            "CREAM Integration for BUSD FP",
+            [nexusAddress, BUSD.feederPool, CREAM.address],
+        )
+        tx = await busdIntegration.initialize([mUSD.address], [cyMUSD.address])
+        await logTxDetails(tx, "initialize BUSD Iron Bank integration")
+
+        // This will be done via the delayedProxyAdmin on mainnet
+        // Governor approves Liquidator to spend the reward (CREAM) token
+        const approveRewardTokenData = await gusdIntegration.interface.encodeFunctionData("approveRewardToken")
+        console.log(`\napproveRewardToken data for GUSD and BUSD: ${approveRewardTokenData}`)
+
+        const gudsFp = FeederPool__factory.connect(GUSD.address, deployer)
+        const gusdMigrateBassetsData = await gudsFp.interface.encodeFunctionData("migrateBassets", [
+            [mUSD.address],
+            gusdIntegration.address,
+        ])
+        console.log(`GUSD Feeder Pool migrateBassets tx data: ${gusdMigrateBassetsData}`)
+
+        const budsFp = FeederPool__factory.connect(BUSD.address, deployer)
+        const busdMigrateBassetsData = await budsFp.interface.encodeFunctionData("migrateBassets", [
+            [mUSD.address],
+            busdIntegration.address,
+        ])
+        console.log(`BUSD Feeder Pool migrateBassets tx data: ${busdMigrateBassetsData}`)
+    })
 
 module.exports = {}
