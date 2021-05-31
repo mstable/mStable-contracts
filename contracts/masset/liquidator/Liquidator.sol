@@ -44,18 +44,22 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
     mapping(address => DeprecatedLiquidation) public deprecated_liquidations;
     mapping(address => uint256) public deprecated_minReturn;
 
-    // new mapping of integration addresses to liquidation data
+    /// @notice mapping of integration addresses to liquidation data
     mapping(address => Liquidation) public liquidations;
-    // Array of integration contracts used to loop through the Aave balances
+    /// @notice Array of integration contracts used to loop through the Aave balances
     address[] public aaveIntegrations;
-    // The total amount of stkAave that was claimed from all the Aave integration contracts.
-    // This can then be redeemed for Aave after the 10 day cooldown period.
+    /// @notice The total amount of stkAave that was claimed from all the Aave integration contracts.
+    /// This can then be redeemed for Aave after the 10 day cooldown period.
     uint256 public totalAaveBalance;
 
     // Immutable variables set in the constructor
+    /// @notice Staked AAVE token (stkAAVE) address
     address public immutable stkAave;
+    /// @notice Aave Token (AAVE) address
     address public immutable aaveToken;
+    /// @notice Uniswap V2 Router address
     IUniswapV2Router02 public immutable uniswap;
+    /// @notice Compound Token (COMP) address
     address public immutable compToken;
 
     // No longer used
@@ -100,7 +104,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
     }
 
     /**
-     * @dev Liquidator approves Uniswap to transfer Aave and COMP tokens
+     * @notice Liquidator approves Uniswap to transfer Aave and COMP tokens
      */
     function upgrade() external {
         IERC20(aaveToken).safeApprove(address(uniswap), type(uint256).max);
@@ -112,7 +116,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
     ****************************************/
 
     /**
-     * @dev Create a liquidation
+     * @notice Create a liquidation
      * @param _integration The integration contract address from which to receive sellToken
      * @param _sellToken Token harvested from the integration contract. eg COMP or stkAave.
      * @param _bAsset The asset to buy on Uniswap. eg USDC or WBTC
@@ -183,7 +187,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
     }
 
     /**
-     * @dev Update a liquidation
+     * @notice Update a liquidation
      * @param _integration The integration contract in question
      * @param _bAsset New asset to buy on Uniswap
      * @param _uniswapPath The Uniswap path as an array of addresses e.g. [COMP, WETH, DAI]
@@ -218,7 +222,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
     }
 
     /**
-     * @dev Validates a given uniswap path - valid if sellToken at position 0 and bAsset at end
+     * @notice Validates a given uniswap path - valid if sellToken at position 0 and bAsset at end
      * @param _sellToken Token harvested from the integration contract
      * @param _bAsset New asset to buy on Uniswap
      * @param _uniswapPath The Uniswap path as an array of addresses e.g. [COMP, WETH, DAI]
@@ -233,7 +237,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
     }
 
     /**
-     * @dev Delete a liquidation
+     * @notice Delete a liquidation
      */
     function deleteLiquidation(address _integration) external onlyGovernance {
         Liquidation memory liquidation = liquidations[_integration];
@@ -249,7 +253,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
     ****************************************/
 
     /**
-     * @dev Triggers a liquidation, flow (once per week):
+     * @notice Triggers a liquidation, flow (once per week):
      *    - Sells $COMP for $USDC (or other) on Uniswap (up to trancheAmount)
      *    - Mint mUSD using USDC
      *    - Send to SavingsManager
@@ -319,7 +323,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
     }
 
     /**
-     * @dev Claims stake Aave token rewards from each Aave integration contract
+     * @notice Claims stake Aave token rewards from each Aave integration contract
      * and then transfers all reward tokens to the liquidator contract.
      * Can only claim more stkAave if the last claim's unstake window has ended.
      */
@@ -383,7 +387,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
     }
 
     /**
-     * @dev liquidates stkAave rewards earned by the Aave integration contracts:
+     * @notice liquidates stkAave rewards earned by the Aave integration contracts:
      *      - Redeems Aave for stkAave rewards
      *      - swaps Aave for bAsset using Uniswap V2. eg Aave for USDC
      *      - for each Aave integration contract
