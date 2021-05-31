@@ -2,12 +2,15 @@ import { impersonateAccount } from "@utils/fork"
 import { ethers, network } from "hardhat"
 import { Account } from "@utils/machines"
 import { deployContract } from "tasks/utils/deploy-utils"
-import { AAVE, stkAAVE, DAI, mBTC, mUSD, USDC, USDT, WBTC, COMP, GUSD } from "tasks/utils/tokens"
+import { AAVE, stkAAVE, DAI, mBTC, mUSD, USDC, USDT, WBTC, COMP, GUSD, BUSD, CREAM, cyMUSD } from "tasks/utils/tokens"
 import {
+    CompoundIntegration__factory,
     DelayedProxyAdmin,
     DelayedProxyAdmin__factory,
     ERC20,
     ERC20__factory,
+    FeederPool,
+    FeederPool__factory,
     IAaveIncentivesController,
     IAaveIncentivesController__factory,
     Liquidator,
@@ -27,6 +30,7 @@ const governorAddress = "0xF6FF1F7FCEB2cE6d26687EaaB5988b445d0b94a2"
 const delayedAdminAddress = "0x5c8eb57b44c1c6391fc7a8a0cf44d26896f92386"
 const ethWhaleAddress = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 const stkAaveWhaleAddress = "0xdb5AA12AD695Ef2a28C6CdB69f2BB04BEd20a48e"
+const musdWhaleAddress = "0x9b0c19000a8631c1f555bb365bDE308384E4f2Ff"
 
 const liquidatorAddress = "0xe595D67181D701A5356e010D9a58EB9A341f1DbD"
 const aaveMusdIntegrationAddress = "0xA2a3CAe63476891AB2d640d9a5A800755Ee79d6E"
@@ -37,18 +41,24 @@ const uniswapRouterV2Address = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
 const uniswapEthToken = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 const aaveIncentivesControllerAddress = "0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5"
 
+const gusdIronBankIntegrationAddress = "0xaF007D4ec9a13116035a2131EA1C9bc0B751E3cf"
+const busdIronBankIntegrationAddress = "0x2A15794575e754244F9C0A15F504607c201f8AfD"
+
 const aTokens = [USDT.liquidityProvider, DAI.liquidityProvider]
 
-context("Liquidator", () => {
+context("Liquidator forked network tests", () => {
     let ops: Account
     let governor: Account
     let stkAaveWhale: Account
     let ethWhale: Account
+    let musdWhale: Account
     let delayedProxyAdmin: DelayedProxyAdmin
     let aaveIncentivesController: IAaveIncentivesController
     let aaveToken: ERC20
     let aaveStakedToken: AaveStakedTokenV2
     let compToken: ERC20
+    let creamToken: ERC20
+    let musdToken: ERC20
 
     async function runSetup(blockNumber: number) {
         await network.provider.request({
@@ -66,6 +76,7 @@ context("Liquidator", () => {
         stkAaveWhale = await impersonateAccount(stkAaveWhaleAddress)
         governor = await impersonateAccount(governorAddress)
         ethWhale = await impersonateAccount(ethWhaleAddress)
+        musdWhale = await impersonateAccount(musdWhaleAddress)
 
         // send some Ether to the impersonated multisig contract as it doesn't have Ether
         await ethWhale.signer.sendTransaction({
@@ -78,6 +89,8 @@ context("Liquidator", () => {
         aaveToken = ERC20__factory.connect(AAVE.address, ops.signer)
         aaveStakedToken = AaveStakedTokenV2__factory.connect(stkAAVE.address, stkAaveWhale.signer)
         compToken = ERC20__factory.connect(COMP.address, ops.signer)
+        creamToken = ERC20__factory.connect(CREAM.address, ops.signer)
+        musdToken = ERC20__factory.connect(mUSD.address, ops.signer)
     }
 
     it("Test connectivity", async () => {
@@ -623,6 +636,7 @@ context("Liquidator", () => {
             expect(await liquidator.uniswap(), "Uniswap address").to.eq(uniswapRouterV2Address)
             expect(await liquidator.aaveToken(), "Aave address").to.eq(AAVE.address)
             expect(await liquidator.stkAave(), "Staked Aave address").to.eq(stkAAVE.address)
+            expect(await liquidator.compToken(), "COMP address").to.eq(COMP.address)
         })
         it("Added liquidation for mUSD Compound integration", async () => {
             await liquidator
@@ -643,6 +657,128 @@ context("Liquidator", () => {
             const compBalanceBefore = await compToken.balanceOf(liquidatorAddress)
             await liquidator.triggerLiquidation(compoundIntegrationAddress)
             expect(await compToken.balanceOf(liquidatorAddress), "Less COMP").lt(compBalanceBefore)
+        })
+    })
+    context("Iron Bank CREAM liquidation", () => {
+        let liquidator: Liquidator
+        let gusdFp: FeederPool
+        let busdFp: FeederPool
+        before("reset block number", async () => {
+            await runSetup(12540000)
+            liquidator = Liquidator__factory.connect(liquidatorAddress, ops.signer)
+            gusdFp = FeederPool__factory.connect(GUSD.feederPool, governor.signer)
+            busdFp = FeederPool__factory.connect(BUSD.feederPool, governor.signer)
+        })
+        it("migrate mUSD to Iron Bank for the GUSD Feeder Pool", async () => {
+            // Before migrate checks
+            const musdInGusdBefore = await musdToken.balanceOf(GUSD.feederPool)
+            expect(musdInGusdBefore, "Some mUSD in GUSD FP before").to.gt(0)
+            expect(await musdToken.balanceOf(gusdIronBankIntegrationAddress), "no mUSD in Iron Bank integration before").to.eq(0)
+            const musdInIronBankBefore = await musdToken.balanceOf(cyMUSD.address)
+            console.log(
+                `mUSD in Iron Bank ${formatUnits(musdInIronBankBefore)} and GUSD Feeder Pool ${formatUnits(musdInGusdBefore)} before`,
+            )
+
+            await gusdFp.migrateBassets([mUSD.address], gusdIronBankIntegrationAddress)
+
+            // After migrate checks
+            const musdInIronBankIntegrationAfter = await musdToken.balanceOf(gusdIronBankIntegrationAddress)
+            console.log(`mUSD in Iron Bank ${formatUnits(musdInIronBankIntegrationAfter)} after`)
+            expect(await musdToken.balanceOf(GUSD.feederPool), "no mUSD in GUSD FP after").to.eq(0)
+            expect(await musdToken.balanceOf(cyMUSD.address), "no more mUSD in Iron Bank after").to.eq(musdInIronBankBefore)
+            expect(await musdToken.balanceOf(gusdIronBankIntegrationAddress), "mUSD moved to Iron Bank integration after").to.eq(
+                musdInGusdBefore,
+            )
+        })
+        it("Swap mUSD for GUSD", async () => {
+            const musdInIronBankBefore = await musdToken.balanceOf(cyMUSD.address)
+            const musdInIntegrationBefore = await musdToken.balanceOf(gusdIronBankIntegrationAddress)
+
+            const swapInput = simpleToExactAmount(1000)
+            await musdToken.connect(musdWhale.signer).approve(gusdFp.address, swapInput)
+            await gusdFp.connect(musdWhale.signer).swap(mUSD.address, GUSD.address, swapInput, 0, ops.address)
+
+            expect(await musdToken.balanceOf(cyMUSD.address), "more mUSD in Iron Bank after").to.gt(musdInIronBankBefore)
+            expect(await musdToken.balanceOf(gusdIronBankIntegrationAddress), "less mUSD in Integration after").to.lt(
+                musdInIntegrationBefore,
+            )
+        })
+        it("migrate mUSD to Iron Bank for the BUSD Feeder Pool", async () => {
+            const musdBalanceBefore = await musdToken.balanceOf(BUSD.feederPool)
+            expect(musdBalanceBefore).to.gt(0)
+            await busdFp.migrateBassets([mUSD.address], busdIronBankIntegrationAddress)
+            expect(await musdToken.balanceOf(BUSD.feederPool)).to.eq(0)
+        })
+        it("Governor approves the liquidator to transfer CREAM from integration contracts", async () => {
+            const gusdIronBankIntegration = CompoundIntegration__factory.connect(gusdIronBankIntegrationAddress, governor.signer)
+            await gusdIronBankIntegration.approveRewardToken()
+
+            const busdIronBankIntegration = CompoundIntegration__factory.connect(busdIronBankIntegrationAddress, governor.signer)
+            await busdIronBankIntegration.approveRewardToken()
+        })
+        it("Deploy and upgrade new liquidator contract", async () => {
+            // Deploy the new implementation
+            const liquidatorImpl = await deployContract<Liquidator>(new Liquidator__factory(ops.signer), "Liquidator", [
+                nexusAddress,
+                stkAAVE.address,
+                AAVE.address,
+                uniswapRouterV2Address,
+                COMP.address,
+            ])
+
+            // Update the Liquidator proxy to point to the new implementation using the delayed proxy admin
+            const data = liquidatorImpl.interface.encodeFunctionData("upgrade")
+            await delayedProxyAdmin.proposeUpgrade(liquidatorAddress, liquidatorImpl.address, data)
+            await increaseTime(ONE_WEEK.add(60))
+            await delayedProxyAdmin.acceptUpgradeRequest(liquidatorAddress)
+
+            // Connect to the proxy with the Liquidator ABI
+            liquidator = Liquidator__factory.connect(liquidatorAddress, ops.signer)
+
+            // Public immutable values
+            expect(await liquidator.nexus(), "nexus address").to.eq(nexusAddress)
+            expect(await liquidator.uniswap(), "Uniswap address").to.eq(uniswapRouterV2Address)
+            expect(await liquidator.aaveToken(), "AAVE address").to.eq(AAVE.address)
+            expect(await liquidator.stkAave(), "Staked Aave address").to.eq(stkAAVE.address)
+            expect(await liquidator.compToken(), "COMP address").to.eq(COMP.address)
+        })
+        it("Added liquidation of CREAM from GUSD and BUSD Feeder Pool integrations to Iron Bank", async () => {
+            await liquidator
+                .connect(governor.signer)
+                .createLiquidation(
+                    gusdIronBankIntegrationAddress,
+                    CREAM.address,
+                    GUSD.address,
+                    [CREAM.address, uniswapEthToken, GUSD.address],
+                    0,
+                    simpleToExactAmount(50, GUSD.decimals),
+                    ZERO_ADDRESS,
+                    false,
+                )
+
+            await liquidator
+                .connect(governor.signer)
+                .createLiquidation(
+                    busdIronBankIntegrationAddress,
+                    CREAM.address,
+                    BUSD.address,
+                    [CREAM.address, uniswapEthToken, BUSD.address],
+                    0,
+                    simpleToExactAmount(50, BUSD.decimals),
+                    ZERO_ADDRESS,
+                    false,
+                )
+        })
+        it.skip("Liquidate CREAM after upgrade for GUSD", async () => {
+            await increaseTime(ONE_WEEK)
+            const creamBalanceBefore = await creamToken.balanceOf(liquidatorAddress)
+            await liquidator.triggerLiquidation(gusdIronBankIntegrationAddress)
+            expect(await creamToken.balanceOf(liquidatorAddress), "Less CREAM").lt(creamBalanceBefore)
+        })
+        it.skip("Liquidate CREAM after upgrade for BUSD", async () => {
+            const creamBalanceBefore = await creamToken.balanceOf(liquidatorAddress)
+            await liquidator.triggerLiquidation(busdIronBankIntegrationAddress)
+            expect(await creamToken.balanceOf(liquidatorAddress), "Less CREAM").lt(creamBalanceBefore)
         })
     })
     context("Negative tests", () => {
