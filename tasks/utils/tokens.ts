@@ -192,4 +192,18 @@ export const COMP: Token = {
     quantityFormatter: "USD",
 }
 
+export const CREAM: Token = {
+    symbol: "CREAM",
+    address: "0x2ba592f78db6436527729929aaf6c908497cb200",
+    decimals: 18,
+    quantityFormatter: "USD",
+}
+
+export const cyMUSD: Token = {
+    symbol: "cyMUSD",
+    address: "0xbe86e8918dfc7d3cb10d295fc220f941a1470c5c",
+    decimals: 8,
+    quantityFormatter: "USD",
+}
+
 export const tokens = [mUSD, mBTC, sUSD, USDC, USDT, DAI, GUSD, BUSD, renBTC, sBTC, WBTC, HBTC, TBTC]
