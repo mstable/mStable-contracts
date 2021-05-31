@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.2;
-import { IUniswapV2Router02 } from "../../interfaces/IUniswapV2Router02.sol";
+import { IUniswapV3SwapRouter } from "../../interfaces/IUniswapV3SwapRouter.sol";
+import { IUniswapV3Quoter } from "../../interfaces/IUniswapV3Quoter.sol";
 import { ISavingsManager } from "../../interfaces/ISavingsManager.sol";
 import { IMasset } from "../../interfaces/IMasset.sol";
 import { IPlatformIntegration } from "../../interfaces/IPlatformIntegration.sol";
@@ -57,8 +58,10 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
     address public immutable stkAave;
     /// @notice Aave Token (AAVE) address
     address public immutable aaveToken;
-    /// @notice Uniswap V2 Router address
-    IUniswapV2Router02 public immutable uniswap;
+    /// @notice Uniswap V3 Router address
+    IUniswapV3SwapRouter public immutable uniswapRouter;
+    /// @notice Uniswap V3 Quoter address
+    IUniswapV3Quoter public immutable uniswapQuoter;
     /// @notice Compound Token (COMP) address
     address public immutable compToken;
 
@@ -75,7 +78,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
     struct Liquidation {
         address sellToken;
         address bAsset;
-        address[] uniswapPath;
+        bytes uniswapPath;
         uint256 lastTriggered;
         uint256 trancheAmount; // The max amount of bAsset units to buy each week, with token decimals
         uint256 minReturn;
@@ -87,7 +90,8 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
         address _nexus,
         address _stkAave,
         address _aaveToken,
-        address _uniswap,
+        address _uniswapRouter,
+        address _uniswapQuoter,
         address _compToken
     ) ImmutableModule(_nexus) {
         require(_stkAave != address(0), "Invalid stkAAVE address");
@@ -96,8 +100,11 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
         require(_aaveToken != address(0), "Invalid AAVE address");
         aaveToken = _aaveToken;
 
-        require(_uniswap != address(0), "Invalid Uniswap address");
-        uniswap = IUniswapV2Router02(_uniswap);
+        require(_uniswapRouter != address(0), "Invalid Uniswap Router address");
+        uniswapRouter = IUniswapV3SwapRouter(_uniswapRouter);
+
+        require(_uniswapQuoter != address(0), "Invalid Uniswap Quoter address");
+        uniswapQuoter = IUniswapV3Quoter(_uniswapQuoter);
 
         require(_compToken != address(0), "Invalid COMP address");
         compToken = _compToken;
@@ -107,8 +114,8 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
      * @notice Liquidator approves Uniswap to transfer Aave and COMP tokens
      */
     function upgrade() external {
-        IERC20(aaveToken).safeApprove(address(uniswap), type(uint256).max);
-        IERC20(compToken).safeApprove(address(uniswap), type(uint256).max);
+        IERC20(aaveToken).safeApprove(address(uniswapRouter), type(uint256).max);
+        IERC20(compToken).safeApprove(address(uniswapRouter), type(uint256).max);
     }
 
     /***************************************
@@ -130,7 +137,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
         address _integration,
         address _sellToken,
         address _bAsset,
-        address[] calldata _uniswapPath,
+        bytes calldata _uniswapPath,
         uint256 _trancheAmount,
         uint256 _minReturn,
         address _mAsset,
@@ -197,7 +204,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
     function updateBasset(
         address _integration,
         address _bAsset,
-        address[] calldata _uniswapPath,
+        bytes calldata _uniswapPath,
         uint256 _trancheAmount,
         uint256 _minReturn
     ) external onlyGovernance {
@@ -230,10 +237,12 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
     function _validUniswapPath(
         address _sellToken,
         address _bAsset,
-        address[] memory _uniswapPath
+        bytes memory _uniswapPath
     ) internal pure returns (bool) {
         uint256 len = _uniswapPath.length;
-        return _sellToken == _uniswapPath[0] && _bAsset == _uniswapPath[len - 1];
+        // TODO check sellToken is first 20 bytes and bAsset is the last 20 bytes
+        // return _sellToken == _uniswapPath[0] && _bAsset == _uniswapPath[len - 1];
+        return true;
     }
 
     /**
@@ -272,7 +281,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
         liquidations[_integration].lastTriggered = block.timestamp;
 
         address sellToken = liquidation.sellToken;
-        address[] memory uniswapPath = liquidation.uniswapPath;
+        bytes memory uniswapPath = liquidation.uniswapPath;
 
         // 1. Transfer sellTokens from integration contract if there are some
         //    Assumes infinite approval
@@ -287,15 +296,14 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
         require(sellTokenBal > 0, "No sell tokens to liquidate");
         require(liquidation.trancheAmount > 0, "Liquidation has been paused");
         //    Calc amounts for max tranche
-        uint256[] memory amountsIn = uniswap.getAmountsIn(liquidation.trancheAmount, uniswapPath);
-        uint256 sellAmount = amountsIn[0];
+        uint256 sellAmount = uniswapQuoter.quoteExactOutput(uniswapPath, liquidation.trancheAmount);
 
         if (sellTokenBal < sellAmount) {
             sellAmount = sellTokenBal;
         }
 
         // 3. Make the swap
-        // Uniswap V2 > https://uniswap.org/docs/v2/smart-contracts/router02/#swapexacttokensfortokens
+        // Uniswap V2 > https://docs.uniswap.org/reference/periphery/interfaces/ISwapRouter#exactinput
         // min amount out = sellAmount * priceFloor / 1e18
         // e.g. 1e18 * 100e6 / 1e18 = 100e6
         // e.g. 30e8 * 100e6 / 1e8 = 3000e6
@@ -303,13 +311,15 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
         uint256 sellTokenDec = IBasicToken(sellToken).decimals();
         uint256 minOut = (sellAmount * liquidation.minReturn) / (10**sellTokenDec);
         require(minOut > 0, "Must have some price floor");
-        uniswap.swapExactTokensForTokens(
-            sellAmount,
-            minOut,
-            uniswapPath,
-            address(this),
-            block.timestamp + 1
-        );
+        IUniswapV3SwapRouter.ExactInputParams memory param =
+            IUniswapV3SwapRouter.ExactInputParams(
+                uniswapPath,
+                address(this),
+                block.timestamp,
+                sellAmount,
+                minOut
+            );
+        uniswapRouter.exactInput(param);
 
         // 4. Mint mAsset using purchased bAsset
         address mAsset = liquidation.mAsset;
@@ -434,20 +444,22 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
             liquidations[_integration].aaveBalance = 0;
 
             // 4. Make the swap of Aave for the bAsset
-            // Make the sale > https://uniswap.org/docs/v2/smart-contracts/router02/#swapexacttokensfortokens
+            // Make the sale > https://docs.uniswap.org/reference/periphery/interfaces/ISwapRouter#exactinput
             // min bAsset amount out = Aave sell amount * priceFloor / 1e18
             // e.g. 1e18 * 100e6 / 1e18 = 100e6
             // e.g. 30e8 * 100e6 / 1e8 = 3000e6
             // e.g. 30e18 * 100e18 / 1e18 = 3000e18
             uint256 minBassetsOut = (aaveSellAmount * liquidation.minReturn) / 1e18;
             require(minBassetsOut > 0, "Must have some price floor");
-            uniswap.swapExactTokensForTokens(
-                aaveSellAmount,
-                minBassetsOut,
-                liquidation.uniswapPath,
-                address(this),
-                block.timestamp
-            );
+            IUniswapV3SwapRouter.ExactInputParams memory param =
+                IUniswapV3SwapRouter.ExactInputParams(
+                    liquidation.uniswapPath,
+                    address(this),
+                    block.timestamp + 1,
+                    aaveSellAmount,
+                    minBassetsOut
+                );
+            uniswapRouter.exactInput(param);
 
             address mAsset = liquidation.mAsset;
             // If the integration contract is connected to a mAsset like mUSD or mBTC
