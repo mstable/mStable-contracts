@@ -17,8 +17,6 @@ import { IBasicToken } from "../../shared/IBasicToken.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "hardhat/console.sol";
-
 /**
  * @title   Liquidator
  * @author  mStable
@@ -79,6 +77,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
         address sellToken;
         address bAsset;
         bytes uniswapPath;
+        bytes uniswapPathReversed;
         uint256 lastTriggered;
         uint256 trancheAmount; // The max amount of bAsset units to buy each week, with token decimals
         uint256 minReturn;
@@ -127,7 +126,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
      * @param _integration The integration contract address from which to receive sellToken
      * @param _sellToken Token harvested from the integration contract. eg COMP or stkAave.
      * @param _bAsset The asset to buy on Uniswap. eg USDC or WBTC
-     * @param _uniswapPath The Uniswap path as an array of addresses e.g. [COMP, WETH, USDC]
+     * @param _uniswapPath The Uniswap V3 bytes encoded path.
      * @param _trancheAmount The max amount of bAsset units to buy in each weekly tranche.
      * @param _minReturn Minimum exact amount of bAsset to get for each (whole) sellToken unit
      * @param _mAsset optional address of the mAsset. eg mUSD or mBTC. Use zero address if from a Feeder Pool.
@@ -138,6 +137,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
         address _sellToken,
         address _bAsset,
         bytes calldata _uniswapPath,
+        bytes calldata _uniswapPathReversed,
         uint256 _trancheAmount,
         uint256 _minReturn,
         address _mAsset,
@@ -150,6 +150,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
                 _sellToken != address(0) &&
                 _bAsset != address(0) &&
                 _uniswapPath.length >= 2 &&
+                _uniswapPathReversed.length >= 2 &&
                 _minReturn > 0,
             "Invalid inputs"
         );
@@ -159,6 +160,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
             sellToken: _sellToken,
             bAsset: _bAsset,
             uniswapPath: _uniswapPath,
+            uniswapPathReversed: _uniswapPathReversed,
             lastTriggered: 0,
             trancheAmount: _trancheAmount,
             minReturn: _minReturn,
@@ -197,7 +199,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
      * @notice Update a liquidation
      * @param _integration The integration contract in question
      * @param _bAsset New asset to buy on Uniswap
-     * @param _uniswapPath The Uniswap path as an array of addresses e.g. [COMP, WETH, DAI]
+     * @param _uniswapPath The Uniswap V3 bytes encoded path.
      * @param _trancheAmount The max amount of bAsset units to buy in each weekly tranche.
      * @param _minReturn Minimum exact amount of bAsset to get for each (whole) sellToken unit
      */
@@ -232,17 +234,17 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
      * @notice Validates a given uniswap path - valid if sellToken at position 0 and bAsset at end
      * @param _sellToken Token harvested from the integration contract
      * @param _bAsset New asset to buy on Uniswap
-     * @param _uniswapPath The Uniswap path as an array of addresses e.g. [COMP, WETH, DAI]
+     * @param _uniswapPath The Uniswap V3 bytes encoded path.
      */
     function _validUniswapPath(
         address _sellToken,
         address _bAsset,
-        bytes memory _uniswapPath
+        bytes calldata _uniswapPath
     ) internal pure returns (bool) {
         uint256 len = _uniswapPath.length;
-        // TODO check sellToken is first 20 bytes and bAsset is the last 20 bytes
-        // return _sellToken == _uniswapPath[0] && _bAsset == _uniswapPath[len - 1];
-        return true;
+        // check sellToken is first 20 bytes and bAsset is the last 20 bytes of the uniswap path
+        return keccak256(abi.encodePacked(_sellToken)) == keccak256(abi.encodePacked(_uniswapPath[0:20])) &&
+            keccak256(abi.encodePacked(_bAsset)) == keccak256(abi.encodePacked(_uniswapPath[len - 20:len]));
     }
 
     /**
@@ -281,7 +283,6 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
         liquidations[_integration].lastTriggered = block.timestamp;
 
         address sellToken = liquidation.sellToken;
-        bytes memory uniswapPath = liquidation.uniswapPath;
 
         // 1. Transfer sellTokens from integration contract if there are some
         //    Assumes infinite approval
@@ -296,7 +297,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
         require(sellTokenBal > 0, "No sell tokens to liquidate");
         require(liquidation.trancheAmount > 0, "Liquidation has been paused");
         //    Calc amounts for max tranche
-        uint256 sellAmount = uniswapQuoter.quoteExactOutput(uniswapPath, liquidation.trancheAmount);
+        uint256 sellAmount = uniswapQuoter.quoteExactOutput(liquidation.uniswapPathReversed, liquidation.trancheAmount);
 
         if (sellTokenBal < sellAmount) {
             sellAmount = sellTokenBal;
@@ -313,7 +314,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
         require(minOut > 0, "Must have some price floor");
         IUniswapV3SwapRouter.ExactInputParams memory param =
             IUniswapV3SwapRouter.ExactInputParams(
-                uniswapPath,
+                liquidation.uniswapPath,
                 address(this),
                 block.timestamp,
                 sellAmount,
