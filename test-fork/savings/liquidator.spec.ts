@@ -13,6 +13,8 @@ import {
     FeederPool__factory,
     IAaveIncentivesController,
     IAaveIncentivesController__factory,
+    IUniswapV3Quoter,
+    IUniswapV3Quoter__factory,
     Liquidator,
     Liquidator__factory,
 } from "types/generated"
@@ -48,6 +50,11 @@ const busdIronBankIntegrationAddress = "0x2A15794575e754244F9C0A15F504607c201f8A
 
 const aTokens = [USDT.liquidityProvider, DAI.liquidityProvider]
 
+const uniswapCompUsdcPaths = encodeUniswapPath([COMP.address, uniswapEthToken, USDC.address], [3000, 3000])
+const uniswapAaveUsdcPath = encodeUniswapPath([AAVE.address, uniswapEthToken, USDC.address], [3000, 3000])
+const uniswapAaveWbtcPath = encodeUniswapPath([AAVE.address, uniswapEthToken, WBTC.address], [3000, 3000])
+const uniswapAaveGusdPath = encodeUniswapPath([AAVE.address, uniswapEthToken, GUSD.address], [3000, 3000])
+
 context("Liquidator forked network tests", () => {
     let ops: Account
     let governor: Account
@@ -61,6 +68,7 @@ context("Liquidator forked network tests", () => {
     let compToken: ERC20
     let creamToken: ERC20
     let musdToken: ERC20
+    let uniswapQuoter: IUniswapV3Quoter
 
     async function runSetup(blockNumber: number) {
         await network.provider.request({
@@ -88,6 +96,7 @@ context("Liquidator forked network tests", () => {
 
         delayedProxyAdmin = DelayedProxyAdmin__factory.connect(delayedAdminAddress, governor.signer)
         aaveIncentivesController = IAaveIncentivesController__factory.connect(aaveIncentivesControllerAddress, ops.signer)
+        uniswapQuoter = IUniswapV3Quoter__factory.connect(uniswapQuoterV3Address, ops.signer)
         aaveToken = ERC20__factory.connect(AAVE.address, ops.signer)
         aaveStakedToken = AaveStakedTokenV2__factory.connect(stkAAVE.address, stkAaveWhale.signer)
         compToken = ERC20__factory.connect(COMP.address, ops.signer)
@@ -420,7 +429,7 @@ context("Liquidator forked network tests", () => {
             })
         })
     })
-    context.only("Aave liquidation", () => {
+    context("Aave liquidation", () => {
         let liquidator: Liquidator
         before("reset block number", async () => {
             await runSetup(12510100)
@@ -452,14 +461,14 @@ context("Liquidator forked network tests", () => {
             expect(await liquidator.compToken(), "COMP address").to.eq(COMP.address)
         })
         it("Added liquidation for mUSD Aave integration", async () => {
-            const path = encodeUniswapPath([AAVE.address, uniswapEthToken, USDC.address], [3000, 3000])
             await liquidator
                 .connect(governor.signer)
                 .createLiquidation(
                     aaveMusdIntegrationAddress,
                     AAVE.address,
                     USDC.address,
-                    path,
+                    uniswapAaveUsdcPath.encoded,
+                    uniswapAaveUsdcPath.encodedReversed,
                     0,
                     simpleToExactAmount(50, USDC.decimals),
                     mUSD.address,
@@ -467,29 +476,29 @@ context("Liquidator forked network tests", () => {
                 )
         })
         it("Added liquidation for mBTC Aave integration", async () => {
-            const path = encodeUniswapPath([AAVE.address, uniswapEthToken, WBTC.address], [3000, 3000])
             await liquidator
                 .connect(governor.signer)
                 .createLiquidation(
                     aaveMbtcIntegrationAddress,
                     AAVE.address,
                     WBTC.address,
-                    path,
+                    uniswapAaveWbtcPath.encoded,
+                    uniswapAaveWbtcPath.encodedReversed,
                     0,
                     simpleToExactAmount(2, WBTC.decimals - 3),
                     mBTC.address,
                     true,
                 )
         })
-        it("Added liquidation for GUSD Feeder Pool Aave integration", async () => {
-            const path = encodeUniswapPath([AAVE.address, uniswapEthToken, GUSD.address], [3000, 3000])
+        it.skip("Added liquidation for GUSD Feeder Pool Aave integration", async () => {
             await liquidator
                 .connect(governor.signer)
                 .createLiquidation(
                     GUSD.integrator,
                     AAVE.address,
                     GUSD.address,
-                    path,
+                    uniswapAaveGusdPath.encoded,
+                    uniswapAaveGusdPath.encodedReversed,
                     0,
                     simpleToExactAmount(50, GUSD.decimals),
                     ZERO_ADDRESS,
@@ -546,14 +555,14 @@ context("Liquidator forked network tests", () => {
             liquidator = Liquidator__factory.connect(liquidatorAddress, ops.signer)
         })
         it("Added liquidation for mUSD Aave integration", async () => {
-            const path = encodeUniswapPath([AAVE.address, uniswapEthToken, USDC.address], [3000, 3000])
             await liquidator
                 .connect(governor.signer)
                 .createLiquidation(
                     aaveMusdIntegrationAddress,
                     AAVE.address,
                     USDC.address,
-                    path,
+                    uniswapAaveUsdcPath.encoded,
+                    uniswapAaveUsdcPath.encodedReversed,
                     0,
                     simpleToExactAmount(50, USDC.decimals),
                     mUSD.address,
@@ -611,7 +620,7 @@ context("Liquidator forked network tests", () => {
     context("Compound liquidation", () => {
         let liquidator: Liquidator
         before("reset block number", async () => {
-            await runSetup(12500000)
+            await runSetup(12545500)
             liquidator = Liquidator__factory.connect(liquidatorAddress, ops.signer)
         })
         it("Read functions before upgrade", async () => {
@@ -652,24 +661,91 @@ context("Liquidator forked network tests", () => {
             expect(await liquidator.compToken(), "COMP address").to.eq(COMP.address)
         })
         it("Added liquidation for mUSD Compound integration", async () => {
-            const path = encodeUniswapPath([AAVE.address, uniswapEthToken, USDC.address], [3000, 3000])
             await liquidator
                 .connect(governor.signer)
                 .createLiquidation(
                     compoundIntegrationAddress,
                     COMP.address,
                     USDC.address,
-                    path,
+                    uniswapCompUsdcPaths.encoded,
+                    uniswapCompUsdcPaths.encodedReversed,
                     simpleToExactAmount(20000, USDC.decimals),
-                    simpleToExactAmount(50, USDC.decimals),
+                    simpleToExactAmount(100, USDC.decimals),
                     mUSD.address,
                     false,
                 )
         })
+        it("Uniswap quoteExactOutputSingle for COMP to ETH", async () => {
+            const expectedSwapInput = await uniswapQuoter.callStatic.quoteExactOutputSingle(
+                COMP.address,
+                uniswapEthToken,
+                3000,
+                simpleToExactAmount(8),
+                0,
+            )
+            expect(expectedSwapInput).to.gt(simpleToExactAmount(40))
+            expect(expectedSwapInput).to.lt(simpleToExactAmount(60))
+        })
+        it("Uniswap quoteExactOutputSingle for ETH to USDC", async () => {
+            const expectedSwapInput = await uniswapQuoter.callStatic.quoteExactOutputSingle(
+                uniswapEthToken,
+                USDC.address,
+                3000,
+                simpleToExactAmount(20000, USDC.decimals),
+                0,
+            )
+            expect(expectedSwapInput).to.gt(simpleToExactAmount(7))
+            expect(expectedSwapInput).to.lt(simpleToExactAmount(8))
+        })
+        it("Uniswap quoteExactInput for COMP to ETH", async () => {
+            const expectedSwapInput = await uniswapQuoter.callStatic.quoteExactInput(
+                encodeUniswapPath([COMP.address, uniswapEthToken], [3000]).encoded,
+                simpleToExactAmount(50),
+            )
+            console.log(`50 COMP input to swap for ${formatUnits(expectedSwapInput)} ETH`)
+            expect(expectedSwapInput).to.gt(simpleToExactAmount(7))
+            expect(expectedSwapInput).to.lt(simpleToExactAmount(9))
+        })
+        it("Uniswap quoteExactInput for ETH to USDC", async () => {
+            const expectedSwapInput = await uniswapQuoter.callStatic.quoteExactInput(
+                encodeUniswapPath([uniswapEthToken, USDC.address], [3000]).encoded,
+                simpleToExactAmount(8),
+            )
+            console.log(`8 WETH input to swap for ${formatUnits(expectedSwapInput)} USDC`)
+            expect(expectedSwapInput, "output > 19k USDC").to.gt(simpleToExactAmount(19000, USDC.decimals))
+            expect(expectedSwapInput, "output < 22k USDC").to.lt(simpleToExactAmount(22000, USDC.decimals))
+        })
+        it("Uniswap quoteExactOutput for COMP to ETH", async () => {
+            const expectedSwapInput = await uniswapQuoter.callStatic.quoteExactOutput(
+                encodeUniswapPath([uniswapEthToken, COMP.address], [3000]).encoded,
+                simpleToExactAmount(8),
+            )
+            console.log(`${(formatUnits(expectedSwapInput), COMP.decimals)} COMP input to swap for 8 ETH`)
+            expect(expectedSwapInput, "input > 40 COMP").to.gt(simpleToExactAmount(40))
+            expect(expectedSwapInput, "input < 60 COMP").to.lt(simpleToExactAmount(60))
+        })
+        it("Uniswap quoteExactOutput for ETH to USDC", async () => {
+            const expectedSwapInput = await uniswapQuoter.callStatic.quoteExactOutput(
+                encodeUniswapPath([USDC.address, uniswapEthToken], [3000]).encoded,
+                simpleToExactAmount(20000, USDC.decimals),
+            )
+            expect(expectedSwapInput, "input > 7 WETH").to.gt(simpleToExactAmount(7))
+            expect(expectedSwapInput, "input < 8 WETH").to.lt(simpleToExactAmount(8))
+        })
+        it("Uniswap quoteExactOutput for COMP to USDC", async () => {
+            const expectedSwapInput = await uniswapQuoter.callStatic.quoteExactOutput(
+                encodeUniswapPath([USDC.address, uniswapEthToken, COMP.address], [3000, 3000]).encoded,
+                simpleToExactAmount(20000, USDC.decimals),
+            )
+            expect(expectedSwapInput, "input > 40 COMP").to.gt(simpleToExactAmount(40))
+            expect(expectedSwapInput, "input < 60 COMP").to.lt(simpleToExactAmount(60))
+        })
         it("Liquidate COMP after upgrade", async () => {
             await increaseTime(ONE_WEEK)
             const compBalanceBefore = await compToken.balanceOf(liquidatorAddress)
+
             await liquidator.triggerLiquidation(compoundIntegrationAddress)
+
             expect(await compToken.balanceOf(liquidatorAddress), "Less COMP").lt(compBalanceBefore)
         })
     })
@@ -759,28 +835,30 @@ context("Liquidator forked network tests", () => {
             expect(await liquidator.compToken(), "COMP address").to.eq(COMP.address)
         })
         it("Added liquidation of CREAM from GUSD and BUSD Feeder Pool integrations to Iron Bank", async () => {
-            let path = encodeUniswapPath([CREAM.address, uniswapEthToken, GUSD.address], [3000, 3000])
+            let uniswapPathCreamGusd = encodeUniswapPath([CREAM.address, uniswapEthToken, GUSD.address], [3000, 3000])
             await liquidator
                 .connect(governor.signer)
                 .createLiquidation(
                     gusdIronBankIntegrationAddress,
                     CREAM.address,
                     GUSD.address,
-                    path,
+                    uniswapPathCreamGusd.encoded,
+                    uniswapPathCreamGusd.encodedReversed,
                     0,
                     simpleToExactAmount(50, GUSD.decimals),
                     ZERO_ADDRESS,
                     false,
                 )
 
-            path = encodeUniswapPath([CREAM.address, uniswapEthToken, BUSD.address], [3000, 3000])
+            uniswapPathCreamGusd = encodeUniswapPath([CREAM.address, uniswapEthToken, BUSD.address], [3000, 3000])
             await liquidator
                 .connect(governor.signer)
                 .createLiquidation(
                     busdIronBankIntegrationAddress,
                     CREAM.address,
                     BUSD.address,
-                    path,
+                    uniswapPathCreamGusd.encoded,
+                    uniswapPathCreamGusd.encodedReversed,
                     0,
                     simpleToExactAmount(50, BUSD.decimals),
                     ZERO_ADDRESS,
@@ -829,14 +907,15 @@ context("Liquidator forked network tests", () => {
             await expect(tx).revertedWith("SafeERC20: approve from non-zero to non-zero allowance")
         })
         it("short Uniswap path", async () => {
-            const path = encodeUniswapPath([AAVE.address], [3000])
+            const path = encodeUniswapPath([AAVE.address], [])
             const tx = liquidator
                 .connect(governor.signer)
                 .createLiquidation(
                     aaveMusdIntegrationAddress,
                     AAVE.address,
                     USDC.address,
-                    path,
+                    path.encoded,
+                    path.encodedReversed,
                     0,
                     simpleToExactAmount(50, USDC.decimals),
                     mUSD.address,
@@ -852,7 +931,8 @@ context("Liquidator forked network tests", () => {
                     aaveMusdIntegrationAddress,
                     AAVE.address,
                     USDC.address,
-                    path,
+                    path.encoded,
+                    path.encodedReversed,
                     0,
                     simpleToExactAmount(50, USDC.decimals),
                     mUSD.address,
@@ -861,14 +941,14 @@ context("Liquidator forked network tests", () => {
             await expect(tx).revertedWith("Invalid uniswap path")
         })
         it("Added liquidation for mUSD Aave integration", async () => {
-            const path = encodeUniswapPath([AAVE.address, uniswapEthToken, USDC.address], [3000, 3000])
             await liquidator
                 .connect(governor.signer)
                 .createLiquidation(
                     aaveMusdIntegrationAddress,
                     AAVE.address,
                     USDC.address,
-                    path,
+                    uniswapAaveUsdcPath.encoded,
+                    uniswapAaveUsdcPath.encodedReversed,
                     0,
                     simpleToExactAmount(50, USDC.decimals),
                     mUSD.address,
@@ -876,14 +956,14 @@ context("Liquidator forked network tests", () => {
                 )
         })
         it("Fail to add duplicate liquidation", async () => {
-            const path = encodeUniswapPath([AAVE.address, uniswapEthToken, USDC.address], [3000, 3000])
             const tx = liquidator
                 .connect(governor.signer)
                 .createLiquidation(
                     aaveMusdIntegrationAddress,
                     AAVE.address,
                     USDC.address,
-                    path,
+                    uniswapAaveUsdcPath.encoded,
+                    uniswapAaveUsdcPath.encodedReversed,
                     0,
                     simpleToExactAmount(50, USDC.decimals),
                     mUSD.address,
