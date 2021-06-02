@@ -2,10 +2,21 @@ import "ts-node/register"
 import "tsconfig-paths/register"
 
 import { task } from "hardhat/config"
-import { AaveV2Integration__factory, FeederPool__factory, PAaveIntegration, PAaveIntegration__factory } from "types/generated"
+import {
+    AaveV2Integration__factory,
+    DelayedProxyAdmin__factory,
+    FeederPool__factory,
+    Liquidator,
+    Liquidator__factory,
+    PAaveIntegration,
+    PAaveIntegration__factory,
+} from "types/generated"
 import { MusdEth__factory } from "types/generated/factories/MusdEth__factory"
+import { simpleToExactAmount } from "@utils/math"
+import { encodeUniswapPath } from "@utils/peripheral/uniswap"
 import { getDefenderSigner } from "./utils/defender-utils"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
+import { AAVE, COMP, mBTC, mUSD, stkAAVE, USDC, WBTC } from "./utils/tokens"
 
 // mStable contracts
 const nexusAddress = "0xafce80b19a8ce13dec0739a1aab7a028d6845eb3"
@@ -150,6 +161,72 @@ task("deployFPAaveIntegration", "Deploys mUSD feeder pool instances of PAaveInte
 
     const gUsdMigrateDaiData = gUsdFp.interface.encodeFunctionData("migrateBassets", [[gUsdAddress], gUsdPAaveIntegration.address])
     console.log(`Feeder Pool migrateBassets GUSD data: ${gUsdMigrateDaiData}`)
+})
+
+task("deployLiquidator", "Deploys new Liquidator contract").setAction(async (_, hre) => {
+    const { ethers, network } = hre
+    const signer = network.name === "mainnet" ? await getDefenderSigner() : (await ethers.getSigners())[0]
+
+    const liquidatorAddress = "0xe595D67181D701A5356e010D9a58EB9A341f1DbD"
+    const delayedAdminAddress = "0x5c8eb57b44c1c6391fc7a8a0cf44d26896f92386"
+    const uniswapRouterV3Address = "0xE592427A0AEce92De3Edee1F18E0157C05861564"
+    const uniswapQuoterV3Address = "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"
+    const uniswapEthToken = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    const aaveMusdIntegrationAddress = "0xA2a3CAe63476891AB2d640d9a5A800755Ee79d6E"
+    const aaveMbtcIntegrationAddress = "0xC9451a4483d1752a3E9A3f5D6b1C7A6c34621fC6"
+
+    const delayedProxyAdmin = DelayedProxyAdmin__factory.connect(delayedAdminAddress, signer)
+
+    // Deploy the new implementation
+    const liquidatorImpl = await deployContract<Liquidator>(new Liquidator__factory(signer), "Liquidator", [
+        nexusAddress,
+        stkAAVE.address,
+        AAVE.address,
+        uniswapRouterV3Address,
+        uniswapQuoterV3Address,
+        COMP.address,
+    ])
+
+    // Update the Liquidator proxy to point to the new implementation using the delayed proxy admin
+    const upgradeData = liquidatorImpl.interface.encodeFunctionData("upgrade")
+    const proposeUpgradeData = delayedProxyAdmin.interface.encodeFunctionData("proposeUpgrade", [
+        liquidatorAddress,
+        liquidatorImpl.address,
+        upgradeData,
+    ])
+    console.log(`\ndelayedProxyAdmin.proposeUpgrade to ${delayedAdminAddress}, data:\n${proposeUpgradeData}`)
+
+    const liquidator = Liquidator__factory.connect(liquidatorAddress, signer)
+
+    // Output tx data for createLiquidation of Aave for mUSD
+    const uniswapAaveUsdcPath = encodeUniswapPath([AAVE.address, uniswapEthToken, USDC.address], [3000, 3000])
+    const musdData = liquidator.interface.encodeFunctionData("createLiquidation", [
+        aaveMusdIntegrationAddress,
+        AAVE.address,
+        USDC.address,
+        uniswapAaveUsdcPath.encoded,
+        uniswapAaveUsdcPath.encodedReversed,
+        0,
+        simpleToExactAmount(50, USDC.decimals),
+        mUSD.address,
+        true,
+    ])
+    console.log(`\ncreateLiquidation of Aave from mUSD to ${liquidatorAddress}, data:\n${musdData}`)
+
+    // Output tx data for createLiquidation of Aave for mBTC
+    const uniswapAaveWbtcPath = encodeUniswapPath([AAVE.address, uniswapEthToken, WBTC.address], [3000, 3000])
+    const mbtcData = liquidator.interface.encodeFunctionData("createLiquidation", [
+        aaveMbtcIntegrationAddress,
+        AAVE.address,
+        WBTC.address,
+        uniswapAaveWbtcPath.encoded,
+        uniswapAaveWbtcPath.encodedReversed,
+        0,
+        simpleToExactAmount(2, WBTC.decimals - 3),
+        mBTC.address,
+        true,
+    ])
+    console.log(`\ncreateLiquidation of Aave from mBTC to ${liquidatorAddress}, data:\n${mbtcData}`)
 })
 
 module.exports = {}
