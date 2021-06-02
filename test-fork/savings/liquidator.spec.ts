@@ -921,18 +921,17 @@ context("Liquidator forked network tests", () => {
                     mUSD.address,
                     true,
                 )
-            await expect(tx).revertedWith("Invalid inputs")
+            await expect(tx).revertedWith("Uniswap path too short")
         })
         it("reversed Uniswap path", async () => {
-            const path = encodeUniswapPath([USDC.address, uniswapEthToken, AAVE.address], [3000, 3000])
             const tx = liquidator
                 .connect(governor.signer)
                 .createLiquidation(
                     aaveMusdIntegrationAddress,
                     AAVE.address,
                     USDC.address,
-                    path.encoded,
-                    path.encodedReversed,
+                    uniswapAaveUsdcPath.encodedReversed,
+                    uniswapAaveUsdcPath.encoded,
                     0,
                     simpleToExactAmount(50, USDC.decimals),
                     mUSD.address,
