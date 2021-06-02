@@ -3,12 +3,14 @@ pragma solidity 0.8.2;
 
 import { MassetHelpers } from "../../shared/MassetHelpers.sol";
 import { ImmutableModule } from "../../shared/ImmutableModule.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Overrides approveRewardToken
 contract MockRewardToken is ImmutableModule {
     event RewardTokenApproved(address token, address spender);
 
     address rewardToken;
+    uint256 rewardAmount = 1000;
 
     constructor(address _nexus) ImmutableModule(_nexus) {}
 
@@ -24,5 +26,14 @@ contract MockRewardToken is ImmutableModule {
 
     function setRewardToken(address _token) external {
         rewardToken = _token;
+    }
+
+    function setRewardAmount(uint256 _rewardAmount) external {
+        rewardAmount = _rewardAmount;
+    }
+
+    /// @dev this assumes some reward tokens have been transferred to this contract
+    function claimRewards() external {
+        IERC20(rewardToken).transfer(msg.sender, rewardAmount);
     }
 }
