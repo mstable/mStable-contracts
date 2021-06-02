@@ -27,8 +27,6 @@ export const encodeUniswapPath = (tokenAddresses: string[], fees: number[]): Enc
     encoded += finalAddress
     encodedReversed = `0x${finalAddress}${encodedReversed}`
 
-    console.log(`Encoded path: ${encoded} for ${tokenAddresses}`)
-
     return {
         encoded: encoded.toLowerCase(),
         encodedReversed: encodedReversed.toLowerCase(),

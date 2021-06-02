@@ -111,6 +111,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
 
     /**
      * @notice Liquidator approves Uniswap to transfer Aave and COMP tokens
+     * @dev to be called via the proxy proposeUpgrade function, not the constructor.
      */
     function upgrade() external {
         IERC20(aaveToken).safeApprove(address(uniswapRouter), type(uint256).max);
@@ -149,12 +150,14 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
             _integration != address(0) &&
                 _sellToken != address(0) &&
                 _bAsset != address(0) &&
-                _uniswapPath.length >= 2 &&
-                _uniswapPathReversed.length >= 2 &&
                 _minReturn > 0,
             "Invalid inputs"
         );
         require(_validUniswapPath(_sellToken, _bAsset, _uniswapPath), "Invalid uniswap path");
+        require(
+            _validUniswapPath(_bAsset, _sellToken, _uniswapPathReversed),
+            "Invalid uniswap path reversed"
+        );
 
         liquidations[_integration] = Liquidation({
             sellToken: _sellToken,
@@ -207,6 +210,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
         address _integration,
         address _bAsset,
         bytes calldata _uniswapPath,
+        bytes calldata _uniswapPathReversed,
         uint256 _trancheAmount,
         uint256 _minReturn
     ) external onlyGovernance {
@@ -220,6 +224,10 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
         require(
             _validUniswapPath(liquidation.sellToken, _bAsset, _uniswapPath),
             "Invalid uniswap path"
+        );
+        require(
+            _validUniswapPath(_bAsset, liquidation.sellToken, _uniswapPathReversed),
+            "Invalid uniswap path reversed"
         );
 
         liquidations[_integration].bAsset = _bAsset;
@@ -242,9 +250,13 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
         bytes calldata _uniswapPath
     ) internal pure returns (bool) {
         uint256 len = _uniswapPath.length;
+        require(_uniswapPath.length >= 43, "Uniswap path too short");
         // check sellToken is first 20 bytes and bAsset is the last 20 bytes of the uniswap path
-        return keccak256(abi.encodePacked(_sellToken)) == keccak256(abi.encodePacked(_uniswapPath[0:20])) &&
-            keccak256(abi.encodePacked(_bAsset)) == keccak256(abi.encodePacked(_uniswapPath[len - 20:len]));
+        return
+            keccak256(abi.encodePacked(_sellToken)) ==
+            keccak256(abi.encodePacked(_uniswapPath[0:20])) &&
+            keccak256(abi.encodePacked(_bAsset)) ==
+            keccak256(abi.encodePacked(_uniswapPath[len - 20:len]));
     }
 
     /**
@@ -297,7 +309,11 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
         require(sellTokenBal > 0, "No sell tokens to liquidate");
         require(liquidation.trancheAmount > 0, "Liquidation has been paused");
         //    Calc amounts for max tranche
-        uint256 sellAmount = uniswapQuoter.quoteExactOutput(liquidation.uniswapPathReversed, liquidation.trancheAmount);
+        uint256 sellAmount =
+            uniswapQuoter.quoteExactOutput(
+                liquidation.uniswapPathReversed,
+                liquidation.trancheAmount
+            );
 
         if (sellTokenBal < sellAmount) {
             sellAmount = sellTokenBal;
@@ -326,7 +342,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
         address mAsset = liquidation.mAsset;
         uint256 minted = _mint(bAsset, mAsset);
 
-        // 5.. Send to SavingsManager
+        // 5. Send to SavingsManager
         address savings = _savingsManager();
         ISavingsManager(savings).depositLiquidation(mAsset, minted);
 
