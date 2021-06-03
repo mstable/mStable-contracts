@@ -5,7 +5,7 @@ pragma solidity 0.8.2;
 // Internal
 import { IPlatformIntegration } from "../../interfaces/IPlatformIntegration.sol";
 import { ImmutableModule } from "../../shared/ImmutableModule.sol";
-import { IAaveATokenV2, IAaveLendingPoolV2, ILendingPoolAddressesProviderV2 } from "../../masset/peripheral/IAave.sol";
+import { IAaveATokenV2, IAaveLendingPoolV2, ILendingPoolAddressesProviderV2 } from "../../peripheral/Aave/IAave.sol";
 
 // Libs
 import { MassetHelpers } from "../../shared/MassetHelpers.sol";
