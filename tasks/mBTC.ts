@@ -20,6 +20,7 @@ import {
     getBalances,
     getCollectedInterest,
     getSavingsManager,
+    getAaveTokens,
 } from "./utils/snap-utils"
 import { Token, renBTC, sBTC, WBTC } from "./utils/tokens"
 import { getSwapRates } from "./utils/rates-utils"
@@ -129,6 +130,8 @@ task("mBTC-snap", "Get the latest data from the mBTC contracts")
         const balances = await getBalances(mAsset, accounts, btcFormatter, toBlock.blockNumber)
 
         await getCollectedInterest(bAssets, mAsset, savingsManager, fromBlock, toBlock, btcFormatter, balances.save)
+
+        await getAaveTokens(signer, toBlock)
 
         outputFees(
             mintSummary,
