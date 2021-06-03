@@ -5,7 +5,7 @@ import {
     IAaveATokenV2,
     IAaveLendingPoolV2,
     ILendingPoolAddressesProviderV2
-} from "../masset/peripheral/IAave.sol";
+} from "../peripheral/Aave/IAave.sol";
 import { AaveV2Integration } from "../masset/peripheral/AaveV2Integration.sol";
 import { IAaveIncentivesController } from "./IAaveIncentivesController.sol";
 

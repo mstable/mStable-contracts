@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.2;
 
-import { ICERC20 } from "../../masset/peripheral/ICompound.sol";
+import { ICERC20 } from "../../peripheral/Compound/ICompound.sol";
 
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { StableMath } from "../../shared/StableMath.sol";

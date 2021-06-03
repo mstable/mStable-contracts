@@ -8,7 +8,7 @@ import {
     IAaveATokenV2,
     IAaveLendingPoolV2,
     ILendingPoolAddressesProviderV2
-} from "../../masset/peripheral/IAave.sol";
+} from "../../peripheral/Aave/IAave.sol";
 
 // Libs
 import { MassetHelpers } from "../../shared/MassetHelpers.sol";

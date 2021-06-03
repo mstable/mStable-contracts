@@ -5,7 +5,7 @@ import { IUniswapV3Quoter } from "../../interfaces/IUniswapV3Quoter.sol";
 import { ISavingsManager } from "../../interfaces/ISavingsManager.sol";
 import { IMasset } from "../../interfaces/IMasset.sol";
 import { IPlatformIntegration } from "../../interfaces/IPlatformIntegration.sol";
-import { IStakedAave } from "../peripheral/IAave.sol";
+import { IStakedAave } from "../../peripheral/Aave/IAave.sol";
 import { PAaveIntegration } from "../../polygon/PAaveIntegration.sol";
 
 // Need to use the old OZ Initializable as it reserved the first 50 slots of storage
