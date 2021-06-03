@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.2;
-import { IUniswapV3SwapRouter } from "../../interfaces/IUniswapV3SwapRouter.sol";
-import { IUniswapV3Quoter } from "../../interfaces/IUniswapV3Quoter.sol";
 import { ISavingsManager } from "../../interfaces/ISavingsManager.sol";
 import { IMasset } from "../../interfaces/IMasset.sol";
 import { IPlatformIntegration } from "../../interfaces/IPlatformIntegration.sol";
 import { IStakedAave } from "../../peripheral/Aave/IAave.sol";
+import { IUniswapV3SwapRouter } from "../../peripheral/Uniswap/IUniswapV3SwapRouter.sol";
+import { IUniswapV3Quoter } from "../../peripheral/Uniswap/IUniswapV3Quoter.sol";
 import { PAaveIntegration } from "../../polygon/PAaveIntegration.sol";
 
 // Need to use the old OZ Initializable as it reserved the first 50 slots of storage

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.2;
 
-import { IUniswapV3SwapRouter } from "../../interfaces/IUniswapV3SwapRouter.sol";
-import { IUniswapV3Quoter } from "../../interfaces/IUniswapV3Quoter.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IUniswapV3SwapRouter } from "../../peripheral/Uniswap/IUniswapV3SwapRouter.sol";
+import { IUniswapV3Quoter } from "../../peripheral/Uniswap/IUniswapV3Quoter.sol";
 import { Path } from "../../peripheral/Uniswap/Path.sol";
 
 // Simulates the selling of COMP
