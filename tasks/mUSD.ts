@@ -5,7 +5,7 @@ import "tsconfig-paths/register"
 import { task, types } from "hardhat/config"
 import { Contract, Signer } from "ethers"
 
-import { Masset, Masset__factory } from "types/generated"
+import { Comptroller__factory, ERC20__factory, Masset, Masset__factory } from "types/generated"
 import { BN } from "@utils/math"
 import { MusdEth } from "types/generated/MusdEth"
 import mUsdEthAbi from "../contracts/masset/versions/mUsdEth.json"
@@ -25,6 +25,8 @@ import {
     snapSave,
     getCollectedInterest,
     getSavingsManager,
+    getCompTokens,
+    getAaveTokens,
 } from "./utils/snap-utils"
 import { Token, sUSD, USDC, DAI, USDT, PUSDT, PUSDC, PDAI } from "./utils/tokens"
 import { usdFormatter } from "./utils/quantity-formatters"
@@ -157,6 +159,10 @@ task("mUSD-snap", "Snaps mUSD")
             usdFormatter,
             balances.save,
         )
+
+        await getCompTokens(signer, toBlock)
+
+        await getAaveTokens(signer, toBlock)
 
         await snapSave(signer, hre.network.name, toBlock.blockNumber)
 
