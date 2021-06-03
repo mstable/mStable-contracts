@@ -100,10 +100,6 @@ describe("Liquidator", () => {
         stkAaveToken = await new MockStakedAave__factory(sa.default.signer).deploy(aaveToken.address, sa.fundManager.address, 100000000)
         aaveIntegration = await new MockRewardToken__factory(sa.default.signer).deploy(nexus.address)
         await aaveIntegration.setRewardToken(stkAaveToken.address)
-        // put some stkAAVE in the integration contract
-        stkAaveToken.connect(sa.fundManager.signer).transfer(aaveIntegration.address, 20000000)
-        // put some AAVE in the stkAAVE
-        aaveToken.connect(sa.fundManager.signer).transfer(stkAaveToken.address, 20000000)
 
         // Mocked Uniswap V3
         uniswap = await new MockUniswapV3__factory(sa.default.signer).deploy()
@@ -112,9 +108,8 @@ describe("Liquidator", () => {
         // Add COMP to bAsset exchange rates
         await uniswap.setRate(compToken.address, bAsset.address, simpleToExactAmount(440, 18))
         await uniswap.setRate(compToken.address, bAsset2.address, simpleToExactAmount(444, 18))
+        // Uniswap paths
         uniswapCompBassetPaths = encodeUniswapPath([compToken.address, DEAD_ADDRESS, bAsset.address], [3000, 3000])
-        // Add AAVE to bAsset exchange rates
-        await uniswap.setRate(aaveToken.address, bAsset.address, simpleToExactAmount(380, 18))
         uniswapAaveBassetPaths = encodeUniswapPath([aaveToken.address, DEAD_ADDRESS, bAsset.address], [3000, 3000])
 
         // Add the module
@@ -568,9 +563,15 @@ describe("Liquidator", () => {
             await liquidator.triggerLiquidation(compIntegration.address)
         })
     })
-    context("Aave liquidation", () => {
+    context("Aave claim rewards", () => {
         before(async () => {
             await redeployLiquidator()
+
+            // put some stkAAVE in the integration contract
+            stkAaveToken.connect(sa.fundManager.signer).transfer(aaveIntegration.address, 1500)
+            // put some AAVE in the stkAAVE
+            aaveToken.connect(sa.fundManager.signer).transfer(stkAaveToken.address, 100000)
+
             await liquidator
                 .connect(sa.governor.signer)
                 .createLiquidation(
@@ -593,6 +594,9 @@ describe("Liquidator", () => {
 
             await liquidator.claimStakedAave()
 
+            console.log(`stkAAVE liquidator balance after ${await stkAaveToken.balanceOf(liquidator.address)}`)
+            console.log(`AAVE liquidator balance after ${await aaveToken.balanceOf(liquidator.address)}`)
+
             // After checks
             expect(await stkAaveToken.balanceOf(liquidator.address), "some stkAave in liquidator after").to.gt(0)
             expect(await aaveToken.balanceOf(liquidator.address), "no AAVE in liquidator after").to.eq(0)
@@ -607,6 +611,76 @@ describe("Liquidator", () => {
 
             await expect(tx).to.revertedWith("Last claim cooldown not ended")
         })
+        it("claim staked AAVE before cooldowmn", async () => {
+            await increaseTime(ONE_DAY.mul(10))
+
+            const tx = liquidator.claimStakedAave()
+
+            await expect(tx).to.revertedWith("Must liquidate last claim")
+        })
+        it("claim staked after unstake window", async () => {
+            await increaseTime(ONE_DAY.mul(2))
+            // put more stkAAVE in the integration contract before claim
+            stkAaveToken.connect(sa.fundManager.signer).transfer(aaveIntegration.address, 1100)
+
+            // Before checks
+            expect(await stkAaveToken.balanceOf(liquidator.address), "some stkAAVE in liquidator before").to.gt(0)
+            expect(await aaveToken.balanceOf(liquidator.address), "some AAVE in liquidator before").to.eq(0)
+
+            await liquidator.claimStakedAave()
+
+            // After checks
+            expect(await stkAaveToken.balanceOf(liquidator.address), "some stkAave in liquidator after").to.gt(0)
+            expect(await aaveToken.balanceOf(liquidator.address), "no AAVE in liquidator after").to.eq(0)
+            const liquidation = await liquidator.liquidations(aaveIntegration.address)
+            expect(liquidation.aaveBalance, "integration aaveBalance > 0 after").to.gt(0)
+            expect(await liquidator.totalAaveBalance(), "totalAaveBalance > 0 after").to.gt(0)
+        })
+    })
+    context("Aave liquidation of mAsset", () => {
+        before(async () => {
+            await redeployLiquidator()
+
+            // put some stkAAVE in the integration contract
+            stkAaveToken.connect(sa.fundManager.signer).transfer(aaveIntegration.address, 2500)
+            // put some AAVE in the stkAAVE
+            aaveToken.connect(sa.fundManager.signer).transfer(stkAaveToken.address, 200000)
+            // Add AAVE to bAsset exchange rates
+            await uniswap.setRate(aaveToken.address, bAsset.address, simpleToExactAmount(380, 18))
+
+            await liquidator
+                .connect(sa.governor.signer)
+                .createLiquidation(
+                    aaveIntegration.address,
+                    aaveToken.address,
+                    bAsset.address,
+                    uniswapAaveBassetPaths.encoded,
+                    uniswapAaveBassetPaths.encodedReversed,
+                    simpleToExactAmount(1000, 18),
+                    simpleToExactAmount(50, 18),
+                    mUSD.address,
+                    true,
+                )
+            await aaveIntegration.connect(sa.governor.signer).approveRewardToken()
+        })
+        it("trigger liquidation before any claim", async () => {
+            const tx = liquidator.triggerLiquidationAave()
+            await expect(tx).to.revertedWith("Must claim before liquidation")
+        })
+        it("claim staked AAVE", async () => {
+            // Before checks
+            expect(await stkAaveToken.balanceOf(liquidator.address), "no stkAAVE in liquidator before").to.eq(0)
+            expect(await aaveToken.balanceOf(liquidator.address), "no AAVE in liquidator before").to.eq(0)
+
+            await liquidator.claimStakedAave()
+
+            // After checks
+            expect(await stkAaveToken.balanceOf(liquidator.address), "some stkAave in liquidator after").to.gt(0)
+            expect(await aaveToken.balanceOf(liquidator.address), "no AAVE in liquidator after").to.eq(0)
+            const liquidation = await liquidator.liquidations(aaveIntegration.address)
+            expect(liquidation.aaveBalance, "integration aaveBalance > 0 after").to.gt(0)
+            expect(await liquidator.totalAaveBalance(), "totalAaveBalance > 0 after").to.gt(0)
+        })
         it("trigger liquidation", async () => {
             await increaseTime(ONE_DAY.mul(10))
             expect(await liquidator.totalAaveBalance(), "totalAaveBalance > 0 before").to.gt(0)
@@ -615,6 +689,70 @@ describe("Liquidator", () => {
 
             expect(await stkAaveToken.balanceOf(liquidator.address), "no stkAave in liquidator after").to.eq(0)
             expect(await liquidator.totalAaveBalance(), "totalAaveBalance = 0 after").to.eq(0)
+        })
+        it("trigger liquidation again", async () => {
+            const tx = liquidator.triggerLiquidationAave()
+            await expect(tx).to.revertedWith("Must claim before liquidation")
+        })
+    })
+    context("Aave liquidation of Feeder Pool", () => {
+        before(async () => {
+            await redeployLiquidator()
+
+            // put some stkAAVE in the integration contract
+            stkAaveToken.connect(sa.fundManager.signer).transfer(aaveIntegration.address, 2500)
+            // put some AAVE in the stkAAVE
+            aaveToken.connect(sa.fundManager.signer).transfer(stkAaveToken.address, 200000)
+            // Add AAVE to bAsset exchange rates
+            await uniswap.setRate(aaveToken.address, bAsset.address, simpleToExactAmount(380, 18))
+
+            await liquidator
+                .connect(sa.governor.signer)
+                .createLiquidation(
+                    aaveIntegration.address,
+                    aaveToken.address,
+                    bAsset.address,
+                    uniswapAaveBassetPaths.encoded,
+                    uniswapAaveBassetPaths.encodedReversed,
+                    simpleToExactAmount(1000, 18),
+                    simpleToExactAmount(50, 18),
+                    ZERO_ADDRESS,
+                    true,
+                )
+            await aaveIntegration.connect(sa.governor.signer).approveRewardToken()
+        })
+        it("trigger liquidation before any claim", async () => {
+            const tx = liquidator.triggerLiquidationAave()
+            await expect(tx).to.revertedWith("Must claim before liquidation")
+        })
+        it("claim staked AAVE", async () => {
+            // Before checks
+            expect(await stkAaveToken.balanceOf(liquidator.address), "no stkAAVE in liquidator before").to.eq(0)
+            expect(await aaveToken.balanceOf(liquidator.address), "no AAVE in liquidator before").to.eq(0)
+
+            await liquidator.claimStakedAave()
+
+            // After checks
+            expect(await stkAaveToken.balanceOf(liquidator.address), "some stkAave in liquidator after").to.gt(0)
+            expect(await aaveToken.balanceOf(liquidator.address), "no AAVE in liquidator after").to.eq(0)
+            const liquidation = await liquidator.liquidations(aaveIntegration.address)
+            expect(liquidation.aaveBalance, "integration aaveBalance > 0 after").to.gt(0)
+            expect(await liquidator.totalAaveBalance(), "totalAaveBalance > 0 after").to.gt(0)
+        })
+        it("trigger liquidation", async () => {
+            await increaseTime(ONE_DAY.mul(10))
+            expect(await liquidator.totalAaveBalance(), "totalAaveBalance > 0 before").to.gt(0)
+            expect(await bAsset.balanceOf(aaveIntegration.address), "bAsset in integration before").to.eq(0)
+
+            await liquidator.triggerLiquidationAave()
+
+            expect(await stkAaveToken.balanceOf(liquidator.address), "no stkAave in liquidator after").to.eq(0)
+            expect(await liquidator.totalAaveBalance(), "totalAaveBalance = 0 after").to.eq(0)
+            expect(await bAsset.balanceOf(aaveIntegration.address), "bAsset in integration before").to.gt(0)
+        })
+        it("trigger liquidation again", async () => {
+            const tx = liquidator.triggerLiquidationAave()
+            await expect(tx).to.revertedWith("Must claim before liquidation")
         })
     })
 })
