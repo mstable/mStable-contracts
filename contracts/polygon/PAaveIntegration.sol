@@ -7,7 +7,7 @@ import {
     ILendingPoolAddressesProviderV2
 } from "../peripheral/Aave/IAave.sol";
 import { AaveV2Integration } from "../masset/peripheral/AaveV2Integration.sol";
-import { IAaveIncentivesController } from "./IAaveIncentivesController.sol";
+import { IAaveIncentivesController } from "../peripheral/Aave/IAaveIncentivesController.sol";
 
 /**
  * @title   PAaveIntegration

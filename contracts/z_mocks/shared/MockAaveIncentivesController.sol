@@ -2,7 +2,7 @@
 pragma solidity 0.8.2;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IAaveIncentivesController } from "../../polygon/IAaveIncentivesController.sol";
+import { IAaveIncentivesController } from "../../peripheral/Aave/IAaveIncentivesController.sol";
 
 contract MockAaveIncentivesController is IAaveIncentivesController {
     address public immutable rewardsToken;
