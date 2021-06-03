@@ -10,7 +10,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
-import { IUniswapV2Router02 } from "../../interfaces/IUniswapV2Router02.sol";
+import { IUniswapV2Router02 } from "../../peripheral/Uniswap/IUniswapV2Router02.sol";
 import { IBasicToken } from "../../shared/IBasicToken.sol";
 
 // FLOWS
