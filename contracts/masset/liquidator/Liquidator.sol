@@ -188,11 +188,6 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
             address savings = _savingsManager();
             IERC20(_mAsset).safeApprove(savings, 0);
             IERC20(_mAsset).safeApprove(savings, type(uint256).max);
-        } else {
-            // This Liquidator contract approves the integration contract to transfer bAssets for deposits.
-            // eg GUSD as part of the GUSD Feeder Pool.
-            IERC20(_bAsset).safeApprove(_integration, 0);
-            IERC20(_bAsset).safeApprove(_integration, type(uint256).max);
         }
 
         emit LiquidationModified(_integration);
