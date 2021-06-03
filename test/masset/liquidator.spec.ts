@@ -15,10 +15,8 @@ import {
     Liquidator,
     SavingsManager,
     MockRewardToken,
-    MockCurveMetaPool__factory,
     Liquidator__factory,
     SavingsManager__factory,
-    MockCurveMetaPool,
     MockRewardToken__factory,
     MockNexus__factory,
     ImmutableModule,
@@ -49,7 +47,6 @@ describe("Liquidator", () => {
     let uniswap: MockUniswapV3
     let uniswapCompBassetPaths: EncodedPaths
     let uniswapAaveBassetPaths: EncodedPaths
-    let curve: MockCurveMetaPool
 
     interface Liquidation {
         sellToken: string
@@ -83,12 +80,6 @@ describe("Liquidator", () => {
         bAsset = await new MockERC20__factory(sa.default.signer).deploy("Mock1", "MK1", 18, sa.fundManager.address, 100000000)
         bAsset2 = await new MockERC20__factory(sa.default.signer).deploy("Mock2", "MK2", 18, sa.fundManager.address, 100000000)
         compIntegration = await new MockRewardToken__factory(sa.default.signer).deploy(nexus.address)
-        // Set up Curve
-        curve = await new MockCurveMetaPool__factory(sa.default.signer).deploy(
-            [mUSD.address, bAsset.address, bAsset2.address],
-            mUSD.address,
-        )
-        await mUSD.connect(sa.fundManager.signer).transfer(curve.address, simpleToExactAmount(100000, 18))
 
         // Create COMP token and assign, then approve the liquidator
         compToken = await new MockERC20__factory(sa.default.signer).deploy("Compound Gov", "COMP", 18, sa.fundManager.address, 100000000)
