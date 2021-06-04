@@ -1,10 +1,11 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-restricted-syntax */
 import { Signer } from "ethers"
-import { fullScale, ONE_YEAR } from "@utils/constants"
+import { fullScale, ONE_DAY, ONE_YEAR } from "@utils/constants"
 import { applyDecimals, applyRatio, BN } from "@utils/math"
 import { formatUnits } from "ethers/lib/utils"
 import {
+    AaveStakedTokenV2__factory,
     Comptroller__factory,
     ERC20__factory,
     ExposedMassetLogic,
@@ -726,7 +727,7 @@ export const getCompTokens = async (signer: Signer, toBlock: BlockInfo, quantity
 export const getAaveTokens = async (signer: Signer, toBlock: BlockInfo, quantityFormatter = usdFormatter): Promise<void> => {
     const aaveTokens = tokens.filter((token) => token.platform === Platform.Aave && token.chain === Chain.mainnet)
 
-    const stkAaveToken = ERC20__factory.connect(stkAAVE.address, signer)
+    const stkAaveToken = AaveStakedTokenV2__factory.connect(stkAAVE.address, signer)
     const aaveIncentivesAddress = "0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5"
     const aaveIncentives = IAaveIncentivesController__factory.connect(aaveIncentivesAddress, signer)
 
@@ -742,7 +743,10 @@ export const getAaveTokens = async (signer: Signer, toBlock: BlockInfo, quantity
     // Get stkAave and AAVE in liquidity manager
     const liquidatorStkAaveBal = await stkAaveToken.balanceOf(liquidatorAddress, { blockTag: toBlock.blockNumber })
     totalStkAave = totalStkAave.add(liquidatorStkAaveBal)
-    console.log(`Liquidator ${quantityFormatter(liquidatorStkAaveBal)}`)
+    const cooldownStart = await stkAaveToken.stakersCooldowns(liquidatorAddress)
+    const cooldownEnd = cooldownStart.add(ONE_DAY.mul(10))
+    const colldownEndDate = new Date(cooldownEnd.toNumber() * 1000)
+    console.log(`Liquidator ${quantityFormatter(liquidatorStkAaveBal)} unlock ${colldownEndDate.toUTCString()}`)
 
     const aaveUsdc = await quoteSwap(signer, AAVE, USDC, totalStkAave, toBlock)
     console.log(
