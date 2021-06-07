@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.2;
+import { ILiquidator } from "./ILiquidator.sol";
 import { ISavingsManager } from "../../interfaces/ISavingsManager.sol";
 import { IMasset } from "../../interfaces/IMasset.sol";
-import { IPlatformIntegration } from "../../interfaces/IPlatformIntegration.sol";
 import { IStakedAave } from "../../peripheral/Aave/IAave.sol";
 import { IUniswapV3SwapRouter } from "../../peripheral/Uniswap/IUniswapV3SwapRouter.sol";
 import { IUniswapV3Quoter } from "../../peripheral/Uniswap/IUniswapV3Quoter.sol";
-import { PAaveIntegration } from "../../polygon/PAaveIntegration.sol";
+import { IClaimRewards } from "../../polygon/IClaimRewards.sol";
 
 // Need to use the old OZ Initializable as it reserved the first 50 slots of storage
 import { Initializable } from "../../shared/@openzeppelin-2.5/Initializable.sol";
@@ -25,7 +25,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @dev     VERSION: 1.3
  *          DATE:    2021-05-28
  */
-contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
+contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableModule {
     using SafeERC20 for IERC20;
 
     event LiquidationModified(address indexed integration);
@@ -143,7 +143,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
         uint256 _minReturn,
         address _mAsset,
         bool _useAave
-    ) external onlyGovernance {
+    ) external override onlyGovernance {
         require(liquidations[_integration].sellToken == address(0), "Liquidation already exists");
 
         require(
@@ -208,7 +208,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
         bytes calldata _uniswapPathReversed,
         uint256 _trancheAmount,
         uint256 _minReturn
-    ) external onlyGovernance {
+    ) external override onlyGovernance {
         Liquidation memory liquidation = liquidations[_integration];
 
         address oldBasset = liquidation.bAsset;
@@ -257,7 +257,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
     /**
      * @notice Delete a liquidation
      */
-    function deleteLiquidation(address _integration) external onlyGovernance {
+    function deleteLiquidation(address _integration) external override onlyGovernance {
         Liquidation memory liquidation = liquidations[_integration];
         require(liquidation.bAsset != address(0), "Liquidation does not exist");
 
@@ -277,7 +277,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
      *    - Send to SavingsManager
      * @param _integration Integration for which to trigger liquidation
      */
-    function triggerLiquidation(address _integration) external {
+    function triggerLiquidation(address _integration) external override {
         // solium-disable-next-line security/no-tx-origin
         require(tx.origin == msg.sender, "Must be EOA");
 
@@ -349,7 +349,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
      * and then transfers all reward tokens to the liquidator contract.
      * Can only claim more stkAave if the last claim's unstake window has ended.
      */
-    function claimStakedAave() external {
+    function claimStakedAave() external override {
         // solium-disable-next-line security/no-tx-origin
         require(tx.origin == msg.sender, "Must be EOA");
 
@@ -382,7 +382,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
             address integrationAdddress = aaveIntegrations[i];
 
             // 2. Claim the platform rewards on the integration contract. eg stkAave
-            PAaveIntegration(integrationAdddress).claimRewards();
+            IClaimRewards(integrationAdddress).claimRewards();
 
             // 3. Transfer sell token from integration contract if there are some
             //    Assumes the integration contract has already given infinite approval to this liquidator contract.
@@ -419,7 +419,7 @@ contract Liquidator is Initializable, ModuleKeysStorage, ImmutableModule {
      *        - else from a Feeder Pool
      *          - transfer bAssets to integration contract. eg GUSD
      */
-    function triggerLiquidationAave() external {
+    function triggerLiquidationAave() external override {
         // solium-disable-next-line security/no-tx-origin
         require(tx.origin == msg.sender, "Must be EOA");
         // Can not liquidate stkAave rewards if not already claimed by the integration contracts.

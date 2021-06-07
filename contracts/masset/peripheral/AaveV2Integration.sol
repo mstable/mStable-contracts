@@ -2,7 +2,11 @@
 pragma solidity 0.8.2;
 
 // External
-import { IAaveATokenV2, IAaveLendingPoolV2, ILendingPoolAddressesProviderV2 } from "../../peripheral/Aave/IAave.sol";
+import {
+    IAaveATokenV2,
+    IAaveLendingPoolV2,
+    ILendingPoolAddressesProviderV2
+} from "../../peripheral/Aave/IAave.sol";
 
 // Libs
 import { MassetHelpers } from "../../shared/MassetHelpers.sol";
@@ -182,7 +186,7 @@ contract AaveV2Integration is AbstractIntegration {
      * @param _bAsset     Address of the bAsset
      * @return balance    Total value of the bAsset in the platform
      */
-    function checkBalance(address _bAsset) external override returns (uint256 balance) {
+    function checkBalance(address _bAsset) external view override returns (uint256 balance) {
         // balance is always with token aToken decimals
         IAaveATokenV2 aToken = _getATokenFor(_bAsset);
         return _checkBalance(aToken);

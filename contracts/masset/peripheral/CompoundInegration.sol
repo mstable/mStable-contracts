@@ -5,7 +5,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { MassetHelpers } from "../../shared/MassetHelpers.sol";
 import { AbstractIntegration } from "./AbstractIntegration.sol";
-import { ICERC20 } from "../../peripheral/Compound/ICompound.sol";
+import { ICERC20 } from "../../peripheral/Compound/ICERC20.sol";
 
 /**
  * @title   CompoundIntegration

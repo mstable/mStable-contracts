@@ -1,33 +1,23 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.2;
 
-interface ILiquidator {
+interface IPLiquidator {
     function createLiquidation(
         address _integration,
         address _sellToken,
         address _bAsset,
-        bytes calldata _uniswapPath,
-        bytes calldata _uniswapPathReversed,
-        uint256 _trancheAmount,
-        uint256 _minReturn,
-        address _mAsset,
-        bool _useAave
+        address[] calldata _uniswapPath,
+        uint256 _minReturn
     ) external;
 
     function updateBasset(
         address _integration,
         address _bAsset,
-        bytes calldata _uniswapPath,
-        bytes calldata _uniswapPathReversed,
-        uint256 _trancheAmount,
+        address[] calldata _uniswapPath,
         uint256 _minReturn
     ) external;
 
     function deleteLiquidation(address _integration) external;
 
     function triggerLiquidation(address _integration) external;
-
-    function claimStakedAave() external;
-
-    function triggerLiquidationAave() external;
 }
