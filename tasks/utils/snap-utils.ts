@@ -5,8 +5,6 @@ import { fullScale, ONE_DAY, ONE_YEAR } from "@utils/constants"
 import { applyDecimals, applyRatio, BN } from "@utils/math"
 import { formatUnits } from "ethers/lib/utils"
 import {
-    AaveStakedTokenV2__factory,
-    Comptroller__factory,
     ERC20__factory,
     ExposedMassetLogic,
     FeederPool,
@@ -22,6 +20,8 @@ import {
 } from "types/generated"
 import { MusdEth } from "types/generated/MusdEth"
 import { encodeUniswapPath } from "@utils/peripheral/uniswap"
+import { AaveStakedTokenV2__factory } from "types/generated/factories/AaveStakedTokenV2__factory"
+import { Comptroller__factory } from "types/generated/factories/Comptroller__factory"
 import { QuantityFormatter, usdFormatter } from "./quantity-formatters"
 import { AAVE, Chain, COMP, Platform, stkAAVE, Token, tokens, USDC } from "./tokens"
 
