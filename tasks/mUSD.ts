@@ -101,16 +101,12 @@ task("mUSD-snap", "Snaps mUSD")
                     address: "0x30647a72dc82d7fbb1123ea74716ab8a317eac19",
                 },
                 {
+                    name: "Iron Bank",
+                    address: "0xbe86e8918dfc7d3cb10d295fc220f941a1470c5c",
+                },
+                {
                     name: "Curve mUSD",
                     address: "0x8474ddbe98f5aa3179b3b3f5942d724afcdec9f6",
-                },
-                {
-                    name: "BUSD Feeder Pool",
-                    address: "0xfe842e95f8911dcc21c943a1daa4bd641a1381c6",
-                },
-                {
-                    name: "GUSD Feeder Pool",
-                    address: "0x4fb30c5a3ac8e85bc32785518633303c4590752d",
                 },
                 {
                     name: "mStable DAO",
