@@ -3,7 +3,7 @@ pragma solidity 0.8.2;
 
 import { ISavingsManager } from "../interfaces/ISavingsManager.sol";
 import { IMasset } from "../interfaces/IMasset.sol";
-import { ILiquidator } from "../masset/liquidator/ILiquidator.sol";
+import { IPLiquidator } from "./IPLiquidator.sol";
 import { IUniswapV2Router02 } from "../peripheral/Uniswap/IUniswapV2Router02.sol";
 import { ImmutableModule } from "../shared/ImmutableModule.sol";
 import { IBasicToken } from "../shared/IBasicToken.sol";
@@ -18,7 +18,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @dev     VERSION: 1.0
  *          DATE:    2021-04-22
  */
-contract PLiquidator is ImmutableModule {
+contract PLiquidator is IPLiquidator, ImmutableModule {
     using SafeERC20 for IERC20;
 
     event LiquidationModified(address indexed integration);
@@ -67,7 +67,7 @@ contract PLiquidator is ImmutableModule {
         address _bAsset,
         address[] calldata _uniswapPath,
         uint256 _minReturn
-    ) external onlyGovernance {
+    ) external override onlyGovernance {
         require(
             liquidations[_integration].sellToken == address(0),
             "Liquidation exists for this bAsset"
@@ -106,7 +106,7 @@ contract PLiquidator is ImmutableModule {
         address _bAsset,
         address[] calldata _uniswapPath,
         uint256 _minReturn
-    ) external onlyGovernance {
+    ) external override onlyGovernance {
         PLiquidation memory liquidation = liquidations[_integration];
 
         address oldBasset = liquidation.bAsset;
@@ -144,7 +144,7 @@ contract PLiquidator is ImmutableModule {
     /**
      * @dev Delete a liquidation
      */
-    function deleteLiquidation(address _integration) external onlyGovernance {
+    function deleteLiquidation(address _integration) external override onlyGovernance {
         PLiquidation memory liquidation = liquidations[_integration];
         require(liquidation.bAsset != address(0), "Liquidation does not exist");
 
@@ -165,7 +165,7 @@ contract PLiquidator is ImmutableModule {
      *    - Send to SavingsManager
      * @param _integration Integration for which to trigger liquidation
      */
-    function triggerLiquidation(address _integration) external {
+    function triggerLiquidation(address _integration) external override {
         // solium-disable-next-line security/no-tx-origin
         require(tx.origin == msg.sender, "Must be EOA");
 
