@@ -194,4 +194,18 @@ task("mUSD-rates", "mUSD rate comparison to Curve")
         await snapConfig(mAsset, block.blockNumber)
     })
 
+task("rewards", "Get Compound and Aave platform reward tokens")
+    .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, types.int)
+    .setAction(async (taskArgs, hre) => {
+        const { ethers } = hre
+        const [signer] = await ethers.getSigners()
+
+        const block = await getBlock(ethers, taskArgs.block)
+
+        console.log(`\nGetting platform tokens at block ${block.blockNumber}, ${block.blockTime.toUTCString()}`)
+
+        await getCompTokens(signer, block)
+        await getAaveTokens(signer, block)
+    })
+
 module.exports = {}
