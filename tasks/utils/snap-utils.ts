@@ -9,6 +9,7 @@ import {
     ExposedMassetLogic,
     FeederPool,
     IAaveIncentivesController__factory,
+    IUniswapV2Router02__factory,
     IUniswapV3Quoter__factory,
     Masset,
     MV1,
@@ -685,12 +686,20 @@ export const quoteSwap = async (
 }> => {
     // Get USDC value from Uniswap
     const uniswapEthToken = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
-    const path = encodeUniswapPath([from.address, uniswapEthToken, to.address], [fee, fee])
-    const quoter = IUniswapV3Quoter__factory.connect("0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6", signer)
-    const outAmount = await quoter.callStatic.quoteExactInput(path.encoded, inAmount, { blockTag: toBlock.blockNumber })
+    let outAmount: BN
+    if (toBlock.blockNumber > 12364832) {
+        // Use Uniswap V3
+        const path = encodeUniswapPath([from.address, uniswapEthToken, to.address], [fee, fee])
+        const quoter = IUniswapV3Quoter__factory.connect("0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6", signer)
+        outAmount = await quoter.callStatic.quoteExactInput(path.encoded, inAmount, { blockTag: toBlock.blockNumber })
+    } else {
+        // Use Uniswap v2
+        const router = IUniswapV2Router02__factory.connect("0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D", signer)
+        const output = await router.getAmountsOut(inAmount, [from.address, uniswapEthToken, to.address], { blockTag: toBlock.blockNumber })
+        outAmount = output[2]
+    }
     // exchange rate = out amount / 10**(out decimals) / in amount * (10**to decimals)
     const exchangeRate = outAmount.div(BN.from(10).pow(to.decimals)).mul(BN.from(10).pow(from.decimals)).div(inAmount)
-
     return { outAmount, exchangeRate }
 }
 
@@ -733,17 +742,24 @@ export const getAaveTokens = async (signer: Signer, toBlock: BlockInfo, quantity
 
     let totalStkAave = BN.from(0)
 
+    if (toBlock.blockNumber <= 12319489) {
+        console.log(`\nbefore stkAAVE`)
+        return
+    }
+
     console.log(`\nstkAAVE accrued`)
     // Get accrued stkAave for each integration contract
     for (const token of aaveTokens) {
-        const accruedBal = await aaveIncentives.getRewardsBalance([token.liquidityProvider], token.integrator)
+        const accruedBal = await aaveIncentives.getRewardsBalance([token.liquidityProvider], token.integrator, {
+            blockTag: toBlock.blockNumber,
+        })
         totalStkAave = totalStkAave.add(accruedBal)
         console.log(`${token.symbol.padEnd(10)} ${quantityFormatter(accruedBal)}`)
     }
     // Get stkAave and AAVE in liquidity manager
     const liquidatorStkAaveBal = await stkAaveToken.balanceOf(liquidatorAddress, { blockTag: toBlock.blockNumber })
     totalStkAave = totalStkAave.add(liquidatorStkAaveBal)
-    const cooldownStart = await stkAaveToken.stakersCooldowns(liquidatorAddress)
+    const cooldownStart = await stkAaveToken.stakersCooldowns(liquidatorAddress, { blockTag: toBlock.blockNumber })
     const cooldownEnd = cooldownStart.add(ONE_DAY.mul(10))
     const colldownEndDate = new Date(cooldownEnd.toNumber() * 1000)
     console.log(`Liquidator ${quantityFormatter(liquidatorStkAaveBal)} unlock ${colldownEndDate.toUTCString()}`)
