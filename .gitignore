@@ -43,8 +43,7 @@ bin/contracts
 # TSC
 /artifacts/json
 /artifacts/ts
-#/dist
-/transpiled
+/dist
 /types/generated
 
 package-lock.json
