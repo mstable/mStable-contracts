@@ -17,6 +17,7 @@ const snap_utils_1 = require("./utils/snap-utils");
 const tokens_1 = require("./utils/tokens");
 const quantity_formatters_1 = require("./utils/quantity-formatters");
 const rates_utils_1 = require("./utils/rates-utils");
+const utils_1 = require("./utils");
 const mUsdBassets = [tokens_1.sUSD, tokens_1.USDC, tokens_1.DAI, tokens_1.USDT];
 const mUsdPolygonBassets = [tokens_1.PUSDC, tokens_1.PDAI, tokens_1.PUSDT];
 const getMasset = (signer, networkName) => {
@@ -33,12 +34,11 @@ const getMasset = (signer, networkName) => {
 };
 config_1.task("mUSD-storage", "Dumps mUSD's storage data")
     .addOptionalParam("block", "Block number to get storage from. (default: current block)", 0, config_1.types.int)
-    .setAction(async (taskArgs, hre) => {
-    const { ethers } = hre;
-    const [signer] = await ethers.getSigners();
+    .setAction(async (taskArgs, { ethers, network }) => {
+    const signer = await utils_1.getSigner(network.name, ethers);
     const toBlockNumber = taskArgs.to ? taskArgs.to : await ethers.provider.getBlockNumber();
     console.log(`Block number ${toBlockNumber}`);
-    const mAsset = getMasset(signer, hre.network.name);
+    const mAsset = getMasset(signer, network.name);
     await storage_utils_1.dumpTokenStorage(mAsset, toBlockNumber);
     await storage_utils_1.dumpBassetStorage(mAsset, toBlockNumber);
     await storage_utils_1.dumpConfigStorage(mAsset, toBlockNumber);
@@ -46,9 +46,8 @@ config_1.task("mUSD-storage", "Dumps mUSD's storage data")
 config_1.task("mUSD-snap", "Snaps mUSD")
     .addOptionalParam("from", "Block to query transaction events from. (default: deployment block)", 12094461, config_1.types.int)
     .addOptionalParam("to", "Block to query transaction events to. (default: current block)", 0, config_1.types.int)
-    .setAction(async (taskArgs, hre) => {
-    const { ethers, network } = hre;
-    const [signer] = await ethers.getSigners();
+    .setAction(async (taskArgs, { ethers, network }) => {
+    const signer = await utils_1.getSigner(network.name, ethers);
     let exposedValidator;
     if (!["mainnet", "polygon_mainnet"].includes(network.name)) {
         console.log("Not a mainnet chain");
@@ -62,10 +61,10 @@ config_1.task("mUSD-snap", "Snaps mUSD")
         const massetFactory = await ethers.getContractFactory("ExposedMassetLogic", linkedAddress);
         exposedValidator = await massetFactory.deploy();
     }
-    const mAsset = getMasset(signer, hre.network.name);
-    const savingsManager = snap_utils_1.getSavingsManager(signer, hre.network.name);
+    const mAsset = getMasset(signer, network.name);
+    const savingsManager = snap_utils_1.getSavingsManager(signer, network.name);
     const { fromBlock, toBlock } = await snap_utils_1.getBlockRange(ethers, taskArgs.from, taskArgs.to);
-    const bAssets = hre.network.name.includes("polygon") ? mUsdPolygonBassets : mUsdBassets;
+    const bAssets = network.name.includes("polygon") ? mUsdPolygonBassets : mUsdBassets;
     let accounts = [];
     if (network.name === "mainnet") {
         accounts = [
@@ -110,28 +109,26 @@ config_1.task("mUSD-snap", "Snaps mUSD")
     const collectedInterestSummary = await snap_utils_1.getCollectedInterest(bAssets, mAsset, savingsManager, fromBlock, toBlock, quantity_formatters_1.usdFormatter, balances.save);
     await snap_utils_1.getCompTokens(signer, toBlock);
     await snap_utils_1.getAaveTokens(signer, toBlock);
-    await snap_utils_1.snapSave(signer, hre.network.name, toBlock.blockNumber);
+    await snap_utils_1.snapSave(signer, network.name, toBlock.blockNumber);
     snap_utils_1.outputFees(mintSummary, mintMultiSummary, swapSummary, redeemSummary, redeemMultiSummary, balances, fromBlock.blockTime, toBlock.blockTime, quantity_formatters_1.usdFormatter);
 });
 config_1.task("mUSD-rates", "mUSD rate comparison to Curve")
     .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, config_1.types.int)
     .addOptionalParam("swapSize", "Swap size to compare rates with Curve", 10000, config_1.types.int)
-    .setAction(async (taskArgs, hre) => {
-    const { ethers } = hre;
-    const [signer] = await ethers.getSigners();
-    const mAsset = await getMasset(signer, hre.network.name);
+    .setAction(async (taskArgs, { ethers, network }) => {
+    const signer = await utils_1.getSigner(network.name, ethers);
+    const mAsset = await getMasset(signer, network.name);
     const block = await snap_utils_1.getBlock(ethers, taskArgs.block);
     console.log(`\nGetting rates for mUSD at block ${block.blockNumber}, ${block.blockTime.toUTCString()}`);
-    const bAssets = hre.network.name.includes("polygon") ? mUsdPolygonBassets : mUsdBassets;
+    const bAssets = network.name.includes("polygon") ? mUsdPolygonBassets : mUsdBassets;
     console.log("      Qty Input     Output      Qty Out    Rate             Output    Rate   Diff      Arb$");
-    await rates_utils_1.getSwapRates(bAssets, bAssets, mAsset, block.blockNumber, quantity_formatters_1.usdFormatter, hre.network.name, math_1.BN.from(taskArgs.swapSize));
+    await rates_utils_1.getSwapRates(bAssets, bAssets, mAsset, block.blockNumber, quantity_formatters_1.usdFormatter, network.name, math_1.BN.from(taskArgs.swapSize));
     await snap_utils_1.snapConfig(mAsset, block.blockNumber);
 });
 config_1.task("rewards", "Get Compound and Aave platform reward tokens")
     .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, config_1.types.int)
-    .setAction(async (taskArgs, hre) => {
-    const { ethers } = hre;
-    const [signer] = await ethers.getSigners();
+    .setAction(async (taskArgs, { ethers, network }) => {
+    const signer = await utils_1.getSigner(network.name, ethers);
     const block = await snap_utils_1.getBlock(ethers, taskArgs.block);
     console.log(`\nGetting platform tokens at block ${block.blockNumber}, ${block.blockTime.toUTCString()}`);
     await snap_utils_1.getCompTokens(signer, block);

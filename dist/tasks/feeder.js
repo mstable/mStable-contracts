@@ -10,6 +10,7 @@ const snap_utils_1 = require("./utils/snap-utils");
 const tokens_1 = require("./utils/tokens");
 const quantity_formatters_1 = require("./utils/quantity-formatters");
 const rates_utils_1 = require("./utils/rates-utils");
+const defender_utils_1 = require("./utils/defender-utils");
 const getBalances = async (mAsset, toBlock, asset) => {
     const mAssetBalance = await mAsset.totalSupply({
         blockTag: toBlock,
@@ -57,15 +58,14 @@ const getQuantities = (fAsset, _swapSize) => {
 config_1.task("feeder-storage", "Dumps feeder contract storage data")
     .addOptionalParam("block", "Block number to get storage from. (default: current block)", 0, config_1.types.int)
     .addParam("fasset", "Token symbol of the feeder pool asset.  eg HBTC, TBTC, GUSD or BUSD", undefined, config_1.types.string, false)
-    .setAction(async (taskArgs, hre) => {
-    const { ethers } = hre;
+    .setAction(async (taskArgs, { ethers, network }) => {
     const fAsset = tokens_1.tokens.find((t) => t.symbol === taskArgs.fasset);
     if (!fAsset) {
         console.error(`Failed to find feeder pool asset with token symbol ${taskArgs.fasset}`);
         process.exit(1);
     }
     const { blockNumber } = await snap_utils_1.getBlock(ethers, taskArgs.block);
-    const [signer] = await ethers.getSigners();
+    const signer = await defender_utils_1.getSigner(network.name, ethers);
     const pool = getFeederPool(signer, fAsset.feederPool);
     await storage_utils_1.dumpTokenStorage(pool, blockNumber);
     await storage_utils_1.dumpFassetStorage(pool, blockNumber);
@@ -75,9 +75,8 @@ config_1.task("feeder-snap", "Gets feeder transactions over a period of time")
     .addOptionalParam("from", "Block to query transaction events from. (default: deployment block)", 12146627, config_1.types.int)
     .addOptionalParam("to", "Block to query transaction events to. (default: current block)", 0, config_1.types.int)
     .addParam("fasset", "Token symbol of the feeder pool asset. eg HBTC, TBTC, GUSD or BUSD", undefined, config_1.types.string, false)
-    .setAction(async (taskArgs, hre) => {
-    const { ethers } = hre;
-    const [signer] = await ethers.getSigners();
+    .setAction(async (taskArgs, { ethers, network }) => {
+    const signer = await defender_utils_1.getSigner(network.name, ethers);
     const { fromBlock, toBlock } = await snap_utils_1.getBlockRange(ethers, taskArgs.from, taskArgs.to);
     const fAsset = tokens_1.tokens.find((t) => t.symbol === taskArgs.fasset);
     if (!fAsset) {
@@ -88,7 +87,7 @@ config_1.task("feeder-snap", "Gets feeder transactions over a period of time")
     const mAsset = tokens_1.tokens.find((t) => t.symbol === fAsset.parent);
     const fpAssets = [mAsset, fAsset];
     const feederPool = getFeederPool(signer, fAsset.feederPool);
-    const savingsManager = snap_utils_1.getSavingsManager(signer, hre.network.name);
+    const savingsManager = snap_utils_1.getSavingsManager(signer, network.name);
     const { quantityFormatter } = getQuantities(fAsset, taskArgs.swapSize);
     const mintSummary = await snap_utils_1.getMints(tokens_1.tokens, feederPool, fromBlock.blockNumber, toBlock.blockNumber, quantityFormatter);
     const mintMultiSummary = await snap_utils_1.getMultiMints(tokens_1.tokens, feederPool, fromBlock.blockNumber, toBlock.blockNumber, quantityFormatter);
@@ -105,9 +104,8 @@ config_1.task("feeder-rates", "Feeder rate comparison to Curve")
     .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, config_1.types.int)
     .addOptionalParam("swapSize", "Swap size to compare rates with Curve", undefined, config_1.types.float)
     .addParam("fasset", "Token symbol of the feeder pool asset. eg HBTC, TBTC, GUSD or BUSD", undefined, config_1.types.string, false)
-    .setAction(async (taskArgs, hre) => {
-    const { ethers } = hre;
-    const [signer] = await ethers.getSigners();
+    .setAction(async (taskArgs, { ethers, network }) => {
+    const signer = await defender_utils_1.getSigner(network.name, ethers);
     const block = await snap_utils_1.getBlock(ethers, taskArgs.block);
     const fAsset = tokens_1.tokens.find((t) => t.symbol === taskArgs.fasset);
     if (!fAsset) {
@@ -123,9 +121,9 @@ config_1.task("feeder-rates", "Feeder rate comparison to Curve")
     const mpAssets = tokens_1.tokens.filter((t) => t.parent === fAsset.parent && !t.feederPool);
     const { quantityFormatter, swapSize } = getQuantities(fAsset, taskArgs.swapSize);
     console.log("      Qty Input     Output      Qty Out    Rate             Output    Rate   Diff      Arb$");
-    await rates_utils_1.getSwapRates(fpAssets, fpAssets, feederPool, block.blockNumber, quantityFormatter, hre.network.name, swapSize);
-    await rates_utils_1.getSwapRates([fAsset], mpAssets, feederPool, block.blockNumber, quantityFormatter, hre.network.name, swapSize);
-    await rates_utils_1.getSwapRates(mpAssets, [fAsset], feederPool, block.blockNumber, quantityFormatter, hre.network.name, swapSize);
+    await rates_utils_1.getSwapRates(fpAssets, fpAssets, feederPool, block.blockNumber, quantityFormatter, network.name, swapSize);
+    await rates_utils_1.getSwapRates([fAsset], mpAssets, feederPool, block.blockNumber, quantityFormatter, network.name, swapSize);
+    await rates_utils_1.getSwapRates(mpAssets, [fAsset], feederPool, block.blockNumber, quantityFormatter, network.name, swapSize);
     await snap_utils_1.snapConfig(feederPool, block.blockNumber);
 });
 module.exports = {};

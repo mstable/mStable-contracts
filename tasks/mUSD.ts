@@ -31,6 +31,7 @@ import {
 import { Token, sUSD, USDC, DAI, USDT, PUSDT, PUSDC, PDAI } from "./utils/tokens"
 import { usdFormatter } from "./utils/quantity-formatters"
 import { getSwapRates } from "./utils/rates-utils"
+import { getSigner } from "./utils"
 
 const mUsdBassets: Token[] = [sUSD, USDC, DAI, USDT]
 const mUsdPolygonBassets: Token[] = [PUSDC, PDAI, PUSDT]
@@ -50,14 +51,13 @@ const getMasset = (signer: Signer, networkName: string): Masset | MusdEth => {
 
 task("mUSD-storage", "Dumps mUSD's storage data")
     .addOptionalParam("block", "Block number to get storage from. (default: current block)", 0, types.int)
-    .setAction(async (taskArgs, hre) => {
-        const { ethers } = hre
-        const [signer] = await ethers.getSigners()
+    .setAction(async (taskArgs, { ethers, network }) => {
+        const signer = await getSigner(network.name, ethers)
 
         const toBlockNumber = taskArgs.to ? taskArgs.to : await ethers.provider.getBlockNumber()
         console.log(`Block number ${toBlockNumber}`)
 
-        const mAsset = getMasset(signer, hre.network.name)
+        const mAsset = getMasset(signer, network.name)
 
         await dumpTokenStorage(mAsset, toBlockNumber)
         await dumpBassetStorage(mAsset, toBlockNumber)
@@ -67,9 +67,8 @@ task("mUSD-storage", "Dumps mUSD's storage data")
 task("mUSD-snap", "Snaps mUSD")
     .addOptionalParam("from", "Block to query transaction events from. (default: deployment block)", 12094461, types.int)
     .addOptionalParam("to", "Block to query transaction events to. (default: current block)", 0, types.int)
-    .setAction(async (taskArgs, hre) => {
-        const { ethers, network } = hre
-        const [signer] = await ethers.getSigners()
+    .setAction(async (taskArgs, { ethers, network }) => {
+        const signer = await getSigner(network.name, ethers)
 
         let exposedValidator
         if (!["mainnet", "polygon_mainnet"].includes(network.name)) {
@@ -86,12 +85,12 @@ task("mUSD-snap", "Snaps mUSD")
             exposedValidator = await massetFactory.deploy()
         }
 
-        const mAsset = getMasset(signer, hre.network.name)
-        const savingsManager = getSavingsManager(signer, hre.network.name)
+        const mAsset = getMasset(signer, network.name)
+        const savingsManager = getSavingsManager(signer, network.name)
 
         const { fromBlock, toBlock } = await getBlockRange(ethers, taskArgs.from, taskArgs.to)
 
-        const bAssets = hre.network.name.includes("polygon") ? mUsdPolygonBassets : mUsdBassets
+        const bAssets = network.name.includes("polygon") ? mUsdPolygonBassets : mUsdBassets
 
         let accounts = []
         if (network.name === "mainnet") {
@@ -160,7 +159,7 @@ task("mUSD-snap", "Snaps mUSD")
 
         await getAaveTokens(signer, toBlock)
 
-        await snapSave(signer, hre.network.name, toBlock.blockNumber)
+        await snapSave(signer, network.name, toBlock.blockNumber)
 
         outputFees(
             mintSummary,
@@ -178,27 +177,25 @@ task("mUSD-snap", "Snaps mUSD")
 task("mUSD-rates", "mUSD rate comparison to Curve")
     .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, types.int)
     .addOptionalParam("swapSize", "Swap size to compare rates with Curve", 10000, types.int)
-    .setAction(async (taskArgs, hre) => {
-        const { ethers } = hre
-        const [signer] = await ethers.getSigners()
+    .setAction(async (taskArgs, { ethers, network }) => {
+        const signer = await getSigner(network.name, ethers)
 
-        const mAsset = await getMasset(signer, hre.network.name)
+        const mAsset = await getMasset(signer, network.name)
         const block = await getBlock(ethers, taskArgs.block)
 
         console.log(`\nGetting rates for mUSD at block ${block.blockNumber}, ${block.blockTime.toUTCString()}`)
 
-        const bAssets = hre.network.name.includes("polygon") ? mUsdPolygonBassets : mUsdBassets
+        const bAssets = network.name.includes("polygon") ? mUsdPolygonBassets : mUsdBassets
 
         console.log("      Qty Input     Output      Qty Out    Rate             Output    Rate   Diff      Arb$")
-        await getSwapRates(bAssets, bAssets, mAsset, block.blockNumber, usdFormatter, hre.network.name, BN.from(taskArgs.swapSize))
+        await getSwapRates(bAssets, bAssets, mAsset, block.blockNumber, usdFormatter, network.name, BN.from(taskArgs.swapSize))
         await snapConfig(mAsset, block.blockNumber)
     })
 
 task("rewards", "Get Compound and Aave platform reward tokens")
     .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, types.int)
-    .setAction(async (taskArgs, hre) => {
-        const { ethers } = hre
-        const [signer] = await ethers.getSigners()
+    .setAction(async (taskArgs, { ethers, network }) => {
+        const signer = await getSigner(network.name, ethers)
 
         const block = await getBlock(ethers, taskArgs.block)
 

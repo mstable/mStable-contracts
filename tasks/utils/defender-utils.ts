@@ -1,5 +1,5 @@
 import { Speed } from "defender-relay-client"
-import { Signer } from "ethers"
+import { Signer, Wallet } from "ethers"
 import { DefenderRelayProvider, DefenderRelaySigner } from "defender-relay-client/lib/ethers"
 
 export const getDefenderSigner = async (speed: Speed = "fast"): Promise<Signer> => {
@@ -20,7 +20,9 @@ export const getDefenderSigner = async (speed: Speed = "fast"): Promise<Signer> 
     return signer
 }
 
-export const getSigner = async (networkName: string, ethers, speed: Speed = "fast"): Promise<Signer> =>
-    ["mainnet", "polygon_mainnet", "ropsten", "polygon_testnet"].includes(networkName)
-        ? getDefenderSigner(speed)
-        : (await ethers.getSigners())[0]
+export const getSigner = async (networkName: string, ethers, speed: Speed = "fast"): Promise<Signer> => {
+    if (!process.env.DEFENDER_API_KEY || !process.env.DEFENDER_API_SECRET) {
+        return Wallet.createRandom().connect(ethers.provider)
+    }
+    return getDefenderSigner(speed)
+}

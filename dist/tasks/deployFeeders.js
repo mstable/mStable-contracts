@@ -157,9 +157,8 @@ const deployFeederWrapper = async (sender, feederPools, vaults) => {
     }
     return feederWrapper;
 };
-config_1.task("fSize", "Gets the bytecode size of the FeederPool.sol contract").setAction(async (_, hre) => {
-    const { ethers } = hre;
-    const [deployer] = await ethers.getSigners();
+config_1.task("fSize", "Gets the bytecode size of the FeederPool.sol contract").setAction(async (_, { ethers, network }) => {
+    const deployer = await defender_utils_1.getSigner(network.name, ethers);
     const linkedAddress = {
         __$60670dd84d06e10bb8a5ac6f99a1c0890c$__: constants_1.DEAD_ADDRESS,
         __$7791d1d5b7ea16da359ce352a2ac3a881c$__: constants_1.DEAD_ADDRESS,
@@ -181,9 +180,10 @@ config_1.task("fSize", "Gets the bytecode size of the FeederPool.sol contract").
     size = manager.bytecode.length / 2 / 1000;
     console.log(`FeederManager = ${size} kb`);
 });
-config_1.task("deployFeeder", "Deploys a feeder pool").setAction(async (_, hre) => {
-    const { ethers, network } = hre;
-    const [deployer] = await ethers.getSigners();
+config_1.task("deployFeeder", "Deploys a feeder pool")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", config_1.types.string)
+    .setAction(async (taskArgs, { ethers, network }) => {
+    const deployer = await defender_utils_1.getSigner(network.name, ethers, taskArgs.speed);
     const addresses = network.name === "ropsten"
         ? {
             mta: "0x273bc479E5C21CAA15aA8538DecBF310981d14C0",
@@ -272,11 +272,12 @@ config_1.task("deployFeeder", "Deploys a feeder pool").setAction(async (_, hre) 
     // - deploy feederRouter
     // - add InterestValidator as a module
 });
-config_1.task("deployFeeder-mainnet", "Deploys all the feeder pools and required contracts").setAction(async (_, hre) => {
-    const { ethers, network } = hre;
+config_1.task("deployFeeder-mainnet", "Deploys all the feeder pools and required contracts")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", config_1.types.string)
+    .setAction(async (taskArgs, { ethers, network }) => {
     if (network.name !== "mainnet")
         throw Error("Must be mainnet");
-    const [deployer] = await ethers.getSigners();
+    const deployer = await defender_utils_1.getSigner(network.name, ethers, taskArgs.speed);
     const addresses = {
         mta: "0xa3BeD4E1c75D00fa6f4E5E6922DB7261B5E9AcD2",
         staking: "0xae8bc96da4f9a9613c323478be181fdb2aa0e1bf",
@@ -439,14 +440,7 @@ config_1.task("deployIronBank", "Deploys mUSD Iron Bank (CREAM) integration cont
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", config_1.types.string)
     .setAction(async (taskArgs, hre) => {
     const nexusAddress = "0xafce80b19a8ce13dec0739a1aab7a028d6845eb3";
-    let deployer;
-    if (hre.network.name === "mainnet") {
-        deployer = await defender_utils_1.getDefenderSigner(taskArgs.speed);
-    }
-    else {
-        ;
-        [deployer] = await hre.ethers.getSigners();
-    }
+    const deployer = await defender_utils_1.getSigner(hre.network.name, hre.ethers, taskArgs.speed);
     // CREAM's ABI is the same as Compound so can use the CompoundIntegration contract
     const gusdIntegration = await deploy_utils_1.deployContract(new generated_1.CompoundIntegration__factory(deployer), "CREAM Integration for GUSD FP", [nexusAddress, tokens_1.GUSD.feederPool, tokens_1.CREAM.address]);
     let tx = await gusdIntegration.initialize([tokens_1.mUSD.address], [tokens_1.cyMUSD.address]);

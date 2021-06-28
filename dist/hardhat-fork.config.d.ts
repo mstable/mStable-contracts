@@ -20,17 +20,17 @@ declare const _default: {
         };
         ropsten: {
             url: string;
-            accounts: string[];
             gasPrice: number;
             gasLimit: number;
         };
         polygon_testnet: {
             url: string;
-            accounts: string[];
         };
         polygon_mainnet: {
             url: string;
-            accounts: string[];
+        };
+        mainnet: {
+            url: string;
         };
     };
     solidity: {
@@ -50,6 +50,11 @@ declare const _default: {
     };
     paths: {
         artifacts: string;
+    };
+    abiExporter: {
+        path: string;
+        clear: boolean;
+        flat: boolean;
     };
     gasReporter: {
         currency: string;

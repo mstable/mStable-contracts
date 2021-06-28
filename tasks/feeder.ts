@@ -24,6 +24,7 @@ import {
 import { Token, tokens } from "./utils/tokens"
 import { btcFormatter, QuantityFormatter, usdFormatter } from "./utils/quantity-formatters"
 import { getSwapRates } from "./utils/rates-utils"
+import { getSigner } from "./utils/defender-utils"
 
 const getBalances = async (mAsset: Masset | FeederPool, toBlock: number, asset: Token): Promise<Balances> => {
     const mAssetBalance = await mAsset.totalSupply({
@@ -76,9 +77,7 @@ const getQuantities = (fAsset: Token, _swapSize?: number): { quantityFormatter: 
 task("feeder-storage", "Dumps feeder contract storage data")
     .addOptionalParam("block", "Block number to get storage from. (default: current block)", 0, types.int)
     .addParam("fasset", "Token symbol of the feeder pool asset.  eg HBTC, TBTC, GUSD or BUSD", undefined, types.string, false)
-    .setAction(async (taskArgs, hre) => {
-        const { ethers } = hre
-
+    .setAction(async (taskArgs, { ethers, network }) => {
         const fAsset = tokens.find((t) => t.symbol === taskArgs.fasset)
         if (!fAsset) {
             console.error(`Failed to find feeder pool asset with token symbol ${taskArgs.fasset}`)
@@ -87,7 +86,7 @@ task("feeder-storage", "Dumps feeder contract storage data")
 
         const { blockNumber } = await getBlock(ethers, taskArgs.block)
 
-        const [signer] = await ethers.getSigners()
+        const signer = await getSigner(network.name, ethers)
         const pool = getFeederPool(signer, fAsset.feederPool)
 
         await dumpTokenStorage(pool, blockNumber)
@@ -99,10 +98,8 @@ task("feeder-snap", "Gets feeder transactions over a period of time")
     .addOptionalParam("from", "Block to query transaction events from. (default: deployment block)", 12146627, types.int)
     .addOptionalParam("to", "Block to query transaction events to. (default: current block)", 0, types.int)
     .addParam("fasset", "Token symbol of the feeder pool asset. eg HBTC, TBTC, GUSD or BUSD", undefined, types.string, false)
-    .setAction(async (taskArgs, hre) => {
-        const { ethers } = hre
-
-        const [signer] = await ethers.getSigners()
+    .setAction(async (taskArgs, { ethers, network }) => {
+        const signer = await getSigner(network.name, ethers)
         const { fromBlock, toBlock } = await getBlockRange(ethers, taskArgs.from, taskArgs.to)
 
         const fAsset = tokens.find((t) => t.symbol === taskArgs.fasset)
@@ -115,7 +112,7 @@ task("feeder-snap", "Gets feeder transactions over a period of time")
         const fpAssets = [mAsset, fAsset]
 
         const feederPool = getFeederPool(signer, fAsset.feederPool)
-        const savingsManager = getSavingsManager(signer, hre.network.name)
+        const savingsManager = getSavingsManager(signer, network.name)
 
         const { quantityFormatter } = getQuantities(fAsset, taskArgs.swapSize)
 
@@ -169,9 +166,8 @@ task("feeder-rates", "Feeder rate comparison to Curve")
     .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, types.int)
     .addOptionalParam("swapSize", "Swap size to compare rates with Curve", undefined, types.float)
     .addParam("fasset", "Token symbol of the feeder pool asset. eg HBTC, TBTC, GUSD or BUSD", undefined, types.string, false)
-    .setAction(async (taskArgs, hre) => {
-        const { ethers } = hre
-        const [signer] = await ethers.getSigners()
+    .setAction(async (taskArgs, { ethers, network }) => {
+        const signer = await getSigner(network.name, ethers)
 
         const block = await getBlock(ethers, taskArgs.block)
 
@@ -193,9 +189,9 @@ task("feeder-rates", "Feeder rate comparison to Curve")
         const { quantityFormatter, swapSize } = getQuantities(fAsset, taskArgs.swapSize)
 
         console.log("      Qty Input     Output      Qty Out    Rate             Output    Rate   Diff      Arb$")
-        await getSwapRates(fpAssets, fpAssets, feederPool, block.blockNumber, quantityFormatter, hre.network.name, swapSize)
-        await getSwapRates([fAsset], mpAssets, feederPool, block.blockNumber, quantityFormatter, hre.network.name, swapSize)
-        await getSwapRates(mpAssets, [fAsset], feederPool, block.blockNumber, quantityFormatter, hre.network.name, swapSize)
+        await getSwapRates(fpAssets, fpAssets, feederPool, block.blockNumber, quantityFormatter, network.name, swapSize)
+        await getSwapRates([fAsset], mpAssets, feederPool, block.blockNumber, quantityFormatter, network.name, swapSize)
+        await getSwapRates(mpAssets, [fAsset], feederPool, block.blockNumber, quantityFormatter, network.name, swapSize)
         await snapConfig(feederPool, block.blockNumber)
     })
 

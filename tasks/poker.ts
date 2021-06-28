@@ -8,7 +8,7 @@ import { Contract, Provider } from "ethers-multicall"
 import { gql, GraphQLClient } from "graphql-request"
 import { task, types } from "hardhat/config"
 import { BoostedSavingsVault__factory, Poker, Poker__factory } from "types/generated"
-import { getDefenderSigner } from "./utils/defender-utils"
+import { getSigner } from "./utils/defender-utils"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { MTA } from "./utils/tokens"
 
@@ -56,10 +56,9 @@ task("over-boost", "Pokes accounts that are over boosted")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .addFlag("update", "Will send a poke transactions to the Poker contract")
     .addOptionalParam("minMtaDiff", "Min amount of vMTA over boosted", 500, types.int)
-    .setAction(async (taskArgs) => {
+    .setAction(async (taskArgs, hre) => {
         const minMtaDiff = simpleToExactAmount(taskArgs.minMtaDiff)
-        const signer = await getDefenderSigner(taskArgs.speed)
-        // const [signer] = await ethers.getSigners()
+        const signer = await getSigner(hre.network.name, hre.ethers, taskArgs.speed)
         // const signer = await impersonate("0x2f2Db75C5276481E2B018Ac03e968af7763Ed118")
 
         const gqlClient = new GraphQLClient("https://api.thegraph.com/subgraphs/name/mstable/mstable-feeder-pools")
@@ -164,11 +163,7 @@ task("over-boost", "Pokes accounts that are over boosted")
     })
 
 task("deployPoker", "Deploys the Poker contract").setAction(async (_, hre) => {
-    const { network } = hre
-    // const [deployer] = await ethers.getSigners()
-    const deployer = await getDefenderSigner()
-
-    if (network.name !== "mainnet") throw Error("Invalid network")
+    const deployer = await getSigner(hre.network.name, hre.ethers)
 
     await deployContract<Poker>(new Poker__factory(deployer), "Poker")
 })

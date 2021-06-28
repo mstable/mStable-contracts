@@ -24,6 +24,7 @@ import {
 } from "./utils/snap-utils"
 import { Token, renBTC, sBTC, WBTC } from "./utils/tokens"
 import { getSwapRates } from "./utils/rates-utils"
+import { getSigner } from "./utils/defender-utils"
 
 const bAssets: Token[] = [renBTC, sBTC, WBTC]
 
@@ -38,12 +39,10 @@ const getMasset = (signer: Signer, contractAddress = "0x945Facb997494CC2570096c7
 
 task("mBTC-storage", "Dumps mBTC's storage data")
     .addOptionalParam("block", "Block number to get storage from. (default: current block)", 0, types.int)
-    .setAction(async (taskArgs, hre) => {
-        const { ethers } = hre
-
+    .setAction(async (taskArgs, { ethers, network }) => {
         const toBlockNumber = taskArgs.to ? taskArgs.to : await ethers.provider.getBlockNumber()
         console.log(`Block number ${toBlockNumber}`)
-        const [signer] = await ethers.getSigners()
+        const signer = await getSigner(network.name, ethers)
 
         const mAsset = getMasset(signer)
 
@@ -55,10 +54,8 @@ task("mBTC-storage", "Dumps mBTC's storage data")
 task("mBTC-snap", "Get the latest data from the mBTC contracts")
     .addOptionalParam("from", "Block to query transaction events from. (default: deployment block)", 12094461, types.int)
     .addOptionalParam("to", "Block to query transaction events to. (default: current block)", 0, types.int)
-    .setAction(async (taskArgs, hre) => {
-        const { ethers, network } = hre
-
-        const [signer] = await ethers.getSigners()
+    .setAction(async (taskArgs, { ethers, network }) => {
+        const signer = await getSigner(network.name, ethers)
 
         let exposedValidator
         if (network.name !== "mainnet") {
@@ -76,7 +73,7 @@ task("mBTC-snap", "Get the latest data from the mBTC contracts")
         }
 
         const mAsset = getMasset(signer)
-        const savingsManager = getSavingsManager(signer, hre.network.name)
+        const savingsManager = getSavingsManager(signer, network.name)
 
         const { fromBlock, toBlock } = await getBlockRange(ethers, taskArgs.from, taskArgs.to)
 
@@ -149,9 +146,8 @@ task("mBTC-snap", "Get the latest data from the mBTC contracts")
 task("mBTC-rates", "mBTC rate comparison to Curve")
     .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, types.int)
     .addOptionalParam("swapSize", "Swap size to compare rates with Curve", 1, types.int)
-    .setAction(async (taskArgs, hre) => {
-        const { ethers } = hre
-        const [signer] = await ethers.getSigners()
+    .setAction(async (taskArgs, { ethers, network }) => {
+        const signer = await getSigner(network.name, ethers)
 
         const mAsset = await getMasset(signer)
         const block = await getBlock(ethers, taskArgs.block)
@@ -159,7 +155,7 @@ task("mBTC-rates", "mBTC rate comparison to Curve")
         console.log(`\nGetting rates for mBTC at block ${block.blockNumber}, ${block.blockTime.toUTCString()}`)
 
         console.log("      Qty Input     Output      Qty Out    Rate             Output    Rate   Diff      Arb$")
-        await getSwapRates(bAssets, bAssets, mAsset, block.blockNumber, btcFormatter, hre.network.name, BN.from(taskArgs.swapSize))
+        await getSwapRates(bAssets, bAssets, mAsset, block.blockNumber, btcFormatter, network.name, BN.from(taskArgs.swapSize))
         await snapConfig(mAsset, block.blockNumber)
     })
 
