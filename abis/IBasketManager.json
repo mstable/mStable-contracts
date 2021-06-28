@@ -1,0 +1,93 @@
+[
+  {
+    "inputs": [],
+    "name": "getBasket",
+    "outputs": [
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "address",
+                "name": "addr",
+                "type": "address"
+              },
+              {
+                "internalType": "enum BassetStatus",
+                "name": "status",
+                "type": "uint8"
+              },
+              {
+                "internalType": "bool",
+                "name": "isTransferFeeCharged",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint256",
+                "name": "ratio",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "maxWeight",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "vaultBalance",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct Basset[]",
+            "name": "bassets",
+            "type": "tuple[]"
+          },
+          {
+            "internalType": "uint8",
+            "name": "maxBassets",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bool",
+            "name": "undergoingRecol",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "failed",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "collateralisationRatio",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct Basket",
+        "name": "b",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_bAsset",
+        "type": "address"
+      }
+    ],
+    "name": "getBassetIntegrator",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "integrator",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

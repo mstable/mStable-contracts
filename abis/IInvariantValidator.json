@@ -1,0 +1,492 @@
+[
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint128",
+            "name": "ratio",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint128",
+            "name": "vaultBalance",
+            "type": "uint128"
+          }
+        ],
+        "internalType": "struct BassetData[]",
+        "name": "_bAssets",
+        "type": "tuple[]"
+      },
+      {
+        "internalType": "uint8",
+        "name": "_i",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_rawInput",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "supply",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "a",
+            "type": "uint256"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint128",
+                "name": "min",
+                "type": "uint128"
+              },
+              {
+                "internalType": "uint128",
+                "name": "max",
+                "type": "uint128"
+              }
+            ],
+            "internalType": "struct WeightLimits",
+            "name": "limits",
+            "type": "tuple"
+          },
+          {
+            "internalType": "uint256",
+            "name": "recolFee",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct InvariantConfig",
+        "name": "_config",
+        "type": "tuple"
+      }
+    ],
+    "name": "computeMint",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint128",
+            "name": "ratio",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint128",
+            "name": "vaultBalance",
+            "type": "uint128"
+          }
+        ],
+        "internalType": "struct BassetData[]",
+        "name": "_bAssets",
+        "type": "tuple[]"
+      },
+      {
+        "internalType": "uint8[]",
+        "name": "_indices",
+        "type": "uint8[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "_rawInputs",
+        "type": "uint256[]"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "supply",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "a",
+            "type": "uint256"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint128",
+                "name": "min",
+                "type": "uint128"
+              },
+              {
+                "internalType": "uint128",
+                "name": "max",
+                "type": "uint128"
+              }
+            ],
+            "internalType": "struct WeightLimits",
+            "name": "limits",
+            "type": "tuple"
+          },
+          {
+            "internalType": "uint256",
+            "name": "recolFee",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct InvariantConfig",
+        "name": "_config",
+        "type": "tuple"
+      }
+    ],
+    "name": "computeMintMulti",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint128",
+            "name": "ratio",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint128",
+            "name": "vaultBalance",
+            "type": "uint128"
+          }
+        ],
+        "internalType": "struct BassetData[]",
+        "name": "_bAssets",
+        "type": "tuple[]"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "supply",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "a",
+            "type": "uint256"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint128",
+                "name": "min",
+                "type": "uint128"
+              },
+              {
+                "internalType": "uint128",
+                "name": "max",
+                "type": "uint128"
+              }
+            ],
+            "internalType": "struct WeightLimits",
+            "name": "limits",
+            "type": "tuple"
+          },
+          {
+            "internalType": "uint256",
+            "name": "recolFee",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct InvariantConfig",
+        "name": "_config",
+        "type": "tuple"
+      }
+    ],
+    "name": "computePrice",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "price",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "k",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint128",
+            "name": "ratio",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint128",
+            "name": "vaultBalance",
+            "type": "uint128"
+          }
+        ],
+        "internalType": "struct BassetData[]",
+        "name": "_bAssets",
+        "type": "tuple[]"
+      },
+      {
+        "internalType": "uint8",
+        "name": "_i",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_mAssetQuantity",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "supply",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "a",
+            "type": "uint256"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint128",
+                "name": "min",
+                "type": "uint128"
+              },
+              {
+                "internalType": "uint128",
+                "name": "max",
+                "type": "uint128"
+              }
+            ],
+            "internalType": "struct WeightLimits",
+            "name": "limits",
+            "type": "tuple"
+          },
+          {
+            "internalType": "uint256",
+            "name": "recolFee",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct InvariantConfig",
+        "name": "_config",
+        "type": "tuple"
+      }
+    ],
+    "name": "computeRedeem",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint128",
+            "name": "ratio",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint128",
+            "name": "vaultBalance",
+            "type": "uint128"
+          }
+        ],
+        "internalType": "struct BassetData[]",
+        "name": "_bAssets",
+        "type": "tuple[]"
+      },
+      {
+        "internalType": "uint8[]",
+        "name": "_indices",
+        "type": "uint8[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "_rawOutputs",
+        "type": "uint256[]"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "supply",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "a",
+            "type": "uint256"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint128",
+                "name": "min",
+                "type": "uint128"
+              },
+              {
+                "internalType": "uint128",
+                "name": "max",
+                "type": "uint128"
+              }
+            ],
+            "internalType": "struct WeightLimits",
+            "name": "limits",
+            "type": "tuple"
+          },
+          {
+            "internalType": "uint256",
+            "name": "recolFee",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct InvariantConfig",
+        "name": "_config",
+        "type": "tuple"
+      }
+    ],
+    "name": "computeRedeemExact",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint128",
+            "name": "ratio",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint128",
+            "name": "vaultBalance",
+            "type": "uint128"
+          }
+        ],
+        "internalType": "struct BassetData[]",
+        "name": "_bAssets",
+        "type": "tuple[]"
+      },
+      {
+        "internalType": "uint8",
+        "name": "_i",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint8",
+        "name": "_o",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_rawInput",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_feeRate",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "supply",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "a",
+            "type": "uint256"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint128",
+                "name": "min",
+                "type": "uint128"
+              },
+              {
+                "internalType": "uint128",
+                "name": "max",
+                "type": "uint128"
+              }
+            ],
+            "internalType": "struct WeightLimits",
+            "name": "limits",
+            "type": "tuple"
+          },
+          {
+            "internalType": "uint256",
+            "name": "recolFee",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct InvariantConfig",
+        "name": "_config",
+        "type": "tuple"
+      }
+    ],
+    "name": "computeSwap",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

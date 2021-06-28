@@ -1,0 +1,20 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "contract ILiquidator",
+        "name": "_liq",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_integration",
+        "type": "address"
+      }
+    ],
+    "name": "trigger",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

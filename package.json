@@ -8,10 +8,12 @@
         "test": "test"
     },
     "files": [
+        "/abis",
         "/contracts/**/*.sol",
         "!/contracts/z_mocks",
-        "/build/contracts/**/*.json",
-        "/dist"
+        "/dist",
+        "!/dist/test",
+        "!/dist/test-fork"
     ],
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
@@ -61,6 +63,7 @@
         "eslint-plugin-jsx-a11y": "^6.2.3",
         "eslint-plugin-react": "^7.18.3",
         "ethereum-waffle": "^3.0.0",
+        "hardhat-abi-exporter": "^2.2.1",
         "humanize-duration": "^3.21.0",
         "husky": "^6.0.0",
         "mocha": "^9.0.1",
@@ -92,10 +95,10 @@
         "defender-relay-client": "^1.8.0",
         "ethers": "^5.3.1",
         "ethers-multicall": "^0.2.0",
-        "hardhat": "^2.4.0",
-        "hardhat-gas-reporter": "^1.0.1",
         "graphql": "^15.5.0",
         "graphql-request": "^3.4.0",
+        "hardhat": "^2.4.0",
+        "hardhat-gas-reporter": "^1.0.1",
         "solidity-coverage": "0.7.16",
         "ts-node": "^10.0.0",
         "tsconfig-paths": "^3.9.0",

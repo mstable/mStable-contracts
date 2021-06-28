@@ -1,0 +1,133 @@
+[
+  {
+    "inputs": [],
+    "name": "claimStakedAave",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_integration",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_sellToken",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_bAsset",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes",
+        "name": "_uniswapPath",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes",
+        "name": "_uniswapPathReversed",
+        "type": "bytes"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_trancheAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_minReturn",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "_mAsset",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "_useAave",
+        "type": "bool"
+      }
+    ],
+    "name": "createLiquidation",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_integration",
+        "type": "address"
+      }
+    ],
+    "name": "deleteLiquidation",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_integration",
+        "type": "address"
+      }
+    ],
+    "name": "triggerLiquidation",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "triggerLiquidationAave",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_integration",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_bAsset",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes",
+        "name": "_uniswapPath",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes",
+        "name": "_uniswapPathReversed",
+        "type": "bytes"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_trancheAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_minReturn",
+        "type": "uint256"
+      }
+    ],
+    "name": "updateBasset",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]
