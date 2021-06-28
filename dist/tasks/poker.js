@@ -47,10 +47,9 @@ config_1.task("over-boost", "Pokes accounts that are over boosted")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", config_1.types.string)
     .addFlag("update", "Will send a poke transactions to the Poker contract")
     .addOptionalParam("minMtaDiff", "Min amount of vMTA over boosted", 500, config_1.types.int)
-    .setAction(async (taskArgs) => {
+    .setAction(async (taskArgs, hre) => {
     const minMtaDiff = math_1.simpleToExactAmount(taskArgs.minMtaDiff);
-    const signer = await defender_utils_1.getDefenderSigner(taskArgs.speed);
-    // const [signer] = await ethers.getSigners()
+    const signer = await defender_utils_1.getSigner(hre.network.name, hre.ethers, taskArgs.speed);
     // const signer = await impersonate("0x2f2Db75C5276481E2B018Ac03e968af7763Ed118")
     const gqlClient = new graphql_request_1.GraphQLClient("https://api.thegraph.com/subgraphs/name/mstable/mstable-feeder-pools");
     const query = graphql_request_1.gql `
@@ -138,11 +137,7 @@ config_1.task("over-boost", "Pokes accounts that are over boosted")
     }
 });
 config_1.task("deployPoker", "Deploys the Poker contract").setAction(async (_, hre) => {
-    const { network } = hre;
-    // const [deployer] = await ethers.getSigners()
-    const deployer = await defender_utils_1.getDefenderSigner();
-    if (network.name !== "mainnet")
-        throw Error("Invalid network");
+    const deployer = await defender_utils_1.getSigner(hre.network.name, hre.ethers);
     await deploy_utils_1.deployContract(new generated_1.Poker__factory(deployer), "Poker");
 });
 module.exports = {};

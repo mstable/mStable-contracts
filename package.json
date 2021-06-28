@@ -26,7 +26,7 @@
         "compile-abis": "typechain --target=ethers-v5 --out-dir types/generated \"?(contracts|build)/!(build-info)/**/+([a-zA-Z0-9]).json\"",
         "compile-ts": "npx tsc",
         "compile": "yarn hardhat compile --force && yarn run compile-abis",
-        "flatten": "sol-merger \"./contracts/**/*.sol\" ./_flat",
+        "flatten": "npx sol-merger \"./contracts/**/*.sol\" ./_flat",
         "coverage": "yarn hardhat compile --force && node --max_old_space_size=6144 node_modules/.bin/hardhat coverage --temp 'build/contracts' --testfiles 'test/**/*.spec.ts' --show-stack-traces",
         "convertTestFiles": "cd test-utils/validator-data; ts-node ./convertCsvTestFiles.ts",
         "task": "yarn compile && yarn hardhat --config tasks.config.ts",

@@ -12,8 +12,8 @@ const deploy_utils_1 = require("./utils/deploy-utils");
 const getSavingsManager = (signer, contractAddress = "0x9781c4e9b9cc6ac18405891df20ad3566fb6b301") => generated_1.ISavingsManager__factory.connect(contractAddress, signer);
 config_1.task("eject-stakers", "Ejects expired stakers from Meta staking contract (vMTA)")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", config_1.types.string)
-    .setAction(async (taskArgs) => {
-    const signer = await defender_utils_1.getDefenderSigner(taskArgs.speed);
+    .setAction(async (taskArgs, { ethers, network }) => {
+    const signer = await defender_utils_1.getSigner(network.name, ethers, taskArgs.speed);
     const ejector = generated_1.IEjector__factory.connect("0x71061E3F432FC5BeE3A6763Cd35F50D3C77A0434", signer);
     // TODO check the last time the eject was run
     // Check it's been more than 7 days since the last eject has been run
@@ -31,13 +31,13 @@ config_1.task("eject-stakers", "Ejects expired stakers from Meta staking contrac
 config_1.task("collect-interest", "Collects and streams interest from platforms")
     .addParam("asset", "Token symbol of main or feeder pool asset. eg mUSD, mBTC, fpmBTC/HBTC or fpmUSD/GUSD", undefined, config_1.types.string, false)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", config_1.types.string)
-    .setAction(async (taskArgs) => {
+    .setAction(async (taskArgs, { ethers, network }) => {
     const asset = tokens_1.tokens.find((t) => t.symbol === taskArgs.asset);
     if (!asset) {
         console.error(`Failed to find main or feeder pool asset with token symbol ${taskArgs.asset}`);
         process.exit(1);
     }
-    const signer = await defender_utils_1.getDefenderSigner(taskArgs.speed);
+    const signer = await defender_utils_1.getSigner(network.name, ethers, taskArgs.speed);
     const savingManager = getSavingsManager(signer);
     const lastBatchCollected = await savingManager.lastBatchCollected(asset.address);
     const lastBatchDate = new Date(lastBatchCollected.mul(1000).toNumber());
@@ -52,8 +52,8 @@ config_1.task("collect-interest", "Collects and streams interest from platforms"
 });
 config_1.task("polly-daily", "Runs the daily jobs against the contracts on Polygon mainnet")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", config_1.types.string)
-    .setAction(async (taskArgs) => {
-    const signer = await defender_utils_1.getDefenderSigner(taskArgs.speed);
+    .setAction(async (taskArgs, { ethers, network }) => {
+    const signer = await defender_utils_1.getSigner(network.name, ethers, taskArgs.speed);
     const aave = new generated_1.PAaveIntegration__factory(signer).attach("0xeab7831c96876433dB9B8953B4e7e8f66c3125c3");
     const aaveTx = await aave.claimRewards({ gasLimit: 200000 });
     await deploy_utils_1.logTxDetails(aaveTx, "claimRewards");

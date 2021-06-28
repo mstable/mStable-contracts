@@ -4,6 +4,7 @@ import { task } from "hardhat/config"
 
 import { params, deployTx, sendTx } from "./taskUtils"
 import { SaveWrapper__factory } from "../types/generated"
+import { getSigner } from "./utils/defender-utils"
 
 task("SaveWrapper.deploy", "Deploy a new SaveWrapper").setAction(async (taskArgs, { ethers }) => {
     const [deployer] = await ethers.getSigners()
@@ -29,9 +30,9 @@ task("SaveWrapper.approveMasset", "Sets approvals for a new mAsset")
                 fPools,
                 save,
             }: { saveWrapper: string; masset: string; bassets: string[]; save: string; vault: string; fassets: string[]; fPools: string[] },
-            { ethers },
+            { ethers, network },
         ) => {
-            const [deployer] = await ethers.getSigners()
+            const deployer = await getSigner(network.name, ethers)
             await sendTx(
                 SaveWrapper__factory.connect(saveWrapper, deployer),
                 "approve(address,address[],address[],address[],address,address)",
@@ -50,8 +51,8 @@ task("SaveWrapper.approveMulti", "Sets approvals for multiple tokens/a single sp
     .addParam("saveWrapper", "SaveWrapper address", undefined, params.address, false)
     .addParam("tokens", "Token addresses", undefined, params.address, false)
     .addParam("spender", "Spender address", undefined, params.address, false)
-    .setAction(async ({ saveWrapper, tokens, spender }: { saveWrapper: string; tokens: string[]; spender: string }, { ethers }) => {
-        const [deployer] = await ethers.getSigners()
+    .setAction(async ({ saveWrapper, tokens, spender }: { saveWrapper: string; tokens: string[]; spender: string }, hre) => {
+        const deployer = await getSigner(hre.network.name, hre.ethers)
         await sendTx(
             SaveWrapper__factory.connect(saveWrapper, deployer),
             "approve(address[],address)",

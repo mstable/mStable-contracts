@@ -9,6 +9,7 @@ const storage_utils_1 = require("./utils/storage-utils");
 const snap_utils_1 = require("./utils/snap-utils");
 const tokens_1 = require("./utils/tokens");
 const rates_utils_1 = require("./utils/rates-utils");
+const defender_utils_1 = require("./utils/defender-utils");
 const bAssets = [tokens_1.renBTC, tokens_1.sBTC, tokens_1.WBTC];
 const btcFormatter = (amount, decimals = 18, pad = 7, displayDecimals = 3) => {
     const string2decimals = parseFloat(utils_1.formatUnits(amount, decimals)).toFixed(displayDecimals);
@@ -18,11 +19,10 @@ const btcFormatter = (amount, decimals = 18, pad = 7, displayDecimals = 3) => {
 const getMasset = (signer, contractAddress = "0x945Facb997494CC2570096c74b5F66A3507330a1") => MusdEth__factory_1.MusdEth__factory.connect(contractAddress, signer);
 config_1.task("mBTC-storage", "Dumps mBTC's storage data")
     .addOptionalParam("block", "Block number to get storage from. (default: current block)", 0, config_1.types.int)
-    .setAction(async (taskArgs, hre) => {
-    const { ethers } = hre;
+    .setAction(async (taskArgs, { ethers, network }) => {
     const toBlockNumber = taskArgs.to ? taskArgs.to : await ethers.provider.getBlockNumber();
     console.log(`Block number ${toBlockNumber}`);
-    const [signer] = await ethers.getSigners();
+    const signer = await defender_utils_1.getSigner(network.name, ethers);
     const mAsset = getMasset(signer);
     await storage_utils_1.dumpTokenStorage(mAsset, toBlockNumber);
     await storage_utils_1.dumpBassetStorage(mAsset, toBlockNumber);
@@ -31,9 +31,8 @@ config_1.task("mBTC-storage", "Dumps mBTC's storage data")
 config_1.task("mBTC-snap", "Get the latest data from the mBTC contracts")
     .addOptionalParam("from", "Block to query transaction events from. (default: deployment block)", 12094461, config_1.types.int)
     .addOptionalParam("to", "Block to query transaction events to. (default: current block)", 0, config_1.types.int)
-    .setAction(async (taskArgs, hre) => {
-    const { ethers, network } = hre;
-    const [signer] = await ethers.getSigners();
+    .setAction(async (taskArgs, { ethers, network }) => {
+    const signer = await defender_utils_1.getSigner(network.name, ethers);
     let exposedValidator;
     if (network.name !== "mainnet") {
         console.log("Not mainnet");
@@ -48,7 +47,7 @@ config_1.task("mBTC-snap", "Get the latest data from the mBTC contracts")
         exposedValidator = await massetFactory.deploy();
     }
     const mAsset = getMasset(signer);
-    const savingsManager = snap_utils_1.getSavingsManager(signer, hre.network.name);
+    const savingsManager = snap_utils_1.getSavingsManager(signer, network.name);
     const { fromBlock, toBlock } = await snap_utils_1.getBlockRange(ethers, taskArgs.from, taskArgs.to);
     const mintSummary = await snap_utils_1.getMints(bAssets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, btcFormatter);
     const mintMultiSummary = await snap_utils_1.getMultiMints(bAssets, mAsset, fromBlock.blockNumber, toBlock.blockNumber, btcFormatter);
@@ -95,14 +94,13 @@ config_1.task("mBTC-snap", "Get the latest data from the mBTC contracts")
 config_1.task("mBTC-rates", "mBTC rate comparison to Curve")
     .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, config_1.types.int)
     .addOptionalParam("swapSize", "Swap size to compare rates with Curve", 1, config_1.types.int)
-    .setAction(async (taskArgs, hre) => {
-    const { ethers } = hre;
-    const [signer] = await ethers.getSigners();
+    .setAction(async (taskArgs, { ethers, network }) => {
+    const signer = await defender_utils_1.getSigner(network.name, ethers);
     const mAsset = await getMasset(signer);
     const block = await snap_utils_1.getBlock(ethers, taskArgs.block);
     console.log(`\nGetting rates for mBTC at block ${block.blockNumber}, ${block.blockTime.toUTCString()}`);
     console.log("      Qty Input     Output      Qty Out    Rate             Output    Rate   Diff      Arb$");
-    await rates_utils_1.getSwapRates(bAssets, bAssets, mAsset, block.blockNumber, btcFormatter, hre.network.name, math_1.BN.from(taskArgs.swapSize));
+    await rates_utils_1.getSwapRates(bAssets, bAssets, mAsset, block.blockNumber, btcFormatter, network.name, math_1.BN.from(taskArgs.swapSize));
     await snap_utils_1.snapConfig(mAsset, block.blockNumber);
 });
 module.exports = {};

@@ -7,6 +7,7 @@ require("@tenderly/hardhat-tenderly");
 require("@typechain/hardhat");
 require("hardhat-gas-reporter");
 require("solidity-coverage");
+require("hardhat-abi-exporter");
 require("ts-node/register");
 require("tsconfig-paths/register");
 // chainId?: number
@@ -32,17 +33,17 @@ exports.hardhatConfig = {
         env: { url: process.env.NODE_URL || "" },
         ropsten: {
             url: process.env.NODE_URL || "",
-            accounts: process.env.ROPSTEN_PRIVATE_KEY1 ? [process.env.ROPSTEN_PRIVATE_KEY1] : [],
             gasPrice: 30000000000,
             gasLimit: 8000000,
         },
         polygon_testnet: {
             url: "https://rpc-mumbai.maticvigil.com",
-            accounts: process.env.MUMBAI_PRIVATE_KEY1 ? [process.env.MUMBAI_PRIVATE_KEY1] : [],
         },
         polygon_mainnet: {
             url: "https://rpc-mainnet.matic.quiknode.pro",
-            accounts: process.env.POLYGON_PRIVATE_KEY1 ? [process.env.POLYGON_PRIVATE_KEY1] : [],
+        },
+        mainnet: {
+            url: process.env.NODE_URL || "",
         },
     },
     solidity: {
@@ -61,6 +62,11 @@ exports.hardhatConfig = {
         },
     },
     paths: { artifacts: "./build" },
+    abiExporter: {
+        path: "./abis",
+        clear: true,
+        flat: true,
+    },
     gasReporter: {
         currency: "USD",
         gasPrice: 30,

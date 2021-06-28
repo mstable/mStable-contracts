@@ -4,6 +4,7 @@ import "@tenderly/hardhat-tenderly";
 import "@typechain/hardhat";
 import "hardhat-gas-reporter";
 import "solidity-coverage";
+import "hardhat-abi-exporter";
 import "ts-node/register";
 import "tsconfig-paths/register";
 export declare const hardhatConfig: {
@@ -22,17 +23,17 @@ export declare const hardhatConfig: {
         };
         ropsten: {
             url: string;
-            accounts: string[];
             gasPrice: number;
             gasLimit: number;
         };
         polygon_testnet: {
             url: string;
-            accounts: string[];
         };
         polygon_mainnet: {
             url: string;
-            accounts: string[];
+        };
+        mainnet: {
+            url: string;
         };
     };
     solidity: {
@@ -52,6 +53,11 @@ export declare const hardhatConfig: {
     };
     paths: {
         artifacts: string;
+    };
+    abiExporter: {
+        path: string;
+        clear: boolean;
+        flat: boolean;
     };
     gasReporter: {
         currency: string;
