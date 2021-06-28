@@ -1,0 +1,27 @@
+[
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "boostVault",
+            "type": "address"
+          },
+          {
+            "internalType": "address[]",
+            "name": "accounts",
+            "type": "address[]"
+          }
+        ],
+        "internalType": "struct PokeVaultAccounts[]",
+        "name": "_vaultAccounts",
+        "type": "tuple[]"
+      }
+    ],
+    "name": "poke",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

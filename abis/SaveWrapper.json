@@ -1,0 +1,329 @@
+[
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "previousOwner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address[]",
+        "name": "_tokens",
+        "type": "address[]"
+      },
+      {
+        "internalType": "address",
+        "name": "_spender",
+        "type": "address"
+      }
+    ],
+    "name": "approve",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_token",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_spender",
+        "type": "address"
+      }
+    ],
+    "name": "approve",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_mAsset",
+        "type": "address"
+      },
+      {
+        "internalType": "address[]",
+        "name": "_bAssets",
+        "type": "address[]"
+      },
+      {
+        "internalType": "address[]",
+        "name": "_fPools",
+        "type": "address[]"
+      },
+      {
+        "internalType": "address[]",
+        "name": "_fAssets",
+        "type": "address[]"
+      },
+      {
+        "internalType": "address",
+        "name": "_save",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_vault",
+        "type": "address"
+      }
+    ],
+    "name": "approve",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_mAsset",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_uniswap",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_ethAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address[]",
+        "name": "_path",
+        "type": "address[]"
+      }
+    ],
+    "name": "estimate_saveViaUniswapETH",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "out",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "renounceOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_mAsset",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_save",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_vault",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "saveAndStake",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_mAsset",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_save",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_vault",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_bAsset",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_amount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_minOut",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "_stake",
+        "type": "bool"
+      }
+    ],
+    "name": "saveViaMint",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_mAsset",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_save",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_vault",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_feeder",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_fAsset",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_fAssetQuantity",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_minOutputQuantity",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "_stake",
+        "type": "bool"
+      }
+    ],
+    "name": "saveViaSwap",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_mAsset",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_save",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_vault",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_uniswap",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_amountOutMin",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address[]",
+        "name": "_path",
+        "type": "address[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_minOutMStable",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "_stake",
+        "type": "bool"
+      }
+    ],
+    "name": "saveViaUniswapETH",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "transferOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

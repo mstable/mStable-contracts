@@ -4,6 +4,7 @@ import "@tenderly/hardhat-tenderly"
 import "@typechain/hardhat"
 import "hardhat-gas-reporter"
 import "solidity-coverage"
+import "hardhat-abi-exporter"
 
 import "ts-node/register"
 import "tsconfig-paths/register"
@@ -61,6 +62,11 @@ export const hardhatConfig = {
         },
     },
     paths: { artifacts: "./build" },
+    abiExporter: {
+        path: "./abis",
+        clear: true,
+        flat: true,
+    },
     gasReporter: {
         currency: "USD",
         gasPrice: 30,

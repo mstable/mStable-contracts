@@ -1,0 +1,40 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_tokenSymbol",
+        "type": "string"
+      }
+    ],
+    "name": "getGatewayBySymbol",
+    "outputs": [
+      {
+        "internalType": "contract IGateway",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_tokenSymbol",
+        "type": "string"
+      }
+    ],
+    "name": "getTokenBySymbol",
+    "outputs": [
+      {
+        "internalType": "contract IERC20",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

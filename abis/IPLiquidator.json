@@ -1,0 +1,89 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_integration",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_sellToken",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_bAsset",
+        "type": "address"
+      },
+      {
+        "internalType": "address[]",
+        "name": "_uniswapPath",
+        "type": "address[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_minReturn",
+        "type": "uint256"
+      }
+    ],
+    "name": "createLiquidation",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_integration",
+        "type": "address"
+      }
+    ],
+    "name": "deleteLiquidation",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_integration",
+        "type": "address"
+      }
+    ],
+    "name": "triggerLiquidation",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_integration",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_bAsset",
+        "type": "address"
+      },
+      {
+        "internalType": "address[]",
+        "name": "_uniswapPath",
+        "type": "address[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_minReturn",
+        "type": "uint256"
+      }
+    ],
+    "name": "updateBasset",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]
