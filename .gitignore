@@ -31,20 +31,18 @@ typings/
 # next.js build output
 .next
 
-# truffle / buidler
-cache/
-build/
-artifacts/
-contracts-output/
+# Hardhat
+abis
+cache
+build
+# Typechain
+/types/generated
 
 # VS Code Solidity Extension
 bin/contracts
 
 # TSC
-/artifacts/json
-/artifacts/ts
-/dist
-/types/generated
+dist
 
 package-lock.json
 
@@ -62,8 +60,8 @@ coverage.json
 cache
 
 # sol-merger
-flat/
-_flat/
+flat
+_flat
 
 # test data
 /test-utils/validator-data/*.csv
