@@ -36,7 +36,7 @@ task("deployMV3", "Deploys the mUSD V3 implementation").setAction(async (_, hre)
             MassetManager: managerLib.address,
         },
     }
-    const massetFactory = await ethers.getContractFactory("MV1", linkedAddress)
+    const massetFactory = await ethers.getContractFactory("MV3", linkedAddress)
     const size = massetFactory.bytecode.length / 2 / 1000
     if (size > 24.576) {
         console.error(`Masset size is ${size} kb: ${size - 24.576} kb too big`)

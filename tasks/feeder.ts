@@ -29,7 +29,7 @@ const getBalances = async (mAsset: Masset | FeederPool, toBlock: number, asset: 
     const mAssetBalance = await mAsset.totalSupply({
         blockTag: toBlock,
     })
-    const vaultBalance = await mAsset.balanceOf(asset.saving, {
+    const vaultBalance = await mAsset.balanceOf(asset.vault, {
         blockTag: toBlock,
     })
     const otherBalances = mAssetBalance.sub(vaultBalance)

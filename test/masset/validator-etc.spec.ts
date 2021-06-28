@@ -2,9 +2,7 @@ import { ethers } from "hardhat"
 import { expect } from "chai"
 
 import { simpleToExactAmount, BN } from "@utils/math"
-import { ONE_WEEK } from "@utils/constants"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
-import { increaseTime } from "@utils/time"
 import { ExposedMassetLogic } from "types/generated"
 
 const config = {

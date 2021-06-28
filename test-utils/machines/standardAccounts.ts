@@ -1,9 +1,5 @@
 import { Signer } from "ethers"
-
-export interface Account {
-    signer: Signer
-    address: string
-}
+import { Account } from "types"
 
 /**
  * @dev Standard accounts

@@ -6,7 +6,12 @@ import { MassetDetails, MassetMachine, StandardAccounts } from "@utils/machines"
 
 import { DEAD_ADDRESS, ZERO_ADDRESS } from "@utils/constants"
 import { BasketComposition } from "types"
-import { Masset__factory, AssetProxy__factory, ExposedMasset__factory, MassetLogic, MassetManager, Masset } from "types/generated"
+import {
+    AssetProxy__factory,
+    MassetLogic,
+    MassetManager,
+    ExposedMasset,
+} from "types/generated"
 import { assertBNClosePercent } from "@utils/assertions"
 
 describe("Many asset Masset", () => {
@@ -56,7 +61,7 @@ describe("Many asset Masset", () => {
         ])
         const mAsset = await new AssetProxy__factory(sa.default.signer).deploy(impl.address, DEAD_ADDRESS, data)
         details = {
-            mAsset: (await factory.attach(mAsset.address)) as Masset,
+            mAsset: (await factory.attach(mAsset.address)) as ExposedMasset,
             bAssets,
         }
     }

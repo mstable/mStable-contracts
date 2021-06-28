@@ -1,11 +1,10 @@
 import { expect } from "chai"
 
 import { BN } from "@utils/math"
-import { Account, MassetMachine, MassetDetails } from "@utils/machines"
-
+import { MassetMachine, MassetDetails } from "@utils/machines"
 import { ZERO_ADDRESS } from "@utils/constants"
-import { Address } from "types/common"
-import { ERC20 } from "types/generated/ERC20"
+import { ERC20 } from "types/generated"
+import { Account, Address } from "types"
 
 export interface IERC20BehaviourContext {
     token: ERC20

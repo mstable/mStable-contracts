@@ -1,6 +1,6 @@
 import { impersonateAccount } from "@utils/fork"
 import { ethers, network } from "hardhat"
-import { Account } from "@utils/machines"
+import { Account } from "types"
 import { deployContract } from "tasks/utils/deploy-utils"
 import { AAVE, stkAAVE, DAI, mBTC, mUSD, USDC, USDT, WBTC, COMP, GUSD, BUSD, CREAM, cyMUSD } from "tasks/utils/tokens"
 import {
@@ -661,6 +661,18 @@ context("Liquidator forked network tests", () => {
             expect(await liquidator.compToken(), "COMP address").to.eq(COMP.address)
         })
         it("Added liquidation for mUSD Compound integration", async () => {
+            const data = liquidator.interface.encodeFunctionData("createLiquidation", [
+                compoundIntegrationAddress,
+                COMP.address,
+                USDC.address,
+                uniswapCompUsdcPaths.encoded,
+                uniswapCompUsdcPaths.encodedReversed,
+                simpleToExactAmount(20000, USDC.decimals),
+                simpleToExactAmount(100, USDC.decimals),
+                mUSD.address,
+                false,
+            ])
+            console.log(`createLiquidation data for COMP: ${data}`)
             await liquidator
                 .connect(governor.signer)
                 .createLiquidation(

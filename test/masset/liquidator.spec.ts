@@ -595,14 +595,14 @@ describe("Liquidator", () => {
             expect(liquidation.aaveBalance, "integration aaveBalance > 0 after").to.gt(0)
             expect(await liquidator.totalAaveBalance(), "totalAaveBalance > 0 after").to.gt(0)
         })
-        it("claim staked AAVE before cooldowmn", async () => {
+        it("fail to claim staked AAVE before cooldowmn", async () => {
             await increaseTime(ONE_DAY)
 
             const tx = liquidator.claimStakedAave()
 
             await expect(tx).to.revertedWith("Last claim cooldown not ended")
         })
-        it("claim staked AAVE before cooldowmn", async () => {
+        it("fail to claim staked AAVE before cooldowmn", async () => {
             await increaseTime(ONE_DAY.mul(10))
 
             const tx = liquidator.claimStakedAave()
@@ -615,8 +615,8 @@ describe("Liquidator", () => {
             stkAaveToken.connect(sa.fundManager.signer).transfer(aaveIntegration.address, 1100)
 
             // Before checks
-            expect(await stkAaveToken.balanceOf(liquidator.address), "some stkAAVE in liquidator before").to.gt(0)
-            expect(await aaveToken.balanceOf(liquidator.address), "some AAVE in liquidator before").to.eq(0)
+            expect(await stkAaveToken.balanceOf(liquidator.address), "some stkAAVE in liquidator before").to.gt(1100)
+            expect(await aaveToken.balanceOf(liquidator.address), "no AAVE in liquidator before").to.eq(0)
 
             await liquidator.claimStakedAave()
 

@@ -13,6 +13,7 @@ import {
     MaliciousAaveIntegration__factory,
     MockERC20,
     MockPlatformIntegration__factory,
+    ExposedMasset,
 } from "types/generated"
 import { assertBNSlightlyGTPercent } from "@utils/assertions"
 import { keccak256, toUtf8Bytes } from "ethers/lib/utils"
@@ -636,7 +637,7 @@ describe("Feeder Admin", () => {
         context("increasing A by 20 over 10 day period", () => {
             let startTime: BN
             let endTime: BN
-            let mAsset: Masset
+            let mAsset: ExposedMasset
             before(async () => {
                 await runSetup()
                 mAsset = details.mAsset.connect(sa.governor.signer)
@@ -726,7 +727,7 @@ describe("Feeder Admin", () => {
         context("decreasing A by 50 over 5 days", () => {
             let startTime: BN
             let endTime: BN
-            let mAsset: Masset
+            let mAsset: ExposedMasset
             before(async () => {
                 await runSetup()
                 mAsset = details.mAsset.connect(sa.governor.signer)
@@ -847,7 +848,7 @@ describe("Feeder Admin", () => {
         context("stop ramp A", () => {
             let startTime: BN
             let endTime: BN
-            let mAsset: Masset
+            let mAsset: ExposedMasset
             before(async () => {
                 await runSetup()
                 mAsset = details.mAsset.connect(sa.governor.signer)

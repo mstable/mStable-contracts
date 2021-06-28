@@ -1,27 +1,26 @@
 {
   "compilerOptions": {
-    "outDir": "./transpiled/",
-    "sourceMap": true,
-    "noImplicitAny": false,
+    "outDir": "./dist/",
+    "target": "ES2019",
     "lib": ["dom", "ES2019"],
     "module": "CommonJS",
+    "declaration": true,
+    "esModuleInterop": true,
+    "sourceMap": true,
+    "noImplicitAny": false,
+    "allowJs": false,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
     "baseUrl": ".",
     "rootDir": ".",
     "paths": {
-      "@utils/*": ["test-utils/*"],
+      "@utils/*": ["test-utils/*"]
     },
-    "allowJs": true,
-    "target": "ES2019",
-    "skipLibCheck": true,
     "typeRoots": [
-      "node_modules/@0x/typescript-typings/types",
       "node_modules/@types"
     ],
-    "esModuleInterop": true,
-    "resolveJsonModule": true
   },
   "include": [
-    "./scripts/**/*.ts",
     "./types/**/*.ts",
     "./tasks/**/*.ts",
     "./test/**/*.ts",
@@ -29,5 +28,5 @@
     "./test-utils/**/*.ts",
     "./*.js"
   ],
-  "files": ["./hardhat.config.ts", "./hardhat-fork.config.ts", "./tasks.config.ts", "./tasks-fork.config.ts"]
+  "files": ["./index.ts", "./hardhat.config.ts", "./hardhat-fork.config.ts", "./tasks.config.ts", "./tasks-fork.config.ts"]
 }

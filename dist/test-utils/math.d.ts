@@ -1,0 +1,10 @@
+import { BigNumber as BN } from "ethers";
+export { BN };
+export declare const simpleToExactAmount: (amount: number | string | BN, decimals?: number | BN) => BN;
+export declare const applyDecimals: (inputQuantity: number | string | BN, decimals?: number) => BN;
+export declare const percentToWeight: (percent: number | string | BN) => BN;
+export declare const applyRatioMassetToBasset: (input: BN, ratio: BN | string) => BN;
+export declare const applyRatio: (bAssetQ: BN | string | number, ratio: BN | string) => BN;
+export declare const applyRatioCeil: (bAssetQ: BN | string, ratio: BN | string) => BN;
+export declare const createMultiple: (decimals: number) => BN;
+export declare const minimum: (a: BN, b: BN) => BN;

@@ -15,6 +15,7 @@ import {
     InterestValidator,
     MockATokenV2__factory,
     MockAaveV2__factory,
+    Masset,
 } from "types/generated"
 import { BN, minimum, simpleToExactAmount } from "@utils/math"
 import { MainnetAccounts, ratioScale, ZERO_ADDRESS, DEAD_ADDRESS, fullScale } from "@utils/constants"
@@ -28,7 +29,7 @@ export interface FeederDetails {
     logic?: FeederLogic
     manager?: FeederManager
     interestValidator?: InterestValidator
-    mAsset?: MockERC20
+    mAsset?: MockERC20 & Masset
     fAsset?: MockERC20
     // [0] = mAsset
     // [1] = fAsset
@@ -159,7 +160,7 @@ export class FeederMachine {
             logic: feederLogic,
             manager: feederManager,
             interestValidator,
-            mAsset: mAssetDetails.mAsset as MockERC20,
+            mAsset: mAssetDetails.mAsset,
             fAsset,
             bAssets,
             pTokens,

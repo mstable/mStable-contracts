@@ -3,10 +3,11 @@ import { ethers } from "hardhat"
 import { expect } from "chai"
 
 import { simpleToExactAmount, BN } from "@utils/math"
-import { MassetMachine, StandardAccounts, Account, FeederMachine, FeederDetails } from "@utils/machines"
+import { MassetMachine, StandardAccounts, FeederMachine, FeederDetails } from "@utils/machines"
 import { FeederPool, MockERC20 } from "types/generated"
 import { ZERO_ADDRESS } from "@utils/constants"
 import { assertBNClosePercent } from "@utils/assertions"
+import { Account } from "types"
 
 describe("Feeder - Swap", () => {
     let sa: StandardAccounts
