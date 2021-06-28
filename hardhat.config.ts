@@ -1,8 +1,8 @@
 import "@nomiclabs/hardhat-ethers"
 import "@nomiclabs/hardhat-waffle"
 import "@tenderly/hardhat-tenderly"
+import "@typechain/hardhat"
 import "hardhat-gas-reporter"
-import "hardhat-typechain"
 import "solidity-coverage"
 
 import "ts-node/register"

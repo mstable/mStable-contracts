@@ -3,11 +3,12 @@ import { ethers } from "hardhat"
 import { expect } from "chai"
 
 import { simpleToExactAmount, BN } from "@utils/math"
-import { MassetDetails, MassetMachine, StandardAccounts, Account } from "@utils/machines"
+import { MassetDetails, MassetMachine, StandardAccounts } from "@utils/machines"
 import { Masset, MockERC20 } from "types/generated"
 import { fullScale, ratioScale, ZERO_ADDRESS } from "@utils/constants"
 import { assertBNSlightlyGTPercent, assertBasketIsHealthy } from "@utils/assertions"
 import { BassetStatus } from "@utils/mstable-objects"
+import { Account } from "types"
 
 // (AS) - test cases to add:
 //  - whenHealthy flag

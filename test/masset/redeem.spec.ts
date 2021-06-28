@@ -3,11 +3,12 @@ import { ethers } from "hardhat"
 import { Signer } from "ethers"
 
 import { simpleToExactAmount, BN, applyRatio } from "@utils/math"
-import { MassetDetails, MassetMachine, StandardAccounts, Account } from "@utils/machines"
+import { MassetDetails, MassetMachine, StandardAccounts } from "@utils/machines"
 import { MockERC20, Masset } from "types/generated"
 import { fullScale, ZERO_ADDRESS } from "@utils/constants"
 import { assertBasketIsHealthy, assertBNClosePercent, assertBNSlightlyGTPercent } from "@utils/assertions"
 import { BassetStatus } from "@utils/mstable-objects"
+import { Account } from "types"
 
 describe("Masset - Redeem", () => {
     let sa: StandardAccounts

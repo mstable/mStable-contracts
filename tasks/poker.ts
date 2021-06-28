@@ -101,7 +101,7 @@ task("over-boost", "Pokes accounts that are over boosted")
         const vaultAccounts = gqlData.boostedSavingsVaults.map((vault) => vault.accounts.map((account) => account.account.id))
         const accountsWithDuplicates = vaultAccounts.flat()
         const accountsUnique = [...new Set<string>(accountsWithDuplicates)]
-        const vMtaBalancesMap = await getAccountBalanceMap(accountsUnique, MTA.saving, signer)
+        const vMtaBalancesMap = await getAccountBalanceMap(accountsUnique, MTA.vault, signer)
         const pokeVaultAccounts: {
             boostVault: string
             accounts: string[]

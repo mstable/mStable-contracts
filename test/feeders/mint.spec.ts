@@ -3,10 +3,11 @@ import { Signer } from "ethers"
 import { ethers } from "hardhat"
 
 import { BN, simpleToExactAmount } from "@utils/math"
-import { Account, FeederDetails, FeederMachine, MassetMachine, StandardAccounts } from "@utils/machines"
+import { FeederDetails, FeederMachine, MassetMachine, StandardAccounts } from "@utils/machines"
 import { ZERO_ADDRESS } from "@utils/constants"
 import { FeederPool, MockERC20 } from "types/generated"
 import { BassetStatus } from "@utils/mstable-objects"
+import { Account } from "types"
 
 interface MintOutput {
     outputQuantity: BN

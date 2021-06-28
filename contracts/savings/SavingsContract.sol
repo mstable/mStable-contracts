@@ -56,7 +56,7 @@ contract SavingsContract is ISavingsContractV2, Initializable, InitializableToke
     uint256 public override exchangeRate;
 
     // Underlying asset is underlying
-    IERC20 public immutable underlying;
+    IERC20 public immutable override underlying;
     bool private automateInterestCollection;
 
     // Yield

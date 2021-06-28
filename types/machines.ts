@@ -1,7 +1,7 @@
-import { MockERC20 } from "types/generated"
 import { BN } from "../test-utils/math"
 import { Address } from "./common"
 import { Basset } from "../test-utils/mstable-objects"
+import { MockERC20 } from "./generated"
 
 export interface ATokenDetails {
     bAsset: Address
@@ -12,7 +12,7 @@ export interface CTokenDetails {
     cToken: Address
 }
 
-export enum Platform {
+export enum IntegrationPlatform {
     none,
     aave,
     compound,
@@ -21,7 +21,7 @@ export enum Platform {
 export interface BassetIntegrationDetails {
     bAssets: Array<MockERC20>
     bAssetTxFees: boolean[]
-    platforms?: Array<Platform>
+    platforms?: Array<IntegrationPlatform>
     aavePlatformAddress?: Address
     aTokens?: Array<ATokenDetails>
     cTokens?: Array<CTokenDetails>

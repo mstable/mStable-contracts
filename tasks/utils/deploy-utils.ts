@@ -1,4 +1,4 @@
-import { Contract, ContractFactory, ContractTransaction } from "ethers"
+import { Contract, ContractFactory, ContractReceipt, ContractTransaction } from "ethers"
 import { formatUnits } from "@ethersproject/units"
 
 export const deployContract = async <T extends Contract>(
@@ -16,11 +16,13 @@ export const deployContract = async <T extends Contract>(
     return contract
 }
 
-export const logTxDetails = async (tx: ContractTransaction, method: string): Promise<void> => {
+export const logTxDetails = async (tx: ContractTransaction, method: string): Promise<ContractReceipt> => {
     console.log(`Sent ${method} transaction with hash ${tx.hash} from ${tx.from} with gas price ${tx.gasPrice.toNumber() / 1e9} Gwei`)
     const receipt = await tx.wait()
 
     // Calculate tx cost in Wei
     const txCost = receipt.gasUsed.mul(tx.gasPrice)
     console.log(`Processed ${method} tx in block ${receipt.blockNumber}, using ${receipt.gasUsed} gas costing ${formatUnits(txCost)} ETH`)
+
+    return receipt
 }

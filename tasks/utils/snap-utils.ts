@@ -189,7 +189,7 @@ export const getBasket = async (
     })
 
     let mAssetSurplus = BN.from(0)
-    if (asset.surplus) {
+    if (isMusdEth(asset)) {
         mAssetSurplus = await asset.surplus({
             blockTag: toBlock,
         })
@@ -290,7 +290,7 @@ export const getMints = async (
     console.log("Block#\t Tx hash\t\t\t\t\t\t\t    bAsset     Quantity")
     let total = BN.from(0)
     let count = 0
-    logs.forEach((log) => {
+    logs.forEach((log: any) => {
         const inputBasset = bAssets.find((b) => b.address === log.args.input)
         if (!inputBasset) {
             throw Error(`Failed to find bAsset with address ${log.args.input}`)
@@ -323,7 +323,7 @@ export const getMultiMints = async (
     console.log("Block#\t Tx hash\t\t\t\t\t\t\t\t  Quantity")
     let total = BN.from(0)
     let count = 0
-    logs.forEach((log) => {
+    logs.forEach((log: any) => {
         // Ignore MintMulti events from collectInterest and collectPlatformInterest
         if (!log.args.inputs.length) return
         const inputBassets = log.args.inputs.map((input) => bAssets.find((b) => b.address === input))
@@ -360,7 +360,7 @@ export const getSwaps = async (
     let total = BN.from(0)
     let fees = BN.from(0)
     let count = 0
-    logs.forEach((log) => {
+    logs.forEach((log: any) => {
         const inputBasset = bAssets.find((b) => b.address === log.args.input)
         const outputBasset = bAssets.find((b) => b.address === log.args.output)
         const fee = log.args.scaledFee || log.args.fee
@@ -397,7 +397,7 @@ export const getRedemptions = async (
     let total = BN.from(0)
     let fees = BN.from(0)
     let count = 0
-    logs.forEach((log) => {
+    logs.forEach((log: any) => {
         const outputBasset = bAssets.find((b) => b.address === log.args.output)
         console.log(
             `${log.blockNumber} ${log.transactionHash} ${outputBasset.symbol.padEnd(4)} ${quantityFormatter(
@@ -574,7 +574,7 @@ export const getCollectedInterest = async (
     let totalPlatformInterest = BN.from(0)
     let countPlatformInterest = 0
     let count = 0
-    logs.forEach((log) => {
+    logs.forEach((log: any) => {
         // Ignore MintMulti events not from collectInterest and collectPlatformInterest
         if (log.args.inputs.length) return
         // Calculate the quantity of interest collected

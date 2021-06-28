@@ -5,7 +5,7 @@ import { expect } from "chai"
 import { utils } from "ethers"
 import { simpleToExactAmount, BN } from "@utils/math"
 import { assertBNClose, assertBNClosePercent, assertBNSlightlyGT } from "@utils/assertions"
-import { StandardAccounts, MassetMachine, Account } from "@utils/machines"
+import { StandardAccounts, MassetMachine } from "@utils/machines"
 import { fullScale, ZERO_ADDRESS, ONE_DAY, FIVE_DAYS, ONE_WEEK, DEAD_ADDRESS } from "@utils/constants"
 import { getTimestamp, increaseTime } from "@utils/time"
 import {
@@ -29,6 +29,7 @@ import {
     shouldBehaveLikeDistributionRecipient,
     IRewardsDistributionRecipientContext,
 } from "../shared/RewardsDistributionRecipient.behaviour"
+import { Account } from "types"
 
 interface StakingBalance {
     raw: BN

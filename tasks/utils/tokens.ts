@@ -18,7 +18,8 @@ export interface Token {
     quantityFormatter: string
     parent?: string
     feederPool?: string
-    saving?: string
+    vault?: string
+    savings?: string // interest-bearing savings contracts
 }
 
 // mStable on mainnet
@@ -28,6 +29,8 @@ export const mUSD: Token = {
     chain: Chain.mainnet,
     decimals: 18,
     quantityFormatter: "USD",
+    savings: "0x30647a72dc82d7fbb1123ea74716ab8a317eac19",
+    vault: "0x78BefCa7de27d07DC6e71da295Cc2946681A6c7B",
 }
 export const mBTC: Token = {
     symbol: "mBTC",
@@ -35,6 +38,8 @@ export const mBTC: Token = {
     chain: Chain.mainnet,
     decimals: 18,
     quantityFormatter: "USD",
+    savings: "0x17d8CBB6Bce8cEE970a4027d1198F6700A7a6c24",
+    vault: "0xF38522f63f40f9Dd81aBAfD2B8EFc2EC958a3016",
 }
 
 // mStable on Polygon mainnet
@@ -44,6 +49,7 @@ export const PmUSD: Token = {
     chain: Chain.polygon,
     decimals: 18,
     quantityFormatter: "USD",
+    savings: "0x5290Ad3d83476CA6A2b178Cd9727eE1EF72432af",
 }
 
 // USD Main Pool Assets on Mainnet
@@ -137,7 +143,7 @@ export const GUSD: Token = {
     quantityFormatter: "USD",
     parent: "mUSD",
     feederPool: "0x4fB30C5A3aC8e85bC32785518633303C4590752d",
-    saving: "0xAdeeDD3e5768F7882572Ad91065f93BA88343C99",
+    vault: "0xAdeeDD3e5768F7882572Ad91065f93BA88343C99",
 }
 export const BUSD: Token = {
     symbol: "BUSD",
@@ -150,7 +156,7 @@ export const BUSD: Token = {
     quantityFormatter: "USD",
     parent: "mUSD",
     feederPool: "0xfE842e95f8911dcc21c943a1dAA4bd641a1381c6",
-    saving: "0xD124B55f70D374F58455c8AEdf308E52Cf2A6207",
+    vault: "0xD124B55f70D374F58455c8AEdf308E52Cf2A6207",
 }
 
 // BTC
@@ -191,7 +197,7 @@ export const HBTC: Token = {
     parent: "mBTC",
     quantityFormatter: "BTC",
     feederPool: "0x48c59199Da51B7E30Ea200a74Ea07974e62C4bA7",
-    saving: "0xF65D53AA6e2E4A5f4F026e73cb3e22C22D75E35C",
+    vault: "0xF65D53AA6e2E4A5f4F026e73cb3e22C22D75E35C",
 }
 export const TBTC: Token = {
     symbol: "TBTC",
@@ -201,7 +207,7 @@ export const TBTC: Token = {
     parent: "mBTC",
     quantityFormatter: "BTC",
     feederPool: "0xb61A6F928B3f069A68469DDb670F20eEeB4921e0",
-    saving: "0x760ea8CfDcC4e78d8b9cA3088ECD460246DC0731",
+    vault: "0x760ea8CfDcC4e78d8b9cA3088ECD460246DC0731",
 }
 
 export const MTA: Token = {
@@ -210,7 +216,7 @@ export const MTA: Token = {
     chain: Chain.mainnet,
     decimals: 18,
     quantityFormatter: "USD",
-    saving: "0xaE8bC96DA4F9A9613c323478BE181FDb2Aa0E1BF",
+    vault: "0xaE8bC96DA4F9A9613c323478BE181FDb2Aa0E1BF",
 }
 
 export const AAVE: Token = {

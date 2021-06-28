@@ -4,7 +4,7 @@ import { ethers } from "hardhat"
 import { expect } from "chai"
 import { simpleToExactAmount, BN } from "@utils/math"
 import { assertBNClose, assertBNClosePercent, assertBNSlightlyGTPercent } from "@utils/assertions"
-import { StandardAccounts, MassetMachine, Account } from "@utils/machines"
+import { StandardAccounts, MassetMachine } from "@utils/machines"
 import { fullScale, ZERO_ADDRESS, ZERO, MAX_UINT256, TEN_MINS, ONE_DAY, DEAD_ADDRESS, ONE_WEEK, ONE_MIN } from "@utils/constants"
 import { getTimestamp, increaseTime } from "@utils/time"
 import {
@@ -21,6 +21,7 @@ import {
     MockRevenueRecipient__factory,
 } from "types/generated"
 import { shouldBehaveLikePausableModule, IPausableModuleBehaviourContext } from "../shared/PausableModule.behaviour"
+import { Account } from "types"
 
 describe("SavingsManager", async () => {
     const TEN = BN.from(10)

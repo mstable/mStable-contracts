@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.2;
 
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 interface ISavingsContractV1 {
     function depositInterest(uint256 _amount) external;
 
@@ -35,9 +37,11 @@ interface ISavingsContractV2 {
 
     function exchangeRate() external view returns (uint256); // V1 & V2
 
-    function balanceOfUnderlying(address _user) external view returns (uint256 balance); // V2
+    function balanceOfUnderlying(address _user) external view returns (uint256 underlying); // V2
 
-    function underlyingToCredits(uint256 _credits) external view returns (uint256 underlying); // V2
+    function underlyingToCredits(uint256 _underlying) external view returns (uint256 credits); // V2
 
-    function creditsToUnderlying(uint256 _underlying) external view returns (uint256 credits); // V2
+    function creditsToUnderlying(uint256 _credits) external view returns (uint256 underlying); // V2
+
+    function underlying() external view returns (IERC20 underlyingMasset); // V2
 }

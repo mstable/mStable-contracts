@@ -19,3 +19,8 @@ export const getDefenderSigner = async (speed: Speed = "fast"): Promise<Signer> 
     const signer = new DefenderRelaySigner(credentials, provider, { speed })
     return signer
 }
+
+export const getSigner = async (networkName: string, ethers, speed: Speed = "fast"): Promise<Signer> =>
+    ["mainnet", "polygon_mainnet", "ropsten", "polygon_testnet"].includes(networkName)
+        ? getDefenderSigner(speed)
+        : (await ethers.getSigners())[0]

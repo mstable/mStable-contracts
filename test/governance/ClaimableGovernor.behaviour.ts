@@ -1,8 +1,7 @@
 import { expect } from "chai"
 import { ClaimableGovernor } from "types/generated/ClaimableGovernor"
 import { ZERO_ADDRESS } from "@utils/constants"
-import { Account } from "@utils/machines"
-import { toUtf8Bytes } from "ethers/lib/utils"
+import { Account } from "types"
 
 export interface IClaimableGovernableBehaviourContext {
     claimable: ClaimableGovernor

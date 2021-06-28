@@ -31,7 +31,7 @@ import { StandardAccounts } from "./standardAccounts"
 import { ActionDetails, ATokenDetails, BasketComposition, BassetIntegrationDetails } from "../../types/machines"
 
 export interface MassetDetails {
-    mAsset?: ExposedMasset | Masset
+    mAsset?: ExposedMasset
     bAssets?: Array<MockERC20>
     pTokens?: Array<string>
     proxyAdmin?: DelayedProxyAdmin

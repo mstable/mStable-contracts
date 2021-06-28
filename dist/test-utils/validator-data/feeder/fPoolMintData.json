@@ -1,0 +1,1621 @@
+[
+    {
+        "reserve0": "699899999999999959105536",
+        "reserve1": "1000000000000000000000000",
+        "A": 30000,
+        "LPTokenSupply": "1699718966026760343971477",
+        "hardMin": 200000000000000000,
+        "hardMax": 800000000000000000,
+        "swapFeeRate": 800000000000000,
+        "mints": [
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "10000000000000",
+                "expectedQty": "10013583395494",
+                "priceReceived": 0.9986435030340775
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1000000000000000",
+                "expectedQty": "1001358339546216",
+                "priceReceived": 0.9986435030372528
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "100000000000000000",
+                "expectedQty": "100135833922561486",
+                "priceReceived": 0.9986435033569847
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1000000000000000000",
+                "expectedQty": "1001358336311055024",
+                "priceReceived": 0.9986435062636428
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "10000000000000000000",
+                "expectedQty": "10013583071657626604",
+                "priceReceived": 0.9986435353299188
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "100000000000000000000",
+                "expectedQty": "100135801574344594340",
+                "priceReceived": 0.9986438259622482
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "119800000000000002097152",
+                "expectedQty": "119921297316619441527512",
+                "priceReceived": 0.9989885256469567
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "239600000000000004194304",
+                "expectedQty": "239774778876685820619580",
+                "priceReceived": 0.9992710706376016
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "359400000000000023068672",
+                "expectedQty": "359575374959912690787104",
+                "priceReceived": 0.9995122720516325
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "479200000000000008388608",
+                "expectedQty": "479331962258851006191758",
+                "priceReceived": 0.9997246954736148
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "598999999999999993708544",
+                "expectedQty": "599050151983474765603326",
+                "priceReceived": 0.9999162808267242
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "718800000000000046137344",
+                "expectedQty": "718733666989832873681464",
+                "priceReceived": 1.0000922915026995
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "838599999999999964348416",
+                "expectedQty": "838385076195192475443976",
+                "priceReceived": 1.0002563545212217
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "958400000000000016777216",
+                "expectedQty": "958006210974534598265744",
+                "priceReceived": 1.0004110505975372
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1078199999999999934988288",
+                "expectedQty": "1077598413384895869827584",
+                "priceReceived": 1.00055826605499
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1197999999999999987417088",
+                "expectedQty": "1197162690460710463648890",
+                "priceReceived": 1.000699411655543
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "10000000000000",
+                "expectedQty": "9988682641760",
+                "priceReceived": 1.0011330181011744
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1000000000000000",
+                "expectedQty": "998868264174510",
+                "priceReceived": 1.0011330181026676
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "100000000000000000",
+                "expectedQty": "99886826401746024",
+                "priceReceived": 1.0011330182600735
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1000000000000000000",
+                "expectedQty": "998868262589732674",
+                "priceReceived": 1.0011330196910382
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "10000000000000000000",
+                "expectedQty": "9988682483124932862",
+                "priceReceived": 1.001133034000649
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "100000000000000000000",
+                "expectedQty": "99886810554373817100",
+                "priceReceived": 1.0011331770931315
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "119800000000000002097152",
+                "expectedQty": "119642278196933365260930",
+                "priceReceived": 1.0013182781659091
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "239600000000000004194304",
+                "expectedQty": "239242306373072112105222",
+                "priceReceived": 1.0014951102601817
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "359400000000000023068672",
+                "expectedQty": "358802332385494208275456",
+                "priceReceived": 1.0016657294575881
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "479200000000000008388608",
+                "expectedQty": "478323885703104085720870",
+                "priceReceived": 1.0018316340100977
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "598999999999999993708544",
+                "expectedQty": "597808046310956360612006",
+                "priceReceived": 1.0019938736127745
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "718800000000000046137344",
+                "expectedQty": "717255601235091985983076",
+                "priceReceived": 1.0021532055828475
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "838599999999999964348416",
+                "expectedQty": "836667139912709671637260",
+                "priceReceived": 1.0023101900326716
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "958400000000000016777216",
+                "expectedQty": "956043114578991716821848",
+                "priceReceived": 1.002465250138898
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1078199999999999934988288",
+                "expectedQty": "1075383879779256314796106",
+                "priceReceived": 1.0026187115816927
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1197999999999999987417088",
+                "expectedQty": "1194689718966519103644734",
+                "priceReceived": 1.0027708290955617
+            }
+        ]
+    },
+    {
+        "reserve0": "999399999999999888850944",
+        "reserve1": "1000000000000000000000000",
+        "A": 30000,
+        "LPTokenSupply": "1999399999403794483843279",
+        "hardMin": 200000000000000000,
+        "hardMax": 800000000000000000,
+        "swapFeeRate": 800000000000000,
+        "mints": [
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "10000000000000",
+                "expectedQty": "10000019876498",
+                "priceReceived": 0.9999980123541508
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1000000000000000",
+                "expectedQty": "1000001987648064",
+                "priceReceived": 0.9999980123558867
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "100000000000000000",
+                "expectedQty": "100000198748400794",
+                "priceReceived": 0.9999980125199421
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1000000000000000000",
+                "expectedQty": "1000001985992599866",
+                "priceReceived": 0.9999980140113442
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "10000000000000000000",
+                "expectedQty": "10000019710785931110",
+                "priceReceived": 0.999998028925292
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "100000000000000000000",
+                "expectedQty": "100000182194591824948",
+                "priceReceived": 0.9999981780574012
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "119800000000000002097152",
+                "expectedQty": "119777729545472298652834",
+                "priceReceived": 1.0001859315134143
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "239600000000000004194304",
+                "expectedQty": "239514557188174893459286",
+                "priceReceived": 1.0003567332726169
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "359400000000000023068672",
+                "expectedQty": "359215028800516486370874",
+                "priceReceived": 1.0005149316834019
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "479200000000000008388608",
+                "expectedQty": "478882223190950705911522",
+                "priceReceived": 1.0006635802994144
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "598999999999999993708544",
+                "expectedQty": "598518301310726273011892",
+                "priceReceived": 1.0008048186466794
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "718800000000000046137344",
+                "expectedQty": "718124825924382930578422",
+                "priceReceived": 1.0009401904115318
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "838599999999999964348416",
+                "expectedQty": "837702956377096510804470",
+                "priceReceived": 1.0010708373607549
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "958400000000000016777216",
+                "expectedQty": "957253571914358494902278",
+                "priceReceived": 1.0011976221549623
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1078199999999999934988288",
+                "expectedQty": "1076777352370036872068298",
+                "priceReceived": 1.001321208722334
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1197999999999999987417088",
+                "expectedQty": "1196274832480175729147166",
+                "priceReceived": 1.0014421163707403
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "10000000000000",
+                "expectedQty": "9999980129466",
+                "priceReceived": 1.0000019870573484
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1000000000000000",
+                "expectedQty": "999998012945010",
+                "priceReceived": 1.0000019870589385
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "100000000000000000",
+                "expectedQty": "99999801278115110",
+                "priceReceived": 1.0000019872227979
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1000000000000000000",
+                "expectedQty": "999998011291532188",
+                "priceReceived": 1.0000019887124227
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "10000000000000000000",
+                "expectedQty": "9999979963954166784",
+                "priceReceived": 1.0000020036085977
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "100000000000000000000",
+                "expectedQty": "99999784744162779674",
+                "priceReceived": 1.0000021525630056
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "119800000000000002097152",
+                "expectedQty": "119777277428251667100316",
+                "priceReceived": 1.0001897068645758
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "239600000000000004194304",
+                "expectedQty": "239513687077152072189864",
+                "priceReceived": 1.0003603673923658
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "359400000000000023068672",
+                "expectedQty": "359213760105809058919772",
+                "priceReceived": 1.0005184653676298
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "479200000000000008388608",
+                "expectedQty": "478880565969380751988766",
+                "priceReceived": 1.0006670432114375
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "598999999999999993708544",
+                "expectedQty": "598516259414461070702454",
+                "priceReceived": 1.0008082329893797
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "718800000000000046137344",
+                "expectedQty": "718122398942027474717946",
+                "priceReceived": 1.0009435732111558
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "838599999999999964348416",
+                "expectedQty": "837700140879559471597386",
+                "priceReceived": 1.0010742019447385
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "958400000000000016777216",
+                "expectedQty": "957250362282282746150502",
+                "priceReceived": 1.0012009791408971
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1078199999999999934988288",
+                "expectedQty": "1076773741359684183983504",
+                "priceReceived": 1.0013245666991422
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1197999999999999987417088",
+                "expectedQty": "1196270811620415271015578",
+                "priceReceived": 1.0014454823797319
+            }
+        ]
+    },
+    {
+        "reserve0": "1298899999999999952814080",
+        "reserve1": "1000000000000000000000000",
+        "A": 30000,
+        "LPTokenSupply": "2298769118010235109574803",
+        "hardMin": 200000000000000000,
+        "hardMax": 800000000000000000,
+        "swapFeeRate": 800000000000000,
+        "mints": [
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "10000000000000",
+                "expectedQty": "9991681616572",
+                "priceReceived": 1.0008325308739026
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1000000000000000",
+                "expectedQty": "999168161656038",
+                "priceReceived": 1.0008325308750665
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "100000000000000000",
+                "expectedQty": "99916816153676722",
+                "priceReceived": 1.0008325309945358
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1000000000000000000",
+                "expectedQty": "999168160452474336",
+                "priceReceived": 1.0008325320806348
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "10000000000000000000",
+                "expectedQty": "9991681496095713974",
+                "priceReceived": 1.0008325429415996
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "100000000000000000000",
+                "expectedQty": "99916804118314486782",
+                "priceReceived": 1.0008326515486523
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "119800000000000002097152",
+                "expectedQty": "119683515006358057802324",
+                "priceReceived": 1.0009732751719045
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "239600000000000004194304",
+                "expectedQty": "239334924211717743349152",
+                "priceReceived": 1.0011075516419317
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "359400000000000023068672",
+                "expectedQty": "358956058991059832662418",
+                "priceReceived": 1.0012367558586084
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "479200000000000008388608",
+                "expectedQty": "478548261401421171208816",
+                "priceReceived": 1.0013619077763865
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "598999999999999993708544",
+                "expectedQty": "598112538477235698045564",
+                "priceReceived": 1.0014837701363422
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "718800000000000046137344",
+                "expectedQty": "717649661603551176393068",
+                "priceReceived": 1.0016029247389018
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "838599999999999964348416",
+                "expectedQty": "837160232497874303030410",
+                "priceReceived": 1.001719823095072
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "958400000000000016777216",
+                "expectedQty": "956644728196623943029112",
+                "priceReceived": 1.0018348209650252
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1078199999999999934988288",
+                "expectedQty": "1076103532447837742927736",
+                "priceReceived": 1.0019482024628181
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1197999999999999987417088",
+                "expectedQty": "1195536958072651328950646",
+                "priceReceived": 1.0020601972282976
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "10000000000000",
+                "expectedQty": "10009495928336",
+                "priceReceived": 0.9990513080374889
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1000000000000000",
+                "expectedQty": "1000949592831608",
+                "priceReceived": 0.9990513080394772
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "100000000000000000",
+                "expectedQty": "100094959263037886",
+                "priceReceived": 0.9990513082403246
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1000000000000000000",
+                "expectedQty": "1000949590801024526",
+                "priceReceived": 0.9990513100662096
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "10000000000000000000",
+                "expectedQty": "10009495725076051890",
+                "priceReceived": 0.9990513283249361
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "100000000000000000000",
+                "expectedQty": "100094938958581659834",
+                "priceReceived": 0.9990515108998573
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "119800000000000002097152",
+                "expectedQty": "119886727564953118388072",
+                "priceReceived": 0.999276587436202
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "239600000000000004194304",
+                "expectedQty": "239726292538440894846076",
+                "priceReceived": 0.9994731802794613
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "359400000000000023068672",
+                "expectedQty": "359526320325316104507964",
+                "priceReceived": 0.999648647906496
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "479200000000000008388608",
+                "expectedQty": "479291972312067800915316",
+                "priceReceived": 0.9998081079647044
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "598999999999999993708544",
+                "expectedQty": "599026867667013086085520",
+                "priceReceived": 0.999955147809784
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "718800000000000046137344",
+                "expectedQty": "718733620126940868871848",
+                "priceReceived": 1.0000923567107483
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "838599999999999964348416",
+                "expectedQty": "838414165172656861543688",
+                "priceReceived": 1.0002216503907766
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "958400000000000016777216",
+                "expectedQty": "958069967251772696798830",
+                "priceReceived": 1.0003444766661187
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1078199999999999934988288",
+                "expectedQty": "1077702155402257644776066",
+                "priceReceived": 1.0004619500807777
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1197999999999999987417088",
+                "expectedQty": "1197311614567183426941334",
+                "priceReceived": 1.000574942583402
+            }
+        ]
+    },
+    {
+        "reserve0": "1598399999999999882559488",
+        "reserve1": "1000000000000000000000000",
+        "A": 30000,
+        "LPTokenSupply": "2597918300714520756855171",
+        "hardMin": 200000000000000000,
+        "hardMax": 800000000000000000,
+        "swapFeeRate": 800000000000000,
+        "mints": [
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "10000000000000",
+                "expectedQty": "9985065071638",
+                "priceReceived": 1.0014957266933013
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1000000000000000",
+                "expectedQty": "998506507162726",
+                "priceReceived": 1.0014957266943785
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "100000000000000000",
+                "expectedQty": "99850650706090928",
+                "priceReceived": 1.0014957267965001
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1000000000000000000",
+                "expectedQty": "998506506135306572",
+                "priceReceived": 1.0014957277248737
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "10000000000000000000",
+                "expectedQty": "9985064968792910404",
+                "priceReceived": 1.001495737008599
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "100000000000000000000",
+                "expectedQty": "99850640432027871434",
+                "priceReceived": 1.001495829844715
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "119800000000000002097152",
+                "expectedQty": "119606524613656607322202",
+                "priceReceived": 1.0016175989308973
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "239600000000000004194304",
+                "expectedQty": "239184655066370271280978",
+                "priceReceived": 1.001736503261526
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "359400000000000023068672",
+                "expectedQty": "358735270603632221890386",
+                "priceReceived": 1.0018529803195801
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "479200000000000008388608",
+                "expectedQty": "478259051059310666003128",
+                "priceReceived": 1.0019674461750492
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "598999999999999993708544",
+                "expectedQty": "597756531169449456135274",
+                "priceReceived": 1.0020802262555255
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "718800000000000046137344",
+                "expectedQty": "717228138049881480033342",
+                "priceReceived": 1.0021915787553908
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "838599999999999964348416",
+                "expectedQty": "836674217627242136526434",
+                "priceReceived": 1.002301711146567
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "958400000000000016777216",
+                "expectedQty": "956095053644187856885762",
+                "priceReceived": 1.0024107920515086
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1078199999999999934988288",
+                "expectedQty": "1075490881563936198550826",
+                "priceReceived": 1.002518959930301
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1197999999999999987417088",
+                "expectedQty": "1194861898902843452515868",
+                "priceReceived": 1.0026263295365248
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "10000000000000",
+                "expectedQty": "10019054996640",
+                "priceReceived": 0.9980981243593942
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1000000000000000",
+                "expectedQty": "1001905499661350",
+                "priceReceived": 0.998098124362034
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "100000000000000000",
+                "expectedQty": "100190549940122020",
+                "priceReceived": 0.9980981246211753
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1000000000000000000",
+                "expectedQty": "1001905497036415758",
+                "priceReceived": 0.9980981269769932
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "10000000000000000000",
+                "expectedQty": "10019054733885589130",
+                "priceReceived": 0.9980981505349857
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "100000000000000000000",
+                "expectedQty": "100190523692873203938",
+                "priceReceived": 0.9980983860963015
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "119800000000000002097152",
+                "expectedQty": "119993799011264373015820",
+                "priceReceived": 0.9983849247806033
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "239600000000000004194304",
+                "expectedQty": "239929070429105031130300",
+                "priceReceived": 0.9986284678696229
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "359400000000000023068672",
+                "expectedQty": "359817334835031205832586",
+                "priceReceived": 0.9988401480567285
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "479200000000000008388608",
+                "expectedQty": "479666389078324962617772",
+                "priceReceived": 0.9990276803025095
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "598999999999999993708544",
+                "expectedQty": "599481698912659634258780",
+                "priceReceived": 0.9991964743652169
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "718800000000000046137344",
+                "expectedQty": "719267210129332558893668",
+                "priceReceived": 0.9993504359398665
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "838599999999999964348416",
+                "expectedQty": "839025843034261652751516",
+                "priceReceived": 0.9994924554019436
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "958400000000000016777216",
+                "expectedQty": "958759805680058795503200",
+                "priceReceived": 0.9996247176008766
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1078199999999999934988288",
+                "expectedQty": "1078470798896488576613366",
+                "priceReceived": 0.999748904748496
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1197999999999999987417088",
+                "expectedQty": "1198160154351656320893774",
+                "priceReceived": 0.9998663331015686
+            }
+        ]
+    },
+    {
+        "reserve0": "1300100000000000141557760",
+        "reserve1": "1000000000000000000000000",
+        "A": 30000,
+        "LPTokenSupply": "2299968118069859270515287",
+        "hardMin": 200000000000000000,
+        "hardMax": 800000000000000000,
+        "swapFeeRate": 800000000000000,
+        "mints": [
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "10000000000000",
+                "expectedQty": "9991652714694",
+                "priceReceived": 1.000835425884421
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1000000000000000",
+                "expectedQty": "999165271468102",
+                "priceReceived": 1.000835425885721
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "100000000000000000",
+                "expectedQty": "99916527134893300",
+                "priceReceived": 1.0008354260050893
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1000000000000000000",
+                "expectedQty": "999165270265584924",
+                "priceReceived": 1.0008354270902482
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "10000000000000000000",
+                "expectedQty": "9991652594321302758",
+                "priceReceived": 1.0008354379418116
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "100000000000000000000",
+                "expectedQty": "99916515110017712584",
+                "priceReceived": 1.0008355464548615
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "119800000000000002097152",
+                "expectedQty": "119683182178655560761772",
+                "priceReceived": 1.0009760587846843
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "239600000000000004194304",
+                "expectedQty": "239334280036733492013660",
+                "priceReceived": 1.001110246151223
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "359400000000000023068672",
+                "expectedQty": "358955119019444579318680",
+                "priceReceived": 1.0012393777299256
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "479200000000000008388608",
+                "expectedQty": "478547037179222829385440",
+                "priceReceived": 1.0013644694670476
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "598999999999999993708544",
+                "expectedQty": "598111038766963778216880",
+                "priceReceived": 1.0014862812678877
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "718800000000000046137344",
+                "expectedQty": "717647893184236275421194",
+                "priceReceived": 1.0016053928767934
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "838599999999999964348416",
+                "expectedQty": "837158200704230393801700",
+                "priceReceived": 1.001722254281875
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "958400000000000016777216",
+                "expectedQty": "956642437291434006893638",
+                "priceReceived": 1.0018372200940011
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1078199999999999934988288",
+                "expectedQty": "1076100985884787072049700",
+                "priceReceived": 1.0019505735453695
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1197999999999999987417088",
+                "expectedQty": "1195534158685445426324172",
+                "priceReceived": 1.0020625435891066
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "10000000000000",
+                "expectedQty": "10009533486326",
+                "priceReceived": 0.9990475593753672
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1000000000000000",
+                "expectedQty": "1000953348630582",
+                "priceReceived": 0.9990475593773813
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "100000000000000000",
+                "expectedQty": "100095334842915566",
+                "priceReceived": 0.9990475595784241
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1000000000000000000",
+                "expectedQty": "1000953346598016642",
+                "priceReceived": 0.9990475614060766
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "10000000000000000000",
+                "expectedQty": "10009533282867508716",
+                "priceReceived": 0.9990475796824787
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "100000000000000000000",
+                "expectedQty": "100095314518652075348",
+                "priceReceived": 0.9990477624341316
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "119800000000000002097152",
+                "expectedQty": "119887152981631361774660",
+                "priceReceived": 0.9992730415272709
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "239600000000000004194304",
+                "expectedQty": "239727107008183104035884",
+                "priceReceived": 0.9994697845822719
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "359400000000000023068672",
+                "expectedQty": "359527501497616081256608",
+                "priceReceived": 0.9996453637146395
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "479200000000000008388608",
+                "expectedQty": "479293507314793531618262",
+                "priceReceived": 0.9998049059430882
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "598999999999999993708544",
+                "expectedQty": "599028750267003555151350",
+                "priceReceived": 0.999952005196761
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "718800000000000046137344",
+                "expectedQty": "718735848878279513349482",
+                "priceReceived": 1.0000892554918759
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "838599999999999964348416",
+                "expectedQty": "838416742167167751383870",
+                "priceReceived": 1.0002185760655955
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "958400000000000016777216",
+                "expectedQty": "958072897251067442486172",
+                "priceReceived": 1.0003414173909637
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1078199999999999934988288",
+                "expectedQty": "1077705445219568768019780",
+                "priceReceived": 1.0004588960579395
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1197999999999999987417088",
+                "expectedQty": "1197315272617417917033240",
+                "priceReceived": 1.0005718856162966
+            }
+        ]
+    },
+    {
+        "reserve0": "1000599999999999943376896",
+        "reserve1": "1000000000000000000000000",
+        "A": 30000,
+        "LPTokenSupply": "2000599999404152154391707",
+        "hardMin": 200000000000000000,
+        "hardMax": 800000000000000000,
+        "swapFeeRate": 800000000000000,
+        "mints": [
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "10000000000000",
+                "expectedQty": "9999980141384",
+                "priceReceived": 1.0000019858655436
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1000000000000000",
+                "expectedQty": "999998014136708",
+                "priceReceived": 1.0000019858672358
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "100000000000000000",
+                "expectedQty": "99999801397294644",
+                "priceReceived": 1.0000019860309979
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1000000000000000000",
+                "expectedQty": "999998012484220488",
+                "priceReceived": 1.0000019875197297
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "10000000000000000000",
+                "expectedQty": "9999979975970345644",
+                "priceReceived": 1.0000020024069751
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "100000000000000000000",
+                "expectedQty": "99999784873253274092",
+                "priceReceived": 1.0000021512720951
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "119800000000000002097152",
+                "expectedQty": "119777290370301954221560",
+                "priceReceived": 1.0001895987931255
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "239600000000000004194304",
+                "expectedQty": "239513734380613572205582",
+                "priceReceived": 1.000360169823286
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "359400000000000023068672",
+                "expectedQty": "359213859286717906819640",
+                "priceReceived": 1.000518189119016
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "479200000000000008388608",
+                "expectedQty": "478880732490554253605446",
+                "priceReceived": 1.000666695249536
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "598999999999999993708544",
+                "expectedQty": "598516507638222165112388",
+                "priceReceived": 1.0008078179224926
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "718800000000000046137344",
+                "expectedQty": "718122742640142741368134",
+                "priceReceived": 1.000943094153191
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "838599999999999964348416",
+                "expectedQty": "837700593513896001631486",
+                "priceReceived": 1.001073661034823
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "958400000000000016777216",
+                "expectedQty": "957250937162056743854764",
+                "priceReceived": 1.0012003778668004
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1078199999999999934988288",
+                "expectedQty": "1076774451730208854614218",
+                "priceReceived": 1.0013239061044776
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1197999999999999987417088",
+                "expectedQty": "1196271670712905146449008",
+                "priceReceived": 1.0014447632000387
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "10000000000000",
+                "expectedQty": "10000019864574",
+                "priceReceived": 0.999998013546546
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1000000000000000",
+                "expectedQty": "1000001986455654",
+                "priceReceived": 0.999998013548292
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "100000000000000000",
+                "expectedQty": "100000198629169606",
+                "priceReceived": 0.9999980137122493
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1000000000000000000",
+                "expectedQty": "1000001984801183092",
+                "priceReceived": 0.9999980152027563
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "10000000000000000000",
+                "expectedQty": "10000019698961273828",
+                "priceReceived": 0.9999980301077531
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "100000000000000000000",
+                "expectedQty": "100000182085295409630",
+                "priceReceived": 0.9999981791503614
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "119800000000000002097152",
+                "expectedQty": "119777742228398705824578",
+                "priceReceived": 1.0001858256065543
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "239600000000000004194304",
+                "expectedQty": "239514604004111858840912",
+                "priceReceived": 1.000356537741167
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "359400000000000023068672",
+                "expectedQty": "359215127275461412880286",
+                "priceReceived": 1.0005146574030466
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "479200000000000008388608",
+                "expectedQty": "478882388786572089250868",
+                "priceReceived": 1.0006632342739368
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "598999999999999993708544",
+                "expectedQty": "598518548381961970116476",
+                "priceReceived": 1.0008044055098035
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "718800000000000046137344",
+                "expectedQty": "718125168231979087525680",
+                "priceReceived": 1.0009397132949434
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "838599999999999964348416",
+                "expectedQty": "837703407369717063161044",
+                "priceReceived": 1.0010702984163549
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "958400000000000016777216",
+                "expectedQty": "957254144886676437360634",
+                "priceReceived": 1.0011970228799159
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1078199999999999934988288",
+                "expectedQty": "1076778060551986804509964",
+                "priceReceived": 1.0013205501673057
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1197999999999999987417088",
+                "expectedQty": "1196275689087068647569532",
+                "priceReceived": 1.001441399276656
+            }
+        ]
+    },
+    {
+        "reserve0": "701100000000000013631488",
+        "reserve1": "1000000000000000000000000",
+        "A": 30000,
+        "LPTokenSupply": "1700920591376845240849015",
+        "hardMin": 200000000000000000,
+        "hardMax": 800000000000000000,
+        "swapFeeRate": 800000000000000,
+        "mints": [
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "10000000000000",
+                "expectedQty": "10013505821890",
+                "priceReceived": 0.9986512394230125
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1000000000000000",
+                "expectedQty": "1001350582185870",
+                "priceReceived": 0.9986512394261341
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "100000000000000000",
+                "expectedQty": "100135058186648952",
+                "priceReceived": 0.9986512397446536
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1000000000000000000",
+                "expectedQty": "1001350578963023252",
+                "priceReceived": 0.998651242640293
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "10000000000000000000",
+                "expectedQty": "10013505499286645248",
+                "priceReceived": 0.9986512715963848
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "100000000000000000000",
+                "expectedQty": "100135025961547574176",
+                "priceReceived": 0.9986515611270783
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "119800000000000002097152",
+                "expectedQty": "119920511778390216004876",
+                "priceReceived": 0.9989950695122706
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "239600000000000004194304",
+                "expectedQty": "239773403152752787139150",
+                "priceReceived": 0.9992768040555261
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "359400000000000023068672",
+                "expectedQty": "359573521497798681690538",
+                "priceReceived": 0.9995174241499323
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "479200000000000008388608",
+                "expectedQty": "479329700359111400504052",
+                "priceReceived": 0.9997294130553266
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "598999999999999993708544",
+                "expectedQty": "599047526693013895560580",
+                "priceReceived": 0.9999206629008616
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "718800000000000046137344",
+                "expectedQty": "718730708871669506635244",
+                "priceReceived": 1.0000964076356766
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "838599999999999964348416",
+                "expectedQty": "838381806729747354137848",
+                "priceReceived": 1.0002602552542303
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "958400000000000016777216",
+                "expectedQty": "958002645712458474984362",
+                "priceReceived": 1.000414773684937
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1078199999999999934988288",
+                "expectedQty": "1077594563872236658098506",
+                "priceReceived": 1.0005618403693386
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1197999999999999987417088",
+                "expectedQty": "1197158565459977673945158",
+                "priceReceived": 1.0007028597249346
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "10000000000000",
+                "expectedQty": "9988736982040",
+                "priceReceived": 1.0011275717821233
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1000000000000000",
+                "expectedQty": "998873698202484",
+                "priceReceived": 1.0011275717836428
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "100000000000000000",
+                "expectedQty": "99887369804549416",
+                "priceReceived": 1.001127571940987
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1000000000000000000",
+                "expectedQty": "998873696618319580",
+                "priceReceived": 1.0011275733713818
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "10000000000000000000",
+                "expectedQty": "9988736823466102838",
+                "priceReceived": 1.001127587675294
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "100000000000000000000",
+                "expectedQty": "99887353963316837280",
+                "priceReceived": 1.0011277307107818
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "119800000000000002097152",
+                "expectedQty": "119642940128670724319612",
+                "priceReceived": 1.0013127383125187
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "239600000000000004194304",
+                "expectedQty": "239243658927061199349176",
+                "priceReceived": 1.0014894483495902
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "359400000000000023068672",
+                "expectedQty": "358804411755616110392308",
+                "priceReceived": 1.00165992452955
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "479200000000000008388608",
+                "expectedQty": "478326733127339031095394",
+                "priceReceived": 1.0018256702211719
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "598999999999999993708544",
+                "expectedQty": "597811706532452932125468",
+                "priceReceived": 1.0019877387052851
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "718800000000000046137344",
+                "expectedQty": "717260121499079419290226",
+                "priceReceived": 1.0021468898866177
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "838599999999999964348416",
+                "expectedQty": "836672569289963948923550",
+                "priceReceived": 1.0023036857915297
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "958400000000000016777216",
+                "expectedQty": "956049503496105490550412",
+                "priceReceived": 1.0024585510429107
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1078199999999999934988288",
+                "expectedQty": "1075391279684243947445762",
+                "priceReceived": 1.0026118124340573
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1197999999999999987417088",
+                "expectedQty": "1194698182085533847468614",
+                "priceReceived": 1.0027637255701707
+            }
+        ]
+    },
+    {
+        "reserve0": "401599999999999949668352",
+        "reserve1": "1000000000000000000000000",
+        "A": 30000,
+        "LPTokenSupply": "1400566983470569151572833",
+        "hardMin": 200000000000000000,
+        "hardMax": 800000000000000000,
+        "swapFeeRate": 800000000000000,
+        "mints": [
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "10000000000000",
+                "expectedQty": "10052789612878",
+                "priceReceived": 0.9947487598058976
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1000000000000000",
+                "expectedQty": "1005278961274366",
+                "priceReceived": 0.9947487598191909
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "100000000000000000",
+                "expectedQty": "100527895993619822",
+                "priceReceived": 0.9947487611433415
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1000000000000000000",
+                "expectedQty": "1005278947771058464",
+                "priceReceived": 0.9947487731810527
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "10000000000000000000",
+                "expectedQty": "10052788261224639986",
+                "priceReceived": 0.9947488935554075
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "100000000000000000000",
+                "expectedQty": "100527760991676690532",
+                "priceReceived": 0.9947500970232452
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "119800000000000002097152",
+                "expectedQty": "120280130451741334706876",
+                "priceReceived": 0.9960082313684057
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "239600000000000004194304",
+                "expectedQty": "240360331158187235131110",
+                "priceReceived": 0.996836702818125
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "359400000000000023068672",
+                "expectedQty": "360323608375432188764514",
+                "priceReceived": 0.9974367253381027
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "479200000000000008388608",
+                "expectedQty": "480207901175248424823722",
+                "priceReceived": 0.9979011149696169
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "598999999999999993708544",
+                "expectedQty": "600033015933583002818874",
+                "priceReceived": 0.9982784015109972
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "718800000000000046137344",
+                "expectedQty": "719810306303885007353576",
+                "priceReceived": 0.9985964270099539
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "838599999999999964348416",
+                "expectedQty": "839546750314196541493082",
+                "priceReceived": 0.9988723078091336
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "958400000000000016777216",
+                "expectedQty": "959246875220300909638514",
+                "priceReceived": 0.9991171457085993
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1078199999999999934988288",
+                "expectedQty": "1078913748424137189398908",
+                "priceReceived": 0.9993384564566169
+            },
+            {
+                "bAssetIndex": 0,
+                "bAssetQty": "1197999999999999987417088",
+                "expectedQty": "1198549523571805167931262",
+                "priceReceived": 0.9995415094987752
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "10000000000000",
+                "expectedQty": "9968469526174",
+                "priceReceived": 1.0031630205362227
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1000000000000000",
+                "expectedQty": "996846952615174",
+                "priceReceived": 1.003163020538463
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "100000000000000000",
+                "expectedQty": "99684695239935184",
+                "priceReceived": 1.0031630207556526
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1000000000000000000",
+                "expectedQty": "996846950437322072",
+                "priceReceived": 1.0031630227301138
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "10000000000000000000",
+                "expectedQty": "9968469308170370790",
+                "priceReceived": 1.0031630424747144
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "100000000000000000000",
+                "expectedQty": "99684673461545417532",
+                "priceReceived": 1.003163239919487
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "119800000000000002097152",
+                "expectedQty": "119391196915883824909270",
+                "priceReceived": 1.003424063873019
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "239600000000000004194304",
+                "expectedQty": "238720978623933167121844",
+                "priceReceived": 1.0036822125191251
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "359400000000000023068672",
+                "expectedQty": "357990163314310665629950",
+                "priceReceived": 1.0039381995098327
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "479200000000000008388608",
+                "expectedQty": "477199331973793456887492",
+                "priceReceived": 1.0041925205928754
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "598999999999999993708544",
+                "expectedQty": "596348917128823650547316",
+                "priceReceived": 1.0044455230738747
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "718800000000000046137344",
+                "hardLimitError": true
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "838599999999999964348416",
+                "hardLimitError": true
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "958400000000000016777216",
+                "hardLimitError": true
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1078199999999999934988288",
+                "hardLimitError": true
+            },
+            {
+                "bAssetIndex": 1,
+                "bAssetQty": "1197999999999999987417088",
+                "hardLimitError": true
+            }
+        ]
+    }
+]

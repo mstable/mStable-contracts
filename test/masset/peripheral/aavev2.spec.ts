@@ -4,8 +4,7 @@ import { expect } from "chai"
 import { assertBNSlightlyGT, assertBNSlightlyGTPercent, assertBNClose } from "@utils/assertions"
 import { simpleToExactAmount, BN } from "@utils/math"
 import { increaseTime } from "@utils/time"
-import { MassetMachine, StandardAccounts, Account } from "@utils/machines"
-
+import { MassetMachine, StandardAccounts } from "@utils/machines"
 import { MAX_UINT256, ZERO_ADDRESS, TEN_MINS, DEAD_ADDRESS } from "@utils/constants"
 import {
     MockNexus__factory,
@@ -21,6 +20,7 @@ import {
 } from "types/generated"
 import { BassetIntegrationDetails } from "types"
 import { shouldBehaveLikeModule, IModuleBehaviourContext } from "../../shared/Module.behaviour"
+import { Account } from "types"
 
 describe("AaveIntegration", async () => {
     let sa: StandardAccounts
@@ -49,7 +49,7 @@ describe("AaveIntegration", async () => {
             nexus.address,
             mAsset.address,
             integrationDetails.aavePlatformAddress,
-            DEAD_ADDRESS
+            DEAD_ADDRESS,
         )
         if (!skipInit) {
             await Promise.all(
@@ -105,7 +105,12 @@ describe("AaveIntegration", async () => {
 
         it("should fail when mAsset address invalid", async () => {
             await expect(
-                new AaveV2Integration__factory(sa.default.signer).deploy(nexus.address, ZERO_ADDRESS, sa.mockSavingsManager.address, DEAD_ADDRESS),
+                new AaveV2Integration__factory(sa.default.signer).deploy(
+                    nexus.address,
+                    ZERO_ADDRESS,
+                    sa.mockSavingsManager.address,
+                    DEAD_ADDRESS,
+                ),
             ).to.be.revertedWith("Invalid LP address")
         })
 
@@ -250,9 +255,7 @@ describe("AaveIntegration", async () => {
 
             // Step 3. Check for things:
             // 3.0 Check that return value is cool (via event)
-            await expect(tx)
-                .to.emit(aaveIntegration, "Deposit")
-                .withArgs(bAsset.address, aToken.address, amount)
+            await expect(tx).to.emit(aaveIntegration, "Deposit").withArgs(bAsset.address, aToken.address, amount)
             await (await tx).wait()
             // 3.1 Check that lending pool has bAssets
             expect(await bAsset.balanceOf(bAssetRecipient)).eq(bAssetRecipientBalBefore.add(amount))

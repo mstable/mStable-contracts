@@ -1,6 +1,6 @@
 /* eslint-disable consistent-return */
 
-import { Account, StandardAccounts, MassetMachine } from "@utils/machines"
+import { StandardAccounts, MassetMachine } from "@utils/machines"
 import { ZERO_ADDRESS, DEAD_ADDRESS, fullScale, ONE_WEEK, MAX_UINT256 } from "@utils/constants"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { MockCToken, MockCToken__factory, MockERC20, MockERC20__factory, MockNexus, MockNexus__factory } from "types/generated"
@@ -11,6 +11,7 @@ import { CompoundIntegration__factory } from "types/generated/factories/Compound
 import { BassetIntegrationDetails } from "types"
 import { assertBNClose, assertBNSlightlyGT, assertBNSlightlyGTPercent } from "@utils/assertions"
 import { shouldBehaveLikeModule, IModuleBehaviourContext } from "../../shared/Module.behaviour"
+import { Account } from "types"
 
 const convertUnderlyingToCToken = async (cToken: MockCToken, underlyingAmount: BN): Promise<BN> => {
     const exchangeRate = await cToken.exchangeRateStored()

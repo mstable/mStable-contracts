@@ -1,6 +1,6 @@
 import { Signer } from "ethers"
 import { ethers, network } from "hardhat"
-import { Account } from "@utils/machines"
+import { Account } from "types"
 
 // impersonates a specific account
 export const impersonate = async (addr: string): Promise<Signer> => {

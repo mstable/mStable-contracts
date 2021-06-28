@@ -6,7 +6,7 @@ import { simpleToExactAmount } from "@utils/math"
 import { MassetDetails, MassetMachine, StandardAccounts } from "@utils/machines"
 
 import { DEAD_ADDRESS, ZERO_ADDRESS } from "@utils/constants"
-import { AssetProxy__factory, Masset, MassetLogic, MassetManager } from "types/generated"
+import { AssetProxy__factory, ExposedMasset, MassetLogic, MassetManager } from "types/generated"
 import { BasketComposition } from "types"
 
 describe("Masset - basic fns", () => {
@@ -32,7 +32,7 @@ describe("Masset - basic fns", () => {
                 MassetManager: managerLib.address,
             },
         }
-        const factory = await ethers.getContractFactory("Masset", libs)
+        const factory = await ethers.getContractFactory("ExposedMasset", libs)
         const impl = await factory.deploy(DEAD_ADDRESS, simpleToExactAmount(5, 13))
         const data = impl.interface.encodeFunctionData("initialize", [
             "mStable BTC",
@@ -53,7 +53,7 @@ describe("Masset - basic fns", () => {
         ])
         const mAsset = await new AssetProxy__factory(sa.default.signer).deploy(impl.address, DEAD_ADDRESS, data)
         details = {
-            mAsset: factory.attach(mAsset.address) as Masset,
+            mAsset: factory.attach(mAsset.address) as ExposedMasset,
             bAssets,
         }
     }

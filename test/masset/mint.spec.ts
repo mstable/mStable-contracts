@@ -4,10 +4,11 @@ import { ethers } from "hardhat"
 
 import { assertBasketIsHealthy, assertBNClosePercent, assertBNSlightlyGTPercent } from "@utils/assertions"
 import { applyRatio, BN, simpleToExactAmount } from "@utils/math"
-import { Account, MassetDetails, MassetMachine, StandardAccounts } from "@utils/machines"
+import { MassetDetails, MassetMachine, StandardAccounts } from "@utils/machines"
 import { BassetStatus } from "@utils/mstable-objects"
 import { ZERO_ADDRESS } from "@utils/constants"
 import { Masset, MockERC20 } from "types/generated"
+import { Account } from "types"
 
 interface MintOutput {
     mAssets: BN

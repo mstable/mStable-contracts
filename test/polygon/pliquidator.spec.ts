@@ -3,7 +3,7 @@ import { ethers } from "hardhat"
 
 import { BN, simpleToExactAmount } from "@utils/math"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
-import { ONE_DAY, ONE_HOUR, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
+import { ONE_HOUR, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import {
     AssetProxy__factory,
     MockERC20,
