@@ -179,12 +179,13 @@ export const FRAX: Token = {
 }
 // USD Feeder Pool Assets on Polygon
 export const PFRAX: Token = {
-    symbol: "FRAX",
+    symbol: "PFRAX",
     address: "0x104592a158490a9228070E0A8e5343B499e125D0",
     chain: Chain.polygon,
     decimals: 18,
     quantityFormatter: "USD",
     parent: "PmUSD",
+    feederPool: "0xB30a907084AC8a0d25dDDAB4E364827406Fd09f0",
 }
 export const MFRAX: Token = {
     symbol: "FRAX",
@@ -303,4 +304,4 @@ export const cyMUSD: Token = {
     quantityFormatter: "USD",
 }
 
-export const tokens = [mUSD, mBTC, sUSD, USDC, USDT, DAI, GUSD, BUSD, renBTC, sBTC, WBTC, HBTC, TBTC]
+export const tokens = [mUSD, mBTC, sUSD, USDC, USDT, DAI, GUSD, BUSD, renBTC, sBTC, WBTC, HBTC, TBTC, PFRAX]

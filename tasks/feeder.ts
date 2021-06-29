@@ -5,7 +5,7 @@ import { Signer } from "ethers"
 
 import { FeederPool, FeederPool__factory, Masset } from "types/generated"
 import { BN } from "@utils/math"
-import { dumpConfigStorage, dumpFassetStorage, dumpTokenStorage } from "./utils/storage-utils"
+import { dumpConfigStorage, dumpFassetStorage, dumpFeederDataStorage, dumpTokenStorage } from "./utils/storage-utils"
 import {
     getMultiRedemptions,
     Balances,
@@ -92,6 +92,7 @@ task("feeder-storage", "Dumps feeder contract storage data")
         await dumpTokenStorage(pool, blockNumber)
         await dumpFassetStorage(pool, blockNumber)
         await dumpConfigStorage(pool, blockNumber)
+        await dumpFeederDataStorage(pool, blockNumber)
     })
 
 task("feeder-snap", "Gets feeder transactions over a period of time")
