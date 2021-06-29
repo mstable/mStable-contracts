@@ -154,7 +154,7 @@ describe("Liquidator", () => {
         await redeployLiquidator()
 
         ctx.sa = sa
-        ctx.module = (liquidator as any) as ImmutableModule
+        ctx.module = liquidator as ImmutableModule
     })
 
     describe("verifying initialization", async () => {
@@ -559,9 +559,9 @@ describe("Liquidator", () => {
             await redeployLiquidator()
 
             // put some stkAAVE in the integration contract
-            stkAaveToken.connect(sa.fundManager.signer).transfer(aaveIntegration.address, 1500)
+            await stkAaveToken.connect(sa.fundManager.signer).transfer(aaveIntegration.address, 1500)
             // put some AAVE in the stkAAVE
-            aaveToken.connect(sa.fundManager.signer).transfer(stkAaveToken.address, 100000)
+            await aaveToken.connect(sa.fundManager.signer).transfer(stkAaveToken.address, 100000)
 
             await liquidator
                 .connect(sa.governor.signer)
@@ -612,7 +612,7 @@ describe("Liquidator", () => {
         it("claim staked after unstake window", async () => {
             await increaseTime(ONE_DAY.mul(2))
             // put more stkAAVE in the integration contract before claim
-            stkAaveToken.connect(sa.fundManager.signer).transfer(aaveIntegration.address, 1100)
+            await stkAaveToken.connect(sa.fundManager.signer).transfer(aaveIntegration.address, 1100)
 
             // Before checks
             expect(await stkAaveToken.balanceOf(liquidator.address), "some stkAAVE in liquidator before").to.gt(1100)
@@ -633,9 +633,9 @@ describe("Liquidator", () => {
             await redeployLiquidator()
 
             // put some stkAAVE in the integration contract
-            stkAaveToken.connect(sa.fundManager.signer).transfer(aaveIntegration.address, 2500)
+            await stkAaveToken.connect(sa.fundManager.signer).transfer(aaveIntegration.address, 2500)
             // put some AAVE in the stkAAVE
-            aaveToken.connect(sa.fundManager.signer).transfer(stkAaveToken.address, 200000)
+            await aaveToken.connect(sa.fundManager.signer).transfer(stkAaveToken.address, 200000)
             // Add AAVE to bAsset exchange rates
             await uniswap.setRate(aaveToken.address, bAsset.address, simpleToExactAmount(380, 18))
 
@@ -691,9 +691,9 @@ describe("Liquidator", () => {
             await redeployLiquidator()
 
             // put some stkAAVE in the integration contract
-            stkAaveToken.connect(sa.fundManager.signer).transfer(aaveIntegration.address, 2500)
+            await stkAaveToken.connect(sa.fundManager.signer).transfer(aaveIntegration.address, 2500)
             // put some AAVE in the stkAAVE
-            aaveToken.connect(sa.fundManager.signer).transfer(stkAaveToken.address, 200000)
+            await aaveToken.connect(sa.fundManager.signer).transfer(stkAaveToken.address, 200000)
             // Add AAVE to bAsset exchange rates
             await uniswap.setRate(aaveToken.address, bAsset.address, simpleToExactAmount(380, 18))
 
