@@ -1,6 +1,8 @@
 export enum Chain {
     mainnet,
     polygon,
+    ropsten,
+    mumbai,
 }
 
 export enum Platform {
@@ -51,6 +53,13 @@ export const PmUSD: Token = {
     quantityFormatter: "USD",
     savings: "0x5290Ad3d83476CA6A2b178Cd9727eE1EF72432af",
 }
+export const MmUSD: Token = {
+    symbol: "mUSD",
+    address: "0x0f7a5734f208A356AB2e5Cf3d02129c17028F3cf",
+    chain: Chain.mumbai,
+    decimals: 18,
+    quantityFormatter: "USD",
+}
 
 // USD Main Pool Assets on Mainnet
 export const sUSD: Token = {
@@ -98,7 +107,7 @@ export const DAI: Token = {
     parent: "mUSD",
 }
 
-// USD Main Pool Assets on Mainnet
+// USD Main Pool Assets on Polygon
 export const PUSDC: Token = {
     symbol: "USDC",
     address: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
@@ -131,7 +140,7 @@ export const PDAI: Token = {
     parent: "mUSD",
 }
 
-// USD Feeder Pool Assets
+// USD Feeder Pool Assets on Mainnet
 export const GUSD: Token = {
     symbol: "GUSD",
     address: "0x056Fd409E1d7A124BD7017459dFEa2F387b6d5Cd",
@@ -157,6 +166,33 @@ export const BUSD: Token = {
     parent: "mUSD",
     feederPool: "0xfE842e95f8911dcc21c943a1dAA4bd641a1381c6",
     vault: "0xD124B55f70D374F58455c8AEdf308E52Cf2A6207",
+}
+
+// USD Feeder Pool Assets on Mainnet
+export const FRAX: Token = {
+    symbol: "FRAX",
+    address: "0x853d955acef822db058eb8505911ed77f175b99e",
+    chain: Chain.mainnet,
+    decimals: 18,
+    quantityFormatter: "USD",
+    parent: "mUSD",
+}
+// USD Feeder Pool Assets on Polygon
+export const PFRAX: Token = {
+    symbol: "FRAX",
+    address: "0x104592a158490a9228070E0A8e5343B499e125D0",
+    chain: Chain.polygon,
+    decimals: 18,
+    quantityFormatter: "USD",
+    parent: "PmUSD",
+}
+export const MFRAX: Token = {
+    symbol: "FRAX",
+    address: "0x8F6F8064A0222F138d56C077a7F27009BDBBE3B1",
+    chain: Chain.mumbai,
+    decimals: 18,
+    quantityFormatter: "USD",
+    parent: "MmUSD",
 }
 
 // BTC
@@ -217,6 +253,14 @@ export const MTA: Token = {
     decimals: 18,
     quantityFormatter: "USD",
     vault: "0xaE8bC96DA4F9A9613c323478BE181FDb2Aa0E1BF",
+}
+
+export const PMTA: Token = {
+    symbol: "MTA",
+    address: "0xF501dd45a1198C2E1b5aEF5314A68B9006D842E0",
+    chain: Chain.polygon,
+    decimals: 18,
+    quantityFormatter: "USD",
 }
 
 export const AAVE: Token = {

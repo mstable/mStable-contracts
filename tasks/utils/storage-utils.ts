@@ -26,6 +26,8 @@ export const dumpBassetStorage = async (mAsset: Masset | MusdEth, toBlock: numbe
         console.log(` Integration:`, personal.integrator.toString())
         console.log(` Tx fee     :`, personal.hasTxFee.toString())
         console.log(` Status     :`, personal.status.toString())
+        console.log(` Ratio      :`, bAssets[1][i].ratio.toString())
+        console.log(` Vault bal  :`, bAssets[1][i].vaultBalance.toString())
         console.log("\n")
     })
 }

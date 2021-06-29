@@ -240,7 +240,7 @@ describe("Feeder - Swap", () => {
                 })
                 it("should swap mStable asset for feeder asset", async () => {
                     const { fAsset, mAsset } = details
-                    await assertSwap(details, mAsset, fAsset, simpleToExactAmount(10), "9988685002864007486")
+                    await assertSwap(details, mAsset, fAsset, simpleToExactAmount(10), "9992683316421789840")
                 })
                 it("should swap feeder asset for main pool asset with 18 decimals", async () => {
                     const { mAssetDetails, fAsset } = details
@@ -311,7 +311,7 @@ describe("Feeder - Swap", () => {
                         fAsset,
                         simpleToExactAmount(1),
                         0,
-                        "999166920850836533",
+                        "999566904273794708",
                         true,
                         sa.default.signer,
                         ZERO_ADDRESS,
@@ -326,7 +326,7 @@ describe("Feeder - Swap", () => {
                         fAsset,
                         simpleToExactAmount(1),
                         0,
-                        "999166920850836533",
+                        "999566904273794708",
                         true,
                         sa.dummy1.signer,
                         sa.dummy1.address,
@@ -346,7 +346,7 @@ describe("Feeder - Swap", () => {
                         bAssets[1],
                         simpleToExactAmount(1),
                         0,
-                        "999166920850836533",
+                        "999566904273794708",
                         true,
                         sender.signer,
                         sender.address,
@@ -374,7 +374,7 @@ describe("Feeder - Swap", () => {
                         details.fAsset,
                         simpleToExactAmount(1),
                         simpleToExactAmount(1),
-                        "999166920850836533",
+                        "999566904273794708",
                         true,
                     )
                 })
