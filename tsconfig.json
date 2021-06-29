@@ -28,5 +28,5 @@
     "./test-utils/**/*.ts",
     "./*.js"
   ],
-  "files": ["./index.ts", "./hardhat.config.ts", "./hardhat-fork.config.ts", "./tasks.config.ts", "./tasks-fork.config.ts"]
+  "files": ["./index.ts", "./hardhat.config.ts", "./hardhat-fork.config.ts", "./hardhat-fork-polygon.config.ts", "./tasks.config.ts", "./tasks-fork.config.ts", "./tasks-fork-polygon.config.ts"]
 }
