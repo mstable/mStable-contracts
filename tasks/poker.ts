@@ -10,7 +10,7 @@ import { task, types } from "hardhat/config"
 import { BoostedSavingsVault__factory, Poker, Poker__factory } from "types/generated"
 import { getSigner } from "./utils/defender-utils"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
-import { MTA } from "./utils/tokens"
+import { MTA, mUSD } from "./utils/tokens"
 
 const maxVMTA = simpleToExactAmount(300000, 18)
 const maxBoost = simpleToExactAmount(4, 18)
@@ -55,9 +55,9 @@ const getAccountBalanceMap = async (accounts: string[], tokenAddress: string, si
 task("over-boost", "Pokes accounts that are over boosted")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .addFlag("update", "Will send a poke transactions to the Poker contract")
-    .addOptionalParam("minMtaDiff", "Min amount of vMTA over boosted", 500, types.int)
+    .addOptionalParam("minMtaDiff", "Min amount of vMTA over boosted. 300 = 0.3 boost", 300, types.int)
     .setAction(async (taskArgs, hre) => {
-        const minMtaDiff = simpleToExactAmount(taskArgs.minMtaDiff)
+        const minMtaDiff = taskArgs.minMtaDiff
         const signer = await getSigner(hre.network.name, hre.ethers, taskArgs.speed)
         // const signer = await impersonate("0x2f2Db75C5276481E2B018Ac03e968af7763Ed118")
 
@@ -72,9 +72,7 @@ task("over-boost", "Pokes accounts that are over boosted")
                         symbol
                     }
                     accounts(where: { rawBalance_gt: "0" }) {
-                        account {
-                            id
-                        }
+                        id
                         rawBalance
                         boostedBalance
                         rewardPerTokenPaid
@@ -97,7 +95,7 @@ task("over-boost", "Pokes accounts that are over boosted")
         console.log(`Results for block number ${blockNumber}`)
 
         // Maps GQL to a list if accounts (addresses) in each vault
-        const vaultAccounts = gqlData.boostedSavingsVaults.map((vault) => vault.accounts.map((account) => account.account.id))
+        const vaultAccounts = gqlData.boostedSavingsVaults.map((vault) => vault.accounts.map((account) => account.id.split(".")[1]))
         const accountsWithDuplicates = vaultAccounts.flat()
         const accountsUnique = [...new Set<string>(accountsWithDuplicates)]
         const vMtaBalancesMap = await getAccountBalanceMap(accountsUnique, MTA.vault, signer)
@@ -107,6 +105,7 @@ task("over-boost", "Pokes accounts that are over boosted")
         }[] = []
         // For each Boosted Vault
         for (const vault of gqlData.boostedSavingsVaults) {
+            if (vault.id === mUSD.vault.toLocaleLowerCase()) continue
             const boostVault = BoostedSavingsVault__factory.connect(vault.id, signer)
             const priceCoeff = await boostVault.priceCoeff()
             const boostCoeff = await boostVault.boostCoeff()
@@ -119,14 +118,15 @@ task("over-boost", "Pokes accounts that are over boosted")
             // For each account in the boosted savings vault
             vault.accounts.forEach((account) => {
                 const boostActual = BN.from(account.boostedBalance).mul(1000).div(account.rawBalance).toNumber()
-                const boostExpected = calcBoost(BN.from(account.rawBalance), vMtaBalancesMap[account.account.id], priceCoeff, boostCoeff)
+                const accountId = account.id.split(".")[1]
+                const boostExpected = calcBoost(BN.from(account.rawBalance), vMtaBalancesMap[accountId], priceCoeff, boostCoeff)
                     .div(simpleToExactAmount(1, 15))
                     .toNumber()
                 const boostDiff = boostActual - boostExpected
                 // Calculate how much the boost balance is in USD = balance balance * price coefficient / 1e18
                 const boostBalanceUsd = BN.from(account.boostedBalance).mul(priceCoeff).div(simpleToExactAmount(1))
                 // Identify accounts with more than 20% over their boost and boost balance > 50,000 USD
-                if (boostDiff > 200 && boostBalanceUsd.gt(simpleToExactAmount(50000))) {
+                if (boostDiff > minMtaDiff && boostBalanceUsd.gt(simpleToExactAmount(50000))) {
                     overBoosted.push({
                         ...account,
                         boostActual,
@@ -136,26 +136,28 @@ task("over-boost", "Pokes accounts that are over boosted")
                     })
                 }
                 console.log(
-                    `${account.account.id}, ${formatUnits(account.rawBalance)}, ${formatUnits(account.boostedBalance)}, ${formatUnits(
+                    `${accountId}, ${formatUnits(account.rawBalance)}, ${formatUnits(account.boostedBalance)}, ${formatUnits(
                         boostBalanceUsd,
-                    )}, ${formatUnits(vMtaBalancesMap[account.account.id])}, ${formatUnits(boostActual, 3)}, ${formatUnits(
+                    )}, ${formatUnits(vMtaBalancesMap[accountId])}, ${formatUnits(boostActual, 3)}, ${formatUnits(
                         boostExpected,
                         3,
                     )}, ${formatUnits(boostDiff, 3)}`,
                 )
             })
-            console.log(`${overBoosted.length} of ${vault.accounts.length} over boosted for ${vault.id}`)
+            console.log(`${overBoosted.length} of ${vault.accounts.length} over boosted for ${vault.stakingToken.symbol} vault ${vault.id}`)
+            console.log("Account, Over Boosted by, Boost USD balance")
             overBoosted.forEach((account) => {
-                console.log(`${account.account.id} ${formatUnits(account.boostDiff, 3)}, ${formatUnits(account.boostBalanceUsd)}`)
+                const accountId = account.id.split(".")[1]
+                console.log(`${accountId} ${formatUnits(account.boostDiff, 3)}, ${formatUnits(account.boostBalanceUsd)}`)
             })
-            const pokeAccounts = overBoosted.map((account) => account.account.id)
-            console.log(pokeAccounts)
+            const pokeAccounts = overBoosted.map((account) => account.id.split(".")[1])
             pokeVaultAccounts.push({
                 boostVault: vault.id,
                 accounts: pokeAccounts,
             })
         }
         if (taskArgs.update) {
+            console.log(`About to poke ${pokeVaultAccounts.length} vaults`)
             const poker = Poker__factory.connect(pokerAddress, signer)
             const tx = await poker.poke(pokeVaultAccounts)
             await logTxDetails(tx, "poke Poker")
