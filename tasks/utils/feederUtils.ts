@@ -24,6 +24,7 @@ import {
     BoostedSavingsVault__factory,
     Masset__factory,
     MV2__factory,
+    ExposedMasset,
 } from "types/generated"
 import { deployContract, logTxDetails } from "./deploy-utils"
 import { Token } from "./tokens"
@@ -121,7 +122,7 @@ const deployFeederPool = async (signer: Signer, feederData: FeederData): Promise
     ])
 
     // Initialization Data
-    const bAssets = await feederData.mAsset.contract.getBassets()
+    const bAssets = await (feederData.mAsset.contract as ExposedMasset).getBassets()
     const mpAssets = bAssets.personal.map((bAsset) => bAsset.addr)
     console.log(`mpAssets. count = ${mpAssets.length}, list: `, mpAssets)
     console.log(

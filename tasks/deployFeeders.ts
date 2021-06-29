@@ -15,10 +15,10 @@ import {
     RewardsDistributor,
 } from "types/generated"
 import { simpleToExactAmount, BN } from "@utils/math"
-import { BUSD, Chain, CREAM, cyMUSD, FRAX, GUSD, HBTC, mBTC, MFRAX, MmUSD, MTA, mUSD, PFRAX, PMTA, PmUSD, TBTC } from "./utils/tokens"
+import { BUSD, CREAM, cyMUSD, FRAX, GUSD, MFRAX, MmUSD, MTA, mUSD, PFRAX, PMTA, PmUSD } from "./utils/tokens"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { getSigner } from "./utils/defender-utils"
-import { CommonAddresses, deployBoostedFeederPools, deployFasset, Pair } from "./utils/feederUtils"
+import { CommonAddresses, deployBoostedFeederPools, Pair } from "./utils/feederUtils"
 
 task("fSize", "Gets the bytecode size of the FeederPool.sol contract").setAction(async (_, { ethers, network }) => {
     const deployer = await getSigner(network.name, ethers)
