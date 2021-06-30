@@ -155,10 +155,6 @@ task("mUSD-snap", "Snaps mUSD")
             balances.save,
         )
 
-        await getCompTokens(signer, toBlock)
-
-        await getAaveTokens(signer, toBlock)
-
         await snapSave(signer, network.name, toBlock.blockNumber)
 
         outputFees(

@@ -46,7 +46,7 @@ export const mBTC: Token = {
 
 // mStable on Polygon mainnet
 export const PmUSD: Token = {
-    symbol: "mUSD",
+    symbol: "PmUSD",
     address: "0xE840B73E5287865EEc17d250bFb1536704B43B21",
     chain: Chain.polygon,
     decimals: 18,
@@ -54,7 +54,7 @@ export const PmUSD: Token = {
     savings: "0x5290Ad3d83476CA6A2b178Cd9727eE1EF72432af",
 }
 export const MmUSD: Token = {
-    symbol: "mUSD",
+    symbol: "MmUSD",
     address: "0x0f7a5734f208A356AB2e5Cf3d02129c17028F3cf",
     chain: Chain.mumbai,
     decimals: 18,
@@ -109,35 +109,35 @@ export const DAI: Token = {
 
 // USD Main Pool Assets on Polygon
 export const PUSDC: Token = {
-    symbol: "USDC",
-    address: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
-    chain: Chain.mainnet,
+    symbol: "PUSDC",
+    address: "0x2791bca1f2de4661ed88a30c99a7a9449aa84174",
+    chain: Chain.polygon,
     platform: Platform.Aave,
     integrator: "0xeab7831c96876433dB9B8953B4e7e8f66c3125c3",
     decimals: 6,
     quantityFormatter: "USD",
-    parent: "mUSD",
+    parent: "PmUSD",
 }
 
 export const PUSDT: Token = {
-    symbol: "USDT",
+    symbol: "PUSDT",
     address: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
     chain: Chain.polygon,
     platform: Platform.Aave,
     integrator: "0xeab7831c96876433dB9B8953B4e7e8f66c3125c3",
     decimals: 6,
     quantityFormatter: "USD",
-    parent: "mUSD",
+    parent: "PmUSD",
 }
 export const PDAI: Token = {
-    symbol: "DAI",
+    symbol: "PDAI",
     address: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
     chain: Chain.polygon,
     platform: Platform.Aave,
     integrator: "0xeab7831c96876433dB9B8953B4e7e8f66c3125c3",
     decimals: 18,
     quantityFormatter: "USD",
-    parent: "mUSD",
+    parent: "PmUSD",
 }
 
 // USD Feeder Pool Assets on Mainnet
@@ -188,7 +188,7 @@ export const PFRAX: Token = {
     feederPool: "0xB30a907084AC8a0d25dDDAB4E364827406Fd09f0",
 }
 export const MFRAX: Token = {
-    symbol: "FRAX",
+    symbol: "MFRAX",
     address: "0x8F6F8064A0222F138d56C077a7F27009BDBBE3B1",
     chain: Chain.mumbai,
     decimals: 18,
@@ -257,7 +257,7 @@ export const MTA: Token = {
 }
 
 export const PMTA: Token = {
-    symbol: "MTA",
+    symbol: "PMTA",
     address: "0xF501dd45a1198C2E1b5aEF5314A68B9006D842E0",
     chain: Chain.polygon,
     decimals: 18,
@@ -304,4 +304,4 @@ export const cyMUSD: Token = {
     quantityFormatter: "USD",
 }
 
-export const tokens = [mUSD, mBTC, sUSD, USDC, USDT, DAI, GUSD, BUSD, renBTC, sBTC, WBTC, HBTC, TBTC, PFRAX]
+export const tokens = [mUSD, mBTC, sUSD, USDC, USDT, DAI, GUSD, BUSD, renBTC, sBTC, WBTC, HBTC, TBTC, PFRAX, PmUSD, PUSDC, PUSDT, PDAI]
