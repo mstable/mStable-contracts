@@ -774,31 +774,31 @@ export const getAaveTokens = async (signer: Signer, toBlock: BlockInfo, quantity
     )
 
     // Get unclaimed rewards
-    // const integrations = [
-    //     {
-    //         desc: "DAI & USDT",
-    //         integrator: DAI.integrator,
-    //     },
-    //     {
-    //         desc: "GUSD",
-    //         integrator: GUSD.integrator,
-    //     },
-    //     {
-    //         desc: "WBTC",
-    //         integrator: WBTC.integrator,
-    //     },
-    // ]
-    // console.log("\nstkAAVE unclaimed (no accrued)")
-    // const unclaimedRewardsPromises = integrations.map((i) =>
-    //     aaveIncentives.getUserUnclaimedRewards(i.integrator, { blockTag: toBlock.blockNumber }),
-    // )
-    // const unclaimedRewards = await Promise.all(unclaimedRewardsPromises)
-    // let totalUnclaimedRewards = BN.from(0)
-    // integrations.forEach((integration, i) => {
-    //     console.log(`${integration.desc.padEnd(10)}${quantityFormatter(unclaimedRewards[i])}`)
-    //     totalUnclaimedRewards = totalUnclaimedRewards.add(unclaimedRewards[i])
-    // })
-    // console.log(`Total     ${quantityFormatter(totalUnclaimedRewards)}`)
+    const integrations = [
+        {
+            desc: "DAI & USDT",
+            integrator: DAI.integrator,
+        },
+        {
+            desc: "GUSD",
+            integrator: GUSD.integrator,
+        },
+        {
+            desc: "WBTC",
+            integrator: WBTC.integrator,
+        },
+    ]
+    console.log("\nstkAAVE unclaimed (no accrued)")
+    const unclaimedRewardsPromises = integrations.map((i) =>
+        aaveIncentives.getUserUnclaimedRewards(i.integrator, { blockTag: toBlock.blockNumber }),
+    )
+    const unclaimedRewards = await Promise.all(unclaimedRewardsPromises)
+    let totalUnclaimedRewards = BN.from(0)
+    integrations.forEach((integration, i) => {
+        console.log(`${integration.desc.padEnd(10)}${quantityFormatter(unclaimedRewards[i])}`)
+        totalUnclaimedRewards = totalUnclaimedRewards.add(unclaimedRewards[i])
+    })
+    console.log(`Total     ${quantityFormatter(totalUnclaimedRewards)}`)
 
     // Get accrued stkAave for the old Aave V2 integration contract,
     // which is still used by sUSD. No longer used by DAI and USDT
