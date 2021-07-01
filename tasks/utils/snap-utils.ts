@@ -24,7 +24,7 @@ import { encodeUniswapPath } from "@utils/peripheral/uniswap"
 import { AaveStakedTokenV2__factory } from "types/generated/factories/AaveStakedTokenV2__factory"
 import { Comptroller__factory } from "types/generated/factories/Comptroller__factory"
 import { QuantityFormatter, usdFormatter } from "./quantity-formatters"
-import { AAVE, Chain, COMP, Platform, stkAAVE, Token, tokens, USDC } from "./tokens"
+import { AAVE, COMP, DAI, GUSD, stkAAVE, sUSD, Token, USDC, USDT, WBTC } from "./tokens"
 
 const compIntegrationAddress = "0xD55684f4369040C12262949Ff78299f2BC9dB735"
 const liquidatorAddress = "0xe595D67181D701A5356e010D9a58EB9A341f1DbD"
@@ -734,8 +734,6 @@ export const getCompTokens = async (signer: Signer, toBlock: BlockInfo, quantity
 }
 
 export const getAaveTokens = async (signer: Signer, toBlock: BlockInfo, quantityFormatter = usdFormatter): Promise<void> => {
-    const aaveTokens = tokens.filter((token) => token.platform === Platform.Aave && token.chain === Chain.mainnet)
-
     const stkAaveToken = AaveStakedTokenV2__factory.connect(stkAAVE.address, signer)
     const aaveIncentivesAddress = "0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5"
     const aaveIncentives = IAaveIncentivesController__factory.connect(aaveIncentivesAddress, signer)
@@ -747,15 +745,19 @@ export const getAaveTokens = async (signer: Signer, toBlock: BlockInfo, quantity
         return
     }
 
-    console.log(`\nstkAAVE accrued`)
     // Get accrued stkAave for each integration contract
-    for (const token of aaveTokens) {
-        const accruedBal = await aaveIncentives.getRewardsBalance([token.liquidityProvider], token.integrator, {
+    console.log(`\nstkAAVE unclaimed + accrued`)
+    const integrationTokens = [[DAI, USDT], [GUSD], [WBTC]]
+    for (const bAssets of integrationTokens) {
+        const bAssetSymbols = bAssets.reduce((symbols, token) => `${symbols}${token.symbol} `, "")
+        const aTokens = bAssets.map((t) => t.liquidityProvider)
+        const accruedBal = await aaveIncentives.getRewardsBalance(aTokens, bAssets[0].integrator, {
             blockTag: toBlock.blockNumber,
         })
         totalStkAave = totalStkAave.add(accruedBal)
-        console.log(`${token.symbol.padEnd(10)} ${quantityFormatter(accruedBal)}`)
+        console.log(`${bAssetSymbols.padEnd(10)} ${quantityFormatter(accruedBal)}`)
     }
+
     // Get stkAave and AAVE in liquidity manager
     const liquidatorStkAaveBal = await stkAaveToken.balanceOf(liquidatorAddress, { blockTag: toBlock.blockNumber })
     totalStkAave = totalStkAave.add(liquidatorStkAaveBal)
@@ -770,4 +772,39 @@ export const getAaveTokens = async (signer: Signer, toBlock: BlockInfo, quantity
             aaveUsdc.exchangeRate
         } AAVE/USDC)`,
     )
+
+    // Get unclaimed rewards
+    // const integrations = [
+    //     {
+    //         desc: "DAI & USDT",
+    //         integrator: DAI.integrator,
+    //     },
+    //     {
+    //         desc: "GUSD",
+    //         integrator: GUSD.integrator,
+    //     },
+    //     {
+    //         desc: "WBTC",
+    //         integrator: WBTC.integrator,
+    //     },
+    // ]
+    // console.log("\nstkAAVE unclaimed (no accrued)")
+    // const unclaimedRewardsPromises = integrations.map((i) =>
+    //     aaveIncentives.getUserUnclaimedRewards(i.integrator, { blockTag: toBlock.blockNumber }),
+    // )
+    // const unclaimedRewards = await Promise.all(unclaimedRewardsPromises)
+    // let totalUnclaimedRewards = BN.from(0)
+    // integrations.forEach((integration, i) => {
+    //     console.log(`${integration.desc.padEnd(10)}${quantityFormatter(unclaimedRewards[i])}`)
+    //     totalUnclaimedRewards = totalUnclaimedRewards.add(unclaimedRewards[i])
+    // })
+    // console.log(`Total     ${quantityFormatter(totalUnclaimedRewards)}`)
+
+    // Get accrued stkAave for the old Aave V2 integration contract,
+    // which is still used by sUSD. No longer used by DAI and USDT
+    console.log(`\nstkAAVE unclaimable (integration contract can not claim)`)
+    const unclaimableRewards = await aaveIncentives.getUserUnclaimedRewards(sUSD.integrator, {
+        blockTag: toBlock.blockNumber,
+    })
+    console.log(`Old Aave V2 ${quantityFormatter(unclaimableRewards)}`)
 }
