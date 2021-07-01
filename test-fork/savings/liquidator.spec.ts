@@ -1,3 +1,5 @@
+/* eslint-disable no-await-in-loop */
+/* eslint-disable no-restricted-syntax */
 import { impersonateAccount } from "@utils/fork"
 import { ethers, network } from "hardhat"
 import { Account } from "types"
@@ -24,7 +26,7 @@ import { expect } from "chai"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { formatUnits } from "ethers/lib/utils"
 import { increaseTime } from "@utils/time"
-import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
+import { ONE_DAY, ONE_HOUR, ONE_MIN, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import { encodeUniswapPath } from "@utils/peripheral/uniswap"
 
 // Addresses for signers
@@ -983,18 +985,17 @@ context("Liquidator forked network tests", () => {
             await expect(tx).revertedWith("Liquidation already exists")
         })
     })
-    context.only("Aave incentives controller", () => {
-        let liquidator: Liquidator
+    context.skip("Aave incentives controller", () => {
         let aaveMusdIntegration: Account
-        let aaveIncentivesController: IAaveIncentivesController
+        let aaveIncentives: IAaveIncentivesController
         let accruedDaiBal: BN
         let accruedUsdtBal: BN
 
+        const forkBlockNumber = 12735307
         const expectedAccruedDai = simpleToExactAmount(179)
         const expectedAccruedUsdt = simpleToExactAmount(195)
         beforeEach("reset block number", async () => {
-            await runSetup(12735307)
-            liquidator = Liquidator__factory.connect(liquidatorAddress, ops.signer)
+            await runSetup(forkBlockNumber)
 
             aaveMusdIntegration = await impersonateAccount(aaveMusdIntegrationAddress)
             // Give the Integration contract 10 Ether
@@ -1004,61 +1005,102 @@ context("Liquidator forked network tests", () => {
             })
 
             const aaveIncentivesControllerProxyAddress = "0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5"
-            aaveIncentivesController = IAaveIncentivesController__factory.connect(
-                aaveIncentivesControllerProxyAddress,
-                aaveMusdIntegration.signer,
-            )
+            aaveIncentives = IAaveIncentivesController__factory.connect(aaveIncentivesControllerProxyAddress, aaveMusdIntegration.signer)
 
-            accruedDaiBal = await aaveIncentivesController.getRewardsBalance([DAI.liquidityProvider], aaveMusdIntegrationAddress)
+            expect(await aaveStakedToken.balanceOf(aaveMusdIntegrationAddress), "stkAAVE in integration before").to.eq(0)
+
+            accruedDaiBal = await aaveIncentives.getRewardsBalance([DAI.liquidityProvider], aaveMusdIntegrationAddress)
             // console.log(`Accrued stkAAVE from DAI ${accruedDaiBal}`)
             expect(accruedDaiBal, "accrued stkAAVE from DAI before").to.be.gt(expectedAccruedDai)
 
-            accruedUsdtBal = await aaveIncentivesController.getRewardsBalance([USDT.liquidityProvider], aaveMusdIntegrationAddress)
+            accruedUsdtBal = await aaveIncentives.getRewardsBalance([USDT.liquidityProvider], aaveMusdIntegrationAddress)
             // console.log(`Accrued stkAAVE from USDT ${accruedUsdtBal}`)
             expect(accruedUsdtBal, "accrued stkAAVE from USDT before").to.be.gt(expectedAccruedUsdt)
-
-            expect(await aaveStakedToken.balanceOf(aaveMusdIntegrationAddress), "stkAAVE in integration before").to.eq(0)
+        })
+        it("Unclaimed user rewards", async () => {
+            const oneDay = ONE_DAY.toNumber()
+            const testData: { desc: string; blockNumber: number }[] = [
+                { desc: "just after claim", blockNumber: forkBlockNumber + 1 },
+                { desc: "just before claim", blockNumber: forkBlockNumber },
+                { desc: "1 minute before claim", blockNumber: forkBlockNumber - ONE_MIN.toNumber() },
+                { desc: "1 hour before claim", blockNumber: forkBlockNumber - ONE_HOUR.toNumber() },
+                { desc: "1 day before claim", blockNumber: forkBlockNumber - oneDay },
+                { desc: "2 days before claim", blockNumber: forkBlockNumber - oneDay * 2 },
+                { desc: "3 days before claim", blockNumber: forkBlockNumber - oneDay * 3 },
+                { desc: "4 days before claim", blockNumber: forkBlockNumber - oneDay * 4 },
+                { desc: "4.5 days before claim", blockNumber: forkBlockNumber - oneDay * 4.5 },
+                // { desc: "5 days before claim", blockNumber: forkBlockNumber - oneDay * 5 },
+                // { desc: "1 week ago", blockNumber: forkBlockNumber - oneDay * 7 },
+            ]
+            console.log(`Test, Unclaimed Rewards, Claimed, Total`)
+            for (const test of testData) {
+                const unclaimedRewards = await aaveIncentives.getUserUnclaimedRewards(aaveMusdIntegrationAddress, {
+                    blockTag: test.blockNumber,
+                })
+                const rewardBalance = await aaveIncentives.getRewardsBalance(
+                    [DAI.liquidityProvider, USDT.liquidityProvider],
+                    aaveMusdIntegrationAddress,
+                    {
+                        blockTag: test.blockNumber,
+                    },
+                )
+                console.log(
+                    `${test.desc.padEnd(16)}, ${formatUnits(unclaimedRewards)}, ${formatUnits(rewardBalance)}, ${formatUnits(
+                        unclaimedRewards.add(rewardBalance),
+                    )}`,
+                )
+            }
         })
         it("integration contract claims DAI", async () => {
-            await aaveIncentivesController.claimRewards([DAI.liquidityProvider], simpleToExactAmount(1000), aaveMusdIntegrationAddress)
+            await aaveIncentives.claimRewards([DAI.liquidityProvider], simpleToExactAmount(1000), aaveMusdIntegrationAddress)
 
             expect(
-                await aaveIncentivesController.getRewardsBalance([DAI.liquidityProvider], aaveMusdIntegrationAddress),
+                await aaveIncentives.getRewardsBalance([DAI.liquidityProvider], aaveMusdIntegrationAddress),
                 "accrued stkAAVE from DAI after",
             ).to.be.lt(simpleToExactAmount(0.001))
             expect(await aaveStakedToken.balanceOf(aaveMusdIntegrationAddress), "stkAAVE in integration after").to.gt(expectedAccruedDai)
-        })
-        it("integration contract claims USDT", async () => {
-            await aaveIncentivesController.claimRewards([USDT.liquidityProvider], simpleToExactAmount(1000), aaveMusdIntegrationAddress)
 
             expect(
-                await aaveIncentivesController.getRewardsBalance([USDT.liquidityProvider], aaveMusdIntegrationAddress),
+                await aaveIncentives.getRewardsBalance([USDT.liquidityProvider], aaveMusdIntegrationAddress),
+                "accrued stkAAVE from USDT after",
+            ).to.be.gt(expectedAccruedUsdt)
+        })
+        it("integration contract claims USDT", async () => {
+            await aaveIncentives.claimRewards([USDT.liquidityProvider], simpleToExactAmount(1000), aaveMusdIntegrationAddress)
+
+            expect(
+                await aaveIncentives.getRewardsBalance([USDT.liquidityProvider], aaveMusdIntegrationAddress),
                 "accrued stkAAVE from USDT after",
             ).to.be.lt(simpleToExactAmount(0.001))
             expect(await aaveStakedToken.balanceOf(aaveMusdIntegrationAddress), "stkAAVE in integration after").to.gt(accruedUsdtBal)
+
+            expect(
+                await aaveIncentives.getRewardsBalance([DAI.liquidityProvider], aaveMusdIntegrationAddress),
+                "accrued stkAAVE from DAI after",
+            ).to.be.gt(expectedAccruedDai)
         })
         it("integration contract claims DAI and USDT separately", async () => {
             // Claim from DAI
-            await aaveIncentivesController.claimRewards([DAI.liquidityProvider], simpleToExactAmount(1000), aaveMusdIntegrationAddress)
+            await aaveIncentives.claimRewards([DAI.liquidityProvider], simpleToExactAmount(1000), aaveMusdIntegrationAddress)
 
             expect(await aaveStakedToken.balanceOf(aaveMusdIntegrationAddress), "stkAAVE in integration after DAI").to.gt(
                 expectedAccruedDai,
             )
             expect(
-                await aaveIncentivesController.getRewardsBalance([DAI.liquidityProvider], aaveMusdIntegrationAddress),
+                await aaveIncentives.getRewardsBalance([DAI.liquidityProvider], aaveMusdIntegrationAddress),
                 "accrued stkAAVE from DAI after",
             ).to.be.lt(simpleToExactAmount(0.001))
 
             expect(
-                await aaveIncentivesController.getRewardsBalance([USDT.liquidityProvider], aaveMusdIntegrationAddress),
+                await aaveIncentives.getRewardsBalance([USDT.liquidityProvider], aaveMusdIntegrationAddress),
                 "accrued stkAAVE from USDT after DAI claim",
             ).to.be.gt(expectedAccruedUsdt)
 
             // Claim from USDT
-            await aaveIncentivesController.claimRewards([USDT.liquidityProvider], simpleToExactAmount(1000), aaveMusdIntegrationAddress)
+            await aaveIncentives.claimRewards([USDT.liquidityProvider], simpleToExactAmount(1000), aaveMusdIntegrationAddress)
 
             expect(
-                await aaveIncentivesController.getRewardsBalance([USDT.liquidityProvider], aaveMusdIntegrationAddress),
+                await aaveIncentives.getRewardsBalance([USDT.liquidityProvider], aaveMusdIntegrationAddress),
                 "accrued stkAAVE from USDT after",
             ).to.be.lt(simpleToExactAmount(0.001))
 
@@ -1068,26 +1110,26 @@ context("Liquidator forked network tests", () => {
         })
         it("integration contract claims USDT and DAI separately", async () => {
             // Claim from USDT
-            await aaveIncentivesController.claimRewards([USDT.liquidityProvider], simpleToExactAmount(1000), aaveMusdIntegrationAddress)
+            await aaveIncentives.claimRewards([USDT.liquidityProvider], simpleToExactAmount(1000), aaveMusdIntegrationAddress)
 
             expect(await aaveStakedToken.balanceOf(aaveMusdIntegrationAddress), "stkAAVE in integration after USDT").to.gt(
                 expectedAccruedUsdt,
             )
             expect(
-                await aaveIncentivesController.getRewardsBalance([USDT.liquidityProvider], aaveMusdIntegrationAddress),
+                await aaveIncentives.getRewardsBalance([USDT.liquidityProvider], aaveMusdIntegrationAddress),
                 "accrued stkAAVE from USDT after",
             ).to.be.lt(simpleToExactAmount(0.001))
 
             expect(
-                await aaveIncentivesController.getRewardsBalance([DAI.liquidityProvider], aaveMusdIntegrationAddress),
+                await aaveIncentives.getRewardsBalance([DAI.liquidityProvider], aaveMusdIntegrationAddress),
                 "accrued stkAAVE from DAI after USDT claim",
             ).to.be.gt(expectedAccruedDai)
 
             // Claim from DAI
-            await aaveIncentivesController.claimRewards([DAI.liquidityProvider], simpleToExactAmount(1000), aaveMusdIntegrationAddress)
+            await aaveIncentives.claimRewards([DAI.liquidityProvider], simpleToExactAmount(1000), aaveMusdIntegrationAddress)
 
             expect(
-                await aaveIncentivesController.getRewardsBalance([DAI.liquidityProvider], aaveMusdIntegrationAddress),
+                await aaveIncentives.getRewardsBalance([DAI.liquidityProvider], aaveMusdIntegrationAddress),
                 "accrued stkAAVE from DAI after",
             ).to.be.lt(simpleToExactAmount(0.001))
 
@@ -1096,7 +1138,7 @@ context("Liquidator forked network tests", () => {
             )
         })
         it("integration contract claims USDT and DAI together", async () => {
-            const accruedDaiUsdtBal = await aaveIncentivesController.getRewardsBalance(
+            const accruedDaiUsdtBal = await aaveIncentives.getRewardsBalance(
                 [USDT.liquidityProvider, DAI.liquidityProvider],
                 aaveMusdIntegrationAddress,
             )
@@ -1105,18 +1147,18 @@ context("Liquidator forked network tests", () => {
             expect(await aaveStakedToken.balanceOf(aaveMusdIntegrationAddress), "stkAAVE in integration before").to.eq(0)
 
             // Claim from USDT and DAI
-            await aaveIncentivesController.claimRewards(
+            await aaveIncentives.claimRewards(
                 [USDT.liquidityProvider, DAI.liquidityProvider],
                 simpleToExactAmount(1000, DAI.decimals),
                 aaveMusdIntegrationAddress,
             )
 
             expect(
-                await aaveIncentivesController.getRewardsBalance([DAI.liquidityProvider], aaveMusdIntegrationAddress),
+                await aaveIncentives.getRewardsBalance([DAI.liquidityProvider], aaveMusdIntegrationAddress),
                 "accrued stkAAVE from DAI after",
             ).to.be.lt(simpleToExactAmount(0.001))
             expect(
-                await aaveIncentivesController.getRewardsBalance([USDT.liquidityProvider], aaveMusdIntegrationAddress),
+                await aaveIncentives.getRewardsBalance([USDT.liquidityProvider], aaveMusdIntegrationAddress),
                 "accrued stkAAVE from USDT after",
             ).to.be.lt(simpleToExactAmount(0.001))
             expect(await aaveStakedToken.balanceOf(aaveMusdIntegrationAddress), "stkAAVE in integration after").to.gt(
