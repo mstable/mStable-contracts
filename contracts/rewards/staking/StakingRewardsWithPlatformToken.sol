@@ -215,6 +215,17 @@ contract StakingRewardsWithPlatformToken is StakingTokenWrapper, RewardsDistribu
     {
         return rewardsToken;
     }
+    
+    /**
+     * @dev Gets the PlatformToken
+     */
+    function getPlatformToken()
+        external
+        view
+        returns (IERC20)
+    {
+        return platformToken;
+    }
 
     /**
      * @dev Gets the last applicable timestamp for this reward period

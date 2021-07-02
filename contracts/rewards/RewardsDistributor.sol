@@ -16,7 +16,7 @@ contract RewardsDistributor is InitializableGovernableWhitelist {
     using SafeERC20 for IERC20;
 
     event RemovedFundManager(address indexed _address);
-    event DistributedReward(address funder, address recipient, address rewardToken, uint256 amount);
+    event DistributedReward(address funder, address recipient, address rewardToken, uint256 amount, address platformToken, uint256 platformAmount);
 
     /** @dev Recipient is a module, governed by mStable governance */
     constructor(
@@ -58,12 +58,14 @@ contract RewardsDistributor is InitializableGovernableWhitelist {
     /**
      * @dev Distributes reward tokens to list of recipients and notifies them
      * of the transfer. Only callable by FundManagers
-     * @param _recipients  Array of Reward recipients to credit
-     * @param _amounts     Amounts of reward tokens to distribute
+     * @param _recipients        Array of Reward recipients to credit
+     * @param _amounts           Amounts of reward tokens to distribute
+     * @param _platformAmounts   Amounts of platform tokens to distribute
      */
     function distributeRewards(
         IRewardsDistributionRecipient[] calldata _recipients,
-        uint256[] calldata _amounts
+        uint256[] calldata _amounts,
+        uint256[] calldata _platformAmounts
     )
         external
         onlyWhitelisted
@@ -71,17 +73,23 @@ contract RewardsDistributor is InitializableGovernableWhitelist {
         uint256 len = _recipients.length;
         require(len > 0, "Must choose recipients");
         require(len == _amounts.length, "Mismatching inputs");
+        require(len == _platformAmounts.length, "Mismatching inputs");
 
         for(uint i = 0; i < len; i++){
             uint256 amount = _amounts[i];
+            uint256 platformAmount = _platformAmounts[i];
             IRewardsDistributionRecipient recipient = _recipients[i];
             // Send the RewardToken to recipient
             IERC20 rewardToken = recipient.getRewardToken();
             rewardToken.safeTransferFrom(msg.sender, address(recipient), amount);
-            // Only after successfull tx - notify the contract of the new funds
+            // Send the PlatformToken to recipient
+            IERC20 platformToken = recipient.getPlatformToken();
+            platformToken.safeTransferFrom(msg.sender, address(recipient), platformAmount);
+            // Only after successful tx - notify the contract of the new funds
             recipient.notifyRewardAmount(amount);
 
-            emit DistributedReward(msg.sender, address(recipient), address(rewardToken), amount);
+            emit DistributedReward(msg.sender, address(recipient), address(rewardToken), amount, address(platformToken), platformAmount);
         }
     }
+    
 }
