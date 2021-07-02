@@ -265,6 +265,41 @@ contract("RewardsDistributor", async (accounts) => {
                         platformAmount: new BN(0),
                     });
                 });
+                it("should succeed if rewardToken gt 0 & platformToken eq 0", async () => {
+                    const oneToken = simpleToExactAmount(1, 18);
+                    const twoToken = simpleToExactAmount(2, 18);
+                    await rewardToken1.approve(rewardsDistributor.address, twoToken, {
+                        from: sa.fundManager,
+                    });
+                    // erc balance before
+                    const funderBalBefore = await rewardToken1.balanceOf(sa.fundManager);
+                    const recipient1BalBefore = await rewardToken1.balanceOf(
+                        rewardRecipient1.address,
+                    );
+                    // distribute
+                    const tx = await rewardsDistributor.distributeRewards(
+                        [rewardRecipient1.address],
+                        [oneToken],
+                        [0],
+                        { from: sa.fundManager },
+                    );
+                    expectEvent(tx.receipt, "DistributedReward", {
+                        funder: sa.fundManager,
+                        recipient: rewardRecipient1.address,
+                        rewardToken: rewardToken1.address,
+                        amount: oneToken,
+                        platformToken: platformToken1.address,
+                        platformAmount: new BN(0),
+                    });
+                    // erc balance after
+                    const funderBalAfter = await rewardToken1.balanceOf(sa.fundManager);
+                    const recipient1BalAfter = await rewardToken1.balanceOf(
+                        rewardRecipient1.address,
+                    );
+                    // verify balance change
+                    expect(funderBalAfter).bignumber.eq(funderBalBefore.sub(oneToken));
+                    expect(recipient1BalAfter).bignumber.eq(recipient1BalBefore.add(oneToken));
+                });
                 it("should transfer the rewardToken & platformToken to all recipients", async () => {
                     const oneToken = simpleToExactAmount(1, 18);
                     const twoToken = simpleToExactAmount(2, 18);
