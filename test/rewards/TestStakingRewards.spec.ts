@@ -41,6 +41,8 @@ contract("StakingRewards", async (accounts) => {
             stakingToken.address,
             rewardToken.address,
             rewardsDistributor,
+            "StakingToken",
+            "ST8k",
         );
     };
 
@@ -609,6 +611,8 @@ contract("StakingRewards", async (accounts) => {
                 stakingToken.address,
                 rewardToken.address,
                 rewardsDistributor,
+                "StakingToken",
+                "ST8k",
             );
         });
         it("should not affect the pro rata payouts", async () => {

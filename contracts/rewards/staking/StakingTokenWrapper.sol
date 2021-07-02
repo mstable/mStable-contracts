@@ -21,6 +21,11 @@ contract StakingTokenWrapper is ReentrancyGuard {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    string private _name;
+    string private _symbol;
+
     IERC20 public stakingToken;
 
     uint256 private _totalSupply;
@@ -30,8 +35,22 @@ contract StakingTokenWrapper is ReentrancyGuard {
      * @dev TokenWrapper constructor
      * @param _stakingToken Wrapped token to be staked
      */
-    constructor(address _stakingToken) internal {
+    constructor(address _stakingToken, string memory _nameArg, string memory _symbolArg) internal {
         stakingToken = IERC20(_stakingToken);
+        _name = _nameArg;
+        _symbol = _symbolArg;
+    }
+
+    function name() public view returns (string memory) {
+        return _name;
+    }
+
+    function symbol() public view returns (string memory) {
+        return _symbol;
+    }
+
+    function decimals() public view returns (uint8) {
+        return 18;
     }
 
     /**
@@ -69,6 +88,8 @@ contract StakingTokenWrapper is ReentrancyGuard {
         _totalSupply = _totalSupply.add(_amount);
         _balances[_beneficiary] = _balances[_beneficiary].add(_amount);
         stakingToken.safeTransferFrom(msg.sender, address(this), _amount);
+
+        emit Transfer(address(0), _beneficiary, _amount);
     }
 
     /**
@@ -82,5 +103,7 @@ contract StakingTokenWrapper is ReentrancyGuard {
         _totalSupply = _totalSupply.sub(_amount);
         _balances[msg.sender] = _balances[msg.sender].sub(_amount);
         stakingToken.safeTransfer(msg.sender, _amount);
+
+        emit Transfer(msg.sender, address(0), _amount);
     }
 }

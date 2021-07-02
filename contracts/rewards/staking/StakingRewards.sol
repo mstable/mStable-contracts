@@ -52,10 +52,12 @@ contract StakingRewards is StakingTokenWrapper, RewardsDistributionRecipient {
         address _nexus,
         address _stakingToken,
         address _rewardsToken,
-        address _rewardsDistributor
+        address _rewardsDistributor,
+        string memory _nameArg,
+        string memory _symbolArg
     )
         public
-        StakingTokenWrapper(_stakingToken)
+        StakingTokenWrapper(_stakingToken, _nameArg, _symbolArg)
         RewardsDistributionRecipient(_nexus, _rewardsDistributor)
     {
         rewardsToken = IERC20(_rewardsToken);

@@ -52,6 +52,8 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
             rewardToken.address,
             platformToken.address,
             rewardsDistributor,
+            "StakingToken",
+            "ST8k",
         );
     };
 
@@ -908,6 +910,8 @@ contract("StakingRewardsWithPlatformToken", async (accounts) => {
                 rewardToken.address,
                 platformToken.address,
                 rewardsDistributor,
+                "StakingToken",
+                "ST8k",
             );
         });
         it("should not affect the pro rata payouts", async () => {
