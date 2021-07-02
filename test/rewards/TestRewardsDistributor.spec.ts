@@ -197,19 +197,25 @@ contract("RewardsDistributor", async (accounts) => {
                 });
                 it("should fail if arrays are empty", async () => {
                     await expectRevert(
-                        rewardsDistributor.distributeRewards([], [], { from: sa.fundManager }),
+                        rewardsDistributor.distributeRewards([], [], [], { from: sa.fundManager }),
                         "Must choose recipients",
                     );
                 });
                 it("should fail if arrays are mismatched", async () => {
                     await expectRevert(
-                        rewardsDistributor.distributeRewards([sa.dummy1, sa.dummy2], [1], {
+                        rewardsDistributor.distributeRewards([sa.dummy1, sa.dummy2], [1], [2], {
                             from: sa.fundManager,
                         }),
                         "Mismatching inputs",
                     );
                     await expectRevert(
-                        rewardsDistributor.distributeRewards([sa.dummy1], [1, 2], {
+                        rewardsDistributor.distributeRewards([sa.dummy1], [1, 2], [1, 2], {
+                            from: sa.fundManager,
+                        }),
+                        "Mismatching inputs",
+                    );
+                    await expectRevert(
+                        rewardsDistributor.distributeRewards([sa.dummy1, sa.dummy1], [1, 2], [1], {
                             from: sa.fundManager,
                         }),
                         "Mismatching inputs",
@@ -219,26 +225,34 @@ contract("RewardsDistributor", async (accounts) => {
             context("and passed expected args", async () => {
                 let rewardToken1: t.MockERC20Instance;
                 let rewardToken2: t.MockERC20Instance;
+                let platformToken1: t.MockERC20Instance;
+                let platformToken2: t.MockERC20Instance;
                 let rewardRecipient1: t.MockRewardsDistributionRecipientInstance;
                 let rewardRecipient2: t.MockRewardsDistributionRecipientInstance;
                 let rewardRecipient3: t.MockRewardsDistributionRecipientInstance;
                 beforeEach(async () => {
                     rewardToken1 = await MockERC20.new("R1", "R1", 18, sa.fundManager, 1000000);
                     rewardToken2 = await MockERC20.new("R1", "R1", 18, sa.dummy1, 1000000);
+                    platformToken1 = await MockERC20.new("K1", "K1", 18, sa.fundManager, 1000000);
+                    platformToken2 = await MockERC20.new("K1", "K1", 18, sa.dummy1, 1000000);
                     rewardRecipient1 = await MockRewardsDistributionRecipient.new(
                         rewardToken1.address,
+                        platformToken1.address,
                     );
                     rewardRecipient2 = await MockRewardsDistributionRecipient.new(
                         rewardToken1.address,
+                        platformToken1.address,
                     );
                     rewardRecipient3 = await MockRewardsDistributionRecipient.new(
-                        rewardToken2.address,
+                        rewardToken1.address,
+                        platformToken1.address,
                     );
                     rewardsDistributor = await redeployRewards();
                 });
                 it("should still notify if amount is 0", async () => {
                     const tx = await rewardsDistributor.distributeRewards(
                         [rewardRecipient1.address],
+                        [0],
                         [0],
                         { from: sa.fundManager },
                     );
@@ -247,23 +261,37 @@ contract("RewardsDistributor", async (accounts) => {
                         recipient: rewardRecipient1.address,
                         rewardToken: rewardToken1.address,
                         amount: new BN(0),
+                        platformToken: platformToken1.address,
+                        platformAmount: new BN(0),
                     });
                 });
-                it("should transfer the rewardToken to all recipients", async () => {
+                it("should transfer the rewardToken & platformToken to all recipients", async () => {
                     const oneToken = simpleToExactAmount(1, 18);
                     const twoToken = simpleToExactAmount(2, 18);
+                    // approve for fund manager
                     await rewardToken1.approve(rewardsDistributor.address, twoToken, {
                         from: sa.fundManager,
                     });
-                    const funderBalBefore = await rewardToken1.balanceOf(sa.fundManager);
-                    const recipient1BalBefore = await rewardToken1.balanceOf(
-                        rewardRecipient1.address,
-                    );
-                    const recipient2BalBefore = await rewardToken1.balanceOf(
-                        rewardRecipient2.address,
-                    );
+                    await platformToken1.approve(rewardsDistributor.address, twoToken, {
+                        from: sa.fundManager,
+                    });
+                    // erc balance before
+                    const funderBalBefore = await Promise.all([
+                        rewardToken1.balanceOf(sa.fundManager),
+                        platformToken1.balanceOf(sa.fundManager),
+                    ]);
+                    const recipient1BalBefore = await Promise.all([
+                        rewardToken1.balanceOf(rewardRecipient1.address),
+                        platformToken1.balanceOf(rewardRecipient1.address),
+                    ]);
+                    const recipient2BalBefore = await Promise.all([
+                        rewardToken1.balanceOf(rewardRecipient2.address),
+                        platformToken1.balanceOf(rewardRecipient2.address),
+                    ]);
+                    // distribute
                     const tx = await rewardsDistributor.distributeRewards(
                         [rewardRecipient1.address, rewardRecipient2.address],
+                        [oneToken, oneToken],
                         [oneToken, oneToken],
                         { from: sa.fundManager },
                     );
@@ -272,27 +300,52 @@ contract("RewardsDistributor", async (accounts) => {
                         recipient: rewardRecipient1.address,
                         rewardToken: rewardToken1.address,
                         amount: oneToken,
+                        platformToken: platformToken1.address,
+                        platformAmount: oneToken,
                     });
                     expectEvent(tx.receipt, "DistributedReward", {
                         funder: sa.fundManager,
                         recipient: rewardRecipient2.address,
                         rewardToken: rewardToken1.address,
                         amount: oneToken,
+                        platformToken: platformToken1.address,
+                        platformAmount: oneToken,
                     });
-                    const funderBalAfter = await rewardToken1.balanceOf(sa.fundManager);
-                    const recipient1BalAfter = await rewardToken1.balanceOf(
-                        rewardRecipient1.address,
+                    // erc balance after
+                    const funderBalAfter = await Promise.all([
+                        rewardToken1.balanceOf(sa.fundManager),
+                        platformToken1.balanceOf(sa.fundManager),
+                    ]);
+                    const recipient1BalAfter = await Promise.all([
+                        rewardToken1.balanceOf(rewardRecipient1.address),
+                        platformToken1.balanceOf(rewardRecipient1.address),
+                    ]);
+                    const recipient2BalAfter = await Promise.all([
+                        rewardToken1.balanceOf(rewardRecipient2.address),
+                        platformToken1.balanceOf(rewardRecipient2.address),
+                    ]);
+                    // verify balance change
+                    expect(funderBalAfter[0]).bignumber.eq(funderBalBefore[0].sub(twoToken));
+                    expect(funderBalAfter[1]).bignumber.eq(funderBalBefore[1].sub(twoToken));
+                    expect(recipient1BalAfter[0]).bignumber.eq(
+                        recipient1BalBefore[0].add(oneToken),
                     );
-                    const recipient2BalAfter = await rewardToken1.balanceOf(
-                        rewardRecipient2.address,
+                    expect(recipient1BalAfter[1]).bignumber.eq(
+                        recipient1BalBefore[1].add(oneToken),
                     );
-                    expect(funderBalAfter).bignumber.eq(funderBalBefore.sub(twoToken));
-                    expect(recipient1BalAfter).bignumber.eq(recipient1BalBefore.add(oneToken));
-                    expect(recipient2BalAfter).bignumber.eq(recipient2BalBefore.add(oneToken));
+                    expect(recipient2BalAfter[0]).bignumber.eq(
+                        recipient2BalBefore[0].add(oneToken),
+                    );
+                    expect(recipient2BalAfter[1]).bignumber.eq(
+                        recipient2BalBefore[1].add(oneToken),
+                    );
                 });
                 it("should fail if funder has insufficient rewardToken balance", async () => {
                     const oneToken = simpleToExactAmount(1, 18);
                     await rewardToken2.approve(rewardsDistributor.address, oneToken, {
+                        from: sa.fundManager,
+                    });
+                    await platformToken1.approve(rewardsDistributor.address, oneToken, {
                         from: sa.fundManager,
                     });
                     const funderBalBefore = await rewardToken2.balanceOf(sa.fundManager);
@@ -301,6 +354,27 @@ contract("RewardsDistributor", async (accounts) => {
                         rewardsDistributor.distributeRewards(
                             [rewardRecipient3.address],
                             [oneToken],
+                            [oneToken],
+                            { from: sa.fundManager },
+                        ),
+                        "SafeERC20: low-level call failed",
+                    );
+                });
+                it("should fail if funder has insufficient platformToken balance", async () => {
+                    const oneToken = simpleToExactAmount(1, 18);
+                    await rewardToken1.approve(rewardsDistributor.address, oneToken, {
+                        from: sa.fundManager,
+                    });
+                    await platformToken2.approve(rewardsDistributor.address, oneToken, {
+                        from: sa.fundManager,
+                    });
+                    const funderBalBefore = await platformToken2.balanceOf(sa.fundManager);
+                    expect(funderBalBefore).bignumber.eq(new BN(0));
+                    await expectRevert(
+                        rewardsDistributor.distributeRewards(
+                            [rewardRecipient3.address],
+                            [oneToken],
+                            [oneToken],
                             { from: sa.fundManager },
                         ),
                         "SafeERC20: low-level call failed",
@@ -308,11 +382,16 @@ contract("RewardsDistributor", async (accounts) => {
                 });
                 it("should fail if sender doesn't give approval", async () => {
                     const oneToken = simpleToExactAmount(1, 18);
-                    const funderBalBefore = await rewardToken1.balanceOf(sa.fundManager);
-                    expect(funderBalBefore).bignumber.gte(oneToken as any);
+                    const funderBalBefore = await Promise.all([
+                        rewardToken1.balanceOf(sa.fundManager),
+                        platformToken1.balanceOf(sa.fundManager),
+                    ]);
+                    expect(funderBalBefore[0]).bignumber.gte(oneToken as any);
+                    expect(funderBalBefore[1]).bignumber.gte(oneToken as any);
                     await expectRevert(
                         rewardsDistributor.distributeRewards(
                             [rewardRecipient1.address, rewardRecipient2.address],
+                            [oneToken, oneToken],
                             [oneToken, oneToken],
                             { from: sa.fundManager },
                         ),
@@ -327,7 +406,7 @@ contract("RewardsDistributor", async (accounts) => {
                     const funderBalBefore = await rewardToken1.balanceOf(sa.fundManager);
                     expect(funderBalBefore).bignumber.gte(oneToken as any);
                     await expectRevert.unspecified(
-                        rewardsDistributor.distributeRewards([sa.dummy1], [oneToken], {
+                        rewardsDistributor.distributeRewards([sa.dummy1], [oneToken], [oneToken], {
                             from: sa.fundManager,
                         }),
                     );
@@ -335,11 +414,14 @@ contract("RewardsDistributor", async (accounts) => {
             });
             context("and passed valid array with duplicate address", async () => {
                 let rewardToken1: t.MockERC20Instance;
+                let platformToken1: t.MockERC20Instance;
                 let rewardRecipient1: t.MockRewardsDistributionRecipientInstance;
                 beforeEach(async () => {
                     rewardToken1 = await MockERC20.new("R1", "R1", 18, sa.fundManager, 1000000);
+                    platformToken1 = await MockERC20.new("K1", "K1", 18, sa.fundManager, 1000000);
                     rewardRecipient1 = await MockRewardsDistributionRecipient.new(
                         rewardToken1.address,
+                        platformToken1.address,
                     );
                     rewardsDistributor = await redeployRewards();
                 });
@@ -349,12 +431,23 @@ contract("RewardsDistributor", async (accounts) => {
                     await rewardToken1.approve(rewardsDistributor.address, twoToken, {
                         from: sa.fundManager,
                     });
-                    const funderBalBefore = await rewardToken1.balanceOf(sa.fundManager);
-                    const recipient1BalBefore = await rewardToken1.balanceOf(
-                        rewardRecipient1.address,
-                    );
+                    await platformToken1.approve(rewardsDistributor.address, twoToken, {
+                        from: sa.fundManager,
+                    });
+
+                    // erc balance before
+                    const funderBalBefore = await Promise.all([
+                        rewardToken1.balanceOf(sa.fundManager),
+                        platformToken1.balanceOf(sa.fundManager),
+                    ]);
+                    const recipient1BalBefore = await Promise.all([
+                        rewardToken1.balanceOf(rewardRecipient1.address),
+                        platformToken1.balanceOf(rewardRecipient1.address),
+                    ]);
+                    // distribute
                     const tx = await rewardsDistributor.distributeRewards(
                         [rewardRecipient1.address, rewardRecipient1.address],
+                        [oneToken, oneToken],
                         [oneToken, oneToken],
                         { from: sa.fundManager },
                     );
@@ -364,21 +457,35 @@ contract("RewardsDistributor", async (accounts) => {
                         rewardToken: rewardToken1.address,
                         amount: oneToken,
                     });
-                    const funderBalAfter = await rewardToken1.balanceOf(sa.fundManager);
-                    const recipient1BalAfter = await rewardToken1.balanceOf(
-                        rewardRecipient1.address,
+                    // verify balance change
+                    const funderBalAfter = await Promise.all([
+                        rewardToken1.balanceOf(sa.fundManager),
+                        platformToken1.balanceOf(sa.fundManager),
+                    ]);
+                    const recipient1BalAfter = await Promise.all([
+                        rewardToken1.balanceOf(rewardRecipient1.address),
+                        platformToken1.balanceOf(rewardRecipient1.address),
+                    ]);
+                    expect(funderBalAfter[0]).bignumber.eq(funderBalBefore[0].sub(twoToken));
+                    expect(recipient1BalAfter[0]).bignumber.eq(
+                        recipient1BalBefore[0].add(twoToken),
                     );
-                    expect(funderBalAfter).bignumber.eq(funderBalBefore.sub(twoToken));
-                    expect(recipient1BalAfter).bignumber.eq(recipient1BalBefore.add(twoToken));
+                    expect(funderBalAfter[1]).bignumber.eq(funderBalBefore[1].sub(twoToken));
+                    expect(recipient1BalAfter[1]).bignumber.eq(
+                        recipient1BalBefore[1].add(twoToken),
+                    );
                 });
             });
             context("and passed some null addresses", async () => {
                 let rewardToken1: t.MockERC20Instance;
+                let platformToken1: t.MockERC20Instance;
                 let rewardRecipient1: t.MockRewardsDistributionRecipientInstance;
                 beforeEach(async () => {
                     rewardToken1 = await MockERC20.new("R1", "R1", 18, sa.fundManager, 1000000);
+                    platformToken1 = await MockERC20.new("K1", "K1", 18, sa.fundManager, 1000000);
                     rewardRecipient1 = await MockRewardsDistributionRecipient.new(
                         rewardToken1.address,
+                        platformToken1.address,
                     );
                     rewardsDistributor = await redeployRewards();
                 });
@@ -388,11 +495,19 @@ contract("RewardsDistributor", async (accounts) => {
                     await rewardToken1.approve(rewardsDistributor.address, twoToken, {
                         from: sa.fundManager,
                     });
-                    const funderBalBefore = await rewardToken1.balanceOf(sa.fundManager);
-                    expect(funderBalBefore).bignumber.gte(simpleToExactAmount(2, 18) as any);
+                    await platformToken1.approve(rewardsDistributor.address, twoToken, {
+                        from: sa.fundManager,
+                    });
+                    const funderBalBefore = await Promise.all([
+                        rewardToken1.balanceOf(sa.fundManager),
+                        platformToken1.balanceOf(sa.fundManager),
+                    ]);
+                    expect(funderBalBefore[0]).bignumber.gte(simpleToExactAmount(2, 18) as any);
+                    expect(funderBalBefore[1]).bignumber.gte(simpleToExactAmount(2, 18) as any);
                     await expectRevert.unspecified(
                         rewardsDistributor.distributeRewards(
                             [rewardRecipient1.address, ZERO_ADDRESS],
+                            [oneToken, oneToken],
                             [oneToken, oneToken],
                             { from: sa.fundManager },
                         ),
@@ -403,7 +518,9 @@ contract("RewardsDistributor", async (accounts) => {
         context("when called by other", async () => {
             it("should not allow governor to distribute", async () => {
                 await expectRevert(
-                    rewardsDistributor.distributeRewards([sa.default], [1], { from: sa.governor }),
+                    rewardsDistributor.distributeRewards([sa.default], [1], [1], {
+                        from: sa.governor,
+                    }),
                     "Not a whitelisted address",
                 );
             });
@@ -411,7 +528,7 @@ contract("RewardsDistributor", async (accounts) => {
                 await rewardsDistributor.removeFundManager(sa.fundManager, { from: sa.governor });
                 expect(await rewardsDistributor.whitelist(sa.governor)).eq(false);
                 await expectRevert(
-                    rewardsDistributor.distributeRewards([sa.default], [1], {
+                    rewardsDistributor.distributeRewards([sa.default], [1], [1], {
                         from: sa.fundManager,
                     }),
                     "Not a whitelisted address",
@@ -419,11 +536,15 @@ contract("RewardsDistributor", async (accounts) => {
             });
             it("should not allow others to distribute", async () => {
                 await expectRevert(
-                    rewardsDistributor.distributeRewards([sa.default], [1], { from: sa.dummy1 }),
+                    rewardsDistributor.distributeRewards([sa.default], [1], [1], {
+                        from: sa.dummy1,
+                    }),
                     "Not a whitelisted address",
                 );
                 await expectRevert(
-                    rewardsDistributor.distributeRewards([sa.default], [1], { from: sa.default }),
+                    rewardsDistributor.distributeRewards([sa.default], [1], [1], {
+                        from: sa.default,
+                    }),
                     "Not a whitelisted address",
                 );
             });

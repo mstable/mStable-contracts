@@ -6,9 +6,11 @@ import { IRewardsDistributionRecipient } from "../../interfaces/IRewardsDistribu
 contract MockRewardsDistributionRecipient is IRewardsDistributionRecipient {
 
     IERC20 public rewardToken;
+    IERC20 public platformToken;
 
-    constructor(IERC20 _rewardToken) public {
+    constructor(IERC20 _rewardToken, IERC20 _platformToken) public {
         rewardToken = _rewardToken;
+        platformToken = _platformToken;
     }
 
     function notifyRewardAmount(uint256 reward)
@@ -19,5 +21,9 @@ contract MockRewardsDistributionRecipient is IRewardsDistributionRecipient {
 
     function getRewardToken() external view returns (IERC20) {
         return rewardToken;
+    }
+    
+    function getPlatformToken() external view returns (IERC20) {
+        return platformToken;
     }
 }
