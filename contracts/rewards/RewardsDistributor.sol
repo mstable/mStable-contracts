@@ -70,14 +70,16 @@ contract RewardsDistributor is InitializableGovernableWhitelist {
 
         for (uint256 i = 0; i < len; i++) {
             uint256 amount = _amounts[i];
-            uint256 platformAmount = _platformAmounts[i];
             IRewardsDistributionRecipient recipient = _recipients[i];
             // Send the RewardToken to recipient
             IERC20 rewardToken = recipient.getRewardToken();
             rewardToken.safeTransferFrom(msg.sender, address(recipient), amount);
             // Send the PlatformToken to recipient
-            IERC20 platformToken = recipient.getPlatformToken();
-            platformToken.safeTransferFrom(msg.sender, address(recipient), platformAmount);
+            uint256 platformAmount = _platformAmounts[i];
+            if(platformAmount > 0) {
+                IERC20 platformToken = recipient.getPlatformToken();
+                platformToken.safeTransferFrom(msg.sender, address(recipient), platformAmount);
+            }
             // Only after successful tx - notify the contract of the new funds
             recipient.notifyRewardAmount(amount);
 
