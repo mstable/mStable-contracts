@@ -1,5 +1,6 @@
 import { FeederPool, Masset } from "types/generated"
 import { MusdEth } from "types/generated/MusdEth"
+import { isFeederPool, isMusdEth } from "./snap-utils"
 
 // Get mAsset token storage variables
 export const dumpTokenStorage = async (token: Masset | MusdEth | FeederPool, toBlock: number): Promise<void> => {
@@ -62,20 +63,45 @@ export const dumpConfigStorage = async (mAsset: Masset | MusdEth | FeederPool, t
     console.log("A              : ", invariantConfig.a.toString())
     console.log("Min            : ", invariantConfig.limits.min.toString())
     console.log("Max            : ", invariantConfig.limits.max.toString())
-}
 
-// Get Masset storage variables
-export const dumpFeederDataStorage = async (pool: FeederPool, toBlock: number): Promise<void> => {
-    const override = {
-        blockTag: toBlock,
+    if (!isMusdEth(mAsset)) {
+        // Masset and FeederPool
+        const data = await (mAsset as FeederPool).data(override)
+
+        console.log("\nCacheSize      : ", data.cacheSize.toString())
+        console.log("\nSwapFee        : ", data.swapFee.toString())
+        console.log("RedemptionFee  : ", data.redemptionFee.toString())
+
+        if (isFeederPool(mAsset)) {
+            // Only FeederPools
+            console.log("GovFee         : ", data.govFee.toString())
+            console.log("pendingFees    : ", data.pendingFees.toString())
+        }
+    } else {
+        // mUSD or mBTC
+        console.log(
+            "\nSwapFee        : ",
+            (
+                await mAsset.swapFee({
+                    blockTag: toBlock,
+                })
+            ).toString(),
+        )
+        console.log(
+            "RedemptionFee  : ",
+            (
+                await mAsset.redemptionFee({
+                    blockTag: toBlock,
+                })
+            ).toString(),
+        )
+        console.log(
+            "Surplus        : ",
+            (
+                await mAsset.surplus({
+                    blockTag: toBlock,
+                })
+            ).toString(),
+        )
     }
-
-    const feederData = await pool.data(override)
-
-    console.log("SwapFee        : ", feederData.swapFee.toString())
-    console.log("RedemptionFee  : ", feederData.redemptionFee.toString())
-    console.log("GovFee         : ", feederData.govFee.toString())
-    console.log("pendingFees    : ", feederData.pendingFees.toString())
-
-    console.log("CacheSize      : ", feederData.cacheSize.toString())
 }
