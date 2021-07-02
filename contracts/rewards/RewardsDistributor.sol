@@ -1,6 +1,6 @@
 pragma solidity 0.5.16;
 
-import { IRewardsDistributionRecipient } from "../interfaces/IRewardsDistributionRecipient.sol";
+import { IRewardsRecipientWithPlatformToken } from "../interfaces/IRewardsDistributionRecipient.sol";
 import {
     InitializableGovernableWhitelist
 } from "../governance/InitializableGovernableWhitelist.sol";
@@ -59,7 +59,7 @@ contract RewardsDistributor is InitializableGovernableWhitelist {
      * @param _platformAmounts   Amounts of platform tokens to distribute
      */
     function distributeRewards(
-        IRewardsDistributionRecipient[] calldata _recipients,
+        IRewardsRecipientWithPlatformToken[] calldata _recipients,
         uint256[] calldata _amounts,
         uint256[] calldata _platformAmounts
     ) external onlyWhitelisted {
@@ -70,14 +70,16 @@ contract RewardsDistributor is InitializableGovernableWhitelist {
 
         for (uint256 i = 0; i < len; i++) {
             uint256 amount = _amounts[i];
-            IRewardsDistributionRecipient recipient = _recipients[i];
+            IRewardsRecipientWithPlatformToken recipient = _recipients[i];
             // Send the RewardToken to recipient
             IERC20 rewardToken = recipient.getRewardToken();
             rewardToken.safeTransferFrom(msg.sender, address(recipient), amount);
             // Send the PlatformToken to recipient
             uint256 platformAmount = _platformAmounts[i];
+            address platformTokenAddress = address(0);
             if(platformAmount > 0) {
                 IERC20 platformToken = recipient.getPlatformToken();
+                platformTokenAddress = address(platformToken);
                 platformToken.safeTransferFrom(msg.sender, address(recipient), platformAmount);
             }
             // Only after successful tx - notify the contract of the new funds
@@ -88,7 +90,7 @@ contract RewardsDistributor is InitializableGovernableWhitelist {
                 address(recipient),
                 address(rewardToken),
                 amount,
-                address(platformToken),
+                platformTokenAddress,
                 platformAmount
             );
         }

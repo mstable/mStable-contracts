@@ -16,7 +16,6 @@ contract RewardsDistributionRecipient is IRewardsDistributionRecipient, Module {
     // @abstract
     function notifyRewardAmount(uint256 reward) external;
     function getRewardToken() external view returns (IERC20);
-    function getPlatformToken() external view returns (IERC20);
 
     // This address has the ability to distribute the rewards
     address public rewardsDistributor;

@@ -1,6 +1,7 @@
 pragma solidity 0.5.16;
 
 // Internal
+import { IRewardsRecipientWithPlatformToken } from "../../interfaces/IRewardsDistributionRecipient.sol";
 import { RewardsDistributionRecipient } from "../RewardsDistributionRecipient.sol";
 import { StakingTokenWrapper } from "./StakingTokenWrapper.sol";
 import { PlatformTokenVendor } from "./PlatformTokenVendor.sol";
@@ -19,7 +20,7 @@ import { StableMath } from "../../shared/StableMath.sol";
  * additionally, distributes the Platform token airdropped by the platform
  * @dev    Derives from ./StakingRewards.sol and implements a secondary token into the core logic
  */
-contract StakingRewardsWithPlatformToken is StakingTokenWrapper, RewardsDistributionRecipient {
+contract StakingRewardsWithPlatformToken is StakingTokenWrapper, IRewardsRecipientWithPlatformToken, RewardsDistributionRecipient {
 
     using StableMath for uint256;
 

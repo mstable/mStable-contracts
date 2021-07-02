@@ -261,7 +261,7 @@ contract("RewardsDistributor", async (accounts) => {
                         recipient: rewardRecipient1.address,
                         rewardToken: rewardToken1.address,
                         amount: new BN(0),
-                        platformToken: platformToken1.address,
+                        platformToken: ZERO_ADDRESS,
                         platformAmount: new BN(0),
                     });
                 });
@@ -288,7 +288,7 @@ contract("RewardsDistributor", async (accounts) => {
                         recipient: rewardRecipient1.address,
                         rewardToken: rewardToken1.address,
                         amount: oneToken,
-                        platformToken: platformToken1.address,
+                        platformToken: ZERO_ADDRESS,
                         platformAmount: new BN(0),
                     });
                     // erc balance after
