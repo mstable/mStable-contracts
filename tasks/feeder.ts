@@ -3,8 +3,8 @@ import "tsconfig-paths/register"
 import { task, types } from "hardhat/config"
 import { Signer } from "ethers"
 
-import { FeederPool, FeederPool__factory, Masset } from "types/generated"
-import { BN } from "@utils/math"
+import { ERC20__factory, FeederPool, FeederPool__factory, IERC20__factory, Masset } from "types/generated"
+import { BN, simpleToExactAmount } from "@utils/math"
 import { dumpConfigStorage, dumpFassetStorage, dumpTokenStorage } from "./utils/storage-utils"
 import {
     getMultiRedemptions,
@@ -21,10 +21,11 @@ import {
     getSavingsManager,
     getCollectedInterest,
 } from "./utils/snap-utils"
-import { Token, tokens } from "./utils/tokens"
+import { PFRAX, PmUSD, Token, tokens } from "./utils/tokens"
 import { btcFormatter, QuantityFormatter, usdFormatter } from "./utils/quantity-formatters"
 import { getSwapRates } from "./utils/rates-utils"
 import { getSigner } from "./utils/defender-utils"
+import { logTxDetails } from "./utils"
 
 const getBalances = async (mAsset: Masset | FeederPool, toBlock: number, asset: Token): Promise<Balances> => {
     const mAssetBalance = await mAsset.totalSupply({
@@ -195,4 +196,24 @@ task("feeder-rates", "Feeder rate comparison to Curve")
         await snapConfig(feederPool, block.blockNumber)
     })
 
+task("frax-post-deploy", "Mint FRAX Feeder Pool").setAction(async (_, { ethers, network }) => {
+    const signer = await getSigner(network.name, ethers)
+
+    const frax = ERC20__factory.connect(PFRAX.address, signer)
+    const fraxFp = FeederPool__factory.connect(PFRAX.feederPool, signer)
+    const musd = await IERC20__factory.connect(PmUSD.address, signer)
+
+    const approveAmount = simpleToExactAmount(100)
+    const bAssetAmount = simpleToExactAmount(10)
+    const minAmount = simpleToExactAmount(9)
+
+    let tx = await frax.approve(PFRAX.feederPool, approveAmount)
+    await logTxDetails(tx, "approve FRAX")
+
+    tx = await musd.approve(PFRAX.feederPool, approveAmount)
+    await logTxDetails(tx, "approve mUSD")
+
+    tx = await fraxFp.mintMulti([PFRAX.address, PmUSD.address], [bAssetAmount, bAssetAmount], minAmount, await signer.getAddress())
+    await logTxDetails(tx, "mint FRAX FP")
+})
 module.exports = {}
