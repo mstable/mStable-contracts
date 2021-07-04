@@ -1,5 +1,5 @@
 import { expect } from "chai"
-import { keccak256, zeroPad, toUtf8Bytes, hexlify } from "ethers/lib/utils"
+import { keccak256, toUtf8Bytes, hexlify } from "ethers/lib/utils"
 import { ethers } from "hardhat"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
 import { BN } from "@utils/math"
@@ -14,15 +14,17 @@ async function expectInModules(nexus: Nexus, _key: string, _addr: string, _isLoc
     /* eslint-disable prefer-const */
     let addr: string
     let isLocked: boolean
-    ;[addr, isLocked] = await nexus.modules(keccak256(toUtf8Bytes(_key)))
+    const encodedKey = keccak256(toUtf8Bytes(_key))
+    ;[addr, isLocked] = await nexus.modules(encodedKey)
     expect(addr, "Module address not matched").to.equal(_addr)
     expect(isLocked, "Module isLocked not matched").to.equal(_isLocked)
-    const exists = await nexus.moduleExists(keccak256(toUtf8Bytes(_key)))
+    const exists = await nexus.moduleExists(encodedKey)
     if (addr !== ZERO_ADDRESS) {
-        expect(exists).to.equal(true)
+        expect(exists, "moduleExists true").to.equal(true)
     } else {
-        expect(exists).to.equal(false)
+        expect(exists, "moduleExists false").to.equal(false)
     }
+    expect(await nexus.getModule(encodedKey), "getModule").to.eq(_addr)
 }
 
 async function expectInProposedModules(nexus: Nexus, _key: string, _newAddress: string, _timestamp: BN): Promise<void> {

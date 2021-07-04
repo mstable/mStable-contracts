@@ -739,15 +739,17 @@ describe("StakingRewardsWithPlatformToken", async () => {
         })
     })
 
-    context("getting the reward token", () => {
+    context("getting the reward and platform token", () => {
         before(async () => {
             stakingRewards = await redeployRewards()
         })
         it("should simply return the rewards Token", async () => {
-            const readToken = await stakingRewards.getRewardToken()
-            expect(readToken).eq(rewardToken.address)
-            expect(readToken).eq(await stakingRewards.rewardsToken())
-            expect(platformToken.address).eq(await stakingRewards.platformToken())
+            expect(await stakingRewards.getRewardToken(), "getRewardToken").eq(rewardToken.address)
+            expect(await stakingRewards.rewardsToken(), "rewardsToken").eq(rewardToken.address)
+        })
+        it("should simply return the platform Token", async () => {
+            expect(await stakingRewards.getPlatformToken(), "getPlatformToken").eq(platformToken.address)
+            expect(await stakingRewards.platformToken(), "platformToken").eq(platformToken.address)
         })
     })
 
