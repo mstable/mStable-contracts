@@ -37,13 +37,13 @@ export const hardhatConfig = {
             gasLimit: 8000000,
         },
         polygon_testnet: {
-            url: "https://rpc-mumbai.maticvigil.com",
+            url: process.env.NODE_URL || "https://rpc-mumbai.maticvigil.com",
         },
         polygon_mainnet: {
-            url: "https://rpc-mainnet.matic.quiknode.pro",
+            url: process.env.NODE_URL || "https://rpc-mainnet.matic.quiknode.pro",
         },
         mainnet: {
-            url: process.env.NODE_URL || "",
+            url: process.env.NODE_URL || "https://main-light.eth.linkpool.io",
         },
     },
     solidity: {
