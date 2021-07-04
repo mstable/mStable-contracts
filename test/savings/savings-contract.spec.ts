@@ -22,8 +22,8 @@ import {
     MockLendingConnector,
     MockVaultConnector,
 } from "types/generated"
-import { shouldBehaveLikeModule, IModuleBehaviourContext } from "../shared/Module.behaviour"
 import { Account } from "types"
+import { shouldBehaveLikeModule, IModuleBehaviourContext } from "../shared/Module.behaviour"
 
 interface Balances {
     totalCredits: BN
@@ -616,10 +616,9 @@ describe("SavingsContract", async () => {
             const redemption = underlyingToCredits(simpleToExactAmount(51, 18), initialExchangeRate)
             before(async () => {
                 await createNewSavingsContract()
-                const connector = await (await new MockConnector__factory(sa.default.signer)).deploy(
-                    savingsContract.address,
-                    masset.address,
-                )
+                const connector = await (
+                    await new MockConnector__factory(sa.default.signer)
+                ).deploy(savingsContract.address, masset.address)
 
                 await masset.approve(savingsContract.address, simpleToExactAmount(1, 21))
                 await savingsContract.preDeposit(deposit, alice.address)
@@ -817,10 +816,9 @@ describe("SavingsContract", async () => {
                 expect(exchangeRateHolds(data), "Exchange rate must hold")
             })
             it("should fail if the raw balance goes down somehow", async () => {
-                const connector = await (await new MockErroneousConnector1__factory(sa.default.signer)).deploy(
-                    savingsContract.address,
-                    masset.address,
-                )
+                const connector = await (
+                    await new MockErroneousConnector1__factory(sa.default.signer)
+                ).deploy(savingsContract.address, masset.address)
                 await savingsContract.connect(sa.governor.signer).setConnector(connector.address)
                 // Total collat goes down
                 await savingsContract.redeemUnderlying(deposit.div(2))
@@ -835,10 +833,9 @@ describe("SavingsContract", async () => {
             })
             it("is protected by the system invariant", async () => {
                 // connector returns invalid balance after withdrawal
-                const connector = await (await new MockErroneousConnector2__factory(sa.default.signer)).deploy(
-                    savingsContract.address,
-                    masset.address,
-                )
+                const connector = await (
+                    await new MockErroneousConnector2__factory(sa.default.signer)
+                ).deploy(savingsContract.address, masset.address)
                 await savingsContract.connect(sa.governor.signer).setConnector(connector.address)
                 await savingsContract.redeemUnderlying(deposit.div(2))
 
@@ -847,10 +844,9 @@ describe("SavingsContract", async () => {
                 await expect(savingsContract.poke()).to.be.revertedWith("Enforce system invariant")
             })
             it("should fail if the balance has gone down", async () => {
-                const connector = await (await new MockErroneousConnector2__factory(sa.default.signer)).deploy(
-                    savingsContract.address,
-                    masset.address,
-                )
+                const connector = await (
+                    await new MockErroneousConnector2__factory(sa.default.signer)
+                ).deploy(savingsContract.address, masset.address)
                 await savingsContract.connect(sa.governor.signer).setConnector(connector.address)
 
                 await ethers.provider.send("evm_increaseTime", [ONE_HOUR.mul(4).toNumber()])
@@ -864,10 +860,9 @@ describe("SavingsContract", async () => {
             before(async () => {
                 await createNewSavingsContract()
 
-                connector = await (await new MockLendingConnector__factory(sa.default.signer)).deploy(
-                    savingsContract.address,
-                    masset.address,
-                )
+                connector = await (
+                    await new MockLendingConnector__factory(sa.default.signer)
+                ).deploy(savingsContract.address, masset.address)
                 // Give mock some extra assets to allow inflation
                 await masset.transfer(connector.address, simpleToExactAmount(100, 18))
 
@@ -1078,10 +1073,9 @@ describe("SavingsContract", async () => {
             it("allows the connector to be switched to a lending market", async () => {
                 await ethers.provider.send("evm_increaseTime", [ONE_DAY.toNumber()])
                 await ethers.provider.send("evm_mine", [])
-                const newConnector = await (await new MockLendingConnector__factory(sa.default.signer)).deploy(
-                    savingsContract.address,
-                    masset.address,
-                )
+                const newConnector = await (
+                    await new MockLendingConnector__factory(sa.default.signer)
+                ).deploy(savingsContract.address, masset.address)
                 const data = await getData(savingsContract, alice)
                 await savingsContract.connect(sa.governor.signer).setConnector(newConnector.address)
                 const dataAfter = await getData(savingsContract, alice)
