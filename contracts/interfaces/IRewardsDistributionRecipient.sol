@@ -8,3 +8,9 @@ interface IRewardsDistributionRecipient {
 
     function getRewardToken() external view returns (IERC20);
 }
+
+interface IRewardsRecipientWithPlatformToken {
+    function notifyRewardAmount(uint256 reward) external;
+    function getRewardToken() external view returns (IERC20);
+    function getPlatformToken() external view returns (IERC20);
+}
