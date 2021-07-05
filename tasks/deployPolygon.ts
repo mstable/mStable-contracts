@@ -449,57 +449,49 @@ task("liquidator-snap", "Dumps the config details of the liquidator on Polygon")
     console.log(liquidationConfig)
 })
 
-task("deploy-imusd-staking", "Deploy Polygon imUSD staking contract v-imUSD").setAction(async (_, { ethers, network }) => {
-    const signer = await getSigner(ethers)
+task("deploy-imusd-staking", "Deploy Polygon imUSD staking contract v-imUSD").setAction(
+    async (_, { ethers, hardhatArguments, network }) => {
+        const signer = await getSigner(ethers)
 
-    const networkName = network.name === "hardhat" ? "polygon_mainnet" : network.name
-    const fundManagerAddress = getNetworkAddress("FundManager", networkName)
-    const governorAddress = getNetworkAddress("Governor", networkName)
-    const nexusAddress = getNetworkAddress("Nexus", networkName)
+        const fundManagerAddress = getNetworkAddress("FundManager", network.name, hardhatArguments.config)
+        const governorAddress = getNetworkAddress("Governor", network.name, hardhatArguments.config)
+        const nexusAddress = getNetworkAddress("Nexus", network.name, hardhatArguments.config)
 
-    const rewardsDistributor = await deployContract(new RewardsDistributor__factory(signer), "RewardsDistributor", [
-        nexusAddress,
-        [fundManagerAddress, governorAddress],
-    ])
-
-    /* StakingRewardsWithPlatformToken Constructor params
-        address _nexus,
-        address _stakingToken,
-        address _rewardsToken,
-        address _platformToken,
-        address _rewardsDistributor,
-        string memory _nameArg,
-        string memory _symbolArg
-    */
-    const stakingRewardsImpl = await deployContract(
-        new StakingRewardsWithPlatformToken__factory(signer),
-        "StakingRewardsWithPlatformToken",
-        [
+        const rewardsDistributor = await deployContract(new RewardsDistributor__factory(signer), "RewardsDistributor", [
             nexusAddress,
-            PmUSD.savings, // imUSD
-            PMTA.address, // MTA bridged to Polygon
-            PWMATIC.address, // Wrapped Matic on Polygon
-        ],
-    )
-    const initializeData = stakingRewardsImpl.interface.encodeFunctionData("initialize", [
-        rewardsDistributor.address,
-        "imUSD Vault",
-        "v-imUSD",
-    ])
-    const proxy = await deployContract(new AssetProxy__factory(signer), "Staking Rewards Proxy", [
-        stakingRewardsImpl.address,
-        governorAddress,
-        initializeData,
-    ])
-    const stakingRewards = StakingRewardsWithPlatformToken__factory.connect(proxy.address, signer)
+            [fundManagerAddress, governorAddress],
+        ])
 
-    console.log(`Name                ${await stakingRewards.name()}`)
-    console.log(`Symbol              ${await stakingRewards.symbol()}`)
-    console.log(`Nexus               ${await stakingRewards.nexus()}`)
-    console.log(`Staking token       ${await stakingRewards.stakingToken()}`)
-    console.log(`Rewards token       ${await stakingRewards.rewardsToken()}`)
-    console.log(`Platform token      ${await stakingRewards.platformToken()}`)
-    console.log(`Rewards distributor ${await stakingRewards.rewardsDistributor()}`)
-})
+        const stakingRewardsImpl = await deployContract(
+            new StakingRewardsWithPlatformToken__factory(signer),
+            "StakingRewardsWithPlatformToken",
+            [
+                nexusAddress,
+                PmUSD.savings, // imUSD
+                PMTA.address, // MTA bridged to Polygon
+                PWMATIC.address, // Wrapped Matic on Polygon
+            ],
+        )
+        const initializeData = stakingRewardsImpl.interface.encodeFunctionData("initialize", [
+            rewardsDistributor.address,
+            "imUSD Vault",
+            "v-imUSD",
+        ])
+        const proxy = await deployContract(new AssetProxy__factory(signer), "Staking Rewards Proxy", [
+            stakingRewardsImpl.address,
+            governorAddress,
+            initializeData,
+        ])
+        const stakingRewards = StakingRewardsWithPlatformToken__factory.connect(proxy.address, signer)
+
+        console.log(`Name                ${await stakingRewards.name()}`)
+        console.log(`Symbol              ${await stakingRewards.symbol()}`)
+        console.log(`Nexus               ${await stakingRewards.nexus()}`)
+        console.log(`Staking token       ${await stakingRewards.stakingToken()}`)
+        console.log(`Rewards token       ${await stakingRewards.rewardsToken()}`)
+        console.log(`Platform token      ${await stakingRewards.platformToken()}`)
+        console.log(`Rewards distributor ${await stakingRewards.rewardsDistributor()}`)
+    },
+)
 
 module.exports = {}

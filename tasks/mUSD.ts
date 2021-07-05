@@ -5,7 +5,7 @@ import "tsconfig-paths/register"
 import { task, types } from "hardhat/config"
 import { Contract, Signer } from "ethers"
 
-import { Masset, Masset__factory } from "types/generated"
+import { Masset, Masset__factory, SavingsManager__factory } from "types/generated"
 import { BN } from "@utils/math"
 import { MusdEth } from "types/generated/MusdEth"
 import mUsdEthAbi from "../contracts/masset/versions/mUsdEth.json"
@@ -24,7 +24,6 @@ import {
     getBalances,
     snapSave,
     getCollectedInterest,
-    getSavingsManager,
     getCompTokens,
     getAaveTokens,
 } from "./utils/snap-utils"
@@ -32,6 +31,7 @@ import { Token, sUSD, USDC, DAI, USDT, PUSDT, PUSDC, PDAI, mUSD, PmUSD, MmUSD, R
 import { usdFormatter } from "./utils/quantity-formatters"
 import { getSwapRates } from "./utils/rates-utils"
 import { getSigner } from "./utils"
+import { getNetworkAddress } from "./utils/networkAddressFactory"
 
 const mUsdBassets: Token[] = [sUSD, USDC, DAI, USDT]
 const mUsdPolygonBassets: Token[] = [PUSDC, PDAI, PUSDT]
@@ -86,7 +86,8 @@ task("mUSD-snap", "Snaps mUSD")
         }
 
         const mAsset = getMasset(signer, network.name)
-        const savingsManager = getSavingsManager(signer, network.name)
+        const savingsManagerAddress = getNetworkAddress("SavingsManager", network.name)
+        const savingsManager = SavingsManager__factory.connect(savingsManagerAddress, signer)
 
         const { fromBlock, toBlock } = await getBlockRange(ethers, taskArgs.from, taskArgs.to)
 
@@ -190,7 +191,7 @@ task("mUSD-rates", "mUSD rate comparison to Curve")
 
 task("rewards", "Get Compound and Aave platform reward tokens")
     .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, types.int)
-    .setAction(async (taskArgs, { ethers, network }) => {
+    .setAction(async (taskArgs, { ethers }) => {
         const signer = await getSigner(ethers)
 
         const block = await getBlock(ethers, taskArgs.block)

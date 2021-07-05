@@ -19,11 +19,12 @@ import {
     outputFees,
     getBalances,
     getCollectedInterest,
-    getSavingsManager,
 } from "./utils/snap-utils"
 import { Token, renBTC, sBTC, WBTC, mBTC, TBTC, HBTC } from "./utils/tokens"
 import { getSwapRates } from "./utils/rates-utils"
 import { getSigner } from "./utils/defender-utils"
+import { SavingsManager__factory } from "types/generated"
+import { getNetworkAddress } from "./utils/networkAddressFactory"
 
 const bAssets: Token[] = [renBTC, sBTC, WBTC]
 
@@ -71,7 +72,8 @@ task("mBTC-snap", "Get the latest data from the mBTC contracts")
         }
 
         const mAsset = getMasset(signer)
-        const savingsManager = getSavingsManager(signer, network.name)
+        const savingsManagerAddress = getNetworkAddress("SavingsManager", network.name)
+        const savingsManager = SavingsManager__factory.connect(savingsManagerAddress, signer)
 
         const { fromBlock, toBlock } = await getBlockRange(ethers, taskArgs.from, taskArgs.to)
 
