@@ -122,9 +122,6 @@ task("polly-dis-rewards", "Distributes MTA and WMATIC rewards to vaults on Polyg
         const mtaAmount = simpleToExactAmount(taskArgs.mtaAmount)
         const wmaticAmount = simpleToExactAmount(taskArgs.wmaticAmount)
 
-        console.log(`mtaAmount ${mtaAmount}`)
-        console.log(`wmaticAmount ${wmaticAmount}`)
-
         const networkName = network.name === "hardhat" ? "polygon_mainnet" : network.name
         const rewardsDistributorAddress = getNetworkAddress("RewardsDistributor", networkName)
         const rewardsDistributor = RewardsDistributor__factory.connect(rewardsDistributorAddress, signer)
