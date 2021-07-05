@@ -115,25 +115,28 @@ task("polly-stake-imusd", "Stakes imUSD into the v-imUSD vault on Polygon")
 
 task("polly-dis-rewards", "Distributes MTA and WMATIC rewards to vaults on Polygon")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .addOptionalParam("mtaAmount", "MTA tokens", 20833, types.int)
+    .addOptionalParam("wmaticAmount", "WMATIC tokens", 18666, types.int)
     .setAction(async (taskArgs, { ethers, network }) => {
         const signer = await getSigner(ethers, taskArgs.speed)
+        const mtaAmount = simpleToExactAmount(taskArgs.mtaAmount)
+        const wmaticAmount = simpleToExactAmount(taskArgs.wmaticAmount)
+
+        console.log(`mtaAmount ${mtaAmount}`)
+        console.log(`wmaticAmount ${wmaticAmount}`)
 
         const networkName = network.name === "hardhat" ? "polygon_mainnet" : network.name
         const rewardsDistributorAddress = getNetworkAddress("RewardsDistributor", networkName)
         const rewardsDistributor = RewardsDistributor__factory.connect(rewardsDistributorAddress, signer)
 
-        const approveAmount = simpleToExactAmount(100)
-
         const mtaToken = ERC20__factory.connect(PMTA.address, signer)
-        const tx1 = await mtaToken.approve(rewardsDistributorAddress, approveAmount)
-        await logTxDetails(tx1, "Relay account approve RewardsDistributor contract to transfer MTA")
+        const tx1 = await mtaToken.approve(rewardsDistributorAddress, mtaAmount)
+        await logTxDetails(tx1, `Relay account approve RewardsDistributor contract to transfer ${usdFormatter(mtaAmount)} MTA`)
 
         const wmaticToken = ERC20__factory.connect(PWMATIC.address, signer)
-        const tx2 = await wmaticToken.approve(rewardsDistributorAddress, approveAmount)
-        await logTxDetails(tx2, "Relay account approve RewardsDistributor contract to transfer WMATIC")
+        const tx2 = await wmaticToken.approve(rewardsDistributorAddress, wmaticAmount)
+        await logTxDetails(tx2, `Relay account approve RewardsDistributor contract to transfer ${usdFormatter(wmaticAmount)} WMATIC`)
 
-        const mtaAmount = simpleToExactAmount(1)
-        const wmaticAmount = simpleToExactAmount(1)
         const tx3 = await rewardsDistributor.distributeRewards([PmUSD.vault], [mtaAmount], [wmaticAmount])
         await logTxDetails(tx3, `distributeRewards ${usdFormatter(mtaAmount)} MTA and ${usdFormatter(wmaticAmount)} WMATIC`)
     })
