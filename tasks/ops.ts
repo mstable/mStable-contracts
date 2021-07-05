@@ -8,17 +8,22 @@ import {
     PAaveIntegration__factory,
     PLiquidator__factory,
     SavingsManager__factory,
+    RewardsDistributor__factory,
+    StakingRewards__factory,
+    ERC20__factory,
 } from "types/generated"
-import { tokens } from "./utils/tokens"
+import { simpleToExactAmount } from "@utils/math"
+import { PmUSD, tokens } from "./utils/tokens"
 import { getSigner } from "./utils/defender-utils"
 import { logTxDetails } from "./utils/deploy-utils"
+import { getNetworkAddress } from "./utils/networkAddressFactory"
 
 const getSavingsManager = (signer: Signer, contractAddress = "0x9781c4e9b9cc6ac18405891df20ad3566fb6b301"): ISavingsManager =>
     ISavingsManager__factory.connect(contractAddress, signer)
 
 task("eject-stakers", "Ejects expired stakers from Meta staking contract (vMTA)")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
-    .setAction(async (taskArgs, { ethers, network }) => {
+    .setAction(async (taskArgs, { ethers }) => {
         const signer = await getSigner(ethers, taskArgs.speed)
 
         const ejector = IEjector__factory.connect("0x71061E3F432FC5BeE3A6763Cd35F50D3C77A0434", signer)
@@ -47,7 +52,7 @@ task("collect-interest", "Collects and streams interest from platforms")
         false,
     )
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
-    .setAction(async (taskArgs, { ethers, network }) => {
+    .setAction(async (taskArgs, { ethers }) => {
         const asset = tokens.find((t) => t.symbol === taskArgs.asset)
         if (!asset) {
             console.error(`Failed to find main or feeder pool asset with token symbol ${taskArgs.asset}`)
@@ -73,7 +78,7 @@ task("collect-interest", "Collects and streams interest from platforms")
 
 task("polly-daily", "Runs the daily jobs against the contracts on Polygon mainnet")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
-    .setAction(async (taskArgs, { ethers, network }) => {
+    .setAction(async (taskArgs, { ethers }) => {
         const signer = await getSigner(ethers, taskArgs.speed)
 
         const aave = new PAaveIntegration__factory(signer).attach("0xeab7831c96876433dB9B8953B4e7e8f66c3125c3")
@@ -89,6 +94,37 @@ task("polly-daily", "Runs the daily jobs against the contracts on Polygon mainne
             gasLimit: 2000000,
         })
         await logTxDetails(savingsManagerTx, "collectAndStreamInterest")
+    })
+
+task("polly-stake-imusd", "Stakes imUSD into the v-imUSD vault on Polygon")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, { ethers }) => {
+        const signer = await getSigner(ethers, taskArgs.speed)
+
+        const amount = simpleToExactAmount(20)
+        const imUSD = ERC20__factory.connect(PmUSD.savings, signer)
+        const tx1 = await imUSD.approve(PmUSD.vault, amount)
+        await logTxDetails(tx1, "Relay approves v-imUSD vault to transfer imUSD")
+
+        const vault = StakingRewards__factory.connect(PmUSD.vault, signer)
+
+        const tx2 = await vault["stake(uint256)"](amount)
+        await logTxDetails(tx2, `stake ${amount} imUSD in v-imUSD vault`)
+    })
+
+task("polly-dis-rewards", "Distributes MTA and WMATIC rewards to vaults on Polygon")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, { ethers, network }) => {
+        const signer = await getSigner(ethers, taskArgs.speed)
+
+        const networkName = network.name === "hardhat" ? "polygon_mainnet" : network.name
+        const rewardsDistributorAddress = getNetworkAddress("RewardsDistributor", networkName)
+        const rewardsDistributor = RewardsDistributor__factory.connect(rewardsDistributorAddress, signer)
+
+        const mtaAmount = simpleToExactAmount(1)
+        const maticAmount = simpleToExactAmount(1)
+        const tx = await rewardsDistributor.distributeRewards([PmUSD.vault], [mtaAmount], [maticAmount])
+        await logTxDetails(tx, "distributeRewards")
     })
 
 module.exports = {}
