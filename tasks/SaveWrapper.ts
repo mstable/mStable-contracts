@@ -32,7 +32,7 @@ task("SaveWrapper.approveMasset", "Sets approvals for a new mAsset")
             }: { saveWrapper: string; masset: string; bassets: string[]; save: string; vault: string; fassets: string[]; fPools: string[] },
             { ethers, network },
         ) => {
-            const deployer = await getSigner(network.name, ethers)
+            const deployer = await getSigner(ethers)
             await sendTx(
                 SaveWrapper__factory.connect(saveWrapper, deployer),
                 "approve(address,address[],address[],address[],address,address)",
@@ -52,7 +52,7 @@ task("SaveWrapper.approveMulti", "Sets approvals for multiple tokens/a single sp
     .addParam("tokens", "Token addresses", undefined, params.address, false)
     .addParam("spender", "Spender address", undefined, params.address, false)
     .setAction(async ({ saveWrapper, tokens, spender }: { saveWrapper: string; tokens: string[]; spender: string }, hre) => {
-        const deployer = await getSigner(hre.network.name, hre.ethers)
+        const deployer = await getSigner(hre.ethers)
         await sendTx(
             SaveWrapper__factory.connect(saveWrapper, deployer),
             "approve(address[],address)",

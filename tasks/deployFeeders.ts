@@ -20,8 +20,8 @@ import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { getSigner } from "./utils/defender-utils"
 import { CommonAddresses, deployBoostedFeederPools, Pair } from "./utils/feederUtils"
 
-task("fSize", "Gets the bytecode size of the FeederPool.sol contract").setAction(async (_, { ethers, network }) => {
-    const deployer = await getSigner(network.name, ethers)
+task("fSize", "Gets the bytecode size of the FeederPool.sol contract").setAction(async (_, { ethers }) => {
+    const deployer = await getSigner(ethers)
     const linkedAddress = {
         __$60670dd84d06e10bb8a5ac6f99a1c0890c$__: DEAD_ADDRESS,
         __$7791d1d5b7ea16da359ce352a2ac3a881c$__: DEAD_ADDRESS,
@@ -48,7 +48,7 @@ task("fSize", "Gets the bytecode size of the FeederPool.sol contract").setAction
 task("deployBoostedFeeder", "Deploys feeder pools with vMTA boost")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
     .setAction(async (taskArgs, { hardhatArguments, ethers, network }) => {
-        const deployer = await getSigner(network.name, ethers, taskArgs.speed)
+        const deployer = await getSigner(ethers, taskArgs.speed)
 
         let addresses: CommonAddresses
         const pairs: Pair[] = []
@@ -176,10 +176,10 @@ task("deployBoostedFeeder", "Deploys feeder pools with vMTA boost")
 
 task("deployIronBank", "Deploys mUSD Iron Bank (CREAM) integration contracts for GUSD and BUSD Feeder Pools")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
-    .setAction(async (taskArgs, { ethers, network }) => {
+    .setAction(async (taskArgs, { ethers }) => {
         const nexusAddress = "0xafce80b19a8ce13dec0739a1aab7a028d6845eb3"
 
-        const deployer = await getSigner(network.name, ethers, taskArgs.speed)
+        const deployer = await getSigner(ethers, taskArgs.speed)
 
         // CREAM's ABI is the same as Compound so can use the CompoundIntegration contract
         const gusdIntegration = await deployContract<CompoundIntegration>(
