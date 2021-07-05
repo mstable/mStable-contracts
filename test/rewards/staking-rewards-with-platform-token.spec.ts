@@ -3,11 +3,11 @@ import { StandardAccounts } from "@utils/machines"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { FIVE_DAYS, fullScale, MAX_UINT256, ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import {
+    AssetProxy__factory,
     MockERC20,
     MockERC20__factory,
     MockNexus,
     MockNexus__factory,
-    PlatformTokenVendor,
     PlatformTokenVendor__factory,
     StakingRewardsWithPlatformToken,
     StakingRewardsWithPlatformToken__factory,
@@ -28,19 +28,37 @@ describe("StakingRewardsWithPlatformToken", async () => {
     let stakingToken: MockERC20
     let stakingRewards: StakingRewardsWithPlatformToken
 
-    const redeployRewards = async (nexusAddress = nexus.address): Promise<StakingRewardsWithPlatformToken> => {
-        rewardToken = await new MockERC20__factory(sa.default.signer).deploy("Reward", "RWD", 18, rewardsDistributor.address, 1000000)
-        platformToken = await new MockERC20__factory(sa.default.signer).deploy("PLAT4M", "PLAT", 18, rewardsDistributor.address, 1000000)
-        stakingToken = await new MockERC20__factory(sa.default.signer).deploy("Staking", "ST8k", 18, sa.default.address, 1000000)
-        return new StakingRewardsWithPlatformToken__factory(sa.default.signer).deploy(
+    const redeployRewards = async (
+        nexusAddress = nexus.address,
+        rewardDecimals = 18,
+        platformDecimals = 18,
+        stakingDecimals = 18,
+    ): Promise<StakingRewardsWithPlatformToken> => {
+        const deployer = sa.default.signer
+        rewardToken = await new MockERC20__factory(deployer).deploy("Reward", "RWD", rewardDecimals, rewardsDistributor.address, 1000000)
+        platformToken = await new MockERC20__factory(deployer).deploy(
+            "PLAT4M",
+            "PLAT",
+            platformDecimals,
+            rewardsDistributor.address,
+            1000000,
+        )
+        stakingToken = await new MockERC20__factory(deployer).deploy("Staking", "ST8k", stakingDecimals, sa.default.address, 1000000)
+        const stakingRewardsImpl = await new StakingRewardsWithPlatformToken__factory(deployer).deploy(
             nexusAddress,
             stakingToken.address,
             rewardToken.address,
             platformToken.address,
+        )
+        const initializeData = stakingRewardsImpl.interface.encodeFunctionData("initialize", [
             rewardsDistributor.address,
             "StakingToken",
             "ST8k",
-        )
+        ])
+        const proxy = await new AssetProxy__factory(deployer).deploy(stakingRewardsImpl.address, sa.governor.address, initializeData)
+        stakingRewards = StakingRewardsWithPlatformToken__factory.connect(proxy.address, deployer)
+
+        return stakingRewards
     }
 
     interface StakingData {
@@ -97,13 +115,11 @@ describe("StakingRewardsWithPlatformToken", async () => {
             sa.mockSavingsManager.address,
             sa.mockInterestValidator.address,
         )
-
-        stakingRewards = await redeployRewards()
     })
 
     describe("constructor & settings", async () => {
         before(async () => {
-            stakingRewards = await redeployRewards()
+            await redeployRewards()
         })
         it("should set all initial state", async () => {
             // Set in constructor
@@ -228,7 +244,7 @@ describe("StakingRewardsWithPlatformToken", async () => {
 
         const isExistingStaker = beforeData.userStakingBalance.gt(0)
         if (confirmExistingStaker) {
-            expect(isExistingStaker).eq(true)
+            expect(isExistingStaker, "isExistingStaker true").eq(true)
         }
         // 2. Approve staking token spending and send the TX
         await stakingToken.connect(sender.signer).approve(stakingRewards.address, stakeAmount)
@@ -244,13 +260,17 @@ describe("StakingRewardsWithPlatformToken", async () => {
 
         // 4. Expect token transfer
         //    StakingToken balance of sender
-        expect(beforeData.senderStakingTokenBalance.sub(stakeAmount)).eq(afterData.senderStakingTokenBalance)
+        expect(afterData.senderStakingTokenBalance, "sender staking balance after").eq(
+            beforeData.senderStakingTokenBalance.sub(stakeAmount),
+        )
 
         //    StakingToken balance of StakingRewardsWithPlatformToken
-        expect(beforeData.contractStakingTokenBalance.add(stakeAmount)).eq(afterData.contractStakingTokenBalance)
+        expect(afterData.contractStakingTokenBalance, "contract staking balance after").eq(
+            beforeData.contractStakingTokenBalance.add(stakeAmount),
+        )
 
         //    TotalSupply of StakingRewardsWithPlatformToken
-        expect(beforeData.totalSupply.add(stakeAmount)).eq(afterData.totalSupply)
+        expect(afterData.totalSupply, "total supply after").eq(beforeData.totalSupply.add(stakeAmount))
     }
 
     /**
@@ -259,7 +279,7 @@ describe("StakingRewardsWithPlatformToken", async () => {
      */
     const expectSuccessfulFunding = async (rewardUnits: BN, platformUnitsExpected = BN.from(0)): Promise<void> => {
         const beforeData = await snapshotStakingData()
-        expect(beforeData.platformTokenBalanceStakingRewards).gte(platformUnitsExpected)
+        expect(beforeData.platformTokenBalanceStakingRewards, "staking rewards platform balance before").gte(platformUnitsExpected)
 
         const tx = await stakingRewards.connect(rewardsDistributor.signer).notifyRewardAmount(rewardUnits)
         await expect(tx).to.emit(stakingRewards, "RewardAdded").withArgs(rewardUnits, platformUnitsExpected)
@@ -273,19 +293,19 @@ describe("StakingRewardsWithPlatformToken", async () => {
         const afterData = await snapshotStakingData()
 
         // Expect the tokens to be transferred to the vendor
-        expect(afterData.platformTokenBalanceStakingRewards).eq(0)
-        expect(afterData.platformTokenBalanceVendor).eq(
+        expect(afterData.platformTokenBalanceStakingRewards, "staking rewards platform balance after").eq(0)
+        expect(afterData.platformTokenBalanceVendor, "vendor platform balance after").eq(
             beforeData.platformTokenBalanceVendor.add(beforeData.platformTokenBalanceStakingRewards),
         )
 
         // Sets lastTimeRewardApplicable to latest
-        expect(cur).eq(afterData.lastTimeRewardApplicable)
+        expect(cur, "lastTimeRewardApplicable updated").eq(afterData.lastTimeRewardApplicable)
 
         // Sets lastUpdateTime to latest
-        expect(cur).eq(afterData.lastUpdateTime)
+        expect(cur, "lastUpdateTime updated").eq(afterData.lastUpdateTime)
 
         // Sets periodFinish to 1 week from now
-        expect(cur.add(ONE_WEEK)).eq(afterData.periodFinishTime)
+        expect(cur.add(ONE_WEEK), "periodFinishTime updated").eq(afterData.periodFinishTime)
 
         // Sets rewardRate to rewardUnits / ONE_WEEK
         if (leftOverRewards.gt(0)) {
@@ -296,7 +316,7 @@ describe("StakingRewardsWithPlatformToken", async () => {
                 beforeData.rewardRate.div(ONE_WEEK).mul(10), // the effect of 10 second on the future scale
             )
         } else {
-            expect(rewardUnits.div(ONE_WEEK)).eq(afterData.rewardRate)
+            expect(rewardUnits.div(ONE_WEEK), "rewardRate updated").eq(afterData.rewardRate)
         }
 
         // Sets platformRewardRate to rewardUnits / ONE_WEEK
@@ -308,7 +328,7 @@ describe("StakingRewardsWithPlatformToken", async () => {
                 beforeData.platformRewardRate.div(ONE_WEEK).mul(10), // the effect of 10 second on the future scale
             )
         } else {
-            expect(platformUnitsExpected.div(ONE_WEEK)).eq(afterData.platformRewardRate)
+            expect(platformUnitsExpected.div(ONE_WEEK), "platformRewardRate updated").eq(afterData.platformRewardRate)
         }
     }
 
@@ -344,6 +364,9 @@ describe("StakingRewardsWithPlatformToken", async () => {
     }
 
     context("initializing and staking in a new pool", () => {
+        before(async () => {
+            await redeployRewards()
+        })
         describe("notifying the pool of reward", () => {
             it("should begin a new period through", async () => {
                 const rewardUnits = simpleToExactAmount(1, 18)
@@ -395,7 +418,7 @@ describe("StakingRewardsWithPlatformToken", async () => {
 
     context("funding with too much rewards", () => {
         before(async () => {
-            stakingRewards = await redeployRewards()
+            await redeployRewards()
         })
         it("should fail", async () => {
             await expect(stakingRewards.connect(sa.fundManager.signer).notifyRewardAmount(simpleToExactAmount(1, 25))).to.revertedWith(
@@ -405,7 +428,7 @@ describe("StakingRewardsWithPlatformToken", async () => {
     })
     context("staking before rewards are added", () => {
         before(async () => {
-            stakingRewards = await redeployRewards()
+            await redeployRewards()
         })
         it("should assign no rewards", async () => {
             // Get data before
@@ -442,7 +465,7 @@ describe("StakingRewardsWithPlatformToken", async () => {
     })
     context("adding first stake days after funding", () => {
         before(async () => {
-            stakingRewards = await redeployRewards()
+            await redeployRewards()
         })
         it("should retrospectively assign rewards to the first staker", async () => {
             const airdropAmount = simpleToExactAmount(100, 18)
@@ -477,7 +500,7 @@ describe("StakingRewardsWithPlatformToken", async () => {
     context("staking over multiple funded periods", () => {
         context("with a single staker", () => {
             before(async () => {
-                stakingRewards = await redeployRewards()
+                await redeployRewards()
             })
             it("should assign all the rewards from the periods", async () => {
                 const airdropAmount1 = simpleToExactAmount(100, 18)
@@ -502,7 +525,7 @@ describe("StakingRewardsWithPlatformToken", async () => {
         })
         context("with multiple stakers coming in and out", () => {
             beforeEach(async () => {
-                stakingRewards = await redeployRewards()
+                await redeployRewards()
             })
             it("should accrue rewards on a pro rata basis", async () => {
                 const airdropAmount = simpleToExactAmount(100, 21)
@@ -647,7 +670,7 @@ describe("StakingRewardsWithPlatformToken", async () => {
         const fundAmount1 = simpleToExactAmount(100, 21)
 
         before(async () => {
-            stakingRewards = await redeployRewards()
+            await redeployRewards()
         })
         it("should stop accruing rewards after the period is over", async () => {
             await expectSuccessfulStake(simpleToExactAmount(1, 18))
@@ -677,7 +700,7 @@ describe("StakingRewardsWithPlatformToken", async () => {
 
         before(async () => {
             beneficiary = sa.dummy1
-            stakingRewards = await redeployRewards()
+            await redeployRewards()
             await expectSuccessfulFunding(fundAmount)
             await expectSuccessfulStake(stakeAmount, sa.default, beneficiary)
             await increaseTime(10)
@@ -699,17 +722,7 @@ describe("StakingRewardsWithPlatformToken", async () => {
     })
     context("using staking / reward tokens with diff decimals", () => {
         before(async () => {
-            rewardToken = await new MockERC20__factory(sa.default.signer).deploy("Reward", "RWD", 12, rewardsDistributor.address, 1000000)
-            stakingToken = await new MockERC20__factory(sa.default.signer).deploy("Staking", "ST8k", 16, sa.default.address, 1000000)
-            stakingRewards = await new StakingRewardsWithPlatformToken__factory(sa.default.signer).deploy(
-                nexus.address,
-                stakingToken.address,
-                rewardToken.address,
-                platformToken.address,
-                rewardsDistributor.address,
-                "StakingToken",
-                "ST8k",
-            )
+            await redeployRewards(nexus.address, 12, 18, 16)
         })
         it("should not affect the pro rata payouts", async () => {
             // Add 100 reward tokens
@@ -741,7 +754,7 @@ describe("StakingRewardsWithPlatformToken", async () => {
 
     context("getting the reward and platform token", () => {
         before(async () => {
-            stakingRewards = await redeployRewards()
+            await redeployRewards()
         })
         it("should simply return the rewards Token", async () => {
             expect(await stakingRewards.getRewardToken(), "getRewardToken").eq(rewardToken.address)
@@ -756,17 +769,21 @@ describe("StakingRewardsWithPlatformToken", async () => {
     context("notifying new reward amount", () => {
         context("from someone other than the distributor", () => {
             before(async () => {
-                stakingRewards = await redeployRewards()
+                await redeployRewards()
             })
-            it("should fail", async () => {
+            it("should fail using default signer", async () => {
                 await expect(stakingRewards.connect(sa.default.signer).notifyRewardAmount(1)).to.revertedWith(
                     "Caller is not reward distributor",
                 )
+            })
+            it("should fail using dummy1", async () => {
                 await expect(stakingRewards.connect(sa.dummy1.signer).notifyRewardAmount(1)).to.revertedWith(
                     "Caller is not reward distributor",
                 )
+            })
+            it("should fail using governor", async () => {
                 await expect(stakingRewards.connect(sa.governor.signer).notifyRewardAmount(1)).to.revertedWith(
-                    "Caller is not reward distributor",
+                    "admin cannot fallback to proxy target",
                 )
             })
         })
@@ -776,7 +793,7 @@ describe("StakingRewardsWithPlatformToken", async () => {
             const funding1 = simpleToExactAmount(100, 18)
             const funding2 = simpleToExactAmount(200, 18)
             beforeEach(async () => {
-                stakingRewards = await redeployRewards()
+                await redeployRewards()
             })
             it("should factor in unspent units to the new rewardRate", async () => {
                 // Do the initial funding
@@ -835,7 +852,7 @@ describe("StakingRewardsWithPlatformToken", async () => {
             const airdrop1 = simpleToExactAmount(1, 18)
             const funding1 = simpleToExactAmount(100, 18)
             before(async () => {
-                stakingRewards = await redeployRewards()
+                await redeployRewards()
             })
             it("should start a new period with the correct rewardRate", async () => {
                 // Do the initial funding
@@ -866,7 +883,7 @@ describe("StakingRewardsWithPlatformToken", async () => {
             const stakeAmount = simpleToExactAmount(100, 18)
 
             before(async () => {
-                stakingRewards = await redeployRewards()
+                await redeployRewards()
                 await platformToken.connect(rewardsDistributor.signer).transfer(stakingRewards.address, fundAmount)
                 await expectSuccessfulFunding(fundAmount, fundAmount)
                 await expectSuccessfulStake(stakeAmount)
@@ -923,7 +940,7 @@ describe("StakingRewardsWithPlatformToken", async () => {
             const stakeAmount = simpleToExactAmount(100, 18)
 
             before(async () => {
-                stakingRewards = await redeployRewards()
+                await redeployRewards()
                 await platformToken.connect(rewardsDistributor.signer).transfer(stakingRewards.address, airdropAmount)
                 await rewardToken.connect(rewardsDistributor.signer).transfer(stakingRewards.address, fundAmount)
                 await expectSuccessfulFunding(fundAmount, airdropAmount)
@@ -989,7 +1006,7 @@ describe("StakingRewardsWithPlatformToken", async () => {
             const stakeAmount = simpleToExactAmount(100, 18)
 
             before(async () => {
-                stakingRewards = await redeployRewards()
+                await redeployRewards()
                 await expectSuccessfulFunding(fundAmount)
                 await rewardToken.connect(rewardsDistributor.signer).transfer(stakingRewards.address, fundAmount)
                 await expectSuccessfulStake(stakeAmount)
@@ -1033,7 +1050,7 @@ describe("StakingRewardsWithPlatformToken", async () => {
             const stakeAmount = simpleToExactAmount(100, 18)
 
             before(async () => {
-                stakingRewards = await redeployRewards()
+                await redeployRewards()
                 await expectSuccessfulFunding(fundAmount)
                 await rewardToken.connect(rewardsDistributor.signer).transfer(stakingRewards.address, fundAmount)
                 await expectSuccessfulStake(stakeAmount)
@@ -1073,7 +1090,7 @@ describe("StakingRewardsWithPlatformToken", async () => {
     })
     context("testing platformTokenVendor", () => {
         before(async () => {
-            stakingRewards = await redeployRewards()
+            await redeployRewards()
         })
         it("should re-approve spending of the platformToken", async () => {
             const beforeData = await snapshotStakingData()
@@ -1104,7 +1121,7 @@ describe("StakingRewardsWithPlatformToken", async () => {
         const stakeAmount = simpleToExactAmount(100, 18)
 
         before(async () => {
-            stakingRewards = await redeployRewards()
+            await redeployRewards()
         })
         it("1. should allow the rewardsDistributor to fund the pool", async () => {
             await platformToken.connect(rewardsDistributor.signer).transfer(stakingRewards.address, airdropAmount)

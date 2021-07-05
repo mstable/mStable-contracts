@@ -31,6 +31,8 @@ import {
     ERC20,
     SavingsManager__factory,
     SavingsManager,
+    RewardsDistributor__factory,
+    StakingRewardsWithPlatformToken__factory,
 } from "types/generated"
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address"
 import { DEAD_ADDRESS, KEY_LIQUIDATOR, KEY_PROXY_ADMIN, KEY_SAVINGS_MANAGER, ONE_DAY, ZERO_ADDRESS } from "@utils/constants"
@@ -38,6 +40,9 @@ import { BN, simpleToExactAmount } from "@utils/math"
 import { formatUnits } from "@ethersproject/units"
 import { MassetLibraryAddresses } from "types/generated/factories/Masset__factory"
 import { deployContract } from "./utils/deploy-utils"
+import { getSigner } from "./utils/defender-utils"
+import { getAddress } from "./utils/contractAddressFactory"
+import { PMTA, PmUSD, PWMATIC } from "./utils/tokens"
 
 // FIXME: this import does not work for some reason
 // import { sleep } from "@utils/time"
@@ -442,6 +447,58 @@ task("liquidator-snap", "Dumps the config details of the liquidator on Polygon")
 
     const liquidationConfig = await liquidator.liquidations(integrationAddress)
     console.log(liquidationConfig)
+})
+
+task("musd-rewards", "Deploy Polygon mUSD staking contract imUSD").setAction(async (_, { ethers, network }) => {
+    const signer = await getSigner(network.name, ethers)
+
+    const fundManagerAddress = getAddress("FundManager", network.name)
+    const governorAddress = getAddress("Governor", network.name)
+
+    const nexusAddress = getAddress("Nexus", network.name)
+    const rewardsDistributor = await deployContract(new RewardsDistributor__factory(signer), "RewardsDistributor", [
+        nexusAddress,
+        [fundManagerAddress, governorAddress],
+    ])
+
+    /* StakingRewardsWithPlatformToken Constructor params
+        address _nexus,
+        address _stakingToken,
+        address _rewardsToken,
+        address _platformToken,
+        address _rewardsDistributor,
+        string memory _nameArg,
+        string memory _symbolArg
+    */
+    const stakingRewardsImpl = await deployContract(
+        new StakingRewardsWithPlatformToken__factory(signer),
+        "StakingRewardsWithPlatformToken",
+        [
+            nexusAddress,
+            PmUSD.savings, // imUSD
+            PMTA.address, // MTA bridged to Polygon
+            PWMATIC.address, // Wrapped Matic on Polygon
+        ],
+    )
+    const initializeData = stakingRewardsImpl.interface.encodeFunctionData("initialize", [
+        rewardsDistributor.address,
+        "imUSD Vault",
+        "v-imUSD",
+    ])
+    const proxy = await deployContract(new AssetProxy__factory(signer), "Staking Rewards Proxy", [
+        stakingRewardsImpl.address,
+        governorAddress,
+        initializeData,
+    ])
+    const stakingRewards = StakingRewardsWithPlatformToken__factory.connect(proxy.address, signer)
+
+    console.log(`Name ${await stakingRewards.name()}`)
+    console.log(`Symbol ${await stakingRewards.symbol()}`)
+    console.log(`Nexus ${await stakingRewards.nexus()}`)
+    console.log(`Staking token ${await stakingRewards.stakingToken()}`)
+    console.log(`Rewards token ${await stakingRewards.rewardsToken()}`)
+    console.log(`Platform token ${await stakingRewards.platformToken()}`)
+    console.log(`Rewards distributor ${await stakingRewards.rewardsDistributor()}`)
 })
 
 module.exports = {}

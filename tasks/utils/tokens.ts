@@ -264,6 +264,14 @@ export const PMTA: Token = {
     quantityFormatter: "USD",
 }
 
+export const PWMATIC: Token = {
+    symbol: "PWMATIC",
+    address: "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+    chain: Chain.polygon,
+    decimals: 18,
+    quantityFormatter: "USD",
+}
+
 export const AAVE: Token = {
     symbol: "AAVE",
     address: "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9",
