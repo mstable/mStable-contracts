@@ -13,10 +13,11 @@ import {
     ERC20__factory,
 } from "types/generated"
 import { simpleToExactAmount } from "@utils/math"
-import { PmUSD, tokens } from "./utils/tokens"
+import { PMTA, PmUSD, PWMATIC, tokens } from "./utils/tokens"
 import { getSigner } from "./utils/defender-utils"
 import { logTxDetails } from "./utils/deploy-utils"
 import { getNetworkAddress } from "./utils/networkAddressFactory"
+import { usdFormatter } from "./utils"
 
 const getSavingsManager = (signer: Signer, contractAddress = "0x9781c4e9b9cc6ac18405891df20ad3566fb6b301"): ISavingsManager =>
     ISavingsManager__factory.connect(contractAddress, signer)
@@ -109,7 +110,7 @@ task("polly-stake-imusd", "Stakes imUSD into the v-imUSD vault on Polygon")
         const vault = StakingRewards__factory.connect(PmUSD.vault, signer)
 
         const tx2 = await vault["stake(uint256)"](amount)
-        await logTxDetails(tx2, `stake ${amount} imUSD in v-imUSD vault`)
+        await logTxDetails(tx2, `stake ${usdFormatter(amount)} imUSD in v-imUSD vault`)
     })
 
 task("polly-dis-rewards", "Distributes MTA and WMATIC rewards to vaults on Polygon")
@@ -121,10 +122,20 @@ task("polly-dis-rewards", "Distributes MTA and WMATIC rewards to vaults on Polyg
         const rewardsDistributorAddress = getNetworkAddress("RewardsDistributor", networkName)
         const rewardsDistributor = RewardsDistributor__factory.connect(rewardsDistributorAddress, signer)
 
+        const approveAmount = simpleToExactAmount(100)
+
+        const mtaToken = ERC20__factory.connect(PMTA.address, signer)
+        const tx1 = await mtaToken.approve(rewardsDistributorAddress, approveAmount)
+        await logTxDetails(tx1, "Relay account approve RewardsDistributor contract to transfer MTA")
+
+        const wmaticToken = ERC20__factory.connect(PWMATIC.address, signer)
+        const tx2 = await wmaticToken.approve(rewardsDistributorAddress, approveAmount)
+        await logTxDetails(tx2, "Relay account approve RewardsDistributor contract to transfer WMATIC")
+
         const mtaAmount = simpleToExactAmount(1)
-        const maticAmount = simpleToExactAmount(1)
-        const tx = await rewardsDistributor.distributeRewards([PmUSD.vault], [mtaAmount], [maticAmount])
-        await logTxDetails(tx, "distributeRewards")
+        const wmaticAmount = simpleToExactAmount(1)
+        const tx3 = await rewardsDistributor.distributeRewards([PmUSD.vault], [mtaAmount], [wmaticAmount])
+        await logTxDetails(tx3, `distributeRewards ${usdFormatter(mtaAmount)} MTA and ${usdFormatter(wmaticAmount)} WMATIC`)
     })
 
 module.exports = {}
