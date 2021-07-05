@@ -61,6 +61,13 @@ export const MmUSD: Token = {
     decimals: 18,
     quantityFormatter: "USD",
 }
+export const RmUSD: Token = {
+    symbol: "RmUSD",
+    address: "0x4E1000616990D83e56f4b5fC6CC8602DcfD20459",
+    chain: Chain.ropsten,
+    decimals: 18,
+    quantityFormatter: "USD",
+}
 
 // USD Main Pool Assets on Mainnet
 export const sUSD: Token = {

@@ -26,6 +26,7 @@ import { btcFormatter, QuantityFormatter, usdFormatter } from "./utils/quantity-
 import { getSwapRates } from "./utils/rates-utils"
 import { getSigner } from "./utils/defender-utils"
 import { logTxDetails } from "./utils"
+import { getNetworkAddress } from "./utils/networkAddressFactory"
 
 const getBalances = async (mAsset: Masset | FeederPool, toBlock: number, asset: Token): Promise<Balances> => {
     const mAssetBalance = await mAsset.totalSupply({
@@ -51,9 +52,9 @@ const getBalances = async (mAsset: Masset | FeederPool, toBlock: number, asset: 
 const getFeederPool = (signer: Signer, contractAddress: string): FeederPool => {
     const linkedAddress = {
         // FeederManager
-        __$60670dd84d06e10bb8a5ac6f99a1c0890c$__: "0x90aE544E8cc76d2867987Ee4f5456C02C50aBd8B",
+        __$60670dd84d06e10bb8a5ac6f99a1c0890c$__: getNetworkAddress("FeederManager"),
         // FeederLogic
-        __$7791d1d5b7ea16da359ce352a2ac3a881c$__: "0x2837C77527c37d61D9763F53005211dACB4125dE",
+        __$7791d1d5b7ea16da359ce352a2ac3a881c$__: getNetworkAddress("FeederLogic"),
     }
     const feederPoolFactory = new FeederPool__factory(linkedAddress, signer)
     return feederPoolFactory.attach(contractAddress)
@@ -78,7 +79,7 @@ const getQuantities = (fAsset: Token, _swapSize?: number): { quantityFormatter: 
 task("feeder-storage", "Dumps feeder contract storage data")
     .addOptionalParam("block", "Block number to get storage from. (default: current block)", 0, types.int)
     .addParam("fasset", "Token symbol of the feeder pool asset.  eg HBTC, TBTC, GUSD or BUSD", undefined, types.string, false)
-    .setAction(async (taskArgs, { ethers, network }) => {
+    .setAction(async (taskArgs, { ethers }) => {
         const fAsset = tokens.find((t) => t.symbol === taskArgs.fasset)
         if (!fAsset) {
             console.error(`Failed to find feeder pool asset with token symbol ${taskArgs.fasset}`)
@@ -196,7 +197,7 @@ task("feeder-rates", "Feeder rate comparison to Curve")
         await snapConfig(feederPool, block.blockNumber)
     })
 
-task("frax-post-deploy", "Mint FRAX Feeder Pool").setAction(async (_, { ethers, network }) => {
+task("frax-post-deploy", "Mint FRAX Feeder Pool").setAction(async (_, { ethers }) => {
     const signer = await getSigner(ethers)
 
     const frax = ERC20__factory.connect(PFRAX.address, signer)

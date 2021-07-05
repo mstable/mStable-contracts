@@ -21,7 +21,7 @@ import {
     getCollectedInterest,
     getSavingsManager,
 } from "./utils/snap-utils"
-import { Token, renBTC, sBTC, WBTC } from "./utils/tokens"
+import { Token, renBTC, sBTC, WBTC, mBTC, TBTC, HBTC } from "./utils/tokens"
 import { getSwapRates } from "./utils/rates-utils"
 import { getSigner } from "./utils/defender-utils"
 
@@ -33,12 +33,11 @@ const btcFormatter = (amount, decimals = 18, pad = 7, displayDecimals = 3): stri
     return string2decimals.replace(/\B(?=(\d{3})+(?!\d))/g, ",").padStart(pad)
 }
 
-const getMasset = (signer: Signer, contractAddress = "0x945Facb997494CC2570096c74b5F66A3507330a1"): MusdEth =>
-    MusdEth__factory.connect(contractAddress, signer)
+const getMasset = (signer: Signer, contractAddress = mBTC.address): MusdEth => MusdEth__factory.connect(contractAddress, signer)
 
 task("mBTC-storage", "Dumps mBTC's storage data")
     .addOptionalParam("block", "Block number to get storage from. (default: current block)", 0, types.int)
-    .setAction(async (taskArgs, { ethers, network }) => {
+    .setAction(async (taskArgs, { ethers }) => {
         const toBlockNumber = taskArgs.to ? taskArgs.to : await ethers.provider.getBlockNumber()
         console.log(`Block number ${toBlockNumber}`)
         const signer = await getSigner(ethers)
@@ -103,7 +102,7 @@ task("mBTC-snap", "Get the latest data from the mBTC contracts")
             accounts = [
                 {
                     name: "imBTC",
-                    address: contracts.mainnet.imBTC,
+                    address: mBTC.savings,
                 },
                 {
                     name: "Sushi Pool",
@@ -111,11 +110,11 @@ task("mBTC-snap", "Get the latest data from the mBTC contracts")
                 },
                 {
                     name: "tBTC Feeder Pool",
-                    address: "0xb61a6f928b3f069a68469ddb670f20eeeb4921e0",
+                    address: TBTC.feederPool,
                 },
                 {
                     name: "HBTC Feeder Pool",
-                    address: "0x48c59199da51b7e30ea200a74ea07974e62c4ba7",
+                    address: HBTC.feederPool,
                 },
                 {
                     name: "mStable Fund Manager",
