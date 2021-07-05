@@ -2,7 +2,7 @@
 pragma solidity 0.8.2;
 
 // Libs
-import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import { InitializableReentrancyGuard } from "../../shared/InitializableReentrancyGuard.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -17,7 +17,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  *          - Changing 'stake' and 'withdraw' to internal funcs
  *          - Changing '_stake' to accept a `beneficiary` address to enable wrapper integrations
  */
-contract StakingTokenWrapper is ReentrancyGuard {
+contract StakingTokenWrapper is InitializableReentrancyGuard {
     using SafeERC20 for IERC20;
 
     event Transfer(address indexed from, address indexed to, uint256 value);
@@ -26,7 +26,7 @@ contract StakingTokenWrapper is ReentrancyGuard {
     string public symbol;
     uint8 public constant decimals = 18;
 
-    IERC20 public stakingToken;
+    IERC20 public immutable stakingToken;
 
     uint256 private _totalSupply;
     mapping(address => uint256) private _balances;
@@ -35,8 +35,12 @@ contract StakingTokenWrapper is ReentrancyGuard {
      * @dev TokenWrapper constructor
      * @param _stakingToken Wrapped token to be staked
      */
-    constructor(address _stakingToken, string memory _nameArg, string memory _symbolArg) {
+    constructor(address _stakingToken) {
         stakingToken = IERC20(_stakingToken);
+    }
+
+    function _initialize(string memory _nameArg, string memory _symbolArg) internal {
+        _initializeReentrancyGuard();
         name = _nameArg;
         symbol = _symbolArg;
     }

@@ -6,12 +6,13 @@ import { IRewardsDistributionRecipient, IRewardsRecipientWithPlatformToken } fro
 import { InitializableRewardsDistributionRecipient } from "../InitializableRewardsDistributionRecipient.sol";
 import { StakingTokenWrapper } from "./StakingTokenWrapper.sol";
 import { PlatformTokenVendor } from "./PlatformTokenVendor.sol";
+import { StableMath } from "../../shared/StableMath.sol";
 
 // Libs
 import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { StableMath } from "../../shared/StableMath.sol";
+import { Initializable } from "@openzeppelin/contracts/utils/Initializable.sol";
 
 
 /**
@@ -20,8 +21,9 @@ import { StableMath } from "../../shared/StableMath.sol";
  * @notice Rewards stakers of a given LP token (a.k.a StakingToken) with RewardsToken, on a pro-rata basis
  * additionally, distributes the Platform token airdropped by the platform
  * @dev    Derives from ./StakingRewards.sol and implements a secondary token into the core logic
+ * @dev StakingRewardsWithPlatformToken is a StakingTokenWrapper and InitializableRewardsDistributionRecipient
  */
-contract StakingRewardsWithPlatformToken is StakingTokenWrapper, IRewardsRecipientWithPlatformToken, InitializableRewardsDistributionRecipient {
+contract StakingRewardsWithPlatformToken is Initializable, StakingTokenWrapper, IRewardsRecipientWithPlatformToken, InitializableRewardsDistributionRecipient {
 
     using SafeERC20 for IERC20;
     using StableMath for uint256;
@@ -54,24 +56,40 @@ contract StakingRewardsWithPlatformToken is StakingTokenWrapper, IRewardsRecipie
     event Withdrawn(address indexed user, uint256 amount);
     event RewardPaid(address indexed user, uint256 reward, uint256 platformReward);
 
-    /** @dev StakingRewards is a TokenWrapper and RewardRecipient */
+    /**
+     * @param _nexus mStable system Nexus address
+     * @param _stakingToken token that is beinf rewarded for being staked. eg MTA, imUSD or fPmUSD/GUSD
+     * @param _rewardsToken first token that is being distributed as a reward. eg MTA
+     * @param _platformToken second token that is being distributed as a reward. eg wMATIC on Polygon
+     */
     constructor(
         address _nexus,
         address _stakingToken,
         address _rewardsToken,
-        address _platformToken,
-        address _rewardsDistributor,
-        string memory _nameArg,
-        string memory _symbolArg
+        address _platformToken
     )
         public
-        StakingTokenWrapper(_stakingToken, _nameArg, _symbolArg)
+        StakingTokenWrapper(_stakingToken)
         InitializableRewardsDistributionRecipient(_nexus)
     {
-        InitializableRewardsDistributionRecipient._initialize(_rewardsDistributor);
+        // InitializableRewardsDistributionRecipient._initialize(_rewardsDistributor);
         rewardsToken = IERC20(_rewardsToken);
         platformToken = IERC20(_platformToken);
-        platformTokenVendor = new PlatformTokenVendor(IERC20(_platformToken));
+    }
+
+    /**
+     * @param _rewardsDistributor mStable Reward Distributor contract address
+     * @param _nameArg token name. eg imUSD Vault or GUSD Feeder Pool Vault
+     * @param _symbolArg token symbol. eg v-imUSD or v-fPmUSD/GUSD
+     */
+    function initialize(
+        address _rewardsDistributor,
+        string calldata _nameArg,
+        string calldata _symbolArg
+    ) external initializer {
+        InitializableRewardsDistributionRecipient._initialize(_rewardsDistributor);
+        StakingTokenWrapper._initialize(_nameArg, _symbolArg);
+        platformTokenVendor = new PlatformTokenVendor(platformToken);
     }
 
     /** @dev Updates the reward for a given address, before executing function */

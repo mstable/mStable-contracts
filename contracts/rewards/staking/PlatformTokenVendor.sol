@@ -12,14 +12,14 @@ import { MassetHelpers } from "../../shared/MassetHelpers.sol";
  */
 contract PlatformTokenVendor {
 
-    IERC20 public platformToken;
-    address public parentStakingContract;
+    IERC20 public immutable platformToken;
+    address public immutable parentStakingContract;
 
     /** @dev Simple constructor that stores the parent address */
     constructor(IERC20 _platformToken) public {
         parentStakingContract = msg.sender;
         platformToken = _platformToken;
-        MassetHelpers.safeInfiniteApprove(address(_platformToken), parentStakingContract);
+        MassetHelpers.safeInfiniteApprove(address(_platformToken), msg.sender);
     }
 
     /**

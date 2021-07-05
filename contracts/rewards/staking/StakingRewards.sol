@@ -4,11 +4,12 @@ pragma solidity 0.8.2;
 // Internal
 import { StakingTokenWrapper } from "./StakingTokenWrapper.sol";
 import { InitializableRewardsDistributionRecipient } from "../InitializableRewardsDistributionRecipient.sol";
+import { StableMath } from "../../shared/StableMath.sol";
 
 // Libs
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { StableMath } from "../../shared/StableMath.sol";
+import { Initializable } from "@openzeppelin/contracts/utils/Initializable.sol";
 
 /**
  * @title  StakingRewards
@@ -24,7 +25,7 @@ import { StableMath } from "../../shared/StableMath.sol";
  *           - Changing of `StakingTokenWrapper` funcs from `super.stake` to `_stake`
  *           - Introduced a `stake(_beneficiary)` function to enable contract wrappers to stake on behalf
  */
-contract StakingRewards is StakingTokenWrapper, InitializableRewardsDistributionRecipient {
+contract StakingRewards is Initializable, StakingTokenWrapper, InitializableRewardsDistributionRecipient {
 
     using SafeERC20 for IERC20;
     using StableMath for uint256;
@@ -49,21 +50,35 @@ contract StakingRewards is StakingTokenWrapper, InitializableRewardsDistribution
     event Withdrawn(address indexed user, uint256 amount);
     event RewardPaid(address indexed user, uint256 reward);
 
-    /** @dev StakingRewards is a TokenWrapper and RewardRecipient */
+    /**
+     * @param _nexus mStable system Nexus address
+     * @param _stakingToken token that is beinf rewarded for being staked. eg MTA, imUSD or fPmUSD/GUSD
+     * @param _rewardsToken first token that is being distributed as a reward. eg MTA
+     */
     constructor(
         address _nexus,
         address _stakingToken,
-        address _rewardsToken,
-        address _rewardsDistributor,
-        string memory _nameArg,
-        string memory _symbolArg
+        address _rewardsToken
     )
         public
-        StakingTokenWrapper(_stakingToken, _nameArg, _symbolArg)
+        StakingTokenWrapper(_stakingToken)
         InitializableRewardsDistributionRecipient(_nexus)
     {
-        InitializableRewardsDistributionRecipient._initialize(_rewardsDistributor);
         rewardsToken = IERC20(_rewardsToken);
+    }
+
+    /**
+     * @param _rewardsDistributor mStable Reward Distributor contract address
+     * @param _nameArg token name. eg imUSD Vault or GUSD Feeder Pool Vault
+     * @param _symbolArg token symbol. eg v-imUSD or v-fPmUSD/GUSD
+     */
+    function initialize(
+        address _rewardsDistributor,
+        string calldata _nameArg,
+        string calldata _symbolArg
+    ) external initializer {
+        InitializableRewardsDistributionRecipient._initialize(_rewardsDistributor);
+        StakingTokenWrapper._initialize(_nameArg, _symbolArg);
     }
 
     /** @dev Updates the reward for a given address, before executing function */
