@@ -52,6 +52,7 @@ export const PmUSD: Token = {
     decimals: 18,
     quantityFormatter: "USD",
     savings: "0x5290Ad3d83476CA6A2b178Cd9727eE1EF72432af",
+    vault: "0x32aBa856Dc5fFd5A56Bcd182b13380e5C855aa29",
 }
 export const MmUSD: Token = {
     symbol: "MmUSD",
