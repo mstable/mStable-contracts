@@ -53,6 +53,8 @@ export const getNetworkAddress = (contractName: string, networkName = "mainnet")
                 return "0x10bFcCae079f31c451033798a4Fd9D2c33Ea5487"
             case "Liquidator":
                 return "0x9F1C06CC13EDc7691a2Cf02E31FaAA64d57867e2"
+            case "RewardsDistributor":
+                return "0x3e9d19ee1893B07e22165C54c205702C90C70847"
             case "SaveWrapper":
                 return "0x299081f52738A4204C3D58264ff44f6F333C6c88"
             case "FeederManager":
