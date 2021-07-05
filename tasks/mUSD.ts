@@ -28,7 +28,7 @@ import {
     getCompTokens,
     getAaveTokens,
 } from "./utils/snap-utils"
-import { Token, sUSD, USDC, DAI, USDT, PUSDT, PUSDC, PDAI } from "./utils/tokens"
+import { Token, sUSD, USDC, DAI, USDT, PUSDT, PUSDC, PDAI, mUSD, PmUSD, MmUSD, RmUSD } from "./utils/tokens"
 import { usdFormatter } from "./utils/quantity-formatters"
 import { getSwapRates } from "./utils/rates-utils"
 import { getSigner } from "./utils"
@@ -38,15 +38,15 @@ const mUsdPolygonBassets: Token[] = [PUSDC, PDAI, PUSDT]
 
 const getMasset = (signer: Signer, networkName: string): Masset | MusdEth => {
     if (networkName === "polygon_mainnet") {
-        return Masset__factory.connect("0xE840B73E5287865EEc17d250bFb1536704B43B21", signer)
+        return Masset__factory.connect(PmUSD.address, signer)
     }
     if (networkName === "polygon_testnet") {
-        return Masset__factory.connect("0x0f7a5734f208A356AB2e5Cf3d02129c17028F3cf", signer)
+        return Masset__factory.connect(MmUSD.address, signer)
     }
     if (networkName === "ropsten") {
-        return new Contract("0x4E1000616990D83e56f4b5fC6CC8602DcfD20459", mUsdEthAbi, signer) as MusdEth
+        return new Contract(RmUSD.address, mUsdEthAbi, signer) as MusdEth
     }
-    return new Contract("0xe2f2a5C287993345a840Db3B0845fbC70f5935a5", mUsdEthAbi, signer) as MusdEth
+    return new Contract(mUSD.address, mUsdEthAbi, signer) as MusdEth
 }
 
 task("mUSD-storage", "Dumps mUSD's storage data")
@@ -97,7 +97,7 @@ task("mUSD-snap", "Snaps mUSD")
             accounts = [
                 {
                     name: "imUSD",
-                    address: "0x30647a72dc82d7fbb1123ea74716ab8a317eac19",
+                    address: mUSD.savings,
                 },
                 {
                     name: "Iron Bank",
@@ -120,7 +120,7 @@ task("mUSD-snap", "Snaps mUSD")
             accounts = [
                 {
                     name: "imUSD",
-                    address: "0x5290Ad3d83476CA6A2b178Cd9727eE1EF72432af",
+                    address: PmUSD.savings,
                 },
             ]
         }

@@ -10,6 +10,8 @@ export const getNetworkAddress = (contractName: string, networkName = "mainnet")
                 return "0xF6FF1F7FCEB2cE6d26687EaaB5988b445d0b94a2"
             case "FundManager":
                 return "0x437e8c54db5c66bb3d80d2ff156e9bfe31a017db"
+            case "mStableDAO":
+                return "0x3dd46846eed8D147841AE162C8425c08BD8E1b41"
             case "SavingsManager":
                 return "0x9781C4E9B9cc6Ac18405891DF20Ad3566FB6B301"
             case "Liquidator":
