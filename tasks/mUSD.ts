@@ -52,7 +52,7 @@ const getMasset = (signer: Signer, networkName: string): Masset | MusdEth => {
 task("mUSD-storage", "Dumps mUSD's storage data")
     .addOptionalParam("block", "Block number to get storage from. (default: current block)", 0, types.int)
     .setAction(async (taskArgs, { ethers, network }) => {
-        const signer = await getSigner(network.name, ethers)
+        const signer = await getSigner(ethers)
 
         const toBlockNumber = taskArgs.to ? taskArgs.to : await ethers.provider.getBlockNumber()
         console.log(`Block number ${toBlockNumber}`)
@@ -68,7 +68,7 @@ task("mUSD-snap", "Snaps mUSD")
     .addOptionalParam("from", "Block to query transaction events from. (default: deployment block)", 12094461, types.int)
     .addOptionalParam("to", "Block to query transaction events to. (default: current block)", 0, types.int)
     .setAction(async (taskArgs, { ethers, network }) => {
-        const signer = await getSigner(network.name, ethers)
+        const signer = await getSigner(ethers)
 
         let exposedValidator
         if (!["mainnet", "polygon_mainnet"].includes(network.name)) {
@@ -174,7 +174,7 @@ task("mUSD-rates", "mUSD rate comparison to Curve")
     .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, types.int)
     .addOptionalParam("swapSize", "Swap size to compare rates with Curve", 10000, types.int)
     .setAction(async (taskArgs, { ethers, network }) => {
-        const signer = await getSigner(network.name, ethers)
+        const signer = await getSigner(ethers)
 
         const mAsset = await getMasset(signer, network.name)
         const block = await getBlock(ethers, taskArgs.block)
@@ -191,7 +191,7 @@ task("mUSD-rates", "mUSD rate comparison to Curve")
 task("rewards", "Get Compound and Aave platform reward tokens")
     .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, types.int)
     .setAction(async (taskArgs, { ethers, network }) => {
-        const signer = await getSigner(network.name, ethers)
+        const signer = await getSigner(ethers)
 
         const block = await getBlock(ethers, taskArgs.block)
 

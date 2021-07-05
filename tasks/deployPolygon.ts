@@ -41,7 +41,7 @@ import { formatUnits } from "@ethersproject/units"
 import { MassetLibraryAddresses } from "types/generated/factories/Masset__factory"
 import { deployContract } from "./utils/deploy-utils"
 import { getSigner } from "./utils/defender-utils"
-import { getAddress } from "./utils/contractAddressFactory"
+import { getNetworkAddress } from "./utils/networkAddressFactory"
 import { PMTA, PmUSD, PWMATIC } from "./utils/tokens"
 
 // FIXME: this import does not work for some reason
@@ -449,13 +449,14 @@ task("liquidator-snap", "Dumps the config details of the liquidator on Polygon")
     console.log(liquidationConfig)
 })
 
-task("musd-rewards", "Deploy Polygon mUSD staking contract imUSD").setAction(async (_, { ethers, network }) => {
-    const signer = await getSigner(network.name, ethers)
+task("deploy-imusd-staking", "Deploy Polygon imUSD staking contract v-imUSD").setAction(async (_, { ethers, network }) => {
+    const signer = await getSigner(ethers)
 
-    const fundManagerAddress = getAddress("FundManager", network.name)
-    const governorAddress = getAddress("Governor", network.name)
+    const networkName = network.name === "hardhat" ? "polygon_mainnet" : network.name
+    const fundManagerAddress = getNetworkAddress("FundManager", networkName)
+    const governorAddress = getNetworkAddress("Governor", networkName)
+    const nexusAddress = getNetworkAddress("Nexus", networkName)
 
-    const nexusAddress = getAddress("Nexus", network.name)
     const rewardsDistributor = await deployContract(new RewardsDistributor__factory(signer), "RewardsDistributor", [
         nexusAddress,
         [fundManagerAddress, governorAddress],
@@ -492,12 +493,12 @@ task("musd-rewards", "Deploy Polygon mUSD staking contract imUSD").setAction(asy
     ])
     const stakingRewards = StakingRewardsWithPlatformToken__factory.connect(proxy.address, signer)
 
-    console.log(`Name ${await stakingRewards.name()}`)
-    console.log(`Symbol ${await stakingRewards.symbol()}`)
-    console.log(`Nexus ${await stakingRewards.nexus()}`)
-    console.log(`Staking token ${await stakingRewards.stakingToken()}`)
-    console.log(`Rewards token ${await stakingRewards.rewardsToken()}`)
-    console.log(`Platform token ${await stakingRewards.platformToken()}`)
+    console.log(`Name                ${await stakingRewards.name()}`)
+    console.log(`Symbol              ${await stakingRewards.symbol()}`)
+    console.log(`Nexus               ${await stakingRewards.nexus()}`)
+    console.log(`Staking token       ${await stakingRewards.stakingToken()}`)
+    console.log(`Rewards token       ${await stakingRewards.rewardsToken()}`)
+    console.log(`Platform token      ${await stakingRewards.platformToken()}`)
     console.log(`Rewards distributor ${await stakingRewards.rewardsDistributor()}`)
 })
 

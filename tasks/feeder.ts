@@ -87,7 +87,7 @@ task("feeder-storage", "Dumps feeder contract storage data")
 
         const { blockNumber } = await getBlock(ethers, taskArgs.block)
 
-        const signer = await getSigner(network.name, ethers)
+        const signer = await getSigner(ethers)
         const pool = getFeederPool(signer, fAsset.feederPool)
 
         await dumpTokenStorage(pool, blockNumber)
@@ -100,7 +100,7 @@ task("feeder-snap", "Gets feeder transactions over a period of time")
     .addOptionalParam("to", "Block to query transaction events to. (default: current block)", 0, types.int)
     .addParam("fasset", "Token symbol of the feeder pool asset. eg HBTC, TBTC, GUSD or BUSD", undefined, types.string, false)
     .setAction(async (taskArgs, { ethers, network }) => {
-        const signer = await getSigner(network.name, ethers)
+        const signer = await getSigner(ethers)
         const { fromBlock, toBlock } = await getBlockRange(ethers, taskArgs.from, taskArgs.to)
 
         const fAsset = tokens.find((t) => t.symbol === taskArgs.fasset)
@@ -168,7 +168,7 @@ task("feeder-rates", "Feeder rate comparison to Curve")
     .addOptionalParam("swapSize", "Swap size to compare rates with Curve", undefined, types.float)
     .addParam("fasset", "Token symbol of the feeder pool asset. eg HBTC, TBTC, GUSD or BUSD", undefined, types.string, false)
     .setAction(async (taskArgs, { ethers, network }) => {
-        const signer = await getSigner(network.name, ethers)
+        const signer = await getSigner(ethers)
 
         const block = await getBlock(ethers, taskArgs.block)
 
@@ -197,7 +197,7 @@ task("feeder-rates", "Feeder rate comparison to Curve")
     })
 
 task("frax-post-deploy", "Mint FRAX Feeder Pool").setAction(async (_, { ethers, network }) => {
-    const signer = await getSigner(network.name, ethers)
+    const signer = await getSigner(ethers)
 
     const frax = ERC20__factory.connect(PFRAX.address, signer)
     const fraxFp = FeederPool__factory.connect(PFRAX.feederPool, signer)
@@ -216,4 +216,5 @@ task("frax-post-deploy", "Mint FRAX Feeder Pool").setAction(async (_, { ethers, 
     tx = await fraxFp.mintMulti([PFRAX.address, PmUSD.address], [bAssetAmount, bAssetAmount], minAmount, await signer.getAddress())
     await logTxDetails(tx, "mint FRAX FP")
 })
+
 module.exports = {}

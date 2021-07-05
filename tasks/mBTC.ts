@@ -41,7 +41,7 @@ task("mBTC-storage", "Dumps mBTC's storage data")
     .setAction(async (taskArgs, { ethers, network }) => {
         const toBlockNumber = taskArgs.to ? taskArgs.to : await ethers.provider.getBlockNumber()
         console.log(`Block number ${toBlockNumber}`)
-        const signer = await getSigner(network.name, ethers)
+        const signer = await getSigner(ethers)
 
         const mAsset = getMasset(signer)
 
@@ -54,7 +54,7 @@ task("mBTC-snap", "Get the latest data from the mBTC contracts")
     .addOptionalParam("from", "Block to query transaction events from. (default: deployment block)", 12094461, types.int)
     .addOptionalParam("to", "Block to query transaction events to. (default: current block)", 0, types.int)
     .setAction(async (taskArgs, { ethers, network }) => {
-        const signer = await getSigner(network.name, ethers)
+        const signer = await getSigner(ethers)
 
         let exposedValidator
         if (network.name !== "mainnet") {
@@ -144,7 +144,7 @@ task("mBTC-rates", "mBTC rate comparison to Curve")
     .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, types.int)
     .addOptionalParam("swapSize", "Swap size to compare rates with Curve", 1, types.int)
     .setAction(async (taskArgs, { ethers, network }) => {
-        const signer = await getSigner(network.name, ethers)
+        const signer = await getSigner(ethers)
 
         const mAsset = await getMasset(signer)
         const block = await getBlock(ethers, taskArgs.block)

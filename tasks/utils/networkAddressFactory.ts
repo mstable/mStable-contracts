@@ -1,4 +1,4 @@
-export const getAddress = (contractName: string, networkName = "mainnet"): string => {
+export const getNetworkAddress = (contractName: string, networkName = "mainnet"): string => {
     if (networkName === "mainnet") {
         switch (contractName) {
             case "Nexus":

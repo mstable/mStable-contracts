@@ -20,7 +20,7 @@ export const getDefenderSigner = async (speed: Speed = "fast"): Promise<Signer> 
     return signer
 }
 
-export const getSigner = async (networkName: string, ethers, speed: Speed = "fast"): Promise<Signer> => {
+export const getSigner = async (ethers, speed: Speed = "fast"): Promise<Signer> => {
     if (!process.env.DEFENDER_API_KEY || !process.env.DEFENDER_API_SECRET) {
         return Wallet.createRandom().connect(ethers.provider)
     }

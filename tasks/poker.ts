@@ -58,7 +58,7 @@ task("over-boost", "Pokes accounts that are over boosted")
     .addOptionalParam("minMtaDiff", "Min amount of vMTA over boosted. 300 = 0.3 boost", 300, types.int)
     .setAction(async (taskArgs, hre) => {
         const minMtaDiff = taskArgs.minMtaDiff
-        const signer = await getSigner(hre.network.name, hre.ethers, taskArgs.speed)
+        const signer = await getSigner(hre.ethers, taskArgs.speed)
         // const signer = await impersonate("0x2f2Db75C5276481E2B018Ac03e968af7763Ed118")
 
         const gqlClient = new GraphQLClient("https://api.thegraph.com/subgraphs/name/mstable/mstable-feeder-pools")
@@ -165,7 +165,7 @@ task("over-boost", "Pokes accounts that are over boosted")
     })
 
 task("deployPoker", "Deploys the Poker contract").setAction(async (_, hre) => {
-    const deployer = await getSigner(hre.network.name, hre.ethers)
+    const deployer = await getSigner(hre.ethers)
 
     await deployContract<Poker>(new Poker__factory(deployer), "Poker")
 })

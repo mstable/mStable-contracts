@@ -19,7 +19,7 @@ const getSavingsManager = (signer: Signer, contractAddress = "0x9781c4e9b9cc6ac1
 task("eject-stakers", "Ejects expired stakers from Meta staking contract (vMTA)")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
     .setAction(async (taskArgs, { ethers, network }) => {
-        const signer = await getSigner(network.name, ethers, taskArgs.speed)
+        const signer = await getSigner(ethers, taskArgs.speed)
 
         const ejector = IEjector__factory.connect("0x71061E3F432FC5BeE3A6763Cd35F50D3C77A0434", signer)
         // TODO check the last time the eject was run
@@ -54,7 +54,7 @@ task("collect-interest", "Collects and streams interest from platforms")
             process.exit(1)
         }
 
-        const signer = await getSigner(network.name, ethers, taskArgs.speed)
+        const signer = await getSigner(ethers, taskArgs.speed)
         const savingManager = getSavingsManager(signer)
 
         const lastBatchCollected = await savingManager.lastBatchCollected(asset.address)
@@ -74,7 +74,7 @@ task("collect-interest", "Collects and streams interest from platforms")
 task("polly-daily", "Runs the daily jobs against the contracts on Polygon mainnet")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, { ethers, network }) => {
-        const signer = await getSigner(network.name, ethers, taskArgs.speed)
+        const signer = await getSigner(ethers, taskArgs.speed)
 
         const aave = new PAaveIntegration__factory(signer).attach("0xeab7831c96876433dB9B8953B4e7e8f66c3125c3")
         const aaveTx = await aave.claimRewards({ gasLimit: 200000 })
