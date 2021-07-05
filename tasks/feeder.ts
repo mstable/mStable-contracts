@@ -3,7 +3,7 @@ import "tsconfig-paths/register"
 import { task, types } from "hardhat/config"
 import { Signer } from "ethers"
 
-import { ERC20__factory, FeederPool, FeederPool__factory, IERC20__factory, Masset } from "types/generated"
+import { ERC20__factory, FeederPool, FeederPool__factory, IERC20__factory, Masset, SavingsManager__factory } from "types/generated"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { dumpConfigStorage, dumpFassetStorage, dumpTokenStorage } from "./utils/storage-utils"
 import {
@@ -18,7 +18,6 @@ import {
     getSwaps,
     getRedemptions,
     outputFees,
-    getSavingsManager,
     getCollectedInterest,
 } from "./utils/snap-utils"
 import { PFRAX, PmUSD, Token, tokens } from "./utils/tokens"
@@ -114,7 +113,8 @@ task("feeder-snap", "Gets feeder transactions over a period of time")
         const fpAssets = [mAsset, fAsset]
 
         const feederPool = getFeederPool(signer, fAsset.feederPool)
-        const savingsManager = getSavingsManager(signer, network.name)
+        const savingsManagerAddress = getNetworkAddress("SavingsManager", network.name)
+        const savingsManager = SavingsManager__factory.connect(savingsManagerAddress, signer)
 
         const { quantityFormatter } = getQuantities(fAsset, taskArgs.swapSize)
 

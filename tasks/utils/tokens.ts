@@ -48,6 +48,7 @@ export const mBTC: Token = {
 export const PmUSD: Token = {
     symbol: "PmUSD",
     address: "0xE840B73E5287865EEc17d250bFb1536704B43B21",
+    integrator: "0xeab7831c96876433dB9B8953B4e7e8f66c3125c3",
     chain: Chain.polygon,
     decimals: 18,
     quantityFormatter: "USD",

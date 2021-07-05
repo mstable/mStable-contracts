@@ -1,5 +1,31 @@
-export const getNetworkAddress = (contractName: string, networkName = "mainnet"): string => {
-    if (networkName === "mainnet") {
+export const contractNames = [
+    "Nexus",
+    "DelayedProxyAdmin",
+    "ProtocolDAO",
+    "Governor",
+    "FundManager",
+    "mStableDAO",
+    "SavingsManager",
+    "Liquidator",
+    "RewardsDistributor",
+    "BoostDirector",
+    "Collector",
+    "Ejector",
+    "Poker",
+    "SaveWrapper",
+    "RevenueRecipient",
+    "FeederManager",
+    "FeederLogic",
+    "FeederWrapper",
+    "FeederInterestValidator",
+    "AaveIncentivesController",
+    "AaveLendingPoolAddressProvider",
+    "QuickSwapRouter",
+] as const
+export type ContractNames = typeof contractNames[number]
+
+export const getNetworkAddress = (contractName: ContractNames, networkName = "mainnet", hardhatConfig?: string): string => {
+    if (networkName === "mainnet" || hardhatConfig === "tasks-fork.config.ts") {
         switch (contractName) {
             case "Nexus":
                 return "0xAFcE80b19A8cE13DEc0739a1aaB7A028d6845Eb3"
@@ -40,7 +66,7 @@ export const getNetworkAddress = (contractName: string, networkName = "mainnet")
                 return "0xf1049aeD858C4eAd6df1de4dbE63EF607CfF3262"
             default:
         }
-    } else if (networkName === "polygon_mainnet") {
+    } else if (networkName === "polygon_mainnet" || hardhatConfig === "tasks-fork-polygon.config.ts") {
         switch (contractName) {
             case "Nexus":
                 return "0x3C6fbB8cbfCB75ecEC5128e9f73307f2cB33f2f6"
