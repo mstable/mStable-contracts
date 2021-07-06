@@ -33,13 +33,14 @@ import {
     SavingsManager,
     RewardsDistributor__factory,
     StakingRewardsWithPlatformToken__factory,
+    StakingRewardsWithPlatformToken,
 } from "types/generated"
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address"
 import { DEAD_ADDRESS, KEY_LIQUIDATOR, KEY_PROXY_ADMIN, KEY_SAVINGS_MANAGER, ONE_DAY, ZERO_ADDRESS } from "@utils/constants"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { formatUnits } from "@ethersproject/units"
 import { MassetLibraryAddresses } from "types/generated/factories/Masset__factory"
-import { deployContract } from "./utils/deploy-utils"
+import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { getSigner } from "./utils/defender-utils"
 import { getNetworkAddress } from "./utils/networkAddressFactory"
 import { PMTA, PmUSD, PWMATIC } from "./utils/tokens"
@@ -449,49 +450,92 @@ task("liquidator-snap", "Dumps the config details of the liquidator on Polygon")
     console.log(liquidationConfig)
 })
 
-task("deploy-imusd-staking", "Deploy Polygon imUSD staking contract v-imUSD").setAction(
-    async (_, { ethers, hardhatArguments, network }) => {
-        const signer = await getSigner(ethers)
+task("deploy-vimusd", "Deploy Polygon imUSD staking contract v-imUSD").setAction(async (_, { ethers, hardhatArguments, network }) => {
+    const signer = await getSigner(ethers)
 
-        const fundManagerAddress = getNetworkAddress("FundManager", network.name, hardhatArguments.config)
-        const governorAddress = getNetworkAddress("Governor", network.name, hardhatArguments.config)
-        const nexusAddress = getNetworkAddress("Nexus", network.name, hardhatArguments.config)
+    const fundManagerAddress = getNetworkAddress("FundManager", network.name, hardhatArguments.config)
+    const governorAddress = getNetworkAddress("Governor", network.name, hardhatArguments.config)
+    const nexusAddress = getNetworkAddress("Nexus", network.name, hardhatArguments.config)
+    const rewardsDistributorAddress = getNetworkAddress("RewardsDistributor", network.name, hardhatArguments.config)
 
-        const rewardsDistributor = await deployContract(new RewardsDistributor__factory(signer), "RewardsDistributor", [
+    const rewardsDistributor = rewardsDistributorAddress
+        ? RewardsDistributor__factory.connect(rewardsDistributorAddress, signer)
+        : await deployContract(new RewardsDistributor__factory(signer), "RewardsDistributor", [
+              nexusAddress,
+              [fundManagerAddress, governorAddress],
+          ])
+
+    const stakingRewardsImpl = await deployContract(
+        new StakingRewardsWithPlatformToken__factory(signer),
+        "StakingRewardsWithPlatformToken",
+        [
             nexusAddress,
-            [fundManagerAddress, governorAddress],
-        ])
+            PmUSD.savings, // imUSD
+            PMTA.address, // MTA bridged to Polygon
+            PWMATIC.address, // Wrapped Matic on Polygon
+            ONE_DAY.mul(7), // 7 days
+        ],
+    )
+    const initializeData = stakingRewardsImpl.interface.encodeFunctionData("initialize", [
+        rewardsDistributor.address,
+        "imUSD Vault",
+        "v-imUSD",
+    ])
+    const proxy = await deployContract(new AssetProxy__factory(signer), "Staking Rewards Proxy", [
+        stakingRewardsImpl.address,
+        governorAddress,
+        initializeData,
+    ])
+    const stakingRewards = StakingRewardsWithPlatformToken__factory.connect(proxy.address, signer)
 
-        const stakingRewardsImpl = await deployContract(
-            new StakingRewardsWithPlatformToken__factory(signer),
-            "StakingRewardsWithPlatformToken",
-            [
-                nexusAddress,
-                PmUSD.savings, // imUSD
-                PMTA.address, // MTA bridged to Polygon
-                PWMATIC.address, // Wrapped Matic on Polygon
-            ],
-        )
-        const initializeData = stakingRewardsImpl.interface.encodeFunctionData("initialize", [
-            rewardsDistributor.address,
-            "imUSD Vault",
-            "v-imUSD",
-        ])
-        const proxy = await deployContract(new AssetProxy__factory(signer), "Staking Rewards Proxy", [
-            stakingRewardsImpl.address,
-            governorAddress,
-            initializeData,
-        ])
-        const stakingRewards = StakingRewardsWithPlatformToken__factory.connect(proxy.address, signer)
+    console.log(`Name                ${await stakingRewards.name()}`)
+    console.log(`Symbol              ${await stakingRewards.symbol()}`)
+    console.log(`Duration            ${await stakingRewards.DURATION()}`)
+    console.log(`Nexus               ${await stakingRewards.nexus()}`)
+    console.log(`Staking token       ${await stakingRewards.stakingToken()}`)
+    console.log(`Rewards token       ${await stakingRewards.rewardsToken()}`)
+    console.log(`Platform token      ${await stakingRewards.platformToken()}`)
+    console.log(`Rewards distributor ${await stakingRewards.rewardsDistributor()}`)
+})
 
-        console.log(`Name                ${await stakingRewards.name()}`)
-        console.log(`Symbol              ${await stakingRewards.symbol()}`)
-        console.log(`Nexus               ${await stakingRewards.nexus()}`)
-        console.log(`Staking token       ${await stakingRewards.stakingToken()}`)
-        console.log(`Rewards token       ${await stakingRewards.rewardsToken()}`)
-        console.log(`Platform token      ${await stakingRewards.platformToken()}`)
-        console.log(`Rewards distributor ${await stakingRewards.rewardsDistributor()}`)
-    },
-)
+task("upgrade-vimusd", "Upgrade Polygon imUSD staking contract v-imUSD").setAction(async (_, { ethers, hardhatArguments, network }) => {
+    const signer = await getSigner(ethers)
+
+    const nexusAddress = getNetworkAddress("Nexus", network.name, hardhatArguments.config)
+    const rewardsDistributorAddress = getNetworkAddress("RewardsDistributor", network.name, hardhatArguments.config)
+
+    const rewardsDistributor = RewardsDistributor__factory.connect(rewardsDistributorAddress, signer)
+
+    const stakingRewardsImpl = await deployContract<StakingRewardsWithPlatformToken>(
+        new StakingRewardsWithPlatformToken__factory(signer),
+        "StakingRewardsWithPlatformToken (v-imUSD)",
+        [
+            nexusAddress,
+            PmUSD.savings, // imUSD
+            PMTA.address, // MTA bridged to Polygon
+            PWMATIC.address, // Wrapped Matic on Polygon
+            ONE_DAY.mul(91), // 3 months
+        ],
+    )
+    const initializeData = stakingRewardsImpl.interface.encodeFunctionData("initialize", [
+        rewardsDistributor.address,
+        "imUSD Vault",
+        "v-imUSD",
+    ])
+    console.log(`Initialize Staking Rewards:\n${initializeData}`)
+
+    const proxy = AssetProxy__factory.connect(PmUSD.vault, signer)
+    const upgradeData = proxy.interface.encodeFunctionData("upgradeToAndCall", [stakingRewardsImpl.address, initializeData])
+    console.log(`\nupgradeToAndCall data:\n${upgradeData}`)
+})
+
+task("exit-vimusd", "Upgrade Polygon imUSD staking contract v-imUSD").setAction(async (_, { ethers, hardhatArguments, network }) => {
+    const signer = await getSigner(ethers)
+
+    const vimusd = StakingRewardsWithPlatformToken__factory.connect(PmUSD.vault, signer)
+
+    const tx = await vimusd.exit()
+    await logTxDetails(tx, "exit from v-imUSD")
+})
 
 module.exports = {}

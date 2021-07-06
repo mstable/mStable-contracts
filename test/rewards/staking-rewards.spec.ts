@@ -33,6 +33,7 @@ describe("StakingRewards", async () => {
             nexusAddress,
             stakingToken.address,
             rewardToken.address,
+            ONE_DAY.mul(7),
         )
         const initializeData = stakingRewardsImpl.interface.encodeFunctionData("initialize", [
             rewardsDistributor.address,
