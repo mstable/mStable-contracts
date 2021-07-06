@@ -126,5 +126,7 @@ export const getNetworkAddress = (contractName: ContractNames, networkName = "ma
         }
     }
 
-    throw Error(`Failed to find contract address for contract name ${contractName} on the ${networkName} network`)
+    throw Error(
+        `Failed to find contract address for contract name ${contractName} on the ${networkName} network and config Hardhat ${hardhatConfig}`,
+    )
 }

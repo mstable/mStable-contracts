@@ -49,6 +49,7 @@ describe("StakingRewardsWithPlatformToken", async () => {
             stakingToken.address,
             rewardToken.address,
             platformToken.address,
+            ONE_DAY.mul(7),
         )
         const initializeData = stakingRewardsImpl.interface.encodeFunctionData("initialize", [
             rewardsDistributor.address,

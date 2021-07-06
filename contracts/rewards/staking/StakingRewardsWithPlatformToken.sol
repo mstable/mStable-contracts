@@ -28,21 +28,27 @@ contract StakingRewardsWithPlatformToken is Initializable, StakingTokenWrapper, 
     using SafeERC20 for IERC20;
     using StableMath for uint256;
 
+    /// @notice token the rewards are distributed in. eg MTA
     IERC20 public immutable rewardsToken;
+    /// @notice token the platform rewards are distributed in. eg WMATIC
     IERC20 public immutable platformToken;
+    /// @notice contract that holds the platform tokens
     PlatformTokenVendor public platformTokenVendor;
 
-    uint256 public constant DURATION = 7 days;
+    /// @notice length of each staking period in seconds. 7 days = 604,800; 3 months = 7,862,400
+    uint256 public immutable DURATION;
 
-    // Timestamp for current period finish
+    /// @notice Timestamp for current period finish
     uint256 public periodFinish = 0;
-    // RewardRate for the rest of the PERIOD
+    /// @notice Reward rate for the rest of the period
     uint256 public rewardRate = 0;
+    /// @notice Platform reward rate for the rest of the period
     uint256 public platformRewardRate = 0;
-    // Last time any user took action
+    /// @notice Last time any user took action
     uint256 public lastUpdateTime;
-    // Ever increasing rewardPerToken rate, based on % of total supply
+    /// @notice Ever increasing rewardPerToken rate, based on % of total supply
     uint256 public rewardPerTokenStored;
+    /// @notice Ever increasing platformRewardPerToken rate, based on % of total supply
     uint256 public platformRewardPerTokenStored;
 
     mapping(address => uint256) public userRewardPerTokenPaid;
@@ -61,33 +67,38 @@ contract StakingRewardsWithPlatformToken is Initializable, StakingTokenWrapper, 
      * @param _stakingToken token that is beinf rewarded for being staked. eg MTA, imUSD or fPmUSD/GUSD
      * @param _rewardsToken first token that is being distributed as a reward. eg MTA
      * @param _platformToken second token that is being distributed as a reward. eg wMATIC on Polygon
+     * @param _duration length of each staking period in seconds. 7 days = 604,800; 3 months = 7,862,400
      */
     constructor(
         address _nexus,
         address _stakingToken,
         address _rewardsToken,
-        address _platformToken
+        address _platformToken,
+        uint256 _duration
     )
         public
         StakingTokenWrapper(_stakingToken)
         InitializableRewardsDistributionRecipient(_nexus)
     {
-        // InitializableRewardsDistributionRecipient._initialize(_rewardsDistributor);
         rewardsToken = IERC20(_rewardsToken);
         platformToken = IERC20(_platformToken);
+        DURATION = _duration;
     }
 
     /**
-     * @param _rewardsDistributor mStable Reward Distributor contract address
+     * @dev Initialization function for upgradable proxy contract.
+     *      This function should be called via Proxy just after contract deployment.
+     *      To avoid variable shadowing appended `Arg` after arguments name.
+     * @param _rewardsDistributorArg mStable Reward Distributor contract address
      * @param _nameArg token name. eg imUSD Vault or GUSD Feeder Pool Vault
      * @param _symbolArg token symbol. eg v-imUSD or v-fPmUSD/GUSD
      */
     function initialize(
-        address _rewardsDistributor,
+        address _rewardsDistributorArg,
         string calldata _nameArg,
         string calldata _symbolArg
     ) external initializer {
-        InitializableRewardsDistributionRecipient._initialize(_rewardsDistributor);
+        InitializableRewardsDistributionRecipient._initialize(_rewardsDistributorArg);
         StakingTokenWrapper._initialize(_nameArg, _symbolArg);
         platformTokenVendor = new PlatformTokenVendor(platformToken);
     }
