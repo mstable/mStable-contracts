@@ -31,6 +31,7 @@ import { Account } from "types"
 
 interface StakingBalance {
     raw: BN
+    totalRaw: BN
     balance: BN
     totalSupply: BN
 }
@@ -51,7 +52,9 @@ interface UserData {
 }
 interface ContractData {
     rewardPerTokenStored: BN
+    platformRewardPerTokenStored: BN
     rewardRate: BN
+    platformRewardRate: BN
     lastUpdateTime: BN
     lastTimeRewardApplicable: BN
     periodFinishTime: BN
@@ -61,10 +64,16 @@ interface Reward {
     finish: BN
     rate: BN
 }
+interface PlatformData {
+    tokenVendor: string
+    tokenBalanceVendor: BN
+    tokenBalanceStakingRewards: BN
+}
 
 interface StakingData {
     boostBalance: StakingBalance
     tokenBalance: TokenBalance
+    platform: PlatformData
     vMTABalance: BN
     userData: UserData
     userRewards: Reward[]
@@ -82,7 +91,7 @@ describe("BoostedDualVault", async () => {
     let platformToken: MockERC20
     let imAsset: MockERC20
     let nexus: MockNexus
-    let savingsVault: BoostedDualVault
+    let boostedDualVault: BoostedDualVault
     let stakingContract: MockStakingContract
     let boostDirector: BoostDirector
 
@@ -146,25 +155,32 @@ describe("BoostedDualVault", async () => {
     }
 
     const snapshotStakingData = async (sender = sa.default, beneficiary = sa.default): Promise<StakingData> => {
-        const userData = await savingsVault.userData(beneficiary.address)
+        const userData = await boostedDualVault.userData(beneficiary.address)
         const userRewards = []
         for (let i = 0; i < userData[5].toNumber(); i += 1) {
-            const e = await savingsVault.userRewards(beneficiary.address, i)
+            const e = await boostedDualVault.userRewards(beneficiary.address, i)
             userRewards.push({
                 start: e[0],
                 finish: e[1],
                 rate: e[2],
             })
         }
+        const tokenVendor = await boostedDualVault.platformTokenVendor()
         return {
             boostBalance: {
-                raw: await savingsVault.rawBalanceOf(beneficiary.address),
-                balance: await savingsVault.balanceOf(beneficiary.address),
-                totalSupply: await savingsVault.totalSupply(),
+                raw: await boostedDualVault.rawBalanceOf(beneficiary.address),
+                totalRaw: await boostedDualVault.totalRaw(),
+                balance: await boostedDualVault.balanceOf(beneficiary.address),
+                totalSupply: await boostedDualVault.totalSupply(),
             },
             tokenBalance: {
                 sender: await imAsset.balanceOf(sender.address),
-                contract: await imAsset.balanceOf(savingsVault.address),
+                contract: await imAsset.balanceOf(boostedDualVault.address),
+            },
+            platform: {
+                tokenVendor,
+                tokenBalanceVendor: await platformToken.balanceOf(tokenVendor),
+                tokenBalanceStakingRewards: await platformToken.balanceOf(boostedDualVault.address),
             },
             vMTABalance: await stakingContract.balanceOf(beneficiary.address),
             userData: {
@@ -174,15 +190,17 @@ describe("BoostedDualVault", async () => {
                 platformRewards: userData[3],
                 lastAction: userData[4],
                 rewardCount: userData[5].toNumber(),
-                userClaim: await savingsVault.userClaim(beneficiary.address),
+                userClaim: await boostedDualVault.userClaim(beneficiary.address),
             },
             userRewards,
             contractData: {
-                rewardPerTokenStored: await savingsVault.rewardPerTokenStored(),
-                rewardRate: await savingsVault.rewardRate(),
-                lastUpdateTime: await savingsVault.lastUpdateTime(),
-                lastTimeRewardApplicable: await savingsVault.lastTimeRewardApplicable(),
-                periodFinishTime: await savingsVault.periodFinish(),
+                rewardPerTokenStored: await boostedDualVault.rewardPerTokenStored(),
+                platformRewardPerTokenStored: await boostedDualVault.platformRewardPerTokenStored(),
+                rewardRate: await boostedDualVault.rewardRate(),
+                platformRewardRate: await boostedDualVault.platformRewardRate(),
+                lastUpdateTime: await boostedDualVault.lastUpdateTime(),
+                lastTimeRewardApplicable: await boostedDualVault.lastTimeRewardApplicable(),
+                periodFinishTime: await boostedDualVault.periodFinish(),
             },
         }
     }
@@ -193,33 +211,33 @@ describe("BoostedDualVault", async () => {
         sa = mAssetMachine.sa
         rewardsDistributor = sa.fundManager
 
-        savingsVault = await redeployRewards()
+        boostedDualVault = await redeployRewards()
 
-        ctx.recipient = (savingsVault as unknown) as InitializableRewardsDistributionRecipient
-        ctx.module = savingsVault as ImmutableModule
+        ctx.recipient = (boostedDualVault as unknown) as InitializableRewardsDistributionRecipient
+        ctx.module = boostedDualVault as ImmutableModule
         ctx.sa = sa
     })
 
     describe("constructor & settings", async () => {
         beforeEach(async () => {
-            savingsVault = await redeployRewards()
+            boostedDualVault = await redeployRewards()
         })
         it("should set all initial state", async () => {
             // Set in constructor
-            expect(await savingsVault.nexus()).to.eq(nexus.address)
-            expect(await savingsVault.stakingToken()).to.eq(imAsset.address)
-            expect(await savingsVault.boostDirector()).to.eq(boostDirector.address)
-            expect(await savingsVault.rewardsToken()).to.eq(rewardToken.address)
-            expect(await savingsVault.rewardsDistributor()).to.eq(rewardsDistributor.address)
+            expect(await boostedDualVault.nexus()).to.eq(nexus.address)
+            expect(await boostedDualVault.stakingToken()).to.eq(imAsset.address)
+            expect(await boostedDualVault.boostDirector()).to.eq(boostDirector.address)
+            expect(await boostedDualVault.rewardsToken()).to.eq(rewardToken.address)
+            expect(await boostedDualVault.rewardsDistributor()).to.eq(rewardsDistributor.address)
 
             // Basic storage
-            expect(await savingsVault.totalSupply()).to.be.eq(BN.from(0))
-            expect(await savingsVault.periodFinish()).to.be.eq(BN.from(0))
-            expect(await savingsVault.rewardRate()).to.be.eq(BN.from(0))
-            expect(await savingsVault.lastUpdateTime()).to.be.eq(BN.from(0))
-            expect(await savingsVault.rewardPerTokenStored()).to.be.eq(BN.from(0))
-            expect(await savingsVault.lastTimeRewardApplicable()).to.be.eq(BN.from(0))
-            expect((await savingsVault.rewardPerToken())[0]).to.be.eq(BN.from(0))
+            expect(await boostedDualVault.totalSupply()).to.be.eq(BN.from(0))
+            expect(await boostedDualVault.periodFinish()).to.be.eq(BN.from(0))
+            expect(await boostedDualVault.rewardRate()).to.be.eq(BN.from(0))
+            expect(await boostedDualVault.lastUpdateTime()).to.be.eq(BN.from(0))
+            expect(await boostedDualVault.rewardPerTokenStored()).to.be.eq(BN.from(0))
+            expect(await boostedDualVault.lastTimeRewardApplicable()).to.be.eq(BN.from(0))
+            expect((await boostedDualVault.rewardPerToken())[0]).to.be.eq(BN.from(0))
         })
 
         shouldBehaveLikeDistributionRecipient(ctx as IRewardsDistributionRecipientContext)
@@ -236,6 +254,7 @@ describe("BoostedDualVault", async () => {
         afterData: StakingData,
         isExistingStaker: boolean,
         shouldResetRewards = false,
+        shouldResetPlatformRewards = false,
     ): Promise<void> => {
         const timeAfter = await getTimestamp()
         const periodIsFinished = BN.from(timeAfter).gt(beforeData.contractData.periodFinishTime)
@@ -249,8 +268,10 @@ describe("BoostedDualVault", async () => {
         ).to.be.eq(afterData.contractData.lastUpdateTime)
         //    RewardRate doesnt change
         expect(beforeData.contractData.rewardRate).to.be.eq(afterData.contractData.rewardRate)
+        expect(beforeData.contractData.platformRewardRate).eq(afterData.contractData.platformRewardRate)
         //    RewardPerTokenStored goes up
         expect(afterData.contractData.rewardPerTokenStored).to.be.gte(beforeData.contractData.rewardPerTokenStored)
+        expect(afterData.contractData.platformRewardPerTokenStored).gte(beforeData.contractData.platformRewardPerTokenStored)
         //      Calculate exact expected 'rewardPerToken' increase since last update
         const timeApplicableToRewards = periodIsFinished
             ? beforeData.contractData.periodFinishTime.sub(beforeData.contractData.lastUpdateTime)
@@ -261,12 +282,22 @@ describe("BoostedDualVault", async () => {
                   .mul(timeApplicableToRewards)
                   .mul(fullScale)
                   .div(beforeData.boostBalance.totalSupply)
+        const increaseInPlatformRewardPerToken = beforeData.boostBalance.totalRaw.eq(0)
+            ? 0
+            : beforeData.contractData.platformRewardRate
+                  .mul(timeApplicableToRewards)
+                  .mul(fullScale)
+                  .div(beforeData.boostBalance.totalRaw)
         expect(beforeData.contractData.rewardPerTokenStored.add(increaseInRewardPerToken)).to.be.eq(
             afterData.contractData.rewardPerTokenStored,
+        )
+        expect(beforeData.contractData.platformRewardPerTokenStored.add(increaseInPlatformRewardPerToken)).eq(
+            afterData.contractData.platformRewardPerTokenStored,
         )
         // Expect updated personal state
         //    userRewardPerTokenPaid(beneficiary) should update
         expect(afterData.userData.rewardPerTokenPaid).to.be.eq(afterData.userData.rewardPerTokenPaid)
+        expect(afterData.userData.platformRewardPerTokenPaid).eq(afterData.contractData.platformRewardPerTokenStored)
 
         const increaseInUserRewardPerToken = afterData.contractData.rewardPerTokenStored.sub(beforeData.userData.rewardPerTokenPaid)
         const assignment = beforeData.boostBalance.balance.mul(increaseInUserRewardPerToken).div(fullScale)
@@ -296,6 +327,21 @@ describe("BoostedDualVault", async () => {
             expect(afterData.userData.lastAction).to.be.eq(timeAfter)
             expect(beforeData.userData.userClaim).to.be.eq(afterData.userData.userClaim)
         }
+
+        //    If existing staker, then platform rewards Should increase
+        if (shouldResetPlatformRewards) {
+            expect(afterData.userData.platformRewards).eq(0)
+        } else if (isExistingStaker) {
+            // rewards(beneficiary) should update with previously accrued tokens
+            const increaseInUserPlatformRewardPerToken = afterData.contractData.platformRewardPerTokenStored.sub(
+                beforeData.userData.platformRewardPerTokenPaid,
+            )
+            const platformAssignment = beforeData.boostBalance.raw.mul(increaseInUserPlatformRewardPerToken).div(fullScale)
+            expect(beforeData.userData.platformRewards.add(platformAssignment)).eq(afterData.userData.platformRewards)
+        } else {
+            // else `rewards` should stay the same
+            expect(beforeData.userData.platformRewards).eq(afterData.userData.platformRewards)
+        }
     }
 
     /**
@@ -321,12 +367,12 @@ describe("BoostedDualVault", async () => {
             expect(isExistingStaker).eq(true)
         }
         // 2. Approve staking token spending and send the TX
-        await imAsset.connect(sender.signer).approve(savingsVault.address, stakeAmount)
+        await imAsset.connect(sender.signer).approve(boostedDualVault.address, stakeAmount)
         const tx = senderIsBeneficiary
-            ? savingsVault.connect(sender.signer)["stake(uint256)"](stakeAmount)
-            : savingsVault.connect(sender.signer)["stake(address,uint256)"](beneficiary.address, stakeAmount)
+            ? boostedDualVault.connect(sender.signer)["stake(uint256)"](stakeAmount)
+            : boostedDualVault.connect(sender.signer)["stake(address,uint256)"](beneficiary.address, stakeAmount)
         await expect(tx)
-            .to.emit(savingsVault, "Staked")
+            .to.emit(boostedDualVault, "Staked")
             .withArgs(beneficiary.address, stakeAmount, sender.address)
 
         // 3. Ensure rewards are accrued to the beneficiary
@@ -350,18 +396,27 @@ describe("BoostedDualVault", async () => {
      * @dev Ensures a funding is successful, checking that it updates the rewardRate etc
      * @param rewardUnits Number of units to stake
      */
-    const expectSuccesfulFunding = async (rewardUnits: BN): Promise<void> => {
+    const expectSuccesfulFunding = async (rewardUnits: BN, platformUnitsExpected = BN.from(0)): Promise<void> => {
         const beforeData = await snapshotStakingData()
-        const tx = savingsVault.connect(rewardsDistributor.signer).notifyRewardAmount(rewardUnits)
+        const tx = boostedDualVault.connect(rewardsDistributor.signer).notifyRewardAmount(rewardUnits)
         await expect(tx)
-            .to.emit(savingsVault, "RewardAdded")
-            .withArgs(rewardUnits, BN.from(0))
+            .to.emit(boostedDualVault, "RewardAdded")
+            .withArgs(rewardUnits, platformUnitsExpected)
 
         const cur = BN.from(await getTimestamp())
         const leftOverRewards = beforeData.contractData.rewardRate.mul(
             beforeData.contractData.periodFinishTime.sub(beforeData.contractData.lastTimeRewardApplicable),
         )
+        const leftOverPlatformRewards = beforeData.contractData.platformRewardRate.mul(
+            beforeData.contractData.periodFinishTime.sub(beforeData.contractData.lastTimeRewardApplicable),
+        )
         const afterData = await snapshotStakingData()
+
+        // Expect the tokens to be transferred to the vendor
+        expect(afterData.platform.tokenBalanceStakingRewards, "staking rewards platform balance after").eq(0)
+        expect(afterData.platform.tokenBalanceVendor, "vendor platform balance after").eq(
+            beforeData.platform.tokenBalanceVendor.add(beforeData.platform.tokenBalanceStakingRewards),
+        )
 
         // Sets lastTimeRewardApplicable to latest
         expect(cur).to.be.eq(afterData.contractData.lastTimeRewardApplicable)
@@ -380,6 +435,17 @@ describe("BoostedDualVault", async () => {
         } else {
             expect(rewardUnits.div(ONE_WEEK)).to.be.eq(afterData.contractData.rewardRate)
         }
+        // Sets platformRewardRate to rewardUnits / ONE_WEEK
+        if (leftOverPlatformRewards.gt(0)) {
+            const total = platformUnitsExpected.add(leftOverRewards)
+            assertBNClose(
+                total.div(ONE_WEEK),
+                afterData.contractData.platformRewardRate,
+                beforeData.contractData.platformRewardRate.div(ONE_WEEK).mul(10), // the effect of 10 second on the future scale
+            )
+        } else {
+            expect(platformUnitsExpected.div(ONE_WEEK), "platformRewardRate updated").eq(afterData.contractData.platformRewardRate)
+        }
     }
 
     /**
@@ -396,9 +462,9 @@ describe("BoostedDualVault", async () => {
         expect(withdrawAmount).to.be.gte(beforeData.boostBalance.raw)
 
         // 2. Send withdrawal tx
-        const tx = savingsVault.connect(sender.signer).withdraw(withdrawAmount)
+        const tx = boostedDualVault.connect(sender.signer).withdraw(withdrawAmount)
         await expect(tx)
-            .to.emit(savingsVault, "Withdrawn")
+            .to.emit(boostedDualVault, "Withdrawn")
             .withArgs(sender.address, withdrawAmount)
 
         // 3. Expect Rewards to accrue to the beneficiary
@@ -421,32 +487,39 @@ describe("BoostedDualVault", async () => {
         describe("notifying the pool of reward", () => {
             it("should begin a new period through", async () => {
                 const rewardUnits = simpleToExactAmount(1, 18)
-                await expectSuccesfulFunding(rewardUnits)
+                const airdropAmount = simpleToExactAmount(100, 18)
+                await platformToken.connect(rewardsDistributor.signer).transfer(boostedDualVault.address, airdropAmount)
+                await expectSuccesfulFunding(rewardUnits, airdropAmount)
             })
         })
         describe("staking in the new period", () => {
             it("should assign rewards to the staker", async () => {
                 // Do the stake
-                const rewardRate = await savingsVault.rewardRate()
+                const rewardRate = await boostedDualVault.rewardRate()
+                const platformRewardRate = await boostedDualVault.platformRewardRate()
                 const stakeAmount = simpleToExactAmount(100, 18)
                 const boosted = boost(stakeAmount, minBoost)
+
                 await expectSuccessfulStake(stakeAmount)
-                expect(boosted).to.be.eq(await savingsVault.balanceOf(sa.default.address))
+                expect(boosted).to.be.eq(await boostedDualVault.balanceOf(sa.default.address))
 
                 await increaseTime(ONE_DAY)
 
                 // This is the total reward per staked token, since the last update
-                const [rewardPerToken] = await savingsVault.rewardPerToken()
+                const [rewardPerToken, platformRewardPerToken] = await boostedDualVault.rewardPerToken()
                 const rewardPerSecond = rewardRate.mul(fullScale).div(boosted)
                 assertBNClose(rewardPerToken, ONE_DAY.mul(rewardPerSecond), rewardPerSecond.mul(10))
+                const platformRewardPerSecond = platformRewardRate.mul(fullScale).div(stakeAmount)
+                assertBNClose(platformRewardPerToken, ONE_DAY.mul(platformRewardPerSecond), platformRewardPerSecond.mul(10))
 
                 // Calc estimated unclaimed reward for the user
                 // earned == balance * (rewardPerToken-userExistingReward)
-                const [earned] = await savingsVault.earned(sa.default.address)
+                const [earned, platformEarned] = await boostedDualVault.earned(sa.default.address)
                 expect(unlockedRewards(boosted.mul(rewardPerToken).div(fullScale))).to.be.eq(earned)
+                expect(stakeAmount.mul(platformRewardPerToken).div(fullScale)).eq(platformEarned)
 
                 await stakingContract.setBalanceOf(sa.default.address, simpleToExactAmount(1, 21))
-                await savingsVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
             })
             it("should update stakers rewards after consequent stake", async () => {
                 const stakeAmount = simpleToExactAmount(100, 18)
@@ -455,33 +528,33 @@ describe("BoostedDualVault", async () => {
             })
 
             it("should fail if stake amount is 0", async () => {
-                await expect(savingsVault["stake(uint256)"](0)).to.be.revertedWith("Cannot stake 0")
+                await expect(boostedDualVault["stake(uint256)"](0)).to.be.revertedWith("Cannot stake 0")
             })
             it("should fail if beneficiary is empty", async () => {
-                await expect(savingsVault.connect(sa.default.signer)["stake(address,uint256)"](ZERO_ADDRESS, 1)).to.be.revertedWith(
+                await expect(boostedDualVault.connect(sa.default.signer)["stake(address,uint256)"](ZERO_ADDRESS, 1)).to.be.revertedWith(
                     "Invalid beneficiary address",
                 )
             })
 
             it("should fail if staker has insufficient balance", async () => {
-                await imAsset.connect(sa.dummy2.signer).approve(savingsVault.address, 1)
-                await expect(savingsVault.connect(sa.dummy2.signer)["stake(uint256)"](1)).to.be.revertedWith("VM Exception")
+                await imAsset.connect(sa.dummy2.signer).approve(boostedDualVault.address, 1)
+                await expect(boostedDualVault.connect(sa.dummy2.signer)["stake(uint256)"](1)).to.be.revertedWith("VM Exception")
             })
         })
     })
     context("funding with too much rewards", () => {
         before(async () => {
-            savingsVault = await redeployRewards()
+            boostedDualVault = await redeployRewards()
         })
         it("should fail", async () => {
-            await expect(savingsVault.connect(sa.fundManager.signer).notifyRewardAmount(simpleToExactAmount(1, 25))).to.be.revertedWith(
+            await expect(boostedDualVault.connect(sa.fundManager.signer).notifyRewardAmount(simpleToExactAmount(1, 25))).to.be.revertedWith(
                 "Cannot notify with more than a million units",
             )
         })
     })
     context("staking before rewards are added", () => {
         before(async () => {
-            savingsVault = await redeployRewards()
+            boostedDualVault = await redeployRewards()
         })
         it("should assign no rewards", async () => {
             // Get data before
@@ -517,7 +590,7 @@ describe("BoostedDualVault", async () => {
             // 1 mBTC = 30k, 1 imBTC = 3k
             const priceCoeffOverride = simpleToExactAmount(3000, 18)
             beforeEach(async () => {
-                savingsVault = await redeployRewards(priceCoeffOverride)
+                boostedDualVault = await redeployRewards(priceCoeffOverride)
             })
             // 10k imUSD = 1k $ = 0.33 imBTC
             it("should calculate boost for 10k imUSD stake and 250 vMTA", async () => {
@@ -527,13 +600,13 @@ describe("BoostedDualVault", async () => {
 
                 await expectSuccessfulStake(deposit)
                 await stakingContract.setBalanceOf(sa.default.address, stake)
-                await savingsVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
 
-                const balance = await savingsVault.balanceOf(sa.default.address)
+                const balance = await boostedDualVault.balanceOf(sa.default.address)
                 assertBNClosePercent(balance, expectedBoost, "0.1")
                 assertBNClosePercent(boost(deposit, calcBoost(deposit, stake, priceCoeffOverride)), expectedBoost, "0.1")
 
-                const ratio = await savingsVault.getBoost(sa.default.address)
+                const ratio = await boostedDualVault.getBoost(sa.default.address)
                 assertBNClosePercent(ratio, simpleToExactAmount(3.621))
             })
             // 10k imUSD = 1k $ = 0.33 imBTC
@@ -544,13 +617,13 @@ describe("BoostedDualVault", async () => {
 
                 await expectSuccessfulStake(deposit)
                 await stakingContract.setBalanceOf(sa.default.address, stake)
-                await savingsVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
 
-                const balance = await savingsVault.balanceOf(sa.default.address)
+                const balance = await boostedDualVault.balanceOf(sa.default.address)
                 assertBNClosePercent(balance, expectedBoost, "1")
                 assertBNClosePercent(boost(deposit, calcBoost(deposit, stake, priceCoeffOverride)), expectedBoost, "0.1")
 
-                const ratio = await savingsVault.getBoost(sa.default.address)
+                const ratio = await boostedDualVault.getBoost(sa.default.address)
                 assertBNClosePercent(ratio, simpleToExactAmount(1.484, 18), "0.1")
             })
             // 100k imUSD = 10k $ = 3.33 imBTC
@@ -561,20 +634,20 @@ describe("BoostedDualVault", async () => {
 
                 await expectSuccessfulStake(deposit)
                 await stakingContract.setBalanceOf(sa.default.address, stake)
-                await savingsVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
 
-                const balance = await savingsVault.balanceOf(sa.default.address)
+                const balance = await boostedDualVault.balanceOf(sa.default.address)
                 assertBNClosePercent(balance, expectedBoost, "1")
                 assertBNClosePercent(boost(deposit, calcBoost(deposit, stake, priceCoeffOverride)), expectedBoost, "0.1")
 
-                const ratio = await savingsVault.getBoost(sa.default.address)
+                const ratio = await boostedDualVault.getBoost(sa.default.address)
                 assertBNClosePercent(ratio, simpleToExactAmount(1.662, 18), "0.1")
             })
         })
 
         context("with a price coefficient of 10 cents", () => {
             beforeEach(async () => {
-                savingsVault = await redeployRewards()
+                boostedDualVault = await redeployRewards()
             })
             describe("when saving and with staking balance", () => {
                 it("should calculate boost for 10k imUSD stake and 250 vMTA", async () => {
@@ -584,12 +657,12 @@ describe("BoostedDualVault", async () => {
 
                     await expectSuccessfulStake(deposit)
                     await stakingContract.setBalanceOf(sa.default.address, stake)
-                    await savingsVault.pokeBoost(sa.default.address)
+                    await boostedDualVault.pokeBoost(sa.default.address)
 
-                    const balance = await savingsVault.balanceOf(sa.default.address)
+                    const balance = await boostedDualVault.balanceOf(sa.default.address)
                     assertBNClosePercent(balance, expectedBoost)
                     assertBNClosePercent(boost(deposit, calcBoost(deposit, stake)), expectedBoost, 0.1)
-                    const ratio = await savingsVault.getBoost(sa.default.address)
+                    const ratio = await boostedDualVault.getBoost(sa.default.address)
                     assertBNClosePercent(ratio, simpleToExactAmount(3.621))
                 })
                 it("should calculate boost for 10k imUSD stake and 50 vMTA", async () => {
@@ -599,12 +672,12 @@ describe("BoostedDualVault", async () => {
 
                     await expectSuccessfulStake(deposit)
                     await stakingContract.setBalanceOf(sa.default.address, stake)
-                    await savingsVault.pokeBoost(sa.default.address)
+                    await boostedDualVault.pokeBoost(sa.default.address)
 
-                    const balance = await savingsVault.balanceOf(sa.default.address)
+                    const balance = await boostedDualVault.balanceOf(sa.default.address)
                     assertBNClosePercent(balance, expectedBoost, "1")
                     assertBNClosePercent(boost(deposit, calcBoost(deposit, stake)), expectedBoost, "0.1")
-                    const ratio = await savingsVault.getBoost(sa.default.address)
+                    const ratio = await boostedDualVault.getBoost(sa.default.address)
                     assertBNClosePercent(ratio, simpleToExactAmount(1.484, 18), "0.1")
                 })
                 it("should calculate boost for 100k imUSD stake and 500 vMTA", async () => {
@@ -614,13 +687,13 @@ describe("BoostedDualVault", async () => {
 
                     await expectSuccessfulStake(deposit)
                     await stakingContract.setBalanceOf(sa.default.address, stake)
-                    await savingsVault.pokeBoost(sa.default.address)
+                    await boostedDualVault.pokeBoost(sa.default.address)
 
-                    const balance = await savingsVault.balanceOf(sa.default.address)
+                    const balance = await boostedDualVault.balanceOf(sa.default.address)
                     assertBNClosePercent(balance, expectedBoost, "1")
                     assertBNClosePercent(boost(deposit, calcBoost(deposit, stake)), expectedBoost, "0.1")
 
-                    const ratio = await savingsVault.getBoost(sa.default.address)
+                    const ratio = await boostedDualVault.getBoost(sa.default.address)
                     assertBNClosePercent(ratio, simpleToExactAmount(1.662, 18), "0.1")
                 })
             })
@@ -632,13 +705,13 @@ describe("BoostedDualVault", async () => {
 
                     await expectSuccessfulStake(deposit)
                     await stakingContract.setBalanceOf(sa.default.address, stake)
-                    await savingsVault.pokeBoost(sa.default.address)
+                    await boostedDualVault.pokeBoost(sa.default.address)
 
-                    const balance = await savingsVault.balanceOf(sa.default.address)
+                    const balance = await boostedDualVault.balanceOf(sa.default.address)
                     assertBNClosePercent(balance, expectedBoost, "1")
                     assertBNClosePercent(boost(deposit, calcBoost(deposit, stake)), expectedBoost, "0.1")
 
-                    const ratio = await savingsVault.getBoost(sa.default.address)
+                    const ratio = await boostedDualVault.getBoost(sa.default.address)
                     assertBNClosePercent(ratio, minBoost, "0.1")
                 })
             })
@@ -648,11 +721,11 @@ describe("BoostedDualVault", async () => {
 
                     await expectSuccessfulStake(deposit)
 
-                    const balance = await savingsVault.balanceOf(sa.default.address)
+                    const balance = await boostedDualVault.balanceOf(sa.default.address)
                     assertBNClosePercent(balance, deposit, "1")
                     assertBNClosePercent(boost(deposit, minBoost), deposit, "0.1")
 
-                    const ratio = await savingsVault.getBoost(sa.default.address)
+                    const ratio = await boostedDualVault.getBoost(sa.default.address)
                     assertBNClosePercent(ratio, minBoost, "0.1")
                 })
             })
@@ -663,14 +736,14 @@ describe("BoostedDualVault", async () => {
 
                     await expectSuccessfulStake(deposit)
                     await stakingContract.setBalanceOf(sa.default.address, stake)
-                    await savingsVault.pokeBoost(sa.default.address)
+                    await boostedDualVault.pokeBoost(sa.default.address)
 
                     await increaseTime(ONE_WEEK)
-                    await savingsVault["exit()"]()
+                    await boostedDualVault["exit()"]()
 
-                    const balance = await savingsVault.balanceOf(sa.default.address)
-                    const raw = await savingsVault.rawBalanceOf(sa.default.address)
-                    const supply = await savingsVault.totalSupply()
+                    const balance = await boostedDualVault.balanceOf(sa.default.address)
+                    const raw = await boostedDualVault.rawBalanceOf(sa.default.address)
+                    const supply = await boostedDualVault.totalSupply()
 
                     expect(balance).to.be.eq(BN.from(0))
                     expect(raw).to.be.eq(BN.from(0))
@@ -692,7 +765,7 @@ describe("BoostedDualVault", async () => {
                     const bob = sa.dummy1
                     // 1.
                     const hunnit = simpleToExactAmount(100, 18)
-                    await rewardToken.connect(rewardsDistributor.signer).transfer(savingsVault.address, hunnit)
+                    await rewardToken.connect(rewardsDistributor.signer).transfer(boostedDualVault.address, hunnit)
                     await expectSuccesfulFunding(hunnit)
 
                     // 2.
@@ -706,15 +779,15 @@ describe("BoostedDualVault", async () => {
                     await stakingContract.setBalanceOf(alice.address, hunnit)
 
                     // 5.
-                    await savingsVault.pokeBoost(alice.address)
-                    await savingsVault.pokeBoost(bob.address)
+                    await boostedDualVault.pokeBoost(alice.address)
+                    await boostedDualVault.pokeBoost(bob.address)
 
                     // 6.
                     await increaseTime(ONE_WEEK.div(2))
 
                     // 7.
-                    await savingsVault.pokeBoost(alice.address)
-                    await savingsVault.pokeBoost(bob.address)
+                    await boostedDualVault.pokeBoost(alice.address)
+                    await boostedDualVault.pokeBoost(bob.address)
 
                     // 8.
                     const aliceData = await snapshotStakingData(alice, alice)
@@ -727,12 +800,12 @@ describe("BoostedDualVault", async () => {
     })
     context("adding first stake days after funding", () => {
         before(async () => {
-            savingsVault = await redeployRewards()
+            boostedDualVault = await redeployRewards()
         })
         it("should retrospectively assign rewards to the first staker", async () => {
             await expectSuccesfulFunding(simpleToExactAmount(100, 18))
             // Do the stake
-            const rewardRate = await savingsVault.rewardRate()
+            const rewardRate = await boostedDualVault.rewardRate()
 
             await increaseTime(FIVE_DAYS)
 
@@ -742,23 +815,23 @@ describe("BoostedDualVault", async () => {
             // await increaseTime(ONE_DAY);
 
             // This is the total reward per staked token, since the last update
-            const [rewardPerToken] = await savingsVault.rewardPerToken()
+            const [rewardPerToken] = await boostedDualVault.rewardPerToken()
 
             // e.g. 1e15 * 1e18 / 50e18 = 2e13
             const rewardPerSecond = rewardRate.mul(fullScale).div(boosted)
             assertBNClosePercent(rewardPerToken, FIVE_DAYS.mul(rewardPerSecond), "0.01")
             // Calc estimated unclaimed reward for the user
             // earned == balance * (rewardPerToken-userExistingReward)
-            const [earnedAfterConsequentStake] = await savingsVault.earned(sa.default.address)
+            const [earnedAfterConsequentStake] = await boostedDualVault.earned(sa.default.address)
             expect(unlockedRewards(boosted.mul(rewardPerToken).div(fullScale))).to.be.eq(earnedAfterConsequentStake)
             await stakingContract.setBalanceOf(sa.default.address, simpleToExactAmount(1, 21))
-            await savingsVault.pokeBoost(sa.default.address)
+            await boostedDualVault.pokeBoost(sa.default.address)
         })
     })
     context("staking over multiple funded periods", () => {
         context("with a single staker", () => {
             before(async () => {
-                savingsVault = await redeployRewards()
+                boostedDualVault = await redeployRewards()
             })
             it("should assign all the rewards from the periods", async () => {
                 const fundAmount1 = simpleToExactAmount(100, 18)
@@ -774,11 +847,11 @@ describe("BoostedDualVault", async () => {
 
                 await increaseTime(ONE_WEEK.mul(2))
 
-                const [earned] = await savingsVault.earned(sa.default.address)
+                const [earned] = await boostedDualVault.earned(sa.default.address)
                 assertBNSlightlyGT(unlockedRewards(fundAmount1.add(fundAmount2)), earned, BN.from(1000000), false)
 
                 await stakingContract.setBalanceOf(sa.default.address, simpleToExactAmount(1, 21))
-                await savingsVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
             })
         })
         context("with multiple stakers coming in and out", () => {
@@ -792,7 +865,7 @@ describe("BoostedDualVault", async () => {
             const staker3Stake = simpleToExactAmount(100, 18)
 
             before(async () => {
-                savingsVault = await redeployRewards()
+                boostedDualVault = await redeployRewards()
                 staker2 = sa.dummy1
                 staker3 = sa.dummy2
                 await imAsset.transfer(staker2.address, staker2Stake)
@@ -827,17 +900,17 @@ describe("BoostedDualVault", async () => {
                 // WEEK 1-2 START
                 await expectSuccesfulFunding(fundAmount2)
 
-                await savingsVault.connect(staker3.signer).withdraw(staker3Stake)
+                await boostedDualVault.connect(staker3.signer).withdraw(staker3Stake)
                 await expectSuccessfulStake(staker1Stake2, sa.default, sa.default, true)
 
                 await increaseTime(ONE_WEEK)
 
                 // WEEK 2 FINISH
-                const [earned1] = await savingsVault.earned(sa.default.address)
+                const [earned1] = await boostedDualVault.earned(sa.default.address)
                 assertBNClose(earned1, unlockedRewards(simpleToExactAmount("191.66", 21)), simpleToExactAmount(1, 19))
-                const [earned2] = await savingsVault.earned(staker2.address)
+                const [earned2] = await boostedDualVault.earned(staker2.address)
                 assertBNClose(earned2, unlockedRewards(simpleToExactAmount("66.66", 21)), simpleToExactAmount(1, 19))
-                const [earned3] = await savingsVault.earned(staker3.address)
+                const [earned3] = await boostedDualVault.earned(staker3.address)
                 assertBNClose(earned3, unlockedRewards(simpleToExactAmount("41.66", 21)), simpleToExactAmount(1, 19))
                 // Ensure that sum of earned rewards does not exceed funding amount
                 expect(fundAmount1.add(fundAmount2)).to.be.gte(earned1.add(earned2).add(earned3))
@@ -848,7 +921,7 @@ describe("BoostedDualVault", async () => {
         const fundAmount1 = simpleToExactAmount(100, 21)
 
         before(async () => {
-            savingsVault = await redeployRewards()
+            boostedDualVault = await redeployRewards()
         })
         it("should stop accruing rewards after the period is over", async () => {
             await expectSuccessfulStake(simpleToExactAmount(1, 18))
@@ -856,16 +929,16 @@ describe("BoostedDualVault", async () => {
 
             await increaseTime(ONE_WEEK.add(1))
 
-            const [earnedAfterWeek] = await savingsVault.earned(sa.default.address)
+            const [earnedAfterWeek] = await boostedDualVault.earned(sa.default.address)
 
             await increaseTime(ONE_WEEK.add(1))
             const now = await getTimestamp()
 
-            const [earnedAfterTwoWeeks] = await savingsVault.earned(sa.default.address)
+            const [earnedAfterTwoWeeks] = await boostedDualVault.earned(sa.default.address)
 
             expect(earnedAfterWeek).to.be.eq(earnedAfterTwoWeeks)
 
-            const lastTimeRewardApplicable = await savingsVault.lastTimeRewardApplicable()
+            const lastTimeRewardApplicable = await boostedDualVault.lastTimeRewardApplicable()
             assertBNClose(lastTimeRewardApplicable, now.sub(ONE_WEEK).sub(2), BN.from(2))
         })
     })
@@ -875,27 +948,27 @@ describe("BoostedDualVault", async () => {
         const stakeAmount = simpleToExactAmount(100, 18)
 
         before(async () => {
-            savingsVault = await redeployRewards()
+            boostedDualVault = await redeployRewards()
             beneficiary = sa.dummy1
             await expectSuccesfulFunding(fundAmount)
             await expectSuccessfulStake(stakeAmount, sa.default, beneficiary)
             await increaseTime(10)
         })
         it("should update the beneficiaries reward details", async () => {
-            const [earned] = await savingsVault.earned(beneficiary.address)
+            const [earned] = await boostedDualVault.earned(beneficiary.address)
             expect(earned).to.be.gt(BN.from(0))
 
-            const rawBalance = await savingsVault.rawBalanceOf(beneficiary.address)
+            const rawBalance = await boostedDualVault.rawBalanceOf(beneficiary.address)
             expect(rawBalance).to.be.eq(stakeAmount)
 
-            const balance = await savingsVault.balanceOf(beneficiary.address)
+            const balance = await boostedDualVault.balanceOf(beneficiary.address)
             expect(balance).to.be.eq(boost(stakeAmount, minBoost))
         })
         it("should not update the senders details", async () => {
-            const [earned] = await savingsVault.earned(sa.default.address)
+            const [earned] = await boostedDualVault.earned(sa.default.address)
             expect(earned).to.be.eq(BN.from(0))
 
-            const balance = await savingsVault.balanceOf(sa.default.address)
+            const balance = await boostedDualVault.balanceOf(sa.default.address)
             expect(balance).to.be.eq(BN.from(0))
         })
     })
@@ -927,13 +1000,13 @@ describe("BoostedDualVault", async () => {
             )
             const data = impl.interface.encodeFunctionData("initialize", [rewardsDistributor.address, "Vault A", "vA"])
             const proxy = await new AssetProxy__factory(sa.default.signer).deploy(impl.address, sa.dummy4.address, data)
-            savingsVault = vaultFactory.attach(proxy.address)
+            boostedDualVault = vaultFactory.attach(proxy.address)
             await boostDirector.initialize([proxy.address])
         })
         it("should not affect the pro rata payouts", async () => {
             // Add 100 reward tokens
             await expectSuccesfulFunding(simpleToExactAmount(100, 12))
-            const rewardRate = await savingsVault.rewardRate()
+            const rewardRate = await boostedDualVault.rewardRate()
 
             // Do the stake
             const stakeAmount = simpleToExactAmount(100, 16)
@@ -943,7 +1016,7 @@ describe("BoostedDualVault", async () => {
             await increaseTime(ONE_WEEK.add(1))
 
             // This is the total reward per staked token, since the last update
-            const [rewardPerToken] = await savingsVault.rewardPerToken()
+            const [rewardPerToken] = await boostedDualVault.rewardPerToken()
             assertBNClose(
                 rewardPerToken,
                 ONE_WEEK.mul(rewardRate)
@@ -957,7 +1030,7 @@ describe("BoostedDualVault", async () => {
 
             // Calc estimated unclaimed reward for the user
             // earned == balance * (rewardPerToken-userExistingReward)
-            const [earnedAfterConsequentStake] = await savingsVault.earned(sa.default.address)
+            const [earnedAfterConsequentStake] = await boostedDualVault.earned(sa.default.address)
             assertBNSlightlyGT(unlockedRewards(simpleToExactAmount(100, 12)), earnedAfterConsequentStake, simpleToExactAmount(1, 9))
         })
     })
@@ -968,15 +1041,15 @@ describe("BoostedDualVault", async () => {
         const unlocked = unlockedRewards(fundAmount)
 
         before(async () => {
-            savingsVault = await redeployRewards()
+            boostedDualVault = await redeployRewards()
             await expectSuccesfulFunding(fundAmount)
-            await rewardToken.connect(rewardsDistributor.signer).transfer(savingsVault.address, fundAmount)
+            await rewardToken.connect(rewardsDistributor.signer).transfer(boostedDualVault.address, fundAmount)
             await expectSuccessfulStake(stakeAmount, sa.default, sa.dummy2)
             await increaseTime(ONE_WEEK.add(1))
         })
         it("should do nothing for a non-staker", async () => {
             const beforeData = await snapshotStakingData(sa.dummy1, sa.dummy1)
-            await savingsVault.connect(sa.dummy1.signer).claimReward()
+            await boostedDualVault.connect(sa.dummy1.signer).claimReward()
 
             const afterData = await snapshotStakingData(sa.dummy1, sa.dummy1)
             expect(beforeData.userData.rewards).to.be.eq(BN.from(0))
@@ -988,8 +1061,8 @@ describe("BoostedDualVault", async () => {
             const beforeData = await snapshotStakingData(sa.dummy2, sa.dummy2)
             const rewardeeBalanceBefore = await rewardToken.balanceOf(sa.dummy2.address)
             expect(rewardeeBalanceBefore).to.be.eq(BN.from(0))
-            const tx = savingsVault.connect(sa.dummy2.signer).claimReward()
-            await expect(tx).to.emit(savingsVault, "RewardPaid")
+            const tx = boostedDualVault.connect(sa.dummy2.signer).claimReward()
+            await expect(tx).to.emit(boostedDualVault, "RewardPaid")
             const afterData = await snapshotStakingData(sa.dummy2, sa.dummy2)
             await assertRewardsAssigned(beforeData, afterData, true, true)
             // Balance transferred to the rewardee
@@ -1019,21 +1092,21 @@ describe("BoostedDualVault", async () => {
         const unlocked = unlockedRewards(sum)
 
         beforeEach(async () => {
-            savingsVault = await redeployRewards()
-            await rewardToken.connect(rewardsDistributor.signer).transfer(savingsVault.address, hunnit.mul(5))
+            boostedDualVault = await redeployRewards()
+            await rewardToken.connect(rewardsDistributor.signer).transfer(boostedDualVault.address, hunnit.mul(5))
             // t0
             await expectSuccesfulFunding(hunnit)
             await expectSuccessfulStake(hunnit)
             await increaseTime(ONE_WEEK.add(1))
             // t1
             await expectSuccesfulFunding(hunnit)
-            await savingsVault.pokeBoost(sa.default.address)
+            await boostedDualVault.pokeBoost(sa.default.address)
             await increaseTime(ONE_WEEK.add(1))
             // t2
             await expectSuccesfulFunding(hunnit.mul(2))
             await increaseTime(ONE_WEEK.div(2))
             // t2x5
-            await savingsVault.pokeBoost(sa.default.address)
+            await boostedDualVault.pokeBoost(sa.default.address)
             await increaseTime(ONE_WEEK.div(2))
             // t3
             await expectSuccesfulFunding(hunnit)
@@ -1042,7 +1115,7 @@ describe("BoostedDualVault", async () => {
             await expectStakingWithdrawal(hunnit)
             await increaseTime(ONE_WEEK.mul(23))
             // t = 26
-            let [amount, first, last] = await savingsVault.unclaimedRewards(sa.default.address)
+            let [amount, first, last] = await boostedDualVault.unclaimedRewards(sa.default.address)
             assertBNClosePercent(amount, unlocked, "0.01")
             expect(first).to.be.eq(BN.from(0))
             expect(last).to.be.eq(BN.from(0))
@@ -1050,7 +1123,7 @@ describe("BoostedDualVault", async () => {
             await increaseTime(ONE_WEEK.mul(3).div(2))
 
             // t = 27.5
-            ;[amount, first, last] = await savingsVault.unclaimedRewards(sa.default.address)
+            ;[amount, first, last] = await boostedDualVault.unclaimedRewards(sa.default.address)
             expect(first).to.be.eq(BN.from(0))
             expect(last).to.be.eq(BN.from(1))
             assertBNClosePercent(amount, unlocked.add(lockedRewards(simpleToExactAmount(166.666, 21))), "0.01")
@@ -1058,7 +1131,7 @@ describe("BoostedDualVault", async () => {
             await increaseTime(ONE_WEEK.mul(5).div(2))
 
             // t = 30
-            ;[amount, first, last] = await savingsVault.unclaimedRewards(sa.default.address)
+            ;[amount, first, last] = await boostedDualVault.unclaimedRewards(sa.default.address)
             expect(first).to.be.eq(BN.from(0))
             expect(last).to.be.eq(BN.from(2))
             assertBNClosePercent(amount, unlocked.add(lockedRewards(simpleToExactAmount(400, 21))), "0.01")
@@ -1071,7 +1144,7 @@ describe("BoostedDualVault", async () => {
             // t=27.5
             const expected = lockedRewards(simpleToExactAmount(166.666, 21))
             const allRewards = unlocked.add(expected)
-            let [amount, first, last] = await savingsVault.unclaimedRewards(sa.default.address)
+            let [amount, first, last] = await boostedDualVault.unclaimedRewards(sa.default.address)
             expect(first).to.be.eq(BN.from(0))
             expect(last).to.be.eq(BN.from(1))
             assertBNClosePercent(amount, allRewards, "0.01")
@@ -1079,11 +1152,11 @@ describe("BoostedDualVault", async () => {
             // claims all immediate unlocks
             const dataBefore = await snapshotStakingData()
             const t27x5 = await getTimestamp()
-            const tx = savingsVault["claimRewards(uint256,uint256)"](first, last)
-            await expect(tx).to.emit(savingsVault, "RewardPaid")
+            const tx = boostedDualVault["claimRewards(uint256,uint256)"](first, last)
+            await expect(tx).to.emit(boostedDualVault, "RewardPaid")
 
             // Gets now unclaimed rewards (0, since no time has passed)
-            ;[amount, first, last] = await savingsVault.unclaimedRewards(sa.default.address)
+            ;[amount, first, last] = await boostedDualVault.unclaimedRewards(sa.default.address)
             expect(first).to.be.eq(BN.from(1))
             expect(last).to.be.eq(BN.from(1))
             expect(amount).to.be.eq(BN.from(0))
@@ -1097,24 +1170,24 @@ describe("BoostedDualVault", async () => {
             assertBNClose(t27x5, dataAfter.userData.lastAction, 5)
             expect(dataAfter.userData.rewards).to.be.eq(BN.from(0))
 
-            await expect(savingsVault["claimRewards(uint256,uint256)"](0, 0)).to.be.revertedWith("Invalid epoch")
+            await expect(boostedDualVault["claimRewards(uint256,uint256)"](0, 0)).to.be.revertedWith("Invalid epoch")
 
             await increaseTime(100)
-            ;[amount, first, last] = await savingsVault.unclaimedRewards(sa.default.address)
+            ;[amount, first, last] = await boostedDualVault.unclaimedRewards(sa.default.address)
             expect(first).to.be.eq(BN.from(1))
             expect(last).to.be.eq(BN.from(1))
             assertBNClose(amount, dataAfter.userRewards[1].rate.mul(100), dataAfter.userRewards[1].rate.mul(3))
 
-            await savingsVault["claimRewards(uint256,uint256)"](1, 1)
+            await boostedDualVault["claimRewards(uint256,uint256)"](1, 1)
 
             await increaseTime(ONE_DAY.mul(10))
 
-            await savingsVault["claimRewards(uint256,uint256)"](1, 1)
+            await boostedDualVault["claimRewards(uint256,uint256)"](1, 1)
 
             const d3 = await snapshotStakingData()
             expect(d3.userData.userClaim).to.be.eq(d3.userRewards[1].finish)
 
-            await savingsVault["claimRewards(uint256,uint256)"](1, 1)
+            await boostedDualVault["claimRewards(uint256,uint256)"](1, 1)
 
             const d4 = await snapshotStakingData()
             expect(d4.userData.userClaim).to.be.eq(d4.userRewards[1].finish)
@@ -1128,7 +1201,7 @@ describe("BoostedDualVault", async () => {
             // t=27.5
             const expected = lockedRewards(simpleToExactAmount(166.666, 21))
             const allRewards = unlocked.add(expected)
-            let [amount, first, last] = await savingsVault.unclaimedRewards(sa.default.address)
+            let [amount, first, last] = await boostedDualVault.unclaimedRewards(sa.default.address)
             expect(first).to.be.eq(BN.from(0))
             expect(last).to.be.eq(BN.from(1))
             assertBNClosePercent(amount, allRewards, "0.01")
@@ -1136,11 +1209,11 @@ describe("BoostedDualVault", async () => {
             // claims all immediate unlocks
             const dataBefore = await snapshotStakingData()
             const t27x5 = await getTimestamp()
-            const tx = savingsVault["claimRewards()"]()
-            await expect(tx).to.emit(savingsVault, "RewardPaid")
+            const tx = boostedDualVault["claimRewards()"]()
+            await expect(tx).to.emit(boostedDualVault, "RewardPaid")
 
             // Gets now unclaimed rewards (0, since no time has passed)
-            ;[amount, first, last] = await savingsVault.unclaimedRewards(sa.default.address)
+            ;[amount, first, last] = await boostedDualVault.unclaimedRewards(sa.default.address)
             expect(first).to.be.eq(BN.from(1))
             expect(last).to.be.eq(BN.from(1))
             expect(amount).to.be.eq(BN.from(0))
@@ -1161,7 +1234,7 @@ describe("BoostedDualVault", async () => {
             // t=30
             const expected = lockedRewards(simpleToExactAmount(400, 21))
             const allRewards = unlocked.add(expected)
-            let [amount, first, last] = await savingsVault.unclaimedRewards(sa.default.address)
+            let [amount, first, last] = await boostedDualVault.unclaimedRewards(sa.default.address)
             expect(first).to.be.eq(BN.from(0))
             expect(last).to.be.eq(BN.from(2))
             assertBNClosePercent(amount, allRewards, "0.01")
@@ -1169,11 +1242,11 @@ describe("BoostedDualVault", async () => {
             // claims all immediate unlocks
             const dataBefore = await snapshotStakingData()
             const t30 = await getTimestamp()
-            const tx = savingsVault["claimRewards()"]()
-            await expect(tx).to.emit(savingsVault, "RewardPaid")
+            const tx = boostedDualVault["claimRewards()"]()
+            await expect(tx).to.emit(boostedDualVault, "RewardPaid")
 
             // Gets now unclaimed rewards (0, since no time has passed)
-            ;[amount, first, last] = await savingsVault.unclaimedRewards(sa.default.address)
+            ;[amount, first, last] = await boostedDualVault.unclaimedRewards(sa.default.address)
             expect(first).to.be.eq(BN.from(2))
             expect(last).to.be.eq(BN.from(2))
             expect(amount).to.be.eq(BN.from(0))
@@ -1192,32 +1265,32 @@ describe("BoostedDualVault", async () => {
             await increaseTime(ONE_WEEK.mul(25))
 
             // t=28
-            let [, first, last] = await savingsVault.unclaimedRewards(sa.default.address)
+            let [, first, last] = await boostedDualVault.unclaimedRewards(sa.default.address)
             expect(first).to.be.eq(BN.from(0))
             expect(last).to.be.eq(BN.from(1))
 
-            await expect(savingsVault["claimRewards(uint256,uint256)"](1, 1)).to.be.revertedWith(
+            await expect(boostedDualVault["claimRewards(uint256,uint256)"](1, 1)).to.be.revertedWith(
                 "Invalid _first arg: Must claim earlier entries",
             )
 
             await increaseTime(ONE_WEEK.mul(3))
             // t=31
-            ;[, first, last] = await savingsVault.unclaimedRewards(sa.default.address)
+            ;[, first, last] = await boostedDualVault.unclaimedRewards(sa.default.address)
             expect(first).to.be.eq(BN.from(0))
             expect(last).to.be.eq(BN.from(2))
 
-            await savingsVault["claimRewards(uint256,uint256)"](0, 1)
+            await boostedDualVault["claimRewards(uint256,uint256)"](0, 1)
 
-            await savingsVault["claimRewards(uint256,uint256)"](1, 2)
+            await boostedDualVault["claimRewards(uint256,uint256)"](1, 2)
 
             // then try to claim 0-2 again, and it should give nothing
-            const unclaimed = await savingsVault.unclaimedRewards(sa.default.address)
+            const unclaimed = await boostedDualVault.unclaimedRewards(sa.default.address)
             expect(unclaimed[0]).to.be.eq(BN.from(0))
             expect(unclaimed[1]).to.be.eq(BN.from(2))
             expect(unclaimed[2]).to.be.eq(BN.from(2))
 
             const dataBefore = await snapshotStakingData()
-            await expect(savingsVault["claimRewards(uint256,uint256)"](0, 2)).to.be.revertedWith("Invalid epoch")
+            await expect(boostedDualVault["claimRewards(uint256,uint256)"](0, 2)).to.be.revertedWith("Invalid epoch")
             const dataAfter = await snapshotStakingData()
 
             expect(dataAfter.tokenBalance.sender).to.be.eq(dataBefore.tokenBalance.sender)
@@ -1225,57 +1298,57 @@ describe("BoostedDualVault", async () => {
         })
         describe("with many array entries", () => {
             it("should allow them all to be searched and claimed", async () => {
-                await rewardToken.connect(rewardsDistributor.signer).transfer(savingsVault.address, hunnit.mul(6))
+                await rewardToken.connect(rewardsDistributor.signer).transfer(boostedDualVault.address, hunnit.mul(6))
                 await increaseTime(ONE_WEEK)
                 // t4
-                await savingsVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
                 await expectSuccesfulFunding(hunnit)
                 await increaseTime(ONE_WEEK.div(2))
                 // t4.5
-                await savingsVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
                 await increaseTime(ONE_WEEK.div(2))
                 // t5
-                await savingsVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
                 await expectSuccesfulFunding(hunnit)
                 await increaseTime(ONE_WEEK.div(2))
                 // t5.5
-                await savingsVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
                 await increaseTime(ONE_WEEK.div(2))
                 // t6
-                await savingsVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
                 await expectSuccesfulFunding(hunnit)
                 await increaseTime(ONE_WEEK.div(2))
                 // t6.5
-                await savingsVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
                 await increaseTime(ONE_WEEK.div(2))
                 // t7
-                await savingsVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
                 await expectSuccesfulFunding(hunnit)
                 await increaseTime(ONE_WEEK.div(2))
                 // t7.5
-                await savingsVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
                 await increaseTime(ONE_WEEK.div(2))
                 // t8
-                await savingsVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
                 await expectSuccesfulFunding(hunnit)
                 await increaseTime(ONE_WEEK.div(2))
                 // t8.5
-                await savingsVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
                 await increaseTime(ONE_WEEK.div(2))
                 // t9
-                await savingsVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
                 await expectSuccesfulFunding(hunnit)
                 await increaseTime(ONE_WEEK.div(2))
                 // t9.5
-                await savingsVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
                 await increaseTime(ONE_WEEK.div(2))
                 // t10
-                await savingsVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
 
                 // count = 1
                 // t=28
                 await increaseTime(ONE_WEEK.mul(18))
-                let [amt, first, last] = await savingsVault.unclaimedRewards(sa.default.address)
+                let [amt, first, last] = await boostedDualVault.unclaimedRewards(sa.default.address)
                 expect(first).to.be.eq(BN.from(0))
                 expect(last).to.be.eq(BN.from(1))
 
@@ -1285,46 +1358,46 @@ describe("BoostedDualVault", async () => {
 
                 // t=32
                 await increaseTime(ONE_WEEK.mul(4).sub(100))
-                ;[amt, first, last] = await savingsVault.unclaimedRewards(sa.default.address)
+                ;[amt, first, last] = await boostedDualVault.unclaimedRewards(sa.default.address)
                 expect(first).to.be.eq(BN.from(0))
                 expect(last).to.be.eq(BN.from(6))
-                await savingsVault["claimRewards(uint256,uint256)"](0, 6)
+                await boostedDualVault["claimRewards(uint256,uint256)"](0, 6)
                 const data32 = await snapshotStakingData()
                 expect(data32.userData.userClaim).to.be.eq(data32.userData.lastAction)
-                ;[amt, first, last] = await savingsVault.unclaimedRewards(sa.default.address)
+                ;[amt, first, last] = await boostedDualVault.unclaimedRewards(sa.default.address)
                 expect(amt).to.be.eq(BN.from(0))
                 expect(first).to.be.eq(BN.from(6))
                 expect(last).to.be.eq(BN.from(6))
 
                 // t=35
                 await increaseTime(ONE_WEEK.mul(3))
-                ;[amt, first, last] = await savingsVault.unclaimedRewards(sa.default.address)
+                ;[amt, first, last] = await boostedDualVault.unclaimedRewards(sa.default.address)
                 expect(first).to.be.eq(BN.from(6))
                 expect(last).to.be.eq(BN.from(12))
 
-                await savingsVault["claimRewards(uint256,uint256)"](6, 12)
+                await boostedDualVault["claimRewards(uint256,uint256)"](6, 12)
                 const data35 = await snapshotStakingData()
                 expect(data35.userData.userClaim).to.be.eq(data35.userData.lastAction)
-                ;[amt, ,] = await savingsVault.unclaimedRewards(sa.default.address)
+                ;[amt, ,] = await boostedDualVault.unclaimedRewards(sa.default.address)
                 expect(amt).to.be.eq(BN.from(0))
 
-                await expect(savingsVault["claimRewards(uint256,uint256)"](0, 1)).to.be.revertedWith("Invalid epoch")
+                await expect(boostedDualVault["claimRewards(uint256,uint256)"](0, 1)).to.be.revertedWith("Invalid epoch")
             })
         })
         describe("with a one second entry", () => {
             it("should allow it to be claimed", async () => {
-                await rewardToken.connect(rewardsDistributor.signer).transfer(savingsVault.address, hunnit)
-                await savingsVault.pokeBoost(sa.default.address)
+                await rewardToken.connect(rewardsDistributor.signer).transfer(boostedDualVault.address, hunnit)
+                await boostedDualVault.pokeBoost(sa.default.address)
                 await increaseTime(ONE_WEEK)
                 // t4
                 await expectSuccesfulFunding(hunnit)
-                await savingsVault.pokeBoost(sa.default.address)
-                await savingsVault.pokeBoost(sa.default.address)
-                await savingsVault.pokeBoost(sa.default.address)
-                await savingsVault.pokeBoost(sa.default.address)
-                await savingsVault.pokeBoost(sa.default.address)
-                await savingsVault.pokeBoost(sa.default.address)
-                await savingsVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
                 await increaseTime(ONE_WEEK.mul(26).sub(10))
 
                 // t30
@@ -1337,56 +1410,56 @@ describe("BoostedDualVault", async () => {
                 expect(r4.rate).to.be.eq(r5.rate)
                 assertBNClosePercent(r4.rate, lockedRewards(data.contractData.rewardRate), "0.001")
 
-                let [, first, last] = await savingsVault.unclaimedRewards(sa.default.address)
+                let [, first, last] = await boostedDualVault.unclaimedRewards(sa.default.address)
                 expect(first).to.be.eq(BN.from(0))
                 expect(last).to.be.eq(BN.from(3))
-                await savingsVault["claimRewards(uint256,uint256)"](0, 3)
+                await boostedDualVault["claimRewards(uint256,uint256)"](0, 3)
                 await increaseTime(20)
-                ;[, first, last] = await savingsVault.unclaimedRewards(sa.default.address)
+                ;[, first, last] = await boostedDualVault.unclaimedRewards(sa.default.address)
                 expect(first).to.be.eq(BN.from(3))
                 expect(last).to.be.eq(BN.from(10))
 
-                await expect(savingsVault["claimRewards(uint256,uint256)"](0, 8)).to.be.revertedWith("Invalid epoch")
-                await savingsVault["claimRewards(uint256,uint256)"](3, 8)
-                await expect(savingsVault["claimRewards(uint256,uint256)"](6, 9)).to.be.revertedWith("Invalid epoch")
-                await savingsVault["claimRewards()"]
+                await expect(boostedDualVault["claimRewards(uint256,uint256)"](0, 8)).to.be.revertedWith("Invalid epoch")
+                await boostedDualVault["claimRewards(uint256,uint256)"](3, 8)
+                await expect(boostedDualVault["claimRewards(uint256,uint256)"](6, 9)).to.be.revertedWith("Invalid epoch")
+                await boostedDualVault["claimRewards()"]
             })
         })
     })
 
     context("getting the reward token", () => {
         before(async () => {
-            savingsVault = await redeployRewards()
+            boostedDualVault = await redeployRewards()
         })
         it("should simply return the rewards Token", async () => {
-            const readToken = await savingsVault.getRewardToken()
+            const readToken = await boostedDualVault.getRewardToken()
             expect(readToken).eq(rewardToken.address)
-            expect(readToken).eq(await savingsVault.rewardsToken())
+            expect(readToken).eq(await boostedDualVault.rewardsToken())
         })
     })
 
     context("calling exit", () => {
         const hunnit = simpleToExactAmount(100, 18)
         beforeEach(async () => {
-            savingsVault = await redeployRewards()
-            await rewardToken.connect(rewardsDistributor.signer).transfer(savingsVault.address, hunnit)
+            boostedDualVault = await redeployRewards()
+            await rewardToken.connect(rewardsDistributor.signer).transfer(boostedDualVault.address, hunnit)
             await expectSuccesfulFunding(hunnit)
             await expectSuccessfulStake(hunnit)
             await increaseTime(ONE_WEEK.add(1))
         })
         context("with no raw balance but rewards unlocked", () => {
             it("errors", async () => {
-                await savingsVault.withdraw(hunnit)
+                await boostedDualVault.withdraw(hunnit)
                 const beforeData = await snapshotStakingData()
                 expect(beforeData.boostBalance.totalSupply).to.be.eq(BN.from(0))
-                await expect(savingsVault["exit()"]()).to.be.revertedWith("Cannot withdraw 0")
+                await expect(boostedDualVault["exit()"]()).to.be.revertedWith("Cannot withdraw 0")
             })
         })
         context("with raw balance", async () => {
             it("withdraws everything and claims unlocked rewards", async () => {
                 const beforeData = await snapshotStakingData()
                 expect(beforeData.boostBalance.totalSupply).to.be.eq(simpleToExactAmount(100, 18))
-                await savingsVault["exit()"]()
+                await boostedDualVault["exit()"]()
                 const afterData = await snapshotStakingData()
                 expect(afterData.userData.userClaim).to.be.eq(afterData.userData.lastAction)
                 expect(afterData.userData.rewards).to.be.eq(BN.from(0))
@@ -1395,19 +1468,19 @@ describe("BoostedDualVault", async () => {
         })
         context("with unlocked rewards", () => {
             it("claims unlocked epochs", async () => {
-                await savingsVault.pokeBoost(sa.default.address)
+                await boostedDualVault.pokeBoost(sa.default.address)
                 await increaseTime(ONE_WEEK.mul(27))
 
-                const [amount, first, last] = await savingsVault.unclaimedRewards(sa.default.address)
+                const [amount, first, last] = await boostedDualVault.unclaimedRewards(sa.default.address)
                 expect(first).to.be.eq(BN.from(0))
                 expect(last).to.be.eq(BN.from(0))
                 assertBNClosePercent(amount, hunnit, "0.01")
 
                 // claims all immediate unlocks
-                const tx = savingsVault["exit(uint256,uint256)"](first, last)
-                await expect(tx).to.emit(savingsVault, "RewardPaid")
+                const tx = boostedDualVault["exit(uint256,uint256)"](first, last)
+                await expect(tx).to.emit(boostedDualVault, "RewardPaid")
                 await expect(tx)
-                    .to.emit(savingsVault, "Withdrawn")
+                    .to.emit(boostedDualVault, "Withdrawn")
                     .withArgs(sa.default.address, hunnit)
             })
         })
@@ -1419,23 +1492,23 @@ describe("BoostedDualVault", async () => {
             const stakeAmount = simpleToExactAmount(100, 18)
 
             before(async () => {
-                savingsVault = await redeployRewards()
+                boostedDualVault = await redeployRewards()
                 await expectSuccesfulFunding(fundAmount)
                 await expectSuccessfulStake(stakeAmount)
                 await increaseTime(10)
             })
             it("should revert for a non-staker", async () => {
-                await expect(savingsVault.connect(sa.dummy1.signer).withdraw(1)).to.be.revertedWith("VM Exception")
+                await expect(boostedDualVault.connect(sa.dummy1.signer).withdraw(1)).to.be.revertedWith("VM Exception")
             })
             it("should revert if insufficient balance", async () => {
-                await expect(savingsVault.connect(sa.default.signer).withdraw(stakeAmount.add(1))).to.be.revertedWith("VM Exception")
+                await expect(boostedDualVault.connect(sa.default.signer).withdraw(stakeAmount.add(1))).to.be.revertedWith("VM Exception")
             })
             it("should fail if trying to withdraw 0", async () => {
-                await expect(savingsVault.connect(sa.default.signer).withdraw(0)).to.be.revertedWith("Cannot withdraw 0")
+                await expect(boostedDualVault.connect(sa.default.signer).withdraw(0)).to.be.revertedWith("Cannot withdraw 0")
             })
             it("should withdraw the stake and update the existing reward accrual", async () => {
                 // Check that the user has earned something
-                const [earnedBefore] = await savingsVault.earned(sa.default.address)
+                const [earnedBefore] = await boostedDualVault.earned(sa.default.address)
                 expect(earnedBefore).to.be.gt(BN.from(0))
                 const dataBefore = await snapshotStakingData()
                 expect(dataBefore.userData.rewards).to.be.eq(BN.from(0))
@@ -1444,7 +1517,7 @@ describe("BoostedDualVault", async () => {
                 await expectStakingWithdrawal(stakeAmount)
 
                 // Ensure that the new awards are added + assigned to user
-                const [earnedAfter] = await savingsVault.earned(sa.default.address)
+                const [earnedAfter] = await boostedDualVault.earned(sa.default.address)
                 expect(earnedAfter).to.be.gte(earnedBefore)
                 const dataAfter = await snapshotStakingData()
                 expect(dataAfter.userData.rewards).to.be.eq(earnedAfter)
@@ -1453,13 +1526,13 @@ describe("BoostedDualVault", async () => {
                 await increaseTime(10)
 
                 // Check that the user does not earn anything else
-                const [earnedEnd] = await savingsVault.earned(sa.default.address)
+                const [earnedEnd] = await boostedDualVault.earned(sa.default.address)
                 expect(earnedEnd).to.be.eq(earnedAfter)
                 const dataEnd = await snapshotStakingData()
                 expect(dataEnd.userData.rewards).to.be.eq(dataAfter.userData.rewards)
 
                 // Cannot withdraw anything else
-                await expect(savingsVault.connect(sa.default.signer).withdraw(stakeAmount.add(1))).to.be.revertedWith("VM Exception")
+                await expect(boostedDualVault.connect(sa.default.signer).withdraw(stakeAmount.add(1))).to.be.revertedWith("VM Exception")
             })
         })
     })
@@ -1467,16 +1540,16 @@ describe("BoostedDualVault", async () => {
     context("notifying new reward amount", () => {
         context("from someone other than the distributor", () => {
             before(async () => {
-                savingsVault = await redeployRewards()
+                boostedDualVault = await redeployRewards()
             })
             it("should fail", async () => {
-                await expect(savingsVault.connect(sa.default.signer).notifyRewardAmount(1)).to.be.revertedWith(
+                await expect(boostedDualVault.connect(sa.default.signer).notifyRewardAmount(1)).to.be.revertedWith(
                     "Caller is not reward distributor",
                 )
-                await expect(savingsVault.connect(sa.dummy1.signer).notifyRewardAmount(1)).to.be.revertedWith(
+                await expect(boostedDualVault.connect(sa.dummy1.signer).notifyRewardAmount(1)).to.be.revertedWith(
                     "Caller is not reward distributor",
                 )
-                await expect(savingsVault.connect(sa.governor.signer).notifyRewardAmount(1)).to.be.revertedWith(
+                await expect(boostedDualVault.connect(sa.governor.signer).notifyRewardAmount(1)).to.be.revertedWith(
                     "Caller is not reward distributor",
                 )
             })
@@ -1485,12 +1558,12 @@ describe("BoostedDualVault", async () => {
             const funding1 = simpleToExactAmount(100, 18)
             const funding2 = simpleToExactAmount(200, 18)
             beforeEach(async () => {
-                savingsVault = await redeployRewards()
+                boostedDualVault = await redeployRewards()
             })
             it("should factor in unspent units to the new rewardRate", async () => {
                 // Do the initial funding
                 await expectSuccesfulFunding(funding1)
-                const actualRewardRate = await savingsVault.rewardRate()
+                const actualRewardRate = await boostedDualVault.rewardRate()
                 const expectedRewardRate = funding1.div(ONE_WEEK)
                 expect(expectedRewardRate).to.be.eq(actualRewardRate)
 
@@ -1500,7 +1573,7 @@ describe("BoostedDualVault", async () => {
                 // Do the second funding, and factor in the unspent units
                 const expectedLeftoverReward = funding1.div(2)
                 await expectSuccesfulFunding(funding2)
-                const actualRewardRateAfter = await savingsVault.rewardRate()
+                const actualRewardRateAfter = await boostedDualVault.rewardRate()
                 const totalRewardsForWeek = funding2.add(expectedLeftoverReward)
                 const expectedRewardRateAfter = totalRewardsForWeek.div(ONE_WEEK)
                 assertBNClose(actualRewardRateAfter, expectedRewardRateAfter, actualRewardRate.div(ONE_WEEK).mul(20))
@@ -1508,7 +1581,7 @@ describe("BoostedDualVault", async () => {
             it("should factor in unspent units to the new rewardRate if instant", async () => {
                 // Do the initial funding
                 await expectSuccesfulFunding(funding1)
-                const actualRewardRate = await savingsVault.rewardRate()
+                const actualRewardRate = await boostedDualVault.rewardRate()
                 const expectedRewardRate = funding1.div(ONE_WEEK)
                 expect(expectedRewardRate).to.be.eq(actualRewardRate)
 
@@ -1517,7 +1590,7 @@ describe("BoostedDualVault", async () => {
 
                 // Do the second funding, and factor in the unspent units
                 await expectSuccesfulFunding(funding2)
-                const actualRewardRateAfter = await savingsVault.rewardRate()
+                const actualRewardRateAfter = await boostedDualVault.rewardRate()
                 const expectedRewardRateAfter = funding1.add(funding2).div(ONE_WEEK)
                 assertBNClose(actualRewardRateAfter, expectedRewardRateAfter, actualRewardRate.div(ONE_WEEK).mul(20))
             })
@@ -1526,12 +1599,12 @@ describe("BoostedDualVault", async () => {
         context("after current period finish", () => {
             const funding1 = simpleToExactAmount(100, 18)
             before(async () => {
-                savingsVault = await redeployRewards()
+                boostedDualVault = await redeployRewards()
             })
             it("should start a new period with the correct rewardRate", async () => {
                 // Do the initial funding
                 await expectSuccesfulFunding(funding1)
-                const actualRewardRate = await savingsVault.rewardRate()
+                const actualRewardRate = await boostedDualVault.rewardRate()
                 const expectedRewardRate = funding1.div(ONE_WEEK)
                 expect(expectedRewardRate).to.be.eq(actualRewardRate)
 
@@ -1540,7 +1613,7 @@ describe("BoostedDualVault", async () => {
 
                 // Do the second funding, and factor in the unspent units
                 await expectSuccesfulFunding(funding1.mul(2))
-                const actualRewardRateAfter = await savingsVault.rewardRate()
+                const actualRewardRateAfter = await boostedDualVault.rewardRate()
                 const expectedRewardRateAfter = expectedRewardRate.mul(2)
                 expect(actualRewardRateAfter).to.be.eq(expectedRewardRateAfter)
             })
