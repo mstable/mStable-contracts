@@ -7,13 +7,13 @@ import { MassetDetails, MassetMachine, StandardAccounts } from "@utils/machines"
 import { DEAD_ADDRESS, MAX_UINT256, ONE_DAY, ONE_HOUR, ONE_WEEK, TEN_MINS, ZERO_ADDRESS } from "@utils/constants"
 import {
     Masset,
-    MockNexus,
     MockPlatformIntegration,
     MaliciousAaveIntegration,
     MaliciousAaveIntegration__factory,
     MockERC20,
     MockPlatformIntegration__factory,
     ExposedMasset,
+    MockNexus__factory,
 } from "types/generated"
 import { assertBNSlightlyGTPercent } from "@utils/assertions"
 import { keccak256, toUtf8Bytes } from "ethers/lib/utils"
@@ -284,7 +284,7 @@ describe("Feeder Admin", () => {
             const totalSupplyBefore = await mAsset.totalSupply()
 
             // 3.0 Check the SavingsManager in the mock Nexus contract
-            const nexus = (await ethers.getContractAt("MockNexus", await mAsset.nexus())) as MockNexus
+            const nexus = MockNexus__factory.connect(await mAsset.nexus(), sa.default.signer)
             const savingsManagerInNexus = await nexus.getModule(keccak256(toUtf8Bytes("SavingsManager")))
             expect(savingsManagerInNexus, "savingsManagerInNexus").to.eq(sa.mockSavingsManager.address)
 
@@ -320,7 +320,7 @@ describe("Feeder Admin", () => {
             const totalSupplyBefore = await details.mAsset.totalSupply()
 
             // 3.0 Check the SavingsManager in the mock Nexus contract
-            const nexus = (await ethers.getContractAt("MockNexus", await details.mAsset.nexus())) as MockNexus
+            const nexus = MockNexus__factory.connect(await details.mAsset.nexus(), sa.default.signer)
             const savingsManagerInNexus = await nexus.getModule(keccak256(toUtf8Bytes("SavingsManager")))
             expect(savingsManagerInNexus, "savingsManagerInNexus").eq(sa.mockSavingsManager.address)
 
@@ -390,14 +390,18 @@ describe("Feeder Admin", () => {
         beforeEach(async () => {
             await runSetup(false, false, true)
             ;[, , , transferringAsset] = details.bAssets
-            newMigration = await (await new MockPlatformIntegration__factory(sa.default.signer)).deploy(
+            newMigration = await (
+                await new MockPlatformIntegration__factory(sa.default.signer)
+            ).deploy(
                 DEAD_ADDRESS,
                 details.aavePlatformAddress,
                 details.bAssets.map((b) => b.address),
                 details.pTokens,
             )
             await newMigration.addWhitelist([details.mAsset.address])
-            maliciousIntegration = await (await new MaliciousAaveIntegration__factory(sa.default.signer)).deploy(
+            maliciousIntegration = await (
+                await new MaliciousAaveIntegration__factory(sa.default.signer)
+            ).deploy(
                 DEAD_ADDRESS,
                 details.aavePlatformAddress,
                 details.bAssets.map((b) => b.address),
@@ -495,7 +499,9 @@ describe("Feeder Admin", () => {
             await runSetup(true, false, false)
             const lendingDetail = await mAssetMachine.loadATokens(details.bAssets)
             ;[, , , transferringAsset] = details.bAssets
-            newMigration = await (await new MockPlatformIntegration__factory(sa.default.signer)).deploy(
+            newMigration = await (
+                await new MockPlatformIntegration__factory(sa.default.signer)
+            ).deploy(
                 DEAD_ADDRESS,
                 lendingDetail.aavePlatformAddress,
                 details.bAssets.map((b) => b.address),

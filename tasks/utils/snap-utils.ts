@@ -16,7 +16,6 @@ import {
     MV2,
     SavingsContract__factory,
     SavingsManager,
-    SavingsManager__factory,
     ValidatorWithTVLCap__factory,
 } from "types/generated"
 import { MusdEth } from "types/generated/MusdEth"
