@@ -14,7 +14,6 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Initializable } from "@openzeppelin/contracts/utils/Initializable.sol";
 
-
 /**
  * @title  StakingRewardsWithPlatformToken
  * @author Stability Labs Pty. Ltd.
@@ -23,8 +22,12 @@ import { Initializable } from "@openzeppelin/contracts/utils/Initializable.sol";
  * @dev    Derives from ./StakingRewards.sol and implements a secondary token into the core logic
  * @dev StakingRewardsWithPlatformToken is a StakingTokenWrapper and InitializableRewardsDistributionRecipient
  */
-contract StakingRewardsWithPlatformToken is Initializable, StakingTokenWrapper, IRewardsRecipientWithPlatformToken, InitializableRewardsDistributionRecipient {
-
+contract StakingRewardsWithPlatformToken is
+    Initializable,
+    StakingTokenWrapper,
+    IRewardsRecipientWithPlatformToken,
+    InitializableRewardsDistributionRecipient
+{
     using SafeERC20 for IERC20;
     using StableMath for uint256;
 
@@ -75,11 +78,7 @@ contract StakingRewardsWithPlatformToken is Initializable, StakingTokenWrapper, 
         address _rewardsToken,
         address _platformToken,
         uint256 _duration
-    )
-        public
-        StakingTokenWrapper(_stakingToken)
-        InitializableRewardsDistributionRecipient(_nexus)
-    {
+    ) public StakingTokenWrapper(_stakingToken) InitializableRewardsDistributionRecipient(_nexus) {
         rewardsToken = IERC20(_rewardsToken);
         platformToken = IERC20(_platformToken);
         DURATION = _duration;
@@ -106,10 +105,13 @@ contract StakingRewardsWithPlatformToken is Initializable, StakingTokenWrapper, 
     /** @dev Updates the reward for a given address, before executing function */
     modifier updateReward(address _account) {
         // Setting of global vars
-        (uint256 newRewardPerTokenStored, uint256 newPlatformRewardPerTokenStored) = rewardPerToken();
+        (
+            uint256 newRewardPerTokenStored,
+            uint256 newPlatformRewardPerTokenStored
+        ) = rewardPerToken();
 
         // If statement protects against loss in initialisation case
-        if(newRewardPerTokenStored > 0 || newPlatformRewardPerTokenStored > 0) {
+        if (newRewardPerTokenStored > 0 || newPlatformRewardPerTokenStored > 0) {
             rewardPerTokenStored = newRewardPerTokenStored;
             platformRewardPerTokenStored = newPlatformRewardPerTokenStored;
 
@@ -134,9 +136,7 @@ contract StakingRewardsWithPlatformToken is Initializable, StakingTokenWrapper, 
      * @dev Stakes a given amount of the StakingToken for the sender
      * @param _amount Units of StakingToken
      */
-    function stake(uint256 _amount)
-        external
-    {
+    function stake(uint256 _amount) external {
         _stake(msg.sender, _amount);
     }
 
@@ -145,9 +145,7 @@ contract StakingRewardsWithPlatformToken is Initializable, StakingTokenWrapper, 
      * @param _beneficiary Staked tokens are credited to this address
      * @param _amount      Units of StakingToken
      */
-    function stake(address _beneficiary, uint256 _amount)
-        external
-    {
+    function stake(address _beneficiary, uint256 _amount) external {
         _stake(_beneficiary, _amount);
     }
 
@@ -158,7 +156,8 @@ contract StakingRewardsWithPlatformToken is Initializable, StakingTokenWrapper, 
      * @param _amount      Units of StakingToken
      */
     function _stake(address _beneficiary, uint256 _amount)
-        internal override
+        internal
+        override
         updateReward(_beneficiary)
     {
         require(_amount > 0, "Cannot stake 0");
@@ -178,10 +177,7 @@ contract StakingRewardsWithPlatformToken is Initializable, StakingTokenWrapper, 
      * @dev Withdraws given stake amount from the pool
      * @param _amount Units of the staked token to withdraw
      */
-    function withdraw(uint256 _amount)
-        public
-        updateReward(msg.sender)
-    {
+    function withdraw(uint256 _amount) public updateReward(msg.sender) {
         require(_amount > 0, "Cannot withdraw 0");
         _withdraw(_amount);
         emit Withdrawn(msg.sender, _amount);
@@ -191,10 +187,7 @@ contract StakingRewardsWithPlatformToken is Initializable, StakingTokenWrapper, 
      * @dev Claims outstanding rewards (both platform and native) for the sender.
      * First updates outstanding reward allocation and then transfers.
      */
-    function claimReward()
-        public
-        updateReward(msg.sender)
-    {
+    function claimReward() public updateReward(msg.sender) {
         uint256 reward = _claimReward();
         uint256 platformReward = _claimPlatformReward();
         emit RewardPaid(msg.sender, reward, platformReward);
@@ -204,10 +197,7 @@ contract StakingRewardsWithPlatformToken is Initializable, StakingTokenWrapper, 
      * @dev Claims outstanding rewards for the sender. Only the native
      * rewards token, and not the platform rewards
      */
-    function claimRewardOnly()
-        public
-        updateReward(msg.sender)
-    {
+    function claimRewardOnly() public updateReward(msg.sender) {
         uint256 reward = _claimReward();
         emit RewardPaid(msg.sender, reward, 0);
     }
@@ -227,11 +217,15 @@ contract StakingRewardsWithPlatformToken is Initializable, StakingTokenWrapper, 
     /**
      * @dev Claims any outstanding platform reward tokens
      */
-    function _claimPlatformReward() internal returns (uint256)  {
+    function _claimPlatformReward() internal returns (uint256) {
         uint256 platformReward = platformRewards[msg.sender];
-        if(platformReward > 0) {
+        if (platformReward > 0) {
             platformRewards[msg.sender] = 0;
-            platformToken.safeTransferFrom(address(platformTokenVendor), msg.sender, platformReward);
+            platformToken.safeTransferFrom(
+                address(platformTokenVendor),
+                msg.sender,
+                platformReward
+            );
         }
         return platformReward;
     }
@@ -255,23 +249,14 @@ contract StakingRewardsWithPlatformToken is Initializable, StakingTokenWrapper, 
     /**
      * @dev Gets the PlatformToken
      */
-    function getPlatformToken()
-        external
-        view
-        override
-        returns (IERC20)
-    {
+    function getPlatformToken() external view override returns (IERC20) {
         return platformToken;
     }
 
     /**
      * @dev Gets the last applicable timestamp for this reward period
      */
-    function lastTimeRewardApplicable()
-        public
-        view
-        returns (uint256)
-    {
+    function lastTimeRewardApplicable() public view returns (uint256) {
         return StableMath.min(block.timestamp, periodFinish);
     }
 
@@ -279,11 +264,7 @@ contract StakingRewardsWithPlatformToken is Initializable, StakingTokenWrapper, 
      * @dev Calculates the amount of unclaimed rewards a user has earned
      * @return 'Reward' per staked token
      */
-    function rewardPerToken()
-        public
-        view
-        returns (uint256, uint256)
-    {
+    function rewardPerToken() public view returns (uint256, uint256) {
         // If there is no StakingToken liquidity, avoid div(0)
         uint256 stakedTokens = totalSupply();
         if (stakedTokens == 0) {
@@ -295,7 +276,9 @@ contract StakingRewardsWithPlatformToken is Initializable, StakingTokenWrapper, 
         uint256 platformRewardUnitsToDistribute = platformRewardRate * timeDelta;
         // new reward units per token = (rewardUnitsToDistribute * 1e18) / totalTokens
         uint256 unitsToDistributePerToken = rewardUnitsToDistribute.divPrecisely(stakedTokens);
-        uint256 platformUnitsToDistributePerToken = platformRewardUnitsToDistribute.divPrecisely(stakedTokens);
+        uint256 platformUnitsToDistributePerToken = platformRewardUnitsToDistribute.divPrecisely(
+            stakedTokens
+        );
         // return summed rate
         return (
             rewardPerTokenStored + unitsToDistributePerToken,
@@ -308,15 +291,12 @@ contract StakingRewardsWithPlatformToken is Initializable, StakingTokenWrapper, 
      * @param _account User address
      * @return Total reward amount earned
      */
-    function earned(address _account)
-        public
-        view
-        returns (uint256, uint256)
-    {
+    function earned(address _account) public view returns (uint256, uint256) {
         // current rate per token - rate user previously received
         (uint256 currentRewardPerToken, uint256 currentPlatformRewardPerToken) = rewardPerToken();
         uint256 userRewardDelta = currentRewardPerToken - userRewardPerTokenPaid[_account];
-        uint256 userPlatformRewardDelta = currentPlatformRewardPerToken - userPlatformRewardPerTokenPaid[_account];
+        uint256 userPlatformRewardDelta = currentPlatformRewardPerToken -
+            userPlatformRewardPerTokenPaid[_account];
         // new reward = staked tokens * difference in rate
         uint256 stakeBalance = balanceOf(_account);
         uint256 userNewReward = stakeBalance.mulTruncate(userRewardDelta);
@@ -327,7 +307,6 @@ contract StakingRewardsWithPlatformToken is Initializable, StakingTokenWrapper, 
             platformRewards[_account] + userNewPlatformReward
         );
     }
-
 
     /***************************************
                     ADMIN
@@ -347,7 +326,7 @@ contract StakingRewardsWithPlatformToken is Initializable, StakingTokenWrapper, 
         require(_reward < 1e24, "Cannot notify with more than a million units");
 
         uint256 newPlatformRewards = platformToken.balanceOf(address(this));
-        if(newPlatformRewards > 0){
+        if (newPlatformRewards > 0) {
             platformToken.safeTransfer(address(platformTokenVendor), newPlatformRewards);
         }
 
@@ -365,7 +344,7 @@ contract StakingRewardsWithPlatformToken is Initializable, StakingTokenWrapper, 
             rewardRate = (_reward + leftoverReward) / DURATION;
 
             uint256 leftoverPlatformReward = remaining * platformRewardRate;
-            platformRewardRate = (newPlatformRewards + leftoverPlatformReward)/ DURATION;
+            platformRewardRate = (newPlatformRewards + leftoverPlatformReward) / DURATION;
         }
 
         lastUpdateTime = currentTime;

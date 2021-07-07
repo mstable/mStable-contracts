@@ -16,8 +16,8 @@ import {
     MockERC20__factory,
     MockInitializableToken__factory,
     SavingsContract__factory,
-    BoostedSavingsVault__factory,
-    BoostedSavingsVault,
+    BoostedVault__factory,
+    BoostedVault,
     ERC20__factory,
     SaveWrapper__factory,
     RenWrapper__factory,
@@ -166,7 +166,7 @@ const mint = async (sender: Signer, bAssets: DeployedBasset[], mBTC: Masset) => 
 
 interface SaveContracts {
     savingContract: SavingsContract
-    savingsVault: BoostedSavingsVault
+    savingsVault: BoostedVault
 }
 
 const deploySave = async (
@@ -193,7 +193,7 @@ const deploySave = async (
 
     // Vault impl
     if (deployVault) {
-        const vImpl = await new BoostedSavingsVault__factory(sender).deploy(
+        const vImpl = await new BoostedVault__factory(sender).deploy(
             addresses.nexus,
             savingContract.address,
             addresses.boostDirector,
@@ -209,7 +209,7 @@ const deploySave = async (
         // Proxy
         const vProxy = await new AssetProxy__factory(sender).deploy(vImpl.address, addresses.proxyAdmin, vData)
         const receiptVaultProxy = await vProxy.deployTransaction.wait()
-        const savingsVault = await new BoostedSavingsVault__factory(sender).attach(vProxy.address)
+        const savingsVault = await new BoostedVault__factory(sender).attach(vProxy.address)
         console.log(`Deployed Vault Proxy to ${vProxy.address}. gas used ${receiptVaultProxy.gasUsed}`)
 
         // SaveWrapper
@@ -322,7 +322,7 @@ task("deployMBTC", "Deploys the mBTC contracts").setAction(async (_, hre) => {
 
     // Governance funcs to complete setup:
     //  - Add mBTC savingsContract to SavingsManager to enable interest collection
-    //  - Fund the BoostedSavingsVault with MTA to enable rewards
+    //  - Fund the BoostedVault with MTA to enable rewards
 })
 
 task("reDeployMBTC", "Re-deploys the mBTC contracts given bAsset addresses").setAction(async (_, hre) => {
@@ -406,7 +406,7 @@ task("reDeployMBTC", "Re-deploys the mBTC contracts given bAsset addresses").set
 
     // Governance funcs to complete setup:
     //  - Add mBTC savingsContract to SavingsManager to enable interest collection
-    //  - Fund the BoostedSavingsVault with MTA to enable rewards
+    //  - Fund the BoostedVault with MTA to enable rewards
 })
 
 task("deployMBTC-mainnet", "Deploys the mBTC contracts to Mainnet").setAction(async (_, hre) => {

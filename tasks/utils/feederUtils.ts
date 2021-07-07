@@ -11,7 +11,7 @@ import {
     ERC20,
     FeederLogic__factory,
     FeederManager__factory,
-    BoostedSavingsVault,
+    BoostedVault,
     MockERC20__factory,
     FeederWrapper,
     InterestValidator__factory,
@@ -21,7 +21,7 @@ import {
     AssetProxy__factory,
     MockERC20,
     FeederPool__factory,
-    BoostedSavingsVault__factory,
+    BoostedVault__factory,
     Masset__factory,
     MV2__factory,
     ExposedMasset,
@@ -82,7 +82,7 @@ interface FeederData {
     vaultSymbol: string
     priceCoeff: BN
     pool?: FeederPool
-    vault?: BoostedSavingsVault
+    vault?: BoostedVault
 }
 
 const COEFF = 48
@@ -164,7 +164,9 @@ const deployFeederPool = async (signer: Signer, feederData: FeederData): Promise
 const mint = async (sender: Signer, bAssets: DeployedFasset[], feederData: FeederData) => {
     // e.e. $4e18 * 1e18 / 1e18 = 4e18
     // e.g. 4e18 * 1e18 / 5e22 = 8e13 or 0.00008
-    const scaledTestQty = simpleToExactAmount(4).mul(simpleToExactAmount(1)).div(feederData.priceCoeff)
+    const scaledTestQty = simpleToExactAmount(4)
+        .mul(simpleToExactAmount(1))
+        .div(feederData.priceCoeff)
 
     // Approve spending
     const approvals: BN[] = []
@@ -222,9 +224,9 @@ const deployBoostedVault = async (
     vaultName: string,
     vaultSymbol: string,
     depositAmt = BN.from(0),
-): Promise<BoostedSavingsVault> => {
+): Promise<BoostedVault> => {
     const vImpl = await deployContract(
-        new BoostedSavingsVault__factory(sender),
+        new BoostedVault__factory(sender),
         `Vault Impl with LP token ${lpToken}, director ${addresses.boostDirector}, priceCoeff ${formatEther(
             priceCoeff,
         )}, coeff ${COEFF}, mta: ${addresses.mta}}`,
@@ -253,19 +255,19 @@ const deployBoostedVault = async (
             ).toString()}`,
         )
 
-        const vault = new BoostedSavingsVault__factory(sender).attach(vProxy.address)
+        const vault = new BoostedVault__factory(sender).attach(vProxy.address)
         const depositTx = await vault["stake(uint256)"](depositAmt)
         await logTxDetails(depositTx, "Depositing to vault")
     }
 
-    return BoostedSavingsVault__factory.connect(vProxy.address, sender)
+    return BoostedVault__factory.connect(vProxy.address, sender)
 }
 
 const approveFeederWrapper = async (
     sender: Signer,
     feederWrapper: FeederWrapper,
     feederPools: FeederPool[],
-    vaults: BoostedSavingsVault[],
+    vaults: BoostedVault[],
 ): Promise<void> => {
     // Get tokens to approve
     const len = feederPools.length

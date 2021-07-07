@@ -4,9 +4,9 @@ import { task, types } from "hardhat/config"
 import { DEAD_ADDRESS } from "@utils/constants"
 
 import { params } from "./taskUtils"
-import { AssetProxy__factory, BoostedSavingsVault__factory } from "../types/generated"
+import { AssetProxy__factory, BoostedVault__factory } from "../types/generated"
 
-task("BoostedSavingsVault.deploy", "Deploys a BoostedSavingsVault")
+task("BoostedVault.deploy", "Deploys a BoostedVault")
     .addParam("nexus", "Nexus address", undefined, params.address, false)
     .addParam("proxyAdmin", "ProxyAdmin address", undefined, params.address, false)
     .addParam("rewardsDistributor", "RewardsDistributor address", undefined, params.address, false)
@@ -43,7 +43,7 @@ task("BoostedSavingsVault.deploy", "Deploys a BoostedSavingsVault")
         ) => {
             const [deployer] = await ethers.getSigners()
 
-            const implementation = await new BoostedSavingsVault__factory(deployer).deploy(
+            const implementation = await new BoostedVault__factory(deployer).deploy(
                 nexus,
                 stakingToken,
                 DEAD_ADDRESS,
@@ -59,7 +59,7 @@ task("BoostedSavingsVault.deploy", "Deploys a BoostedSavingsVault")
             const assetProxy = await new AssetProxy__factory(deployer).deploy(implementation.address, proxyAdmin, data)
             const assetProxyDeployReceipt = await assetProxy.deployTransaction.wait()
 
-            await new BoostedSavingsVault__factory(deployer).attach(assetProxy.address)
+            await new BoostedVault__factory(deployer).attach(assetProxy.address)
 
             console.log(`Deployed Vault Proxy to ${assetProxy.address}. gas used ${assetProxyDeployReceipt.gasUsed}`)
         },
