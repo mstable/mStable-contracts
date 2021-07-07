@@ -21,6 +21,7 @@ export const contractNames = [
     "AaveIncentivesController",
     "AaveLendingPoolAddressProvider",
     "QuickSwapRouter",
+    "MStableYieldSource", // Used for PoolTogether
 ] as const
 export type ContractNames = typeof contractNames[number]
 
@@ -64,6 +65,8 @@ export const getNetworkAddress = (contractName: ContractNames, networkName = "ma
                 return "0x7C1fD068CE739A4687BEe9F69e5FD2275C7372d4"
             case "FeederInterestValidator":
                 return "0xf1049aeD858C4eAd6df1de4dbE63EF607CfF3262"
+            case "MStableYieldSource":
+                return "0xdB4C9f763A4B13CF2830DFe7c2854dADf5b96E99"
             default:
         }
     } else if (networkName === "polygon_mainnet" || hardhatConfig === "tasks-fork-polygon.config.ts") {
@@ -97,6 +100,8 @@ export const getNetworkAddress = (contractName: ContractNames, networkName = "ma
                 return "0xd05e3E715d945B59290df0ae8eF85c1BdB684744"
             case "QuickSwapRouter":
                 return "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff"
+            case "MStableYieldSource":
+                return "0x13bA0402f5047324B4279858298F56c30EA98753"
             default:
         }
     } else if (networkName === "polygon_testnet") {
