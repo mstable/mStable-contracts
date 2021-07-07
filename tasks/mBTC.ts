@@ -5,6 +5,7 @@ import { task, types } from "hardhat/config"
 import { BN } from "@utils/math"
 import { MusdEth__factory } from "types/generated/factories/MusdEth__factory"
 import { MusdEth } from "types/generated/MusdEth"
+import { SavingsManager__factory } from "types/generated"
 import { dumpBassetStorage, dumpConfigStorage, dumpTokenStorage } from "./utils/storage-utils"
 import {
     getMultiRedemptions,
@@ -23,7 +24,6 @@ import {
 import { Token, renBTC, sBTC, WBTC, mBTC, TBTC, HBTC } from "./utils/tokens"
 import { getSwapRates } from "./utils/rates-utils"
 import { getSigner } from "./utils/defender-utils"
-import { SavingsManager__factory } from "types/generated"
 import { getNetworkAddress } from "./utils/networkAddressFactory"
 
 const bAssets: Token[] = [renBTC, sBTC, WBTC]

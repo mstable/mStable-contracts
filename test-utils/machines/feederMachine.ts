@@ -1,5 +1,4 @@
 import { Signer } from "ethers"
-import { ethers } from "hardhat"
 import {
     AssetProxy__factory,
     FeederLogic,
@@ -16,6 +15,7 @@ import {
     MockATokenV2__factory,
     MockAaveV2__factory,
     Masset,
+    MockERC20__factory,
 } from "types/generated"
 import { BN, minimum, simpleToExactAmount } from "@utils/math"
 import { MainnetAccounts, ratioScale, ZERO_ADDRESS, DEAD_ADDRESS, fullScale } from "@utils/constants"
@@ -182,15 +182,18 @@ export class FeederMachine {
             }
         })
         const bAssetContracts: MockERC20[] = await Promise.all(
-            bArrays.map((b) => ethers.getContractAt("MockERC20", b.addr, this.sa.default.signer) as Promise<MockERC20>),
+            bArrays.map((b) => MockERC20__factory.connect(b.addr, this.sa.default.signer)),
         )
-        const integrators = (await Promise.all(
+        const integrators = await Promise.all(
             bArrays.map((b) =>
                 b.integratorAddr === ZERO_ADDRESS
                     ? null
-                    : ethers.getContractAt("MockPlatformIntegration", b.integratorAddr, this.sa.default.signer),
+                    : (MockPlatformIntegration__factory.connect(
+                          b.integratorAddr,
+                          this.sa.default.signer,
+                      ) as unknown as IPlatformIntegration),
             ),
-        )) as Array<IPlatformIntegration>
+        )
         return bArrays.map((b, i) => ({
             ...b,
             contract: bAssetContracts[i],
@@ -215,13 +218,13 @@ export class FeederMachine {
         } else {
             throw new Error(`Asset with address ${assetAddress} is not a fAsset, mAsset or mpAsset`)
         }
-        const assetContract = (await ethers.getContractAt("MockERC20", asset.personal.addr, this.sa.default.signer)) as MockERC20
+        const assetContract = MockERC20__factory.connect(asset.personal.addr, this.sa.default.signer)
         const integrator =
             asset.personal.integrator === ZERO_ADDRESS
                 ? null
-                : (((await new MockPlatformIntegration__factory(this.sa.default.signer).attach(
+                : ((await new MockPlatformIntegration__factory(this.sa.default.signer).attach(
                       asset.personal.integrator,
-                  )) as unknown) as IPlatformIntegration)
+                  )) as unknown as IPlatformIntegration)
         return {
             addr: asset.personal.addr,
             status: asset.personal.status,

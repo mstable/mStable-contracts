@@ -1,5 +1,4 @@
 import { Signer } from "ethers"
-import { ethers } from "hardhat"
 import {
     AssetProxy__factory,
     MockNexus__factory,
@@ -22,6 +21,7 @@ import {
     MassetManager,
     MassetLogic__factory,
     MassetManager__factory,
+    MockERC20__factory,
 } from "types/generated"
 import { BN, minimum, simpleToExactAmount } from "@utils/math"
 import { fullScale, MainnetAccounts, ratioScale, ZERO_ADDRESS, DEAD_ADDRESS } from "@utils/constants"
@@ -444,7 +444,7 @@ export class MassetMachine {
         // Proxy
         const data = await mockInitializableToken.interface.encodeFunctionData("initialize", [name, sym, dec, recipient, init])
         const mAssetProxy = await AssetProxyFactory.deploy(mockInitializableToken.address, this.sa.governor.address, data)
-        const mAsset = (await ethers.getContractAt("MockERC20", mAssetProxy.address)) as MockERC20
+        const mAsset = MockERC20__factory.connect(mAssetProxy.address, this.sa.default.signer)
         return mAsset
     }
 
@@ -483,9 +483,7 @@ export class MassetMachine {
      * @param bAssets
      * @returns
      */
-    public async loadATokens(
-        bAssets: MockERC20[],
-    ): Promise<{
+    public async loadATokens(bAssets: MockERC20[]): Promise<{
         aavePlatformAddress: Address
         aTokens?: Array<ATokenDetails>
     }> {
@@ -589,15 +587,18 @@ export class MassetMachine {
             }
         })
         const bAssetContracts: MockERC20[] = await Promise.all(
-            bArrays.map((b) => ethers.getContractAt("MockERC20", b.addr, this.sa.default.signer) as Promise<MockERC20>),
+            bArrays.map((b) => MockERC20__factory.connect(b.addr, this.sa.default.signer)),
         )
-        const integrators = (await Promise.all(
+        const integrators = await Promise.all(
             bArrays.map((b) =>
                 b.integratorAddr === ZERO_ADDRESS
                     ? null
-                    : ethers.getContractAt("MockPlatformIntegration", b.integratorAddr, this.sa.default.signer),
+                    : (MockPlatformIntegration__factory.connect(
+                          b.integratorAddr,
+                          this.sa.default.signer,
+                      ) as unknown as IPlatformIntegration),
             ),
-        )) as Array<IPlatformIntegration>
+        )
         return bArrays.map((b, i) => ({
             ...b,
             contract: bAssetContracts[i],
@@ -607,13 +608,13 @@ export class MassetMachine {
 
     public async getBasset(mAssetDetails: MassetDetails, bAssetAddress: string): Promise<Basset> {
         const bAsset = await mAssetDetails.mAsset.getBasset(bAssetAddress)
-        const bAssetContract = (await ethers.getContractAt("MockERC20", bAsset.personal.addr, this.sa.default.signer)) as MockERC20
+        const bAssetContract = MockERC20__factory.connect(bAsset.personal.addr, this.sa.default.signer)
         const integrator =
             bAsset.personal.integrator === ZERO_ADDRESS
                 ? null
-                : (((await new MockPlatformIntegration__factory(this.sa.default.signer).attach(
+                : ((await new MockPlatformIntegration__factory(this.sa.default.signer).attach(
                       bAsset.personal.integrator,
-                  )) as unknown) as IPlatformIntegration)
+                  )) as unknown as IPlatformIntegration)
         return {
             addr: bAsset.personal.addr,
             status: bAsset.personal.status,
