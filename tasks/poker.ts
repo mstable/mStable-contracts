@@ -7,7 +7,7 @@ import { Signer } from "ethers"
 import { Contract, Provider } from "ethers-multicall"
 import { gql, GraphQLClient } from "graphql-request"
 import { task, types } from "hardhat/config"
-import { BoostedSavingsVault__factory, Poker, Poker__factory } from "types/generated"
+import { BoostedVault__factory, Poker, Poker__factory } from "types/generated"
 import { getSigner } from "./utils/defender-utils"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { MTA, mUSD } from "./utils/tokens"
@@ -28,7 +28,13 @@ const calcBoost = (raw: BN, vMTA: BN, priceCoefficient: BN, boostCoeff: BN, deci
     let denom = parseFloat(formatUnits(scaledBalance))
     denom **= 0.875
     const flooredMTA = vMTA.gt(maxVMTA) ? maxVMTA : vMTA
-    let rhs = floor.add(flooredMTA.mul(boostCoeff).div(10).mul(fullScale).div(simpleToExactAmount(denom)))
+    let rhs = floor.add(
+        flooredMTA
+            .mul(boostCoeff)
+            .div(10)
+            .mul(fullScale)
+            .div(simpleToExactAmount(denom)),
+    )
     rhs = rhs.gt(minBoost) ? rhs : minBoost
     return rhs.gt(maxBoost) ? maxBoost : rhs
 }
@@ -64,7 +70,7 @@ task("over-boost", "Pokes accounts that are over boosted")
         const gqlClient = new GraphQLClient("https://api.thegraph.com/subgraphs/name/mstable/mstable-feeder-pools")
         const query = gql`
             {
-                boostedSavingsVaults {
+                BoostedVaults {
                     id
                     boostCoeff
                     priceCoeff
@@ -95,7 +101,7 @@ task("over-boost", "Pokes accounts that are over boosted")
         console.log(`Results for block number ${blockNumber}`)
 
         // Maps GQL to a list if accounts (addresses) in each vault
-        const vaultAccounts = gqlData.boostedSavingsVaults.map((vault) => vault.accounts.map((account) => account.id.split(".")[1]))
+        const vaultAccounts = gqlData.BoostedVaults.map((vault) => vault.accounts.map((account) => account.id.split(".")[1]))
         const accountsWithDuplicates = vaultAccounts.flat()
         const accountsUnique = [...new Set<string>(accountsWithDuplicates)]
         const vMtaBalancesMap = await getAccountBalanceMap(accountsUnique, MTA.vault, signer)
@@ -104,9 +110,9 @@ task("over-boost", "Pokes accounts that are over boosted")
             accounts: string[]
         }[] = []
         // For each Boosted Vault
-        for (const vault of gqlData.boostedSavingsVaults) {
+        for (const vault of gqlData.BoostedVaults) {
             if (vault.id === mUSD.vault.toLocaleLowerCase()) continue
-            const boostVault = BoostedSavingsVault__factory.connect(vault.id, signer)
+            const boostVault = BoostedVault__factory.connect(vault.id, signer)
             const priceCoeff = await boostVault.priceCoeff()
             const boostCoeff = await boostVault.boostCoeff()
 
@@ -117,14 +123,19 @@ task("over-boost", "Pokes accounts that are over boosted")
             console.log("Account, Raw Balance, Boosted Balance, Boost Balance USD, vMTA balance, Boost Actual, Boost Expected, Boost Diff")
             // For each account in the boosted savings vault
             vault.accounts.forEach((account) => {
-                const boostActual = BN.from(account.boostedBalance).mul(1000).div(account.rawBalance).toNumber()
+                const boostActual = BN.from(account.boostedBalance)
+                    .mul(1000)
+                    .div(account.rawBalance)
+                    .toNumber()
                 const accountId = account.id.split(".")[1]
                 const boostExpected = calcBoost(BN.from(account.rawBalance), vMtaBalancesMap[accountId], priceCoeff, boostCoeff)
                     .div(simpleToExactAmount(1, 15))
                     .toNumber()
                 const boostDiff = boostActual - boostExpected
                 // Calculate how much the boost balance is in USD = balance balance * price coefficient / 1e18
-                const boostBalanceUsd = BN.from(account.boostedBalance).mul(priceCoeff).div(simpleToExactAmount(1))
+                const boostBalanceUsd = BN.from(account.boostedBalance)
+                    .mul(priceCoeff)
+                    .div(simpleToExactAmount(1))
                 // Identify accounts with more than 20% over their boost and boost balance > 50,000 USD
                 if (boostDiff > minMtaDiff && boostBalanceUsd.gt(simpleToExactAmount(50000))) {
                     overBoosted.push({

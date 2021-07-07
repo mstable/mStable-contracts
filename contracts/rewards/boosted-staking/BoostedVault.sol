@@ -2,20 +2,18 @@
 pragma solidity 0.8.2;
 
 // Internal
-import { IBoostedVaultWithLockup } from "../interfaces/IBoostedVaultWithLockup.sol";
-import {
-    InitializableRewardsDistributionRecipient
-} from "../rewards/InitializableRewardsDistributionRecipient.sol";
+import { IBoostedVaultWithLockup } from "../../interfaces/IBoostedVaultWithLockup.sol";
+import { InitializableRewardsDistributionRecipient } from "../InitializableRewardsDistributionRecipient.sol";
 import { BoostedTokenWrapper } from "./BoostedTokenWrapper.sol";
-import { Initializable } from "../shared/@openzeppelin-2.5/Initializable.sol";
+import { Initializable } from "../../shared/@openzeppelin-2.5/Initializable.sol";
 
 // Libs
 import { IERC20, SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { StableMath } from "../shared/StableMath.sol";
+import { StableMath } from "../../shared/StableMath.sol";
 
 /**
- * @title  BoostedSavingsVault
+ * @title  BoostedVault
  * @author mStable
  * @notice Accrues rewards second by second, based on a users boosted balance
  * @dev    Forked from rewards/staking/StakingRewards.sol
@@ -25,7 +23,7 @@ import { StableMath } from "../shared/StableMath.sol";
  *          - Struct packing of common data
  *          - Searching for and claiming of unlocked rewards
  */
-contract BoostedSavingsVault is
+contract BoostedVault is
     IBoostedVaultWithLockup,
     Initializable,
     InitializableRewardsDistributionRecipient,
@@ -398,8 +396,11 @@ contract BoostedSavingsVault is
      * @return Total reward amount earned
      */
     function earned(address _account) public view override returns (uint256) {
-        uint256 newEarned =
-            _earned(_account, userData[_account].rewardPerTokenPaid, rewardPerToken());
+        uint256 newEarned = _earned(
+            _account,
+            userData[_account].rewardPerTokenPaid,
+            rewardPerToken()
+        );
         uint256 immediatelyUnlocked = newEarned.mulTruncate(UNLOCK);
         return immediatelyUnlocked + userData[_account].rewards;
     }

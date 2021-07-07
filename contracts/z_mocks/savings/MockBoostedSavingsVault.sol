@@ -3,8 +3,7 @@ pragma solidity 0.8.2;
 
 import { IBoostDirector } from "../../interfaces/IBoostDirector.sol";
 
-contract MockBoostedSavingsVault {
-
+contract MockBoostedVault {
     IBoostDirector public immutable boostDirector;
 
     event Poked(address indexed user);

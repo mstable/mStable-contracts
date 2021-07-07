@@ -18,7 +18,7 @@ task("SaveWrapper.approveMasset", "Sets approvals for a new mAsset")
     .addParam("fPools", "Feeder Pool addresses", undefined, params.addressArray, false)
     .addParam("fAssets", "fAsset addresses (corresponding to fPools)", undefined, params.addressArray, false)
     .addParam("save", "Save contract address (i.e. imAsset)", undefined, params.address, false)
-    .addParam("vault", "BoostedSavingsVault contract address", undefined, params.address, false)
+    .addParam("vault", "BoostedVault contract address", undefined, params.address, false)
     .setAction(
         async (
             {
