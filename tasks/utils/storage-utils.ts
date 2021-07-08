@@ -14,9 +14,9 @@ export const dumpTokenStorage = async (token: Masset | MusdEth | FeederPool, toB
 }
 
 // Get bAsset storage variables
-export const dumpBassetStorage = async (mAsset: Masset | MusdEth, toBlock: number): Promise<void> => {
+export const dumpBassetStorage = async (mAsset: Masset | MusdEth, block: number): Promise<void> => {
     const override = {
-        blockTag: toBlock,
+        blockTag: block,
     }
 
     console.log("\nbAssets")
@@ -34,9 +34,9 @@ export const dumpBassetStorage = async (mAsset: Masset | MusdEth, toBlock: numbe
 }
 
 // Get fAsset storage variables
-export const dumpFassetStorage = async (pool: FeederPool, toBlock: number): Promise<void> => {
+export const dumpFassetStorage = async (pool: FeederPool, bock: number): Promise<void> => {
     const override = {
-        blockTag: toBlock,
+        blockTag: bock,
     }
 
     console.log("\nbAssets")
@@ -54,9 +54,9 @@ export const dumpFassetStorage = async (pool: FeederPool, toBlock: number): Prom
 }
 
 // Get Masset storage variables
-export const dumpConfigStorage = async (mAsset: Masset | MusdEth | FeederPool, toBlock: number): Promise<void> => {
+export const dumpConfigStorage = async (mAsset: Masset | MusdEth | FeederPool, block: number): Promise<void> => {
     const override = {
-        blockTag: toBlock,
+        blockTag: block,
     }
 
     const invariantConfig = await mAsset.getConfig(override)
@@ -83,7 +83,7 @@ export const dumpConfigStorage = async (mAsset: Masset | MusdEth | FeederPool, t
             "\nSwapFee        : ",
             (
                 await mAsset.swapFee({
-                    blockTag: toBlock,
+                    blockTag: block,
                 })
             ).toString(),
         )
@@ -91,7 +91,7 @@ export const dumpConfigStorage = async (mAsset: Masset | MusdEth | FeederPool, t
             "RedemptionFee  : ",
             (
                 await mAsset.redemptionFee({
-                    blockTag: toBlock,
+                    blockTag: block,
                 })
             ).toString(),
         )
@@ -99,7 +99,7 @@ export const dumpConfigStorage = async (mAsset: Masset | MusdEth | FeederPool, t
             "Surplus        : ",
             (
                 await mAsset.surplus({
-                    blockTag: toBlock,
+                    blockTag: block,
                 })
             ).toString(),
         )

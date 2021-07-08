@@ -39,7 +39,7 @@ const getMasset = (signer: Signer, contractAddress = mBTC.address): MusdEth => M
 task("mBTC-storage", "Dumps mBTC's storage data")
     .addOptionalParam("block", "Block number to get storage from. (default: current block)", 0, types.int)
     .setAction(async (taskArgs, { ethers }) => {
-        const toBlockNumber = taskArgs.to ? taskArgs.to : await ethers.provider.getBlockNumber()
+        const toBlockNumber = taskArgs.block ? taskArgs.block : await ethers.provider.getBlockNumber()
         console.log(`Block number ${toBlockNumber}`)
         const signer = await getSigner(ethers)
 
