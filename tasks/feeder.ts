@@ -27,22 +27,27 @@ import { getSigner } from "./utils/defender-utils"
 import { logTxDetails } from "./utils"
 import { getNetworkAddress } from "./utils/networkAddressFactory"
 
-const getBalances = async (mAsset: Masset | FeederPool, toBlock: number, asset: Token): Promise<Balances> => {
-    const mAssetBalance = await mAsset.totalSupply({
-        blockTag: toBlock,
+const getBalances = async (
+    feederPool: Masset | FeederPool,
+    block: number,
+    asset: Token,
+    quantityFormatter: QuantityFormatter,
+): Promise<Balances> => {
+    const feederPoolBalance = await feederPool.totalSupply({
+        blockTag: block,
     })
-    const vaultBalance = await mAsset.balanceOf(asset.vault, {
-        blockTag: toBlock,
+    const vaultBalance = await feederPool.balanceOf(asset.vault, {
+        blockTag: block,
     })
-    const otherBalances = mAssetBalance.sub(vaultBalance)
+    const otherBalances = feederPoolBalance.sub(vaultBalance)
 
     console.log("\nHolders")
-    console.log(`Vault                      ${usdFormatter(vaultBalance)} ${vaultBalance.mul(100).div(mAssetBalance)}%`)
-    console.log(`Others                     ${usdFormatter(otherBalances)} ${otherBalances.mul(100).div(mAssetBalance)}%`)
-    console.log(`Total                      ${usdFormatter(mAssetBalance)}`)
+    console.log(`Vault                      ${quantityFormatter(vaultBalance)} ${vaultBalance.mul(100).div(feederPoolBalance)}%`)
+    console.log(`Others                     ${quantityFormatter(otherBalances)} ${otherBalances.mul(100).div(feederPoolBalance)}%`)
+    console.log(`Total                      ${quantityFormatter(feederPoolBalance)}`)
 
     return {
-        total: mAssetBalance,
+        total: feederPoolBalance,
         save: vaultBalance,
         earn: BN.from(0),
     }
@@ -139,7 +144,7 @@ task("feeder-snap", "Gets feeder transactions over a period of time")
             toBlock.blockNumber,
         )
 
-        const balances = await getBalances(feederPool, toBlock.blockNumber, fAsset)
+        const balances = await getBalances(feederPool, toBlock.blockNumber, fAsset, quantityFormatter)
 
         const collectedInterestSummary = await getCollectedInterest(
             fpAssets,
@@ -150,6 +155,9 @@ task("feeder-snap", "Gets feeder transactions over a period of time")
             quantityFormatter,
             balances.save,
         )
+
+        const data = await feederPool.data()
+        console.log(`\nPending gov fees ${quantityFormatter(data.pendingFees)}`)
 
         outputFees(
             mintSummary,

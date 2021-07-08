@@ -42,7 +42,7 @@ export const dumpBassetStorage = async (mAsset: Masset | MusdEth | MusdLegacy | 
         // Before the mUSD upgrade to MusdV3 where the bAssets were in a separate Basket Manager contract
         const basketManagerAddress = getNetworkAddress("BasketManager")
         const basketManager = BasketManager__factory.connect(basketManagerAddress, mAsset.signer)
-        const basket = await basketManager.getBassets()
+        const basket = await basketManager.getBassets(override)
         let i = 0
         for (const bAsset of basket.bAssets) {
             console.log(`bAsset with index ${i}`)
