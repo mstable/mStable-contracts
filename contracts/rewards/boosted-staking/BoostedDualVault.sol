@@ -137,7 +137,7 @@ contract BoostedDualVault is
             uint256 lastApplicableTime
         ) = _rewardPerToken();
         // If statement protects against loss in initialisation case
-        if (newRewardPerToken > 0) {
+        if (newRewardPerToken > 0 || newPlatformRewardPerToken > 0) {
             rewardPerTokenStored = newRewardPerToken;
             platformRewardPerTokenStored = newPlatformRewardPerToken;
             lastUpdateTime = lastApplicableTime;
