@@ -16,7 +16,7 @@ import { getSigner } from "./utils/defender-utils"
 import { logTxDetails } from "./utils/deploy-utils"
 import { getNetworkAddress } from "./utils/networkAddressFactory"
 import { usdFormatter } from "./utils"
-import { getBlockRange } from "./utils/snap-utils"
+import { getAaveTokens, getBlock, getBlockRange, getCompTokens } from "./utils/snap-utils"
 
 task("eject-stakers", "Ejects expired stakers from Meta staking contract (vMTA)")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
@@ -135,6 +135,19 @@ task("polly-dis-rewards", "Distributes MTA and WMATIC rewards to vaults on Polyg
 
         const tx3 = await rewardsDistributor.distributeRewards([PmUSD.vault], [mtaAmount], [wmaticAmount])
         await logTxDetails(tx3, `distributeRewards ${usdFormatter(mtaAmount)} MTA and ${usdFormatter(wmaticAmount)} WMATIC`)
+    })
+
+task("rewards", "Get Compound and Aave platform reward tokens")
+    .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, types.int)
+    .setAction(async (taskArgs, { ethers }) => {
+        const signer = await getSigner(ethers)
+
+        const block = await getBlock(ethers, taskArgs.block)
+
+        console.log(`\nGetting platform tokens at block ${block.blockNumber}, ${block.blockTime.toUTCString()}`)
+
+        await getCompTokens(signer, block)
+        await getAaveTokens(signer, block)
     })
 
 task("proxy-upgrades", "Proxy implementation changes")
