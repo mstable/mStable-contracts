@@ -24,8 +24,6 @@ import {
     getBalances,
     snapSave,
     getCollectedInterest,
-    getCompTokens,
-    getAaveTokens,
 } from "./utils/snap-utils"
 import { Token, sUSD, USDC, DAI, USDT, PUSDT, PUSDC, PDAI, mUSD, PmUSD, MmUSD, RmUSD } from "./utils/tokens"
 import { usdFormatter } from "./utils/quantity-formatters"
@@ -187,19 +185,6 @@ task("mUSD-rates", "mUSD rate comparison to Curve")
         console.log("      Qty Input     Output      Qty Out    Rate             Output    Rate   Diff      Arb$")
         await getSwapRates(bAssets, bAssets, mAsset, block.blockNumber, usdFormatter, network.name, BN.from(taskArgs.swapSize))
         await snapConfig(mAsset, block.blockNumber)
-    })
-
-task("rewards", "Get Compound and Aave platform reward tokens")
-    .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, types.int)
-    .setAction(async (taskArgs, { ethers }) => {
-        const signer = await getSigner(ethers)
-
-        const block = await getBlock(ethers, taskArgs.block)
-
-        console.log(`\nGetting platform tokens at block ${block.blockNumber}, ${block.blockTime.toUTCString()}`)
-
-        await getCompTokens(signer, block)
-        await getAaveTokens(signer, block)
     })
 
 module.exports = {}
