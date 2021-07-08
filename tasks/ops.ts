@@ -8,6 +8,7 @@ import {
     RewardsDistributor__factory,
     StakingRewards__factory,
     ERC20__factory,
+    AssetProxy__factory,
 } from "types/generated"
 import { simpleToExactAmount } from "@utils/math"
 import { PMTA, PmUSD, PWMATIC, tokens } from "./utils/tokens"
@@ -15,6 +16,7 @@ import { getSigner } from "./utils/defender-utils"
 import { logTxDetails } from "./utils/deploy-utils"
 import { getNetworkAddress } from "./utils/networkAddressFactory"
 import { usdFormatter } from "./utils"
+import { getBlockRange } from "./utils/snap-utils"
 
 task("eject-stakers", "Ejects expired stakers from Meta staking contract (vMTA)")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
@@ -133,6 +135,38 @@ task("polly-dis-rewards", "Distributes MTA and WMATIC rewards to vaults on Polyg
 
         const tx3 = await rewardsDistributor.distributeRewards([PmUSD.vault], [mtaAmount], [wmaticAmount])
         await logTxDetails(tx3, `distributeRewards ${usdFormatter(mtaAmount)} MTA and ${usdFormatter(wmaticAmount)} WMATIC`)
+    })
+
+task("proxy-upgrades", "Proxy implementation changes")
+    .addParam(
+        "asset",
+        "Token symbol of main or feeder pool asset. eg mUSD, mBTC, fpmBTC/HBTC or fpmUSD/GUSD",
+        undefined,
+        types.string,
+        false,
+    )
+    .addOptionalParam("from", "Block to query transaction events from. (default: deployment block)", 10148031, types.int)
+    .addOptionalParam("to", "Block to query transaction events to. (default: current block)", 0, types.int)
+    .setAction(async (taskArgs, { ethers }) => {
+        const asset = tokens.find((t) => t.symbol === taskArgs.asset)
+        if (!asset) {
+            console.error(`Failed to find main or feeder pool asset with token symbol ${taskArgs.asset}`)
+            process.exit(1)
+        }
+
+        const signer = await getSigner(ethers)
+
+        const { fromBlock, toBlock } = await getBlockRange(ethers, taskArgs.from, taskArgs.to)
+
+        const proxy = AssetProxy__factory.connect(asset.address, signer)
+
+        const filter = await proxy.filters.Upgraded()
+        const logs = await proxy.queryFilter(filter, fromBlock.blockNumber, toBlock.blockNumber)
+
+        console.log(`${asset.symbol} proxy ${asset.address}`)
+        logs.forEach((log: any) => {
+            console.log(`Upgraded at block ${log.blockNumber} to ${log.args.implementation}`)
+        })
     })
 
 module.exports = {}

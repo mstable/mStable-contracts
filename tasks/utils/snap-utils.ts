@@ -275,7 +275,7 @@ export const getMints = async (
     toBlock: number,
     quantityFormatter: QuantityFormatter,
 ): Promise<TxSummary> => {
-    const filter = await mAsset.filters.Minted(null, null, null, null, null)
+    const filter = mAsset.filters.Minted(null, null, null, null, null)
     const logs = await mAsset.queryFilter(filter, fromBlock, toBlock)
 
     console.log("\nMints")
@@ -308,7 +308,7 @@ export const getMultiMints = async (
     toBlock: number,
     quantityFormatter: QuantityFormatter,
 ): Promise<TxSummary> => {
-    const filter = await mAsset.filters.MintedMulti(null, null, null, null, null)
+    const filter = mAsset.filters.MintedMulti(null, null, null, null, null)
     const logs = await mAsset.queryFilter(filter, fromBlock, toBlock)
 
     console.log("\nMulti Mints")
@@ -343,7 +343,7 @@ export const getSwaps = async (
     toBlock: number,
     quantityFormatter: QuantityFormatter,
 ): Promise<TxSummary> => {
-    const filter = await mAsset.filters.Swapped(null, null, null, null, null, null)
+    const filter = mAsset.filters.Swapped(null, null, null, null, null, null)
     const logs = await mAsset.queryFilter(filter, fromBlock, toBlock)
 
     console.log("\nSwaps")
@@ -381,7 +381,7 @@ export const getRedemptions = async (
     toBlock: number,
     quantityFormatter: QuantityFormatter,
 ): Promise<TxSummary> => {
-    const filter = await mAsset.filters.Redeemed(null, null, null, null, null, null)
+    const filter = mAsset.filters.Redeemed(null, null, null, null, null, null)
     const logs = await mAsset.queryFilter(filter, fromBlock, toBlock)
 
     console.log("\nRedemptions")
@@ -416,7 +416,7 @@ export const getMultiRedemptions = async (
     toBlock: number,
     quantityFormatter: QuantityFormatter,
 ): Promise<TxSummary> => {
-    const filter = await mAsset.filters.RedeemedMulti(null, null, null, null, null, null)
+    const filter = mAsset.filters.RedeemedMulti(null, null, null, null, null, null)
     const logs = await mAsset.queryFilter(filter, fromBlock, toBlock)
 
     console.log("\nMulti Redemptions")
@@ -530,7 +530,7 @@ export const getLiquidatorInterest = async (
     toBlock: BlockInfo,
     quantityFormatter: QuantityFormatter,
 ): Promise<{ total: BN; count: number }> => {
-    const filter = await savingsManager.filters.LiquidatorDeposited(mAsset.address, null)
+    const filter = savingsManager.filters.LiquidatorDeposited(mAsset.address, null)
     const logs = await savingsManager.queryFilter(filter, fromBlock.blockNumber, toBlock.blockNumber)
 
     let total = BN.from(0)
@@ -554,7 +554,7 @@ export const getCollectedInterest = async (
     savingsBalance: BN,
 ): Promise<TxSummary> => {
     // Get MintedMulti events where the mAsset is the minter
-    const filter = await mAsset.filters.MintedMulti(mAsset.address, null, null, null, null)
+    const filter = mAsset.filters.MintedMulti(mAsset.address, null, null, null, null)
     const logs = await mAsset.queryFilter(filter, fromBlock.blockNumber, toBlock.blockNumber)
 
     console.log(`\nCollected Interest between ${fromBlock.blockTime.toUTCString()} and ${toBlock.blockTime.toUTCString()}`)
@@ -591,7 +591,7 @@ export const getCollectedInterest = async (
                 const scaledFee = applyDecimals(inputQuantity, bAssets[i].decimals)
                 platformFees[i] = platformFees[i].add(scaledFee)
                 totalPlatformInterest = totalPlatformInterest.add(scaledFee)
-                console.log(`   ${bAssets[i].symbol.padEnd(4)} ${quantityFormatter(inputQuantity, bAssets[i].decimals)}`)
+                console.log(`   ${bAssets[i].symbol.padEnd(4)} ${quantityFormatter(inputQuantity, bAssets[i]?.decimals || 18)}`)
             })
         } else {
             countTradingFees += 1
