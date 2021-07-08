@@ -27,9 +27,9 @@ import { StableMath } from "../../shared/StableMath.sol";
  */
 contract BoostedDualVault is
     IBoostedDualVaultWithLockup,
+    IRewardsRecipientWithPlatformToken,
     Initializable,
     InitializableRewardsDistributionRecipient,
-    IRewardsRecipientWithPlatformToken,
     BoostedTokenWrapper
 {
     using SafeERC20 for IERC20;
@@ -176,7 +176,7 @@ contract BoostedDualVault is
                         rewardPerTokenPaid: SafeCast.toUint128(newRewardPerToken),
                         rewards: SafeCast.toUint128(unlocked + data.rewards),
                         platformRewardPerTokenPaid: SafeCast.toUint128(newPlatformRewardPerToken),
-                        platformRewards: SafeCast.toUint128(platformEarned_),
+                        platformRewards: data.platformRewards + SafeCast.toUint128(platformEarned_),
                         lastAction: currentTime64,
                         rewardCount: data.rewardCount + 1
                     });
@@ -185,7 +185,7 @@ contract BoostedDualVault is
                         rewardPerTokenPaid: SafeCast.toUint128(newRewardPerToken),
                         rewards: data.rewards,
                         platformRewardPerTokenPaid: SafeCast.toUint128(newPlatformRewardPerToken),
-                        platformRewards: SafeCast.toUint128(platformEarned_),
+                        platformRewards: data.platformRewards + SafeCast.toUint128(platformEarned_),
                         lastAction: currentTime64,
                         rewardCount: data.rewardCount
                     });
