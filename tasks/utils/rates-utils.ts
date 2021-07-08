@@ -1,8 +1,11 @@
+/* eslint-disable no-restricted-syntax */
 import { applyDecimals, BN, simpleToExactAmount } from "@utils/math"
 import { FeederPool, ICurve__factory, Masset } from "types/generated"
 import { CurveRegistryExchange__factory } from "types/generated/factories/CurveRegistryExchange__factory"
 import { MusdEth } from "types/generated/MusdEth"
+import { MusdLegacy } from "types/generated/MusdLegacy"
 import { QuantityFormatter } from "./quantity-formatters"
+import { isMusdLegacy } from "./snap-utils"
 import { Token } from "./tokens"
 
 export interface Balances {
@@ -52,11 +55,9 @@ export const outputSwapRate = (swap: SwapRate, quantityFormatter: QuantityFormat
                 mOutputRaw,
                 outputToken.decimals,
                 12,
-            )} ${mBasicPoints.toString().padStart(4)}bps Curve ${quantityFormatter(
-                curveOutputRaw,
-                outputToken.decimals,
-                12,
-            )} ${curvePercent.toString().padStart(4)}bps ${diffOutputs.toString().padStart(3)}bps ${quantityFormatter(arbProfit, 18, 8)}`,
+            )} ${mBasicPoints.toString().padStart(4)}bps Curve ${quantityFormatter(curveOutputRaw, outputToken.decimals, 12)} ${curvePercent
+                .toString()
+                .padStart(4)}bps ${diffOutputs.toString().padStart(3)}bps ${quantityFormatter(arbProfit, 18, 8)}`,
         )
     } else {
         console.log(
@@ -72,12 +73,14 @@ export const outputSwapRate = (swap: SwapRate, quantityFormatter: QuantityFormat
 export const getSwapRates = async (
     inputTokens: Token[],
     outputTokens: Token[],
-    mAsset: Masset | MusdEth | FeederPool,
+    mAsset: Masset | MusdEth | MusdLegacy | FeederPool,
     toBlock: number,
     quantityFormatter: QuantityFormatter,
     networkName: string,
     inputAmount: BN | number | string = BN.from("1000"),
 ): Promise<SwapRate[]> => {
+    if (isMusdLegacy(mAsset)) return []
+
     const callOverride = {
         blockTag: toBlock,
     }

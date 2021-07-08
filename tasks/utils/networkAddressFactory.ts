@@ -18,6 +18,7 @@ export const contractNames = [
     "FeederLogic",
     "FeederWrapper",
     "FeederInterestValidator",
+    "BasketManager", // Legacy mUSD contract
     "AaveIncentivesController",
     "AaveLendingPoolAddressProvider",
     "QuickSwapRouter",
@@ -65,6 +66,8 @@ export const getNetworkAddress = (contractName: ContractNames, networkName = "ma
                 return "0x7C1fD068CE739A4687BEe9F69e5FD2275C7372d4"
             case "FeederInterestValidator":
                 return "0xf1049aeD858C4eAd6df1de4dbE63EF607CfF3262"
+            case "BasketManager":
+                return "0x66126B4aA2a1C07536Ef8E5e8bD4EfDA1FdEA96D"
             case "MStableYieldSource":
                 return "0xdB4C9f763A4B13CF2830DFe7c2854dADf5b96E99"
             default:

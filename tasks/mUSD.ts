@@ -7,8 +7,10 @@ import { Signer } from "ethers"
 
 import { Masset, Masset__factory, SavingsManager__factory } from "types/generated"
 import { BN } from "@utils/math"
-import { MusdEth } from "types/generated/MusdEth"
 import { MusdEth__factory } from "types/generated/factories/MusdEth__factory"
+import { MusdLegacy__factory } from "types/generated/factories/MusdLegacy__factory"
+import { MusdLegacy } from "types/generated/MusdLegacy"
+import { MusdEth } from "types/generated/MusdEth"
 import { dumpBassetStorage, dumpConfigStorage, dumpTokenStorage } from "./utils/storage-utils"
 import {
     getMultiRedemptions,
@@ -34,7 +36,10 @@ import { getNetworkAddress } from "./utils/networkAddressFactory"
 const mUsdBassets: Token[] = [sUSD, USDC, DAI, USDT]
 const mUsdPolygonBassets: Token[] = [PUSDC, PDAI, PUSDT]
 
-const getMasset = (signer: Signer, networkName: string): Masset | MusdEth => {
+// major mUSD upgrade to MusdV3 that changes the ABI
+export const musdUpgradeBlock = 12094376
+
+const getMasset = (signer: Signer, networkName: string, block: number): Masset | MusdEth | MusdLegacy => {
     if (networkName === "polygon_mainnet") {
         return Masset__factory.connect(PmUSD.address, signer)
     }
@@ -44,6 +49,10 @@ const getMasset = (signer: Signer, networkName: string): Masset | MusdEth => {
     if (networkName === "ropsten") {
         return MusdEth__factory.connect(RmUSD.address, signer)
     }
+    // The block mUSD was upgraded to the latest Masset with contract name (Musdv3)
+    if (block < musdUpgradeBlock) {
+        return MusdLegacy__factory.connect(mUSD.address, signer)
+    }
     return MusdEth__factory.connect(mUSD.address, signer)
 }
 
@@ -52,14 +61,14 @@ task("mUSD-storage", "Dumps mUSD's storage data")
     .setAction(async (taskArgs, { ethers, network }) => {
         const signer = await getSigner(ethers)
 
-        const toBlockNumber = taskArgs.block ? taskArgs.block : await ethers.provider.getBlockNumber()
-        console.log(`Block number ${toBlockNumber}`)
+        const blockNumber = taskArgs.block ? taskArgs.block : await ethers.provider.getBlockNumber()
+        console.log(`Block number ${blockNumber}`)
 
-        const mAsset = getMasset(signer, network.name)
+        const mAsset = getMasset(signer, network.name, blockNumber)
 
-        await dumpTokenStorage(mAsset, toBlockNumber)
-        await dumpBassetStorage(mAsset, toBlockNumber)
-        await dumpConfigStorage(mAsset, toBlockNumber)
+        await dumpTokenStorage(mAsset, blockNumber)
+        await dumpBassetStorage(mAsset, blockNumber)
+        await dumpConfigStorage(mAsset, blockNumber)
     })
 
 task("mUSD-snap", "Snaps mUSD")
@@ -83,11 +92,11 @@ task("mUSD-snap", "Snaps mUSD")
             exposedValidator = await massetFactory.deploy()
         }
 
-        const mAsset = getMasset(signer, network.name)
+        const { fromBlock, toBlock } = await getBlockRange(ethers, taskArgs.from, taskArgs.to)
+
+        const mAsset = getMasset(signer, network.name, toBlock.blockNumber)
         const savingsManagerAddress = getNetworkAddress("SavingsManager", network.name)
         const savingsManager = SavingsManager__factory.connect(savingsManagerAddress, signer)
-
-        const { fromBlock, toBlock } = await getBlockRange(ethers, taskArgs.from, taskArgs.to)
 
         const bAssets = network.name.includes("polygon") ? mUsdPolygonBassets : mUsdBassets
 
@@ -175,8 +184,8 @@ task("mUSD-rates", "mUSD rate comparison to Curve")
     .setAction(async (taskArgs, { ethers, network }) => {
         const signer = await getSigner(ethers)
 
-        const mAsset = await getMasset(signer, network.name)
         const block = await getBlock(ethers, taskArgs.block)
+        const mAsset = await getMasset(signer, network.name, block.blockNumber)
 
         console.log(`\nGetting rates for mUSD at block ${block.blockNumber}, ${block.blockTime.toUTCString()}`)
 

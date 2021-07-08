@@ -12,8 +12,6 @@ import {
     IUniswapV2Router02__factory,
     IUniswapV3Quoter__factory,
     Masset,
-    MV1,
-    MV2,
     SavingsContract__factory,
     SavingsManager,
     ValidatorWithTVLCap__factory,
@@ -22,6 +20,7 @@ import { MusdEth } from "types/generated/MusdEth"
 import { encodeUniswapPath } from "@utils/peripheral/uniswap"
 import { AaveStakedTokenV2__factory } from "types/generated/factories/AaveStakedTokenV2__factory"
 import { Comptroller__factory } from "types/generated/factories/Comptroller__factory"
+import { MusdLegacy } from "types/generated/MusdLegacy"
 import { QuantityFormatter, usdFormatter } from "./quantity-formatters"
 import { AAVE, COMP, DAI, GUSD, stkAAVE, sUSD, Token, USDC, USDT, WBTC } from "./tokens"
 
@@ -58,13 +57,23 @@ export interface SwapRate {
 }
 
 // Only the FeederPool has the redeemProportionately function
-export function isFeederPool(asset: Masset | MV1 | MV2 | MusdEth | FeederPool): asset is FeederPool {
+export function isFeederPool(asset: Masset | MusdEth | MusdLegacy | FeederPool): asset is FeederPool {
     return (asset as FeederPool).redeemProportionately !== undefined
 }
 
 // Only the mUSD deployed to Ethereum mainnet has the surplus function
-export function isMusdEth(asset: Masset | MV1 | MV2 | MusdEth | FeederPool): asset is MusdEth {
+export function isMusdEth(asset: Masset | MusdEth | MusdLegacy | FeederPool): asset is MusdEth {
     return (asset as MusdEth).surplus !== undefined
+}
+
+// mUSD before upgrade to the MusdV3 contract 0x15B2838Cd28cc353Afbe59385db3F366D8945AEe at block 12094376
+// mUSD implementations are
+// Initialized at block 10148035 to 0xB83A5a51df21321b365c918832E7E8f5DE686f7E
+// Upgraded at block 10463013 to 0xE4c5b1765BF420016027177289908C5A3Ea7668E
+// Upgraded at block 11516027 to 0xE0d0D052d5B1082E52C6b8422Acd23415c3DF1c4
+// Upgraded at block 12094376 to 0x15B2838Cd28cc353Afbe59385db3F366D8945AEe
+export function isMusdLegacy(asset: Masset | MusdEth | MusdLegacy | FeederPool): asset is MusdLegacy {
+    return (asset as MusdLegacy).getBasketManager !== undefined
 }
 
 export const getBlock = async (ethers, _blockNumber?: number): Promise<BlockInfo> => {
@@ -96,8 +105,9 @@ export const getBlockRange = async (ethers, fromBlockNumber: number, _toBlockNum
     }
 }
 
-export const snapConfig = async (asset: Masset | MusdEth | FeederPool, toBlock: number): Promise<void> => {
+export const snapConfig = async (asset: Masset | MusdEth | MusdLegacy | FeederPool, toBlock: number): Promise<void> => {
     let ampData
+    if (isMusdLegacy(asset)) return
     if (isMusdEth(asset)) {
         ampData = await asset.ampData()
     } else {
@@ -144,7 +154,7 @@ const getTvlCap = async (signer: Signer, tvlConfig: TvlConfig, toBlock: number):
 }
 
 export const getBasket = async (
-    asset: Masset | MV1 | MV2 | MusdEth | FeederPool,
+    asset: Masset | MusdEth | MusdLegacy | FeederPool,
     bAssetSymbols: string[],
     mAssetName = "mBTC",
     quantityFormatter: QuantityFormatter,
@@ -152,6 +162,7 @@ export const getBasket = async (
     tvlConfig?: TvlConfig,
     exposedLogic?: ExposedMassetLogic,
 ): Promise<void> => {
+    if (isMusdLegacy(asset)) return
     const bAssets = await asset.getBassets({
         blockTag: toBlock,
     })
@@ -227,11 +238,18 @@ export const getBasket = async (
 }
 
 export const getBalances = async (
-    mAsset: Masset | MusdEth,
+    mAsset: Masset | MusdEth | MusdLegacy,
     accounts: { name: string; address: string }[],
     quantityFormatter: QuantityFormatter,
     toBlock: number,
 ): Promise<Balances> => {
+    if (isMusdLegacy(mAsset)) {
+        return {
+            total: BN.from(0),
+            save: BN.from(0),
+            earn: BN.from(0),
+        }
+    }
     const mAssetBalance = await mAsset.totalSupply({
         blockTag: toBlock,
     })
@@ -270,7 +288,7 @@ export const getBalances = async (
 
 export const getMints = async (
     bAssets: Token[],
-    mAsset: Masset | MV1 | MV2 | MusdEth | FeederPool,
+    mAsset: Masset | MusdEth | MusdLegacy | FeederPool,
     fromBlock: number,
     toBlock: number,
     quantityFormatter: QuantityFormatter,
@@ -303,7 +321,7 @@ export const getMints = async (
 
 export const getMultiMints = async (
     bAssets: Token[],
-    mAsset: Masset | MV1 | MV2 | MusdEth | FeederPool,
+    mAsset: Masset | MusdEth | MusdLegacy | FeederPool,
     fromBlock: number,
     toBlock: number,
     quantityFormatter: QuantityFormatter,
@@ -338,7 +356,7 @@ export const getMultiMints = async (
 
 export const getSwaps = async (
     bAssets: Token[],
-    mAsset: Masset | MV1 | MV2 | MusdEth | FeederPool,
+    mAsset: Masset | MusdEth | MusdLegacy | FeederPool,
     fromBlock: number,
     toBlock: number,
     quantityFormatter: QuantityFormatter,
@@ -376,7 +394,7 @@ export const getSwaps = async (
 
 export const getRedemptions = async (
     bAssets: Token[],
-    mAsset: Masset | MV1 | MV2 | MusdEth | FeederPool,
+    mAsset: Masset | MusdEth | MusdLegacy | FeederPool,
     fromBlock: number,
     toBlock: number,
     quantityFormatter: QuantityFormatter,
@@ -411,11 +429,18 @@ export const getRedemptions = async (
 
 export const getMultiRedemptions = async (
     bAssets: Token[],
-    mAsset: Masset | MV1 | MV2 | MusdEth | FeederPool,
+    mAsset: Masset | MusdEth | MusdLegacy | FeederPool,
     fromBlock: number,
     toBlock: number,
     quantityFormatter: QuantityFormatter,
 ): Promise<TxSummary> => {
+    if (isMusdLegacy(mAsset)) {
+        return {
+            count: 0,
+            total: BN.from(0),
+            fees: BN.from(0),
+        }
+    }
     const filter = mAsset.filters.RedeemedMulti(null, null, null, null, null, null)
     const logs = await mAsset.queryFilter(filter, fromBlock, toBlock)
 
@@ -524,7 +549,7 @@ export const outputFees = (
 }
 
 export const getLiquidatorInterest = async (
-    mAsset: Masset | MV1 | MV2 | MusdEth | FeederPool,
+    mAsset: Masset | MusdEth | MusdLegacy | FeederPool,
     savingsManager: SavingsManager,
     fromBlock: BlockInfo,
     toBlock: BlockInfo,
@@ -546,7 +571,7 @@ export const getLiquidatorInterest = async (
 
 export const getCollectedInterest = async (
     bAssets: Token[],
-    mAsset: Masset | MV1 | MV2 | MusdEth | FeederPool,
+    mAsset: Masset | MusdEth | MusdLegacy | FeederPool,
     savingsManager: SavingsManager,
     fromBlock: BlockInfo,
     toBlock: BlockInfo,
