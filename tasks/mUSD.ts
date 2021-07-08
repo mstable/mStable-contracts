@@ -3,12 +3,12 @@
 import "ts-node/register"
 import "tsconfig-paths/register"
 import { task, types } from "hardhat/config"
-import { Contract, Signer } from "ethers"
+import { Signer } from "ethers"
 
 import { Masset, Masset__factory, SavingsManager__factory } from "types/generated"
 import { BN } from "@utils/math"
 import { MusdEth } from "types/generated/MusdEth"
-import mUsdEthAbi from "../contracts/masset/versions/mUsdEth.json"
+import { MusdEth__factory } from "types/generated/factories/MusdEth__factory"
 import { dumpBassetStorage, dumpConfigStorage, dumpTokenStorage } from "./utils/storage-utils"
 import {
     getMultiRedemptions,
@@ -44,9 +44,9 @@ const getMasset = (signer: Signer, networkName: string): Masset | MusdEth => {
         return Masset__factory.connect(MmUSD.address, signer)
     }
     if (networkName === "ropsten") {
-        return new Contract(RmUSD.address, mUsdEthAbi, signer) as MusdEth
+        return MusdEth__factory.connect(RmUSD.address, signer)
     }
-    return new Contract(mUSD.address, mUsdEthAbi, signer) as MusdEth
+    return MusdEth__factory.connect(mUSD.address, signer)
 }
 
 task("mUSD-storage", "Dumps mUSD's storage data")
@@ -54,7 +54,7 @@ task("mUSD-storage", "Dumps mUSD's storage data")
     .setAction(async (taskArgs, { ethers, network }) => {
         const signer = await getSigner(ethers)
 
-        const toBlockNumber = taskArgs.to ? taskArgs.to : await ethers.provider.getBlockNumber()
+        const toBlockNumber = taskArgs.block ? taskArgs.block : await ethers.provider.getBlockNumber()
         console.log(`Block number ${toBlockNumber}`)
 
         const mAsset = getMasset(signer, network.name)
