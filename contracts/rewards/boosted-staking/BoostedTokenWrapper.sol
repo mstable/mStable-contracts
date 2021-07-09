@@ -49,6 +49,7 @@ contract BoostedTokenWrapper is InitializableReentrancyGuard {
      * @param _stakingToken Wrapped token to be staked
      * @param _boostDirector vMTA boost director
      * @param _priceCoeff Rough price of a given LP token, to be used in boost calculations, where $1 = 1e18
+     * @param _boostCoeff  Boost coefficent using the the boost formula
      */
     constructor(
         address _stakingToken,
@@ -62,6 +63,10 @@ contract BoostedTokenWrapper is InitializableReentrancyGuard {
         boostCoeff = _boostCoeff;
     }
 
+    /**
+     * @param _nameArg token name. eg imUSD Vault or GUSD Feeder Pool Vault
+     * @param _symbolArg token symbol. eg v-imUSD or v-fPmUSD/GUSD
+     */
     function _initialize(string memory _nameArg, string memory _symbolArg) internal {
         _initializeReentrancyGuard();
         _name = _nameArg;

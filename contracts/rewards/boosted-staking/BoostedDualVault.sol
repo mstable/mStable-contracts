@@ -15,7 +15,7 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { StableMath } from "../../shared/StableMath.sol";
 
 /**
- * @title  BoostedVault
+ * @title  BoostedDualVault
  * @author mStable
  * @notice Accrues rewards second by second, based on a users boosted balance
  * @dev    Forked from rewards/staking/StakingRewards.sol
@@ -24,6 +24,7 @@ import { StableMath } from "../../shared/StableMath.sol";
  *          - `updateBoost` hook called after every external action to reset a users boost
  *          - Struct packing of common data
  *          - Searching for and claiming of unlocked rewards
+ *          - Add a second rewards token in the platform rewards
  */
 contract BoostedDualVault is
     IBoostedDualVaultWithLockup,
@@ -51,6 +52,7 @@ contract BoostedDualVault is
     /// @notice total raw balance
     uint256 public totalRaw;
 
+    /// @notice length of each staking period in seconds. 7 days = 604,800; 3 months = 7,862,400
     uint64 public constant DURATION = 7 days;
     /// @notice  Length of token lockup, after rewards are earned
     uint256 public constant LOCKUP = 26 weeks;
@@ -59,7 +61,7 @@ contract BoostedDualVault is
 
     /// @notice  Timestamp for current period finish
     uint256 public periodFinish;
-    /// @notice  RewardRate for the rest of the PERIOD
+    /// @notice  Reward rate for the rest of the period
     uint256 public rewardRate;
     /// @notice Platform reward rate for the rest of the period
     uint256 public platformRewardRate;
@@ -90,32 +92,45 @@ contract BoostedDualVault is
         uint128 rate;
     }
 
+    /**
+     * @param _nexus mStable system Nexus address
+     * @param _stakingToken token that is beinf rewarded for being staked. eg MTA, imUSD or fPmUSD/GUSD
+     * @param _boostDirector vMTA boost director
+     * @param _priceCoeff Rough price of a given LP token, to be used in boost calculations, where $1 = 1e18
+     * @param _boostCoeff  Boost coefficent using the the boost formula
+     * @param _rewardsToken first token that is being distributed as a reward. eg MTA
+     * @param _platformToken second token that is being distributed as a reward. eg FXS for FRAX
+     */
     constructor(
         address _nexus,
         address _stakingToken,
         address _boostDirector,
         uint256 _priceCoeff,
-        uint256 _coeff,
+        uint256 _boostCoeff,
         address _rewardsToken,
         address _platformToken
     )
         InitializableRewardsDistributionRecipient(_nexus)
-        BoostedTokenWrapper(_stakingToken, _boostDirector, _priceCoeff, _coeff)
+        BoostedTokenWrapper(_stakingToken, _boostDirector, _priceCoeff, _boostCoeff)
     {
         rewardsToken = IERC20(_rewardsToken);
         platformToken = IERC20(_platformToken);
     }
 
     /**
-     * @dev StakingRewards is a TokenWrapper and RewardRecipient
-     * Constants added to bytecode at deployTime to reduce SLOAD cost
+     * @dev Initialization function for upgradable proxy contract.
+     *      This function should be called via Proxy just after contract deployment.
+     *      To avoid variable shadowing appended `Arg` after arguments name.
+     * @param _rewardsDistributorArg mStable Reward Distributor contract address
+     * @param _nameArg token name. eg imUSD Vault or GUSD Feeder Pool Vault
+     * @param _symbolArg token symbol. eg v-imUSD or v-fPmUSD/GUSD
      */
     function initialize(
-        address _rewardsDistributor,
+        address _rewardsDistributorArg,
         string calldata _nameArg,
         string calldata _symbolArg
     ) external initializer {
-        InitializableRewardsDistributionRecipient._initialize(_rewardsDistributor);
+        InitializableRewardsDistributionRecipient._initialize(_rewardsDistributorArg);
         BoostedTokenWrapper._initialize(_nameArg, _symbolArg);
         platformTokenVendor = new PlatformTokenVendor(platformToken);
     }
