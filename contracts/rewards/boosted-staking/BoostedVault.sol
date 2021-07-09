@@ -39,24 +39,27 @@ contract BoostedVault is
     event Poked(address indexed user);
     event RewardPaid(address indexed user, uint256 reward);
 
+    /// @notice token the rewards are distributed in. eg MTA
     IERC20 public immutable rewardsToken;
 
+    /// @notice length of each staking period in seconds. 7 days = 604,800; 3 months = 7,862,400
     uint64 public constant DURATION = 7 days;
-    // Length of token lockup, after rewards are earned
+    /// @notice Length of token lockup, after rewards are earned
     uint256 public constant LOCKUP = 26 weeks;
-    // Percentage of earned tokens unlocked immediately
+    /// @notice Percentage of earned tokens unlocked immediately
     uint64 public constant UNLOCK = 33e16;
 
-    // Timestamp for current period finish
+    /// @notice Timestamp for current period finish
     uint256 public periodFinish;
-    // RewardRate for the rest of the PERIOD
+    /// @notice RewardRate for the rest of the period
     uint256 public rewardRate;
-    // Last time any user took action
+    /// @notice Last time any user took action
     uint256 public lastUpdateTime;
-    // Ever increasing rewardPerToken rate, based on % of total supply
+    /// @notice Ever increasing rewardPerToken rate, based on % of total supply
     uint256 public rewardPerTokenStored;
+
     mapping(address => UserData) public userData;
-    // Locked reward tracking
+    /// @notice Locked reward tracking
     mapping(address => Reward[]) public userRewards;
     mapping(address => uint64) public userClaim;
 
@@ -73,30 +76,42 @@ contract BoostedVault is
         uint128 rate;
     }
 
+    /**
+     * @param _nexus mStable system Nexus address
+     * @param _stakingToken token that is beinf rewarded for being staked. eg MTA, imUSD or fPmUSD/GUSD
+     * @param _boostDirector vMTA boost director
+     * @param _priceCoeff Rough price of a given LP token, to be used in boost calculations, where $1 = 1e18
+     * @param _boostCoeff  Boost coefficent using the the boost formula
+     * @param _rewardsToken first token that is being distributed as a reward. eg MTA
+     */
     constructor(
         address _nexus,
         address _stakingToken,
         address _boostDirector,
         uint256 _priceCoeff,
-        uint256 _coeff,
+        uint256 _boostCoeff,
         address _rewardsToken
     )
         InitializableRewardsDistributionRecipient(_nexus)
-        BoostedTokenWrapper(_stakingToken, _boostDirector, _priceCoeff, _coeff)
+        BoostedTokenWrapper(_stakingToken, _boostDirector, _priceCoeff, _boostCoeff)
     {
         rewardsToken = IERC20(_rewardsToken);
     }
 
     /**
-     * @dev StakingRewards is a TokenWrapper and RewardRecipient
-     * Constants added to bytecode at deployTime to reduce SLOAD cost
+     * @dev Initialization function for upgradable proxy contract.
+     *      This function should be called via Proxy just after contract deployment.
+     *      To avoid variable shadowing appended `Arg` after arguments name.
+     * @param _rewardsDistributorArg mStable Reward Distributor contract address
+     * @param _nameArg token name. eg imUSD Vault or GUSD Feeder Pool Vault
+     * @param _symbolArg token symbol. eg v-imUSD or v-fPmUSD/GUSD
      */
     function initialize(
-        address _rewardsDistributor,
+        address _rewardsDistributorArg,
         string calldata _nameArg,
         string calldata _symbolArg
     ) external initializer {
-        InitializableRewardsDistributionRecipient._initialize(_rewardsDistributor);
+        InitializableRewardsDistributionRecipient._initialize(_rewardsDistributorArg);
         BoostedTokenWrapper._initialize(_nameArg, _symbolArg);
     }
 
