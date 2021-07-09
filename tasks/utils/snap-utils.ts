@@ -607,15 +607,17 @@ export const getCollectedInterest = async (
         } else if (log.args.output && log.args.output.gt(0)) {
             quantity = log.args.output
         } else {
-            quantity = log.args.inputQuantities.reduce((sum, input) => sum + input, 0)
+            quantity = log.args.inputQuantities.reduce((sum, input, i) => {
+                const scaledFee = applyDecimals(input, bAssets[i].decimals)
+                platformFees[i] = platformFees[i].add(scaledFee)
+                return sum.add(scaledFee)
+            }, BN.from(0))
         }
         console.log(`${log.blockNumber} ${log.transactionHash} ${quantityFormatter(quantity)}`)
         if (log.args.inputQuantities.length) {
             countPlatformInterest += 1
+            totalPlatformInterest = totalPlatformInterest.add(quantity)
             log.args.inputQuantities.forEach((inputQuantity, i) => {
-                const scaledFee = applyDecimals(inputQuantity, bAssets[i].decimals)
-                platformFees[i] = platformFees[i].add(scaledFee)
-                totalPlatformInterest = totalPlatformInterest.add(scaledFee)
                 console.log(`   ${bAssets[i].symbol.padEnd(4)} ${quantityFormatter(inputQuantity, bAssets[i]?.decimals || 18)}`)
             })
         } else {
@@ -672,14 +674,14 @@ export const getCollectedInterest = async (
 
     const totalLiquidatorApy = calcApy(fromBlock.blockTime, toBlock.blockTime, liquidatorInterest, savingsBalance)
     console.log(
-        `Liquidator interest    ${quantityFormatter(liquidatorInterest)} ${formatUnits(
+        `Platform rewards       ${quantityFormatter(liquidatorInterest)} ${formatUnits(
             liquidatorInterest.mul(10000).div(total),
             2,
         )}% ${formatUnits(totalLiquidatorApy, 2)}APY`,
     )
 
     const totalApy = calcApy(fromBlock.blockTime, toBlock.blockTime, total, savingsBalance)
-    console.log(`Total interest         ${quantityFormatter(total)} ${formatUnits(totalApy)}APY`)
+    console.log(`Total interest         ${quantityFormatter(total)} ${formatUnits(totalApy, 2)}APY`)
     console.log(
         `Interest collections: ${countTradingFees} trading fee, ${countPlatformInterest} platform interest, ${countLiquidator} liquidator`,
     )
