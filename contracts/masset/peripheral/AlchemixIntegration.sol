@@ -1,40 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.2;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IAlchemixStakingPool } from "../../peripheral/Alchemix/IAlchemixStakingPool.sol";
 import { MassetHelpers } from "../../shared/MassetHelpers.sol";
 import { AbstractIntegration } from "./AbstractIntegration.sol";
-
-interface IStakingPools {
-    function claim(uint256 _poolId) external;
-
-    function deposit(uint256 _poolId, uint256 _depositAmount) external;
-
-    function exit(uint256 _poolId) external;
-
-    function getStakeTotalDeposited(address _account, uint256 _poolId)
-        external
-        view
-        returns (uint256);
-
-    function getStakeTotalUnclaimed(address _account, uint256 _poolId)
-        external
-        view
-        returns (uint256);
-
-    function getPoolRewardRate(uint256 _poolId) external view returns (uint256);
-
-    function getPoolRewardWeight(uint256 _poolId) external view returns (uint256);
-
-    function getPoolToken(uint256 _poolId) external view returns (address);
-
-    function reward() external view returns (address);
-
-    function tokenPoolIds(address _token) external view returns (uint256);
-
-    function withdraw(uint256 _poolId, uint256 _withdrawAmount) external;
-}
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @title   AlchemixIntegration
@@ -48,25 +19,28 @@ contract AlchemixIntegration is AbstractIntegration {
 
     event SkippedWithdrawal(address bAsset, uint256 amount);
     event RewardTokenApproved(address rewardToken, address account);
+    event RewardsClaimed();
 
     address public immutable rewardToken;
 
-    IStakingPools private immutable stakingPools;
+    IAlchemixStakingPool private immutable stakingPool;
 
     /**
      * @param _nexus            Address of the Nexus
      * @param _lp               Address of liquidity provider. eg mAsset or feeder pool
      * @param _rewardToken      Reward token, if any. eg ALCX
-     * @param _stakingPools     Alchemix StakingPools contract address
+     * @param _stakingPool      Alchemix StakingPools contract address
      */
     constructor(
         address _nexus,
         address _lp,
         address _rewardToken,
-        address _stakingPools
+        address _stakingPool
     ) AbstractIntegration(_nexus, _lp) {
+        require(_rewardToken != address(0), "Invalid reward token");
+        require(_stakingPool != address(0), "Invalid staking pool");
         rewardToken = _rewardToken;
-        stakingPools = IStakingPools(_stakingPools);
+        stakingPool = IAlchemixStakingPool(_stakingPool);
     }
 
     /***************************************
@@ -88,9 +62,14 @@ contract AlchemixIntegration is AbstractIntegration {
     /**
      *  @dev Claims any accrued rewardToken for a given bAsset staked
      */
-    function claim(address _bAsset) external onlyGovernor {
-        uint256 poolId = _getPoolIdFor(_bAsset);
-        stakingPools.claim(poolId);
+    function claimRewards(address _bAsset) external onlyGovernor {
+        uint256 len = bAssetsMapped.length;
+        for (uint256 i = 0; i < len; i++) {
+            uint256 poolId = _getPoolIdFor(bAssetsMapped[i]);
+            stakingPool.claim(poolId);
+        }
+
+        emit RewardsClaimed();
     }
 
     /***************************************
@@ -120,19 +99,19 @@ contract AlchemixIntegration is AbstractIntegration {
         if (isTokenFeeCharged) {
             // If we charge a fee, account for it
             uint256 prevBal = this.checkBalance(_bAsset);
-            stakingPools.deposit(poolId, _amount);
+            stakingPool.deposit(poolId, _amount);
             uint256 newBal = this.checkBalance(_bAsset);
             quantityDeposited = _min(quantityDeposited, newBal - prevBal);
         } else {
             // Else just deposit the amount
-            stakingPools.deposit(poolId, _amount);
+            stakingPool.deposit(poolId, _amount);
         }
 
-        emit Deposit(_bAsset, address(stakingPools), quantityDeposited);
+        emit Deposit(_bAsset, address(stakingPool), quantityDeposited);
     }
 
     /**
-     * @dev Withdraw a quantity of bAsset from Compound
+     * @dev Withdraw a quantity of bAsset from Alchemix
      * @param _receiver     Address to which the withdrawn bAsset should be sent
      * @param _bAsset       Address of the bAsset
      * @param _amount       Units of bAsset to withdraw
@@ -148,7 +127,7 @@ contract AlchemixIntegration is AbstractIntegration {
     }
 
     /**
-     * @dev Withdraw a quantity of bAsset from Compound
+     * @dev Withdraw a quantity of bAsset from Alchemix
      * @param _receiver     Address to which the withdrawn bAsset should be sent
      * @param _bAsset       Address of the bAsset
      * @param _amount       Units of bAsset to withdraw
@@ -183,18 +162,18 @@ contract AlchemixIntegration is AbstractIntegration {
             require(_amount == _totalAmount, "Cache inactive with tx fee");
             IERC20 b = IERC20(_bAsset);
             uint256 prevBal = b.balanceOf(address(this));
-            stakingPools.withdraw(poolId, _amount);
+            stakingPool.withdraw(poolId, _amount);
             uint256 newBal = b.balanceOf(address(this));
             userWithdrawal = _min(userWithdrawal, newBal - prevBal);
         } else {
             // Redeem Underlying bAsset amount
-            stakingPools.withdraw(poolId, _totalAmount);
+            stakingPool.withdraw(poolId, _totalAmount);
         }
 
         // Send redeemed bAsset to the receiver
         IERC20(_bAsset).safeTransfer(_receiver, userWithdrawal);
 
-        emit PlatformWithdrawal(_bAsset, address(stakingPools), _totalAmount, _amount);
+        emit PlatformWithdrawal(_bAsset, address(stakingPool), _totalAmount, _amount);
     }
 
     /**
@@ -223,7 +202,7 @@ contract AlchemixIntegration is AbstractIntegration {
      */
     function checkBalance(address _bAsset) external view override returns (uint256 balance) {
         uint256 poolId = _getPoolIdFor(_bAsset);
-        return stakingPools.getStakeTotalDeposited(address(this), poolId);
+        balance = stakingPool.getStakeTotalDeposited(address(this), poolId);
     }
 
     /***************************************
@@ -260,13 +239,13 @@ contract AlchemixIntegration is AbstractIntegration {
     ****************************************/
 
     /**
-     * @dev Get the cToken wrapped in the ICERC20 interface for this bAsset.
+     * @dev Get the Alchemix pool id for a bAsset.
      *      Fails if the pToken doesn't exist in our mappings.
      * @param _bAsset   Address of the bAsset
      * @return poolId   Corresponding Alchemix StakingPools poolId
      */
     function _getPoolIdFor(address _bAsset) internal view returns (uint256 poolId) {
-        poolId = stakingPools.tokenPoolIds(_bAsset);
+        poolId = stakingPool.tokenPoolIds(_bAsset);
         require(poolId > 0, "Asset not supported on Alchemix");
     }
 }

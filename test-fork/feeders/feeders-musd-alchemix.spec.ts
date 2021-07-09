@@ -151,7 +151,7 @@ context("mUSD Feeder Pool integration to Alchemix", () => {
         const alUsdInFpBefore = await alUsd.balanceOf(alUsdFp.address)
 
         // Migrate the alUSD
-        await alUsdFp.migrateBassets([alUsdAddress], alchemixIntegration.address)
+        await alUsdFp.connect(governor).migrateBassets([alUsdAddress], alchemixIntegration.address)
 
         // All alUSD in the FP should have moved to the integration contract
         expect(await alUsd.balanceOf(alchemixIntegration.address), "All alUSD in FP migrated to Integration").to.eq(alUsdInFpBefore)
