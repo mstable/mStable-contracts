@@ -20,12 +20,12 @@ import {
     outputFees,
     getCollectedInterest,
 } from "./utils/snap-utils"
-import { PFRAX, PmUSD, Token, tokens } from "./utils/tokens"
+import { Chain, PFRAX, PmUSD, Token, tokens } from "./utils/tokens"
 import { btcFormatter, QuantityFormatter, usdFormatter } from "./utils/quantity-formatters"
 import { getSwapRates } from "./utils/rates-utils"
 import { getSigner } from "./utils/defender-utils"
 import { logTxDetails } from "./utils"
-import { getNetworkAddress } from "./utils/networkAddressFactory"
+import { getChain, getChainAddress } from "./utils/networkAddressFactory"
 
 const getBalances = async (
     feederPool: Masset | FeederPool,
@@ -53,12 +53,10 @@ const getBalances = async (
     }
 }
 
-const getFeederPool = (signer: Signer, contractAddress: string): FeederPool => {
+const getFeederPool = (signer: Signer, contractAddress: string, chain = Chain.mainnet): FeederPool => {
     const linkedAddress = {
-        // FeederManager
-        __$60670dd84d06e10bb8a5ac6f99a1c0890c$__: getNetworkAddress("FeederManager"),
-        // FeederLogic
-        __$7791d1d5b7ea16da359ce352a2ac3a881c$__: getNetworkAddress("FeederLogic"),
+        __$60670dd84d06e10bb8a5ac6f99a1c0890c$__: getChainAddress("FeederManager", chain),
+        __$7791d1d5b7ea16da359ce352a2ac3a881c$__: getChainAddress("FeederLogic", chain),
     }
     const feederPoolFactory = new FeederPool__factory(linkedAddress, signer)
     return feederPoolFactory.attach(contractAddress)
@@ -83,7 +81,8 @@ const getQuantities = (fAsset: Token, _swapSize?: number): { quantityFormatter: 
 task("feeder-storage", "Dumps feeder contract storage data")
     .addOptionalParam("block", "Block number to get storage from. (default: current block)", 0, types.int)
     .addParam("fasset", "Token symbol of the feeder pool asset.  eg HBTC, TBTC, GUSD or BUSD", undefined, types.string, false)
-    .setAction(async (taskArgs, { ethers }) => {
+    .setAction(async (taskArgs, { ethers, network, hardhatArguments }) => {
+        const chain = getChain(network.name, hardhatArguments.config)
         const fAsset = tokens.find((t) => t.symbol === taskArgs.fasset)
         if (!fAsset) {
             console.error(`Failed to find feeder pool asset with token symbol ${taskArgs.fasset}`)
@@ -93,7 +92,7 @@ task("feeder-storage", "Dumps feeder contract storage data")
         const { blockNumber } = await getBlock(ethers, taskArgs.block)
 
         const signer = await getSigner(ethers)
-        const pool = getFeederPool(signer, fAsset.feederPool)
+        const pool = getFeederPool(signer, fAsset.feederPool, chain)
 
         await dumpTokenStorage(pool, blockNumber)
         await dumpFassetStorage(pool, blockNumber)
@@ -104,7 +103,8 @@ task("feeder-snap", "Gets feeder transactions over a period of time")
     .addOptionalParam("from", "Block to query transaction events from. (default: deployment block)", 12146627, types.int)
     .addOptionalParam("to", "Block to query transaction events to. (default: current block)", 0, types.int)
     .addParam("fasset", "Token symbol of the feeder pool asset. eg HBTC, TBTC, GUSD or BUSD", undefined, types.string, false)
-    .setAction(async (taskArgs, { ethers, network }) => {
+    .setAction(async (taskArgs, { ethers, network, hardhatArguments }) => {
+        const chain = getChain(network.name, hardhatArguments.config)
         const signer = await getSigner(ethers)
         const { fromBlock, toBlock } = await getBlockRange(ethers, taskArgs.from, taskArgs.to)
 
@@ -118,7 +118,7 @@ task("feeder-snap", "Gets feeder transactions over a period of time")
         const fpAssets = [mAsset, fAsset]
 
         const feederPool = getFeederPool(signer, fAsset.feederPool)
-        const savingsManagerAddress = getNetworkAddress("SavingsManager", network.name)
+        const savingsManagerAddress = getChainAddress("SavingsManager", chain)
         const savingsManager = SavingsManager__factory.connect(savingsManagerAddress, signer)
 
         const { quantityFormatter } = getQuantities(fAsset, taskArgs.swapSize)

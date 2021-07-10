@@ -24,7 +24,7 @@ import {
 import { Token, renBTC, sBTC, WBTC, mBTC, TBTC, HBTC } from "./utils/tokens"
 import { getSwapRates } from "./utils/rates-utils"
 import { getSigner } from "./utils/defender-utils"
-import { getNetworkAddress } from "./utils/networkAddressFactory"
+import { getChain, getChainAddress } from "./utils/networkAddressFactory"
 
 const bAssets: Token[] = [renBTC, sBTC, WBTC]
 
@@ -53,8 +53,9 @@ task("mBTC-storage", "Dumps mBTC's storage data")
 task("mBTC-snap", "Get the latest data from the mBTC contracts")
     .addOptionalParam("from", "Block to query transaction events from. (default: deployment block)", 12094461, types.int)
     .addOptionalParam("to", "Block to query transaction events to. (default: current block)", 0, types.int)
-    .setAction(async (taskArgs, { ethers, network }) => {
+    .setAction(async (taskArgs, { ethers, network, hardhatArguments }) => {
         const signer = await getSigner(ethers)
+        const chain = getChain(network.name, hardhatArguments.config)
 
         let exposedValidator
         if (network.name !== "mainnet") {
@@ -72,7 +73,7 @@ task("mBTC-snap", "Get the latest data from the mBTC contracts")
         }
 
         const mAsset = getMasset(signer)
-        const savingsManagerAddress = getNetworkAddress("SavingsManager", network.name)
+        const savingsManagerAddress = getChainAddress("SavingsManager", chain)
         const savingsManager = SavingsManager__factory.connect(savingsManagerAddress, signer)
 
         const { fromBlock, toBlock } = await getBlockRange(ethers, taskArgs.from, taskArgs.to)

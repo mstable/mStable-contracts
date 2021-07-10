@@ -205,6 +205,26 @@ export const MFRAX: Token = {
     parent: "MmUSD",
 }
 
+// Alchemix
+export const alUSD: Token = {
+    symbol: "alUSD",
+    address: "0xBC6DA0FE9aD5f3b0d58160288917AA56653660E9",
+    feederPool: undefined, // TODO add after deployment
+    integrator: undefined, // TODO add after deployment
+    vault: undefined, // TODO add after deployment
+    chain: Chain.mainnet,
+    decimals: 18,
+    quantityFormatter: "USD",
+    parent: "mUSD",
+}
+export const ALCX: Token = {
+    symbol: "ALCX",
+    address: "0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF",
+    chain: Chain.mainnet,
+    decimals: 18,
+    quantityFormatter: "USD",
+}
+
 // BTC
 export const renBTC: Token = {
     symbol: "renBTC",
@@ -321,4 +341,25 @@ export const cyMUSD: Token = {
     quantityFormatter: "USD",
 }
 
-export const tokens = [mUSD, mBTC, sUSD, USDC, USDT, DAI, GUSD, BUSD, renBTC, sBTC, WBTC, HBTC, TBTC, PFRAX, PmUSD, PUSDC, PUSDT, PDAI]
+export const tokens = [
+    mUSD,
+    mBTC,
+    sUSD,
+    USDC,
+    USDT,
+    DAI,
+    GUSD,
+    BUSD,
+    renBTC,
+    sBTC,
+    WBTC,
+    HBTC,
+    TBTC,
+    alUSD,
+    ALCX,
+    PFRAX,
+    PmUSD,
+    PUSDC,
+    PUSDT,
+    PDAI,
+]

@@ -14,7 +14,7 @@ import { simpleToExactAmount } from "@utils/math"
 import { PMTA, PmUSD, PWMATIC, tokens } from "./utils/tokens"
 import { getSigner } from "./utils/defender-utils"
 import { logTxDetails } from "./utils/deploy-utils"
-import { getNetworkAddress } from "./utils/networkAddressFactory"
+import { getChain, getChainAddress } from "./utils/networkAddressFactory"
 import { usdFormatter } from "./utils"
 import { getAaveTokens, getBlock, getBlockRange, getCompTokens } from "./utils/snap-utils"
 
@@ -22,8 +22,9 @@ task("eject-stakers", "Ejects expired stakers from Meta staking contract (vMTA)"
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
     .setAction(async (taskArgs, { ethers, hardhatArguments, network }) => {
         const signer = await getSigner(ethers, taskArgs.speed)
+        const chain = getChain(network.name, hardhatArguments.config)
 
-        const ejectorAddress = getNetworkAddress("Ejector", network.name, hardhatArguments.config)
+        const ejectorAddress = getChainAddress("Ejector", chain)
         const ejector = IEjector__factory.connect(ejectorAddress, signer)
         // TODO check the last time the eject was run
         // Check it's been more than 7 days since the last eject has been run
@@ -51,6 +52,8 @@ task("collect-interest", "Collects and streams interest from platforms")
     )
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
     .setAction(async (taskArgs, { ethers, hardhatArguments, network }) => {
+        const chain = getChain(network.name, hardhatArguments.config)
+
         const asset = tokens.find((t) => t.symbol === taskArgs.asset)
         if (!asset) {
             console.error(`Failed to find main or feeder pool asset with token symbol ${taskArgs.asset}`)
@@ -58,7 +61,7 @@ task("collect-interest", "Collects and streams interest from platforms")
         }
 
         const signer = await getSigner(ethers, taskArgs.speed)
-        const savingsManagerAddress = getNetworkAddress("SavingsManager", network.name, hardhatArguments.config)
+        const savingsManagerAddress = getChainAddress("SavingsManager", chain)
         const savingsManager = SavingsManager__factory.connect(savingsManagerAddress, signer)
 
         const lastBatchCollected = await savingsManager.lastBatchCollected(asset.address)
@@ -79,17 +82,18 @@ task("polly-daily", "Runs the daily jobs against the contracts on Polygon mainne
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, { ethers, hardhatArguments, network }) => {
         const signer = await getSigner(ethers, taskArgs.speed)
+        const chain = getChain(network.name, hardhatArguments.config)
 
         const aave = PAaveIntegration__factory.connect(PmUSD.integrator, signer)
         const aaveTx = await aave.claimRewards({ gasLimit: 200000 })
         await logTxDetails(aaveTx, "claimRewards")
 
-        const liquidatorAddress = getNetworkAddress("Liquidator", network.name, hardhatArguments.config)
+        const liquidatorAddress = getChainAddress("Liquidator", chain)
         const liquidator = PLiquidator__factory.connect(liquidatorAddress, signer)
         const liquidatorTx = await liquidator.triggerLiquidation(PmUSD.integrator, { gasLimit: 2000000 })
         await logTxDetails(liquidatorTx, "triggerLiquidation")
 
-        const savingsManagerAddress = getNetworkAddress("SavingsManager", network.name, hardhatArguments.config)
+        const savingsManagerAddress = getChainAddress("SavingsManager", chain)
         const savingsManager = SavingsManager__factory.connect(savingsManagerAddress, signer)
         const savingsManagerTx = await savingsManager.collectAndStreamInterest(PmUSD.address, {
             gasLimit: 2000000,
@@ -119,10 +123,12 @@ task("polly-dis-rewards", "Distributes MTA and WMATIC rewards to vaults on Polyg
     .addOptionalParam("wmaticAmount", "WMATIC tokens", 18666, types.int)
     .setAction(async (taskArgs, { ethers, hardhatArguments, network }) => {
         const signer = await getSigner(ethers, taskArgs.speed)
+        const chain = getChain(network.name, hardhatArguments.config)
+
         const mtaAmount = simpleToExactAmount(taskArgs.mtaAmount)
         const wmaticAmount = simpleToExactAmount(taskArgs.wmaticAmount)
 
-        const rewardsDistributorAddress = getNetworkAddress("RewardsDistributor", network.name, hardhatArguments.config)
+        const rewardsDistributorAddress = getChainAddress("RewardsDistributor", chain)
         const rewardsDistributor = RewardsDistributor__factory.connect(rewardsDistributorAddress, signer)
 
         const mtaToken = ERC20__factory.connect(PMTA.address, signer)

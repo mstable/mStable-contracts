@@ -4,8 +4,9 @@ import { FeederPool, Masset, MV1, MV2 } from "types/generated"
 import { BasketManager__factory } from "types/generated/factories/BasketManager__factory"
 import { MusdEth } from "types/generated/MusdEth"
 import { MusdLegacy } from "types/generated/MusdLegacy"
-import { getNetworkAddress } from "./networkAddressFactory"
+import { getChainAddress } from "./networkAddressFactory"
 import { isFeederPool, isMusdEth, isMusdLegacy } from "./snap-utils"
+import { Chain } from "./tokens"
 
 // Get mAsset token storage variables
 export const dumpTokenStorage = async (token: Masset | MusdEth | MusdLegacy | FeederPool, toBlock: number): Promise<void> => {
@@ -19,7 +20,11 @@ export const dumpTokenStorage = async (token: Masset | MusdEth | MusdLegacy | Fe
 }
 
 // Get bAsset storage variables
-export const dumpBassetStorage = async (mAsset: Masset | MusdEth | MusdLegacy | MV1 | MV2, block: number): Promise<void> => {
+export const dumpBassetStorage = async (
+    mAsset: Masset | MusdEth | MusdLegacy | MV1 | MV2,
+    block: number,
+    chain = Chain.mainnet,
+): Promise<void> => {
     const override = {
         blockTag: block,
     }
@@ -40,7 +45,7 @@ export const dumpBassetStorage = async (mAsset: Masset | MusdEth | MusdLegacy | 
         })
     } else {
         // Before the mUSD upgrade to MusdV3 where the bAssets were in a separate Basket Manager contract
-        const basketManagerAddress = getNetworkAddress("BasketManager")
+        const basketManagerAddress = getChainAddress("BasketManager", chain)
         const basketManager = BasketManager__factory.connect(basketManagerAddress, mAsset.signer)
         const basket = await basketManager.getBassets(override)
         let i = 0

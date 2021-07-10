@@ -12,7 +12,7 @@ export const deployContract = async <T extends Contract>(
     const ethUsed = contractReceipt.gasUsed.mul(contract.deployTransaction.gasPrice)
     const abiEncodedConstructorArgs = contract.interface.encodeDeploy(contractorArgs)
     console.log(`Deployed ${contractName} to ${contract.address}, gas used ${contractReceipt.gasUsed}, eth ${formatUnits(ethUsed)}`)
-    console.log(`ABI encoded args: ${abiEncodedConstructorArgs}`)
+    console.log(`ABI encoded args: ${abiEncodedConstructorArgs.slice(2)}`)
     return contract
 }
 

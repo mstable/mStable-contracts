@@ -783,7 +783,7 @@ export const getAaveTokens = async (signer: Signer, toBlock: BlockInfo, quantity
     const cooldownStart = await stkAaveToken.stakersCooldowns(liquidatorAddress, { blockTag: toBlock.blockNumber })
     const cooldownEnd = cooldownStart.add(ONE_DAY.mul(10))
     const colldownEndDate = new Date(cooldownEnd.toNumber() * 1000)
-    console.log(`Liquidator ${quantityFormatter(liquidatorStkAaveBal)} unlock ${colldownEndDate.toUTCString()}`)
+    console.log(`Liquidator ${quantityFormatter(liquidatorStkAaveBal)} unlock ${colldownEndDate.toUTCString()} (${cooldownStart})`)
 
     const aaveUsdc = await quoteSwap(signer, AAVE, USDC, totalStkAave, toBlock)
     console.log(

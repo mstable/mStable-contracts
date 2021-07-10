@@ -34,7 +34,8 @@ abstract contract AbstractIntegration is
         uint256 userAmount
     );
 
-    // LP has write access
+    /// @notice mAsset or Feeder Pool using the integration. eg fPmUSD/alUSD
+    /// @dev LP has write access
     address public immutable lpAddress;
 
     // bAsset => pToken (Platform Specific Token Address)
