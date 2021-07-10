@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.2;
 
-import { IAlchemixStakingPool } from "../../peripheral/Alchemix/IAlchemixStakingPool.sol";
+import { IAlchemixStakingPools } from "../../peripheral/Alchemix/IAlchemixStakingPools.sol";
 import { MassetHelpers } from "../../shared/MassetHelpers.sol";
 import { AbstractIntegration } from "./AbstractIntegration.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -17,35 +17,77 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 contract AlchemixIntegration is AbstractIntegration {
     using SafeERC20 for IERC20;
 
+    event AssetAdded(address _bAsset, uint256 poolId);
     event SkippedWithdrawal(address bAsset, uint256 amount);
     event RewardTokenApproved(address rewardToken, address account);
     event RewardsClaimed();
 
+    /// @notice token the staking rewards are accrued and claimed in.
     address public immutable rewardToken;
+    /// @notice Alchemix's StakingPools contract
+    IAlchemixStakingPools public immutable stakingPools;
 
-    IAlchemixStakingPool private immutable stakingPool;
+    /// @notice bAsset => Alchemix pool id
+    mapping(address => uint256) public bAssetToPoolId;
 
     /**
      * @param _nexus            Address of the Nexus
      * @param _lp               Address of liquidity provider. eg mAsset or feeder pool
      * @param _rewardToken      Reward token, if any. eg ALCX
-     * @param _stakingPool      Alchemix StakingPools contract address
+     * @param _stakingPools     Alchemix StakingPools contract address
      */
     constructor(
         address _nexus,
         address _lp,
         address _rewardToken,
-        address _stakingPool
+        address _stakingPools
     ) AbstractIntegration(_nexus, _lp) {
         require(_rewardToken != address(0), "Invalid reward token");
-        require(_stakingPool != address(0), "Invalid staking pool");
+        require(_stakingPools != address(0), "Invalid staking pools");
         rewardToken = _rewardToken;
-        stakingPool = IAlchemixStakingPool(_stakingPool);
+        stakingPools = IAlchemixStakingPools(_stakingPools);
+    }
+
+    /**
+     * @dev Simple initializer to add the first bAssets
+     * @param _bAssets array of base assets that can be staked in an Alchemix staking pool. eg alUSD
+     */
+    function initialize(address[] calldata _bAssets)
+        public
+        initializer
+    {
+        uint256 len = _bAssets.length;
+        for (uint256 i = 0; i < len; i++) {
+            address bAsset = _bAssets[i];
+            _addAsset(bAsset);
+        }
     }
 
     /***************************************
                     ADMIN
     ****************************************/
+
+    /**
+     * @dev add another asset that can be staked in an Alchemix staking pool.
+     * This method can only be called by the system Governor
+     * @param _bAsset   Address for the bAsset
+     */
+    function addAsset(address _bAsset) external onlyGovernor {
+        _addAsset(_bAsset);
+    }
+
+    function _addAsset(address _bAsset) internal {
+        require(_bAsset != address(0), "Invalid addresses");
+
+        uint256 poolId = _getPoolIdFor(_bAsset);
+        bAssetToPoolId[_bAsset] = poolId;
+        bAssetsMapped.push(_bAsset);
+
+        // approve staking pools contract to transfer bAssets on deposits
+        MassetHelpers.safeInfiniteApprove(_bAsset, address(stakingPools));
+
+        emit AssetAdded(_bAsset, poolId);
+    }
 
     /**
      * @dev Approves Liquidator to spend reward tokens
@@ -60,13 +102,13 @@ contract AlchemixIntegration is AbstractIntegration {
     }
 
     /**
-     *  @dev Claims any accrued rewardToken for a given bAsset staked
+     *  @dev Claims any accrued reward tokens for all the bAssets
      */
-    function claimRewards(address _bAsset) external onlyGovernor {
+    function claimRewards() external onlyGovernor {
         uint256 len = bAssetsMapped.length;
         for (uint256 i = 0; i < len; i++) {
-            uint256 poolId = _getPoolIdFor(bAssetsMapped[i]);
-            stakingPool.claim(poolId);
+            uint256 poolId = bAssetToPoolId[bAssetsMapped[i]];
+            stakingPools.claim(poolId);
         }
 
         emit RewardsClaimed();
@@ -92,22 +134,22 @@ contract AlchemixIntegration is AbstractIntegration {
     ) external override onlyLP nonReentrant returns (uint256 quantityDeposited) {
         require(_amount > 0, "Must deposit something");
 
-        uint256 poolId = _getPoolIdFor(_bAsset);
+        uint256 poolId = bAssetToPoolId[_bAsset];
 
         quantityDeposited = _amount;
 
         if (isTokenFeeCharged) {
             // If we charge a fee, account for it
             uint256 prevBal = this.checkBalance(_bAsset);
-            stakingPool.deposit(poolId, _amount);
+            stakingPools.deposit(poolId, _amount);
             uint256 newBal = this.checkBalance(_bAsset);
             quantityDeposited = _min(quantityDeposited, newBal - prevBal);
         } else {
             // Else just deposit the amount
-            stakingPool.deposit(poolId, _amount);
+            stakingPools.deposit(poolId, _amount);
         }
 
-        emit Deposit(_bAsset, address(stakingPool), quantityDeposited);
+        emit Deposit(_bAsset, address(stakingPools), quantityDeposited);
     }
 
     /**
@@ -154,7 +196,7 @@ contract AlchemixIntegration is AbstractIntegration {
         require(_totalAmount > 0, "Must withdraw something");
         require(_receiver != address(0), "Must specify recipient");
 
-        uint256 poolId = _getPoolIdFor(_bAsset);
+        uint256 poolId = bAssetToPoolId[_bAsset];
 
         uint256 userWithdrawal = _amount;
 
@@ -162,18 +204,18 @@ contract AlchemixIntegration is AbstractIntegration {
             require(_amount == _totalAmount, "Cache inactive with tx fee");
             IERC20 b = IERC20(_bAsset);
             uint256 prevBal = b.balanceOf(address(this));
-            stakingPool.withdraw(poolId, _amount);
+            stakingPools.withdraw(poolId, _amount);
             uint256 newBal = b.balanceOf(address(this));
             userWithdrawal = _min(userWithdrawal, newBal - prevBal);
         } else {
             // Redeem Underlying bAsset amount
-            stakingPool.withdraw(poolId, _totalAmount);
+            stakingPools.withdraw(poolId, _totalAmount);
         }
 
         // Send redeemed bAsset to the receiver
         IERC20(_bAsset).safeTransfer(_receiver, userWithdrawal);
 
-        emit PlatformWithdrawal(_bAsset, address(stakingPool), _totalAmount, _amount);
+        emit PlatformWithdrawal(_bAsset, address(stakingPools), _totalAmount, _amount);
     }
 
     /**
@@ -201,8 +243,8 @@ contract AlchemixIntegration is AbstractIntegration {
      * @return balance    Total value of the bAsset in the platform
      */
     function checkBalance(address _bAsset) external view override returns (uint256 balance) {
-        uint256 poolId = _getPoolIdFor(_bAsset);
-        balance = stakingPool.getStakeTotalDeposited(address(this), poolId);
+        uint256 poolId = bAssetToPoolId[_bAsset];
+        balance = stakingPools.getStakeTotalDeposited(address(this), poolId);
     }
 
     /***************************************
@@ -210,29 +252,21 @@ contract AlchemixIntegration is AbstractIntegration {
     ****************************************/
 
     /**
-     * @dev Re-approve the spending of all bAssets by their corresponding cToken,
+     * @dev Re-approve the spending of all bAssets by the staking pools contract,
      *      if for some reason is it necessary. Only callable through Governance.
      */
     function reApproveAllTokens() external onlyGovernor {
         uint256 bAssetCount = bAssetsMapped.length;
         for (uint256 i = 0; i < bAssetCount; i++) {
             address bAsset = bAssetsMapped[i];
-            address cToken = bAssetToPToken[bAsset];
-            MassetHelpers.safeInfiniteApprove(bAsset, cToken);
+            MassetHelpers.safeInfiniteApprove(bAsset, address(stakingPools));
         }
     }
 
     /**
-    FIXME do we need this?
-     * @dev Internal method to respond to the addition of new bAsset / cTokens
-     *      We need to approve the cToken and give it permission to spend the bAsset
-     * @param _bAsset Address of the bAsset to approve
-     * @param _cToken This cToken has the approval approval
+     * @dev Not used by the Alchemix integration but has to be implemented
      */
-    function _abstractSetPToken(address _bAsset, address _cToken) internal override {
-        // approve the pool to spend the bAsset
-        MassetHelpers.safeInfiniteApprove(_bAsset, _cToken);
-    }
+    function _abstractSetPToken(address _unused1, address _unused2) internal override {}
 
     /***************************************
                     HELPERS
@@ -240,12 +274,13 @@ contract AlchemixIntegration is AbstractIntegration {
 
     /**
      * @dev Get the Alchemix pool id for a bAsset.
-     *      Fails if the pToken doesn't exist in our mappings.
-     * @param _bAsset   Address of the bAsset
-     * @return poolId   Corresponding Alchemix StakingPools poolId
+     * @param _asset   Address of the integrated asset
+     * @return poolId   Corresponding Alchemix staking pool identifier
      */
-    function _getPoolIdFor(address _bAsset) internal view returns (uint256 poolId) {
-        poolId = stakingPool.tokenPoolIds(_bAsset);
-        require(poolId > 0, "Asset not supported on Alchemix");
+    function _getPoolIdFor(address _asset) internal view returns (uint256 poolId) {
+        poolId = stakingPools.tokenPoolIds(_asset);
+        require(poolId >= 1, "Asset not supported on Alchemix");
+        // Take one off the poolId
+        poolId = poolId - 1;
     }
 }

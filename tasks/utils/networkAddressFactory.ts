@@ -1,3 +1,5 @@
+import { Chain } from "./tokens"
+
 export const contractNames = [
     "Nexus",
     "DelayedProxyAdmin",
@@ -21,13 +23,14 @@ export const contractNames = [
     "BasketManager", // Legacy mUSD contract
     "AaveIncentivesController",
     "AaveLendingPoolAddressProvider",
+    "AlchemixStakingPool",
     "QuickSwapRouter",
     "MStableYieldSource", // Used for PoolTogether
 ] as const
 export type ContractNames = typeof contractNames[number]
 
-export const getNetworkAddress = (contractName: ContractNames, networkName = "mainnet", hardhatConfig?: string): string => {
-    if (networkName === "mainnet" || hardhatConfig === "tasks-fork.config.ts") {
+export const getChainAddress = (contractName: ContractNames, chain: Chain): string => {
+    if (chain === Chain.mainnet) {
         switch (contractName) {
             case "Nexus":
                 return "0xAFcE80b19A8cE13DEc0739a1aaB7A028d6845Eb3"
@@ -68,11 +71,15 @@ export const getNetworkAddress = (contractName: ContractNames, networkName = "ma
                 return "0xf1049aeD858C4eAd6df1de4dbE63EF607CfF3262"
             case "BasketManager":
                 return "0x66126B4aA2a1C07536Ef8E5e8bD4EfDA1FdEA96D"
+            case "AaveLendingPoolAddressProvider":
+                return "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5"
+            case "AlchemixStakingPool":
+                return "0xAB8e74017a8Cc7c15FFcCd726603790d26d7DeCa"
             case "MStableYieldSource":
                 return "0xdB4C9f763A4B13CF2830DFe7c2854dADf5b96E99"
             default:
         }
-    } else if (networkName === "polygon_mainnet" || hardhatConfig === "tasks-fork-polygon.config.ts") {
+    } else if (chain === Chain.polygon) {
         switch (contractName) {
             case "Nexus":
                 return "0x3C6fbB8cbfCB75ecEC5128e9f73307f2cB33f2f6"
@@ -107,7 +114,7 @@ export const getNetworkAddress = (contractName: ContractNames, networkName = "ma
                 return "0x13bA0402f5047324B4279858298F56c30EA98753"
             default:
         }
-    } else if (networkName === "polygon_testnet") {
+    } else if (chain === Chain.mumbai) {
         switch (contractName) {
             case "Nexus":
                 return "0xCB4aabDb4791B35bDc9348bb68603a68a59be28E"
@@ -124,7 +131,7 @@ export const getNetworkAddress = (contractName: ContractNames, networkName = "ma
                 return "0xeB2A92Cc1A9dC337173B10cAbBe91ecBc805C98B"
             default:
         }
-    } else if (networkName === "ropsten") {
+    } else if (chain === Chain.ropsten) {
         switch (contractName) {
             case "Nexus":
                 return "0xeD04Cd19f50F893792357eA53A549E23Baf3F6cB"
@@ -134,7 +141,25 @@ export const getNetworkAddress = (contractName: ContractNames, networkName = "ma
         }
     }
 
-    throw Error(
-        `Failed to find contract address for contract name ${contractName} on the ${networkName} network and config Hardhat ${hardhatConfig}`,
-    )
+    return undefined
+}
+
+export const getChain = (networkName: string, hardhatConfig?: string): Chain => {
+    if (networkName === "mainnet" || hardhatConfig === "tasks-fork.config.ts") {
+        return Chain.mainnet
+    }
+    if (networkName === "polygon_mainnet" || hardhatConfig === "tasks-fork-polygon.config.ts") {
+        return Chain.polygon
+    }
+    if (networkName === "polygon_testnet") {
+        return Chain.mumbai
+    }
+    if (networkName === "ropsten") {
+        return Chain.ropsten
+    }
+}
+
+export const getNetworkAddress = (contractName: ContractNames, networkName = "mainnet", hardhatConfig?: string): string => {
+    const chain = getChain(networkName, hardhatConfig)
+    return getChainAddress(contractName, chain)
 }

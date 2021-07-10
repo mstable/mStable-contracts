@@ -31,7 +31,7 @@ import { Token, sUSD, USDC, DAI, USDT, PUSDT, PUSDC, PDAI, mUSD, PmUSD, MmUSD, R
 import { usdFormatter } from "./utils/quantity-formatters"
 import { getSwapRates } from "./utils/rates-utils"
 import { getSigner } from "./utils"
-import { getNetworkAddress } from "./utils/networkAddressFactory"
+import { getChain, getChainAddress } from "./utils/networkAddressFactory"
 
 const mUsdBassets: Token[] = [sUSD, USDC, DAI, USDT]
 const mUsdPolygonBassets: Token[] = [PUSDC, PDAI, PUSDT]
@@ -74,8 +74,9 @@ task("mUSD-storage", "Dumps mUSD's storage data")
 task("mUSD-snap", "Snaps mUSD")
     .addOptionalParam("from", "Block to query transaction events from. (default: deployment block)", 12094461, types.int)
     .addOptionalParam("to", "Block to query transaction events to. (default: current block)", 0, types.int)
-    .setAction(async (taskArgs, { ethers, network }) => {
+    .setAction(async (taskArgs, { ethers, hardhatArguments, network }) => {
         const signer = await getSigner(ethers)
+        const chain = getChain(network.name, hardhatArguments.config)
 
         let exposedValidator
         if (!["mainnet", "polygon_mainnet"].includes(network.name)) {
@@ -95,7 +96,7 @@ task("mUSD-snap", "Snaps mUSD")
         const { fromBlock, toBlock } = await getBlockRange(ethers, taskArgs.from, taskArgs.to)
 
         const mAsset = getMasset(signer, network.name, toBlock.blockNumber)
-        const savingsManagerAddress = getNetworkAddress("SavingsManager", network.name)
+        const savingsManagerAddress = getChainAddress("SavingsManager", chain)
         const savingsManager = SavingsManager__factory.connect(savingsManagerAddress, signer)
 
         const bAssets = network.name.includes("polygon") ? mUsdPolygonBassets : mUsdBassets

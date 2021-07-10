@@ -3,175 +3,94 @@
 import "ts-node/register"
 import "tsconfig-paths/register"
 
-import { DEAD_ADDRESS, ZERO_ADDRESS } from "@utils/constants"
 import { task, types } from "hardhat/config"
-import {
-    FeederPool__factory,
-    FeederLogic__factory,
-    MockERC20__factory,
-    CompoundIntegration__factory,
-    CompoundIntegration,
-    RewardsDistributor__factory,
-    RewardsDistributor,
-} from "types/generated"
-import { simpleToExactAmount, BN } from "@utils/math"
-import { BUSD, CREAM, cyMUSD, FRAX, GUSD, MFRAX, MmUSD, MTA, mUSD, PFRAX, PMTA, PmUSD } from "./utils/tokens"
+import { FeederPool__factory, CompoundIntegration__factory, CompoundIntegration } from "types/generated"
+import { simpleToExactAmount } from "@utils/math"
+import { BUSD, CREAM, cyMUSD, GUSD, mUSD, tokens } from "./utils/tokens"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { getSigner } from "./utils/defender-utils"
-import { CommonAddresses, deployBoostedFeederPools, Pair } from "./utils/feederUtils"
+import { deployFeederPool, deployVault, FeederData, VaultData } from "./utils/feederUtils"
+import { getChain } from "./utils/networkAddressFactory"
 
-task("fSize", "Gets the bytecode size of the FeederPool.sol contract").setAction(async (_, { ethers }) => {
-    const deployer = await getSigner(ethers)
-    const linkedAddress = {
-        __$60670dd84d06e10bb8a5ac6f99a1c0890c$__: DEAD_ADDRESS,
-        __$7791d1d5b7ea16da359ce352a2ac3a881c$__: DEAD_ADDRESS,
-    }
-    // Implementation
-    const feederPoolFactory = new FeederPool__factory(linkedAddress, deployer)
-    let size = feederPoolFactory.bytecode.length / 2 / 1000
-    if (size > 24.576) {
-        console.error(`FeederPool size is ${size} kb: ${size - 24.576} kb too big`)
-    } else {
-        console.log(`FeederPool = ${size} kb`)
-    }
-
-    const logic = await new FeederLogic__factory(deployer)
-    size = logic.bytecode.length / 2 / 1000
-    console.log(`FeederLogic = ${size} kb`)
-
-    // External linked library
-    const manager = await ethers.getContractFactory("FeederManager")
-    size = manager.bytecode.length / 2 / 1000
-    console.log(`FeederManager = ${size} kb`)
-})
-
-task("deployBoostedFeeder", "Deploys feeder pools with vMTA boost")
+task("deployFeederPool", "Deploy Feeder Pool")
+    .addParam("masset", "Token symbol of mAsset. eg mUSD or PmUSD for Polygon", "mUSD", types.string)
+    .addParam("fasset", "Token symbol of Feeder Pool asset. eg GUSD, WBTC, PFRAX for Polygon", "alUSD", types.string)
+    .addOptionalParam("a", "Amplitude coefficient (A)", 100, types.int)
+    .addOptionalParam("min", "Minimum asset weight of the basket as a percentage. eg 10 for 10% of the basket.", 10, types.int)
+    .addOptionalParam("max", "Maximum asset weight of the basket as a percentage. eg 90 for 90% of the basket.", 90, types.int)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
     .setAction(async (taskArgs, { hardhatArguments, ethers, network }) => {
-        const deployer = await getSigner(ethers, taskArgs.speed)
+        const signer = await getSigner(ethers, taskArgs.speed)
+        const chain = getChain(network.name, hardhatArguments.config)
 
-        let addresses: CommonAddresses
-        const pairs: Pair[] = []
-        if (network.name === "mainnet" || hardhatArguments.config === "tasks-fork.config.ts") {
-            addresses = {
-                mta: MTA.address,
-                staking: MTA.savings, // vMTA
-                nexus: "0xafce80b19a8ce13dec0739a1aab7a028d6845eb3",
-                proxyAdmin: "0x5c8eb57b44c1c6391fc7a8a0cf44d26896f92386",
-                rewardsDistributor: "0x04dfdfa471b79cc9e6e8c355e6c71f8ec4916c50",
-                aave: "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5",
-                boostDirector: "0x8892d7A5e018cdDB631F4733B5C1654e9dE10aaF",
-                feederLogic: "0x2837C77527c37d61D9763F53005211dACB4125dE",
-                feederManager: "0x90aE544E8cc76d2867987Ee4f5456C02C50aBd8B",
-                feederRouter: "0xdc66115Be4eaA30FE8Ca3b262bB8E3FF889F3A35",
-                interestValidator: "0xf1049aeD858C4eAd6df1de4dbE63EF607CfF3262", // new version replaces 0x98c54fd8c98eaf0938c4a00e7935a66341f7ba0e
-            }
-            pairs.push({
-                mAsset: mUSD,
-                fAsset: FRAX,
-                aToken: ZERO_ADDRESS,
-                priceCoeff: simpleToExactAmount(1),
-                A: BN.from(100),
-            })
-        } else if (network.name === "polygon_mainnet" || hardhatArguments.config === "tasks-fork-polygon.config.ts") {
-            addresses = {
-                mta: PMTA.address,
-                nexus: "0x3C6fbB8cbfCB75ecEC5128e9f73307f2cB33f2f6",
-                proxyAdmin: "0xCb6E4B67f2cac15c284AB49B6a4A671cdfe66711",
-                rewardsDistributor: "0xC42cF11c1A8768FB8306623C6f682AE966e08f0a",
-                feederManager: "0xa0adbAcBc179EF9b1a9436376a590b72d1d7bfbf",
-                feederLogic: "0xc929E040b6C8F2fEFE6B45c6bFEB55508554F3E2",
-                interestValidator: "0x4A268958BC2f0173CDd8E0981C4c0a259b5cA291",
-                boostDirector: ZERO_ADDRESS,
-            }
-            pairs.push({
-                mAsset: PmUSD,
-                fAsset: PFRAX,
-                aToken: ZERO_ADDRESS,
-                priceCoeff: simpleToExactAmount(1),
-                A: BN.from(100),
-            })
-        } else if (network.name === "polygon_testnet" || hardhatArguments.config === "tasks-fork-polygon-testnet.config.ts") {
-            addresses = {
-                mta: PMTA.address,
-                nexus: "0xCB4aabDb4791B35bDc9348bb68603a68a59be28E",
-                proxyAdmin: "0x41E4fF04e6f931f6EA71C7138A79a5B2B994eF19",
-                rewardsDistributor: "0x61cFA4D69Fb52e5aA7870749d91f3ec1fDce8819",
-                feederManager: "0x7c290A7cdF2516Ca14A0A928E81032bE00C311b0",
-                feederLogic: "0x096bE47CF32A829904C3741d272620E8745F051F",
-                interestValidator: "0x644252F179499DF2dE22b14355f677d2b2E21509",
-                boostDirector: ZERO_ADDRESS,
-            }
-            pairs.push({
-                mAsset: MmUSD,
-                fAsset: MFRAX,
-                aToken: ZERO_ADDRESS,
-                priceCoeff: simpleToExactAmount(1),
-                A: BN.from(100),
-            })
-        } else if (network.name === "ropsten") {
-            addresses = {
-                mta: "0x273bc479E5C21CAA15aA8538DecBF310981d14C0",
-                staking: "0x77f9bf80e0947408f64faa07fd150920e6b52015",
-                nexus: "0xeD04Cd19f50F893792357eA53A549E23Baf3F6cB",
-                proxyAdmin: "0x2d369F83E9DC764a759a74e87a9Bc542a2BbfdF0",
-                rewardsDistributor: "0x99B62B75E3565bEAD786ddBE2642E9c40aA33465",
-            }
-        } else {
-            addresses = {
-                mta: DEAD_ADDRESS,
-                staking: (await new MockERC20__factory(deployer).deploy("Stake", "ST8", 18, DEAD_ADDRESS, 1)).address,
-                nexus: DEAD_ADDRESS,
-                proxyAdmin: DEAD_ADDRESS,
-                rewardsDistributor: DEAD_ADDRESS,
-            }
+        const mAsset = tokens.find((t) => t.address === taskArgs.masset)
+        if (!mAsset) throw Error(`Could not find mAsset token with symbol ${taskArgs.masset}`)
+        const fAsset = tokens.find((t) => t.address === taskArgs.fasset)
+        if (!fAsset) throw Error(`Could not find Feeder Pool token with symbol ${taskArgs.fasset}`)
+
+        if (taskArgs.a < 10 || taskArgs.min > 5000) throw Error(`Invalid amplitude coefficient (A) ${taskArgs.a}`)
+        if (taskArgs.min < 0 || taskArgs.min > 50) throw Error(`Invalid min limit ${taskArgs.min}`)
+        if (taskArgs.max < 50 || taskArgs.max > 100) throw Error(`Invalid max limit ${taskArgs.min}`)
+
+        const poolData: FeederData = {
+            mAsset,
+            fAsset,
+            name: `${mAsset.symbol}/${fAsset.symbol} Feeder Pool`,
+            symbol: `fP${mAsset.symbol}/${fAsset.symbol}`,
+            config: {
+                a: taskArgs.a,
+                limits: {
+                    min: simpleToExactAmount(taskArgs.min, 16),
+                    max: simpleToExactAmount(taskArgs.max, 16),
+                },
+            },
         }
 
-        if (!addresses.rewardsDistributor) {
-            const fundManagerAddress = "0x437E8C54Db5C66Bb3D80D2FF156e9bfe31a017db"
-            const distributor = await deployContract<RewardsDistributor>(new RewardsDistributor__factory(deployer), "RewardsDistributor", [
-                addresses.nexus,
-                [fundManagerAddress],
-            ])
-            addresses.rewardsDistributor = distributor.address
+        // Deploy Feeder Pool
+        await deployFeederPool(signer, poolData, chain)
+    })
+
+task("deployVault", "Deploy Feeder Pool with boosted dual vault")
+    .addParam("name", "Token name of the vault. eg mUSD/alUSD fPool Vault", undefined, types.string)
+    .addParam("symbol", "Token symbol of the vault. eg v-fPmUSD/alUSD", undefined, types.string)
+    .addParam("boosted", "Rewards are boosted by staked MTA (vMTA)", true, types.string)
+    .addParam(
+        "stakingToken",
+        "Symbol of token that is being staked. Feeder Pool is just the fAsset. eg imUSD, PimUSD, MTA, GUSD, alUSD",
+        true,
+        types.string,
+    )
+    .addParam("rewardsToken", "Token symbol of reward. eg MTA or PMTA for Polygon", undefined, types.string)
+    .addOptionalParam("dualRewardToken", "Token symbol of second reward. eg WMATIC, ALCX, QI", undefined, types.string)
+    .addOptionalParam("price", "Price coefficient is the value of the mAsset in USD. eg mUSD/USD = 1, mBTC/USD", 1, types.int)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
+    .setAction(async (taskArgs, { ethers, hardhatArguments, network }) => {
+        const signer = await getSigner(ethers, taskArgs.speed)
+        const chain = getChain(network.name, hardhatArguments.config)
+
+        if (taskArgs.name?.length < 4) throw Error(`Invalid token name ${taskArgs.name}`)
+        if (taskArgs.symbol?.length <= 0 || taskArgs.symbol?.length > 12) throw Error(`Invalid token name ${taskArgs.name}`)
+
+        const stakingToken = tokens.find((t) => t.address === taskArgs.stakingToken)
+        if (!stakingToken) throw Error(`Could not find staking token with symbol ${taskArgs.stakingToken}`)
+        const rewardToken = tokens.find((t) => t.address === taskArgs.rewardToken)
+        if (!rewardToken) throw Error(`Could not find reward token with symbol ${taskArgs.rewardToken}`)
+
+        if (taskArgs.price < 0 || taskArgs.price >= simpleToExactAmount(1)) throw Error(`Invalid price coefficient ${taskArgs.price}`)
+
+        const dualRewardToken = tokens.find((t) => t.address === taskArgs.dualRewardToken)
+
+        const vaultData: VaultData = {
+            boosted: taskArgs.boosted,
+            name: taskArgs.name,
+            symbol: taskArgs.symbol,
+            priceCoeff: taskArgs.price,
+            stakingToken,
+            rewardToken,
+            dualRewardToken,
         }
 
-        // const pairs: Pair[] = [
-        //     // mBTC / hBTC
-        //     {
-        //         mAsset: mBTC.address,
-        //         fAsset: HBTC.address,
-        //         aToken: ZERO_ADDRESS,
-        //         priceCoeff: simpleToExactAmount(58000),
-        //         A: BN.from(325),
-        //     },
-        //     // mBTC / tBTC
-        //     {
-        //         mAsset: mBTC.address,
-        //         fAsset: TBTC.address,
-        //         aToken: ZERO_ADDRESS,
-        //         priceCoeff: simpleToExactAmount(58000),
-        //         A: BN.from(175),
-        //     },
-        //     // mUSD / bUSD
-        //     {
-        //         mAsset: mUSD.address,
-        //         fAsset: BUSD.address,
-        //         aToken: BUSD.liquidityProvider,
-        //         priceCoeff: simpleToExactAmount(1),
-        //         A: BN.from(500),
-        //     },
-        //     // mUSD / GUSD
-        //     {
-        //         mAsset: mUSD.address,
-        //         fAsset: GUSD.address,
-        //         aToken: GUSD.liquidityProvider,
-        //         priceCoeff: simpleToExactAmount(1),
-        //         A: BN.from(225),
-        //     }
-        // ]
-
-        await deployBoostedFeederPools(deployer, addresses, pairs)
+        await deployVault(signer, vaultData, chain)
     })
 
 task("deployIronBank", "Deploys mUSD Iron Bank (CREAM) integration contracts for GUSD and BUSD Feeder Pools")

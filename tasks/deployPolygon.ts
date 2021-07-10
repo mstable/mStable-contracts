@@ -42,7 +42,7 @@ import { formatUnits } from "@ethersproject/units"
 import { MassetLibraryAddresses } from "types/generated/factories/Masset__factory"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { getSigner } from "./utils/defender-utils"
-import { getNetworkAddress } from "./utils/networkAddressFactory"
+import { getChain, getChainAddress } from "./utils/networkAddressFactory"
 import { PMTA, PmUSD, PWMATIC } from "./utils/tokens"
 
 // FIXME: this import does not work for some reason
@@ -452,11 +452,12 @@ task("liquidator-snap", "Dumps the config details of the liquidator on Polygon")
 
 task("deploy-vimusd", "Deploy Polygon imUSD staking contract v-imUSD").setAction(async (_, { ethers, hardhatArguments, network }) => {
     const signer = await getSigner(ethers)
+    const chain = getChain(network.name, hardhatArguments.config)
 
-    const fundManagerAddress = getNetworkAddress("FundManager", network.name, hardhatArguments.config)
-    const governorAddress = getNetworkAddress("Governor", network.name, hardhatArguments.config)
-    const nexusAddress = getNetworkAddress("Nexus", network.name, hardhatArguments.config)
-    const rewardsDistributorAddress = getNetworkAddress("RewardsDistributor", network.name, hardhatArguments.config)
+    const fundManagerAddress = getChainAddress("FundManager", chain)
+    const governorAddress = getChainAddress("Governor", chain)
+    const nexusAddress = getChainAddress("Nexus", chain)
+    const rewardsDistributorAddress = getChainAddress("RewardsDistributor", chain)
 
     const rewardsDistributor = rewardsDistributorAddress
         ? RewardsDistributor__factory.connect(rewardsDistributorAddress, signer)
@@ -500,9 +501,10 @@ task("deploy-vimusd", "Deploy Polygon imUSD staking contract v-imUSD").setAction
 
 task("upgrade-vimusd", "Upgrade Polygon imUSD staking contract v-imUSD").setAction(async (_, { ethers, hardhatArguments, network }) => {
     const signer = await getSigner(ethers)
+    const chain = getChain(network.name, hardhatArguments.config)
 
-    const nexusAddress = getNetworkAddress("Nexus", network.name, hardhatArguments.config)
-    const rewardsDistributorAddress = getNetworkAddress("RewardsDistributor", network.name, hardhatArguments.config)
+    const nexusAddress = getChainAddress("Nexus", chain)
+    const rewardsDistributorAddress = getChainAddress("RewardsDistributor", chain)
 
     const rewardsDistributor = RewardsDistributor__factory.connect(rewardsDistributorAddress, signer)
 

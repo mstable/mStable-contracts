@@ -5,7 +5,7 @@ pragma solidity 0.8.2;
  * @dev Alchemix Staking Pool
  * Source: https://github.com/alchemix-finance/alchemix-protocol/blob/master/contracts/StakingPools.sol
  */
-interface IAlchemixStakingPool {
+interface IAlchemixStakingPools {
     function claim(uint256 _poolId) external;
 
     function deposit(uint256 _poolId, uint256 _depositAmount) external;
