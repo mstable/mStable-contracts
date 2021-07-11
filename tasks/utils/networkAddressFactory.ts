@@ -25,6 +25,9 @@ export const contractNames = [
     "AaveLendingPoolAddressProvider",
     "AlchemixStakingPool",
     "QuickSwapRouter",
+    "UniswapRouterV3",
+    "UniswapQuoterV3",
+    "UniswapEthToken",
     "MStableYieldSource", // Used for PoolTogether
 ] as const
 export type ContractNames = typeof contractNames[number]
@@ -75,6 +78,12 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5"
             case "AlchemixStakingPool":
                 return "0xAB8e74017a8Cc7c15FFcCd726603790d26d7DeCa"
+            case "UniswapRouterV3":
+                return "0xE592427A0AEce92De3Edee1F18E0157C05861564"
+            case "UniswapQuoterV3":
+                return "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"
+            case "UniswapEthToken":
+                return "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
             case "MStableYieldSource":
                 return "0xdB4C9f763A4B13CF2830DFe7c2854dADf5b96E99"
             default:
