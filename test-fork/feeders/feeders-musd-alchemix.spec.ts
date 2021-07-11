@@ -8,11 +8,12 @@ import { expect } from "chai"
 import { Signer, constants } from "ethers"
 import { ethers, network } from "hardhat"
 import { deployContract } from "tasks/utils/deploy-utils"
-import { deployFeederPool, FeederData } from "tasks/utils/feederUtils"
+import { deployFeederPool, deployVault, FeederData, VaultData } from "tasks/utils/feederUtils"
 import { getChainAddress } from "tasks/utils/networkAddressFactory"
-import { AAVE, ALCX, alUSD, Chain, COMP, mUSD, stkAAVE } from "tasks/utils/tokens"
+import { AAVE, ALCX, alUSD, Chain, COMP, MTA, mUSD, stkAAVE } from "tasks/utils/tokens"
 import {
     AlchemixIntegration,
+    BoostedDualVault,
     FeederPool,
     IERC20,
     IERC20__factory,
@@ -45,6 +46,7 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
     let mUsdWhale: Signer
     let alUsdWhale: Signer
     let alUsdFp: FeederPool
+    let vault: BoostedDualVault
     let musdToken: IERC20
     let alusdToken: IERC20
     let alcxToken: IERC20
@@ -98,7 +100,7 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
     })
     it("deploy alUSD Feeder Pool", async () => {
         const config = {
-            a: BN.from(60),
+            a: BN.from(50),
             limits: {
                 min: simpleToExactAmount(10, 16),
                 max: simpleToExactAmount(90, 16),
@@ -117,63 +119,12 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
         expect(await alUsdFp.name(), "name").to.eq(fpData.name)
         expect(await alUsdFp.symbol(), "symbol").to.eq(fpData.symbol)
     })
-    it("deploy Alchemix integration", async () => {
-        alchemixIntegration = await deployContract<AlchemixIntegration>(
-            new AlchemixIntegration__factory(deployer),
-            "Alchemix alUSD Integration",
-            [nexusAddress, alUsdFp.address, ALCX.address, alchemixStakingPoolsAddress, alUSD.address],
-        )
-
-        expect(await alchemixIntegration.nexus(), "nexus").to.eq(nexusAddress)
-        expect(await alchemixIntegration.lpAddress(), "lp (feeder pool)").to.eq(alUsdFp.address)
-        expect(await alchemixIntegration.rewardToken(), "rewards token").to.eq(ALCX.address)
-        expect(await alchemixIntegration.stakingPools(), "Alchemix staking pools").to.eq(alchemixStakingPoolsAddress)
-        expect(await alchemixIntegration.poolId(), "pool id").to.eq(0)
-        expect(await alchemixIntegration.bAsset(), "bAsset").to.eq(alUSD.address)
-    })
-    it("initialize Alchemix integration", async () => {
-        expect(
-            await alusdToken.allowance(alchemixIntegration.address, alchemixStakingPools.address),
-            "integration alUSD allowance before",
-        ).to.eq(0)
-        expect(await alcxToken.allowance(alchemixIntegration.address, liquidatorAddress), "integration ALCX allowance before").to.eq(0)
-
-        await alchemixIntegration.initialize()
-
-        expect(
-            await alusdToken.allowance(alchemixIntegration.address, alchemixStakingPools.address),
-            "integration alUSD allowance after",
-        ).to.eq(MAX_UINT256)
-        expect(await alcxToken.allowance(alchemixIntegration.address, liquidatorAddress), "integration ALCX allowance after").to.eq(
-            MAX_UINT256,
-        )
-    })
-    it("Migrate alUSD Feeder Pool to the Alchemix integration", async () => {
-        // Migrate the alUSD
-        await alUsdFp.connect(governor).migrateBassets([alusdToken.address], alchemixIntegration.address)
-    })
-    it("Governor approves Liquidator to spend the reward (ALCX) token", async () => {
-        // expect(await alcxToken.allowance(alchemixIntegration.address, liquidatorAddress)).to.eq(0)
-
-        // This will be done via the delayedProxyAdmin on mainnet
-        await alchemixIntegration.connect(governor).reapproveContracts()
-
-        expect(await alcxToken.allowance(alchemixIntegration.address, liquidatorAddress)).to.eq(constants.MaxUint256)
-    })
     it("Mint some mUSD/alUSD in the Feeder Pool", async () => {
         const alUsdBassetBefore = await alUsdFp.getBasset(alusdToken.address)
         const mUsdBassetBefore = await alUsdFp.getBasset(mUSD.address)
 
         expect(await alusdToken.balanceOf(alUsdFp.address), "alUSD bal before").to.eq(0)
         expect(await musdToken.balanceOf(alUsdFp.address), "mUSD bal before").to.eq(0)
-        expect(
-            await alchemixStakingPools.getStakeTotalDeposited(alchemixIntegration.address, poolId),
-            "integration's alUSD deposited before",
-        ).to.eq(0)
-        expect(
-            await alchemixStakingPools.getStakeTotalUnclaimed(alchemixIntegration.address, poolId),
-            "integration's accrued ALCX before",
-        ).to.eq(0)
 
         // Transfer some mUSD to the alUSD whale so they can do a mintMulti (to get the pool started)
         await musdToken.connect(mUsdWhale).transfer(alUsdWhaleAddress, mintAmount)
@@ -196,75 +147,155 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
             alUsdBassetBefore.vaultData.vaultBalance.add(mintAmount),
         )
         expect(mUsdBassetAfter.vaultData.vaultBalance, "mUSD vault balance").to.eq(mUsdBassetBefore.vaultData.vaultBalance.add(mintAmount))
-
-        expect(
-            await alchemixStakingPools.getStakeTotalDeposited(alchemixIntegration.address, poolId),
-            "integration's alUSD deposited after",
-        ).to.eq(mintAmount)
-        expect(
-            await alchemixStakingPools.getStakeTotalUnclaimed(alchemixIntegration.address, poolId),
-            "integration's accrued ALCX after",
-        ).to.eq(0)
     })
-    it("accrue ALCX", async () => {
-        expect(
-            await alchemixStakingPools.getStakeTotalUnclaimed(alchemixIntegration.address, poolId),
-            "integration's accrued ALCX before",
-        ).to.eq(0)
+    describe("Dual Rewards Feeder Pool Vault", () => {
+        it("deploy vault", async () => {
+            const vaultData: VaultData = {
+                boosted: true,
+                name: "v-mUSD/alUSD fPool Vault",
+                symbol: "v-fPmUSD/alUSD",
+                priceCoeff: BN.from(1),
+                stakingToken: alUsdFp.address,
+                rewardToken: MTA.address,
+                dualRewardToken: ALCX.address,
+            }
 
-        await increaseTime(ONE_WEEK)
-
-        expect(
-            await alchemixStakingPools.getStakeTotalDeposited(alchemixIntegration.address, poolId),
-            "integration's alUSD deposited after",
-        ).to.eq(mintAmount)
-        expect(
-            await alchemixStakingPools.getStakeTotalUnclaimed(alchemixIntegration.address, poolId),
-            "integration's accrued ALCX after",
-        ).to.gt(simpleToExactAmount(1, 12))
+            vault = (await deployVault(deployer, vaultData, chain)) as BoostedDualVault
+        })
     })
-    it("redeem a lot of alUSD", async () => {
-        expect(
-            await alchemixStakingPools.getStakeTotalUnclaimed(alchemixIntegration.address, poolId),
-            "integration's accrued ALCX before",
-        ).to.gt(simpleToExactAmount(1, 12))
-        const redeemAmount = simpleToExactAmount(8000)
+    describe.skip("Integration", () => {
+        it("deploy Alchemix integration", async () => {
+            alchemixIntegration = await deployContract<AlchemixIntegration>(
+                new AlchemixIntegration__factory(deployer),
+                "Alchemix alUSD Integration",
+                [nexusAddress, alUsdFp.address, ALCX.address, alchemixStakingPoolsAddress, alUSD.address],
+            )
 
-        await alUsdFp.connect(alUsdWhale).redeemExactBassets([alUSD.address], [redeemAmount], mintAmount, alUsdWhaleAddress)
+            expect(await alchemixIntegration.nexus(), "nexus").to.eq(nexusAddress)
+            expect(await alchemixIntegration.lpAddress(), "lp (feeder pool)").to.eq(alUsdFp.address)
+            expect(await alchemixIntegration.rewardToken(), "rewards token").to.eq(ALCX.address)
+            expect(await alchemixIntegration.stakingPools(), "Alchemix staking pools").to.eq(alchemixStakingPoolsAddress)
+            expect(await alchemixIntegration.poolId(), "pool id").to.eq(0)
+            expect(await alchemixIntegration.bAsset(), "bAsset").to.eq(alUSD.address)
+        })
+        it("initialize Alchemix integration", async () => {
+            expect(
+                await alusdToken.allowance(alchemixIntegration.address, alchemixStakingPools.address),
+                "integration alUSD allowance before",
+            ).to.eq(0)
+            expect(await alcxToken.allowance(alchemixIntegration.address, liquidatorAddress), "integration ALCX allowance before").to.eq(0)
 
-        const alUsdBassetAfter = await alUsdFp.getBasset(alusdToken.address)
-        expect(alUsdBassetAfter.vaultData.vaultBalance, "alUSD vault balance").to.eq(mintAmount.sub(redeemAmount))
-        const integrationAlusdBalance = await alusdToken.balanceOf(alchemixIntegration.address)
-        expect(integrationAlusdBalance, "alUSD in cache").to.gt(0)
-        expect(
-            await alchemixStakingPools.getStakeTotalDeposited(alchemixIntegration.address, poolId),
-            "integration's alUSD deposited after",
-        ).to.eq(mintAmount.sub(redeemAmount).sub(integrationAlusdBalance))
-        expect(
-            await alchemixStakingPools.getStakeTotalUnclaimed(alchemixIntegration.address, poolId),
-            "integration's accrued ALCX after",
-        ).to.eq(0)
-    })
-    it("Claim accrued ALCX rewards", async () => {
-        await increaseTime(ONE_WEEK)
+            await alchemixIntegration.initialize()
 
-        const unclaimedAlcxBefore = await alchemixStakingPools.getStakeTotalUnclaimed(alchemixIntegration.address, poolId)
-        const integrationAlusdBalanceBefore = await alusdToken.balanceOf(alchemixIntegration.address)
-        expect(unclaimedAlcxBefore, "unclaimed ALCX before").to.gt(simpleToExactAmount(1, 10))
-        expect(integrationAlusdBalanceBefore, "integration alUSD balance before").to.gt(0)
+            expect(
+                await alusdToken.allowance(alchemixIntegration.address, alchemixStakingPools.address),
+                "integration alUSD allowance after",
+            ).to.eq(MAX_UINT256)
+            expect(await alcxToken.allowance(alchemixIntegration.address, liquidatorAddress), "integration ALCX allowance after").to.eq(
+                MAX_UINT256,
+            )
+        })
+        it("Migrate alUSD Feeder Pool to the Alchemix integration", async () => {
+            // Migrate the alUSD
+            await alUsdFp.connect(governor).migrateBassets([alusdToken.address], alchemixIntegration.address)
+        })
+        it("Governor approves Liquidator to spend the reward (ALCX) token", async () => {
+            // expect(await alcxToken.allowance(alchemixIntegration.address, liquidatorAddress)).to.eq(0)
 
-        await alchemixIntegration.claimRewards()
+            // This will be done via the delayedProxyAdmin on mainnet
+            await alchemixIntegration.connect(governor).reapproveContracts()
 
-        expect(await alchemixStakingPools.getStakeTotalUnclaimed(alchemixIntegration.address, poolId), "unclaimed ALCX after").to.eq(0)
-        // TODO fix these checks
-        // expect(await alusdToken.balanceOf(alchemixIntegration.address), "integration alUSD balance after").to.eq(
-        //     integrationAlusdBalanceBefore.add(unclaimedAlcxBefore),
-        // )
-        // assertBNClose(
-        //     await alusdToken.balanceOf(alchemixIntegration.address),
-        //     integrationAlusdBalanceBefore.add(unclaimedAlcxBefore),
-        //     BN.from(1000),
-        // )
+            expect(await alcxToken.allowance(alchemixIntegration.address, liquidatorAddress)).to.eq(constants.MaxUint256)
+        })
+        it("Mint some mUSD/alUSD in the Feeder Pool", async () => {
+            const alUsdBassetBefore = await alUsdFp.getBasset(alusdToken.address)
+            const mUsdBassetBefore = await alUsdFp.getBasset(mUSD.address)
+
+            expect(await alusdToken.balanceOf(alUsdFp.address), "alUSD bal before").to.eq(0)
+            expect(await musdToken.balanceOf(alUsdFp.address), "mUSD bal before").to.eq(0)
+            expect(
+                await alchemixStakingPools.getStakeTotalDeposited(alchemixIntegration.address, poolId),
+                "integration's alUSD deposited before",
+            ).to.eq(0)
+            expect(
+                await alchemixStakingPools.getStakeTotalUnclaimed(alchemixIntegration.address, poolId),
+                "integration's accrued ALCX before",
+            ).to.eq(0)
+
+            // Transfer some mUSD to the alUSD whale so they can do a mintMulti (to get the pool started)
+            await musdToken.connect(mUsdWhale).transfer(alUsdWhaleAddress, mintAmount)
+            expect(await musdToken.balanceOf(alUsdWhaleAddress), "alUsdWhale's mUSD bal after").to.gte(mintAmount)
+
+            await alusdToken.connect(alUsdWhale).approve(alUsdFp.address, constants.MaxUint256)
+            await musdToken.connect(alUsdWhale).approve(alUsdFp.address, constants.MaxUint256)
+            expect(await alusdToken.allowance(alUsdWhaleAddress, alUsdFp.address), "alUsdWhale's alUSD bal after").to.eq(
+                constants.MaxUint256,
+            )
+            expect(await musdToken.allowance(alUsdWhaleAddress, alUsdFp.address), "alUsdWhale's mUSD bal after").to.eq(constants.MaxUint256)
+            expect(await alusdToken.balanceOf(alUsdWhaleAddress), "alUsd whale alUSD bal before").gte(mintAmount)
+            expect(await musdToken.balanceOf(alUsdWhaleAddress), "alUsd whale mUSD bal before").gte(mintAmount)
+
+            await alUsdFp
+                .connect(alUsdWhale)
+                .mintMulti([alusdToken.address, mUSD.address], [mintAmount, mintAmount], mintAmount.sub(1), alUsdWhaleAddress)
+
+            const alUsdBassetAfter = await alUsdFp.getBasset(alusdToken.address)
+            const mUsdBassetAfter = await alUsdFp.getBasset(mUSD.address)
+            expect(alUsdBassetAfter.vaultData.vaultBalance, "alUSD vault balance").to.eq(
+                alUsdBassetBefore.vaultData.vaultBalance.add(mintAmount),
+            )
+            expect(mUsdBassetAfter.vaultData.vaultBalance, "mUSD vault balance").to.eq(
+                mUsdBassetBefore.vaultData.vaultBalance.add(mintAmount),
+            )
+
+            expect(
+                await alchemixStakingPools.getStakeTotalDeposited(alchemixIntegration.address, poolId),
+                "integration's alUSD deposited after",
+            ).to.eq(mintAmount)
+            expect(
+                await alchemixStakingPools.getStakeTotalUnclaimed(alchemixIntegration.address, poolId),
+                "integration's accrued ALCX after",
+            ).to.eq(0)
+        })
+        it("accrue ALCX", async () => {
+            expect(
+                await alchemixStakingPools.getStakeTotalUnclaimed(alchemixIntegration.address, poolId),
+                "integration's accrued ALCX before",
+            ).to.eq(0)
+
+            await increaseTime(ONE_WEEK)
+
+            expect(
+                await alchemixStakingPools.getStakeTotalDeposited(alchemixIntegration.address, poolId),
+                "integration's alUSD deposited after",
+            ).to.eq(mintAmount)
+            expect(
+                await alchemixStakingPools.getStakeTotalUnclaimed(alchemixIntegration.address, poolId),
+                "integration's accrued ALCX after",
+            ).to.gt(simpleToExactAmount(1, 12))
+        })
+        it("redeem a lot of alUSD", async () => {
+            expect(
+                await alchemixStakingPools.getStakeTotalUnclaimed(alchemixIntegration.address, poolId),
+                "integration's accrued ALCX before",
+            ).to.gt(simpleToExactAmount(1, 12))
+            const redeemAmount = simpleToExactAmount(8000)
+
+            await alUsdFp.connect(alUsdWhale).redeemExactBassets([alUSD.address], [redeemAmount], mintAmount, alUsdWhaleAddress)
+
+            const alUsdBassetAfter = await alUsdFp.getBasset(alusdToken.address)
+            expect(alUsdBassetAfter.vaultData.vaultBalance, "alUSD vault balance").to.eq(mintAmount.sub(redeemAmount))
+            const integrationAlusdBalance = await alusdToken.balanceOf(alchemixIntegration.address)
+            expect(integrationAlusdBalance, "alUSD in cache").to.gt(0)
+            expect(
+                await alchemixStakingPools.getStakeTotalDeposited(alchemixIntegration.address, poolId),
+                "integration's alUSD deposited after",
+            ).to.eq(mintAmount.sub(redeemAmount).sub(integrationAlusdBalance))
+            expect(
+                await alchemixStakingPools.getStakeTotalUnclaimed(alchemixIntegration.address, poolId),
+                "integration's accrued ALCX after",
+            ).to.eq(0)
+        })
     })
     describe.skip("liquidator", () => {
         let newLiquidatorImpl: Liquidator
@@ -311,6 +342,27 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
                 ZERO_ADDRESS,
                 false,
             )
+        })
+        it("Claim accrued ALCX rewards", async () => {
+            await increaseTime(ONE_WEEK)
+
+            const unclaimedAlcxBefore = await alchemixStakingPools.getStakeTotalUnclaimed(alchemixIntegration.address, poolId)
+            const integrationAlusdBalanceBefore = await alusdToken.balanceOf(alchemixIntegration.address)
+            expect(unclaimedAlcxBefore, "unclaimed ALCX before").to.gt(simpleToExactAmount(1, 10))
+            expect(integrationAlusdBalanceBefore, "integration alUSD balance before").to.gt(0)
+
+            await alchemixIntegration.claimRewards()
+
+            expect(await alchemixStakingPools.getStakeTotalUnclaimed(alchemixIntegration.address, poolId), "unclaimed ALCX after").to.eq(0)
+            // TODO fix these checks
+            // expect(await alusdToken.balanceOf(alchemixIntegration.address), "integration alUSD balance after").to.eq(
+            //     integrationAlusdBalanceBefore.add(unclaimedAlcxBefore),
+            // )
+            // assertBNClose(
+            //     await alusdToken.balanceOf(alchemixIntegration.address),
+            //     integrationAlusdBalanceBefore.add(unclaimedAlcxBefore),
+            //     BN.from(1000),
+            // )
         })
         it("trigger ALCX liquidation", async () => {
             await liquidator.triggerLiquidation(alchemixIntegration.address)
