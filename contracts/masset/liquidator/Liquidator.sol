@@ -62,6 +62,8 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
     IUniswapV3Quoter public immutable uniswapQuoter;
     /// @notice Compound Token (COMP) address
     address public immutable compToken;
+    /// @notice Alchemix (ALCX) address
+    address public immutable alchemixToken;
 
     // No longer used
     struct DeprecatedLiquidation {
@@ -91,7 +93,8 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
         address _aaveToken,
         address _uniswapRouter,
         address _uniswapQuoter,
-        address _compToken
+        address _compToken,
+        address _alchemixToken
     ) ImmutableModule(_nexus) {
         require(_stkAave != address(0), "Invalid stkAAVE address");
         stkAave = _stkAave;
@@ -107,15 +110,19 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
 
         require(_compToken != address(0), "Invalid COMP address");
         compToken = _compToken;
+
+        require(_alchemixToken != address(0), "Invalid ALCX address");
+        alchemixToken = _alchemixToken;
     }
 
     /**
-     * @notice Liquidator approves Uniswap to transfer Aave and COMP tokens
+     * @notice Liquidator approves Uniswap to transfer Aave, COMP and ALCX tokens
      * @dev to be called via the proxy proposeUpgrade function, not the constructor.
      */
     function upgrade() external {
-        IERC20(aaveToken).safeApprove(address(uniswapRouter), type(uint256).max);
-        IERC20(compToken).safeApprove(address(uniswapRouter), type(uint256).max);
+        // IERC20(aaveToken).safeApprove(address(uniswapRouter), type(uint256).max);
+        // IERC20(compToken).safeApprove(address(uniswapRouter), type(uint256).max);
+        IERC20(alchemixToken).safeApprove(address(uniswapRouter), type(uint256).max);
     }
 
     /***************************************
@@ -125,8 +132,8 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
     /**
      * @notice Create a liquidation
      * @param _integration The integration contract address from which to receive sellToken
-     * @param _sellToken Token harvested from the integration contract. eg COMP or stkAave.
-     * @param _bAsset The asset to buy on Uniswap. eg USDC or WBTC
+     * @param _sellToken Token harvested from the integration contract. eg COMP, stkAave or ALCX.
+     * @param _bAsset The asset to buy on Uniswap. eg USDC, WBTC, GUSD or alUSD
      * @param _uniswapPath The Uniswap V3 bytes encoded path.
      * @param _trancheAmount The max amount of bAsset units to buy in each weekly tranche.
      * @param _minReturn Minimum exact amount of bAsset to get for each (whole) sellToken unit
@@ -272,15 +279,18 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
 
     /**
      * @notice Triggers a liquidation, flow (once per week):
-     *    - Sells $COMP for $USDC (or other) on Uniswap (up to trancheAmount)
-     *    - Mint mUSD using USDC
-     *    - Send to SavingsManager
+     *    - transfer sell token from integration to liquidator. eg COMP or ALCX
+     *    - Swap sell token for bAsset on Uniswap (up to trancheAmount). eg
+     *      - COMP for USDC
+     *      - ALCX for alUSD
+     *    - If bAsset in mAsset. eg USDC in mUSD
+     *      - Mint mAsset using bAsset. eg mint mUSD using USDC.
+     *      - Deposit mAsset to Savings Manager. eg deposit mUSD
+     *    - else bAsset in Feeder Pool. eg alUSD in fPmUSD/alUSD.
+     *      - Transfer bAsset to integration contract. eg transfer alUSD
      * @param _integration Integration for which to trigger liquidation
      */
     function triggerLiquidation(address _integration) external override {
-        // solium-disable-next-line security/no-tx-origin
-        require(tx.origin == msg.sender, "Must be EOA");
-
         Liquidation memory liquidation = liquidations[_integration];
 
         address bAsset = liquidation.bAsset;
@@ -333,15 +343,27 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
             );
         uniswapRouter.exactInput(param);
 
-        // 4. Mint mAsset using purchased bAsset
         address mAsset = liquidation.mAsset;
-        uint256 minted = _mint(bAsset, mAsset);
+        // If the integration contract is connected to a mAsset like mUSD or mBTC
+        if (mAsset != address(0)) {
+            // 4a. Mint mAsset using purchased bAsset
+            uint256 minted = _mint(bAsset, mAsset);
 
-        // 5. Send to SavingsManager
-        address savings = _savingsManager();
-        ISavingsManager(savings).depositLiquidation(mAsset, minted);
+            // 5a. Send to SavingsManager
+            address savings = _savingsManager();
+            ISavingsManager(savings).depositLiquidation(mAsset, minted);
 
-        emit Liquidated(sellToken, mAsset, minted, bAsset);
+            emit Liquidated(sellToken, mAsset, minted, bAsset);
+        } else {
+            // If a feeder pool like alUSD
+            // 4b. transfer bAsset directly to the integration contract.
+            // this will then increase the boosted savings vault price.
+            IERC20 bAssetToken = IERC20(bAsset);
+            uint256 bAssetBal = bAssetToken.balanceOf(address(this));
+            bAssetToken.transfer(_integration, bAssetBal);
+
+            emit Liquidated(aaveToken, mAsset, bAssetBal, bAsset);
+        }
     }
 
     /**
@@ -350,9 +372,6 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
      * Can only claim more stkAave if the last claim's unstake window has ended.
      */
     function claimStakedAave() external override {
-        // solium-disable-next-line security/no-tx-origin
-        require(tx.origin == msg.sender, "Must be EOA");
-
         // If the last claim has not yet been liquidated
         uint256 totalAaveBalanceMemory = totalAaveBalance;
         if (totalAaveBalanceMemory > 0) {
