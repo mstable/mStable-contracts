@@ -50,9 +50,4 @@ interface IPlatformIntegration {
      * @dev Returns the current balance of the given bAsset
      */
     function checkBalance(address _bAsset) external returns (uint256 balance);
-
-    /**
-     * @dev Returns the pToken
-     */
-    function bAssetToPToken(address _bAsset) external returns (address pToken);
 }

@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.2;
 
+import { IPlatformIntegration } from "../../interfaces/IPlatformIntegration.sol";
 import { IAlchemixStakingPools } from "../../peripheral/Alchemix/IAlchemixStakingPools.sol";
+import { Initializable } from "@openzeppelin/contracts/utils/Initializable.sol";
+import { ImmutableModule } from "../../shared/ImmutableModule.sol";
 import { MassetHelpers } from "../../shared/MassetHelpers.sol";
-import { AbstractIntegration } from "./AbstractIntegration.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -14,14 +17,28 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
  * @dev     VERSION: 1.0
  *          DATE:    2021-07-02
  */
-contract AlchemixIntegration is AbstractIntegration {
+contract AlchemixIntegration is
+    IPlatformIntegration,
+    Initializable,
+    ImmutableModule,
+    ReentrancyGuard {
     using SafeERC20 for IERC20;
 
+    event Deposit(address indexed _bAsset, address _pToken, uint256 _amount);
+    event Withdrawal(address indexed _bAsset, address _pToken, uint256 _amount);
+    event PlatformWithdrawal(
+        address indexed bAsset,
+        address pToken,
+        uint256 totalAmount,
+        uint256 userAmount
+    );
     event AssetAdded(address _bAsset, uint256 poolId);
-    event SkippedWithdrawal(address bAsset, uint256 amount);
     event RewardTokenApproved(address rewardToken, address account);
     event RewardsClaimed();
 
+    /// @notice mAsset or Feeder Pool using the integration. eg fPmUSD/alUSD
+    /// @dev LP has write access
+    address public immutable lpAddress;
     /// @notice token the staking rewards are accrued and claimed in.
     address public immutable rewardToken;
     /// @notice Alchemix's StakingPools contract
@@ -29,6 +46,16 @@ contract AlchemixIntegration is AbstractIntegration {
 
     /// @notice bAsset => Alchemix pool id
     mapping(address => uint256) public bAssetToPoolId;
+    /// @notice Full list of all bAssets supported here
+    address[] public bAssetsMapped;
+
+    /**
+     * @dev Modifier to allow function calls only from the Governor.
+     */
+    modifier onlyLP() {
+        require(msg.sender == lpAddress, "Only the LP can execute");
+        _;
+    }
 
     /**
      * @param _nexus            Address of the Nexus
@@ -41,9 +68,11 @@ contract AlchemixIntegration is AbstractIntegration {
         address _lp,
         address _rewardToken,
         address _stakingPools
-    ) AbstractIntegration(_nexus, _lp) {
+    ) ImmutableModule(_nexus) {
+        require(_lp != address(0), "Invalid LP address");
         require(_rewardToken != address(0), "Invalid reward token");
         require(_stakingPools != address(0), "Invalid staking pools");
+        lpAddress = _lp;
         rewardToken = _rewardToken;
         stakingPools = IAlchemixStakingPools(_stakingPools);
     }
@@ -263,11 +292,6 @@ contract AlchemixIntegration is AbstractIntegration {
         }
     }
 
-    /**
-     * @dev Not used by the Alchemix integration but has to be implemented
-     */
-    function _abstractSetPToken(address _unused1, address _unused2) internal override {}
-
     /***************************************
                     HELPERS
     ****************************************/
@@ -282,5 +306,12 @@ contract AlchemixIntegration is AbstractIntegration {
         require(poolId >= 1, "Asset not supported on Alchemix");
         // Take one off the poolId
         poolId = poolId - 1;
+    }
+
+    /**
+     * @dev Simple helper func to get the min of two values
+     */
+    function _min(uint256 x, uint256 y) internal pure returns (uint256) {
+        return x > y ? y : x;
     }
 }
