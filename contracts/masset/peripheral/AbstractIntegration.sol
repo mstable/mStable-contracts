@@ -1,13 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.2;
 
-// Internal
 import { IPlatformIntegration } from "../../interfaces/IPlatformIntegration.sol";
-import { Initializable } from "@openzeppelin/contracts/utils/Initializable.sol";
-
-// Libs
 import { ImmutableModule } from "../../shared/ImmutableModule.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import { Initializable } from "@openzeppelin/contracts/utils/Initializable.sol";
 
 /**
  * @title   AbstractIntegration
@@ -39,7 +36,7 @@ abstract contract AbstractIntegration is
     address public immutable lpAddress;
 
     // bAsset => pToken (Platform Specific Token Address)
-    mapping(address => address) public override bAssetToPToken;
+    mapping(address => address) public bAssetToPToken;
     // Full list of all bAssets supported here
     address[] internal bAssetsMapped;
 

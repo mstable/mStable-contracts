@@ -31,7 +31,7 @@ contract MaliciousAaveIntegration is
     address public platformAddress;
 
     // bAsset => pToken (Platform Specific Token Address)
-    mapping(address => address) public override bAssetToPToken;
+    mapping(address => address) public bAssetToPToken;
     // Full list of all bAssets supported here
     address[] internal bAssetsMapped;
 

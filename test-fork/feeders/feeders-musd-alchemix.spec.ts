@@ -4,7 +4,6 @@ import { BN, simpleToExactAmount } from "@utils/math"
 import { increaseTime } from "@utils/time"
 import { expect } from "chai"
 import { Signer, constants } from "ethers"
-import { ProvidedRequiredArgumentsOnDirectivesRule } from "graphql/validation/rules/ProvidedRequiredArgumentsRule"
 import { ethers, network } from "hardhat"
 import { deployContract } from "tasks/utils/deploy-utils"
 import { deployFeederPool, FeederData } from "tasks/utils/feederUtils"
@@ -116,7 +115,7 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
         expect(await alchemixIntegration.rewardToken(), "rewards token").to.eq(ALCX.address)
         expect(await alchemixIntegration.stakingPools(), "Alchemix staking pools").to.eq(alchemixStakingPoolsAddress)
 
-        await alchemixIntegration["initialize(address[])"]([alUSD.address])
+        await alchemixIntegration.initialize([alUSD.address])
 
         expect(await alchemixIntegration.bAssetToPoolId(alUSD.address)).to.eq(0)
     })
