@@ -5,7 +5,7 @@ import "tsconfig-paths/register"
 
 import { task, types } from "hardhat/config"
 import { FeederPool__factory, CompoundIntegration__factory, CompoundIntegration } from "types/generated"
-import { simpleToExactAmount } from "@utils/math"
+import { BN, simpleToExactAmount } from "@utils/math"
 import { BUSD, CREAM, cyMUSD, GUSD, mUSD, tokens } from "./utils/tokens"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { getSigner } from "./utils/defender-utils"
@@ -18,14 +18,14 @@ task("deployFeederPool", "Deploy Feeder Pool")
     .addOptionalParam("a", "Amplitude coefficient (A)", 100, types.int)
     .addOptionalParam("min", "Minimum asset weight of the basket as a percentage. eg 10 for 10% of the basket.", 10, types.int)
     .addOptionalParam("max", "Maximum asset weight of the basket as a percentage. eg 90 for 90% of the basket.", 90, types.int)
-    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, { hardhatArguments, ethers, network }) => {
         const signer = await getSigner(ethers, taskArgs.speed)
         const chain = getChain(network.name, hardhatArguments.config)
 
-        const mAsset = tokens.find((t) => t.address === taskArgs.masset)
+        const mAsset = tokens.find((t) => t.symbol === taskArgs.masset)
         if (!mAsset) throw Error(`Could not find mAsset token with symbol ${taskArgs.masset}`)
-        const fAsset = tokens.find((t) => t.address === taskArgs.fasset)
+        const fAsset = tokens.find((t) => t.symbol === taskArgs.fasset)
         if (!fAsset) throw Error(`Could not find Feeder Pool token with symbol ${taskArgs.fasset}`)
 
         if (taskArgs.a < 10 || taskArgs.min > 5000) throw Error(`Invalid amplitude coefficient (A) ${taskArgs.a}`)
@@ -60,10 +60,11 @@ task("deployVault", "Deploy Feeder Pool with boosted dual vault")
         true,
         types.string,
     )
+    .addOptionalParam("stakingType", "Which token address is being staked? eg address, feeder or save", "feeder", types.string)
     .addParam("rewardsToken", "Token symbol of reward. eg MTA or PMTA for Polygon", undefined, types.string)
     .addOptionalParam("dualRewardToken", "Token symbol of second reward. eg WMATIC, ALCX, QI", undefined, types.string)
     .addOptionalParam("price", "Price coefficient is the value of the mAsset in USD. eg mUSD/USD = 1, mBTC/USD", 1, types.int)
-    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, { ethers, hardhatArguments, network }) => {
         const signer = await getSigner(ethers, taskArgs.speed)
         const chain = getChain(network.name, hardhatArguments.config)
@@ -71,23 +72,31 @@ task("deployVault", "Deploy Feeder Pool with boosted dual vault")
         if (taskArgs.name?.length < 4) throw Error(`Invalid token name ${taskArgs.name}`)
         if (taskArgs.symbol?.length <= 0 || taskArgs.symbol?.length > 12) throw Error(`Invalid token name ${taskArgs.name}`)
 
-        const stakingToken = tokens.find((t) => t.address === taskArgs.stakingToken)
+        const stakingToken = tokens.find((t) => t.symbol === taskArgs.stakingToken)
         if (!stakingToken) throw Error(`Could not find staking token with symbol ${taskArgs.stakingToken}`)
-        const rewardToken = tokens.find((t) => t.address === taskArgs.rewardToken)
+        let stakingTokenAddress = stakingToken.feederPool
+        if (taskArgs.stakingType === "address") {
+            stakingTokenAddress = stakingToken.address
+        } else if (taskArgs.stakingType === "save") {
+            stakingTokenAddress = stakingToken.savings
+        } else if (taskArgs.stakingType !== "feeder") {
+            throw Error(`Invalid staking type ${taskArgs.stakingType}. Must be either address, feeder or save`)
+        }
+        const rewardToken = tokens.find((t) => t.symbol === taskArgs.rewardToken)
         if (!rewardToken) throw Error(`Could not find reward token with symbol ${taskArgs.rewardToken}`)
 
         if (taskArgs.price < 0 || taskArgs.price >= simpleToExactAmount(1)) throw Error(`Invalid price coefficient ${taskArgs.price}`)
 
-        const dualRewardToken = tokens.find((t) => t.address === taskArgs.dualRewardToken)
+        const dualRewardToken = tokens.find((t) => t.symbol === taskArgs.dualRewardToken)
 
         const vaultData: VaultData = {
             boosted: taskArgs.boosted,
             name: taskArgs.name,
             symbol: taskArgs.symbol,
-            priceCoeff: taskArgs.price,
-            stakingToken,
-            rewardToken,
-            dualRewardToken,
+            priceCoeff: BN.from(taskArgs.price),
+            stakingToken: stakingTokenAddress,
+            rewardToken: rewardToken.address,
+            dualRewardToken: dualRewardToken.address,
         }
 
         await deployVault(signer, vaultData, chain)

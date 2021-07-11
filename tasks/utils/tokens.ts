@@ -209,7 +209,7 @@ export const MFRAX: Token = {
 export const alUSD: Token = {
     symbol: "alUSD",
     address: "0xBC6DA0FE9aD5f3b0d58160288917AA56653660E9",
-    feederPool: undefined, // TODO add after deployment
+    feederPool: "0x4eaa01974B6594C0Ee62fFd7FEE56CF11E6af936",
     integrator: undefined, // TODO add after deployment
     vault: undefined, // TODO add after deployment
     chain: Chain.mainnet,

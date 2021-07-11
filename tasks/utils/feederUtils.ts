@@ -46,9 +46,9 @@ export interface VaultData {
     name: string
     symbol: string
     priceCoeff?: BN
-    stakingToken: Token
-    rewardToken: Token
-    dualRewardToken?: Token
+    stakingToken: string
+    rewardToken: string
+    dualRewardToken?: string
 }
 
 export const deployFasset = async (
@@ -145,42 +145,37 @@ export const deployVault = async (
         if (vaultData.dualRewardToken) {
             vault = await deployContract<BoostedDualVault>(new BoostedDualVault__factory(signer), "BoostedDualVault", [
                 getChainAddress("Nexus", chain),
-                vaultData.stakingToken.vault,
+                vaultData.stakingToken,
                 getChainAddress("BoostDirector", chain),
                 vaultData.priceCoeff,
                 boostCoeff,
-                vaultData.rewardToken.address,
-                vaultData.dualRewardToken.address,
+                vaultData.rewardToken,
+                vaultData.dualRewardToken,
             ])
         } else {
             vault = await deployContract<BoostedVault>(new BoostedVault__factory(signer), "BoostedVault", [
                 getChainAddress("Nexus", chain),
-                vaultData.stakingToken.vault,
+                vaultData.stakingToken,
                 getChainAddress("BoostDirector", chain),
                 vaultData.priceCoeff,
                 boostCoeff,
-                vaultData.rewardToken.address,
+                vaultData.rewardToken,
             ])
         }
     } else if (vaultData.dualRewardToken) {
         vault = await deployContract<StakingRewardsWithPlatformToken>(
             new StakingRewardsWithPlatformToken__factory(signer),
             "StakingRewardsWithPlatformToken",
-            [
-                getChainAddress("Nexus", chain),
-                vaultData.stakingToken.vault,
-                vaultData.rewardToken.address,
-                vaultData.dualRewardToken.address,
-            ],
+            [getChainAddress("Nexus", chain), vaultData.stakingToken, vaultData.rewardToken, vaultData.dualRewardToken],
         )
     } else {
         vault = await deployContract<StakingRewards>(new StakingRewards__factory(signer), "StakingRewards", [
             getChainAddress("Nexus", chain),
-            vaultData.stakingToken.vault,
+            vaultData.stakingToken,
             getChainAddress("BoostDirector", chain),
             vaultData.priceCoeff,
             boostCoeff,
-            vaultData.rewardToken.address,
+            vaultData.rewardToken,
         ])
     }
 

@@ -94,7 +94,7 @@ contract BoostedDualVault is
 
     /**
      * @param _nexus mStable system Nexus address
-     * @param _stakingToken token that is beinf rewarded for being staked. eg MTA, imUSD or fPmUSD/GUSD
+     * @param _stakingToken token that is being rewarded for being staked. eg MTA, imUSD or fPmUSD/GUSD
      * @param _boostDirector vMTA boost director
      * @param _priceCoeff Rough price of a given LP token, to be used in boost calculations, where $1 = 1e18
      * @param _boostCoeff  Boost coefficent using the the boost formula
