@@ -18,6 +18,8 @@ import { logTxDetails } from "./utils/deploy-utils"
 import { getChain, getChainAddress } from "./utils/networkAddressFactory"
 import { usdFormatter } from "./utils"
 import { getAaveTokens, getBlock, getBlockRange, getCompTokens } from "./utils/snap-utils"
+import { sign } from "crypto"
+import { formatUnits } from "ethers/lib/utils"
 
 task("eject-stakers", "Ejects expired stakers from Meta staking contract (vMTA)")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
@@ -147,30 +149,28 @@ task("polly-dis-rewards", "Distributes MTA and WMATIC rewards to the imUSD vault
 task("dis-rewards", "Distributes MTA rewards to a vault on Mainnet")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .addParam("vaultAsset", "Symbol of asset that is staked. eg mUSD, MTA, GUSD, alUSD", undefined, types.string)
-    .addOptionalParam("mtaAmount", "MTA tokens", 20833, types.int)
+    .addOptionalParam("amount", "MTA tokens", 20833, types.int)
     .setAction(async (taskArgs, { ethers, hardhatArguments, network }) => {
         const signer = await getSigner(ethers, taskArgs.speed)
         const chain = getChain(network.name, hardhatArguments.config)
 
         const vaultAsset = tokens.find((t) => t.symbol === taskArgs.vaultAsset && t.chain === chain)
         if (!vaultAsset) throw Error(`Could not find vault asset with symbol ${taskArgs.vaultAsset}`)
-        // Staking Token is for Feeder Pool, Savings Vault or the token itself. eg
-        // alUSD will stake feeder pool in a v-fPmUSD/alUSD vault
-        // mUSD will stake savings vault in a v-imUSD vault
-        // MTA will stake MTA in a v-MTA vault
-        const vaultAddress = vaultAsset.feederPool || vaultAsset.savings || vaultAsset.address
 
-        const mtaAmount = simpleToExactAmount(taskArgs.mtaAmount)
+        const mtaAmount = simpleToExactAmount(taskArgs.amount)
 
         const rewardsDistributorAddress = getChainAddress("RewardsDistributor", chain)
         const rewardsDistributor = RewardsDistributorEth__factory.connect(rewardsDistributorAddress, signer)
 
         const mtaToken = ERC20__factory.connect(MTA.address, signer)
         const tx1 = await mtaToken.approve(rewardsDistributorAddress, mtaAmount)
-        await logTxDetails(tx1, `Relay account approve RewardsDistributor contract to transfer ${usdFormatter(mtaAmount)} MTA`)
+        await logTxDetails(tx1, `Relay account approve RewardsDistributor contract to transfer ${formatUnits(mtaAmount)} MTA`)
 
-        const tx3 = await rewardsDistributor.distributeRewards([vaultAddress], [mtaAmount])
-        await logTxDetails(tx3, `distributeRewards ${usdFormatter(mtaAmount)} MTA`)
+        const tx2 = await rewardsDistributor.distributeRewards([vaultAsset.vault], [mtaAmount])
+        await logTxDetails(
+            tx2,
+            `distributeRewards ${formatUnits(mtaAmount)} MTA to vault with asset ${vaultAsset.symbol} and address ${vaultAsset.vault}`,
+        )
     })
 
 task("rewards", "Get Compound and Aave platform reward tokens")
