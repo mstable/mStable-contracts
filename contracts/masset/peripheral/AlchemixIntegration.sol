@@ -21,7 +21,8 @@ contract AlchemixIntegration is
     IPlatformIntegration,
     Initializable,
     ImmutableModule,
-    ReentrancyGuard {
+    ReentrancyGuard
+{
     using SafeERC20 for IERC20;
 
     event Deposit(address indexed _bAsset, address _pToken, uint256 _amount);
@@ -88,10 +89,7 @@ contract AlchemixIntegration is
      * @dev Approve the spending of the bAsset by Alchemix's StakingPools contract,
      *      and the spending of the reward token by mStable's Liquidator contract
      */
-    function initialize()
-        public
-        initializer
-    {
+    function initialize() public initializer {
         _approveContracts();
     }
 

@@ -142,6 +142,11 @@ contract BoostedDualVault is
      * to locking up for a flat 6 months from the time of this fn call (allowing more passive accrual).
      */
     modifier updateReward(address _account) {
+        _updateReward(_account);
+        _;
+    }
+
+    function _updateReward(address _account) internal {
         uint256 currentTime = block.timestamp;
         uint64 currentTime64 = SafeCast.toUint64(currentTime);
 
@@ -210,7 +215,6 @@ contract BoostedDualVault is
             // This should only be hit once, for first staker in initialisation case
             userData[_account].lastAction = currentTime64;
         }
-        _;
     }
 
     /** @dev Updates the boost for a given address, after the rest of the function has executed */

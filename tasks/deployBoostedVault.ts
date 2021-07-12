@@ -4,7 +4,16 @@ import { task, types } from "hardhat/config"
 import { DEAD_ADDRESS } from "@utils/constants"
 
 import { params } from "./taskUtils"
-import { AssetProxy__factory, BoostedVault__factory } from "../types/generated"
+import { AssetProxy__factory, BoostedVault__factory, BoostedDualVault__factory } from "../types/generated"
+
+task("getBytecode-BoostedDualVault").setAction(async () => {
+    const size = BoostedDualVault__factory.bytecode.length / 2 / 1000
+    if (size > 24.576) {
+        console.error(`BoostedDualVault size is ${size} kb: ${size - 24.576} kb too big`)
+    } else {
+        console.log(`BoostedDualVault = ${size} kb`)
+    }
+})
 
 task("BoostedVault.deploy", "Deploys a BoostedVault")
     .addParam("nexus", "Nexus address", undefined, params.address, false)
