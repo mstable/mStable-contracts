@@ -74,6 +74,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xf1049aeD858C4eAd6df1de4dbE63EF607CfF3262"
             case "BasketManager":
                 return "0x66126B4aA2a1C07536Ef8E5e8bD4EfDA1FdEA96D"
+            case "AaveIncentivesController":
+                return "0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5"
             case "AaveLendingPoolAddressProvider":
                 return "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5"
             case "AlchemixStakingPool":

@@ -10,14 +10,13 @@ import { task, types } from "hardhat/config"
 import { BoostedVault__factory, Poker, Poker__factory } from "types/generated"
 import { getSigner } from "./utils/defender-utils"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
+import { getChain, getChainAddress } from "./utils/networkAddressFactory"
 import { MTA, mUSD } from "./utils/tokens"
 
 const maxVMTA = simpleToExactAmount(300000, 18)
 const maxBoost = simpleToExactAmount(4, 18)
 const minBoost = simpleToExactAmount(1, 18)
 const floor = simpleToExactAmount(95, 16)
-
-const pokerAddress = "0x8E1Fd7F5ea7f7760a83222d3d470dFBf8493A03F"
 
 const calcBoost = (raw: BN, vMTA: BN, priceCoefficient: BN, boostCoeff: BN, decimals = 18): BN => {
     // min(m, max(d, (d * 0.95) + c * min(vMTA, f) / USD^b))
@@ -28,13 +27,7 @@ const calcBoost = (raw: BN, vMTA: BN, priceCoefficient: BN, boostCoeff: BN, deci
     let denom = parseFloat(formatUnits(scaledBalance))
     denom **= 0.875
     const flooredMTA = vMTA.gt(maxVMTA) ? maxVMTA : vMTA
-    let rhs = floor.add(
-        flooredMTA
-            .mul(boostCoeff)
-            .div(10)
-            .mul(fullScale)
-            .div(simpleToExactAmount(denom)),
-    )
+    let rhs = floor.add(flooredMTA.mul(boostCoeff).div(10).mul(fullScale).div(simpleToExactAmount(denom)))
     rhs = rhs.gt(minBoost) ? rhs : minBoost
     return rhs.gt(maxBoost) ? maxBoost : rhs
 }
@@ -62,10 +55,11 @@ task("over-boost", "Pokes accounts that are over boosted")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .addFlag("update", "Will send a poke transactions to the Poker contract")
     .addOptionalParam("minMtaDiff", "Min amount of vMTA over boosted. 300 = 0.3 boost", 300, types.int)
-    .setAction(async (taskArgs, hre) => {
+    .setAction(async (taskArgs, { ethers, network, hardhatArguments }) => {
         const minMtaDiff = taskArgs.minMtaDiff
-        const signer = await getSigner(hre.ethers, taskArgs.speed)
+        const signer = await getSigner(ethers, taskArgs.speed)
         // const signer = await impersonate("0x2f2Db75C5276481E2B018Ac03e968af7763Ed118")
+        const chain = getChain(network.name, hardhatArguments.config)
 
         const gqlClient = new GraphQLClient("https://api.thegraph.com/subgraphs/name/mstable/mstable-feeder-pools")
         const query = gql`
@@ -123,19 +117,14 @@ task("over-boost", "Pokes accounts that are over boosted")
             console.log("Account, Raw Balance, Boosted Balance, Boost Balance USD, vMTA balance, Boost Actual, Boost Expected, Boost Diff")
             // For each account in the boosted savings vault
             vault.accounts.forEach((account) => {
-                const boostActual = BN.from(account.boostedBalance)
-                    .mul(1000)
-                    .div(account.rawBalance)
-                    .toNumber()
+                const boostActual = BN.from(account.boostedBalance).mul(1000).div(account.rawBalance).toNumber()
                 const accountId = account.id.split(".")[1]
                 const boostExpected = calcBoost(BN.from(account.rawBalance), vMtaBalancesMap[accountId], priceCoeff, boostCoeff)
                     .div(simpleToExactAmount(1, 15))
                     .toNumber()
                 const boostDiff = boostActual - boostExpected
                 // Calculate how much the boost balance is in USD = balance balance * price coefficient / 1e18
-                const boostBalanceUsd = BN.from(account.boostedBalance)
-                    .mul(priceCoeff)
-                    .div(simpleToExactAmount(1))
+                const boostBalanceUsd = BN.from(account.boostedBalance).mul(priceCoeff).div(simpleToExactAmount(1))
                 // Identify accounts with more than 20% over their boost and boost balance > 50,000 USD
                 if (boostDiff > minMtaDiff && boostBalanceUsd.gt(simpleToExactAmount(50000))) {
                     overBoosted.push({
@@ -168,6 +157,7 @@ task("over-boost", "Pokes accounts that are over boosted")
             })
         }
         if (taskArgs.update) {
+            const pokerAddress = getChainAddress("Poker", chain)
             console.log(`About to poke ${pokeVaultAccounts.length} vaults`)
             const poker = Poker__factory.connect(pokerAddress, signer)
             const tx = await poker.poke(pokeVaultAccounts)

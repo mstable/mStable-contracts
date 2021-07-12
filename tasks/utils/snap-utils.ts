@@ -22,10 +22,10 @@ import { AaveStakedTokenV2__factory } from "types/generated/factories/AaveStaked
 import { Comptroller__factory } from "types/generated/factories/Comptroller__factory"
 import { MusdLegacy } from "types/generated/MusdLegacy"
 import { QuantityFormatter, usdFormatter } from "./quantity-formatters"
-import { AAVE, COMP, DAI, GUSD, stkAAVE, sUSD, Token, USDC, USDT, WBTC } from "./tokens"
+import { AAVE, Chain, COMP, DAI, GUSD, stkAAVE, sUSD, Token, USDC, USDT, WBTC } from "./tokens"
+import { getChainAddress } from "./networkAddressFactory"
 
 const compIntegrationAddress = "0xD55684f4369040C12262949Ff78299f2BC9dB735"
-const liquidatorAddress = "0xe595D67181D701A5356e010D9a58EB9A341f1DbD"
 const comptrollerAddress = "0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B"
 export interface TxSummary {
     count: number
@@ -127,9 +127,8 @@ export const snapConfig = async (asset: Masset | MusdEth | MusdLegacy | FeederPo
     console.log(`Weights: min ${formatUnits(conf.limits.min, 16)}% max ${formatUnits(conf.limits.max, 16)}%`)
 }
 
-export const snapSave = async (signer: Signer, networkName: string, toBlock: number): Promise<void> => {
-    const savingManagerAddress =
-        networkName === "mainnet" ? "0x30647a72dc82d7fbb1123ea74716ab8a317eac19" : "0x5290Ad3d83476CA6A2b178Cd9727eE1EF72432af"
+export const snapSave = async (signer: Signer, chain: Chain, toBlock: number): Promise<void> => {
+    const savingManagerAddress = getChainAddress("SavingsManager", chain)
     const savingsManager = new SavingsContract__factory(signer).attach(savingManagerAddress)
     const exchangeRate = await savingsManager.exchangeRate({
         blockTag: toBlock,
@@ -752,9 +751,14 @@ export const getCompTokens = async (signer: Signer, toBlock: BlockInfo, quantity
     )
 }
 
-export const getAaveTokens = async (signer: Signer, toBlock: BlockInfo, quantityFormatter = usdFormatter): Promise<void> => {
+export const getAaveTokens = async (
+    signer: Signer,
+    toBlock: BlockInfo,
+    quantityFormatter = usdFormatter,
+    chain = Chain.mainnet,
+): Promise<void> => {
     const stkAaveToken = AaveStakedTokenV2__factory.connect(stkAAVE.address, signer)
-    const aaveIncentivesAddress = "0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5"
+    const aaveIncentivesAddress = getChainAddress("AaveIncentivesController", chain)
     const aaveIncentives = IAaveIncentivesController__factory.connect(aaveIncentivesAddress, signer)
 
     let totalStkAave = BN.from(0)
@@ -778,6 +782,7 @@ export const getAaveTokens = async (signer: Signer, toBlock: BlockInfo, quantity
     }
 
     // Get stkAave and AAVE in liquidity manager
+    const liquidatorAddress = getChainAddress("Liquidator", chain)
     const liquidatorStkAaveBal = await stkAaveToken.balanceOf(liquidatorAddress, { blockTag: toBlock.blockNumber })
     totalStkAave = totalStkAave.add(liquidatorStkAaveBal)
     const cooldownStart = await stkAaveToken.stakersCooldowns(liquidatorAddress, { blockTag: toBlock.blockNumber })

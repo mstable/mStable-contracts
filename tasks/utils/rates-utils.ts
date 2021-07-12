@@ -6,7 +6,7 @@ import { MusdEth } from "types/generated/MusdEth"
 import { MusdLegacy } from "types/generated/MusdLegacy"
 import { QuantityFormatter } from "./quantity-formatters"
 import { isMusdLegacy } from "./snap-utils"
-import { Token } from "./tokens"
+import { PDAI, PUSDC, PUSDT, Token } from "./tokens"
 
 export interface Balances {
     total: BN
@@ -129,9 +129,9 @@ export const getSwapRates = async (
             const curvePool = ICurve__factory.connect("0x445FE580eF8d70FF569aB36e80c647af338db351", mAsset.signer)
             // Just hard code the mapping for now
             const curveIndexMap = {
-                "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063": 0, // DAI
-                "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174": 1, // USDC
-                "0xc2132D05D31c914a87C6611C10748AEb04B58e8F": 2, // Tether
+                [PDAI.address]: 0,
+                [PUSDC.address]: 1,
+                [PUSDT.address]: 2,
             }
             const inputIndex = curveIndexMap[inputToken.address]
             const outputIndex = curveIndexMap[outputToken.address]
