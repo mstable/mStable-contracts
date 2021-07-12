@@ -10,9 +10,8 @@ import {
     CompoundIntegration,
     AlchemixIntegration,
     AlchemixIntegration__factory,
-    FeederPool,
 } from "types/generated"
-import { BN, simpleToExactAmount } from "@utils/math"
+import { simpleToExactAmount } from "@utils/math"
 import { ALCX, alUSD, BUSD, CREAM, cyMUSD, GUSD, mUSD, tokens } from "./utils/tokens"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { getSigner } from "./utils/defender-utils"
