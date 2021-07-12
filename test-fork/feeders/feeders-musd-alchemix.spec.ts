@@ -22,12 +22,12 @@ import {
     Liquidator,
     LiquidatorProxy__factory,
     Liquidator__factory,
-    RewardsDistributorEth,
-    RewardsDistributorEth__factory,
 } from "types/generated"
 import { AlchemixIntegration__factory } from "types/generated/factories/AlchemixIntegration__factory"
 import { IAlchemixStakingPools__factory } from "types/generated/factories/IAlchemixStakingPools__factory"
+import { RewardsDistributorEth__factory } from "types/generated/factories/RewardsDistributorEth__factory"
 import { IAlchemixStakingPools } from "types/generated/IAlchemixStakingPools"
+import { RewardsDistributorEth } from "types/generated/RewardsDistributorEth"
 
 const governorAddress = "0xF6FF1F7FCEB2cE6d26687EaaB5988b445d0b94a2"
 const deployerAddress = "0xb81473f20818225302b8fffb905b53d58a793d84"
@@ -183,7 +183,7 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
                 boosted: true,
                 name: "v-mUSD/alUSD fPool Vault",
                 symbol: "v-fPmUSD/alUSD",
-                priceCoeff: BN.from(1),
+                priceCoeff: simpleToExactAmount(1),
                 stakingToken: alUsdFp.address,
                 rewardToken: MTA.address,
             }
