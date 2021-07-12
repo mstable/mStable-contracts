@@ -5,6 +5,7 @@ import { Signer } from "ethers"
 
 import { ERC20__factory, FeederPool, FeederPool__factory, IERC20__factory, Masset, SavingsManager__factory } from "types/generated"
 import { BN, simpleToExactAmount } from "@utils/math"
+import { formatUnits } from "ethers/lib/utils"
 import { dumpConfigStorage, dumpFassetStorage, dumpTokenStorage } from "./utils/storage-utils"
 import {
     getMultiRedemptions,
@@ -225,5 +226,42 @@ task("frax-post-deploy", "Mint FRAX Feeder Pool").setAction(async (_, { ethers }
     tx = await fraxFp.mintMulti([PFRAX.address, PmUSD.address], [bAssetAmount, bAssetAmount], minAmount, await signer.getAddress())
     await logTxDetails(tx, "mint FRAX FP")
 })
+
+task("feeder-mint", "Mint some Feeder Pool tokens")
+    .addOptionalParam("amount", "Amount of the mAsset and fAsset to deposit", undefined, types.int)
+    .addParam("fasset", "Token symbol of the feeder pool asset. eg HBTC, GUSD, PFRAX or alUSD", undefined, types.string)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, { ethers, network }) => {
+        const chain = getChain(network.name)
+        const signer = await getSigner(ethers, taskArgs.speed)
+        const signerAddress = await signer.getAddress()
+
+        const fAssetSymbol = taskArgs.fasset
+        const feederPoolToken = tokens.find((t) => t.symbol === taskArgs.fasset && t.chain === chain)
+        if (!feederPoolToken) throw Error(`Could not find feeder pool asset token with symbol ${fAssetSymbol}`)
+        if (!feederPoolToken.feederPool) throw Error(`No feeder pool configured for token ${fAssetSymbol}`)
+
+        const mAssetSymbol = feederPoolToken.parent
+        if (!mAssetSymbol) throw Error(`No parent mAsset configured for feeder pool asset ${fAssetSymbol}`)
+        const mAssetToken = tokens.find((t) => t.symbol === mAssetSymbol && t.chain === chain)
+        if (!mAssetToken) throw Error(`Could not find mAsset token with symbol ${mAssetToken}`)
+
+        const fp = FeederPool__factory.connect(feederPoolToken.feederPool, signer)
+        const fpSymbol = await fp.symbol()
+        const mAsset = ERC20__factory.connect(mAssetToken.address, signer)
+        const fAsset = ERC20__factory.connect(feederPoolToken.address, signer)
+
+        const mintAmount = simpleToExactAmount(taskArgs.amount)
+
+        // Approvals before mint
+        let tx = await mAsset.approve(fp.address, mintAmount)
+        await logTxDetails(tx, `${signerAddress} approves ${fpSymbol} to spend ${mAssetSymbol}`)
+        tx = await fAsset.approve(fp.address, mintAmount)
+        await logTxDetails(tx, `${signerAddress} approves ${fpSymbol} to spend ${feederPoolToken.symbol}`)
+
+        // mint Feeder Pool tokens
+        tx = await fp.mintMulti([mAsset.address, fAsset.address], [mintAmount, mintAmount], 0, signerAddress)
+        logTxDetails(tx, `Mint ${fpSymbol} from ${formatUnits(mintAmount)} ${mAssetSymbol} and ${formatUnits(mintAmount)} ${fAssetSymbol}`)
+    })
 
 module.exports = {}
