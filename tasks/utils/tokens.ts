@@ -342,6 +342,8 @@ export const cyMUSD: Token = {
 }
 
 export const tokens = [
+    MTA,
+    PMTA,
     mUSD,
     mBTC,
     sUSD,
