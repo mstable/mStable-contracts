@@ -188,4 +188,32 @@ task("proxy-upgrades", "Proxy implementation changes")
         })
     })
 
+task("vault-stake", "Stake into a vault")
+    .addParam("asset", "Symbol of the asset that has a mStable vault. eg mUSD, alUSD, MTA", undefined, types.string)
+    .addParam("amount", "Amount to be staked", undefined, types.int)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, { ethers, network }) => {
+        const chain = getChain(network.name)
+        const signer = await getSigner(ethers, taskArgs.speed)
+        const signerAddress = await signer.getAddress()
+
+        const assetSymbol = taskArgs.asset
+        const assetToken = tokens.find((t) => t.symbol === assetSymbol && t.chain === chain)
+        if (!assetToken) throw Error(`Could not find asset with symbol ${assetSymbol}`)
+        if (!assetToken.vault) throw Error(`No vault is configured for asset ${assetSymbol}`)
+
+        const stakedTokenAddress = assetToken.feederPool || assetToken.savings || assetToken.address
+        const stakedToken = ERC20__factory.connect(stakedTokenAddress, signer)
+
+        const vault = StakingRewards__factory.connect(assetToken.vault, signer)
+
+        const amount = simpleToExactAmount(taskArgs.amount)
+
+        let tx = await stakedToken.approve(vault.address, amount)
+        await logTxDetails(tx, `${signerAddress} approves ${assetSymbol} vault to spend ${stakedTokenAddress}`)
+
+        tx = await vault["stake(uint256)"](amount)
+        await logTxDetails(tx, `${signerAddress} stakes ${amount} ${assetSymbol} in vault`)
+    })
+
 module.exports = {}

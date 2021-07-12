@@ -164,7 +164,7 @@ task("mUSD-snap", "Snaps mUSD")
             balances.save,
         )
 
-        await snapSave(signer, network.name, toBlock.blockNumber)
+        await snapSave(signer, chain, toBlock.blockNumber)
 
         outputFees(
             mintSummary,
