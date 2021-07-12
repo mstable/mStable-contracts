@@ -74,14 +74,13 @@ task("deployVault", "Deploy Feeder Pool with boosted dual vault")
 
         const stakingToken = tokens.find((t) => t.symbol === taskArgs.stakingToken)
         if (!stakingToken) throw Error(`Could not find staking token with symbol ${taskArgs.stakingToken}`)
-        let stakingTokenAddress = stakingToken.feederPool
-        if (taskArgs.stakingType === "address") {
-            stakingTokenAddress = stakingToken.address
-        } else if (taskArgs.stakingType === "save") {
-            stakingTokenAddress = stakingToken.savings
-        } else if (taskArgs.stakingType !== "feeder") {
-            throw Error(`Invalid staking type ${taskArgs.stakingType}. Must be either address, feeder or save`)
-        }
+
+        // Staking Token is for Feeder Pool, Savings Vault or the token itself. eg
+        // alUSD will stake feeder pool in a v-fPmUSD/alUSD vault
+        // mUSD will stake savings vault in a v-imUSD vault
+        // MTA will stake MTA in a v-MTA vault
+        const stakingTokenAddress = stakingToken.feederPool || stakingToken.savings || stakingToken.address
+
         const rewardToken = tokens.find((t) => t.symbol === taskArgs.rewardToken)
         if (!rewardToken) throw Error(`Could not find reward token with symbol ${taskArgs.rewardToken}`)
 
