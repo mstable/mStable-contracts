@@ -12,14 +12,13 @@ import {
 } from "types/generated"
 import { RewardsDistributorEth__factory } from "types/generated/factories/RewardsDistributorEth__factory"
 import { simpleToExactAmount } from "@utils/math"
+import { formatUnits } from "ethers/lib/utils"
 import { MTA, PMTA, PmUSD, PWMATIC, tokens } from "./utils/tokens"
 import { getSigner } from "./utils/defender-utils"
 import { logTxDetails } from "./utils/deploy-utils"
 import { getChain, getChainAddress } from "./utils/networkAddressFactory"
 import { usdFormatter } from "./utils"
 import { getAaveTokens, getBlock, getBlockRange, getCompTokens } from "./utils/snap-utils"
-import { sign } from "crypto"
-import { formatUnits } from "ethers/lib/utils"
 
 task("eject-stakers", "Ejects expired stakers from Meta staking contract (vMTA)")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
