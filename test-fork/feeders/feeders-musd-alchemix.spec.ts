@@ -14,6 +14,8 @@ import { AAVE, ALCX, alUSD, Chain, COMP, MTA, mUSD, stkAAVE } from "tasks/utils/
 import {
     AlchemixIntegration,
     BoostedDualVault,
+    DelayedProxyAdmin,
+    DelayedProxyAdmin__factory,
     FeederPool,
     IERC20,
     IERC20__factory,
@@ -33,6 +35,7 @@ const alUsdWhaleAddress = "0xf9a0106251467fff1ff03e8609aa74fc55a2a45e"
 
 const chain = Chain.mainnet
 const nexusAddress = getChainAddress("Nexus", chain)
+const delayedProxyAdminAddress = getChainAddress("DelayedProxyAdmin", chain)
 const liquidatorAddress = getChainAddress("Liquidator", chain)
 const alchemixStakingPoolsAddress = getChainAddress("AlchemixStakingPool", chain)
 const uniswapRouterAddress = getChainAddress("UniswapRouterV3", chain)
@@ -40,11 +43,13 @@ const uniswapQuoterAddress = getChainAddress("UniswapQuoterV3", chain)
 const uniswapEthToken = getChainAddress("UniswapEthToken", Chain.mainnet)
 
 context("alUSD Feeder Pool integration to Alchemix", () => {
-    let governor: Signer
+    let admin: Signer
     let deployer: Signer
+    let governor: Signer
     let ethWhale: Signer
     let mUsdWhale: Signer
     let alUsdWhale: Signer
+    let delayedProxyAdmin: DelayedProxyAdmin
     let alUsdFp: FeederPool
     let vault: BoostedDualVault
     let musdToken: IERC20
@@ -73,6 +78,7 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
         })
         deployer = await impersonate(deployerAddress)
         governor = await impersonate(governorAddress)
+        admin = await impersonate(delayedProxyAdminAddress)
         ethWhale = await impersonate(ethWhaleAddress)
         mUsdWhale = await impersonate(mUsdWhaleAddress)
         alUsdWhale = await impersonate(alUsdWhaleAddress)
@@ -87,6 +93,7 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
             ),
         )
 
+        delayedProxyAdmin = await DelayedProxyAdmin__factory.connect(delayedProxyAdminAddress, governor)
         musdToken = await IERC20__factory.connect(mUSD.address, deployer)
         alusdToken = await IERC20__factory.connect(alUSD.address, deployer)
         alcxToken = await IERC20__factory.connect(ALCX.address, deployer)
@@ -306,7 +313,7 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
             expect(await alcxToken.balanceOf(alchemixIntegration.address), "integration ALCX bal after").to.gt(simpleToExactAmount(1, 12))
         })
     })
-    describe.skip("liquidator", () => {
+    describe("liquidator", () => {
         let newLiquidatorImpl: Liquidator
         it("deploy new liquidator", async () => {
             newLiquidatorImpl = await deployContract(new Liquidator__factory(deployer), "Liquidator", [
@@ -327,16 +334,18 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
             expect(await newLiquidatorImpl.compToken(), "compToken").to.eq(COMP.address)
             expect(await newLiquidatorImpl.alchemixToken(), "alchemixToken").to.eq(ALCX.address)
         })
-        it("upgrade liquidator proxy", async () => {
-            const liquidatorProxy = LiquidatorProxy__factory.connect(liquidatorAddress, governor)
-            expect(liquidatorProxy.admin(), "admin before").to.eq(governorAddress)
+        it("Update the Liquidator proxy", async () => {
+            const liquidatorProxy = LiquidatorProxy__factory.connect(liquidatorAddress, admin)
+            expect(await liquidatorProxy.callStatic.admin(), "proxy admin before").to.eq(delayedProxyAdminAddress)
+            expect(await liquidatorProxy.callStatic.implementation(), "liquidator impl address before").to.not.eq(newLiquidatorImpl.address)
 
-            await liquidatorProxy.upgradeTo(newLiquidatorImpl.address)
+            // Update the Liquidator proxy to point to the new implementation using the delayed proxy admin
+            const data = newLiquidatorImpl.interface.encodeFunctionData("upgrade")
+            await delayedProxyAdmin.proposeUpgrade(liquidatorAddress, newLiquidatorImpl.address, data)
+            await increaseTime(ONE_WEEK.add(60))
+            await delayedProxyAdmin.acceptUpgradeRequest(liquidatorAddress)
 
-            expect(await liquidatorProxy.implementation(), "liquidator impl address").to.eq(newLiquidatorImpl.address)
-        })
-        it("upgrade liquidator", async () => {
-            await liquidator.upgrade()
+            expect(await liquidatorProxy.callStatic.implementation(), "liquidator impl address after").to.eq(newLiquidatorImpl.address)
         })
         it("create liquidation of ALCX", async () => {
             const uniswapPath = encodeUniswapPath([ALCX.address, uniswapEthToken, alUSD.address], [3000, 3000])
@@ -352,28 +361,24 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
                 false,
             )
         })
-        it("Claim accrued ALCX rewards", async () => {
+        it("Claim accrued ALCX using integration contract", async () => {
             await increaseTime(ONE_WEEK)
 
             const unclaimedAlcxBefore = await alchemixStakingPools.getStakeTotalUnclaimed(alchemixIntegration.address, poolId)
-            const integrationAlusdBalanceBefore = await alusdToken.balanceOf(alchemixIntegration.address)
-            expect(unclaimedAlcxBefore, "unclaimed ALCX before").to.gt(simpleToExactAmount(1, 10))
-            expect(integrationAlusdBalanceBefore, "integration alUSD balance before").to.gt(0)
+            expect(unclaimedAlcxBefore, "some ALCX before").to.gt(0)
+            const integrationAlcxBalanceBefore = await alcxToken.balanceOf(alchemixIntegration.address)
 
             await alchemixIntegration.claimRewards()
 
             expect(await alchemixStakingPools.getStakeTotalUnclaimed(alchemixIntegration.address, poolId), "unclaimed ALCX after").to.eq(0)
-            // TODO fix these checks
-            // expect(await alusdToken.balanceOf(alchemixIntegration.address), "integration alUSD balance after").to.eq(
-            //     integrationAlusdBalanceBefore.add(unclaimedAlcxBefore),
-            // )
-            // assertBNClose(
-            //     await alusdToken.balanceOf(alchemixIntegration.address),
-            //     integrationAlusdBalanceBefore.add(unclaimedAlcxBefore),
-            //     BN.from(1000),
+            const integrationAlcxBalanceAfter = await alcxToken.balanceOf(alchemixIntegration.address)
+            expect(integrationAlcxBalanceAfter, "more ALCX").to.gt(integrationAlcxBalanceBefore)
+            // TODO why can't I get the correct amount?
+            // expect(await alcxToken.balanceOf(alchemixIntegration.address), "claimed ALCX").to.eq(
+            //     integrationAlcxBalanceBefore.add(unclaimedAlcxBefore),
             // )
         })
-        it("trigger ALCX liquidation", async () => {
+        it.skip("trigger ALCX liquidation", async () => {
             await liquidator.triggerLiquidation(alchemixIntegration.address)
         })
         // liquidate COMP
