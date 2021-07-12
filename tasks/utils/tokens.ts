@@ -211,7 +211,7 @@ export const alUSD: Token = {
     address: "0xBC6DA0FE9aD5f3b0d58160288917AA56653660E9",
     feederPool: "0x4eaa01974B6594C0Ee62fFd7FEE56CF11E6af936",
     integrator: undefined, // TODO add after deployment
-    vault: undefined, // TODO add after deployment
+    vault: "0xe52aba1eaa4a9f7efea2e8dfd284aeaa818dc43e",
     chain: Chain.mainnet,
     decimals: 18,
     quantityFormatter: "USD",
