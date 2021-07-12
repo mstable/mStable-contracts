@@ -53,26 +53,26 @@ task("deployFeederPool", "Deploy Feeder Pool")
 task("deployVault", "Deploy Feeder Pool with boosted dual vault")
     .addParam("name", "Token name of the vault. eg mUSD/alUSD fPool Vault", undefined, types.string)
     .addParam("symbol", "Token symbol of the vault. eg v-fPmUSD/alUSD", undefined, types.string)
-    .addParam("boosted", "Rewards are boosted by staked MTA (vMTA)", true, types.string)
+    .addParam("boosted", "Rewards are boosted by staked MTA (vMTA)", undefined, types.boolean)
     .addParam(
         "stakingToken",
-        "Symbol of token that is being staked. Feeder Pool is just the fAsset. eg imUSD, PimUSD, MTA, GUSD, alUSD",
-        true,
+        "Symbol of token that is being staked. Feeder Pool is just the fAsset. eg mUSD, PmUSD, MTA, GUSD, alUSD",
+        undefined,
         types.string,
     )
-    .addOptionalParam("stakingType", "Which token address is being staked? eg address, feeder or save", "feeder", types.string)
-    .addParam("rewardsToken", "Token symbol of reward. eg MTA or PMTA for Polygon", undefined, types.string)
+    .addParam("rewardToken", "Token symbol of reward. eg MTA or PMTA for Polygon", undefined, types.string)
     .addOptionalParam("dualRewardToken", "Token symbol of second reward. eg WMATIC, ALCX, QI", undefined, types.string)
     .addOptionalParam("price", "Price coefficient is the value of the mAsset in USD. eg mUSD/USD = 1, mBTC/USD", 1, types.int)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, { ethers, hardhatArguments, network }) => {
-        const signer = await getSigner(ethers, taskArgs.speed)
         const chain = getChain(network.name, hardhatArguments.config)
+        const signer = await getSigner(ethers, taskArgs.speed)
 
         if (taskArgs.name?.length < 4) throw Error(`Invalid token name ${taskArgs.name}`)
-        if (taskArgs.symbol?.length <= 0 || taskArgs.symbol?.length > 12) throw Error(`Invalid token name ${taskArgs.name}`)
+        if (taskArgs.symbol?.length <= 0 || taskArgs.symbol?.length > 14) throw Error(`Invalid token symbol ${taskArgs.name}`)
+        if (taskArgs.boosted === undefined) throw Error(`Invalid boolean boost ${taskArgs.boosted}`)
 
-        const stakingToken = tokens.find((t) => t.symbol === taskArgs.stakingToken)
+        const stakingToken = tokens.find((t) => t.symbol === taskArgs.stakingToken && t.chain === chain)
         if (!stakingToken) throw Error(`Could not find staking token with symbol ${taskArgs.stakingToken}`)
 
         // Staking Token is for Feeder Pool, Savings Vault or the token itself. eg
@@ -81,7 +81,7 @@ task("deployVault", "Deploy Feeder Pool with boosted dual vault")
         // MTA will stake MTA in a v-MTA vault
         const stakingTokenAddress = stakingToken.feederPool || stakingToken.savings || stakingToken.address
 
-        const rewardToken = tokens.find((t) => t.symbol === taskArgs.rewardToken)
+        const rewardToken = tokens.find((t) => t.symbol === taskArgs.rewardToken && t.chain === chain)
         if (!rewardToken) throw Error(`Could not find reward token with symbol ${taskArgs.rewardToken}`)
 
         if (taskArgs.price < 0 || taskArgs.price >= simpleToExactAmount(1)) throw Error(`Invalid price coefficient ${taskArgs.price}`)
@@ -95,7 +95,7 @@ task("deployVault", "Deploy Feeder Pool with boosted dual vault")
             priceCoeff: BN.from(taskArgs.price),
             stakingToken: stakingTokenAddress,
             rewardToken: rewardToken.address,
-            dualRewardToken: dualRewardToken.address,
+            dualRewardToken: dualRewardToken?.address,
         }
 
         await deployVault(signer, vaultData, chain)
