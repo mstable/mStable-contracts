@@ -1,5 +1,4 @@
-import { assertBNClose } from "@utils/assertions"
-import { MAX_UINT256, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
+import { MAX_UINT256, ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import { impersonate } from "@utils/fork"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { encodeUniswapPath } from "@utils/peripheral/uniswap"
@@ -13,15 +12,18 @@ import { getChainAddress } from "tasks/utils/networkAddressFactory"
 import { AAVE, ALCX, alUSD, Chain, COMP, MTA, mUSD, stkAAVE } from "tasks/utils/tokens"
 import {
     AlchemixIntegration,
-    BoostedDualVault,
+    BoostedVault,
     DelayedProxyAdmin,
     DelayedProxyAdmin__factory,
     FeederPool,
+    FeederPool__factory,
     IERC20,
     IERC20__factory,
     Liquidator,
     LiquidatorProxy__factory,
     Liquidator__factory,
+    RewardsDistributorEth,
+    RewardsDistributorEth__factory,
 } from "types/generated"
 import { AlchemixIntegration__factory } from "types/generated/factories/AlchemixIntegration__factory"
 import { IAlchemixStakingPools__factory } from "types/generated/factories/IAlchemixStakingPools__factory"
@@ -32,11 +34,13 @@ const deployerAddress = "0xb81473f20818225302b8fffb905b53d58a793d84"
 const ethWhaleAddress = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 const mUsdWhaleAddress = "0x69E0E2b3d523D3b247d798a49C3fa022a46DD6bd"
 const alUsdWhaleAddress = "0xf9a0106251467fff1ff03e8609aa74fc55a2a45e"
+const fundManagerAddress = "0x437e8c54db5c66bb3d80d2ff156e9bfe31a017db"
 
 const chain = Chain.mainnet
 const nexusAddress = getChainAddress("Nexus", chain)
 const delayedProxyAdminAddress = getChainAddress("DelayedProxyAdmin", chain)
 const liquidatorAddress = getChainAddress("Liquidator", chain)
+const rewardsDistributorAddress = getChainAddress("RewardsDistributor", chain)
 const alchemixStakingPoolsAddress = getChainAddress("AlchemixStakingPool", chain)
 const uniswapRouterAddress = getChainAddress("UniswapRouterV3", chain)
 const uniswapQuoterAddress = getChainAddress("UniswapQuoterV3", chain)
@@ -49,16 +53,19 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
     let ethWhale: Signer
     let mUsdWhale: Signer
     let alUsdWhale: Signer
+    let fundManager: Signer
     let delayedProxyAdmin: DelayedProxyAdmin
     let alUsdFp: FeederPool
-    let vault: BoostedDualVault
+    let vault: BoostedVault
     let musdToken: IERC20
     let alusdToken: IERC20
     let alcxToken: IERC20
+    let mtaToken: IERC20
     let alchemixIntegration: AlchemixIntegration
     let alchemixStakingPools: IAlchemixStakingPools
     let poolId: BN
     let liquidator: Liquidator
+    let rewardsDistributor: RewardsDistributorEth
 
     const firstMintAmount = simpleToExactAmount(10000)
     const secondMintAmount = simpleToExactAmount(2000)
@@ -71,7 +78,7 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
                 {
                     forking: {
                         jsonRpcUrl: process.env.NODE_URL,
-                        blockNumber: 12779756,
+                        blockNumber: 12810000, // After Feeder Pool deployer
                     },
                 },
             ],
@@ -82,6 +89,7 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
         ethWhale = await impersonate(ethWhaleAddress)
         mUsdWhale = await impersonate(mUsdWhaleAddress)
         alUsdWhale = await impersonate(alUsdWhaleAddress)
+        fundManager = await impersonate(fundManagerAddress)
 
         // send some Ether to addresses that need it
         await Promise.all(
@@ -97,9 +105,11 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
         musdToken = await IERC20__factory.connect(mUSD.address, deployer)
         alusdToken = await IERC20__factory.connect(alUSD.address, deployer)
         alcxToken = await IERC20__factory.connect(ALCX.address, deployer)
+        mtaToken = await IERC20__factory.connect(MTA.address, deployer)
         alchemixStakingPools = await IAlchemixStakingPools__factory.connect(alchemixStakingPoolsAddress, deployer)
         poolId = (await alchemixStakingPools.tokenPoolIds(alUSD.address)).sub(1)
         liquidator = await Liquidator__factory.connect(liquidatorAddress, governor)
+        rewardsDistributor = await RewardsDistributorEth__factory.connect(rewardsDistributorAddress, fundManager)
     })
     it("Test connectivity", async () => {
         const currentBlock = await ethers.provider.getBlockNumber()
@@ -122,8 +132,9 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
             symbol: "fPmUSD/alUSD",
             config,
         }
-
-        alUsdFp = await deployFeederPool(deployer, fpData, chain)
+        alUsdFp = alUSD.feederPool
+            ? FeederPool__factory.connect(alUSD.feederPool, deployer)
+            : await deployFeederPool(deployer, fpData, chain)
 
         expect(await alUsdFp.name(), "name").to.eq(fpData.name)
         expect(await alUsdFp.symbol(), "symbol").to.eq(fpData.symbol)
@@ -134,6 +145,7 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
 
         expect(await alusdToken.balanceOf(alUsdFp.address), "alUSD bal before").to.eq(0)
         expect(await musdToken.balanceOf(alUsdFp.address), "mUSD bal before").to.eq(0)
+        expect(await alUsdFp.balanceOf(alUsdWhaleAddress), "whale fp bal before").to.eq(0)
 
         // Transfer some mUSD to the alUSD whale so they can do a mintMulti (to get the pool started)
         await musdToken.connect(mUsdWhale).transfer(alUsdWhaleAddress, approveAmount)
@@ -163,9 +175,10 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
         expect(mUsdBassetAfter.vaultData.vaultBalance, "mUSD vault balance").to.eq(
             mUsdBassetBefore.vaultData.vaultBalance.add(firstMintAmount),
         )
+        expect(await alUsdFp.balanceOf(alUsdWhaleAddress), "whale fp bal after").to.eq(firstMintAmount.mul(2).add(1))
     })
-    describe.skip("Dual Rewards Feeder Pool Vault", () => {
-        it("deploy vault", async () => {
+    describe("Boosted vault for fPmUSD/alUSD Feeder Pool", () => {
+        it("deploy boosted staking vault", async () => {
             const vaultData: VaultData = {
                 boosted: true,
                 name: "v-mUSD/alUSD fPool Vault",
@@ -173,15 +186,38 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
                 priceCoeff: BN.from(1),
                 stakingToken: alUsdFp.address,
                 rewardToken: MTA.address,
-                dualRewardToken: ALCX.address,
             }
 
-            vault = (await deployVault(deployer, vaultData, chain)) as BoostedDualVault
+            vault = (await deployVault(deployer, vaultData, chain)) as BoostedVault
         })
-        it("deposit to vault", async () => {
+        it("Distribute MTA rewards to vault", async () => {
+            const distributionAmount = simpleToExactAmount(20000)
+            const fundManagerMtaBalBefore = await mtaToken.balanceOf(fundManagerAddress)
+            expect(fundManagerMtaBalBefore, "fund manager mta bal before").to.gt(distributionAmount)
+
+            await mtaToken.connect(fundManager).approve(rewardsDistributor.address, distributionAmount)
+            await rewardsDistributor.connect(fundManager).distributeRewards([vault.address], [distributionAmount])
+
+            expect(await mtaToken.balanceOf(fundManagerAddress), "fund manager mta bal before").to.eq(
+                fundManagerMtaBalBefore.sub(distributionAmount),
+            )
+        })
+        it("stake fPmUSD/alUSD in vault", async () => {
             const stakeAmount = simpleToExactAmount(1000)
-            await alUsdFp.approve(vault.address, stakeAmount)
-            await vault["stake(uint256)"](stakeAmount)
+            expect(await vault.balanceOf(alUsdWhaleAddress), "whale v-fp bal before").to.eq(0)
+
+            await alUsdFp.connect(alUsdWhale).approve(vault.address, stakeAmount)
+            await vault.connect(alUsdWhale)["stake(uint256)"](stakeAmount)
+
+            expect(await vault.balanceOf(alUsdWhaleAddress), "whale v-fp bal after").to.eq(stakeAmount)
+        })
+        it("whale claims MTA from vault", async () => {
+            await increaseTime(ONE_DAY.mul(5))
+            expect(await mtaToken.balanceOf(alUsdWhaleAddress), "whale mta bal before").to.eq(0)
+
+            await vault.connect(alUsdWhale).claimReward()
+
+            expect(await mtaToken.balanceOf(alUsdWhaleAddress), "whale mta bal after").to.gt(0)
         })
     })
     describe("Integration", () => {
