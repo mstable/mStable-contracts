@@ -120,8 +120,8 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
      * @dev to be called via the proxy proposeUpgrade function, not the constructor.
      */
     function upgrade() external {
-        // IERC20(aaveToken).safeApprove(address(uniswapRouter), type(uint256).max);
-        // IERC20(compToken).safeApprove(address(uniswapRouter), type(uint256).max);
+        IERC20(aaveToken).safeApprove(address(uniswapRouter), type(uint256).max);
+        IERC20(compToken).safeApprove(address(uniswapRouter), type(uint256).max);
         IERC20(alchemixToken).safeApprove(address(uniswapRouter), type(uint256).max);
     }
 
