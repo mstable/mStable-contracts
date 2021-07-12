@@ -10,8 +10,9 @@ import {
     ERC20__factory,
     AssetProxy__factory,
 } from "types/generated"
+import { RewardsDistributorEth__factory } from "types/generated/factories/RewardsDistributorEth__factory"
 import { simpleToExactAmount } from "@utils/math"
-import { PMTA, PmUSD, PWMATIC, tokens } from "./utils/tokens"
+import { MTA, PMTA, PmUSD, PWMATIC, tokens } from "./utils/tokens"
 import { getSigner } from "./utils/defender-utils"
 import { logTxDetails } from "./utils/deploy-utils"
 import { getChain, getChainAddress } from "./utils/networkAddressFactory"
@@ -117,7 +118,7 @@ task("polly-stake-imusd", "Stakes imUSD into the v-imUSD vault on Polygon")
         await logTxDetails(tx2, `stake ${usdFormatter(amount)} imUSD in v-imUSD vault`)
     })
 
-task("polly-dis-rewards", "Distributes MTA and WMATIC rewards to vaults on Polygon")
+task("polly-dis-rewards", "Distributes MTA and WMATIC rewards to the imUSD vault on Polygon")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .addOptionalParam("mtaAmount", "MTA tokens", 20833, types.int)
     .addOptionalParam("wmaticAmount", "WMATIC tokens", 18666, types.int)
@@ -141,6 +142,35 @@ task("polly-dis-rewards", "Distributes MTA and WMATIC rewards to vaults on Polyg
 
         const tx3 = await rewardsDistributor.distributeRewards([PmUSD.vault], [mtaAmount], [wmaticAmount])
         await logTxDetails(tx3, `distributeRewards ${usdFormatter(mtaAmount)} MTA and ${usdFormatter(wmaticAmount)} WMATIC`)
+    })
+
+task("dis-rewards", "Distributes MTA rewards to a vault on Mainnet")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .addParam("vaultAsset", "Symbol of asset that is staked. eg mUSD, MTA, GUSD, alUSD", undefined, types.string)
+    .addOptionalParam("mtaAmount", "MTA tokens", 20833, types.int)
+    .setAction(async (taskArgs, { ethers, hardhatArguments, network }) => {
+        const signer = await getSigner(ethers, taskArgs.speed)
+        const chain = getChain(network.name, hardhatArguments.config)
+
+        const vaultAsset = tokens.find((t) => t.symbol === taskArgs.vaultAsset && t.chain === chain)
+        if (!vaultAsset) throw Error(`Could not find vault asset with symbol ${taskArgs.vaultAsset}`)
+        // Staking Token is for Feeder Pool, Savings Vault or the token itself. eg
+        // alUSD will stake feeder pool in a v-fPmUSD/alUSD vault
+        // mUSD will stake savings vault in a v-imUSD vault
+        // MTA will stake MTA in a v-MTA vault
+        const vaultAddress = vaultAsset.feederPool || vaultAsset.savings || vaultAsset.address
+
+        const mtaAmount = simpleToExactAmount(taskArgs.mtaAmount)
+
+        const rewardsDistributorAddress = getChainAddress("RewardsDistributor", chain)
+        const rewardsDistributor = RewardsDistributorEth__factory.connect(rewardsDistributorAddress, signer)
+
+        const mtaToken = ERC20__factory.connect(MTA.address, signer)
+        const tx1 = await mtaToken.approve(rewardsDistributorAddress, mtaAmount)
+        await logTxDetails(tx1, `Relay account approve RewardsDistributor contract to transfer ${usdFormatter(mtaAmount)} MTA`)
+
+        const tx3 = await rewardsDistributor.distributeRewards([vaultAddress], [mtaAmount])
+        await logTxDetails(tx3, `distributeRewards ${usdFormatter(mtaAmount)} MTA`)
     })
 
 task("rewards", "Get Compound and Aave platform reward tokens")
@@ -214,6 +244,66 @@ task("vault-stake", "Stake into a vault")
 
         tx = await vault["stake(uint256)"](amount)
         await logTxDetails(tx, `${signerAddress} stakes ${amount} ${assetSymbol} in vault`)
+    })
+
+task("vault-withdraw", "Withdraw from a vault")
+    .addParam("asset", "Symbol of the asset that has a mStable vault. eg mUSD, alUSD, MTA", undefined, types.string)
+    .addParam("amount", "Amount to be withdrawn", undefined, types.int)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, { ethers, network }) => {
+        const chain = getChain(network.name)
+        const signer = await getSigner(ethers, taskArgs.speed)
+        const signerAddress = await signer.getAddress()
+
+        const assetSymbol = taskArgs.asset
+        const assetToken = tokens.find((t) => t.symbol === assetSymbol && t.chain === chain)
+        if (!assetToken) throw Error(`Could not find asset with symbol ${assetSymbol}`)
+        if (!assetToken.vault) throw Error(`No vault is configured for asset ${assetSymbol}`)
+
+        const vault = StakingRewards__factory.connect(assetToken.vault, signer)
+
+        const amount = simpleToExactAmount(taskArgs.amount)
+
+        const tx = await vault.withdraw(amount)
+        await logTxDetails(tx, `${signerAddress} withdraw ${amount} ${assetSymbol} from vault`)
+    })
+
+task("vault-exit", "Exit from vault claiming rewards")
+    .addParam("asset", "Symbol of the asset that has a mStable vault. eg mUSD, alUSD, MTA", undefined, types.string)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, { ethers, network }) => {
+        const chain = getChain(network.name)
+        const signer = await getSigner(ethers, taskArgs.speed)
+        const signerAddress = await signer.getAddress()
+
+        const assetSymbol = taskArgs.asset
+        const assetToken = tokens.find((t) => t.symbol === assetSymbol && t.chain === chain)
+        if (!assetToken) throw Error(`Could not find asset with symbol ${assetSymbol}`)
+        if (!assetToken.vault) throw Error(`No vault is configured for asset ${assetSymbol}`)
+
+        const vault = StakingRewards__factory.connect(assetToken.vault, signer)
+
+        const tx = await vault.exit()
+        await logTxDetails(tx, `${signerAddress} exits ${assetSymbol} vault`)
+    })
+
+task("vault-claim", "Claim rewards from vault")
+    .addParam("asset", "Symbol of the asset that has a mStable vault. eg mUSD, alUSD, MTA", undefined, types.string)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, { ethers, network }) => {
+        const chain = getChain(network.name)
+        const signer = await getSigner(ethers, taskArgs.speed)
+        const signerAddress = await signer.getAddress()
+
+        const assetSymbol = taskArgs.asset
+        const assetToken = tokens.find((t) => t.symbol === assetSymbol && t.chain === chain)
+        if (!assetToken) throw Error(`Could not find asset with symbol ${assetSymbol}`)
+        if (!assetToken.vault) throw Error(`No vault is configured for asset ${assetSymbol}`)
+
+        const vault = StakingRewards__factory.connect(assetToken.vault, signer)
+
+        const tx = await vault.claimReward()
+        await logTxDetails(tx, `${signerAddress} claim rewards from ${assetSymbol} vault`)
     })
 
 module.exports = {}
