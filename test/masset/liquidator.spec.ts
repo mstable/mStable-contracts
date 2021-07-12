@@ -43,6 +43,7 @@ describe("Liquidator", () => {
     let compToken: MockERC20
     let aaveToken: MockERC20
     let stkAaveToken: MockERC20
+    let alcxToken: MockERC20
     let savings: SavingsManager
     let uniswap: MockUniswapV3
     let uniswapCompBassetPaths: EncodedPaths
@@ -86,6 +87,10 @@ describe("Liquidator", () => {
         await compIntegration.setRewardToken(compToken.address)
         await compToken.connect(sa.fundManager.signer).transfer(compIntegration.address, simpleToExactAmount(10, 18))
 
+        // Create ALCX token and assign, then approve the liquidator
+        alcxToken = await new MockERC20__factory(sa.default.signer).deploy("Alchemix Gov", "ALCX", 18, sa.fundManager.address, 100000000)
+        // TODO deploy mock ALCX rewards
+
         // Aave tokens and integration contract
         aaveToken = await new MockERC20__factory(sa.default.signer).deploy("Aave Gov", "AAVE", 18, sa.fundManager.address, 100000000)
         stkAaveToken = await new MockStakedAave__factory(sa.default.signer).deploy(aaveToken.address, sa.fundManager.address, 100000000)
@@ -112,6 +117,7 @@ describe("Liquidator", () => {
             uniswap.address,
             uniswap.address,
             compToken.address,
+            alcxToken.address,
         )
         const data: string = impl.interface.encodeFunctionData("upgrade")
         const proxy = await new AssetProxy__factory(sa.default.signer).deploy(impl.address, sa.other.address, data)
@@ -166,6 +172,7 @@ describe("Liquidator", () => {
             expect(await liquidator.uniswapQuoter(), "Uniswap Quoter").eq(uniswap.address)
             expect(await liquidator.stkAave(), "stkAave").eq(stkAaveToken.address)
             expect(await liquidator.aaveToken(), "aaveToken").eq(aaveToken.address)
+            expect(await liquidator.alchemixToken(), "alchemixToken").eq(alcxToken.address)
         })
     })
 
@@ -214,6 +221,7 @@ describe("Liquidator", () => {
                     uniswap.address,
                     uniswap.address,
                     compToken.address,
+                    alcxToken.address,
                 ),
             ).to.be.revertedWith("Invalid stkAAVE address")
             await expect(
@@ -224,6 +232,7 @@ describe("Liquidator", () => {
                     uniswap.address,
                     uniswap.address,
                     compToken.address,
+                    alcxToken.address,
                 ),
             ).to.be.revertedWith("Invalid AAVE address")
             await expect(
@@ -234,6 +243,7 @@ describe("Liquidator", () => {
                     ZERO_ADDRESS,
                     uniswap.address,
                     compToken.address,
+                    alcxToken.address,
                 ),
             ).to.be.revertedWith("Invalid Uniswap Router address")
             await expect(
@@ -244,6 +254,7 @@ describe("Liquidator", () => {
                     uniswap.address,
                     ZERO_ADDRESS,
                     compToken.address,
+                    alcxToken.address,
                 ),
             ).to.be.revertedWith("Invalid Uniswap Quoter address")
             await expect(
@@ -254,8 +265,20 @@ describe("Liquidator", () => {
                     uniswap.address,
                     uniswap.address,
                     ZERO_ADDRESS,
+                    alcxToken.address,
                 ),
             ).to.be.revertedWith("Invalid COMP address")
+            await expect(
+                new Liquidator__factory(sa.default.signer).deploy(
+                    nexus.address,
+                    stkAaveToken.address,
+                    aaveToken.address,
+                    uniswap.address,
+                    uniswap.address,
+                    compToken.address,
+                    ZERO_ADDRESS,
+                ),
+            ).to.be.revertedWith("Invalid ALCX address")
         })
     })
     context("creating a new liquidation", () => {
@@ -497,10 +520,6 @@ describe("Liquidator", () => {
                     false,
                 )
             await compIntegration.connect(sa.governor.signer).approveRewardToken()
-        })
-        it("should fail if called via contract", async () => {
-            const mock = await new MockTrigger__factory(sa.default.signer).deploy()
-            await expect(mock.trigger(liquidator.address, compIntegration.address)).to.be.revertedWith("Must be EOA")
         })
         it("should fail if liquidation does not exist", async () => {
             await expect(liquidator.triggerLiquidation(sa.dummy2.address)).to.be.revertedWith("Liquidation does not exist")
