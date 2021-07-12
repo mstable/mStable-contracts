@@ -122,7 +122,7 @@ task("deployVault", "Deploy Feeder Pool with boosted dual vault")
             boosted: taskArgs.boosted,
             name: taskArgs.name,
             symbol: taskArgs.symbol,
-            priceCoeff: BN.from(taskArgs.price),
+            priceCoeff: simpleToExactAmount(taskArgs.price),
             stakingToken: stakingTokenAddress,
             rewardToken: rewardToken.address,
             dualRewardToken: dualRewardToken?.address,
