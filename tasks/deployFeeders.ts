@@ -4,13 +4,20 @@ import "ts-node/register"
 import "tsconfig-paths/register"
 
 import { task, types } from "hardhat/config"
-import { FeederPool__factory, CompoundIntegration__factory, CompoundIntegration } from "types/generated"
+import {
+    FeederPool__factory,
+    CompoundIntegration__factory,
+    CompoundIntegration,
+    AlchemixIntegration,
+    AlchemixIntegration__factory,
+    FeederPool,
+} from "types/generated"
 import { BN, simpleToExactAmount } from "@utils/math"
-import { BUSD, CREAM, cyMUSD, GUSD, mUSD, tokens } from "./utils/tokens"
+import { ALCX, alUSD, BUSD, CREAM, cyMUSD, GUSD, mUSD, tokens } from "./utils/tokens"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { getSigner } from "./utils/defender-utils"
 import { deployFeederPool, deployVault, FeederData, VaultData } from "./utils/feederUtils"
-import { getChain } from "./utils/networkAddressFactory"
+import { getChain, getChainAddress } from "./utils/networkAddressFactory"
 
 task("deployFeederPool", "Deploy Feeder Pool")
     .addParam("masset", "Token symbol of mAsset. eg mUSD or PmUSD for Polygon", "mUSD", types.string)
@@ -48,6 +55,29 @@ task("deployFeederPool", "Deploy Feeder Pool")
 
         // Deploy Feeder Pool
         await deployFeederPool(signer, poolData, chain)
+    })
+
+task("deployAlcxInt", "Deploy Alchemix integration contract for alUSD Feeder Pool")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, { hardhatArguments, ethers, network }) => {
+        const signer = await getSigner(ethers, taskArgs.speed)
+        const chain = getChain(network.name, hardhatArguments.config)
+
+        const nexusAddress = getChainAddress("Nexus", chain)
+        const alchemixStakingPoolsAddress = getChainAddress("AlchemixStakingPool", chain)
+
+        const alchemixIntegration = await deployContract<AlchemixIntegration>(
+            new AlchemixIntegration__factory(signer),
+            "Alchemix alUSD Integration",
+            [nexusAddress, alUSD.feederPool, ALCX.address, alchemixStakingPoolsAddress, alUSD.address],
+        )
+
+        const tx = await alchemixIntegration.initialize()
+        logTxDetails(tx, "initialize Alchemix integration")
+
+        const fp = FeederPool__factory.connect(alUSD.feederPool, signer)
+        const migrateData = fp.interface.encodeFunctionData("migrateBassets", [[alUSD.address], alchemixIntegration.address])
+        console.log(`migrateBassets data:\n${migrateData}`)
     })
 
 task("deployVault", "Deploy Feeder Pool with boosted dual vault")

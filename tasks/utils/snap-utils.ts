@@ -721,7 +721,12 @@ export const quoteSwap = async (
     return { outAmount, exchangeRate }
 }
 
-export const getCompTokens = async (signer: Signer, toBlock: BlockInfo, quantityFormatter = usdFormatter): Promise<void> => {
+export const getCompTokens = async (
+    signer: Signer,
+    toBlock: BlockInfo,
+    quantityFormatter = usdFormatter,
+    chain = Chain.mainnet,
+): Promise<void> => {
     const comptroller = Comptroller__factory.connect(comptrollerAddress, signer)
     const compToken = ERC20__factory.connect(COMP.address, signer)
 
@@ -739,6 +744,7 @@ export const getCompTokens = async (signer: Signer, toBlock: BlockInfo, quantity
     console.log(`Integration ${quantityFormatter(compIntegrationBal)}`)
 
     // Get COMP in mUSD liquidator
+    const liquidatorAddress = getChainAddress("Liquidator", chain)
     const compLiquidatorBal = await compToken.balanceOf(liquidatorAddress, { blockTag: toBlock.blockNumber })
     totalComp = totalComp.add(compLiquidatorBal)
     console.log(`Liquidator  ${quantityFormatter(compLiquidatorBal)}`)
