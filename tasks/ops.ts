@@ -147,9 +147,9 @@ task("polly-dis-rewards", "Distributes MTA and WMATIC rewards to the imUSD vault
     })
 
 task("dis-rewards", "Distributes MTA rewards to a vault on Mainnet")
-    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .addParam("vaultAsset", "Symbol of asset that is staked. eg mUSD, MTA, GUSD, alUSD", undefined, types.string)
     .addOptionalParam("amount", "MTA tokens", 20833, types.int)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, { ethers, hardhatArguments, network }) => {
         const signer = await getSigner(ethers, taskArgs.speed)
         const chain = getChain(network.name, hardhatArguments.config)
@@ -157,18 +157,14 @@ task("dis-rewards", "Distributes MTA rewards to a vault on Mainnet")
         const vaultAsset = tokens.find((t) => t.symbol === taskArgs.vaultAsset && t.chain === chain)
         if (!vaultAsset) throw Error(`Could not find vault asset with symbol ${taskArgs.vaultAsset}`)
 
-        const mtaAmount = simpleToExactAmount(taskArgs.amount)
-
         const rewardsDistributorAddress = getChainAddress("RewardsDistributor", chain)
         const rewardsDistributor = RewardsDistributorEth__factory.connect(rewardsDistributorAddress, signer)
 
-        const mtaToken = ERC20__factory.connect(MTA.address, signer)
-        const tx1 = await mtaToken.approve(rewardsDistributorAddress, mtaAmount)
-        await logTxDetails(tx1, `Relay account approve RewardsDistributor contract to transfer ${formatUnits(mtaAmount)} MTA`)
+        const mtaAmount = simpleToExactAmount(taskArgs.amount)
 
-        const tx2 = await rewardsDistributor.distributeRewards([vaultAsset.vault], [mtaAmount])
+        const tx = await rewardsDistributor.distributeRewards([vaultAsset.vault], [mtaAmount])
         await logTxDetails(
-            tx2,
+            tx,
             `distributeRewards ${formatUnits(mtaAmount)} MTA to vault with asset ${vaultAsset.symbol} and address ${vaultAsset.vault}`,
         )
     })
@@ -232,17 +228,11 @@ task("vault-stake", "Stake into a vault")
         if (!assetToken) throw Error(`Could not find asset with symbol ${assetSymbol}`)
         if (!assetToken.vault) throw Error(`No vault is configured for asset ${assetSymbol}`)
 
-        const stakedTokenAddress = assetToken.feederPool || assetToken.savings || assetToken.address
-        const stakedToken = ERC20__factory.connect(stakedTokenAddress, signer)
-
         const vault = StakingRewards__factory.connect(assetToken.vault, signer)
 
         const amount = simpleToExactAmount(taskArgs.amount)
 
-        let tx = await stakedToken.approve(vault.address, amount)
-        await logTxDetails(tx, `${signerAddress} approves ${assetSymbol} vault to spend ${stakedTokenAddress}`)
-
-        tx = await vault["stake(uint256)"](amount)
+        const tx = await vault["stake(uint256)"](amount)
         await logTxDetails(tx, `${signerAddress} stakes ${amount} ${assetSymbol} in vault`)
     })
 
@@ -308,8 +298,9 @@ task("vault-claim", "Claim rewards from vault")
 
 task("approve", "Approve account to transfer token from the Defender Relay account")
     .addParam("asset", "Symbol of the asset being approved. eg mUSD, imUSD, PmUSD, GUSD, alUSD, MTA", undefined, types.string)
+    // TODO support the account being a contract name
     .addParam("account", "Address of the account that is approved to transferFrom", undefined, types.string)
-    .addOptionalParam("tokenType", "Token address, savings, vault or feeder pool", "address", types.string)
+    .addOptionalParam("tokenType", "Token address, savings, vault or feederPool.", "address", types.string)
     .addOptionalParam("amount", "Amount to approve. Default is max unit128", undefined, types.int)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, { ethers, network }) => {
@@ -322,6 +313,7 @@ task("approve", "Approve account to transfer token from the Defender Relay accou
         if (!assetToken) throw Error(`Could not find asset with symbol ${assetSymbol}`)
 
         const approveAccount = taskArgs.account
+        // TODO validate address using a regex
         if (!approveAccount) throw Error(`Invalid approve address ${approveAccount}`)
 
         const { tokenType } = taskArgs

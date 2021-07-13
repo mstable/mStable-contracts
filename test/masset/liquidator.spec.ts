@@ -3,7 +3,7 @@ import { ethers } from "hardhat"
 
 import { BN, simpleToExactAmount } from "@utils/math"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
-import { DEAD_ADDRESS, ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
+import { DEAD_ADDRESS, MAX_UINT256, ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import {
     AssetProxy__factory,
     MockERC20,
@@ -20,7 +20,6 @@ import {
     MockRewardToken__factory,
     MockNexus__factory,
     ImmutableModule,
-    MockTrigger__factory,
     MockUniswapV3,
     MockUniswapV3__factory,
     MockStakedAave__factory,
@@ -89,7 +88,6 @@ describe("Liquidator", () => {
 
         // Create ALCX token and assign, then approve the liquidator
         alcxToken = await new MockERC20__factory(sa.default.signer).deploy("Alchemix Gov", "ALCX", 18, sa.fundManager.address, 100000000)
-        // TODO deploy mock ALCX rewards
 
         // Aave tokens and integration contract
         aaveToken = await new MockERC20__factory(sa.default.signer).deploy("Aave Gov", "AAVE", 18, sa.fundManager.address, 100000000)
@@ -119,7 +117,7 @@ describe("Liquidator", () => {
             compToken.address,
             alcxToken.address,
         )
-        const data: string = impl.interface.encodeFunctionData("upgrade")
+        const data: string = impl.interface.encodeFunctionData("initialize")
         const proxy = await new AssetProxy__factory(sa.default.signer).deploy(impl.address, sa.other.address, data)
         liquidator = await Liquidator__factory.connect(proxy.address, sa.default.signer)
 
@@ -173,6 +171,16 @@ describe("Liquidator", () => {
             expect(await liquidator.stkAave(), "stkAave").eq(stkAaveToken.address)
             expect(await liquidator.aaveToken(), "aaveToken").eq(aaveToken.address)
             expect(await liquidator.alchemixToken(), "alchemixToken").eq(alcxToken.address)
+
+            expect(await aaveToken.allowance(liquidator.address, uniswap.address), "approved AAVE to Uniswap").to.eq(MAX_UINT256)
+            expect(await compToken.allowance(liquidator.address, uniswap.address), "approved COMP to Uniswap").to.eq(MAX_UINT256)
+        })
+        it("upgrade for Alchemix support", async () => {
+            expect(await alcxToken.allowance(liquidator.address, uniswap.address), "approved ALCX to Uniswap before").to.eq(0)
+
+            await liquidator.upgrade()
+
+            expect(await alcxToken.allowance(liquidator.address, uniswap.address), "approved ALCX to Uniswap after").to.eq(MAX_UINT256)
         })
     })
 

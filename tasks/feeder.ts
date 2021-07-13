@@ -253,7 +253,10 @@ task("feeder-mint", "Mint some Feeder Pool tokens")
 
         // mint Feeder Pool tokens
         const tx = await fp.mintMulti([mAssetToken.address, feederPoolToken.address], [mintAmount, mintAmount], 0, signerAddress)
-        logTxDetails(tx, `Mint ${fpSymbol} from ${formatUnits(mintAmount)} ${mAssetSymbol} and ${formatUnits(mintAmount)} ${fAssetSymbol}`)
+        await logTxDetails(
+            tx,
+            `Mint ${fpSymbol} from ${formatUnits(mintAmount)} ${mAssetSymbol} and ${formatUnits(mintAmount)} ${fAssetSymbol}`,
+        )
     })
 
 task("feeder-redeem", "Redeem some Feeder Pool tokens")
@@ -278,7 +281,7 @@ task("feeder-redeem", "Redeem some Feeder Pool tokens")
 
         // redeem Feeder Pool tokens
         const tx = await fp.redeemProportionately(fpAmount, [minBassetAmount, minBassetAmount], signerAddress)
-        logTxDetails(tx, `Redeem ${fpSymbol} from ${formatUnits(fpAmount)}`)
+        await logTxDetails(tx, `Redeem ${fpSymbol} from ${formatUnits(fpAmount)}`)
     })
 
 task("feeder-swap", "Swap some Feeder Pool tokens")
@@ -324,7 +327,7 @@ task("feeder-swap", "Swap some Feeder Pool tokens")
         const minOutputAmount = inputAmount.mul(90).div(100) // min 90% of the input
 
         const tx = await fp.swap(inputToken.address, outputToken.address, inputAmount, minOutputAmount, signerAddress)
-        logTxDetails(tx, `swap ${formatUnits(inputAmount)} ${inputSymbol} for ${outputSymbol} using ${fpSymbol} Feeder Pool`)
+        await logTxDetails(tx, `swap ${formatUnits(inputAmount)} ${inputSymbol} for ${outputSymbol} using ${fpSymbol} Feeder Pool`)
     })
 
 module.exports = {}
