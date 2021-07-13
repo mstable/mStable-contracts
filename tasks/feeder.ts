@@ -237,31 +237,94 @@ task("feeder-mint", "Mint some Feeder Pool tokens")
         const signerAddress = await signer.getAddress()
 
         const fAssetSymbol = taskArgs.fasset
-        const feederPoolToken = tokens.find((t) => t.symbol === taskArgs.fasset && t.chain === chain)
+        const feederPoolToken = tokens.find((t) => t.symbol === fAssetSymbol && t.chain === chain)
         if (!feederPoolToken) throw Error(`Could not find feeder pool asset token with symbol ${fAssetSymbol}`)
         if (!feederPoolToken.feederPool) throw Error(`No feeder pool configured for token ${fAssetSymbol}`)
 
         const mAssetSymbol = feederPoolToken.parent
-        if (!mAssetSymbol) throw Error(`No parent mAsset configured for feeder pool asset ${fAssetSymbol}`)
+        if (!mAssetSymbol) throw Error(`No parent mAsset configured for feeder pool asset ${mAssetSymbol}`)
         const mAssetToken = tokens.find((t) => t.symbol === mAssetSymbol && t.chain === chain)
         if (!mAssetToken) throw Error(`Could not find mAsset token with symbol ${mAssetToken}`)
 
         const fp = FeederPool__factory.connect(feederPoolToken.feederPool, signer)
         const fpSymbol = await fp.symbol()
-        const mAsset = ERC20__factory.connect(mAssetToken.address, signer)
-        const fAsset = ERC20__factory.connect(feederPoolToken.address, signer)
 
         const mintAmount = simpleToExactAmount(taskArgs.amount)
 
-        // Approvals before mint
-        let tx = await mAsset.approve(fp.address, mintAmount)
-        await logTxDetails(tx, `${signerAddress} approves ${fpSymbol} to spend ${mAssetSymbol}`)
-        tx = await fAsset.approve(fp.address, mintAmount)
-        await logTxDetails(tx, `${signerAddress} approves ${fpSymbol} to spend ${feederPoolToken.symbol}`)
-
         // mint Feeder Pool tokens
-        tx = await fp.mintMulti([mAsset.address, fAsset.address], [mintAmount, mintAmount], 0, signerAddress)
+        const tx = await fp.mintMulti([mAssetToken.address, feederPoolToken.address], [mintAmount, mintAmount], 0, signerAddress)
         logTxDetails(tx, `Mint ${fpSymbol} from ${formatUnits(mintAmount)} ${mAssetSymbol} and ${formatUnits(mintAmount)} ${fAssetSymbol}`)
+    })
+
+task("feeder-redeem", "Redeem some Feeder Pool tokens")
+    .addParam("fasset", "Token symbol of the feeder pool asset. eg HBTC, GUSD, PFRAX or alUSD", undefined, types.string)
+    .addParam("amount", "Amount of the feeder pool liquidity tokens to proportionately redeem", undefined, types.int)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, { ethers, network }) => {
+        const chain = getChain(network.name)
+        const signer = await getSigner(ethers, taskArgs.speed)
+        const signerAddress = await signer.getAddress()
+
+        const fAssetSymbol = taskArgs.fasset
+        const feederPoolToken = tokens.find((t) => t.symbol === fAssetSymbol && t.chain === chain)
+        if (!feederPoolToken) throw Error(`Could not find feeder pool asset token with symbol ${fAssetSymbol}`)
+        if (!feederPoolToken.feederPool) throw Error(`No feeder pool configured for token ${fAssetSymbol}`)
+
+        const fp = FeederPool__factory.connect(feederPoolToken.feederPool, signer)
+        const fpSymbol = await fp.symbol()
+
+        const fpAmount = simpleToExactAmount(taskArgs.amount)
+        const minBassetAmount = fpAmount.mul(40).div(100) // min 40% for each bAsset
+
+        // redeem Feeder Pool tokens
+        const tx = await fp.redeemProportionately(fpAmount, [minBassetAmount, minBassetAmount], signerAddress)
+        logTxDetails(tx, `Redeem ${fpSymbol} from ${formatUnits(fpAmount)}`)
+    })
+
+task("feeder-swap", "Swap some Feeder Pool tokens")
+    .addParam(
+        "input",
+        "Token symbol of the input token to the swap. eg mUSD, PmUSD, mBTC, HBTC, GUSD, PFRAX or alUSD",
+        undefined,
+        types.string,
+    )
+    .addParam(
+        "output",
+        "Token symbol of the output token from the swap. eg mUSD, PmUSD, mBTC, HBTC, GUSD, PFRAX or alUSD",
+        undefined,
+        types.string,
+    )
+    .addParam("amount", "Amount of input tokens to swap", undefined, types.int)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, { ethers, network }) => {
+        const chain = getChain(network.name)
+        const signer = await getSigner(ethers, taskArgs.speed)
+        const signerAddress = await signer.getAddress()
+
+        const inputSymbol = taskArgs.input
+        const inputToken = tokens.find((t) => t.symbol === inputSymbol && t.chain === chain)
+        if (!inputToken) throw Error(`Could not find input asset token with symbol ${inputSymbol}`)
+
+        const outputSymbol = taskArgs.output
+        const outputToken = tokens.find((t) => t.symbol === outputSymbol && t.chain === chain)
+        if (!outputToken) throw Error(`Could not find output asset token with symbol ${outputSymbol}`)
+
+        let fp: FeederPool
+        if (inputToken.feederPool && !outputToken.feederPool) {
+            fp = FeederPool__factory.connect(inputToken.feederPool, signer)
+        } else if (!inputToken.feederPool && outputToken.feederPool) {
+            fp = FeederPool__factory.connect(outputToken.feederPool, signer)
+        } else {
+            throw Error(`Could not find Feeder Pool for input ${inputSymbol} and output ${outputSymbol}`)
+        }
+
+        const fpSymbol = await fp.symbol()
+
+        const inputAmount = simpleToExactAmount(taskArgs.amount)
+        const minOutputAmount = inputAmount.mul(90).div(100) // min 90% of the input
+
+        const tx = await fp.swap(inputToken.address, outputToken.address, inputAmount, minOutputAmount, signerAddress)
+        logTxDetails(tx, `swap ${formatUnits(inputAmount)} ${inputSymbol} for ${outputSymbol} using ${fpSymbol} Feeder Pool`)
     })
 
 module.exports = {}

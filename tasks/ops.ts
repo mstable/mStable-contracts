@@ -13,6 +13,7 @@ import {
 import { RewardsDistributorEth__factory } from "types/generated/factories/RewardsDistributorEth__factory"
 import { simpleToExactAmount } from "@utils/math"
 import { formatUnits } from "ethers/lib/utils"
+import { MAX_INT128 } from "@utils/constants"
 import { MTA, PMTA, PmUSD, PWMATIC, tokens } from "./utils/tokens"
 import { getSigner } from "./utils/defender-utils"
 import { logTxDetails } from "./utils/deploy-utils"
@@ -303,6 +304,34 @@ task("vault-claim", "Claim rewards from vault")
 
         const tx = await vault.claimReward()
         await logTxDetails(tx, `${signerAddress} claim rewards from ${assetSymbol} vault`)
+    })
+
+task("approve", "Approve account to transfer token from the Defender Relay account")
+    .addParam("asset", "Symbol of the asset being approved. eg mUSD, imUSD, PmUSD, GUSD, alUSD, MTA", undefined, types.string)
+    .addParam("account", "Address of the account that is approved to transferFrom", undefined, types.string)
+    .addOptionalParam("tokenType", "Token address, savings, vault or feeder pool", "address", types.string)
+    .addOptionalParam("amount", "Amount to approve. Default is max unit128", undefined, types.int)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, { ethers, network }) => {
+        const chain = getChain(network.name)
+        const signer = await getSigner(ethers, taskArgs.speed)
+        const signerAddress = await signer.getAddress()
+
+        const assetSymbol = taskArgs.asset
+        const assetToken = tokens.find((t) => t.symbol === assetSymbol && t.chain === chain)
+        if (!assetToken) throw Error(`Could not find asset with symbol ${assetSymbol}`)
+
+        const approveAccount = taskArgs.account
+        if (!approveAccount) throw Error(`Invalid approve address ${approveAccount}`)
+
+        const { tokenType } = taskArgs
+        if (!assetToken[tokenType]) throw Error(`Can not fine ${tokenType} for token ${assetSymbol}`)
+
+        const token = ERC20__factory.connect(assetToken[tokenType], signer)
+
+        const amount = taskArgs.amount ? simpleToExactAmount(taskArgs.amount) : MAX_INT128
+        const tx = await token.approve(approveAccount, amount)
+        await logTxDetails(tx, `${signerAddress} approves ${approveAccount} to transfer ${formatUnits(amount)} ${assetSymbol}`)
     })
 
 module.exports = {}

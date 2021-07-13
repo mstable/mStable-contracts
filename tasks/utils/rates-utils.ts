@@ -4,9 +4,10 @@ import { FeederPool, ICurve__factory, Masset } from "types/generated"
 import { CurveRegistryExchange__factory } from "types/generated/factories/CurveRegistryExchange__factory"
 import { MusdEth } from "types/generated/MusdEth"
 import { MusdLegacy } from "types/generated/MusdLegacy"
+import { getChainAddress } from "./networkAddressFactory"
 import { QuantityFormatter } from "./quantity-formatters"
 import { isMusdLegacy } from "./snap-utils"
-import { PDAI, PUSDC, PUSDT, Token } from "./tokens"
+import { Chain, PDAI, PUSDC, PUSDT, Token } from "./tokens"
 
 export interface Balances {
     total: BN
@@ -78,6 +79,7 @@ export const getSwapRates = async (
     quantityFormatter: QuantityFormatter,
     networkName: string,
     inputAmount: BN | number | string = BN.from("1000"),
+    chain = Chain.mainnet,
 ): Promise<SwapRate[]> => {
     if (isMusdLegacy(mAsset)) return []
 
@@ -106,10 +108,8 @@ export const getSwapRates = async (
     const curveSwapsPromises = []
     pairs.forEach(({ inputToken, outputToken }, i) => {
         if (networkName === "mainnet") {
-            const curveRegistryExchange = CurveRegistryExchange__factory.connect(
-                "0xD1602F68CC7C4c7B59D686243EA35a9C73B0c6a2",
-                mAsset.signer,
-            )
+            const curveRegistryExchangeAddress = getChainAddress("CurveRegistryExchange", chain)
+            const curveRegistryExchange = CurveRegistryExchange__factory.connect(curveRegistryExchangeAddress, mAsset.signer)
             // Get the matching Curve swap rate
             const curveSwapPromise = curveRegistryExchange.get_best_rate(
                 inputToken.address,
