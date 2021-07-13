@@ -374,6 +374,7 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
             const liquidatorProxy = LiquidatorProxy__factory.connect(liquidatorAddress, admin)
             expect(await liquidatorProxy.callStatic.admin(), "proxy admin before").to.eq(delayedProxyAdminAddress)
             expect(await liquidatorProxy.callStatic.implementation(), "liquidator impl address before").to.not.eq(newLiquidatorImpl.address)
+            expect(await alcxToken.allowance(liquidator.address, uniswapRouterAddress), "ALCX allowance before").to.eq(0)
 
             // Update the Liquidator proxy to point to the new implementation using the delayed proxy admin
             const data = newLiquidatorImpl.interface.encodeFunctionData("upgrade")
@@ -382,6 +383,7 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
             await delayedProxyAdmin.acceptUpgradeRequest(liquidatorAddress)
 
             expect(await liquidatorProxy.callStatic.implementation(), "liquidator impl address after").to.eq(newLiquidatorImpl.address)
+            expect(await alcxToken.allowance(liquidator.address, uniswapRouterAddress), "ALCX allowance after").to.eq(MAX_UINT256)
         })
         it("create liquidation of ALCX", async () => {
             const uniswapPath = encodeUniswapPath([ALCX.address, uniswapEthToken, alUSD.address], [3000, 3000])
@@ -417,8 +419,14 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
         it.skip("trigger ALCX liquidation", async () => {
             await liquidator.triggerLiquidation(alchemixIntegration.address)
         })
-        // liquidate COMP
-        // claim stkAAVE
-        // liquidate stkAAVE
+        it("trigger COMP liquidation", async () => {
+            const compIntegrationAddress = "0xD55684f4369040C12262949Ff78299f2BC9dB735"
+            await liquidator.triggerLiquidation(compIntegrationAddress)
+        })
+        it("claim and liquidate stkAAVE", async () => {
+            await liquidator.claimStakedAave()
+            await increaseTime(ONE_DAY.mul(11))
+            await liquidator.triggerLiquidationAave()
+        })
     })
 })

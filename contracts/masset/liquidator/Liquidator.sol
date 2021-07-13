@@ -119,9 +119,16 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
      * @notice Liquidator approves Uniswap to transfer Aave, COMP and ALCX tokens
      * @dev to be called via the proxy proposeUpgrade function, not the constructor.
      */
-    function upgrade() external {
+    function initialize() external initializer {
         IERC20(aaveToken).safeApprove(address(uniswapRouter), type(uint256).max);
         IERC20(compToken).safeApprove(address(uniswapRouter), type(uint256).max);
+    }
+
+    /**
+     * @notice Liquidator approves Uniswap to transfer Aave, COMP and ALCX tokens
+     * @dev to be called via the proxy proposeUpgrade function, not the constructor.
+     */
+    function upgrade() external {
         IERC20(alchemixToken).safeApprove(address(uniswapRouter), type(uint256).max);
     }
 
@@ -343,27 +350,27 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
             );
         uniswapRouter.exactInput(param);
 
-        address mAsset = liquidation.mAsset;
-        // If the integration contract is connected to a mAsset like mUSD or mBTC
-        if (mAsset != address(0)) {
-            // 4a. Mint mAsset using purchased bAsset
-            uint256 minted = _mint(bAsset, mAsset);
+        // address mAsset = liquidation.mAsset;
+        // // If the integration contract is connected to a mAsset like mUSD or mBTC
+        // if (mAsset != address(0)) {
+        //     // 4a. Mint mAsset using purchased bAsset
+        //     uint256 minted = _mint(bAsset, mAsset);
 
-            // 5a. Send to SavingsManager
-            address savings = _savingsManager();
-            ISavingsManager(savings).depositLiquidation(mAsset, minted);
+        //     // 5a. Send to SavingsManager
+        //     address savings = _savingsManager();
+        //     ISavingsManager(savings).depositLiquidation(mAsset, minted);
 
-            emit Liquidated(sellToken, mAsset, minted, bAsset);
-        } else {
-            // If a feeder pool like alUSD
-            // 4b. transfer bAsset directly to the integration contract.
-            // this will then increase the boosted savings vault price.
-            IERC20 bAssetToken = IERC20(bAsset);
-            uint256 bAssetBal = bAssetToken.balanceOf(address(this));
-            bAssetToken.transfer(_integration, bAssetBal);
+        //     emit Liquidated(sellToken, mAsset, minted, bAsset);
+        // } else {
+        //     // If a feeder pool like alUSD
+        //     // 4b. transfer bAsset directly to the integration contract.
+        //     // this will then increase the boosted savings vault price.
+        //     IERC20 bAssetToken = IERC20(bAsset);
+        //     uint256 bAssetBal = bAssetToken.balanceOf(address(this));
+        //     bAssetToken.transfer(_integration, bAssetBal);
 
-            emit Liquidated(aaveToken, mAsset, bAssetBal, bAsset);
-        }
+        //     emit Liquidated(aaveToken, mAsset, bAssetBal, bAsset);
+        // }
     }
 
     /**
