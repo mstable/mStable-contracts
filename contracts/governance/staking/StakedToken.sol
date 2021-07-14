@@ -22,7 +22,7 @@ import { AaveDistributionManager } from "./_pending/AaveDistributionManager.sol"
  * @notice Contract to stake Aave token, tokenize the position and get rewards, inheriting from a distribution manager contract
  * @author Aave
  **/
-contract StakedTokenV2 is
+contract StakedToken is
     IStakedMeta,
     GovernancePowerWithSnapshot,
     Initializable,
@@ -347,14 +347,6 @@ contract StakedTokenV2 is
     }
 
     /**
-     * @dev returns the revision of the implementation contract
-     * @return The revision
-     */
-    function getRevision() internal pure override returns (uint256) {
-        return REVISION;
-    }
-
-    /**
      * @dev implements the permit function as for https://github.com/ethereum/EIPs/blob/8a34d644aacf0f9f8f00815307fd7dd5da07655f/EIPS/eip-2612.md
      * @param owner the owner of the funds
      * @param spender the spender
@@ -444,7 +436,7 @@ contract StakedTokenV2 is
         // caching the aave governance address to avoid multiple state loads
         // TODO - what is this? Empty atm
         ITransferHook aaveGovernance = _aaveGovernance;
-        if (aaveGovernance != ITransferHook(0)) {
+        if (aaveGovernance != ITransferHook(address(0))) {
             aaveGovernance.onTransfer(from, to, amount);
         }
     }

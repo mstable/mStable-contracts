@@ -25,8 +25,7 @@ contract StakedMeta is StakedToken {
         uint128 distributionDuration,
         address governance
     )
-        public
-        StakedTokenV2(
+        StakedToken(
             stakedToken,
             rewardToken,
             cooldownSeconds,
@@ -36,7 +35,6 @@ contract StakedMeta is StakedToken {
             distributionDuration,
             NAME,
             SYMBOL,
-            DECIMALS,
             governance
         )
     {}
