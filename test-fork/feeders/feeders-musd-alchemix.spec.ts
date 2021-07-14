@@ -9,7 +9,7 @@ import { ethers, network } from "hardhat"
 import { deployContract } from "tasks/utils/deploy-utils"
 import { deployFeederPool, deployVault, FeederData, VaultData } from "tasks/utils/feederUtils"
 import { getChainAddress } from "tasks/utils/networkAddressFactory"
-import { AAVE, ALCX, alUSD, Chain, COMP, MTA, mUSD, stkAAVE } from "tasks/utils/tokens"
+import { AAVE, ALCX, alUSD, Chain, COMP, DAI, MTA, mUSD, stkAAVE } from "tasks/utils/tokens"
 import {
     AlchemixIntegration,
     BoostedVault,
@@ -386,7 +386,7 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
             expect(await alcxToken.allowance(liquidator.address, uniswapRouterAddress), "ALCX allowance after").to.eq(MAX_UINT256)
         })
         it("create liquidation of ALCX", async () => {
-            const uniswapPath = encodeUniswapPath([ALCX.address, uniswapEthToken, alUSD.address], [3000, 3000])
+            const uniswapPath = encodeUniswapPath([ALCX.address, uniswapEthToken, DAI.address, alUSD.address], [10000, 3000, 500])
             await liquidator.createLiquidation(
                 alchemixIntegration.address,
                 ALCX.address,
@@ -394,7 +394,7 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
                 uniswapPath.encoded,
                 uniswapPath.encodedReversed,
                 simpleToExactAmount(5000),
-                200,
+                simpleToExactAmount(200),
                 ZERO_ADDRESS,
                 false,
             )
@@ -412,11 +412,16 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
             const integrationAlcxBalanceAfter = await alcxToken.balanceOf(alchemixIntegration.address)
             expect(integrationAlcxBalanceAfter, "more ALCX").to.gt(integrationAlcxBalanceBefore)
             // TODO why can't I get the correct amount?
+            // console.log(
+            //     `${await alcxToken.balanceOf(
+            //         alchemixIntegration.address,
+            //     )} integration after = ${integrationAlcxBalanceBefore} integration before + ${unclaimedAlcxBefore}`,
+            // )
             // expect(await alcxToken.balanceOf(alchemixIntegration.address), "claimed ALCX").to.eq(
             //     integrationAlcxBalanceBefore.add(unclaimedAlcxBefore),
             // )
         })
-        it.skip("trigger ALCX liquidation", async () => {
+        it("trigger ALCX liquidation", async () => {
             await liquidator.triggerLiquidation(alchemixIntegration.address)
         })
         it("trigger COMP liquidation", async () => {
@@ -429,4 +434,5 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
             await liquidator.triggerLiquidationAave()
         })
     })
+    // Add update of liquidator after alUSD FP and Alchemic integration has already been deployed
 })
