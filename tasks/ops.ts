@@ -19,7 +19,7 @@ import { getSigner } from "./utils/defender-utils"
 import { logTxDetails } from "./utils/deploy-utils"
 import { getChain, getChainAddress } from "./utils/networkAddressFactory"
 import { usdFormatter } from "./utils"
-import { getAaveTokens, getBlock, getBlockRange, getCompTokens } from "./utils/snap-utils"
+import { getAaveTokens, getAlcxTokens, getBlock, getBlockRange, getCompTokens } from "./utils/snap-utils"
 
 task("eject-stakers", "Ejects expired stakers from Meta staking contract (vMTA)")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
@@ -180,6 +180,7 @@ task("rewards", "Get Compound and Aave platform reward tokens")
 
         await getCompTokens(signer, block)
         await getAaveTokens(signer, block)
+        await getAlcxTokens(signer, block)
     })
 
 task("proxy-upgrades", "Proxy implementation changes")

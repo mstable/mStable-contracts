@@ -2,13 +2,14 @@
 /* eslint-disable no-restricted-syntax */
 import { Signer } from "ethers"
 import { fullScale, ONE_DAY, ONE_YEAR } from "@utils/constants"
-import { applyDecimals, applyRatio, BN } from "@utils/math"
+import { applyDecimals, applyRatio, BN, simpleToExactAmount } from "@utils/math"
 import { formatUnits } from "ethers/lib/utils"
 import {
     ERC20__factory,
     ExposedMassetLogic,
     FeederPool,
     IAaveIncentivesController__factory,
+    IAlchemixStakingPools__factory,
     IUniswapV2Router02__factory,
     IUniswapV3Quoter__factory,
     Masset,
@@ -22,11 +23,11 @@ import { AaveStakedTokenV2__factory } from "types/generated/factories/AaveStaked
 import { Comptroller__factory } from "types/generated/factories/Comptroller__factory"
 import { MusdLegacy } from "types/generated/MusdLegacy"
 import { QuantityFormatter, usdFormatter } from "./quantity-formatters"
-import { AAVE, Chain, COMP, DAI, GUSD, stkAAVE, sUSD, Token, USDC, USDT, WBTC } from "./tokens"
+import { AAVE, ALCX, alUSD, Chain, COMP, DAI, GUSD, stkAAVE, sUSD, Token, USDC, USDT, WBTC } from "./tokens"
 import { getChainAddress } from "./networkAddressFactory"
 
-const compIntegrationAddress = "0xD55684f4369040C12262949Ff78299f2BC9dB735"
 const comptrollerAddress = "0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B"
+const uniswapEthToken = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
 export interface TxSummary {
     count: number
     total: BN
@@ -697,27 +698,28 @@ export const quoteSwap = async (
     to: Token,
     inAmount: BN,
     toBlock: BlockInfo,
-    fee = 3000,
+    path?: string[],
+    fees = [3000, 3000],
 ): Promise<{
     outAmount: BN
     exchangeRate: BN
 }> => {
     // Get USDC value from Uniswap
-    const uniswapEthToken = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    const uniswapPath = path || [from.address, uniswapEthToken, to.address]
     let outAmount: BN
     if (toBlock.blockNumber > 12364832) {
         // Use Uniswap V3
-        const path = encodeUniswapPath([from.address, uniswapEthToken, to.address], [fee, fee])
+        const encodedPath = encodeUniswapPath(uniswapPath, fees)
         const quoter = IUniswapV3Quoter__factory.connect("0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6", signer)
-        outAmount = await quoter.callStatic.quoteExactInput(path.encoded, inAmount, { blockTag: toBlock.blockNumber })
+        outAmount = await quoter.callStatic.quoteExactInput(encodedPath.encoded, inAmount, { blockTag: toBlock.blockNumber })
     } else {
         // Use Uniswap v2
         const router = IUniswapV2Router02__factory.connect("0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D", signer)
-        const output = await router.getAmountsOut(inAmount, [from.address, uniswapEthToken, to.address], { blockTag: toBlock.blockNumber })
+        const output = await router.getAmountsOut(inAmount, uniswapPath, { blockTag: toBlock.blockNumber })
         outAmount = output[2]
     }
     // exchange rate = out amount / 10**(out decimals) / in amount * (10**to decimals)
-    const exchangeRate = outAmount.div(BN.from(10).pow(to.decimals)).mul(BN.from(10).pow(from.decimals)).div(inAmount)
+    const exchangeRate = outAmount.div(simpleToExactAmount(1, to.decimals)).mul(simpleToExactAmount(1, from.decimals)).div(inAmount)
     return { outAmount, exchangeRate }
 }
 
@@ -734,12 +736,12 @@ export const getCompTokens = async (
 
     console.log(`\nCOMP accrued`)
     // Get COMP that can be claimed
-    const compAccrued = await comptroller.compAccrued(compIntegrationAddress, { blockTag: toBlock.blockNumber })
+    const compAccrued = await comptroller.compAccrued(USDC.integrator, { blockTag: toBlock.blockNumber })
     totalComp = totalComp.add(compAccrued)
     console.log(`USDC        ${quantityFormatter(compAccrued)}`)
 
     // Get COMP in mUSD integration
-    const compIntegrationBal = await compToken.balanceOf(compIntegrationAddress, { blockTag: toBlock.blockNumber })
+    const compIntegrationBal = await compToken.balanceOf(USDC.integrator, { blockTag: toBlock.blockNumber })
     totalComp = totalComp.add(compIntegrationBal)
     console.log(`Integration ${quantityFormatter(compIntegrationBal)}`)
 
@@ -750,11 +752,8 @@ export const getCompTokens = async (
     console.log(`Liquidator  ${quantityFormatter(compLiquidatorBal)}`)
 
     const compUsdc = await quoteSwap(signer, COMP, USDC, totalComp, toBlock)
-    console.log(
-        `Total       ${quantityFormatter(totalComp)} ${quantityFormatter(compUsdc.outAmount, USDC.decimals)} USDC (${
-            compUsdc.exchangeRate
-        } COMP/USDC)`,
-    )
+    console.log(`Total       ${quantityFormatter(totalComp)} ${quantityFormatter(compUsdc.outAmount, USDC.decimals)} USDC`)
+    console.log(`COMP/USDC exchange rate: ${compUsdc.exchangeRate}`)
 }
 
 export const getAaveTokens = async (
@@ -791,17 +790,17 @@ export const getAaveTokens = async (
     const liquidatorAddress = getChainAddress("Liquidator", chain)
     const liquidatorStkAaveBal = await stkAaveToken.balanceOf(liquidatorAddress, { blockTag: toBlock.blockNumber })
     totalStkAave = totalStkAave.add(liquidatorStkAaveBal)
+
+    const aaveUsdc = await quoteSwap(signer, AAVE, USDC, liquidatorStkAaveBal, toBlock)
+    console.log(`Liquidator ${quantityFormatter(liquidatorStkAaveBal)} ${quantityFormatter(aaveUsdc.outAmount, USDC.decimals)} USDC`)
+
+    const totalUSDC = totalStkAave.mul(aaveUsdc.exchangeRate).div(simpleToExactAmount(1, AAVE.decimals - USDC.decimals))
+    console.log(`Total      ${quantityFormatter(totalStkAave)} ${quantityFormatter(totalUSDC, USDC.decimals)} USDC`)
+    console.log(`AAVE/USDC exchange rate: ${aaveUsdc.exchangeRate}`)
     const cooldownStart = await stkAaveToken.stakersCooldowns(liquidatorAddress, { blockTag: toBlock.blockNumber })
     const cooldownEnd = cooldownStart.add(ONE_DAY.mul(10))
     const colldownEndDate = new Date(cooldownEnd.toNumber() * 1000)
-    console.log(`Liquidator ${quantityFormatter(liquidatorStkAaveBal)} unlock ${colldownEndDate.toUTCString()} (${cooldownStart})`)
-
-    const aaveUsdc = await quoteSwap(signer, AAVE, USDC, totalStkAave, toBlock)
-    console.log(
-        `Total      ${quantityFormatter(totalStkAave)} ${quantityFormatter(aaveUsdc.outAmount, USDC.decimals)} USDC (${
-            aaveUsdc.exchangeRate
-        } AAVE/USDC)`,
-    )
+    console.log(`next stkAAVE unlock ${colldownEndDate.toUTCString()} (${cooldownStart})`)
 
     // Get unclaimed rewards
     const integrations = [
@@ -837,4 +836,47 @@ export const getAaveTokens = async (
         blockTag: toBlock.blockNumber,
     })
     console.log(`Old Aave V2 ${quantityFormatter(unclaimableRewards)}`)
+}
+
+export const getAlcxTokens = async (
+    signer: Signer,
+    toBlock: BlockInfo,
+    quantityFormatter = usdFormatter,
+    chain = Chain.mainnet,
+): Promise<void> => {
+    const poolId = 0
+    const alchemixStakingPoolsAddress = getChainAddress("AlchemixStakingPool", chain)
+    const alchemixStakingPools = IAlchemixStakingPools__factory.connect(alchemixStakingPoolsAddress, signer)
+    const alcxToken = ERC20__factory.connect(ALCX.address, signer)
+
+    let totalComp = BN.from(0)
+
+    console.log(`\nALCX accrued`)
+    // Get ALCX that can be claimed
+    const alcxAccrued = await alchemixStakingPools.getStakeTotalUnclaimed(alUSD.integrator, poolId, { blockTag: toBlock.blockNumber })
+    totalComp = totalComp.add(alcxAccrued)
+    console.log(`alUSD       ${quantityFormatter(alcxAccrued)}`)
+
+    // Get ALCX in Alchemix integration
+    const alchemixIntegrationBal = await alcxToken.balanceOf(alUSD.integrator, { blockTag: toBlock.blockNumber })
+    totalComp = totalComp.add(alchemixIntegrationBal)
+    console.log(`Integration ${quantityFormatter(alchemixIntegrationBal)}`)
+
+    // Get ALCX in Liquidator
+    const liquidatorAddress = getChainAddress("Liquidator", chain)
+    const compLiquidatorBal = await alcxToken.balanceOf(liquidatorAddress, { blockTag: toBlock.blockNumber })
+    totalComp = totalComp.add(compLiquidatorBal)
+    console.log(`Liquidator  ${quantityFormatter(compLiquidatorBal)}`)
+
+    const alcxUsdc = await quoteSwap(
+        signer,
+        ALCX,
+        alUSD,
+        totalComp,
+        toBlock,
+        [ALCX.address, uniswapEthToken, DAI.address, alUSD.address],
+        [10000, 3000, 500],
+    )
+    console.log(`Total       ${quantityFormatter(totalComp)} ${quantityFormatter(alcxUsdc.outAmount)} alUSD`)
+    console.log(`ALCX/USDC exchange rate: ${alcxUsdc.exchangeRate}`)
 }
