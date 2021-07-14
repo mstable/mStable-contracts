@@ -12,6 +12,7 @@ import { ITransferHook } from "./_i/ITransferHook.sol";
 abstract contract GovernancePowerWithSnapshot is GovernancePowerDelegationERC20 {
     mapping(address => mapping(uint256 => Snapshot)) public _votingSnapshots;
     mapping(address => uint256) public _votingSnapshotsCounts;
+    mapping(address => address) internal _votingDelegates;
 
     /// TODO - remove? If a proxy, this can be set during constructor init
     /// @dev reference to the Aave governance contract to call (if initialized) on _beforeTokenTransfer

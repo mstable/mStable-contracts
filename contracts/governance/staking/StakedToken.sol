@@ -15,6 +15,7 @@ import { Initializable } from "@openzeppelin/contracts/utils/Initializable.sol";
 import { GovernancePowerWithSnapshot } from "./GovernancePowerWithSnapshot.sol";
 
 import { DistributionTypes } from "./_pending/DistributionTypes.sol";
+// TODO - replace distributionManager with StakingRewardsLite
 import { AaveDistributionManager } from "./_pending/AaveDistributionManager.sol";
 
 /**
@@ -31,9 +32,6 @@ contract StakedToken is
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    /// @dev Start of Storage layout from StakedToken v1
-    uint256 public constant REVISION = 2;
-
     IERC20 public immutable STAKED_TOKEN;
     IERC20 public immutable REWARD_TOKEN;
     uint256 public immutable COOLDOWN_SECONDS;
@@ -47,11 +45,7 @@ contract StakedToken is
     mapping(address => uint256) public stakerRewardsToClaim;
     mapping(address => uint256) public stakersCooldowns;
 
-    /// @dev End of Storage layout from StakedToken v1
-
-    /// @dev To see the voting mappings, go to GovernancePowerWithSnapshot.sol
-    mapping(address => address) internal _votingDelegates;
-
+    // TODO - remove propositionPower references
     mapping(address => mapping(uint256 => Snapshot)) internal _propositionPowerSnapshots;
     mapping(address => uint256) internal _propositionPowerSnapshotsCounts;
     mapping(address => address) internal _propositionPowerDelegates;
@@ -284,7 +278,7 @@ contract StakedToken is
     }
 
     /**
-     * @dev Calculates the how is gonna be a new cooldown timestamp depending on the sender/receiver situation
+     * @dev Calculates the new cooldown timestamp depending on the sender/receiver situation
      *  - If the timestamp of the sender is "better" or the timestamp of the recipient is 0, we take the one of the recipient
      *  - Weighted average of from/to cooldown timestamps if:
      *    # The sender doesn't have the cooldown activated (timestamp 0).
