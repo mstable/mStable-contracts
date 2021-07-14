@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.2;
+pragma solidity 0.8.6;
 
 // External
 import { IPlatformIntegration } from "../interfaces/IPlatformIntegration.sol";
@@ -52,8 +52,13 @@ library FeederLogic {
         uint256 _minOutputQuantity
     ) external returns (uint256 mintOutput) {
         BassetData[] memory cachedBassetData = _data.bAssetData;
-        AssetData memory inputData =
-            _transferIn(_data, _config, cachedBassetData, _input, _inputQuantity);
+        AssetData memory inputData = _transferIn(
+            _data,
+            _config,
+            cachedBassetData,
+            _input,
+            _inputQuantity
+        );
         // Validation should be after token transfer, as real input amt is unknown before
         mintOutput = computeMint(cachedBassetData, inputData.idx, inputData.amt, _config);
         require(mintOutput >= _minOutputQuantity, "Mint quantity < min qty");
@@ -132,8 +137,13 @@ library FeederLogic {
     ) external returns (uint256 swapOutput, uint256 localFee) {
         BassetData[] memory cachedBassetData = _data.bAssetData;
 
-        AssetData memory inputData =
-            _transferIn(_data, _config, cachedBassetData, _input, _inputQuantity);
+        AssetData memory inputData = _transferIn(
+            _data,
+            _config,
+            cachedBassetData,
+            _input,
+            _inputQuantity
+        );
         // 1. [f/mAsset ->][ f/mAsset]               : Y - normal in, SWAP, normal out
         // 3. [mpAsset -> mAsset][ -> fAsset]        : Y - mint in  , SWAP, normal out
         if (_output.exists) {
@@ -258,8 +268,8 @@ library FeederLogic {
         outputQuantities = new uint256[](len);
         for (uint256 i = 0; i < len; i++) {
             // Get amount out, proportionate to redemption quantity
-            uint256 amountOut =
-                (allBassets[i].vaultBalance * (_inputQuantity - scaledFee)) / _config.supply;
+            uint256 amountOut = (allBassets[i].vaultBalance * (_inputQuantity - scaledFee)) /
+                _config.supply;
             require(amountOut > 1, "Output == 0");
             amountOut -= 1;
             require(amountOut >= _minOutputQuantities[i], "bAsset qty < min qty");
@@ -304,8 +314,12 @@ library FeederLogic {
         BassetData[] memory allBassets = _data.bAssetData;
 
         // Validate redemption
-        uint256 fpTokenRequired =
-            computeRedeemExact(allBassets, _indices, _outputQuantities, _config);
+        uint256 fpTokenRequired = computeRedeemExact(
+            allBassets,
+            _indices,
+            _outputQuantities,
+            _config
+        );
         fpTokenQuantity = fpTokenRequired.divPrecisely(1e18 - _data.redemptionFee);
         localFee = fpTokenQuantity - fpTokenRequired;
         require(fpTokenQuantity > 0, "Must redeem some mAssets");
@@ -348,13 +362,12 @@ library FeederLogic {
         // fAsset / mAsset transfers
         if (_input.exists) {
             BassetPersonal memory personal = _data.bAssetPersonal[_input.idx];
-            uint256 amt =
-                _depositTokens(
-                    personal,
-                    _cachedBassetData[_input.idx].ratio,
-                    _inputQuantity,
-                    _getCacheDetails(_data, _config.supply)
-                );
+            uint256 amt = _depositTokens(
+                personal,
+                _cachedBassetData[_input.idx].ratio,
+                _inputQuantity,
+                _getCacheDetails(_data, _config.supply)
+            );
             inputData = AssetData(_input.idx, amt, personal);
         }
         // mpAsset transfers
@@ -386,10 +399,9 @@ library FeederLogic {
         mAssetData = AssetData(0, 0, _data.bAssetPersonal[0]);
         IERC20(_input.addr).safeTransferFrom(msg.sender, address(this), _inputQuantity);
 
-        address integrator =
-            mAssetData.personal.integrator == address(0)
-                ? address(this)
-                : mAssetData.personal.integrator;
+        address integrator = mAssetData.personal.integrator == address(0)
+            ? address(this)
+            : mAssetData.personal.integrator;
 
         uint256 balBefore = IERC20(mAssetData.personal.addr).balanceOf(integrator);
         // Mint will revert if the _input.addr is not whitelisted on that mAsset
@@ -495,13 +507,12 @@ library FeederLogic {
     ) internal returns (uint256 quantityDeposited) {
         // 0. If integration is 0, short circuit
         if (_bAsset.integrator == address(0)) {
-            (uint256 received, ) =
-                MassetHelpers.transferReturnBalance(
-                    msg.sender,
-                    address(this),
-                    _bAsset.addr,
-                    _quantity
-                );
+            (uint256 received, ) = MassetHelpers.transferReturnBalance(
+                msg.sender,
+                address(this),
+                _bAsset.addr,
+                _quantity
+            );
             return received;
         }
 
@@ -517,12 +528,11 @@ library FeederLogic {
         // 2 - Deposit X if necessary
         // 2.1 - Deposit if xfer fees
         if (_bAsset.hasTxFee) {
-            uint256 deposited =
-                IPlatformIntegration(_bAsset.integrator).deposit(
-                    _bAsset.addr,
-                    quantityDeposited,
-                    true
-                );
+            uint256 deposited = IPlatformIntegration(_bAsset.integrator).deposit(
+                _bAsset.addr,
+                quantityDeposited,
+                true
+            );
 
             return StableMath.min(deposited, quantityDeposited);
         }
@@ -585,11 +595,10 @@ library FeederLogic {
             //       - Send b to user
             else {
                 uint256 relativeMidCache = _maxCache.divRatioPrecisely(_data.ratio) / 2;
-                uint256 totalWithdrawal =
-                    StableMath.min(
-                        relativeMidCache + _quantity - cacheBal,
-                        _data.vaultBalance - SafeCast.toUint128(cacheBal)
-                    );
+                uint256 totalWithdrawal = StableMath.min(
+                    relativeMidCache + _quantity - cacheBal,
+                    _data.vaultBalance - SafeCast.toUint128(cacheBal)
+                );
 
                 IPlatformIntegration(_personal.integrator).withdraw(
                     _recipient,

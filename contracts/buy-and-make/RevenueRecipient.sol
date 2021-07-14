@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.2;
+pragma solidity 0.8.6;
 
 import { IRevenueRecipient } from "../interfaces/IRevenueRecipient.sol";
 import { IBPool } from "./IBPool.sol";
@@ -140,21 +140,19 @@ contract RevenueRecipient is IRevenueRecipient, ImmutableModule {
         uint256 balDeposit = (balance * _pct) / 1e18;
         // 1. Convert BAL to ETH
         BAL.approve(_pool, balDeposit);
-        (uint256 tokenAmountOut, ) =
-            IBPool(_pool).swapExactAmountIn(
-                address(BAL),
-                balDeposit,
-                _output,
-                _minAmountOut,
-                _maxPrice
-            );
+        (uint256 tokenAmountOut, ) = IBPool(_pool).swapExactAmountIn(
+            address(BAL),
+            balDeposit,
+            _output,
+            _minAmountOut,
+            _maxPrice
+        );
         // 2. Deposit ETH to mBPT
-        uint256 poolAmountOut =
-            mBPT.joinswapExternAmountIn(
-                _output,
-                tokenAmountOut,
-                (tokenAmountOut * minOut[_output]) / 1e18
-            );
+        uint256 poolAmountOut = mBPT.joinswapExternAmountIn(
+            _output,
+            tokenAmountOut,
+            (tokenAmountOut * minOut[_output]) / 1e18
+        );
 
         emit RevenueDeposited(_output, tokenAmountOut, poolAmountOut);
     }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.2;
+pragma solidity 0.8.6;
 
 import { ISavingsContractV2 } from "../../interfaces/ISavingsContract.sol";
 import { IMasset } from "../../interfaces/IMasset.sol";
@@ -110,14 +110,13 @@ contract SaveWrapper is Ownable {
         IERC20(_fAsset).safeTransferFrom(msg.sender, address(this), _fAssetQuantity);
 
         // 1. Swap the fAsset for mAsset with the feeder pool
-        uint256 mAssetQuantity =
-            IFeederPool(_feeder).swap(
-                _fAsset,
-                _mAsset,
-                _fAssetQuantity,
-                _minOutputQuantity,
-                address(this)
-            );
+        uint256 mAssetQuantity = IFeederPool(_feeder).swap(
+            _fAsset,
+            _mAsset,
+            _fAssetQuantity,
+            _minOutputQuantity,
+            address(this)
+        );
 
         // 2. Deposit the mAsset into Save and optionally stake in the vault
         _saveAndStake(_save, _vault, mAssetQuantity, _stake);
@@ -151,22 +150,17 @@ contract SaveWrapper is Ownable {
         require(_uniswap != address(0), "Invalid uniswap");
 
         // 1. Get the bAsset
-        uint256[] memory amounts =
-            IUniswapV2Router02(_uniswap).swapExactETHForTokens{ value: msg.value }(
-                _amountOutMin,
-                _path,
-                address(this),
-                block.timestamp + 1000
-            );
+        uint256[] memory amounts = IUniswapV2Router02(_uniswap).swapExactETHForTokens{
+            value: msg.value
+        }(_amountOutMin, _path, address(this), block.timestamp + 1000);
 
         // 2. Purchase mAsset
-        uint256 massetsMinted =
-            IMasset(_mAsset).mint(
-                _path[_path.length - 1],
-                amounts[amounts.length - 1],
-                _minOutMStable,
-                address(this)
-            );
+        uint256 massetsMinted = IMasset(_mAsset).mint(
+            _path[_path.length - 1],
+            amounts[amounts.length - 1],
+            _minOutMStable,
+            address(this)
+        );
 
         // 3. Mint imAsset and optionally stake in vault
         _saveAndStake(_save, _vault, massetsMinted, _stake);

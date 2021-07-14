@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.2;
+pragma solidity 0.8.6;
 
 // External
 import { IPlatformIntegration } from "../interfaces/IPlatformIntegration.sol";
@@ -53,13 +53,12 @@ library MassetLogic {
     ) external returns (uint256 mintOutput) {
         BassetData[] memory cachedBassetData = _data.bAssetData;
         // Transfer collateral to the platform integration address and call deposit
-        uint256 quantityDeposited =
-            _depositTokens(
-                _data.bAssetPersonal[_input.idx],
-                cachedBassetData[_input.idx].ratio,
-                _inputQuantity,
-                _getCacheDetails(_data, _config.supply)
-            );
+        uint256 quantityDeposited = _depositTokens(
+            _data.bAssetPersonal[_input.idx],
+            cachedBassetData[_input.idx].ratio,
+            _inputQuantity,
+            _getCacheDetails(_data, _config.supply)
+        );
         // Validation should be after token transfer, as bAssetQty is unknown before
         mintOutput = computeMint(cachedBassetData, _input.idx, quantityDeposited, _config);
         require(mintOutput >= _minOutputQuantity, "Mint quantity < min qty");
@@ -141,13 +140,12 @@ library MassetLogic {
     ) external returns (uint256 swapOutput, uint256 scaledFee) {
         BassetData[] memory cachedBassetData = _data.bAssetData;
         // 3. Deposit the input tokens
-        uint256 quantityDeposited =
-            _depositTokens(
-                _data.bAssetPersonal[_input.idx],
-                cachedBassetData[_input.idx].ratio,
-                _inputQuantity,
-                _getCacheDetails(_data, _config.supply)
-            );
+        uint256 quantityDeposited = _depositTokens(
+            _data.bAssetPersonal[_input.idx],
+            cachedBassetData[_input.idx].ratio,
+            _inputQuantity,
+            _getCacheDetails(_data, _config.supply)
+        );
         // 3.1. Update the input balance
         _data.bAssetData[_input.idx].vaultBalance =
             cachedBassetData[_input.idx].vaultBalance +
@@ -382,13 +380,12 @@ library MassetLogic {
     ) internal returns (uint256 quantityDeposited) {
         // 0. If integration is 0, short circuit
         if (_bAsset.integrator == address(0)) {
-            (uint256 received, ) =
-                MassetHelpers.transferReturnBalance(
-                    msg.sender,
-                    address(this),
-                    _bAsset.addr,
-                    _quantity
-                );
+            (uint256 received, ) = MassetHelpers.transferReturnBalance(
+                msg.sender,
+                address(this),
+                _bAsset.addr,
+                _quantity
+            );
             return received;
         }
 
@@ -404,12 +401,11 @@ library MassetLogic {
         // 2 - Deposit X if necessary
         // 2.1 - Deposit if xfer fees
         if (_bAsset.hasTxFee) {
-            uint256 deposited =
-                IPlatformIntegration(_bAsset.integrator).deposit(
-                    _bAsset.addr,
-                    quantityDeposited,
-                    true
-                );
+            uint256 deposited = IPlatformIntegration(_bAsset.integrator).deposit(
+                _bAsset.addr,
+                quantityDeposited,
+                true
+            );
 
             return StableMath.min(deposited, quantityDeposited);
         }
@@ -469,11 +465,10 @@ library MassetLogic {
             //       - Send b to user
             else {
                 uint256 relativeMidCache = _maxCache.divRatioPrecisely(_data.ratio) / 2;
-                uint256 totalWithdrawal =
-                    StableMath.min(
-                        relativeMidCache + _quantity - cacheBal,
-                        _data.vaultBalance - SafeCast.toUint128(cacheBal)
-                    );
+                uint256 totalWithdrawal = StableMath.min(
+                    relativeMidCache + _quantity - cacheBal,
+                    _data.vaultBalance - SafeCast.toUint128(cacheBal)
+                );
 
                 IPlatformIntegration(_personal.integrator).withdraw(
                     _recipient,

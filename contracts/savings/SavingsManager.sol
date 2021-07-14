@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.2;
+pragma solidity 0.8.6;
 
 // External
 import { IMasset } from "../interfaces/IMasset.sol";
@@ -68,7 +68,10 @@ contract SavingsManager is ISavingsManager, PausableModule {
     // Batches are for the platformInterest collection
     mapping(address => uint256) public override lastBatchCollected;
 
-    enum StreamType { liquidator, yield }
+    enum StreamType {
+        liquidator,
+        yield
+    }
 
     struct Stream {
         uint256 end;
@@ -218,17 +221,16 @@ contract SavingsManager is ISavingsManager, PausableModule {
         lastBatchCollected[_mAsset] = currentTime;
 
         // Batch collect
-        (uint256 interestCollected, uint256 totalSupply) =
-            IMasset(_mAsset).collectPlatformInterest();
+        (uint256 interestCollected, uint256 totalSupply) = IMasset(_mAsset)
+        .collectPlatformInterest();
 
         if (interestCollected > 0) {
             // Validate APY
-            uint256 apy =
-                YieldValidator.validateCollection(
-                    totalSupply,
-                    interestCollected,
-                    timeSincePreviousBatch
-                );
+            uint256 apy = YieldValidator.validateCollection(
+                totalSupply,
+                interestCollected,
+                timeSincePreviousBatch
+            );
 
             // Get remaining rewards
             uint256 leftover = _unstreamedRewards(_mAsset, StreamType.yield);
@@ -253,8 +255,9 @@ contract SavingsManager is ISavingsManager, PausableModule {
     {
         uint256 lastUpdate = lastCollection[_mAsset];
 
-        Stream memory stream =
-            _stream == StreamType.liquidator ? liqStream[_mAsset] : yieldStream[_mAsset];
+        Stream memory stream = _stream == StreamType.liquidator
+            ? liqStream[_mAsset]
+            : yieldStream[_mAsset];
         uint256 unclaimedSeconds = 0;
         if (lastUpdate < stream.end) {
             unclaimedSeconds = stream.end - lastUpdate;
@@ -346,12 +349,11 @@ contract SavingsManager is ISavingsManager, PausableModule {
                 "Must receive mUSD"
             );
 
-            uint256 extrapolatedAPY =
-                YieldValidator.validateCollection(
-                    totalSupply,
-                    inflationOperand,
-                    timeSinceLastCollection
-                );
+            uint256 extrapolatedAPY = YieldValidator.validateCollection(
+                totalSupply,
+                inflationOperand,
+                timeSinceLastCollection
+            );
 
             emit InterestCollected(_mAsset, interestCollected, totalSupply, extrapolatedAPY);
 

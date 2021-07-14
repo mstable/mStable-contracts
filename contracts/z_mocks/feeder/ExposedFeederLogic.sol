@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.2;
+pragma solidity 0.8.6;
 
 import "../../masset/MassetStructs.sol";
 import { FeederLogic } from "../../feeders/FeederLogic.sol";
 
 contract ExposedFeederLogic {
-
     function computeMint(
         BassetData[] memory _bAssets,
         uint8 _i,
