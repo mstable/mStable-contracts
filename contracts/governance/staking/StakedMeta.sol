@@ -1,18 +1,18 @@
-// SPDX-License-Identifier: agpl-3.0
-pragma solidity 0.7.5;
-pragma experimental ABIEncoderV2;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.8.6;
+pragma abicoder v2;
 
-import { IERC20 } from "../interfaces/IERC20.sol";
-import { StakedTokenV2 } from "./StakedTokenV2.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { StakedToken } from "./StakedToken.sol";
 
 /**
  * @title StakedMTA
- * @notice StakedTokenV2 with AAVE token as staked token
+ * @notice StakedToken with MTA token as staked token
  * @author Aave
  **/
-contract StakedMTA is StakedMTA {
-    string internal constant NAME = "Staked Aave";
-    string internal constant SYMBOL = "stkAAVE";
+contract StakedMeta is StakedToken {
+    string internal constant NAME = "Staked MTA";
+    string internal constant SYMBOL = "stkMTA";
     uint8 internal constant DECIMALS = 18;
 
     constructor(

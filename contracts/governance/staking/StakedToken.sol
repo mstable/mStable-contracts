@@ -1,20 +1,21 @@
-// SPDX-License-Identifier: agpl-3.0
-pragma solidity 0.7.5;
-pragma experimental ABIEncoderV2;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity 0.8.6;
+pragma abicoder v2;
 
-import { ERC20 } from "@aave/aave-token/contracts/open-zeppelin/ERC20.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-import { IERC20 } from "../interfaces/IERC20.sol";
-import { IStakedAave } from "../interfaces/IStakedAave.sol";
-import { ITransferHook } from "../interfaces/ITransferHook.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IStakedMeta } from "./_i/IStakedMeta.sol";
+import { ITransferHook } from "./_i/ITransferHook.sol";
 
-import { DistributionTypes } from "../lib/DistributionTypes.sol";
-import { SafeMath } from "../lib/SafeMath.sol";
-import { SafeERC20 } from "../lib/SafeERC20.sol";
+import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Initializable } from "@openzeppelin/contracts/utils/Initializable.sol";
 
-import { VersionedInitializable } from "../utils/VersionedInitializable.sol";
-import { AaveDistributionManager } from "./AaveDistributionManager.sol";
-import { GovernancePowerWithSnapshot } from "../lib/GovernancePowerWithSnapshot.sol";
+import { GovernancePowerWithSnapshot } from "./GovernancePowerWithSnapshot.sol";
+
+import { DistributionTypes } from "./_pending/DistributionTypes.sol";
+import { AaveDistributionManager } from "./_pending/AaveDistributionManager.sol";
 
 /**
  * @title StakedToken
@@ -22,9 +23,9 @@ import { GovernancePowerWithSnapshot } from "../lib/GovernancePowerWithSnapshot.
  * @author Aave
  **/
 contract StakedTokenV2 is
-    IStakedAave,
+    IStakedMeta,
     GovernancePowerWithSnapshot,
-    VersionedInitializable,
+    Initializable,
     AaveDistributionManager
 {
     using SafeMath for uint256;
@@ -77,6 +78,7 @@ contract StakedTokenV2 is
 
     event Cooldown(address indexed user);
 
+    // TODO - change ERC20 to initializableToken and ensure hooks are added
     constructor(
         IERC20 stakedToken,
         IERC20 rewardToken,
@@ -87,7 +89,6 @@ contract StakedTokenV2 is
         uint128 distributionDuration,
         string memory name,
         string memory symbol,
-        uint8 decimals,
         address governance
     ) public ERC20(name, symbol) AaveDistributionManager(emissionManager, distributionDuration) {
         STAKED_TOKEN = stakedToken;
@@ -96,7 +97,6 @@ contract StakedTokenV2 is
         UNSTAKE_WINDOW = unstakeWindow;
         REWARDS_VAULT = rewardsVault;
         _aaveGovernance = ITransferHook(governance);
-        ERC20._setupDecimals(decimals);
     }
 
     /**
@@ -133,7 +133,7 @@ contract StakedTokenV2 is
         );
         if (accruedRewards != 0) {
             emit RewardsAccrued(onBehalfOf, accruedRewards);
-            stakerRewardsToClaim[onBehalfOf] = stakerRewardsToClaim[onBehalfOf].add(accruedRewards);
+            stakerRewardsToClaim[onBehalfOf] += accruedRewards;
         }
 
         stakersCooldowns[onBehalfOf] = getNextCooldownTimestamp(
@@ -159,11 +159,11 @@ contract StakedTokenV2 is
         //solium-disable-next-line
         uint256 cooldownStartTimestamp = stakersCooldowns[msg.sender];
         require(
-            block.timestamp > cooldownStartTimestamp.add(COOLDOWN_SECONDS),
+            block.timestamp > cooldownStartTimestamp + COOLDOWN_SECONDS,
             "INSUFFICIENT_COOLDOWN"
         );
         require(
-            block.timestamp.sub(cooldownStartTimestamp.add(COOLDOWN_SECONDS)) <= UNSTAKE_WINDOW,
+            block.timestamp - (cooldownStartTimestamp + COOLDOWN_SECONDS) <= UNSTAKE_WINDOW,
             "UNSTAKE_WINDOW_FINISHED"
         );
         uint256 balanceOfMessageSender = balanceOf(msg.sender);
@@ -176,7 +176,7 @@ contract StakedTokenV2 is
 
         _burn(msg.sender, amountToRedeem);
 
-        if (balanceOfMessageSender.sub(amountToRedeem) == 0) {
+        if ((balanceOfMessageSender - amountToRedeem) == 0) {
             stakersCooldowns[msg.sender] = 0;
         }
 
@@ -271,7 +271,7 @@ contract StakedTokenV2 is
             userBalance,
             totalSupply()
         );
-        uint256 unclaimedRewards = stakerRewardsToClaim[user].add(accruedRewards);
+        uint256 unclaimedRewards = stakerRewardsToClaim[user] + accruedRewards;
 
         if (accruedRewards != 0) {
             if (updateStorage) {
@@ -308,9 +308,7 @@ contract StakedTokenV2 is
             return 0;
         }
 
-        uint256 minimalValidCooldownTimestamp = block.timestamp.sub(COOLDOWN_SECONDS).sub(
-            UNSTAKE_WINDOW
-        );
+        uint256 minimalValidCooldownTimestamp = block.timestamp - COOLDOWN_SECONDS - UNSTAKE_WINDOW;
 
         if (minimalValidCooldownTimestamp > toCooldownTimestamp) {
             toCooldownTimestamp = 0;
@@ -322,12 +320,10 @@ contract StakedTokenV2 is
             if (fromCooldownTimestamp < toCooldownTimestamp) {
                 return toCooldownTimestamp;
             } else {
-                toCooldownTimestamp = (
-                    amountToReceive.mul(fromCooldownTimestamp).add(
-                        toBalance.mul(toCooldownTimestamp)
-                    )
-                )
-                .div(amountToReceive.add(toBalance));
+                toCooldownTimestamp =
+                    ((amountToReceive * fromCooldownTimestamp) +
+                        (toBalance * toCooldownTimestamp)) /
+                    (amountToReceive + toBalance);
             }
         }
         return toCooldownTimestamp;
@@ -347,7 +343,7 @@ contract StakedTokenV2 is
             stakedByUser: balanceOf(staker),
             totalStaked: totalSupply()
         });
-        return stakerRewardsToClaim[staker].add(_getUnclaimedRewards(staker, userStakeInputs));
+        return stakerRewardsToClaim[staker] + _getUnclaimedRewards(staker, userStakeInputs);
     }
 
     /**
@@ -393,7 +389,7 @@ contract StakedTokenV2 is
         );
 
         require(owner == ecrecover(digest, v, r, s), "INVALID_SIGNATURE");
-        _nonces[owner] = currentValidNonce.add(1);
+        _nonces[owner] = currentValidNonce + 1;
         _approve(owner, spender, value);
     }
 
@@ -446,6 +442,7 @@ contract StakedTokenV2 is
         );
 
         // caching the aave governance address to avoid multiple state loads
+        // TODO - what is this? Empty atm
         ITransferHook aaveGovernance = _aaveGovernance;
         if (aaveGovernance != ITransferHook(0)) {
             aaveGovernance.onTransfer(from, to, amount);
