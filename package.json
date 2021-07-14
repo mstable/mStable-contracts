@@ -23,7 +23,7 @@
         "lint:fix": "yarn pretty-quick --pattern '**/*.*(sol|json)' --staged --verbose",
         "lint-ts": "yarn eslint ./test --ext .ts --fix --quiet",
         "lint-sol": "solhint 'contracts/**/*.sol'",
-        "compile-abis": "typechain --target=ethers-v5 --out-dir types/generated --out-dir dist/types/generated \"?(contracts|build)/!(build-info)/**/+([a-zA-Z0-9]).json\"",
+        "compile-abis": "typechain --target=ethers-v5 --out-dir types/generated \"?(contracts|build)/!(build-info)/**/+([a-zA-Z0-9]).json\"",
         "compile-ts": "npx tsc",
         "compile": "yarn hardhat compile --force && yarn run compile-abis",
         "flatten": "npx sol-merger \"./contracts/**/*.sol\" ./_flat",
@@ -37,7 +37,8 @@
         "test:file:fork": "yarn hardhat --config hardhat-fork.config.ts test",
         "test:file": "yarn hardhat test",
         "test:file:long": "LONG_TESTS=true yarn hardhat test",
-        "prepublishOnly": "yarn run compile"
+        "copy-types": "cp -R types/generated dist/types",
+        "prepublishOnly": "yarn run compile && yarn run copy-types"
     },
     "repository": {
         "type": "git",

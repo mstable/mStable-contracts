@@ -25,11 +25,11 @@ import {
     MockBoostedVault,
     MockBoostedVault__factory,
 } from "types/generated"
+import { Account } from "types"
 import {
     shouldBehaveLikeDistributionRecipient,
     IRewardsDistributionRecipientContext,
 } from "../shared/RewardsDistributionRecipient.behaviour"
-import { Account } from "types"
 
 interface StakingBalance {
     raw: BN

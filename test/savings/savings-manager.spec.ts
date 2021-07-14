@@ -20,8 +20,8 @@ import {
     MockERC20,
     MockRevenueRecipient__factory,
 } from "types/generated"
-import { shouldBehaveLikePausableModule, IPausableModuleBehaviourContext } from "../shared/PausableModule.behaviour"
 import { Account } from "types"
+import { shouldBehaveLikePausableModule, IPausableModuleBehaviourContext } from "../shared/PausableModule.behaviour"
 
 describe("SavingsManager", async () => {
     const TEN = BN.from(10)

@@ -350,27 +350,27 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
             );
         uniswapRouter.exactInput(param);
 
-        // address mAsset = liquidation.mAsset;
-        // // If the integration contract is connected to a mAsset like mUSD or mBTC
-        // if (mAsset != address(0)) {
-        //     // 4a. Mint mAsset using purchased bAsset
-        //     uint256 minted = _mint(bAsset, mAsset);
+        address mAsset = liquidation.mAsset;
+        // If the integration contract is connected to a mAsset like mUSD or mBTC
+        if (mAsset != address(0)) {
+            // 4a. Mint mAsset using purchased bAsset
+            uint256 minted = _mint(bAsset, mAsset);
 
-        //     // 5a. Send to SavingsManager
-        //     address savings = _savingsManager();
-        //     ISavingsManager(savings).depositLiquidation(mAsset, minted);
+            // 5a. Send to SavingsManager
+            address savings = _savingsManager();
+            ISavingsManager(savings).depositLiquidation(mAsset, minted);
 
-        //     emit Liquidated(sellToken, mAsset, minted, bAsset);
-        // } else {
-        //     // If a feeder pool like alUSD
-        //     // 4b. transfer bAsset directly to the integration contract.
-        //     // this will then increase the boosted savings vault price.
-        //     IERC20 bAssetToken = IERC20(bAsset);
-        //     uint256 bAssetBal = bAssetToken.balanceOf(address(this));
-        //     bAssetToken.transfer(_integration, bAssetBal);
+            emit Liquidated(sellToken, mAsset, minted, bAsset);
+        } else {
+            // If a feeder pool like alUSD
+            // 4b. transfer bAsset directly to the integration contract.
+            // this will then increase the boosted savings vault price.
+            IERC20 bAssetToken = IERC20(bAsset);
+            uint256 bAssetBal = bAssetToken.balanceOf(address(this));
+            bAssetToken.transfer(_integration, bAssetBal);
 
-        //     emit Liquidated(aaveToken, mAsset, bAssetBal, bAsset);
-        // }
+            emit Liquidated(sellToken, mAsset, bAssetBal, bAsset);
+        }
     }
 
     /**
