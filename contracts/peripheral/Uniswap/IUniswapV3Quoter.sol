@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity 0.8.2;
+pragma solidity 0.8.6;
 pragma abicoder v2;
 
 /// @title Quoter Interface
@@ -11,7 +11,9 @@ interface IUniswapV3Quoter {
     /// @param path The path of the swap, i.e. each token pair and the pool fee
     /// @param amountIn The amount of the first token to swap
     /// @return amountOut The amount of the last token that would be received
-    function quoteExactInput(bytes memory path, uint256 amountIn) external returns (uint256 amountOut);
+    function quoteExactInput(bytes memory path, uint256 amountIn)
+        external
+        returns (uint256 amountOut);
 
     /// @notice Returns the amount out received for a given exact input but for a swap of a single pool
     /// @param tokenIn The token being swapped in
@@ -32,7 +34,9 @@ interface IUniswapV3Quoter {
     /// @param path The path of the swap, i.e. each token pair and the pool fee
     /// @param amountOut The amount of the last token to receive
     /// @return amountIn The amount of first token required to be paid
-    function quoteExactOutput(bytes memory path, uint256 amountOut) external returns (uint256 amountIn);
+    function quoteExactOutput(bytes memory path, uint256 amountOut)
+        external
+        returns (uint256 amountIn);
 
     /// @notice Returns the amount in required to receive the given exact output amount but for a swap of a single pool
     /// @param tokenIn The token being swapped in

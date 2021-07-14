@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.2;
+pragma solidity 0.8.6;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IAaveIncentivesController } from "../../peripheral/Aave/IAaveIncentivesController.sol";
@@ -24,7 +24,8 @@ contract MockAaveIncentivesController is IAaveIncentivesController {
         external
         view
         override
-        returns (uint256) {
+        returns (uint256)
+    {
         return 1e20;
     }
 

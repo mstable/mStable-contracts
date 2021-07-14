@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.2;
+pragma solidity 0.8.6;
 
 /**
  * @notice  Is only used in the upgrade of mUSD from V2.0 to V3.0.

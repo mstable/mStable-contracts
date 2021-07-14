@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.2;
+pragma solidity 0.8.6;
 pragma abicoder v2;
 
 // Internal
@@ -767,8 +767,10 @@ contract MV1 is
         nonReentrant
         returns (uint256 mintAmount, uint256 newSupply)
     {
-        (uint8[] memory idxs, uint256[] memory gains) =
-            MassetManager.collectPlatformInterest(data.bAssetPersonal, data.bAssetData);
+        (uint8[] memory idxs, uint256[] memory gains) = MassetManager.collectPlatformInterest(
+            data.bAssetPersonal,
+            data.bAssetData
+        );
 
         mintAmount = MassetLogic.computeMintMulti(data.bAssetData, idxs, gains, _getConfig());
 

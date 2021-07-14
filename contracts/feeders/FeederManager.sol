@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.2;
+pragma solidity 0.8.6;
 pragma abicoder v2;
 
 // External
@@ -56,8 +56,9 @@ library FeederManager {
             BassetData memory bData = bAssetData_[i];
             // If there is no integration, then nothing can have accrued
             if (bPersonal.integrator == address(0)) continue;
-            uint256 lending =
-                IPlatformIntegration(bPersonal.integrator).checkBalance(bPersonal.addr);
+            uint256 lending = IPlatformIntegration(bPersonal.integrator).checkBalance(
+                bPersonal.addr
+            );
             uint256 cache = 0;
             if (!bPersonal.hasTxFee) {
                 cache = IERC20(bPersonal.addr).balanceOf(bPersonal.integrator);

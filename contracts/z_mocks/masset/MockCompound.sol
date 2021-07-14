@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.2;
+pragma solidity 0.8.6;
 
 import { ICERC20 } from "../../peripheral/Compound/ICERC20.sol";
 
@@ -7,8 +7,7 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { StableMath } from "../../shared/StableMath.sol";
 
 contract MockCToken is ERC20, ICERC20 {
-
-    using StableMath for uint;
+    using StableMath for uint256;
 
     uint8 public dec = 8;
     ERC20 public immutable underlyingToken;
@@ -24,25 +23,21 @@ contract MockCToken is ERC20, ICERC20 {
         string memory _name,
         string memory _symbol,
         ERC20 _underlyingToken
-    )
-        ERC20(
-            _name,
-            _symbol
-        ) {
+    ) ERC20(_name, _symbol) {
         uint8 underlyingDecimals = _underlyingToken.decimals();
         // if underlying is 18 decimals, exchange rate has 26 decimals
-        exchangeRate = 10 ** uint256(underlyingDecimals + 8);
+        exchangeRate = 10**uint256(underlyingDecimals + 8);
 
         underlyingToken = _underlyingToken;
     }
 
-    function mint(uint mintAmount) external override returns (uint) {
+    function mint(uint256 mintAmount) external override returns (uint256) {
         // Pretend to inflate the cTokenExchangeRate
-        // updateExchangeRate(); 
+        // updateExchangeRate();
 
         // Get the bAsset bal of this cToken contract before transfer
         uint256 bAssetsBefore = underlyingToken.balanceOf(address(this));
-    
+
         // Take their reserve
         underlyingToken.transferFrom(msg.sender, address(this), mintAmount);
 
@@ -57,7 +52,7 @@ contract MockCToken is ERC20, ICERC20 {
         return 0;
     }
 
-    function redeemUnderlying(uint redeemAmount) external override returns (uint) {
+    function redeemUnderlying(uint256 redeemAmount) external override returns (uint256) {
         // Pretend to inflate the cTokenExchangeRate
         // updateExchangeRate();
 
@@ -69,8 +64,8 @@ contract MockCToken is ERC20, ICERC20 {
         underlyingToken.transfer(msg.sender, redeemAmount);
         return 0;
     }
-    
-    function balanceOfUnderlying(address owner) external override view returns (uint) {
+
+    function balanceOfUnderlying(address owner) external view override returns (uint256) {
         // updateExchangeRate();
         uint256 cTokenBal = this.balanceOf(owner);
         return cTokenBal.mulTruncate(exchangeRate);
@@ -82,7 +77,7 @@ contract MockCToken is ERC20, ICERC20 {
         exchangeRate = exchangeRate.mulTruncate(factor);
     }
 
-    function exchangeRateStored() external override view returns (uint) {
+    function exchangeRateStored() external view override returns (uint256) {
         return exchangeRate;
     }
 

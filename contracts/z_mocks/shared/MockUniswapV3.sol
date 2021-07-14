@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.2;
+pragma solidity 0.8.6;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IUniswapV3SwapRouter } from "../../peripheral/Uniswap/IUniswapV3SwapRouter.sol";
@@ -75,9 +75,7 @@ contract MockUniswapV3 is IUniswapV3SwapRouter, IUniswapV3Quoter {
         returns (uint256 amountIn)
     {
         uint256 rate = rates[params.tokenIn][params.tokenOut];
-        amountIn =
-            (params.amountOut * RATE_SCALE * FEE_SCALE) /
-            (rate * (FEE_SCALE - params.fee));
+        amountIn = (params.amountOut * RATE_SCALE * FEE_SCALE) / (rate * (FEE_SCALE - params.fee));
 
         IERC20(params.tokenIn).transferFrom(msg.sender, address(this), amountIn);
 
@@ -117,7 +115,7 @@ contract MockUniswapV3 is IUniswapV3SwapRouter, IUniswapV3Quoter {
         (, address tokenOut, ) = path.skipToken().decodeFirstPool();
 
         uint256 rate = rates[tokenIn][tokenOut];
-        amountOut = (amountIn * rate * (FEE_SCALE - fee) / (FEE_SCALE * RATE_SCALE));
+        amountOut = ((amountIn * rate * (FEE_SCALE - fee)) / (FEE_SCALE * RATE_SCALE));
     }
 
     function quoteExactInputSingle(
@@ -141,7 +139,7 @@ contract MockUniswapV3 is IUniswapV3SwapRouter, IUniswapV3Quoter {
         (, address tokenIn, ) = path.skipToken().decodeFirstPool();
 
         uint256 rate = rates[tokenIn][tokenOut];
-        amountIn = (amountOut * RATE_SCALE *  FEE_SCALE) / (rate * (FEE_SCALE - fee));
+        amountIn = (amountOut * RATE_SCALE * FEE_SCALE) / (rate * (FEE_SCALE - fee));
     }
 
     function quoteExactOutputSingle(

@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.2;
+pragma solidity 0.8.6;
 pragma abicoder v2;
 
-
 abstract contract CRPFactory {
-
     struct Rights {
         bool canPauseSwapping;
         bool canChangeSwapFee;
@@ -18,17 +16,14 @@ abstract contract CRPFactory {
         string poolTokenSymbol;
         string poolTokenName;
         address[] constituentTokens;
-        uint[] tokenBalances;
-        uint[] tokenWeights;
-        uint swapFee;
+        uint256[] tokenBalances;
+        uint256[] tokenWeights;
+        uint256 swapFee;
     }
 
     function newCrp(
         address factoryAddress,
         PoolParams calldata poolParams,
         Rights calldata rights
-    )
-        external
-        virtual
-        returns (address);
+    ) external virtual returns (address);
 }
