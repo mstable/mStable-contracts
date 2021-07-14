@@ -26,6 +26,7 @@ import {
 } from "types/generated"
 import { increaseTime } from "@utils/time"
 import { EncodedPaths, encodeUniswapPath } from "@utils/peripheral/uniswap"
+import { assertBNClose } from "@utils/assertions"
 import { shouldBehaveLikeModule, IModuleBehaviourContext } from "../shared/Module.behaviour"
 
 describe("Liquidator", () => {
@@ -65,6 +66,7 @@ describe("Liquidator", () => {
 
     interface Data {
         sellTokenBalance: Balance
+        buyTokenBalance: Balance
         savingsManagerBal: BN
         liquidation: Liquidation
     }
@@ -143,6 +145,10 @@ describe("Liquidator", () => {
             sellTokenBalance: {
                 integration: sellBalIntegration,
                 liquidator: sellBalLiquidator,
+            },
+            buyTokenBalance: {
+                integration: await bAsset.balanceOf(compIntegration.address),
+                liquidator: await bAsset.balanceOf(liquidator.address),
             },
             savingsManagerBal,
             liquidation,
@@ -478,7 +484,7 @@ describe("Liquidator", () => {
             })
             it("should update the bAsset successfully", async () => {
                 const validPath = encodeUniswapPath([compToken.address, DEAD_ADDRESS, bAsset2.address], [3000, 3000])
-                // update uniswap path, bAsset, tranch amount
+                // update uniswap path, bAsset, tranche amount
                 const tx = liquidator
                     .connect(sa.governor.signer)
                     .updateBasset(
@@ -486,6 +492,25 @@ describe("Liquidator", () => {
                         bAsset2.address,
                         validPath.encoded,
                         validPath.encodedReversed,
+                        simpleToExactAmount(123, 18),
+                        simpleToExactAmount(70, 18),
+                    )
+                await expect(tx).to.emit(liquidator, "LiquidationModified").withArgs(compIntegration.address)
+                const liquidation = await liquidator.liquidations(compIntegration.address)
+                expect(liquidation.sellToken).eq(compToken.address)
+                expect(liquidation.bAsset).eq(bAsset2.address)
+                expect(liquidation.trancheAmount).eq(simpleToExactAmount(123, 18))
+            })
+            it("should update with longer uniswap path", async () => {
+                const longerPath = encodeUniswapPath([compToken.address, DEAD_ADDRESS, bAsset.address, bAsset2.address], [10000, 3000, 500])
+                // update uniswap path
+                const tx = liquidator
+                    .connect(sa.governor.signer)
+                    .updateBasset(
+                        compIntegration.address,
+                        bAsset2.address,
+                        longerPath.encoded,
+                        longerPath.encodedReversed,
                         simpleToExactAmount(123, 18),
                         simpleToExactAmount(70, 18),
                     )
@@ -511,7 +536,7 @@ describe("Liquidator", () => {
             })
         })
     })
-    context("triggering a Compound liquidation", () => {
+    context("triggering a liquidation for a mAsset", () => {
         beforeEach(async () => {
             await redeployLiquidator()
             await liquidator
@@ -540,22 +565,30 @@ describe("Liquidator", () => {
         })
         it("should sell everything if the liquidator has less balance than tranche size", async () => {
             const s0 = await snapshotData()
-            await liquidator
-                .connect(sa.governor.signer)
-                .updateBasset(
-                    compIntegration.address,
-                    bAsset.address,
-                    uniswapCompBassetPaths.encoded,
-                    uniswapCompBassetPaths.encodedReversed,
-                    simpleToExactAmount(1, 30),
-                    simpleToExactAmount(70, 18),
-                )
-            // set tranche size to 1e30
-            await liquidator.triggerLiquidation(compIntegration.address)
+            expect(s0.sellTokenBalance.integration, "integration COMP bal before").to.eq(simpleToExactAmount(10))
+            expect(s0.sellTokenBalance.liquidator, "liquidator COMP bal before").to.eq(0)
+            await liquidator.connect(sa.governor.signer).updateBasset(
+                compIntegration.address,
+                bAsset.address,
+                uniswapCompBassetPaths.encoded,
+                uniswapCompBassetPaths.encodedReversed,
+                simpleToExactAmount(1, 30), // set tranche size to 1e30
+                simpleToExactAmount(70, 18),
+            )
+
+            const tx = await liquidator.triggerLiquidation(compIntegration.address)
+
+            // 10 COMP liquidated at 440 COMP/USD with 0.3% fee
+            // Swap bAsset output = 10 * 440 * (100 - 0.3) / 100 = 4,386.8
+            // 4,386.8 bAsset is then minted for mUSD which costs 2%
+            // mUSD in Savings = 4,386.8 * (100 - 2) / 100 = 4,299.064
+            const mAssetsExpected = simpleToExactAmount(4299064, 15)
+            await expect(tx).to.emit(liquidator, "Liquidated").withArgs(compToken.address, mUSD.address, mAssetsExpected, bAsset.address)
 
             const s1 = await snapshotData()
-            // 10 COMP liquidated for > 1000 mUSD
-            expect(s1.savingsManagerBal.sub(s0.savingsManagerBal)).gt(simpleToExactAmount(1000, 18))
+            expect(s1.sellTokenBalance.integration, "integration COMP bal after").to.eq(0)
+            expect(s1.sellTokenBalance.liquidator, "liquidator COMP bal after").to.eq(0)
+            expect(s1.savingsManagerBal, "savings manager COMP bal after").to.eq(s0.savingsManagerBal.add(mAssetsExpected))
 
             await increaseTime(ONE_WEEK.add(1))
             await expect(liquidator.triggerLiquidation(compIntegration.address)).to.be.revertedWith("No sell tokens to liquidate")
@@ -579,6 +612,83 @@ describe("Liquidator", () => {
             await expect(liquidator.triggerLiquidation(compIntegration.address)).to.be.revertedWith("Must wait for interval")
             await increaseTime(ONE_DAY.mul(3))
             await liquidator.triggerLiquidation(compIntegration.address)
+        })
+    })
+    context("triggering a liquidation for Feeder Pool", () => {
+        beforeEach(async () => {
+            await redeployLiquidator()
+            await liquidator.connect(sa.governor.signer).createLiquidation(
+                compIntegration.address,
+                compToken.address,
+                bAsset.address,
+                uniswapCompBassetPaths.encoded,
+                uniswapCompBassetPaths.encodedReversed,
+                simpleToExactAmount(10000, 18),
+                simpleToExactAmount(70, 18),
+                ZERO_ADDRESS, // no mAsset. This is a Feeder Pool integration
+                false,
+            )
+            await compIntegration.connect(sa.governor.signer).approveRewardToken()
+        })
+        context("send purchased asset to integration contract", () => {
+            it("should sell all COMP", async () => {
+                const s0 = await snapshotData()
+                expect(s0.sellTokenBalance.integration, "integration COMP bal before").to.eq(simpleToExactAmount(10))
+                expect(s0.sellTokenBalance.liquidator, "liquidator COMP bal before").to.eq(0)
+                expect(s0.buyTokenBalance.integration, "integration bAsset bal before").to.eq(0)
+                expect(s0.buyTokenBalance.liquidator, "liquidator bAsset bal before").to.eq(0)
+
+                const tx = await liquidator.triggerLiquidation(compIntegration.address)
+
+                // 10 COMP liquidated at 440 COMP/USD with 0.3% fee
+                // Swap bAsset output = 10 * 440 * (100 - 0.3) / 100 = 4,386.8
+                // 4,386.8 bAsset is then minted for mUSD which costs 2%
+                const purchasedBassetsExpected = simpleToExactAmount(43868, 17)
+
+                await expect(tx)
+                    .to.emit(liquidator, "Liquidated")
+                    .withArgs(compToken.address, ZERO_ADDRESS, purchasedBassetsExpected, bAsset.address)
+
+                const s1 = await snapshotData()
+                expect(s1.sellTokenBalance.integration, "integration COMP bal after").to.eq(0)
+                expect(s1.sellTokenBalance.liquidator, "liquidator COMP bal after").to.eq(0)
+                expect(s1.buyTokenBalance.integration, "integration bAsset bal after").to.eq(purchasedBassetsExpected)
+                expect(s1.buyTokenBalance.liquidator, "liquidator bAsset bal after").to.eq(0)
+            })
+            it("should partially sell COMP", async () => {
+                await liquidator
+                    .connect(sa.governor.signer)
+                    .updateBasset(
+                        compIntegration.address,
+                        bAsset.address,
+                        uniswapCompBassetPaths.encoded,
+                        uniswapCompBassetPaths.encodedReversed,
+                        simpleToExactAmount(1000, 18),
+                        simpleToExactAmount(70, 18),
+                    )
+
+                const s0 = await snapshotData()
+                expect(s0.sellTokenBalance.integration, "integration COMP bal before").to.eq(simpleToExactAmount(10))
+                expect(s0.sellTokenBalance.liquidator, "liquidator COMP bal before").to.eq(0)
+                expect(s0.buyTokenBalance.integration, "integration bAsset bal before").to.eq(0)
+                expect(s0.buyTokenBalance.liquidator, "liquidator bAsset bal before").to.eq(0)
+
+                const tx = await liquidator.triggerLiquidation(compIntegration.address)
+
+                // purchased bAssets close to 1000 but not quite do to Uniswap calcs
+                const purchasedBassetsExpected = BN.from("999999999999999999926")
+                assertBNClose(purchasedBassetsExpected, simpleToExactAmount(1000, 18), 100)
+
+                await expect(tx)
+                    .to.emit(liquidator, "Liquidated")
+                    .withArgs(compToken.address, ZERO_ADDRESS, purchasedBassetsExpected, bAsset.address)
+
+                const s1 = await snapshotData()
+                expect(s1.sellTokenBalance.integration, "integration COMP bal after").to.eq(0)
+                expect(s1.sellTokenBalance.liquidator, "liquidator COMP bal after").to.gt(0)
+                expect(s1.buyTokenBalance.integration, "integration bAsset bal after").to.eq(purchasedBassetsExpected)
+                expect(s1.buyTokenBalance.liquidator, "liquidator bAsset bal after").to.eq(0)
+            })
         })
     })
     context("Aave claim rewards", () => {
