@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.6;
 
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { InitializableToken } from "../../shared/InitializableToken.sol";
 import { IGovernancePowerDelegationToken } from "./_i/IGovernancePowerDelegationToken.sol";
 
 /**
  * @notice implementation of the AAVE token contract
  * @author Aave
  */
-abstract contract GovernancePowerDelegationERC20 is ERC20, IGovernancePowerDelegationToken {
+abstract contract PowerDelegationERC20 is InitializableToken, IGovernancePowerDelegationToken {
     /// @notice The EIP-712 typehash for the delegation struct used by the contract
     bytes32 public constant DELEGATE_BY_TYPE_TYPEHASH =
         keccak256("DelegateByType(address delegatee,uint256 type,uint256 nonce,uint256 expiry)");
@@ -20,6 +20,22 @@ abstract contract GovernancePowerDelegationERC20 is ERC20, IGovernancePowerDeleg
     struct Snapshot {
         uint128 blockNumber;
         uint128 value;
+    }
+
+    mapping(address => mapping(uint256 => Snapshot)) public _votingSnapshots;
+    mapping(address => uint256) public _votingSnapshotsCounts;
+    mapping(address => address) internal _votingDelegates;
+
+    /**
+     * @dev Initialization function for implementing contract
+     * @notice To avoid variable shadowing appended `Arg` after arguments name.
+     */
+    function _initialize(string memory _nameArg, string memory _symbolArg)
+        internal
+        virtual
+        override
+    {
+        super._initialize(_nameArg, _symbolArg);
     }
 
     /**

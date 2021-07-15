@@ -12,7 +12,7 @@ import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Initializable } from "@openzeppelin/contracts/utils/Initializable.sol";
 
-import { GovernancePowerWithSnapshot } from "./GovernancePowerWithSnapshot.sol";
+import { PowerDelegationERC20 } from "./PowerDelegationERC20.sol";
 
 import { DistributionTypes } from "./_pending/DistributionTypes.sol";
 // TODO - replace distributionManager with StakingRewardsLite
@@ -23,12 +23,7 @@ import { AaveDistributionManager } from "./_pending/AaveDistributionManager.sol"
  * @notice Contract to stake Aave token, tokenize the position and get rewards, inheriting from a distribution manager contract
  * @author Aave
  **/
-contract StakedToken is
-    IStakedMeta,
-    GovernancePowerWithSnapshot,
-    Initializable,
-    AaveDistributionManager
-{
+contract StakedToken is IStakedMeta, Initializable, PowerDelegationERC20, AaveDistributionManager {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -72,7 +67,6 @@ contract StakedToken is
 
     event Cooldown(address indexed user);
 
-    // TODO - change ERC20 to initializableToken and ensure hooks are added
     constructor(
         IERC20 stakedToken,
         IERC20 rewardToken,
@@ -80,23 +74,19 @@ contract StakedToken is
         uint256 unstakeWindow,
         address rewardsVault,
         address emissionManager,
-        uint128 distributionDuration,
-        string memory name,
-        string memory symbol,
-        address governance
-    ) public ERC20(name, symbol) AaveDistributionManager(emissionManager, distributionDuration) {
+        uint128 distributionDuration
+    ) AaveDistributionManager(emissionManager, distributionDuration) {
         STAKED_TOKEN = stakedToken;
         REWARD_TOKEN = rewardToken;
         COOLDOWN_SECONDS = cooldownSeconds;
         UNSTAKE_WINDOW = unstakeWindow;
         REWARDS_VAULT = rewardsVault;
-        _aaveGovernance = ITransferHook(governance);
     }
 
     /**
      * @dev Called by the proxy contract
      **/
-    function initialize() external initializer {
+    function initialize(string memory _nameArg, string memory _symbolArg) external initializer {
         uint256 chainId;
 
         //solium-disable-next-line
@@ -113,6 +103,16 @@ contract StakedToken is
                 address(this)
             )
         );
+
+        PowerDelegationERC20._initialize(_nameArg, _symbolArg);
+    }
+
+    /**
+     * @dev Initialization function for implementing contract
+     * @notice To avoid variable shadowing appended `Arg` after arguments name.
+     */
+    function _initialize(string memory _nameArg, string memory _symbolArg) internal override {
+        super._initialize(_nameArg, _symbolArg);
     }
 
     function stake(address onBehalfOf, uint256 amount) external override {
@@ -332,11 +332,13 @@ contract StakedToken is
 
             DistributionTypes.UserStakeInput[] memory userStakeInputs
          = new DistributionTypes.UserStakeInput[](1);
+
         userStakeInputs[0] = DistributionTypes.UserStakeInput({
             underlyingAsset: address(this),
             stakedByUser: balanceOf(staker),
             totalStaked: totalSupply()
         });
+
         return stakerRewardsToClaim[staker] + _getUnclaimedRewards(staker, userStakeInputs);
     }
 
@@ -350,7 +352,6 @@ contract StakedToken is
      * @param s signature param
      * @param r signature param
      */
-
     function permit(
         address owner,
         address spender,
@@ -426,13 +427,6 @@ contract StakedToken is
             amount,
             DelegationType.PROPOSITION_POWER
         );
-
-        // caching the aave governance address to avoid multiple state loads
-        // TODO - what is this? Empty atm
-        ITransferHook aaveGovernance = _aaveGovernance;
-        if (aaveGovernance != ITransferHook(address(0))) {
-            aaveGovernance.onTransfer(from, to, amount);
-        }
     }
 
     function _getDelegationDataByType(DelegationType delegationType)

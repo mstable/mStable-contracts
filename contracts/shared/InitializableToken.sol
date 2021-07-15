@@ -14,7 +14,7 @@ abstract contract InitializableToken is ERC205, InitializableERC20Detailed {
      * @dev Initialization function for implementing contract
      * @notice To avoid variable shadowing appended `Arg` after arguments name.
      */
-    function _initialize(string memory _nameArg, string memory _symbolArg) internal {
+    function _initialize(string memory _nameArg, string memory _symbolArg) internal virtual {
         InitializableERC20Detailed._initialize(_nameArg, _symbolArg, 18);
     }
 }
