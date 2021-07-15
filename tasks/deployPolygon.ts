@@ -2,7 +2,7 @@
 /* eslint-disable no-console */
 import "ts-node/register"
 import "tsconfig-paths/register"
-import { task } from "hardhat/config"
+import { task, types } from "hardhat/config"
 import {
     AssetProxy,
     AssetProxy__factory,
@@ -40,10 +40,11 @@ import { DEAD_ADDRESS, KEY_LIQUIDATOR, KEY_PROXY_ADMIN, KEY_SAVINGS_MANAGER, ONE
 import { BN, simpleToExactAmount } from "@utils/math"
 import { formatUnits } from "@ethersproject/units"
 import { MassetLibraryAddresses } from "types/generated/factories/Masset__factory"
+import { Signer } from "ethers"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
-import { getSigner } from "./utils/defender-utils"
+import { getSigner } from "./utils/signerFactory"
 import { getChain, getChainAddress } from "./utils/networkAddressFactory"
-import { PMTA, PmUSD, PWMATIC } from "./utils/tokens"
+import { PMTA, PmUSD, PWMATIC, tokens } from "./utils/tokens"
 
 // FIXME: this import does not work for some reason
 // import { sleep } from "@utils/time"
@@ -87,37 +88,33 @@ export const mUsdBassets: Bassets[] = [
     },
 ]
 
-const deployBasset = async (
-    deployer: SignerWithAddress,
-    name: string,
-    symbol: string,
-    decimals = 18,
-    initialMint = 500000,
-): Promise<MockERC20> => {
+const deployBasset = async (signer: Signer, name: string, symbol: string, decimals = 18, initialMint = 500000): Promise<MockERC20> => {
+    const signerAddress = await signer.getAddress()
     // Deploy Implementation
-    const impl = await deployContract<MockInitializableToken>(new MockInitializableToken__factory(deployer), `${symbol} impl`)
+    const impl = await deployContract<MockInitializableToken>(new MockInitializableToken__factory(signer), `${symbol} impl`)
     // Initialization Implementation
-    const data = impl.interface.encodeFunctionData("initialize", [name, symbol, decimals, deployer.address, initialMint])
+    const data = impl.interface.encodeFunctionData("initialize", [name, symbol, decimals, signerAddress, initialMint])
     // Deploy Proxy
-    const proxy = await deployContract<AssetProxy>(new AssetProxy__factory(deployer), `${symbol} proxy`, [impl.address, DEAD_ADDRESS, data])
+    const proxy = await deployContract<AssetProxy>(new AssetProxy__factory(signer), `${symbol} proxy`, [impl.address, DEAD_ADDRESS, data])
 
-    return new MockERC20__factory(deployer).attach(proxy.address)
+    return new MockERC20__factory(signer).attach(proxy.address)
 }
 
-const deployBassets = async (deployer: SignerWithAddress, bAssetsProps: Bassets[]): Promise<DeployedBasset[]> => {
+const deployBassets = async (signer: Signer, bAssetsProps: Bassets[]): Promise<DeployedBasset[]> => {
+    const signerAddress = await signer.getAddress()
     const bAssets: DeployedBasset[] = []
     let i = 0
     // eslint-disable-next-line
     for (const basset of bAssetsProps) {
-        const bAssetContract = await deployBasset(deployer, basset.name, basset.symbol, basset.decimals, basset.initialMint)
+        const bAssetContract = await deployBasset(signer, basset.name, basset.symbol, basset.decimals, basset.initialMint)
 
         await sleep(sleepTime)
 
-        const pTokenContract = await deployContract<MockERC20>(new MockERC20__factory(deployer), `pToken for ${basset.symbol}`, [
+        const pTokenContract = await deployContract<MockERC20>(new MockERC20__factory(signer), `pToken for ${basset.symbol}`, [
             `Aave Matic Market ${basset.name}`,
             `am${basset.symbol}`,
             basset.decimals,
-            deployer.address,
+            signerAddress,
             0,
         ])
         bAssets.push({
@@ -131,7 +128,7 @@ const deployBassets = async (deployer: SignerWithAddress, bAssetsProps: Bassets[
 }
 
 const attachBassets = (
-    deployer: SignerWithAddress,
+    deployer: Signer,
     bAssetsProps: Bassets[],
     bAssetAddresses: string[],
     pTokenAddresses: string[],
@@ -150,7 +147,7 @@ const attachBassets = (
 }
 
 const deployMasset = async (
-    deployer: SignerWithAddress,
+    deployer: Signer,
     linkedAddress: MassetLibraryAddresses,
     nexus: Nexus,
     delayedProxyAdmin: DelayedProxyAdmin,
@@ -167,7 +164,7 @@ const deployMasset = async (
 }
 
 const deployInterestBearingMasset = async (
-    deployer: SignerWithAddress,
+    deployer: Signer,
     nexus: Nexus,
     mUsd: Masset,
     delayedProxyAdmin: DelayedProxyAdmin,
@@ -190,7 +187,7 @@ const deployInterestBearingMasset = async (
 }
 
 const deployAaveIntegration = async (
-    deployer: SignerWithAddress,
+    deployer: Signer,
     nexus: Nexus,
     mAsset: Masset,
     bAssetAddresses: string[],
@@ -234,7 +231,8 @@ const deployAaveIntegration = async (
     }
 }
 
-const mint = async (sender: SignerWithAddress, bAssets: DeployedBasset[], mAsset: Masset, scaledMintQty: BN) => {
+const mint = async (sender: Signer, bAssets: DeployedBasset[], mAsset: Masset, scaledMintQty: BN) => {
+    const senderAddress = await sender.getAddress()
     // Approve spending
     const approvals: BN[] = []
     // eslint-disable-next-line
@@ -245,7 +243,7 @@ const mint = async (sender: SignerWithAddress, bAssets: DeployedBasset[], mAsset
         const tx = await bAsset.bAssetContract.approve(mAsset.address, approval)
         const receiptApprove = await tx.wait()
         console.log(
-            `Approved mAsset to transfer ${formatUnits(scaledMintQty)} ${bAsset.symbol} from ${sender.address}. gas used ${
+            `Approved mAsset to transfer ${formatUnits(scaledMintQty)} ${bAsset.symbol} from ${senderAddress}. gas used ${
                 receiptApprove.gasUsed
             }`,
         )
@@ -267,277 +265,288 @@ const mint = async (sender: SignerWithAddress, bAssets: DeployedBasset[], mAsset
     console.log(`Minted ${mAssetAmount} mAssets from ${formatUnits(scaledMintQty)} units for each bAsset. gas used ${receiptMint.gasUsed}`)
 }
 
-const save = async (sender: SignerWithAddress, mAsset: Masset, imAsset: SavingsContract, scaledSaveQty: BN) => {
+const save = async (sender: Signer, mAsset: Masset, imAsset: SavingsContract, scaledSaveQty: BN) => {
     console.log(`About to save ${formatUnits(scaledSaveQty)} mAssets`)
     await mAsset.approve(imAsset.address, scaledSaveQty)
     await imAsset["depositSavings(uint256)"](scaledSaveQty, { gasLimit: 8000000 })
     console.log(`Saved ${formatUnits(scaledSaveQty)} mAssets to interest bearing mAssets`)
 }
 
-task("deploy-polly", "Deploys mUSD & System to a Polygon network").setAction(async (_, hre) => {
-    const { network } = hre
-    const [deployer] = await hre.ethers.getSigners()
+task("deploy-polly", "Deploys mUSD & System to a Polygon network")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const { network } = hre
+        const signer = await getSigner(hre, taskArgs.speed)
+        const signerAddress = await signer.getAddress()
 
-    // Deploy Nexus
-    const nexus = await deployContract<Nexus>(new Nexus__factory(deployer), "Nexus", [deployer.address])
+        // Deploy Nexus
+        const nexus = await deployContract<Nexus>(new Nexus__factory(signer), "Nexus", [signerAddress])
 
-    // Deploy DelayedProxyAdmin
-    const delayedProxyAdmin = await deployContract<DelayedProxyAdmin>(new DelayedProxyAdmin__factory(deployer), "DelayedProxyAdmin", [
-        nexus.address,
-    ])
+        // Deploy DelayedProxyAdmin
+        const delayedProxyAdmin = await deployContract<DelayedProxyAdmin>(new DelayedProxyAdmin__factory(signer), "DelayedProxyAdmin", [
+            nexus.address,
+        ])
 
-    await sleep(sleepTime)
+        await sleep(sleepTime)
 
-    let deployedUsdBassets: DeployedBasset[]
-    let multiSigAddress: string
-    if (network.name === "hardhat") {
-        multiSigAddress = deployer.address
-        // Deploy mocked base USD assets
-        deployedUsdBassets = await deployBassets(deployer, mUsdBassets)
-    } else if (network.name === "polygon_testnet") {
-        multiSigAddress = "0xE1304aA964C5119C98E8AE554F031Bf3B21eC836" // 1/3 Multisig
-        // Attach to already deployed mocked bAssets
-        deployedUsdBassets = attachBassets(
-            deployer,
-            mUsdBassets,
+        let deployedUsdBassets: DeployedBasset[]
+        let multiSigAddress: string
+        if (network.name === "hardhat") {
+            multiSigAddress = signerAddress
+            // Deploy mocked base USD assets
+            deployedUsdBassets = await deployBassets(signer, mUsdBassets)
+        } else if (network.name === "polygon_testnet") {
+            multiSigAddress = "0xE1304aA964C5119C98E8AE554F031Bf3B21eC836" // 1/3 Multisig
+            // Attach to already deployed mocked bAssets
+            deployedUsdBassets = attachBassets(
+                signer,
+                mUsdBassets,
+                [
+                    "0x4fa81E591dC5dAf1CDA8f21e811BAEc584831673", // USDC
+                    "0xD84574BFE3294b472C74D7a7e3d3bB2E92894B48", // DAI
+                    "0x872093ee2BCb9951b1034a4AAC7f489215EDa7C2", // Tether
+                ],
+                [
+                    "0xA2De18B8AE0450D918EA5Bf5890CBA5dD7055A4f",
+                    "0x85581E4BDeDB67840876DF20eFeaA6926dfFa11E",
+                    "0xAD209ADbCDF8B6917E69E6BcF9D05592388B8ada",
+                ],
+            )
+        } else if (network.name === "polygon_mainnet") {
+            multiSigAddress = "0x4aA2Dd5D5387E4b8dcf9b6Bfa4D9236038c3AD43" // 4/8 Multisig
+            // Attach to 3rd party bAssets
+            deployedUsdBassets = attachBassets(
+                signer,
+                mUsdBassets,
+                [
+                    "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174", // USDC
+                    "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063", // DAI
+                    "0xc2132D05D31c914a87C6611C10748AEb04B58e8F", // Tether
+                ],
+                [
+                    "0x1a13F4Ca1d028320A707D99520AbFefca3998b7F",
+                    "0x27F8D03b3a2196956ED754baDc28D73be8830A6e",
+                    "0x60D55F02A771d515e077c9C2403a1ef324885CeC",
+                ],
+            )
+        }
+
+        await sleep(sleepTime)
+
+        // Deploy mAsset dependencies
+        const massetLogic = await deployContract<MassetLogic>(new MassetLogic__factory(signer), "MassetLogic")
+        const managerLib = await deployContract<MassetManager>(new MassetManager__factory(signer), "MassetManager")
+        const linkedAddress = {
+            __$6a4be19f34d71a078def5cee18ccebcd10$__: massetLogic.address,
+            __$3b19b776afde68cd758db0cae1b8e49f94$__: managerLib.address,
+        }
+
+        // Deploy mUSD Masset
+        const mUsd = await deployMasset(signer, linkedAddress, nexus, delayedProxyAdmin)
+
+        await sleep(sleepTime)
+
+        const { integrator, liquidator } = await deployAaveIntegration(
+            signer,
+            nexus,
+            mUsd,
+            deployedUsdBassets.map((b) => b.bAssetContract.address),
+            deployedUsdBassets.map((b) => b.pTokenContract.address),
+            network.name,
+        )
+
+        const config = {
+            a: 300,
+            limits: {
+                min: simpleToExactAmount(5, 16),
+                max: simpleToExactAmount(75, 16),
+            },
+        }
+        const txMusd = await mUsd.initialize(
+            "mUSD",
+            "mStable USD (Polygon PoS)",
+            deployedUsdBassets.map((b) => ({
+                addr: b.bAssetContract.address,
+                integrator: network.name === "polygon_mainnet" ? integrator.address : ZERO_ADDRESS,
+                hasTxFee: false,
+                status: 0,
+            })),
+            config,
+            { gasLimit: 8000000 },
+        )
+        console.log(`mUSD initialize tx ${txMusd.hash}`)
+        const receiptMusd = await txMusd.wait()
+        console.log(`mUSD initialize status ${receiptMusd.status} from receipt`)
+
+        await sleep(sleepTime)
+
+        // Deploy Interest Bearing mUSD
+        const imUsd = await deployInterestBearingMasset(
+            signer,
+            nexus,
+            mUsd,
+            delayedProxyAdmin,
+            DEAD_ADDRESS,
+            "imUSD",
+            "Interest bearing mStable USD (Polygon PoS)",
+        )
+
+        await sleep(sleepTime)
+
+        // Deploy Save Wrapper
+        const saveWrapper = await deployContract<SaveWrapper>(new SaveWrapper__factory(signer), "SaveWrapper")
+
+        // Deploy Savings Manager
+        const savingsManager = await deployContract<SavingsManager>(new SavingsManager__factory(signer), "SavingsManager", [
+            nexus.address,
+            mUsd.address,
+            imUsd.address,
+            simpleToExactAmount(9, 17), // 90% = 9e17
+            ONE_DAY,
+        ])
+
+        await sleep(sleepTime)
+
+        // SaveWrapper contract approves the savings contract (imUSD) to spend its USD mAsset tokens (mUSD)
+        await saveWrapper["approve(address,address)"](mUsd.address, imUsd.address)
+        // SaveWrapper approves the mUSD contract to spend its bAsset tokens
+        const bAssetAddresses = deployedUsdBassets.map((b) => b.bAssetContract.address)
+        await saveWrapper["approve(address[],address)"](bAssetAddresses, mUsd.address)
+        console.log("Successful token approvals from the SaveWrapper")
+
+        await sleep(sleepTime)
+
+        // Initialize Nexus Modules
+        const moduleKeys = [KEY_SAVINGS_MANAGER, KEY_PROXY_ADMIN, KEY_LIQUIDATOR]
+        const moduleAddresses = [savingsManager.address, delayedProxyAdmin.address, liquidator.address]
+        const moduleIsLocked = [false, true, false]
+        const nexusTx = await nexus.connect(signer).initialize(moduleKeys, moduleAddresses, moduleIsLocked, multiSigAddress)
+        const nexusReceipt = await nexusTx.wait()
+        console.log(`Nexus initialize status ${nexusReceipt.status} from receipt`)
+
+        await sleep(sleepTime)
+
+        if (hre.network.name !== "polygon_mainnet") {
+            await mint(signer, deployedUsdBassets, mUsd, simpleToExactAmount(20))
+            await save(signer, mUsd, imUsd, simpleToExactAmount(15))
+        } else if (hre.network.name === "polygon_mainnet") {
+            // Multimint 2 USD and then save 4
+            await mint(signer, deployedUsdBassets, mUsd, simpleToExactAmount(2))
+            await save(signer, mUsd, imUsd, simpleToExactAmount(4))
+        }
+    })
+
+task("liquidator-snap", "Dumps the config details of the liquidator on Polygon")
+    .addParam("asset", "Symbol of asset to get liquidation details for. eg USDC, PUSDC, DAI, GUSD, alUSD", undefined, types.string)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+
+        const asset = tokens.find((t) => t.symbol === taskArgs.asset && t.chain === chain)
+        if (!asset) throw Error(`Could not find asset with symbol ${taskArgs.asset}`)
+
+        const liquidatorAddress = getChainAddress("Liquidator", chain)
+        const liquidator = PLiquidator__factory.connect(liquidatorAddress, signer)
+
+        const liquidationConfig = await liquidator.liquidations(asset.integrator)
+        console.log(liquidationConfig)
+    })
+
+task("deploy-vimusd", "Deploy Polygon imUSD staking contract v-imUSD")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+
+        const fundManagerAddress = getChainAddress("FundManager", chain)
+        const governorAddress = getChainAddress("Governor", chain)
+        const nexusAddress = getChainAddress("Nexus", chain)
+        const rewardsDistributorAddress = getChainAddress("RewardsDistributor", chain)
+
+        const rewardsDistributor = rewardsDistributorAddress
+            ? RewardsDistributor__factory.connect(rewardsDistributorAddress, signer)
+            : await deployContract(new RewardsDistributor__factory(signer), "RewardsDistributor", [
+                  nexusAddress,
+                  [fundManagerAddress, governorAddress],
+              ])
+
+        const stakingRewardsImpl = await deployContract(
+            new StakingRewardsWithPlatformToken__factory(signer),
+            "StakingRewardsWithPlatformToken",
             [
-                "0x4fa81E591dC5dAf1CDA8f21e811BAEc584831673", // USDC
-                "0xD84574BFE3294b472C74D7a7e3d3bB2E92894B48", // DAI
-                "0x872093ee2BCb9951b1034a4AAC7f489215EDa7C2", // Tether
-            ],
-            [
-                "0xA2De18B8AE0450D918EA5Bf5890CBA5dD7055A4f",
-                "0x85581E4BDeDB67840876DF20eFeaA6926dfFa11E",
-                "0xAD209ADbCDF8B6917E69E6BcF9D05592388B8ada",
+                nexusAddress,
+                PmUSD.savings, // imUSD
+                PMTA.address, // MTA bridged to Polygon
+                PWMATIC.address, // Wrapped Matic on Polygon
+                ONE_DAY.mul(7), // 7 days
             ],
         )
-    } else if (network.name === "polygon_mainnet") {
-        multiSigAddress = "0x4aA2Dd5D5387E4b8dcf9b6Bfa4D9236038c3AD43" // 4/8 Multisig
-        // Attach to 3rd party bAssets
-        deployedUsdBassets = attachBassets(
-            deployer,
-            mUsdBassets,
+        const initializeData = stakingRewardsImpl.interface.encodeFunctionData("initialize", [
+            rewardsDistributor.address,
+            "imUSD Vault",
+            "v-imUSD",
+        ])
+        const proxy = await deployContract(new AssetProxy__factory(signer), "Staking Rewards Proxy", [
+            stakingRewardsImpl.address,
+            governorAddress,
+            initializeData,
+        ])
+        const stakingRewards = StakingRewardsWithPlatformToken__factory.connect(proxy.address, signer)
+
+        console.log(`Name                ${await stakingRewards.name()}`)
+        console.log(`Symbol              ${await stakingRewards.symbol()}`)
+        console.log(`Duration            ${await stakingRewards.DURATION()}`)
+        console.log(`Nexus               ${await stakingRewards.nexus()}`)
+        console.log(`Staking token       ${await stakingRewards.stakingToken()}`)
+        console.log(`Rewards token       ${await stakingRewards.rewardsToken()}`)
+        console.log(`Platform token      ${await stakingRewards.platformToken()}`)
+        console.log(`Rewards distributor ${await stakingRewards.rewardsDistributor()}`)
+    })
+
+task("upgrade-vimusd", "Upgrade Polygon imUSD staking contract v-imUSD")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+
+        const nexusAddress = getChainAddress("Nexus", chain)
+        const rewardsDistributorAddress = getChainAddress("RewardsDistributor", chain)
+
+        const rewardsDistributor = RewardsDistributor__factory.connect(rewardsDistributorAddress, signer)
+
+        const stakingRewardsImpl = await deployContract<StakingRewardsWithPlatformToken>(
+            new StakingRewardsWithPlatformToken__factory(signer),
+            "StakingRewardsWithPlatformToken (v-imUSD)",
             [
-                "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174", // USDC
-                "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063", // DAI
-                "0xc2132D05D31c914a87C6611C10748AEb04B58e8F", // Tether
-            ],
-            [
-                "0x1a13F4Ca1d028320A707D99520AbFefca3998b7F",
-                "0x27F8D03b3a2196956ED754baDc28D73be8830A6e",
-                "0x60D55F02A771d515e077c9C2403a1ef324885CeC",
+                nexusAddress,
+                PmUSD.savings, // imUSD
+                PMTA.address, // MTA bridged to Polygon
+                PWMATIC.address, // Wrapped Matic on Polygon
+                ONE_DAY.mul(91), // 3 months
             ],
         )
-    }
+        const initializeData = stakingRewardsImpl.interface.encodeFunctionData("initialize", [
+            rewardsDistributor.address,
+            "imUSD Vault",
+            "v-imUSD",
+        ])
+        console.log(`Initialize Staking Rewards:\n${initializeData}`)
 
-    await sleep(sleepTime)
+        const proxy = AssetProxy__factory.connect(PmUSD.vault, signer)
+        const upgradeData = proxy.interface.encodeFunctionData("upgradeToAndCall", [stakingRewardsImpl.address, initializeData])
+        console.log(`\nupgradeToAndCall data:\n${upgradeData}`)
+    })
 
-    // Deploy mAsset dependencies
-    const massetLogic = await deployContract<MassetLogic>(new MassetLogic__factory(deployer), "MassetLogic")
-    const managerLib = await deployContract<MassetManager>(new MassetManager__factory(deployer), "MassetManager")
-    const linkedAddress = {
-        __$6a4be19f34d71a078def5cee18ccebcd10$__: massetLogic.address,
-        __$3b19b776afde68cd758db0cae1b8e49f94$__: managerLib.address,
-    }
+task("exit-vimusd", "Upgrade Polygon imUSD staking contract v-imUSD")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
 
-    // Deploy mUSD Masset
-    const mUsd = await deployMasset(deployer, linkedAddress, nexus, delayedProxyAdmin)
+        const vimusd = StakingRewardsWithPlatformToken__factory.connect(PmUSD.vault, signer)
 
-    await sleep(sleepTime)
-
-    const { integrator, liquidator } = await deployAaveIntegration(
-        deployer,
-        nexus,
-        mUsd,
-        deployedUsdBassets.map((b) => b.bAssetContract.address),
-        deployedUsdBassets.map((b) => b.pTokenContract.address),
-        network.name,
-    )
-
-    const config = {
-        a: 300,
-        limits: {
-            min: simpleToExactAmount(5, 16),
-            max: simpleToExactAmount(75, 16),
-        },
-    }
-    const txMusd = await mUsd.initialize(
-        "mUSD",
-        "mStable USD (Polygon PoS)",
-        deployedUsdBassets.map((b) => ({
-            addr: b.bAssetContract.address,
-            integrator: network.name === "polygon_mainnet" ? integrator.address : ZERO_ADDRESS,
-            hasTxFee: false,
-            status: 0,
-        })),
-        config,
-        { gasLimit: 8000000 },
-    )
-    console.log(`mUSD initialize tx ${txMusd.hash}`)
-    const receiptMusd = await txMusd.wait()
-    console.log(`mUSD initialize status ${receiptMusd.status} from receipt`)
-
-    await sleep(sleepTime)
-
-    // Deploy Interest Bearing mUSD
-    const imUsd = await deployInterestBearingMasset(
-        deployer,
-        nexus,
-        mUsd,
-        delayedProxyAdmin,
-        DEAD_ADDRESS,
-        "imUSD",
-        "Interest bearing mStable USD (Polygon PoS)",
-    )
-
-    await sleep(sleepTime)
-
-    // Deploy Save Wrapper
-    const saveWrapper = await deployContract<SaveWrapper>(new SaveWrapper__factory(deployer), "SaveWrapper")
-
-    // Deploy Savings Manager
-    const savingsManager = await deployContract<SavingsManager>(new SavingsManager__factory(deployer), "SavingsManager", [
-        nexus.address,
-        mUsd.address,
-        imUsd.address,
-        simpleToExactAmount(9, 17), // 90% = 9e17
-        ONE_DAY,
-    ])
-
-    await sleep(sleepTime)
-
-    // SaveWrapper contract approves the savings contract (imUSD) to spend its USD mAsset tokens (mUSD)
-    await saveWrapper["approve(address,address)"](mUsd.address, imUsd.address)
-    // SaveWrapper approves the mUSD contract to spend its bAsset tokens
-    const bAssetAddresses = deployedUsdBassets.map((b) => b.bAssetContract.address)
-    await saveWrapper["approve(address[],address)"](bAssetAddresses, mUsd.address)
-    console.log("Successful token approvals from the SaveWrapper")
-
-    await sleep(sleepTime)
-
-    // Initialize Nexus Modules
-    const moduleKeys = [KEY_SAVINGS_MANAGER, KEY_PROXY_ADMIN, KEY_LIQUIDATOR]
-    const moduleAddresses = [savingsManager.address, delayedProxyAdmin.address, liquidator.address]
-    const moduleIsLocked = [false, true, false]
-    const nexusTx = await nexus.connect(deployer).initialize(moduleKeys, moduleAddresses, moduleIsLocked, multiSigAddress)
-    const nexusReceipt = await nexusTx.wait()
-    console.log(`Nexus initialize status ${nexusReceipt.status} from receipt`)
-
-    await sleep(sleepTime)
-
-    if (hre.network.name !== "polygon_mainnet") {
-        await mint(deployer, deployedUsdBassets, mUsd, simpleToExactAmount(20))
-        await save(deployer, mUsd, imUsd, simpleToExactAmount(15))
-    } else if (hre.network.name === "polygon_mainnet") {
-        // Multimint 2 USD and then save 4
-        await mint(deployer, deployedUsdBassets, mUsd, simpleToExactAmount(2))
-        await save(deployer, mUsd, imUsd, simpleToExactAmount(4))
-    }
-})
-
-task("liquidator-snap", "Dumps the config details of the liquidator on Polygon").setAction(async (_, hre) => {
-    const { network } = hre
-    const [signer] = await hre.ethers.getSigners()
-
-    if (network.name !== "polygon_mainnet") throw Error("Not connected to polygon_mainnet")
-
-    // Polygon addresses
-    const liquidatorAddress = "0x9F1C06CC13EDc7691a2Cf02E31FaAA64d57867e2"
-    const integrationAddress = "0xeab7831c96876433dB9B8953B4e7e8f66c3125c3"
-    const liquidator = PLiquidator__factory.connect(liquidatorAddress, signer)
-
-    const liquidationConfig = await liquidator.liquidations(integrationAddress)
-    console.log(liquidationConfig)
-})
-
-task("deploy-vimusd", "Deploy Polygon imUSD staking contract v-imUSD").setAction(async (_, { ethers, hardhatArguments, network }) => {
-    const signer = await getSigner(ethers)
-    const chain = getChain(network.name, hardhatArguments.config)
-
-    const fundManagerAddress = getChainAddress("FundManager", chain)
-    const governorAddress = getChainAddress("Governor", chain)
-    const nexusAddress = getChainAddress("Nexus", chain)
-    const rewardsDistributorAddress = getChainAddress("RewardsDistributor", chain)
-
-    const rewardsDistributor = rewardsDistributorAddress
-        ? RewardsDistributor__factory.connect(rewardsDistributorAddress, signer)
-        : await deployContract(new RewardsDistributor__factory(signer), "RewardsDistributor", [
-              nexusAddress,
-              [fundManagerAddress, governorAddress],
-          ])
-
-    const stakingRewardsImpl = await deployContract(
-        new StakingRewardsWithPlatformToken__factory(signer),
-        "StakingRewardsWithPlatformToken",
-        [
-            nexusAddress,
-            PmUSD.savings, // imUSD
-            PMTA.address, // MTA bridged to Polygon
-            PWMATIC.address, // Wrapped Matic on Polygon
-            ONE_DAY.mul(7), // 7 days
-        ],
-    )
-    const initializeData = stakingRewardsImpl.interface.encodeFunctionData("initialize", [
-        rewardsDistributor.address,
-        "imUSD Vault",
-        "v-imUSD",
-    ])
-    const proxy = await deployContract(new AssetProxy__factory(signer), "Staking Rewards Proxy", [
-        stakingRewardsImpl.address,
-        governorAddress,
-        initializeData,
-    ])
-    const stakingRewards = StakingRewardsWithPlatformToken__factory.connect(proxy.address, signer)
-
-    console.log(`Name                ${await stakingRewards.name()}`)
-    console.log(`Symbol              ${await stakingRewards.symbol()}`)
-    console.log(`Duration            ${await stakingRewards.DURATION()}`)
-    console.log(`Nexus               ${await stakingRewards.nexus()}`)
-    console.log(`Staking token       ${await stakingRewards.stakingToken()}`)
-    console.log(`Rewards token       ${await stakingRewards.rewardsToken()}`)
-    console.log(`Platform token      ${await stakingRewards.platformToken()}`)
-    console.log(`Rewards distributor ${await stakingRewards.rewardsDistributor()}`)
-})
-
-task("upgrade-vimusd", "Upgrade Polygon imUSD staking contract v-imUSD").setAction(async (_, { ethers, hardhatArguments, network }) => {
-    const signer = await getSigner(ethers)
-    const chain = getChain(network.name, hardhatArguments.config)
-
-    const nexusAddress = getChainAddress("Nexus", chain)
-    const rewardsDistributorAddress = getChainAddress("RewardsDistributor", chain)
-
-    const rewardsDistributor = RewardsDistributor__factory.connect(rewardsDistributorAddress, signer)
-
-    const stakingRewardsImpl = await deployContract<StakingRewardsWithPlatformToken>(
-        new StakingRewardsWithPlatformToken__factory(signer),
-        "StakingRewardsWithPlatformToken (v-imUSD)",
-        [
-            nexusAddress,
-            PmUSD.savings, // imUSD
-            PMTA.address, // MTA bridged to Polygon
-            PWMATIC.address, // Wrapped Matic on Polygon
-            ONE_DAY.mul(91), // 3 months
-        ],
-    )
-    const initializeData = stakingRewardsImpl.interface.encodeFunctionData("initialize", [
-        rewardsDistributor.address,
-        "imUSD Vault",
-        "v-imUSD",
-    ])
-    console.log(`Initialize Staking Rewards:\n${initializeData}`)
-
-    const proxy = AssetProxy__factory.connect(PmUSD.vault, signer)
-    const upgradeData = proxy.interface.encodeFunctionData("upgradeToAndCall", [stakingRewardsImpl.address, initializeData])
-    console.log(`\nupgradeToAndCall data:\n${upgradeData}`)
-})
-
-task("exit-vimusd", "Upgrade Polygon imUSD staking contract v-imUSD").setAction(async (_, { ethers, hardhatArguments, network }) => {
-    const signer = await getSigner(ethers)
-
-    const vimusd = StakingRewardsWithPlatformToken__factory.connect(PmUSD.vault, signer)
-
-    const tx = await vimusd.exit()
-    await logTxDetails(tx, "exit from v-imUSD")
-})
+        const tx = await vimusd.exit()
+        await logTxDetails(tx, "exit from v-imUSD")
+    })
 
 module.exports = {}

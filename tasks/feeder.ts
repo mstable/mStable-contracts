@@ -3,7 +3,15 @@ import "tsconfig-paths/register"
 import { task, types } from "hardhat/config"
 import { Signer } from "ethers"
 
-import { ERC20__factory, FeederPool, FeederPool__factory, IERC20__factory, Masset, SavingsManager__factory } from "types/generated"
+import {
+    ERC20__factory,
+    FeederPool,
+    FeederPool__factory,
+    FeederWrapper__factory,
+    IERC20__factory,
+    Masset,
+    SavingsManager__factory,
+} from "types/generated"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { formatUnits } from "ethers/lib/utils"
 import { dumpConfigStorage, dumpFassetStorage, dumpTokenStorage } from "./utils/storage-utils"
@@ -24,9 +32,10 @@ import {
 import { Chain, PFRAX, PmUSD, Token, tokens } from "./utils/tokens"
 import { btcFormatter, QuantityFormatter, usdFormatter } from "./utils/quantity-formatters"
 import { getSwapRates } from "./utils/rates-utils"
-import { getSigner } from "./utils/defender-utils"
+import { getSigner } from "./utils/signerFactory"
 import { logTxDetails } from "./utils"
 import { getChain, getChainAddress } from "./utils/networkAddressFactory"
+import { params } from "./taskUtils"
 
 const getBalances = async (
     feederPool: Masset | FeederPool,
@@ -82,17 +91,18 @@ const getQuantities = (fAsset: Token, _swapSize?: number): { quantityFormatter: 
 task("feeder-storage", "Dumps feeder contract storage data")
     .addOptionalParam("block", "Block number to get storage from. (default: current block)", 0, types.int)
     .addParam("fasset", "Token symbol of the feeder pool asset.  eg HBTC, TBTC, GUSD or BUSD", undefined, types.string, false)
-    .setAction(async (taskArgs, { ethers, network, hardhatArguments }) => {
-        const chain = getChain(network.name, hardhatArguments.config)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+
         const fAsset = tokens.find((t) => t.symbol === taskArgs.fasset)
         if (!fAsset) {
             console.error(`Failed to find feeder pool asset with token symbol ${taskArgs.fasset}`)
             process.exit(1)
         }
 
-        const { blockNumber } = await getBlock(ethers, taskArgs.block)
+        const { blockNumber } = await getBlock(hre.ethers, taskArgs.block)
 
-        const signer = await getSigner(ethers)
         const pool = getFeederPool(signer, fAsset.feederPool, chain)
 
         await dumpTokenStorage(pool, blockNumber)
@@ -104,10 +114,10 @@ task("feeder-snap", "Gets feeder transactions over a period of time")
     .addOptionalParam("from", "Block to query transaction events from. (default: deployment block)", 12146627, types.int)
     .addOptionalParam("to", "Block to query transaction events to. (default: current block)", 0, types.int)
     .addParam("fasset", "Token symbol of the feeder pool asset. eg HBTC, TBTC, GUSD or BUSD", undefined, types.string, false)
-    .setAction(async (taskArgs, { ethers, network, hardhatArguments }) => {
-        const chain = getChain(network.name, hardhatArguments.config)
-        const signer = await getSigner(ethers)
-        const { fromBlock, toBlock } = await getBlockRange(ethers, taskArgs.from, taskArgs.to)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+        const { fromBlock, toBlock } = await getBlockRange(hre.ethers, taskArgs.from, taskArgs.to)
 
         const fAsset = tokens.find((t) => t.symbol === taskArgs.fasset)
         if (!fAsset) {
@@ -177,10 +187,10 @@ task("feeder-rates", "Feeder rate comparison to Curve")
     .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, types.int)
     .addOptionalParam("swapSize", "Swap size to compare rates with Curve", undefined, types.float)
     .addParam("fasset", "Token symbol of the feeder pool asset. eg HBTC, TBTC, GUSD or BUSD", undefined, types.string, false)
-    .setAction(async (taskArgs, { ethers, network }) => {
-        const signer = await getSigner(ethers)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre)
 
-        const block = await getBlock(ethers, taskArgs.block)
+        const block = await getBlock(hre.ethers, taskArgs.block)
 
         const fAsset = tokens.find((t) => t.symbol === taskArgs.fasset)
         if (!fAsset) {
@@ -200,40 +210,91 @@ task("feeder-rates", "Feeder rate comparison to Curve")
         const { quantityFormatter, swapSize } = getQuantities(fAsset, taskArgs.swapSize)
 
         console.log("      Qty Input     Output      Qty Out    Rate             Output    Rate   Diff      Arb$")
-        await getSwapRates(fpAssets, fpAssets, feederPool, block.blockNumber, quantityFormatter, network.name, swapSize)
-        await getSwapRates([fAsset], mpAssets, feederPool, block.blockNumber, quantityFormatter, network.name, swapSize)
-        await getSwapRates(mpAssets, [fAsset], feederPool, block.blockNumber, quantityFormatter, network.name, swapSize)
+        await getSwapRates(fpAssets, fpAssets, feederPool, block.blockNumber, quantityFormatter, hre.network.name, swapSize)
+        await getSwapRates([fAsset], mpAssets, feederPool, block.blockNumber, quantityFormatter, hre.network.name, swapSize)
+        await getSwapRates(mpAssets, [fAsset], feederPool, block.blockNumber, quantityFormatter, hre.network.name, swapSize)
         await snapConfig(feederPool, block.blockNumber)
     })
 
-task("frax-post-deploy", "Mint FRAX Feeder Pool").setAction(async (_, { ethers }) => {
-    const signer = await getSigner(ethers)
+task("frax-post-deploy", "Mint FRAX Feeder Pool")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs)
 
-    const frax = ERC20__factory.connect(PFRAX.address, signer)
-    const fraxFp = FeederPool__factory.connect(PFRAX.feederPool, signer)
-    const musd = await IERC20__factory.connect(PmUSD.address, signer)
+        const frax = ERC20__factory.connect(PFRAX.address, signer)
+        const fraxFp = FeederPool__factory.connect(PFRAX.feederPool, signer)
+        const musd = await IERC20__factory.connect(PmUSD.address, signer)
 
-    const approveAmount = simpleToExactAmount(100)
-    const bAssetAmount = simpleToExactAmount(10)
-    const minAmount = simpleToExactAmount(9)
+        const approveAmount = simpleToExactAmount(100)
+        const bAssetAmount = simpleToExactAmount(10)
+        const minAmount = simpleToExactAmount(9)
 
-    let tx = await frax.approve(PFRAX.feederPool, approveAmount)
-    await logTxDetails(tx, "approve FRAX")
+        let tx = await frax.approve(PFRAX.feederPool, approveAmount)
+        await logTxDetails(tx, "approve FRAX")
 
-    tx = await musd.approve(PFRAX.feederPool, approveAmount)
-    await logTxDetails(tx, "approve mUSD")
+        tx = await musd.approve(PFRAX.feederPool, approveAmount)
+        await logTxDetails(tx, "approve mUSD")
 
-    tx = await fraxFp.mintMulti([PFRAX.address, PmUSD.address], [bAssetAmount, bAssetAmount], minAmount, await signer.getAddress())
-    await logTxDetails(tx, "mint FRAX FP")
-})
+        tx = await fraxFp.mintMulti([PFRAX.address, PmUSD.address], [bAssetAmount, bAssetAmount], minAmount, await signer.getAddress())
+        await logTxDetails(tx, "mint FRAX FP")
+    })
+
+task("FeederWrapper-approveAll", "Sets approvals for a Feeder Pool")
+    // TODO replace these params with Token symbol
+    .addParam("feeder", "Feeder Pool address", undefined, params.address, false)
+    .addParam("vault", "BoostedVault contract address", undefined, params.address, false)
+    .addParam("assets", "Asset addresses", undefined, params.addressArray, false)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const deployer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+
+        const feederWrapperAddress = getChainAddress("FeederWrapper", chain)
+        const feederWrapper = FeederWrapper__factory.connect(feederWrapperAddress, deployer)
+
+        const tx = await feederWrapper["approve(address,address,address[])"](taskArgs.feeder, taskArgs.vault, taskArgs.assets)
+        await logTxDetails(tx, "Approve Feeder/Vault and other assets")
+    })
+
+task("FeederWrapper-approveMulti", "Sets approvals for multiple tokens/a single spender")
+    .addParam("tokens", "Token addresses", undefined, params.address, false)
+    .addParam("spender", "Spender address", undefined, params.address, false)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const deployer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+
+        const feederWrapperAddress = getChainAddress("FeederWrapper", chain)
+        const feederWrapper = FeederWrapper__factory.connect(feederWrapperAddress, deployer)
+
+        const tx = await feederWrapper["approve(address[],address)"](taskArgs.tokens, taskArgs.spender)
+        await logTxDetails(tx, "Approve muliple tokens/single spender")
+    })
+
+task("FeederWrapper-approve", "Sets approvals for a single token/spender")
+    .addParam("feederWrapper", "FeederWrapper address", undefined, params.address, false)
+    .addParam("token", "Token address", undefined, params.address, false)
+    .addParam("spender", "Spender address", undefined, params.address, false)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const deployer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+
+        const feederWrapperAddress = getChainAddress("FeederWrapper", chain)
+
+        const feederWrapper = FeederWrapper__factory.connect(feederWrapperAddress, deployer)
+
+        const tx = await feederWrapper["approve(address,address)"](taskArgs.tokens, taskArgs.spender)
+        await logTxDetails(tx, "Approve single token/spender")
+    })
 
 task("feeder-mint", "Mint some Feeder Pool tokens")
     .addOptionalParam("amount", "Amount of the mAsset and fAsset to deposit", undefined, types.int)
     .addParam("fasset", "Token symbol of the feeder pool asset. eg HBTC, GUSD, PFRAX or alUSD", undefined, types.string)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
-    .setAction(async (taskArgs, { ethers, network }) => {
-        const chain = getChain(network.name)
-        const signer = await getSigner(ethers, taskArgs.speed)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
         const signerAddress = await signer.getAddress()
 
         const fAssetSymbol = taskArgs.fasset
@@ -263,9 +324,9 @@ task("feeder-redeem", "Redeem some Feeder Pool tokens")
     .addParam("fasset", "Token symbol of the feeder pool asset. eg HBTC, GUSD, PFRAX or alUSD", undefined, types.string)
     .addParam("amount", "Amount of the feeder pool liquidity tokens to proportionately redeem", undefined, types.int)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
-    .setAction(async (taskArgs, { ethers, network }) => {
-        const chain = getChain(network.name)
-        const signer = await getSigner(ethers, taskArgs.speed)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
         const signerAddress = await signer.getAddress()
 
         const fAssetSymbol = taskArgs.fasset
@@ -299,9 +360,9 @@ task("feeder-swap", "Swap some Feeder Pool tokens")
     )
     .addParam("amount", "Amount of input tokens to swap", undefined, types.int)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
-    .setAction(async (taskArgs, { ethers, network }) => {
-        const chain = getChain(network.name)
-        const signer = await getSigner(ethers, taskArgs.speed)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
         const signerAddress = await signer.getAddress()
 
         const inputSymbol = taskArgs.input

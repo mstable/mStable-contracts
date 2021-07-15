@@ -2,7 +2,6 @@ import "ts-node/register"
 import "tsconfig-paths/register"
 
 import { task } from "hardhat/config"
-import { MV1__factory } from "types/generated"
 import { DEAD_ADDRESS } from "@utils/constants"
 import { simpleToExactAmount } from "@utils/math"
 

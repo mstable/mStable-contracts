@@ -38,7 +38,7 @@
         "test:file": "yarn hardhat test",
         "test:file:long": "LONG_TESTS=true yarn hardhat test",
         "copy-types": "cp -R types/generated dist/types",
-        "prepublishOnly": "yarn run compile && yarn run copy-types"
+        "prepublishOnly": "yarn compile && yarn copy-types"
     },
     "repository": {
         "type": "git",

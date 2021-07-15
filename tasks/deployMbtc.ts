@@ -10,7 +10,6 @@ import { formatEther } from "ethers/lib/utils"
 import {
     SavingsContract,
     Masset,
-    Masset__factory,
     AssetProxy__factory,
     MockERC20,
     MockERC20__factory,

@@ -8,7 +8,7 @@ import { Contract, Provider } from "ethers-multicall"
 import { gql, GraphQLClient } from "graphql-request"
 import { task, types } from "hardhat/config"
 import { BoostedVault__factory, Poker, Poker__factory } from "types/generated"
-import { getSigner } from "./utils/defender-utils"
+import { getSigner } from "./utils/signerFactory"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { getChain, getChainAddress } from "./utils/networkAddressFactory"
 import { MTA, mUSD } from "./utils/tokens"
@@ -55,11 +55,10 @@ task("over-boost", "Pokes accounts that are over boosted")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .addFlag("update", "Will send a poke transactions to the Poker contract")
     .addOptionalParam("minMtaDiff", "Min amount of vMTA over boosted. 300 = 0.3 boost", 300, types.int)
-    .setAction(async (taskArgs, { ethers, network, hardhatArguments }) => {
-        const minMtaDiff = taskArgs.minMtaDiff
-        const signer = await getSigner(ethers, taskArgs.speed)
-        // const signer = await impersonate("0x2f2Db75C5276481E2B018Ac03e968af7763Ed118")
-        const chain = getChain(network.name, hardhatArguments.config)
+    .setAction(async (taskArgs, hre) => {
+        const { minMtaDiff } = taskArgs
+        const chain = getChain(hre)
+        const signer = await getSigner(hre, taskArgs.speed)
 
         const gqlClient = new GraphQLClient("https://api.thegraph.com/subgraphs/name/mstable/mstable-feeder-pools")
         const query = gql`
@@ -166,7 +165,7 @@ task("over-boost", "Pokes accounts that are over boosted")
     })
 
 task("deployPoker", "Deploys the Poker contract").setAction(async (_, hre) => {
-    const deployer = await getSigner(hre.ethers)
+    const deployer = await getSigner(hre)
 
     await deployContract<Poker>(new Poker__factory(deployer), "Poker")
 })

@@ -58,13 +58,13 @@ const getMasset = (signer: Signer, networkName: string, block: number): Masset |
 
 task("mUSD-storage", "Dumps mUSD's storage data")
     .addOptionalParam("block", "Block number to get storage from. (default: current block)", 0, types.int)
-    .setAction(async (taskArgs, { ethers, network }) => {
-        const signer = await getSigner(ethers)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre)
 
-        const blockNumber = taskArgs.block ? taskArgs.block : await ethers.provider.getBlockNumber()
+        const blockNumber = taskArgs.block ? taskArgs.block : await hre.ethers.provider.getBlockNumber()
         console.log(`Block number ${blockNumber}`)
 
-        const mAsset = getMasset(signer, network.name, blockNumber)
+        const mAsset = getMasset(signer, hre.network.name, blockNumber)
 
         await dumpTokenStorage(mAsset, blockNumber)
         await dumpBassetStorage(mAsset, blockNumber)
@@ -74,9 +74,10 @@ task("mUSD-storage", "Dumps mUSD's storage data")
 task("mUSD-snap", "Snaps mUSD")
     .addOptionalParam("from", "Block to query transaction events from. (default: deployment block)", 12094461, types.int)
     .addOptionalParam("to", "Block to query transaction events to. (default: current block)", 0, types.int)
-    .setAction(async (taskArgs, { ethers, hardhatArguments, network }) => {
-        const signer = await getSigner(ethers)
-        const chain = getChain(network.name, hardhatArguments.config)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre)
+        const chain = getChain(hre)
+        const { network, ethers } = hre
 
         let exposedValidator
         if (!["mainnet", "polygon_mainnet"].includes(network.name)) {
@@ -93,7 +94,7 @@ task("mUSD-snap", "Snaps mUSD")
             exposedValidator = await massetFactory.deploy()
         }
 
-        const { fromBlock, toBlock } = await getBlockRange(ethers, taskArgs.from, taskArgs.to)
+        const { fromBlock, toBlock } = await getBlockRange(hre.ethers, taskArgs.from, taskArgs.to)
 
         const mAsset = getMasset(signer, network.name, toBlock.blockNumber)
         const savingsManagerAddress = getChainAddress("SavingsManager", chain)
@@ -182,10 +183,11 @@ task("mUSD-snap", "Snaps mUSD")
 task("mUSD-rates", "mUSD rate comparison to Curve")
     .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, types.int)
     .addOptionalParam("swapSize", "Swap size to compare rates with Curve", 10000, types.int)
-    .setAction(async (taskArgs, { ethers, network }) => {
-        const signer = await getSigner(ethers)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre)
+        const { network } = hre
 
-        const block = await getBlock(ethers, taskArgs.block)
+        const block = await getBlock(hre.ethers, taskArgs.block)
         const mAsset = await getMasset(signer, network.name, block.blockNumber)
 
         console.log(`\nGetting rates for mUSD at block ${block.blockNumber}, ${block.blockTime.toUTCString()}`)
