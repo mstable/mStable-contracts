@@ -16,7 +16,7 @@ import { Initializable } from "@openzeppelin/contracts/utils/Initializable.sol";
 
 /**
  * @title  StakingRewardsWithPlatformToken
- * @author Stability Labs Pty. Ltd.
+ * @author mStable
  * @notice Rewards stakers of a given LP token (a.k.a StakingToken) with RewardsToken, on a pro-rata basis
  * additionally, distributes the Platform token airdropped by the platform
  * @dev    Derives from ./StakingRewards.sol and implements a secondary token into the core logic

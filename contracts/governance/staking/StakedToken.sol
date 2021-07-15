@@ -2,42 +2,29 @@
 pragma solidity 0.8.6;
 pragma abicoder v2;
 
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IStakedMeta } from "./_i/IStakedMeta.sol";
-import { ITransferHook } from "./_i/ITransferHook.sol";
+import { IStakedToken } from "./_i/IStakedToken.sol";
 
 import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Initializable } from "@openzeppelin/contracts/utils/Initializable.sol";
 
+import { HeadlessStakingRewards } from "../../rewards/staking/HeadlessStakingRewards.sol";
 import { PowerDelegationERC20 } from "./PowerDelegationERC20.sol";
-
-import { DistributionTypes } from "./_pending/DistributionTypes.sol";
-// TODO - replace distributionManager with StakingRewardsLite
-import { AaveDistributionManager } from "./_pending/AaveDistributionManager.sol";
 
 /**
  * @title StakedToken
  * @notice Contract to stake Aave token, tokenize the position and get rewards, inheriting from a distribution manager contract
  * @author Aave
  **/
-contract StakedToken is IStakedMeta, Initializable, PowerDelegationERC20, AaveDistributionManager {
+contract StakedToken is IStakedToken, Initializable, PowerDelegationERC20, HeadlessStakingRewards {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     IERC20 public immutable STAKED_TOKEN;
-    IERC20 public immutable REWARD_TOKEN;
     uint256 public immutable COOLDOWN_SECONDS;
-
-    /// @notice Seconds available to redeem once the cooldown period is fullfilled
     uint256 public immutable UNSTAKE_WINDOW;
 
-    /// @notice Address to pull from the rewards, needs to have approved this contract
-    address public immutable REWARDS_VAULT;
-
-    mapping(address => uint256) public stakerRewardsToClaim;
     mapping(address => uint256) public stakersCooldowns;
 
     // TODO - remove propositionPower references
@@ -59,34 +46,35 @@ contract StakedToken is IStakedMeta, Initializable, PowerDelegationERC20, AaveDi
     /// @dev owner => next valid nonce to submit with permit()
     mapping(address => uint256) public _nonces;
 
-    event Staked(address indexed from, address indexed onBehalfOf, uint256 amount);
-    event Redeem(address indexed from, address indexed to, uint256 amount);
-
-    event RewardsAccrued(address user, uint256 amount);
-    event RewardsClaimed(address indexed from, address indexed to, uint256 amount);
-
+    event Staked(address indexed user, address indexed onBehalfOf, uint256 amount);
+    event Redeem(address indexed user, address indexed to, uint256 amount);
     event Cooldown(address indexed user);
 
+    /***************************************
+                    INIT
+    ****************************************/
+
     constructor(
-        IERC20 stakedToken,
-        IERC20 rewardToken,
-        uint256 cooldownSeconds,
-        uint256 unstakeWindow,
-        address rewardsVault,
-        address emissionManager,
-        uint128 distributionDuration
-    ) AaveDistributionManager(emissionManager, distributionDuration) {
-        STAKED_TOKEN = stakedToken;
-        REWARD_TOKEN = rewardToken;
-        COOLDOWN_SECONDS = cooldownSeconds;
-        UNSTAKE_WINDOW = unstakeWindow;
-        REWARDS_VAULT = rewardsVault;
+        address _nexus,
+        address _rewardsToken,
+        uint256 _duration,
+        address _stakedToken,
+        uint256 _cooldownSeconds,
+        uint256 _unstakeWindow
+    ) HeadlessStakingRewards(_nexus, _rewardsToken, _duration) {
+        STAKED_TOKEN = IERC20(_stakedToken);
+        COOLDOWN_SECONDS = _cooldownSeconds;
+        UNSTAKE_WINDOW = _unstakeWindow;
     }
 
     /**
      * @dev Called by the proxy contract
      **/
-    function initialize(string memory _nameArg, string memory _symbolArg) external initializer {
+    function initialize(
+        string memory _nameArg,
+        string memory _symbolArg,
+        address _rewardsDistributorArg
+    ) external initializer {
         uint256 chainId;
 
         //solium-disable-next-line
@@ -105,30 +93,16 @@ contract StakedToken is IStakedMeta, Initializable, PowerDelegationERC20, AaveDi
         );
 
         PowerDelegationERC20._initialize(_nameArg, _symbolArg);
+        HeadlessStakingRewards._initialize(_rewardsDistributorArg);
     }
 
-    /**
-     * @dev Initialization function for implementing contract
-     * @notice To avoid variable shadowing appended `Arg` after arguments name.
-     */
-    function _initialize(string memory _nameArg, string memory _symbolArg) internal override {
-        super._initialize(_nameArg, _symbolArg);
-    }
+    /***************************************
+                    ACTIONS
+    ****************************************/
 
-    function stake(address onBehalfOf, uint256 amount) external override {
+    function stake(uint256 amount, address onBehalfOf) external override {
         require(amount != 0, "INVALID_ZERO_AMOUNT");
         uint256 balanceOfUser = balanceOf(onBehalfOf);
-
-        uint256 accruedRewards = _updateUserAssetInternal(
-            onBehalfOf,
-            address(this),
-            balanceOfUser,
-            totalSupply()
-        );
-        if (accruedRewards != 0) {
-            emit RewardsAccrued(onBehalfOf, accruedRewards);
-            stakerRewardsToClaim[onBehalfOf] += accruedRewards;
-        }
 
         stakersCooldowns[onBehalfOf] = getNextCooldownTimestamp(
             0,
@@ -137,8 +111,8 @@ contract StakedToken is IStakedMeta, Initializable, PowerDelegationERC20, AaveDi
             balanceOfUser
         );
 
-        _mint(onBehalfOf, amount);
         IERC20(STAKED_TOKEN).safeTransferFrom(msg.sender, address(this), amount);
+        _mint(onBehalfOf, amount);
 
         emit Staked(msg.sender, onBehalfOf, amount);
     }
@@ -148,7 +122,7 @@ contract StakedToken is IStakedMeta, Initializable, PowerDelegationERC20, AaveDi
      * @param to Address to redeem to
      * @param amount Amount to redeem
      **/
-    function redeem(address to, uint256 amount) external override {
+    function redeem(uint256 amount, address to) external override {
         require(amount != 0, "INVALID_ZERO_AMOUNT");
         //solium-disable-next-line
         uint256 cooldownStartTimestamp = stakersCooldowns[msg.sender];
@@ -165,8 +139,6 @@ contract StakedToken is IStakedMeta, Initializable, PowerDelegationERC20, AaveDi
         uint256 amountToRedeem = (amount > balanceOfMessageSender)
             ? balanceOfMessageSender
             : amount;
-
-        _updateCurrentUnclaimedRewards(msg.sender, balanceOfMessageSender, true);
 
         _burn(msg.sender, amountToRedeem);
 
@@ -191,90 +163,16 @@ contract StakedToken is IStakedMeta, Initializable, PowerDelegationERC20, AaveDi
         emit Cooldown(msg.sender);
     }
 
-    /**
-     * @dev Claims an `amount` of `REWARD_TOKEN` to the address `to`
-     * @param to Address to stake for
-     * @param amount Amount to stake
-     **/
-    function claimRewards(address to, uint256 amount) external override {
-        uint256 newTotalRewards = _updateCurrentUnclaimedRewards(
-            msg.sender,
-            balanceOf(msg.sender),
-            false
-        );
-        uint256 amountToClaim = (amount == type(uint256).max) ? newTotalRewards : amount;
+    /***************************************
+                    GETTERS
+    ****************************************/
 
-        stakerRewardsToClaim[msg.sender] = newTotalRewards.sub(amountToClaim, "INVALID_AMOUNT");
-
-        REWARD_TOKEN.safeTransferFrom(REWARDS_VAULT, to, amountToClaim);
-
-        emit RewardsClaimed(msg.sender, to, amountToClaim);
+    function _balanceOf(address account) internal view override returns (uint256) {
+        return balanceOf(account);
     }
 
-    /**
-     * @dev Internal ERC20 _transfer of the tokenized staked tokens
-     * @param from Address to transfer from
-     * @param to Address to transfer to
-     * @param amount Amount to transfer
-     **/
-    function _transfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal override {
-        uint256 balanceOfFrom = balanceOf(from);
-        // Sender
-        _updateCurrentUnclaimedRewards(from, balanceOfFrom, true);
-
-        // Recipient
-        if (from != to) {
-            uint256 balanceOfTo = balanceOf(to);
-            _updateCurrentUnclaimedRewards(to, balanceOfTo, true);
-
-            uint256 previousSenderCooldown = stakersCooldowns[from];
-            stakersCooldowns[to] = getNextCooldownTimestamp(
-                previousSenderCooldown,
-                amount,
-                to,
-                balanceOfTo
-            );
-            // if cooldown was set and whole balance of sender was transferred - clear cooldown
-            if (balanceOfFrom == amount && previousSenderCooldown != 0) {
-                stakersCooldowns[from] = 0;
-            }
-        }
-
-        super._transfer(from, to, amount);
-    }
-
-    /**
-     * @dev Updates the user state related with his accrued rewards
-     * @param user Address of the user
-     * @param userBalance The current balance of the user
-     * @param updateStorage Boolean flag used to update or not the stakerRewardsToClaim of the user
-     * @return The unclaimed rewards that were added to the total accrued
-     **/
-    function _updateCurrentUnclaimedRewards(
-        address user,
-        uint256 userBalance,
-        bool updateStorage
-    ) internal returns (uint256) {
-        uint256 accruedRewards = _updateUserAssetInternal(
-            user,
-            address(this),
-            userBalance,
-            totalSupply()
-        );
-        uint256 unclaimedRewards = stakerRewardsToClaim[user] + accruedRewards;
-
-        if (accruedRewards != 0) {
-            if (updateStorage) {
-                stakerRewardsToClaim[user] = unclaimedRewards;
-            }
-            emit RewardsAccrued(user, accruedRewards);
-        }
-
-        return unclaimedRewards;
+    function _totalSupply() internal view override returns (uint256) {
+        return totalSupply();
     }
 
     /**
@@ -323,23 +221,90 @@ contract StakedToken is IStakedMeta, Initializable, PowerDelegationERC20, AaveDi
         return toCooldownTimestamp;
     }
 
+    /***************************************
+                    HOOKS
+    ****************************************/
+
     /**
-     * @dev Return the total rewards pending to claim by an staker
-     * @param staker The staker address
-     * @return The rewards
+     * @dev Internal ERC20 _transfer of the tokenized staked tokens
+     * @param from Address to transfer from
+     * @param to Address to transfer to
+     * @param amount Amount to transfer
+     **/
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        uint256 balanceOfFrom = balanceOf(from);
+
+        // Recipient
+        if (from != to) {
+            uint256 balanceOfTo = balanceOf(to);
+
+            uint256 previousSenderCooldown = stakersCooldowns[from];
+            stakersCooldowns[to] = getNextCooldownTimestamp(
+                previousSenderCooldown,
+                amount,
+                to,
+                balanceOfTo
+            );
+            // if cooldown was set and whole balance of sender was transferred - clear cooldown
+            if (balanceOfFrom == amount && previousSenderCooldown != 0) {
+                stakersCooldowns[from] = 0;
+            }
+        }
+
+        super._transfer(from, to, amount);
+    }
+
+    /**
+     * @dev Writes a snapshot before any operation involving transfer of value: _transfer, _mint and _burn
+     * - On _transfer, it writes snapshots for both "from" and "to"
+     * - On _mint, only for _to
+     * - On _burn, only for _from
+     * @param from the from address
+     * @param to the to address
+     * @param amount the amount to transfer
      */
-    function getTotalRewardsBalance(address staker) external view returns (uint256) {
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override updateRewards(from, to) {
+        address votingFromDelegatee = _votingDelegates[from];
+        address votingToDelegatee = _votingDelegates[to];
 
-            DistributionTypes.UserStakeInput[] memory userStakeInputs
-         = new DistributionTypes.UserStakeInput[](1);
+        if (votingFromDelegatee == address(0)) {
+            votingFromDelegatee = from;
+        }
+        if (votingToDelegatee == address(0)) {
+            votingToDelegatee = to;
+        }
 
-        userStakeInputs[0] = DistributionTypes.UserStakeInput({
-            underlyingAsset: address(this),
-            stakedByUser: balanceOf(staker),
-            totalStaked: totalSupply()
-        });
+        _moveDelegatesByType(
+            votingFromDelegatee,
+            votingToDelegatee,
+            amount,
+            DelegationType.VOTING_POWER
+        );
 
-        return stakerRewardsToClaim[staker] + _getUnclaimedRewards(staker, userStakeInputs);
+        address propPowerFromDelegatee = _propositionPowerDelegates[from];
+        address propPowerToDelegatee = _propositionPowerDelegates[to];
+
+        if (propPowerFromDelegatee == address(0)) {
+            propPowerFromDelegatee = from;
+        }
+        if (propPowerToDelegatee == address(0)) {
+            propPowerToDelegatee = to;
+        }
+
+        _moveDelegatesByType(
+            propPowerFromDelegatee,
+            propPowerToDelegatee,
+            amount,
+            DelegationType.PROPOSITION_POWER
+        );
     }
 
     /**
@@ -380,75 +345,10 @@ contract StakedToken is IStakedMeta, Initializable, PowerDelegationERC20, AaveDi
         _approve(owner, spender, value);
     }
 
-    /**
-     * @dev Writes a snapshot before any operation involving transfer of value: _transfer, _mint and _burn
-     * - On _transfer, it writes snapshots for both "from" and "to"
-     * - On _mint, only for _to
-     * - On _burn, only for _from
-     * @param from the from address
-     * @param to the to address
-     * @param amount the amount to transfer
-     */
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal override {
-        address votingFromDelegatee = _votingDelegates[from];
-        address votingToDelegatee = _votingDelegates[to];
-
-        if (votingFromDelegatee == address(0)) {
-            votingFromDelegatee = from;
-        }
-        if (votingToDelegatee == address(0)) {
-            votingToDelegatee = to;
-        }
-
-        _moveDelegatesByType(
-            votingFromDelegatee,
-            votingToDelegatee,
-            amount,
-            DelegationType.VOTING_POWER
-        );
-
-        address propPowerFromDelegatee = _propositionPowerDelegates[from];
-        address propPowerToDelegatee = _propositionPowerDelegates[to];
-
-        if (propPowerFromDelegatee == address(0)) {
-            propPowerFromDelegatee = from;
-        }
-        if (propPowerToDelegatee == address(0)) {
-            propPowerToDelegatee = to;
-        }
-
-        _moveDelegatesByType(
-            propPowerFromDelegatee,
-            propPowerToDelegatee,
-            amount,
-            DelegationType.PROPOSITION_POWER
-        );
-    }
-
-    function _getDelegationDataByType(DelegationType delegationType)
-        internal
-        view
-        override
-        returns (
-            mapping(address => mapping(uint256 => Snapshot)) storage, //snapshots
-            mapping(address => uint256) storage, //snapshots count
-            mapping(address => address) storage //delegatees list
-        )
-    {
-        if (delegationType == DelegationType.VOTING_POWER) {
-            return (_votingSnapshots, _votingSnapshotsCounts, _votingDelegates);
-        } else {
-            return (
-                _propositionPowerSnapshots,
-                _propositionPowerSnapshotsCounts,
-                _propositionPowerDelegates
-            );
-        }
-    }
+    /***************************************
+    TODO - Remove proposition and move to PowerDelegationERC20
+    TODO - Just use Openzeppelin ERC20Votes instead!
+    ****************************************/
 
     /**
      * @dev Delegates power from signatory to `delegatee`
@@ -505,5 +405,26 @@ contract StakedToken is IStakedMeta, Initializable, PowerDelegationERC20, AaveDi
         require(block.timestamp <= expiry, "INVALID_EXPIRATION");
         _delegateByType(signatory, delegatee, DelegationType.VOTING_POWER);
         _delegateByType(signatory, delegatee, DelegationType.PROPOSITION_POWER);
+    }
+
+    function _getDelegationDataByType(DelegationType delegationType)
+        internal
+        view
+        override
+        returns (
+            mapping(address => mapping(uint256 => Snapshot)) storage, //snapshots
+            mapping(address => uint256) storage, //snapshots count
+            mapping(address => address) storage //delegatees list
+        )
+    {
+        if (delegationType == DelegationType.VOTING_POWER) {
+            return (_votingSnapshots, _votingSnapshotsCounts, _votingDelegates);
+        } else {
+            return (
+                _propositionPowerSnapshots,
+                _propositionPowerSnapshotsCounts,
+                _propositionPowerDelegates
+            );
+        }
     }
 }

@@ -2,7 +2,6 @@
 pragma solidity 0.8.6;
 
 // Internal
-import { StakingTokenWrapper } from "./StakingTokenWrapper.sol";
 import { InitializableRewardsDistributionRecipient } from "../InitializableRewardsDistributionRecipient.sol";
 import { StableMath } from "../../shared/StableMath.sol";
 
@@ -12,29 +11,20 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { Initializable } from "@openzeppelin/contracts/utils/Initializable.sol";
 
 /**
- * @title  StakingRewards
- * @author Originally: Synthetix (forked from /Synthetixio/synthetix/contracts/StakingRewards.sol)
- *         Audit: https://github.com/sigp/public-audits/blob/master/synthetix/unipool/review.pdf
- *         Changes by: mStable
- * @notice Rewards stakers of a given LP token (a.k.a StakingToken) with RewardsToken, on a pro-rata basis
- * @dev    Uses an ever increasing 'rewardPerTokenStored' variable to distribute rewards
- * each time a write action is called in the contract. This allows for passive reward accrual.
- *         Changes:
- *           - Cosmetic (comments, readability)
- *           - Addition of getRewardToken()
- *           - Changing of `StakingTokenWrapper` funcs from `super.stake` to `_stake`
- *           - Introduced a `stake(_beneficiary)` function to enable contract wrappers to stake on behalf
+ * @title  HeadlessStakingRewards
+ * @author mStable
+ * @notice Rewards stakers of a given LP token (a.k.a StakingToken) with REWARDS_TOKEN, on a pro-rata basis
+ * @dev
  */
-contract StakingRewards is
+abstract contract HeadlessStakingRewards is
     Initializable,
-    StakingTokenWrapper,
     InitializableRewardsDistributionRecipient
 {
     using SafeERC20 for IERC20;
     using StableMath for uint256;
 
     /// @notice token the rewards are distributed in. eg MTA
-    IERC20 public immutable rewardsToken;
+    IERC20 public immutable REWARDS_TOKEN;
 
     /// @notice length of each staking period in seconds. 7 days = 604,800; 3 months = 7,862,400
     uint256 public immutable DURATION;
@@ -52,23 +42,19 @@ contract StakingRewards is
     mapping(address => uint256) public rewards;
 
     event RewardAdded(uint256 reward);
-    event Staked(address indexed user, uint256 amount, address payer);
-    event Withdrawn(address indexed user, uint256 amount);
-    event RewardPaid(address indexed user, uint256 reward);
+    event RewardPaid(address indexed user, address indexed to, uint256 reward);
 
     /**
      * @param _nexus mStable system Nexus address
-     * @param _stakingToken token that is beinf rewarded for being staked. eg MTA, imUSD or fPmUSD/GUSD
      * @param _rewardsToken first token that is being distributed as a reward. eg MTA
      * @param _duration length of each staking period in seconds. 7 days = 604,800; 3 months = 7,862,400
      */
     constructor(
         address _nexus,
-        address _stakingToken,
         address _rewardsToken,
         uint256 _duration
-    ) public StakingTokenWrapper(_stakingToken) InitializableRewardsDistributionRecipient(_nexus) {
-        rewardsToken = IERC20(_rewardsToken);
+    ) InitializableRewardsDistributionRecipient(_nexus) {
+        REWARDS_TOKEN = IERC20(_rewardsToken);
         DURATION = _duration;
     }
 
@@ -77,16 +63,9 @@ contract StakingRewards is
      *      This function should be called via Proxy just after contract deployment.
      *      To avoid variable shadowing appended `Arg` after arguments name.
      * @param _rewardsDistributorArg mStable Reward Distributor contract address
-     * @param _nameArg token name. eg imUSD Vault or GUSD Feeder Pool Vault
-     * @param _symbolArg token symbol. eg v-imUSD or v-fPmUSD/GUSD
      */
-    function initialize(
-        address _rewardsDistributorArg,
-        string calldata _nameArg,
-        string calldata _symbolArg
-    ) external initializer {
+    function _initialize(address _rewardsDistributorArg) internal virtual override {
         InitializableRewardsDistributionRecipient._initialize(_rewardsDistributorArg);
-        StakingTokenWrapper._initialize(_nameArg, _symbolArg);
     }
 
     /** @dev Updates the reward for a given address, before executing function */
@@ -106,59 +85,37 @@ contract StakingRewards is
         _;
     }
 
+    /** @dev Updates the reward for a given address, before executing function */
+    modifier updateRewards(address _account1, address _account2) {
+        // Setting of global vars
+        (uint256 newRewardPerToken, uint256 lastApplicableTime) = _rewardPerToken();
+        // If statement protects against loss in initialisation case
+        if (newRewardPerToken > 0) {
+            rewardPerTokenStored = newRewardPerToken;
+            lastUpdateTime = lastApplicableTime;
+            // Setting of personal vars based on new globals
+            if (_account1 != address(0)) {
+                rewards[_account1] = _earned(_account1, newRewardPerToken);
+                userRewardPerTokenPaid[_account1] = newRewardPerToken;
+            }
+            if (_account2 != address(0) && _account1 != _account2) {
+                rewards[_account2] = _earned(_account2, newRewardPerToken);
+                userRewardPerTokenPaid[_account2] = newRewardPerToken;
+            }
+        }
+        _;
+    }
+
     /***************************************
                     ACTIONS
     ****************************************/
 
     /**
-     * @dev Stakes a given amount of the StakingToken for the sender
-     * @param _amount Units of StakingToken
+     * @dev Claims outstanding rewards for the sender.
+     * First updates outstanding reward allocation and then transfers.
      */
-    function stake(uint256 _amount) external {
-        _stake(msg.sender, _amount);
-    }
-
-    /**
-     * @dev Stakes a given amount of the StakingToken for a given beneficiary
-     * @param _beneficiary Staked tokens are credited to this address
-     * @param _amount      Units of StakingToken
-     */
-    function stake(address _beneficiary, uint256 _amount) external {
-        _stake(_beneficiary, _amount);
-    }
-
-    /**
-     * @dev Internally stakes an amount by depositing from sender,
-     * and crediting to the specified beneficiary
-     * @param _beneficiary Staked tokens are credited to this address
-     * @param _amount      Units of StakingToken
-     */
-    function _stake(address _beneficiary, uint256 _amount)
-        internal
-        override
-        updateReward(_beneficiary)
-    {
-        require(_amount > 0, "Cannot stake 0");
-        super._stake(_beneficiary, _amount);
-        emit Staked(_beneficiary, _amount, msg.sender);
-    }
-
-    /**
-     * @dev Withdraws stake from pool and claims any rewards
-     */
-    function exit() external {
-        withdraw(balanceOf(msg.sender));
-        claimReward();
-    }
-
-    /**
-     * @dev Withdraws given stake amount from the pool
-     * @param _amount Units of the staked token to withdraw
-     */
-    function withdraw(uint256 _amount) public updateReward(msg.sender) {
-        require(_amount > 0, "Cannot withdraw 0");
-        _withdraw(_amount);
-        emit Withdrawn(msg.sender, _amount);
+    function claimReward(address _to) public updateReward(msg.sender) {
+        _claimReward(_to);
     }
 
     /**
@@ -166,11 +123,15 @@ contract StakingRewards is
      * First updates outstanding reward allocation and then transfers.
      */
     function claimReward() public updateReward(msg.sender) {
+        _claimReward(msg.sender);
+    }
+
+    function _claimReward(address _to) internal updateReward(msg.sender) {
         uint256 reward = rewards[msg.sender];
         if (reward > 0) {
             rewards[msg.sender] = 0;
-            rewardsToken.safeTransfer(msg.sender, reward);
-            emit RewardPaid(msg.sender, reward);
+            REWARDS_TOKEN.safeTransfer(_to, reward);
+            emit RewardPaid(msg.sender, _to, reward);
         }
     }
 
@@ -182,7 +143,7 @@ contract StakingRewards is
      * @dev Gets the RewardsToken
      */
     function getRewardToken() external view override returns (IERC20) {
-        return rewardsToken;
+        return REWARDS_TOKEN;
     }
 
     /**
@@ -215,7 +176,7 @@ contract StakingRewards is
         }
         // new reward units to distribute = rewardRate * timeSinceLastUpdate
         uint256 rewardUnitsToDistribute = rewardRate * timeDelta; // + 1 SLOAD
-        uint256 supply = totalSupply(); // + 1 SLOAD
+        uint256 supply = _totalSupply(); // + 1 SLOAD
         // If there is no StakingToken liquidity, avoid div(0)
         // If there is nothing to distribute, short circuit
         if (supply == 0 || rewardUnitsToDistribute == 0) {
@@ -248,10 +209,18 @@ contract StakingRewards is
             return rewards[_account];
         }
         // new reward = staked tokens * difference in rate
-        uint256 userNewReward = balanceOf(_account).mulTruncate(userRewardDelta); // + 1 SLOAD
+        uint256 userNewReward = _balanceOf(_account).mulTruncate(userRewardDelta); // + 1 SLOAD
         // add to previous rewards
         return rewards[_account] + userNewReward;
     }
+
+    /***************************************
+                ABSTRACT GETTERS
+    ****************************************/
+
+    function _balanceOf(address account) internal view virtual returns (uint256);
+
+    function _totalSupply() internal view virtual returns (uint256);
 
     /***************************************
                     ADMIN
