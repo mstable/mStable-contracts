@@ -1,4 +1,5 @@
-import { Chain } from "./tokens"
+import { ethereumAddress } from "@utils/regex"
+import { Chain, tokens } from "./tokens"
 
 export const contractNames = [
     "Nexus",
@@ -30,8 +31,19 @@ export const contractNames = [
     "UniswapQuoterV3",
     "UniswapEthToken",
     "MStableYieldSource", // Used for PoolTogether
+    "OperationsSigner",
 ] as const
 export type ContractNames = typeof contractNames[number]
+
+export interface HardhatRuntime {
+    ethers?: any
+    hardhatArguments?: {
+        config?: string
+    }
+    network?: {
+        name: string
+    }
+}
 
 export const getChainAddress = (contractName: ContractNames, chain: Chain): string => {
     if (chain === Chain.mainnet) {
@@ -91,6 +103,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
             case "MStableYieldSource":
                 return "0xdB4C9f763A4B13CF2830DFe7c2854dADf5b96E99"
+            case "OperationsSigner":
+                return "0xb81473f20818225302b8fffb905b53d58a793d84"
             default:
         }
     } else if (chain === Chain.polygon) {
@@ -126,6 +140,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff"
             case "MStableYieldSource":
                 return "0x13bA0402f5047324B4279858298F56c30EA98753"
+            case "OperationsSigner":
+                return "0xdccb7a6567603af223c090be4b9c83eced210f18"
             default:
         }
     } else if (chain === Chain.mumbai) {
@@ -158,22 +174,44 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
     return undefined
 }
 
-export const getChain = (networkName: string, hardhatConfig?: string): Chain => {
-    if (networkName === "mainnet" || hardhatConfig === "tasks-fork.config.ts") {
+export const getChain = (hre: HardhatRuntime = {}): Chain => {
+    if (hre?.network.name === "mainnet" || hre?.hardhatArguments?.config === "tasks-fork.config.ts") {
         return Chain.mainnet
     }
-    if (networkName === "polygon_mainnet" || hardhatConfig === "tasks-fork-polygon.config.ts") {
+    if (hre?.network.name === "polygon_mainnet" || hre?.hardhatArguments?.config === "tasks-fork-polygon.config.ts") {
         return Chain.polygon
     }
-    if (networkName === "polygon_testnet") {
+    if (hre?.network.name === "polygon_testnet") {
         return Chain.mumbai
     }
-    if (networkName === "ropsten") {
+    if (hre?.network.name === "ropsten") {
         return Chain.ropsten
     }
+    return Chain.mainnet
 }
 
-export const getNetworkAddress = (contractName: ContractNames, networkName = "mainnet", hardhatConfig?: string): string => {
-    const chain = getChain(networkName, hardhatConfig)
+export const getNetworkAddress = (contractName: ContractNames, hre: HardhatRuntime = {}): string => {
+    const chain = getChain(hre)
     return getChainAddress(contractName, chain)
+}
+
+// Resolves a contract name or token symbol to an ethereum address
+export const resolveAddress = (addressContractNameSymbol: string, chain = Chain.mainnet): string => {
+    let address = addressContractNameSymbol
+    // If not an Ethereum address
+    if (!addressContractNameSymbol.match(ethereumAddress)) {
+        // If an mStable contract name
+        address = getChainAddress(addressContractNameSymbol as ContractNames, chain)
+
+        if (!address) {
+            // If a token Symbol
+            const token = tokens.find((t) => t.symbol === addressContractNameSymbol && t.chain === chain)
+            if (!token) throw Error(`Invalid approve address or contract name ${addressContractNameSymbol}`)
+
+            address = token.address
+        }
+
+        console.log(`Resolved ${addressContractNameSymbol} to address ${address}`)
+    }
+    return address
 }

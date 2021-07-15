@@ -10,11 +10,12 @@ import {
     CompoundIntegration,
     AlchemixIntegration,
     AlchemixIntegration__factory,
+    FeederWrapper__factory,
 } from "types/generated"
 import { simpleToExactAmount } from "@utils/math"
 import { ALCX, alUSD, BUSD, CREAM, cyMUSD, GUSD, mUSD, tokens } from "./utils/tokens"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
-import { getSigner } from "./utils/defender-utils"
+import { getSigner } from "./utils/signerFactory"
 import { deployFeederPool, deployVault, FeederData, VaultData } from "./utils/feederUtils"
 import { getChain, getChainAddress } from "./utils/networkAddressFactory"
 
@@ -25,9 +26,9 @@ task("deployFeederPool", "Deploy Feeder Pool")
     .addOptionalParam("min", "Minimum asset weight of the basket as a percentage. eg 10 for 10% of the basket.", 10, types.int)
     .addOptionalParam("max", "Maximum asset weight of the basket as a percentage. eg 90 for 90% of the basket.", 90, types.int)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
-    .setAction(async (taskArgs, { hardhatArguments, ethers, network }) => {
-        const signer = await getSigner(ethers, taskArgs.speed)
-        const chain = getChain(network.name, hardhatArguments.config)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
 
         const mAsset = tokens.find((t) => t.symbol === taskArgs.masset)
         if (!mAsset) throw Error(`Could not find mAsset token with symbol ${taskArgs.masset}`)
@@ -58,9 +59,9 @@ task("deployFeederPool", "Deploy Feeder Pool")
 
 task("deployAlcxInt", "Deploy Alchemix integration contract for alUSD Feeder Pool")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
-    .setAction(async (taskArgs, { hardhatArguments, ethers, network }) => {
-        const signer = await getSigner(ethers, taskArgs.speed)
-        const chain = getChain(network.name, hardhatArguments.config)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
 
         const nexusAddress = getChainAddress("Nexus", chain)
         const alchemixStakingPoolsAddress = getChainAddress("AlchemixStakingPool", chain)
@@ -93,9 +94,9 @@ task("deployVault", "Deploy Feeder Pool with boosted dual vault")
     .addOptionalParam("dualRewardToken", "Token symbol of second reward. eg WMATIC, ALCX, QI", undefined, types.string)
     .addOptionalParam("price", "Price coefficient is the value of the mAsset in USD. eg mUSD/USD = 1, mBTC/USD", 1, types.int)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
-    .setAction(async (taskArgs, { ethers, hardhatArguments, network }) => {
-        const chain = getChain(network.name, hardhatArguments.config)
-        const signer = await getSigner(ethers, taskArgs.speed)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
 
         if (taskArgs.name?.length < 4) throw Error(`Invalid token name ${taskArgs.name}`)
         if (taskArgs.symbol?.length <= 0 || taskArgs.symbol?.length > 14) throw Error(`Invalid token symbol ${taskArgs.name}`)
@@ -130,16 +131,21 @@ task("deployVault", "Deploy Feeder Pool with boosted dual vault")
         await deployVault(signer, vaultData, chain)
     })
 
+task("FeederWrapper-deploy", "Deploy a new FeederWrapper").setAction(async (taskArgs, hre) => {
+    const deployer = await getSigner(hre)
+    await deployContract(new FeederWrapper__factory(deployer), "FeederWrapper")
+})
+
 task("deployIronBank", "Deploys mUSD Iron Bank (CREAM) integration contracts for GUSD and BUSD Feeder Pools")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
-    .setAction(async (taskArgs, { ethers }) => {
-        const nexusAddress = "0xafce80b19a8ce13dec0739a1aab7a028d6845eb3"
-
-        const deployer = await getSigner(ethers, taskArgs.speed)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+        const nexusAddress = getChainAddress("Nexus", chain)
 
         // CREAM's ABI is the same as Compound so can use the CompoundIntegration contract
         const gusdIntegration = await deployContract<CompoundIntegration>(
-            new CompoundIntegration__factory(deployer),
+            new CompoundIntegration__factory(signer),
             "CREAM Integration for GUSD FP",
             [nexusAddress, GUSD.feederPool, CREAM.address],
         )
@@ -147,7 +153,7 @@ task("deployIronBank", "Deploys mUSD Iron Bank (CREAM) integration contracts for
         await logTxDetails(tx, "initialize GUSD Iron Bank integration")
 
         const busdIntegration = await deployContract<CompoundIntegration>(
-            new CompoundIntegration__factory(deployer),
+            new CompoundIntegration__factory(signer),
             "CREAM Integration for BUSD FP",
             [nexusAddress, BUSD.feederPool, CREAM.address],
         )
@@ -159,14 +165,14 @@ task("deployIronBank", "Deploys mUSD Iron Bank (CREAM) integration contracts for
         const approveRewardTokenData = await gusdIntegration.interface.encodeFunctionData("approveRewardToken")
         console.log(`\napproveRewardToken data for GUSD and BUSD: ${approveRewardTokenData}`)
 
-        const gudsFp = FeederPool__factory.connect(GUSD.address, deployer)
+        const gudsFp = FeederPool__factory.connect(GUSD.address, signer)
         const gusdMigrateBassetsData = await gudsFp.interface.encodeFunctionData("migrateBassets", [
             [mUSD.address],
             gusdIntegration.address,
         ])
         console.log(`GUSD Feeder Pool migrateBassets tx data: ${gusdMigrateBassetsData}`)
 
-        const budsFp = FeederPool__factory.connect(BUSD.address, deployer)
+        const budsFp = FeederPool__factory.connect(BUSD.address, signer)
         const busdMigrateBassetsData = await budsFp.interface.encodeFunctionData("migrateBassets", [
             [mUSD.address],
             busdIntegration.address,
