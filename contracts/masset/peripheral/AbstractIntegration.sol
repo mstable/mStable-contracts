@@ -4,7 +4,7 @@ pragma solidity 0.8.6;
 import { IPlatformIntegration } from "../../interfaces/IPlatformIntegration.sol";
 import { ImmutableModule } from "../../shared/ImmutableModule.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import { Initializable } from "@openzeppelin/contracts/utils/Initializable.sol";
+import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 /**
  * @title   AbstractIntegration
