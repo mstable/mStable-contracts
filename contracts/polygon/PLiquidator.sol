@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.2;
+pragma solidity 0.8.6;
 
 import { ISavingsManager } from "../interfaces/ISavingsManager.sol";
 import { IMasset } from "../interfaces/IMasset.sol";

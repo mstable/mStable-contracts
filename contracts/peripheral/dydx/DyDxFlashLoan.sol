@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity ^0.8.2;
+pragma solidity ^0.8.6;
 
 import "./DyDx.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract DyDxFlashLoan is Structs {
-
     using SafeERC20 for IERC20;
 
     DyDxPool constant pool = DyDxPool(0x1E0447b19BB6EcFdAe1e4AE1694b0C3659614e4e);
@@ -23,7 +22,7 @@ contract DyDxFlashLoan is Structs {
     address constant sUSD = 0x57Ab1ec28D129707052df4dF418D58a2D46d5f51;
     address constant TUSD = 0x0000000000085d4780B73119b644AE5ecd22b376;
     address constant USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
-    
+
     mapping(address => uint256) public currencies;
 
     constructor() {
@@ -34,10 +33,7 @@ contract DyDxFlashLoan is Structs {
     }
 
     modifier onlyPool() {
-        require(
-            msg.sender == address(pool),
-            "FlashLoan: only called by DyDx pool"
-        );
+        require(msg.sender == address(pool), "FlashLoan: only called by DyDx pool");
         _;
     }
 
@@ -48,9 +44,11 @@ contract DyDxFlashLoan is Structs {
     }
 
     // the DyDx will call `callFunction(address sender, Info memory accountInfo, bytes memory data) public` after during `operate` call
-    function flashloan(address token, uint256 amount, bytes memory data)
-        internal virtual
-    {
+    function flashloan(
+        address token,
+        uint256 amount,
+        bytes memory data
+    ) internal virtual {
         IERC20(token).approve(address(pool), amount + 1);
         Info[] memory infos = new Info[](1);
         ActionArgs[] memory args = new ActionArgs[](3);

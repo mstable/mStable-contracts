@@ -1,14 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.2;
+pragma solidity 0.8.6;
 
 // Internal
 import { IPlatformIntegration } from "../../interfaces/IPlatformIntegration.sol";
 import { ImmutableModule } from "../../shared/ImmutableModule.sol";
-import {
-    IAaveATokenV2,
-    IAaveLendingPoolV2,
-    ILendingPoolAddressesProviderV2
-} from "../../peripheral/Aave/IAave.sol";
+import { IAaveATokenV2, IAaveLendingPoolV2, ILendingPoolAddressesProviderV2 } from "../../peripheral/Aave/IAave.sol";
 
 // Libs
 import { MassetHelpers } from "../../shared/MassetHelpers.sol";

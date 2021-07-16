@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.2;
+pragma solidity 0.8.6;
 import { ILiquidator } from "./ILiquidator.sol";
 import { ISavingsManager } from "../../interfaces/ISavingsManager.sol";
 import { IMasset } from "../../interfaces/IMasset.sol";
@@ -321,11 +321,10 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
         require(sellTokenBal > 0, "No sell tokens to liquidate");
         require(liquidation.trancheAmount > 0, "Liquidation has been paused");
         //    Calc amounts for max tranche
-        uint256 sellAmount =
-            uniswapQuoter.quoteExactOutput(
-                liquidation.uniswapPathReversed,
-                liquidation.trancheAmount
-            );
+        uint256 sellAmount = uniswapQuoter.quoteExactOutput(
+            liquidation.uniswapPathReversed,
+            liquidation.trancheAmount
+        );
 
         if (sellTokenBal < sellAmount) {
             sellAmount = sellTokenBal;
@@ -340,14 +339,13 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
         uint256 sellTokenDec = IBasicToken(sellToken).decimals();
         uint256 minOut = (sellAmount * liquidation.minReturn) / (10**sellTokenDec);
         require(minOut > 0, "Must have some price floor");
-        IUniswapV3SwapRouter.ExactInputParams memory param =
-            IUniswapV3SwapRouter.ExactInputParams(
-                liquidation.uniswapPath,
-                address(this),
-                block.timestamp,
-                sellAmount,
-                minOut
-            );
+        IUniswapV3SwapRouter.ExactInputParams memory param = IUniswapV3SwapRouter.ExactInputParams(
+            liquidation.uniswapPath,
+            address(this),
+            block.timestamp,
+            sellAmount,
+            minOut
+        );
         uniswapRouter.exactInput(param);
 
         address mAsset = liquidation.mAsset;
@@ -468,8 +466,8 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
 
             // 3. Get the proportional amount of Aave tokens for this integration contract to liquidate
             // Amount of Aave to sell for this integration = total Aave to liquidate * integration's Aave balance / total of all integration Aave balances
-            uint256 aaveSellAmount =
-                (liquidation.aaveBalance * totalAaveToLiquidate) / totalAaveBalance;
+            uint256 aaveSellAmount = (liquidation.aaveBalance * totalAaveToLiquidate) /
+                totalAaveBalance;
             address bAsset = liquidation.bAsset;
             // If there's no Aave tokens to liquidate for this integration contract
             // or the liquidation has been deleted for the integration
@@ -489,14 +487,14 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
             // e.g. 30e18 * 100e18 / 1e18 = 3000e18
             uint256 minBassetsOut = (aaveSellAmount * liquidation.minReturn) / 1e18;
             require(minBassetsOut > 0, "Must have some price floor");
-            IUniswapV3SwapRouter.ExactInputParams memory param =
-                IUniswapV3SwapRouter.ExactInputParams(
-                    liquidation.uniswapPath,
-                    address(this),
-                    block.timestamp + 1,
-                    aaveSellAmount,
-                    minBassetsOut
-                );
+            IUniswapV3SwapRouter.ExactInputParams memory param = IUniswapV3SwapRouter
+            .ExactInputParams(
+                liquidation.uniswapPath,
+                address(this),
+                block.timestamp + 1,
+                aaveSellAmount,
+                minBassetsOut
+            );
             uniswapRouter.exactInput(param);
 
             address mAsset = liquidation.mAsset;

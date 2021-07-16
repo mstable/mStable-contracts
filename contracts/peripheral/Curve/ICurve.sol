@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.2;
+pragma solidity 0.8.6;
 
 interface ICurve {
     function get_virtual_price() external view returns (uint256 out);
