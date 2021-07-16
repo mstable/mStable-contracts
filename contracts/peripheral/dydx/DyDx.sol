@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.6;
+pragma solidity ^0.8.2;
 pragma experimental ABIEncoderV2;
 
 interface Structs {
@@ -8,15 +8,15 @@ interface Structs {
     }
 
     enum ActionType {
-        Deposit, // supply tokens
-        Withdraw, // borrow tokens
-        Transfer, // transfer balance between accounts
-        Buy, // buy an amount of some token (externally)
-        Sell, // sell an amount of some token (externally)
-        Trade, // trade tokens against another account
-        Liquidate, // liquidate an undercollateralized or expiring account
-        Vaporize, // use excess tokens to zero-out a completely negative account
-        Call // send arbitrary data to an address
+      Deposit,   // supply tokens
+      Withdraw,  // borrow tokens
+      Transfer,  // transfer balance between accounts
+      Buy,       // buy an amount of some token (externally)
+      Sell,      // sell an amount of some token (externally)
+      Trade,     // trade tokens against another account
+      Liquidate, // liquidate an undercollateralized or expiring account
+      Vaporize,  // use excess tokens to zero-out a completely negative account
+      Call       // send arbitrary data to an address
     }
 
     enum AssetDenomination {
@@ -46,7 +46,7 @@ interface Structs {
     }
 
     struct Info {
-        address owner; // The address that owns the account
+        address owner;  // The address that owns the account
         uint256 number; // A nonce that allows a single address to control many accounts
     }
 
@@ -57,10 +57,6 @@ interface Structs {
 }
 
 interface DyDxPool is Structs {
-    function getAccountWei(Info memory account, uint256 marketId)
-        external
-        view
-        returns (Wei memory);
-
+    function getAccountWei(Info memory account, uint256 marketId) external view returns (Wei memory);
     function operate(Info[] memory, ActionArgs[] memory) external;
 }

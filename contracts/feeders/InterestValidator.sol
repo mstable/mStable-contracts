@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.6;
+pragma solidity 0.8.2;
 
 import { IFeederPool } from "../interfaces/IFeederPool.sol";
 import { PausableModule } from "../shared/PausableModule.sol";
@@ -50,16 +50,17 @@ contract InterestValidator is PausableModule {
             lastBatchCollected[feeder] = currentTime;
 
             // Batch collect
-            (uint256 interestCollected, uint256 totalSupply) = IFeederPool(feeder)
-            .collectPlatformInterest();
+            (uint256 interestCollected, uint256 totalSupply) =
+                IFeederPool(feeder).collectPlatformInterest();
 
             if (interestCollected > 0) {
                 // Validate APY
-                uint256 apy = YieldValidator.validateCollection(
-                    totalSupply,
-                    interestCollected,
-                    timeSincePreviousBatch
-                );
+                uint256 apy =
+                    YieldValidator.validateCollection(
+                        totalSupply,
+                        interestCollected,
+                        timeSincePreviousBatch
+                    );
 
                 emit InterestCollected(feeder, interestCollected, totalSupply, apy);
             } else {
@@ -85,12 +86,13 @@ contract InterestValidator is PausableModule {
             // 2. If fpTokenBal > 0, convert to mAsset and transfer to savingsManager
             if (fpTokenBal > 0) {
                 address mAsset = IFeederPool(fPool).mAsset();
-                uint256 outputAmt = IFeederPool(fPool).redeem(
-                    mAsset,
-                    fpTokenBal,
-                    (fpTokenBal * 7) / 10,
-                    savingsManager
-                );
+                uint256 outputAmt =
+                    IFeederPool(fPool).redeem(
+                        mAsset,
+                        fpTokenBal,
+                        (fpTokenBal * 7) / 10,
+                        savingsManager
+                    );
                 emit GovFeeCollected(fPool, mAsset, outputAmt);
             }
         }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.6;
+pragma solidity 0.8.2;
 
 // Libs
 import { InitializableReentrancyGuard } from "../../shared/InitializableReentrancyGuard.sol";
@@ -49,7 +49,11 @@ contract StakingTokenWrapper is InitializableReentrancyGuard {
      * @dev Get the total amount of the staked token
      * @return uint256 total supply
      */
-    function totalSupply() public view returns (uint256) {
+    function totalSupply()
+        public
+        view
+        returns (uint256)
+    {
         return _totalSupply;
     }
 
@@ -57,7 +61,11 @@ contract StakingTokenWrapper is InitializableReentrancyGuard {
      * @dev Get the balance of a given account
      * @param _account User for which to retrieve balance
      */
-    function balanceOf(address _account) public view returns (uint256) {
+    function balanceOf(address _account)
+        public
+        view
+        returns (uint256)
+    {
         return _balances[_account];
     }
 
@@ -65,9 +73,12 @@ contract StakingTokenWrapper is InitializableReentrancyGuard {
      * @dev Deposits a given amount of StakingToken from sender
      * @param _amount Units of StakingToken
      */
-    function _stake(address _beneficiary, uint256 _amount) internal virtual nonReentrant {
+    function _stake(address _beneficiary, uint256 _amount)
+        internal virtual
+        nonReentrant
+    {
         _totalSupply = _totalSupply + _amount;
-        _balances[_beneficiary] = _balances[_beneficiary] + _amount;
+        _balances[_beneficiary] = _balances[_beneficiary] +_amount;
         stakingToken.safeTransferFrom(msg.sender, address(this), _amount);
 
         emit Transfer(address(0), _beneficiary, _amount);
@@ -77,7 +88,10 @@ contract StakingTokenWrapper is InitializableReentrancyGuard {
      * @dev Withdraws a given stake from sender
      * @param _amount Units of StakingToken
      */
-    function _withdraw(uint256 _amount) internal nonReentrant {
+    function _withdraw(uint256 _amount)
+        internal
+        nonReentrant
+    {
         require(_balances[msg.sender] >= _amount, "Not enough user rewards");
         _totalSupply = _totalSupply - _amount;
         _balances[msg.sender] = _balances[msg.sender] - _amount;

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.6;
+pragma solidity 0.8.2;
 
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -56,12 +56,13 @@ contract RenWrapper {
     ) external {
         bytes32 pHash = keccak256(abi.encode(_recipient, _minOutputAmount));
 
-        uint256 mintedAmount = IGatewayRegistry(gatewayRegistry).getGatewayBySymbol("BTC").mint(
-            pHash,
-            _amount,
-            _nHash,
-            _sig
-        );
+        uint256 mintedAmount =
+            IGatewayRegistry(gatewayRegistry).getGatewayBySymbol("BTC").mint(
+                pHash,
+                _amount,
+                _nHash,
+                _sig
+            );
 
         require(mintedAmount > _minOutputAmount, "Minted asset must be > min output");
 

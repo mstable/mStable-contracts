@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.6;
+pragma solidity 0.8.2;
 
 import { ISavingsContractV2 } from "../../interfaces/ISavingsContract.sol";
 import { IMasset } from "../../interfaces/IMasset.sol";
@@ -35,12 +35,8 @@ contract FeederWrapper is Ownable {
         IERC20(_input).safeTransferFrom(msg.sender, address(this), _inputQuantity);
 
         // 1. Mint the fpToken and transfer here
-        uint256 fpTokenAmt = IFeederPool(_feeder).mint(
-            _input,
-            _inputQuantity,
-            _minOutputQuantity,
-            address(this)
-        );
+        uint256 fpTokenAmt =
+            IFeederPool(_feeder).mint(_input, _inputQuantity, _minOutputQuantity, address(this));
 
         // 2. Stake the fpToken in the BoostedVault on behalf of sender
         IBoostedVaultWithLockup(_vault).stake(msg.sender, fpTokenAmt);
@@ -69,12 +65,13 @@ contract FeederWrapper is Ownable {
         }
 
         // 1. Mint the fpToken and transfer here
-        uint256 fpTokenAmt = IFeederPool(_feeder).mintMulti(
-            _inputs,
-            _inputQuantities,
-            _minOutputQuantity,
-            address(this)
-        );
+        uint256 fpTokenAmt =
+            IFeederPool(_feeder).mintMulti(
+                _inputs,
+                _inputQuantities,
+                _minOutputQuantity,
+                address(this)
+            );
 
         // 2. Stake the fpToken in the BoostedVault on behalf of sender
         IBoostedVaultWithLockup(_vault).stake(msg.sender, fpTokenAmt);

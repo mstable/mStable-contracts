@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.6;
+pragma solidity 0.8.2;
 
 import { IBoostedVaultWithLockup } from "../interfaces/IBoostedVaultWithLockup.sol";
 
@@ -18,20 +18,21 @@ struct PokeVaultAccounts {
  *          DATE:    2021-04-17
  */
 contract Poker {
+
     /**
      * @dev For each boosted vault, poke all the over boosted accounts.
      * @param _vaultAccounts     An array of PokeVaultAccounts structs
      */
     function poke(PokeVaultAccounts[] memory _vaultAccounts) external {
-        uint256 vaultCount = _vaultAccounts.length;
-        for (uint256 i = 0; i < vaultCount; i++) {
+        uint vaultCount = _vaultAccounts.length;
+        for(uint i = 0; i < vaultCount; i++) {
             PokeVaultAccounts memory vaultAccounts = _vaultAccounts[i];
             address boostVaultAddress = vaultAccounts.boostVault;
             require(boostVaultAddress != address(0), "blank vault address");
             IBoostedVaultWithLockup boostVault = IBoostedVaultWithLockup(boostVaultAddress);
 
-            uint256 accountsLength = vaultAccounts.accounts.length;
-            for (uint256 j = 0; j < accountsLength; j++) {
+            uint accountsLength = vaultAccounts.accounts.length;
+            for(uint j = 0; j < accountsLength; j++) {
                 address accountAddress = vaultAccounts.accounts[j];
                 require(accountAddress != address(0), "blank address");
                 boostVault.pokeBoost(accountAddress);

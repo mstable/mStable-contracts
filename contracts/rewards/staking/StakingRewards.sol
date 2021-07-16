@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.6;
+pragma solidity 0.8.2;
 
 // Internal
 import { StakingTokenWrapper } from "./StakingTokenWrapper.sol";
@@ -25,11 +25,8 @@ import { Initializable } from "@openzeppelin/contracts/utils/Initializable.sol";
  *           - Changing of `StakingTokenWrapper` funcs from `super.stake` to `_stake`
  *           - Introduced a `stake(_beneficiary)` function to enable contract wrappers to stake on behalf
  */
-contract StakingRewards is
-    Initializable,
-    StakingTokenWrapper,
-    InitializableRewardsDistributionRecipient
-{
+contract StakingRewards is Initializable, StakingTokenWrapper, InitializableRewardsDistributionRecipient {
+
     using SafeERC20 for IERC20;
     using StableMath for uint256;
 
@@ -67,7 +64,11 @@ contract StakingRewards is
         address _stakingToken,
         address _rewardsToken,
         uint256 _duration
-    ) public StakingTokenWrapper(_stakingToken) InitializableRewardsDistributionRecipient(_nexus) {
+    )
+        public
+        StakingTokenWrapper(_stakingToken)
+        InitializableRewardsDistributionRecipient(_nexus)
+    {
         rewardsToken = IERC20(_rewardsToken);
         DURATION = _duration;
     }
@@ -94,7 +95,7 @@ contract StakingRewards is
         // Setting of global vars
         (uint256 newRewardPerToken, uint256 lastApplicableTime) = _rewardPerToken();
         // If statement protects against loss in initialisation case
-        if (newRewardPerToken > 0) {
+        if(newRewardPerToken > 0) {
             rewardPerTokenStored = newRewardPerToken;
             lastUpdateTime = lastApplicableTime;
             // Setting of personal vars based on new globals
@@ -114,7 +115,9 @@ contract StakingRewards is
      * @dev Stakes a given amount of the StakingToken for the sender
      * @param _amount Units of StakingToken
      */
-    function stake(uint256 _amount) external {
+    function stake(uint256 _amount)
+        external
+    {
         _stake(msg.sender, _amount);
     }
 
@@ -123,7 +126,9 @@ contract StakingRewards is
      * @param _beneficiary Staked tokens are credited to this address
      * @param _amount      Units of StakingToken
      */
-    function stake(address _beneficiary, uint256 _amount) external {
+    function stake(address _beneficiary, uint256 _amount)
+        external
+    {
         _stake(_beneficiary, _amount);
     }
 
@@ -134,8 +139,7 @@ contract StakingRewards is
      * @param _amount      Units of StakingToken
      */
     function _stake(address _beneficiary, uint256 _amount)
-        internal
-        override
+        internal override
         updateReward(_beneficiary)
     {
         require(_amount > 0, "Cannot stake 0");
@@ -155,7 +159,10 @@ contract StakingRewards is
      * @dev Withdraws given stake amount from the pool
      * @param _amount Units of the staked token to withdraw
      */
-    function withdraw(uint256 _amount) public updateReward(msg.sender) {
+    function withdraw(uint256 _amount)
+        public
+        updateReward(msg.sender)
+    {
         require(_amount > 0, "Cannot withdraw 0");
         _withdraw(_amount);
         emit Withdrawn(msg.sender, _amount);
@@ -165,7 +172,10 @@ contract StakingRewards is
      * @dev Claims outstanding rewards for the sender.
      * First updates outstanding reward allocation and then transfers.
      */
-    function claimReward() public updateReward(msg.sender) {
+    function claimReward()
+        public
+        updateReward(msg.sender)
+    {
         uint256 reward = rewards[msg.sender];
         if (reward > 0) {
             rewards[msg.sender] = 0;
@@ -174,6 +184,7 @@ contract StakingRewards is
         }
     }
 
+
     /***************************************
                     GETTERS
     ****************************************/
@@ -181,14 +192,23 @@ contract StakingRewards is
     /**
      * @dev Gets the RewardsToken
      */
-    function getRewardToken() external view override returns (IERC20) {
+    function getRewardToken()
+        external
+        view
+        override
+        returns (IERC20)
+    {
         return rewardsToken;
     }
 
     /**
      * @dev Gets the last applicable timestamp for this reward period
      */
-    function lastTimeRewardApplicable() public view returns (uint256) {
+    function lastTimeRewardApplicable()
+        public
+        view
+        returns (uint256)
+    {
         return StableMath.min(block.timestamp, periodFinish);
     }
 
@@ -197,7 +217,11 @@ contract StakingRewards is
      * and sums with stored to give the new cumulative reward per token
      * @return 'Reward' per staked token
      */
-    function rewardPerToken() public view returns (uint256) {
+    function rewardPerToken()
+        public
+        view
+        returns (uint256)
+    {
         (uint256 rewardPerToken_, ) = _rewardPerToken();
         return rewardPerToken_;
     }
@@ -210,7 +234,7 @@ contract StakingRewards is
         uint256 lastApplicableTime = lastTimeRewardApplicable(); // + 1 SLOAD
         uint256 timeDelta = lastApplicableTime - lastUpdateTime; // + 1 SLOAD
         // If this has been called twice in the same block, shortcircuit to reduce gas
-        if (timeDelta == 0) {
+        if(timeDelta == 0) {
             return (rewardPerTokenStored, lastApplicableTime);
         }
         // new reward units to distribute = rewardRate * timeSinceLastUpdate
@@ -232,7 +256,11 @@ contract StakingRewards is
      * @param _account User address
      * @return Total reward amount earned
      */
-    function earned(address _account) public view returns (uint256) {
+    function earned(address _account)
+        public
+        view
+        returns (uint256)
+    {
         return _earned(_account, rewardPerToken());
     }
 
@@ -244,7 +272,7 @@ contract StakingRewards is
         // current rate per token - rate user previously received
         uint256 userRewardDelta = _currentRewardPerToken - userRewardPerTokenPaid[_account]; // + 1 SLOAD
         // Short circuit if there is nothing new to distribute
-        if (userRewardDelta == 0) {
+        if(userRewardDelta == 0){
             return rewards[_account];
         }
         // new reward = staked tokens * difference in rate
@@ -252,6 +280,7 @@ contract StakingRewards is
         // add to previous rewards
         return rewards[_account] + userNewReward;
     }
+
 
     /***************************************
                     ADMIN

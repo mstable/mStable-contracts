@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.6;
+pragma solidity 0.8.2;
 
 import { StableMath } from "../../shared/StableMath.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -28,13 +28,14 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * allowances. See `IERC20.approve`.
  */
 contract ERC20WithFee is IERC20 {
+
     using StableMath for uint256;
 
     uint256 public feeRate;
 
-    mapping(address => uint256) private _balances;
+    mapping (address => uint256) private _balances;
 
-    mapping(address => mapping(address => uint256)) private _allowances;
+    mapping (address => mapping (address => uint256)) private _allowances;
 
     uint256 private _totalSupply;
 
@@ -49,11 +50,7 @@ contract ERC20WithFee is IERC20 {
      * these values are immutable: they can only be set once during
      * construction.
      */
-    function _initialize(
-        string memory nameArg,
-        string memory symbolArg,
-        uint8 decimalsArg
-    ) internal {
+    function _initialize(string memory nameArg, string memory symbolArg, uint8 decimalsArg) internal {
         _name = nameArg;
         _symbol = symbolArg;
         _decimals = decimalsArg;
@@ -93,14 +90,14 @@ contract ERC20WithFee is IERC20 {
     /**
      * @dev See `IERC20.totalSupply`.
      */
-    function totalSupply() public view override returns (uint256) {
+    function totalSupply() public override view returns (uint256) {
         return _totalSupply;
     }
 
     /**
      * @dev See `IERC20.balanceOf`.
      */
-    function balanceOf(address account) public view override returns (uint256) {
+    function balanceOf(address account) public override view returns (uint256) {
         return _balances[account];
     }
 
@@ -120,7 +117,7 @@ contract ERC20WithFee is IERC20 {
     /**
      * @dev See `IERC20.allowance`.
      */
-    function allowance(address owner, address spender) public view override returns (uint256) {
+    function allowance(address owner, address spender) public override view returns (uint256) {
         return _allowances[owner][spender];
     }
 
@@ -148,11 +145,7 @@ contract ERC20WithFee is IERC20 {
      * - the caller must have allowance for `sender`'s tokens of at least
      * `amount`.
      */
-    function transferFrom(
-        address sender,
-        address recipient,
-        uint256 amount
-    ) public override returns (bool) {
+    function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
         _transfer(sender, recipient, amount);
         _approve(sender, msg.sender, _allowances[sender][msg.sender] - amount);
         return true;
@@ -208,11 +201,7 @@ contract ERC20WithFee is IERC20 {
      * - `recipient` cannot be the zero address.
      * - `sender` must have a balance of at least `amount`.
      */
-    function _transfer(
-        address sender,
-        address recipient,
-        uint256 amount
-    ) internal {
+    function _transfer(address sender, address recipient, uint256 amount) internal {
         require(sender != address(0), "ERC20: transfer from the zero address");
         require(recipient != address(0), "ERC20: transfer to the zero address");
 
@@ -243,7 +232,7 @@ contract ERC20WithFee is IERC20 {
         emit Transfer(address(0), account, amount);
     }
 
-    /**
+     /**
      * @dev Destoys `amount` tokens from `account`, reducing the
      * total supply.
      *
@@ -275,11 +264,7 @@ contract ERC20WithFee is IERC20 {
      * - `owner` cannot be the zero address.
      * - `spender` cannot be the zero address.
      */
-    function _approve(
-        address owner,
-        address spender,
-        uint256 value
-    ) internal {
+    function _approve(address owner, address spender, uint256 value) internal {
         require(owner != address(0), "ERC20: approve from the zero address");
         require(spender != address(0), "ERC20: approve to the zero address");
 
@@ -312,7 +297,8 @@ contract ERC20WithFee is IERC20 {
 }
 
 contract MockERC20WithFee is ERC20WithFee {
-    constructor(
+
+    constructor (
         string memory _name,
         string memory _symbol,
         uint8 _decimals,
@@ -321,6 +307,8 @@ contract MockERC20WithFee is ERC20WithFee {
     ) {
         ERC20WithFee._initialize(_name, _symbol, _decimals);
         feeRate = 1e15;
-        _mint(_initialRecipient, _initialMint * (10**uint256(_decimals)));
+        _mint(_initialRecipient, _initialMint * (10 ** uint256(_decimals)));
     }
+
 }
+

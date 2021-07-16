@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.6;
+pragma solidity 0.8.2;
 
 import { IRewardsRecipientWithPlatformToken } from "../interfaces/IRewardsDistributionRecipient.sol";
 import { ImmutableModule } from "../shared/ImmutableModule.sol";
@@ -12,6 +12,7 @@ import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/Saf
  * to specified Reward Recipients.
  */
 contract RewardsDistributor is ImmutableModule {
+
     using SafeERC20 for IERC20;
 
     mapping(address => bool) public fundManagers;
@@ -27,6 +28,7 @@ contract RewardsDistributor is ImmutableModule {
         uint256 platformAmount
     );
 
+
     /**
      * @dev Modifier to allow function calls only from a fundManager address.
      */
@@ -36,8 +38,13 @@ contract RewardsDistributor is ImmutableModule {
     }
 
     /** @dev Recipient is a module, governed by mStable governance */
-    constructor(address _nexus, address[] memory _fundManagers) ImmutableModule(_nexus) {
-        for (uint256 i = 0; i < _fundManagers.length; i++) {
+    constructor(
+        address _nexus,
+        address[] memory _fundManagers
+    )
+        ImmutableModule(_nexus)
+    {
+        for(uint256 i = 0; i < _fundManagers.length; i++) {
             _addFundManager(_fundManagers[i]);
         }
     }
@@ -46,7 +53,10 @@ contract RewardsDistributor is ImmutableModule {
      * @dev Allows the mStable governance to add a new FundManager
      * @param _address  FundManager to add
      */
-    function addFundManager(address _address) external onlyGovernor {
+    function addFundManager(address _address)
+        external
+        onlyGovernor
+    {
         _addFundManager(_address);
     }
 
@@ -56,7 +66,7 @@ contract RewardsDistributor is ImmutableModule {
      */
     function _addFundManager(address _address) internal {
         require(_address != address(0), "Address is zero");
-        require(!fundManagers[_address], "Already fund manager");
+        require(! fundManagers[_address], "Already fund manager");
 
         fundManagers[_address] = true;
 
@@ -67,7 +77,10 @@ contract RewardsDistributor is ImmutableModule {
      * @dev Allows the mStable governance to remove inactive FundManagers
      * @param _address  FundManager to remove
      */
-    function removeFundManager(address _address) external onlyGovernor {
+    function removeFundManager(address _address)
+        external
+        onlyGovernor
+    {
         require(_address != address(0), "Address is zero");
         require(fundManagers[_address], "Not a fund manager");
 
@@ -87,7 +100,10 @@ contract RewardsDistributor is ImmutableModule {
         IRewardsRecipientWithPlatformToken[] calldata _recipients,
         uint256[] calldata _amounts,
         uint256[] calldata _platformAmounts
-    ) external onlyFundManager {
+    )
+        external
+        onlyFundManager
+    {
         uint256 len = _recipients.length;
         require(len > 0, "Must choose recipients");
         require(len == _amounts.length, "Mismatching inputs");
@@ -104,7 +120,7 @@ contract RewardsDistributor is ImmutableModule {
             // Send the PlatformToken to recipient
             uint256 platformAmount = _platformAmounts[i];
             address platformTokenAddress = address(0);
-            if (platformAmount > 0) {
+            if(platformAmount > 0) {
                 IERC20 platformToken = recipient.getPlatformToken();
                 platformTokenAddress = address(platformToken);
                 platformToken.safeTransferFrom(msg.sender, address(recipient), platformAmount);

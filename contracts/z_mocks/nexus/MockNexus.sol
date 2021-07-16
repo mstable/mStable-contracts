@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.6;
+pragma solidity 0.8.2;
 
 import { ModuleKeys } from "../../shared/ModuleKeys.sol";
 
 contract MockNexus is ModuleKeys {
     address public governor;
-    bool private _initialized;
+    bool private _initialized; 
 
     mapping(bytes32 => address) public modules;
 
@@ -13,18 +13,19 @@ contract MockNexus is ModuleKeys {
         address _governorAddr,
         address _savingsManager,
         address _interestValidator
-    ) {
+    )
+    {
         governor = _governorAddr;
         modules[KEY_SAVINGS_MANAGER] = _savingsManager;
         modules[KEY_INTEREST_VALIDATOR] = _interestValidator;
         _initialized = true;
     }
 
-    function initialized() external view returns (bool) {
+    function initialized() external view returns (bool){
         return _initialized;
     }
 
-    function getModule(bytes32 _key) external view returns (address) {
+    function getModule(bytes32  _key) external view returns (address) {
         return modules[_key];
     }
 

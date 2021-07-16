@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.6;
+pragma solidity 0.8.2;
 
 // External
 import { IMasset } from "../interfaces/IMasset.sol";
@@ -612,12 +612,13 @@ contract FeederPool is
 
         uint8[] memory indexes = _getAssets(_outputs);
 
-        uint256 mAssetRedeemed = FeederLogic.computeRedeemExact(
-            data.bAssetData,
-            indexes,
-            _outputQuantities,
-            _getConfig()
-        );
+        uint256 mAssetRedeemed =
+            FeederLogic.computeRedeemExact(
+                data.bAssetData,
+                indexes,
+                _outputQuantities,
+                _getConfig()
+            );
         fpTokenQuantity = mAssetRedeemed.divPrecisely(1e18 - data.redemptionFee);
         if (fpTokenQuantity > 0) fpTokenQuantity += 1;
     }
@@ -764,10 +765,8 @@ contract FeederPool is
         nonReentrant
         returns (uint256 mintAmount, uint256 newSupply)
     {
-        (uint8[] memory idxs, uint256[] memory gains) = FeederManager.calculatePlatformInterest(
-            data.bAssetPersonal,
-            data.bAssetData
-        );
+        (uint8[] memory idxs, uint256[] memory gains) =
+            FeederManager.calculatePlatformInterest(data.bAssetPersonal, data.bAssetData);
         // Calculate potential mint amount. This will be validated by the interest validator
         mintAmount = FeederLogic.computeMintMulti(data.bAssetData, idxs, gains, _getConfig());
         newSupply = totalSupply() + data.pendingFees + mintAmount;

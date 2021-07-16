@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.6;
+pragma solidity 0.8.2;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { MassetHelpers } from "../../shared/MassetHelpers.sol";
@@ -11,6 +11,7 @@ import { MassetHelpers } from "../../shared/MassetHelpers.sol";
  * @dev    Only deploy this during the constructor of a given StakingReward contract
  */
 contract PlatformTokenVendor {
+
     IERC20 public immutable platformToken;
     address public immutable parentStakingContract;
 

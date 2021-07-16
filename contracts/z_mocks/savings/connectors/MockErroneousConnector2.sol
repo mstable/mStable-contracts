@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.6;
+pragma solidity 0.8.2;
 
 import { IERC20, ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IConnector } from "../../../savings/peripheral/IConnector.sol";
 
+
 // 2. Returns invalid balance on checkbalance
 // 3. Returns negative balance immediately after checkbalance
 contract MockErroneousConnector2 is IConnector {
+
     address save;
     address mUSD;
 
@@ -14,7 +16,10 @@ contract MockErroneousConnector2 is IConnector {
     uint256 lastAccrual;
     uint256 constant perSecond = 31709791983;
 
-    constructor(address _save, address _mUSD) {
+    constructor(
+        address _save,
+        address _mUSD
+    ) {
         save = _save;
         mUSD = _mUSD;
     }
@@ -44,7 +49,7 @@ contract MockErroneousConnector2 is IConnector {
         lastValue -= lastValue;
     }
 
-    function checkBalance() external view override returns (uint256) {
+    function checkBalance() external override view returns (uint256) {
         return lastValue;
     }
 }
