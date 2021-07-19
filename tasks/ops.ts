@@ -212,7 +212,7 @@ task("proxy-upgrades", "Proxy implementation changes")
 
         console.log(`${asset.symbol} proxy ${asset.address}`)
         logs.forEach((log: any) => {
-            console.log(`Upgraded at block ${log.blockNumber} to ${log.args.implementation}`)
+            console.log(`Upgraded at block ${log.blockNumber} to ${log.args.implementation} in tx in ${log.blockHash}`)
         })
     })
 
@@ -294,36 +294,6 @@ task("vault-claim", "Claim rewards from vault")
 
         const tx = await vault.claimReward()
         await logTxDetails(tx, `${signerAddress} claim rewards from ${assetSymbol} vault`)
-    })
-
-task("approve", "Approve account to transfer token from the Defender Relay account")
-    .addParam("asset", "Symbol of the asset being approved. eg mUSD, imUSD, PmUSD, GUSD, alUSD, MTA", undefined, types.string)
-    // TODO support the account being a contract name
-    .addParam("account", "Address of the account that is approved to transferFrom", undefined, types.string)
-    .addOptionalParam("tokenType", "Token address, savings, vault or feederPool.", "address", types.string)
-    .addOptionalParam("amount", "Amount to approve. Default is max unit128", undefined, types.int)
-    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
-    .setAction(async (taskArgs, hre) => {
-        const chain = getChain(hre)
-        const signer = await getSigner(hre, taskArgs.speed)
-        const signerAddress = await signer.getAddress()
-
-        const assetSymbol = taskArgs.asset
-        const assetToken = tokens.find((t) => t.symbol === assetSymbol && t.chain === chain)
-        if (!assetToken) throw Error(`Could not find asset with symbol ${assetSymbol}`)
-
-        const approveAccount = taskArgs.account
-        // TODO validate address using a regex
-        if (!approveAccount) throw Error(`Invalid approve address ${approveAccount}`)
-
-        const { tokenType } = taskArgs
-        if (!assetToken[tokenType]) throw Error(`Can not fine ${tokenType} for token ${assetSymbol}`)
-
-        const token = ERC20__factory.connect(assetToken[tokenType], signer)
-
-        const amount = taskArgs.amount ? simpleToExactAmount(taskArgs.amount) : MAX_INT128
-        const tx = await token.approve(approveAccount, amount)
-        await logTxDetails(tx, `${signerAddress} approves ${approveAccount} to transfer ${formatUnits(amount)} ${assetSymbol}`)
     })
 
 module.exports = {}
