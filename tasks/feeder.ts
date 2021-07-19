@@ -289,7 +289,7 @@ task("FeederWrapper-approve", "Sets approvals for a single token/spender")
     })
 
 task("feeder-mint", "Mint some Feeder Pool tokens")
-    .addOptionalParam("amount", "Amount of the mAsset and fAsset to deposit", undefined, types.int)
+    .addOptionalParam("amount", "Amount of the mAsset and fAsset to deposit", undefined, types.float)
     .addParam("fasset", "Token symbol of the feeder pool asset. eg HBTC, GUSD, PFRAX or alUSD", undefined, types.string)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
@@ -322,7 +322,7 @@ task("feeder-mint", "Mint some Feeder Pool tokens")
 
 task("feeder-redeem", "Redeem some Feeder Pool tokens")
     .addParam("fasset", "Token symbol of the feeder pool asset. eg HBTC, GUSD, PFRAX or alUSD", undefined, types.string)
-    .addParam("amount", "Amount of the feeder pool liquidity tokens to proportionately redeem", undefined, types.int)
+    .addParam("amount", "Amount of the feeder pool liquidity tokens to proportionately redeem", undefined, types.float)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre, taskArgs.speed)
@@ -358,7 +358,7 @@ task("feeder-swap", "Swap some Feeder Pool tokens")
         undefined,
         types.string,
     )
-    .addParam("amount", "Amount of input tokens to swap", undefined, types.int)
+    .addParam("amount", "Amount of input tokens to swap", undefined, types.float)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre, taskArgs.speed)

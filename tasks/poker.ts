@@ -54,7 +54,7 @@ const getAccountBalanceMap = async (accounts: string[], tokenAddress: string, si
 task("over-boost", "Pokes accounts that are over boosted")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .addFlag("update", "Will send a poke transactions to the Poker contract")
-    .addOptionalParam("minMtaDiff", "Min amount of vMTA over boosted. 300 = 0.3 boost", 300, types.int)
+    .addOptionalParam("minMtaDiff", "Min amount of vMTA over boosted. 300 = 0.3 boost", 300, types.float)
     .setAction(async (taskArgs, hre) => {
         const { minMtaDiff } = taskArgs
         const chain = getChain(hre)

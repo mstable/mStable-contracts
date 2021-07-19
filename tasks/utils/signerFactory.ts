@@ -24,7 +24,12 @@ export const getDefenderSigner = async (speed: Speed = "fast"): Promise<Signer> 
     return signer
 }
 
+let signerInstance: Signer
+
 export const getSigner = async (hre: HardhatRuntime = {}, speed: Speed = "fast"): Promise<Signer> => {
+    // If already initiated a signer, just return the singleton instance
+    if (signerInstance) return signerInstance
+
     // If connecting to a forked chain
     if (["tasks-fork.config.ts", "tasks-fork-polygon.config.ts"].includes(hre?.hardhatArguments.config)) {
         const chain = getChain(hre)
@@ -35,26 +40,32 @@ export const getSigner = async (hre: HardhatRuntime = {}, speed: Speed = "fast")
                 address = resolveAddress(process.env.IMPERSONATE, chain)
                 if (!address) throw Error(`Environment variable IMPERSONATE is an invalid Ethereum address or contract name`)
             }
-            console.log(`Impersonating account ${address}`)
-            return impersonate(address)
+            console.log(`Impersonating account ${address} from IMPERSONATE environment variable`)
+            signerInstance = await impersonate(address)
+            return signerInstance
         }
         const address = getChainAddress("OperationsSigner", chain)
         if (address) {
-            console.log(`Impersonating account ${address}`)
-            return impersonate(address)
+            console.log(`Impersonating account ${address} resolved from "OperationsSigner"`)
+            signerInstance = await impersonate(address)
+            return signerInstance
         }
         // Return a random account with no Ether
-        return Wallet.createRandom().connect(hre.ethers.provider)
+        signerInstance = Wallet.createRandom().connect(hre.ethers.provider)
+        console.log(`Impersonating random account ${await signerInstance.getAddress()}`)
+        return signerInstance
     }
     // If using Defender Relay and not a forked chain
     // this will work against test networks like Ropsten or Polygon's Mumbai
     if (process.env.DEFENDER_API_KEY && process.env.DEFENDER_API_SECRET) {
-        return getDefenderSigner(speed)
+        signerInstance = await getDefenderSigner(speed)
+        return signerInstance
     }
 
     // Return a random account with no Ether.
     // This is typically used for readonly tasks. eg reports
-    return Wallet.createRandom().connect(hre.ethers.provider)
+    signerInstance = Wallet.createRandom().connect(hre.ethers.provider)
+    return signerInstance
 }
 
 export const getSignerAccount = async (hre: HardhatRuntime = {}, speed: Speed = "fast"): Promise<Account> => {

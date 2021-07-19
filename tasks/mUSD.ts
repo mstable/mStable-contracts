@@ -183,7 +183,7 @@ task("mUSD-snap", "Snaps mUSD")
 
 task("mUSD-rates", "mUSD rate comparison to Curve")
     .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, types.int)
-    .addOptionalParam("swapSize", "Swap size to compare rates with Curve", 10000, types.int)
+    .addOptionalParam("swapSize", "Swap size to compare rates with Curve", 10000, types.float)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre)
         const { network } = hre
