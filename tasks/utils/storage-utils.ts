@@ -52,7 +52,7 @@ export const dumpBassetStorage = async (
         for (const bAsset of basket.bAssets) {
             console.log(`bAsset with index ${i}`)
             console.log(` Address    :`, bAsset.addr.toString())
-            const integrationAddress = await basketManager.integrations(i)
+            const integrationAddress = await basketManager.integrations(i, override)
             console.log(` Integration:`, integrationAddress)
             console.log(` Tx fee     :`, bAsset.isTransferFeeCharged.toString())
             console.log(` Status     :`, bAsset.status.toString())

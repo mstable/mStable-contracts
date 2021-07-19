@@ -5,7 +5,7 @@ import "tsconfig-paths/register"
 import { task, types } from "hardhat/config"
 import { Signer } from "ethers"
 
-import { Masset, Masset__factory, SavingsManager__factory } from "types/generated"
+import { Masset, MassetManager__factory, Masset__factory, SavingsManager__factory } from "types/generated"
 import { BN } from "@utils/math"
 import { MusdEth__factory } from "types/generated/factories/MusdEth__factory"
 import { MusdLegacy__factory } from "types/generated/factories/MusdLegacy__factory"
@@ -58,6 +58,7 @@ const getMasset = (signer: Signer, networkName: string, block: number): Masset |
 
 task("mUSD-storage", "Dumps mUSD's storage data")
     .addOptionalParam("block", "Block number to get storage from. (default: current block)", 0, types.int)
+    .addOptionalParam("type", "Type of storage to report. token, basset, config or all.", "all", types.string)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre)
 
@@ -66,9 +67,9 @@ task("mUSD-storage", "Dumps mUSD's storage data")
 
         const mAsset = getMasset(signer, hre.network.name, blockNumber)
 
-        await dumpTokenStorage(mAsset, blockNumber)
-        await dumpBassetStorage(mAsset, blockNumber)
-        await dumpConfigStorage(mAsset, blockNumber)
+        if (["token", "all"].includes(taskArgs.type)) await dumpTokenStorage(mAsset, blockNumber)
+        if (["basset", "all"].includes(taskArgs.type)) await dumpBassetStorage(mAsset, blockNumber)
+        if (["config", "all"].includes(taskArgs.type)) await dumpConfigStorage(mAsset, blockNumber)
     })
 
 task("mUSD-snap", "Snaps mUSD")
@@ -197,6 +198,32 @@ task("mUSD-rates", "mUSD rate comparison to Curve")
         console.log("      Qty Input     Output      Qty Out    Rate             Output    Rate   Diff      Arb$")
         await getSwapRates(bAssets, bAssets, mAsset, block.blockNumber, usdFormatter, network.name, BN.from(taskArgs.swapSize))
         await snapConfig(mAsset, block.blockNumber)
+    })
+
+task("mUSD-BassetAdded", "Lists the BassetAdded events from a mAsset")
+    .addOptionalParam("masset", "Token symbol of mAsset. eg mUSD or mBTC", "mUSD", types.string)
+    .addOptionalParam("from", "Block to query transaction events from. (default: deployment block)", 10148031, types.int)
+    .addOptionalParam("to", "Block to query transaction events to. (default: current block)", 0, types.int)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre)
+        const chain = await getChain(hre)
+
+        const { fromBlock, toBlock } = await getBlockRange(hre.ethers, taskArgs.from, taskArgs.to)
+
+        const mAsset = await getMasset(signer, hre.network.name, toBlock.blockNumber)
+        const massetManagerAddress = getChainAddress("MassetManager", chain)
+        const manager = MassetManager__factory.connect(massetManagerAddress, signer)
+
+        const filter = await manager.filters.BassetAdded()
+        filter.address = mAsset.address
+        const logs = await mAsset.queryFilter(filter, fromBlock.blockNumber, toBlock.blockNumber)
+
+        console.log(`${await mAsset.symbol()} ${mAsset.address}`)
+        if (logs.length === 0)
+            console.error(`Failed to find any BassetAdded events between blocks ${fromBlock.blockNumber} and ${toBlock.blockNumber}`)
+        logs.forEach((log: any) => {
+            console.log(`Basset added at block ${log.blockNumber} in tx ${log.blockHash}`)
+        })
     })
 
 module.exports = {}

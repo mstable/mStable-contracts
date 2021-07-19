@@ -17,6 +17,7 @@ export const contractNames = [
     "Poker",
     "SaveWrapper",
     "RevenueRecipient",
+    "MassetManager",
     "FeederManager",
     "FeederLogic",
     "FeederWrapper",
@@ -77,6 +78,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0x0CA7A25181FC991e3cC62BaC511E62973991f325"
             case "RevenueRecipient":
                 return "0xA7824292efDee1177a1C1BED0649cfdD6114fed5"
+            case "MassetManager":
+                return "0x1E91F826fa8aA4fa4D3F595898AF3A64dd188848"
             case "FeederManager":
                 return "0x90aE544E8cc76d2867987Ee4f5456C02C50aBd8B"
             case "FeederLogic":
