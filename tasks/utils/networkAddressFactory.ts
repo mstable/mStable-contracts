@@ -1,5 +1,5 @@
 import { ethereumAddress } from "@utils/regex"
-import { Chain, tokens } from "./tokens"
+import { AssetAddressTypes, Chain, Token, tokens } from "./tokens"
 
 export const contractNames = [
     "Nexus",
@@ -31,6 +31,7 @@ export const contractNames = [
     "UniswapRouterV3",
     "UniswapQuoterV3",
     "UniswapEthToken",
+    "UniswapV2-MTA/WETH",
     "MStableYieldSource", // Used for PoolTogether
     "OperationsSigner",
 ] as const
@@ -104,6 +105,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"
             case "UniswapEthToken":
                 return "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+            case "UniswapV2-MTA/WETH":
+                return "0x9B4abA35b35EEE7481775cCB4055Ce4e176C9a6F"
             case "MStableYieldSource":
                 return "0xdB4C9f763A4B13CF2830DFe7c2854dADf5b96E99"
             case "OperationsSigner":
@@ -199,7 +202,11 @@ export const getNetworkAddress = (contractName: ContractNames, hre: HardhatRunti
 }
 
 // Resolves a contract name or token symbol to an ethereum address
-export const resolveAddress = (addressContractNameSymbol: string, chain = Chain.mainnet): string => {
+export const resolveAddress = (
+    addressContractNameSymbol: string,
+    chain = Chain.mainnet,
+    tokenType: AssetAddressTypes = "address",
+): string => {
     let address = addressContractNameSymbol
     // If not an Ethereum address
     if (!addressContractNameSymbol.match(ethereumAddress)) {
@@ -209,12 +216,27 @@ export const resolveAddress = (addressContractNameSymbol: string, chain = Chain.
         if (!address) {
             // If a token Symbol
             const token = tokens.find((t) => t.symbol === addressContractNameSymbol && t.chain === chain)
-            if (!token) throw Error(`Invalid approve address or contract name ${addressContractNameSymbol}`)
+            if (!token)
+                throw Error(`Invalid approve address, token symbol or contract name ${addressContractNameSymbol} for chain ${chain}`)
+            if (!token[tokenType]) throw Error(`Can not find token type ${tokenType} for ${addressContractNameSymbol} on chain ${chain}`)
 
-            address = token.address
+            address = token[tokenType]
+            console.log(`Resolved asset with symbol ${addressContractNameSymbol} and type "${tokenType}" to address ${address}`)
+            return address
         }
 
-        console.log(`Resolved ${addressContractNameSymbol} to address ${address}`)
+        console.log(`Resolved contract name "${addressContractNameSymbol}" to address ${address}`)
+        return address
     }
     return address
+}
+
+export const resolveToken = (symbol: string, chain = Chain.mainnet, tokenType: AssetAddressTypes = "address"): Token => {
+    // If a token Symbol
+    const token = tokens.find((t) => t.symbol === symbol && t.chain === chain)
+    if (!token) throw Error(`Can not fine token symbol ${symbol} on chain ${chain}`)
+    if (!token[tokenType]) throw Error(`Can not find token type "${tokenType}" for ${symbol} on chain ${chain}`)
+
+    console.log(`Resolved token symbol ${symbol} and type "${tokenType}" to address ${token[tokenType]}`)
+    return token
 }

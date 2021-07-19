@@ -146,7 +146,7 @@ task("mBTC-snap", "Get the latest data from the mBTC contracts")
 
 task("mBTC-rates", "mBTC rate comparison to Curve")
     .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, types.int)
-    .addOptionalParam("swapSize", "Swap size to compare rates with Curve", 1, types.int)
+    .addOptionalParam("swapSize", "Swap size to compare rates with Curve", 1, types.float)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre)
 

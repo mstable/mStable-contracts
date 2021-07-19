@@ -13,5 +13,6 @@ import "./tasks/ops"
 import "./tasks/poker"
 import "./tasks/SaveWrapper"
 import "./tasks/token"
+import "./tasks/weekly"
 
 export default config
