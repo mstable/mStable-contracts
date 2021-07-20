@@ -7,6 +7,7 @@ import "./tasks/feeder"
 import "./tasks/mUSD"
 import "./tasks/token"
 import "./tasks/ops"
+import "./tasks/rewards"
 import "./tasks/weekly"
 
 export default config
