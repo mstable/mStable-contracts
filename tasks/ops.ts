@@ -13,7 +13,7 @@ import {
 import { RewardsDistributorEth__factory } from "types/generated/factories/RewardsDistributorEth__factory"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { formatUnits } from "ethers/lib/utils"
-import { Chain, PMTA, PmUSD, PUSDC, PWMATIC, tokens } from "./utils/tokens"
+import { Chain, PmUSD, PUSDC, tokens } from "./utils/tokens"
 import { getSigner, getSignerAccount } from "./utils/signerFactory"
 import { logTxDetails } from "./utils/deploy-utils"
 import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
