@@ -23,8 +23,8 @@ export const impersonate = async (addr: string, fund = true): Promise<Signer> =>
     return ethers.provider.getSigner(addr)
 }
 
-export const impersonateAccount = async (address: string): Promise<Account> => {
-    const signer = await impersonate(address)
+export const impersonateAccount = async (address: string, fund = true): Promise<Account> => {
+    const signer = await impersonate(address, fund)
     return {
         signer,
         address,
