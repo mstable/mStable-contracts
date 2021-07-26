@@ -201,6 +201,18 @@ export const getNetworkAddress = (contractName: ContractNames, hre: HardhatRunti
     return getChainAddress(contractName, chain)
 }
 
+// Singleton instances of different contract names and token symbols
+const resolvedAddressesInstances: { [contractNameSymbol: string]: { [tokenType: string]: string } } = {}
+
+// Update the singleton instance so we don't need to resolve this next time
+const updateResolvedAddresses = (addressContractNameSymbol: string, tokenType: AssetAddressTypes, address: string) => {
+    if (resolvedAddressesInstances[addressContractNameSymbol]) {
+        resolvedAddressesInstances[addressContractNameSymbol][tokenType] = address
+    } else {
+        resolvedAddressesInstances[addressContractNameSymbol] = { [tokenType]: address }
+    }
+}
+
 // Resolves a contract name or token symbol to an ethereum address
 export const resolveAddress = (
     addressContractNameSymbol: string,
@@ -210,6 +222,10 @@ export const resolveAddress = (
     let address = addressContractNameSymbol
     // If not an Ethereum address
     if (!addressContractNameSymbol.match(ethereumAddress)) {
+        // If previously resolved then return from singleton instances
+        if (resolvedAddressesInstances[addressContractNameSymbol]?.[tokenType])
+            return resolvedAddressesInstances[addressContractNameSymbol][tokenType]
+
         // If an mStable contract name
         address = getChainAddress(addressContractNameSymbol as ContractNames, chain)
 
@@ -222,21 +238,41 @@ export const resolveAddress = (
 
             address = token[tokenType]
             console.log(`Resolved asset with symbol ${addressContractNameSymbol} and type "${tokenType}" to address ${address}`)
+
+            // Update the singleton instance so we don't need to resolve this next time
+            updateResolvedAddresses(addressContractNameSymbol, tokenType, address)
             return address
         }
 
         console.log(`Resolved contract name "${addressContractNameSymbol}" to address ${address}`)
+
+        // Update the singleton instance so we don't need to resolve this next time
+        updateResolvedAddresses(addressContractNameSymbol, tokenType, address)
+
         return address
     }
     return address
 }
 
+// Singleton instances of different contract names and token symbols
+const resolvedTokenInstances: { [address: string]: { [tokenType: string]: Token } } = {}
+
 export const resolveToken = (symbol: string, chain = Chain.mainnet, tokenType: AssetAddressTypes = "address"): Token => {
+    // If previously resolved then return from singleton instances
+    if (resolvedTokenInstances[symbol]?.[tokenType]) return resolvedTokenInstances[symbol][tokenType]
+
     // If a token Symbol
     const token = tokens.find((t) => t.symbol === symbol && t.chain === chain)
     if (!token) throw Error(`Can not fine token symbol ${symbol} on chain ${chain}`)
     if (!token[tokenType]) throw Error(`Can not find token type "${tokenType}" for ${symbol} on chain ${chain}`)
 
     console.log(`Resolved token symbol ${symbol} and type "${tokenType}" to address ${token[tokenType]}`)
+
+    if (resolvedTokenInstances[symbol]) {
+        resolvedTokenInstances[symbol][tokenType] = token
+    } else {
+        resolvedTokenInstances[symbol] = { [tokenType]: token }
+    }
+
     return token
 }
