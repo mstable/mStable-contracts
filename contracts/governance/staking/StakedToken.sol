@@ -7,7 +7,7 @@ import { IStakedToken } from "./IStakedToken.sol";
 
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import { ERC20VotesUpgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
+import { LockedGamifiedERC20VotesUpgradeable } from "./deps/LockedGamifiedERC20VotesUpgradeable.sol";
 import { HeadlessStakingRewards } from "../../rewards/staking/HeadlessStakingRewards.sol";
 
 /**
@@ -15,7 +15,7 @@ import { HeadlessStakingRewards } from "../../rewards/staking/HeadlessStakingRew
  * @notice Contract to stake Aave token, tokenize the position and get rewards, inheriting from a distribution manager contract
  * @author Aave
  **/
-contract StakedToken is IStakedToken, ERC20VotesUpgradeable, HeadlessStakingRewards {
+contract StakedToken is IStakedToken, LockedGamifiedERC20VotesUpgradeable, HeadlessStakingRewards {
     using SafeERC20 for IERC20;
 
     IERC20 public immutable STAKED_TOKEN;
@@ -53,8 +53,7 @@ contract StakedToken is IStakedToken, ERC20VotesUpgradeable, HeadlessStakingRewa
         string memory _symbolArg,
         address _rewardsDistributorArg
     ) external initializer {
-        __ERC20Permit_init(_nameArg);
-        __ERC20_init(_nameArg, _symbolArg);
+        __LockedGamifiedERC20_init(_nameArg, _symbolArg);
         HeadlessStakingRewards._initialize(_rewardsDistributorArg);
     }
 
@@ -135,11 +134,11 @@ contract StakedToken is IStakedToken, ERC20VotesUpgradeable, HeadlessStakingRewa
      * @param to Address to transfer to
      * @param amount Amount to transfer
      **/
-    function _transfer(
+    function _beforeTokenTransfer(
         address from,
         address to,
         uint256 amount
-    ) internal override {
+    ) internal override updateRewards(from, to) {
         uint256 balanceOfFrom = balanceOf(from);
 
         // Recipient
@@ -159,16 +158,8 @@ contract StakedToken is IStakedToken, ERC20VotesUpgradeable, HeadlessStakingRewa
             }
         }
 
-        super._transfer(from, to, amount);
+        super._beforeTokenTransfer(from, to, amount);
     }
-
-    // TODO - move?
-    /// @dev Simply used to update rewards BEFORE each action (mint, burn, transfer)
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal override updateRewards(from, to) {}
 
     /***************************************
                     GETTERS
