@@ -9,7 +9,9 @@ import { LockedGamifiedERC20Upgradeable } from "./LockedGamifiedERC20Upgradeable
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
- * @dev Forked from <Enter URL>
+ * @dev Forked from https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/blob/master/contracts/token/ERC20/extensions/ERC20VotesUpgradeable.sol
+ * Changes:
+ *   - Prettier formatting
  */
 abstract contract LockedGamifiedERC20VotesUpgradeable is
     Initializable,
@@ -67,7 +69,10 @@ abstract contract LockedGamifiedERC20VotesUpgradeable is
      * @dev Get the address `account` is currently delegating to.
      */
     function delegates(address account) public view virtual returns (address) {
-        return _delegates[account];
+        // Override as per https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/blob/master/contracts/token/ERC20/extensions/ERC20VotesUpgradeable.sol#L23
+        // return _delegates[account];
+        address delegatee = _delegates[account];
+        return delegatee == address(0) ? account : delegatee;
     }
 
     /**

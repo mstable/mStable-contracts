@@ -7,12 +7,16 @@ import { ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/Co
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
- * @dev Forked from <Enter URL>
+ * @dev Forked from https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/blob/master/contracts/token/ERC20/ERC20Upgradeable.sol
+ * Changes:
+ *   - Removed the transfer, transferFrom, approve fns
+ *   - Removed `_allowances` storage
  */
 contract LockedGamifiedERC20Upgradeable is Initializable, ContextUpgradeable, ILockedERC20 {
     mapping(address => uint256) private _balances;
 
-    mapping(address => mapping(address => uint256)) private _allowances;
+    // TODO - log
+    // mapping(address => mapping(address => uint256)) private _allowances;
 
     uint256 private _totalSupply;
 

@@ -61,32 +61,51 @@ contract StakedToken is IStakedToken, LockedGamifiedERC20VotesUpgradeable, Headl
                     ACTIONS
     ****************************************/
 
-    function stake(uint256 amount, address onBehalfOf) external override {
-        require(amount != 0, "INVALID_ZERO_AMOUNT");
-        uint256 balanceOfUser = balanceOf(onBehalfOf);
+    function stake(uint256 _amount, address _beneficiary) external override {
+        _stake(_amount, _beneficiary, address(0));
+    }
 
-        stakersCooldowns[onBehalfOf] = getNextCooldownTimestamp(
-            0,
-            amount,
-            onBehalfOf,
-            balanceOfUser
+    function stake(
+        uint256 _amount,
+        address _beneficiary,
+        address _delegatee
+    ) external {
+        _stake(_amount, _beneficiary, _delegatee);
+    }
+
+    function _stake(
+        uint256 _amount,
+        address _beneficiary,
+        address _delegatee
+    ) internal {
+        require(_amount != 0, "INVALID_ZERO_AMOUNT");
+
+        // TODO - investigate if gas savings by moving after _mint
+        if (_delegatee != address(0)) {
+            _delegate(_msgSender(), _delegatee);
+        }
+
+        stakersCooldowns[_beneficiary] = getNextCooldownTimestamp(
+            _amount,
+            _beneficiary,
+            balanceOf(_beneficiary)
         );
 
-        IERC20(STAKED_TOKEN).safeTransferFrom(msg.sender, address(this), amount);
-        _mint(onBehalfOf, amount);
+        IERC20(STAKED_TOKEN).safeTransferFrom(_msgSender(), address(this), _amount);
+        _mint(_beneficiary, _amount);
 
-        emit Staked(msg.sender, onBehalfOf, amount);
+        emit Staked(_msgSender(), _beneficiary, _amount);
     }
 
     /**
      * @dev Redeems staked tokens, and stop earning rewards
-     * @param to Address to redeem to
-     * @param amount Amount to redeem
+     * @param _amount Amount to redeem
+     * @param _recipient Address to redeem to
      **/
-    function redeem(uint256 amount, address to) external override {
-        require(amount != 0, "INVALID_ZERO_AMOUNT");
-        //solium-disable-next-line
-        uint256 cooldownStartTimestamp = stakersCooldowns[msg.sender];
+    function redeem(uint256 _amount, address _recipient) external override {
+        require(_amount != 0, "INVALID_ZERO_AMOUNT");
+
+        uint256 cooldownStartTimestamp = stakersCooldowns[_msgSender()];
         require(
             block.timestamp > cooldownStartTimestamp + COOLDOWN_SECONDS,
             "INSUFFICIENT_COOLDOWN"
@@ -95,21 +114,16 @@ contract StakedToken is IStakedToken, LockedGamifiedERC20VotesUpgradeable, Headl
             block.timestamp - (cooldownStartTimestamp + COOLDOWN_SECONDS) <= UNSTAKE_WINDOW,
             "UNSTAKE_WINDOW_FINISHED"
         );
-        uint256 balanceOfMessageSender = balanceOf(msg.sender);
 
-        uint256 amountToRedeem = (amount > balanceOfMessageSender)
-            ? balanceOfMessageSender
-            : amount;
-
-        _burn(msg.sender, amountToRedeem);
-
-        if ((balanceOfMessageSender - amountToRedeem) == 0) {
-            stakersCooldowns[msg.sender] = 0;
+        uint256 balanceOfMessageSender = balanceOf(_msgSender());
+        if ((balanceOfMessageSender - _amount) == 0) {
+            stakersCooldowns[_msgSender()] = 0;
         }
 
-        IERC20(STAKED_TOKEN).safeTransfer(to, amountToRedeem);
+        _burn(_msgSender(), _amount);
+        IERC20(STAKED_TOKEN).safeTransfer(_recipient, _amount);
 
-        emit Redeem(msg.sender, to, amountToRedeem);
+        emit Redeem(_msgSender(), _recipient, _amount);
     }
 
     /**
@@ -117,11 +131,11 @@ contract StakedToken is IStakedToken, LockedGamifiedERC20VotesUpgradeable, Headl
      * - It can't be called if the user is not staking
      **/
     function cooldown() external override {
-        require(balanceOf(msg.sender) != 0, "INVALID_BALANCE_ON_COOLDOWN");
+        require(balanceOf(_msgSender()) != 0, "INVALID_BALANCE_ON_COOLDOWN");
         //solium-disable-next-line
-        stakersCooldowns[msg.sender] = block.timestamp;
+        stakersCooldowns[_msgSender()] = block.timestamp;
 
-        emit Cooldown(msg.sender);
+        emit Cooldown(_msgSender());
     }
 
     /***************************************
@@ -129,7 +143,7 @@ contract StakedToken is IStakedToken, LockedGamifiedERC20VotesUpgradeable, Headl
     ****************************************/
 
     /**
-     * @dev Internal ERC20 _transfer of the tokenized staked tokens
+     * @dev Responsible for updating rewards
      * @param from Address to transfer from
      * @param to Address to transfer to
      * @param amount Amount to transfer
@@ -139,25 +153,6 @@ contract StakedToken is IStakedToken, LockedGamifiedERC20VotesUpgradeable, Headl
         address to,
         uint256 amount
     ) internal override updateRewards(from, to) {
-        uint256 balanceOfFrom = balanceOf(from);
-
-        // Recipient
-        if (from != to) {
-            uint256 balanceOfTo = balanceOf(to);
-
-            uint256 previousSenderCooldown = stakersCooldowns[from];
-            stakersCooldowns[to] = getNextCooldownTimestamp(
-                previousSenderCooldown,
-                amount,
-                to,
-                balanceOfTo
-            );
-            // if cooldown was set and whole balance of sender was transferred - clear cooldown
-            if (balanceOfFrom == amount && previousSenderCooldown != 0) {
-                stakersCooldowns[from] = 0;
-            }
-        }
-
         super._beforeTokenTransfer(from, to, amount);
     }
 
@@ -173,48 +168,35 @@ contract StakedToken is IStakedToken, LockedGamifiedERC20VotesUpgradeable, Headl
         return totalSupply();
     }
 
+    // TODO - update natspec
     /**
-     * @dev Calculates the new cooldown timestamp depending on the sender/receiver situation
-     *  - If the timestamp of the sender is "better" or the timestamp of the recipient is 0, we take the one of the recipient
-     *  - Weighted average of from/to cooldown timestamps if:
-     *    # The sender doesn't have the cooldown activated (timestamp 0).
-     *    # The sender timestamp is expired
-     *    # The sender has a "worse" timestamp
+     * @dev Calculates the new cooldown timestamp depending on the balance
      *  - If the receiver's cooldown timestamp expired (too old), the next is 0
-     * @param fromCooldownTimestamp Cooldown timestamp of the sender
-     * @param amountToReceive Amount
-     * @param toAddress Address of the recipient
-     * @param toBalance Current balance of the receiver
+     *  - Weighted average if
+     * @param _amountToReceive Amount
+     * @param _toAddress Address of the recipient
+     * @param _toBalance Current balance of the receiver
      * @return The new cooldown timestamp
      **/
     function getNextCooldownTimestamp(
-        uint256 fromCooldownTimestamp,
-        uint256 amountToReceive,
-        address toAddress,
-        uint256 toBalance
+        uint256 _amountToReceive,
+        address _toAddress,
+        uint256 _toBalance
     ) public view returns (uint256) {
-        uint256 toCooldownTimestamp = stakersCooldowns[toAddress];
+        uint256 toCooldownTimestamp = stakersCooldowns[_toAddress];
         if (toCooldownTimestamp == 0) {
             return 0;
         }
 
         uint256 minimalValidCooldownTimestamp = block.timestamp - COOLDOWN_SECONDS - UNSTAKE_WINDOW;
 
+        // If user has missed their unstake window, reset
         if (minimalValidCooldownTimestamp > toCooldownTimestamp) {
             toCooldownTimestamp = 0;
         } else {
-            uint256 fromCooldownTimestamp = (minimalValidCooldownTimestamp > fromCooldownTimestamp)
-                ? block.timestamp
-                : fromCooldownTimestamp;
-
-            if (fromCooldownTimestamp < toCooldownTimestamp) {
-                return toCooldownTimestamp;
-            } else {
-                toCooldownTimestamp =
-                    ((amountToReceive * fromCooldownTimestamp) +
-                        (toBalance * toCooldownTimestamp)) /
-                    (amountToReceive + toBalance);
-            }
+            toCooldownTimestamp =
+                ((_amountToReceive * block.timestamp) + (_toBalance * toCooldownTimestamp)) /
+                (_amountToReceive + _toBalance);
         }
         return toCooldownTimestamp;
     }
