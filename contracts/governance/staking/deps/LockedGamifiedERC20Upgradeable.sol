@@ -5,6 +5,7 @@ pragma solidity ^0.8.0;
 import { ILockedERC20 } from "./ILockedERC20.sol";
 import { ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 /**
  * @dev Forked from https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/blob/master/contracts/token/ERC20/ERC20Upgradeable.sol
@@ -13,10 +14,20 @@ import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/I
  *   - Removed `_allowances` storage
  */
 contract LockedGamifiedERC20Upgradeable is Initializable, ContextUpgradeable, ILockedERC20 {
-    mapping(address => uint256) private _balances;
+    // TODO - store:
+    //  - boost & balance data
+    //  - historical quest completion data to avoid double
+    //  - multipliers for quests
 
-    // TODO - log
-    // mapping(address => mapping(address => uint256)) private _allowances;
+    struct Balance {
+        uint128 rawBalance;
+        uint16 multiplier;
+    }
+    mapping(address => Balance) private _balances;
+
+    mapping(address => mapping(uint256 => bool)) private _questCompletion;
+    // 10 = 1.1x multiplier, 20 = 1.20x multiplier
+    uint8[] private _quests;
 
     uint256 private _totalSupply;
 
@@ -91,7 +102,24 @@ contract LockedGamifiedERC20Upgradeable is Initializable, ContextUpgradeable, IL
      * @dev See {IERC20-balanceOf}.
      */
     function balanceOf(address account) public view virtual override returns (uint256) {
-        return _balances[account];
+        Balance memory balance = _balances[account];
+        return (balance.rawBalance * (100 + balance.multiplier)) / 100;
+    }
+
+    function _completeQuest(address account, uint256 id) internal {
+        if (!_questCompletion[account][id]) {
+            _questCompletion[account][id] = true;
+            _balances[account].multiplier += _quests[id];
+        }
+    }
+
+    function _applyBoost(address account, uint256 rawAmount)
+        internal
+        view
+        returns (uint256 amount)
+    {
+        Balance memory balance = _balances[account];
+        amount = (rawAmount * (100 + balance.multiplier)) / 100;
     }
 
     /** @dev Creates `amount` tokens and assigns them to `account`, increasing
@@ -103,13 +131,17 @@ contract LockedGamifiedERC20Upgradeable is Initializable, ContextUpgradeable, IL
      *
      * - `account` cannot be the zero address.
      */
-    function _mint(address account, uint256 amount) internal virtual {
+    function _mint(address account, uint256 rawAmount) internal virtual {
         require(account != address(0), "ERC20: mint to the zero address");
 
-        _beforeTokenTransfer(address(0), account, amount);
+        _beforeTokenTransfer(address(0), account, rawAmount);
+
+        // TODO - consider that mint will be called after quests are completed
+        // TODO - rule: _beforeTokenTransfer = raw, then apply boost, afterTokenTransfer scaled
+        uint256 amount = _applyBoost(account, rawAmount);
 
         _totalSupply += amount;
-        _balances[account] += amount;
+        _balances[account].rawBalance += SafeCast.toUint128(rawAmount);
         emit Transfer(address(0), account, amount);
 
         _afterTokenTransfer(address(0), account, amount);
@@ -126,15 +158,20 @@ contract LockedGamifiedERC20Upgradeable is Initializable, ContextUpgradeable, IL
      * - `account` cannot be the zero address.
      * - `account` must have at least `amount` tokens.
      */
-    function _burn(address account, uint256 amount) internal virtual {
+    function _burn(address account, uint256 rawAmount) internal virtual {
         require(account != address(0), "ERC20: burn from the zero address");
 
-        _beforeTokenTransfer(account, address(0), amount);
+        _beforeTokenTransfer(account, address(0), rawAmount);
 
-        uint256 accountBalance = _balances[account];
-        require(accountBalance >= amount, "ERC20: burn amount exceeds balance");
+        // TODO - clean this up?
+        uint256 amount = _applyBoost(account, rawAmount);
+
+        Balance memory accountBalance = _balances[account];
+        require(accountBalance.rawBalance >= rawAmount, "ERC20: burn amount exceeds balance");
         unchecked {
-            _balances[account] = accountBalance - amount;
+            _balances[account].rawBalance =
+                accountBalance.rawBalance -
+                SafeCast.toUint128(rawAmount);
         }
         _totalSupply -= amount;
 

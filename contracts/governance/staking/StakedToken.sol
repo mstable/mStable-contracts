@@ -21,6 +21,7 @@ contract StakedToken is IStakedToken, LockedGamifiedERC20VotesUpgradeable, Headl
     IERC20 public immutable STAKED_TOKEN;
     uint256 public immutable COOLDOWN_SECONDS;
     uint256 public immutable UNSTAKE_WINDOW;
+    uint256 public immutable MIGRATION_WINDOW;
 
     mapping(address => uint256) public stakersCooldowns;
 
@@ -38,11 +39,13 @@ contract StakedToken is IStakedToken, LockedGamifiedERC20VotesUpgradeable, Headl
         uint256 _duration,
         address _stakedToken,
         uint256 _cooldownSeconds,
-        uint256 _unstakeWindow
+        uint256 _unstakeWindow,
+        uint256 _migrationWindow
     ) HeadlessStakingRewards(_nexus, _rewardsToken, _duration) {
         STAKED_TOKEN = IERC20(_stakedToken);
         COOLDOWN_SECONDS = _cooldownSeconds;
         UNSTAKE_WINDOW = _unstakeWindow;
+        MIGRATION_WINDOW = _migrationWindow;
     }
 
     /**
@@ -83,6 +86,11 @@ contract StakedToken is IStakedToken, LockedGamifiedERC20VotesUpgradeable, Headl
         // TODO - investigate if gas savings by moving after _mint
         if (_delegatee != address(0)) {
             _delegate(_msgSender(), _delegatee);
+        }
+
+        // TODO - move to quest completion?
+        if (block.timestamp < MIGRATION_WINDOW) {
+            _completeQuest(_msgSender(), 0);
         }
 
         stakersCooldowns[_beneficiary] = getNextCooldownTimestamp(
