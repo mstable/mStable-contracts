@@ -17,6 +17,8 @@ abstract contract LockedGamifiedERC20VotesUpgradeable is
     Initializable,
     LockedGamifiedERC20Upgradeable
 {
+    constructor(address _signer) LockedGamifiedERC20Upgradeable(_signer) {}
+
     function __LockedGamifiedERC20Votes_init_unchained() internal initializer {}
 
     struct Checkpoint {
@@ -158,20 +160,16 @@ abstract contract LockedGamifiedERC20VotesUpgradeable is
     /**
      * @dev Snapshots the totalSupply after it has been increased.
      */
-    function _mint(address account, uint256 amount) internal virtual override {
-        super._mint(account, amount);
+    function _mintRaw(address account, uint256 rawAmount) internal virtual override {
+        super._mintRaw(account, rawAmount);
         require(totalSupply() <= _maxSupply(), "ERC20Votes: total supply risks overflowing votes");
-
-        _writeCheckpoint(_totalSupplyCheckpoints, _add, amount);
     }
 
     /**
      * @dev Snapshots the totalSupply after it has been decreased.
      */
-    function _burn(address account, uint256 amount) internal virtual override {
-        super._burn(account, amount);
-
-        _writeCheckpoint(_totalSupplyCheckpoints, _subtract, amount);
+    function _burnRaw(address account, uint256 rawAmount) internal virtual override {
+        super._burnRaw(account, rawAmount);
     }
 
     /**
@@ -185,6 +183,11 @@ abstract contract LockedGamifiedERC20VotesUpgradeable is
         uint256 amount
     ) internal virtual override {
         super._afterTokenTransfer(from, to, amount);
+
+        // mint or burn, update total supply
+        if (from == address(0) || to == address(0)) {
+            _writeCheckpoint(_totalSupplyCheckpoints, to == address(0) ? _subtract : _add, amount);
+        }
 
         _moveVotingPower(delegates(from), delegates(to), amount);
     }

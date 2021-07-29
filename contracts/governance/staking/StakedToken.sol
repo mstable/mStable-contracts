@@ -34,6 +34,7 @@ contract StakedToken is IStakedToken, LockedGamifiedERC20VotesUpgradeable, Headl
     ****************************************/
 
     constructor(
+        address _signer,
         address _nexus,
         address _rewardsToken,
         uint256 _duration,
@@ -41,7 +42,10 @@ contract StakedToken is IStakedToken, LockedGamifiedERC20VotesUpgradeable, Headl
         uint256 _cooldownSeconds,
         uint256 _unstakeWindow,
         uint256 _migrationWindow
-    ) HeadlessStakingRewards(_nexus, _rewardsToken, _duration) {
+    )
+        LockedGamifiedERC20VotesUpgradeable(_signer)
+        HeadlessStakingRewards(_nexus, _rewardsToken, _duration)
+    {
         STAKED_TOKEN = IERC20(_stakedToken);
         COOLDOWN_SECONDS = _cooldownSeconds;
         UNSTAKE_WINDOW = _unstakeWindow;
@@ -88,11 +92,7 @@ contract StakedToken is IStakedToken, LockedGamifiedERC20VotesUpgradeable, Headl
             _delegate(_msgSender(), _delegatee);
         }
 
-        // TODO - move to quest completion?
-        if (block.timestamp < MIGRATION_WINDOW) {
-            _completeQuest(_msgSender(), 0);
-        }
-
+        // TODO - move this to 'beforeTokenTransfer'?
         stakersCooldowns[_beneficiary] = getNextCooldownTimestamp(
             _amount,
             _beneficiary,
@@ -138,7 +138,7 @@ contract StakedToken is IStakedToken, LockedGamifiedERC20VotesUpgradeable, Headl
      * @dev Activates the cooldown period to unstake
      * - It can't be called if the user is not staking
      **/
-    function cooldown() external override {
+    function startCooldown() external override {
         require(balanceOf(_msgSender()) != 0, "INVALID_BALANCE_ON_COOLDOWN");
         //solium-disable-next-line
         stakersCooldowns[_msgSender()] = block.timestamp;

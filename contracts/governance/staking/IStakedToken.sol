@@ -6,5 +6,5 @@ interface IStakedToken {
 
     function redeem(uint256 amount, address to) external;
 
-    function cooldown() external;
+    function startCooldown() external;
 }
