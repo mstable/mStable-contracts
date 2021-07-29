@@ -7,7 +7,7 @@ import { IStakedToken } from "./IStakedToken.sol";
 
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import { LockedGamifiedERC20VotesUpgradeable } from "./deps/LockedGamifiedERC20VotesUpgradeable.sol";
+import { GamifiedVotingToken } from "./deps/GamifiedVotingToken.sol";
 import { HeadlessStakingRewards } from "../../rewards/staking/HeadlessStakingRewards.sol";
 
 /**
@@ -15,7 +15,7 @@ import { HeadlessStakingRewards } from "../../rewards/staking/HeadlessStakingRew
  * @notice Contract to stake Aave token, tokenize the position and get rewards, inheriting from a distribution manager contract
  * @author Aave
  **/
-contract StakedToken is IStakedToken, LockedGamifiedERC20VotesUpgradeable, HeadlessStakingRewards {
+contract StakedToken is IStakedToken, GamifiedVotingToken, HeadlessStakingRewards {
     using SafeERC20 for IERC20;
 
     IERC20 public immutable STAKED_TOKEN;
@@ -42,10 +42,7 @@ contract StakedToken is IStakedToken, LockedGamifiedERC20VotesUpgradeable, Headl
         uint256 _cooldownSeconds,
         uint256 _unstakeWindow,
         uint256 _migrationWindow
-    )
-        LockedGamifiedERC20VotesUpgradeable(_signer)
-        HeadlessStakingRewards(_nexus, _rewardsToken, _duration)
-    {
+    ) GamifiedVotingToken(_signer) HeadlessStakingRewards(_nexus, _rewardsToken, _duration) {
         STAKED_TOKEN = IERC20(_stakedToken);
         COOLDOWN_SECONDS = _cooldownSeconds;
         UNSTAKE_WINDOW = _unstakeWindow;
@@ -60,7 +57,7 @@ contract StakedToken is IStakedToken, LockedGamifiedERC20VotesUpgradeable, Headl
         string memory _symbolArg,
         address _rewardsDistributorArg
     ) external initializer {
-        __LockedGamifiedERC20_init(_nameArg, _symbolArg);
+        __GamifiedToken_init(_nameArg, _symbolArg);
         HeadlessStakingRewards._initialize(_rewardsDistributorArg);
     }
 
@@ -143,6 +140,8 @@ contract StakedToken is IStakedToken, LockedGamifiedERC20VotesUpgradeable, Headl
         //solium-disable-next-line
         stakersCooldowns[_msgSender()] = block.timestamp;
 
+        // TODO - apply penalty here
+
         emit Cooldown(_msgSender());
     }
 
@@ -152,18 +151,8 @@ contract StakedToken is IStakedToken, LockedGamifiedERC20VotesUpgradeable, Headl
 
     /**
      * @dev Responsible for updating rewards
-     * @param from Address to transfer from
-     * @param to Address to transfer to
-     * @param amount Amount to transfer
      **/
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal override updateRewards(from, to) {
-        // TODO - remove updateRewards and move to external fns?
-        super._beforeTokenTransfer(from, to, amount);
-    }
+    function _beforeBalanceChange(address _account) internal override updateReward(_account) {}
 
     /***************************************
                     GETTERS
@@ -175,6 +164,10 @@ contract StakedToken is IStakedToken, LockedGamifiedERC20VotesUpgradeable, Headl
 
     function _totalSupply() internal view override returns (uint256) {
         return totalSupply();
+    }
+
+    function _questMasterOrGovernor(address account) internal view override returns (bool) {
+        return account == questMaster || account == _governor();
     }
 
     // TODO - update natspec

@@ -5,7 +5,7 @@ pragma solidity ^0.8.0;
 import { MathUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 import { SafeCastUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 import { ECDSAUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
-import { LockedGamifiedERC20Upgradeable } from "./LockedGamifiedERC20Upgradeable.sol";
+import { GamifiedToken } from "./GamifiedToken.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
@@ -13,13 +13,10 @@ import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/I
  * Changes:
  *   - Prettier formatting
  */
-abstract contract LockedGamifiedERC20VotesUpgradeable is
-    Initializable,
-    LockedGamifiedERC20Upgradeable
-{
-    constructor(address _signer) LockedGamifiedERC20Upgradeable(_signer) {}
+abstract contract GamifiedVotingToken is Initializable, GamifiedToken {
+    constructor(address _signer) GamifiedToken(_signer) {}
 
-    function __LockedGamifiedERC20Votes_init_unchained() internal initializer {}
+    function __GamifiedVotingToken_init() internal initializer {}
 
     struct Checkpoint {
         uint32 fromBlock;

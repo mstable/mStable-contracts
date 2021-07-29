@@ -14,14 +14,14 @@ import { SignatureVerifier } from "./SignatureVerifier.sol";
  *   - Removed the transfer, transferFrom, approve fns
  *   - Removed `_allowances` storage
  */
-contract LockedGamifiedERC20Upgradeable is
+abstract contract GamifiedToken is
     Initializable,
     ContextUpgradeable,
     ILockedERC20,
     SignatureVerifier
 {
     struct Balance {
-        uint128 rawBalance;
+        uint128 raw;
         uint16 multiplier;
     }
     enum QuestType {
@@ -36,6 +36,7 @@ contract LockedGamifiedERC20Upgradeable is
         QuestType model;
         uint16 multiplier;
         QuestStatus status;
+        uint32 expiryDate;
     }
     enum CompletionStatus {
         NOT_COMPLETE,
@@ -57,7 +58,13 @@ contract LockedGamifiedERC20Upgradeable is
     mapping(address => Balance) private _balances;
     mapping(address => CompletionStatus[]) private _questCompletion;
     // 10 = 1.1x multiplier, 20 = 1.20x multiplier
+    // There are some variables in quests.
+    // 1. Is the effect permanent or temporary (subject to seasonal slashing)
+    // 2. Is the completion of the quest time bound or open ended?
+    // 3. Has the quest been slashed?
     Quest[] private _quests;
+
+    address internal questMaster;
 
     event QuestComplete(address indexed user, uint256 id);
 
@@ -70,21 +77,18 @@ contract LockedGamifiedERC20Upgradeable is
     /**
      * @dev
      */
-    function __LockedGamifiedERC20_init(string memory name_, string memory symbol_)
-        internal
-        initializer
-    {
+    function __GamifiedToken_init(string memory name_, string memory symbol_) internal initializer {
         __Context_init_unchained();
-        __LockedGamifiedERC20_init_unchained(name_, symbol_);
-    }
-
-    function __LockedGamifiedERC20_init_unchained(string memory name_, string memory symbol_)
-        internal
-        initializer
-    {
         _name = name_;
         _symbol = symbol_;
     }
+
+    modifier questMasterOrGovernor() {
+        _questMasterOrGovernor(msg.sender);
+        _;
+    }
+
+    function _questMasterOrGovernor(address account) internal virtual returns (bool);
 
     /***************************************
                     VIEWS
@@ -123,19 +127,27 @@ contract LockedGamifiedERC20Upgradeable is
      */
     function balanceOf(address account) public view virtual override returns (uint256) {
         Balance memory balance = _balances[account];
-        return (balance.rawBalance * (100 + balance.multiplier)) / 100;
+        return (balance.raw * (100 + balance.multiplier)) / 100;
     }
 
     /***************************************
                     QUESTS
     ****************************************/
 
+    function addQuest(
+        QuestType model,
+        uint16 multiplier,
+        uint32 expiry
+    ) external questMasterOrGovernor {
+        // TODO - add quest
+    }
+
     function completeQuest(
         address _account,
         uint256 _id,
         bytes calldata _signature
     ) external {
-        require(_questExists(_id), "Err: Invalid ID");
+        require(_validQuest(_id), "Err: Invalid Quest");
         require(!_hasCompleted(_account, _id), "Err: Already Completed");
         require(verify(_account, _id, _signature), "Err: Invalid Signature");
 
@@ -148,8 +160,12 @@ contract LockedGamifiedERC20Upgradeable is
         emit QuestComplete(_account, _id);
     }
 
-    function _questExists(uint256 _id) internal view returns (bool) {
-        return _quests.length >= _id && _quests[_id].status == QuestStatus.ACTIVE;
+    function _validQuest(uint256 _id) internal view returns (bool) {
+        // Checks if a quest exists, is active, and not expired
+        return
+            _quests.length >= _id &&
+            _quests[_id].status == QuestStatus.ACTIVE &&
+            block.timestamp < _quests[_id].expiryDate;
     }
 
     function _hasCompleted(address _account, uint256 _id) internal view returns (bool) {
@@ -170,17 +186,18 @@ contract LockedGamifiedERC20Upgradeable is
 
     function _changeMultiplier(address account, uint16 newMultiplier) internal virtual {
         require(account != address(0), "ERC20: mint to the zero address");
+        _beforeBalanceChange(account);
 
-        Balance memory oldBalance = _balances[account];
-        uint256 oldB = _applyMultiplier(oldBalance.rawBalance, oldBalance.multiplier);
+        Balance memory balance = _balances[account];
+        uint256 oldBalance = _applyMultiplier(balance.raw, balance.multiplier);
 
         _balances[account].multiplier = newMultiplier;
-        uint256 newB = _applyMultiplier(oldBalance.rawBalance, newMultiplier);
+        uint256 newBalance = _applyMultiplier(balance.raw, newMultiplier);
 
-        if (newB > oldB) {
-            _mint(account, newB - oldB);
-        } else if (oldB > newB) {
-            _burn(account, oldB - newB);
+        if (newBalance > oldBalance) {
+            _mint(account, newBalance - oldBalance);
+        } else if (oldBalance > newBalance) {
+            _burn(account, oldBalance - newBalance);
         }
     }
 
@@ -189,10 +206,9 @@ contract LockedGamifiedERC20Upgradeable is
      */
     function _mintRaw(address account, uint256 rawAmount) internal virtual {
         require(account != address(0), "ERC20: mint to the zero address");
+        _beforeBalanceChange(account);
 
-        _beforeTokenTransfer(address(0), account, rawAmount);
-
-        _balances[account].rawBalance += SafeCast.toUint128(rawAmount);
+        _balances[account].raw += SafeCast.toUint128(rawAmount);
 
         _mint(account, _applyMultiplier(rawAmount, _balances[account].multiplier));
     }
@@ -210,17 +226,14 @@ contract LockedGamifiedERC20Upgradeable is
      */
     function _burnRaw(address account, uint256 rawAmount) internal virtual {
         require(account != address(0), "ERC20: burn from the zero address");
-
-        _beforeTokenTransfer(account, address(0), rawAmount);
+        _beforeBalanceChange(account);
 
         // TODO - clean this up?
 
         Balance memory accountBalance = _balances[account];
-        require(accountBalance.rawBalance >= rawAmount, "ERC20: burn amount exceeds balance");
+        require(accountBalance.raw >= rawAmount, "ERC20: burn amount exceeds balance");
         unchecked {
-            _balances[account].rawBalance =
-                accountBalance.rawBalance -
-                SafeCast.toUint128(rawAmount);
+            _balances[account].raw = accountBalance.raw - SafeCast.toUint128(rawAmount);
         }
 
         _burn(account, _applyMultiplier(rawAmount, accountBalance.multiplier));
@@ -241,11 +254,7 @@ contract LockedGamifiedERC20Upgradeable is
     /**
      * @dev
      */
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal virtual {}
+    function _beforeBalanceChange(address account) internal virtual {}
 
     /**
      * @dev

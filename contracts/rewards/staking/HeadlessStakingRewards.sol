@@ -95,31 +95,6 @@ abstract contract HeadlessStakingRewards is
         _;
     }
 
-    /** @dev Updates the reward for a given address, before executing function */
-    modifier updateRewards(address _account1, address _account2) {
-        // Setting of global vars
-        (uint256 newRewardPerToken, uint256 lastApplicableTime) = _rewardPerToken();
-        // If statement protects against loss in initialisation case
-        if (newRewardPerToken > 0) {
-            globalData.rewardPerTokenStored = SafeCast.toUint96(newRewardPerToken);
-            globalData.lastUpdateTime = SafeCast.toUint32(lastApplicableTime);
-            // Setting of personal vars based on new globals
-            if (_account1 != address(0)) {
-                userData[_account1] = UserData({
-                    rewardPerTokenPaid: SafeCast.toUint128(newRewardPerToken),
-                    rewards: SafeCast.toUint128(_earned(_account1, newRewardPerToken))
-                });
-            }
-            if (_account2 != address(0) && _account1 != _account2) {
-                userData[_account2] = UserData({
-                    rewardPerTokenPaid: SafeCast.toUint128(newRewardPerToken),
-                    rewards: SafeCast.toUint128(_earned(_account2, newRewardPerToken))
-                });
-            }
-        }
-        _;
-    }
-
     /***************************************
                     ACTIONS
     ****************************************/
