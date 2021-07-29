@@ -8,6 +8,7 @@ import { StableMath } from "../../shared/StableMath.sol";
 // Libs
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
@@ -29,17 +30,24 @@ abstract contract HeadlessStakingRewards is
     /// @notice length of each staking period in seconds. 7 days = 604,800; 3 months = 7,862,400
     uint256 public immutable DURATION;
 
-    /// @notice Timestamp for current period finish
-    uint256 public periodFinish = 0;
-    /// @notice RewardRate for the rest of the period
-    uint256 public rewardRate = 0;
-    /// @notice Last time any user took action
-    uint256 public lastUpdateTime = 0;
-    /// @notice Ever increasing rewardPerToken rate, based on % of total supply
-    uint256 public rewardPerTokenStored = 0;
+    struct Data {
+        /// Timestamp for current period finish
+        uint32 periodFinish;
+        /// Last time any user took action
+        uint32 lastUpdateTime;
+        /// RewardRate for the rest of the period
+        uint96 rewardRate;
+        /// Ever increasing rewardPerToken rate, based on % of total supply
+        uint96 rewardPerTokenStored;
+    }
 
-    mapping(address => uint256) public userRewardPerTokenPaid;
-    mapping(address => uint256) public rewards;
+    struct UserData {
+        uint128 rewardPerTokenPaid;
+        uint128 rewards;
+    }
+
+    Data public globalData;
+    mapping(address => UserData) public userData;
 
     event RewardAdded(uint256 reward);
     event RewardPaid(address indexed user, address indexed to, uint256 reward);
@@ -74,12 +82,14 @@ abstract contract HeadlessStakingRewards is
         (uint256 newRewardPerToken, uint256 lastApplicableTime) = _rewardPerToken();
         // If statement protects against loss in initialisation case
         if (newRewardPerToken > 0) {
-            rewardPerTokenStored = newRewardPerToken;
-            lastUpdateTime = lastApplicableTime;
+            globalData.rewardPerTokenStored = SafeCast.toUint96(newRewardPerToken);
+            globalData.lastUpdateTime = SafeCast.toUint32(lastApplicableTime);
             // Setting of personal vars based on new globals
             if (_account != address(0)) {
-                rewards[_account] = _earned(_account, newRewardPerToken);
-                userRewardPerTokenPaid[_account] = newRewardPerToken;
+                userData[_account] = UserData({
+                    rewardPerTokenPaid: SafeCast.toUint128(newRewardPerToken),
+                    rewards: SafeCast.toUint128(_earned(_account, newRewardPerToken))
+                });
             }
         }
         _;
@@ -91,16 +101,20 @@ abstract contract HeadlessStakingRewards is
         (uint256 newRewardPerToken, uint256 lastApplicableTime) = _rewardPerToken();
         // If statement protects against loss in initialisation case
         if (newRewardPerToken > 0) {
-            rewardPerTokenStored = newRewardPerToken;
-            lastUpdateTime = lastApplicableTime;
+            globalData.rewardPerTokenStored = SafeCast.toUint96(newRewardPerToken);
+            globalData.lastUpdateTime = SafeCast.toUint32(lastApplicableTime);
             // Setting of personal vars based on new globals
             if (_account1 != address(0)) {
-                rewards[_account1] = _earned(_account1, newRewardPerToken);
-                userRewardPerTokenPaid[_account1] = newRewardPerToken;
+                userData[_account1] = UserData({
+                    rewardPerTokenPaid: SafeCast.toUint128(newRewardPerToken),
+                    rewards: SafeCast.toUint128(_earned(_account1, newRewardPerToken))
+                });
             }
             if (_account2 != address(0) && _account1 != _account2) {
-                rewards[_account2] = _earned(_account2, newRewardPerToken);
-                userRewardPerTokenPaid[_account2] = newRewardPerToken;
+                userData[_account2] = UserData({
+                    rewardPerTokenPaid: SafeCast.toUint128(newRewardPerToken),
+                    rewards: SafeCast.toUint128(_earned(_account2, newRewardPerToken))
+                });
             }
         }
         _;
@@ -127,9 +141,9 @@ abstract contract HeadlessStakingRewards is
     }
 
     function _claimReward(address _to) internal updateReward(msg.sender) {
-        uint256 reward = rewards[msg.sender];
+        uint128 reward = userData[msg.sender].rewards;
         if (reward > 0) {
-            rewards[msg.sender] = 0;
+            userData[msg.sender].rewards = 0;
             REWARDS_TOKEN.safeTransfer(_to, reward);
             emit RewardPaid(msg.sender, _to, reward);
         }
@@ -150,7 +164,7 @@ abstract contract HeadlessStakingRewards is
      * @dev Gets the last applicable timestamp for this reward period
      */
     function lastTimeRewardApplicable() public view returns (uint256) {
-        return StableMath.min(block.timestamp, periodFinish);
+        return StableMath.min(block.timestamp, globalData.periodFinish);
     }
 
     /**
@@ -169,23 +183,24 @@ abstract contract HeadlessStakingRewards is
         returns (uint256 rewardPerToken_, uint256 lastTimeRewardApplicable_)
     {
         uint256 lastApplicableTime = lastTimeRewardApplicable(); // + 1 SLOAD
-        uint256 timeDelta = lastApplicableTime - lastUpdateTime; // + 1 SLOAD
+        Data memory data = globalData;
+        uint256 timeDelta = lastApplicableTime - data.lastUpdateTime; // + 1 SLOAD
         // If this has been called twice in the same block, shortcircuit to reduce gas
         if (timeDelta == 0) {
-            return (rewardPerTokenStored, lastApplicableTime);
+            return (data.rewardPerTokenStored, lastApplicableTime);
         }
         // new reward units to distribute = rewardRate * timeSinceLastUpdate
-        uint256 rewardUnitsToDistribute = rewardRate * timeDelta; // + 1 SLOAD
+        uint256 rewardUnitsToDistribute = data.rewardRate * timeDelta; // + 1 SLOAD
         uint256 supply = _totalSupply(); // + 1 SLOAD
         // If there is no StakingToken liquidity, avoid div(0)
         // If there is nothing to distribute, short circuit
         if (supply == 0 || rewardUnitsToDistribute == 0) {
-            return (rewardPerTokenStored, lastApplicableTime);
+            return (data.rewardPerTokenStored, lastApplicableTime);
         }
         // new reward units per token = (rewardUnitsToDistribute * 1e18) / totalTokens
         uint256 unitsToDistributePerToken = rewardUnitsToDistribute.divPrecisely(supply);
         // return summed rate
-        return (rewardPerTokenStored + unitsToDistributePerToken, lastApplicableTime); // + 1 SLOAD
+        return (data.rewardPerTokenStored + unitsToDistributePerToken, lastApplicableTime); // + 1 SLOAD
     }
 
     /**
@@ -203,15 +218,15 @@ abstract contract HeadlessStakingRewards is
         returns (uint256)
     {
         // current rate per token - rate user previously received
-        uint256 userRewardDelta = _currentRewardPerToken - userRewardPerTokenPaid[_account]; // + 1 SLOAD
+        uint256 userRewardDelta = _currentRewardPerToken - userData[_account].rewardPerTokenPaid; // + 1 SLOAD
         // Short circuit if there is nothing new to distribute
         if (userRewardDelta == 0) {
-            return rewards[_account];
+            return userData[_account].rewards;
         }
         // new reward = staked tokens * difference in rate
         uint256 userNewReward = _balanceOf(_account).mulTruncate(userRewardDelta); // + 1 SLOAD
         // add to previous rewards
-        return rewards[_account] + userNewReward;
+        return userData[_account].rewards + userNewReward;
     }
 
     /***************************************
@@ -241,18 +256,18 @@ abstract contract HeadlessStakingRewards is
 
         uint256 currentTime = block.timestamp;
         // If previous period over, reset rewardRate
-        if (currentTime >= periodFinish) {
-            rewardRate = _reward / DURATION;
+        if (currentTime >= globalData.periodFinish) {
+            globalData.rewardRate = SafeCast.toUint96(_reward / DURATION);
         }
         // If additional reward to existing period, calc sum
         else {
-            uint256 remaining = periodFinish - currentTime;
-            uint256 leftover = remaining * rewardRate;
-            rewardRate = (_reward + leftover) / DURATION;
+            uint256 remaining = globalData.periodFinish - currentTime;
+            uint256 leftover = remaining * globalData.rewardRate;
+            globalData.rewardRate = SafeCast.toUint96((_reward + leftover) / DURATION);
         }
 
-        lastUpdateTime = currentTime;
-        periodFinish = currentTime + DURATION;
+        globalData.lastUpdateTime = SafeCast.toUint32(currentTime);
+        globalData.periodFinish = SafeCast.toUint32(currentTime + DURATION);
 
         emit RewardAdded(_reward);
     }

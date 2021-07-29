@@ -161,6 +161,7 @@ contract StakedToken is IStakedToken, LockedGamifiedERC20VotesUpgradeable, Headl
         address to,
         uint256 amount
     ) internal override updateRewards(from, to) {
+        // TODO - remove updateRewards and move to external fns?
         super._beforeTokenTransfer(from, to, amount);
     }
 
