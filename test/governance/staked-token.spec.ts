@@ -11,7 +11,7 @@ describe("Staked Token", () => {
         ctx.sa = mAssetMachine.sa
     })
 
-    shouldBehaveLikeModule(ctx as Required<typeof ctx>)
+    // shouldBehaveLikeModule(ctx as Required<typeof ctx>)
 
     context("staking and delegating", () => {
         it("should delegate to self by default")

@@ -116,7 +116,7 @@ abstract contract HeadlessStakingRewards is
         _claimReward(msg.sender);
     }
 
-    function _claimReward(address _to) internal updateReward(msg.sender) {
+    function _claimReward(address _to) internal {
         uint128 reward = userData[msg.sender].rewards;
         if (reward > 0) {
             userData[msg.sender].rewards = 0;

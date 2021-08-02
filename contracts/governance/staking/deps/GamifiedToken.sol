@@ -224,6 +224,13 @@ abstract contract GamifiedToken is
     /**
      * @dev
      */
+    function pokeTimestamp(address _account) external {
+        _pokeWeightedTimestamp(_account);
+    }
+
+    /**
+     * @dev
+     */
     function _validQuest(uint256 _id) internal view returns (bool) {
         // Checks if a quest exists, is active, and not expired
         return
@@ -269,6 +276,23 @@ abstract contract GamifiedToken is
     /***************************************
                 STATE CHANGES
     ****************************************/
+
+    function _pokeWeightedTimestamp(address account) internal {
+        require(account != address(0), "ERC20: mint to the zero address");
+        _beforeBalanceChange(account);
+
+        // 1. Get current balance
+        Balance memory oldBalance = _balances[account];
+
+        // 2. Take the opportunity to set weighted timestamp, if it changes
+        uint16 newTimeMultiplier = _timeMultiplier(oldBalance.weightedTimestamp);
+        if (newTimeMultiplier != oldBalance.timeMultiplier) {
+            uint256 oldScaledBalance = _getBalance(oldBalance);
+            _balances[account].timeMultiplier = newTimeMultiplier;
+            // 3. Update scaled balance
+            _mintScaled(account, _getBalance(_balances[account]) - oldScaledBalance);
+        }
+    }
 
     /**
      * @dev
