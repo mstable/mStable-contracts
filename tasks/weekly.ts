@@ -12,8 +12,19 @@ task("distribute-mta-mainnet", "Distributes MTA rewards on Mainnet")
         const signerAddress = await signer.getAddress()
         const rewardSymbol = MTA.symbol
         const ownerTokenType: AssetAddressTypes = "vault"
-        const vaultsOrPools: Array<Token | ContractNames> = [mUSD, mBTC, GUSD, BUSD, alUSD, HBTC, TBTC, MTA, "UniswapV2-MTA/WETH"]
-        const mtaAmounts = [22482.92, 9812.28, 49124.82, 22966.19, 28172.94, 14351.23, 14565.61, 40000, 5000]
+        const vaultsOrPools: Array<Token | ContractNames> = [MTA, "UniswapV2-MTA/WETH", mBTC, mUSD, HBTC, alUSD, BUSD, GUSD, TBTC]
+        const mtaAmounts = [40000, 5000, 10607.81, 21687.39, 16658.2, 39285.85, 25871.86, 29214.17, 18150.73]
+        const vaultNames = [
+            "Staking V1 rewards",
+            "MTA / WETH Uniswap v2",
+            "imBTC Vault",
+            "imUSD Vault",
+            "HBTC Feeder Pool",
+            "alUSD Feeder Pool",
+            "BUSD Feeder Pool",
+            "GUSD Feeder Pool",
+            "TBTC Feeder Pool",
+        ]
 
         // Create a comma separated list of token symbols and amounts
         const symbolOrNames = vaultsOrPools.map((v) => {
@@ -53,6 +64,11 @@ task("distribute-mta-mainnet", "Distributes MTA rewards on Mainnet")
                 ownerTokenType,
             })
         }
+
+        console.log(`\nDiscord annoucement`)
+        vaultNames.forEach((name, i) => {
+            console.log(`- ${name} ${mtaAmounts[i]} MTA`)
+        })
     })
 
 task("distribute-mta-polygon", "Distributes MTA and Matic rewards on Polygon")
