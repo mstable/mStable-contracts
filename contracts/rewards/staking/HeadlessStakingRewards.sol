@@ -48,6 +48,7 @@ abstract contract HeadlessStakingRewards is
 
     Data public globalData;
     mapping(address => UserData) public userData;
+    uint256 public pendingAdditionalReward;
 
     event RewardAdded(uint256 reward);
     event RewardPaid(address indexed user, address indexed to, uint256 reward);
@@ -227,9 +228,17 @@ abstract contract HeadlessStakingRewards is
         onlyRewardsDistributor
         updateReward(address(0))
     {
+        _notifyRewardAmount(_reward);
+    }
+
+    function _notifyRewardAmount(uint256 _reward) internal {
         require(_reward < 1e24, "Cannot notify with more than a million units");
 
         uint256 currentTime = block.timestamp;
+
+        _reward += pendingAdditionalReward;
+        pendingAdditionalReward = 0;
+
         // If previous period over, reset rewardRate
         if (currentTime >= globalData.periodFinish) {
             globalData.rewardRate = SafeCast.toUint96(_reward / DURATION);
@@ -245,5 +254,11 @@ abstract contract HeadlessStakingRewards is
         globalData.periodFinish = SafeCast.toUint32(currentTime + DURATION);
 
         emit RewardAdded(_reward);
+    }
+
+    function _notifyAdditionalReward(uint256 _additionalReward) internal {
+        require(_additionalReward < 1e24, "Cannot notify with more than a million units");
+
+        pendingAdditionalReward += _additionalReward;
     }
 }

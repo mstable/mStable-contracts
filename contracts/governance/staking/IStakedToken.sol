@@ -4,7 +4,11 @@ pragma solidity 0.8.6;
 interface IStakedToken {
     function stake(uint256 amount, address to) external;
 
-    function redeem(uint256 amount, address to) external;
+    function withdraw(
+        uint256 amount,
+        address to,
+        bool fee
+    ) external;
 
     function startCooldown() external;
 }

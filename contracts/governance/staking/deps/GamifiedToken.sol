@@ -22,7 +22,10 @@ abstract contract GamifiedToken is
 {
     struct Balance {
         uint128 raw;
-        uint16 multiplier;
+        uint16 questMultiplier;
+        uint16 timeMultiplier;
+        uint32 weightedTimestamp;
+        // TODO - same lastAction timestamp? Can use this to slash quest multipliers at each season (before any action)
     }
     enum QuestType {
         PERMANENT,
@@ -55,7 +58,7 @@ abstract contract GamifiedToken is
     //  - multipliers for quests
     // TODO - bitmap for quest completion
 
-    mapping(address => Balance) private _balances;
+    mapping(address => Balance) internal _balances;
     mapping(address => CompletionStatus[]) private _questCompletion;
     // 10 = 1.1x multiplier, 20 = 1.20x multiplier
     // There are some variables in quests.
@@ -126,14 +129,23 @@ abstract contract GamifiedToken is
      * @dev See {IERC20-balanceOf}.
      */
     function balanceOf(address account) public view virtual override returns (uint256) {
-        Balance memory balance = _balances[account];
-        return (balance.raw * (100 + balance.multiplier)) / 100;
+        return _getBalance(_balances[account]);
+    }
+
+    /**
+     * @dev
+     */
+    function _getBalance(Balance memory _balance) internal pure returns (uint256 balance) {
+        balance = (_balance.raw * (100 + _balance.questMultiplier + _balance.timeMultiplier)) / 100;
     }
 
     /***************************************
                     QUESTS
     ****************************************/
 
+    /**
+     * @dev
+     */
     function addQuest(
         QuestType model,
         uint16 multiplier,
@@ -142,6 +154,9 @@ abstract contract GamifiedToken is
         // TODO - add quest
     }
 
+    /**
+     * @dev
+     */
     function completeQuest(
         address _account,
         uint256 _id,
@@ -154,12 +169,14 @@ abstract contract GamifiedToken is
         // TODO - is this valid? dont think so
         _questCompletion[_account][_id] = CompletionStatus.COMPLETE;
 
-        Quest memory quest = _quests[_id];
-        _changeMultiplier(_account, _balances[_account].multiplier += quest.multiplier);
+        _applyQuestMultiplier(_account, _quests[_id].multiplier);
 
         emit QuestComplete(_account, _id);
     }
 
+    /**
+     * @dev
+     */
     function _validQuest(uint256 _id) internal view returns (bool) {
         // Checks if a quest exists, is active, and not expired
         return
@@ -168,37 +185,59 @@ abstract contract GamifiedToken is
             block.timestamp < _quests[_id].expiryDate;
     }
 
+    /**
+     * @dev
+     */
     function _hasCompleted(address _account, uint256 _id) internal view returns (bool) {
         return _questCompletion[_account][_id] != CompletionStatus.NOT_COMPLETE;
     }
 
-    function _applyMultiplier(uint256 rawAmount, uint16 multiplier)
-        internal
-        pure
-        returns (uint256 amount)
-    {
-        amount = (rawAmount * (100 + multiplier)) / 100;
+    /**
+     * @dev
+     */
+    function _timeMultiplier(uint32 _ts) internal pure returns (uint16 timeMultiplier) {
+        // weighted hodling tiers
+        // 3 months = 1.2x
+        // 6 months = 1.3x
+        // 12 months = 1.4x
+        // 18 months = 1.5x
+        // 24 months = 1.6x
+        if (_ts < 13 weeks) {
+            return 0;
+        } else if (_ts < 26 weeks) {
+            return 20;
+        } else if (_ts < 52 weeks) {
+            return 30;
+        } else if (_ts < 78 weeks) {
+            return 40;
+        } else if (_ts < 104 weeks) {
+            return 50;
+        } else {
+            return 60;
+        }
     }
 
     /***************************************
                 STATE CHANGES
     ****************************************/
 
-    function _changeMultiplier(address account, uint16 newMultiplier) internal virtual {
+    /**
+     * @dev
+     */
+    function _applyQuestMultiplier(address account, uint16 multiplier) internal virtual {
         require(account != address(0), "ERC20: mint to the zero address");
         _beforeBalanceChange(account);
 
-        Balance memory balance = _balances[account];
-        uint256 oldBalance = _applyMultiplier(balance.raw, balance.multiplier);
+        // 1. Get current balance & update questMultiplier
+        Balance memory oldBalance = _balances[account];
+        uint256 oldScaledBalance = _getBalance(oldBalance);
+        _balances[account].questMultiplier += multiplier;
 
-        _balances[account].multiplier = newMultiplier;
-        uint256 newBalance = _applyMultiplier(balance.raw, newMultiplier);
+        // 2. Take the opportunity to set weighted timestamp, if it changes
+        _balances[account].timeMultiplier = _timeMultiplier(oldBalance.weightedTimestamp);
 
-        if (newBalance > oldBalance) {
-            _mint(account, newBalance - oldBalance);
-        } else if (oldBalance > newBalance) {
-            _burn(account, oldBalance - newBalance);
-        }
+        // 3. Update scaled balance
+        _mintScaled(account, _getBalance(_balances[account]) - oldScaledBalance);
     }
 
     /**
@@ -208,12 +247,75 @@ abstract contract GamifiedToken is
         require(account != address(0), "ERC20: mint to the zero address");
         _beforeBalanceChange(account);
 
-        _balances[account].raw += SafeCast.toUint128(rawAmount);
+        // 1. Get and update current balance
+        Balance memory oldBalance = _balances[account];
+        uint256 oldScaledBalance = _getBalance(oldBalance);
 
-        _mint(account, _applyMultiplier(rawAmount, _balances[account].multiplier));
+        _balances[account].raw = oldBalance.raw + SafeCast.toUint128(rawAmount);
+
+        // 2. Set weighted timestamp
+        //  i) For new account, set up weighted timestamp
+        if (oldBalance.weightedTimestamp == 0) {
+            _balances[account].weightedTimestamp = SafeCast.toUint32(block.timestamp);
+            _mintScaled(account, _getBalance(_balances[account]));
+            return;
+        }
+        //  ii) For previous minters, recalculate time held
+        //      Calc new weighted timestamp
+        uint256 secondsHeld = (block.timestamp - oldBalance.weightedTimestamp) * oldBalance.raw;
+        uint256 newWeightedTs = secondsHeld / (oldBalance.raw + (rawAmount / 2));
+        _balances[account].weightedTimestamp = SafeCast.toUint32(block.timestamp - newWeightedTs);
+
+        uint16 timeMultiplier = _timeMultiplier(SafeCast.toUint32(newWeightedTs));
+        _balances[account].timeMultiplier = timeMultiplier;
+
+        // 3. Update scaled balance
+        // TODO - more efficient way of getting this data
+        uint256 newScaledBalance = _getBalance(_balances[account]);
+        if (newScaledBalance > oldScaledBalance) {
+            _mintScaled(account, newScaledBalance - oldScaledBalance);
+        }
+        // This can happen if the user moves back a time class, but is unlikely to result in a negative mint
+        else {
+            _burnScaled(account, oldScaledBalance - newScaledBalance);
+        }
     }
 
-    function _mint(address account, uint256 amount) internal virtual {
+    /**
+     * @dev
+     */
+    function _burnRaw(address account, uint256 rawAmount) internal virtual {
+        require(account != address(0), "ERC20: burn from the zero address");
+        _beforeBalanceChange(account);
+
+        // 1. Get and update current balance
+        Balance memory oldBalance = _balances[account];
+        uint256 oldScaledBalance = _getBalance(oldBalance);
+        require(oldBalance.raw >= rawAmount, "ERC20: burn amount exceeds balance");
+        unchecked {
+            _balances[account].raw = oldBalance.raw - SafeCast.toUint128(rawAmount);
+        }
+
+        // 2. Set back scaled time
+        // e.g. stake 10 for 100 seconds, withdraw 5.
+        //      secondsHeld = (100 - 0) * (10 - 1.25) = 875
+        uint256 secondsHeld = (block.timestamp - oldBalance.weightedTimestamp) *
+            (oldBalance.raw - (rawAmount / 4));
+        //      newWeightedTs = 875 / 100 = 87.5
+        uint256 newWeightedTs = secondsHeld / oldBalance.raw;
+        _balances[account].weightedTimestamp = SafeCast.toUint32(block.timestamp - newWeightedTs);
+
+        uint16 timeMultiplier = _timeMultiplier(SafeCast.toUint32(newWeightedTs));
+        _balances[account].timeMultiplier = timeMultiplier;
+
+        // 3. Update scaled balance
+        _burnScaled(account, oldScaledBalance - _getBalance(_balances[account]));
+    }
+
+    /**
+     * @dev
+     */
+    function _mintScaled(address account, uint256 amount) internal virtual {
         _totalSupply += amount;
         emit Transfer(address(0), account, amount);
 
@@ -224,22 +326,7 @@ abstract contract GamifiedToken is
     /**
      * @dev
      */
-    function _burnRaw(address account, uint256 rawAmount) internal virtual {
-        require(account != address(0), "ERC20: burn from the zero address");
-        _beforeBalanceChange(account);
-
-        // TODO - clean this up?
-
-        Balance memory accountBalance = _balances[account];
-        require(accountBalance.raw >= rawAmount, "ERC20: burn amount exceeds balance");
-        unchecked {
-            _balances[account].raw = accountBalance.raw - SafeCast.toUint128(rawAmount);
-        }
-
-        _burn(account, _applyMultiplier(rawAmount, accountBalance.multiplier));
-    }
-
-    function _burn(address account, uint256 amount) internal virtual {
+    function _burnScaled(address account, uint256 amount) internal virtual {
         _totalSupply -= amount;
 
         emit Transfer(account, address(0), amount);
