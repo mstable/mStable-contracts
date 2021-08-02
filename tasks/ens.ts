@@ -1,7 +1,7 @@
 import { subtask, task, types } from "hardhat/config"
-import { EnsEthRegistrarController__factory } from "types"
 import { randomBytes } from "crypto"
 import { ONE_YEAR } from "@utils/constants"
+import { EnsEthRegistrarController__factory } from "types/generated/factories/EnsEthRegistrarController__factory"
 import { getSigner } from "./utils/signerFactory"
 import { logTxDetails } from "./utils/deploy-utils"
 import { getChain, getChainAddress } from "./utils/networkAddressFactory"
