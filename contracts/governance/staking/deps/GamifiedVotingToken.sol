@@ -12,6 +12,8 @@ import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/I
  * @dev Forked from https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/blob/master/contracts/token/ERC20/extensions/ERC20VotesUpgradeable.sol
  * Changes:
  *   - Prettier formatting
+ *   - Renaming of functions to "mintRaw"
+ *   - Removal of hook
  */
 abstract contract GamifiedVotingToken is Initializable, GamifiedToken {
     constructor(address _signer) GamifiedToken(_signer) {}

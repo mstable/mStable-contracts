@@ -25,7 +25,8 @@ abstract contract GamifiedToken is
         uint16 questMultiplier;
         uint16 timeMultiplier;
         uint32 weightedTimestamp;
-        // TODO - same lastAction timestamp? Can use this to slash quest multipliers at each season (before any action)
+        // bool isInCooldown;
+        // TODO - save lastAction timestamp? Can use this to slash quest multipliers at each season (before any action)
     }
     enum QuestType {
         PERMANENT,
@@ -39,13 +40,13 @@ abstract contract GamifiedToken is
         QuestType model;
         uint16 multiplier;
         QuestStatus status;
-        uint32 expiryDate;
+        uint32 expiry;
     }
     enum CompletionStatus {
         NOT_COMPLETE,
-        COMPLETE,
-        SLASHED
+        COMPLETE
     }
+    // SLASHED
 
     uint256 private _totalSupply;
 
@@ -69,7 +70,16 @@ abstract contract GamifiedToken is
 
     address internal questMaster;
 
-    event QuestComplete(address indexed user, uint256 id);
+    event QuestAdded(
+        address questMaster,
+        uint256 id,
+        QuestType model,
+        uint16 multiplier,
+        QuestStatus status,
+        uint32 expiry
+    );
+    event QuestComplete(address indexed user, uint256 indexed id);
+    event QuestExpired(uint16 indexed id);
 
     /***************************************
                     INIT
@@ -137,6 +147,8 @@ abstract contract GamifiedToken is
      */
     function _getBalance(Balance memory _balance) internal pure returns (uint256 balance) {
         balance = (_balance.raw * (100 + _balance.questMultiplier + _balance.timeMultiplier)) / 100;
+        // if(isInCooldown)
+        //     return balance/0.6;
     }
 
     /***************************************
@@ -147,12 +159,47 @@ abstract contract GamifiedToken is
      * @dev
      */
     function addQuest(
-        QuestType model,
-        uint16 multiplier,
-        uint32 expiry
+        QuestType _model,
+        uint16 _multiplier,
+        uint32 _expiry
     ) external questMasterOrGovernor {
-        // TODO - add quest
+        // TODO - more validation needed here? i.e. adding too many quests
+        require(_expiry > block.timestamp + 1 days, "Quest window too small");
+        require(_multiplier <= 100, "Quest multiplier too large (> 2x)");
+
+        _quests.push(
+            Quest({
+                model: _model,
+                multiplier: _multiplier,
+                status: QuestStatus.ACTIVE,
+                expiry: _expiry
+            })
+        );
+
+        emit QuestAdded(
+            _msgSender(),
+            _quests.length - 1,
+            _model,
+            _multiplier,
+            QuestStatus.ACTIVE,
+            _expiry
+        );
     }
+
+    function expireQuest(uint16 _id) external questMasterOrGovernor {
+        require(_quests.length >= _id, "Quest does not exist");
+        require(
+            _quests[_id].status == QuestStatus.ACTIVE || block.timestamp < _quests[_id].expiry,
+            "Quest already expired"
+        );
+        _quests[_id].status = QuestStatus.EXPIRED;
+
+        emit QuestExpired(_id);
+    }
+
+    // function endQuestSeason() external questMasterOrGovernor {
+
+    // }
 
     /**
      * @dev
@@ -182,7 +229,7 @@ abstract contract GamifiedToken is
         return
             _quests.length >= _id &&
             _quests[_id].status == QuestStatus.ACTIVE &&
-            block.timestamp < _quests[_id].expiryDate;
+            block.timestamp < _quests[_id].expiry;
     }
 
     /**
@@ -202,6 +249,8 @@ abstract contract GamifiedToken is
         // 12 months = 1.4x
         // 18 months = 1.5x
         // 24 months = 1.6x
+        // e.g. stake 100 for 1 months = 100 "weightedTimestamp"
+        //      stake 100 again.. new "weightedTimestamp" = 100/200 = 0.5
         if (_ts < 13 weeks) {
             return 0;
         } else if (_ts < 26 weeks) {
