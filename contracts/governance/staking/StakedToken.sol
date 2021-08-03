@@ -26,7 +26,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken, HeadlessStakingReward
 
     mapping(address => uint256) public stakersCooldowns;
 
-    event Staked(address indexed user, address indexed onBehalfOf, uint256 amount);
+    event Staked(address indexed user, uint256 amount, address delegatee);
     event Redeem(address indexed user, address indexed to, uint256 amount);
     event Cooldown(address indexed user);
 
@@ -69,29 +69,21 @@ contract StakedToken is IStakedToken, GamifiedVotingToken, HeadlessStakingReward
     /**
      * @dev
      */
-    function stake(uint256 _amount, address _beneficiary) external override {
-        _stake(_amount, _beneficiary, address(0));
+    function stake(uint256 _amount) external override {
+        _stake(_amount, address(0));
     }
 
     /**
      * @dev
      */
-    function stake(
-        uint256 _amount,
-        address _beneficiary,
-        address _delegatee
-    ) external {
-        _stake(_amount, _beneficiary, _delegatee);
+    function stake(uint256 _amount, address _delegatee) external {
+        _stake(_amount, _delegatee);
     }
 
     /**
      * @dev
      */
-    function _stake(
-        uint256 _amount,
-        address _beneficiary,
-        address _delegatee
-    ) internal {
+    function _stake(uint256 _amount, address _delegatee) internal {
         require(_amount != 0, "INVALID_ZERO_AMOUNT");
 
         // TODO - investigate if gas savings by moving after _mint
@@ -100,16 +92,16 @@ contract StakedToken is IStakedToken, GamifiedVotingToken, HeadlessStakingReward
         }
 
         // TODO - move this to 'beforeTokenTransfer'?
-        stakersCooldowns[_beneficiary] = getNextCooldownTimestamp(
+        stakersCooldowns[_msgSender()] = getNextCooldownTimestamp(
             _amount,
-            _beneficiary,
-            balanceOf(_beneficiary)
+            _msgSender(),
+            balanceOf(_msgSender())
         );
 
         IERC20(STAKED_TOKEN).safeTransferFrom(_msgSender(), address(this), _amount);
-        _mintRaw(_beneficiary, _amount);
+        _mintRaw(_msgSender(), _amount);
 
-        emit Staked(_msgSender(), _beneficiary, _amount);
+        emit Staked(_msgSender(), _amount, _delegatee);
     }
 
     /**
