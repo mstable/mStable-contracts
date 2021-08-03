@@ -5,7 +5,7 @@ import { AssetProxy__factory, MockERC20, MockERC20__factory, MockNexus } from "t
 import { StakedToken } from "types/generated/StakedToken"
 import { StakedToken__factory } from "types/generated/factories/StakedToken__factory"
 import { DEAD_ADDRESS } from "index"
-import { ONE_DAY, ONE_WEEK } from "@utils/constants"
+import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { expect } from "chai"
 import { increaseTime } from "@utils/time"
@@ -89,65 +89,44 @@ describe("Staked Token", () => {
         beforeEach(async () => {
             stakedToken = await redeployStakedToken()
             await rewardToken.connect(sa.default.signer).approve(stakedToken.address, stakedAmount.mul(3))
-        })
-        it("should delegate to self by default", async () => {
+
             expect(await stakedToken.balanceOf(sa.default.address), "staker stkRWD before").to.eq(0)
             expect(await stakedToken.getVotes(sa.default.address), "staker votes before").to.eq(0)
+            expect(await stakedToken.balanceOf(sa.dummy1.address)).to.eq(0)
+            expect(await stakedToken.balanceOf(sa.dummy1.address), "delegate stkRWD before").to.eq(0)
+            expect(await stakedToken.getVotes(sa.dummy1.address), "delegate votes before").to.eq(0)
             expect(await stakedToken.totalSupply(), "total staked before").to.eq(0)
-
-            const tx = await stakedToken["stake(uint256,address)"](stakedAmount, sa.default.address)
-            await expect(tx).to.emit(stakedToken, "Staked").withArgs(sa.default.address, sa.default.address, stakedAmount)
+        })
+        it("should delegate to self by default", async () => {
+            const tx = await stakedToken["stake(uint256)"](stakedAmount)
+            await expect(tx).to.emit(stakedToken, "Staked").withArgs(sa.default.address, stakedAmount, ZERO_ADDRESS)
             await expect(tx).to.emit(stakedToken, "DelegateChanged").not
             await expect(tx).to.emit(stakedToken, "DelegateVotesChanged").withArgs(sa.default.address, 0, stakedAmount)
             await expect(tx).to.emit(rewardToken, "Transfer").withArgs(sa.default.address, stakedToken.address, stakedAmount)
 
-            expect(await stakedToken.balanceOf(sa.default.address), "staker stkRWD after").to.eq(stakedAmount)
-            expect(await stakedToken.getVotes(sa.default.address), "staker votes after").to.eq(stakedAmount)
+            const afterData = await snapshotUserStakingData(sa.default)
+            expect(afterData.stakedBalance, "staker stkRWD after").to.eq(stakedAmount)
+            expect(afterData.votes, "staker votes after").to.eq(stakedAmount)
             expect(await stakedToken.totalSupply(), "total staked after").to.eq(stakedAmount)
         })
-        it("should assign beneficiary to a different user but delegate is self", async () => {
-            expect(await stakedToken.balanceOf(sa.default.address), "staker stkRWD before").to.eq(0)
-            expect(await stakedToken.getVotes(sa.default.address), "staker votes before").to.eq(0)
-            expect(await stakedToken.balanceOf(sa.dummy1.address)).to.eq(0)
-            expect(await stakedToken.balanceOf(sa.dummy1.address), "beneficiary stkRWD before").to.eq(0)
-            expect(await stakedToken.getVotes(sa.dummy1.address), "beneficiary votes before").to.eq(0)
-
+        it("should assign delegate", async () => {
             const tx = await stakedToken["stake(uint256,address)"](stakedAmount, sa.dummy1.address)
-            await expect(tx).to.emit(stakedToken, "Staked").withArgs(sa.default.address, sa.dummy1.address, stakedAmount)
+            await expect(tx).to.emit(stakedToken, "Staked").withArgs(sa.default.address, stakedAmount, sa.dummy1.address)
             await expect(tx).to.emit(stakedToken, "DelegateChanged").not
             await expect(tx).to.emit(stakedToken, "DelegateVotesChanged").withArgs(sa.dummy1.address, 0, stakedAmount)
             await expect(tx).to.emit(rewardToken, "Transfer").withArgs(sa.default.address, stakedToken.address, stakedAmount)
 
-            expect(await stakedToken.balanceOf(sa.default.address), "staker stkRWD after").to.eq(0)
-            expect(await stakedToken.getVotes(sa.default.address), "staker votes after").to.eq(0)
-            expect(await stakedToken.balanceOf(sa.dummy1.address), "beneficiary stkRWD after").to.eq(stakedAmount)
-            expect(await stakedToken.getVotes(sa.dummy1.address), "beneficiary votes after").to.eq(stakedAmount)
+            const afterStakerData = await snapshotUserStakingData(sa.default)
+            expect(afterStakerData.stakedBalance, "staker stkRWD after").to.eq(stakedAmount)
+            expect(afterStakerData.votes, "staker votes after").to.eq(0)
+            const afterDelegateData = await snapshotUserStakingData(sa.dummy1)
+            expect(afterDelegateData.stakedBalance, "delegate stkRWD after").to.eq(0)
+            expect(afterDelegateData.votes, "delegate votes after").to.eq(stakedAmount)
             expect(await stakedToken.totalSupply(), "total staked after").to.eq(stakedAmount)
-        })
-        it("should assign beneficiary to a user and delegate a different user", async () => {
-            expect(await stakedToken.balanceOf(sa.default.address), "staker stkRWD before").to.eq(0)
-            expect(await stakedToken.getVotes(sa.default.address), "staker votes before").to.eq(0)
-            expect(await stakedToken.balanceOf(sa.dummy2.address), "beneficiary stkRWD before").to.eq(0)
-            expect(await stakedToken.getVotes(sa.dummy2.address), "beneficiary votes before").to.eq(0)
-            expect(await stakedToken.balanceOf(sa.dummy3.address), "delegatee stkRWD before").to.eq(0)
-            expect(await stakedToken.getVotes(sa.dummy3.address), "delegatee votes before").to.eq(0)
-
-            const tx = await stakedToken["stake(uint256,address,address)"](stakedAmount, sa.dummy2.address, sa.dummy3.address)
-            await expect(tx).to.emit(stakedToken, "Staked").withArgs(sa.default.address, sa.dummy2.address, stakedAmount)
-            await expect(tx).to.emit(stakedToken, "DelegateChanged").withArgs(sa.default.address, sa.default.address, sa.dummy3.address)
-            await expect(tx).to.emit(stakedToken, "DelegateVotesChanged").withArgs(sa.dummy3.address, 0, stakedAmount)
-            await expect(tx).to.emit(rewardToken, "Transfer").withArgs(sa.default.address, stakedToken.address, stakedAmount)
-
-            expect(await stakedToken.balanceOf(sa.default.address), "staker stkRWD after").to.eq(0)
-            expect(await stakedToken.getVotes(sa.default.address), "staker votes after").to.eq(0)
-            expect(await stakedToken.balanceOf(sa.dummy2.address), "beneficiary stkRWD after").to.eq(stakedAmount)
-            expect(await stakedToken.getVotes(sa.dummy2.address), "beneficiary votes after").to.eq(0)
-            expect(await stakedToken.balanceOf(sa.dummy3.address), "delegatee stkRWD after").to.eq(0)
-            expect(await stakedToken.getVotes(sa.dummy3.address), "delegatee votes after").to.eq(stakedAmount)
         })
     })
 
-    // context("change delegate votes")
+    context("change delegate votes", () => {})
 
     context("withdraw staked tokens", () => {
         it("should extend the cooldown timer proportionately")
@@ -210,7 +189,11 @@ describe("Staked Token", () => {
             // expect(afterData.votes).to.eq(beforeData.votes.sub(withdrawAmount))
             expect(afterData.rewardsBalance).to.eq(beforeData.rewardsBalance.add(withdrawAmount))
         })
-        it("should not be possible after the unstake window")
+        it("should not be possible after the unstake window", async () => {
+            await stakedToken.startCooldown()
+            await increaseTime(ONE_DAY.mul(9).add(60))
+            await expect(stakedToken.withdraw(withdrawAmount, sa.default.address, false)).to.revertedWith("UNSTAKE_WINDOW_FINISHED")
+        })
         it("should not reset the cooldown timer unless all is unstaked")
         it("should apply a redemption fee which is added to the pendingRewards from the rewards contract")
         it("should distribute these pendingAdditionalReward with the next notification")
