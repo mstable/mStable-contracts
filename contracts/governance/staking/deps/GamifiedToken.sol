@@ -22,11 +22,12 @@ abstract contract GamifiedToken is
 {
     struct Balance {
         uint128 raw;
-        uint16 questMultiplier;
-        uint16 timeMultiplier;
         uint32 weightedTimestamp;
+        uint32 lastAction;
+        uint16 permMultiplier;
+        uint16 seasonMultiplier;
+        uint16 timeMultiplier;
         // bool isInCooldown;
-        // TODO - save lastAction timestamp? Can use this to slash quest multipliers at each season (before any action)
     }
     enum QuestType {
         PERMANENT,
@@ -46,18 +47,14 @@ abstract contract GamifiedToken is
         NOT_COMPLETE,
         COMPLETE
     }
-    // SLASHED
 
     uint256 private _totalSupply;
 
     string private _name;
     string private _symbol;
 
-    // TODO - store:
-    //  - boost & balance data
-    //  - historical quest completion data to avoid double
-    //  - multipliers for quests
-    // TODO - bitmap for quest completion
+    // TODO - make this more efficient?
+    uint32 private _seasonEpoch;
 
     mapping(address => Balance) internal _balances;
     mapping(address => CompletionStatus[]) private _questCompletion;
@@ -80,6 +77,7 @@ abstract contract GamifiedToken is
     );
     event QuestComplete(address indexed user, uint256 indexed id);
     event QuestExpired(uint16 indexed id);
+    event QuestSeasonEnded();
 
     /***************************************
                     INIT
@@ -94,6 +92,7 @@ abstract contract GamifiedToken is
         __Context_init_unchained();
         _name = name_;
         _symbol = symbol_;
+        _seasonEpoch = SafeCast.toUint32(block.timestamp);
     }
 
     modifier questMasterOrGovernor() {
@@ -101,7 +100,7 @@ abstract contract GamifiedToken is
         _;
     }
 
-    function _questMasterOrGovernor(address account) internal virtual returns (bool);
+    function _questMasterOrGovernor(address _account) internal virtual returns (bool);
 
     /***************************************
                     VIEWS
@@ -138,15 +137,21 @@ abstract contract GamifiedToken is
     /**
      * @dev See {IERC20-balanceOf}.
      */
-    function balanceOf(address account) public view virtual override returns (uint256) {
-        return _getBalance(_balances[account]);
+    function balanceOf(address _account) public view virtual override returns (uint256) {
+        return _getBalance(_balances[_account]);
     }
 
     /**
      * @dev
      */
     function _getBalance(Balance memory _balance) internal pure returns (uint256 balance) {
-        balance = (_balance.raw * (100 + _balance.questMultiplier + _balance.timeMultiplier)) / 100;
+        balance =
+            (_balance.raw *
+                (100 +
+                    _balance.permMultiplier +
+                    _balance.seasonMultiplier +
+                    _balance.timeMultiplier)) /
+            100;
         // if(isInCooldown)
         //     return balance/0.6;
     }
@@ -186,6 +191,9 @@ abstract contract GamifiedToken is
         );
     }
 
+    /**
+     * @dev
+     */
     function expireQuest(uint16 _id) external questMasterOrGovernor {
         require(_quests.length >= _id, "Quest does not exist");
         require(
@@ -197,9 +205,16 @@ abstract contract GamifiedToken is
         emit QuestExpired(_id);
     }
 
-    // function endQuestSeason() external questMasterOrGovernor {
+    /**
+     * @dev
+     */
+    function endQuestSeason() external questMasterOrGovernor {
+        require(block.timestamp > (_seasonEpoch + 39 weeks), "Not enough time elapsed in season");
 
-    // }
+        _seasonEpoch = SafeCast.toUint32(block.timestamp);
+
+        emit QuestSeasonEnded();
+    }
 
     /**
      * @dev
@@ -216,7 +231,7 @@ abstract contract GamifiedToken is
         // TODO - is this valid? dont think so
         _questCompletion[_account][_id] = CompletionStatus.COMPLETE;
 
-        _applyQuestMultiplier(_account, _quests[_id].multiplier);
+        _applyQuestMultiplier(_account, _quests[_id]);
 
         emit QuestComplete(_account, _id);
     }
@@ -277,134 +292,166 @@ abstract contract GamifiedToken is
                 STATE CHANGES
     ****************************************/
 
-    function _pokeWeightedTimestamp(address account) internal {
-        require(account != address(0), "ERC20: mint to the zero address");
-        _beforeBalanceChange(account);
+    /**
+     * @dev Called before every state change op to fetch old balance and update the 'lastAction' timestamp
+     */
+    function _prepareOldBalance(address _account)
+        internal
+        returns (Balance memory oldBalance, uint256 oldScaledBalance)
+    {
+        // Get the old balance
+        oldBalance = _balances[_account];
+        oldScaledBalance = _getBalance(oldBalance);
+        // Take the opportunity to check for season finish
+        _checkForSeasonFinish(oldBalance, _account);
+    }
+
+    /**
+     * @dev
+     */
+    function _pokeWeightedTimestamp(address _account) internal {
+        require(_account != address(0), "ERC20: mint to the zero address");
+        _beforeBalanceChange(_account);
 
         // 1. Get current balance
-        Balance memory oldBalance = _balances[account];
+        (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
 
-        // 2. Take the opportunity to set weighted timestamp, if it changes
+        // 2. Set weighted timestamp, if it changes
         uint16 newTimeMultiplier = _timeMultiplier(oldBalance.weightedTimestamp);
-        if (newTimeMultiplier != oldBalance.timeMultiplier) {
-            uint256 oldScaledBalance = _getBalance(oldBalance);
-            _balances[account].timeMultiplier = newTimeMultiplier;
-            // 3. Update scaled balance
-            _mintScaled(account, _getBalance(_balances[account]) - oldScaledBalance);
-        }
-    }
-
-    /**
-     * @dev
-     */
-    function _applyQuestMultiplier(address account, uint16 multiplier) internal virtual {
-        require(account != address(0), "ERC20: mint to the zero address");
-        _beforeBalanceChange(account);
-
-        // 1. Get current balance & update questMultiplier
-        Balance memory oldBalance = _balances[account];
-        uint256 oldScaledBalance = _getBalance(oldBalance);
-        _balances[account].questMultiplier += multiplier;
-
-        // 2. Take the opportunity to set weighted timestamp, if it changes
-        _balances[account].timeMultiplier = _timeMultiplier(oldBalance.weightedTimestamp);
+        require(newTimeMultiplier != oldBalance.timeMultiplier, "Nothing worth poking here");
+        _balances[_account].timeMultiplier = newTimeMultiplier;
 
         // 3. Update scaled balance
-        _mintScaled(account, _getBalance(_balances[account]) - oldScaledBalance);
+        _mintScaled(_account, _getBalance(_balances[_account]) - oldScaledBalance);
     }
 
     /**
      * @dev
      */
-    function _mintRaw(address account, uint256 rawAmount) internal virtual {
-        require(account != address(0), "ERC20: mint to the zero address");
-        _beforeBalanceChange(account);
+    function _applyQuestMultiplier(address _account, Quest memory _quest) internal virtual {
+        require(_account != address(0), "ERC20: mint to the zero address");
+        _beforeBalanceChange(_account);
+
+        // 1. Get current balance & update questMultiplier
+        (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
+        if (_quest.model == QuestType.PERMANENT) {
+            _balances[_account].permMultiplier += _quest.multiplier;
+        } else {
+            _balances[_account].seasonMultiplier += _quest.multiplier;
+        }
+
+        // 2. Take the opportunity to set weighted timestamp, if it changes
+        _balances[_account].timeMultiplier = _timeMultiplier(oldBalance.weightedTimestamp);
+
+        // 3. Update scaled balance
+        _mintScaled(_account, _getBalance(_balances[_account]) - oldScaledBalance);
+    }
+
+    /**
+     * @dev
+     */
+    function _mintRaw(address _account, uint256 _rawAmount) internal virtual {
+        require(_account != address(0), "ERC20: mint to the zero address");
+        _beforeBalanceChange(_account);
 
         // 1. Get and update current balance
-        Balance memory oldBalance = _balances[account];
-        uint256 oldScaledBalance = _getBalance(oldBalance);
-
-        _balances[account].raw = oldBalance.raw + SafeCast.toUint128(rawAmount);
+        (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
+        _balances[_account].raw = oldBalance.raw + SafeCast.toUint128(_rawAmount);
 
         // 2. Set weighted timestamp
-        //  i) For new account, set up weighted timestamp
+        //  i) For new _account, set up weighted timestamp
         if (oldBalance.weightedTimestamp == 0) {
-            _balances[account].weightedTimestamp = SafeCast.toUint32(block.timestamp);
-            _mintScaled(account, _getBalance(_balances[account]));
+            _balances[_account].weightedTimestamp = SafeCast.toUint32(block.timestamp);
+            _mintScaled(_account, _getBalance(_balances[_account]));
             return;
         }
         //  ii) For previous minters, recalculate time held
         //      Calc new weighted timestamp
         uint256 secondsHeld = (block.timestamp - oldBalance.weightedTimestamp) * oldBalance.raw;
-        uint256 newWeightedTs = secondsHeld / (oldBalance.raw + (rawAmount / 2));
-        _balances[account].weightedTimestamp = SafeCast.toUint32(block.timestamp - newWeightedTs);
+        uint256 newWeightedTs = secondsHeld / (oldBalance.raw + (_rawAmount / 2));
+        _balances[_account].weightedTimestamp = SafeCast.toUint32(block.timestamp - newWeightedTs);
 
         uint16 timeMultiplier = _timeMultiplier(SafeCast.toUint32(newWeightedTs));
-        _balances[account].timeMultiplier = timeMultiplier;
+        _balances[_account].timeMultiplier = timeMultiplier;
 
         // 3. Update scaled balance
         // TODO - more efficient way of getting this data
-        uint256 newScaledBalance = _getBalance(_balances[account]);
+        uint256 newScaledBalance = _getBalance(_balances[_account]);
         if (newScaledBalance > oldScaledBalance) {
-            _mintScaled(account, newScaledBalance - oldScaledBalance);
+            _mintScaled(_account, newScaledBalance - oldScaledBalance);
         }
         // This can happen if the user moves back a time class, but is unlikely to result in a negative mint
         else {
-            _burnScaled(account, oldScaledBalance - newScaledBalance);
+            _burnScaled(_account, oldScaledBalance - newScaledBalance);
         }
     }
 
     /**
      * @dev
      */
-    function _burnRaw(address account, uint256 rawAmount) internal virtual {
-        require(account != address(0), "ERC20: burn from the zero address");
-        _beforeBalanceChange(account);
+    function _burnRaw(address _account, uint256 _rawAmount) internal virtual {
+        require(_account != address(0), "ERC20: burn from the zero address");
+        _beforeBalanceChange(_account);
 
         // 1. Get and update current balance
-        Balance memory oldBalance = _balances[account];
-        uint256 oldScaledBalance = _getBalance(oldBalance);
-        require(oldBalance.raw >= rawAmount, "ERC20: burn amount exceeds balance");
+        (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
+        require(oldBalance.raw >= _rawAmount, "ERC20: burn amount exceeds balance");
         unchecked {
-            _balances[account].raw = oldBalance.raw - SafeCast.toUint128(rawAmount);
+            _balances[_account].raw = oldBalance.raw - SafeCast.toUint128(_rawAmount);
         }
 
         // 2. Set back scaled time
         // e.g. stake 10 for 100 seconds, withdraw 5.
         //      secondsHeld = (100 - 0) * (10 - 1.25) = 875
         uint256 secondsHeld = (block.timestamp - oldBalance.weightedTimestamp) *
-            (oldBalance.raw - (rawAmount / 4));
+            (oldBalance.raw - (_rawAmount / 4));
         //      newWeightedTs = 875 / 100 = 87.5
         uint256 newWeightedTs = secondsHeld / oldBalance.raw;
-        _balances[account].weightedTimestamp = SafeCast.toUint32(block.timestamp - newWeightedTs);
+        _balances[_account].weightedTimestamp = SafeCast.toUint32(block.timestamp - newWeightedTs);
 
         uint16 timeMultiplier = _timeMultiplier(SafeCast.toUint32(newWeightedTs));
-        _balances[account].timeMultiplier = timeMultiplier;
+        _balances[_account].timeMultiplier = timeMultiplier;
 
         // 3. Update scaled balance
-        _burnScaled(account, oldScaledBalance - _getBalance(_balances[account]));
+        _burnScaled(_account, oldScaledBalance - _getBalance(_balances[_account]));
     }
 
     /**
      * @dev
      */
-    function _mintScaled(address account, uint256 amount) internal virtual {
-        _totalSupply += amount;
-        emit Transfer(address(0), account, amount);
+    function _mintScaled(address _account, uint256 _amount) internal virtual {
+        _totalSupply += _amount;
+        emit Transfer(address(0), _account, _amount);
 
         // AfterTokenTransfer has scaled voting power
-        _afterTokenTransfer(address(0), account, amount);
+        _afterTokenTransfer(address(0), _account, _amount);
     }
 
     /**
      * @dev
      */
-    function _burnScaled(address account, uint256 amount) internal virtual {
-        _totalSupply -= amount;
+    function _burnScaled(address _account, uint256 _amount) internal virtual {
+        _totalSupply -= _amount;
 
-        emit Transfer(account, address(0), amount);
+        emit Transfer(_account, address(0), _amount);
 
-        _afterTokenTransfer(account, address(0), amount);
+        _afterTokenTransfer(_account, address(0), _amount);
+    }
+
+    /**
+     * @dev This must be called before each state change
+     */
+    function _checkForSeasonFinish(Balance memory _balance, address _account) internal {
+        // Seasons happen every 9 months after contract creation
+        // TODO - how to cope with some users being inactive for the whole 9 months?
+        //      - Answer: give out a time based quest at the start of each new season.. then after this has finished,
+        //                trigger the remaining high value quest accounts
+        // If the last action was before current season, then reset the season timing
+        if (_balance.lastAction < _seasonEpoch) {
+            // Remove 75% of the multiplier gained in this season
+            _balances[_account].seasonMultiplier = (_balance.seasonMultiplier * 25) / 100;
+        }
+        _balances[_account].lastAction = SafeCast.toUint32(block.timestamp);
     }
 
     /***************************************
@@ -414,15 +461,15 @@ abstract contract GamifiedToken is
     /**
      * @dev
      */
-    function _beforeBalanceChange(address account) internal virtual {}
+    function _beforeBalanceChange(address _account) internal virtual {}
 
     /**
      * @dev
      */
     function _afterTokenTransfer(
-        address from,
-        address to,
-        uint256 amount
+        address _from,
+        address _to,
+        uint256 _amount
     ) internal virtual {}
 
     // TODO - ensure this represents storage space

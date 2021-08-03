@@ -26,6 +26,14 @@ describe("Staked Token", () => {
         it("should update total votingPower, totalSupply, etc, retroactively")
     })
 
+    context("questing and multipliers", () => {
+        it("should allow an admin to add a seasonal quest")
+        it("should allow a user to complete a seasonal quest with verification")
+        it("should increase a users voting power when they complete said quest")
+        it("should allow an admin to end the quest season")
+        it("should slash an old seasons reward on any action")
+    })
+
     context("unstaking", () => {
         it("should not be possible before unstake window")
         it("should not be possible after the unstake window")
