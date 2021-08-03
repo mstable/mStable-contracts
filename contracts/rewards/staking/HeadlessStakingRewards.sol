@@ -167,7 +167,7 @@ abstract contract HeadlessStakingRewards is
         }
         // new reward units to distribute = rewardRate * timeSinceLastUpdate
         uint256 rewardUnitsToDistribute = data.rewardRate * timeDelta; // + 1 SLOAD
-        uint256 supply = _totalSupply(); // + 1 SLOAD
+        uint256 supply = totalSupply(); // + 1 SLOAD
         // If there is no StakingToken liquidity, avoid div(0)
         // If there is nothing to distribute, short circuit
         if (supply == 0 || rewardUnitsToDistribute == 0) {
@@ -200,7 +200,7 @@ abstract contract HeadlessStakingRewards is
             return userData[_account].rewards;
         }
         // new reward = staked tokens * difference in rate
-        uint256 userNewReward = _balanceOf(_account).mulTruncate(userRewardDelta); // + 1 SLOAD
+        uint256 userNewReward = balanceOf(_account).mulTruncate(userRewardDelta); // + 1 SLOAD
         // add to previous rewards
         return userData[_account].rewards + userNewReward;
     }
@@ -209,9 +209,9 @@ abstract contract HeadlessStakingRewards is
                 ABSTRACT GETTERS
     ****************************************/
 
-    function _balanceOf(address account) internal view virtual returns (uint256);
+    function balanceOf(address account) public view virtual returns (uint256);
 
-    function _totalSupply() internal view virtual returns (uint256);
+    function totalSupply() public view virtual returns (uint256);
 
     /***************************************
                     ADMIN

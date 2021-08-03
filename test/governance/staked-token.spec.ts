@@ -34,6 +34,19 @@ describe("Staked Token", () => {
         it("should slash an old seasons reward on any action")
     })
 
+    context("triggering the governance hook", () => {
+        it("should allow governor to add a governanceHook")
+        it("should trigger governanceHook each time voting weight changes")
+        // WE should write a mock IGovernanceHook here.. and project how much it's going to cost.
+        // If the flow is:
+        //  - Look up preferences of the user
+        //  - Update their personal balances in each gauge <- can we remove the SSTORES from this step and just use the gain/loss in voting power?
+        //  - Update the total balance in each gauge & total overall balance
+        // Then it could end up costing ~4 SLOADS and ~2 SSTORES per dial preference, which is >18k per dial (4 dials and we are up to 80k...)
+        // This can be optimised as part of the dials release but worth thinking about now.
+        it("should not cause a ridiculous amount of extra gas to trigger")
+    })
+
     context("unstaking", () => {
         it("should not be possible before unstake window")
         it("should not be possible after the unstake window")

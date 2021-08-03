@@ -8,14 +8,13 @@ import { IStakedToken } from "./IStakedToken.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import { GamifiedVotingToken } from "./deps/GamifiedVotingToken.sol";
-import { HeadlessStakingRewards } from "../../rewards/staking/HeadlessStakingRewards.sol";
 
 /**
  * @title StakedToken
  * @notice Contract to stake Aave token, tokenize the position and get rewards, inheriting from a distribution manager contract
  * @author Aave
  **/
-contract StakedToken is IStakedToken, GamifiedVotingToken, HeadlessStakingRewards {
+contract StakedToken is IStakedToken, GamifiedVotingToken {
     using SafeERC20 for IERC20;
 
     IERC20 public immutable STAKED_TOKEN;
@@ -43,7 +42,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken, HeadlessStakingReward
         uint256 _cooldownSeconds,
         uint256 _unstakeWindow,
         uint256 _migrationWindow
-    ) GamifiedVotingToken(_signer) HeadlessStakingRewards(_nexus, _rewardsToken, _duration) {
+    ) GamifiedVotingToken(_signer, _nexus, _rewardsToken, _duration) {
         STAKED_TOKEN = IERC20(_stakedToken);
         COOLDOWN_SECONDS = _cooldownSeconds;
         UNSTAKE_WINDOW = _unstakeWindow;
@@ -58,8 +57,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken, HeadlessStakingReward
         string memory _symbolArg,
         address _rewardsDistributorArg
     ) external initializer {
-        __GamifiedToken_init(_nameArg, _symbolArg);
-        HeadlessStakingRewards._initialize(_rewardsDistributorArg);
+        __GamifiedToken_init(_nameArg, _symbolArg, _rewardsDistributorArg);
     }
 
     /***************************************
@@ -172,7 +170,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken, HeadlessStakingReward
     }
 
     /***************************************
-                    HOOKS
+                    ADMIN
     ****************************************/
 
     /**
@@ -183,27 +181,6 @@ contract StakedToken is IStakedToken, GamifiedVotingToken, HeadlessStakingReward
     /***************************************
                     GETTERS
     ****************************************/
-
-    /**
-     * @dev
-     */
-    function _balanceOf(address account) internal view override returns (uint256) {
-        return balanceOf(account);
-    }
-
-    /**
-     * @dev
-     */
-    function _totalSupply() internal view override returns (uint256) {
-        return totalSupply();
-    }
-
-    /**
-     * @dev
-     */
-    function _questMasterOrGovernor(address account) internal view override returns (bool) {
-        return account == questMaster || account == _governor();
-    }
 
     // TODO - update natspec
     /**

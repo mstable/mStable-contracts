@@ -8,18 +8,23 @@ import { ECDSAUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/cryp
 import { GamifiedToken } from "./GamifiedToken.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
+interface IGovernanceHook {
+    function moveVotingPowerHook(
+        address from,
+        address to,
+        uint256 amount
+    ) external;
+}
+
 /**
  * @dev Forked from https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/blob/master/contracts/token/ERC20/extensions/ERC20VotesUpgradeable.sol
  * Changes:
  *   - Prettier formatting
  *   - Renaming of functions to "mintRaw"
- *   - Removal of hook
+ *   - Removal of beforeTransfer hook
+ *   - Add _emissionDials hook
  */
 abstract contract GamifiedVotingToken is Initializable, GamifiedToken {
-    constructor(address _signer) GamifiedToken(_signer) {}
-
-    function __GamifiedVotingToken_init() internal initializer {}
-
     struct Checkpoint {
         uint32 fromBlock;
         uint224 votes;
@@ -28,6 +33,9 @@ abstract contract GamifiedVotingToken is Initializable, GamifiedToken {
     mapping(address => address) private _delegates;
     mapping(address => Checkpoint[]) private _checkpoints;
     Checkpoint[] private _totalSupplyCheckpoints;
+    IGovernanceHook private _governanceHook;
+
+    event GovernanceHookChanged(address indexed hook);
 
     /**
      * @dev Emitted when an account changes their delegate.
@@ -46,6 +54,24 @@ abstract contract GamifiedVotingToken is Initializable, GamifiedToken {
         uint256 previousBalance,
         uint256 newBalance
     );
+
+    constructor(
+        address _signer,
+        address _nexus,
+        address _rewardsToken,
+        uint256 _duration
+    ) GamifiedToken(_signer, _nexus, _rewardsToken, _duration) {}
+
+    function __GamifiedVotingToken_init() internal initializer {}
+
+    /**
+     * @dev
+     **/
+    function setGovernanceHook(address _newHook) external onlyGovernor {
+        _governanceHook = IGovernanceHook(_newHook);
+
+        emit GovernanceHookChanged(_newHook);
+    }
 
     /**
      * @dev Get the `pos`-th checkpoint for `account`.
@@ -228,6 +254,10 @@ abstract contract GamifiedVotingToken is Initializable, GamifiedToken {
                     amount
                 );
                 emit DelegateVotesChanged(dst, oldWeight, newWeight);
+            }
+
+            if (address(_governanceHook) != address(0)) {
+                _governanceHook.moveVotingPowerHook(src, dst, amount);
             }
         }
     }

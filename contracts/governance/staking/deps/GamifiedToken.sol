@@ -7,6 +7,7 @@ import { ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/Co
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { SignatureVerifier } from "./SignatureVerifier.sol";
+import { HeadlessStakingRewards } from "../../../rewards/staking/HeadlessStakingRewards.sol";
 
 /**
  * @dev Forked from https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/blob/master/contracts/token/ERC20/ERC20Upgradeable.sol
@@ -18,7 +19,8 @@ abstract contract GamifiedToken is
     Initializable,
     ContextUpgradeable,
     ILockedERC20,
-    SignatureVerifier
+    SignatureVerifier,
+    HeadlessStakingRewards
 {
     struct Balance {
         uint128 raw;
@@ -83,24 +85,32 @@ abstract contract GamifiedToken is
                     INIT
     ****************************************/
 
-    constructor(address _signer) SignatureVerifier(_signer) {}
+    constructor(
+        address _signer,
+        address _nexus,
+        address _rewardsToken,
+        uint256 _duration
+    ) SignatureVerifier(_signer) HeadlessStakingRewards(_nexus, _rewardsToken, _duration) {}
 
     /**
      * @dev
      */
-    function __GamifiedToken_init(string memory name_, string memory symbol_) internal initializer {
+    function __GamifiedToken_init(
+        string memory name_,
+        string memory symbol_,
+        address rewardsDistributorArg_
+    ) internal initializer {
         __Context_init_unchained();
         _name = name_;
         _symbol = symbol_;
         _seasonEpoch = SafeCast.toUint32(block.timestamp);
+        HeadlessStakingRewards._initialize(rewardsDistributorArg_);
     }
 
     modifier questMasterOrGovernor() {
-        _questMasterOrGovernor(msg.sender);
+        require(_msgSender() == questMaster || _msgSender() == _governor(), "Not verified");
         _;
     }
-
-    function _questMasterOrGovernor(address _account) internal virtual returns (bool);
 
     /***************************************
                     VIEWS
@@ -130,14 +140,26 @@ abstract contract GamifiedToken is
     /**
      * @dev
      */
-    function totalSupply() public view virtual override returns (uint256) {
+    function totalSupply()
+        public
+        view
+        virtual
+        override(HeadlessStakingRewards, ILockedERC20)
+        returns (uint256)
+    {
         return _totalSupply;
     }
 
     /**
      * @dev See {IERC20-balanceOf}.
      */
-    function balanceOf(address _account) public view virtual override returns (uint256) {
+    function balanceOf(address _account)
+        public
+        view
+        virtual
+        override(HeadlessStakingRewards, ILockedERC20)
+        returns (uint256)
+    {
         return _getBalance(_balances[_account]);
     }
 
@@ -293,20 +315,6 @@ abstract contract GamifiedToken is
     ****************************************/
 
     /**
-     * @dev Called before every state change op to fetch old balance and update the 'lastAction' timestamp
-     */
-    function _prepareOldBalance(address _account)
-        internal
-        returns (Balance memory oldBalance, uint256 oldScaledBalance)
-    {
-        // Get the old balance
-        oldBalance = _balances[_account];
-        oldScaledBalance = _getBalance(oldBalance);
-        // Take the opportunity to check for season finish
-        _checkForSeasonFinish(oldBalance, _account);
-    }
-
-    /**
      * @dev
      */
     function _pokeWeightedTimestamp(address _account) internal {
@@ -436,6 +444,20 @@ abstract contract GamifiedToken is
         emit Transfer(_account, address(0), _amount);
 
         _afterTokenTransfer(_account, address(0), _amount);
+    }
+
+    /**
+     * @dev Called before every state change op to fetch old balance and update the 'lastAction' timestamp
+     */
+    function _prepareOldBalance(address _account)
+        internal
+        returns (Balance memory oldBalance, uint256 oldScaledBalance)
+    {
+        // Get the old balance
+        oldBalance = _balances[_account];
+        oldScaledBalance = _getBalance(oldBalance);
+        // Take the opportunity to check for season finish
+        _checkForSeasonFinish(oldBalance, _account);
     }
 
     /**
