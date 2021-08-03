@@ -1,28 +1,26 @@
-// SPDX-License-Identifier: MIT
-
+// SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.0;
 
 import { MathUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 import { SafeCastUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 import { ECDSAUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
 import { GamifiedToken } from "./GamifiedToken.sol";
+import { IGovernanceHook } from "./interfaces/IGovernanceHook.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-interface IGovernanceHook {
-    function moveVotingPowerHook(
-        address from,
-        address to,
-        uint256 amount
-    ) external;
-}
-
 /**
- * @dev Forked from https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/blob/master/contracts/token/ERC20/extensions/ERC20VotesUpgradeable.sol
+ * @title GamifiedVotingToken
+ * @notice GamifiedToken is a checkpointed Voting Token derived from OpenZeppelin "ERC20VotesUpgradable"
+ * @author mStable
+ * @dev Forked from openzeppelin-contracts-upgradeable/contracts/token/ERC20/extensions/ERC20VotesUpgradeable.sol
  * Changes:
+ *   - Inherits custom GamifiedToken rather than basic ERC20
+ *     - Removal of `Permit` functionality & `delegatebySig`
+ *   - Override `delegates` fn as described in their docs
  *   - Prettier formatting
- *   - Renaming of functions to "mintRaw"
- *   - Removal of beforeTransfer hook
- *   - Add _emissionDials hook
+ *   - Addition of `totalSupply` method to get latest totalSupply
+ *   - Move totalSupply checkpoints to `afterTokenTransfer`
+ *   - Add _governanceHook hook to storage, setter
  */
 abstract contract GamifiedVotingToken is Initializable, GamifiedToken {
     struct Checkpoint {
@@ -33,6 +31,7 @@ abstract contract GamifiedVotingToken is Initializable, GamifiedToken {
     mapping(address => address) private _delegates;
     mapping(address => Checkpoint[]) private _checkpoints;
     Checkpoint[] private _totalSupplyCheckpoints;
+
     IGovernanceHook private _governanceHook;
 
     event GovernanceHookChanged(address indexed hook);
@@ -58,9 +57,8 @@ abstract contract GamifiedVotingToken is Initializable, GamifiedToken {
     constructor(
         address _signer,
         address _nexus,
-        address _rewardsToken,
-        uint256 _duration
-    ) GamifiedToken(_signer, _nexus, _rewardsToken, _duration) {}
+        address _rewardsToken
+    ) GamifiedToken(_signer, _nexus, _rewardsToken) {}
 
     function __GamifiedVotingToken_init() internal initializer {}
 
@@ -133,6 +131,15 @@ abstract contract GamifiedVotingToken is Initializable, GamifiedToken {
     function getPastTotalSupply(uint256 blockNumber) public view returns (uint256) {
         require(blockNumber < block.number, "ERC20Votes: block not yet mined");
         return _checkpointsLookup(_totalSupplyCheckpoints, blockNumber);
+    }
+
+    /**
+     * @dev Total sum of all scaled balances
+     */
+    function totalSupply() public view override returns (uint256) {
+        uint256 len = _totalSupplyCheckpoints.length;
+        if (len == 0) return 0;
+        return _totalSupplyCheckpoints[len - 1].votes;
     }
 
     /**

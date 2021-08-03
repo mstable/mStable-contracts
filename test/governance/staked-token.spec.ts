@@ -31,6 +31,8 @@ describe("Staked Token", () => {
         it("should allow a user to complete a seasonal quest with verification")
         it("should increase a users voting power when they complete said quest")
         it("should allow an admin to end the quest season")
+        // Important that each action (checkTimestamp, completeQuest, mint) applies this because
+        // scaledBalance could actually decrease, even in these situations, since old seasonMultipliers are slashed
         it("should slash an old seasons reward on any action")
     })
 
@@ -51,5 +53,11 @@ describe("Staked Token", () => {
         it("should not be possible before unstake window")
         it("should not be possible after the unstake window")
         it("should not reset the cooldown timer unless all is unstaked")
+        it("should apply a redemption fee which is added to the pendingRewards from the rewards contract")
+        it("should distribute these pendingAdditionalReward with the next notification")
+    })
+
+    context("updating lastAction timestamp", () => {
+        it("should be triggered after every WRITE action on the contract")
     })
 })

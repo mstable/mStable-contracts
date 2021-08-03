@@ -14,8 +14,12 @@ import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/I
 /**
  * @title  HeadlessStakingRewards
  * @author mStable
- * @notice Rewards stakers of a given LP token (a.k.a StakingToken) with REWARDS_TOKEN, on a pro-rata basis
- * @dev
+ * @notice Rewards stakers of a given LP token with REWARDS_TOKEN, on a pro-rata basis
+ * @dev Forked from `StakingRewards.sol`
+ *      Changes:
+ *          - `pendingAdditionalReward` added to support accumulation of any extra staking token
+ *          - Removal of `StakingTokenWrapper`, instead, deposits and withdrawals are made in child contract,
+ *            and balances are read from there through the abstract functions
  */
 abstract contract HeadlessStakingRewards is
     Initializable,
@@ -28,7 +32,7 @@ abstract contract HeadlessStakingRewards is
     IERC20 public immutable REWARDS_TOKEN;
 
     /// @notice length of each staking period in seconds. 7 days = 604,800; 3 months = 7,862,400
-    uint256 public immutable DURATION;
+    uint256 public constant DURATION = 1 weeks;
 
     struct Data {
         /// Timestamp for current period finish
@@ -56,15 +60,11 @@ abstract contract HeadlessStakingRewards is
     /**
      * @param _nexus mStable system Nexus address
      * @param _rewardsToken first token that is being distributed as a reward. eg MTA
-     * @param _duration length of each staking period in seconds. 7 days = 604,800; 3 months = 7,862,400
      */
-    constructor(
-        address _nexus,
-        address _rewardsToken,
-        uint256 _duration
-    ) InitializableRewardsDistributionRecipient(_nexus) {
+    constructor(address _nexus, address _rewardsToken)
+        InitializableRewardsDistributionRecipient(_nexus)
+    {
         REWARDS_TOKEN = IERC20(_rewardsToken);
-        DURATION = _duration;
     }
 
     /**
@@ -231,11 +231,17 @@ abstract contract HeadlessStakingRewards is
         _notifyRewardAmount(_reward);
     }
 
+    /**
+     * @dev Notifies the contract that new rewards have been added.
+     * Calculates an updated rewardRate based on the rewards in period.
+     * @param _reward Units of RewardToken that have been added to the pool
+     */
     function _notifyRewardAmount(uint256 _reward) internal {
         require(_reward < 1e24, "Cannot notify with more than a million units");
 
         uint256 currentTime = block.timestamp;
 
+        // Pay and reset the pendingAdditionalRewards
         _reward += pendingAdditionalReward;
         pendingAdditionalReward = 0;
 
@@ -256,6 +262,11 @@ abstract contract HeadlessStakingRewards is
         emit RewardAdded(_reward);
     }
 
+    /**
+     * @dev Called by the child contract to notify of any additional rewards that have accrued.
+     *      Trusts that this is called honestly.
+     * @param _additionalReward Units of additional RewardToken to add at the next notification
+     */
     function _notifyAdditionalReward(uint256 _additionalReward) internal {
         require(_additionalReward < 1e24, "Cannot notify with more than a million units");
 

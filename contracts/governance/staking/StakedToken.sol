@@ -2,27 +2,32 @@
 pragma solidity 0.8.6;
 pragma abicoder v2;
 
+import { IStakedToken } from "./interfaces/IStakedToken.sol";
+import { GamifiedVotingToken } from "./GamifiedVotingToken.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IStakedToken } from "./IStakedToken.sol";
-
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
-import { GamifiedVotingToken } from "./deps/GamifiedVotingToken.sol";
+import "./GamifiedTokenStructs.sol";
 
 /**
  * @title StakedToken
- * @notice Contract to stake Aave token, tokenize the position and get rewards, inheriting from a distribution manager contract
- * @author Aave
+ * @notice StakedToken is a non-transferrable ERC20 token that allows users to stake and withdraw, earning voting rights.
+ * Scaled balance is determined by quests a user completes, and the length of time they keep the raw balance wrapped.
+ * @author mStable
+ * @dev TODO
  **/
 contract StakedToken is IStakedToken, GamifiedVotingToken {
     using SafeERC20 for IERC20;
 
+    /// @notice Core token that is staked and tracked (e.g. MTA)
     IERC20 public immutable STAKED_TOKEN;
+    /// @notice Seconds a user must wait after she initiates her cooldown before withdrawal is possible
     uint256 public immutable COOLDOWN_SECONDS;
+    /// @notice Window in which it is possible to withdraw, following the cooldown period
     uint256 public immutable UNSTAKE_WINDOW;
-    uint256 public immutable MIGRATION_WINDOW;
+    /// @notice A week
     uint256 private constant ONE_WEEK = 7 days;
 
+    /// @notice Tracks the cooldowns for all users
     mapping(address => uint256) public stakersCooldowns;
 
     event Staked(address indexed user, uint256 amount, address delegatee);
@@ -33,25 +38,32 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
                     INIT
     ****************************************/
 
+    /**
+     * @param _signer Signer address is used to verify completion of quests off chain
+     * @param _nexus System nexus
+     * @param _rewardsToken Token that is being distributed as a reward. eg MTA
+     * @param _stakedToken Core token that is staked and tracked (e.g. MTA)
+     * @param _cooldownSeconds Seconds a user must wait after she initiates her cooldown before withdrawal is possible
+     * @param _unstakeWindow Window in which it is possible to withdraw, following the cooldown period
+     */
     constructor(
         address _signer,
         address _nexus,
         address _rewardsToken,
-        uint256 _duration,
         address _stakedToken,
         uint256 _cooldownSeconds,
-        uint256 _unstakeWindow,
-        uint256 _migrationWindow
-    ) GamifiedVotingToken(_signer, _nexus, _rewardsToken, _duration) {
+        uint256 _unstakeWindow
+    ) GamifiedVotingToken(_signer, _nexus, _rewardsToken) {
         STAKED_TOKEN = IERC20(_stakedToken);
         COOLDOWN_SECONDS = _cooldownSeconds;
         UNSTAKE_WINDOW = _unstakeWindow;
-        MIGRATION_WINDOW = _migrationWindow;
     }
 
     /**
-     * @dev Called by the proxy contract
-     **/
+     * @param _nameArg Token name
+     * @param _symbolArg Token symbol
+     * @param _rewardsDistributorArg mStable Rewards Distributor
+     */
     function initialize(
         string memory _nameArg,
         string memory _symbolArg,
@@ -65,21 +77,21 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     ****************************************/
 
     /**
-     * @dev
+     * @dev TODO
      */
     function stake(uint256 _amount) external override {
         _stake(_amount, address(0));
     }
 
     /**
-     * @dev
+     * @dev TODO
      */
-    function stake(uint256 _amount, address _delegatee) external {
+    function stake(uint256 _amount, address _delegatee) external override {
         _stake(_amount, _delegatee);
     }
 
     /**
-     * @dev
+     * @dev TODO
      */
     function _stake(uint256 _amount, address _delegatee) internal {
         require(_amount != 0, "INVALID_ZERO_AMOUNT");
@@ -89,7 +101,6 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
             _delegate(_msgSender(), _delegatee);
         }
 
-        // TODO - move this to 'beforeTokenTransfer'?
         stakersCooldowns[_msgSender()] = getNextCooldownTimestamp(
             _amount,
             _msgSender(),
@@ -103,9 +114,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     }
 
     /**
-     * @dev Redeems staked tokens, and stop earning rewards
-     * @param _amount Amount to redeem
-     * @param _recipient Address to redeem to
+     * @dev TODO
      **/
     function withdraw(
         uint256 _amount,
@@ -130,9 +139,8 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         }
 
         // Apply redemption fee
-        uint256 weeksStaked = ((block.timestamp - balance.weightedTimestamp) * 1e18) / ONE_WEEK;
         // e.g. (55e18 / 5e18) - 2e18 = 9e18 / 100 = 9e16
-        uint256 feeRate = _calcRedemptionFeeRate(weeksStaked);
+        uint256 feeRate = _calcRedemptionFeeRate(balance.weightedTimestamp);
         // fee = amount * 1e18 / feeRate
         // totalAmount = amount + fee
         // fee = amount * (1e18 - feeRate) / 1e18
@@ -147,11 +155,18 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     }
 
     /**
-     * @dev
+     * @dev fee = x/k - 2, where x = weeks since a user has staked, and k = 55
+     * @param _weightedTimestamp The users weightedTimestamp
+     * @return _feeRate where 1% == 1e16
      */
-    function _calcRedemptionFeeRate(uint256 _weeksStaked) internal pure returns (uint256 _feeRate) {
-        if (_weeksStaked > 4e18) {
-            _feeRate = 55e18 / _weeksStaked;
+    function _calcRedemptionFeeRate(uint32 _weightedTimestamp)
+        internal
+        view
+        returns (uint256 _feeRate)
+    {
+        uint256 weeksStaked = ((block.timestamp - _weightedTimestamp) * 1e18) / ONE_WEEK;
+        if (weeksStaked > 4e18) {
+            _feeRate = 55e18 / weeksStaked;
             _feeRate = _feeRate < 2e18 ? 0 : _feeRate - 2e18;
         } else {
             _feeRate = 1e17;
@@ -159,15 +174,16 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     }
 
     /**
-     * @dev Activates the cooldown period to unstake
-     * - It can't be called if the user is not staking
+     * @dev TODO
      **/
     function startCooldown() external override {
         require(balanceOf(_msgSender()) != 0, "INVALID_BALANCE_ON_COOLDOWN");
         //solium-disable-next-line
         stakersCooldowns[_msgSender()] = block.timestamp;
 
-        // TODO - apply penalty here
+        // TODO - apply penalty here..
+        // Is there a need for the unstake window if we are slashing? Can just leave it open ended
+        // TODO - poke _checkForSeasonFinish here
 
         emit Cooldown(_msgSender());
     }
@@ -176,15 +192,8 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
                     GETTERS
     ****************************************/
 
-    // TODO - update natspec
     /**
-     * @dev Calculates the new cooldown timestamp depending on the balance
-     *  - If the receiver's cooldown timestamp expired (too old), the next is 0
-     *  - Weighted average if
-     * @param _amountToReceive Amount
-     * @param _toAddress Address of the recipient
-     * @param _toBalance Current balance of the receiver
-     * @return The new cooldown timestamp
+     * @dev TODO
      **/
     function getNextCooldownTimestamp(
         uint256 _amountToReceive,
