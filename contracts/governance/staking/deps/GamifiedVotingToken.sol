@@ -66,7 +66,7 @@ abstract contract GamifiedVotingToken is Initializable, GamifiedToken {
 
     /**
      * @dev
-     **/
+     */
     function setGovernanceHook(address _newHook) external onlyGovernor {
         _governanceHook = IGovernanceHook(_newHook);
 

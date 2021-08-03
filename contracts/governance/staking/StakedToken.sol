@@ -146,6 +146,9 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         emit Redeem(_msgSender(), _recipient, _amount);
     }
 
+    /**
+     * @dev
+     */
     function _calcRedemptionFeeRate(uint256 _weeksStaked) internal pure returns (uint256 _feeRate) {
         if (_weeksStaked > 4e18) {
             _feeRate = 55e18 / _weeksStaked;
@@ -168,15 +171,6 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
 
         emit Cooldown(_msgSender());
     }
-
-    /***************************************
-                    ADMIN
-    ****************************************/
-
-    /**
-     * @dev Responsible for updating rewards
-     **/
-    function _beforeBalanceChange(address _account) internal override updateReward(_account) {}
 
     /***************************************
                     GETTERS

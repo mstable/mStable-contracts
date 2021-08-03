@@ -29,7 +29,7 @@ abstract contract GamifiedToken is
         uint16 permMultiplier;
         uint16 seasonMultiplier;
         uint16 timeMultiplier;
-        // bool isInCooldown;
+        bool isInCooldown;
     }
     enum QuestType {
         PERMANENT,
@@ -311,15 +311,14 @@ abstract contract GamifiedToken is
     }
 
     /***************************************
-                STATE CHANGES
+                BALANCE CHANGES
     ****************************************/
 
     /**
      * @dev
      */
-    function _pokeWeightedTimestamp(address _account) internal {
+    function _pokeWeightedTimestamp(address _account) internal updateReward(_account) {
         require(_account != address(0), "ERC20: mint to the zero address");
-        _beforeBalanceChange(_account);
 
         // 1. Get current balance
         (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
@@ -336,9 +335,12 @@ abstract contract GamifiedToken is
     /**
      * @dev
      */
-    function _applyQuestMultiplier(address _account, Quest memory _quest) internal virtual {
+    function _applyQuestMultiplier(address _account, Quest memory _quest)
+        internal
+        virtual
+        updateReward(_account)
+    {
         require(_account != address(0), "ERC20: mint to the zero address");
-        _beforeBalanceChange(_account);
 
         // 1. Get current balance & update questMultiplier
         (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
@@ -358,9 +360,12 @@ abstract contract GamifiedToken is
     /**
      * @dev
      */
-    function _mintRaw(address _account, uint256 _rawAmount) internal virtual {
+    function _mintRaw(address _account, uint256 _rawAmount)
+        internal
+        virtual
+        updateReward(_account)
+    {
         require(_account != address(0), "ERC20: mint to the zero address");
-        _beforeBalanceChange(_account);
 
         // 1. Get and update current balance
         (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
@@ -397,9 +402,12 @@ abstract contract GamifiedToken is
     /**
      * @dev
      */
-    function _burnRaw(address _account, uint256 _rawAmount) internal virtual {
+    function _burnRaw(address _account, uint256 _rawAmount)
+        internal
+        virtual
+        updateReward(_account)
+    {
         require(_account != address(0), "ERC20: burn from the zero address");
-        _beforeBalanceChange(_account);
 
         // 1. Get and update current balance
         (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
@@ -424,10 +432,15 @@ abstract contract GamifiedToken is
         _burnScaled(_account, oldScaledBalance - _getBalance(_balances[_account]));
     }
 
+    /***************************************
+                    PRIVATE
+    updateReward should already be called by now
+    ****************************************/
+
     /**
      * @dev
      */
-    function _mintScaled(address _account, uint256 _amount) internal virtual {
+    function _mintScaled(address _account, uint256 _amount) private {
         _totalSupply += _amount;
         emit Transfer(address(0), _account, _amount);
 
@@ -438,7 +451,7 @@ abstract contract GamifiedToken is
     /**
      * @dev
      */
-    function _burnScaled(address _account, uint256 _amount) internal virtual {
+    function _burnScaled(address _account, uint256 _amount) private {
         _totalSupply -= _amount;
 
         emit Transfer(_account, address(0), _amount);
@@ -450,7 +463,7 @@ abstract contract GamifiedToken is
      * @dev Called before every state change op to fetch old balance and update the 'lastAction' timestamp
      */
     function _prepareOldBalance(address _account)
-        internal
+        private
         returns (Balance memory oldBalance, uint256 oldScaledBalance)
     {
         // Get the old balance
@@ -463,7 +476,7 @@ abstract contract GamifiedToken is
     /**
      * @dev This must be called before each state change
      */
-    function _checkForSeasonFinish(Balance memory _balance, address _account) internal {
+    function _checkForSeasonFinish(Balance memory _balance, address _account) private {
         // Seasons happen every 9 months after contract creation
         // TODO - how to cope with some users being inactive for the whole 9 months?
         //      - Answer: give out a time based quest at the start of each new season.. then after this has finished,
@@ -479,11 +492,6 @@ abstract contract GamifiedToken is
     /***************************************
                     HOOKS
     ****************************************/
-
-    /**
-     * @dev
-     */
-    function _beforeBalanceChange(address _account) internal virtual {}
 
     /**
      * @dev
