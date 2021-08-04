@@ -4,6 +4,7 @@ pragma solidity 0.8.6;
 // Internal
 import { InitializableRewardsDistributionRecipient } from "../InitializableRewardsDistributionRecipient.sol";
 import { StableMath } from "../../shared/StableMath.sol";
+import { PlatformTokenVendor } from "./PlatformTokenVendor.sol";
 
 // Libs
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -30,9 +31,10 @@ abstract contract HeadlessStakingRewards is
 
     /// @notice token the rewards are distributed in. eg MTA
     IERC20 public immutable REWARDS_TOKEN;
-
     /// @notice length of each staking period in seconds. 7 days = 604,800; 3 months = 7,862,400
     uint256 public constant DURATION = 1 weeks;
+    /// @notice contract that holds the platform tokens
+    PlatformTokenVendor public rewardTokenVendor;
 
     struct Data {
         /// Timestamp for current period finish
@@ -75,6 +77,7 @@ abstract contract HeadlessStakingRewards is
      */
     function _initialize(address _rewardsDistributorArg) internal virtual override {
         InitializableRewardsDistributionRecipient._initialize(_rewardsDistributorArg);
+        rewardTokenVendor = new PlatformTokenVendor(REWARDS_TOKEN);
     }
 
     /** @dev Updates the reward for a given address, before executing function */
@@ -120,7 +123,7 @@ abstract contract HeadlessStakingRewards is
         uint128 reward = userData[msg.sender].rewards;
         if (reward > 0) {
             userData[msg.sender].rewards = 0;
-            REWARDS_TOKEN.safeTransfer(_to, reward);
+            REWARDS_TOKEN.safeTransferFrom(address(rewardTokenVendor), _to, reward);
             emit RewardPaid(msg.sender, _to, reward);
         }
     }
@@ -244,6 +247,9 @@ abstract contract HeadlessStakingRewards is
         // Pay and reset the pendingAdditionalRewards
         _reward += pendingAdditionalReward;
         pendingAdditionalReward = 0;
+        if (_reward > 0) {
+            REWARDS_TOKEN.safeTransfer(address(rewardTokenVendor), _reward);
+        }
 
         // If previous period over, reset rewardRate
         if (currentTime >= globalData.periodFinish) {
