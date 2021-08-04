@@ -59,19 +59,24 @@ describe("StakingRewards", async () => {
         periodFinishTime: BN
     }
 
-    const snapshotStakingData = async (sender = sa.default, beneficiary = sa.default): Promise<StakingData> => ({
-        totalSupply: await stakingRewards.totalSupply(),
-        userStakingBalance: await stakingRewards.balanceOf(beneficiary.address),
-        userRewardPerTokenPaid: await stakingRewards.userRewardPerTokenPaid(beneficiary.address),
-        senderStakingTokenBalance: await stakingToken.balanceOf(sender.address),
-        contractStakingTokenBalance: await stakingToken.balanceOf(stakingRewards.address),
-        beneficiaryRewardsEarned: await stakingRewards.rewards(beneficiary.address),
-        rewardPerTokenStored: await stakingRewards.rewardPerTokenStored(),
-        rewardRate: await stakingRewards.rewardRate(),
-        lastUpdateTime: await stakingRewards.lastUpdateTime(),
-        lastTimeRewardApplicable: await stakingRewards.lastTimeRewardApplicable(),
-        periodFinishTime: await stakingRewards.periodFinish(),
-    })
+    const snapshotStakingData = async (sender = sa.default, beneficiary = sa.default): Promise<StakingData> => {
+        const userData = await stakingRewards.userData(beneficiary.address)
+        const globalData = await stakingRewards.globalData()
+
+        return {
+            totalSupply: await stakingRewards.totalSupply(),
+            userStakingBalance: await stakingRewards.balanceOf(beneficiary.address),
+            userRewardPerTokenPaid: await userData[0],
+            beneficiaryRewardsEarned: await userData[1],
+            senderStakingTokenBalance: await stakingToken.balanceOf(sender.address),
+            contractStakingTokenBalance: await stakingToken.balanceOf(stakingRewards.address),
+            periodFinishTime: BN.from(globalData[0]),
+            lastUpdateTime: BN.from(globalData[1]),
+            rewardRate: globalData[2],
+            rewardPerTokenStored: globalData[3],
+            lastTimeRewardApplicable: await stakingRewards.lastTimeRewardApplicable(),
+        }
+    }
 
     before(async () => {
         const accounts = await ethers.getSigners()
@@ -89,6 +94,7 @@ describe("StakingRewards", async () => {
             await redeployRewards()
         })
         it("should set all initial state", async () => {
+            const data = await snapshotStakingData()
             // Set in constructor
             expect(await stakingRewards.nexus(), nexus.address)
             expect(await stakingRewards.stakingToken(), stakingToken.address)
@@ -96,12 +102,12 @@ describe("StakingRewards", async () => {
             expect(await stakingRewards.rewardsDistributor(), rewardsDistributor.address)
 
             // Basic storage
-            expect(await stakingRewards.totalSupply()).eq(0)
-            expect(await stakingRewards.periodFinish()).eq(0)
-            expect(await stakingRewards.rewardRate()).eq(0)
-            expect(await stakingRewards.lastUpdateTime()).eq(0)
-            expect(await stakingRewards.rewardPerTokenStored()).eq(0)
-            expect(await stakingRewards.lastTimeRewardApplicable()).eq(0)
+            expect(data.totalSupply).eq(0)
+            expect(data.periodFinishTime).eq(0)
+            expect(data.rewardRate).eq(0)
+            expect(data.lastUpdateTime).eq(0)
+            expect(data.rewardPerTokenStored).eq(0)
+            expect(data.lastTimeRewardApplicable).eq(0)
             expect(await stakingRewards.rewardPerToken()).eq(0)
         })
     })
@@ -278,7 +284,8 @@ describe("StakingRewards", async () => {
         describe("staking in the new period", () => {
             it("should assign rewards to the staker", async () => {
                 // Do the stake
-                const rewardRate = await stakingRewards.rewardRate()
+                const data = await snapshotStakingData()
+                const { rewardRate } = data
                 const stakeAmount = simpleToExactAmount(100, 18)
                 await expectSuccessfulStake(stakeAmount)
 
@@ -360,7 +367,7 @@ describe("StakingRewards", async () => {
             await expectSuccessfulFunding(simpleToExactAmount(100, 18))
 
             // Do the stake
-            const rewardRate = await stakingRewards.rewardRate()
+            const { rewardRate } = await stakingRewards.globalData()
 
             await increaseTime(FIVE_DAYS)
 
@@ -526,7 +533,7 @@ describe("StakingRewards", async () => {
         it("should not affect the pro rata payouts", async () => {
             // Add 100 reward tokens
             await expectSuccessfulFunding(simpleToExactAmount(100, 12))
-            const rewardRate = await stakingRewards.rewardRate()
+            const { rewardRate } = await stakingRewards.globalData()
 
             // Do the stake
             const stakeAmount = simpleToExactAmount(100, 16)
@@ -590,7 +597,7 @@ describe("StakingRewards", async () => {
             it("should factor in unspent units to the new rewardRate", async () => {
                 // Do the initial funding
                 await expectSuccessfulFunding(funding1)
-                const actualRewardRate = await stakingRewards.rewardRate()
+                const { rewardRate: actualRewardRate } = await stakingRewards.globalData()
                 const expectedRewardRate = funding1.div(ONE_WEEK)
                 expect(expectedRewardRate).eq(actualRewardRate)
 
@@ -600,7 +607,7 @@ describe("StakingRewards", async () => {
                 // Do the second funding, and factor in the unspent units
                 const expectedLeftoverReward = funding1.div(2)
                 await expectSuccessfulFunding(funding2)
-                const actualRewardRateAfter = await stakingRewards.rewardRate()
+                const { rewardRate: actualRewardRateAfter } = await stakingRewards.globalData()
                 const totalRewardsForWeek = funding2.add(expectedLeftoverReward)
                 const expectedRewardRateAfter = totalRewardsForWeek.div(ONE_WEEK)
                 assertBNClose(actualRewardRateAfter, expectedRewardRateAfter, actualRewardRate.div(ONE_WEEK).mul(20))
@@ -608,7 +615,7 @@ describe("StakingRewards", async () => {
             it("should factor in unspent units to the new rewardRate if instant", async () => {
                 // Do the initial funding
                 await expectSuccessfulFunding(funding1)
-                const actualRewardRate = await stakingRewards.rewardRate()
+                const { rewardRate: actualRewardRate } = await stakingRewards.globalData()
                 const expectedRewardRate = funding1.div(ONE_WEEK)
                 expect(expectedRewardRate).eq(actualRewardRate)
 
@@ -617,7 +624,7 @@ describe("StakingRewards", async () => {
 
                 // Do the second funding, and factor in the unspent units
                 await expectSuccessfulFunding(funding2)
-                const actualRewardRateAfter = await stakingRewards.rewardRate()
+                const { rewardRate: actualRewardRateAfter } = await stakingRewards.globalData()
                 const expectedRewardRateAfter = funding1.add(funding2).div(ONE_WEEK)
                 assertBNClose(actualRewardRateAfter, expectedRewardRateAfter, actualRewardRate.div(ONE_WEEK).mul(20))
             })
@@ -631,7 +638,7 @@ describe("StakingRewards", async () => {
             it("should start a new period with the correct rewardRate", async () => {
                 // Do the initial funding
                 await expectSuccessfulFunding(funding1)
-                const actualRewardRate = await stakingRewards.rewardRate()
+                const { rewardRate: actualRewardRate } = await stakingRewards.globalData()
                 const expectedRewardRate = funding1.div(ONE_WEEK)
                 expect(expectedRewardRate).eq(actualRewardRate)
 
@@ -640,7 +647,7 @@ describe("StakingRewards", async () => {
 
                 // Do the second funding, and factor in the unspent units
                 await expectSuccessfulFunding(funding1.mul(2))
-                const actualRewardRateAfter = await stakingRewards.rewardRate()
+                const { rewardRate: actualRewardRateAfter } = await stakingRewards.globalData()
                 const expectedRewardRateAfter = expectedRewardRate.mul(2)
                 expect(actualRewardRateAfter).eq(expectedRewardRateAfter)
             })
@@ -673,7 +680,7 @@ describe("StakingRewards", async () => {
                 // Check that the user has earned something
                 const earnedBefore = await stakingRewards.earned(sa.default.address)
                 expect(earnedBefore).gt(0)
-                const rewardsBefore = await stakingRewards.rewards(sa.default.address)
+                const { rewards: rewardsBefore } = await stakingRewards.userData(sa.default.address)
                 expect(rewardsBefore).eq(0)
 
                 // Execute the withdrawal
@@ -682,7 +689,7 @@ describe("StakingRewards", async () => {
                 // Ensure that the new awards are added + assigned to user
                 const earnedAfter = await stakingRewards.earned(sa.default.address)
                 expect(earnedAfter).gte(earnedBefore)
-                const rewardsAfter = await stakingRewards.rewards(sa.default.address)
+                const { rewards: rewardsAfter } = await stakingRewards.userData(sa.default.address)
                 expect(rewardsAfter).eq(earnedAfter)
 
                 // Zoom forward now
@@ -691,7 +698,7 @@ describe("StakingRewards", async () => {
                 // Check that the user does not earn anything else
                 const earnedEnd = await stakingRewards.earned(sa.default.address)
                 expect(earnedEnd).eq(earnedAfter)
-                const rewardsEnd = await stakingRewards.rewards(sa.default.address)
+                const { rewards: rewardsEnd } = await stakingRewards.userData(sa.default.address)
                 expect(rewardsEnd).eq(rewardsAfter)
 
                 // Cannot withdraw anything else

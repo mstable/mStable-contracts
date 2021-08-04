@@ -31,8 +31,10 @@ abstract contract HeadlessStakingRewards is
 
     /// @notice token the rewards are distributed in. eg MTA
     IERC20 public immutable REWARDS_TOKEN;
+
     /// @notice length of each staking period in seconds. 7 days = 604,800; 3 months = 7,862,400
     uint256 public constant DURATION = 1 weeks;
+
     /// @notice contract that holds the platform tokens
     PlatformTokenVendor public rewardTokenVendor;
 
