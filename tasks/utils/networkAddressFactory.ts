@@ -1,4 +1,5 @@
-import { Chain } from "./tokens"
+import { ethereumAddress } from "@utils/regex"
+import { AssetAddressTypes, Chain, Token, tokens } from "./tokens"
 
 export const contractNames = [
     "Nexus",
@@ -16,6 +17,7 @@ export const contractNames = [
     "Poker",
     "SaveWrapper",
     "RevenueRecipient",
+    "MassetManager",
     "FeederManager",
     "FeederLogic",
     "FeederWrapper",
@@ -29,9 +31,21 @@ export const contractNames = [
     "UniswapRouterV3",
     "UniswapQuoterV3",
     "UniswapEthToken",
+    "UniswapV2-MTA/WETH",
     "MStableYieldSource", // Used for PoolTogether
+    "OperationsSigner",
 ] as const
 export type ContractNames = typeof contractNames[number]
+
+export interface HardhatRuntime {
+    ethers?: any
+    hardhatArguments?: {
+        config?: string
+    }
+    network?: {
+        name: string
+    }
+}
 
 export const getChainAddress = (contractName: ContractNames, chain: Chain): string => {
     if (chain === Chain.mainnet) {
@@ -65,6 +79,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0x0CA7A25181FC991e3cC62BaC511E62973991f325"
             case "RevenueRecipient":
                 return "0xA7824292efDee1177a1C1BED0649cfdD6114fed5"
+            case "MassetManager":
+                return "0x1E91F826fa8aA4fa4D3F595898AF3A64dd188848"
             case "FeederManager":
                 return "0x90aE544E8cc76d2867987Ee4f5456C02C50aBd8B"
             case "FeederLogic":
@@ -89,8 +105,12 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"
             case "UniswapEthToken":
                 return "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+            case "UniswapV2-MTA/WETH":
+                return "0x9B4abA35b35EEE7481775cCB4055Ce4e176C9a6F"
             case "MStableYieldSource":
                 return "0xdB4C9f763A4B13CF2830DFe7c2854dADf5b96E99"
+            case "OperationsSigner":
+                return "0xb81473f20818225302b8fffb905b53d58a793d84"
             default:
         }
     } else if (chain === Chain.polygon) {
@@ -126,6 +146,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff"
             case "MStableYieldSource":
                 return "0x13bA0402f5047324B4279858298F56c30EA98753"
+            case "OperationsSigner":
+                return "0xdccb7a6567603af223c090be4b9c83eced210f18"
             default:
         }
     } else if (chain === Chain.mumbai) {
@@ -158,22 +180,99 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
     return undefined
 }
 
-export const getChain = (networkName: string, hardhatConfig?: string): Chain => {
-    if (networkName === "mainnet" || hardhatConfig === "tasks-fork.config.ts") {
+export const getChain = (hre: HardhatRuntime = {}): Chain => {
+    if (hre?.network.name === "mainnet" || hre?.hardhatArguments?.config === "tasks-fork.config.ts") {
         return Chain.mainnet
     }
-    if (networkName === "polygon_mainnet" || hardhatConfig === "tasks-fork-polygon.config.ts") {
+    if (hre?.network.name === "polygon_mainnet" || hre?.hardhatArguments?.config === "tasks-fork-polygon.config.ts") {
         return Chain.polygon
     }
-    if (networkName === "polygon_testnet") {
+    if (hre?.network.name === "polygon_testnet") {
         return Chain.mumbai
     }
-    if (networkName === "ropsten") {
+    if (hre?.network.name === "ropsten") {
         return Chain.ropsten
+    }
+    return Chain.mainnet
+}
+
+export const getNetworkAddress = (contractName: ContractNames, hre: HardhatRuntime = {}): string => {
+    const chain = getChain(hre)
+    return getChainAddress(contractName, chain)
+}
+
+// Singleton instances of different contract names and token symbols
+const resolvedAddressesInstances: { [contractNameSymbol: string]: { [tokenType: string]: string } } = {}
+
+// Update the singleton instance so we don't need to resolve this next time
+const updateResolvedAddresses = (addressContractNameSymbol: string, tokenType: AssetAddressTypes, address: string) => {
+    if (resolvedAddressesInstances[addressContractNameSymbol]) {
+        resolvedAddressesInstances[addressContractNameSymbol][tokenType] = address
+    } else {
+        resolvedAddressesInstances[addressContractNameSymbol] = { [tokenType]: address }
     }
 }
 
-export const getNetworkAddress = (contractName: ContractNames, networkName = "mainnet", hardhatConfig?: string): string => {
-    const chain = getChain(networkName, hardhatConfig)
-    return getChainAddress(contractName, chain)
+// Resolves a contract name or token symbol to an ethereum address
+export const resolveAddress = (
+    addressContractNameSymbol: string,
+    chain = Chain.mainnet,
+    tokenType: AssetAddressTypes = "address",
+): string => {
+    let address = addressContractNameSymbol
+    // If not an Ethereum address
+    if (!addressContractNameSymbol.match(ethereumAddress)) {
+        // If previously resolved then return from singleton instances
+        if (resolvedAddressesInstances[addressContractNameSymbol]?.[tokenType])
+            return resolvedAddressesInstances[addressContractNameSymbol][tokenType]
+
+        // If an mStable contract name
+        address = getChainAddress(addressContractNameSymbol as ContractNames, chain)
+
+        if (!address) {
+            // If a token Symbol
+            const token = tokens.find((t) => t.symbol === addressContractNameSymbol && t.chain === chain)
+            if (!token)
+                throw Error(`Invalid approve address, token symbol or contract name ${addressContractNameSymbol} for chain ${chain}`)
+            if (!token[tokenType]) throw Error(`Can not find token type ${tokenType} for ${addressContractNameSymbol} on chain ${chain}`)
+
+            address = token[tokenType]
+            console.log(`Resolved asset with symbol ${addressContractNameSymbol} and type "${tokenType}" to address ${address}`)
+
+            // Update the singleton instance so we don't need to resolve this next time
+            updateResolvedAddresses(addressContractNameSymbol, tokenType, address)
+            return address
+        }
+
+        console.log(`Resolved contract name "${addressContractNameSymbol}" to address ${address}`)
+
+        // Update the singleton instance so we don't need to resolve this next time
+        updateResolvedAddresses(addressContractNameSymbol, tokenType, address)
+
+        return address
+    }
+    return address
+}
+
+// Singleton instances of different contract names and token symbols
+const resolvedTokenInstances: { [address: string]: { [tokenType: string]: Token } } = {}
+
+export const resolveToken = (symbol: string, chain = Chain.mainnet, tokenType: AssetAddressTypes = "address"): Token => {
+    // If previously resolved then return from singleton instances
+    if (resolvedTokenInstances[symbol]?.[tokenType]) return resolvedTokenInstances[symbol][tokenType]
+
+    // If a token Symbol
+    const token = tokens.find((t) => t.symbol === symbol && t.chain === chain)
+    if (!token) throw Error(`Can not fine token symbol ${symbol} on chain ${chain}`)
+    if (!token[tokenType]) throw Error(`Can not find token type "${tokenType}" for ${symbol} on chain ${chain}`)
+
+    console.log(`Resolved token symbol ${symbol} and type "${tokenType}" to address ${token[tokenType]}`)
+
+    if (resolvedTokenInstances[symbol]) {
+        resolvedTokenInstances[symbol][tokenType] = token
+    } else {
+        resolvedTokenInstances[symbol] = { [tokenType]: token }
+    }
+
+    return token
 }

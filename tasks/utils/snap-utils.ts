@@ -791,8 +791,18 @@ export const getAaveTokens = async (
     const liquidatorStkAaveBal = await stkAaveToken.balanceOf(liquidatorAddress, { blockTag: toBlock.blockNumber })
     totalStkAave = totalStkAave.add(liquidatorStkAaveBal)
 
-    const aaveUsdc = await quoteSwap(signer, AAVE, USDC, liquidatorStkAaveBal, toBlock)
-    console.log(`Liquidator ${quantityFormatter(liquidatorStkAaveBal)} ${quantityFormatter(aaveUsdc.outAmount, USDC.decimals)} USDC`)
+    let aaveUsdc: {
+        outAmount: BN
+        exchangeRate: BN
+    }
+    if (liquidatorStkAaveBal.gt(0)) {
+        aaveUsdc = await quoteSwap(signer, AAVE, USDC, liquidatorStkAaveBal, toBlock)
+        console.log(`Liquidator ${quantityFormatter(liquidatorStkAaveBal)} ${quantityFormatter(aaveUsdc.outAmount, USDC.decimals)} USDC`)
+    } else {
+        const reasonableAaveAmount = simpleToExactAmount(50)
+        aaveUsdc = await quoteSwap(signer, AAVE, USDC, reasonableAaveAmount, toBlock)
+        console.log(`Liquidator ${quantityFormatter(liquidatorStkAaveBal)}`)
+    }
 
     const totalUSDC = totalStkAave.mul(aaveUsdc.exchangeRate).div(simpleToExactAmount(1, AAVE.decimals - USDC.decimals))
     console.log(`Total      ${quantityFormatter(totalStkAave)} ${quantityFormatter(totalUSDC, USDC.decimals)} USDC`)
@@ -800,7 +810,7 @@ export const getAaveTokens = async (
     const cooldownStart = await stkAaveToken.stakersCooldowns(liquidatorAddress, { blockTag: toBlock.blockNumber })
     const cooldownEnd = cooldownStart.add(ONE_DAY.mul(10))
     const colldownEndDate = new Date(cooldownEnd.toNumber() * 1000)
-    console.log(`next stkAAVE unlock ${colldownEndDate.toUTCString()} (${cooldownStart})`)
+    console.log(`next stkAAVE unlock ${colldownEndDate.toUTCString()} (${cooldownEnd})`)
 
     // Get unclaimed rewards
     const integrations = [

@@ -8,10 +8,9 @@ import { ethers } from "hardhat"
 import { CompoundIntegration } from "types/generated/CompoundIntegration"
 import { expect } from "chai"
 import { CompoundIntegration__factory } from "types/generated/factories/CompoundIntegration__factory"
-import { BassetIntegrationDetails , Account } from "types"
+import { BassetIntegrationDetails, Account } from "types"
 import { assertBNClose, assertBNSlightlyGT, assertBNSlightlyGTPercent } from "@utils/assertions"
 import { shouldBehaveLikeModule, IModuleBehaviourContext } from "../../shared/Module.behaviour"
-
 
 const convertUnderlyingToCToken = async (cToken: MockCToken, underlyingAmount: BN): Promise<BN> => {
     const exchangeRate = await cToken.exchangeRateStored()

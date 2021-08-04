@@ -1,32 +1,31 @@
 {
-  "compilerOptions": {
-    "outDir": "./dist/",
-    "target": "ES2019",
-    "lib": ["dom", "ES2019"],
-    "module": "CommonJS",
-    "declaration": true,
-    "esModuleInterop": true,
-    "sourceMap": true,
-    "noImplicitAny": false,
-    "allowJs": false,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "baseUrl": ".",
-    "rootDir": ".",
-    "paths": {
-      "@utils/*": ["test-utils/*"]
+    "compilerOptions": {
+        "outDir": "./dist/",
+        "target": "ES2019",
+        "lib": ["dom", "ES2019"],
+        "module": "CommonJS",
+        "declaration": true,
+        "esModuleInterop": true,
+        "sourceMap": true,
+        "noImplicitAny": false,
+        "allowJs": false,
+        "resolveJsonModule": true,
+        "skipLibCheck": true,
+        "baseUrl": ".",
+        "rootDir": ".",
+        "paths": {
+            "@utils/*": ["test-utils/*"]
+        },
+        "typeRoots": ["node_modules/@types"]
     },
-    "typeRoots": [
-      "node_modules/@types"
-    ],
-  },
-  "include": [
-    "./types/**/*.ts",
-    "./tasks/**/*.ts",
-    "./test/**/*.ts",
-    "./test-fork/**/*.ts",
-    "./test-utils/**/*.ts",
-    "./*.js"
-  ],
-  "files": ["./index.ts", "./hardhat.config.ts", "./hardhat-fork.config.ts", "./hardhat-fork-polygon.config.ts", "./tasks.config.ts", "./tasks-fork.config.ts", "./tasks-fork-polygon.config.ts"]
+    "include": ["./types/**/*.ts", "./tasks/**/*.ts", "./test/**/*.ts", "./test-fork/**/*.ts", "./test-utils/**/*.ts", "./*.js"],
+    "files": [
+        "./index.ts",
+        "./hardhat.config.ts",
+        "./hardhat-fork.config.ts",
+        "./hardhat-fork-polygon.config.ts",
+        "./tasks.config.ts",
+        "./tasks-fork.config.ts",
+        "./tasks-fork-polygon.config.ts"
+    ]
 }

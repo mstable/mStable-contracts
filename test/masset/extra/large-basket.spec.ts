@@ -6,12 +6,7 @@ import { MassetDetails, MassetMachine, StandardAccounts } from "@utils/machines"
 
 import { DEAD_ADDRESS, ZERO_ADDRESS } from "@utils/constants"
 import { BasketComposition } from "types"
-import {
-    AssetProxy__factory,
-    MassetLogic,
-    MassetManager,
-    ExposedMasset,
-} from "types/generated"
+import { AssetProxy__factory, MassetLogic, MassetManager, ExposedMasset } from "types/generated"
 import { assertBNClosePercent } from "@utils/assertions"
 
 describe("Many asset Masset", () => {

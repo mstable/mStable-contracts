@@ -8,10 +8,10 @@ import { Contract, Provider } from "ethers-multicall"
 import { gql, GraphQLClient } from "graphql-request"
 import { task, types } from "hardhat/config"
 import { BoostedVault__factory, Poker, Poker__factory } from "types/generated"
-import { getSigner } from "./utils/defender-utils"
+import { getSigner } from "./utils/signerFactory"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { getChain, getChainAddress } from "./utils/networkAddressFactory"
-import { MTA, mUSD } from "./utils/tokens"
+import { mBTC, MTA, mUSD, GUSD, BUSD, HBTC, TBTC, alUSD } from "./utils/tokens"
 
 const maxVMTA = simpleToExactAmount(300000, 18)
 const maxBoost = simpleToExactAmount(4, 18)
@@ -52,26 +52,32 @@ const getAccountBalanceMap = async (accounts: string[], tokenAddress: string, si
 }
 
 task("over-boost", "Pokes accounts that are over boosted")
-    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .addFlag("update", "Will send a poke transactions to the Poker contract")
-    .addOptionalParam("minMtaDiff", "Min amount of vMTA over boosted. 300 = 0.3 boost", 300, types.int)
-    .setAction(async (taskArgs, { ethers, network, hardhatArguments }) => {
-        const minMtaDiff = taskArgs.minMtaDiff
-        const signer = await getSigner(ethers, taskArgs.speed)
-        // const signer = await impersonate("0x2f2Db75C5276481E2B018Ac03e968af7763Ed118")
-        const chain = getChain(network.name, hardhatArguments.config)
+    .addOptionalParam("account", "Address of account to check or poke", undefined, types.string)
+    .addOptionalParam("minMtaDiff", "Min amount of vMTA over boosted. 300 = 0.3 boost", 300, types.float)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const chain = getChain(hre)
+        const signer = await getSigner(hre, taskArgs.speed)
 
+        let idFilter = ""
+        if (taskArgs.account) {
+            const vaults = [MTA, mUSD, mBTC, GUSD, BUSD, HBTC, TBTC, alUSD]
+            const vaultAddresses = vaults.map((v) => v.vault.toLowerCase())
+            const vaultAccountIds = vaultAddresses.map((vaultAddress) => `"${vaultAddress}.${taskArgs.account.toLowerCase()}" `)
+            idFilter = `id_in: [${vaultAccountIds}] `
+        }
         const gqlClient = new GraphQLClient("https://api.thegraph.com/subgraphs/name/mstable/mstable-feeder-pools")
         const query = gql`
             {
-                BoostedVaults {
+                boostedSavingsVaults {
                     id
                     boostCoeff
                     priceCoeff
                     stakingToken {
                         symbol
                     }
-                    accounts(where: { rawBalance_gt: "0" }) {
+                    accounts(where: { ${idFilter} rawBalance_gt: "0" }) {
                         id
                         rawBalance
                         boostedBalance
@@ -95,7 +101,7 @@ task("over-boost", "Pokes accounts that are over boosted")
         console.log(`Results for block number ${blockNumber}`)
 
         // Maps GQL to a list if accounts (addresses) in each vault
-        const vaultAccounts = gqlData.BoostedVaults.map((vault) => vault.accounts.map((account) => account.id.split(".")[1]))
+        const vaultAccounts = gqlData.boostedSavingsVaults.map((vault) => vault.accounts.map((account) => account.id.split(".")[1]))
         const accountsWithDuplicates = vaultAccounts.flat()
         const accountsUnique = [...new Set<string>(accountsWithDuplicates)]
         const vMtaBalancesMap = await getAccountBalanceMap(accountsUnique, MTA.vault, signer)
@@ -104,7 +110,7 @@ task("over-boost", "Pokes accounts that are over boosted")
             accounts: string[]
         }[] = []
         // For each Boosted Vault
-        for (const vault of gqlData.BoostedVaults) {
+        for (const vault of gqlData.boostedSavingsVaults) {
             if (vault.id === mUSD.vault.toLocaleLowerCase()) continue
             const boostVault = BoostedVault__factory.connect(vault.id, signer)
             const priceCoeff = await boostVault.priceCoeff()
@@ -126,7 +132,7 @@ task("over-boost", "Pokes accounts that are over boosted")
                 // Calculate how much the boost balance is in USD = balance balance * price coefficient / 1e18
                 const boostBalanceUsd = BN.from(account.boostedBalance).mul(priceCoeff).div(simpleToExactAmount(1))
                 // Identify accounts with more than 20% over their boost and boost balance > 50,000 USD
-                if (boostDiff > minMtaDiff && boostBalanceUsd.gt(simpleToExactAmount(50000))) {
+                if (boostDiff > taskArgs.minMtaDiff && boostBalanceUsd.gt(simpleToExactAmount(50000))) {
                     overBoosted.push({
                         ...account,
                         boostActual,
@@ -166,7 +172,7 @@ task("over-boost", "Pokes accounts that are over boosted")
     })
 
 task("deployPoker", "Deploys the Poker contract").setAction(async (_, hre) => {
-    const deployer = await getSigner(hre.ethers)
+    const deployer = await getSigner(hre)
 
     await deployContract<Poker>(new Poker__factory(deployer), "Poker")
 })

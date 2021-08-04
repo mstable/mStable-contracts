@@ -1,6 +1,6 @@
 import config from "./hardhat.config"
 
-import "./tasks/deployAaveIntegration"
+import "./tasks/deployIntegration"
 import "./tasks/deployBoostedVault"
 import "./tasks/deployMbtc"
 import "./tasks/deployFeeders"
@@ -9,9 +9,11 @@ import "./tasks/deployPolygon"
 import "./tasks/feeder"
 import "./tasks/mBTC"
 import "./tasks/mUSD"
-import "./tasks/SaveWrapper"
-import "./tasks/FeederWrapper"
 import "./tasks/ops"
 import "./tasks/poker"
+import "./tasks/rewards"
+import "./tasks/SaveWrapper"
+import "./tasks/token"
+import "./tasks/weekly"
 
 export default config

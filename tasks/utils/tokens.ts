@@ -1,3 +1,5 @@
+import { ethereumAddress } from "@utils/regex"
+
 export enum Chain {
     mainnet,
     polygon,
@@ -22,7 +24,24 @@ export interface Token {
     feederPool?: string
     vault?: string
     savings?: string // interest-bearing savings contracts
+    platformTokenVendor?: string // hold WMATIC on Polygon's v-imUSD vault
 }
+
+export function isToken(asset: unknown): asset is Token {
+    const token = asset as Token
+    return token.symbol !== undefined && token.address.match(ethereumAddress) && token.chain !== undefined && token.decimals !== undefined
+}
+
+export const assetAddressTypes = [
+    "address",
+    "savings",
+    "vault",
+    "feederPool",
+    "integrator",
+    "liquidityProvider",
+    "platformTokenVendor",
+] as const
+export type AssetAddressTypes = typeof assetAddressTypes[number]
 
 // mStable on mainnet
 export const mUSD: Token = {
@@ -54,6 +73,7 @@ export const PmUSD: Token = {
     quantityFormatter: "USD",
     savings: "0x5290Ad3d83476CA6A2b178Cd9727eE1EF72432af",
     vault: "0x32aBa856Dc5fFd5A56Bcd182b13380e5C855aa29",
+    platformTokenVendor: "0x7b19a4f4ee26037ffef77bc7d99f56209acc8db1",
 }
 export const MmUSD: Token = {
     symbol: "MmUSD",
@@ -364,4 +384,5 @@ export const tokens = [
     PUSDC,
     PUSDT,
     PDAI,
+    PWMATIC,
 ]

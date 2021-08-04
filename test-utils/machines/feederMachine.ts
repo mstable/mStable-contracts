@@ -18,7 +18,7 @@ import {
     MockERC20__factory,
 } from "types/generated"
 import { BN, minimum, simpleToExactAmount } from "@utils/math"
-import { MainnetAccounts, ratioScale, ZERO_ADDRESS, DEAD_ADDRESS, fullScale } from "@utils/constants"
+import { ratioScale, ZERO_ADDRESS, DEAD_ADDRESS, fullScale } from "@utils/constants"
 import { Basset } from "@utils/mstable-objects"
 import { StandardAccounts } from "./standardAccounts"
 import { ActionDetails, BasketComposition } from "../../types/machines"
@@ -40,8 +40,6 @@ export interface FeederDetails {
 
 export class FeederMachine {
     public sa: StandardAccounts
-
-    public ma: MainnetAccounts
 
     public mAssetMachine: MassetMachine
 

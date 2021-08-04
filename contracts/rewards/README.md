@@ -1,5 +1,3 @@
-
-
 ## Files
 
 Why so many?
@@ -13,7 +11,7 @@ Allows reward allocators ("FundManagers") to distribute rewards.
 ### StakingRewards
 
 `StakingRewards` is `InitializableRewardsDistributionRecipient`
--------------->  is `StakingTokenWrapper`
+--------------> is `StakingTokenWrapper`
 
 This preserves the code written, tested, audited and deployed by `Synthetix` (StakingRewards & StakingTokenWrapper).
 
@@ -23,6 +21,6 @@ Audit: https://github.com/sigp/public-audits/blob/master/synthetix/unipool/revie
 ### StakingRewardsWithPlatformToken
 
 `StakingRewardsWithPlatformToken` is `InitializableRewardsDistributionRecipient`
-------------------------------->  is `StakingTokenWrapper`
+-------------------------------> is `StakingTokenWrapper`
 
 `StakingRewardsWithPlatformToken` deploys `PlatformTokenVendor` during its constructor

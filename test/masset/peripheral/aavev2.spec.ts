@@ -18,9 +18,8 @@ import {
     MockERC20,
     MockATokenV2,
 } from "types/generated"
-import { BassetIntegrationDetails , Account } from "types"
+import { BassetIntegrationDetails, Account } from "types"
 import { shouldBehaveLikeModule, IModuleBehaviourContext } from "../../shared/Module.behaviour"
-
 
 describe("AaveIntegration", async () => {
     let sa: StandardAccounts

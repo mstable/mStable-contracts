@@ -24,7 +24,7 @@ import {
     MockERC20__factory,
 } from "types/generated"
 import { BN, minimum, simpleToExactAmount } from "@utils/math"
-import { fullScale, MainnetAccounts, ratioScale, ZERO_ADDRESS, DEAD_ADDRESS } from "@utils/constants"
+import { fullScale, ratioScale, ZERO_ADDRESS, DEAD_ADDRESS } from "@utils/constants"
 import { Basset } from "@utils/mstable-objects"
 import { Address } from "types/common"
 import { StandardAccounts } from "./standardAccounts"
@@ -46,12 +46,6 @@ export interface MassetDetails {
 
 export class MassetMachine {
     public sa: StandardAccounts
-
-    public ma: MainnetAccounts
-
-    constructor() {
-        this.ma = new MainnetAccounts()
-    }
 
     public async initAccounts(accounts: Signer[]): Promise<MassetMachine> {
         this.sa = await new StandardAccounts().initAccounts(accounts)
