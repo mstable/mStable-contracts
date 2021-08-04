@@ -121,6 +121,14 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         address _recipient,
         bool _amountIncludesFee
     ) external override {
+        _withdraw(_amount, _recipient, _amountIncludesFee);
+    }
+
+    function _withdraw(
+        uint256 _amount,
+        address _recipient,
+        bool _amountIncludesFee
+    ) internal {
         require(_amount != 0, "INVALID_ZERO_AMOUNT");
 
         uint256 cooldownStartTimestamp = stakersCooldowns[_msgSender()];
@@ -176,7 +184,12 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     /**
      * @dev TODO
      **/
-    function startCooldown() external override {
+    function startCooldown() external override {}
+
+    /**
+     * @dev TODO
+     **/
+    function _startCooldown() internal {
         require(balanceOf(_msgSender()) != 0, "INVALID_BALANCE_ON_COOLDOWN");
         //solium-disable-next-line
         stakersCooldowns[_msgSender()] = block.timestamp;
@@ -186,6 +199,49 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         // TODO - poke _checkForSeasonFinish here
 
         emit Cooldown(_msgSender());
+    }
+
+    /***************************************
+            BACKWARDS COMPATIBILITY
+    ****************************************/
+
+    /**
+     * @dev TODO
+     **/
+    function createLock(
+        uint256 _value,
+        uint256 /* _unlockTime */
+    ) external {
+        _stake(_value, address(0));
+    }
+
+    /**
+     * @dev TODO
+     **/
+    function increaseLockAmount(uint256 _value) external {
+        _stake(_value, address(0));
+    }
+
+    /**
+     * @dev TODO
+     **/
+    function increaseLockLength(
+        uint256 /* _unlockTime */
+    ) external virtual {
+        return;
+    }
+
+    /**
+     * @dev TODO
+     **/
+    function exit() external virtual {
+        // Since there is no immediate exit here, this can be called twice
+        // TODO - post cooldown, consider if there is a third state needed here
+        if (stakersCooldowns[_msgSender()] == 0) {
+            _startCooldown();
+        } else {
+            _withdraw(_balances[_msgSender()].raw, _msgSender(), true);
+        }
     }
 
     /***************************************
@@ -199,7 +255,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
      *
      *      If cooldown has only just started and the new staked amount is relatively large,
      *      then the cooldown start date moves forward nearly a week.
-     *      
+     *
      *      If staker is not in a cooldown period, return 0.
      *
      * @param _stakedAmountToReceive amount of new rewards being staked.
@@ -216,11 +272,11 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         uint256 minimalValidCooldownTimestamp = block.timestamp - COOLDOWN_SECONDS - UNSTAKE_WINDOW;
 
         // If user has started cooldown and it has not already expired
-        if (oldCooldownTimestamp >= minimalValidCooldownTimestamp ) {
+        if (oldCooldownTimestamp >= minimalValidCooldownTimestamp) {
             // next cooldown = current time - (time already cooled * old staked amount / (old staked amount + new amount being staked))
             uint256 secondsAlreadyCooled = block.timestamp - oldCooldownTimestamp;
-            uint256 weightedSecondsAlreadyCooled =
-                (secondsAlreadyCooled * _stakedAmountOld) / (_stakedAmountOld + _stakedAmountToReceive);
+            uint256 weightedSecondsAlreadyCooled = (secondsAlreadyCooled * _stakedAmountOld) /
+                (_stakedAmountOld + _stakedAmountToReceive);
             nextCooldownTimestamp = block.timestamp - weightedSecondsAlreadyCooled;
         }
     }
