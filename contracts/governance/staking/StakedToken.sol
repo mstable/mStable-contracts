@@ -5,6 +5,7 @@ pragma abicoder v2;
 import { IStakedToken } from "./interfaces/IStakedToken.sol";
 import { GamifiedVotingToken } from "./GamifiedVotingToken.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./GamifiedTokenStructs.sol";
 
@@ -13,7 +14,7 @@ import "./GamifiedTokenStructs.sol";
  * @notice StakedToken is a non-transferrable ERC20 token that allows users to stake and withdraw, earning voting rights.
  * Scaled balance is determined by quests a user completes, and the length of time they keep the raw balance wrapped.
  * @author mStable
- * @dev TODO
+ * @dev TOWRITE
  **/
 contract StakedToken is IStakedToken, GamifiedVotingToken {
     using SafeERC20 for IERC20;
@@ -41,6 +42,8 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     event Staked(address indexed user, uint256 amount, address delegatee);
     event Withdraw(address indexed user, address indexed to, uint256 amount);
     event Cooldown(address indexed user);
+    event SlashRateChanged(uint256 newRate);
+    event Recollateralised();
 
     /***************************************
                     INIT
@@ -165,37 +168,47 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     ) internal {
         require(_amount != 0, "INVALID_ZERO_AMOUNT");
 
-        // TODO - if post-recollateralisation, skip the lockdown and don't apply the fee
+        // If recollateralisation has occured, the contract is finished
+        // Just return the remaining amount
+        if (safetyData.collateralisationRatio != 1e18) {
+            _burnRaw(_msgSender(), _amount);
+            IERC20(STAKED_TOKEN).safeTransfer(
+                _recipient,
+                (_amount * safetyData.collateralisationRatio) / 1e18
+            );
+            emit Withdraw(_msgSender(), _recipient, _amount);
+        } else {
+            uint256 cooldownStartTimestamp = stakersCooldowns[_msgSender()];
+            require(
+                block.timestamp > cooldownStartTimestamp + COOLDOWN_SECONDS,
+                "INSUFFICIENT_COOLDOWN"
+            );
+            require(
+                block.timestamp - (cooldownStartTimestamp + COOLDOWN_SECONDS) <= UNSTAKE_WINDOW,
+                "UNSTAKE_WINDOW_FINISHED"
+            );
 
-        uint256 cooldownStartTimestamp = stakersCooldowns[_msgSender()];
-        require(
-            block.timestamp > cooldownStartTimestamp + COOLDOWN_SECONDS,
-            "INSUFFICIENT_COOLDOWN"
-        );
-        require(
-            block.timestamp - (cooldownStartTimestamp + COOLDOWN_SECONDS) <= UNSTAKE_WINDOW,
-            "UNSTAKE_WINDOW_FINISHED"
-        );
+            Balance memory balance = _balances[_msgSender()];
+            if ((balance.raw - _amount) == 0) {
+                stakersCooldowns[_msgSender()] = 0;
+            }
 
-        Balance memory balance = _balances[_msgSender()];
-        if ((balance.raw - _amount) == 0) {
-            stakersCooldowns[_msgSender()] = 0;
+            // Apply redemption fee
+            // e.g. (55e18 / 5e18) - 2e18 = 9e18 / 100 = 9e16
+            uint256 feeRate = _calcRedemptionFeeRate(balance.weightedTimestamp);
+            // fee = amount * 1e18 / feeRate
+            // totalAmount = amount + fee
+            // fee = amount * (1e18 - feeRate) / 1e18
+            uint256 totalWithdraw = _amountIncludesFee
+                ? _amount
+                : (_amount * (1e18 + feeRate)) / 1e18;
+            uint256 userWithdrawal = (totalWithdraw * 1e18) / (1e18 + feeRate);
+
+            _burnRaw(_msgSender(), totalWithdraw);
+            IERC20(STAKED_TOKEN).safeTransfer(_recipient, userWithdrawal);
+            _notifyAdditionalReward(totalWithdraw - userWithdrawal);
+            emit Withdraw(_msgSender(), _recipient, _amount);
         }
-
-        // Apply redemption fee
-        // e.g. (55e18 / 5e18) - 2e18 = 9e18 / 100 = 9e16
-        uint256 feeRate = _calcRedemptionFeeRate(balance.weightedTimestamp);
-        // fee = amount * 1e18 / feeRate
-        // totalAmount = amount + fee
-        // fee = amount * (1e18 - feeRate) / 1e18
-        uint256 totalWithdraw = _amountIncludesFee ? _amount : (_amount * (1e18 + feeRate)) / 1e18;
-        uint256 userWithdrawal = (totalWithdraw * 1e18) / (1e18 + feeRate);
-
-        _burnRaw(_msgSender(), totalWithdraw);
-        IERC20(STAKED_TOKEN).safeTransfer(_recipient, userWithdrawal);
-        _notifyAdditionalReward(totalWithdraw - userWithdrawal);
-
-        emit Withdraw(_msgSender(), _recipient, _amount);
     }
 
     /**
@@ -220,7 +233,9 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     /**
      * @dev TOWRITE
      **/
-    function startCooldown() external override {}
+    function startCooldown() external override {
+        _startCooldown();
+    }
 
     /**
      * @dev TOWRITE
@@ -243,18 +258,39 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
 
     /**
      * @dev TOWRITE
+     * Trusting that the recollateralisation module has sufficient protections in place
      **/
-    function emergencyRecollateralisation() external onlyRecollateralisationModule {
-        require(safetyData.collateralisationRatio == 1e18, "Process already begun");
-        // 1. Take
+    function emergencyRecollateralisation()
+        external
+        onlyRecollateralisationModule
+        onlyBeforeRecollateralisation
+    {
+        // 1. Change collateralisation rate
+        safetyData.collateralisationRatio = 1e18 - safetyData.slashingPercentage;
+        // 2. Take slashing percentage
+        uint256 balance = IERC20(STAKED_TOKEN).balanceOf(address(this));
+        IERC20(STAKED_TOKEN).transfer(
+            _recollateraliser(),
+            (balance * safetyData.slashingPercentage) / 1e18
+        );
+        // 3. No functions should work anymore because the colRatio has changed
+        emit Recollateralised();
     }
 
     /**
      * @dev TOWRITE
      **/
-    function changeSlashingPercentage() external onlyGovernor {
+    function changeSlashingPercentage(uint256 _newRate)
+        external
+        onlyGovernor
+        onlyBeforeRecollateralisation
+    {
         require(safetyData.collateralisationRatio == 1e18, "Process already begun");
-        // 1. Take
+        require(_newRate <= 5e18, "Cannot exceed 50%");
+
+        safetyData.slashingPercentage = SafeCast.toUint128(_newRate);
+
+        emit SlashRateChanged(_newRate);
     }
 
     /***************************************

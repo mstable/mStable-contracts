@@ -2,7 +2,7 @@
 pragma solidity 0.8.6;
 
 import { MathUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
-import { SafeCastUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { ECDSAUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
 import { GamifiedToken } from "./GamifiedToken.sol";
 import { IGovernanceHook } from "./interfaces/IGovernanceHook.sol";
@@ -87,7 +87,7 @@ abstract contract GamifiedVotingToken is Initializable, GamifiedToken {
      * @dev Get number of checkpoints for `account`.
      */
     function numCheckpoints(address account) public view virtual returns (uint32) {
-        return SafeCastUpgradeable.toUint32(_checkpoints[account].length);
+        return SafeCast.toUint32(_checkpoints[account].length);
     }
 
     /**
@@ -279,12 +279,12 @@ abstract contract GamifiedVotingToken is Initializable, GamifiedToken {
         newWeight = op(oldWeight, delta);
 
         if (pos > 0 && ckpts[pos - 1].fromBlock == block.number) {
-            ckpts[pos - 1].votes = SafeCastUpgradeable.toUint224(newWeight);
+            ckpts[pos - 1].votes = SafeCast.toUint224(newWeight);
         } else {
             ckpts.push(
                 Checkpoint({
-                    fromBlock: SafeCastUpgradeable.toUint32(block.number),
-                    votes: SafeCastUpgradeable.toUint224(newWeight)
+                    fromBlock: SafeCast.toUint32(block.number),
+                    votes: SafeCast.toUint224(newWeight)
                 })
             );
         }
