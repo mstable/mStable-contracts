@@ -141,8 +141,29 @@ describe("Staked Token", () => {
 
             expect(await stakedToken.totalSupply(), "total staked after").to.eq(stakedAmount)
         })
-    })
+        it("should not chain delegate votes", async () => {
+            const delegateStakedAmount = simpleToExactAmount(2000)
+            await rewardToken.transfer(sa.dummy1.address, delegateStakedAmount)
+            await rewardToken.connect(sa.dummy1.signer).approve(stakedToken.address, delegateStakedAmount)
 
+            await stakedToken["stake(uint256,address)"](stakedAmount, sa.dummy1.address)
+            await stakedToken.connect(sa.dummy1.signer)["stake(uint256,address)"](delegateStakedAmount, sa.dummy2.address)
+
+            const afterStakerData = await snapshotUserStakingData(sa.default)
+            expect(afterStakerData.stakedBalance, "staker stkRWD after").to.eq(stakedAmount)
+            expect(afterStakerData.votes, "staker votes after").to.eq(0)
+
+            const afterDelegateData = await snapshotUserStakingData(sa.dummy1)
+            expect(afterDelegateData.stakedBalance, "delegate stkRWD after").to.eq(delegateStakedAmount)
+            expect(afterDelegateData.votes, "delegate votes after").to.eq(stakedAmount)
+
+            const afterDelegatesDelegateData = await snapshotUserStakingData(sa.dummy2)
+            expect(afterDelegatesDelegateData.stakedBalance, "delegate stkRWD after").to.eq(0)
+            expect(afterDelegatesDelegateData.votes, "delegate votes after").to.eq(delegateStakedAmount)
+
+            expect(await stakedToken.totalSupply(), "total staked after").to.eq(stakedAmount.add(delegateStakedAmount))
+        })
+    })
     context("change delegate votes", () => {
         const stakedAmount = simpleToExactAmount(100)
         beforeEach(async () => {
