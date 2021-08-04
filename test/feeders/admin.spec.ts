@@ -762,14 +762,18 @@ describe("Feeder Admin", () => {
             const { bAssets, fAsset, mAssetDetails, pool, pTokens } = details
             const { platform } = details.mAssetDetails
             transferringAsset = fAsset
-            newMigration = await (await new MockPlatformIntegration__factory(sa.default.signer)).deploy(
+            newMigration = await (
+                await new MockPlatformIntegration__factory(sa.default.signer)
+            ).deploy(
                 DEAD_ADDRESS,
                 mAssetDetails.aavePlatformAddress,
                 bAssets.map((b) => b.address),
                 pTokens,
             )
             await newMigration.addWhitelist([pool.address])
-            maliciousIntegration = await (await new MaliciousAaveIntegration__factory(sa.default.signer)).deploy(
+            maliciousIntegration = await (
+                await new MaliciousAaveIntegration__factory(sa.default.signer)
+            ).deploy(
                 DEAD_ADDRESS,
                 mAssetDetails.aavePlatformAddress,
                 bAssets.map((b) => b.address),
@@ -837,14 +841,18 @@ describe("Feeder Admin", () => {
             const { bAssets, fAsset, mAssetDetails, pool, pTokens } = details
             const { platform } = details.mAssetDetails
             transferringAsset = fAsset
-            newMigration = await (await new MockPlatformIntegration__factory(sa.default.signer)).deploy(
+            newMigration = await (
+                await new MockPlatformIntegration__factory(sa.default.signer)
+            ).deploy(
                 DEAD_ADDRESS,
                 mAssetDetails.aavePlatformAddress,
                 bAssets.map((b) => b.address),
                 pTokens,
             )
             await newMigration.addWhitelist([pool.address])
-            maliciousIntegration = await (await new MaliciousAaveIntegration__factory(sa.default.signer)).deploy(
+            maliciousIntegration = await (
+                await new MaliciousAaveIntegration__factory(sa.default.signer)
+            ).deploy(
                 DEAD_ADDRESS,
                 mAssetDetails.aavePlatformAddress,
                 bAssets.map((b) => b.address),
@@ -883,7 +891,9 @@ describe("Feeder Admin", () => {
             await runSetup()
             const lendingDetail = await mAssetMachine.loadATokens(details.bAssets)
             ;[, transferringAsset] = details.bAssets
-            newMigration = await (await new MockPlatformIntegration__factory(sa.default.signer)).deploy(
+            newMigration = await (
+                await new MockPlatformIntegration__factory(sa.default.signer)
+            ).deploy(
                 DEAD_ADDRESS,
                 lendingDetail.aavePlatformAddress,
                 details.bAssets.map((b) => b.address),

@@ -157,9 +157,7 @@ describe("Feeder Validator - One basket one test", () => {
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}`, () => {
                 for (const testRedeem of testData.redeems) {
                     // Deduct swap fee before performing redemption
-                    const netInput = cv(testRedeem.mAssetQty)
-                        .mul(fullScale.sub(redemptionFeeRate))
-                        .div(fullScale)
+                    const netInput = cv(testRedeem.mAssetQty).mul(fullScale.sub(redemptionFeeRate)).div(fullScale)
 
                     if (testRedeem.hardLimitError) {
                         it(`${(count += 1)} throws Max Weight error when redeeming ${testRedeem.mAssetQty} mAssets for bAsset ${

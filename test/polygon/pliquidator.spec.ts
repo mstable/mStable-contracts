@@ -150,7 +150,7 @@ describe("Liquidator", () => {
         await redeployLiquidator()
 
         ctx.sa = sa
-        ctx.module = (liquidator as any) as ImmutableModule
+        ctx.module = liquidator as any as ImmutableModule
     })
 
     describe("verifying initialization", async () => {
@@ -167,9 +167,7 @@ describe("Liquidator", () => {
         it("should use all pToken addresses and claim rewards", async () => {
             const balBefore = await rewardsToken.balanceOf(paaveIntegration.address)
             const tx = paaveIntegration.claimRewards()
-            await expect(tx)
-                .to.emit(paaveIntegration, "RewardsClaimed")
-                .withArgs(pTokens, simpleToExactAmount(1, 20))
+            await expect(tx).to.emit(paaveIntegration, "RewardsClaimed").withArgs(pTokens, simpleToExactAmount(1, 20))
 
             const balAfter = await rewardsToken.balanceOf(paaveIntegration.address)
             expect(balAfter).eq(balBefore.add(simpleToExactAmount(1, 20)))
@@ -327,9 +325,7 @@ describe("Liquidator", () => {
                         [rewardsToken.address, ZERO_ADDRESS, bAsset2.address],
                         simpleToExactAmount(70, 18),
                     )
-                await expect(tx)
-                    .to.emit(liquidator, "LiquidationModified")
-                    .withArgs(paaveIntegration.address)
+                await expect(tx).to.emit(liquidator, "LiquidationModified").withArgs(paaveIntegration.address)
                 const liquidation = await getLiquidation(paaveIntegration.address)
                 expect(liquidation.sellToken).eq(rewardsToken.address)
                 expect(liquidation.bAsset).eq(bAsset2.address)
@@ -344,9 +340,7 @@ describe("Liquidator", () => {
             it("should delete the liquidation", async () => {
                 // update uniswap path, bAsset, tranch amount
                 const tx = liquidator.connect(sa.governor.signer).deleteLiquidation(paaveIntegration.address)
-                await expect(tx)
-                    .to.emit(liquidator, "LiquidationEnded")
-                    .withArgs(paaveIntegration.address)
+                await expect(tx).to.emit(liquidator, "LiquidationEnded").withArgs(paaveIntegration.address)
                 const oldLiq = await getLiquidation(paaveIntegration.address)
                 expect(oldLiq.bAsset).eq("0x0000000000000000000000000000000000000000")
             })
