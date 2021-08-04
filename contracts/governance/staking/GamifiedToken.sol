@@ -36,6 +36,7 @@ abstract contract GamifiedToken is
     string private _symbol;
 
     // TODO - make this more efficient than full slot
+    // bundle with other public vars (collateralisationRatio?)
     /// @notice Timestamp at which the current season started
     uint32 private _seasonEpoch;
 

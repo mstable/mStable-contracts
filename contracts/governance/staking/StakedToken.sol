@@ -27,6 +27,14 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     /// @notice A week
     uint256 private constant ONE_WEEK = 7 days;
 
+    struct SafetyData {
+        /// Percentage of collateralisation where 100% = 1e18
+        uint128 collateralisationRatio;
+        /// Slash % where 100% = 1e18
+        uint128 slashingPercentage;
+    }
+    /// @notice Data relating to the re-collateralisation safety module
+    SafetyData public safetyData;
     /// @notice Tracks the cooldowns for all users
     mapping(address => uint256) public stakersCooldowns;
 
@@ -70,6 +78,29 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         address _rewardsDistributorArg
     ) external initializer {
         __GamifiedToken_init(_nameArg, _symbolArg, _rewardsDistributorArg);
+        safetyData = SafetyData({ collateralisationRatio: 1e18, slashingPercentage: 0 });
+    }
+
+    /**
+     * @dev TOWRITE
+     */
+    modifier onlyRecollateralisationModule() {
+        require(
+            _msgSender() == _recollateraliser(),
+            "Only the Recollateralisation Module can call"
+        );
+        _;
+    }
+
+    /**
+     * @dev TOWRITE
+     */
+    modifier onlyBeforeRecollateralisation() {
+        require(
+            safetyData.collateralisationRatio == 1e18,
+            "Function can only be called while fully collateralised"
+        );
+        _;
     }
 
     /***************************************
@@ -77,23 +108,23 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     ****************************************/
 
     /**
-     * @dev TODO
+     * @dev TOWRITE
      */
     function stake(uint256 _amount) external override {
         _stake(_amount, address(0));
     }
 
     /**
-     * @dev TODO
+     * @dev TOWRITE
      */
     function stake(uint256 _amount, address _delegatee) external override {
         _stake(_amount, _delegatee);
     }
 
     /**
-     * @dev TODO
+     * @dev TOWRITE
      */
-    function _stake(uint256 _amount, address _delegatee) internal {
+    function _stake(uint256 _amount, address _delegatee) internal onlyBeforeRecollateralisation {
         require(_amount != 0, "INVALID_ZERO_AMOUNT");
 
         // TODO - investigate if gas savings by moving after _mint
@@ -114,7 +145,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     }
 
     /**
-     * @dev TODO
+     * @dev TOWRITE
      **/
     function withdraw(
         uint256 _amount,
@@ -124,12 +155,17 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         _withdraw(_amount, _recipient, _amountIncludesFee);
     }
 
+    /**
+     * @dev TOWRITE
+     **/
     function _withdraw(
         uint256 _amount,
         address _recipient,
         bool _amountIncludesFee
     ) internal {
         require(_amount != 0, "INVALID_ZERO_AMOUNT");
+
+        // TODO - if post-recollateralisation, skip the lockdown and don't apply the fee
 
         uint256 cooldownStartTimestamp = stakersCooldowns[_msgSender()];
         require(
@@ -182,12 +218,12 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     }
 
     /**
-     * @dev TODO
+     * @dev TOWRITE
      **/
     function startCooldown() external override {}
 
     /**
-     * @dev TODO
+     * @dev TOWRITE
      **/
     function _startCooldown() internal {
         require(balanceOf(_msgSender()) != 0, "INVALID_BALANCE_ON_COOLDOWN");
@@ -202,11 +238,31 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     }
 
     /***************************************
+                    ADMIN
+    ****************************************/
+
+    /**
+     * @dev TOWRITE
+     **/
+    function emergencyRecollateralisation() external onlyRecollateralisationModule {
+        require(safetyData.collateralisationRatio == 1e18, "Process already begun");
+        // 1. Take
+    }
+
+    /**
+     * @dev TOWRITE
+     **/
+    function changeSlashingPercentage() external onlyGovernor {
+        require(safetyData.collateralisationRatio == 1e18, "Process already begun");
+        // 1. Take
+    }
+
+    /***************************************
             BACKWARDS COMPATIBILITY
     ****************************************/
 
     /**
-     * @dev TODO
+     * @dev TOWRITE
      **/
     function createLock(
         uint256 _value,
@@ -216,14 +272,14 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     }
 
     /**
-     * @dev TODO
+     * @dev TOWRITE
      **/
     function increaseLockAmount(uint256 _value) external {
         _stake(_value, address(0));
     }
 
     /**
-     * @dev TODO
+     * @dev TOWRITE
      **/
     function increaseLockLength(
         uint256 /* _unlockTime */
@@ -232,7 +288,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     }
 
     /**
-     * @dev TODO
+     * @dev TOWRITE
      **/
     function exit() external virtual {
         // Since there is no immediate exit here, this can be called twice
