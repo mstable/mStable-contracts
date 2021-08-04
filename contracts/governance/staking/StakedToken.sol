@@ -193,28 +193,32 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     ****************************************/
 
     /**
-     * @dev TODO
+     * @notice Resets the cooldown start date taking into account what has already cooled.
+     *      If cooldown has nearly finished and the new staked amount is relatively small,
+     *      then the cooldown start date only moves forward a small amount of time.
+     *
+     *      If cooldown has only just started and the new staked amount is relatively large,
+     *      then the cooldown start date moves forward nearly a week.
+     * @param _stakedAmountToReceive amount of new rewards being staked.
+     * @param _staker Address of the staker depositing rewards.
+     * @param _stakedAmountOld balance of staked amount before new amount is added.
+     * @return nextCooldownTimestamp new cooldown start timestamp.
      **/
     function getNextCooldownTimestamp(
-        uint256 _amountToReceive,
-        address _toAddress,
-        uint256 _toBalance
-    ) public view returns (uint256) {
-        uint256 toCooldownTimestamp = stakersCooldowns[_toAddress];
-        if (toCooldownTimestamp == 0) {
-            return 0;
-        }
-
+        uint256 _stakedAmountToReceive,
+        address _staker,
+        uint256 _stakedAmountOld
+    ) public view returns (uint256 nextCooldownTimestamp) {
+        uint256 oldCooldownTimestamp = stakersCooldowns[_staker];
         uint256 minimalValidCooldownTimestamp = block.timestamp - COOLDOWN_SECONDS - UNSTAKE_WINDOW;
 
-        // If user has missed their unstake window, reset
-        if (minimalValidCooldownTimestamp > toCooldownTimestamp) {
-            toCooldownTimestamp = 0;
-        } else {
-            toCooldownTimestamp =
-                ((_amountToReceive * block.timestamp) + (_toBalance * toCooldownTimestamp)) /
-                (_amountToReceive + _toBalance);
+        // If user has started cooldown and it has not already expired
+        if (oldCooldownTimestamp >= minimalValidCooldownTimestamp ) {
+            // next cooldown = current time - (time already cooled * old staked amount / (old staked amount + new amount being staked))
+            uint256 secondsAlreadyCooled = block.timestamp - oldCooldownTimestamp;
+            uint256 weightedSecondsAlreadyCooled =
+                (secondsAlreadyCooled * _stakedAmountOld) / (_stakedAmountOld + _stakedAmountToReceive);
+            nextCooldownTimestamp = block.timestamp - weightedSecondsAlreadyCooled;
         }
-        return toCooldownTimestamp;
     }
 }
