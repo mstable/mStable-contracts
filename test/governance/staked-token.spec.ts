@@ -426,6 +426,11 @@ describe("Staked Token", () => {
         })
     })
 
+    context("interacting from a smart contract", () => {
+        // Will need to create a sample solidity mock wrapper that has the ability to deposit and withdraw
+        it("should not be possible to stake and withdraw from a smart contract")
+    })
+
     context("updating lastAction timestamp", () => {
         it("should be triggered after every WRITE action on the contract")
     })

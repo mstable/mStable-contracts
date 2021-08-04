@@ -38,12 +38,16 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     SafetyData public safetyData;
     /// @notice Tracks the cooldowns for all users
     mapping(address => uint256) public stakersCooldowns;
+    /// @notice Whitelisted smart contract integrations
+    mapping(address => bool) public whitelistedWrappers;
 
     event Staked(address indexed user, uint256 amount, address delegatee);
     event Withdraw(address indexed user, address indexed to, uint256 amount);
     event Cooldown(address indexed user);
     event SlashRateChanged(uint256 newRate);
     event Recollateralised();
+    event WrapperWhitelisted(address wallet);
+    event WrapperBlacklisted(address wallet);
 
     /***************************************
                     INIT
@@ -106,6 +110,19 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         _;
     }
 
+    /**
+     * @dev TOWRITE
+     */
+    modifier assertNotContract() {
+        if (_msgSender() != tx.origin) {
+            require(
+                whitelistedWrappers[_msgSender()],
+                "Transactions from non-whitelisted smart contracts not allowed"
+            );
+        }
+        _;
+    }
+
     /***************************************
                     ACTIONS
     ****************************************/
@@ -127,7 +144,11 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     /**
      * @dev TOWRITE
      */
-    function _stake(uint256 _amount, address _delegatee) internal onlyBeforeRecollateralisation {
+    function _stake(uint256 _amount, address _delegatee)
+        internal
+        onlyBeforeRecollateralisation
+        assertNotContract
+    {
         require(_amount != 0, "INVALID_ZERO_AMOUNT");
 
         // TODO - investigate if gas savings by moving after _mint
@@ -165,7 +186,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         uint256 _amount,
         address _recipient,
         bool _amountIncludesFee
-    ) internal {
+    ) internal assertNotContract {
         require(_amount != 0, "INVALID_ZERO_AMOUNT");
 
         // If recollateralisation has occured, the contract is finished
@@ -291,6 +312,24 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         safetyData.slashingPercentage = SafeCast.toUint128(_newRate);
 
         emit SlashRateChanged(_newRate);
+    }
+
+    /**
+     * @dev TOWRITE
+     **/
+    function whitelistWrapper(address _wrapper) external onlyGovernor {
+        whitelistedWrappers[_wrapper] = true;
+
+        emit WrapperWhitelisted(_wrapper);
+    }
+
+    /**
+     * @dev TOWRITE
+     **/
+    function blackLIstWrapper(address _wrapper) external onlyGovernor {
+        whitelistedWrappers[_wrapper] = false;
+
+        emit WrapperBlacklisted(_wrapper);
     }
 
     /***************************************
