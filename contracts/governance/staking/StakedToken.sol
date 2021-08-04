@@ -31,7 +31,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     mapping(address => uint256) public stakersCooldowns;
 
     event Staked(address indexed user, uint256 amount, address delegatee);
-    event Redeem(address indexed user, address indexed to, uint256 amount);
+    event Withdraw(address indexed user, address indexed to, uint256 amount);
     event Cooldown(address indexed user);
 
     /***************************************
@@ -151,7 +151,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         IERC20(STAKED_TOKEN).safeTransfer(_recipient, userWithdrawal);
         _notifyAdditionalReward(totalWithdraw - userWithdrawal);
 
-        emit Redeem(_msgSender(), _recipient, _amount);
+        emit Withdraw(_msgSender(), _recipient, _amount);
     }
 
     /**
@@ -199,10 +199,13 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
      *
      *      If cooldown has only just started and the new staked amount is relatively large,
      *      then the cooldown start date moves forward nearly a week.
+     *      
+     *      If staker is not in a cooldown period, return 0.
+     *
      * @param _stakedAmountToReceive amount of new rewards being staked.
      * @param _staker Address of the staker depositing rewards.
      * @param _stakedAmountOld balance of staked amount before new amount is added.
-     * @return nextCooldownTimestamp new cooldown start timestamp.
+     * @return nextCooldownTimestamp new cooldown start timestamp or 0.
      **/
     function getNextCooldownTimestamp(
         uint256 _stakedAmountToReceive,
