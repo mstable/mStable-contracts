@@ -18,9 +18,20 @@ interface UserStakingData {
     rewardsBalance: BN
 }
 
+enum QuestType {
+    PERMANENT,
+    SEASONAL,
+}
+
+enum QuestStatus {
+    ACTIVE,
+    EXPIRED,
+}
+
 describe("Staked Token", () => {
     // const ctx: Partial<IModuleBehaviourContext> = {}
     let sa: StandardAccounts
+    let deployTime: BN
 
     let nexus: MockNexus
     let rewardToken: MockERC20
@@ -29,12 +40,14 @@ describe("Staked Token", () => {
     const startingMintAmount = simpleToExactAmount(10000000)
 
     const redeployStakedToken = async (): Promise<StakedToken> => {
+        const startingBlock = await sa.default.signer.provider.getBlock("latest")
+        deployTime = BN.from(startingBlock.timestamp)
         nexus = await new MockNexus__factory(sa.default.signer).deploy(sa.governor.address, DEAD_ADDRESS, DEAD_ADDRESS)
         rewardToken = await new MockERC20__factory(sa.default.signer).deploy("Reward", "RWD", 18, sa.default.address, 10000000)
 
         const stakedTokenFactory = await new StakedToken__factory(sa.default.signer)
         const stakedTokenImpl = await stakedTokenFactory.deploy(
-            sa.default.address,
+            sa.questSigner.address,
             nexus.address,
             rewardToken.address,
             rewardToken.address,
@@ -81,6 +94,9 @@ describe("Staked Token", () => {
             expect(await stakedToken.symbol(), "symbol").to.eq("stkRWD")
             expect(await stakedToken.decimals(), "decimals").to.eq(18)
             expect(await stakedToken.rewardsDistributor(), "rewards distributor").to.eq(DEAD_ADDRESS)
+            // eslint-disable-next-line no-underscore-dangle
+            // TODO why is this failing?
+            // expect(await stakedToken._signer(), "quest signer").to.eq(sa.questSigner.address)
 
             expect(await stakedToken.STAKED_TOKEN(), "staked token").to.eq(rewardToken.address)
             expect(await stakedToken.COOLDOWN_SECONDS(), "cooldown").to.eq(ONE_WEEK)
@@ -125,7 +141,7 @@ describe("Staked Token", () => {
         it("should assign delegate", async () => {
             const tx = await stakedToken["stake(uint256,address)"](stakedAmount, sa.dummy1.address)
             await expect(tx).to.emit(stakedToken, "Staked").withArgs(sa.default.address, stakedAmount, sa.dummy1.address)
-            await expect(tx).to.emit(stakedToken, "DelegateChanged").not
+            await expect(tx).to.emit(stakedToken, "DelegateChanged").withArgs(sa.default.address, sa.default.address, sa.dummy1.address)
             await expect(tx).to.emit(stakedToken, "DelegateVotesChanged").withArgs(sa.dummy1.address, 0, stakedAmount)
             await expect(tx).to.emit(rewardToken, "Transfer").withArgs(sa.default.address, stakedToken.address, stakedAmount)
 
@@ -256,8 +272,171 @@ describe("Staked Token", () => {
     })
 
     context("questing and multipliers", () => {
-        it("should allow an admin to add a seasonal quest")
-        it("should allow a user to complete a seasonal quest with verification")
+        const stakedAmount = simpleToExactAmount(5000)
+        before(async () => {
+            stakedToken = await redeployStakedToken()
+            await rewardToken.connect(sa.default.signer).approve(stakedToken.address, simpleToExactAmount(10000))
+            await stakedToken["stake(uint256,address)"](stakedAmount, sa.default.address)
+        })
+        context("add quest", () => {
+            let id = 0
+            it("should allow governor to add a seasonal quest", async () => {
+                const multiplier = 20 // 1.2x
+                const expiry = deployTime.add(ONE_WEEK.mul(12))
+                const tx = await stakedToken.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, multiplier, expiry)
+
+                await expect(tx)
+                    .to.emit(stakedToken, "QuestAdded")
+                    .withArgs(sa.governor.address, 0, QuestType.SEASONAL, multiplier, QuestStatus.ACTIVE, expiry)
+
+                const quest = await stakedToken.getQuest(id)
+                expect(quest.model).to.eq(QuestType.SEASONAL)
+                expect(quest.multiplier).to.eq(multiplier)
+                expect(quest.status).to.eq(QuestStatus.ACTIVE)
+                expect(quest.expiry).to.eq(expiry)
+            })
+            it("should allow governor to add a permanent quest", async () => {
+                id += 1
+                const multiplier = 60 // 1.6x
+                const expiry = deployTime.add(ONE_WEEK.mul(26))
+                const tx = await stakedToken.connect(sa.governor.signer).addQuest(QuestType.PERMANENT, multiplier, expiry)
+
+                await expect(tx)
+                    .to.emit(stakedToken, "QuestAdded")
+                    .withArgs(sa.governor.address, 1, QuestType.PERMANENT, multiplier, QuestStatus.ACTIVE, expiry)
+
+                const quest = await stakedToken.getQuest(id)
+                expect(quest.model).to.eq(QuestType.PERMANENT)
+                expect(quest.multiplier).to.eq(multiplier)
+                expect(quest.status).to.eq(QuestStatus.ACTIVE)
+                expect(quest.expiry).to.eq(expiry)
+            })
+            context("should allow governor to add", () => {
+                it("quest with 1.01x multiplier", async () => {
+                    await stakedToken.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 1, deployTime.add(ONE_WEEK.mul(12)))
+                })
+                it("quest with 2x multiplier", async () => {
+                    await stakedToken.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 100, deployTime.add(ONE_WEEK.mul(12)))
+                })
+                it("quest with 1 day expiry", async () => {
+                    const currentBlock = await sa.default.signer.provider.getBlock("latest")
+                    const currentTime = BN.from(currentBlock.timestamp)
+                    await stakedToken.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 10, currentTime.add(ONE_DAY).add(2))
+                })
+            })
+            context("should not add quest", () => {
+                const multiplier = 10 // 1.1x
+                it("from deployer account", async () => {
+                    await expect(stakedToken.addQuest(QuestType.SEASONAL, multiplier, deployTime.add(ONE_WEEK))).to.revertedWith(
+                        "Not verified",
+                    )
+                })
+                it("with < 1 day expiry", async () => {
+                    await expect(
+                        stakedToken.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, multiplier, deployTime.add(ONE_DAY).sub(60)),
+                    ).to.revertedWith("Quest window too small")
+                })
+                it("with 0 multiplier", async () => {
+                    await expect(
+                        stakedToken.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 0, deployTime.add(ONE_WEEK)),
+                    ).to.revertedWith("Quest multiplier too large > 2x")
+                })
+                it("with > 2x multiplier", async () => {
+                    await expect(
+                        stakedToken.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 101, deployTime.add(ONE_WEEK)),
+                    ).to.revertedWith("Quest multiplier too large > 2x")
+                })
+            })
+        })
+        context("expire quest", () => {
+            let expiry: BN
+            before(async () => {
+                expiry = deployTime.add(ONE_WEEK.mul(12))
+            })
+            it("should allow governor to expire a seasonal quest", async () => {
+                const tx0 = await stakedToken.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 10, expiry)
+                const receipt = await tx0.wait()
+                const { id } = receipt.events[0].args
+                const block = await sa.default.signer.provider.getBlock("latest")
+                const tx = await stakedToken.connect(sa.governor.signer).expireQuest(id)
+
+                await expect(tx).to.emit(stakedToken, "QuestExpired").withArgs(id)
+
+                const quest = await stakedToken.getQuest(id)
+                expect(quest.status).to.eq(QuestStatus.EXPIRED)
+                expect(quest.expiry).to.lt(expiry)
+                expect(quest.expiry).to.eq(block.timestamp + 1)
+            })
+            it("should allow governor to expire a permanent quest", async () => {
+                const tx0 = await stakedToken.connect(sa.governor.signer).addQuest(QuestType.PERMANENT, 10, expiry)
+                const receipt = await tx0.wait()
+                const { id } = receipt.events[0].args
+                const block = await sa.default.signer.provider.getBlock("latest")
+                const tx = await stakedToken.connect(sa.governor.signer).expireQuest(id)
+
+                await expect(tx).to.emit(stakedToken, "QuestExpired").withArgs(id)
+
+                const quest = await stakedToken.getQuest(id)
+                expect(quest.status).to.eq(QuestStatus.EXPIRED)
+                expect(quest.expiry).to.lt(expiry)
+                expect(quest.expiry).to.eq(block.timestamp + 1)
+            })
+            context("should fail to expire quest", () => {
+                let id: number
+                before(async () => {
+                    const tx = await stakedToken.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 10, expiry)
+                    const receipt = await tx.wait()
+                    id = receipt.events[0].args.id
+                })
+                it("from deployer", async () => {
+                    await expect(stakedToken.expireQuest(id)).to.revertedWith("Not verified")
+                })
+                it("with id does not exists", async () => {
+                    await expect(stakedToken.connect(sa.governor.signer).expireQuest(id + 1)).to.revertedWith("Quest does not exist")
+                })
+                it("that has already been expired", async () => {
+                    await stakedToken.connect(sa.governor.signer).expireQuest(id)
+                    await expect(stakedToken.connect(sa.governor.signer).expireQuest(id)).to.revertedWith("Quest already expired")
+                })
+            })
+            it("expired quest can no longer be completed")
+        })
+        context("start season", () => {
+            before(async () => {
+                const expiry = deployTime.add(ONE_WEEK.mul(12))
+                await stakedToken.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 10, expiry)
+                await stakedToken.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 10, expiry)
+            })
+            it("should allow governor to start season after 39 weeks", async () => {
+                await increaseTime(ONE_WEEK.mul(39).add(60))
+                const tx = await stakedToken.connect(sa.governor.signer).startNewQuestSeason()
+                await expect(tx).to.emit(stakedToken, "QuestSeasonEnded")
+            })
+            context("should fail to start season", () => {
+                it("from deployer", async () => {
+                    await expect(stakedToken.startNewQuestSeason()).to.revertedWith("Not verified")
+                })
+                it("before 39 week from last season", async () => {
+                    await increaseTime(ONE_WEEK.mul(39).sub(60))
+                    await expect(stakedToken.connect(sa.governor.signer).startNewQuestSeason()).to.revertedWith("Season has not elapsed")
+                })
+            })
+        })
+        context("complete quest", () => {
+            let currentTime
+            before(async () => {
+                const block = await sa.default.signer.provider.getBlock("latest")
+                currentTime = BN.from(block.timestamp)
+                const expiry = currentTime.add(ONE_WEEK.mul(12))
+                await stakedToken.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 10, expiry)
+                await stakedToken.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 10, expiry)
+            })
+            it("should allow a user to complete a seasonal quest with verification", async () => {
+                // TODO helper function to sign quests
+                // await stakedToken.connect(sa.dummy2.signer).completeQuest()
+            })
+        })
+
         it("should increase a users voting power when they complete said quest")
         it("should allow an admin to end the quest season")
         // Important that each action (checkTimestamp, completeQuest, mint) applies this because

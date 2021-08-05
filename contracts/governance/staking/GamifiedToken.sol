@@ -30,15 +30,16 @@ abstract contract GamifiedToken is
     HeadlessStakingRewards
 {
     /// @notice name of this token (ERC20)
-    string private _name;
-
+    string public override name;
     /// @notice symbol of this token (ERC20)
-    string private _symbol;
+    string public override symbol;
+    /// @notice number of decimals of this token (ERC20)
+    uint8 public constant override decimals = 18;
 
     // TODO - make this more efficient than full slot
     // bundle with other public vars (collateralisationRatio?)
     /// @notice Timestamp at which the current season started
-    uint32 private _seasonEpoch;
+    uint32 public seasonEpoch;
 
     /// @notice User balance structs containing all data needed to scale balance
     mapping(address => Balance) internal _balances;
@@ -88,9 +89,9 @@ abstract contract GamifiedToken is
         address _rewardsDistributorArg
     ) internal initializer {
         __Context_init_unchained();
-        _name = _nameArg;
-        _symbol = _symbolArg;
-        _seasonEpoch = SafeCast.toUint32(block.timestamp);
+        name = _nameArg;
+        symbol = _symbolArg;
+        seasonEpoch = SafeCast.toUint32(block.timestamp);
         HeadlessStakingRewards._initialize(_rewardsDistributorArg);
     }
 
@@ -105,27 +106,6 @@ abstract contract GamifiedToken is
     /***************************************
                     VIEWS
     ****************************************/
-
-    /**
-     * @dev Name of this gamified token
-     */
-    function name() public view virtual override returns (string memory) {
-        return _name;
-    }
-
-    /**
-     * @dev Symbol of this gamified token
-     */
-    function symbol() public view virtual override returns (string memory) {
-        return _symbol;
-    }
-
-    /**
-     * @dev Always 18 decimals
-     */
-    function decimals() public view virtual override returns (uint8) {
-        return 18;
-    }
 
     /**
      * @dev Total sum of all scaled balances
@@ -214,7 +194,7 @@ abstract contract GamifiedToken is
         uint32 _expiry
     ) external questMasterOrGovernor {
         require(_expiry > block.timestamp + 1 days, "Quest window too small");
-        require(_multiplier > 0 && _multiplier <= 100, "Quest multiplier too large (> 2x)");
+        require(_multiplier > 0 && _multiplier <= 100, "Quest multiplier too large > 2x");
 
         _quests.push(
             Quest({
@@ -242,12 +222,12 @@ abstract contract GamifiedToken is
      */
     function expireQuest(uint16 _id) external questMasterOrGovernor {
         require(_quests.length >= _id, "Quest does not exist");
-        require(
-            _quests[_id].status == QuestStatus.ACTIVE && block.timestamp < _quests[_id].expiry,
-            "Quest already expired"
-        );
+        require(_quests[_id].status == QuestStatus.ACTIVE, "Quest already expired");
 
         _quests[_id].status = QuestStatus.EXPIRED;
+        if (block.timestamp < _quests[_id].expiry) {
+            _quests[_id].expiry = SafeCast.toUint32(block.timestamp);
+        }
 
         emit QuestExpired(_id);
     }
@@ -260,9 +240,9 @@ abstract contract GamifiedToken is
      * A new season can only begin after 9 months has passed.
      */
     function startNewQuestSeason() external questMasterOrGovernor {
-        require(block.timestamp > (_seasonEpoch + 39 weeks), "Not enough time elapsed in season");
+        require(block.timestamp > (seasonEpoch + 39 weeks), "Season has not elapsed");
 
-        _seasonEpoch = SafeCast.toUint32(block.timestamp);
+        seasonEpoch = SafeCast.toUint32(block.timestamp);
 
         emit QuestSeasonEnded();
     }
