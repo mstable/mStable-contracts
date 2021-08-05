@@ -13,8 +13,16 @@ import "./GamifiedTokenStructs.sol";
  * @title StakedToken
  * @notice StakedToken is a non-transferrable ERC20 token that allows users to stake and withdraw, earning voting rights.
  * Scaled balance is determined by quests a user completes, and the length of time they keep the raw balance wrapped.
+ * Stakers can unstake, after the elapsed cooldown period, and before the end of the unstake window. Users voting/earning
+ * power is slashed during this time, and they may face a redemption fee if they leave early.
+ * The reason for this unstake window is that this StakedToken acts as a source of insurance value for the mStable system,
+ * which can access the funds via the Recollateralisation module, up to the amount defined in `safetyData`.
+ * Voting power can be used for a number of things: voting in the mStable DAO/emission dials, boosting rewards, earning
+ * rewards here. While a users "balance" is unique to themselves, they can choose to delegate their voting power (which will apply
+ * to voting in the mStable DAO and emission dials).
  * @author mStable
- * @dev TOWRITE
+ * @dev Only whitelisted contracts can communicate with this contract, in order to avoid having tokenised wrappers that
+ * could potentially circumvent our unstaking procedure.
  **/
 contract StakedToken is IStakedToken, GamifiedVotingToken {
     using SafeERC20 for IERC20;
@@ -34,6 +42,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         /// Slash % where 100% = 1e18
         uint128 slashingPercentage;
     }
+
     /// @notice Data relating to the re-collateralisation safety module
     SafetyData public safetyData;
     /// @notice Tracks the cooldowns for all users
@@ -90,7 +99,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     }
 
     /**
-     * @dev TOWRITE
+     * @dev Only the recollateralisation module, as specified in the mStable Nexus, can execute this
      */
     modifier onlyRecollateralisationModule() {
         require(
@@ -101,7 +110,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     }
 
     /**
-     * @dev TOWRITE
+     * @dev This protects against fn's being called after a recollateralisation event, when the contract is essentially finished
      */
     modifier onlyBeforeRecollateralisation() {
         require(
@@ -112,7 +121,8 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     }
 
     /**
-     * @dev TOWRITE
+     * @dev Only whitelisted contracts can call core fns. mStable governors can whitelist and de-whitelist wrappers.
+     * Access may be given to yield optimisers to boost rewards, but creating unlimited and ungoverned wrappers is unadvised.
      */
     modifier assertNotContract() {
         if (_msgSender() != tx.origin) {
@@ -129,28 +139,41 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     ****************************************/
 
     /**
-     * @dev TOWRITE
+     * @dev Stake an `_amount` of STAKED_TOKEN in the system. This amount is added to the users stake and
+     * boosts their voting power.
+     * @param _amount Units of STAKED_TOKEN to stake
      */
     function stake(uint256 _amount) external override {
         _stake(_amount, address(0), false);
     }
 
     /**
-     * @dev TOWRITE
+     * @dev Stake an `_amount` of STAKED_TOKEN in the system. This amount is added to the users stake and
+     * boosts their voting power.
+     * @param _amount Units of STAKED_TOKEN to stake
+     * @param _exitCooldown Bool signalling whether to take this opportunity to cancel any outstanding lockdown and
+     * return the user back to their full voting power
      */
     function stake(uint256 _amount, bool _exitCooldown) external {
         _stake(_amount, address(0), _exitCooldown);
     }
 
     /**
-     * @dev TOWRITE
+     * @dev Stake an `_amount` of STAKED_TOKEN in the system. This amount is added to the users stake and
+     * boosts their voting power. Take the opportunity to change delegatee.
+     * @param _amount Units of STAKED_TOKEN to stake
+     * @param _delegatee Address of the user to whom the sender would like to delegate their voting power
      */
     function stake(uint256 _amount, address _delegatee) external override {
         _stake(_amount, _delegatee, false);
     }
 
     /**
-     * @dev TOWRITE
+     * @dev Internal stake fn. Can only be called by whitelisted contracts/EOAs and only before a recollateralisation event.
+     * @param _amount Units of STAKED_TOKEN to stake
+     * @param _delegatee Address of the user to whom the sender would like to delegate their voting power
+     * @param _exitCooldown Bool signalling whether to take this opportunity to cancel any outstanding lockdown and
+     * return the user back to their full voting power
      */
     function _stake(
         uint256 _amount,
@@ -159,22 +182,25 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     ) internal onlyBeforeRecollateralisation assertNotContract {
         require(_amount != 0, "INVALID_ZERO_AMOUNT");
 
-        // TODO - investigate if gas savings by moving after _mint
+        // 1. Apply the delegate if it has been chosen (else it defaults to the sender)
         if (_delegatee != address(0)) {
             _delegate(_msgSender(), _delegatee);
         }
 
+        // 2. Deal with cooldown
+        //      If a user is currently in a cooldown period, re-calculate their cooldown timestamp
         uint256 nextCooldown = getNextCooldownTimestamp(
             _amount,
             _msgSender(),
             balanceOf(_msgSender())
         );
-        // If we have missed the unstake window, the cooldown is over anyway
+        //      If we have missed the unstake window, or the user has chosen to exit the cooldown,
+        //      then reset the timestamp to 0
         bool exitCooldown = _exitCooldown ||
             block.timestamp > (nextCooldown + COOLDOWN_SECONDS + UNSTAKE_WINDOW);
-
         stakersCooldowns[_msgSender()] = exitCooldown ? 0 : nextCooldown;
 
+        // 3. Settle the stake by depositing the STAKED_TOKEN and minting voting power
         IERC20(STAKED_TOKEN).safeTransferFrom(_msgSender(), address(this), _amount);
         _mintRaw(_msgSender(), _amount, exitCooldown);
 
@@ -182,7 +208,12 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     }
 
     /**
-     * @dev TOWRITE
+     * @dev Withdraw raw tokens from the system, following an elapsed cooldown period.
+     * Note - May be subject to a transfer fee, depending on the users weightedTimestamp
+     * @param _amount Units of raw token to withdraw
+     * @param _recipient Address of beneficiary who will receive the raw tokens
+     * @param _amountIncludesFee Is the `_amount` specified inclusive of any applicable redemption fee?
+     * @param _exitCooldown Should we take this opportunity to exit the cooldown period?
      **/
     function withdraw(
         uint256 _amount,
@@ -194,7 +225,12 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     }
 
     /**
-     * @dev TOWRITE
+     * @dev Withdraw raw tokens from the system, following an elapsed cooldown period.
+     * Note - May be subject to a transfer fee, depending on the users weightedTimestamp
+     * @param _amount Units of raw token to withdraw
+     * @param _recipient Address of beneficiary who will receive the raw tokens
+     * @param _amountIncludesFee Is the `_amount` specified inclusive of any applicable redemption fee?
+     * @param _exitCooldown Should we take this opportunity to exit the cooldown period?
      **/
     function _withdraw(
         uint256 _amount,
@@ -204,16 +240,18 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     ) internal assertNotContract {
         require(_amount != 0, "INVALID_ZERO_AMOUNT");
 
-        // If recollateralisation has occured, the contract is finished
-        // Just return the remaining amount
+        // Is the contract post-recollateralisation?
         if (safetyData.collateralisationRatio != 1e18) {
+            // 1. If recollateralisation has occured, the contract is finished and we can skip all checks
             _burnRaw(_msgSender(), _amount, false);
+            // 2. Return a proportionate amount of tokens, based on the collateralisation ratio
             IERC20(STAKED_TOKEN).safeTransfer(
                 _recipient,
                 (_amount * safetyData.collateralisationRatio) / 1e18
             );
             emit Withdraw(_msgSender(), _recipient, _amount);
         } else {
+            // 1. If no recollateralisation has occured, the user must be within their UNSTAKE_WINDOW period in order to withdraw
             uint256 cooldownStartTimestamp = stakersCooldowns[_msgSender()];
             require(
                 block.timestamp > cooldownStartTimestamp + COOLDOWN_SECONDS,
@@ -224,59 +262,48 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
                 "UNSTAKE_WINDOW_FINISHED"
             );
 
+            // 2. Get current balance and exit cooldown if the user has specified, or if they have withdrawn everything
             Balance memory balance = _balances[_msgSender()];
             bool exitCooldown = _exitCooldown || (balance.raw - _amount) == 0;
             if (exitCooldown) {
                 stakersCooldowns[_msgSender()] = 0;
             }
 
-            // Apply redemption fee
-            // e.g. (55e18 / 5e18) - 2e18 = 9e18 / 100 = 9e16
-            uint256 feeRate = _calcRedemptionFeeRate(balance.weightedTimestamp);
-            // fee = amount * 1e18 / feeRate
-            // totalAmount = amount + fee
-            // fee = amount * (1e18 - feeRate) / 1e18
+            // 3. Apply redemption fee
+            //      e.g. (55e18 / 5e18) - 2e18 = 9e18 / 100 = 9e16
+            uint256 feeRate = calcRedemptionFeeRate(balance.weightedTimestamp);
+            //      fee = amount * 1e18 / feeRate
+            //      totalAmount = amount + fee
+            //      fee = amount * (1e18 - feeRate) / 1e18
             uint256 totalWithdraw = _amountIncludesFee
                 ? _amount
                 : (_amount * (1e18 + feeRate)) / 1e18;
             uint256 userWithdrawal = (totalWithdraw * 1e18) / (1e18 + feeRate);
 
+            // 4. Settle the withdrawal by burning the voting tokens
             _burnRaw(_msgSender(), totalWithdraw, exitCooldown);
-            IERC20(STAKED_TOKEN).safeTransfer(_recipient, userWithdrawal);
+            //      Log any redemption fee to the rewards contract
             _notifyAdditionalReward(totalWithdraw - userWithdrawal);
+            //      Finally transfer tokens back to recipient
+            IERC20(STAKED_TOKEN).safeTransfer(_recipient, userWithdrawal);
 
             emit Withdraw(_msgSender(), _recipient, _amount);
         }
     }
 
     /**
-     * @dev fee = x/k - 2, where x = weeks since a user has staked, and k = 55
-     * @param _weightedTimestamp The users weightedTimestamp
-     * @return _feeRate where 1% == 1e16
-     */
-    function _calcRedemptionFeeRate(uint32 _weightedTimestamp)
-        internal
-        view
-        returns (uint256 _feeRate)
-    {
-        uint256 weeksStaked = ((block.timestamp - _weightedTimestamp) * 1e18) / ONE_WEEK;
-        if (weeksStaked > 4e18) {
-            _feeRate = 55e18 / weeksStaked;
-            _feeRate = _feeRate < 2e18 ? 0 : _feeRate - 2e18;
-        } else {
-            _feeRate = 1e17;
-        }
-    }
-
-    /**
-     * @dev TOWRITE
+     * @dev Enters a cooldown period, after which (and before the unstake window elapses) a user will be able
+     * to withdraw part or all of their staked tokens. Note, during this period, a users voting power is significantly reduced.
+     * If a user already has a cooldown period, then it will reset to the current block timestamp, so use wisely.
      **/
     function startCooldown() external override {
         _startCooldown();
     }
 
     /**
-     * @dev TOWRITE
+     * @dev Ends the cooldown of the sender and give them back their full voting power. This can be used to signal that
+     * the user no longer wishes to exit the system. Note, the cooldown can also be reset, more smoothly, as part of a stake or
+     * withdraw transaction.
      **/
     function endCooldown() external {
         require(stakersCooldowns[_msgSender()] != 0, "No cooldown");
@@ -288,7 +315,9 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     }
 
     /**
-     * @dev TOWRITE
+     * @dev Enters a cooldown period, after which (and before the unstake window elapses) a user will be able
+     * to withdraw part or all of their staked tokens. Note, during this period, a users voting power is significantly reduced.
+     * If a user already has a cooldown period, then it will reset to the current block timestamp, so use wisely.
      **/
     function _startCooldown() internal {
         require(balanceOf(_msgSender()) != 0, "INVALID_BALANCE_ON_COOLDOWN");
@@ -304,8 +333,10 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     ****************************************/
 
     /**
-     * @dev TOWRITE
-     * Trusting that the recollateralisation module has sufficient protections in place
+     * @dev This is a write function allowing the whitelisted recollateralisation module to slash stakers here and take
+     * the capital to use to recollateralise any lost value in the system. Trusting that the recollateralisation module has
+     * sufficient protections put in place. Note, once this has been executed, the contract is now finished, and undercollateralised,
+     * meaning that all users must withdraw, and will only receive a proportionate amount back relative to the colRatio.
      **/
     function emergencyRecollateralisation()
         external
@@ -325,7 +356,9 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     }
 
     /**
-     * @dev TOWRITE
+     * @dev Governance can change the slashing percentage here (initially 0). This is the amount of a stakers capital that is at
+     * risk in the recollateralisation process.
+     * @param _newRate Rate, where 50% == 5e17
      **/
     function changeSlashingPercentage(uint256 _newRate)
         external
@@ -341,7 +374,9 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     }
 
     /**
-     * @dev TOWRITE
+     * @dev Allows governance to whitelist a smart contract to interact with the StakedToken (for example a yield aggregator or simply
+     * a Gnosis SAFE or other)
+     * @param _wrapper Address of the smart contract to list
      **/
     function whitelistWrapper(address _wrapper) external onlyGovernor {
         whitelistedWrappers[_wrapper] = true;
@@ -350,7 +385,8 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     }
 
     /**
-     * @dev TOWRITE
+     * @dev Allows governance to blacklist a smart contract to end it's interaction with the StakedToken
+     * @param _wrapper Address of the smart contract to blacklist
      **/
     function blackListWrapper(address _wrapper) external onlyGovernor {
         whitelistedWrappers[_wrapper] = false;
@@ -363,7 +399,8 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     ****************************************/
 
     /**
-     * @dev TOWRITE
+     * @dev Allows for backwards compatibility with createLock fn, giving basic args to stake
+     * @param _value Units to stake
      **/
     function createLock(
         uint256 _value,
@@ -373,14 +410,15 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     }
 
     /**
-     * @dev TOWRITE
+     * @dev Allows for backwards compatibility with increaseLockAmount fn by simply staking more
+     * @param _value Units to stake
      **/
     function increaseLockAmount(uint256 _value) external {
         _stake(_value, address(0), false);
     }
 
     /**
-     * @dev TOWRITE
+     * @dev Does nothing, because there is no lockup here.
      **/
     function increaseLockLength(
         uint256 /* _unlockTime */
@@ -389,7 +427,8 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     }
 
     /**
-     * @dev TOWRITE
+     * @dev Backwards compatibility. Previously a lock would run out and a user would call this. Now, it will take 2 calls
+     * to exit in order to leave. The first will initiate the cooldown period, and the second will execute a full withdrawal.
      **/
     function exit() external virtual {
         // Since there is no immediate exit here, this can be called twice
@@ -403,6 +442,25 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     /***************************************
                     GETTERS
     ****************************************/
+
+    /**
+     * @dev fee = x/k - 2, where x = weeks since a user has staked, and k = 55
+     * @param _weightedTimestamp The users weightedTimestamp
+     * @return _feeRate where 1% == 1e16
+     */
+    function calcRedemptionFeeRate(uint32 _weightedTimestamp)
+        public
+        view
+        returns (uint256 _feeRate)
+    {
+        uint256 weeksStaked = ((block.timestamp - _weightedTimestamp) * 1e18) / ONE_WEEK;
+        if (weeksStaked > 4e18) {
+            _feeRate = 55e18 / weeksStaked;
+            _feeRate = _feeRate < 2e18 ? 0 : _feeRate - 2e18;
+        } else {
+            _feeRate = 1e17;
+        }
+    }
 
     /**
      * @notice Resets the cooldown start date taking into account what has already cooled.

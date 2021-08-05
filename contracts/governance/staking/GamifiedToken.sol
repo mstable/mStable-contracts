@@ -153,6 +153,14 @@ abstract contract GamifiedToken is
     }
 
     /**
+     * @dev Simply gets raw balance
+     * @return raw balance for user
+     */
+    function rawBalanceOf(address _account) public view returns (uint256) {
+        return _balances[_account].raw;
+    }
+
+    /**
      * @dev Scales the balance of a given user by applying multipliers
      */
     function _getBalance(Balance memory _balance) internal pure returns (uint256 balance) {
