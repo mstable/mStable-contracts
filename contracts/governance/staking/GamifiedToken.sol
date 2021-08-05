@@ -535,7 +535,7 @@ abstract contract GamifiedToken is
      */
     function _checkForSeasonFinish(Balance memory _balance, address _account) private {
         // If the last action was before current season, then reset the season timing
-        if (_balance.lastAction < _seasonEpoch) {
+        if (_balance.lastAction < seasonEpoch) {
             // Remove 75% of the multiplier gained in this season
             _balances[_account].seasonMultiplier = (_balance.seasonMultiplier * 25) / 100;
         }
