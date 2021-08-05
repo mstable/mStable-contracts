@@ -326,7 +326,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     /**
      * @dev TOWRITE
      **/
-    function blackLIstWrapper(address _wrapper) external onlyGovernor {
+    function blackListWrapper(address _wrapper) external onlyGovernor {
         whitelistedWrappers[_wrapper] = false;
 
         emit WrapperBlacklisted(_wrapper);

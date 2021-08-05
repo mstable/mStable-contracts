@@ -231,7 +231,7 @@ abstract contract GamifiedToken is
     function expireQuest(uint16 _id) external questMasterOrGovernor {
         require(_quests.length >= _id, "Quest does not exist");
         require(
-            _quests[_id].status == QuestStatus.ACTIVE || block.timestamp < _quests[_id].expiry,
+            _quests[_id].status == QuestStatus.ACTIVE && block.timestamp < _quests[_id].expiry,
             "Quest already expired"
         );
 
@@ -316,6 +316,8 @@ abstract contract GamifiedToken is
      * @return timeMultiplier Ranging from 20 (0.2x) to 60 (0.6x)
      */
     function _timeMultiplier(uint32 _ts) internal pure returns (uint16 timeMultiplier) {
+        // TODO - if _ts == 0, skip
+        // TODO - this should probably do (block.timestamp - _ts) instead of assessing the actual ts.
         if (_ts < 13 weeks) {
             // 0-3 months = 1x
             return 0;
@@ -416,6 +418,7 @@ abstract contract GamifiedToken is
         //  ii) For previous minters, recalculate time held
         //      Calc new weighted timestamp
         uint256 secondsHeld = (block.timestamp - oldBalance.weightedTimestamp) * oldBalance.raw;
+        // TODO - review weightedTs change
         uint256 newWeightedTs = secondsHeld / (oldBalance.raw + ((_rawAmount / 3) * 2));
         _balances[_account].weightedTimestamp = SafeCast.toUint32(block.timestamp - newWeightedTs);
 
@@ -448,6 +451,7 @@ abstract contract GamifiedToken is
         // 2. Set back scaled time
         // e.g. stake 10 for 100 seconds, withdraw 5.
         //      secondsHeld = (100 - 0) * (10 - 1.25) = 875
+        // TODO - consider making the proportionate change the same as minting (easier to explain)
         uint256 secondsHeld = (block.timestamp - oldBalance.weightedTimestamp) *
             (oldBalance.raw - (_rawAmount / 4));
         //      newWeightedTs = 875 / 100 = 87.5
