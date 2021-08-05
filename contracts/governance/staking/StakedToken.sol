@@ -44,6 +44,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     event Staked(address indexed user, uint256 amount, address delegatee);
     event Withdraw(address indexed user, address indexed to, uint256 amount);
     event Cooldown(address indexed user);
+    event CooldownExited(address indexed user);
     event SlashRateChanged(uint256 newRate);
     event Recollateralised();
     event WrapperWhitelisted(address wallet);
@@ -131,24 +132,31 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
      * @dev TOWRITE
      */
     function stake(uint256 _amount) external override {
-        _stake(_amount, address(0));
+        _stake(_amount, address(0), false);
+    }
+
+    /**
+     * @dev TOWRITE
+     */
+    function stake(uint256 _amount, bool _exitCooldown) external {
+        _stake(_amount, address(0), _exitCooldown);
     }
 
     /**
      * @dev TOWRITE
      */
     function stake(uint256 _amount, address _delegatee) external override {
-        _stake(_amount, _delegatee);
+        _stake(_amount, _delegatee, false);
     }
 
     /**
      * @dev TOWRITE
      */
-    function _stake(uint256 _amount, address _delegatee)
-        internal
-        onlyBeforeRecollateralisation
-        assertNotContract
-    {
+    function _stake(
+        uint256 _amount,
+        address _delegatee,
+        bool _exitCooldown
+    ) internal onlyBeforeRecollateralisation assertNotContract {
         require(_amount != 0, "INVALID_ZERO_AMOUNT");
 
         // TODO - investigate if gas savings by moving after _mint
@@ -156,14 +164,19 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
             _delegate(_msgSender(), _delegatee);
         }
 
-        stakersCooldowns[_msgSender()] = getNextCooldownTimestamp(
+        uint256 nextCooldown = getNextCooldownTimestamp(
             _amount,
             _msgSender(),
             balanceOf(_msgSender())
         );
+        // If we have missed the unstake window, the cooldown is over anyway
+        bool exitCooldown = _exitCooldown ||
+            block.timestamp > (nextCooldown + COOLDOWN_SECONDS + UNSTAKE_WINDOW);
+
+        stakersCooldowns[_msgSender()] = exitCooldown ? 0 : nextCooldown;
 
         IERC20(STAKED_TOKEN).safeTransferFrom(_msgSender(), address(this), _amount);
-        _mintRaw(_msgSender(), _amount);
+        _mintRaw(_msgSender(), _amount, exitCooldown);
 
         emit Staked(_msgSender(), _amount, _delegatee);
     }
@@ -174,9 +187,10 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     function withdraw(
         uint256 _amount,
         address _recipient,
-        bool _amountIncludesFee
+        bool _amountIncludesFee,
+        bool _exitCooldown
     ) external override {
-        _withdraw(_amount, _recipient, _amountIncludesFee);
+        _withdraw(_amount, _recipient, _amountIncludesFee, _exitCooldown);
     }
 
     /**
@@ -185,14 +199,15 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     function _withdraw(
         uint256 _amount,
         address _recipient,
-        bool _amountIncludesFee
+        bool _amountIncludesFee,
+        bool _exitCooldown
     ) internal assertNotContract {
         require(_amount != 0, "INVALID_ZERO_AMOUNT");
 
         // If recollateralisation has occured, the contract is finished
         // Just return the remaining amount
         if (safetyData.collateralisationRatio != 1e18) {
-            _burnRaw(_msgSender(), _amount);
+            _burnRaw(_msgSender(), _amount, false);
             IERC20(STAKED_TOKEN).safeTransfer(
                 _recipient,
                 (_amount * safetyData.collateralisationRatio) / 1e18
@@ -210,7 +225,8 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
             );
 
             Balance memory balance = _balances[_msgSender()];
-            if ((balance.raw - _amount) == 0) {
+            bool exitCooldown = _exitCooldown || (balance.raw - _amount) == 0;
+            if (exitCooldown) {
                 stakersCooldowns[_msgSender()] = 0;
             }
 
@@ -225,9 +241,10 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
                 : (_amount * (1e18 + feeRate)) / 1e18;
             uint256 userWithdrawal = (totalWithdraw * 1e18) / (1e18 + feeRate);
 
-            _burnRaw(_msgSender(), totalWithdraw);
+            _burnRaw(_msgSender(), totalWithdraw, exitCooldown);
             IERC20(STAKED_TOKEN).safeTransfer(_recipient, userWithdrawal);
             _notifyAdditionalReward(totalWithdraw - userWithdrawal);
+
             emit Withdraw(_msgSender(), _recipient, _amount);
         }
     }
@@ -261,14 +278,23 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     /**
      * @dev TOWRITE
      **/
+    function endCooldown() external {
+        require(stakersCooldowns[_msgSender()] != 0, "No cooldown");
+
+        stakersCooldowns[_msgSender()] = 0;
+        _exitCooldown(_msgSender());
+
+        emit CooldownExited(_msgSender());
+    }
+
+    /**
+     * @dev TOWRITE
+     **/
     function _startCooldown() internal {
         require(balanceOf(_msgSender()) != 0, "INVALID_BALANCE_ON_COOLDOWN");
-        //solium-disable-next-line
-        stakersCooldowns[_msgSender()] = block.timestamp;
 
-        // TODO - apply penalty here..
-        // Is there a need for the unstake window if we are slashing? Can just leave it open ended
-        // TODO - poke _checkForSeasonFinish here
+        stakersCooldowns[_msgSender()] = block.timestamp;
+        _enterCooldownPeriod(_msgSender());
 
         emit Cooldown(_msgSender());
     }
@@ -343,14 +369,14 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         uint256 _value,
         uint256 /* _unlockTime */
     ) external {
-        _stake(_value, address(0));
+        _stake(_value, address(0), false);
     }
 
     /**
      * @dev TOWRITE
      **/
     function increaseLockAmount(uint256 _value) external {
-        _stake(_value, address(0));
+        _stake(_value, address(0), false);
     }
 
     /**
@@ -367,11 +393,10 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
      **/
     function exit() external virtual {
         // Since there is no immediate exit here, this can be called twice
-        // TODO - post cooldown, consider if there is a third state needed here
         if (stakersCooldowns[_msgSender()] == 0) {
             _startCooldown();
         } else {
-            _withdraw(_balances[_msgSender()].raw, _msgSender(), true);
+            _withdraw(_balances[_msgSender()].raw, _msgSender(), true, false);
         }
     }
 

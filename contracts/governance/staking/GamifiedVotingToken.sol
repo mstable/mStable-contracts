@@ -183,28 +183,6 @@ abstract contract GamifiedVotingToken is Initializable, GamifiedToken {
     }
 
     /**
-     * @dev Maximum token supply. Defaults to `type(uint224).max` (2^224^ - 1).
-     */
-    function _maxSupply() internal view virtual returns (uint224) {
-        return type(uint224).max;
-    }
-
-    /**
-     * @dev Snapshots the totalSupply after it has been increased.
-     */
-    function _mintRaw(address account, uint256 rawAmount) internal virtual override {
-        super._mintRaw(account, rawAmount);
-        require(totalSupply() <= _maxSupply(), "ERC20Votes: total supply risks overflowing votes");
-    }
-
-    /**
-     * @dev Snapshots the totalSupply after it has been decreased.
-     */
-    function _burnRaw(address account, uint256 rawAmount) internal virtual override {
-        super._burnRaw(account, rawAmount);
-    }
-
-    /**
      * @dev Move voting power when tokens are transferred.
      *
      * Emits a {DelegateVotesChanged} event.

@@ -12,7 +12,8 @@ interface IStakedToken {
     function withdraw(
         uint256 _amount,
         address _recipient,
-        bool _amountIncludesFee
+        bool _amountIncludesFee,
+        bool _exitCooldown
     ) external;
 
     function startCooldown() external;

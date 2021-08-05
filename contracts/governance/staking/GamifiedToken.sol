@@ -163,6 +163,10 @@ abstract contract GamifiedToken is
                     _balance.seasonMultiplier +
                     _balance.timeMultiplier)) /
             100;
+        // If the user is in cooldown, their balance is temporarily slashed by 50%
+        if (_balance.isInCooldown) {
+            balance /= 2;
+        }
     }
 
     /**
@@ -344,12 +348,49 @@ abstract contract GamifiedToken is
     ****************************************/
 
     /**
+     * @dev Entering a cooldown period means a user wishes to withdraw. With this in mind, their balance
+     * should be reduced until they have shown more commitment to the system
+     * @param _account Address of user that should be cooled
+     */
+    function _enterCooldownPeriod(address _account) internal updateReward(_account) {
+        require(_account != address(0), "Invalid address");
+
+        // 1. Get current balance
+        (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
+
+        // 2. Set weighted timestamp and enter cooldown
+        _balances[_account].timeMultiplier = _timeMultiplier(oldBalance.weightedTimestamp);
+        _balances[_account].isInCooldown = true;
+
+        // 3. Update scaled balance
+        _settleScaledBalance(_account, oldScaledBalance);
+    }
+
+    /**
+     * @dev Exiting the cooldown period explicitly resets the users cooldown window and their balance
+     * @param _account Address of user that should be exited
+     */
+    function _exitCooldown(address _account) internal updateReward(_account) {
+        require(_account != address(0), "Invalid address");
+
+        // 1. Get current balance
+        (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
+
+        // 2. Set weighted timestamp and enter cooldown
+        _balances[_account].timeMultiplier = _timeMultiplier(oldBalance.weightedTimestamp);
+        _balances[_account].isInCooldown = false;
+
+        // 3. Update scaled balance
+        _settleScaledBalance(_account, oldScaledBalance);
+    }
+
+    /**
      * @dev Pokes the weightedTimestamp of a given user and checks if it entitles them
      * to a better timeMultiplier. If not, it simply reverts as there is nothing to update.
      * @param _account Address of user that should be updated
      */
     function _reviewWeightedTimestamp(address _account) internal updateReward(_account) {
-        require(_account != address(0), "ERC20: mint to the zero address");
+        require(_account != address(0), "Invalid address");
 
         // 1. Get current balance
         (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
@@ -374,7 +415,7 @@ abstract contract GamifiedToken is
         virtual
         updateReward(_account)
     {
-        require(_account != address(0), "ERC20: mint to the zero address");
+        require(_account != address(0), "Invalid address");
 
         // 1. Get current balance & update questMultiplier
         (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
@@ -396,19 +437,23 @@ abstract contract GamifiedToken is
      * Importantly, when a user stakes more, their weightedTimestamp is reduced proportionate to their stake.
      * @param _account Address of user to credit
      * @param _rawAmount Raw amount of tokens staked
+     * @param _exitCooldown Reset the users cooldown slash
      */
-    function _mintRaw(address _account, uint256 _rawAmount)
-        internal
-        virtual
-        updateReward(_account)
-    {
+    function _mintRaw(
+        address _account,
+        uint256 _rawAmount,
+        bool _exitCooldown
+    ) internal virtual updateReward(_account) {
         require(_account != address(0), "ERC20: mint to the zero address");
 
         // 1. Get and update current balance
         (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
         _balances[_account].raw = oldBalance.raw + SafeCast.toUint128(_rawAmount);
 
-        // 2. Set weighted timestamp
+        // 2. Exit cooldown if necessary
+        if (_exitCooldown) _balances[_account].isInCooldown = false;
+
+        // 3. Set weighted timestamp
         //  i) For new _account, set up weighted timestamp
         if (oldBalance.weightedTimestamp == 0) {
             _balances[_account].weightedTimestamp = SafeCast.toUint32(block.timestamp);
@@ -433,12 +478,13 @@ abstract contract GamifiedToken is
      * @dev Called to burn a given amount of raw tokens.
      * @param _account Address of user
      * @param _rawAmount Raw amount of tokens to remove
+     * @param _exitCooldown Reset the users cooldown slash
      */
-    function _burnRaw(address _account, uint256 _rawAmount)
-        internal
-        virtual
-        updateReward(_account)
-    {
+    function _burnRaw(
+        address _account,
+        uint256 _rawAmount,
+        bool _exitCooldown
+    ) internal virtual updateReward(_account) {
         require(_account != address(0), "ERC20: burn from the zero address");
 
         // 1. Get and update current balance
@@ -448,7 +494,10 @@ abstract contract GamifiedToken is
             _balances[_account].raw = oldBalance.raw - SafeCast.toUint128(_rawAmount);
         }
 
-        // 2. Set back scaled time
+        // 2. Exit cooldown if necessary
+        if (_exitCooldown) _balances[_account].isInCooldown = false;
+
+        // 3. Set back scaled time
         // e.g. stake 10 for 100 seconds, withdraw 5.
         //      secondsHeld = (100 - 0) * (10 - 1.25) = 875
         // TODO - consider making the proportionate change the same as minting (easier to explain)
@@ -461,7 +510,7 @@ abstract contract GamifiedToken is
         uint16 timeMultiplier = _timeMultiplier(SafeCast.toUint32(newWeightedTs));
         _balances[_account].timeMultiplier = timeMultiplier;
 
-        // 3. Update scaled balance
+        // 4. Update scaled balance
         _burnScaled(_account, oldScaledBalance - _getBalance(_balances[_account]));
     }
 
