@@ -319,26 +319,28 @@ abstract contract GamifiedToken is
      * @param _ts WeightedTimestamp of a user
      * @return timeMultiplier Ranging from 20 (0.2x) to 60 (0.6x)
      */
-    function _timeMultiplier(uint32 _ts) internal pure returns (uint16 timeMultiplier) {
-        // TODO - if _ts == 0, skip
-        // TODO - this should probably do (block.timestamp - _ts) instead of assessing the actual ts.
-        if (_ts < 13 weeks) {
+    function _timeMultiplier(uint32 _ts) internal view returns (uint16 timeMultiplier) {
+        // If the user has no ts yet, they are not in the system
+        if (_ts == 0) return 0;
+
+        uint256 hodlLength = block.timestamp - _ts;
+        if (hodlLength < 13 weeks) {
             // 0-3 months = 1x
             return 0;
-        } else if (_ts < 26 weeks) {
+        } else if (hodlLength < 26 weeks) {
             // 3 months = 1.2x
             return 20;
-        } else if (_ts < 52 weeks) {
+        } else if (hodlLength < 52 weeks) {
             // 6 months = 1.3x
             return 30;
-        } else if (_ts < 78 weeks) {
+        } else if (hodlLength < 78 weeks) {
             // 12 months = 1.4x
             return 40;
-        } else if (_ts < 104 weeks) {
+        } else if (hodlLength < 104 weeks) {
             // 18 months = 1.5x
             return 50;
         } else {
-            // 24 months = 1.6x
+            // > 24 months = 1.6x
             return 60;
         }
     }
@@ -370,7 +372,7 @@ abstract contract GamifiedToken is
      * @dev Exiting the cooldown period explicitly resets the users cooldown window and their balance
      * @param _account Address of user that should be exited
      */
-    function _exitCooldown(address _account) internal updateReward(_account) {
+    function _exitCooldownPeriod(address _account) internal updateReward(_account) {
         require(_account != address(0), "Invalid address");
 
         // 1. Get current balance

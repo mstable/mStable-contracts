@@ -282,7 +282,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         require(stakersCooldowns[_msgSender()] != 0, "No cooldown");
 
         stakersCooldowns[_msgSender()] = 0;
-        _exitCooldown(_msgSender());
+        _exitCooldownPeriod(_msgSender());
 
         emit CooldownExited(_msgSender());
     }
