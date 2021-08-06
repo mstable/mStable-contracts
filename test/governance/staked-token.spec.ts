@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 import { ethers } from "hardhat"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
 import { MockNexus__factory } from "types/generated/factories/MockNexus__factory"
@@ -12,12 +13,23 @@ import { getTimestamp, increaseTime } from "@utils/time"
 import { arrayify, hashMessage, solidityKeccak256 } from "ethers/lib/utils"
 import { BigNumberish, Signer } from "ethers"
 
+interface UserBalances {
+    raw: BN
+    weightedTimestamp: number
+    lastAction: number
+    permMultiplier: number
+    seasonMultiplier: number
+    timeMultiplier: number
+    isInCooldown: boolean
+}
+
 interface UserStakingData {
     stakedBalance: BN
     votes: BN
     earnedRewards: BN
     stakersCooldown: BN
     rewardsBalance: BN
+    userBalances: UserBalances
 }
 
 enum QuestType {
@@ -74,6 +86,7 @@ describe("Staked Token", () => {
         const earnedRewards = await stakedToken.earned(user.address)
         const stakersCooldown = await stakedToken.stakersCooldowns(user.address)
         const rewardsBalance = await rewardToken.balanceOf(user.address)
+        const userBalance = await stakedToken.balanceData(user.address)
 
         return {
             stakedBalance,
@@ -81,6 +94,7 @@ describe("Staked Token", () => {
             earnedRewards,
             stakersCooldown,
             rewardsBalance,
+            userBalances: userBalance,
         }
     }
 
@@ -429,31 +443,35 @@ describe("Staked Token", () => {
         })
         context("complete quest", () => {
             let currentTime
-            let id: BN
+            let permanentQuestId: BN
+            let seasonQuestId: BN
+            const permanentMultiplier = 10
+            const seasonMultiplier = 20
             before(async () => {
                 currentTime = await getTimestamp()
                 const expiry = currentTime.add(ONE_WEEK.mul(12))
-                await stakedToken.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 10, expiry)
-                const tx = await stakedToken.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 10, expiry)
+                await stakedToken.connect(sa.governor.signer).addQuest(QuestType.PERMANENT, permanentMultiplier, expiry)
+                const tx = await stakedToken.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, seasonMultiplier, expiry)
                 const receipt = await tx.wait()
-                id = receipt.events[0].args.id
+                seasonQuestId = receipt.events[0].args.id
+                permanentQuestId = seasonQuestId.sub(1)
             })
             it("should have quest signer set", async () => {
                 // eslint-disable-next-line no-underscore-dangle
                 expect(await stakedToken._signer(), "quest signer").to.eq(sa.questSigner.address)
             })
             it("should get message hash", async () => {
-                const messageHash = solidityKeccak256(["address", "uint256"], [sa.default.address, id])
-                expect(await stakedToken.getMessageHash(sa.default.address, id), "account and id hash").to.eq(messageHash)
+                const messageHash = solidityKeccak256(["address", "uint256"], [sa.default.address, seasonQuestId])
+                expect(await stakedToken.getMessageHash(sa.default.address, seasonQuestId), "account and id hash").to.eq(messageHash)
             })
             it("should get ETH signed message hash", async () => {
-                const messageHash = solidityKeccak256(["address", "uint256"], [sa.default.address, id])
+                const messageHash = solidityKeccak256(["address", "uint256"], [sa.default.address, seasonQuestId])
                 const ethMessageHash = solidityKeccak256(["string", "bytes32"], ["\x19Ethereum Signed Message:\n32", messageHash])
                 expect(hashMessage(arrayify(messageHash)), "ethers hashMessage").to.eq(ethMessageHash)
                 expect(await stakedToken.getEthSignedMessageHash(messageHash), "contract message hash").to.eq(ethMessageHash)
             })
             it("should recover quest signer's signature", async () => {
-                const messageHash = solidityKeccak256(["address", "uint256"], [sa.default.address, id])
+                const messageHash = solidityKeccak256(["address", "uint256"], [sa.default.address, seasonQuestId])
                 const ethMessageHash = solidityKeccak256(["string", "bytes32"], ["\x19Ethereum Signed Message:\n32", messageHash])
                 // Ethers signMessage will prefix the "\x19Ethereum signed message:\n32"
                 const signature = await sa.questSigner.signer.signMessage(arrayify(messageHash))
@@ -462,37 +480,65 @@ describe("Staked Token", () => {
                 )
             })
             it("verify quest signer signature", async () => {
-                const signature = await signUserQuest(sa.default.address, id, sa.questSigner.signer)
-                expect(await stakedToken.verify(sa.default.address, id, signature), "verify quest signer").to.be.true
+                const signature = await signUserQuest(sa.default.address, seasonQuestId, sa.questSigner.signer)
+                expect(await stakedToken.verify(sa.default.address, seasonQuestId, signature), "verify quest signer").to.be.true
             })
-            it("should allow a user to complete a seasonal quest with verification", async () => {
-                expect(await stakedToken.hasCompleted(sa.default.address, id), "quest completed before").to.be.false
+            it("should allow quest signer to complete a user's seasonal quest", async () => {
+                const userAddress = sa.default.address
+                const userDataBefore = await snapshotUserStakingData(sa.default)
+                expect(await stakedToken.hasCompleted(userAddress, seasonQuestId), "quest completed before").to.be.false
 
-                const signature = await signUserQuest(sa.default.address, id, sa.questSigner.signer)
-                const tx = await stakedToken.connect(sa.default.signer).completeQuest(sa.default.address, id, signature)
+                // Complete User Season Quest
+                const signature = await signUserQuest(userAddress, seasonQuestId, sa.questSigner.signer)
+                const tx = await stakedToken.connect(sa.default.signer).completeQuest(userAddress, seasonQuestId, signature)
 
-                await expect(tx).to.emit(stakedToken, "QuestComplete").withArgs(sa.default.address, id)
-                expect(await stakedToken.hasCompleted(sa.default.address, id), "quest completed after").to.be.true
+                await expect(tx).to.emit(stakedToken, "QuestComplete").withArgs(userAddress, seasonQuestId)
+                expect(await stakedToken.hasCompleted(userAddress, seasonQuestId), "quest completed after").to.be.true
+                const userDataAfter = await snapshotUserStakingData(sa.default)
+                expect(userDataAfter.userBalances.seasonMultiplier, "season multiplier after").to.eq(
+                    userDataBefore.userBalances.seasonMultiplier + seasonMultiplier,
+                )
+                expect(userDataAfter.userBalances.permMultiplier, "permanent multiplier after").to.eq(
+                    userDataBefore.userBalances.permMultiplier,
+                )
+                // expect(userDataAfter.userBalances.timeMultiplier, "time multiplier after").to.eq(userDataBefore.userBalances.timeMultiplier)
+                // TODO check weighted timestamp
+                // TODO check votes
             })
-            it("should allow quest signer to complete a user's quest", async () => {
-                expect(await stakedToken.hasCompleted(sa.dummy1.address, id), "quest completed before").to.be.false
+            it("should allow quest signer to complete a user's permanent quest", async () => {
+                const userAddress = sa.dummy1.address
+                const userDataBefore = await snapshotUserStakingData(sa.dummy1)
+                expect(await stakedToken.hasCompleted(userAddress, permanentQuestId), "quest completed before").to.be.false
 
-                const signature = await signUserQuest(sa.dummy1.address, id, sa.questSigner.signer)
-                const tx = await stakedToken.connect(sa.questSigner.signer).completeQuest(sa.dummy1.address, id, signature)
+                // Complete User Permanent Quest
+                const signature = await signUserQuest(userAddress, permanentQuestId, sa.questSigner.signer)
+                const tx = await stakedToken.connect(sa.questSigner.signer).completeQuest(userAddress, permanentQuestId, signature)
 
-                await expect(tx).to.emit(stakedToken, "QuestComplete").withArgs(sa.dummy1.address, id)
-                expect(await stakedToken.hasCompleted(sa.dummy1.address, id), "quest completed after").to.be.true
+                await expect(tx).to.emit(stakedToken, "QuestComplete").withArgs(userAddress, permanentQuestId)
+                expect(await stakedToken.hasCompleted(userAddress, permanentQuestId), "quest completed after").to.be.true
+                const userDataAfter = await snapshotUserStakingData(sa.dummy1)
+                expect(userDataAfter.userBalances.seasonMultiplier, "season multiplier after").to.eq(
+                    userDataBefore.userBalances.seasonMultiplier,
+                )
+                expect(userDataAfter.userBalances.permMultiplier, "permanent multiplier after").to.eq(
+                    userDataBefore.userBalances.permMultiplier + permanentMultiplier,
+                )
+                expect(userDataAfter.userBalances.timeMultiplier, "time multiplier after").to.eq(userDataBefore.userBalances.timeMultiplier)
+                // TODO check weighted timestamp
+                // TODO check votes
             })
             it("should fail to complete a user quest again", async () => {
-                const signature = await signUserQuest(sa.dummy2.address, id, sa.questSigner.signer)
-                await stakedToken.connect(sa.questSigner.signer).completeQuest(sa.dummy2.address, id, signature)
-                await expect(stakedToken.connect(sa.questSigner.signer).completeQuest(sa.dummy2.address, id, signature)).to.revertedWith(
-                    "Err: Already Completed",
-                )
+                const userAddress = sa.dummy2.address
+                const signature = await signUserQuest(userAddress, permanentQuestId, sa.questSigner.signer)
+                await stakedToken.connect(sa.questSigner.signer).completeQuest(userAddress, permanentQuestId, signature)
+                await expect(
+                    stakedToken.connect(sa.questSigner.signer).completeQuest(userAddress, permanentQuestId, signature),
+                ).to.revertedWith("Err: Already Completed")
             })
             it("should fail a user signing quest completion", async () => {
-                const signature = await signUserQuest(sa.dummy3.address, id, sa.dummy3.signer)
-                await expect(stakedToken.connect(sa.dummy3.signer).completeQuest(sa.dummy3.address, id, signature)).to.revertedWith(
+                const userAddress = sa.dummy3.address
+                const signature = await signUserQuest(userAddress, permanentQuestId, sa.dummy3.signer)
+                await expect(stakedToken.connect(sa.dummy3.signer).completeQuest(userAddress, permanentQuestId, signature)).to.revertedWith(
                     "Err: Invalid Signature",
                 )
             })
