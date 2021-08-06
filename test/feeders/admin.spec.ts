@@ -1,3 +1,4 @@
+import { assertBNClose } from "@utils/assertions"
 import { ethers } from "hardhat"
 import { expect } from "chai"
 
@@ -305,7 +306,7 @@ describe("Feeder Admin", () => {
                     const incrementSeconds = startTime.add(testData.elapsedSeconds).sub(currentTime)
                     await increaseTime(incrementSeconds)
                     const config = await pool.getConfig()
-                    expect(config.a).to.eq(testData.expectedValaue)
+                    assertBNClose(config.a, testData.expectedValaue, 4)
                 })
             }
         })
