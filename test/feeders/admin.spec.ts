@@ -306,7 +306,7 @@ describe("Feeder Admin", () => {
                     const incrementSeconds = startTime.add(testData.elapsedSeconds).sub(currentTime)
                     await increaseTime(incrementSeconds)
                     const config = await pool.getConfig()
-                    assertBNClose(config.a, BN.from(testData.expectedValaue), 4)
+                    assertBNClose(config.a, BN.from(testData.expectedValaue), 20)
                 })
             }
         })

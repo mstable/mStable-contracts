@@ -15,12 +15,12 @@ import {
     ExposedMasset,
     MockNexus__factory,
 } from "types/generated"
-import { assertBNSlightlyGTPercent } from "@utils/assertions"
+import { assertBNSlightlyGTPercent, assertBNClose } from "@utils/assertions"
 import { keccak256, toUtf8Bytes } from "ethers/lib/utils"
 import { BassetStatus } from "@utils/mstable-objects"
 import { getTimestamp, increaseTime } from "@utils/time"
 
-describe("Feeder Admin", () => {
+describe("Masset Admin", () => {
     let sa: StandardAccounts
     let mAssetMachine: MassetMachine
     let details: MassetDetails
@@ -697,7 +697,7 @@ describe("Feeder Admin", () => {
                     const currentTime = await getTimestamp()
                     const incrementSeconds = startTime.add(testData.elapsedSeconds).sub(currentTime)
                     await increaseTime(incrementSeconds)
-                    expect(await mAsset.getA()).to.eq(testData.expectedValaue)
+                    assertBNClose(await mAsset.getA(), BN.from(testData.expectedValaue), 5)
                 })
             }
         })
