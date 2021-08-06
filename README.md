@@ -68,18 +68,6 @@ Tests are written with Hardhat, Ethers, Waffle & Typescript, using [Typechain](h
 $ yarn test
 ```
 
-#### Forking
-
-mStable-contracts test suite is built to support execution on a [mainnet fork](https://medium.com/ethereum-grid/forking-ethereum-mainnet-mint-your-own-dai-d8b62a82b3f7) of ganache. This allows tests to be ran using all mainnet dependencies (bAssets, lending protocols). To do this, certain mainnet accounts need to be unlocked to allows tx to be sent from that origin.
-
-_NB: The following commands assume you have a full Ethereum node running and exposed on local port 1234_
-
-```
-$ ganache-cli -f http://localhost:1234 -p 7545 -l 100000000 --allowUnlimitedContractSize --unlock "0x6cC5F688a315f3dC28A7781717a9A798a59fDA7b" --unlock "0x3f5CE5FBFe3E9af3971dD833D26bA9b5C936f0bE" --unlock "0x3dfd23a6c5e8bbcfc9581d2e864a68feb6a076d3"
-$ yarn compile
-$ truffle test ./test/xxx.spec.tx --network fork
-```
-
 #### Suite
 
 Key folders:
