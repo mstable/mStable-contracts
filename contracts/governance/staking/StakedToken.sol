@@ -7,6 +7,7 @@ import { GamifiedVotingToken } from "./GamifiedVotingToken.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Root } from "../../shared/Root.sol";
 import "./GamifiedTokenStructs.sol";
 
 /**
@@ -476,7 +477,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     ****************************************/
 
     /**
-     * @dev fee = x/k - 2, where x = weeks since a user has staked, and k = 55
+     * @dev fee = sqrt(300/x)-2.5, where x = weeks since user has staked
      * @param _weightedTimestamp The users weightedTimestamp
      * @return _feeRate where 1% == 1e16
      */
@@ -486,9 +487,15 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         returns (uint256 _feeRate)
     {
         uint256 weeksStaked = ((block.timestamp - _weightedTimestamp) * 1e18) / ONE_WEEK;
-        if (weeksStaked > 4e18) {
-            _feeRate = 55e18 / weeksStaked;
-            _feeRate = _feeRate < 2e18 ? 0 : _feeRate - 2e18;
+        if (weeksStaked > 2e18) {
+            // e.g. weeks = 1  = sqrt(300e18) = 17320508075
+            // e.g. weeks = 10 = sqrt(30e18) =   5477225575
+            // e.g. weeks = 26 = sqrt(11.5) =    3391164991
+            _feeRate = Root.sqrt(300e18 / weeksStaked) * 1e7;
+            // e.g. weeks = 1  = 173e15 - 25e15 = 148e15 or 14.8%
+            // e.g. weeks = 10 =  55e15 - 25e15 = 30e15 or 3%
+            // e.g. weeks = 26 =  34e15 - 25e15 = 9e15 or 0.9%
+            _feeRate = _feeRate < 25e15 ? 0 : _feeRate - 25e15;
         } else {
             _feeRate = 1e17;
         }
