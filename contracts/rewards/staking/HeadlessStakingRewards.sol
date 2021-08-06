@@ -109,7 +109,7 @@ abstract contract HeadlessStakingRewards is
      * @dev Claims outstanding rewards for the sender.
      * First updates outstanding reward allocation and then transfers.
      */
-    function claimReward(address _to) public updateReward(msg.sender) {
+    function claimReward(address _to) public {
         _claimReward(_to);
     }
 
@@ -117,11 +117,11 @@ abstract contract HeadlessStakingRewards is
      * @dev Claims outstanding rewards for the sender.
      * First updates outstanding reward allocation and then transfers.
      */
-    function claimReward() public updateReward(msg.sender) {
+    function claimReward() public {
         _claimReward(msg.sender);
     }
 
-    function _claimReward(address _to) internal {
+    function _claimReward(address _to) internal updateReward(msg.sender) {
         uint128 reward = userData[msg.sender].rewards;
         if (reward > 0) {
             userData[msg.sender].rewards = 0;

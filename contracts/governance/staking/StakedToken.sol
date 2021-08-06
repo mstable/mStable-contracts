@@ -533,4 +533,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
             nextCooldownTimestamp = block.timestamp - weightedSecondsAlreadyCooled;
         }
     }
+
+    // TODO - ensure this represents storage space
+    uint256[43] private __gap;
 }
