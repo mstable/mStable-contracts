@@ -25,7 +25,7 @@
 pragma solidity ^0.8.0;
 
 contract SignatureVerifier {
-    address public _signer;
+    address immutable public _signer;
 
     constructor(address signer) {
         _signer = signer;
@@ -35,7 +35,7 @@ contract SignatureVerifier {
         address account,
         uint256 id,
         bytes memory signature
-    ) internal view returns (bool) {
+    ) public view returns (bool) {
         bytes32 messageHash = getMessageHash(account, id);
         bytes32 ethSignedMessageHash = getEthSignedMessageHash(messageHash);
 
@@ -46,12 +46,12 @@ contract SignatureVerifier {
         return keccak256(abi.encodePacked(account, id));
     }
 
-    function getEthSignedMessageHash(bytes32 messageHash) internal pure returns (bytes32) {
+    function getEthSignedMessageHash(bytes32 messageHash) public pure returns (bytes32) {
         return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
     }
 
     function recoverSigner(bytes32 _ethSignedMessageHash, bytes memory _signature)
-        internal
+        public
         pure
         returns (address)
     {

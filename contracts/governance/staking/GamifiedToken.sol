@@ -43,8 +43,8 @@ abstract contract GamifiedToken is
 
     /// @notice User balance structs containing all data needed to scale balance
     mapping(address => Balance) internal _balances;
-    /// @notice Tracks the completion of each quest (user => completion[])
-    mapping(address => bool[]) private _questCompletion;
+    /// @notice Tracks the completion of each quest (user => questId => completion)
+    mapping(address => mapping(uint256 => bool)) private _questCompletion;
     /// @notice List of quests, whose ID corresponds to their position in the array (from 0)
     Quest[] private _quests;
 
@@ -260,10 +260,10 @@ abstract contract GamifiedToken is
         bytes calldata _signature
     ) external {
         require(_validQuest(_id), "Err: Invalid Quest");
-        require(!_hasCompleted(_account, _id), "Err: Already Completed");
+        require(!hasCompleted(_account, _id), "Err: Already Completed");
         require(verify(_account, _id, _signature), "Err: Invalid Signature");
 
-        // TODO - is this valid? dont think so
+        // store user quest has completed
         _questCompletion[_account][_id] = true;
 
         _applyQuestMultiplier(_account, _quests[_id]);
@@ -298,7 +298,7 @@ abstract contract GamifiedToken is
      * @param _id Position of quest in array
      * @return bool with completion status
      */
-    function _hasCompleted(address _account, uint256 _id) internal view returns (bool) {
+    function hasCompleted(address _account, uint256 _id) public view returns (bool) {
         return _questCompletion[_account][_id];
     }
 
