@@ -144,15 +144,16 @@ abstract contract GamifiedToken is
      * @dev Scales the balance of a given user by applying multipliers
      */
     function _getBalance(Balance memory _balance) internal pure returns (uint256 balance) {
+        // e.g. raw = 1000, questMultiplier = 40, timeMultiplier = 30. Cooldown of 60%
+        // e.g. 1000 * (100 + 40) / 100 = 1400
         balance =
-            (_balance.raw *
-                (100 +
-                    _balance.permMultiplier +
-                    _balance.seasonMultiplier +
-                    _balance.timeMultiplier)) /
+            (_balance.raw * (100 + _balance.permMultiplier + _balance.seasonMultiplier)) /
             100;
+        // e.g. 1400 * (100 + 30) / 100 = 1820
+        balance = (balance * (100 + _balance.timeMultiplier)) / 100;
         // If the user is in cooldown, their balance is temporarily slashed depending on % of withdrawal
         if (_balance.cooldownMultiplier > 0) {
+            // e.g. 1820 * (100 - 60) / 100 = 728
             balance = (balance * (100 - _balance.cooldownMultiplier)) / 100;
         }
     }
@@ -460,7 +461,7 @@ abstract contract GamifiedToken is
         //      Calc new weighted timestamp
         uint256 secondsHeld = (block.timestamp - oldBalance.weightedTimestamp) * oldBalance.raw;
         // TODO - review weightedTs change
-        uint256 newWeightedTs = secondsHeld / (oldBalance.raw + ((_rawAmount / 3) * 2));
+        uint256 newWeightedTs = secondsHeld / (oldBalance.raw + (_rawAmount / 2));
         _balances[_account].weightedTimestamp = SafeCast.toUint32(block.timestamp - newWeightedTs);
 
         uint16 timeMultiplier = _timeMultiplier(SafeCast.toUint32(newWeightedTs));
