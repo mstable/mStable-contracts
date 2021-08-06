@@ -16,7 +16,7 @@ struct Balance {
     /// multiplier awarded for staking for a long time
     uint16 timeMultiplier;
     /// shows if a user has entered their cooldown ready for a withdrawal. Can be used to slash voting balance
-    bool isInCooldown;
+    uint16 cooldownMultiplier;
 }
 /// @notice Quests can either give permanent rewards or only for the season
 enum QuestType {

@@ -171,9 +171,9 @@ abstract contract GamifiedToken is
                     _balance.seasonMultiplier +
                     _balance.timeMultiplier)) /
             100;
-        // If the user is in cooldown, their balance is temporarily slashed by 50%
-        if (_balance.isInCooldown) {
-            balance /= 2;
+        // If the user is in cooldown, their balance is temporarily slashed depending on % of withdrawal
+        if (_balance.cooldownMultiplier > 0) {
+            balance = (balance * (100 - _balance.cooldownMultiplier)) / 100;
         }
     }
 
@@ -361,16 +361,22 @@ abstract contract GamifiedToken is
      * @dev Entering a cooldown period means a user wishes to withdraw. With this in mind, their balance
      * should be reduced until they have shown more commitment to the system
      * @param _account Address of user that should be cooled
+     * @param _percentage Percentage of total stake to cooldown for, where 100% = 1e18
      */
-    function _enterCooldownPeriod(address _account) internal updateReward(_account) {
+    function _enterCooldownPeriod(address _account, uint256 _percentage)
+        internal
+        updateReward(_account)
+    {
         require(_account != address(0), "Invalid address");
+        require(_percentage > 0 && _percentage <= 1e18, "Must choose between 0 and 100%");
 
         // 1. Get current balance
         (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
 
         // 2. Set weighted timestamp and enter cooldown
         _balances[_account].timeMultiplier = _timeMultiplier(oldBalance.weightedTimestamp);
-        _balances[_account].isInCooldown = true;
+        // e.g. 1e18 / 1e16 = 100, 2e16 / 1e16 = 2, 1e15/1e16 = 0
+        _balances[_account].cooldownMultiplier = SafeCast.toUint16(_percentage / 1e16);
 
         // 3. Update scaled balance
         _settleScaledBalance(_account, oldScaledBalance);
@@ -388,7 +394,7 @@ abstract contract GamifiedToken is
 
         // 2. Set weighted timestamp and enter cooldown
         _balances[_account].timeMultiplier = _timeMultiplier(oldBalance.weightedTimestamp);
-        _balances[_account].isInCooldown = false;
+        _balances[_account].cooldownMultiplier = 0;
 
         // 3. Update scaled balance
         _settleScaledBalance(_account, oldScaledBalance);
@@ -461,7 +467,7 @@ abstract contract GamifiedToken is
         _balances[_account].raw = oldBalance.raw + SafeCast.toUint128(_rawAmount);
 
         // 2. Exit cooldown if necessary
-        if (_exitCooldown) _balances[_account].isInCooldown = false;
+        if (_exitCooldown) _balances[_account].cooldownMultiplier = 0;
 
         // 3. Set weighted timestamp
         //  i) For new _account, set up weighted timestamp
@@ -488,12 +494,12 @@ abstract contract GamifiedToken is
      * @dev Called to burn a given amount of raw tokens.
      * @param _account Address of user
      * @param _rawAmount Raw amount of tokens to remove
-     * @param _exitCooldown Reset the users cooldown slash
+     * @param _cooldownPercentage Set new cooldown percentage
      */
     function _burnRaw(
         address _account,
         uint256 _rawAmount,
-        bool _exitCooldown
+        uint128 _cooldownPercentage
     ) internal virtual updateReward(_account) {
         require(_account != address(0), "ERC20: burn from the zero address");
 
@@ -504,15 +510,15 @@ abstract contract GamifiedToken is
             _balances[_account].raw = oldBalance.raw - SafeCast.toUint128(_rawAmount);
         }
 
-        // 2. Exit cooldown if necessary
-        if (_exitCooldown) _balances[_account].isInCooldown = false;
+        // 2. Change the cooldown percentage based on size of recent withdrawal
+        _balances[_account].cooldownMultiplier = SafeCast.toUint16(_cooldownPercentage / 1e16);
 
         // 3. Set back scaled time
         // e.g. stake 10 for 100 seconds, withdraw 5.
         //      secondsHeld = (100 - 0) * (10 - 1.25) = 875
         // TODO - consider making the proportionate change the same as minting (easier to explain)
         uint256 secondsHeld = (block.timestamp - oldBalance.weightedTimestamp) *
-            (oldBalance.raw - (_rawAmount / 4));
+            (oldBalance.raw - (_rawAmount / 3));
         //      newWeightedTs = 875 / 100 = 87.5
         uint256 newWeightedTs = secondsHeld / oldBalance.raw;
         _balances[_account].weightedTimestamp = SafeCast.toUint32(block.timestamp - newWeightedTs);

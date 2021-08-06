@@ -16,7 +16,7 @@ interface IStakedToken {
         bool _exitCooldown
     ) external;
 
-    function startCooldown() external;
+    function startCooldown(uint256 _percentage) external;
 
     // TODO - these can't be added to the base interface unless used with `super.delegate()`
     // function delegate(address delegatee) external;
