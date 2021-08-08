@@ -524,7 +524,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
             // e.g. weeks = 1  = sqrt(300e18) = 17320508075
             // e.g. weeks = 10 = sqrt(30e18) =   5477225575
             // e.g. weeks = 26 = sqrt(11.5) =    3391164991
-            _feeRate = Root.sqrt(300e18 / weeksStaked) * 1e7;
+            _feeRate = Root.sqrt(300e36 / weeksStaked) * 1e7;
             // e.g. weeks = 1  = 173e15 - 25e15 = 148e15 or 14.8%
             // e.g. weeks = 10 =  55e15 - 25e15 = 30e15 or 3%
             // e.g. weeks = 26 =  34e15 - 25e15 = 9e15 or 0.9%

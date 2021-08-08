@@ -270,7 +270,7 @@ abstract contract HeadlessStakingRewards is
      *      Trusts that this is called honestly.
      * @param _additionalReward Units of additional RewardToken to add at the next notification
      */
-    function _notifyAdditionalReward(uint256 _additionalReward) internal {
+    function _notifyAdditionalReward(uint256 _additionalReward) internal virtual {
         require(_additionalReward < 1e24, "Cannot notify with more than a million units");
 
         pendingAdditionalReward += _additionalReward;

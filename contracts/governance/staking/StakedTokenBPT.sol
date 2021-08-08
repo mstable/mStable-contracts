@@ -63,4 +63,9 @@ contract StakedTokenBPT is StakedToken {
 
         emit BalRecipientChanged(_newRecipient);
     }
+
+    function _notifyAdditionalReward(uint256 _additionalReward) internal override {
+        // TODO - log the $BPT fees accrued here
+        //      - add a protected fn to convert the $BPT back into $MTA and add to the incentives
+    }
 }

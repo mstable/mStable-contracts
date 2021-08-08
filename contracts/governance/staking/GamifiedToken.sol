@@ -13,6 +13,7 @@ import "./GamifiedTokenStructs.sol";
  * @title GamifiedToken
  * @notice GamifiedToken is a non-transferrable ERC20 token that has both a raw balance and a scaled balance.
  * Scaled balance is determined by quests a user completes, and the length of time they keep the raw balance wrapped.
+ * QuestMasters can add new quests for stakers to complete, for which they are rewarded with permanent or seasonal multipliers.
  * @author mStable
  * @dev Originally forked from openzeppelin-contracts-upgradeable/contracts/token/ERC20/ERC20Upgradeable.sol
  * Changes:
@@ -36,15 +37,14 @@ abstract contract GamifiedToken is
     /// @notice number of decimals of this token (ERC20)
     uint8 public constant override decimals = 18;
 
-    /// @notice Timestamp at which the current season started
-    uint32 public seasonEpoch;
-
     /// @notice User balance structs containing all data needed to scale balance
     mapping(address => Balance) internal _balances;
     /// @notice Tracks the completion of each quest (user => questId => completion)
     mapping(address => mapping(uint256 => bool)) private _questCompletion;
     /// @notice List of quests, whose ID corresponds to their position in the array (from 0)
     Quest[] private _quests;
+    /// @notice Timestamp at which the current season started
+    uint32 public seasonEpoch;
 
     /// @notice A whitelisted questMaster who can add quests
     address internal _questMaster;
@@ -517,7 +517,7 @@ abstract contract GamifiedToken is
         // e.g. stake 10 for 100 seconds, withdraw 5.
         //      secondsHeld = (100 - 0) * (10 - 1.25) = 875
         uint256 secondsHeld = (block.timestamp - oldBalance.weightedTimestamp) *
-            (oldBalance.raw - (_rawAmount / 3));
+            (oldBalance.raw - (_rawAmount / 4));
         //      newWeightedTs = 875 / 100 = 87.5
         uint256 newWeightedTs = secondsHeld / oldBalance.raw;
         _balances[_account].weightedTimestamp = SafeCast.toUint32(block.timestamp - newWeightedTs);
@@ -555,18 +555,22 @@ abstract contract GamifiedToken is
     /**
      * @dev Checks if the season has just finished between now and the users last action.
      * If it has, we reset the seasonMultiplier. Either way, we update the lastAction for the user.
+     * NOTE - it is important that this is called as a hook before each state change operation
      * @param _balance Struct containing all users balance information
      * @param _account Address of user that should be updated
      */
     function _checkForSeasonFinish(Balance memory _balance, address _account) private {
         // If the last action was before current season, then reset the season timing
         if (_hasFinishedSeason(_balance)) {
-            // Remove 75% of the multiplier gained in this season
-            _balances[_account].seasonMultiplier = (_balance.seasonMultiplier * 25) / 100;
+            // Remove 85% of the multiplier gained in this season
+            _balances[_account].seasonMultiplier = (_balance.seasonMultiplier * 15) / 100;
         }
         _balances[_account].lastAction = SafeCast.toUint32(block.timestamp);
     }
 
+    /**
+     * @dev Simple view fn to check if the users last action was before the starting of the current season
+     */
     function _hasFinishedSeason(Balance memory _balance) internal view returns (bool) {
         return _balance.lastAction < seasonEpoch;
     }

@@ -12,7 +12,7 @@ import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/I
  * @title GamifiedVotingToken
  * @notice GamifiedToken is a checkpointed Voting Token derived from OpenZeppelin "ERC20VotesUpgradable"
  * @author mStable
- * @dev Forked from openzeppelin-contracts-upgradeable/contracts/token/ERC20/extensions/ERC20VotesUpgradeable.sol
+ * @dev Forked from https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/blob/f9cdbd7d82d45a614ee98a5dc8c08fb4347d0fea/contracts/token/ERC20/extensions/ERC20VotesUpgradeable.sol
  * Changes:
  *   - Inherits custom GamifiedToken rather than basic ERC20
  *     - Removal of `Permit` functionality & `delegatebySig`
@@ -20,7 +20,7 @@ import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/I
  *   - Prettier formatting
  *   - Addition of `totalSupply` method to get latest totalSupply
  *   - Move totalSupply checkpoints to `afterTokenTransfer`
- *   - Add _governanceHook hook to storage, setter
+ *   - Add _governanceHook hook
  */
 abstract contract GamifiedVotingToken is Initializable, GamifiedToken {
     struct Checkpoint {
