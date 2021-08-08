@@ -276,6 +276,5 @@ abstract contract GamifiedVotingToken is Initializable, GamifiedToken {
         return a - b;
     }
 
-    // TODO - ensure this represents storage space
-    uint256[47] private __gap;
+    uint256[46] private __gap;
 }

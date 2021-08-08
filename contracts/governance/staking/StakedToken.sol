@@ -152,7 +152,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
      * @param _amount Units of STAKED_TOKEN to stake
      */
     function stake(uint256 _amount) external override {
-        _stake(_amount, address(0), false);
+        _transferAndStake(_amount, address(0), false);
     }
 
     /**
@@ -163,7 +163,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
      * return the user back to their full voting power
      */
     function stake(uint256 _amount, bool _exitCooldown) external {
-        _stake(_amount, address(0), _exitCooldown);
+        _transferAndStake(_amount, address(0), _exitCooldown);
     }
 
     /**
@@ -173,17 +173,51 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
      * @param _delegatee Address of the user to whom the sender would like to delegate their voting power
      */
     function stake(uint256 _amount, address _delegatee) external override {
-        _stake(_amount, _delegatee, false);
+        _transferAndStake(_amount, _delegatee, false);
+    }
+
+    /**
+     * @dev Allows a staker to compound their rewards IF the Staking token and the Rewards token are the same
+     * for example, with $MTA as both staking token and rewards token. Calls 'claimRewards' on the HeadlessStakingRewards
+     * before executing a stake here
+     */
+    function compoundRewards() external {
+        require(address(STAKED_TOKEN) == address(REWARDS_TOKEN), "Only for same pairs");
+
+        // 1. claim rewards
+        uint256 balBefore = STAKED_TOKEN.balanceOf(address(this));
+        _claimReward(address(this));
+
+        // 2. check claim amount
+        uint256 balAfter = STAKED_TOKEN.balanceOf(address(this));
+        uint256 claimed = balAfter - balBefore;
+        require(claimed > 0, "Must compound something");
+
+        // 3. re-invest
+        _settleStake(claimed, address(0), false);
+    }
+
+    /**
+     * @dev Transfers tokens from sender before calling `_settleStake`
+     */
+    function _transferAndStake(
+        uint256 _amount,
+        address _delegatee,
+        bool _exitCooldown
+    ) internal {
+        IERC20(STAKED_TOKEN).safeTransferFrom(_msgSender(), address(this), _amount);
+        _settleStake(_amount, _delegatee, _exitCooldown);
     }
 
     /**
      * @dev Internal stake fn. Can only be called by whitelisted contracts/EOAs and only before a recollateralisation event.
+     * NOTE - Assumes tokens have already been transferred
      * @param _amount Units of STAKED_TOKEN to stake
      * @param _delegatee Address of the user to whom the sender would like to delegate their voting power
      * @param _exitCooldown Bool signalling whether to take this opportunity to cancel any outstanding lockdown and
      * return the user back to their full voting power
      */
-    function _stake(
+    function _settleStake(
         uint256 _amount,
         address _delegatee,
         bool _exitCooldown
@@ -213,7 +247,6 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         }
 
         // 3. Settle the stake by depositing the STAKED_TOKEN and minting voting power
-        IERC20(STAKED_TOKEN).safeTransferFrom(_msgSender(), address(this), _amount);
         _mintRaw(_msgSender(), _amount, exitCooldown);
 
         emit Staked(_msgSender(), _amount, _delegatee);
@@ -439,7 +472,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         uint256 _value,
         uint256 /* _unlockTime */
     ) external {
-        _stake(_value, address(0), false);
+        _transferAndStake(_value, address(0), false);
     }
 
     /**
@@ -447,7 +480,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
      * @param _value Units to stake
      **/
     function increaseLockAmount(uint256 _value) external {
-        _stake(_value, address(0), false);
+        _transferAndStake(_value, address(0), false);
     }
 
     /**
@@ -534,6 +567,5 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         }
     }
 
-    // TODO - ensure this represents storage space
-    uint256[43] private __gap;
+    uint256[47] private __gap;
 }

@@ -36,8 +36,6 @@ abstract contract GamifiedToken is
     /// @notice number of decimals of this token (ERC20)
     uint8 public constant override decimals = 18;
 
-    // TODO - make this more efficient than full slot
-    // bundle with other public vars (collateralisationRatio?)
     /// @notice Timestamp at which the current season started
     uint32 public seasonEpoch;
 
@@ -482,7 +480,6 @@ abstract contract GamifiedToken is
         //  ii) For previous minters, recalculate time held
         //      Calc new weighted timestamp
         uint256 secondsHeld = (block.timestamp - oldBalance.weightedTimestamp) * oldBalance.raw;
-        // TODO - review weightedTs change
         uint256 newWeightedTs = secondsHeld / (oldBalance.raw + (_rawAmount / 2));
         _balances[_account].weightedTimestamp = SafeCast.toUint32(block.timestamp - newWeightedTs);
 
@@ -519,7 +516,6 @@ abstract contract GamifiedToken is
         // 3. Set back scaled time
         // e.g. stake 10 for 100 seconds, withdraw 5.
         //      secondsHeld = (100 - 0) * (10 - 1.25) = 875
-        // TODO - consider making the proportionate change the same as minting (easier to explain)
         uint256 secondsHeld = (block.timestamp - oldBalance.weightedTimestamp) *
             (oldBalance.raw - (_rawAmount / 3));
         //      newWeightedTs = 875 / 100 = 87.5
@@ -644,6 +640,5 @@ abstract contract GamifiedToken is
         uint256 _amount
     ) internal virtual {}
 
-    // TODO - ensure this represents storage space
-    uint256[45] private __gap;
+    uint256[43] private __gap;
 }

@@ -5,6 +5,7 @@ pragma solidity 0.8.6;
 import { InitializableRewardsDistributionRecipient } from "../InitializableRewardsDistributionRecipient.sol";
 import { StableMath } from "../../shared/StableMath.sol";
 import { PlatformTokenVendor } from "./PlatformTokenVendor.sol";
+import { ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 
 // Libs
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -23,7 +24,7 @@ import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/I
  *            and balances are read from there through the abstract functions
  */
 abstract contract HeadlessStakingRewards is
-    Initializable,
+    ContextUpgradeable,
     InitializableRewardsDistributionRecipient
 {
     using SafeERC20 for IERC20;
@@ -118,17 +119,17 @@ abstract contract HeadlessStakingRewards is
      * First updates outstanding reward allocation and then transfers.
      */
     function claimReward() public {
-        _claimReward(msg.sender);
+        _claimReward(_msgSender());
     }
 
-    function _claimReward(address _to) internal updateReward(msg.sender) {
-        uint128 reward = userData[msg.sender].rewards;
+    function _claimReward(address _to) internal updateReward(_msgSender()) {
+        uint128 reward = userData[_msgSender()].rewards;
         if (reward > 0) {
-            userData[msg.sender].rewards = 0;
+            userData[_msgSender()].rewards = 0;
             REWARDS_TOKEN.safeTransferFrom(address(rewardTokenVendor), _to, reward);
-            emit RewardPaid(msg.sender, _to, reward);
+            emit RewardPaid(_msgSender(), _to, reward);
         }
-        _claimRewardHook(msg.sender);
+        _claimRewardHook(_msgSender());
     }
 
     /***************************************
