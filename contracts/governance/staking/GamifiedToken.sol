@@ -243,33 +243,51 @@ abstract contract GamifiedToken is
     function startNewQuestSeason() external questMasterOrGovernor {
         require(block.timestamp > (seasonEpoch + 39 weeks), "Season has not elapsed");
 
+        uint256 len = _quests.length;
+        for (uint256 i = 0; i < len; i++) {
+            Quest memory quest = _quests[i];
+            if (quest.model == QuestType.SEASONAL) {
+                require(
+                    quest.status == QuestStatus.EXPIRED || block.timestamp > quest.expiry,
+                    "All seasonal quests must have expired"
+                );
+            }
+        }
+
         seasonEpoch = SafeCast.toUint32(block.timestamp);
 
         emit QuestSeasonEnded();
     }
 
     /**
-     * @dev Called by anyone to complete a quest for a staker. The user must first collect a signed message
+     * @dev Called by anyone to complete one or more quests for a staker. The user must first collect a signed message
      * from the whitelisted _signer.
      * @param _account Account that has completed the quest
-     * @param _id Quest ID (its position in the array)
-     * @param _signature Signature from the verified _signer, containing keccak hash of account & id
+     * @param _ids Quest IDs (its position in the array)
+     * @param _signatures Signature from the verified _signer, containing keccak hash of account & id
      */
-    function completeQuest(
+    function completeQuests(
         address _account,
-        uint256 _id,
-        bytes calldata _signature
+        uint256[] memory _ids,
+        bytes[] calldata _signatures
     ) external {
-        require(_validQuest(_id), "Err: Invalid Quest");
-        require(!hasCompleted(_account, _id), "Err: Already Completed");
-        require(verify(_account, _id, _signature), "Err: Invalid Signature");
+        uint256 len = _ids.length;
+        require(len > 0 && len == _signatures.length, "Invalid args");
 
-        // store user quest has completed
-        _questCompletion[_account][_id] = true;
+        Quest[] memory quests = new Quest[](len);
+        for (uint256 i = 0; i < len; i++) {
+            require(_validQuest(_ids[i]), "Err: Invalid Quest");
+            require(!hasCompleted(_account, _ids[i]), "Err: Already Completed");
+            require(verify(_account, _ids[i], _signatures[i]), "Err: Invalid Signature");
 
-        _applyQuestMultiplier(_account, _quests[_id]);
+            // store user quest has completed
+            _questCompletion[_account][_ids[i]] = true;
+            quests[i] = _quests[_ids[i]];
 
-        emit QuestComplete(_account, _id);
+            emit QuestComplete(_account, _ids[i]);
+        }
+
+        _applyQuestMultiplier(_account, quests);
     }
 
     /**
@@ -405,9 +423,9 @@ abstract contract GamifiedToken is
      * @dev Adds the multiplier awarded from quest completion to a users data, taking the opportunity
      * to check time multipliers etc.
      * @param _account Address of user that should be updated
-     * @param _quest Quest that has just been completed
+     * @param _questsCompleted Quest that has just been completed
      */
-    function _applyQuestMultiplier(address _account, Quest memory _quest)
+    function _applyQuestMultiplier(address _account, Quest[] memory _questsCompleted)
         internal
         virtual
         updateReward(_account)
@@ -416,10 +434,14 @@ abstract contract GamifiedToken is
 
         // 1. Get current balance & update questMultiplier
         (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
-        if (_quest.model == QuestType.PERMANENT) {
-            _balances[_account].permMultiplier += _quest.multiplier;
-        } else {
-            _balances[_account].seasonMultiplier += _quest.multiplier;
+        uint256 len = _questsCompleted.length;
+        for (uint256 i = 0; i < len; i++) {
+            Quest memory quest = _questsCompleted[i];
+            if (quest.model == QuestType.PERMANENT) {
+                _balances[_account].permMultiplier += quest.multiplier;
+            } else {
+                _balances[_account].seasonMultiplier += quest.multiplier;
+            }
         }
 
         // 2. Take the opportunity to set weighted timestamp, if it changes
@@ -542,11 +564,15 @@ abstract contract GamifiedToken is
      */
     function _checkForSeasonFinish(Balance memory _balance, address _account) private {
         // If the last action was before current season, then reset the season timing
-        if (_balance.lastAction < seasonEpoch) {
+        if (_hasFinishedSeason(_balance)) {
             // Remove 75% of the multiplier gained in this season
             _balances[_account].seasonMultiplier = (_balance.seasonMultiplier * 25) / 100;
         }
         _balances[_account].lastAction = SafeCast.toUint32(block.timestamp);
+    }
+
+    function _hasFinishedSeason(Balance memory _balance) internal view returns (bool) {
+        return _balance.lastAction < seasonEpoch;
     }
 
     /**
@@ -593,6 +619,21 @@ abstract contract GamifiedToken is
     /***************************************
                     HOOKS
     ****************************************/
+
+    /**
+     * @dev Triggered after a user claims rewards from the HeadlessStakingRewards. Used
+     * to check for season finish. If it has not, then do not spend gas updating the other vars.
+     * @param _account Address of user that has burned
+     */
+    function _claimRewardHook(address _account) internal override {
+        if (_hasFinishedSeason(_balances[_account])) {
+            // 1. Get current balance & trigger season finish
+            (, uint256 oldScaledBalance) = _prepareOldBalance(_account);
+
+            // 3. Update scaled balance
+            _settleScaledBalance(_account, oldScaledBalance);
+        }
+    }
 
     /**
      * @dev Unchanged from OpenZeppelin. Used in child contracts to react to any balance changes.

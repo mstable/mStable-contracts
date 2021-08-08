@@ -128,6 +128,7 @@ abstract contract HeadlessStakingRewards is
             REWARDS_TOKEN.safeTransferFrom(address(rewardTokenVendor), _to, reward);
             emit RewardPaid(msg.sender, _to, reward);
         }
+        _claimRewardHook(msg.sender);
     }
 
     /***************************************
@@ -211,12 +212,14 @@ abstract contract HeadlessStakingRewards is
     }
 
     /***************************************
-                ABSTRACT GETTERS
+                    ABSTRACT
     ****************************************/
 
     function balanceOf(address account) public view virtual returns (uint256);
 
     function totalSupply() public view virtual returns (uint256);
+
+    function _claimRewardHook(address account) internal virtual;
 
     /***************************************
                     ADMIN
@@ -233,15 +236,6 @@ abstract contract HeadlessStakingRewards is
         onlyRewardsDistributor
         updateReward(address(0))
     {
-        _notifyRewardAmount(_reward);
-    }
-
-    /**
-     * @dev Notifies the contract that new rewards have been added.
-     * Calculates an updated rewardRate based on the rewards in period.
-     * @param _reward Units of RewardToken that have been added to the pool
-     */
-    function _notifyRewardAmount(uint256 _reward) internal {
         require(_reward < 1e24, "Cannot notify with more than a million units");
 
         uint256 currentTime = block.timestamp;
