@@ -664,7 +664,7 @@ describe("SavingsManager", async () => {
                 assertBNClose(
                     BN.from(interectCollectedEvent.args.apy),
                     expectedAPY,
-                    simpleToExactAmount(5, 11), // allow for a 0.000005% deviation in the percentage
+                    simpleToExactAmount(1, 12), // allow for a 0.00001 deviation in the percentage
                 )
                 const lastCollectionAfter = await savingsManager.lastCollection(mUSD.address)
                 assertBNClose(lastCollectionAfter, curTime, BN.from(2))
