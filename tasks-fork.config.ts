@@ -15,5 +15,6 @@ import "./tasks/rewards"
 import "./tasks/SaveWrapper"
 import "./tasks/token"
 import "./tasks/weekly"
+import "./tasks/ens"
 
 export default config

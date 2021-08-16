@@ -39,6 +39,8 @@ export const contractNames = [
     "UniswapV2-MTA/WETH",
     "MStableYieldSource", // Used for PoolTogether
     "OperationsSigner",
+    "ENSRegistrarController",
+    "ENSResolver",
 ] as const
 export type ContractNames = typeof contractNames[number]
 
@@ -116,6 +118,10 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xdB4C9f763A4B13CF2830DFe7c2854dADf5b96E99"
             case "OperationsSigner":
                 return "0xb81473f20818225302b8fffb905b53d58a793d84"
+            case "ENSRegistrarController":
+                return "0x283Af0B28c62C092C9727F1Ee09c02CA627EB7F5"
+            case "ENSResolver":
+                return "0x4976fb03c32e5b8cfe2b6ccb31c09ba78ebaba41"
             default:
         }
     } else if (chain === Chain.polygon) {
