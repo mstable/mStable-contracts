@@ -12,13 +12,13 @@ task("distribute-mta-mainnet", "Distributes MTA rewards on Mainnet")
         const signerAddress = await signer.getAddress()
         const rewardSymbol = MTA.symbol
         const ownerTokenType: AssetAddressTypes = "vault"
-        const vaultsOrPools: Array<Token | ContractNames> = [MTA, "UniswapV2-MTA/WETH", mBTC, mUSD, HBTC, alUSD, BUSD, GUSD, TBTC]
-        const mtaAmounts = [40000, 5000, 10607.81, 21687.39, 16658.2, 39285.85, 25871.86, 29214.17, 18150.73]
+        const vaultsOrPools: Array<Token | ContractNames> = [MTA, "UniswapV2-MTA/WETH", mUSD, mBTC, HBTC, alUSD, BUSD, GUSD, TBTC]
+        const mtaAmounts = [40000, 5000, 21961.88, 10333.32, 27197.64, 15603.06, 21174.63, 48388.76, 16816.7]
         const vaultNames = [
             "Staking V1 rewards",
             "MTA / WETH Uniswap v2",
-            "imBTC Vault",
             "imUSD Vault",
+            "imBTC Vault",
             "HBTC Feeder Pool",
             "alUSD Feeder Pool",
             "BUSD Feeder Pool",
