@@ -69,8 +69,8 @@ export class FeederMachine {
         const feederLogic = await new FeederLogic__factory(this.sa.default.signer).deploy()
         const feederManager = await new FeederManager__factory(this.sa.default.signer).deploy()
         const linkedAddress = {
-            __$60670dd84d06e10bb8a5ac6f99a1c0890c$__: feederManager.address,
-            __$7791d1d5b7ea16da359ce352a2ac3a881c$__: feederLogic.address,
+            "contracts/feeders/FeederLogic.sol:FeederLogic": feederLogic.address,
+            "contracts/feeders/FeederManager.sol:FeederManager": feederManager.address,
         }
 
         // - Deploy InterestValidator contract

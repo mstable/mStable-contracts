@@ -7,6 +7,7 @@ import { ECDSAUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/cryp
 import { GamifiedToken } from "./GamifiedToken.sol";
 import { IGovernanceHook } from "./interfaces/IGovernanceHook.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { Checkpoint } from "./GamifiedTokenStructs.sol";
 
 /**
  * @title GamifiedVotingToken
@@ -23,10 +24,6 @@ import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/I
  *   - Add _governanceHook hook
  */
 abstract contract GamifiedVotingToken is Initializable, GamifiedToken {
-    struct Checkpoint {
-        uint32 fromBlock;
-        uint224 votes;
-    }
 
     mapping(address => address) private _delegates;
     mapping(address => Checkpoint[]) private _checkpoints;

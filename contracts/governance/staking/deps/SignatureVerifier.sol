@@ -24,22 +24,18 @@
 
 pragma solidity ^0.8.0;
 
-contract SignatureVerifier {
-    address public immutable _signer;
-
-    constructor(address signer) {
-        _signer = signer;
-    }
+library SignatureVerifier {
 
     function verify(
+        address signer,
         address account,
         uint256 id,
         bytes memory signature
-    ) public view returns (bool) {
+    ) public pure returns (bool) {
         bytes32 messageHash = getMessageHash(account, id);
         bytes32 ethSignedMessageHash = getEthSignedMessageHash(messageHash);
 
-        return recoverSigner(ethSignedMessageHash, signature) == _signer;
+        return recoverSigner(ethSignedMessageHash, signature) == signer;
     }
 
     function getMessageHash(address account, uint256 id) public pure returns (bytes32) {

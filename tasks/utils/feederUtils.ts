@@ -78,8 +78,8 @@ export const deployFeederPool = async (signer: Signer, feederData: FeederData, c
 
     // Invariant Validator
     const linkedAddress = {
-        __$60670dd84d06e10bb8a5ac6f99a1c0890c$__: feederManagerAddress,
-        __$7791d1d5b7ea16da359ce352a2ac3a881c$__: feederLogicAddress,
+        "contracts/feeders/FeederLogic.sol:FeederLogic": feederLogicAddress,
+        "contracts/feeders/FeederManager.sol:FeederManager": feederManagerAddress,
     }
 
     const impl = await deployContract(new FeederPool__factory(linkedAddress, signer), "FeederPool", [

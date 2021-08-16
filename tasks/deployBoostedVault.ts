@@ -1,10 +1,21 @@
 import "ts-node/register"
 import "tsconfig-paths/register"
 import { task, types } from "hardhat/config"
-import { DEAD_ADDRESS } from "@utils/constants"
+import { DEAD_ADDRESS, ONE_DAY, ONE_WEEK } from "@utils/constants"
 
 import { params } from "./taskUtils"
-import { AssetProxy__factory, BoostedVault__factory, BoostedDualVault__factory } from "../types/generated"
+import {
+    AssetProxy__factory,
+    BoostedVault__factory,
+    BoostedDualVault__factory,
+    StakedToken__factory,
+    SignatureVerifier__factory,
+    GamifiedManager__factory,
+    PlatformTokenVendorFactory__factory,
+} from "../types/generated"
+import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
+import { getSignerAccount } from "./utils/signerFactory"
+import { deployContract } from "./utils/deploy-utils"
 
 task("getBytecode-BoostedDualVault").setAction(async () => {
     const size = BoostedDualVault__factory.bytecode.length / 2 / 1000
@@ -73,5 +84,59 @@ task("BoostedVault.deploy", "Deploys a BoostedVault")
             console.log(`Deployed Vault Proxy to ${assetProxy.address}. gas used ${assetProxyDeployReceipt.gasUsed}`)
         },
     )
+
+task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
+    .addParam("questSignerAddress", "Address of account that signs quests", undefined, params.address)
+    .addOptionalParam("rewardsToken", "Rewards token address", "MTA", types.string)
+    .addOptionalParam("name", "Staked Token name", "Voting MTA V2", types.string)
+    .addOptionalParam("symbol", "Staked Token symbol", "vMTA", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const deployer = await getSignerAccount(hre, taskArgs.speed)
+        const chain = getChain(hre)
+
+        const nexusAddress = getChainAddress("Nexus", chain)
+        const rewardsDistributorAddress = getChainAddress("RewardsDistributor", chain)
+        const rewardsTokenAddress = resolveAddress(taskArgs.rewardsToken, chain)
+
+        let gamifiedManagerAddress = getChainAddress("GamifiedManager", chain)
+        if (!gamifiedManagerAddress) {
+            const gamifiedManager = await deployContract(new GamifiedManager__factory(deployer.signer), "GamifiedManager")
+            gamifiedManagerAddress = gamifiedManager.address
+        }
+
+        let signatureVerifierAddress = getChainAddress("SignatureVerifier", chain)
+        if (!signatureVerifierAddress) {
+            const signatureVerifier = await deployContract(new SignatureVerifier__factory(deployer.signer), "SignatureVerifier")
+            signatureVerifierAddress = signatureVerifier.address
+        }
+
+        let platformTokenVendorFactoryAddress = getChainAddress("PlatformTokenVendorFactory", chain)
+        if (!platformTokenVendorFactoryAddress) {
+            const platformTokenVendorFactory = await deployContract(
+                new PlatformTokenVendorFactory__factory(deployer.signer),
+                "PlatformTokenVendorFactory",
+            )
+            platformTokenVendorFactoryAddress = platformTokenVendorFactory.address
+        }
+
+        const stakedTokenLibraryAddresses = {
+            "contracts/governance/staking/GamifiedManager.sol:GamifiedManager": gamifiedManagerAddress,
+            "contracts/rewards/staking/PlatformTokenVendorFactory.sol:PlatformTokenVendorFactory": platformTokenVendorFactoryAddress,
+            "contracts/governance/staking/deps/SignatureVerifier.sol:SignatureVerifier": signatureVerifierAddress,
+        }
+        const stakedTokenFactory = new StakedToken__factory(stakedTokenLibraryAddresses, deployer.signer)
+        console.log(`Staked contract size ${StakedToken__factory.bytecode.length / 2} bytes`)
+        const stakedTokenImpl = await deployContract(stakedTokenFactory, "StakedToken", [
+            taskArgs.questSignerAddress,
+            nexusAddress,
+            rewardsTokenAddress,
+            rewardsTokenAddress,
+            ONE_WEEK,
+            ONE_DAY.mul(2),
+        ])
+
+        const data = stakedTokenImpl.interface.encodeFunctionData("initialize", [taskArgs.name, taskArgs.symbol, rewardsDistributorAddress])
+        await deployContract(new AssetProxy__factory(deployer.signer), "AssetProxy", [stakedTokenImpl.address, deployer.address, data])
+    })
 
 export {}

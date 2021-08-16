@@ -313,6 +313,15 @@ export const PMTA: Token = {
     quantityFormatter: "USD",
 }
 
+export const RMTA: Token = {
+    symbol: "RMTA",
+    address: "0x273bc479E5C21CAA15aA8538DecBF310981d14C0",
+    chain: Chain.ropsten,
+    decimals: 18,
+    quantityFormatter: "USD",
+    vault: "0x4d8E465ba7FACa907E8A5F39649e056bB14802D1",
+}
+
 export const PWMATIC: Token = {
     symbol: "PWMATIC",
     address: "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
@@ -364,6 +373,7 @@ export const cyMUSD: Token = {
 export const tokens = [
     MTA,
     PMTA,
+    RMTA,
     mUSD,
     mBTC,
     sUSD,

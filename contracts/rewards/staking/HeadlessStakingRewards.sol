@@ -4,7 +4,7 @@ pragma solidity 0.8.6;
 // Internal
 import { InitializableRewardsDistributionRecipient } from "../InitializableRewardsDistributionRecipient.sol";
 import { StableMath } from "../../shared/StableMath.sol";
-import { PlatformTokenVendor } from "./PlatformTokenVendor.sol";
+import { PlatformTokenVendorFactory } from "./PlatformTokenVendorFactory.sol";
 import { ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 
 // Libs
@@ -37,7 +37,7 @@ abstract contract HeadlessStakingRewards is
     uint256 public constant DURATION = 1 weeks;
 
     /// @notice contract that holds the platform tokens
-    PlatformTokenVendor public rewardTokenVendor;
+    address public rewardTokenVendor;
 
     struct Data {
         /// Timestamp for current period finish
@@ -80,11 +80,16 @@ abstract contract HeadlessStakingRewards is
      */
     function _initialize(address _rewardsDistributorArg) internal virtual override {
         InitializableRewardsDistributionRecipient._initialize(_rewardsDistributorArg);
-        rewardTokenVendor = new PlatformTokenVendor(REWARDS_TOKEN);
+        rewardTokenVendor = PlatformTokenVendorFactory.create(REWARDS_TOKEN);
     }
 
     /** @dev Updates the reward for a given address, before executing function */
     modifier updateReward(address _account) {
+        _updateReward(_account);
+        _;
+    }
+
+    function _updateReward(address _account) internal {
         // Setting of global vars
         (uint256 newRewardPerToken, uint256 lastApplicableTime) = _rewardPerToken();
         // If statement protects against loss in initialisation case
@@ -99,7 +104,6 @@ abstract contract HeadlessStakingRewards is
                 });
             }
         }
-        _;
     }
 
     /***************************************
@@ -126,7 +130,7 @@ abstract contract HeadlessStakingRewards is
         uint128 reward = userData[_msgSender()].rewards;
         if (reward > 0) {
             userData[_msgSender()].rewards = 0;
-            REWARDS_TOKEN.safeTransferFrom(address(rewardTokenVendor), _to, reward);
+            REWARDS_TOKEN.safeTransferFrom(rewardTokenVendor, _to, reward);
             emit RewardPaid(_msgSender(), _to, reward);
         }
         _claimRewardHook(_msgSender());
@@ -245,7 +249,7 @@ abstract contract HeadlessStakingRewards is
         _reward += pendingAdditionalReward;
         pendingAdditionalReward = 0;
         if (_reward > 0) {
-            REWARDS_TOKEN.safeTransfer(address(rewardTokenVendor), _reward);
+            REWARDS_TOKEN.safeTransfer(rewardTokenVendor, _reward);
         }
 
         // If previous period over, reset rewardRate

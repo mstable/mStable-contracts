@@ -5,6 +5,8 @@
         "avoid-suicide": "error",
         "avoid-sha3": "warn",
         "compiler-version": ["warn", "^0.8.6"],
-        "func-visibility": ["warn", { "ignoreConstructors": true }]
+        "func-visibility": ["warn", { "ignoreConstructors": true }],
+        "not-rely-on-time": "off",
+        "no-empty-blocks": "off"
     }
 }

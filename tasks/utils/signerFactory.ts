@@ -26,9 +26,15 @@ export const getDefenderSigner = async (speed: Speed = "fast"): Promise<Signer> 
 
 let signerInstance: Signer
 
-export const getSigner = async (hre: HardhatRuntime = {}, speed: Speed = "fast"): Promise<Signer> => {
+export const getSigner = async (hre: HardhatRuntime = {}, speed: Speed = "fast", privateKey?: string): Promise<Signer> => {
     // If already initiated a signer, just return the singleton instance
     if (signerInstance) return signerInstance
+
+    if (privateKey) {
+        const wallet = new Wallet(privateKey, hre.ethers.provider)
+        console.log(`Using signer ${await wallet.getAddress()} from private key`)
+        return wallet
+    }
 
     // If connecting to a forked chain
     if (["tasks-fork.config.ts", "tasks-fork-polygon.config.ts"].includes(hre?.hardhatArguments.config)) {

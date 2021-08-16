@@ -85,8 +85,8 @@ const deployFeederPool = async (sender: Signer, addresses: CommonAddresses, feed
     if (addresses.feederLogic && addresses.feederManager) {
         console.log(`Using FeederLogic ${addresses.feederLogic.address} and FeederManager ${addresses.feederManager.address}`)
         const linkedAddress = {
-            __$60670dd84d06e10bb8a5ac6f99a1c0890c$__: addresses.feederManager.address,
-            __$7791d1d5b7ea16da359ce352a2ac3a881c$__: addresses.feederLogic.address,
+            "contracts/feeders/FeederLogic.sol:FeederLogic": addresses.feederLogic.address,
+            "contracts/feeders/FeederManager.sol:FeederManager": addresses.feederManager.address,
         }
         // Implementation
         feederPoolFactory = new FeederPool__factory(linkedAddress, sender)
@@ -103,8 +103,8 @@ const deployFeederPool = async (sender: Signer, addresses: CommonAddresses, feed
         console.log(`Deployed FeederManager library to ${managerLib.address}. gas used ${receiptManager.gasUsed}`)
 
         const linkedAddress = {
-            __$60670dd84d06e10bb8a5ac6f99a1c0890c$__: managerLib.address,
-            __$7791d1d5b7ea16da359ce352a2ac3a881c$__: feederLogic.address,
+            "contracts/feeders/FeederLogic.sol:FeederLogic": managerLib.address,
+            "contracts/feeders/FeederManager.sol:FeederManager": managerLib.address,
         }
         // Implementation
         feederPoolFactory = new FeederPool__factory(linkedAddress, sender)

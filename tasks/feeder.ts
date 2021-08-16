@@ -65,8 +65,8 @@ const getBalances = async (
 
 const getFeederPool = (signer: Signer, contractAddress: string, chain = Chain.mainnet): FeederPool => {
     const linkedAddress = {
-        __$60670dd84d06e10bb8a5ac6f99a1c0890c$__: getChainAddress("FeederManager", chain),
-        __$7791d1d5b7ea16da359ce352a2ac3a881c$__: getChainAddress("FeederLogic", chain),
+        "contracts/feeders/FeederLogic.sol:FeederLogic": getChainAddress("FeederLogic", chain),
+        "contracts/feeders/FeederManager.sol:FeederManager": getChainAddress("FeederManager", chain),
     }
     const feederPoolFactory = new FeederPool__factory(linkedAddress, signer)
     return feederPoolFactory.attach(contractAddress)

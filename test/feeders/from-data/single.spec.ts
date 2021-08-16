@@ -52,7 +52,7 @@ describe("Feeder Validator - One basket one test", () => {
         sa = mAssetMachine.sa
         const logic = await new FeederLogic__factory(sa.default.signer).deploy()
         const linkedAddress = {
-            __$7791d1d5b7ea16da359ce352a2ac3a881c$__: logic.address,
+            "contracts/feeders/FeederLogic.sol:FeederLogic": logic.address,
         }
         exposedFeeder = await new ExposedFeederLogic__factory(linkedAddress, sa.default.signer).deploy()
     })
@@ -248,7 +248,7 @@ describe("Feeder Validator - One basket one test", () => {
                     ).connect(sa.default.signer) as FeederPool__factory
 
                     const linkedAddress = {
-                        __$7791d1d5b7ea16da359ce352a2ac3a881c$__: feederLogic.address,
+                        "contracts/feeders/FeederLogic.sol:FeederLogic": feederLogic.address,
                     }
                     exposedFeeder = await new ExposedFeederLogic__factory(linkedAddress, sa.default.signer).deploy()
                 })

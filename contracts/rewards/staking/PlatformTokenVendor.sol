@@ -15,7 +15,7 @@ contract PlatformTokenVendor {
     address public immutable parentStakingContract;
 
     /** @dev Simple constructor that stores the parent address */
-    constructor(IERC20 _platformToken) public {
+    constructor(IERC20 _platformToken) {
         parentStakingContract = msg.sender;
         platformToken = _platformToken;
         MassetHelpers.safeInfiniteApprove(address(_platformToken), msg.sender);

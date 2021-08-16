@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.6;
 
-import { ILockedERC20 } from "./interfaces/ILockedERC20.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import { HeadlessStakingRewards } from "../../rewards/staking/HeadlessStakingRewards.sol";
 import { ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
-import { SignatureVerifier } from "./deps/SignatureVerifier.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { ILockedERC20 } from "./interfaces/ILockedERC20.sol";
+import { SignatureVerifier } from "./deps/SignatureVerifier.sol";
+import { HeadlessStakingRewards } from "../../rewards/staking/HeadlessStakingRewards.sol";
 import "./GamifiedTokenStructs.sol";
+import "./GamifiedManager.sol";
 
 /**
  * @title GamifiedToken
@@ -27,9 +28,10 @@ abstract contract GamifiedToken is
     ILockedERC20,
     Initializable,
     ContextUpgradeable,
-    SignatureVerifier,
     HeadlessStakingRewards
 {
+    /// @notice address that signs user quests have been completed
+    address public immutable _signer;
     /// @notice name of this token (ERC20)
     string public override name;
     /// @notice symbol of this token (ERC20)
@@ -66,15 +68,17 @@ abstract contract GamifiedToken is
     ****************************************/
 
     /**
-     * @param _signer Signer address is used to verify completion of quests off chain
+     * @param _signerArg Signer address is used to verify completion of quests off chain
      * @param _nexus System nexus
      * @param _rewardsToken Token that is being distributed as a reward. eg MTA
      */
     constructor(
-        address _signer,
+        address _signerArg,
         address _nexus,
         address _rewardsToken
-    ) SignatureVerifier(_signer) HeadlessStakingRewards(_nexus, _rewardsToken) {}
+    ) HeadlessStakingRewards(_nexus, _rewardsToken) {
+        _signer = _signerArg;
+    }
 
     /**
      * @param _nameArg Token name
@@ -97,8 +101,12 @@ abstract contract GamifiedToken is
      * @dev Checks that _msgSender is either governor or the quest master
      */
     modifier questMasterOrGovernor() {
-        require(_msgSender() == _questMaster || _msgSender() == _governor(), "Not verified");
+        _questMasterOrGovernor();
         _;
+    }
+
+    function _questMasterOrGovernor() internal view {
+        require(_msgSender() == _questMaster || _msgSender() == _governor(), "Not verified");
     }
 
     /***************************************
@@ -157,24 +165,17 @@ abstract contract GamifiedToken is
     }
 
     /**
-     * @dev Raw balance data
+     * @notice Raw staked balance without any multipliers
      */
     function balanceData(address _account) external view returns (Balance memory) {
         return _balances[_account];
     }
 
     /**
-     * @dev Gets raw quest data
+     * @notice Gets raw quest data
      */
     function getQuest(uint256 _id) external view returns (Quest memory) {
         return _quests[_id];
-    }
-
-    /**
-     * @dev Gets a users quest completion status
-     */
-    function getQuestCompletion(address _account, uint256 _id) external view returns (bool) {
-        return _questCompletion[_account][_id];
     }
 
     /***************************************
@@ -192,26 +193,7 @@ abstract contract GamifiedToken is
         uint16 _multiplier,
         uint32 _expiry
     ) external questMasterOrGovernor {
-        require(_expiry > block.timestamp + 1 days, "Quest window too small");
-        require(_multiplier > 0 && _multiplier <= 50, "Quest multiplier too large > 1.5x");
-
-        _quests.push(
-            Quest({
-                model: _model,
-                multiplier: _multiplier,
-                status: QuestStatus.ACTIVE,
-                expiry: _expiry
-            })
-        );
-
-        emit QuestAdded(
-            _msgSender(),
-            _quests.length - 1,
-            _model,
-            _multiplier,
-            QuestStatus.ACTIVE,
-            _expiry
-        );
+        GamifiedManager.addQuest(_quests, _model, _multiplier, _expiry);
     }
 
     /**
@@ -220,15 +202,7 @@ abstract contract GamifiedToken is
      * @param _id Quest ID (its position in the array)
      */
     function expireQuest(uint16 _id) external questMasterOrGovernor {
-        require(_quests.length >= _id, "Quest does not exist");
-        require(_quests[_id].status == QuestStatus.ACTIVE, "Quest already expired");
-
-        _quests[_id].status = QuestStatus.EXPIRED;
-        if (block.timestamp < _quests[_id].expiry) {
-            _quests[_id].expiry = SafeCast.toUint32(block.timestamp);
-        }
-
-        emit QuestExpired(_id);
+        GamifiedManager.expireQuest(_quests, _id);
     }
 
     /**
@@ -239,22 +213,10 @@ abstract contract GamifiedToken is
      * A new season can only begin after 9 months has passed.
      */
     function startNewQuestSeason() external questMasterOrGovernor {
-        require(block.timestamp > (seasonEpoch + 39 weeks), "Season has not elapsed");
+        GamifiedManager.startNewQuestSeason(seasonEpoch, _quests);
 
-        uint256 len = _quests.length;
-        for (uint256 i = 0; i < len; i++) {
-            Quest memory quest = _quests[i];
-            if (quest.model == QuestType.SEASONAL) {
-                require(
-                    quest.status == QuestStatus.EXPIRED || block.timestamp > quest.expiry,
-                    "All seasonal quests must have expired"
-                );
-            }
-        }
-
+        // Have to set storage variable here as it can't be done in the library function
         seasonEpoch = SafeCast.toUint32(block.timestamp);
-
-        emit QuestSeasonEnded();
     }
 
     /**
@@ -276,7 +238,7 @@ abstract contract GamifiedToken is
         for (uint256 i = 0; i < len; i++) {
             require(_validQuest(_ids[i]), "Err: Invalid Quest");
             require(!hasCompleted(_account, _ids[i]), "Err: Already Completed");
-            require(verify(_account, _ids[i], _signatures[i]), "Err: Invalid Signature");
+            require(SignatureVerifier.verify(_signer, _account, _ids[i], _signatures[i]), "Err: Invalid Signature");
 
             // store user quest has completed
             _questCompletion[_account][_ids[i]] = true;
@@ -479,11 +441,12 @@ abstract contract GamifiedToken is
         }
         //  ii) For previous minters, recalculate time held
         //      Calc new weighted timestamp
-        uint256 secondsHeld = (block.timestamp - oldBalance.weightedTimestamp) * oldBalance.raw;
-        uint256 newWeightedTs = secondsHeld / (oldBalance.raw + (_rawAmount / 2));
-        _balances[_account].weightedTimestamp = SafeCast.toUint32(block.timestamp - newWeightedTs);
+        uint256 oldWeighredSecondsHeld = (block.timestamp - oldBalance.weightedTimestamp) * oldBalance.raw;
+        uint256 newSecondsHeld = oldWeighredSecondsHeld / (oldBalance.raw + (_rawAmount / 2));
+        uint32 newWeightedTs = SafeCast.toUint32(block.timestamp - newSecondsHeld);
+        _balances[_account].weightedTimestamp = newWeightedTs;
 
-        uint16 timeMultiplier = _timeMultiplier(SafeCast.toUint32(newWeightedTs));
+        uint16 timeMultiplier = _timeMultiplier(newWeightedTs);
         _balances[_account].timeMultiplier = timeMultiplier;
 
         // 3. Update scaled balance
@@ -501,17 +464,17 @@ abstract contract GamifiedToken is
         uint256 _rawAmount,
         uint128 _cooldownPercentage
     ) internal virtual updateReward(_account) {
-        require(_account != address(0), "ERC20: burn from the zero address");
+        require(_account != address(0), "ERC20: burn from zero address");
 
         // 1. Get and update current balance
         (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
-        require(oldBalance.raw >= _rawAmount, "ERC20: burn amount exceeds balance");
+        require(oldBalance.raw >= _rawAmount, "ERC20: burn amount > balance");
         unchecked {
             _balances[_account].raw = oldBalance.raw - SafeCast.toUint128(_rawAmount);
         }
 
         // 2. Change the cooldown percentage based on size of recent withdrawal
-        _balances[_account].cooldownMultiplier = SafeCast.toUint16(_cooldownPercentage / 1e16);
+        _balances[_account].cooldownMultiplier = SafeCast.toUint16(_cooldownPercentage / 1e18);
 
         // 3. Set back scaled time
         // e.g. stake 10 for 100 seconds, withdraw 5.
@@ -519,14 +482,15 @@ abstract contract GamifiedToken is
         uint256 secondsHeld = (block.timestamp - oldBalance.weightedTimestamp) *
             (oldBalance.raw - (_rawAmount / 4));
         //      newWeightedTs = 875 / 100 = 87.5
-        uint256 newWeightedTs = secondsHeld / oldBalance.raw;
-        _balances[_account].weightedTimestamp = SafeCast.toUint32(block.timestamp - newWeightedTs);
+        uint256 newSecondsHeld = secondsHeld / oldBalance.raw;
+        uint32 newWeightedTs = SafeCast.toUint32(block.timestamp - newSecondsHeld);
+        _balances[_account].weightedTimestamp = newWeightedTs;
 
-        uint16 timeMultiplier = _timeMultiplier(SafeCast.toUint32(newWeightedTs));
+        uint16 timeMultiplier = _timeMultiplier(newWeightedTs);
         _balances[_account].timeMultiplier = timeMultiplier;
 
         // 4. Update scaled balance
-        _burnScaled(_account, oldScaledBalance - _getBalance(_balances[_account]));
+        _settleScaledBalance(_account, oldScaledBalance);
     }
 
     /***************************************

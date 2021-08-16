@@ -22,19 +22,14 @@ import "tsconfig-paths/register"
 export const hardhatConfig = {
     networks: {
         hardhat: {
-            allowUnlimitedContractSize: true,
+            allowUnlimitedContractSize: false,
+            initialBaseFeePerGas: 0,
         },
         localhost: { url: "http://localhost:7545" },
-        fork: {
-            url: "http://localhost:7545",
-        },
         // export the NODE_URL environment variable to use remote nodes like Alchemy or Infura. eg
         // export NODE_URL=https://eth-mainnet.alchemyapi.io/v2/yourApiKey
-        env: { url: process.env.NODE_URL || "" },
         ropsten: {
             url: process.env.NODE_URL || "",
-            gasPrice: 30000000000,
-            gasLimit: 8000000,
         },
         polygon_testnet: {
             url: process.env.NODE_URL || "https://rpc-mumbai.maticvigil.com",

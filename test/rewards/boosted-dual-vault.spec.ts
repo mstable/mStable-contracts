@@ -80,7 +80,7 @@ interface StakingData {
     contractData: ContractData
 }
 
-describe("BoostedDualVault", async () => {
+describe.skip("BoostedDualVault", async () => {
     const ctx: Partial<IRewardsDistributionRecipientContext> = {}
 
     let sa: StandardAccounts

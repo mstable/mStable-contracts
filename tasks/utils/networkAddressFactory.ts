@@ -1,3 +1,4 @@
+import { DEAD_ADDRESS } from "@utils/constants"
 import { ethereumAddress } from "@utils/regex"
 import { AssetAddressTypes, Chain, Token, tokens } from "./tokens"
 
@@ -23,6 +24,10 @@ export const contractNames = [
     "FeederWrapper",
     "FeederInterestValidator",
     "BasketManager", // Legacy mUSD contract
+    "SignatureVerifier",
+    "GamifiedManager",
+    "StakedToken",
+    "PlatformTokenVendorFactory",
     "AaveIncentivesController",
     "AaveLendingPoolAddressProvider",
     "AlchemixStakingPool",
@@ -173,6 +178,16 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xeD04Cd19f50F893792357eA53A549E23Baf3F6cB"
             case "DelayedProxyAdmin":
                 return "0x2d369F83E9DC764a759a74e87a9Bc542a2BbfdF0"
+            case "SignatureVerifier":
+                return "0x5Ff8F862092AE846875e745126177fDc03D7234e"
+            case "GamifiedManager":
+                return "0xcD55Eb0Ce6Ee8eEf7b1f828a4f6F6538a3DEAB80"
+            case "StakedToken":
+                return "0x4d8E465ba7FACa907E8A5F39649e056bB14802D1"
+            case "PlatformTokenVendorFactory":
+                return "0xB1dd91A2ceac170122971fdA0Bb8Db9F5f9f03d1"
+            case "RewardsDistributor":
+                return DEAD_ADDRESS
             default:
         }
     }

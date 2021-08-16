@@ -8,7 +8,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Root } from "../../shared/Root.sol";
-import "./GamifiedTokenStructs.sol";
+import { Balance, CooldownData, SafetyData } from "./GamifiedTokenStructs.sol";
 
 /**
  * @title StakedToken
@@ -36,23 +36,12 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     uint256 public immutable UNSTAKE_WINDOW;
     /// @notice A week
     uint256 private constant ONE_WEEK = 7 days;
-
-    struct SafetyData {
-        /// Percentage of collateralisation where 100% = 1e18
-        uint128 collateralisationRatio;
-        /// Slash % where 100% = 1e18
-        uint128 slashingPercentage;
-    }
+    /// @notice cooldown percentage scale where 100% = 1e18. 1% = 1e16
+    uint256 public constant COOLDOWN_PERCENTAGE_SCALE = 1e18;
 
     /// @notice Data relating to the re-collateralisation safety module
     SafetyData public safetyData;
 
-    struct CooldownData {
-        /// Time at which the relative cooldown began
-        uint128 timestamp;
-        /// Percentage of a users funds up for cooldown
-        uint128 percentage;
-    }
     /// @notice Tracks the cooldowns for all users
     mapping(address => CooldownData) public stakersCooldowns;
     /// @notice Whitelisted smart contract integrations
@@ -60,7 +49,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
 
     event Staked(address indexed user, uint256 amount, address delegatee);
     event Withdraw(address indexed user, address indexed to, uint256 amount);
-    event Cooldown(address indexed user);
+    event Cooldown(address indexed user, uint256 percentage);
     event CooldownExited(address indexed user);
     event SlashRateChanged(uint256 newRate);
     event Recollateralised();
@@ -112,7 +101,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     modifier onlyRecollateralisationModule() {
         require(
             _msgSender() == _recollateraliser(),
-            "Only the Recollateralisation Module can call"
+            "Only Recollateralisation Module"
         );
         _;
     }
@@ -121,11 +110,15 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
      * @dev This protects against fn's being called after a recollateralisation event, when the contract is essentially finished
      */
     modifier onlyBeforeRecollateralisation() {
+        _onlyBeforeRecollateralisation();
+        _;
+    }
+
+    function _onlyBeforeRecollateralisation() internal view {
         require(
             safetyData.collateralisationRatio == 1e18,
-            "Function can only be called while fully collateralised"
+            "only while fully collateralised"
         );
-        _;
     }
 
     /**
@@ -133,13 +126,17 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
      * Access may be given to yield optimisers to boost rewards, but creating unlimited and ungoverned wrappers is unadvised.
      */
     modifier assertNotContract() {
+        _assertNotContract();
+        _;
+    }
+
+    function _assertNotContract() internal view {
         if (_msgSender() != tx.origin) {
             require(
                 whitelistedWrappers[_msgSender()],
                 "Transactions from non-whitelisted smart contracts not allowed"
             );
         }
-        _;
     }
 
     /***************************************
@@ -159,7 +156,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
      * @dev Stake an `_amount` of STAKED_TOKEN in the system. This amount is added to the users stake and
      * boosts their voting power.
      * @param _amount Units of STAKED_TOKEN to stake
-     * @param _exitCooldown Bool signalling whether to take this opportunity to cancel any outstanding lockdown and
+     * @param _exitCooldown Bool signalling whether to take this opportunity to end any outstanding cooldown and
      * return the user back to their full voting power
      */
     function stake(uint256 _amount, bool _exitCooldown) external {
@@ -205,7 +202,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         address _delegatee,
         bool _exitCooldown
     ) internal {
-        IERC20(STAKED_TOKEN).safeTransferFrom(_msgSender(), address(this), _amount);
+        STAKED_TOKEN.safeTransferFrom(_msgSender(), address(this), _amount);
         _settleStake(_amount, _delegatee, _exitCooldown);
     }
 
@@ -214,7 +211,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
      * NOTE - Assumes tokens have already been transferred
      * @param _amount Units of STAKED_TOKEN to stake
      * @param _delegatee Address of the user to whom the sender would like to delegate their voting power
-     * @param _exitCooldown Bool signalling whether to take this opportunity to cancel any outstanding lockdown and
+     * @param _exitCooldown Bool signalling whether to take this opportunity to end any outstanding cooldown and
      * return the user back to their full voting power
      */
     function _settleStake(
@@ -231,19 +228,22 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
 
         // 2. Deal with cooldown
         //      If a user is currently in a cooldown period, re-calculate their cooldown timestamp
-        uint256 nextCooldown = getNextCooldownTimestamp(
-            _amount,
-            _msgSender(),
-            balanceOf(_msgSender())
-        );
+        CooldownData memory oldCooldown = stakersCooldowns[_msgSender()];
         //      If we have missed the unstake window, or the user has chosen to exit the cooldown,
         //      then reset the timestamp to 0
         bool exitCooldown = _exitCooldown ||
-            block.timestamp > (nextCooldown + COOLDOWN_SECONDS + UNSTAKE_WINDOW);
+            block.timestamp > (oldCooldown.timestamp + COOLDOWN_SECONDS + UNSTAKE_WINDOW);
         if (exitCooldown) {
             stakersCooldowns[_msgSender()] = CooldownData(0, 0);
+            _exitCooldownPeriod(_msgSender());
+            emit CooldownExited(_msgSender());
         } else {
-            stakersCooldowns[_msgSender()].timestamp = SafeCast.toUint128(nextCooldown);
+            //  Set new percentage so amount being cooled is the same as before the this stake.
+            //  new percentage = old percentage * old staked balance / (old staked balance + new staked amount)
+            uint256 stakedAmountOld = uint256(_balances[_msgSender()].raw);
+            uint256 newPercentage = (oldCooldown.percentage * stakedAmountOld) / (stakedAmountOld + _amount);
+            stakersCooldowns[_msgSender()].percentage = SafeCast.toUint128(newPercentage);
+            _enterCooldownPeriod(_msgSender(), newPercentage);
         }
 
         // 3. Settle the stake by depositing the STAKED_TOKEN and minting voting power
@@ -290,7 +290,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
             // 1. If recollateralisation has occured, the contract is finished and we can skip all checks
             _burnRaw(_msgSender(), _amount, 0);
             // 2. Return a proportionate amount of tokens, based on the collateralisation ratio
-            IERC20(STAKED_TOKEN).safeTransfer(
+            STAKED_TOKEN.safeTransfer(
                 _recipient,
                 (_amount * safetyData.collateralisationRatio) / 1e18
             );
@@ -322,7 +322,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
             uint256 userWithdrawal = (totalWithdraw * 1e18) / (1e18 + feeRate);
 
             //      Check for percentage withdrawal
-            uint256 maxWithdrawal = (balance.raw * cooldown.percentage) / 1e18;
+            uint256 maxWithdrawal = (uint256(balance.raw) * cooldown.percentage) / COOLDOWN_PERCENTAGE_SCALE;
             require(totalWithdraw <= maxWithdrawal, "Exceeds max withdrawal");
 
             // 4. Exit cooldown if the user has specified, or if they have withdrawn everything
@@ -335,7 +335,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
                 // e.g. stake 1000 and have 50% cooldown percentage. Withdraw 400 uses 40% of total
                 //      (500e18-400e18) * 1e18 / (1000e18 - 400e18) = 100e18 / 600e18 = 16e16 (16% of new total allowance)
                 cooldownPercentage = SafeCast.toUint128(
-                    ((maxWithdrawal - totalWithdraw) * 1e18) / (balance.raw - totalWithdraw)
+                    ((maxWithdrawal - totalWithdraw) * COOLDOWN_PERCENTAGE_SCALE) / (uint256(balance.raw) - totalWithdraw)
                 );
                 stakersCooldowns[_msgSender()].percentage = cooldownPercentage;
             }
@@ -345,7 +345,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
             //      Log any redemption fee to the rewards contract
             _notifyAdditionalReward(totalWithdraw - userWithdrawal);
             //      Finally transfer tokens back to recipient
-            IERC20(STAKED_TOKEN).safeTransfer(_recipient, userWithdrawal);
+            STAKED_TOKEN.safeTransfer(_recipient, userWithdrawal);
 
             emit Withdraw(_msgSender(), _recipient, _amount);
         }
@@ -383,7 +383,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
      **/
     function _startCooldown(uint256 _percentage) internal {
         require(balanceOf(_msgSender()) != 0, "INVALID_BALANCE_ON_COOLDOWN");
-        require(_percentage > 0 && _percentage <= 1e18, "Invalid percentage");
+        require(_percentage > 0 && _percentage <= COOLDOWN_PERCENTAGE_SCALE, "Invalid percentage");
 
         stakersCooldowns[_msgSender()] = CooldownData({
             timestamp: SafeCast.toUint128(block.timestamp),
@@ -391,7 +391,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         });
         _enterCooldownPeriod(_msgSender(), _percentage);
 
-        emit Cooldown(_msgSender());
+        emit Cooldown(_msgSender(), _percentage);
     }
 
     /***************************************
@@ -412,8 +412,8 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         // 1. Change collateralisation rate
         safetyData.collateralisationRatio = 1e18 - safetyData.slashingPercentage;
         // 2. Take slashing percentage
-        uint256 balance = IERC20(STAKED_TOKEN).balanceOf(address(this));
-        IERC20(STAKED_TOKEN).transfer(
+        uint256 balance = STAKED_TOKEN.balanceOf(address(this));
+        STAKED_TOKEN.safeTransfer(
             _recollateraliser(),
             (balance * safetyData.slashingPercentage) / 1e18
         );
@@ -531,39 +531,6 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
             _feeRate = _feeRate < 25e15 ? 0 : _feeRate - 25e15;
         } else {
             _feeRate = 1e17;
-        }
-    }
-
-    /**
-     * @notice Resets the cooldown start date taking into account what has already cooled.
-     *      If cooldown has nearly finished and the new staked amount is relatively small,
-     *      then the cooldown start date only moves forward a small amount of time.
-     *
-     *      If cooldown has only just started and the new staked amount is relatively large,
-     *      then the cooldown start date moves forward nearly a week.
-     *
-     *      If staker is not in a cooldown period, return 0.
-     *
-     * @param _stakedAmountToReceive amount of new rewards being staked.
-     * @param _staker Address of the staker depositing rewards.
-     * @param _stakedAmountOld balance of staked amount before new amount is added.
-     * @return nextCooldownTimestamp new cooldown start timestamp or 0.
-     **/
-    function getNextCooldownTimestamp(
-        uint256 _stakedAmountToReceive,
-        address _staker,
-        uint256 _stakedAmountOld
-    ) public view returns (uint256 nextCooldownTimestamp) {
-        uint256 oldCooldownTimestamp = stakersCooldowns[_staker].timestamp;
-        uint256 minimalValidCooldownTimestamp = block.timestamp - COOLDOWN_SECONDS - UNSTAKE_WINDOW;
-
-        // If user has started cooldown and it has not already expired
-        if (oldCooldownTimestamp >= minimalValidCooldownTimestamp) {
-            // next cooldown = current time - (time already cooled * old staked amount / (old staked amount + new amount being staked))
-            uint256 secondsAlreadyCooled = block.timestamp - oldCooldownTimestamp;
-            uint256 weightedSecondsAlreadyCooled = (secondsAlreadyCooled * _stakedAmountOld) /
-                (_stakedAmountOld + _stakedAmountToReceive);
-            nextCooldownTimestamp = block.timestamp - weightedSecondsAlreadyCooled;
         }
     }
 
