@@ -276,8 +276,11 @@ describe("Feeder - Redeem", () => {
         expect(redeemEvent.args.redeemer, "redeemer in RedeemedMulti event").to.eq(sender.address)
         expect(redeemEvent.args.recipient, "recipient in RedeemedMulti event").to.eq(recipient)
         expect(redeemEvent.args.mAssetQuantity, "mAssetQuantity in RedeemedMulti event").to.eq(inputQuantityExpectedExact)
-        expect(redeemEvent.args.outputs, "outputs in RedeemedMulti event").to.deep.eq(outputAssetAddresses)
-        expect(redeemEvent.args.outputQuantity, "outputQuantity in RedeemedMulti event").to.deep.eq(outputQuantitiesExact)
+        expect(redeemEvent.args.outputs, "outputs in RedeemedMulti event").to.eql(outputAssetAddresses)
+        expect(redeemEvent.args.outputQuantity.length, "outputQuantity length RedeemedMulti event").to.eql(outputQuantitiesExact.length)
+        redeemEvent.args.outputQuantity.forEach((qty, i) => {
+            expect(qty, `outputQuantity at index ${i} in RedeemedMulti event`).to.eq(outputQuantitiesExact[i])
+        })
 
         // Recipient should have mAsset quantity after
         const recipientOutputBalancesAfter = await Promise.all(outputAssets.map((b) => b.balanceOf(recipient)))
@@ -336,7 +339,12 @@ describe("Feeder - Redeem", () => {
         expect(redeemEvent.args.recipient, "recipient in RedeemedMulti event").to.eq(recipient)
         expect(redeemEvent.args.mAssetQuantity, "mAssetQuantity in RedeemedMulti event").to.eq(fpTokenQuantityExact)
         expect(redeemEvent.args.outputs, "outputs in RedeemedMulti event").to.deep.eq(outputAssetAddresses)
-        expect(redeemEvent.args.outputQuantity, "outputQuantity in RedeemedMulti event").to.deep.eq(outputQuantitiesExpectedExact)
+        expect(redeemEvent.args.outputQuantity.length, "outputQuantity length RedeemedMulti event").to.eql(
+            outputQuantitiesExpectedExact.length,
+        )
+        redeemEvent.args.outputQuantity.forEach((qty, i) => {
+            expect(qty, `outputQuantity at index ${i} in RedeemedMulti event`).to.eq(outputQuantitiesExpectedExact[i])
+        })
         expect(redeemEvent.args.scaledFee, "scaledFee in RedeemedMulti event").to.gt(0)
 
         // Recipient should have asset quantity after
