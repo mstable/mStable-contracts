@@ -9,6 +9,8 @@ import { utils, BigNumber as BN } from "ethers"
 export const ratioScale = BN.from(10).pow(8)
 export const fullScale: BN = BN.from(10).pow(18)
 
+export const DEFAULT_DECIMALS = 18
+
 export const DEAD_ADDRESS = "0x0000000000000000000000000000000000000001"
 export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 export const ZERO_KEY = "0x0000000000000000000000000000000000000000000000000000000000000000"
