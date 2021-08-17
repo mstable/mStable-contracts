@@ -23,6 +23,7 @@ import { getTimestamp, increaseTime } from "@utils/time"
 import { arrayify, solidityKeccak256 } from "ethers/lib/utils"
 import { BigNumberish, Signer } from "ethers"
 import { QuestStatus, QuestType, UserStakingData } from "types/stakedToken"
+import { usdFormatter } from "tasks/utils"
 
 const signUserQuest = async (user: string, questId: BigNumberish, questSigner: Signer): Promise<string> => {
     const messageHash = solidityKeccak256(["address", "uint256"], [user, questId])
@@ -1157,6 +1158,9 @@ describe("Staked Token", () => {
 
                 await expect(tx).to.emit(stakedToken, "Staked").withArgs(sa.default.address, secondStakeAmount, ZERO_ADDRESS)
                 await expect(tx).to.emit(stakedToken, "DelegateChanged").not
+                const receipt = await tx.wait()
+                console.log(`DelegateVotesChanged previousBalance ${usdFormatter(receipt.events[6].args.previousBalance)}`)
+                console.log(`DelegateVotesChanged newBalance ${usdFormatter(receipt.events[6].args.newBalance)}`)
                 await expect(tx)
                     .to.emit(stakedToken, "DelegateVotesChanged")
                     .withArgs(sa.default.address, stakedAmount, stakedAmount.add(secondStakeAmount))
@@ -1232,8 +1236,9 @@ describe("Staked Token", () => {
     })
     context("withdraw", () => {
         const stakedAmount = simpleToExactAmount(2000)
-        const withdrawAmount = simpleToExactAmount(100)
+        let cooldownTimestamp: BN
         context("should not be possible", () => {
+            const withdrawAmount = simpleToExactAmount(100)
             beforeEach(async () => {
                 stakedToken = await redeployStakedToken()
                 await rewardToken.connect(sa.default.signer).approve(stakedToken.address, stakedAmount)
@@ -1269,29 +1274,40 @@ describe("Staked Token", () => {
                 await expect(stakedToken.withdraw(stakedAmount.add(1), sa.default.address, false, false)).to.reverted
             })
         })
-        context("with no delegate, after cooldown and in unstake window", () => {
+        context("with no delegate, after 100% cooldown and in unstake window", () => {
             let beforeData: UserStakingData
             beforeEach(async () => {
                 stakedToken = await redeployStakedToken()
                 await rewardToken.connect(sa.default.signer).approve(stakedToken.address, stakedAmount)
                 await stakedToken["stake(uint256,address)"](stakedAmount, sa.default.address)
                 await stakedToken.startCooldown(simpleToExactAmount(1))
+                cooldownTimestamp = await getTimestamp()
 
                 await increaseTime(ONE_DAY.mul(7).add(60))
 
                 beforeData = await snapshotUserStakingData(sa.default.address)
+                expect(beforeData.userBalances.raw, "staked raw balance before").to.eq(stakedAmount)
+                expect(beforeData.stakedBalance, "staker staked before").to.eq(0)
+                expect(beforeData.votes, "staker votes before").to.eq(0)
+                expect(beforeData.rewardsBalance, "staker rewards before").to.eq(startingMintAmount.sub(stakedAmount))
+                expect(beforeData.cooldownTimestamp, "cooldown timestamp before").to.eq(cooldownTimestamp)
+                expect(beforeData.cooldownPercentage, "cooldown percentage before").to.eq(simpleToExactAmount(1))
+                expect(beforeData.userBalances.cooldownMultiplier, "cooldown multiplier before").to.eq(100)
             })
             it("partial withdraw not including fee", async () => {
+                const withdrawAmount = simpleToExactAmount(100)
                 const tx2 = await stakedToken.withdraw(withdrawAmount, sa.default.address, false, false)
                 await expect(tx2).to.emit(stakedToken, "Withdraw").withArgs(sa.default.address, sa.default.address, withdrawAmount)
 
                 const afterData = await snapshotUserStakingData(sa.default.address)
-                // TODO calculate withdraw fee
-                // expect(afterData.stakedBalance).to.eq(beforeData.stakedBalance.sub(withdrawAmount))
-                // expect(afterData.votes).to.eq(beforeData.votes.sub(withdrawAmount))
-                expect(afterData.rewardsBalance, "staker rewards after").to.eq(beforeData.rewardsBalance.add(withdrawAmount))
+                expect(beforeData.stakedBalance, "staker staked after").to.eq(0)
+                expect(beforeData.votes, "staker votes after").to.eq(0)
                 expect(afterData.cooldownTimestamp, "cooldown timestamp after").to.eq(beforeData.cooldownTimestamp)
                 expect(afterData.cooldownPercentage, "cooldown percentage after").to.eq(beforeData.cooldownPercentage)
+                expect(afterData.userBalances.cooldownMultiplier, "cooldown multiplier after").to.eq(100)
+                expect(beforeData.userBalances.raw, "staked raw balance after").to.eq(stakedAmount.sub(withdrawAmount))
+                // TODO calculate withdraw fee which will come off the withdraw amount
+                // expect(afterData.rewardsBalance, "staker rewards after").to.eq(beforeData.rewardsBalance.add(withdrawAmount))
             })
             it("full withdraw including fee", async () => {
                 const tx2 = await stakedToken.withdraw(stakedAmount, sa.default.address, true, true)
@@ -1300,11 +1316,74 @@ describe("Staked Token", () => {
                 const afterData = await snapshotUserStakingData(sa.default.address)
                 expect(afterData.stakedBalance, "staker stkRWD after").to.eq(0)
                 expect(afterData.votes, "staker votes after").to.eq(0)
-                // TODO calculate withdraw fee
-                // expect(afterData.rewardsBalance, "staker rewards after").to.eq(beforeData.rewardsBalance.add(stakedAmount))
-                // const stakerCooldownAfter = await stakedToken.stakersCooldowns(sa.default.address)
                 expect(afterData.cooldownTimestamp, "staked cooldown start").to.eq(0)
                 expect(afterData.cooldownPercentage, "staked cooldown percentage").to.eq(0)
+                expect(afterData.userBalances.cooldownMultiplier, "cooldown multiplier after").to.eq(0)
+                expect(beforeData.userBalances.raw, "staked raw balance after").to.eq(0)
+                // TODO calculate withdraw fee
+                // expect(afterData.rewardsBalance, "staker rewards after").to.eq(beforeData.rewardsBalance.add(stakedAmount))
+            })
+            it("not reset the cooldown timer unless all is all unstaked")
+            it("apply a redemption fee which is added to the pendingRewards from the rewards contract")
+            it("distribute these pendingAdditionalReward with the next notification")
+        })
+        context("with no delegate, after 70% cooldown and in unstake window", () => {
+            let beforeData: UserStakingData
+            const remainingBalance = stakedAmount.mul(3).div(10)
+            // 2000 * 0.7 = 1400
+            const cooldownAmount = stakedAmount.mul(7).div(10)
+            beforeEach(async () => {
+                stakedToken = await redeployStakedToken()
+                await rewardToken.connect(sa.default.signer).approve(stakedToken.address, stakedAmount)
+                await stakedToken["stake(uint256,address)"](stakedAmount, sa.default.address)
+                await stakedToken.startCooldown(simpleToExactAmount(0.7))
+                cooldownTimestamp = await getTimestamp()
+
+                await increaseTime(ONE_DAY.mul(7).add(60))
+
+                beforeData = await snapshotUserStakingData(sa.default.address)
+                expect(beforeData.userBalances.raw, "staked raw balance before").to.eq(stakedAmount)
+                expect(beforeData.stakedBalance, "staker staked before").to.eq(remainingBalance)
+                expect(beforeData.votes, "staker votes before").to.eq(remainingBalance)
+                expect(beforeData.rewardsBalance, "staker rewards before").to.eq(startingMintAmount.sub(stakedAmount))
+                expect(beforeData.cooldownTimestamp, "cooldown timestamp before").to.eq(cooldownTimestamp)
+                expect(beforeData.cooldownPercentage, "cooldown percentage before").to.eq(simpleToExactAmount(0.7))
+                expect(beforeData.userBalances.cooldownMultiplier, "cooldown multiplier before").to.eq(70)
+            })
+            it("partial withdraw not including fee", async () => {
+                const withdrawAmount = simpleToExactAmount(300)
+                const tx2 = await stakedToken.withdraw(withdrawAmount, sa.default.address, false, false)
+                await expect(tx2).to.emit(stakedToken, "Withdraw").withArgs(sa.default.address, sa.default.address, withdrawAmount)
+
+                const afterData = await snapshotUserStakingData(sa.default.address)
+                expect(beforeData.stakedBalance, "staker staked after").to.eq(remainingBalance)
+                expect(beforeData.votes, "staker votes after").to.eq(remainingBalance)
+                expect(afterData.cooldownTimestamp, "cooldown timestamp after").to.eq(beforeData.cooldownTimestamp)
+                // 1400 / 2000 * 100 = 70
+                // (1400 - 300) / (2000 - 300) * 1e18 = 64.7058824e16
+                const newCooldownPercentage = cooldownAmount
+                    .sub(withdrawAmount)
+                    .mul(simpleToExactAmount(1))
+                    .div(stakedAmount.sub(withdrawAmount))
+                expect(afterData.cooldownPercentage, "cooldown percentage after").to.eq(newCooldownPercentage)
+                expect(afterData.userBalances.cooldownMultiplier, "cooldown multiplier after").to.eq(64)
+                expect(beforeData.userBalances.raw, "staked raw balance after").to.eq(stakedAmount.sub(withdrawAmount))
+                // TODO calculate withdraw fee which will come off the withdraw amount
+                // expect(afterData.rewardsBalance, "staker rewards after").to.eq(beforeData.rewardsBalance.add(withdrawAmount))
+            })
+            it("full withdraw including fee", async () => {
+                const tx2 = await stakedToken.withdraw(cooldownAmount, sa.default.address, true, true)
+                await expect(tx2).to.emit(stakedToken, "Withdraw").withArgs(sa.default.address, sa.default.address, cooldownAmount)
+
+                const afterData = await snapshotUserStakingData(sa.default.address)
+                expect(afterData.stakedBalance, "staker stkRWD after").to.eq(remainingBalance)
+                expect(afterData.votes, "staker votes after").to.eq(remainingBalance)
+                expect(afterData.cooldownTimestamp, "staked cooldown start").to.eq(0)
+                expect(afterData.cooldownPercentage, "staked cooldown percentage").to.eq(0)
+                expect(afterData.userBalances.cooldownMultiplier, "cooldown multiplier after").to.eq(0)
+                expect(beforeData.userBalances.raw, "staked raw balance after").to.eq(stakedAmount.sub(cooldownAmount))
+                // TODO calculate withdraw fee
+                // expect(afterData.rewardsBalance, "staker rewards after").to.eq(beforeData.rewardsBalance.add(stakedAmount))
             })
             it("not reset the cooldown timer unless all is all unstaked")
             it("apply a redemption fee which is added to the pendingRewards from the rewards contract")

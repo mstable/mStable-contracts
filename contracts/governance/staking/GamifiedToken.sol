@@ -474,7 +474,7 @@ abstract contract GamifiedToken is
         }
 
         // 2. Change the cooldown percentage based on size of recent withdrawal
-        _balances[_account].cooldownMultiplier = SafeCast.toUint16(_cooldownPercentage / 1e18);
+        _balances[_account].cooldownMultiplier = SafeCast.toUint16(_cooldownPercentage / 1e16);
 
         // 3. Set back scaled time
         // e.g. stake 10 for 100 seconds, withdraw 5.
