@@ -1297,7 +1297,7 @@ describe("Staked Token", () => {
             })
         })
     })
-    context.only("withdraw", () => {
+    context.skip("withdraw", () => {
         const stakedAmount = simpleToExactAmount(2000)
         let cooldownTimestamp: BN
         context("should not be possible", () => {

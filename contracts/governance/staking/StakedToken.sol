@@ -326,7 +326,6 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
             uint256 feeRate = calcRedemptionFeeRate(balance.weightedTimestamp);
             //      fee = amount * 1e18 / feeRate
             //      totalAmount = amount + fee
-            //      fee = amount * (1e18 - feeRate) / 1e18
             uint256 totalWithdraw = _amountIncludesFee
                 ? _amount
                 : (_amount * (1e18 + feeRate)) / 1e18;
