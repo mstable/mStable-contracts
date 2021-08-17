@@ -238,7 +238,10 @@ abstract contract GamifiedToken is
         for (uint256 i = 0; i < len; i++) {
             require(_validQuest(_ids[i]), "Err: Invalid Quest");
             require(!hasCompleted(_account, _ids[i]), "Err: Already Completed");
-            require(SignatureVerifier.verify(_signer, _account, _ids[i], _signatures[i]), "Err: Invalid Signature");
+            require(
+                SignatureVerifier.verify(_signer, _account, _ids[i], _signatures[i]),
+                "Err: Invalid Signature"
+            );
 
             // store user quest has completed
             _questCompletion[_account][_ids[i]] = true;
@@ -416,12 +419,12 @@ abstract contract GamifiedToken is
      * Importantly, when a user stakes more, their weightedTimestamp is reduced proportionate to their stake.
      * @param _account Address of user to credit
      * @param _rawAmount Raw amount of tokens staked
-     * @param _exitCooldown Reset the users cooldown slash
+     * @param _newPercentage Set the users cooldown slash
      */
     function _mintRaw(
         address _account,
         uint256 _rawAmount,
-        bool _exitCooldown
+        uint256 _newPercentage
     ) internal virtual updateReward(_account) {
         require(_account != address(0), "ERC20: mint to the zero address");
 
@@ -430,7 +433,7 @@ abstract contract GamifiedToken is
         _balances[_account].raw = oldBalance.raw + SafeCast.toUint128(_rawAmount);
 
         // 2. Exit cooldown if necessary
-        if (_exitCooldown) _balances[_account].cooldownMultiplier = 0;
+        _balances[_account].cooldownMultiplier = SafeCast.toUint16(_newPercentage / 1e16);
 
         // 3. Set weighted timestamp
         //  i) For new _account, set up weighted timestamp
@@ -441,7 +444,8 @@ abstract contract GamifiedToken is
         }
         //  ii) For previous minters, recalculate time held
         //      Calc new weighted timestamp
-        uint256 oldWeighredSecondsHeld = (block.timestamp - oldBalance.weightedTimestamp) * oldBalance.raw;
+        uint256 oldWeighredSecondsHeld = (block.timestamp - oldBalance.weightedTimestamp) *
+            oldBalance.raw;
         uint256 newSecondsHeld = oldWeighredSecondsHeld / (oldBalance.raw + (_rawAmount / 2));
         uint32 newWeightedTs = SafeCast.toUint32(block.timestamp - newSecondsHeld);
         _balances[_account].weightedTimestamp = newWeightedTs;
