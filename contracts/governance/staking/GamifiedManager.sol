@@ -2,10 +2,9 @@
 pragma solidity 0.8.6;
 
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { Balance, Checkpoint, Quest, QuestType, QuestStatus } from "./GamifiedTokenStructs.sol";
-// import { SignatureVerifier } from "./deps/SignatureVerifier.sol";
+import "./GamifiedTokenStructs.sol";
 
- /**
+/**
  * @title   GamifiedManager
  * @author  mStable
  * @notice  library to reduce the size of the GamifiedToken contract.
@@ -13,7 +12,6 @@ import { Balance, Checkpoint, Quest, QuestType, QuestStatus } from "./GamifiedTo
  *          DATE:    2021-08-11
  */
 library GamifiedManager {
-
     event QuestAdded(
         address questMaster,
         uint256 id,

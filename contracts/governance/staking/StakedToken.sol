@@ -2,13 +2,15 @@
 pragma solidity 0.8.6;
 pragma abicoder v2;
 
+import "hardhat/console.sol";
+
 import { IStakedToken } from "./interfaces/IStakedToken.sol";
 import { GamifiedVotingToken } from "./GamifiedVotingToken.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Root } from "../../shared/Root.sol";
-import { Balance, CooldownData, SafetyData } from "./GamifiedTokenStructs.sol";
+import "./GamifiedTokenStructs.sol";
 
 /**
  * @title StakedToken
@@ -39,8 +41,22 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     /// @notice cooldown percentage scale where 100% = 1e18. 1% = 1e16
     uint256 public constant COOLDOWN_PERCENTAGE_SCALE = 1e18;
 
+    struct SafetyData {
+        /// Percentage of collateralisation where 100% = 1e18
+        uint128 collateralisationRatio;
+        /// Slash % where 100% = 1e18
+        uint128 slashingPercentage;
+    }
+
     /// @notice Data relating to the re-collateralisation safety module
     SafetyData public safetyData;
+
+    struct CooldownData {
+        /// Time at which the relative cooldown began
+        uint128 timestamp;
+        /// Percentage of a users funds up for cooldown where 100% = 1e18
+        uint128 percentage;
+    }
 
     /// @notice Tracks the cooldowns for all users
     mapping(address => CooldownData) public stakersCooldowns;
@@ -112,7 +128,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     }
 
     function _onlyBeforeRecollateralisation() internal view {
-        require(safetyData.collateralisationRatio == 1e18, "only while fully collateralised");
+        require(safetyData.collateralisationRatio == 1e18, "Only while fully collateralised");
     }
 
     /**
@@ -239,7 +255,6 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
                 (oldCooldown.percentage * stakedAmountOld) /
                 (stakedAmountOld + _amount);
             stakersCooldowns[_msgSender()].percentage = SafeCast.toUint128(newPercentage);
-            _enterCooldownPeriod(_msgSender(), newPercentage);
         }
 
         // 3. Settle the stake by depositing the STAKED_TOKEN and minting voting power
@@ -335,6 +350,8 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
                     ((maxWithdrawal - totalWithdraw) * COOLDOWN_PERCENTAGE_SCALE) /
                         (uint256(balance.raw) - totalWithdraw)
                 );
+                console.log("max, total, user");
+                console.log(maxWithdrawal, totalWithdraw, userWithdrawal);
                 stakersCooldowns[_msgSender()].percentage = cooldownPercentage;
             }
 

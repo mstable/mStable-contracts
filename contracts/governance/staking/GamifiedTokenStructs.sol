@@ -18,16 +18,19 @@ struct Balance {
     /// shows if a user has entered their cooldown ready for a withdrawal. Can be used to slash voting balance
     uint16 cooldownMultiplier;
 }
+
 /// @notice Quests can either give permanent rewards or only for the season
 enum QuestType {
     PERMANENT,
     SEASONAL
 }
+
 /// @notice Quests can be turned off by the questMaster. All those who already completed remain
 enum QuestStatus {
     ACTIVE,
     EXPIRED
 }
+
 struct Quest {
     /// Type of quest rewards
     QuestType model;
@@ -37,23 +40,4 @@ struct Quest {
     QuestStatus status;
     /// Expiry date in seconds for the quest
     uint32 expiry;
-}
-
-struct SafetyData {
-    /// Percentage of collateralisation where 100% = 1e18
-    uint128 collateralisationRatio;
-    /// Slash % where 100% = 1e18
-    uint128 slashingPercentage;
-}
-
-struct CooldownData {
-    /// Time at which the relative cooldown began
-    uint128 timestamp;
-    /// Percentage of a users funds up for cooldown where 100% = 1e18
-    uint128 percentage;
-}
-
-struct Checkpoint {
-    uint32 fromBlock;
-    uint224 votes;
 }

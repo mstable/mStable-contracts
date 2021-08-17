@@ -7,8 +7,8 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { ILockedERC20 } from "./interfaces/ILockedERC20.sol";
 import { SignatureVerifier } from "./deps/SignatureVerifier.sol";
 import { HeadlessStakingRewards } from "../../rewards/staking/HeadlessStakingRewards.sol";
+import { GamifiedManager } from "./GamifiedManager.sol";
 import "./GamifiedTokenStructs.sol";
-import "./GamifiedManager.sol";
 
 /**
  * @title GamifiedToken
