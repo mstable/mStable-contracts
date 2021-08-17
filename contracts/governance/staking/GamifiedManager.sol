@@ -70,7 +70,7 @@ library GamifiedManager {
      * @param _id Quest ID (its position in the array)
      */
     function expireQuest(Quest[] storage _quests, uint16 _id) external {
-        require(_quests.length >= _id, "Quest does not exist");
+        require(_id < _quests.length, "Quest does not exist");
         require(_quests[_id].status == QuestStatus.ACTIVE, "Quest already expired");
 
         _quests[_id].status = QuestStatus.EXPIRED;

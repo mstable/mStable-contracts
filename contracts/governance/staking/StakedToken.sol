@@ -230,7 +230,6 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         uint256 newPercentage = 0;
         if (exitCooldown) {
             stakersCooldowns[_msgSender()] = CooldownData(0, 0);
-            _exitCooldownPeriod(_msgSender());
             emit CooldownExited(_msgSender());
         } else {
             //  Set new percentage so amount being cooled is the same as before the this stake.
@@ -431,7 +430,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         onlyBeforeRecollateralisation
     {
         require(safetyData.collateralisationRatio == 1e18, "Process already begun");
-        require(_newRate <= 5e18, "Cannot exceed 50%");
+        require(_newRate <= 5e17, "Cannot exceed 50%");
 
         safetyData.slashingPercentage = SafeCast.toUint128(_newRate);
 

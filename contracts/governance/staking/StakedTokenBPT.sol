@@ -50,7 +50,7 @@ contract StakedTokenBPT is StakedToken {
      */
     function claimBal() external {
         uint256 balance = BAL.balanceOf(address(this));
-        BAL.transfer(balRecipient, balance);
+        BAL.safeTransfer(balRecipient, balance);
 
         emit BalClaimed();
     }
