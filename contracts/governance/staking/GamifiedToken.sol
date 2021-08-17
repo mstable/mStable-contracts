@@ -269,7 +269,7 @@ abstract contract GamifiedToken is
      */
     function _validQuest(uint256 _id) internal view returns (bool) {
         return
-            _quests.length >= _id &&
+            _id < _quests.length &&
             _quests[_id].status == QuestStatus.ACTIVE &&
             block.timestamp < _quests[_id].expiry;
     }
